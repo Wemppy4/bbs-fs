@@ -12,6 +12,7 @@ import mchorse.bbs_mod.cubic.animation.Animator;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
 import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
@@ -70,6 +71,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     private ActionsConfig lastConfigs;
     private IAnimator animator;
     private ModelInstance lastModel;
+    private boolean ikAppliedThisRender;
 
     private IEntity entity = new StubEntity();
 
@@ -287,6 +289,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
     private void renderModel(IEntity target, Supplier<ShaderProgram> program, MatrixStack stack, ModelInstance model, int light, int overlay, Color color, boolean ui, StencilMap stencilMap, float transition)
     {
+        this.ikAppliedThisRender = false;
+
         if (!model.culling)
         {
             RenderSystem.disableCull();
@@ -309,6 +313,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             newStack.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
             newStack.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
         }
+
+        this.applyIKOnce(model);
 
         model.render(newStack, program, color, light, overlay, stencilMap, this.form.shapeKeys.get());
 
@@ -334,6 +340,17 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 this.renderArmor(target, stack, entry.getKey(), entry.getValue(), color, overlay, light);
             }
         }
+    }
+
+    private void applyIKOnce(ModelInstance model)
+    {
+        if (this.ikAppliedThisRender)
+        {
+            return;
+        }
+
+        this.ikAppliedThisRender = true;
+        ModelIKRuntime.apply(model);
     }
 
     private void renderArmor(IEntity target, MatrixStack stack, ArmorType type, ArmorSlot armorSlot, Color color, int overlay, int light)

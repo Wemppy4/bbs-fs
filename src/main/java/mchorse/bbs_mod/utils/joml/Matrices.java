@@ -123,4 +123,42 @@ public class Matrices
 
         return new Vector3f((float) pitch, (float) yaw, (float) roll);
     }
+
+    public static Quaternionf toQuaternionZYXDegrees(float xDeg, float yDeg, float zDeg)
+    {
+        float x = (float) (xDeg * Math.PI / 180.0);
+        float y = (float) (yDeg * Math.PI / 180.0);
+        float z = (float) (zDeg * Math.PI / 180.0);
+
+        return new Quaternionf().rotationZYX(z, y, x);
+    }
+
+    public static Vector3f toEulerZYXDegrees(Quaternionf q)
+    {
+        Vector3f radZYX = new Vector3f();
+
+        new Quaternionf(q).normalize().getEulerAnglesZYX(radZYX);
+
+        return radZYX.mul((float) (180.0 / Math.PI));
+    }
+
+    public static Quaternionf fromToMirroredX(Vector3f restDirLocal, Vector3f desiredDirLocal)
+    {
+        Vector3f restM = new Vector3f(restDirLocal);
+        Vector3f desM = new Vector3f(desiredDirLocal);
+
+        restM.x = -restM.x;
+        desM.x = -desM.x;
+
+        restM.normalize();
+        desM.normalize();
+
+        Quaternionf qMir = new Quaternionf().rotationTo(restM, desM);
+
+        Matrix3f rotMir = TEMP_3F.identity().set(qMir);
+        Matrix3f mirror = new Matrix3f().scaling(-1F, 1F, 1F);
+        Matrix3f rot = new Matrix3f(mirror).mul(rotMir).mul(mirror);
+
+        return new Quaternionf().setFromNormalized(rot);
+    }
 }

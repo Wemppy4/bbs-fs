@@ -3,6 +3,7 @@ package mchorse.bbs_mod.cubic.model;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.MolangHelper;
+import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.model.loaders.BOBJModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.CubicModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.GeoCubicModelLoader;
@@ -162,6 +163,7 @@ public class ModelManager implements IWatchDogListener
         }
 
         this.models.clear();
+        ModelIKRuntime.clearCache();
         PoseManager.INSTANCE.clear();
         ShapeKeysManager.INSTANCE.clear();
         this.setupLoaders();
@@ -185,7 +187,8 @@ public class ModelManager implements IWatchDogListener
             || link.path.endsWith(".obj")
             || link.path.endsWith(".animation.json")
             || link.path.endsWith(".vox")
-            || link.path.endsWith("/config.json");
+            || link.path.endsWith("/config.json")
+            || link.path.endsWith("/ik.json");
     }
 
     /**
@@ -206,6 +209,11 @@ public class ModelManager implements IWatchDogListener
         {
             String key = StringUtils.parentPath(link.path.substring(MODELS_PREFIX.length()));
             ModelInstance model = this.models.remove(key);
+
+            if (link.path.endsWith("/ik.json"))
+            {
+                ModelIKRuntime.invalidate(key);
+            }
 
             if (model != null)
             {
