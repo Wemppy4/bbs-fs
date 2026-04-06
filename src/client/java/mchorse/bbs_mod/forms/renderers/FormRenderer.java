@@ -103,7 +103,15 @@ public abstract class FormRenderer <T extends Form>
         boolean isPicking = context.stencilMap != null;
 
         context.stack.push();
+        if (context.world != null)
+        {
+            context.world.push();
+        }
         this.applyTransforms(context.stack, false, context.getTransition());
+        if (context.world != null)
+        {
+            this.applyTransforms(context.world, false, context.getTransition());
+        }
 
         float lf = 1F - MathUtils.clamp(this.form.lighting.get(), 0F, 1F);
         int u = context.light & '\uffff';
@@ -122,6 +130,10 @@ public abstract class FormRenderer <T extends Form>
         this.renderBodyParts(context);
 
         context.stack.pop();
+        if (context.world != null)
+        {
+            context.world.pop();
+        }
 
         context.light = light;
 
@@ -219,11 +231,23 @@ public abstract class FormRenderer <T extends Form>
         if (part.getForm() != null)
         {
             context.stack.push();
+            if (context.world != null)
+            {
+                context.world.push();
+            }
             MatrixStackUtils.applyTransform(context.stack, part.transform.get());
+            if (context.world != null)
+            {
+                MatrixStackUtils.applyTransform(context.world, part.transform.get());
+            }
 
             FormUtilsClient.render(part.getForm(), context);
 
             context.stack.pop();
+            if (context.world != null)
+            {
+                context.world.pop();
+            }
         }
 
         context.entity = oldEntity;

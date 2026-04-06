@@ -17,7 +17,6 @@ import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
-import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.ITickable;
@@ -53,7 +52,6 @@ import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
@@ -291,7 +289,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
     }
 
-    private void renderModel(IEntity target, Supplier<ShaderProgram> program, MatrixStack stack, ModelInstance model, int light, int overlay, Color color, boolean ui, StencilMap stencilMap, float transition, Camera camera)
+    private void renderModel(IEntity target, Supplier<ShaderProgram> program, MatrixStack stack, ModelInstance model, int light, int overlay, Color color, boolean ui, StencilMap stencilMap, float transition, MatrixStack world)
     {
         this.ikAppliedThisRender = false;
         this.physicsAppliedThisRender = false;
@@ -320,7 +318,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
 
         this.applyIKOnce(model);
-        this.applyPhysicsOnce(target, model, transition, this.getWorldTransform(newStack.peek().getPositionMatrix(), camera, ui));
+        this.applyPhysicsOnce(target, model, transition, ui || world == null ? null : new Matrix4f(world.peek().getPositionMatrix()));
 
         model.render(newStack, program, color, light, overlay, stencilMap, this.form.shapeKeys.get());
 
@@ -368,24 +366,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         this.physicsAppliedThisRender = true;
         ModelPhysicsRuntime.apply(target, model, transition, baseTransform);
-    }
-
-    private Matrix4f getWorldTransform(Matrix4f positionMatrix, Camera camera, boolean ui)
-    {
-        if (ui || camera == null)
-        {
-            return null;
-        }
-
-        Matrix4f matrix = new Matrix4f(RenderSystem.getInverseViewRotationMatrix());
-
-        matrix.mul(positionMatrix);
-
-        Vector3f translation = matrix.getTranslation(new Vector3f());
-        translation.add((float) camera.position.x, (float) camera.position.y, (float) camera.position.z);
-        matrix.setTranslation(translation);
-
-        return matrix;
     }
 
     private void renderArmor(IEntity target, MatrixStack stack, ArmorType type, ArmorSlot armorSlot, Color color, int overlay, int light)
@@ -556,6 +536,10 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             model.model.applyPose(this.getPose());
 
             context.stack.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
+            if (context.world != null)
+            {
+                context.world.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
+            }
 
             BBSModClient.getTextures().bindTexture(texture);
 
@@ -564,7 +548,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 : BBSShaders::getModel;
             Supplier<ShaderProgram> shader = this.getShader(context, mainShader, BBSShaders::getPickerModelsProgram);
 
-            this.renderModel(context.entity, shader, context.stack, model, context.light, context.overlay, color, false, context.stencilMap, context.getTransition(), context.camera);
+            this.renderModel(context.entity, shader, context.stack, model, context.light, context.overlay, color, false, context.stencilMap, context.getTransition(), context.world);
         }
     }
 
@@ -591,29 +575,53 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     public void renderBodyParts(FormRenderingContext context)
     {
         context.stack.push();
+        if (context.world != null)
+        {
+            context.world.push();
+        }
 
         for (BodyPart part : this.form.parts.getAllTyped())
         {
             Matrix4f matrix = this.bones.get(part.bone.get()).matrix();
 
             context.stack.push();
+            if (context.world != null)
+            {
+                context.world.push();
+            }
 
             if (matrix != null)
             {
                 MatrixStackUtils.multiply(context.stack, matrix);
+                if (context.world != null)
+                {
+                    MatrixStackUtils.multiply(context.world, matrix);
+                }
             }
             else
             {
                 context.stack.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
+                if (context.world != null)
+                {
+                    context.world.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
+                }
             }
 
             this.renderBodyPart(part, context);
 
             context.stack.pop();
+            if (context.world != null)
+            {
+                context.world.pop();
+            }
         }
 
         this.bones.clear();
         context.stack.pop();
+        if (context.world != null)
+        {
+            context.world.pop();
+        }
     }
 
     @Override
