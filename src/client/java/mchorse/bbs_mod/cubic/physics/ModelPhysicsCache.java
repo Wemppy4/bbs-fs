@@ -148,7 +148,7 @@ final class ModelPhysicsCache
 
             List<String> ids = buildChainIds(end, root);
 
-            if (ids.size() < 2)
+            if (ids.isEmpty())
             {
                 continue;
             }
@@ -199,12 +199,37 @@ final class ModelPhysicsCache
     {
         int n = ids.size();
 
-        if (n < 2)
-        {
-            return null;
-        }
-
         float[] lengths = new float[n];
+
+        if (n == 1)
+        {
+            ModelGroup bone = model.getGroup(ids.get(0));
+
+            if (bone == null)
+            {
+                return null;
+            }
+
+            float len = 0.25F;
+
+            if (bone.children != null && !bone.children.isEmpty())
+            {
+                ModelGroup child = bone.children.get(0);
+                float dx = (child.initial.translate.x - bone.initial.translate.x) / 16F;
+                float dy = (child.initial.translate.y - bone.initial.translate.y) / 16F;
+                float dz = (child.initial.translate.z - bone.initial.translate.z) / 16F;
+                len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            }
+
+            if (len <= 1.0e-6f)
+            {
+                len = 1.0e-6f;
+            }
+
+            lengths[0] = len;
+
+            return lengths;
+        }
 
         for (int i = 0; i < n - 1; i++)
         {

@@ -146,7 +146,7 @@ public class CubicRenderer
 
     public static void applyRotations(Model model, Quaternionf rootParentRotation, List<String> ids, Vector3f[] positions)
     {
-        if (model == null || rootParentRotation == null || ids == null || positions == null || ids.size() < 2 || positions.length < 2)
+        if (model == null || rootParentRotation == null || ids == null || positions == null || ids.isEmpty() || positions.length < 2)
         {
             return;
         }
@@ -174,14 +174,26 @@ public class CubicRenderer
             }
             else
             {
-                ModelGroup parent = model.getGroup(ids.get(i - 1));
-
-                if (parent == null)
+                if (boneCount >= 2)
                 {
-                    return;
-                }
+                    ModelGroup parent = model.getGroup(ids.get(i - 1));
 
-                restDirLocal = new Vector3f(bone.initial.translate).sub(parent.initial.translate).mul(1.0f / 16.0f);
+                    if (parent == null)
+                    {
+                        return;
+                    }
+
+                    restDirLocal = new Vector3f(bone.initial.translate).sub(parent.initial.translate).mul(1.0f / 16.0f);
+                }
+                else if (bone.children != null && !bone.children.isEmpty())
+                {
+                    ModelGroup firstChild = bone.children.get(0);
+                    restDirLocal = new Vector3f(firstChild.initial.translate).sub(bone.initial.translate).mul(1.0f / 16.0f);
+                }
+                else
+                {
+                    restDirLocal = new Vector3f(0F, -1F, 0F);
+                }
             }
 
             Vector3f desiredDirWorld = new Vector3f(positions[i + 1]).sub(positions[i]);

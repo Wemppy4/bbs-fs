@@ -137,7 +137,7 @@ public final class ModelPhysicsRuntime
         int pivotCount = ids.size();
         int pointCount = pivotCount + 1;
 
-        if (pivotCount < 2)
+        if (pivotCount < 1)
         {
             return;
         }
@@ -284,15 +284,24 @@ public final class ModelPhysicsRuntime
                 state.prev[i].set(p);
             }
 
-            Vector3f tipDir = new Vector3f(state.pos[chainFrames.size() - 1]).sub(state.pos[chainFrames.size() - 2]);
+            Vector3f tipDir;
 
-            if (tipDir.lengthSquared() < EPS * EPS)
+            if (chainFrames.size() >= 2)
             {
-                tipDir.set(0F, -1F, 0F);
+                tipDir = new Vector3f(state.pos[chainFrames.size() - 1]).sub(state.pos[chainFrames.size() - 2]);
+
+                if (tipDir.lengthSquared() < EPS * EPS)
+                {
+                    tipDir.set(0F, -1F, 0F);
+                }
+                else
+                {
+                    tipDir.normalize();
+                }
             }
             else
             {
-                tipDir.normalize();
+                tipDir = new Vector3f(0F, -1F, 0F);
             }
 
             state.pos[state.pos.length - 1].set(state.pos[chainFrames.size() - 1]).add(tipDir.mul(lengths[lengths.length - 1]));
