@@ -33,6 +33,8 @@ public class ParticleManager extends BaseManager<ParticleScheme>
             {
                 e.printStackTrace();
             }
+
+            scheme.setup();
         }
         else
         {

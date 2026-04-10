@@ -138,6 +138,11 @@ public class ParticleEmitter
             return;
         }
 
+        if (this.scheme.emitterInitializes == null)
+        {
+            this.scheme.setup();
+        }
+
         this.lit = true;
         this.stop();
         this.start();
