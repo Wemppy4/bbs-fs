@@ -34,6 +34,8 @@ public class UIKeyframeEditor extends UIElement
 
     private UIElement target;
     private Supplier<Integer> editPanelTopOffsetPx;
+    private boolean timelineVisible = true;
+    private boolean propertiesVisible = true;
 
     public UIKeyframeEditor(Function<Consumer<Keyframe>, UIKeyframes> factory)
     {
@@ -97,10 +99,27 @@ public class UIKeyframeEditor extends UIElement
             }
 
             this.add(this.editor);
+            this.editor.setVisible(this.propertiesVisible);
             this.resize();
         }
 
         this.resize();
+    }
+
+    public void setTimelineVisible(boolean visible)
+    {
+        this.timelineVisible = visible;
+        this.view.setVisible(visible);
+    }
+
+    public void setPropertiesVisible(boolean visible)
+    {
+        this.propertiesVisible = visible;
+
+        if (this.editor != null)
+        {
+            this.editor.setVisible(visible);
+        }
     }
 
     /** Re-applies edit panel position (e.g. after layout lock toggle). */

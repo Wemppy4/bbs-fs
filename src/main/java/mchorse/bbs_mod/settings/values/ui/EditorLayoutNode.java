@@ -1,9 +1,12 @@
 package mchorse.bbs_mod.settings.values.ui;
 
 import mchorse.bbs_mod.data.types.BaseType;
+import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.MathUtils;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +14,7 @@ public abstract class EditorLayoutNode
 {
     public static final String TYPE_SPLITTER = "splitter";
     public static final String TYPE_PANEL = "panel";
+    public static final String TYPE_STACK = "stack";
     public static final String DIR_V = "v";
     public static final String DIR_H = "h";
 
@@ -63,6 +67,49 @@ public abstract class EditorLayoutNode
             return new PanelNode(id);
         }
 
+        if (TYPE_STACK.equals(type))
+        {
+            List<String> panelIds = new ArrayList<>();
+
+            if (map.has("ids", BaseType.TYPE_LIST))
+            {
+                for (BaseType typeId : map.getList("ids"))
+                {
+                    if (typeId == null || !typeId.isString())
+                    {
+                        continue;
+                    }
+
+                    String id = typeId.asString();
+
+                    if (!id.isEmpty())
+                    {
+                        panelIds.add(id);
+                    }
+                }
+            }
+            else if (map.has("id", BaseType.TYPE_STRING))
+            {
+                String id = map.getString("id", "");
+
+                if (!id.isEmpty())
+                {
+                    panelIds.add(id);
+                }
+            }
+
+            panelIds = normalizePanelIds(panelIds);
+
+            if (panelIds.isEmpty())
+            {
+                return null;
+            }
+
+            String active = map.getString("active", panelIds.get(0));
+
+            return new StackNode(panelIds, active);
+        }
+
         return defaultFilmLayout();
     }
 
@@ -92,37 +139,23 @@ public abstract class EditorLayoutNode
         );
     }
 
-    /** Returns a new tree with the leaf panelId removed; parent splitter is collapsed to its other child. */
+    /** Returns a new tree with panelId removed; parent splitter is collapsed to its other child. */
     public static EditorLayoutNode copyWithRemovedLeaf(EditorLayoutNode root, String panelId)
+    {
+        return copyWithRemovedPanel(root, panelId);
+    }
+
+    /** Returns a new tree with panelId removed; parent splitter is collapsed to its other child. */
+    public static EditorLayoutNode copyWithRemovedPanel(EditorLayoutNode root, String panelId)
     {
         if (root == null)
         {
             return null;
         }
-        if (root instanceof PanelNode)
-        {
-            return ((PanelNode) root).getPanelId().equals(panelId) ? null : root;
-        }
-        SplitterNode s = (SplitterNode) root;
-        if (s.first instanceof PanelNode && ((PanelNode) s.first).getPanelId().equals(panelId))
-        {
-            return s.second;
-        }
-        if (s.second instanceof PanelNode && ((PanelNode) s.second).getPanelId().equals(panelId))
-        {
-            return s.first;
-        }
-        EditorLayoutNode f2 = copyWithRemovedLeaf(s.first, panelId);
-        if (f2 != s.first)
-        {
-            return new SplitterNode(s.horizontal, s.ratio, f2, s.second);
-        }
-        EditorLayoutNode s2 = copyWithRemovedLeaf(s.second, panelId);
-        if (s2 != s.second)
-        {
-            return new SplitterNode(s.horizontal, s.ratio, s.first, s2);
-        }
-        return root;
+
+        RemoveResult result = removePanel(root, panelId);
+
+        return result.changed ? result.node : root;
     }
 
     /** Returns a new tree with the first leaf matching leafId replaced by newNode. */
@@ -153,17 +186,88 @@ public abstract class EditorLayoutNode
     /** Returns a new tree with droppedPanel moved to split at edge of targetPanel. */
     public static EditorLayoutNode copyWithInsertSplitAt(EditorLayoutNode root, String targetPanelId, String droppedPanelId, int edge)
     {
-        EditorLayoutNode root2 = copyWithRemovedLeaf(root, droppedPanelId);
+        EditorLayoutNode root2 = copyWithRemovedPanel(root, droppedPanelId);
+
         if (root2 == null)
         {
             return root;
         }
+
         boolean horizontal = (edge == EDGE_TOP || edge == EDGE_BOTTOM);
         boolean droppedFirst = (edge == EDGE_LEFT || edge == EDGE_TOP);
-        EditorLayoutNode first = droppedFirst ? new PanelNode(droppedPanelId) : new PanelNode(targetPanelId);
-        EditorLayoutNode second = droppedFirst ? new PanelNode(targetPanelId) : new PanelNode(droppedPanelId);
-        SplitterNode newSplit = new SplitterNode(horizontal, 0.5F, first, second);
-        return copyWithReplacedLeaf(root2, targetPanelId, newSplit);
+
+        return copyWithInsertedSplitAroundTarget(root2, targetPanelId, droppedPanelId, horizontal, droppedFirst);
+    }
+
+    /** Returns a new tree with droppedPanel added into target panel's stack (center drop behavior). */
+    public static EditorLayoutNode copyWithInsertStackAt(EditorLayoutNode root, String targetPanelId, String droppedPanelId)
+    {
+        EditorLayoutNode root2 = copyWithRemovedPanel(root, droppedPanelId);
+
+        if (root2 == null)
+        {
+            return root;
+        }
+
+        return copyWithInsertedIntoStack(root2, targetPanelId, droppedPanelId);
+    }
+
+    /** Returns a new tree with active tab changed in stack that contains panelId. */
+    public static EditorLayoutNode copyWithStackActivePanel(EditorLayoutNode root, String panelId, String activePanelId)
+    {
+        if (root == null || panelId == null || activePanelId == null)
+        {
+            return root;
+        }
+
+        if (root instanceof StackNode)
+        {
+            StackNode stack = (StackNode) root;
+
+            if (!stack.containsPanel(panelId))
+            {
+                return root;
+            }
+
+            if (!stack.containsPanel(activePanelId))
+            {
+                return root;
+            }
+
+            if (activePanelId.equals(stack.getActivePanelId()))
+            {
+                return root;
+            }
+
+            return stack.copyWithActivePanel(activePanelId);
+        }
+
+        if (root instanceof SplitterNode)
+        {
+            SplitterNode splitter = (SplitterNode) root;
+
+            if (containsPanel(splitter.first, panelId))
+            {
+                EditorLayoutNode first = copyWithStackActivePanel(splitter.first, panelId, activePanelId);
+
+                if (first != splitter.first)
+                {
+                    return new SplitterNode(splitter.horizontal, splitter.ratio, first, splitter.second);
+                }
+            }
+
+            if (containsPanel(splitter.second, panelId))
+            {
+                EditorLayoutNode second = copyWithStackActivePanel(splitter.second, panelId, activePanelId);
+
+                if (second != splitter.second)
+                {
+                    return new SplitterNode(splitter.horizontal, splitter.ratio, splitter.first, second);
+                }
+            }
+        }
+
+        return root;
     }
 
     /** Collect all SplitterNodes in pre-order. */
@@ -175,6 +279,262 @@ public abstract class EditorLayoutNode
             out.add(s);
             collectSplitters(s.first, out);
             collectSplitters(s.second, out);
+        }
+    }
+
+    private static RemoveResult removePanel(EditorLayoutNode node, String panelId)
+    {
+        if (node == null)
+        {
+            return new RemoveResult(null, false);
+        }
+
+        if (node instanceof PanelNode)
+        {
+            PanelNode panel = (PanelNode) node;
+
+            if (panel.getPanelId().equals(panelId))
+            {
+                return new RemoveResult(null, true);
+            }
+
+            return new RemoveResult(node, false);
+        }
+
+        if (node instanceof StackNode)
+        {
+            StackNode stack = (StackNode) node;
+
+            if (!stack.containsPanel(panelId))
+            {
+                return new RemoveResult(node, false);
+            }
+
+            List<String> ids = new ArrayList<>(stack.getPanelIds());
+            ids.remove(panelId);
+
+            if (ids.isEmpty())
+            {
+                return new RemoveResult(null, true);
+            }
+
+            if (ids.size() == 1)
+            {
+                return new RemoveResult(new PanelNode(ids.get(0)), true);
+            }
+
+            String active = stack.getActivePanelId();
+
+            if (active.equals(panelId) || !ids.contains(active))
+            {
+                active = ids.get(0);
+            }
+
+            return new RemoveResult(new StackNode(ids, active), true);
+        }
+
+        SplitterNode splitter = (SplitterNode) node;
+        RemoveResult first = removePanel(splitter.first, panelId);
+
+        if (first.changed)
+        {
+            if (first.node == null)
+            {
+                return new RemoveResult(splitter.second, true);
+            }
+
+            return new RemoveResult(new SplitterNode(splitter.horizontal, splitter.ratio, first.node, splitter.second), true);
+        }
+
+        RemoveResult second = removePanel(splitter.second, panelId);
+
+        if (second.changed)
+        {
+            if (second.node == null)
+            {
+                return new RemoveResult(splitter.first, true);
+            }
+
+            return new RemoveResult(new SplitterNode(splitter.horizontal, splitter.ratio, splitter.first, second.node), true);
+        }
+
+        return new RemoveResult(node, false);
+    }
+
+    private static EditorLayoutNode copyWithInsertedSplitAroundTarget(EditorLayoutNode node, String targetPanelId, String droppedPanelId, boolean horizontal, boolean droppedFirst)
+    {
+        if (node == null)
+        {
+            return null;
+        }
+
+        if (node instanceof SplitterNode)
+        {
+            SplitterNode splitter = (SplitterNode) node;
+
+            if (containsPanel(splitter.first, targetPanelId))
+            {
+                EditorLayoutNode first = copyWithInsertedSplitAroundTarget(splitter.first, targetPanelId, droppedPanelId, horizontal, droppedFirst);
+
+                if (first != splitter.first)
+                {
+                    return new SplitterNode(splitter.horizontal, splitter.ratio, first, splitter.second);
+                }
+            }
+
+            if (containsPanel(splitter.second, targetPanelId))
+            {
+                EditorLayoutNode second = copyWithInsertedSplitAroundTarget(splitter.second, targetPanelId, droppedPanelId, horizontal, droppedFirst);
+
+                if (second != splitter.second)
+                {
+                    return new SplitterNode(splitter.horizontal, splitter.ratio, splitter.first, second);
+                }
+            }
+
+            return node;
+        }
+
+        if (!containsPanel(node, targetPanelId))
+        {
+            return node;
+        }
+
+        EditorLayoutNode dropped = new PanelNode(droppedPanelId);
+
+        return droppedFirst
+            ? new SplitterNode(horizontal, 0.5F, dropped, node)
+            : new SplitterNode(horizontal, 0.5F, node, dropped);
+    }
+
+    private static EditorLayoutNode copyWithInsertedIntoStack(EditorLayoutNode node, String targetPanelId, String droppedPanelId)
+    {
+        if (node == null)
+        {
+            return null;
+        }
+
+        if (node instanceof PanelNode)
+        {
+            PanelNode panel = (PanelNode) node;
+
+            if (!panel.getPanelId().equals(targetPanelId))
+            {
+                return node;
+            }
+
+            List<String> ids = new ArrayList<>();
+            ids.add(panel.getPanelId());
+            ids.add(droppedPanelId);
+
+            return new StackNode(ids, droppedPanelId);
+        }
+
+        if (node instanceof StackNode)
+        {
+            StackNode stack = (StackNode) node;
+
+            if (!stack.containsPanel(targetPanelId))
+            {
+                return node;
+            }
+
+            List<String> ids = new ArrayList<>(stack.getPanelIds());
+
+            if (ids.contains(droppedPanelId))
+            {
+                return stack.copyWithActivePanel(droppedPanelId);
+            }
+
+            int targetIndex = ids.indexOf(targetPanelId);
+
+            if (targetIndex < 0 || targetIndex >= ids.size())
+            {
+                ids.add(droppedPanelId);
+            }
+            else
+            {
+                ids.add(targetIndex + 1, droppedPanelId);
+            }
+
+            return new StackNode(ids, droppedPanelId);
+        }
+
+        SplitterNode splitter = (SplitterNode) node;
+
+        if (containsPanel(splitter.first, targetPanelId))
+        {
+            EditorLayoutNode first = copyWithInsertedIntoStack(splitter.first, targetPanelId, droppedPanelId);
+
+            if (first != splitter.first)
+            {
+                return new SplitterNode(splitter.horizontal, splitter.ratio, first, splitter.second);
+            }
+        }
+
+        if (containsPanel(splitter.second, targetPanelId))
+        {
+            EditorLayoutNode second = copyWithInsertedIntoStack(splitter.second, targetPanelId, droppedPanelId);
+
+            if (second != splitter.second)
+            {
+                return new SplitterNode(splitter.horizontal, splitter.ratio, splitter.first, second);
+            }
+        }
+
+        return node;
+    }
+
+    private static boolean containsPanel(EditorLayoutNode node, String panelId)
+    {
+        if (node == null)
+        {
+            return false;
+        }
+
+        if (node instanceof PanelNode)
+        {
+            return ((PanelNode) node).getPanelId().equals(panelId);
+        }
+
+        if (node instanceof StackNode)
+        {
+            return ((StackNode) node).containsPanel(panelId);
+        }
+
+        SplitterNode splitter = (SplitterNode) node;
+
+        return containsPanel(splitter.first, panelId) || containsPanel(splitter.second, panelId);
+    }
+
+    private static List<String> normalizePanelIds(List<String> panelIds)
+    {
+        List<String> ids = new ArrayList<>();
+        HashSet<String> seen = new HashSet<>();
+
+        for (String id : panelIds)
+        {
+            if (id == null || id.isEmpty() || seen.contains(id))
+            {
+                continue;
+            }
+
+            seen.add(id);
+            ids.add(id);
+        }
+
+        return ids;
+    }
+
+    private static class RemoveResult
+    {
+        public final EditorLayoutNode node;
+        public final boolean changed;
+
+        public RemoveResult(EditorLayoutNode node, boolean changed)
+        {
+            this.node = node;
+            this.changed = changed;
         }
     }
 
@@ -350,6 +710,92 @@ public abstract class EditorLayoutNode
         {
             String id = this.panelId.equals(id1) ? id2 : this.panelId.equals(id2) ? id1 : this.panelId;
             return new PanelNode(id);
+        }
+    }
+
+    public static class StackNode extends EditorLayoutNode
+    {
+        private final List<String> panelIds;
+        private final String activePanelId;
+
+        public StackNode(List<String> panelIds, String activePanelId)
+        {
+            this.panelIds = normalizePanelIds(panelIds);
+
+            String active = activePanelId;
+
+            if (active == null || active.isEmpty() || !this.panelIds.contains(active))
+            {
+                active = this.panelIds.isEmpty() ? "" : this.panelIds.get(0);
+            }
+
+            this.activePanelId = active;
+        }
+
+        public List<String> getPanelIds()
+        {
+            return this.panelIds;
+        }
+
+        public String getActivePanelId()
+        {
+            return this.activePanelId;
+        }
+
+        public boolean containsPanel(String panelId)
+        {
+            return this.panelIds.contains(panelId);
+        }
+
+        public StackNode copyWithActivePanel(String panelId)
+        {
+            return new StackNode(this.panelIds, panelId);
+        }
+
+        @Override
+        public BaseType toData()
+        {
+            MapType map = new MapType();
+            ListType ids = new ListType();
+
+            for (String id : this.panelIds)
+            {
+                ids.addString(id);
+            }
+
+            map.putString("type", TYPE_STACK);
+            map.put("ids", ids);
+            map.putString("active", this.activePanelId);
+
+            return map;
+        }
+
+        @Override
+        public void computeBounds(float x, float y, float w, float h, Map<String, float[]> out)
+        {
+            for (String id : this.panelIds)
+            {
+                out.put(id, new float[] {x, y, w, h});
+            }
+        }
+
+        @Override
+        public EditorLayoutNode copyWithSwappedIds(String id1, String id2)
+        {
+            List<String> ids = new ArrayList<>(this.panelIds.size());
+
+            for (String id : this.panelIds)
+            {
+                ids.add(id.equals(id1) ? id2 : id.equals(id2) ? id1 : id);
+            }
+
+            String active = this.activePanelId.equals(id1)
+                ? id2
+                : this.activePanelId.equals(id2)
+                    ? id1
+                    : this.activePanelId;
+
+            return new StackNode(ids, active);
         }
     }
 }

@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.replays;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
@@ -82,9 +83,12 @@ public class UIReplaysListPanel extends UIElement
     @Override
     public void render(UIContext context)
     {
-        this.area.render(context.batcher, Colors.A50);
+        int panelBg = Colors.mulRGB(BBSSettings.primaryColor(Colors.A100), 0.1F);
+        int barBg = Colors.mulRGB(BBSSettings.primaryColor(Colors.A100), 0.3F);
+
+        this.area.render(context.batcher, panelBg);
         this.updateButtonsState();
-        context.batcher.box(this.bar.area.x, this.bar.area.y, this.bar.area.ex(), this.bar.area.ey(), Colors.A100);
+        context.batcher.box(this.bar.area.x, this.bar.area.y, this.bar.area.ex(), this.bar.area.ey(), barBg);
         super.render(context);
     }
 }

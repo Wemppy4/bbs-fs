@@ -26,6 +26,9 @@ public class UIClipsPanel extends UIElement implements IUIClipsDelegate
     public UIFilmPanel filmPanel;
 
     private UIClip panel;
+    private boolean hasClips;
+    private boolean timelineVisible = true;
+    private boolean propertiesVisible = true;
 
     private UIElement target;
 
@@ -46,8 +49,25 @@ public class UIClipsPanel extends UIElement implements IUIClipsDelegate
 
     public void setClips(Clips clips)
     {
+        this.hasClips = clips != null;
         this.clips.setClips(clips);
-        this.clips.setVisible(clips != null);
+        this.clips.setVisible(this.hasClips && this.timelineVisible);
+    }
+
+    public void setTimelineVisible(boolean visible)
+    {
+        this.timelineVisible = visible;
+        this.clips.setVisible(this.hasClips && visible);
+    }
+
+    public void setPropertiesVisible(boolean visible)
+    {
+        this.propertiesVisible = visible;
+
+        if (this.panel != null)
+        {
+            this.panel.setVisible(visible);
+        }
     }
 
     public void editClip(Position position)
@@ -165,6 +185,7 @@ public class UIClipsPanel extends UIElement implements IUIClipsDelegate
             this.add(this.panel);
             this.resize();
             this.panel.fillData();
+            this.panel.setVisible(this.propertiesVisible);
 
             if (this.filmPanel.isFlying())
             {

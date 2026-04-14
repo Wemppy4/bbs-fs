@@ -97,6 +97,8 @@ public class UIReplaysEditor extends UIElement {
     private UIFilmPanel filmPanel;
     private Film film;
     private Replay replay;
+    private boolean timelineVisible = true;
+    private boolean propertiesVisible = true;
     private Set<String> keys = new LinkedHashSet<>();
     private final Map<String, Set<String>> expandedPoseTabsByReplay = new HashMap<>();
 
@@ -469,6 +471,8 @@ public class UIReplaysEditor extends UIElement {
                     .editPanelTopOffset(this.filmPanel::getEditPanelTopOffsetPx);
             this.keyframeEditor.relative(this).x(0).y(0).w(1F).h(1F);
             this.keyframeEditor.setUndoId("replay_keyframe_editor");
+            this.keyframeEditor.setTimelineVisible(this.timelineVisible);
+            this.keyframeEditor.setPropertiesVisible(this.propertiesVisible);
 
             /* Update iconBar width to match label width */
             int labelWidth = this.keyframeEditor.view.getLabelWidth();
@@ -775,6 +779,26 @@ public class UIReplaysEditor extends UIElement {
         }
     }
 
+    public void setTimelineVisible(boolean visible)
+    {
+        this.timelineVisible = visible;
+
+        if (this.keyframeEditor != null)
+        {
+            this.keyframeEditor.setTimelineVisible(visible);
+        }
+    }
+
+    public void setPropertiesVisible(boolean visible)
+    {
+        this.propertiesVisible = visible;
+
+        if (this.keyframeEditor != null)
+        {
+            this.keyframeEditor.setPropertiesVisible(visible);
+        }
+    }
+
     public void pickForm(Form form, String bone) {
         UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.filmPanel, form, bone);
     }
@@ -982,7 +1006,8 @@ public class UIReplaysEditor extends UIElement {
     public void render(UIContext context) {
         /* Hide category bar when tabs are disabled or "edit track" overlay is open */
         this.iconBar.setVisible(
-                BBSSettings.editorReplayTabs.get()
+            this.timelineVisible
+            && BBSSettings.editorReplayTabs.get()
                 && (this.keyframeEditor == null || !this.keyframeEditor.view.isEditing())
         );
 

@@ -1,10 +1,12 @@
 package mchorse.bbs_mod.ui.film.replays;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
@@ -13,6 +15,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.function.Consumer;
 
@@ -179,5 +182,14 @@ public class UIReplayPropertiesPanel extends UIElement
             this.relativeOffsetZ.setValue(replay.relativeOffset.get().z);
             this.axesPreview.setValue(replay.axesPreview.get());
         }
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        int panelBg = Colors.mulRGB(BBSSettings.primaryColor(Colors.A100), 0.2F);
+
+        this.area.render(context.batcher, panelBg);
+        super.render(context);
     }
 }
