@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.cubic.ik;
 
+import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import org.joml.Vector3f;
@@ -58,10 +58,12 @@ public final class ModelIKRuntime
 
     public static void apply(ModelInstance instance, Map<String, Vector3f> controllerTargets, Map<String, Float> poseFixByBone)
     {
-        if (instance == null || !(instance.model instanceof Model model))
+        if (instance == null || instance.model == null)
         {
             return;
         }
+
+        IModel model = instance.model;
 
         ModelIKCache.Compiled compiled = null;
         if (instance.form instanceof ModelForm form && form.ik.get() instanceof MapType map)
@@ -87,10 +89,12 @@ public final class ModelIKRuntime
 
     public static List<String> getControllers(ModelInstance instance)
     {
-        if (instance == null || !(instance.model instanceof Model model))
+        if (instance == null || instance.model == null)
         {
             return java.util.Collections.emptyList();
         }
+
+        IModel model = instance.model;
 
         ModelIKCache.Compiled compiled = null;
         if (instance.form instanceof ModelForm form && form.ik.get() instanceof MapType map)

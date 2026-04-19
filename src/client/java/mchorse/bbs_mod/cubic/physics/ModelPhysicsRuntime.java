@@ -1,12 +1,15 @@
 package mchorse.bbs_mod.cubic.physics;
 
+import mchorse.bbs_mod.bobj.BOBJBone;
+import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsConfig;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
-import mchorse.bbs_mod.cubic.render.CubicRenderer;
+import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
+import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
 import mchorse.bbs_mod.cubic.render.ModelRotationBlender;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -106,10 +109,12 @@ public final class ModelPhysicsRuntime
 
     public static void apply(IEntity entity, ModelInstance instance, float transition, Matrix4f baseTransform, Map<String, Float> poseFixByBone)
     {
-        if (entity == null || instance == null || !(instance.model instanceof Model model))
+        if (entity == null || instance == null || instance.model == null)
         {
             return;
         }
+
+        IModel model = instance.model;
 
         ModelPhysicsCache.Compiled compiled = null;
         if (instance.form instanceof mchorse.bbs_mod.forms.forms.ModelForm modelForm && modelForm.physics.get() instanceof MapType map)
@@ -130,7 +135,7 @@ public final class ModelPhysicsRuntime
         applyCompiled(entity.getWorld(), entity.getAge(), transition, model, instance, compiled.chains(), constraints, state, baseTransform, poseFixByBone);
     }
 
-    private static void applyCompiled(World world, int age, float transition, Model model, ModelInstance instance, List<ModelPhysicsCache.CompiledChain> compiledChains, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, InstanceState state, Matrix4f baseTransform, Map<String, Float> poseFixByBone)
+    private static void applyCompiled(World world, int age, float transition, IModel model, ModelInstance instance, List<ModelPhysicsCache.CompiledChain> compiledChains, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, InstanceState state, Matrix4f baseTransform, Map<String, Float> poseFixByBone)
     {
         Set<String> wanted = new HashSet<>();
         Set<String> chainIds = new HashSet<>();
@@ -160,7 +165,7 @@ public final class ModelPhysicsRuntime
         }
 
         Map<String, PivotFrame> frames = new HashMap<>(wanted.size() * 2);
-        CubicRenderer.collectPivotFrames(model, wanted, frames, baseTransform);
+        ModelPivotFrames.collect(model, wanted, frames, baseTransform);
 
         for (ModelPhysicsCache.CompiledChain chain : compiledChains)
         {
@@ -168,7 +173,7 @@ public final class ModelPhysicsRuntime
         }
     }
 
-    private static void applyChain(World world, int age, float transition, Model model, ModelInstance instance, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Map<String, PivotFrame> frames, InstanceState instanceState, Map<String, Float> poseFixByBone)
+    private static void applyChain(World world, int age, float transition, IModel model, ModelInstance instance, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Map<String, PivotFrame> frames, InstanceState instanceState, Map<String, Float> poseFixByBone)
     {
         float weight = chain.weight();
 
@@ -404,7 +409,7 @@ public final class ModelPhysicsRuntime
         }
     }
 
-    private static void step(World world, int age, Model model, List<String> ids, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Vector3f anchorPosition, Quaternionf anchorRotation, Quaternionf parentRotation, Vector3f targetPosition, List<PivotFrame> chainFrames, ChainState state)
+    private static void step(World world, int age, IModel model, List<String> ids, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Vector3f anchorPosition, Quaternionf anchorRotation, Quaternionf parentRotation, Vector3f targetPosition, List<PivotFrame> chainFrames, ChainState state)
     {
         Vector3f newAnchor = anchorPosition;
         Quaternionf newAnchorRotation = anchorRotation;
@@ -643,7 +648,15 @@ public final class ModelPhysicsRuntime
 
                 if (constraints != null && !constraints.isEmpty())
                 {
-                    applyAngleConstraints(model, ids, state.pos, lengths, constraints, chainFrames.get(0).parentRotation());
+                    if (model instanceof Model cubic)
+                    {
+                        applyAngleConstraints(cubic, ids, state.pos, lengths, constraints, chainFrames.get(0).parentRotation());
+                    }
+                    else if (model instanceof BOBJModel bobj)
+                    {
+                        applyAngleConstraintsBobj(bobj, ids, state.pos, lengths, constraints, chainFrames.get(0).parentRotation());
+                    }
+
                     state.pos[0].set(state.anchor);
 
                     if (targetPosition != null)
@@ -840,6 +853,146 @@ public final class ModelPhysicsRuntime
 
             parentWorld.mul(applied);
         }
+    }
+
+    private static void applyAngleConstraintsBobj(BOBJModel model, List<String> ids, Vector3f[] pos, float[] lengths, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Quaternionf rootParentRotation)
+    {
+        int boneCount = ids.size();
+
+        if (boneCount == 0 || pos == null || pos.length < 2 || lengths == null || lengths.length < 1 || rootParentRotation == null)
+        {
+            return;
+        }
+
+        Quaternionf parentWorld = new Quaternionf(rootParentRotation);
+
+        for (int i = 0; i < boneCount; i++)
+        {
+            String boneId = ids.get(i);
+            ModelConstraintsConfig.BoneConstraint c = boneId == null ? null : constraints.get(boneId);
+
+            BOBJBone bone = model.getArmature().bones.get(boneId);
+            BOBJBone child = i + 1 < boneCount ? model.getArmature().bones.get(ids.get(i + 1)) : null;
+
+            if (bone == null)
+            {
+                return;
+            }
+
+            Vector3f restDirLocal = getBobjRestDirection(model, bone, child);
+            Vector3f desiredDirWorld = new Vector3f(pos[i + 1]).sub(pos[i]);
+
+            if (restDirLocal.lengthSquared() < EPS * EPS || desiredDirWorld.lengthSquared() < EPS * EPS)
+            {
+                continue;
+            }
+
+            restDirLocal.normalize();
+            desiredDirWorld.normalize();
+
+            Quaternionf invParent = new Quaternionf(parentWorld).invert();
+            Vector3f desiredDirLocal = new Vector3f(desiredDirWorld);
+            invParent.transform(desiredDirLocal);
+
+            if (desiredDirLocal.lengthSquared() < EPS * EPS)
+            {
+                continue;
+            }
+
+            desiredDirLocal.normalize();
+
+            Quaternionf localRot = Matrices.fromToMirroredX(restDirLocal, desiredDirLocal);
+            Quaternionf applied = localRot;
+
+            if (c != null && c.enabled())
+            {
+                Vector3f eulerRad = new Quaternionf(localRot).normalize().getEulerAnglesZYX(new Vector3f());
+
+                float minX = (float) Math.toRadians(c.minX());
+                float minY = (float) Math.toRadians(c.minY());
+                float minZ = (float) Math.toRadians(c.minZ());
+                float maxX = (float) Math.toRadians(c.maxX());
+                float maxY = (float) Math.toRadians(c.maxY());
+                float maxZ = (float) Math.toRadians(c.maxZ());
+
+                if (minX > maxX)
+                {
+                    float t = minX;
+                    minX = maxX;
+                    maxX = t;
+                }
+
+                if (minY > maxY)
+                {
+                    float t = minY;
+                    minY = maxY;
+                    maxY = t;
+                }
+
+                if (minZ > maxZ)
+                {
+                    float t = minZ;
+                    minZ = maxZ;
+                    maxZ = t;
+                }
+
+                eulerRad.x = eulerRad.x < minX ? minX : Math.min(eulerRad.x, maxX);
+                eulerRad.y = eulerRad.y < minY ? minY : Math.min(eulerRad.y, maxY);
+                eulerRad.z = eulerRad.z < minZ ? minZ : Math.min(eulerRad.z, maxZ);
+
+                applied = new Quaternionf().rotationZYX(eulerRad.z, eulerRad.y, eulerRad.x);
+
+                Vector3f dirLocal = new Vector3f(restDirLocal);
+                applied.transform(dirLocal);
+                parentWorld.transform(dirLocal);
+
+                if (dirLocal.lengthSquared() >= EPS * EPS)
+                {
+                    dirLocal.normalize().mul(lengths[i]);
+                    pos[i + 1].set(pos[i]).add(dirLocal);
+                }
+            }
+
+            parentWorld.mul(applied);
+        }
+    }
+
+    private static Vector3f getBobjRestDirection(BOBJModel model, BOBJBone bone, BOBJBone child)
+    {
+        if (child != null)
+        {
+            Vector3f out = child.relBoneMat.getTranslation(new Vector3f());
+
+            if (out.lengthSquared() > EPS * EPS)
+            {
+                return out;
+            }
+        }
+
+        for (BOBJBone candidate : model.getArmature().orderedBones)
+        {
+            if (candidate != null && candidate.parentBone == bone)
+            {
+                Vector3f out = candidate.relBoneMat.getTranslation(new Vector3f());
+
+                if (out.lengthSquared() > EPS * EPS)
+                {
+                    return out;
+                }
+            }
+        }
+
+        if (bone.parentBone != null)
+        {
+            Vector3f out = bone.relBoneMat.getTranslation(new Vector3f());
+
+            if (out.lengthSquared() > EPS * EPS)
+            {
+                return out;
+            }
+        }
+
+        return new Vector3f(0F, -1F, 0F);
     }
 
     private static float clamp01(float v)

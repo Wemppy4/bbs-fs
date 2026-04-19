@@ -1,8 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.cubic.data.model.Model;
-import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsConfig;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsIO;
 import mchorse.bbs_mod.data.types.MapType;
@@ -320,21 +319,14 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 
     private List<String> getDescendantBones(String bone)
     {
-        if (bone == null || bone.isEmpty() || this.modelInstance == null || !(this.modelInstance.model instanceof Model model))
+        if (bone == null || bone.isEmpty() || this.modelInstance == null || this.modelInstance.model == null)
         {
             return Collections.emptyList();
         }
 
-        ModelGroup root = model.getGroup(bone);
+        IModel model = this.modelInstance.model;
 
-        if (root == null || root.children == null || root.children.isEmpty())
-        {
-            return Collections.emptyList();
-        }
-
-        List<String> descendants = new ArrayList<>();
-
-        this.collectDescendants(root, descendants);
+        List<String> descendants = new ArrayList<>(model.getAllChildrenKeys(bone));
 
         if (!this.availableBones.isEmpty())
         {
@@ -342,25 +334,6 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         }
 
         return descendants;
-    }
-
-    private void collectDescendants(ModelGroup parent, List<String> out)
-    {
-        if (parent.children == null || parent.children.isEmpty())
-        {
-            return;
-        }
-
-        for (ModelGroup child : parent.children)
-        {
-            if (child == null)
-            {
-                continue;
-            }
-
-            out.add(child.id);
-            this.collectDescendants(child, out);
-        }
     }
 
     private void commitChanges()

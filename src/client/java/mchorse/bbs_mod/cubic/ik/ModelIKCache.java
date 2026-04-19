@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.cubic.ik;
 
-import mchorse.bbs_mod.cubic.data.model.Model;
-import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
 
 import java.util.ArrayList;
@@ -24,7 +23,7 @@ final class ModelIKCache
 
     private static final WeakHashMap<MapType, EmbeddedCompiled> EMBEDDED = new WeakHashMap<>();
 
-    private record EmbeddedCompiled(Model model, List<CompiledChain> chains)
+    private record EmbeddedCompiled(IModel model, List<CompiledChain> chains)
     {
     }
 
@@ -33,7 +32,7 @@ final class ModelIKCache
         EMBEDDED.clear();
     }
 
-    public static Compiled getFromData(Model model, MapType data)
+    public static Compiled getFromData(IModel model, MapType data)
     {
         if (model == null || data == null)
         {
@@ -56,7 +55,7 @@ final class ModelIKCache
         return new Compiled(compiled);
     }
 
-    private static List<CompiledChain> compile(Model model, ModelIKConfig config)
+    private static List<CompiledChain> compile(IModel model, ModelIKConfig config)
     {
         if (config == null || config.chains() == null || config.chains().isEmpty())
         {
@@ -77,16 +76,12 @@ final class ModelIKCache
                 continue;
             }
 
-            ModelGroup controller = model.getGroup(chain.controller());
-            ModelGroup effector = model.getGroup(chain.locator());
-            ModelGroup root = model.getGroup(chain.root());
-
-            if (controller == null || effector == null || root == null)
+            if (!model.getAllGroupKeys().contains(chain.controller()) || !model.getAllGroupKeys().contains(chain.locator()) || !model.getAllGroupKeys().contains(chain.root()))
             {
                 continue;
             }
 
-            List<String> chainIds = buildChainIds(effector, root);
+            List<String> chainIds = buildChainIds(model, chain.locator(), chain.root());
 
             if (chainIds.size() < 2)
             {
@@ -99,22 +94,29 @@ final class ModelIKCache
         return out;
     }
 
-    private static List<String> buildChainIds(ModelGroup effector, ModelGroup root)
+    private static List<String> buildChainIds(IModel model, String effectorId, String rootId)
     {
         List<String> list = new ArrayList<>();
-        ModelGroup group = effector;
+        String group = effectorId;
 
-        while (group != null)
+        while (group != null && !group.isEmpty())
         {
-            list.add(group.id);
+            list.add(group);
 
-            if (group == root)
+            if (group.equals(rootId))
             {
                 java.util.Collections.reverse(list);
                 return list;
             }
 
-            group = group.parent;
+            String parent = model.getParentGroupKey(group);
+
+            if (parent == null || parent.equals(group))
+            {
+                break;
+            }
+
+            group = parent;
         }
 
         return java.util.Collections.emptyList();

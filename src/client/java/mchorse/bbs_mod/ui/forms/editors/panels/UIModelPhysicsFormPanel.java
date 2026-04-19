@@ -1,8 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.cubic.data.model.Model;
-import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsConfig;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsIO;
 import mchorse.bbs_mod.data.types.MapType;
@@ -679,29 +678,35 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             return true;
         }
 
-        if (!(this.modelInstance.model instanceof Model model))
-        {
-            return true;
-        }
+        IModel model = this.modelInstance.model;
 
-        ModelGroup root = model.getGroup(rootId);
-        ModelGroup end = model.getGroup(endId);
-
-        if (root == null || end == null)
+        if (rootId == null || rootId.isEmpty() || endId == null || endId.isEmpty())
         {
             return false;
         }
 
-        ModelGroup group = end;
-
-        while (group != null)
+        if (!model.getAllGroupKeys().contains(rootId) || !model.getAllGroupKeys().contains(endId))
         {
-            if (group == root)
+            return false;
+        }
+
+        String group = endId;
+
+        while (group != null && !group.isEmpty())
+        {
+            if (group.equals(rootId))
             {
                 return true;
             }
 
-            group = group.parent;
+            String parent = model.getParentGroupKey(group);
+
+            if (parent == null || parent.equals(group))
+            {
+                break;
+            }
+
+            group = parent;
         }
 
         return false;

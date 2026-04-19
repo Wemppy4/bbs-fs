@@ -1,7 +1,10 @@
 package mchorse.bbs_mod.cubic.physics;
 
+import mchorse.bbs_mod.bobj.BOBJBone;
+import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import org.joml.Quaternionf;
@@ -129,8 +132,9 @@ final class ModelPhysicsCache
     }
 
     private static final WeakHashMap<MapType, EmbeddedCompiled> EMBEDDED = new WeakHashMap<>();
+    private static final float EPS = 1.0e-6f;
 
-    private record EmbeddedCompiled(Model model, List<CompiledChain> chains)
+    private record EmbeddedCompiled(IModel model, List<CompiledChain> chains)
     {
     }
 
@@ -143,7 +147,7 @@ final class ModelPhysicsCache
         EMBEDDED.clear();
     }
 
-    public static Compiled getFromData(Model model, MapType data)
+    public static Compiled getFromData(IModel model, MapType data)
     {
         if (model == null || data == null)
         {
@@ -166,7 +170,7 @@ final class ModelPhysicsCache
         return new Compiled(compiled);
     }
 
-    private static List<CompiledChain> compile(Model model, ModelPhysicsConfig config)
+    private static List<CompiledChain> compile(IModel model, ModelPhysicsConfig config)
     {
         if (config == null || config.bones() == null || config.bones().isEmpty())
         {
@@ -189,15 +193,12 @@ final class ModelPhysicsCache
 
             String endId = chain.end();
 
-            ModelGroup root = model.getGroup(rootId);
-            ModelGroup end = model.getGroup(endId);
-
-            if (root == null || end == null)
+            if (!model.getAllGroupKeys().contains(rootId) || !model.getAllGroupKeys().contains(endId))
             {
                 continue;
             }
 
-            List<String> ids = buildChainIds(end, root);
+            List<String> ids = buildChainIds(model, endId, rootId);
 
             if (ids.isEmpty())
             {
@@ -220,28 +221,50 @@ final class ModelPhysicsCache
         return out;
     }
 
-    private static List<String> buildChainIds(ModelGroup end, ModelGroup root)
+    private static List<String> buildChainIds(IModel model, String endId, String rootId)
     {
         List<String> list = new ArrayList<>();
-        ModelGroup group = end;
+        String group = endId;
 
-        while (group != null)
+        while (group != null && !group.isEmpty())
         {
-            list.add(group.id);
+            list.add(group);
 
-            if (group == root)
+            if (group.equals(rootId))
             {
                 java.util.Collections.reverse(list);
                 return list;
             }
 
-            group = group.parent;
+            String parent = model.getParentGroupKey(group);
+
+            if (parent == null || parent.equals(group))
+            {
+                break;
+            }
+
+            group = parent;
         }
 
         return java.util.Collections.emptyList();
     }
 
-    private static float[] computeRestLengths(Model model, List<String> ids)
+    private static float[] computeRestLengths(IModel model, List<String> ids)
+    {
+        if (model instanceof Model cubic)
+        {
+            return computeCubicRestLengths(cubic, ids);
+        }
+
+        if (model instanceof BOBJModel bobj)
+        {
+            return computeBobjRestLengths(bobj, ids);
+        }
+
+        return null;
+    }
+
+    private static float[] computeCubicRestLengths(Model model, List<String> ids)
     {
         int n = ids.size();
 
@@ -267,9 +290,9 @@ final class ModelPhysicsCache
                 len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
             }
 
-            if (len <= 1.0e-6f)
+            if (len <= EPS)
             {
-                len = 1.0e-6f;
+                len = EPS;
             }
 
             lengths[0] = len;
@@ -293,10 +316,71 @@ final class ModelPhysicsCache
 
             lengths[i] = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-            if (lengths[i] <= 1.0e-6f)
+            if (lengths[i] <= EPS)
             {
-                lengths[i] = 1.0e-6f;
+                lengths[i] = EPS;
             }
+        }
+
+        lengths[n - 1] = lengths[n - 2];
+
+        return lengths;
+    }
+
+    private static float[] computeBobjRestLengths(BOBJModel model, List<String> ids)
+    {
+        int n = ids.size();
+
+        float[] lengths = new float[n];
+
+        if (n == 1)
+        {
+            BOBJBone bone = model.getArmature().bones.get(ids.get(0));
+
+            if (bone == null)
+            {
+                return null;
+            }
+
+            float len = 0.25F;
+
+            for (BOBJBone child : model.getArmature().orderedBones)
+            {
+                if (child != null && child.parentBone == bone)
+                {
+                    len = child.relBoneMat.getTranslation(new Vector3f()).length();
+                    break;
+                }
+            }
+
+            if (len <= EPS)
+            {
+                len = EPS;
+            }
+
+            lengths[0] = len;
+
+            return lengths;
+        }
+
+        for (int i = 0; i < n - 1; i++)
+        {
+            BOBJBone a = model.getArmature().bones.get(ids.get(i));
+            BOBJBone b = model.getArmature().bones.get(ids.get(i + 1));
+
+            if (a == null || b == null)
+            {
+                return null;
+            }
+
+            float len = b.relBoneMat.getTranslation(new Vector3f()).length();
+
+            if (len <= EPS)
+            {
+                len = EPS;
+            }
+
+            lengths[i] = len;
         }
 
         lengths[n - 1] = lengths[n - 2];

@@ -1,8 +1,8 @@
 package mchorse.bbs_mod.cubic.ik;
 
-import mchorse.bbs_mod.cubic.data.model.Model;
-import mchorse.bbs_mod.cubic.render.CubicRenderer;
+import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
+import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
 import mchorse.bbs_mod.cubic.render.ModelRotationBlender;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -23,7 +23,7 @@ final class ModelIKApplier
     {
     }
 
-    public static void apply(Model model, List<ModelIKCache.CompiledChain> chains, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> prevNormals, float hysteresisRad, float singularityRad, Map<String, Float> poseFixByBone)
+    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> prevNormals, float hysteresisRad, float singularityRad, Map<String, Float> poseFixByBone)
     {
         if (model == null || chains == null || chains.isEmpty())
         {
@@ -44,7 +44,7 @@ final class ModelIKApplier
         }
 
         Map<String, PivotFrame> frames = new HashMap<>(wanted.size() * 2);
-        CubicRenderer.collectPivotFrames(model, wanted, frames);
+        ModelPivotFrames.collect(model, wanted, frames);
 
         for (ModelIKCache.CompiledChain chain : chains)
         {
@@ -52,7 +52,7 @@ final class ModelIKApplier
         }
     }
 
-    private static void applyChain(Model model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> prevNormals, float hysteresisRad, float singularityRad, Map<String, Float> poseFixByBone)
+    private static void applyChain(IModel model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> prevNormals, float hysteresisRad, float singularityRad, Map<String, Float> poseFixByBone)
     {
         float poseFix = getChainPoseFix(chain, poseFixByBone);
         float weight = chain.weight() * (1F - poseFix);
