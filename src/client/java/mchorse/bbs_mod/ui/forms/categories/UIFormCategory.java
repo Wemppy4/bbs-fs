@@ -169,6 +169,54 @@ public class UIFormCategory extends UIElement
         }
     }
 
+    /**
+     * Pixel height for the category at a given column width (used before {@link #area} is laid out).
+     */
+    public int computeContentHeight(int columnWidth)
+    {
+        int width = Math.max(CELL_WIDTH, columnWidth);
+        List<Form> forms = this.getForms();
+
+        if (!this.search.isEmpty() && forms.isEmpty())
+        {
+            return 0;
+        }
+
+        int perRow = Math.max(1, width / CELL_WIDTH);
+        int h = HEADER_HEIGHT;
+
+        if (!forms.isEmpty() && this.category.visible.get())
+        {
+            int i = 0;
+
+            for (Form ignored : forms)
+            {
+                if (i == perRow)
+                {
+                    h += CELL_HEIGHT;
+                    i = 0;
+                }
+
+                i += 1;
+            }
+
+            h += CELL_HEIGHT;
+        }
+
+        return h;
+    }
+
+    public void refreshLayoutForSearch(int columnWidth)
+    {
+        int h = this.computeContentHeight(columnWidth);
+
+        if (this.last != h)
+        {
+            this.last = h;
+            this.h(h);
+        }
+    }
+
     public List<Form> getForms()
     {
         if (this.search.isEmpty())
@@ -186,7 +234,7 @@ public class UIFormCategory extends UIElement
         {
             int x = context.mouseX - this.area.x;
             int y = context.mouseY - this.area.y - HEADER_HEIGHT;
-            int perRow = this.area.w / CELL_WIDTH;
+            int perRow = Math.max(1, Math.max(CELL_WIDTH, this.area.w) / CELL_WIDTH);
 
             if (y < 0)
             {
@@ -234,6 +282,28 @@ public class UIFormCategory extends UIElement
     @Override
     public void render(UIContext context)
     {
+        int layoutWidth = Math.max(CELL_WIDTH, this.area.w);
+        List<Form> forms = this.getForms();
+        int h = this.computeContentHeight(layoutWidth);
+
+        if (!this.search.isEmpty() && forms.isEmpty())
+        {
+            if (this.last != h)
+            {
+                this.last = h;
+                this.h(h);
+
+                UIElement container = this.getParentContainer();
+
+                if (container != null)
+                {
+                    container.resize();
+                }
+            }
+
+            return;
+        }
+
         super.render(context);
 
         context.batcher.textCard(this.category.getProcessedTitle(), this.area.x + 26, this.area.y + 6);
@@ -247,11 +317,10 @@ public class UIFormCategory extends UIElement
             context.batcher.icon(Icons.MOVE_UP, this.area.x + 16, this.area.y + 4, 0.5F, 0F);
         }
 
-        List<Form> forms = this.getForms();
-        int h = HEADER_HEIGHT;
+        h = HEADER_HEIGHT;
         int x = 0;
         int i = 0;
-        int perRow = this.area.w / CELL_WIDTH;
+        int perRow = Math.max(1, layoutWidth / CELL_WIDTH);
 
         if (!forms.isEmpty() && this.category.visible.get())
         {

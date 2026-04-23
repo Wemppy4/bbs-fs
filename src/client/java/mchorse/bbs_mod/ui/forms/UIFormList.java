@@ -60,7 +60,7 @@ public class UIFormList extends UIElement
         this.forms = UI.scrollView(0, 0);
         this.forms.scroll.cancelScrolling();
         this.bar = new UIElement();
-        this.search = new UITextbox(100, this::search).placeholder(UIKeys.FORMS_LIST_SEARCH);
+        this.search = new UITextbox(100, this::onSearchQuery).placeholder(UIKeys.FORMS_LIST_SEARCH);
         this.edit = new UIIcon(Icons.EDIT, this::edit);
         this.edit.tooltip(UIKeys.FORMS_LIST_EDIT, Direction.TOP);
         this.close = new UIIcon(Icons.CLOSE, this::close);
@@ -146,16 +146,42 @@ public class UIFormList extends UIElement
         this.resize();
 
         this.lastUpdate = forms.getLastUpdate();
+        this.applySearchFromTextbox();
     }
 
-    private void search(String search)
+    private void onSearchQuery(String search)
     {
-        search = search.trim();
+        this.applySearchFilter(search);
+    }
+
+    private void applySearchFromTextbox()
+    {
+        this.applySearchFilter(this.search.getText());
+    }
+
+    private void applySearchFilter(String raw)
+    {
+        String s = raw == null ? "" : raw.trim();
 
         for (UIFormCategory category : this.categories)
         {
-            category.search(search);
+            category.search(s);
         }
+
+        this.afterSearchLayout();
+    }
+
+    private void afterSearchLayout()
+    {
+        int columnW = Math.max(UIFormCategory.CELL_WIDTH, this.forms.area.w);
+
+        for (UIFormCategory category : this.categories)
+        {
+            category.refreshLayoutForSearch(columnW);
+        }
+
+        this.forms.resize();
+        this.resize();
     }
 
     private void edit(UIIcon b)
