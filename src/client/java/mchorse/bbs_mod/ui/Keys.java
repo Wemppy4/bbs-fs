@@ -82,7 +82,6 @@ public class Keys
     /* Pixel editor */
     public static final KeyCombo PIXEL_SWAP = new KeyCombo("swap", UIKeys.TEXTURES_KEYS_SWAP, GLFW.GLFW_KEY_X).categoryKey("pixels");
     public static final KeyCombo PIXEL_PICK = new KeyCombo("pick", UIKeys.TEXTURES_KEYS_PICK, GLFW.GLFW_KEY_R).categoryKey("pixels");
-    public static final KeyCombo PIXEL_FILL = new KeyCombo("fill", UIKeys.TEXTURES_KEYS_FILL, GLFW.GLFW_KEY_B, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("pixels");
     public static final KeyCombo PIXEL_TOOL_BRUSH = new KeyCombo("tool_brush", UIKeys.TEXTURES_KEYS_TOOL_BRUSH, GLFW.GLFW_KEY_B).categoryKey("pixels");
     public static final KeyCombo PIXEL_TOOL_ERASER = new KeyCombo("tool_eraser", UIKeys.TEXTURES_KEYS_TOOL_ERASER, GLFW.GLFW_KEY_E).categoryKey("pixels");
     public static final KeyCombo PIXEL_TOOL_FILL = new KeyCombo("tool_fill", UIKeys.TEXTURES_KEYS_TOOL_FILL, GLFW.GLFW_KEY_F).categoryKey("pixels");

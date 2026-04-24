@@ -245,7 +245,6 @@ public class UITexturePainter extends UIElement
         IKey category = UIKeys.TEXTURES_KEYS_CATEGORY;
 
         this.keys().register(Keys.PIXEL_SWAP, this::swapColors).inside().category(category);
-        this.keys().register(Keys.PIXEL_FILL, this::fillColor).inside().category(category);
         this.keys().register(Keys.PIXEL_TOOL_BRUSH, () -> this.userSelectTool(TexturePaintTool.BRUSH)).inside().category(category);
         this.keys().register(Keys.PIXEL_TOOL_ERASER, () -> this.userSelectTool(TexturePaintTool.ERASER)).inside().category(category);
         this.keys().register(Keys.PIXEL_TOOL_FILL, () -> this.userSelectTool(TexturePaintTool.FILL)).inside().category(category);
@@ -629,18 +628,6 @@ public class UITexturePainter extends UIElement
 
         this.primary.setColor(this.secondary.picker.color.getRGBColor());
         this.secondary.setColor(swap);
-    }
-
-    private void fillColor()
-    {
-        UITextureEditor editor = this.getCurrentEditor();
-        UIContext context = this.getContext();
-
-        if (editor != null && editor.area.isInside(context))
-        {
-            Vector2i pixel = editor.getHoverPixel(context.mouseX, context.mouseY);
-            editor.fillColor(pixel, this.primary.picker.color, Window.isShiftPressed());
-        }
     }
 
     private void setBrushSize(int size)
