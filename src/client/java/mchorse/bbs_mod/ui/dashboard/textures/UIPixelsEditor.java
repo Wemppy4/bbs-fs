@@ -40,6 +40,8 @@ public class UIPixelsEditor extends UICanvasEditor
 
     private boolean editing;
     private Color drawColor;
+    private boolean blendStroke;
+    private final Color blendedStrokeColor = new Color();
     private Vector2i lastPixel;
 
     protected UndoManager<Pixels> undoManager;
@@ -51,6 +53,7 @@ public class UIPixelsEditor extends UICanvasEditor
 
     private Supplier<TexturePaintTool> toolSupplier = () -> TexturePaintTool.BRUSH;
     private Supplier<TextureStrokeShape> strokeShapeSupplier = () -> TextureStrokeShape.SQUARE;
+    private Supplier<Boolean> strokeBuildUpSupplier = () -> false;
 
     public UIPixelsEditor()
     {
@@ -129,6 +132,13 @@ public class UIPixelsEditor extends UICanvasEditor
         return this;
     }
 
+    public UIPixelsEditor strokeBuildUpSupplier(Supplier<Boolean> supplier)
+    {
+        this.strokeBuildUpSupplier = supplier != null ? supplier : () -> false;
+
+        return this;
+    }
+
     protected TexturePaintTool getActivePaintTool()
     {
         TexturePaintTool tool = this.toolSupplier.get();
@@ -141,6 +151,11 @@ public class UIPixelsEditor extends UICanvasEditor
         TextureStrokeShape shape = this.strokeShapeSupplier.get();
 
         return shape == null ? TextureStrokeShape.SQUARE : shape;
+    }
+
+    protected boolean isStrokeBuildUpEnabled()
+    {
+        return Boolean.TRUE.equals(this.strokeBuildUpSupplier.get());
     }
 
     /**
@@ -169,10 +184,63 @@ public class UIPixelsEditor extends UICanvasEditor
             {
                 if (shape == TextureStrokeShape.SQUARE || this.isCircleMaskCell(dx, dy, left))
                 {
-                    this.pixelsUndo.setColor(this.pixels, x + dx, y + dy, this.drawColor);
+                    this.paintPixel(x + dx, y + dy);
                 }
             }
         }
+    }
+
+    private void paintPixel(int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= this.pixels.width || y >= this.pixels.height)
+        {
+            return;
+        }
+
+        Color color = this.drawColor;
+
+        if (this.blendStroke)
+        {
+            Color destination;
+
+            if (this.isStrokeBuildUpEnabled())
+            {
+                destination = this.pixels.getColor(x, y);
+            }
+            else
+            {
+                destination = this.pixelsUndo.getOriginalColor(this.pixels, x, y);
+
+                if (destination == null)
+                {
+                    destination = this.pixels.getColor(x, y);
+                }
+            }
+
+            color = this.blendColorOver(destination, this.drawColor);
+        }
+
+        this.pixelsUndo.setColor(this.pixels, x, y, color);
+    }
+
+    private Color blendColorOver(Color destination, Color source)
+    {
+        float outA = source.a + destination.a * (1F - source.a);
+
+        if (outA <= 0F)
+        {
+            this.blendedStrokeColor.set(0F, 0F, 0F, 0F);
+
+            return this.blendedStrokeColor;
+        }
+
+        float outR = (source.r * source.a + destination.r * destination.a * (1F - source.a)) / outA;
+        float outG = (source.g * source.a + destination.g * destination.a * (1F - source.a)) / outA;
+        float outB = (source.b * source.a + destination.b * destination.a * (1F - source.a)) / outA;
+
+        this.blendedStrokeColor.set(outR, outG, outB, outA);
+
+        return this.blendedStrokeColor;
     }
 
     private boolean isCircleMaskCell(int dx, int dy, int left)
@@ -401,6 +469,7 @@ public class UIPixelsEditor extends UICanvasEditor
         if (this.isStrokePaintTool())
         {
             this.pixelsUndo = new PixelsUndo();
+            this.blendStroke = tool == TexturePaintTool.BRUSH;
             this.drawColor = tool == TexturePaintTool.ERASER ? new Color(0, 0, 0, 0) : this.colorSupplier.get();
 
             Vector2i pixel = this.getHoverPixel(context.mouseX, context.mouseY);

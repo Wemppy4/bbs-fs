@@ -1238,6 +1238,7 @@
 	"bbs.ui.textures.brush_shape": "Форма кисти",
 	"bbs.ui.textures.brush_shape.square": "Квадратная кисть",
 	"bbs.ui.textures.brush_shape.circle": "Круглая кисть",
+	"bbs.ui.textures.brush_build_up": "Накопление кисти",
 	"bbs.ui.textures.color.primary": "Основной цвет",
 	"bbs.ui.textures.color.secondary": "Вторичный цвет",
 	"bbs.ui.textures.viewer.brightness": "Этот ползунок регулирует яркость клетчатого фона",

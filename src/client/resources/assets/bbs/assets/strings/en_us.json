@@ -1246,6 +1246,7 @@
 	"bbs.ui.textures.brush_shape": "Brush shape",
 	"bbs.ui.textures.brush_shape.square": "Square brush",
 	"bbs.ui.textures.brush_shape.circle": "Circle brush",
+	"bbs.ui.textures.brush_build_up": "Brush build-up",
 	"bbs.ui.textures.color.primary": "Primary color",
 	"bbs.ui.textures.color.secondary": "Secondary color",
 	"bbs.ui.textures.viewer.brightness": "This slider controls the brightness of the checkered background pattern",
