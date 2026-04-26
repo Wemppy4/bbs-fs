@@ -161,7 +161,19 @@ public class UITextureEditor extends UIPixelsEditor
 
                     if (current.getARGBColor() == target.getARGBColor())
                     {
-                        pixelsUndo.setColor(pixels, x, y, color);
+                        if (this.isAlphaLockEnabled() && current.a <= 0F)
+                        {
+                            continue;
+                        }
+
+                        Color c = color;
+                        if (this.isAlphaLockEnabled())
+                        {
+                            c = color.copy();
+                            c.a = current.a;
+                        }
+
+                        pixelsUndo.setColor(pixels, x, y, c);
                     }
                 }
             }
@@ -207,7 +219,18 @@ public class UITextureEditor extends UIPixelsEditor
                 continue;
             }
 
-            undo.setColor(pixels, px, py, new Color().set(replacementColor, true));
+            if (this.isAlphaLockEnabled() && current.a <= 0F)
+            {
+                continue;
+            }
+
+            Color c = new Color().set(replacementColor, true);
+            if (this.isAlphaLockEnabled())
+            {
+                c.a = current.a;
+            }
+
+            undo.setColor(pixels, px, py, c);
 
             queue.add(new Vector2i(px + 1, py));
             queue.add(new Vector2i(px - 1, py));

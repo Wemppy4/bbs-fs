@@ -90,6 +90,7 @@ public class UIPixelsEditor extends UICanvasEditor
     private Supplier<TexturePaintTool> toolSupplier = () -> TexturePaintTool.BRUSH;
     private Supplier<TextureStrokeShape> strokeShapeSupplier = () -> TextureStrokeShape.SQUARE;
     private Supplier<Boolean> strokeBuildUpSupplier = () -> false;
+    private Supplier<Boolean> alphaLockSupplier = () -> false;
     private Supplier<Float> brushSoftnessSupplier = () -> 0.0F;
     private Supplier<Float> eraserOpacitySupplier = () -> 1.0F;
 
@@ -211,6 +212,13 @@ public class UIPixelsEditor extends UICanvasEditor
         return this;
     }
 
+    public UIPixelsEditor alphaLockSupplier(Supplier<Boolean> supplier)
+    {
+        this.alphaLockSupplier = supplier != null ? supplier : () -> false;
+
+        return this;
+    }
+
     public UIPixelsEditor brushSoftnessSupplier(Supplier<Float> supplier)
     {
         this.brushSoftnessSupplier = supplier != null ? supplier : () -> 0.0F;
@@ -242,6 +250,11 @@ public class UIPixelsEditor extends UICanvasEditor
     protected boolean isStrokeBuildUpEnabled()
     {
         return Boolean.TRUE.equals(this.strokeBuildUpSupplier.get());
+    }
+
+    protected boolean isAlphaLockEnabled()
+    {
+        return Boolean.TRUE.equals(this.alphaLockSupplier.get());
     }
 
     protected float getBrushSoftness()
@@ -364,6 +377,37 @@ public class UIPixelsEditor extends UICanvasEditor
             }
 
             color = this.blendColorOver(destination, source);
+        }
+
+        if (this.isAlphaLockEnabled())
+        {
+            Color destination;
+
+            if (this.isStrokeBuildUpEnabled())
+            {
+                destination = this.pixels.getColor(x, y);
+            }
+            else
+            {
+                destination = this.pixelsUndo.getOriginalColor(this.pixels, x, y);
+
+                if (destination == null)
+                {
+                    destination = this.pixels.getColor(x, y);
+                }
+            }
+
+            if (destination == null || destination.a <= 0F)
+            {
+                return;
+            }
+
+            if (color == this.drawColor || color == this.blendedStrokeColor)
+            {
+                color = color.copy();
+            }
+
+            color.a = destination.a;
         }
 
         this.pixelsUndo.setColor(this.pixels, x, y, color);

@@ -129,6 +129,7 @@ public class UITexturePainter extends UIElement
     private UILabel brushSoftnessLabel;
     private UIToggle roundBrushToggle;
     private UIToggle brushBuildUpToggle;
+    private UIToggle alphaLockToggle;
     private UILabel eraserOpacityLabel;
     private UITrackpad eraserOpacity;
 
@@ -153,7 +154,7 @@ public class UITexturePainter extends UIElement
 
         this.content.add(new UIRenderable(this::renderPanelBackground),
             this.iconBar, this.options, this.editorHost, this.modelPreviewHost, this.optionsDraggable, this.modelPreviewDraggable);
-        this.add(this.tabs, this.content, this.brightness);
+        this.add(this.tabs, this.content, this.brightness, this.alphaLockToggle);
 
         this.syncTabs();
         this.showCurrentEditor();
@@ -298,6 +299,9 @@ public class UITexturePainter extends UIElement
         this.brightness.limit(0, 1).setValue(0.7);
         this.brightness.tooltip(UIKeys.TEXTURES_VIEWER_BRIGHTNESS, Direction.TOP);
         this.brightness.relative(this.editorHost).x(1F, -10).y(1F, -10).w(130).anchor(1F, 1F);
+        
+        this.alphaLockToggle = new UIToggle(UIKeys.TEXTURES_ALPHA_LOCK, false, (b) -> {});
+        this.alphaLockToggle.relative(this.brightness).x(0F).y(-5).w(1F).anchorY(1F);
     }
 
     private void registerShortcuts()
@@ -548,6 +552,7 @@ public class UITexturePainter extends UIElement
         editor.toolSupplier(this::getActiveTexturePaintTool);
         editor.strokeShapeSupplier(this::getActiveTextureStrokeShape);
         editor.strokeBuildUpSupplier(this::isBrushBuildUpEnabled);
+        editor.alphaLockSupplier(() -> this.alphaLockToggle.getValue());
         editor.brushSoftnessSupplier(() -> (float) this.brushSoftness.getValue() / 100.0F);
         editor.eraserOpacitySupplier(() -> (float) this.eraserOpacity.getValue() / 100.0F);
         editor.setBrushSize((int) this.brushSize.getValue());
