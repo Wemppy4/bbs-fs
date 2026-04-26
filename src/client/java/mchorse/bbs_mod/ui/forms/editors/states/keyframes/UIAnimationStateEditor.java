@@ -423,6 +423,18 @@ public class UIAnimationStateEditor extends UIElement
     {
         if (this.keyframeEditor != null)
         {
+            UIPropTransform transform = UIReplaysEditorUtils.getEditableTransform(this.keyframeEditor);
+
+            if (transform != null)
+            {
+                transform.hotkeyDrag(() ->
+                {
+                    UIContext current = this.getContext();
+
+                    return this.buildGizmoDrag(transform, current == null ? 0F : current.getTransition());
+                });
+            }
+
             this.editArea.area.render(context.batcher, Colors.A75);
         }
 

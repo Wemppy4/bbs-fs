@@ -90,6 +90,7 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
         this.generalPanel = panel;
         this.general = panel.transform;
+        this.general.hotkeyDrag(() -> this.editor == null ? null : this.editor.buildHotkeyDrag(this.general));
     }
 
     public void setEditor(UIFormEditor editor)

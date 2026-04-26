@@ -169,6 +169,24 @@ public class Gizmo
         return false;
     }
 
+    public void trackTransform(UIPropTransform transform)
+    {
+        this.currentTransform = transform;
+    }
+
+    public void clearTrackedTransform(UIPropTransform transform)
+    {
+        if (this.currentTransform == transform)
+        {
+            this.currentTransform = null;
+
+            if (this.index < STENCIL_X || this.index > STENCIL_ZY)
+            {
+                this.index = -1;
+            }
+        }
+    }
+
     public void stop()
     {
         this.index = -1;
@@ -200,7 +218,14 @@ public class Gizmo
 
     private void drawInfiniteLine(MatrixStack stack)
     {
-        if (this.index < STENCIL_X || this.index > STENCIL_ZY)
+        int debugIndex = this.index;
+
+        if ((debugIndex < STENCIL_X || debugIndex > STENCIL_ZY) && this.currentTransform != null)
+        {
+            debugIndex = this.currentTransform.getDebugLineStencilIndex();
+        }
+
+        if (debugIndex < STENCIL_X || debugIndex > STENCIL_ZY)
         {
             return;
         }
@@ -211,17 +236,17 @@ public class Gizmo
         float size = 10000F;
         float t = 0.005F;
 
-        if (this.index == STENCIL_X || this.index == STENCIL_XZ || this.index == STENCIL_XY)
+        if (debugIndex == STENCIL_X || debugIndex == STENCIL_XZ || debugIndex == STENCIL_XY)
         {
             Draw.fillBox(builder, stack, -size, -t, -t, size, t, t, Colors.RED);
         }
         
-        if (this.index == STENCIL_Y || this.index == STENCIL_XY || this.index == STENCIL_ZY)
+        if (debugIndex == STENCIL_Y || debugIndex == STENCIL_XY || debugIndex == STENCIL_ZY)
         {
             Draw.fillBox(builder, stack, -t, -size, -t, t, size, t, Colors.GREEN);
         }
         
-        if (this.index == STENCIL_Z || this.index == STENCIL_XZ || this.index == STENCIL_ZY)
+        if (debugIndex == STENCIL_Z || debugIndex == STENCIL_XZ || debugIndex == STENCIL_ZY)
         {
             Draw.fillBox(builder, stack, -t, -t, -size, t, t, size, Colors.BLUE);
         }

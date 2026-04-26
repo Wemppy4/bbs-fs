@@ -414,6 +414,13 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
         return drag;
     }
 
+    public GizmoDrag buildHotkeyDrag(UIPropTransform transform)
+    {
+        UIContext context = this.getContext();
+
+        return this.buildGizmoDrag(transform, context == null ? 0F : context.getTransition());
+    }
+
     public void pickFormFromRenderer(Pair<Form, String> pair)
     {
         if (Window.isCtrlPressed() && !pair.b.isEmpty()) this.bodyPartEditor.pickBone(pair);

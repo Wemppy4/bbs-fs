@@ -269,6 +269,24 @@ public class UIReplaysEditorUtils
         return Gizmo.INSTANCE.start(stencilIndex, context.mouseX, context.mouseY, transform, drag);
     }
 
+    public static void configureFilmHotkeyDrag(UIFilmPanel panel, UIContext context)
+    {
+        UIPropTransform transform = getEditableTransform(panel.replayEditor.keyframeEditor);
+
+        if (transform == null)
+        {
+            return;
+        }
+
+        transform.hotkeyDrag(() -> buildFilmGizmoDrag(
+            panel,
+            panel.getCamera(),
+            panel.preview.getViewport(),
+            transform,
+            panel.replayEditor.getContext() == null ? 0F : panel.replayEditor.getContext().getTransition()
+        ));
+    }
+
     /**
      * Ray gizmo context for the film / replay viewport: same camera-origin and
      * axes as {@link GizmoDrag#fromRenderedGizmo}, plus numeric

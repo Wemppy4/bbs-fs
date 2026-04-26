@@ -80,6 +80,7 @@ public class UIPropTransform extends UITransform
     /** Whether {@link #dragStartRotateDeg} should be written back to {@code rotate2} instead of {@code rotate}. */
     private boolean dragRotateGizmoSpace;
     private boolean dragHasStart;
+    private Supplier<GizmoDrag> hotkeyDragSupplier;
 
     private UITransformHandler handler;
 
@@ -136,6 +137,13 @@ public class UIPropTransform extends UITransform
     public void setModel()
     {
         this.model = true;
+    }
+
+    public UIPropTransform hotkeyDrag(Supplier<GizmoDrag> supplier)
+    {
+        this.hotkeyDragSupplier = supplier;
+
+        return this;
     }
 
     public boolean isLocal()
@@ -196,9 +204,9 @@ public class UIPropTransform extends UITransform
         this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, () -> this.enableMode(0)).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_SCALE, () -> this.enableMode(1)).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_ROTATE, () -> this.enableMode(2)).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.axis = Axis.X).active(active).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.axis = Axis.Y).active(active).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.axis = Axis.Z).active(active).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.setEditingAxis(Axis.X)).active(active).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.setEditingAxis(Axis.Y)).active(active).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.setEditingAxis(Axis.Z)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_TOGGLE_LOCAL, () ->
         {
             this.toggleLocal();
@@ -211,6 +219,38 @@ public class UIPropTransform extends UITransform
     public Transform getTransform()
     {
         return this.transform;
+    }
+
+    public int getDebugLineStencilIndex()
+    {
+        if (!this.editing)
+        {
+            return -1;
+        }
+
+        if (this.axis2 != null)
+        {
+            if ((this.axis == Axis.X && this.axis2 == Axis.Z) || (this.axis == Axis.Z && this.axis2 == Axis.X))
+            {
+                return Gizmo.STENCIL_XZ;
+            }
+
+            if ((this.axis == Axis.X && this.axis2 == Axis.Y) || (this.axis == Axis.Y && this.axis2 == Axis.X))
+            {
+                return Gizmo.STENCIL_XY;
+            }
+
+            if ((this.axis == Axis.Z && this.axis2 == Axis.Y) || (this.axis == Axis.Y && this.axis2 == Axis.Z))
+            {
+                return Gizmo.STENCIL_ZY;
+            }
+        }
+
+        if (this.axis == Axis.X) return Gizmo.STENCIL_X;
+        if (this.axis == Axis.Y) return Gizmo.STENCIL_Y;
+        if (this.axis == Axis.Z) return Gizmo.STENCIL_Z;
+
+        return -1;
     }
 
     public void refillTransform()
@@ -254,7 +294,7 @@ public class UIPropTransform extends UITransform
 
     public void enableMode(int mode)
     {
-        this.enableMode(mode, null);
+        this.enableMode(mode, null, null, this.getHotkeyDrag());
     }
 
     public void enableMode(int mode, Axis axis)
@@ -291,7 +331,7 @@ public class UIPropTransform extends UITransform
 
             this.axis = values[MathUtils.cycler(this.axis.ordinal() + 1, 0, values.length - 1)];
             this.axis2 = null;
-            this.drag = null;
+            this.drag = drag;
 
             this.restore(true);
         }
@@ -307,6 +347,7 @@ public class UIPropTransform extends UITransform
         this.mode = mode;
 
         this.cache.copy(this.transform);
+        Gizmo.INSTANCE.trackTransform(this);
 
         if (this.drag != null)
         {
@@ -316,6 +357,34 @@ public class UIPropTransform extends UITransform
         if (!this.handler.hasParent())
         {
             context.menu.overlay.add(this.handler);
+        }
+    }
+
+    private GizmoDrag getHotkeyDrag()
+    {
+        return this.hotkeyDragSupplier == null ? null : this.hotkeyDragSupplier.get();
+    }
+
+    private void setEditingAxis(Axis axis)
+    {
+        this.axis = axis;
+        this.axis2 = null;
+
+        if (!this.editing)
+        {
+            return;
+        }
+
+        this.restore(true);
+
+        if (this.drag != null)
+        {
+            UIContext context = this.getContext();
+
+            if (context != null)
+            {
+                this.beginRayDrag(context.mouseX, context.mouseY);
+            }
         }
     }
 
@@ -731,6 +800,7 @@ public class UIPropTransform extends UITransform
         this.axis2 = null;
         this.drag = null;
         this.dragHasStart = false;
+        Gizmo.INSTANCE.clearTrackedTransform(this);
 
         if (this.handler.hasParent())
         {

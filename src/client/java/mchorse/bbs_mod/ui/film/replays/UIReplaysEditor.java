@@ -1010,6 +1010,8 @@ public class UIReplaysEditor extends UIElement {
                 && (this.keyframeEditor == null || !this.keyframeEditor.view.isEditing())
         );
 
+        UIReplaysEditorUtils.configureFilmHotkeyDrag(this.filmPanel, context);
+
         super.render(context);
     }
 
