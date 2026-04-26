@@ -23,9 +23,12 @@ public class Colors
     public static final int DARKER_GRAY = 0xff444444;
     public static final int DARK_GRAY = 0x676767;
     public static final int DARKEST_GRAY = 0xff222222;
-    public static final int RED = 0xff3333;
-    public static final int GREEN = 0x33ff33;
-    public static final int BLUE = 0x3366ff;
+    public static final int RED = 0xffff4059;
+    public static final int GREEN = 0xff59d940;
+    public static final int BLUE = 0xff4073ff;
+    public static final int PLANE_XZ = 0xffd940d9;
+    public static final int PLANE_XY = 0xff40a6d9;
+    public static final int PLANE_ZY = 0xffd9d940;
     public static final int YELLOW = 0xffff33;
     public static final int CYAN = 0x33ffff;
     public static final int MAGENTA = 0xff66ff;
@@ -56,9 +59,22 @@ public class Colors
 
     public static float getA(int color)
     {
-        COLOR.set(color);
+        return ((color >> 24) & 0xff) / 255F;
+    }
 
-        return COLOR.a;
+    public static float getR(int color)
+    {
+        return ((color >> 16) & 0xff) / 255F;
+    }
+
+    public static float getG(int color)
+    {
+        return ((color >> 8) & 0xff) / 255F;
+    }
+
+    public static float getB(int color)
+    {
+        return (color & 0xff) / 255F;
     }
 
     public static int setA(int color, float alpha)

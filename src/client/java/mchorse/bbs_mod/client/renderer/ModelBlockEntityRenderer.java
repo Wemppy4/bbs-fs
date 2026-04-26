@@ -149,7 +149,7 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
             {
                 matrices.push();
                 MatrixStackUtils.scaleBack(matrices);
-                Draw.coolerAxes(matrices, 0.5F, 0.01F, 0.51F, 0.02F);
+                Draw.coolerAxes(matrices, 0.5F, 0.005F);
                 matrices.pop();
             }
 

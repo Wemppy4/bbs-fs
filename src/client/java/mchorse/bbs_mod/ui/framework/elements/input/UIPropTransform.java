@@ -543,12 +543,24 @@ public class UIPropTransform extends UITransform
         }
         else
         {
-            /* Global (Parent space): handles align with the bone's origin axes 
-             * (which includes parent rotations and entity yaw). The Jacobian 
-             * directly gives us these world-space axes for each translate 
-             * component. */
-            this.dragTranslateBasis.identity();
-            this.dragWorldBasis.set(jacobian);
+            /* Global (Parent space): handles align with the bone's origin axes
+             * (which includes parent rotations and entity yaw). 
+             * We use the rendered gizmo's world axes for the drag plane, and
+             * push them through the inverse Jacobian to find the matching 
+             * change in translate-space. */
+            Matrix3f inverse = new Matrix3f(jacobian);
+
+            if (Math.abs(inverse.determinant()) < 1.0E-8F)
+            {
+                inverse.identity();
+            }
+            else
+            {
+                inverse.invert();
+            }
+
+            this.dragTranslateBasis.set(inverse).mul(this.drag.gizmoWorldAxes);
+            this.dragWorldBasis.set(this.drag.gizmoWorldAxes);
         }
 
         if (this.axis2 == null)
@@ -948,6 +960,33 @@ public class UIPropTransform extends UITransform
             int y = this.area.my(font.getHeight());
 
             context.batcher.textCard(label, x, y, Colors.WHITE, BBSSettings.primaryColor(Colors.A50));
+
+            if (this.axis != null)
+            {
+                Vector3f v = this.getValue();
+                float val = this.axis == Axis.X ? v.x : (this.axis == Axis.Y ? v.y : v.z);
+                
+                if (this.mode == 2)
+                {
+                    val = MathUtils.toDeg(val);
+                }
+                
+                String valueLabel = String.format(java.util.Locale.US, "%.2f", val);
+                
+                if (this.axis2 != null)
+                {
+                    float val2 = this.axis2 == Axis.X ? v.x : (this.axis2 == Axis.Y ? v.y : v.z);
+                    
+                    if (this.mode == 2)
+                    {
+                        val2 = MathUtils.toDeg(val2);
+                    }
+                    
+                    valueLabel += ", " + String.format(java.util.Locale.US, "%.2f", val2);
+                }
+
+                context.batcher.textCard(valueLabel, context.mouseX + 12, context.mouseY + 12, Colors.WHITE, Colors.A50);
+            }
         }
     }
 

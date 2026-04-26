@@ -7,6 +7,7 @@ import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.Axis;
+import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
@@ -187,23 +188,57 @@ public class Gizmo
 
         if (BBSSettings.gizmos.get())
         {
-            this.drawAxes(stack, 0.25F, 0.015F, 0.26F, 0.025F);
+            this.drawAxes(stack, 0.25F, 0.008F);
+            this.drawInfiniteLine(stack);
         }
         else
         {
-            Draw.coolerAxes(stack, 0.25F, 0.015F, 0.26F, 0.025F);
+            Draw.coolerAxes(stack, 0.25F, 0.008F);
+            this.drawInfiniteLine(stack);
         }
     }
 
-    private void drawAxes(MatrixStack stack, float axisSize, float axisOffset, float outlineSize, float outlineOffset)
+    private void drawInfiniteLine(MatrixStack stack)
+    {
+        if (this.index < STENCIL_X || this.index > STENCIL_ZY)
+        {
+            return;
+        }
+
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+
+        float size = 10000F;
+        float t = 0.005F;
+
+        if (this.index == STENCIL_X || this.index == STENCIL_XZ || this.index == STENCIL_XY)
+        {
+            Draw.fillBox(builder, stack, -size, -t, -t, size, t, t, Colors.RED);
+        }
+        
+        if (this.index == STENCIL_Y || this.index == STENCIL_XY || this.index == STENCIL_ZY)
+        {
+            Draw.fillBox(builder, stack, -t, -size, -t, t, size, t, Colors.GREEN);
+        }
+        
+        if (this.index == STENCIL_Z || this.index == STENCIL_XZ || this.index == STENCIL_ZY)
+        {
+            Draw.fillBox(builder, stack, -t, -t, -size, t, t, size, Colors.BLUE);
+        }
+
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+    }
+
+    private void drawAxes(MatrixStack stack, float axisSize, float axisOffset)
     {
         float scale = BBSSettings.axesScale.get();
         float thickness = BBSSettings.axesThickness.get();
 
         axisSize *= scale;
         axisOffset *= scale * thickness;
-        outlineSize *= scale;
-        outlineOffset *= scale * thickness;
 
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
@@ -211,44 +246,21 @@ public class Gizmo
 
         if (this.mode == Mode.ROTATE)
         {
-            float outlinePad = 0.015F * scale * thickness;
             float radius = 0.22F * scale;
-            float thicknessRing = 0.025F * scale * thickness;
+            float thicknessRing = 0.015F * scale * thickness;
 
-            Draw.arc3D(builder, stack, Axis.Z, radius, thicknessRing + outlinePad, 0F, 0F, 0F);
-            Draw.arc3D(builder, stack, Axis.Z, radius, thicknessRing, 0F, 0F, 1F);
+            Draw.arc3D(builder, stack, Axis.Z, radius, thicknessRing, Colors.BLUE);
+            Draw.arc3D(builder, stack, Axis.X, radius, thicknessRing, Colors.RED);
+            Draw.arc3D(builder, stack, Axis.Y, radius, thicknessRing, Colors.GREEN);
 
-            Draw.arc3D(builder, stack, Axis.X, radius, thicknessRing + outlinePad, 0F, 0F, 0F);
-            Draw.arc3D(builder, stack, Axis.X, radius, thicknessRing, 1F, 0F, 0F);
-
-            Draw.arc3D(builder, stack, Axis.Y, radius, thicknessRing + outlinePad, 0F, 0F, 0F);
-            Draw.arc3D(builder, stack, Axis.Y, radius, thicknessRing, 0F, 1F, 0F);
-
-            Draw.fillBox(builder, stack, -outlineOffset, -outlineOffset, -outlineOffset, outlineOffset, outlineOffset, outlineOffset, 0F, 0F, 0F);
-            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, 1F, 1F, 1F);
+            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
         }
         else
         {
-            Draw.fillBox(builder, stack, 0, -outlineOffset, -outlineOffset, outlineSize, outlineOffset, outlineOffset, 0F, 0F, 0F);
-            Draw.fillBox(builder, stack, -outlineOffset, 0, -outlineOffset, outlineOffset, outlineSize, outlineOffset, 0F, 0F, 0F);
-            Draw.fillBox(builder, stack, -outlineOffset, -outlineOffset, 0, outlineOffset, outlineOffset, outlineSize, 0F, 0F, 0F);
-            Draw.fillBox(builder, stack, -outlineOffset, -outlineOffset, -outlineOffset, outlineOffset, outlineOffset, outlineOffset, 0F, 0F, 0F);
-
-            if (this.mode == Mode.SCALE)
-            {
-                float scaleStart = axisSize + axisOffset / 2F - outlineOffset / 2F;
-                float scaleEnd = axisSize + axisOffset / 2F + outlineOffset / 2F;
-                float offset = axisOffset * 2.75F;
-
-                Draw.fillBox(builder, stack, scaleStart, -offset, -offset, scaleEnd, offset, offset, 0F, 0F, 0F);
-                Draw.fillBox(builder, stack, -offset, scaleStart, -offset, offset, scaleEnd, offset, 0F, 0F, 0F);
-                Draw.fillBox(builder, stack, -offset, -offset, scaleStart, offset, offset, scaleEnd, 0F, 0F, 0F);
-            }
-
-            Draw.fillBox(builder, stack, 0, -axisOffset, -axisOffset, axisSize, axisOffset, axisOffset, 1F, 0F, 0F);
-            Draw.fillBox(builder, stack, -axisOffset, 0, -axisOffset, axisOffset, axisSize, axisOffset, 0F, 1F, 0F);
-            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, 0F, 0F, 1F);
-            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, 1F, 1F, 1F);
+            Draw.fillBox(builder, stack, 0, -axisOffset, -axisOffset, axisSize, axisOffset, axisOffset, Colors.RED);
+            Draw.fillBox(builder, stack, -axisOffset, 0, -axisOffset, axisOffset, axisSize, axisOffset, Colors.GREEN);
+            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, Colors.BLUE);
+            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
 
             if (this.mode == Mode.TRANSLATE)
             {
@@ -256,18 +268,18 @@ public class Gizmo
                 float planeEnd = axisSize * 0.6F;
                 float planeThickness = axisOffset * 0.5F;
 
-                Draw.fillBox(builder, stack, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, 0.85F, 0F, 0.85F);
-                Draw.fillBox(builder, stack, planeStart, planeStart, -planeThickness, planeEnd, planeEnd, planeThickness, 0.85F, 0.85F, 0F);
-                Draw.fillBox(builder, stack, -planeThickness, planeStart, planeStart, planeThickness, planeEnd, planeEnd, 0F, 0.85F, 0.85F);
+                Draw.fillBox(builder, stack, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.PLANE_XZ);
+                Draw.fillBox(builder, stack, planeStart, planeStart, -planeThickness, planeEnd, planeEnd, planeThickness, Colors.PLANE_XY);
+                Draw.fillBox(builder, stack, -planeThickness, planeStart, planeStart, planeThickness, planeEnd, planeEnd, Colors.PLANE_ZY);
             }
 
             if (this.mode == Mode.SCALE)
             {
-                float scaleEnd = axisSize + axisOffset;
+                float scaleEnd = axisSize + axisOffset * 2F;
 
-                Draw.fillBox(builder, stack, axisSize, -axisOffset * 2F, -axisOffset * 2F, scaleEnd, axisOffset * 2F, axisOffset * 2F, 1F, 0F, 0F);
-                Draw.fillBox(builder, stack, -axisOffset * 2F, axisSize, -axisOffset * 2F, axisOffset * 2F, scaleEnd, axisOffset * 2F, 0F, 1F, 0F);
-                Draw.fillBox(builder, stack, -axisOffset * 2F, -axisOffset * 2F, axisSize, axisOffset * 2F, axisOffset * 2F, scaleEnd, 0F, 0F, 1F);
+                Draw.fillBox(builder, stack, axisSize, -axisOffset * 2F, -axisOffset * 2F, scaleEnd, axisOffset * 2F, axisOffset * 2F, Colors.RED);
+                Draw.fillBox(builder, stack, -axisOffset * 2F, axisSize, -axisOffset * 2F, axisOffset * 2F, scaleEnd, axisOffset * 2F, Colors.GREEN);
+                Draw.fillBox(builder, stack, -axisOffset * 2F, -axisOffset * 2F, axisSize, axisOffset * 2F, axisOffset * 2F, scaleEnd, Colors.BLUE);
             }
         }
 
