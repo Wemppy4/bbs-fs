@@ -384,34 +384,56 @@ public class UIPropTransform extends UITransform
      */
     private void applyRayScale(Vector3d hit)
     {
+        boolean all = Window.isCtrlPressed();
+        Vector3f s = new Vector3f(this.dragStartScale);
+
+        this.applyRayScaleAxis(hit, this.axis, all, s);
+
+        if (this.axis2 != null)
+        {
+            this.applyRayScaleAxis(hit, this.axis2, all, s);
+        }
+
+        this.setS(null, s.x, s.y, s.z);
+    }
+
+    private void applyRayScaleAxis(Vector3d hit, Axis currentAxis, boolean all, Vector3f s)
+    {
+        Vector3f axisDir = this.dragWorldBasis.getColumn(currentAxis.ordinal(), new Vector3f());
+        
+        if (axisDir.lengthSquared() < 1.0E-8F)
+        {
+            return;
+        }
+        
+        axisDir.normalize();
+
         double rx = hit.x - this.drag.gizmoOrigin.x;
         double ry = hit.y - this.drag.gizmoOrigin.y;
         double rz = hit.z - this.drag.gizmoOrigin.z;
-        float currentProj = (float) (rx * this.dragAxisDir.x + ry * this.dragAxisDir.y + rz * this.dragAxisDir.z);
+        float currentProj = (float) (rx * axisDir.x + ry * axisDir.y + rz * axisDir.z);
 
-        boolean all = Window.isCtrlPressed();
-        float sx = this.dragStartScale.x;
-        float sy = this.dragStartScale.y;
-        float sz = this.dragStartScale.z;
+        double srx = this.dragStartHit.x - this.drag.gizmoOrigin.x;
+        double sry = this.dragStartHit.y - this.drag.gizmoOrigin.y;
+        double srz = this.dragStartHit.z - this.drag.gizmoOrigin.z;
+        float startProj = (float) (srx * axisDir.x + sry * axisDir.y + srz * axisDir.z);
 
-        if (Math.abs(this.dragStartScaleProj) < 1.0E-4F)
+        float delta = currentProj - startProj;
+
+        if (Math.abs(startProj) < 1.0E-4F)
         {
-            float delta = currentProj - this.dragStartScaleProj;
-
-            if (all || this.axis == Axis.X) sx += delta;
-            if (all || this.axis == Axis.Y) sy += delta;
-            if (all || this.axis == Axis.Z) sz += delta;
+            if (all || currentAxis == Axis.X) s.x += delta;
+            if (all || currentAxis == Axis.Y) s.y += delta;
+            if (all || currentAxis == Axis.Z) s.z += delta;
         }
         else
         {
-            float ratio = currentProj / this.dragStartScaleProj;
+            float ratio = currentProj / startProj;
 
-            if (all || this.axis == Axis.X) sx *= ratio;
-            if (all || this.axis == Axis.Y) sy *= ratio;
-            if (all || this.axis == Axis.Z) sz *= ratio;
+            if (all || currentAxis == Axis.X) s.x *= ratio;
+            if (all || currentAxis == Axis.Y) s.y *= ratio;
+            if (all || currentAxis == Axis.Z) s.z *= ratio;
         }
-
-        this.setS(null, sx, sy, sz);
     }
 
     /**
@@ -583,22 +605,16 @@ public class UIPropTransform extends UITransform
      */
     private void beginRayScale(int mouseX, int mouseY)
     {
-        Vector3f axisDir = this.drag.gizmoWorldAxes.getColumn(this.axis.ordinal(), new Vector3f());
+        this.dragWorldBasis.set(this.drag.gizmoWorldAxes);
 
-        if (axisDir.lengthSquared() < 1.0E-8F)
+        if (this.axis2 == null)
         {
-            this.dragHasStart = false;
-
-            return;
+            this.drag.planeNormalForAxis(mouseX, mouseY, this.dragWorldBasis, this.axis, this.dragPlaneNormal);
         }
-
-        axisDir.normalize();
-        this.dragAxisDir.set(axisDir);
-
-        Matrix3f basis = new Matrix3f();
-
-        basis.setColumn(this.axis.ordinal(), axisDir);
-        this.drag.planeNormalForAxis(mouseX, mouseY, basis, this.axis, this.dragPlaneNormal);
+        else
+        {
+            this.drag.planeNormalForPlane(this.dragWorldBasis, this.axis, this.axis2, this.dragPlaneNormal);
+        }
 
         if (!this.drag.intersectPlane(mouseX, mouseY, this.dragPlaneNormal, this.dragStartHit))
         {
@@ -607,11 +623,6 @@ public class UIPropTransform extends UITransform
             return;
         }
 
-        double rx = this.dragStartHit.x - this.drag.gizmoOrigin.x;
-        double ry = this.dragStartHit.y - this.drag.gizmoOrigin.y;
-        double rz = this.dragStartHit.z - this.drag.gizmoOrigin.z;
-
-        this.dragStartScaleProj = (float) (rx * axisDir.x + ry * axisDir.y + rz * axisDir.z);
         this.dragStartScale.set(this.transform.scale);
         this.dragHasStart = true;
     }

@@ -158,9 +158,9 @@ public class Gizmo
                 if (this.index == STENCIL_X) transform.enableMode(this.mode.ordinal(), Axis.X, null, drag);
                 else if (this.index == STENCIL_Y) transform.enableMode(this.mode.ordinal(), Axis.Y, null, drag);
                 else if (this.index == STENCIL_Z) transform.enableMode(this.mode.ordinal(), Axis.Z, null, drag);
-                else if (this.mode == Mode.TRANSLATE && this.index == STENCIL_XZ) transform.enableMode(this.mode.ordinal(), Axis.X, Axis.Z, drag);
-                else if (this.mode == Mode.TRANSLATE && this.index == STENCIL_XY) transform.enableMode(this.mode.ordinal(), Axis.X, Axis.Y, drag);
-                else if (this.mode == Mode.TRANSLATE && this.index == STENCIL_ZY) transform.enableMode(this.mode.ordinal(), Axis.Z, Axis.Y, drag);
+                else if ((this.mode == Mode.TRANSLATE || this.mode == Mode.SCALE) && this.index == STENCIL_XZ) transform.enableMode(this.mode.ordinal(), Axis.X, Axis.Z, drag);
+                else if ((this.mode == Mode.TRANSLATE || this.mode == Mode.SCALE) && this.index == STENCIL_XY) transform.enableMode(this.mode.ordinal(), Axis.X, Axis.Y, drag);
+                else if ((this.mode == Mode.TRANSLATE || this.mode == Mode.SCALE) && this.index == STENCIL_ZY) transform.enableMode(this.mode.ordinal(), Axis.Z, Axis.Y, drag);
             }
 
             return true;
@@ -262,7 +262,7 @@ public class Gizmo
             Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, Colors.BLUE);
             Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
 
-            if (this.mode == Mode.TRANSLATE)
+            if (this.mode == Mode.TRANSLATE || this.mode == Mode.SCALE)
             {
                 float planeStart = axisSize * 0.2F;
                 float planeEnd = axisSize * 0.6F;
@@ -328,7 +328,7 @@ public class Gizmo
             Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, STENCIL_Z / 255F, 0F, 0F);
             Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, 0F, 0F, 0F);
 
-            if (this.mode == Mode.TRANSLATE)
+            if (this.mode == Mode.TRANSLATE || this.mode == Mode.SCALE)
             {
                 float planeStart = axisSize * 0.2F;
                 float planeEnd = axisSize * 0.6F;
