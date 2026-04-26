@@ -298,7 +298,16 @@ public class UIPropTransform extends UITransform
 
     public void enableMode(int mode)
     {
-        this.enableMode(mode, null, null, this.getHotkeyDrag());
+        GizmoDrag drag = this.getHotkeyDrag();
+
+        if (mode == Gizmo.Mode.ROTATE.ordinal() && (!this.editing || this.mode != mode))
+        {
+            this.enableTrackball(drag);
+
+            return;
+        }
+
+        this.enableMode(mode, null, null, drag);
     }
 
     public void enableMode(int mode, Axis axis)
