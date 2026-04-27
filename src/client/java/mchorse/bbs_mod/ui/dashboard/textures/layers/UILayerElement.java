@@ -89,6 +89,13 @@ public class UILayerElement extends UIElement
             });
         }
 
+        menu.action(Icons.OUTLINE, IKey.raw("Выделить"), () -> {
+            this.panel.currentEditor.setActiveLayer(this.index);
+            this.panel.currentEditor.selectLayerBounds();
+            this.panel.updateLayers();
+            this.panel.currentEditor.dirty();
+        });
+
         menu.action(Icons.EDIT, IKey.raw("Переименовать"), () -> {
             UIPromptOverlayPanel prompt = new UIPromptOverlayPanel(
                 IKey.raw("Переименовать слой"),

@@ -166,6 +166,61 @@ public class UIPixelsEditor extends UICanvasEditor
         return this;
     }
 
+    public void selectLayerBounds()
+    {
+        if (this.pixels == null)
+        {
+            return;
+        }
+
+        int minX = this.pixels.width;
+        int minY = this.pixels.height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int x = 0; x < this.pixels.width; x++)
+        {
+            for (int y = 0; y < this.pixels.height; y++)
+            {
+                Color color = this.pixels.getColor(x, y);
+                if (color != null && color.a > 0F)
+                {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX >= minX && maxY >= minY)
+        {
+            this.selections.clear();
+            
+            // To make the selection rect inclusive of the last pixel, we need to add 1 to the bottom right coordinates
+            boolean[][] mask = this.createSelectionMask();
+            for (int x = minX; x <= maxX; x++)
+            {
+                for (int y = minY; y <= maxY; y++)
+                {
+                    Color color = this.pixels.getColor(x, y);
+                    if (color != null && color.a > 0F)
+                    {
+                        mask[x][y] = true;
+                    }
+                }
+            }
+            
+            this.selections = this.buildSelectionsFromMask(mask);
+            this.hasSelection = !this.selections.isEmpty();
+            this.currentSelectionSubtract = false;
+        }
+        else
+        {
+            this.clearSelection();
+        }
+    }
+
     public UIPixelsEditor pickColorConsumer(Consumer<Color> consumer)
     {
         this.pickColorConsumer = consumer != null ? consumer : (c) -> {};
