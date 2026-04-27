@@ -336,7 +336,6 @@ public class UIReplaysEditorUtils
                 /* Force-apply the perturbed keyframe state to the entity's form 
                  * so that FormUtilsClient's matrix cache updates for this sample. */
                 replay.properties.applyProperties(form, tick);
-                form.update(entity);
             }
 
             Matrix4f m = BaseFilmController.getGizmoBoneCompositeMatrix(
@@ -366,7 +365,6 @@ public class UIReplaysEditorUtils
         {
             float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
             replay.properties.applyProperties(form, tick);
-            form.update(entity);
         }
 
         return drag;

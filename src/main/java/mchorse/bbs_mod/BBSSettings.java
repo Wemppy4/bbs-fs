@@ -43,6 +43,7 @@ public class BBSSettings {
 	public static ValueBoolean clickSound;
 	public static ValueBoolean gizmos;
 	public static ValueBoolean transformLocalDefault;
+	public static ValueBoolean transformHotkeys3dRay;
 
 	public static ValueBoolean enableCursorRendering;
 	public static ValueBoolean enableMouseButtonRendering;
@@ -204,14 +205,8 @@ public class BBSSettings {
 		forceQwerty = builder.getBoolean("force_qwerty", false);
 		freezeModels = builder.getBoolean("freeze_models", false);
 		morphingFocusSearch = builder.getBoolean("morphing_focus_search", false);
-		axesScale = builder.getFloat("axes_scale", 3F, 0F, 10F);
-		axesThickness = builder.getFloat("axes_thickness", 1F, 0.25F, 3F);
-		axesKeepScreenSize = builder.getBoolean("axes_keep_screen_size", false);
-		rotate3dSphere = builder.getBoolean("rotate_3d_sphere", false);
 		uniformScale = builder.getBoolean("uniform_scale", false);
 		clickSound = builder.getBoolean("click_sound", false);
-		gizmos = builder.getBoolean("gizmos", true);
-		transformLocalDefault = builder.getBoolean("transform_local_default", false);
 		editorTrackWidth = builder.getInt("track_width", 2, 1, 10);
 		keyframeDefaultShape = builder.getInt("keyframe_default_shape", 0, 0, KeyframeShape.values().length - 1);
 		favoriteColors = new ValueColors("favorite_colors");
@@ -224,6 +219,15 @@ public class BBSSettings {
 		disabledMorphFormCategories = new ValueStringKeys("disabled_morph_form_categories");
 		builder.register(disabledMorphFormCategories);
 		editorClipAutoName = builder.getBoolean("clip_auto_name", true);
+
+		builder.category("transformation");
+		gizmos = builder.getBoolean("gizmos", true);
+		axesScale = builder.getFloat("axes_scale", 3F, 0F, 10F);
+		axesThickness = builder.getFloat("axes_thickness", 1F, 0.25F, 3F);
+		axesKeepScreenSize = builder.getBoolean("axes_keep_screen_size", true);
+		rotate3dSphere = builder.getBoolean("rotate_3d_sphere", true);
+		transformLocalDefault = builder.getBoolean("transform_local_default", false);
+		transformHotkeys3dRay = builder.getBoolean("hotkeys_3d_ray", true);
 
 		builder.category("tutorials");
 		enableCursorRendering = builder.getBoolean("cursor", false);
