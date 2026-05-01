@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.buttons;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.function.Consumer;
 
@@ -62,6 +63,11 @@ public abstract class UIClickable <T> extends UIElement
     public void render(UIContext context)
     {
         this.hover = this.area.isInside(context);
+
+        if (this.isEnabled() && (this.hover || this.pressed))
+        {
+            context.requestCursor(GLFW.GLFW_HAND_CURSOR);
+        }
 
         this.renderSkin(context);
         super.render(context);

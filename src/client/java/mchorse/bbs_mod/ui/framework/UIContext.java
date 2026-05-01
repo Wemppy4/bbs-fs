@@ -20,6 +20,7 @@ import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -56,6 +57,7 @@ public class UIContext implements IViewportStack
     /* Render states */
     private float transition;
     private long tick;
+    private int cursorShape = GLFW.GLFW_ARROW_CURSOR;
 
     public UIViewportStack viewportStack = new UIViewportStack();
 
@@ -129,6 +131,7 @@ public class UIContext implements IViewportStack
     {
         this.viewportStack.reset();
         this.resetTooltip();
+        this.resetCursor();
     }
 
     public void resetTooltip()
@@ -280,6 +283,21 @@ public class UIContext implements IViewportStack
 
         this.tooltip.render(this);
         this.notifications.render(this);
+    }
+
+    public void requestCursor(int shape)
+    {
+        this.cursorShape = shape;
+    }
+
+    public void resetCursor()
+    {
+        this.cursorShape = GLFW.GLFW_ARROW_CURSOR;
+    }
+
+    public void applyCursor()
+    {
+        Window.setStandardCursor(this.cursorShape);
     }
 
     /* Element focusing */

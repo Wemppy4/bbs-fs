@@ -667,6 +667,11 @@ public class UITrackpad extends UIBaseTextbox
         boolean plus = !dragging && this.plusOne.isInside(context);
         boolean minus = !dragging && this.minusOne.isInside(context);
 
+        if (this.isEnabled() && (this.textbox.isFocused() || (!dragging && this.area.isInside(context))))
+        {
+            context.requestCursor(GLFW.GLFW_IBEAM_CURSOR);
+        }
+
         if (this.textbox.isFocused())
         {
             this.textbox.render(context);

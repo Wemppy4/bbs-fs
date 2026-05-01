@@ -32,6 +32,7 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import org.lwjgl.glfw.GLFW;
 import mchorse.bbs_mod.utils.resources.Pixels;
 import org.joml.Vector2i;
 
@@ -241,6 +242,7 @@ public class UITexturePainter extends UIElement
             this.content.resize();
             this.optionsDraggable.resize();
         });
+        this.optionsDraggable.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
         this.optionsDraggable.relative(this.optionsHost).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.primary = new UIColor((c) -> {}).noLabel().withAlpha();
@@ -297,6 +299,7 @@ public class UITexturePainter extends UIElement
             this.content.resize();
             this.modelPreviewDraggable.resize();
         });
+        this.modelPreviewDraggable.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
         this.modelPreviewDraggable.relative(this.modelPreviewHost).x(0F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
         this.modelPreviewDraggable.setVisible(false);
     }

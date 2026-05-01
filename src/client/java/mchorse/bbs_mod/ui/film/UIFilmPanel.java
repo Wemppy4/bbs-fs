@@ -84,6 +84,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
 import org.joml.Vector3d;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -273,6 +274,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             if (!this.isVisible() || this.panelIds.isEmpty())
             {
                 return;
+            }
+
+            if (this.area.isInside(context))
+            {
+                context.requestCursor(GLFW.GLFW_HAND_CURSOR);
             }
 
             int tabSize = this.getTabSize();
@@ -1486,7 +1492,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             this.applyPanelDropResult(this.draggingPanelId, this.dropTargetPanelId, this.dropTargetZone);
             this.clearPanelDragState();
         });
-        handle.hoverOnly().rendering((context) -> this.renderPanelDragHandle(context, handle));
+        handle.hoverOnly().cursors(GLFW.GLFW_HAND_CURSOR, GLFW.GLFW_HAND_CURSOR).rendering((context) -> this.renderPanelDragHandle(context, handle));
         return handle;
     }
 
@@ -1591,6 +1597,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         EditorLayoutNode.SplitterHandleInfo info = this.splitterHandleInfos.get(index);
         int lineColor = BBSSettings.primaryColor(Colors.A100);
 
+        if (splitter.isDragging() || splitter.area.isInside(context))
+        {
+            context.requestCursor(this.getSplitterCursor(index, context.mouseX, context.mouseY));
+        }
+
         if (info.horizontal)
         {
             int cy = splitter.area.y + splitter.area.h / 2;
@@ -1603,6 +1614,47 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             int half = SPLITTER_HANDLE_LINE_PX / 2;
             context.batcher.box(cx - half, splitter.area.y, cx - half + SPLITTER_HANDLE_LINE_PX, splitter.area.ey(), lineColor);
         }
+    }
+
+    private int getSplitterCursor(int index, int mouseX, int mouseY)
+    {
+        if (index < 0 || index >= this.splitterHandleInfos.size())
+        {
+            return GLFW.GLFW_ARROW_CURSOR;
+        }
+
+        EditorLayoutNode.SplitterHandleInfo info = this.splitterHandleInfos.get(index);
+
+        return this.isInsideSplitterIntersection(index, mouseX, mouseY)
+            ? GLFW.GLFW_CROSSHAIR_CURSOR
+            : info.horizontal
+            ? GLFW.GLFW_VRESIZE_CURSOR
+            : GLFW.GLFW_HRESIZE_CURSOR;
+    }
+
+    private boolean isInsideSplitterIntersection(int index, int mouseX, int mouseY)
+    {
+        if (index < 0 || index >= this.splitterHandleInfos.size())
+        {
+            return false;
+        }
+
+        boolean horizontal = this.splitterHandleInfos.get(index).horizontal;
+
+        for (int i = 0; i < this.splitterHandles.size() && i < this.splitterHandleInfos.size(); i++)
+        {
+            if (i == index || this.splitterHandleInfos.get(i).horizontal == horizontal)
+            {
+                continue;
+            }
+
+            if (this.isInsideSplitterIntersectionHitbox(this.splitterHandles.get(i), mouseX, mouseY))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void fillFilmContextMenu(ContextMenuManager menu)

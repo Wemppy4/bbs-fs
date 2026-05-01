@@ -41,6 +41,7 @@ import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
+import org.lwjgl.glfw.GLFW;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -81,6 +82,7 @@ public class UIAnimationStateEditor extends UIElement
             this.editArea.x(BBSSettings.editorLayoutSettings.getStateEditorSizeH());
             this.getParent().resize();
         });
+        draggable.cursors(GLFW.GLFW_CROSSHAIR_CURSOR, GLFW.GLFW_CROSSHAIR_CURSOR);
 
         draggable.reference(() -> new Vector2i(this.editArea.area.x, this.area.y));
         draggable.rendering((context) ->

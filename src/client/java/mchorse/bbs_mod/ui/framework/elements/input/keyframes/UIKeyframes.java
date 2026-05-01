@@ -111,7 +111,7 @@ public class UIKeyframes extends UIElement
                 p.resize();
             }
         });
-        this.labelResizer.hoverOnly();
+        this.labelResizer.hoverOnly().cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
         this.add(this.labelResizer);
 
         this.copyPasteController = new UICopyPasteController(PresetManager.KEYFRAMES, "_CopyKeyframes")
