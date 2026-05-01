@@ -139,6 +139,9 @@ public class UIClips extends UIElement
     {
         super();
 
+        this.vertical.smoothScrolling(() -> !BBSSettings.scrollingDisableSmoothnessInEditors.get());
+        this.vertical.wheelScrollStep(this::getLayerHeight);
+
         this.copyPasteController = new UICopyPasteController(PresetManager.CLIPS, "_CopyClips")
             .supplier(this::copyClips)
             .consumer(this::pasteClips)

@@ -194,6 +194,8 @@
 	"bbs.config.scrollbars.shadow-comment": "Allows you to set shadow color of scrollbars",
 	"bbs.config.scrollbars.smoothness": "Scrolling smoothness",
 	"bbs.config.scrollbars.smoothness-comment": "Allows you to toggle between smooth and immediate scrolling",
+	"bbs.config.scrollbars.disable_smoothness_in_editors": "No smoothness in editors",
+	"bbs.config.scrollbars.disable_smoothness_in_editors-comment": "Disables scroll smoothing in the main keyframe and clip editor panels, even when global scrolling smoothness is enabled",
 	"bbs.config.scrollbars.title": "Scrollbars",
 	"bbs.config.scrollbars.tooltip": "Background options like color and texture to be used",
 	"bbs.config.scrollbars.width": "Thickness",

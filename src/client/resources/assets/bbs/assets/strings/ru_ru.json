@@ -194,6 +194,8 @@
 	"bbs.config.scrollbars.shadow-comment": "Позволяет Вам установить цвет тени для ползунков",
 	"bbs.config.scrollbars.smoothness": "Сглаживание прокрутки",
 	"bbs.config.scrollbars.smoothness-comment": "Позволяет Вам переключаться между моментальным и сглаженным режимом прокрутки",
+	"bbs.config.scrollbars.disable_smoothness_in_editors": "Без сглаживания в редакторах",
+	"bbs.config.scrollbars.disable_smoothness_in_editors-comment": "Отключает сглаживание прокрутки в основных панелях редакторов кейфреймов и клипов, даже если общее сглаживание включено",
 	"bbs.config.scrollbars.title": "Ползунки",
 	"bbs.config.scrollbars.tooltip": "Параметры ползунков в интерфейсе",
 	"bbs.config.scrollbars.width": "Толщина",

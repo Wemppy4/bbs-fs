@@ -74,6 +74,8 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     {
         this.keyframes = keyframes;
         this.dopeSheet = new Scroll(this.keyframes.area);
+        this.dopeSheet.smoothScrolling(() -> !BBSSettings.scrollingDisableSmoothnessInEditors.get());
+        this.dopeSheet.wheelScrollStep(() -> (int) this.trackHeight);
 
         this.setTrackHeight(16);
     }
@@ -86,7 +88,6 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     public void setTrackHeight(double height)
     {
         this.trackHeight = MathUtils.clamp(height, 8D, 100D);
-        this.dopeSheet.scrollSpeed = (int) this.trackHeight * 2;
         this.updateScrollSize();
 
         this.dopeSheet.clamp();
