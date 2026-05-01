@@ -49,6 +49,7 @@ public class TimelineRulerRenderer
         int majorTop = area.y + 2;
         int minorTop = Math.max(area.y + 12, timelineBottom - 7);
         int timelineEndX = durationTick > 0 ? toGraphX.applyAsInt(durationTick) : Integer.MAX_VALUE;
+        int visibleTimelineEx = Math.min(area.ex(), timelineEndX);
         int max = Integer.MAX_VALUE;
 
         int start = startTick - (startTick % mult);
@@ -61,11 +62,19 @@ public class TimelineRulerRenderer
         context.batcher.box(area.x, area.y, area.ex(), rulerBottom, BBSSettings.chromeSurface());
         context.batcher.box(area.x, area.y, area.ex(), rulerBottom, BBSSettings.backgroundTint(Colors.A6));
 
+        if (visibleTimelineEx < area.ex())
+        {
+            int rightX = Math.max(area.x, visibleTimelineEx);
+
+            context.batcher.box(rightX, area.y, area.ex(), rulerBottom, BBSSettings.chromeSurface());
+            context.batcher.box(rightX, area.y, area.ex(), rulerBottom, BBSSettings.backgroundTint(Colors.A6));
+        }
+
         for (int tick = start; tick <= end; tick += mult)
         {
             int x = toGraphX.applyAsInt(tick);
 
-            if (x >= area.ex())
+            if (x >= area.ex() || x >= visibleTimelineEx)
             {
                 break;
             }

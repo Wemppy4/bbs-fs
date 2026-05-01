@@ -928,6 +928,15 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             context.batcher.box(area.x, contentY, leftEx, area.ey(), BBSSettings.chromeSurface());
             context.batcher.box(area.x, contentY, leftEx, area.ey(), BBSSettings.backgroundTint(Colors.A6));
         }
+
+        int endX = this.keyframes.toGraphX(this.keyframes.getDuration());
+        if (endX < area.ex())
+        {
+            int rightX = Math.max(endX, area.x);
+
+            context.batcher.box(rightX, contentY, area.ex(), area.ey(), BBSSettings.chromeSurface());
+            context.batcher.box(rightX, contentY, area.ex(), area.ey(), BBSSettings.backgroundTint(Colors.A6));
+        }
     }
 
     private void renderLabels(UIContext context, BufferBuilder builder, Matrix4f matrix, List<UIKeyframeElement> elements, int offset, int y)

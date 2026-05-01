@@ -1716,6 +1716,7 @@ public class UIClips extends UIElement
         int h = this.getLayerHeight();
         int leftEdge = this.toGraphX(0);
         int rulerBottom = TimelineRulerRenderer.getRulerBottom(area);
+        int duration = this.clips.calculateDuration();
 
         if (leftEdge > this.area.x)
         {
@@ -1738,6 +1739,7 @@ public class UIClips extends UIElement
             }
         }
 
+        this.renderOutOfRangeShading(context, area, rulerBottom, leftEdge, duration);
         batcher.unclip(context);
         batcher.clip(this.area, context);
 
@@ -1794,6 +1796,33 @@ public class UIClips extends UIElement
         this.vertical.renderScrollbar(batcher);
 
         batcher.unclip(context);
+    }
+
+    private void renderOutOfRangeShading(UIContext context, Area area, int rulerBottom, int leftEdge, int duration)
+    {
+        int contentY = Math.min(area.ey(), rulerBottom + 1);
+
+        if (contentY >= area.ey())
+        {
+            return;
+        }
+
+        if (leftEdge > area.x)
+        {
+            int leftEx = Math.min(leftEdge, area.ex());
+
+            context.batcher.box(area.x, contentY, leftEx, area.ey(), BBSSettings.chromeSurface());
+            context.batcher.box(area.x, contentY, leftEx, area.ey(), BBSSettings.backgroundTint(Colors.A6));
+        }
+
+        int rightEdge = this.toGraphX(duration);
+        if (rightEdge < area.ex())
+        {
+            int rightX = Math.max(rightEdge, area.x);
+
+            context.batcher.box(rightX, contentY, area.ex(), area.ey(), BBSSettings.chromeSurface());
+            context.batcher.box(rightX, contentY, area.ex(), area.ey(), BBSSettings.backgroundTint(Colors.A6));
+        }
     }
 
     private Area getClipArea(Clip clip, Area area, int h)
