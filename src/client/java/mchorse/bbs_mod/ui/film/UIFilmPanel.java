@@ -288,7 +288,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             int y = this.area.y;
             int ey = this.area.ey();
 
-            context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), Colors.A100);
+            context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.chromeSurface());
+            context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.backgroundTint(Colors.A6));
 
             for (int i = 0; i < this.panelIds.size(); i++)
             {
@@ -302,9 +303,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                 int ex = Math.min(this.area.ex(), x + tabSize);
                 String panelId = this.panelIds.get(i);
                 boolean active = panelId.equals(this.activePanelId);
-                boolean hover = i == hovered;
                 Icon icon = this.panel.getDockPanelIcon(panelId);
-                int iconColor = active ? Colors.WHITE : (hover ? Colors.LIGHTEST_GRAY : Colors.mulRGB(Colors.WHITE, 0.75F));
 
                 if (active)
                 {
@@ -314,7 +313,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                     context.batcher.gradientVBox(x, y, ex, ey - 2, color, Colors.A75 | color);
                 }
 
-                context.batcher.icon(icon, iconColor, (x + ex) / 2, (y + ey) / 2, 0.5F, 0.5F);
+                context.batcher.icon(icon, Colors.WHITE, (x + ex) / 2, (y + ey) / 2, 0.5F, 0.5F);
             }
 
             super.render(context);
