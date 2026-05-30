@@ -6,8 +6,10 @@ import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.function.Supplier;
 
@@ -123,6 +125,49 @@ public class GizmoDrag
         Vector3f dir = CameraUtils.getMouseDirection(this.projection, this.view, mouseX, mouseY, this.viewportX, this.viewportY, this.viewportW, this.viewportH);
 
         return out.set(dir).normalize();
+    }
+
+    public boolean projectToScreen(Vector3d world, Vector2f out)
+    {
+        return this.projectToScreen(world.x, world.y, world.z, out);
+    }
+
+    /**
+     * Project a world-space point onto viewport pixel coordinates, matching the
+     * mouse-coordinate convention used by {@link #rayDirection} (origin at the
+     * viewport's top-left corner, Y growing downward).
+     *
+     * <p>The {@link #view} matrix is rotation-only &mdash; the camera translation
+     * lives in {@link #cameraOrigin} &mdash; so the point is expressed relative to
+     * the camera before being run through {@code projection * view}, mirroring the
+     * inverse mapping in {@link CameraUtils#getMouseDirection}.</p>
+     *
+     * @return {@code false} when the point is on or behind the camera plane, in
+     *         which case {@code out} is left untouched.
+     */
+    public boolean projectToScreen(double wx, double wy, double wz, Vector2f out)
+    {
+        Vector4f clip = new Vector4f(
+            (float) (wx - this.cameraOrigin.x),
+            (float) (wy - this.cameraOrigin.y),
+            (float) (wz - this.cameraOrigin.z),
+            1F
+        );
+
+        new Matrix4f(this.projection).mul(this.view).transform(clip);
+
+        if (clip.w <= PARALLEL_EPSILON)
+        {
+            return false;
+        }
+
+        float ndcX = clip.x / clip.w;
+        float ndcY = clip.y / clip.w;
+
+        out.x = this.viewportX + (ndcX + 1F) * (this.viewportW / 2F);
+        out.y = this.viewportY + (1F - ndcY) * (this.viewportH / 2F);
+
+        return true;
     }
 
     /**
