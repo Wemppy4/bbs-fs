@@ -1016,6 +1016,8 @@ public class UIKeys
     public static final IKey TEXTURES_RESIZE_DESCRIPTION = L10n.lang("bbs.ui.textures.resize-description");
     public static final IKey TEXTURES_RESIZE_TITLE = L10n.lang("bbs.ui.textures.resize-title");
     public static final IKey TEXTURES_SAVE = L10n.lang("bbs.ui.textures.save");
+    public static final IKey TEXTURES_SAVE_AS = L10n.lang("bbs.ui.textures.save_as");
+    public static final IKey TEXTURES_SAVE_NOTIFICATION = L10n.lang("bbs.ui.textures.save_notification");
     public static final IKey TEXTURES_SAVE_WRONG_PATH = L10n.lang("bbs.ui.textures.save_wrong_path");
     public static final IKey TEXTURES_TOOLTIP = L10n.lang("bbs.ui.textures.tooltip");
     public static final IKey TEXTURES_TOOLS_BRUSH = L10n.lang("bbs.ui.textures.tools.brush");

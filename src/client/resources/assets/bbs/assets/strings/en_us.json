@@ -1285,6 +1285,8 @@
 	"bbs.ui.textures.resize-description": "Enter new resolution for this texture:",
 	"bbs.ui.textures.resize-title": "Resize texture",
 	"bbs.ui.textures.save": "Specify the path to the texture in the textbox below:",
+	"bbs.ui.textures.save_as": "Save as...",
+	"bbs.ui.textures.save_notification": "Texture %s has been saved",
 	"bbs.ui.textures.save_wrong_path": "Texture has to be saved as .png and into assets (it has to start with \"assets:\") folder!",
 	"bbs.ui.textures.tooltip": "Texture manager",
 	"bbs.ui.textures.tools.brush": "Brush",

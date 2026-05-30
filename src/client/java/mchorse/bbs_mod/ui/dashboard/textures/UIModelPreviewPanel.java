@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.dashboard.textures;
 
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
@@ -50,7 +51,8 @@ public class UIModelPreviewPanel extends UIElement
     @Override
     public void render(UIContext context)
     {
-        this.area.render(context.batcher, Colors.A50);
+        this.area.render(context.batcher, BBSSettings.chromeSurface());
+        this.area.render(context.batcher, BBSSettings.backgroundTint(Colors.A6));
 
         UITextureEditor editor = this.painter.getCurrentEditor();
         Texture temporary = editor != null ? editor.getTemporaryTexture() : null;

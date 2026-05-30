@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.dashboard.textures;
 
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -22,6 +23,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -181,8 +183,9 @@ public class UITexturePainter extends UIElement
             UITextureEditor ed = this.getCurrentEditor();
 
             return ed != null && ed.isDirty() ? Icons.SAVE : Icons.SAVED;
-        }, (b) -> this.withEditor(UITextureEditor::openSaveOverlay));
-        this.saveIcon.tooltip(UIKeys.TEXTURES_SAVE, Direction.LEFT);
+        }, (b) -> this.withEditor(UITextureEditor::saveCurrentTexture));
+        this.saveIcon.tooltip(UIKeys.GENERAL_SAVE, Direction.LEFT);
+        this.saveIcon.context((menu) -> menu.action(Icons.SAVED, UIKeys.TEXTURES_SAVE_AS, () -> this.withEditor(UITextureEditor::openSaveOverlay)));
 
         this.resizeIcon = new UIIcon(Icons.FULLSCREEN, (b) -> this.withEditor(UITextureEditor::openResizeOverlay));
         this.resizeIcon.tooltip(UIKeys.TEXTURES_RESIZE, Direction.LEFT);
@@ -335,11 +338,24 @@ public class UITexturePainter extends UIElement
 
     private void renderPanelBackground(UIContext context)
     {
-        /* Same look as UISidebarDashboardPanel.renderBackground: flat fill on the bar
-         * with a soft fade spilling over the canvas, anchoring the sidebar visually. */
-        this.iconBar.area.render(context.batcher, Colors.A50);
+        /* The base surface is the canvas backdrop spanning the whole editor; the chrome
+         * surface tints the tool/layer columns and the icon bar to group the editing
+         * controls, matching the surfaces used across the dashboard (see UIFilmPanel). A
+         * soft fade still spills off the icon bar onto the canvas, anchoring it visually. */
+        this.content.area.render(context.batcher, BBSSettings.baseSurface());
+        this.content.area.render(context.batcher, BBSSettings.backgroundTint(Colors.A6));
+
+        this.renderChromeSurface(context, this.optionsHost.area);
+        this.renderChromeSurface(context, this.iconBar.area);
+
         context.batcher.gradientHBox(this.iconBar.area.x - 6, this.iconBar.area.y,
             this.iconBar.area.x, this.iconBar.area.ey(), 0, 0x29000000);
+    }
+
+    private void renderChromeSurface(UIContext context, Area area)
+    {
+        area.render(context.batcher, BBSSettings.chromeSurface());
+        area.render(context.batcher, BBSSettings.backgroundTint(Colors.A6));
     }
 
     private void renderActiveToolHighlight(UIContext context)

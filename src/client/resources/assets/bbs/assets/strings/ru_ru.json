@@ -1278,6 +1278,8 @@
 	"bbs.ui.textures.resize-description": "Введите новое разрешение для этой текстуры:",
 	"bbs.ui.textures.resize-title": "Изменить размер текстуры",
 	"bbs.ui.textures.save": "Укажите путь к текстуре в текстовом поле ниже:",
+	"bbs.ui.textures.save_as": "Сохранить как...",
+	"bbs.ui.textures.save_notification": "Текстура %s была сохранена",
 	"bbs.ui.textures.save_wrong_path": "Текстура должна быть сохранена в формате .png и в папке с ресурсами (она должна начинаться с \"assets:\")!",
 	"bbs.ui.textures.tooltip": "Менеджер текстур",
 	"bbs.ui.textures.tools.brush": "Кисть",
