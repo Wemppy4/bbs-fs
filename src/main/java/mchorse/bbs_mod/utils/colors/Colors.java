@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.utils.colors;
 
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.interps.Lerps;
 
@@ -60,6 +61,21 @@ public class Colors
         COLOR.b *= factor;
 
         return COLOR.getARGBColor();
+    }
+
+    public static int lerp(int a, int b, float x)
+    {
+        x = MathUtils.clamp(x, 0F, 1F);
+
+        Color aColor = new Color().set(a);
+        Color bColor = new Color().set(b);
+
+        return COLOR.set(
+            Lerps.lerp(aColor.r, bColor.r, x),
+            Lerps.lerp(aColor.g, bColor.g, x),
+            Lerps.lerp(aColor.b, bColor.b, x),
+            Lerps.lerp(aColor.a, bColor.a, x)
+        ).getARGBColor();
     }
 
     public static float getA(int color)
