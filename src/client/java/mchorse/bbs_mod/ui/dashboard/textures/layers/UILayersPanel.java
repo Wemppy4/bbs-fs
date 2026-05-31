@@ -52,7 +52,7 @@ public class UILayersPanel extends UIElement
         this.opacity.tooltip(UIKeys.TEXTURES_LAYERS_OPACITY);
 
         UIElement controls = UI.row(this.addLayer, this.addImage, this.opacity);
-        controls.relative(this).y(1F, -UIConstants.CONTROL_HEIGHT - 5).w(1F).h(UIConstants.CONTROL_HEIGHT);
+        controls.relative(this).x(UIConstants.MARGIN).y(1F, -UIConstants.CONTROL_HEIGHT - 5).w(1F, -UIConstants.MARGIN * 2).h(UIConstants.CONTROL_HEIGHT);
 
         this.add(label, this.list, controls);
     }

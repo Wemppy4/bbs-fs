@@ -19,6 +19,8 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
@@ -165,8 +167,11 @@ public class UITexturePainter extends UIElement
         this.buildModelPreviewHost();
         this.buildEditorHost();
 
+        /* modelPreviewHost must be added (and thus resized) before editorHost: when the preview
+         * is open editorHost.wTo(modelPreviewHost.area), so the canvas width is computed from the
+         * preview's area, which has to be up to date by the time editorHost resizes. */
         this.content.add(new UIRenderable(this::renderPanelBackground),
-            this.iconBar, this.optionsHost, this.editorHost, this.modelPreviewHost, this.optionsDraggable, this.modelPreviewDraggable);
+            this.iconBar, this.optionsHost, this.modelPreviewHost, this.editorHost, this.optionsDraggable, this.modelPreviewDraggable);
         this.add(this.tabs, this.content);
 
         this.syncTabs();
@@ -354,10 +359,6 @@ public class UITexturePainter extends UIElement
         this.content.area.render(context.batcher, BBSSettings.backgroundTint(Colors.A6));
 
         this.renderChromeSurface(context, this.optionsHost.area);
-        this.renderChromeSurface(context, this.iconBar.area);
-
-        context.batcher.gradientHBox(this.iconBar.area.x - 6, this.iconBar.area.y,
-            this.iconBar.area.x, this.iconBar.area.ey(), 0, 0x29000000);
     }
 
     private void renderChromeSurface(UIContext context, Area area)
@@ -390,17 +391,12 @@ public class UITexturePainter extends UIElement
 
     public void openModelPreview()
     {
-        mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel list = new mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel(
-            UIKeys.FORMS_EDITOR_MODEL_MODELS,
-            (model) ->
-            {
-                this.openModelPreview(model);
-            }
-        );
+        UIListOverlayPanel list = new UIListOverlayPanel(UIKeys.FORMS_EDITOR_MODEL_MODELS, this::openModelPreview);
 
         list.addValues(BBSModClient.getModels().getAvailableKeys());
         list.list.list.sort();
-        mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay.addOverlay(this.getContext(), list);
+
+        UIOverlay.addOverlay(this.getContext(), list);
     }
 
     public void openModelPreview(String model)
@@ -412,7 +408,7 @@ public class UITexturePainter extends UIElement
         this.modelPreviewDraggable.setVisible(true);
         
         this.editorHost.wTo(this.modelPreviewHost.area, 0F, -UIConstants.MARGIN);
-        this.content.resize();
+        this.resize();
     }
 
     public void closeModelPreview()
