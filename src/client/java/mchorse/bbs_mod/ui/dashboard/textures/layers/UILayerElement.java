@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.dashboard.textures.layers;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureLayer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -55,27 +56,27 @@ public class UILayerElement extends UIElement
     {
         if (this.panel.currentEditor == null) return;
 
-        boolean canMoveUp = this.index < this.panel.currentEditor.layers.size() - 1;
+        boolean canMoveUp = this.index < this.panel.currentEditor.getDocument().layers.size() - 1;
         boolean canMoveDown = this.index > 0;
-        boolean canDelete = this.panel.currentEditor.layers.size() > 1;
+        boolean canDelete = this.panel.currentEditor.getDocument().layers.size() > 1;
 
         if (canMoveUp)
         {
             menu.action(Icons.MOVE_UP, UIKeys.TEXTURES_LAYERS_CONTEXT_MOVE_UP, () ->
             {
-                TextureLayer current = this.panel.currentEditor.layers.remove(this.index);
-                this.panel.currentEditor.layers.add(this.index + 1, current);
+                TextureLayer current = this.panel.currentEditor.getDocument().layers.remove(this.index);
+                this.panel.currentEditor.getDocument().layers.add(this.index + 1, current);
 
-                if (this.panel.currentEditor.activeLayerIndex == this.index)
+                if (this.panel.currentEditor.getDocument().activeLayerIndex == this.index)
                 {
-                    this.panel.currentEditor.activeLayerIndex++;
+                    this.panel.currentEditor.getDocument().activeLayerIndex++;
                 }
-                else if (this.panel.currentEditor.activeLayerIndex == this.index + 1)
+                else if (this.panel.currentEditor.getDocument().activeLayerIndex == this.index + 1)
                 {
-                    this.panel.currentEditor.activeLayerIndex--;
+                    this.panel.currentEditor.getDocument().activeLayerIndex--;
                 }
 
-                this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.activeLayerIndex);
+                this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.getDocument().activeLayerIndex);
                 this.panel.updateLayers();
                 this.panel.currentEditor.dirty();
             });
@@ -85,20 +86,20 @@ public class UILayerElement extends UIElement
         {
             menu.action(Icons.MOVE_DOWN, UIKeys.TEXTURES_LAYERS_CONTEXT_MOVE_DOWN, () ->
             {
-                TextureLayer current = this.panel.currentEditor.layers.remove(this.index);
+                TextureLayer current = this.panel.currentEditor.getDocument().layers.remove(this.index);
 
-                this.panel.currentEditor.layers.add(this.index - 1, current);
+                this.panel.currentEditor.getDocument().layers.add(this.index - 1, current);
 
-                if (this.panel.currentEditor.activeLayerIndex == this.index)
+                if (this.panel.currentEditor.getDocument().activeLayerIndex == this.index)
                 {
-                    this.panel.currentEditor.activeLayerIndex--;
+                    this.panel.currentEditor.getDocument().activeLayerIndex--;
                 }
-                else if (this.panel.currentEditor.activeLayerIndex == this.index - 1)
+                else if (this.panel.currentEditor.getDocument().activeLayerIndex == this.index - 1)
                 {
-                    this.panel.currentEditor.activeLayerIndex++;
+                    this.panel.currentEditor.getDocument().activeLayerIndex++;
                 }
 
-                this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.activeLayerIndex);
+                this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.getDocument().activeLayerIndex);
                 this.panel.updateLayers();
                 this.panel.currentEditor.dirty();
             });
@@ -139,7 +140,7 @@ public class UILayerElement extends UIElement
 
             TextureLayer duplicatedLayer = new TextureLayer(UIKeys.TEXTURES_LAYERS_DUPE_SUFFIX.format(this.layer.name).get(), newPixels);
             
-            this.panel.currentEditor.layers.add(this.index + 1, duplicatedLayer);
+            this.panel.currentEditor.getDocument().layers.add(this.index + 1, duplicatedLayer);
             this.panel.currentEditor.setActiveLayer(this.index + 1);
             this.panel.updateLayers();
             this.panel.currentEditor.dirty();
@@ -149,15 +150,15 @@ public class UILayerElement extends UIElement
         {
             menu.action(Icons.REMOVE, UIKeys.TEXTURES_LAYERS_CONTEXT_REMOVE, Colors.NEGATIVE, () ->
             {
-                this.panel.currentEditor.layers.remove(this.index);
+                this.panel.currentEditor.getDocument().layers.remove(this.index);
                 this.layer.delete();
 
-                if (this.panel.currentEditor.activeLayerIndex >= this.panel.currentEditor.layers.size())
+                if (this.panel.currentEditor.getDocument().activeLayerIndex >= this.panel.currentEditor.getDocument().layers.size())
                 {
-                    this.panel.currentEditor.activeLayerIndex = this.panel.currentEditor.layers.size() - 1;
+                    this.panel.currentEditor.getDocument().activeLayerIndex = this.panel.currentEditor.getDocument().layers.size() - 1;
                 }
 
-                this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.activeLayerIndex);
+                this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.getDocument().activeLayerIndex);
                 this.panel.updateLayers();
                 this.panel.currentEditor.dirty();
             });
@@ -186,7 +187,7 @@ public class UILayerElement extends UIElement
     @Override
     public void render(UIContext context)
     {
-        boolean active = this.panel.currentEditor.activeLayerIndex == this.index;
+        boolean active = this.panel.currentEditor.getDocument().activeLayerIndex == this.index;
         int color = active ? BBSSettings.primaryColor(Colors.A50) : Colors.A25;
         
         if (this.area.isInside(context))

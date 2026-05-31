@@ -1,9 +1,12 @@
 package mchorse.bbs_mod.ui.dashboard.textures.layers;
 
+import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
 import mchorse.bbs_mod.ui.dashboard.textures.UITextureEditor;
 import mchorse.bbs_mod.ui.dashboard.textures.UITexturePainter;
-import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureLayer;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
@@ -13,7 +16,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.resources.Pixels;
 
 public class UILayersPanel extends UIElement
 {
@@ -44,9 +47,12 @@ public class UILayersPanel extends UIElement
         
         this.opacity = new UITrackpad((v) ->
         {
-            if (this.currentEditor != null && this.currentEditor.activeLayerIndex >= 0)
+            Document document = this.document();
+            TextureLayer active = document == null ? null : document.getActiveLayer();
+
+            if (active != null)
             {
-                this.currentEditor.layers.get(this.currentEditor.activeLayerIndex).opacity = v.floatValue() / 100F;
+                active.opacity = v.floatValue() / 100F;
                 this.currentEditor.dirty();
             }
         });
@@ -65,15 +71,22 @@ public class UILayersPanel extends UIElement
         this.updateLayers();
     }
 
+    private Document document()
+    {
+        return this.currentEditor == null ? null : this.currentEditor.getDocument();
+    }
+
     private void addLayer()
     {
-        if (this.currentEditor != null && this.currentEditor.getPixels() != null)
+        Document document = this.document();
+
+        if (document != null && this.currentEditor.getPixels() != null)
         {
-            mchorse.bbs_mod.utils.resources.Pixels newPixels = mchorse.bbs_mod.utils.resources.Pixels.fromSize(this.currentEditor.getPixels().width, this.currentEditor.getPixels().height);
-            TextureLayer layer = new TextureLayer(UIKeys.TEXTURES_LAYERS_DEFAULT_NAME.format(String.valueOf(this.currentEditor.layers.size() + 1)).get(), newPixels);
-            this.currentEditor.layers.add(layer);
-            this.currentEditor.activeLayerIndex = this.currentEditor.layers.size() - 1;
-            this.currentEditor.setActiveLayer(this.currentEditor.activeLayerIndex);
+            Pixels newPixels = Pixels.fromSize(this.currentEditor.getPixels().width, this.currentEditor.getPixels().height);
+            TextureLayer layer = new TextureLayer(UIKeys.TEXTURES_LAYERS_DEFAULT_NAME.format(String.valueOf(document.layers.size() + 1)).get(), newPixels);
+
+            document.layers.add(layer);
+            this.currentEditor.setActiveLayer(document.layers.size() - 1);
             this.updateLayers();
             this.currentEditor.dirty();
         }
@@ -83,12 +96,17 @@ public class UILayersPanel extends UIElement
     {
         if (this.currentEditor == null) return;
         
-        UITexturePicker.findAllTextures(this.getContext(), null, (path) -> {
-            mchorse.bbs_mod.resources.Link link = mchorse.bbs_mod.resources.Link.create(path);
-            try {
-                mchorse.bbs_mod.utils.resources.Pixels loaded = mchorse.bbs_mod.BBSModClient.getTextures().getPixels(link);
-                if (loaded != null) {
-                    mchorse.bbs_mod.utils.resources.Pixels newPixels = mchorse.bbs_mod.utils.resources.Pixels.fromSize(
+        UITexturePicker.findAllTextures(this.getContext(), null, (path) ->
+        {
+            Link link = Link.create(path);
+
+            try
+            {
+                Pixels loaded = BBSModClient.getTextures().getPixels(link);
+
+                if (loaded != null)
+                {
+                    Pixels newPixels = Pixels.fromSize(
                         Math.max(this.currentEditor.getPixels().width, loaded.width),
                         Math.max(this.currentEditor.getPixels().height, loaded.height)
                     );
@@ -96,16 +114,17 @@ public class UILayersPanel extends UIElement
                     loaded.delete();
                     
                     TextureLayer layer = new TextureLayer(mchorse.bbs_mod.utils.StringUtils.fileName(path), newPixels);
-                    this.currentEditor.layers.add(layer);
-                    this.currentEditor.activeLayerIndex = this.currentEditor.layers.size() - 1;
-                    this.currentEditor.setActiveLayer(this.currentEditor.activeLayerIndex);
-                    
-                    
+
+                    this.currentEditor.getDocument().layers.add(layer);
+                    this.currentEditor.setActiveLayer(this.currentEditor.getDocument().layers.size() - 1);
+
                     this.updateLayers();
                     this.currentEditor.dirty();
                     this.currentEditor.resize();
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 e.printStackTrace();
             }
         });
@@ -115,16 +134,20 @@ public class UILayersPanel extends UIElement
     {
         this.list.removeAll();
 
-        if (this.currentEditor != null)
+        Document document = this.document();
+
+        if (document != null)
         {
-            for (int i = this.currentEditor.layers.size() - 1; i >= 0; i--)
+            for (int i = document.layers.size() - 1; i >= 0; i--)
             {
-                TextureLayer layer = this.currentEditor.layers.get(i);
-                this.list.add(new UILayerElement(this, layer, i));
+                this.list.add(new UILayerElement(this, document.layers.get(i), i));
             }
-            
-            if (this.currentEditor.activeLayerIndex >= 0 && this.currentEditor.activeLayerIndex < this.currentEditor.layers.size()) {
-                this.opacity.setValue(this.currentEditor.layers.get(this.currentEditor.activeLayerIndex).opacity * 100F);
+
+            TextureLayer active = document.getActiveLayer();
+
+            if (active != null)
+            {
+                this.opacity.setValue(active.opacity * 100F);
             }
         }
 

@@ -5,6 +5,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
 import mchorse.bbs_mod.ui.dashboard.textures.undo.PixelsUndo;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -20,10 +21,9 @@ import mchorse.bbs_mod.utils.interps.rasterizers.LineRasterizer;
 import mchorse.bbs_mod.utils.resources.Pixels;
 import mchorse.bbs_mod.utils.undo.IUndo;
 import mchorse.bbs_mod.utils.undo.UndoManager;
-import mchorse.bbs_mod.ui.dashboard.textures.layers.TextureLayer;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureLayer;
 import org.joml.Vector2d;
 import org.joml.Vector2i;
-import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,8 +42,7 @@ public class UIPixelsEditor extends UICanvasEditor
 
     private int brushSize = 1;
 
-    public List<TextureLayer> layers = new ArrayList<>();
-    public int activeLayerIndex = -1;
+    protected Document document;
 
     private Texture temporary;
     private Pixels pixels;
@@ -233,23 +232,28 @@ public class UIPixelsEditor extends UICanvasEditor
         return this;
     }
 
+    public Document getDocument()
+    {
+        return this.document;
+    }
+
     public void setActiveLayer(int index)
     {
-        if (index >= 0 && index < this.layers.size())
+        if (this.document != null && index >= 0 && index < this.document.layers.size())
         {
-            this.activeLayerIndex = index;
-            this.pixels = this.layers.get(index).pixels;
-            this.temporary = this.layers.get(index).texture;
+            this.document.activeLayerIndex = index;
+            this.pixels = this.document.layers.get(index).pixels;
+            this.temporary = this.document.layers.get(index).texture;
         }
     }
 
     public Texture getTemporaryTexture()
     {
-        if (this.layers.isEmpty())
+        if (this.document == null || this.document.layers.isEmpty())
         {
             return this.temporary;
         }
-        
+
         Pixels flat = this.flattenLayers();
         if (flat != null)
         {
@@ -927,9 +931,12 @@ public class UIPixelsEditor extends UICanvasEditor
 
     private void handleUndo(IUndo<Pixels> pixelsIUndo, boolean redo)
     {
-        for (TextureLayer layer : this.layers)
+        if (this.document != null)
         {
-            layer.updateTexture();
+            for (TextureLayer layer : this.document.layers)
+            {
+                layer.updateTexture();
+            }
         }
     }
 
@@ -950,8 +957,11 @@ public class UIPixelsEditor extends UICanvasEditor
 
     protected void updateTexture()
     {
-        if (this.activeLayerIndex >= 0 && this.activeLayerIndex < this.layers.size()) {
-            this.layers.get(this.activeLayerIndex).updateTexture();
+        TextureLayer active = this.document == null ? null : this.document.getActiveLayer();
+
+        if (active != null)
+        {
+            active.updateTexture();
         }
     }
 
@@ -973,14 +983,14 @@ public class UIPixelsEditor extends UICanvasEditor
 
     public void deleteTexture()
     {
-        for (TextureLayer layer : this.layers)
+        if (this.document != null)
         {
-            layer.delete();
+            this.document.delete();
         }
-        this.layers.clear();
+
         this.temporary = null;
         this.pixels = null;
-        
+
         if (this.temporaryFlat != null)
         {
             this.temporaryFlat.delete();
@@ -988,22 +998,23 @@ public class UIPixelsEditor extends UICanvasEditor
         }
     }
 
-    public void fillPixels(Pixels pixels)
+    /**
+     * Adopt {@code document} as the edited model, disposing whatever was open before. The active
+     * layer's pixels/texture are cached for the painting hot-path and the canvas is sized to it.
+     */
+    public void setDocument(Document document)
     {
         this.lastPixel = null;
 
         this.deleteTexture();
         this.setEditing(false);
 
-        if (pixels != null)
-        {
-            TextureLayer layer = new TextureLayer(UIKeys.TEXTURES_LAYERS_DEFAULT_NAME.format("1").get(), pixels);
-            this.layers.add(layer);
-            this.activeLayerIndex = 0;
-            this.pixels = layer.pixels;
-            this.temporary = layer.texture;
+        this.document = document;
 
-            this.setSize(pixels.width, pixels.height);
+        if (document != null && !document.layers.isEmpty())
+        {
+            this.setActiveLayer(MathUtils.clamp(document.activeLayerIndex < 0 ? 0 : document.activeLayerIndex, 0, document.layers.size() - 1));
+            this.setSize(document.width, document.height);
         }
     }
 
@@ -1011,23 +1022,18 @@ public class UIPixelsEditor extends UICanvasEditor
     public void setSize(int w, int h)
     {
         super.setSize(w, h);
-        
-        for (TextureLayer layer : this.layers)
+
+        if (this.document != null)
         {
-            if (layer.pixels != null && (layer.pixels.width != w || layer.pixels.height != h))
+            this.document.resize(w, h);
+
+            TextureLayer active = this.document.getActiveLayer();
+
+            if (active != null)
             {
-                Pixels newPixels = Pixels.fromSize(w, h);
-                newPixels.draw(layer.pixels, 0, 0);
-                layer.pixels.delete();
-                layer.pixels = newPixels;
-                layer.updateTexture();
+                this.pixels = active.pixels;
+                this.temporary = active.texture;
             }
-        }
-        
-        if (this.activeLayerIndex >= 0 && this.activeLayerIndex < this.layers.size())
-        {
-            this.pixels = this.layers.get(this.activeLayerIndex).pixels;
-            this.temporary = this.layers.get(this.activeLayerIndex).texture;
         }
     }
 
@@ -1216,9 +1222,9 @@ public class UIPixelsEditor extends UICanvasEditor
             Texture texture = this.getRenderTexture(context);
             context.batcher.fullTexturedBox(texture, area.x, area.y, area.w, area.h);
         }
-        else
+        else if (this.document != null)
         {
-            for (TextureLayer layer : this.layers)
+            for (TextureLayer layer : this.document.layers)
             {
                 if (layer.visible && layer.texture != null)
                 {
@@ -1288,30 +1294,14 @@ public class UIPixelsEditor extends UICanvasEditor
 
     public Pixels flattenLayers()
     {
-        if (this.layers.isEmpty())
-        {
-            return null;
-        }
-
-        Pixels output = Pixels.fromSize(this.w, this.h);
-
-        for (TextureLayer layer : this.layers)
-        {
-            if (layer.visible && layer.pixels != null && layer.opacity > 0F)
-            {
-                output.draw(layer.pixels, 0, 0, layer.opacity);
-            }
-        }
-
-        output.rewindBuffer();
-        return output;
+        return this.document == null ? null : this.document.flatten();
     }
 
     private Texture temporaryFlat;
 
     protected Texture getRenderTexture(UIContext context)
     {
-        if (this.layers.isEmpty() || this.editing)
+        if (this.document == null || this.document.layers.isEmpty() || this.editing)
         {
             return this.temporary;
         }

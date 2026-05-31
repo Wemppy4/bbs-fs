@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.ui.dashboard.textures.layers;
+package mchorse.bbs_mod.ui.dashboard.textures.data;
 
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.utils.resources.Pixels;
