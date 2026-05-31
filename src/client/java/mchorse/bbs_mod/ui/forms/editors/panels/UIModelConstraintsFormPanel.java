@@ -177,17 +177,16 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
     }
 
     @Override
-    public void pickBone(String bone)
+    public boolean pickBoneInList(String bone)
     {
-        if (bone == null || bone.isEmpty())
+        if (bone == null || bone.isEmpty() || !this.bones.getList().contains(bone))
         {
-            return;
+            return false;
         }
 
-        if (this.bones.getList().contains(bone))
-        {
-            this.selectBone(bone);
-        }
+        this.selectBone(bone);
+
+        return true;
     }
 
     private void selectBone(String bone)

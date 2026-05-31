@@ -210,18 +210,18 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     }
 
     @Override
-    public void pickBone(String bone)
+    public boolean pickBoneInList(String bone)
     {
-        if (bone == null || bone.isEmpty())
+        if (bone == null || bone.isEmpty() || !this.bones.getList().contains(bone))
         {
-            return;
+            return false;
         }
 
-        if (this.bones.getList().contains(bone))
-        {
-            this.selectedBone = bone;
-            this.bones.setCurrentScroll(bone);
-        }
+        this.selectedBone = bone;
+        this.bones.setCurrentScroll(bone);
+        this.updateLabels();
+
+        return true;
     }
 
     private void openBoneMenu(String current, java.util.function.Consumer<String> callback)

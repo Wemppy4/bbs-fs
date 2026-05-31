@@ -59,4 +59,16 @@ public abstract class UIFormPanel <T extends Form> extends UIElement
 
     public void pickBone(String bone)
     {}
+
+    /**
+     * Try to select the given bone within this panel's own bone list. Panels that present a
+     * list of bones (IK, physics, constraints) override this to keep themselves active when a
+     * body part is picked in the viewport, instead of bouncing the user back to the pose editor.
+     *
+     * @return true if the bone was found in the list and selected.
+     */
+    public boolean pickBoneInList(String bone)
+    {
+        return false;
+    }
 }

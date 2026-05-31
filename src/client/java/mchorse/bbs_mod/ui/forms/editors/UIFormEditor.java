@@ -453,12 +453,16 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
 
     private void pickFormBone(Form form, String bone)
     {
+        /* Captured before pickForm rebuilds the editor (which resets it to the pose panel), so the
+         * bone can be routed back to the tab that was open when the body part was clicked. */
+        Class<?> activePanel = this.editor == null ? null : this.editor.getActivePanelClass();
+
         this.formsList.setCurrentForm(form);
         this.pickForm(this.formsList.getCurrentFirst());
 
         if (!bone.isEmpty())
         {
-            this.editor.pickBone(bone);
+            this.editor.pickBoneFromViewport(bone, activePanel);
         }
     }
 

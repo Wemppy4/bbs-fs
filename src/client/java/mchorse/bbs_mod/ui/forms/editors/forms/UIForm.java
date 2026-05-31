@@ -127,6 +127,40 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
         }
     }
 
+    public Class<?> getActivePanelClass()
+    {
+        return this.view == null ? null : this.view.getClass();
+    }
+
+    /**
+     * Pick a bone that was selected in the 3D viewport. Switching the form rebuilds this editor and
+     * resets it to the pose panel, so {@code preferredPanel} carries the tab that was open before the
+     * rebuild. When that tab is a bone-list panel (IK/physics/constraints) that actually contains the
+     * bone, keep the user on it and select the bone there; otherwise fall back to the pose editor.
+     */
+    public void pickBoneFromViewport(String bone, Class<?> preferredPanel)
+    {
+        if (preferredPanel != null)
+        {
+            for (UIFormPanel<T> panel : this.panels)
+            {
+                if (panel.getClass() == preferredPanel)
+                {
+                    if (panel.pickBoneInList(bone))
+                    {
+                        this.setPanel(panel);
+
+                        return;
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        this.pickBone(bone);
+    }
+
     @Override
     protected void renderBackground(UIContext context, int x, int y, int w, int h)
     {

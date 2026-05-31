@@ -402,12 +402,16 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
     }
 
     @Override
-    public void pickBone(String bone)
+    public boolean pickBoneInList(String bone)
     {
-        if (bone != null && !bone.isEmpty() && this.availableBones.contains(bone))
+        if (bone == null || bone.isEmpty() || !this.availableBones.contains(bone))
         {
-            this.selectBone(bone);
+            return false;
         }
+
+        this.selectBone(bone);
+
+        return true;
     }
 
     private void updateFields()
