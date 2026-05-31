@@ -145,6 +145,72 @@ public class UIPixelsEditor extends UICanvasEditor
         }
     }
 
+    /** Whether there is a non-empty pixel selection (a real region, not the implicit whole-canvas). */
+    public boolean hasSelection()
+    {
+        return this.hasSelection && !this.selections.isEmpty();
+    }
+
+    /**
+     * Cuts the current selection out of the active layer and moves it onto a new layer above it.
+     * The new layer is document-sized with a zero offset, so the lifted pixels keep their on-canvas
+     * position. Recorded as a single undo step (the cut and the new layer are captured together).
+     */
+    public void createLayerFromSelection()
+    {
+        TextureLayer source = this.document == null ? null : this.document.getActiveLayer();
+
+        if (source == null || !this.hasSelection())
+        {
+            return;
+        }
+
+        this.recordLayerChange(null, () ->
+        {
+            int ox = source.offsetX;
+            int oy = source.offsetY;
+            int w = this.document.width;
+            int h = this.document.height;
+            Pixels lifted = Pixels.fromSize(w, h);
+            Color transparent = new Color(0F, 0F, 0F, 0F);
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                for (int dy = 0; dy < h; dy++)
+                {
+                    if (!this.isInsideSelection(dx, dy))
+                    {
+                        continue;
+                    }
+
+                    int lx = dx - ox;
+                    int ly = dy - oy;
+
+                    if (lx < 0 || ly < 0 || lx >= source.pixels.width || ly >= source.pixels.height)
+                    {
+                        continue;
+                    }
+
+                    Color color = source.pixels.getColor(lx, ly);
+
+                    if (color != null)
+                    {
+                        lifted.setColor(dx, dy, color);
+                        source.pixels.setColor(lx, ly, transparent);
+                    }
+                }
+            }
+
+            source.updateTexture();
+
+            int index = this.document.activeLayerIndex + 1;
+
+            this.document.layers.add(index, new TextureLayer(UIKeys.TEXTURES_LAYERS_DEFAULT_NAME.format(String.valueOf(this.document.layers.size() + 1)).get(), lifted));
+            this.setActiveLayer(index);
+            this.clearSelection();
+        });
+    }
+
     public boolean isInsideSelection(int x, int y)
     {
         if (!this.hasSelection || this.selections.isEmpty())

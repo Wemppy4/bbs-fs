@@ -23,7 +23,6 @@ public class UILayersPanel extends UIElement
     private UITexturePainter painter;
     private UIScrollView list;
     private UIIcon addLayer;
-    private UIIcon addImage;
     private UITrackpad opacity;
     
     public UITextureEditor currentEditor;
@@ -40,11 +39,9 @@ public class UILayersPanel extends UIElement
         label.relative(this).w(1F).h(20);
         label.labelAnchor(0.5F, 0.5F);
 
-        this.addLayer = new UIIcon(Icons.ADD, (b) -> this.addLayer());
+        this.addLayer = new UIIcon(Icons.ADD, (b) -> this.openAddLayerMenu());
         this.addLayer.tooltip(UIKeys.TEXTURES_LAYERS_ADD);
-        this.addImage = new UIIcon(Icons.IMAGE, (b) -> this.addImageLayer());
-        this.addImage.tooltip(UIKeys.TEXTURES_LAYERS_ADD_IMAGE);
-        
+
         this.opacity = new UITrackpad((v) ->
         {
             Document document = this.document();
@@ -63,7 +60,7 @@ public class UILayersPanel extends UIElement
         this.opacity.limit(0, 100).integer().setValue(100);
         this.opacity.tooltip(UIKeys.TEXTURES_LAYERS_OPACITY);
 
-        UIElement controls = UI.row(this.addLayer, this.addImage, this.opacity);
+        UIElement controls = UI.row(this.addLayer, this.opacity);
         controls.relative(this).x(UIConstants.MARGIN).y(1F, -UIConstants.CONTROL_HEIGHT - 5).w(1F, -UIConstants.MARGIN * 2).h(UIConstants.CONTROL_HEIGHT);
 
         this.add(label, this.list, controls);
@@ -80,15 +77,35 @@ public class UILayersPanel extends UIElement
         return this.currentEditor == null ? null : this.currentEditor.getDocument();
     }
 
+    /** Opens the "Add layer..." menu: empty layer, layer from a texture, and (if selected) from selection. */
+    private void openAddLayerMenu()
+    {
+        if (this.currentEditor == null)
+        {
+            return;
+        }
+
+        this.getContext().replaceContextMenu((menu) ->
+        {
+            menu.action(Icons.ADD, UIKeys.TEXTURES_LAYERS_ADD_EMPTY, this::addLayer);
+            menu.action(Icons.IMAGE, UIKeys.TEXTURES_LAYERS_ADD_IMAGE, this::addImageLayer);
+
+            if (this.currentEditor.hasSelection())
+            {
+                menu.action(Icons.OUTLINE, UIKeys.TEXTURES_LAYERS_FROM_SELECTION, this::addLayerFromSelection);
+            }
+        });
+    }
+
     private void addLayer()
     {
         Document document = this.document();
 
-        if (document != null && this.currentEditor.getPixels() != null)
+        if (document != null)
         {
             this.currentEditor.recordLayerChange(null, () ->
             {
-                Pixels newPixels = Pixels.fromSize(this.currentEditor.getPixels().width, this.currentEditor.getPixels().height);
+                Pixels newPixels = Pixels.fromSize(document.width, document.height);
                 TextureLayer layer = new TextureLayer(UIKeys.TEXTURES_LAYERS_DEFAULT_NAME.format(String.valueOf(document.layers.size() + 1)).get(), newPixels);
 
                 document.layers.add(layer);
@@ -96,6 +113,15 @@ public class UILayersPanel extends UIElement
                 this.updateLayers();
                 this.currentEditor.dirty();
             });
+        }
+    }
+
+    private void addLayerFromSelection()
+    {
+        if (this.currentEditor != null)
+        {
+            this.currentEditor.createLayerFromSelection();
+            this.updateLayers();
         }
     }
 
@@ -115,21 +141,21 @@ public class UILayersPanel extends UIElement
                 {
                     this.currentEditor.recordLayerChange(null, () ->
                     {
-                        Pixels newPixels = Pixels.fromSize(
-                            Math.max(this.currentEditor.getPixels().width, loaded.width),
-                            Math.max(this.currentEditor.getPixels().height, loaded.height)
-                        );
+                        Document document = this.currentEditor.getDocument();
+
+                        /* Document-sized layer with a zero offset; the image is cropped to the
+                         * document if it is larger. */
+                        Pixels newPixels = Pixels.fromSize(document.width, document.height);
                         newPixels.draw(loaded, 0, 0);
                         loaded.delete();
 
                         TextureLayer layer = new TextureLayer(mchorse.bbs_mod.utils.StringUtils.fileName(path), newPixels);
 
-                        this.currentEditor.getDocument().layers.add(layer);
-                        this.currentEditor.setActiveLayer(this.currentEditor.getDocument().layers.size() - 1);
+                        document.layers.add(layer);
+                        this.currentEditor.setActiveLayer(document.layers.size() - 1);
 
                         this.updateLayers();
                         this.currentEditor.dirty();
-                        this.currentEditor.resize();
                     });
                 }
             }
