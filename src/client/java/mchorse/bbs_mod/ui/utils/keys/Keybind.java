@@ -18,6 +18,7 @@ public class Keybind
     private KeyCombo combo;
     public Runnable callback;
     public boolean inside;
+    public boolean strict;
     public Supplier<Boolean> active;
 
     public Keybind(KeyCombo combo, Runnable callback)
@@ -29,6 +30,19 @@ public class Keybind
     public Keybind inside()
     {
         this.inside = true;
+
+        return this;
+    }
+
+    /**
+     * Require an exact modifier match: the keybind won't fire if a shift/ctrl/alt
+     * key is held that isn't part of its combo. Use this on a plain-key bind that
+     * would otherwise shadow a longer combo on the same key living in another
+     * element (e.g. plain {@code T} vs {@code Shift + T}).
+     */
+    public Keybind strict()
+    {
+        this.strict = true;
 
         return this;
     }
@@ -94,7 +108,36 @@ public class Keybind
             }
         }
 
+        if (this.strict && this.hasExtraModifier())
+        {
+            return false;
+        }
+
         return this.inside ? inside : true;
+    }
+
+    /**
+     * Whether a modifier (shift/ctrl/alt) is currently held that the combo does
+     * not list — used by {@link #strict} binds to step aside for longer combos.
+     */
+    private boolean hasExtraModifier()
+    {
+        if (Window.isShiftPressed() && !this.comboHas(GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_RIGHT_SHIFT))
+        {
+            return true;
+        }
+
+        if (Window.isCtrlPressed() && !this.comboHas(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL))
+        {
+            return true;
+        }
+
+        return Window.isAltPressed() && !this.comboHas(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_KEY_RIGHT_ALT);
+    }
+
+    private boolean comboHas(int left, int right)
+    {
+        return this.combo.keys.contains(left) || this.combo.keys.contains(right);
     }
 
     public boolean checkMouse(int mouseButton, boolean inside)
