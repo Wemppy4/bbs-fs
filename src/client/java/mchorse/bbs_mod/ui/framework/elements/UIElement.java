@@ -158,16 +158,16 @@ public class UIElement implements IUIElement, IUndoElement
 
     public <T extends UIElement> T getParent(Class<T> clazz)
     {
-        UIElement element = this;
+        UIElement element = this.getParent();
 
         while (element != null)
         {
-            element = element.getParent();
-
             if (element.getClass() == clazz)
             {
                 return (T) element;
             }
+
+            element = element.getParent();
         }
 
         return null;

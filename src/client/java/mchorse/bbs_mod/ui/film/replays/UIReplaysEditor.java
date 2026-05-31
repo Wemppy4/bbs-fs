@@ -883,68 +883,9 @@ public class UIReplaysEditor extends UIElement {
                     this.filmPanel.showPanel(this);
                 }
 
-                float gizmoTransition = this.filmPanel.isRunning() ? context.getTransition() : 0F;
-
-                if (UIReplaysEditorUtils.startFilmGizmo(this.filmPanel, context, stencil.getIndex(), gizmoTransition)) {
+                if (UIReplaysEditorUtils.pickFormWithOffers(context, pair, (form, bone, insert) ->
+                        UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.filmPanel, form, bone, insert))) {
                     return true;
-                }
-
-                if (context.mouseButton == 0 || (context.mouseButton == 2 && Window.isCtrlPressed())) {
-                    if (Window.isCtrlPressed()) {
-                        UIReplaysEditorUtils.offerAdjacent(
-                                this.getContext(),
-                                pair.a,
-                                pair.b,
-                                bone -> this.pickForm(pair.a, bone)
-                        ); 
-                    }else if (Window.isShiftPressed()) {
-                        UIReplaysEditorUtils.offerHierarchy(
-                                this.getContext(),
-                                pair.a,
-                                pair.b,
-                                bone -> this.pickForm(pair.a, bone)
-                        ); 
-                    }else {
-                        this.pickForm(pair.a, pair.b);
-                    }
-
-                    return true;
-                } else if (context.mouseButton == 1) {
-                    if (Window.isCtrlPressed()) {
-                        UIReplaysEditorUtils.offerAdjacent(this.getContext(), pair.a, pair.b, bone
-                                -> UIReplaysEditorUtils.pickForm(
-                                        this.keyframeEditor,
-                                        this.filmPanel,
-                                        pair.a,
-                                        bone,
-                                        true
-                                )
-                        );
-
-                        return true;
-                    } else if (Window.isShiftPressed()) {
-                        UIReplaysEditorUtils.offerHierarchy(this.getContext(), pair.a, pair.b, bone
-                                -> UIReplaysEditorUtils.pickForm(
-                                        this.keyframeEditor,
-                                        this.filmPanel,
-                                        pair.a,
-                                        bone,
-                                        true
-                                )
-                        );
-
-                        return true;
-                    } else {
-                        UIReplaysEditorUtils.pickForm(
-                                this.keyframeEditor,
-                                this.filmPanel,
-                                pair.a,
-                                pair.b,
-                                true
-                        );
-
-                        return true;
-                    }
                 }
             }
         } else if (context.mouseButton == 1 && this.isVisible()) {

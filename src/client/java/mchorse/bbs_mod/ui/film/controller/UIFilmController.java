@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
 import org.joml.Vector3d;
@@ -66,7 +67,8 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Gizmo;
-import mchorse.bbs_mod.ui.utils.GizmoDrag;
+import mchorse.bbs_mod.ui.utils.GizmoInteraction;
+import mchorse.bbs_mod.ui.utils.GizmoViewport;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
@@ -92,7 +94,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.world.World;
 
-public class UIFilmController extends UIElement
+public class UIFilmController extends UIElement implements GizmoViewport
 {
     public static final int CAMERA_MODE_CAMERA = 0;
     public static final int CAMERA_MODE_FREE = 1;
@@ -100,7 +102,7 @@ public class UIFilmController extends UIElement
     public static final int CAMERA_MODE_FIRST_PERSON = 3;
     public static final int CAMERA_MODE_THIRD_PERSON_BACK = 4;
     public static final int CAMERA_MODE_THIRD_PERSON_FRONT = 5;
-    private static final int REPLAY_STENCIL_OFFSET = Gizmo.STENCIL_XYZ + 1;
+    private static final int REPLAY_STENCIL_OFFSET = Gizmo.STENCIL_VIEW + 1;
 
     public final UIFilmPanel panel;
 
@@ -127,7 +129,7 @@ public class UIFilmController extends UIElement
     private int hoveredReplayIndex = -1;
     private StencilFormFramebuffer stencil = new StencilFormFramebuffer();
     private StencilMap stencilMap = new StencilMap();
-    private boolean gizmoActive;
+    private final GizmoInteraction gizmo = new GizmoInteraction(this);
 
     public final OrbitFilmCameraController orbit = new OrbitFilmCameraController(this);
     private int pov;
@@ -625,29 +627,52 @@ public class UIFilmController extends UIElement
             return true;
         }
 
-        if (this.stencil.hasPicked())
+        if (this.gizmo.mouseClicked(context))
         {
-            float gizmoTransition = this.isPlaying() ? context.getTransition() : 0F;
-
-            if (UIReplaysEditorUtils.startFilmGizmo(this.panel, context, this.stencil.getIndex(), gizmoTransition))
-            {
-                this.gizmoActive = true;
-                return true;
-            }
+            return true;
         }
 
-        if (context.mouseButton == 0)
+        /* Alt pick the replay */
+        if (context.mouseButton == 0 && this.hoveredReplayIndex >= 0)
         {
-            /* Alt pick the replay */
-            if (this.hoveredReplayIndex >= 0)
-            {
-                this.pickReplay(this.hoveredReplayIndex);
+            this.pickReplay(this.hoveredReplayIndex);
 
-                return true;
-            }
+            return true;
         }
 
         return super.subMouseClicked(context);
+    }
+
+    @Override
+    public StencilFormFramebuffer getGizmoStencil()
+    {
+        return this.stencil;
+    }
+
+    @Override
+    public Matrix4f getGizmoProjection()
+    {
+        return this.panel.lastProjection;
+    }
+
+    @Override
+    public Area getGizmoArea()
+    {
+        return this.panel.preview.getViewport();
+    }
+
+    @Override
+    public boolean startGizmo(UIContext context, int stencilIndex)
+    {
+        float gizmoTransition = this.isPlaying() ? context.getTransition() : 0F;
+
+        return UIReplaysEditorUtils.startFilmGizmo(this.panel, context, stencilIndex, gizmoTransition);
+    }
+
+    @Override
+    public void pickGizmoForm(UIContext context, Form form, String bone)
+    {
+        this.panel.replayEditor.pickForm(form, bone);
     }
 
     private void pickReplay(int index)
@@ -662,13 +687,7 @@ public class UIFilmController extends UIElement
 
     public void stopGizmoInteraction()
     {
-        if (!this.gizmoActive)
-        {
-            return;
-        }
-
-        Gizmo.INSTANCE.stop();
-        this.gizmoActive = false;
+        this.gizmo.stop();
     }
 
     @Override
@@ -679,6 +698,8 @@ public class UIFilmController extends UIElement
             return true;
         }
 
+        boolean consumed = this.gizmo.mouseReleased(context);
+
         this.stopGizmoInteraction();
 
         this.orbit.stop();
@@ -688,7 +709,7 @@ public class UIFilmController extends UIElement
             this.panel.dashboard.orbit.release();
         }
 
-        return super.subMouseReleased(context);
+        return consumed || super.subMouseReleased(context);
     }
 
     @Override
@@ -1228,6 +1249,7 @@ public class UIFilmController extends UIElement
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
 
         this.hoveredReplayIndex = -1;
+        this.gizmo.update(context);
 
         if (!this.stencil.hasPicked())
         {
@@ -1247,6 +1269,14 @@ public class UIFilmController extends UIElement
         if (target != null)
         {
             target.set(index);
+        }
+
+        GlUniform highlight = previewProgram.getUniform("HighlightColor");
+
+        if (highlight != null)
+        {
+            int color = BBSSettings.stencilHighlightColor.get();
+            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
         }
 
         RenderSystem.enableBlend();

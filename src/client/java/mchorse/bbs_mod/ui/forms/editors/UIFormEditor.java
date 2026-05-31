@@ -352,24 +352,22 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
 
     public boolean clickViewport(UIContext context, StencilFormFramebuffer stencil)
     {
-        if (this.statesEditor.isVisible() && this.statesKeyframes.clickViewport(context, stencil))
+        if (this.renderer.getGizmoInteraction().mouseClicked(context))
         {
             return true;
         }
-        else if (stencil.hasPicked() && (context.mouseButton == 0 || (context.mouseButton == 2 && Window.isCtrlPressed())))
+
+        if (this.statesEditor.isVisible())
+        {
+            return this.statesKeyframes.clickViewport(context, stencil);
+        }
+
+        if (stencil.hasPicked() && (context.mouseButton == 0 || (context.mouseButton == 2 && Window.isCtrlPressed())))
         {
             Pair<Form, String> pair = stencil.getPicked();
 
             if (pair != null)
             {
-                UIPropTransform transform = this.editor.getEditableTransform();
-                GizmoDrag drag = this.buildGizmoDrag(transform, context.getTransition());
-
-                if (Gizmo.INSTANCE.start(stencil.getIndex(), context.mouseX, context.mouseY, transform, drag))
-                {
-                    return true;
-                }
-
                 this.pickFormFromRenderer(pair);
 
                 return true;
@@ -377,6 +375,19 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
         }
 
         return false;
+    }
+
+    public boolean startGizmo(UIContext context, int stencilIndex)
+    {
+        if (this.statesEditor.isVisible())
+        {
+            return this.statesKeyframes.startGizmo(context, stencilIndex);
+        }
+
+        UIPropTransform transform = this.editor.getEditableTransform();
+        GizmoDrag drag = this.buildGizmoDrag(transform, context.getTransition());
+
+        return Gizmo.INSTANCE.start(stencilIndex, context.mouseX, context.mouseY, transform, drag);
     }
 
     private GizmoDrag buildGizmoDrag(UIPropTransform transform, float transition)
@@ -427,6 +438,13 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
 
     public void pickFormFromRenderer(Pair<Form, String> pair)
     {
+        if (this.statesEditor.isVisible())
+        {
+            this.statesKeyframes.pickFormFromRenderer(pair);
+
+            return;
+        }
+
         if (Window.isCtrlPressed() && !pair.b.isEmpty()) this.bodyPartEditor.pickBone(pair);
         else if (Window.isCtrlPressed()) UIReplaysEditorUtils.offerAdjacent(this.getContext(), pair.a, pair.b, (bone) -> this.pickFormBone(pair.a, bone));
         else if (Window.isShiftPressed()) UIReplaysEditorUtils.offerHierarchy(this.getContext(), pair.a, pair.b, (bone) -> this.pickFormBone(pair.a, bone));
@@ -884,6 +902,37 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
         }
 
         return this.editor.getOriginMatrix(transition);
+    }
+
+    /**
+     * Tick at which the previewed form is currently posed, matching {@link #preFormRender}.
+     */
+    public float getSamplingTick()
+    {
+        UIContext context = this.getContext();
+
+        return this.cursor + (this.playing && context != null ? context.getTransition() : 0F);
+    }
+
+    /**
+     * Re-applies the active animation state to the previewed form at {@code tick}. Gizmo sampling
+     * (see {@link mchorse.bbs_mod.ui.utils.GizmoDrag#computeRotateAxes}) perturbs a keyframe
+     * transform, which only reaches the bone matrices once the state is re-applied &mdash; the same
+     * pose {@link #preFormRender} performs each frame for rendering.
+     */
+    public void applyStateForSampling(float tick)
+    {
+        if (!this.statesEditor.isVisible())
+        {
+            return;
+        }
+
+        AnimationState state = this.statesKeyframes.getState();
+
+        if (state != null && this.renderer.form != null)
+        {
+            state.properties.applyProperties(this.renderer.form, tick);
+        }
     }
 
     @Override

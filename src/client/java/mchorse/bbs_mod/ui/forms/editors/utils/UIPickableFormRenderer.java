@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.forms.editors.utils;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -16,6 +17,9 @@ import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.utils.Gizmo;
+import mchorse.bbs_mod.ui.utils.GizmoInteraction;
+import mchorse.bbs_mod.ui.utils.GizmoViewport;
+import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
@@ -30,7 +34,7 @@ import org.joml.Matrix4f;
 
 import java.util.function.Supplier;
 
-public class UIPickableFormRenderer extends UIFormRenderer
+public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewport
 {
     public UIFormEditor formEditor;
 
@@ -38,6 +42,8 @@ public class UIPickableFormRenderer extends UIFormRenderer
 
     private StencilFormFramebuffer stencil = new StencilFormFramebuffer();
     private StencilMap stencilMap = new StencilMap();
+
+    private final GizmoInteraction gizmo = new GizmoInteraction(this);
 
     private IEntity target;
     private Supplier<Boolean> renderForm;
@@ -95,6 +101,52 @@ public class UIPickableFormRenderer extends UIFormRenderer
         }
 
         return super.subMouseClicked(context);
+    }
+
+    @Override
+    public boolean subMouseReleased(UIContext context)
+    {
+        if (this.gizmo.mouseReleased(context))
+        {
+            return true;
+        }
+
+        return super.subMouseReleased(context);
+    }
+
+    public GizmoInteraction getGizmoInteraction()
+    {
+        return this.gizmo;
+    }
+
+    @Override
+    public StencilFormFramebuffer getGizmoStencil()
+    {
+        return this.stencil;
+    }
+
+    @Override
+    public Matrix4f getGizmoProjection()
+    {
+        return this.camera.projection;
+    }
+
+    @Override
+    public Area getGizmoArea()
+    {
+        return this.area;
+    }
+
+    @Override
+    public boolean startGizmo(UIContext context, int stencilIndex)
+    {
+        return this.formEditor.startGizmo(context, stencilIndex);
+    }
+
+    @Override
+    public void pickGizmoForm(UIContext context, Form form, String bone)
+    {
+        this.formEditor.pickFormFromRenderer(new Pair<>(form, bone));
     }
 
     @Override
@@ -158,6 +210,8 @@ public class UIPickableFormRenderer extends UIFormRenderer
         {
             this.stencil.clearPicking();
         }
+
+        this.gizmo.update(context);
     }
 
     private void renderAxes(UIContext context)
@@ -230,6 +284,14 @@ public class UIPickableFormRenderer extends UIFormRenderer
         if (target != null)
         {
             target.set(index);
+        }
+
+        GlUniform highlight = previewProgram.getUniform("HighlightColor");
+
+        if (highlight != null)
+        {
+            int color = BBSSettings.stencilHighlightColor.get();
+            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
         }
 
         RenderSystem.enableBlend();

@@ -7,11 +7,11 @@ import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.states.AnimationState;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
@@ -297,54 +297,38 @@ public class UIAnimationStateEditor extends UIElement
         {
             Pair<Form, String> pair = stencil.getPicked();
 
-            if (pair != null && context.mouseButton < 2)
+            if (pair != null)
             {
-                UIPropTransform transform = UIReplaysEditorUtils.getEditableTransform(this.keyframeEditor);
-                GizmoDrag drag = this.buildGizmoDrag(transform, context.getTransition());
-
-                if (Gizmo.INSTANCE.start(stencil.getIndex(), context.mouseX, context.mouseY, transform, drag))
-                {
-                    return true;
-                }
-
-                if (context.mouseButton == 0 || (context.mouseButton == 2 && Window.isCtrlPressed()))
-                {
-                    if (Window.isCtrlPressed()) UIReplaysEditorUtils.offerAdjacent(this.getContext(), pair.a, pair.b, (bone) -> this.pickForm(pair.a, bone));
-                    else if (Window.isShiftPressed()) UIReplaysEditorUtils.offerHierarchy(this.getContext(), pair.a, pair.b, (bone) -> this.pickForm(pair.a, bone));
-                    else this.pickForm(pair.a, pair.b);
-
-                    return true;
-                }
-                else if (context.mouseButton == 1)
-                {
-                    if (Window.isCtrlPressed())
-                    {
-                        UIReplaysEditorUtils.offerAdjacent(this.getContext(), pair.a, pair.b, (bone) -> UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.editor, pair.a, bone, true));
-
-                        return true;
-                    }
-                    else if (Window.isShiftPressed())
-                    {
-                        UIReplaysEditorUtils.offerHierarchy(this.getContext(), pair.a, pair.b, (bone) -> UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.editor, pair.a, bone, true));
-
-                        return true;
-                    }
-                    else
-                    {
-                        UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.editor, pair.a, pair.b, true);
-
-                        return true;
-                    }
-                }
+                return UIReplaysEditorUtils.pickFormWithOffers(context, pair, (form, bone, insert) ->
+                    UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.editor, form, bone, insert));
             }
         }
 
         return false;
     }
 
+    public boolean startGizmo(UIContext context, int stencilIndex)
+    {
+        UIPropTransform transform = UIReplaysEditorUtils.getEditableTransform(this.keyframeEditor);
+        GizmoDrag drag = this.buildGizmoDrag(transform, context.getTransition());
+
+        return Gizmo.INSTANCE.start(stencilIndex, context.mouseX, context.mouseY, transform, drag);
+    }
+
     public void pickForm(Form form, String bone)
     {
         UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.editor, form, bone, false);
+    }
+
+    /**
+     * Bone selection for the renderer's deferred sphere pick (a click that didn't turn into a
+     * trackball drag). Mirrors the left-click branch of {@link #clickViewport}.
+     */
+    public void pickFormFromRenderer(Pair<Form, String> pair)
+    {
+        if (Window.isCtrlPressed()) UIReplaysEditorUtils.offerAdjacent(this.getContext(), pair.a, pair.b, (bone) -> this.pickForm(pair.a, bone));
+        else if (Window.isShiftPressed()) UIReplaysEditorUtils.offerHierarchy(this.getContext(), pair.a, pair.b, (bone) -> this.pickForm(pair.a, bone));
+        else this.pickForm(pair.a, pair.b);
     }
 
     private GizmoDrag buildGizmoDrag(UIPropTransform transform, float transition)
@@ -358,10 +342,19 @@ public class UIAnimationStateEditor extends UIElement
 
         if (drag != null)
         {
+            float tick = this.editor.getSamplingTick();
+
+            /* The bone matrices come from the previewed form, which only reflects a keyframe edit
+             * once the animation state is re-applied. computeRotateAxes / computeTranslateJacobian
+             * perturb the keyframe transform, so re-pose the form before each sample (mirroring the
+             * film's buildFilmGizmoDrag); otherwise the perturbation leaves no trace and the gizmo
+             * axes collapse to identity, breaking the trackball and view rotation. */
             drag.setJacobian(GizmoDrag.computeTranslateJacobian(
                 transform.getTransform(),
                 () ->
                 {
+                    this.editor.applyStateForSampling(tick);
+
                     Matrix4f origin = this.getOrigin(transition);
 
                     return origin == null ? new Vector3f() : origin.getTranslation(new Vector3f());
@@ -371,6 +364,8 @@ public class UIAnimationStateEditor extends UIElement
                 transform.getTransform(),
                 () ->
                 {
+                    this.editor.applyStateForSampling(tick);
+
                     /* Always sample the rotation-bearing matrix; the GLOBAL
                      * keyframe variant would otherwise return an origin
                      * matrix without rotation and the axis sampling would
@@ -380,6 +375,10 @@ public class UIAnimationStateEditor extends UIElement
                     return origin == null ? new Matrix4f() : MatrixStackUtils.stripScale(origin);
                 }
             ));
+
+            /* Restore the previewed form to the unperturbed pose: the compute* helpers above have
+             * already reverted the transform, so re-applying now poses it with the original values. */
+            this.editor.applyStateForSampling(tick);
         }
 
         return drag;

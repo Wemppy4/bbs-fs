@@ -5,6 +5,7 @@ import mchorse.bbs_mod.ui.ContentType;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.renderers.InputRenderer;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.interps.Lerps;
@@ -38,11 +39,14 @@ public class UIDataUtils
 
         String label = UIKeys.GENERAL_RIGHT_CLICK.get();
         int w = (int) (area.w / 1.1F);
-        int color = Colors.mulRGB(0x444444, 1 - (float) factor);
+        int background = BBSSettings.baseSurface();
+        int color = Colors.lerp(background, 0x444444, 1 - (float) factor);
 
-        context.batcher.wallText(label, area.mx() - w / 2, area.my() - 20, color, w, 12, 0.5F, 1);
+        color = Colors.setA(color, MathUtils.clamp(1 - (float) factor, 10F / 255F, 1F));
 
-        context.batcher.gradientVBox(area.x, area.my() + 20, area.ex(), area.my() + 40, 0, Colors.A100);
-        context.batcher.box(area.x, area.my() + 40, area.ex(), area.my() + 90, Colors.A100);
+        context.batcher.wallText(label, area.mx() - w / 2, area.my() - 20, color, w, 12, 0.5F, 1, true);
+
+        context.batcher.gradientVBox(area.x, area.my() + 20, area.ex(), area.my() + 40, background & Colors.RGB, background);
+        context.batcher.box(area.x, area.my() + 40, area.ex(), area.my() + 90, background);
     }
 }

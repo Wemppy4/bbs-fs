@@ -1,17 +1,19 @@
 package mchorse.bbs_mod.ui.dashboard.textures.layers;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.resources.Pixels;
 
 public class UILayerElement extends UIElement
 {
@@ -21,7 +23,6 @@ public class UILayerElement extends UIElement
 
     private UILabel name;
     private UIIcon visible;
-    private UIIcon delete;
 
     public UILayerElement(UILayersPanel panel, TextureLayer layer, int index)
     {
@@ -31,7 +32,8 @@ public class UILayerElement extends UIElement
 
         this.h(20);
         
-        this.visible = new UIIcon(layer.visible ? Icons.VISIBLE : Icons.INVISIBLE, (b) -> {
+        this.visible = new UIIcon(layer.visible ? Icons.VISIBLE : Icons.INVISIBLE, (b) ->
+        {
             this.layer.visible = !this.layer.visible;
             this.visible.both(this.layer.visible ? Icons.VISIBLE : Icons.INVISIBLE);
             this.panel.currentEditor.dirty();
@@ -46,7 +48,7 @@ public class UILayerElement extends UIElement
         row.relative(this).w(1F).h(1F);
         this.add(row);
         
-        this.context((menu) -> this.createContextMenu(menu));
+        this.context(this::createContextMenu);
     }
 
     private void createContextMenu(ContextMenuManager menu)
@@ -59,14 +61,20 @@ public class UILayerElement extends UIElement
 
         if (canMoveUp)
         {
-            menu.action(Icons.MOVE_UP, UIKeys.TEXTURES_LAYERS_CONTEXT_MOVE_UP, () -> {
+            menu.action(Icons.MOVE_UP, UIKeys.TEXTURES_LAYERS_CONTEXT_MOVE_UP, () ->
+            {
                 TextureLayer current = this.panel.currentEditor.layers.remove(this.index);
                 this.panel.currentEditor.layers.add(this.index + 1, current);
-                if (this.panel.currentEditor.activeLayerIndex == this.index) {
+
+                if (this.panel.currentEditor.activeLayerIndex == this.index)
+                {
                     this.panel.currentEditor.activeLayerIndex++;
-                } else if (this.panel.currentEditor.activeLayerIndex == this.index + 1) {
+                }
+                else if (this.panel.currentEditor.activeLayerIndex == this.index + 1)
+                {
                     this.panel.currentEditor.activeLayerIndex--;
                 }
+
                 this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.activeLayerIndex);
                 this.panel.updateLayers();
                 this.panel.currentEditor.dirty();
@@ -75,33 +83,44 @@ public class UILayerElement extends UIElement
 
         if (canMoveDown)
         {
-            menu.action(Icons.MOVE_DOWN, UIKeys.TEXTURES_LAYERS_CONTEXT_MOVE_DOWN, () -> {
+            menu.action(Icons.MOVE_DOWN, UIKeys.TEXTURES_LAYERS_CONTEXT_MOVE_DOWN, () ->
+            {
                 TextureLayer current = this.panel.currentEditor.layers.remove(this.index);
+
                 this.panel.currentEditor.layers.add(this.index - 1, current);
-                if (this.panel.currentEditor.activeLayerIndex == this.index) {
+
+                if (this.panel.currentEditor.activeLayerIndex == this.index)
+                {
                     this.panel.currentEditor.activeLayerIndex--;
-                } else if (this.panel.currentEditor.activeLayerIndex == this.index - 1) {
+                }
+                else if (this.panel.currentEditor.activeLayerIndex == this.index - 1)
+                {
                     this.panel.currentEditor.activeLayerIndex++;
                 }
+
                 this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.activeLayerIndex);
                 this.panel.updateLayers();
                 this.panel.currentEditor.dirty();
             });
         }
 
-        menu.action(Icons.OUTLINE, UIKeys.TEXTURES_LAYERS_CONTEXT_SELECT, () -> {
+        menu.action(Icons.OUTLINE, UIKeys.TEXTURES_LAYERS_CONTEXT_SELECT, () ->
+        {
             this.panel.currentEditor.setActiveLayer(this.index);
             this.panel.currentEditor.selectLayerBounds();
             this.panel.updateLayers();
             this.panel.currentEditor.dirty();
         });
 
-        menu.action(Icons.EDIT, UIKeys.TEXTURES_LAYERS_CONTEXT_RENAME, () -> {
+        menu.action(Icons.EDIT, UIKeys.TEXTURES_LAYERS_CONTEXT_RENAME, () ->
+        {
             UIPromptOverlayPanel prompt = new UIPromptOverlayPanel(
                 UIKeys.TEXTURES_LAYERS_RENAME_TITLE,
                 UIKeys.TEXTURES_LAYERS_RENAME_MESSAGE,
-                (str) -> {
-                    if (!str.trim().isEmpty()) {
+                (str) ->
+                {
+                    if (!str.trim().isEmpty())
+                    {
                         this.layer.name = str.trim();
                         this.name.label = IKey.raw(this.layer.name);
                         this.panel.currentEditor.dirty();
@@ -114,8 +133,10 @@ public class UILayerElement extends UIElement
         });
 
         menu.action(Icons.DUPE, UIKeys.TEXTURES_LAYERS_CONTEXT_DUPE, () -> {
-            mchorse.bbs_mod.utils.resources.Pixels newPixels = mchorse.bbs_mod.utils.resources.Pixels.fromSize(this.layer.pixels.width, this.layer.pixels.height);
+            Pixels newPixels = Pixels.fromSize(this.layer.pixels.width, this.layer.pixels.height);
+
             newPixels.draw(this.layer.pixels, 0, 0);
+
             TextureLayer duplicatedLayer = new TextureLayer(UIKeys.TEXTURES_LAYERS_DUPE_SUFFIX.format(this.layer.name).get(), newPixels);
             
             this.panel.currentEditor.layers.add(this.index + 1, duplicatedLayer);
@@ -126,12 +147,16 @@ public class UILayerElement extends UIElement
 
         if (canDelete)
         {
-            menu.action(Icons.REMOVE, UIKeys.TEXTURES_LAYERS_CONTEXT_REMOVE, Colors.NEGATIVE, () -> {
+            menu.action(Icons.REMOVE, UIKeys.TEXTURES_LAYERS_CONTEXT_REMOVE, Colors.NEGATIVE, () ->
+            {
                 this.panel.currentEditor.layers.remove(this.index);
                 this.layer.delete();
-                if (this.panel.currentEditor.activeLayerIndex >= this.panel.currentEditor.layers.size()) {
+
+                if (this.panel.currentEditor.activeLayerIndex >= this.panel.currentEditor.layers.size())
+                {
                     this.panel.currentEditor.activeLayerIndex = this.panel.currentEditor.layers.size() - 1;
                 }
+
                 this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.activeLayerIndex);
                 this.panel.updateLayers();
                 this.panel.currentEditor.dirty();
@@ -150,7 +175,8 @@ public class UILayerElement extends UIElement
         if (this.area.isInside(context) && context.mouseButton == 0)
         {
             this.panel.currentEditor.setActiveLayer(this.index);
-            this.panel.updateLayers(); // To refresh selection highlight
+            this.panel.updateLayers();
+
             return true;
         }
 
@@ -161,10 +187,11 @@ public class UILayerElement extends UIElement
     public void render(UIContext context)
     {
         boolean active = this.panel.currentEditor.activeLayerIndex == this.index;
-        int color = active ? Colors.A50 | Colors.ACTIVE : Colors.A25;
+        int color = active ? BBSSettings.primaryColor(Colors.A50) : Colors.A25;
         
-        if (this.area.isInside(context)) {
-            color = active ? (Colors.A75 | Colors.ACTIVE) : Colors.A50;
+        if (this.area.isInside(context))
+        {
+            color = active ? BBSSettings.primaryColor(Colors.A75): Colors.A50;
         }
 
         context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), color);

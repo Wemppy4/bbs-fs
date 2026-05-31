@@ -239,7 +239,7 @@ public class Icons
     public static final Icon KEY_CAP_REPEATABLE = new Icon(ATLAS, "key_cap_repeatable", 224, 236, 12, 20);
 
     public static final Icon ERASER = new Icon(ATLAS, "eraser", 32, 160, 16, 16);
-    public static final Icon PIPETTE = new Icon(ATLAS, "pipette", 48, 160, 16, 16);
+    public static final Icon EYEDROPPER = new Icon(ATLAS, "eyedropper", 48, 160, 16, 16);
     public static final Icon BRUSH = new Icon(ATLAS, "brush", 64, 160, 16, 16);
 
     public static Icon register(Icon icon)

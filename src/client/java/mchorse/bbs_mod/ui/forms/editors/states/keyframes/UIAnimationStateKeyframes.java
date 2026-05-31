@@ -59,16 +59,20 @@ public class UIAnimationStateKeyframes extends UIKeyframes
     }
 
     @Override
-    protected void renderBackground(UIContext context)
+    protected void renderOverlay(UIContext context)
     {
-        super.renderBackground(context);
-
+        /* Draw the cursor in the overlay pass (after the keyframes) so it sits on top of them,
+         * mirroring UIFilmKeyframes; rendering it in renderBackground left it under the keyframes. */
         if (this.editor != null)
         {
             int cx = this.toGraphX(this.getOffset());
             String label = TimeUtils.formatTime(this.getOffset()) + "/" + TimeUtils.formatTime(this.getDuration());
 
+            context.batcher.clip(this.graphArea, context);
             UIClips.renderCursor(context, label, this.area, cx - 1);
+            context.batcher.unclip(context);
         }
+
+        super.renderOverlay(context);
     }
 }

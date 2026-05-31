@@ -21,6 +21,7 @@ import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.math.molang.expressions.MolangExpression;
 import mchorse.bbs_mod.ui.film.ICursor;
@@ -549,21 +550,52 @@ public class UIReplaysEditorUtils
         IUIKeyframeGraph graph = keyframeEditor.view.getGraph();
         UIKeyframeSheet sheet = graph.getSheet(boneKey);
 
-        if (sheet != null)
+        if (sheet == null)
         {
-            return sheet;
-        }
-
-        /* Fallback: match by id ignoring case (stencil may return "head", sheet id may be "pose.bones.Head") */
-        for (UIKeyframeSheet s : graph.getSheets())
-        {
-            if (s.id != null && s.id.equalsIgnoreCase(boneKey))
+            /* Fallback: match by id ignoring case (stencil may return "head", sheet id may be "pose.bones.Head") */
+            for (UIKeyframeSheet s : graph.getSheets())
             {
-                return s;
+                if (s.id != null && s.id.equalsIgnoreCase(boneKey))
+                {
+                    sheet = s;
+                    break;
+                }
             }
         }
 
+        if (sheet != null)
+        {
+            /* Per-limb bone tracks are optional and frequently empty; when the matched track has no
+             * keyframes, fall back to the form's main pose track so the click still selects the
+             * closest pose keyframe (as a non-per-limb bone like the torso already does) instead of
+             * doing nothing unless a pose keyframe happens to be selected already. */
+            if (sheet.channel.isEmpty())
+            {
+                UIKeyframeSheet poseSheet = getPoseSheet(graph, formPath);
+
+                if (poseSheet != null)
+                {
+                    return poseSheet;
+                }
+            }
+
+            return sheet;
+        }
+
         return getActivePoseSheet(keyframeEditor, formPath);
+    }
+
+    private static UIKeyframeSheet getPoseSheet(IUIKeyframeGraph graph, String formPath)
+    {
+        for (UIKeyframeSheet sheet : graph.getSheets())
+        {
+            if (isPoseSheet(sheet, formPath))
+            {
+                return sheet;
+            }
+        }
+
+        return null;
     }
 
     private static UIKeyframeSheet getActivePoseSheet(UIKeyframeEditor keyframeEditor, String formPath)
@@ -846,6 +878,46 @@ public class UIReplaysEditorUtils
     }
 
     /* Offer bone hierarchy options */
+
+    /** Leaf bone pick for {@link #pickFormWithOffers}; {@code insert}
+     *  distinguishes a left-click select from a middle-click insert. */
+    public interface FormPicker
+    {
+        void pick(Form form, String bone, boolean insert);
+    }
+
+    /**
+     * Shared viewport bone-pick gesture for the film, replay and animation
+     * state editors: left / Ctrl+right select, middle inserts, Ctrl offers
+     * adjacent bones, Shift offers the hierarchy. The leaf {@code picker}
+     * supplies the editor-specific selection. Returns whether the click
+     * was consumed.
+     */
+    public static boolean pickFormWithOffers(UIContext context, Pair<Form, String> pair, FormPicker picker)
+    {
+        boolean select = context.mouseButton == 0 || (context.mouseButton == 2 && Window.isCtrlPressed());
+        boolean insert = context.mouseButton == 1;
+
+        if (!select && !insert)
+        {
+            return false;
+        }
+
+        if (Window.isCtrlPressed())
+        {
+            offerAdjacent(context, pair.a, pair.b, (bone) -> picker.pick(pair.a, bone, insert));
+        }
+        else if (Window.isShiftPressed())
+        {
+            offerHierarchy(context, pair.a, pair.b, (bone) -> picker.pick(pair.a, bone, insert));
+        }
+        else
+        {
+            picker.pick(pair.a, pair.b, insert);
+        }
+
+        return true;
+    }
 
     public static void offerAdjacent(UIContext context, Form form, String bone, Consumer<String> consumer)
     {

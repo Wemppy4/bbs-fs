@@ -42,8 +42,10 @@ public class UILayersPanel extends UIElement
         this.addImage = new UIIcon(Icons.IMAGE, (b) -> this.addImageLayer());
         this.addImage.tooltip(UIKeys.TEXTURES_LAYERS_ADD_IMAGE);
         
-        this.opacity = new UITrackpad((v) -> {
-            if (this.currentEditor != null && this.currentEditor.activeLayerIndex >= 0) {
+        this.opacity = new UITrackpad((v) ->
+        {
+            if (this.currentEditor != null && this.currentEditor.activeLayerIndex >= 0)
+            {
                 this.currentEditor.layers.get(this.currentEditor.activeLayerIndex).opacity = v.floatValue() / 100F;
                 this.currentEditor.dirty();
             }
@@ -52,7 +54,7 @@ public class UILayersPanel extends UIElement
         this.opacity.tooltip(UIKeys.TEXTURES_LAYERS_OPACITY);
 
         UIElement controls = UI.row(this.addLayer, this.addImage, this.opacity);
-        controls.relative(this).y(1F, -UIConstants.CONTROL_HEIGHT - 5).w(1F).h(UIConstants.CONTROL_HEIGHT);
+        controls.relative(this).x(UIConstants.MARGIN).y(1F, -UIConstants.CONTROL_HEIGHT - 5).w(1F, -UIConstants.MARGIN * 2).h(UIConstants.CONTROL_HEIGHT);
 
         this.add(label, this.list, controls);
     }

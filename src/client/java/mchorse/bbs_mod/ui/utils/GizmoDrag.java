@@ -6,8 +6,10 @@ import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.function.Supplier;
 
@@ -125,72 +127,47 @@ public class GizmoDrag
         return out.set(dir).normalize();
     }
 
-    /**
-     * Project the cursor onto a virtual arcball centered on the gizmo.
-     * Inside the visible disc we use the front hemisphere; outside it we
-     * continue on the classic hyperbolic sheet so dragging stays smooth and
-     * keeps rotating even after the cursor leaves the sphere's outline.
-     *
-     * Returns the unit vector from {@link #gizmoOrigin} to that virtual
-     * trackball point in world space.
-     */
-    public Vector3f projectTrackball(int mouseX, int mouseY, float radius, Vector3f out)
+    public boolean projectToScreen(Vector3d world, Vector2f out)
     {
-        Vector3f dir = this.rayDirection(mouseX, mouseY, new Vector3f());
-        Vector3f toCamera = new Vector3f(
-            (float) (this.cameraOrigin.x - this.gizmoOrigin.x),
-            (float) (this.cameraOrigin.y - this.gizmoOrigin.y),
-            (float) (this.cameraOrigin.z - this.gizmoOrigin.z)
+        return this.projectToScreen(world.x, world.y, world.z, out);
+    }
+
+    /**
+     * Project a world-space point onto viewport pixel coordinates, matching the
+     * mouse-coordinate convention used by {@link #rayDirection} (origin at the
+     * viewport's top-left corner, Y growing downward).
+     *
+     * <p>The {@link #view} matrix is rotation-only &mdash; the camera translation
+     * lives in {@link #cameraOrigin} &mdash; so the point is expressed relative to
+     * the camera before being run through {@code projection * view}, mirroring the
+     * inverse mapping in {@link CameraUtils#getMouseDirection}.</p>
+     *
+     * @return {@code false} when the point is on or behind the camera plane, in
+     *         which case {@code out} is left untouched.
+     */
+    public boolean projectToScreen(double wx, double wy, double wz, Vector2f out)
+    {
+        Vector4f clip = new Vector4f(
+            (float) (wx - this.cameraOrigin.x),
+            (float) (wy - this.cameraOrigin.y),
+            (float) (wz - this.cameraOrigin.z),
+            1F
         );
-        float cameraDistSq = toCamera.lengthSquared();
 
-        if (cameraDistSq < PARALLEL_EPSILON)
+        new Matrix4f(this.projection).mul(this.view).transform(clip);
+
+        if (clip.w <= PARALLEL_EPSILON)
         {
-            return out.set(0F, 0F, 1F);
+            return false;
         }
 
-        float cameraDist = (float) Math.sqrt(cameraDistSq);
-        Vector3f viewNormal = new Vector3f(toCamera).div(cameraDist);
-        Matrix3f invView = new Matrix4f(this.view).invert().get3x3(new Matrix3f());
-        Vector3f right = invView.getColumn(0, new Vector3f()).normalize();
-        Vector3f up = invView.getColumn(1, new Vector3f()).normalize();
+        float ndcX = clip.x / clip.w;
+        float ndcY = clip.y / clip.w;
 
-        double denom = dir.x * viewNormal.x + dir.y * viewNormal.y + dir.z * viewNormal.z;
-        double numer = -cameraDistSq / cameraDist;
-        double t = Math.abs(denom) < PARALLEL_EPSILON ? -numer / PARALLEL_EPSILON : numer / denom;
+        out.x = this.viewportX + (ndcX + 1F) * (this.viewportW / 2F);
+        out.y = this.viewportY + (1F - ndcY) * (this.viewportH / 2F);
 
-        if (t <= 0D)
-        {
-            t = cameraDist;
-        }
-
-        Vector3f planePoint = new Vector3f(
-            toCamera.x + dir.x * (float) t,
-            toCamera.y + dir.y * (float) t,
-            toCamera.z + dir.z * (float) t
-        );
-        float x = planePoint.dot(right);
-        float y = planePoint.dot(up);
-        float dSq = x * x + y * y;
-        float rSq = radius * radius;
-        float z;
-
-        if (dSq <= rSq * 0.5F)
-        {
-            z = (float) Math.sqrt(Math.max(rSq - dSq, 0F));
-        }
-        else
-        {
-            float d = (float) Math.sqrt(Math.max(dSq, PARALLEL_EPSILON));
-
-            z = (rSq * 0.5F) / d;
-        }
-
-        out.set(right).mul(x)
-            .add(new Vector3f(up).mul(y))
-            .add(new Vector3f(viewNormal).mul(z));
-
-        return out.normalize();
+        return true;
     }
 
     /**

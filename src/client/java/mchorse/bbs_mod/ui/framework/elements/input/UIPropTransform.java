@@ -20,6 +20,7 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Matrix3f;
+import org.joml.Vector2f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
@@ -74,19 +75,29 @@ public class UIPropTransform extends UITransform
     private final Vector3f dragStartRotateDeg = new Vector3f();
     /** World-space direction of the active handle, captured at drag start. */
     private final Vector3f dragAxisDir = new Vector3f();
+    /** View axis expressed in the bone's parent frame, captured at view-rotate start. */
+    private final Vector3f viewLocalAxis = new Vector3f();
     /** Signed projection of {@code (startHit - origin)} onto {@link #dragAxisDir}. Used for ratio-based scale. */
     private float dragStartScaleProj;
-    /** Unit ring direction (perpendicular to rotation axis) at drag start. */
-    private final Vector3f dragStartRingVec = new Vector3f();
     /** Original unit ring direction (perpendicular to rotation axis) captured at the very start of the drag. */
     private final Vector3f initialDragRingVec = new Vector3f();
     private float accumulatedRotateDeg;
-    /** Previous unit vector on the virtual trackball sphere. */
-    private final Vector3f dragTrackballVec = new Vector3f();
+    /** Projected gizmo origin in viewport pixels, captured at ring-drag start. */
+    private final Vector2f dragScreenCenter = new Vector2f();
+    /** Previous cursor angle (radians) around {@link #dragScreenCenter}, unwrapped each frame. */
+    private float dragLastScreenAngle;
+    /** Maps screen-space angular motion to a rotation about {@link #dragAxisDir} (+1 or -1). */
+    private float dragRotateSign = 1F;
+    /** Screen right/up axes in the bone's parent frame, captured at trackball-drag start. */
+    private final Vector3f trackballRightLocal = new Vector3f();
+    private final Vector3f trackballUpLocal = new Vector3f();
+    /** Previous cursor position, for the trackball's frame-to-frame mouse delta. */
+    private int trackballLastX;
+    private int trackballLastY;
     /** Whether {@link #dragStartRotateDeg} should be written back to {@code rotate2} instead of {@code rotate}. */
     private boolean dragRotateGizmoSpace;
     private boolean dragHasStart;
-    private boolean trackball;
+    private RotateKind rotateKind = RotateKind.AXIS;
     private boolean hotkeyMode;
     private Supplier<GizmoDrag> hotkeyDragSupplier;
 
@@ -212,6 +223,7 @@ public class UIPropTransform extends UITransform
         this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, () -> this.enableMode(0)).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_SCALE, () -> this.enableMode(1)).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_ROTATE, () -> this.enableMode(2)).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_COMBINED, () -> Gizmo.INSTANCE.toggleCombined()).strict().category(category);
         this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.setEditingAxis(Axis.X)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.setEditingAxis(Axis.Y)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.setEditingAxis(Axis.Z)).active(active).category(category);
@@ -239,9 +251,19 @@ public class UIPropTransform extends UITransform
         return this.axis;
     }
 
+    public int getMode()
+    {
+        return this.mode;
+    }
+
     public boolean isTrackball()
     {
-        return this.trackball;
+        return this.rotateKind == RotateKind.TRACKBALL;
+    }
+
+    public boolean isViewRotate()
+    {
+        return this.rotateKind == RotateKind.VIEW;
     }
 
     public Vector3f getInitialDragRingVec()
@@ -334,17 +356,31 @@ public class UIPropTransform extends UITransform
     {
         GizmoDrag drag = this.getHotkeyDrag();
 
-        if (
-            mode == Gizmo.Mode.ROTATE.ordinal()
-            && BBSSettings.rotate3dSphere.get()
-            && BBSSettings.transformHotkeys3dRay.get()
-            && drag != null
-            && (!this.editing || this.mode != mode)
-        )
+        if (mode == Gizmo.Mode.ROTATE.ordinal() && BBSSettings.transformHotkeys3dRay.get() && drag != null)
         {
-            this.enableTrackball(drag, true);
+            boolean rotating = this.editing && this.mode == mode;
+            boolean sphere = BBSSettings.rotate3dSphere.get();
 
-            return;
+            /* R walks the 3D rotation handles before falling through to the
+             * per-axis rings: screen-plane ring -> trackball sphere -> X/Y/Z,
+             * each skipped when its handle is turned off. The screen-plane ring
+             * is always available (it is excluded from "Hide rotation rings"). */
+            boolean wantView = !rotating;
+            boolean wantSphere = sphere && rotating && this.rotateKind == RotateKind.VIEW;
+
+            if (wantView)
+            {
+                this.enableViewRotate(drag, true);
+
+                return;
+            }
+
+            if (wantSphere)
+            {
+                this.enableTrackball(drag, true);
+
+                return;
+            }
         }
 
         this.enableMode(mode, null, null, drag);
@@ -362,7 +398,11 @@ public class UIPropTransform extends UITransform
 
     public void enableMode(int mode, Axis axis, Axis axis2, GizmoDrag drag)
     {
-        if (Gizmo.INSTANCE.setMode(Gizmo.Mode.values()[mode]) && axis == null)
+        /* Only the keyboard path (axis == null) flips the gizmo's display mode,
+         * and never while combined is on screen: there G/S/R run their operation
+         * and leave every handle visible. Grabbing a handle with the mouse
+         * (axis != null) likewise must not switch the displayed mode. */
+        if (axis == null && Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(Gizmo.Mode.values()[mode]))
         {
             return;
         }
@@ -384,7 +424,7 @@ public class UIPropTransform extends UITransform
 
             this.axis = values[MathUtils.cycler(this.axis != null ? this.axis.ordinal() + 1 : 0, 0, values.length - 1)];
             this.axis2 = null;
-            this.trackball = false;
+            this.rotateKind = RotateKind.AXIS;
             this.drag = drag;
 
             this.restore(true);
@@ -393,7 +433,7 @@ public class UIPropTransform extends UITransform
         {
             this.axis = axis == null ? Axis.X : axis;
             this.axis2 = axis2;
-            this.trackball = false;
+            this.rotateKind = RotateKind.AXIS;
             this.lastX = context.mouseX;
             this.lastY = context.mouseY;
             this.drag = drag;
@@ -424,7 +464,7 @@ public class UIPropTransform extends UITransform
 
     public void enableTrackball(GizmoDrag drag, boolean hotkeyMode)
     {
-        if (Gizmo.INSTANCE.setMode(Gizmo.Mode.ROTATE))
+        if (hotkeyMode && Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(Gizmo.Mode.ROTATE))
         {
             return;
         }
@@ -441,7 +481,7 @@ public class UIPropTransform extends UITransform
         }
 
         this.editing = true;
-        this.trackball = true;
+        this.rotateKind = RotateKind.TRACKBALL;
         this.mode = 2; // ROTATE
         this.axis = null;
         this.axis2 = null;
@@ -461,6 +501,50 @@ public class UIPropTransform extends UITransform
         }
     }
 
+    public void enableViewRotate(GizmoDrag drag)
+    {
+        this.enableViewRotate(drag, false);
+    }
+
+    public void enableViewRotate(GizmoDrag drag, boolean hotkeyMode)
+    {
+        if (hotkeyMode && Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(Gizmo.Mode.ROTATE))
+        {
+            return;
+        }
+
+        UIContext context = this.getContext();
+        if (context == null || this.transform == null)
+        {
+            return;
+        }
+
+        if (this.editing)
+        {
+            this.restore(true);
+        }
+
+        this.editing = true;
+        this.rotateKind = RotateKind.VIEW;
+        this.mode = 2; // ROTATE
+        this.axis = null;
+        this.axis2 = null;
+        this.hotkeyMode = hotkeyMode;
+        this.drag = drag;
+        this.lastX = context.mouseX;
+        this.lastY = context.mouseY;
+
+        this.cache.copy(this.transform);
+        Gizmo.INSTANCE.trackTransform(this);
+
+        this.beginRayRotateView(context.mouseX, context.mouseY);
+
+        if (!this.handler.hasParent())
+        {
+            context.menu.overlay.add(this.handler);
+        }
+    }
+
     private GizmoDrag getHotkeyDrag()
     {
         return this.hotkeyDragSupplier == null ? null : this.hotkeyDragSupplier.get();
@@ -473,12 +557,12 @@ public class UIPropTransform extends UITransform
             return false;
         }
 
-        return this.drag != null && (this.mode != 2 || this.axis2 == null || this.trackball);
+        return this.drag != null && (this.mode != 2 || this.axis2 == null || this.rotateKind == RotateKind.TRACKBALL);
     }
 
     private void setEditingAxis(Axis axis)
     {
-        this.trackball = false;
+        this.rotateKind = RotateKind.AXIS;
 
         if (Window.isShiftPressed())
         {
@@ -534,9 +618,12 @@ public class UIPropTransform extends UITransform
             return;
         }
 
-        if (this.mode == 2 && this.trackball)
+        if (this.mode == 2)
         {
-            this.applyRayRotateTrackball(mouseX, mouseY);
+            if (this.rotateKind == RotateKind.TRACKBALL) this.applyRayRotateTrackball(mouseX, mouseY);
+            else if (this.rotateKind == RotateKind.VIEW) this.applyRayRotateView(mouseX, mouseY);
+            else this.applyScreenRotate(mouseX, mouseY);
+
             return;
         }
 
@@ -554,9 +641,6 @@ public class UIPropTransform extends UITransform
                 break;
             case 1:
                 this.applyRayScale(hit);
-                break;
-            case 2:
-                this.applyRayRotate(hit);
                 break;
         }
     }
@@ -646,37 +730,27 @@ public class UIPropTransform extends UITransform
     }
 
     /**
-     * Rotate around the active axis by the signed angle swept on the rotation
-     * plane between the start hit and the current hit. The axis convention
-     * matches the dx-based code: when {@code local && gizmos enabled} the
-     * change goes into {@code rotate2}, otherwise into {@code rotate}.
+     * Rotate around the active axis by the angle the cursor sweeps around the
+     * projected gizmo center on screen. Unlike the previous ring-plane
+     * projection this stays accurate when the ring faces the camera (where the
+     * plane hit degenerates), and the per-frame deltas are unwrapped and
+     * accumulated without limit so the user can wind several full turns in
+     * either direction. When {@code local && gizmos enabled} the change goes
+     * into {@code rotate2}, otherwise into {@code rotate}.
      */
-    private void applyRayRotate(Vector3d hit)
+    private void applyScreenRotate(int mouseX, int mouseY)
     {
-        Vector3f rel = new Vector3f(
-            (float) (hit.x - this.drag.gizmoOrigin.x),
-            (float) (hit.y - this.drag.gizmoOrigin.y),
-            (float) (hit.z - this.drag.gizmoOrigin.z)
-        );
+        float current = this.screenAngle(mouseX, mouseY);
+        float delta = current - this.dragLastScreenAngle;
 
-        float along = rel.dot(this.dragAxisDir);
+        /* Unwrap across the ±180° seam so a small motion there registers as a
+         * small step instead of a near-full turn the other way. */
+        if (delta > MathUtils.PI) delta -= MathUtils.PI * 2F;
+        else if (delta < -MathUtils.PI) delta += MathUtils.PI * 2F;
 
-        rel.sub(new Vector3f(this.dragAxisDir).mul(along));
+        this.dragLastScreenAngle = current;
 
-        if (rel.lengthSquared() < 1.0E-8F)
-        {
-            return;
-        }
-
-        rel.normalize();
-
-        float dot = Math.max(-1F, Math.min(1F, this.dragStartRingVec.dot(rel)));
-        Vector3f cross = new Vector3f();
-
-        this.dragStartRingVec.cross(rel, cross);
-
-        float crossSign = cross.dot(this.dragAxisDir);
-        float angleDeg = MathUtils.toDeg((float) Math.atan2(crossSign, dot));
+        float angleDeg = MathUtils.toDeg(delta) * this.dragRotateSign;
 
         this.accumulatedRotateDeg += angleDeg;
 
@@ -695,7 +769,49 @@ public class UIPropTransform extends UITransform
         else this.setR(null, rx, ry, rz);
 
         this.dragStartRotateDeg.set(rx, ry, rz);
-        this.dragStartRingVec.set(rel);
+    }
+
+    /**
+     * Cursor angle (radians) around the projected gizmo center, in the viewport
+     * pixel convention (Y down) so it lines up with {@link GizmoDrag#projectToScreen}.
+     */
+    private float screenAngle(int mouseX, int mouseY)
+    {
+        return (float) Math.atan2(mouseY - this.dragScreenCenter.y, mouseX - this.dragScreenCenter.x);
+    }
+
+    /**
+     * World-space ring direction (perpendicular to the rotation axis) at the
+     * point where the drag started. Only feeds the rotation pie preview, so a
+     * perpendicular fallback is acceptable when the cursor ray runs parallel to
+     * the ring plane.
+     */
+    private Vector3f computeStartRingVec(int mouseX, int mouseY, Vector3f axisDir)
+    {
+        Vector3f ring = new Vector3f();
+        Vector3d hit = new Vector3d();
+
+        if (this.drag.intersectPlane(mouseX, mouseY, axisDir, hit))
+        {
+            ring.set(
+                (float) (hit.x - this.drag.gizmoOrigin.x),
+                (float) (hit.y - this.drag.gizmoOrigin.y),
+                (float) (hit.z - this.drag.gizmoOrigin.z)
+            );
+
+            float along = ring.dot(axisDir);
+
+            ring.sub(new Vector3f(axisDir).mul(along));
+        }
+
+        if (ring.lengthSquared() < 1.0E-8F)
+        {
+            Vector3f fallback = Math.abs(axisDir.y) < 0.9F ? new Vector3f(0F, 1F, 0F) : new Vector3f(1F, 0F, 0F);
+
+            axisDir.cross(fallback, ring);
+        }
+
+        return ring.normalize();
     }
 
     /**
@@ -752,9 +868,13 @@ public class UIPropTransform extends UITransform
                 this.beginRayScale(mouseX, mouseY);
                 break;
             case 2:
-                if (this.trackball)
+                if (this.rotateKind == RotateKind.TRACKBALL)
                 {
                     this.beginRayRotateTrackball(mouseX, mouseY);
+                }
+                else if (this.rotateKind == RotateKind.VIEW)
+                {
+                    this.beginRayRotateView(mouseX, mouseY);
                 }
                 else
                 {
@@ -849,81 +969,233 @@ public class UIPropTransform extends UITransform
     }
 
     /**
-     * Radius of the rendered trackball sphere in gizmo space.
+     * Anchor a trackball drag. The sphere is no longer projected onto &mdash;
+     * the turn is driven purely by cursor motion (Blender-style), so all we
+     * capture here is the screen's right/up axes mapped once into the bone's
+     * parent frame (constant for the drag) and the starting cursor position.
      */
-    private float getTrackballRadius()
-    {
-        float radius = 0.22F * BBSSettings.axesScale.get();
-
-        if (this.drag != null)
-        {
-            Vector3d delta = new Vector3d(this.drag.cameraOrigin).sub(this.drag.gizmoOrigin);
-            float fov = this.drag.projection.m33() == 0 ? (float) (2.0 * Math.atan(1.0 / this.drag.projection.m11())) : BBSSettings.getFov();
-
-            radius *= BBSSettings.getAxesDistanceScale((float) delta.length(), fov);
-        }
-
-        return radius;
-    }
-
     private void beginRayRotateTrackball(int mouseX, int mouseY)
     {
         this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
 
         Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+        Matrix3f parentInverse = this.computeParentInverse(source);
 
-        this.dragStartRotateDeg.set(
-            MathUtils.toDeg(source.x),
-            MathUtils.toDeg(source.y),
-            MathUtils.toDeg(source.z)
-        );
+        if (parentInverse == null)
+        {
+            this.dragHasStart = false;
 
-        this.drag.projectTrackball(mouseX, mouseY, this.getTrackballRadius(), this.dragTrackballVec);
+            return;
+        }
+
+        Matrix3f invView = this.drag.view.get3x3(new Matrix3f()).invert();
+
+        parentInverse.transform(invView.getColumn(0, new Vector3f()).normalize(), this.trackballRightLocal);
+        parentInverse.transform(invView.getColumn(1, new Vector3f()).normalize(), this.trackballUpLocal);
+
+        if (this.trackballRightLocal.lengthSquared() < 1.0E-8F || this.trackballUpLocal.lengthSquared() < 1.0E-8F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        this.trackballRightLocal.normalize();
+        this.trackballUpLocal.normalize();
+        this.trackballLastX = mouseX;
+        this.trackballLastY = mouseY;
         this.dragHasStart = true;
     }
 
+    /**
+     * Roll the bone by the cursor's frame-to-frame motion: horizontal travel
+     * turns it about the screen's vertical axis, vertical travel about the
+     * screen's horizontal axis, like spinning a ball under the fingertip. The
+     * two turns are composed and premultiplied onto the live rotation matrix
+     * (then read back as Euler), so it stays smooth through gimbal lock and a
+     * circular drag naturally accumulates roll &mdash; the trackball feel.
+     */
     private void applyRayRotateTrackball(int mouseX, int mouseY)
     {
-        Vector3f currentVec = new Vector3f();
-        this.drag.projectTrackball(mouseX, mouseY, this.getTrackballRadius(), currentVec);
+        int dx = mouseX - this.trackballLastX;
+        int dy = mouseY - this.trackballLastY;
 
-        float dot = this.dragTrackballVec.dot(currentVec);
-        dot = Math.max(-1F, Math.min(1F, dot));
+        this.trackballLastX = mouseX;
+        this.trackballLastY = mouseY;
 
-        Vector3f axisWorld = new Vector3f();
-        this.dragTrackballVec.cross(currentVec, axisWorld);
-
-        float crossLenSq = axisWorld.lengthSquared();
-
-        if (crossLenSq < 1.0E-10F)
+        if (dx == 0 && dy == 0)
         {
             return;
         }
 
-        float angleDeg = MathUtils.toDeg((float) Math.atan2(Math.sqrt(crossLenSq), dot));
-        axisWorld.normalize();
-
         Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
-        float rx = MathUtils.toDeg(source.x);
-        float ry = MathUtils.toDeg(source.y);
-        float rz = MathUtils.toDeg(source.z);
 
-        Vector3f localX = this.drag.rotateAxes.getColumn(0, new Vector3f());
-        Vector3f localY = this.drag.rotateAxes.getColumn(1, new Vector3f());
-        Vector3f localZ = this.drag.rotateAxes.getColumn(2, new Vector3f());
+        Matrix3f rotation = new Matrix3f()
+            .rotationZ(source.z)
+            .rotateY(source.y)
+            .rotateX(source.x);
 
-        if (localX.lengthSquared() > 0) localX.normalize();
-        if (localY.lengthSquared() > 0) localY.normalize();
-        if (localZ.lengthSquared() > 0) localZ.normalize();
+        float sensitivity = BBSSettings.trackballSensitivity.get();
+        float yaw = MathUtils.toRad(dx * sensitivity);
+        float pitch = MathUtils.toRad(dy * sensitivity);
 
-        rx += angleDeg * axisWorld.dot(localX);
-        ry += angleDeg * axisWorld.dot(localY);
-        rz += angleDeg * axisWorld.dot(localZ);
+        Vector3f euler = new Matrix3f()
+            .rotation(yaw, this.trackballUpLocal)
+            .rotate(pitch, this.trackballRightLocal.x, this.trackballRightLocal.y, this.trackballRightLocal.z)
+            .mul(rotation)
+            .getEulerAnglesZYX(new Vector3f());
+
+        float rx = MathUtils.toDeg(euler.x);
+        float ry = MathUtils.toDeg(euler.y);
+        float rz = MathUtils.toDeg(euler.z);
 
         if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
         else this.setR(null, rx, ry, rz);
+    }
 
-        this.dragTrackballVec.set(currentVec);
+    /**
+     * Anchor a view-plane rotation: the axis is fixed to the gizmo-to-camera
+     * direction, and the angle comes from sweeping the cursor around the
+     * projected gizmo center, exactly like the per-axis ring. Unlike a single
+     * ring, the resulting world-space turn is spread across all three rotate
+     * components (see {@link #applyRayRotateView}), so it stays "common" to the
+     * three axes.
+     */
+    private void beginRayRotateView(int mouseX, int mouseY)
+    {
+        Vector3f viewAxis = new Vector3f(
+            (float) (this.drag.cameraOrigin.x - this.drag.gizmoOrigin.x),
+            (float) (this.drag.cameraOrigin.y - this.drag.gizmoOrigin.y),
+            (float) (this.drag.cameraOrigin.z - this.drag.gizmoOrigin.z)
+        );
+
+        if (viewAxis.lengthSquared() < 1.0E-8F || !this.drag.projectToScreen(this.drag.gizmoOrigin, this.dragScreenCenter))
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        this.dragAxisDir.set(viewAxis.normalize());
+        this.dragLastScreenAngle = this.screenAngle(mouseX, mouseY);
+
+        /* The axis points at the camera (out of the screen), so an increasing
+         * screen angle (clockwise, Y down) is a negative turn about it &mdash;
+         * same convention {@link #beginRayRotate} derives for any axis. */
+        this.dragRotateSign = -1F;
+        this.accumulatedRotateDeg = 0;
+
+        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
+
+        /* Express the view axis once in the bone's parent frame; it stays
+         * constant for the whole drag, while applyRayRotateView premultiplies
+         * the live rotation by a turn about it. */
+        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+        Matrix3f parentInverse = this.computeParentInverse(source);
+
+        if (parentInverse == null)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        parentInverse.transform(this.dragAxisDir, this.viewLocalAxis);
+
+        if (this.viewLocalAxis.lengthSquared() < 1.0E-8F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        this.viewLocalAxis.normalize();
+        this.dragHasStart = true;
+    }
+
+    /**
+     * World-direction &rarr; bone-parent-frame map captured at drag start:
+     * {@code parent^-1 = startEulerAxes * rotateAxes^-1}. {@code rotateAxes}
+     * already folds in the parent and any model flips, so this recovers the
+     * pure parent rotation; it is constant for the whole drag since the parent
+     * doesn't move. Returns {@code null} when {@code rotateAxes} is degenerate.
+     */
+    private Matrix3f computeParentInverse(Vector3f sourceRadians)
+    {
+        Matrix3f rotateAxesInverse = new Matrix3f(this.drag.rotateAxes);
+
+        if (Math.abs(rotateAxesInverse.determinant()) < 1.0E-4F)
+        {
+            return null;
+        }
+
+        return this.eulerAxes(sourceRadians).mul(rotateAxesInverse.invert());
+    }
+
+    /**
+     * Columns of the returned matrix are the (parent-frame) axes that
+     * {@code rotate.x}, {@code rotate.y} and {@code rotate.z} rotate around for
+     * the renderer's {@code Rz * Ry * Rx} order. They are orthonormal at rest
+     * but skew as the bone turns, which is exactly why the decomposition has to
+     * be re-evaluated against the live pose rather than a frozen snapshot.
+     */
+    private Matrix3f eulerAxes(Vector3f rotateRadians)
+    {
+        Matrix3f axes = new Matrix3f();
+
+        axes.setColumn(0, new Matrix3f().rotationZ(rotateRadians.z).rotateY(rotateRadians.y).transform(new Vector3f(1F, 0F, 0F)));
+        axes.setColumn(1, new Matrix3f().rotationZ(rotateRadians.z).transform(new Vector3f(0F, 1F, 0F)));
+        axes.setColumn(2, new Vector3f(0F, 0F, 1F));
+
+        return axes;
+    }
+
+    /**
+     * Turn the edited rotation by the angle swept around the screen center,
+     * about the view axis. Rather than solving per-frame Euler deltas (which the
+     * matrix inverse makes unstable near gimbal lock &mdash; a full 360 sweep
+     * passes through it and twitches), it premultiplies the live rotation matrix
+     * by the spin and reads the Euler angles back out. The orientation stays
+     * continuous through gimbal; only its Euler representation jumps, which is
+     * invisible. The spin axis is the constant parent-frame {@link #viewLocalAxis}.
+     */
+    private void applyRayRotateView(int mouseX, int mouseY)
+    {
+        float current = this.screenAngle(mouseX, mouseY);
+        float delta = current - this.dragLastScreenAngle;
+
+        if (delta > MathUtils.PI) delta -= MathUtils.PI * 2F;
+        else if (delta < -MathUtils.PI) delta += MathUtils.PI * 2F;
+
+        this.dragLastScreenAngle = current;
+
+        float angle = delta * this.dragRotateSign;
+
+        if (angle == 0F)
+        {
+            return;
+        }
+
+        this.accumulatedRotateDeg += MathUtils.toDeg(angle);
+
+        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+
+        Matrix3f rotation = new Matrix3f()
+            .rotationZ(source.z)
+            .rotateY(source.y)
+            .rotateX(source.x);
+
+        Vector3f euler = new Matrix3f()
+            .rotation(angle, this.viewLocalAxis)
+            .mul(rotation)
+            .getEulerAnglesZYX(new Vector3f());
+
+        float rx = MathUtils.toDeg(euler.x);
+        float ry = MathUtils.toDeg(euler.y);
+        float rz = MathUtils.toDeg(euler.z);
+
+        if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     private void beginRayRotate(int mouseX, int mouseY)
@@ -946,35 +1218,36 @@ public class UIPropTransform extends UITransform
 
         axisDir.normalize();
         this.dragAxisDir.set(axisDir);
-        this.dragPlaneNormal.set(axisDir);
 
-        if (!this.drag.intersectPlane(mouseX, mouseY, this.dragPlaneNormal, this.dragStartHit))
+        /* Screen-space ring rotation pivots around the gizmo origin projected to
+         * the viewport. If the origin can't be projected (behind the camera)
+         * there's nothing sensible to orbit around, so bail. */
+        if (!this.drag.projectToScreen(this.drag.gizmoOrigin, this.dragScreenCenter))
         {
             this.dragHasStart = false;
 
             return;
         }
 
-        Vector3f ring = new Vector3f(
-            (float) (this.dragStartHit.x - this.drag.gizmoOrigin.x),
-            (float) (this.dragStartHit.y - this.drag.gizmoOrigin.y),
-            (float) (this.dragStartHit.z - this.drag.gizmoOrigin.z)
+        this.dragLastScreenAngle = this.screenAngle(mouseX, mouseY);
+
+        /* A positive rotation about +axis shows up as an increasing screen angle
+         * (atan2 with Y pointing down) when the axis points away from the camera
+         * (into the screen), and a decreasing one when it points back at it. */
+        Vector3f intoScreen = new Vector3f(
+            (float) (this.drag.gizmoOrigin.x - this.drag.cameraOrigin.x),
+            (float) (this.drag.gizmoOrigin.y - this.drag.cameraOrigin.y),
+            (float) (this.drag.gizmoOrigin.z - this.drag.cameraOrigin.z)
         );
 
-        float along = ring.dot(axisDir);
+        this.dragRotateSign = Math.signum(axisDir.dot(intoScreen));
 
-        ring.sub(new Vector3f(axisDir).mul(along));
-
-        if (ring.lengthSquared() < 1.0E-8F)
+        if (this.dragRotateSign == 0F)
         {
-            this.dragHasStart = false;
-
-            return;
+            this.dragRotateSign = 1F;
         }
 
-        ring.normalize();
-        this.dragStartRingVec.set(ring);
-        this.initialDragRingVec.set(ring);
+        this.initialDragRingVec.set(this.computeStartRingVec(mouseX, mouseY, axisDir));
         this.accumulatedRotateDeg = 0;
 
         this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
@@ -1025,6 +1298,7 @@ public class UIPropTransform extends UITransform
         this.editing = false;
         this.axis2 = null;
         this.hotkeyMode = false;
+        this.rotateKind = RotateKind.AXIS;
         this.drag = null;
         this.dragHasStart = false;
         Gizmo.INSTANCE.clearTrackedTransform(this);
@@ -1087,7 +1361,7 @@ public class UIPropTransform extends UITransform
 
     private boolean shouldSnapGizmoValues()
     {
-        return this.editing && this.mode == 2 && !this.trackball && !Window.isAltPressed();
+        return this.editing && this.mode == 2 && this.rotateKind == RotateKind.AXIS && !Window.isAltPressed();
     }
 
     private double snapGizmoValue(double value)
@@ -1320,6 +1594,18 @@ public class UIPropTransform extends UITransform
                 context.batcher.textCard(valueLabel, context.mouseX + 12, context.mouseY + 12, Colors.WHITE, Colors.A50);
             }
         }
+
+    }
+
+    /**
+     * Which flavour of rotation a drag performs: around a single gizmo ring
+     * ({@link #AXIS}), freely about the picked point on the sphere
+     * ({@link #TRACKBALL}), or in the screen plane about the view axis
+     * ({@link #VIEW}) &mdash; the ring shared by all three axes.
+     */
+    public enum RotateKind
+    {
+        AXIS, TRACKBALL, VIEW;
     }
 
     public static class UITransformHandler extends UIElement

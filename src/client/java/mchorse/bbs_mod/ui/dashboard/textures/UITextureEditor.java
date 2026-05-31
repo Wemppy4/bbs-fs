@@ -35,10 +35,41 @@ public class UITextureEditor extends UIPixelsEditor
         super();
     }
 
-    /** Called from UITexturePainter save icon. Opens the save path prompt. */
+    /**
+     * Saves the document straight to its current path with a success notification and no
+     * dialog. Bound to the save icon's left click in {@link UITexturePainter}.
+     */
+    public void saveCurrentTexture()
+    {
+        if (this.texture == null)
+        {
+            return;
+        }
+
+        File file = this.writeTexture(this.texture);
+
+        if (file != null)
+        {
+            this.getContext().notifySuccess(UIKeys.TEXTURES_SAVE_NOTIFICATION.format(file.getName()));
+        }
+    }
+
+    /**
+     * Opens the "save as" path prompt, letting the user write the document under a different
+     * path. Bound to the save icon's context menu in {@link UITexturePainter}.
+     */
     public void openSaveOverlay()
     {
-        this.saveTexture();
+        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
+            UIKeys.GENERAL_EXPORT,
+            UIKeys.TEXTURES_SAVE,
+            this::saveTextureAs
+        );
+
+        UIOverlay.addOverlay(this.getContext(), panel);
+
+        panel.text.setText(this.texture.toString());
+        panel.text.textbox.selectFilename();
     }
 
     /** Called from UITexturePainter resize icon. Opens the resize overlay. */
@@ -242,36 +273,43 @@ public class UITextureEditor extends UIPixelsEditor
         }
     }
 
-    private void saveTexture()
+    private void saveTextureAs(String path)
     {
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
-            UIKeys.GENERAL_EXPORT,
-            UIKeys.TEXTURES_SAVE,
-            this::saveTexture
+        File file = this.writeTexture(Link.create(path));
+
+        if (file == null)
+        {
+            return;
+        }
+
+        UIMessageFolderOverlayPanel panel = new UIMessageFolderOverlayPanel(
+            UIKeys.TEXTURES_EXPORT_OVERLAY_TITLE,
+            UIKeys.TEXTURES_EXPORT_OVERLAY_SUCCESS.format(file.getName()),
+            file.getParentFile()
         );
 
+        panel.folder.tooltip(UIKeys.TEXTURES_EXPORT_OVERLAY_OPEN_FOLDER, Direction.LEFT);
+
         UIOverlay.addOverlay(this.getContext(), panel);
-
-        String text = this.texture.toString();
-
-        panel.text.setText(text);
-        panel.text.textbox.selectFilename();
     }
 
-    private void saveTexture(String path)
+    /**
+     * Validates {@code link}, flattens the layers and writes them to a PNG on disk, clearing the
+     * dirty flag and firing the rename/save callbacks. Returns the written file on success, or
+     * {@code null} after notifying the user about a wrong path or an I/O failure.
+     */
+    private File writeTexture(Link link)
     {
-        Link link = Link.create(path);
-
         if (!Link.isAssets(link) || !link.path.endsWith(".png"))
         {
             this.getContext().notifyError(UIKeys.TEXTURES_SAVE_WRONG_PATH);
 
-            return;
+            return null;
         }
 
         File file = BBSMod.getAssetsPath(link.path);
 
-        if (path.contains("/"))
+        if (link.path.contains("/"))
         {
             file.getParentFile().mkdirs();
         }
@@ -281,15 +319,6 @@ public class UITextureEditor extends UIPixelsEditor
         try
         {
             PNGEncoder.writeToFile(pixels, file);
-            UIMessageFolderOverlayPanel panel = new UIMessageFolderOverlayPanel(
-                UIKeys.TEXTURES_EXPORT_OVERLAY_TITLE,
-                UIKeys.TEXTURES_EXPORT_OVERLAY_SUCCESS.format(file.getName()),
-                file.getParentFile()
-            );
-
-            panel.folder.tooltip(UIKeys.TEXTURES_EXPORT_OVERLAY_OPEN_FOLDER, Direction.LEFT);
-
-            UIOverlay.addOverlay(this.getContext(), panel);
 
             this.setDirty(false);
 
@@ -307,12 +336,16 @@ public class UITextureEditor extends UIPixelsEditor
             {
                 this.saveCallback.accept(link);
             }
+
+            return file;
         }
         catch (Exception e)
         {
             e.printStackTrace();
 
             this.getContext().notifyError(UIKeys.TEXTURES_EXPORT_OVERLAY_ERROR.format(file.getName()));
+
+            return null;
         }
         finally
         {

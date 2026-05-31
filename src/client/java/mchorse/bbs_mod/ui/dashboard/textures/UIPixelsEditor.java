@@ -98,6 +98,11 @@ public class UIPixelsEditor extends UICanvasEditor
     private Supplier<Float> brushSoftnessSupplier = () -> 0.0F;
     private Supplier<Float> eraserOpacitySupplier = () -> 1.0F;
 
+    private Consumer<Boolean> secondaryEraserToggle = (engage) -> {};
+
+    /** True while the current stroke is the right-mouse-button temporary eraser. */
+    private boolean secondaryEraser;
+
     public UIPixelsEditor()
     {
         super();
@@ -317,6 +322,18 @@ public class UIPixelsEditor extends UICanvasEditor
     public UIPixelsEditor eraserOpacitySupplier(Supplier<Float> supplier)
     {
         this.eraserOpacitySupplier = supplier != null ? supplier : () -> 1.0F;
+
+        return this;
+    }
+
+    /**
+     * Sets the hook used to engage ({@code true}) or disengage ({@code false}) the temporary
+     * right-mouse-button eraser. The owner ({@link UITexturePainter}) flips the active tool in
+     * response. See {@link #subMouseClicked(UIContext)}.
+     */
+    public UIPixelsEditor secondaryEraserToggle(Consumer<Boolean> consumer)
+    {
+        this.secondaryEraserToggle = consumer != null ? consumer : (engage) -> {};
 
         return this;
     }
@@ -1017,6 +1034,25 @@ public class UIPixelsEditor extends UICanvasEditor
     @Override
     public boolean subMouseClicked(UIContext context)
     {
+        if (this.editing && context.mouseButton == 1 && this.area.isInside(context)
+            && this.getActivePaintTool() == TexturePaintTool.BRUSH)
+        {
+            /* While the brush is selected, the right mouse button temporarily acts as the
+             * eraser: engage the secondary eraser (which switches the active tool) and run
+             * the stroke as a regular left-button drag, reverting on release. */
+            this.secondaryEraser = true;
+            this.secondaryEraserToggle.accept(true);
+
+            this.dragging = true;
+            this.mouse = 0;
+            this.lastX = context.mouseX;
+            this.lastY = context.mouseY;
+
+            this.startDragging(context);
+
+            return true;
+        }
+
         if (this.area.isInside(context) && this.isMouseButtonAllowed(context.mouseButton))
         {
             this.dragging = true;
@@ -1151,6 +1187,14 @@ public class UIPixelsEditor extends UICanvasEditor
             this.pixelsUndo = null;
             this.strokeStrengths.clear();
             this.lastPixel = hoverPixel;
+        }
+
+        /* Restore the brush once the right-mouse-button eraser stroke is finalized (the undo
+         * entry has already been pushed above, so reverting the tool does not affect it). */
+        if (this.secondaryEraser)
+        {
+            this.secondaryEraser = false;
+            this.secondaryEraserToggle.accept(false);
         }
 
         return super.subMouseReleased(context);

@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -8,6 +9,7 @@ import mchorse.bbs_mod.utils.joml.Vectors;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Vector3d;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 public abstract class UIKeyframePropTransform extends UIPropTransform
@@ -21,9 +23,24 @@ public abstract class UIKeyframePropTransform extends UIPropTransform
         return null;
     }
 
+    /**
+     * Resolves the film panel from the menu root rather than walking up the parent chain, so this
+     * transform works even when it lives outside the film panel (e.g. the animation state editor,
+     * where there is no film panel and recording simply doesn't apply). Mirrors the lookup in
+     * {@link UIAnchorKeyframeFactory}.
+     */
     protected UIFilmPanel getPanel()
     {
-        return this.getParent(UIFilmPanel.class);
+        UIContext context = this.getContext();
+
+        if (context == null)
+        {
+            return null;
+        }
+
+        List<UIFilmPanel> panels = context.menu.main.getChildren(UIFilmPanel.class);
+
+        return panels.isEmpty() ? null : panels.get(0);
     }
 
     protected boolean isTransformRecording()
