@@ -342,12 +342,14 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
             CustomVertexConsumerProvider.clearRunnables();
 
             context.stack.pop();
+
             if (context.world != null)
             {
                 context.world.pop();
             }
 
             RenderSystem.enableDepthTest();
+            RenderSystem.getModelViewMatrix().identity();
         }
     }
 
