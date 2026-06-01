@@ -111,6 +111,11 @@ public class UIPropTransform extends UITransform
     private final StringBuilder numericInput = new StringBuilder();
     private boolean numericNegative;
     private boolean numericActive;
+    /** Optional divisor typed after '/'. While {@link #numericDividing} the typing
+     *  feeds this buffer and the applied value is {@code numericInput / numericDivisor};
+     *  pressing '/' again drops it and editing returns to {@link #numericInput}. */
+    private final StringBuilder numericDivisor = new StringBuilder();
+    private boolean numericDividing;
     /** Trackball numeric target: {@link Axis#X} = horizontal (screen-up axis),
      *  {@link Axis#Y} = vertical (screen-right axis). */
     private Axis trackballAxis = Axis.X;
@@ -1422,7 +1427,7 @@ public class UIPropTransform extends UITransform
 
         if (digit >= 0)
         {
-            this.numericInput.append((char) ('0' + digit));
+            this.activeNumericBuffer().append((char) ('0' + digit));
             this.numericActive = true;
             this.applyNumericInput();
 
@@ -1431,14 +1436,16 @@ public class UIPropTransform extends UITransform
 
         if (key == GLFW.GLFW_KEY_PERIOD || key == GLFW.GLFW_KEY_KP_DECIMAL)
         {
-            if (this.numericInput.indexOf(".") < 0)
+            StringBuilder buffer = this.activeNumericBuffer();
+
+            if (buffer.indexOf(".") < 0)
             {
-                if (this.numericInput.length() == 0)
+                if (buffer.length() == 0)
                 {
-                    this.numericInput.append('0');
+                    buffer.append('0');
                 }
 
-                this.numericInput.append('.');
+                buffer.append('.');
                 this.numericActive = true;
                 this.applyNumericInput();
             }
@@ -1455,11 +1462,49 @@ public class UIPropTransform extends UITransform
             return true;
         }
 
+        if (key == GLFW.GLFW_KEY_SLASH || key == GLFW.GLFW_KEY_KP_DIVIDE)
+        {
+            /* First '/' opens a divisor that subsequent typing feeds; a second
+             * '/' drops it and returns to editing the dividend as usual. */
+            if (this.numericDividing)
+            {
+                this.numericDivisor.setLength(0);
+                this.numericDividing = false;
+            }
+            else
+            {
+                this.numericDividing = true;
+            }
+
+            this.numericActive = true;
+            this.applyNumericInput();
+
+            return true;
+        }
+
         if (key == GLFW.GLFW_KEY_BACKSPACE)
         {
             if (!this.numericActive)
             {
                 return false;
+            }
+
+            if (this.numericDividing)
+            {
+                /* Editing the divisor: trim it, and once it is empty drop the
+                 * '/' so editing falls back to the dividend. */
+                if (this.numericDivisor.length() > 0)
+                {
+                    this.numericDivisor.deleteCharAt(this.numericDivisor.length() - 1);
+                }
+                else
+                {
+                    this.numericDividing = false;
+                }
+
+                this.applyNumericInput();
+
+                return true;
             }
 
             if (this.numericInput.length() > 0)
@@ -1486,6 +1531,12 @@ public class UIPropTransform extends UITransform
         return false;
     }
 
+    /** The buffer keystrokes currently feed: the divisor while dividing, else the dividend. */
+    private StringBuilder activeNumericBuffer()
+    {
+        return this.numericDividing ? this.numericDivisor : this.numericInput;
+    }
+
     private static int numericDigit(int key)
     {
         if (key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9)
@@ -1503,32 +1554,63 @@ public class UIPropTransform extends UITransform
 
     private double getNumericValue()
     {
-        double value = 0D;
+        double value = parseNumeric(this.numericInput);
 
-        if (this.numericInput.length() > 0)
+        if (this.numericNegative)
         {
-            try
+            value = -value;
+        }
+
+        /* A zero or empty divisor leaves the dividend untouched, so the value
+         * stays sensible until a non-zero divisor is typed. */
+        if (this.numericDividing)
+        {
+            double divisor = parseNumeric(this.numericDivisor);
+
+            if (divisor != 0D)
             {
-                value = Double.parseDouble(this.numericInput.toString());
-            }
-            catch (NumberFormatException e)
-            {
-                value = 0D;
+                value /= divisor;
             }
         }
 
-        return this.numericNegative ? -value : value;
+        return value;
+    }
+
+    private static double parseNumeric(CharSequence buffer)
+    {
+        if (buffer.length() == 0)
+        {
+            return 0D;
+        }
+
+        try
+        {
+            return Double.parseDouble(buffer.toString());
+        }
+        catch (NumberFormatException e)
+        {
+            return 0D;
+        }
     }
 
     private String numericInputDisplay()
     {
-        return (this.numericNegative ? "-" : "") + (this.numericInput.length() > 0 ? this.numericInput.toString() : "0");
+        String display = (this.numericNegative ? "-" : "") + (this.numericInput.length() > 0 ? this.numericInput.toString() : "0");
+
+        if (this.numericDividing)
+        {
+            display += " / " + this.numericDivisor;
+        }
+
+        return display;
     }
 
     private void clearNumericInput()
     {
         this.numericInput.setLength(0);
+        this.numericDivisor.setLength(0);
         this.numericNegative = false;
+        this.numericDividing = false;
         this.numericActive = false;
     }
 
