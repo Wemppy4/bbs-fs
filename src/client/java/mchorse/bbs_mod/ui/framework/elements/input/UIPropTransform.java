@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -100,6 +101,16 @@ public class UIPropTransform extends UITransform
     private RotateKind rotateKind = RotateKind.AXIS;
     private boolean hotkeyMode;
     private Supplier<GizmoDrag> hotkeyDragSupplier;
+
+    /* Blender-style numeric input captured while a hotkey-driven G/S/R operation
+     * is live. {@link #numericInput} holds the typed digits and decimal point;
+     * the sign lives in {@link #numericNegative} so '-' can flip it at any moment.
+     * While {@link #numericActive} the cursor drives nothing — the transform is
+     * recomputed purely from {@link #cache} plus the typed amount (an offset for
+     * translate/rotate, a factor for scale). */
+    private final StringBuilder numericInput = new StringBuilder();
+    private boolean numericNegative;
+    private boolean numericActive;
 
     private UITransformHandler handler;
 
@@ -418,6 +429,8 @@ public class UIPropTransform extends UITransform
             return;
         }
 
+        this.clearNumericInput();
+
         if (this.editing)
         {
             Axis[] values = Axis.values();
@@ -475,6 +488,8 @@ public class UIPropTransform extends UITransform
             return;
         }
 
+        this.clearNumericInput();
+
         if (this.editing)
         {
             this.restore(true);
@@ -518,6 +533,8 @@ public class UIPropTransform extends UITransform
         {
             return;
         }
+
+        this.clearNumericInput();
 
         if (this.editing)
         {
@@ -603,6 +620,12 @@ public class UIPropTransform extends UITransform
             {
                 this.beginRayDrag(context.mouseX, context.mouseY);
             }
+        }
+
+        /* Re-route an in-progress typed amount onto the freshly picked axis. */
+        if (this.numericActive)
+        {
+            this.applyNumericInput();
         }
     }
 
@@ -1301,6 +1324,7 @@ public class UIPropTransform extends UITransform
         this.rotateKind = RotateKind.AXIS;
         this.drag = null;
         this.dragHasStart = false;
+        this.clearNumericInput();
         Gizmo.INSTANCE.clearTrackedTransform(this);
 
         if (this.handler.hasParent())
@@ -1326,6 +1350,269 @@ public class UIPropTransform extends UITransform
 
         this.restore(true);
         this.setTransform(this.transform);
+    }
+
+    /* Numeric (keyboard) input for hotkey-driven transforms */
+
+    /**
+     * Numeric input only rides on the GSR keyboard operations ({@link #hotkeyMode}),
+     * never on a mouse handle drag. Rotation additionally needs a single ring to
+     * apply a typed angle to, so the free trackball/view turns are excluded;
+     * translate and scale always run on an axis (X by default).
+     */
+    private boolean acceptsNumericInput()
+    {
+        if (!this.editing || !this.hotkeyMode || this.transform == null)
+        {
+            return false;
+        }
+
+        return this.mode != 2 || (this.rotateKind == RotateKind.AXIS && this.axis != null);
+    }
+
+    /**
+     * Feed one key into the live numeric buffer: digits and the decimal point
+     * extend it, {@code -} flips the sign, backspace trims it (and hands control
+     * back to the cursor once everything is erased). Returns whether the key was
+     * consumed as numeric input.
+     */
+    private boolean handleNumericInputKey(UIContext context)
+    {
+        if (!this.acceptsNumericInput())
+        {
+            return false;
+        }
+
+        KeyAction action = context.getKeyAction();
+
+        if (action != KeyAction.PRESSED && action != KeyAction.REPEAT)
+        {
+            return false;
+        }
+
+        int key = context.getKeyCode();
+        int digit = numericDigit(key);
+
+        if (digit >= 0)
+        {
+            this.numericInput.append((char) ('0' + digit));
+            this.numericActive = true;
+            this.applyNumericInput();
+
+            return true;
+        }
+
+        if (key == GLFW.GLFW_KEY_PERIOD || key == GLFW.GLFW_KEY_KP_DECIMAL)
+        {
+            if (this.numericInput.indexOf(".") < 0)
+            {
+                if (this.numericInput.length() == 0)
+                {
+                    this.numericInput.append('0');
+                }
+
+                this.numericInput.append('.');
+                this.numericActive = true;
+                this.applyNumericInput();
+            }
+
+            return true;
+        }
+
+        if (key == GLFW.GLFW_KEY_MINUS || key == GLFW.GLFW_KEY_KP_SUBTRACT)
+        {
+            this.numericNegative = !this.numericNegative;
+            this.numericActive = true;
+            this.applyNumericInput();
+
+            return true;
+        }
+
+        if (key == GLFW.GLFW_KEY_BACKSPACE)
+        {
+            if (!this.numericActive)
+            {
+                return false;
+            }
+
+            if (this.numericInput.length() > 0)
+            {
+                this.numericInput.deleteCharAt(this.numericInput.length() - 1);
+            }
+            else
+            {
+                this.numericNegative = false;
+            }
+
+            if (this.numericInput.length() == 0 && !this.numericNegative)
+            {
+                this.stopNumericInput(context);
+            }
+            else
+            {
+                this.applyNumericInput();
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static int numericDigit(int key)
+    {
+        if (key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9)
+        {
+            return key - GLFW.GLFW_KEY_0;
+        }
+
+        if (key >= GLFW.GLFW_KEY_KP_0 && key <= GLFW.GLFW_KEY_KP_9)
+        {
+            return key - GLFW.GLFW_KEY_KP_0;
+        }
+
+        return -1;
+    }
+
+    private double getNumericValue()
+    {
+        double value = 0D;
+
+        if (this.numericInput.length() > 0)
+        {
+            try
+            {
+                value = Double.parseDouble(this.numericInput.toString());
+            }
+            catch (NumberFormatException e)
+            {
+                value = 0D;
+            }
+        }
+
+        return this.numericNegative ? -value : value;
+    }
+
+    private String numericInputDisplay()
+    {
+        return (this.numericNegative ? "-" : "") + (this.numericInput.length() > 0 ? this.numericInput.toString() : "0");
+    }
+
+    private void clearNumericInput()
+    {
+        this.numericInput.setLength(0);
+        this.numericNegative = false;
+        this.numericActive = false;
+    }
+
+    /**
+     * Erasing the whole buffer cancels numeric mode: rewind to the operation's
+     * start and re-anchor the cursor drag at the current pointer so mouse
+     * control resumes without a jump.
+     */
+    private void stopNumericInput(UIContext context)
+    {
+        this.clearNumericInput();
+        this.restore(true);
+
+        this.lastX = context.mouseX;
+        this.lastY = context.mouseY;
+
+        if (this.useRayDrag())
+        {
+            this.beginRayDrag(context.mouseX, context.mouseY);
+        }
+
+        this.setTransform(this.transform);
+    }
+
+    /**
+     * Recompute the transform from {@link #cache} plus the typed amount. The
+     * amount is an offset for translate (units) and rotate (degrees) and a
+     * factor for scale, applied to the active axis (and {@link #axis2}, or every
+     * axis when Ctrl scales uniformly).
+     */
+    private void applyNumericInput()
+    {
+        if (this.transform == null)
+        {
+            return;
+        }
+
+        double value = this.getNumericValue();
+
+        switch (this.mode)
+        {
+            case 0:
+                this.applyNumericTranslate(value);
+                break;
+            case 1:
+                this.applyNumericScale(value);
+                break;
+            case 2:
+                this.applyNumericRotate(value);
+                break;
+        }
+
+        this.setTransform(this.transform);
+    }
+
+    private void applyNumericTranslate(double value)
+    {
+        if (this.local)
+        {
+            Vector3f offset = this.calculateLocalVector(value, this.axis);
+
+            if (this.axis2 != null)
+            {
+                offset.add(this.calculateLocalVector(value, this.axis2));
+            }
+
+            this.setT(null,
+                this.cache.translate.x + offset.x,
+                this.cache.translate.y + offset.y,
+                this.cache.translate.z + offset.z
+            );
+        }
+        else
+        {
+            Vector3f t = new Vector3f(this.cache.translate);
+
+            if (this.axis == Axis.X || this.axis2 == Axis.X) t.x = this.cache.translate.x + (float) value;
+            if (this.axis == Axis.Y || this.axis2 == Axis.Y) t.y = this.cache.translate.y + (float) value;
+            if (this.axis == Axis.Z || this.axis2 == Axis.Z) t.z = this.cache.translate.z + (float) value;
+
+            this.setT(null, t.x, t.y, t.z);
+        }
+    }
+
+    private void applyNumericScale(double value)
+    {
+        boolean all = Window.isCtrlPressed();
+        Vector3f s = new Vector3f(this.cache.scale);
+
+        if (all || this.axis == Axis.X || this.axis2 == Axis.X) s.x = (float) (this.cache.scale.x * value);
+        if (all || this.axis == Axis.Y || this.axis2 == Axis.Y) s.y = (float) (this.cache.scale.y * value);
+        if (all || this.axis == Axis.Z || this.axis2 == Axis.Z) s.z = (float) (this.cache.scale.z * value);
+
+        this.setS(null, s.x, s.y, s.z);
+    }
+
+    private void applyNumericRotate(double value)
+    {
+        boolean gizmoSpace = this.local && BBSSettings.gizmos.get();
+        Vector3f source = gizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+
+        float rx = MathUtils.toDeg(source.x);
+        float ry = MathUtils.toDeg(source.y);
+        float rz = MathUtils.toDeg(source.z);
+
+        if (this.axis == Axis.X || this.axis2 == Axis.X) rx += value;
+        if (this.axis == Axis.Y || this.axis2 == Axis.Y) ry += value;
+        if (this.axis == Axis.Z || this.axis2 == Axis.Z) rz += value;
+
+        if (gizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     @Override
@@ -1361,7 +1648,7 @@ public class UIPropTransform extends UITransform
 
     private boolean shouldSnapGizmoValues()
     {
-        return this.editing && this.mode == 2 && this.rotateKind == RotateKind.AXIS && !Window.isAltPressed();
+        return this.editing && this.mode == 2 && this.rotateKind == RotateKind.AXIS && !Window.isAltPressed() && !this.numericActive;
     }
 
     private double snapGizmoValue(double value)
@@ -1451,6 +1738,10 @@ public class UIPropTransform extends UITransform
 
                 return true;
             }
+            else if (this.handleNumericInputKey(context))
+            {
+                return true;
+            }
         }
 
         return super.subKeyPressed(context);
@@ -1459,7 +1750,7 @@ public class UIPropTransform extends UITransform
     @Override
     public void render(UIContext context)
     {
-        if (this.editing && this.checker.isTime())
+        if (this.editing && !this.numericActive && this.checker.isTime())
         {
             /* UIContext.mouseX can't be used because when cursor is outside of window
              * its position stops being updated. That's why it has to be queried manually
@@ -1591,7 +1882,13 @@ public class UIPropTransform extends UITransform
                     valueLabel += ", " + String.format(java.util.Locale.US, "%.2f", val2);
                 }
 
-                context.batcher.textCard(valueLabel, context.mouseX + 12, context.mouseY + 12, Colors.WHITE, Colors.A50);
+                /* While typing, lead with the raw input so the user sees exactly
+                 * what they've entered, with the resulting value in parentheses. */
+                String cursorLabel = this.numericActive
+                    ? this.numericInputDisplay() + " (" + valueLabel + ")"
+                    : valueLabel;
+
+                context.batcher.textCard(cursorLabel, context.mouseX + 12, context.mouseY + 12, Colors.WHITE, Colors.A50);
             }
         }
 
