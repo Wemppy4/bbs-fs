@@ -175,6 +175,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private static final float DROP_EDGE_MARGIN = 0.2F;
     private static final int EDITOR_MIN_SIZE_FOR_PX_HANDLES = 10;
     private static final int DOCK_STACK_TABS_HEIGHT_PX = 20;
+    private static final int PANEL_GAP_PX = 4;
+    private static final float PANEL_EDGE_EPS = 0.001F;
     private static final String PANEL_MAIN_ID = "main";
     private static final String PANEL_PREVIEW_ID = "preview";
     private static final String PANEL_EDIT_AREA_ID = "editArea";
@@ -374,16 +376,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.recorder = new UIFilmRecorder(this);
 
         this.main = new UIElement();
-        this.editArea = new UIElement()
-        {
-            @Override
-            public void render(UIContext context)
-            {
-                this.area.render(context.batcher, BBSSettings.baseSurface());
-                this.area.render(context.batcher, BBSSettings.backgroundTint(Colors.A6));
-                super.render(context);
-            }
-        };
+        this.editArea = new UIElement();
         this.preview = new UIFilmPreview(this);
         this.panelById.put(PANEL_MAIN_ID, this.main);
         this.panelById.put(PANEL_PREVIEW_ID, this.preview);
@@ -438,7 +431,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         /* Setup elements */
 
-        this.editor.add(this.main, new UIRenderable(this::renderIcons), new UIRenderable(this::renderDropZoneHighlight));
+        this.editor.add(new UIRenderable(this::renderPanelSurfaces), this.main, new UIRenderable(this::renderIcons), new UIRenderable(this::renderDropZoneHighlight));
         for (String id : this.panelById.keySet())
         {
             UIDraggable handle = this.createPanelDragHandle(id);
@@ -1340,9 +1333,60 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
     }
 
+    private float[] previewStackRect(List<DockStackInfo> stackInfos)
+    {
+        for (DockStackInfo info : stackInfos)
+        {
+            if (info.panelIds.contains(PANEL_PREVIEW_ID))
+            {
+                return new float[] {info.x, info.y, info.w, info.h};
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Per-edge gaps so seams between panels don't double up: a full gap where a
+     * side does not get a matching half from the other side — the editor's outer
+     * edge or the frameless preview — and a half gap where a regular neighbour
+     * meets it. Returns left, top, right, bottom offsets in pixels.
+     */
+    private int[] panelGutter(DockStackInfo info, float[] preview)
+    {
+        int half = PANEL_GAP_PX / 2;
+        float x = info.x, y = info.y, w = info.w, h = info.h;
+
+        boolean left = x <= PANEL_EDGE_EPS;
+        boolean top = y <= PANEL_EDGE_EPS;
+        boolean right = x + w >= 1F - PANEL_EDGE_EPS;
+        boolean bottom = y + h >= 1F - PANEL_EDGE_EPS;
+
+        if (preview != null)
+        {
+            float vx = preview[0], vy = preview[1], vw = preview[2], vh = preview[3];
+            boolean spanY = y < vy + vh - PANEL_EDGE_EPS && y + h > vy + PANEL_EDGE_EPS;
+            boolean spanX = x < vx + vw - PANEL_EDGE_EPS && x + w > vx + PANEL_EDGE_EPS;
+
+            left |= spanY && Math.abs(x - (vx + vw)) <= PANEL_EDGE_EPS;
+            right |= spanY && Math.abs((x + w) - vx) <= PANEL_EDGE_EPS;
+            top |= spanX && Math.abs(y - (vy + vh)) <= PANEL_EDGE_EPS;
+            bottom |= spanX && Math.abs((y + h) - vy) <= PANEL_EDGE_EPS;
+        }
+
+        return new int[] {
+            left ? PANEL_GAP_PX : half,
+            top ? PANEL_GAP_PX : half,
+            right ? PANEL_GAP_PX : half,
+            bottom ? PANEL_GAP_PX : half
+        };
+    }
+
     private void applyPanelBoundsFromStacks(List<DockStackInfo> stackInfos)
     {
         this.dockStackByPanelId.clear();
+
+        float[] preview = this.previewStackRect(stackInfos);
 
         for (DockStackInfo info : stackInfos)
         {
@@ -1357,7 +1401,13 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                     continue;
                 }
 
-                panel.relative(this.editor).x(info.x).y(info.y, topOffset).w(info.w).h(info.h, -topOffset);
+                int[] g = panel == this.preview ? new int[4] : this.panelGutter(info, preview);
+
+                panel.relative(this.editor)
+                    .x(info.x, g[0])
+                    .y(info.y, topOffset + g[1])
+                    .w(info.w, -g[0] - g[2])
+                    .h(info.h, -topOffset - g[1] - g[3]);
                 this.dockStackByPanelId.put(panelId, info);
             }
         }
@@ -1372,6 +1422,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         this.dockStackTabs.clear();
 
+        float[] preview = this.previewStackRect(stackInfos);
+
         for (DockStackInfo info : stackInfos)
         {
             if (!info.isStacked())
@@ -1381,7 +1433,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
             UIDockStackTabs tabs = new UIDockStackTabs(this);
             tabs.configure(info);
-            tabs.relative(this.editor).x(info.x).y(info.y).w(info.w).h(DOCK_STACK_TABS_HEIGHT_PX);
+            int[] g = this.panelGutter(info, preview);
+
+            tabs.relative(this.editor).x(info.x, g[0]).y(info.y, g[1]).w(info.w, -g[0] - g[2]).h(DOCK_STACK_TABS_HEIGHT_PX);
             this.dockStackTabs.add(tabs);
             this.editor.add(tabs);
         }
@@ -1419,13 +1473,17 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             }
         }
 
+        float[] preview = this.previewStackRect(stackInfos);
+
         for (int i = 0; i < stackedInfos.size(); i++)
         {
             UIDockStackTabs tabs = this.dockStackTabs.get(i);
             DockStackInfo info = stackedInfos.get(i);
 
             tabs.configure(info);
-            tabs.relative(this.editor).x(info.x).y(info.y).w(info.w).h(DOCK_STACK_TABS_HEIGHT_PX);
+            int[] g = this.panelGutter(info, preview);
+
+            tabs.relative(this.editor).x(info.x, g[0]).y(info.y, g[1]).w(info.w, -g[0] - g[2]).h(DOCK_STACK_TABS_HEIGHT_PX);
         }
 
         return true;
@@ -1439,6 +1497,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
 
         int editorHeight = Math.max(1, this.editor.area.h);
+        float[] preview = this.previewStackRect(stackInfos);
 
         for (DockStackInfo info : stackInfos)
         {
@@ -1451,10 +1510,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
             float tabsOffset = info.isStacked() ? (float) DOCK_STACK_TABS_HEIGHT_PX / editorHeight : 0F;
 
+            int[] g = PANEL_PREVIEW_ID.equals(info.activePanelId) ? new int[4] : this.panelGutter(info, preview);
+
             handle.relative(this.editor)
-                .x(info.x)
-                .y(info.y + tabsOffset + DRAG_HANDLE_TOP_OFFSET_NORM)
-                .w(info.w)
+                .x(info.x, g[0])
+                .y(info.y + tabsOffset + DRAG_HANDLE_TOP_OFFSET_NORM, g[1])
+                .w(info.w, -g[0] - g[2])
                 .h(DRAG_HANDLE_HEIGHT_NORM);
             handle.setVisible(!this.layoutLocked);
         }
@@ -2940,6 +3001,24 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             {
                 this.setCursor(0);
                 this.notifyServer(ActionState.RESTART);
+            }
+        }
+    }
+
+    /**
+     * Paint the editor canvas behind the docked panels and give each panel a
+     * deeper surface, so they read as recessed wells inset into the frame.
+     */
+    private void renderPanelSurfaces(UIContext context)
+    {
+        this.editor.area.render(context.batcher, BBSSettings.baseSurface());
+
+        for (UIElement panel : this.panelById.values())
+        {
+            if (panel.isVisible() && panel != this.preview)
+            {
+                panel.area.render(context.batcher, BBSSettings.deepSurface());
+                panel.area.render(context.batcher, BBSSettings.backgroundTint(Colors.A6));
             }
         }
     }
