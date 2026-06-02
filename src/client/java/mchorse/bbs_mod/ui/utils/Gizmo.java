@@ -33,7 +33,7 @@ public class Gizmo
     /* Every pickable gizmo handle owns a distinct stencil id so the combined
      * mode can show move/scale/rotate at once and a pick unambiguously names
      * both the operation and the axis. {@link Handle} ties these together;
-     * single-operation modes simply render a subset of them. {@link #STENCIL_VIEW}
+     * single-operation modes simply render a subset of them. {@link #STENCIL_MAX}
      * stays the highest id so form parts (which begin right after it) never
      * collide with a handle. */
     public final static int STENCIL_X = 1;
@@ -53,6 +53,11 @@ public class Gizmo
     public final static int STENCIL_ROTATE_Z = 15;
     public final static int STENCIL_TRACKBALL = 16;
     public final static int STENCIL_VIEW = 17;
+    /** Screen-space translate handle: the big centre cube that grabs in the view plane. */
+    public final static int STENCIL_SCREEN = 18;
+
+    /** Highest gizmo handle id; form-part stencil ids begin right after it. */
+    public final static int STENCIL_MAX = STENCIL_SCREEN;
 
     /** Radius of the view-plane ring relative to the per-axis rings. */
     private final static float VIEW_RING_SCALE = 1.2F;
@@ -64,6 +69,13 @@ public class Gizmo
      *  Based on scale/thickness rather than the per-pass line offset, so the cube is the same
      *  size in the visual and stencil passes and its hitbox matches the drawn cube exactly. */
     private final static float SCALE_CUBE_HALF = 0.032F;
+
+    /** Half-size of the screen-space (centre) translate cube, in gizmo-local units
+     *  (× axes scale × thickness). Twice the translate bars' half-thickness (the visual
+     *  bar offset is {@code 0.008}), so the cube reads as a grabbable handle. Like
+     *  {@link #SCALE_CUBE_HALF} it is offset-independent so the visual and stencil
+     *  passes match and the hitbox lines up with the drawn cube. */
+    private final static float SCREEN_CUBE_HALF = 0.016F;
 
     public final static Gizmo INSTANCE = new Gizmo();
 
@@ -381,6 +393,9 @@ public class Gizmo
                 case ROTATE:
                     transform.enableMode(handle.op.modeOrdinal, handle.axis, handle.axis2, drag);
                     break;
+                case SCREEN:
+                    transform.enableScreenTranslate(drag);
+                    break;
                 case TRACKBALL:
                     if (BBSSettings.rotate3dSphere.get()) transform.enableTrackball(drag);
                     break;
@@ -404,7 +419,7 @@ public class Gizmo
         {
             this.currentTransform = null;
 
-            if (this.index < STENCIL_X || this.index > STENCIL_VIEW)
+            if (this.index < STENCIL_X || this.index > STENCIL_MAX)
             {
                 this.index = -1;
             }
@@ -856,6 +871,16 @@ public class Gizmo
             Draw.fillBox(builder, stack, -axisOffset, 0, -axisOffset, axisOffset, axisSize, axisOffset, Colors.GREEN);
             Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, Colors.BLUE);
 
+            /* Screen-space (view-plane) translate handle: a white cube at the centre,
+             * twice the bars' thickness. Drawn before the planes so they overlay it,
+             * and after the rotation sphere (above) so it stays visible in combined. */
+            if (showMove)
+            {
+                float screenHalf = SCREEN_CUBE_HALF * scale * thickness;
+
+                Draw.fillBox(builder, stack, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, Colors.WHITE);
+            }
+
             float planeStart = axisSize * 0.2F;
             float planeEnd = planeStart + axisSize * 0.4F * thickness;
             float planeThickness = axisOffset * 0.5F;
@@ -983,6 +1008,15 @@ public class Gizmo
             Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, barZ / 255F, 0F, 0F);
             Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, 0F, 0F, 0F);
 
+            /* Screen-space handle hitbox: drawn before the planes so they win the pick
+             * where they overlap (planes overlay the cube). Matches the visual cube. */
+            if (showMove)
+            {
+                float screenHalf = SCREEN_CUBE_HALF * scale * thickness;
+
+                Draw.fillBox(builder, stack, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, STENCIL_SCREEN / 255F, 0F, 0F);
+            }
+
             float planeStart = axisSize * 0.2F;
             float planeEnd = planeStart + axisSize * 0.4F * thickness;
             float planeThickness = axisOffset * 0.5F;
@@ -1017,13 +1051,13 @@ public class Gizmo
             switch (this)
             {
                 case TRANSLATE:
-                    return op == Op.MOVE;
+                    return op == Op.MOVE || op == Op.SCREEN;
                 case SCALE:
                     return op == Op.SCALE;
                 case ROTATE:
                     return op == Op.ROTATE || op == Op.VIEW || op == Op.TRACKBALL;
                 case COMBINED:
-                    return op == Op.MOVE || op == Op.SCALE || op == Op.ROTATE || op == Op.VIEW;
+                    return op == Op.MOVE || op == Op.SCALE || op == Op.ROTATE || op == Op.VIEW || op == Op.SCREEN;
                 default:
                     return false;
             }
@@ -1038,7 +1072,7 @@ public class Gizmo
      */
     public static enum Op
     {
-        MOVE(0), SCALE(1), ROTATE(2), VIEW(2), TRACKBALL(2);
+        MOVE(0), SCALE(1), ROTATE(2), VIEW(2), TRACKBALL(2), SCREEN(0);
 
         public final int modeOrdinal;
 
@@ -1072,7 +1106,8 @@ public class Gizmo
         ROTATE_Y(STENCIL_ROTATE_Y, Op.ROTATE, Axis.Y, null),
         ROTATE_Z(STENCIL_ROTATE_Z, Op.ROTATE, Axis.Z, null),
         TRACKBALL(STENCIL_TRACKBALL, Op.TRACKBALL, null, null),
-        VIEW(STENCIL_VIEW, Op.VIEW, null, null);
+        VIEW(STENCIL_VIEW, Op.VIEW, null, null),
+        SCREEN(STENCIL_SCREEN, Op.SCREEN, null, null);
 
         public final int index;
         public final Op op;

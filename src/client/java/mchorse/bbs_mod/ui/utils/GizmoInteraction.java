@@ -55,7 +55,7 @@ public class GizmoInteraction
         {
             int index = stencil.getIndex();
 
-            if (index >= Gizmo.STENCIL_X && index <= Gizmo.STENCIL_VIEW)
+            if (index >= Gizmo.STENCIL_X && index <= Gizmo.STENCIL_MAX)
             {
                 return this.startGizmo(context, index);
             }
@@ -193,7 +193,7 @@ public class GizmoInteraction
 
         int index = stencil.getIndex();
 
-        return index >= Gizmo.STENCIL_X && index <= Gizmo.STENCIL_VIEW;
+        return index >= Gizmo.STENCIL_X && index <= Gizmo.STENCIL_MAX;
     }
 
     private void clearPending()

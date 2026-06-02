@@ -33,6 +33,10 @@ public class UIPropTransform extends UITransform
     private static final double[] CURSOR_X = new double[1];
     private static final double[] CURSOR_Y = new double[1];
 
+    /** Fraction of the camera-to-gizmo distance the object moves in depth per wheel notch
+     *  during a screen-space grab (Alt divides it by 5, Ctrl multiplies it by 5). */
+    private static final float DEPTH_WHEEL_FACTOR = 0.05F;
+
     private Transform transform;
     private Runnable preCallback;
     private Runnable postCallback;
@@ -66,6 +70,10 @@ public class UIPropTransform extends UITransform
      * in (blocks, pixels, ...).
      */
     private final Matrix3f dragTranslateBasis = new Matrix3f();
+    /** World→translate map (inverse of the translate Jacobian) captured for the active
+     *  screen-space grab, so the mouse-wheel depth move can convert a world step into
+     *  {@code transform.translate} units. */
+    private final Matrix3f dragScreenInverseJacobian = new Matrix3f();
     private final Vector3f dragPlaneNormal = new Vector3f();
     private final Vector3d dragStartHit = new Vector3d();
     private final Vector3f dragStartTranslate = new Vector3f();
@@ -99,6 +107,13 @@ public class UIPropTransform extends UITransform
     private boolean dragRotateGizmoSpace;
     private boolean dragHasStart;
     private RotateKind rotateKind = RotateKind.AXIS;
+    /**
+     * Screen-space (view-plane) translate: movement is camera-relative — along the
+     * camera's right/up axes, in the plane facing the camera — rather than along a
+     * gizmo axis. Lives only on the translate mode; cleared as soon as the drag ends
+     * or the user constrains to an axis with X/Y/Z.
+     */
+    private boolean translateScreen;
     private boolean hotkeyMode;
     private Supplier<GizmoDrag> hotkeyDragSupplier;
 
@@ -302,7 +317,7 @@ public class UIPropTransform extends UITransform
 
     public int getDebugLineStencilIndex()
     {
-        if (!this.editing)
+        if (!this.editing || this.translateScreen)
         {
             return -1;
         }
@@ -441,10 +456,21 @@ public class UIPropTransform extends UITransform
 
         if (this.editing)
         {
-            Axis[] values = Axis.values();
+            if (this.translateScreen)
+            {
+                /* Leaving the screen-space grab via G constrains to X first, so further
+                 * presses cycle X -> Y -> Z like the regular axis walk. */
+                this.axis = Axis.X;
+            }
+            else
+            {
+                Axis[] values = Axis.values();
 
-            this.axis = values[MathUtils.cycler(this.axis != null ? this.axis.ordinal() + 1 : 0, 0, values.length - 1)];
+                this.axis = values[MathUtils.cycler(this.axis != null ? this.axis.ordinal() + 1 : 0, 0, values.length - 1)];
+            }
+
             this.axis2 = null;
+            this.translateScreen = false;
             this.rotateKind = RotateKind.AXIS;
             this.drag = drag;
 
@@ -452,8 +478,21 @@ public class UIPropTransform extends UITransform
         }
         else
         {
-            this.axis = axis == null ? Axis.X : axis;
-            this.axis2 = axis2;
+            /* G (translate hotkey) with ray dragging available grabs in screen space
+             * by default; X/Y/Z then constrain it to an axis. */
+            this.translateScreen = axis == null && mode == 0 && BBSSettings.transformHotkeys3dRay.get() && drag != null;
+
+            if (this.translateScreen)
+            {
+                this.axis = Axis.X;
+                this.axis2 = Axis.Y;
+            }
+            else
+            {
+                this.axis = axis == null ? Axis.X : axis;
+                this.axis2 = axis2;
+            }
+
             this.rotateKind = RotateKind.AXIS;
             this.lastX = context.mouseX;
             this.lastY = context.mouseY;
@@ -506,6 +545,7 @@ public class UIPropTransform extends UITransform
         this.editing = true;
         this.rotateKind = RotateKind.TRACKBALL;
         this.trackballAxis = Axis.X;
+        this.translateScreen = false;
         this.mode = 2; // ROTATE
         this.axis = null;
         this.axis2 = null;
@@ -552,6 +592,7 @@ public class UIPropTransform extends UITransform
 
         this.editing = true;
         this.rotateKind = RotateKind.VIEW;
+        this.translateScreen = false;
         this.mode = 2; // ROTATE
         this.axis = null;
         this.axis2 = null;
@@ -564,6 +605,57 @@ public class UIPropTransform extends UITransform
         Gizmo.INSTANCE.trackTransform(this);
 
         this.beginRayRotateView(context.mouseX, context.mouseY);
+
+        if (!this.handler.hasParent())
+        {
+            context.menu.overlay.add(this.handler);
+        }
+    }
+
+    public void enableScreenTranslate(GizmoDrag drag)
+    {
+        this.enableScreenTranslate(drag, false);
+    }
+
+    /**
+     * Start a screen-space (view-plane) translate: the object moves along the
+     * camera's right/up axes in the plane facing the camera. Unlike {@link #enableMode}
+     * this never switches the gizmo's display mode, so grabbing the centre cube with
+     * the mouse leaves the visible handles untouched (like the other handle picks).
+     */
+    public void enableScreenTranslate(GizmoDrag drag, boolean hotkeyMode)
+    {
+        UIContext context = this.getContext();
+        if (context == null || this.transform == null)
+        {
+            return;
+        }
+
+        this.clearNumericInput();
+
+        if (this.editing)
+        {
+            this.restore(true);
+        }
+
+        this.editing = true;
+        this.mode = 0;
+        this.rotateKind = RotateKind.AXIS;
+        this.translateScreen = true;
+        this.axis = Axis.X;
+        this.axis2 = Axis.Y;
+        this.hotkeyMode = hotkeyMode;
+        this.drag = drag;
+        this.lastX = context.mouseX;
+        this.lastY = context.mouseY;
+
+        this.cache.copy(this.transform);
+        Gizmo.INSTANCE.trackTransform(this);
+
+        if (this.useRayDrag())
+        {
+            this.beginRayDrag(context.mouseX, context.mouseY);
+        }
 
         if (!this.handler.hasParent())
         {
@@ -589,6 +681,7 @@ public class UIPropTransform extends UITransform
     private void setEditingAxis(Axis axis)
     {
         this.rotateKind = RotateKind.AXIS;
+        this.translateScreen = false;
 
         if (Window.isShiftPressed())
         {
@@ -699,6 +792,89 @@ public class UIPropTransform extends UITransform
             this.dragStartTranslate.y + result.y,
             this.dragStartTranslate.z + result.z
         );
+    }
+
+    /**
+     * Push the object toward or away from the camera with the mouse wheel during a
+     * screen-space grab. One notch scales its distance from the camera by a fraction
+     * (Alt divides the step by 5 for fine control, Ctrl multiplies it by 5 for coarse).
+     *
+     * <p>The object moves along its own camera-to-object ray, so its on-screen position
+     * is preserved (only the depth/size changes) — moving along the camera forward axis
+     * instead would drift the object across the screen. The drag plane is slid with the
+     * object and re-anchored, so the in-plane drag keeps tracking the cursor at the new
+     * depth without the perspective mismatch that otherwise makes it overshoot/lag.
+     *
+     * @return {@code true} when the wheel was consumed as depth (i.e. a screen-space
+     *         grab is live), so callers can fall back to their default scroll handling.
+     */
+    public boolean scrollDepth(UIContext context)
+    {
+        if (!this.editing || !this.translateScreen || !this.dragHasStart || this.transform == null)
+        {
+            return false;
+        }
+
+        /* Re-acquire the drag from the freshly rendered gizmo (as if the grab were just
+         * triggered): its origin is then the object's authoritative current world
+         * position, instead of a snapshot reconstruction that drifts. Rebuild the
+         * screen-drag basis/anchors on it so the depth ray and the in-plane plane stay
+         * aligned with where the object actually is. */
+        GizmoDrag fresh = this.getHotkeyDrag();
+
+        if (fresh != null)
+        {
+            this.drag = fresh;
+        }
+
+        if (this.drag == null)
+        {
+            return true;
+        }
+
+        this.beginRayTranslateScreen(context.mouseX, context.mouseY);
+
+        Vector3d ray = new Vector3d(this.drag.gizmoOrigin).sub(this.drag.cameraOrigin);
+        double distance = ray.length();
+
+        if (distance < 1.0E-4)
+        {
+            return true;
+        }
+
+        ray.div(distance);
+
+        float step = (float) (-context.mouseWheel * distance * DEPTH_WHEEL_FACTOR);
+
+        if (Window.isAltPressed())
+        {
+            step /= 5F;
+        }
+
+        if (Window.isCtrlPressed())
+        {
+            step *= 5F;
+        }
+
+        /* Move along the camera->object ray (preserves screen position), in translate units. */
+        Vector3f translateStep = this.dragScreenInverseJacobian.transform(
+            new Vector3f((float) (ray.x * step), (float) (ray.y * step), (float) (ray.z * step))
+        );
+
+        this.setT(null,
+            this.transform.translate.x + translateStep.x,
+            this.transform.translate.y + translateStep.y,
+            this.transform.translate.z + translateStep.z
+        );
+
+        /* Slide the drag plane to the new depth and re-anchor so the in-plane drag continues. */
+        this.drag.gizmoOrigin.add(ray.x * step, ray.y * step, ray.z * step);
+        this.dragStartTranslate.set(this.transform.translate);
+        this.drag.intersectPlane(context.mouseX, context.mouseY, this.dragPlaneNormal, this.dragStartHit);
+
+        this.setTransform(this.transform);
+
+        return true;
     }
 
     /**
@@ -921,6 +1097,13 @@ public class UIPropTransform extends UITransform
 
     private void beginRayTranslate(int mouseX, int mouseY)
     {
+        if (this.translateScreen)
+        {
+            this.beginRayTranslateScreen(mouseX, mouseY);
+
+            return;
+        }
+
         Matrix3f jacobian = new Matrix3f(this.drag.translateJacobian);
 
         if (this.local)
@@ -966,6 +1149,69 @@ public class UIPropTransform extends UITransform
         {
             this.drag.planeNormalForPlane(this.dragWorldBasis, this.axis, this.axis2, this.dragPlaneNormal);
         }
+
+        this.dragStartTranslate.set(this.transform.translate);
+        this.dragHasStart = this.drag.intersectPlane(mouseX, mouseY, this.dragPlaneNormal, this.dragStartHit);
+    }
+
+    /**
+     * Anchor a screen-space translate. The drag plane is the one facing the camera
+     * (normal = camera forward), and the two move directions are the camera's world
+     * right/up axes recovered from the rotation-only view matrix. Pushed through the
+     * inverse translate Jacobian they map cursor motion in the view plane straight
+     * onto {@code transform.translate}, regardless of the local/global toggle (screen
+     * space is camera-relative by definition). Reuses {@link #applyRayTranslate} with
+     * {@code axis = X}, {@code axis2 = Y} addressing those two camera directions.
+     */
+    private void beginRayTranslateScreen(int mouseX, int mouseY)
+    {
+        Matrix3f invView = this.drag.view.get3x3(new Matrix3f());
+
+        if (Math.abs(invView.determinant()) < 1.0E-8F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        invView.invert();
+
+        Vector3f right = invView.getColumn(0, new Vector3f());
+        Vector3f up = invView.getColumn(1, new Vector3f());
+        Vector3f forward = invView.getColumn(2, new Vector3f());
+
+        if (right.lengthSquared() < 1.0E-8F || up.lengthSquared() < 1.0E-8F || forward.lengthSquared() < 1.0E-8F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        right.normalize();
+        up.normalize();
+        forward.normalize();
+
+        Matrix3f cameraBasis = new Matrix3f();
+
+        cameraBasis.setColumn(0, right);
+        cameraBasis.setColumn(1, up);
+        cameraBasis.setColumn(2, forward);
+
+        Matrix3f inverse = new Matrix3f(this.drag.translateJacobian);
+
+        if (Math.abs(inverse.determinant()) < 1.0E-8F)
+        {
+            inverse.identity();
+        }
+        else
+        {
+            inverse.invert();
+        }
+
+        this.dragTranslateBasis.set(inverse).mul(cameraBasis);
+        this.dragScreenInverseJacobian.set(inverse);
+        this.dragWorldBasis.set(cameraBasis);
+        this.dragPlaneNormal.set(forward);
 
         this.dragStartTranslate.set(this.transform.translate);
         this.dragHasStart = this.drag.intersectPlane(mouseX, mouseY, this.dragPlaneNormal, this.dragStartHit);
@@ -1331,6 +1577,7 @@ public class UIPropTransform extends UITransform
         this.axis2 = null;
         this.hotkeyMode = false;
         this.rotateKind = RotateKind.AXIS;
+        this.translateScreen = false;
         this.drag = null;
         this.dragHasStart = false;
         this.clearNumericInput();
@@ -1373,6 +1620,13 @@ public class UIPropTransform extends UITransform
     private boolean acceptsNumericInput()
     {
         if (!this.editing || !this.hotkeyMode || this.transform == null)
+        {
+            return false;
+        }
+
+        /* Screen-space grab spreads one drag across two camera axes, so a single typed
+         * scalar is ambiguous — numeric input resumes once X/Y/Z constrains to an axis. */
+        if (this.translateScreen)
         {
             return false;
         }
@@ -2125,6 +2379,13 @@ public class UIPropTransform extends UITransform
         @Override
         protected boolean subMouseScrolled(UIContext context)
         {
+            /* During a screen-space grab the wheel drives depth; otherwise it keeps
+             * adjusting the drag sensitivity amplifier as before. */
+            if (this.transform.scrollDepth(context))
+            {
+                return true;
+            }
+
             UITrackpad.updateAmplifier(context);
 
             return true;
