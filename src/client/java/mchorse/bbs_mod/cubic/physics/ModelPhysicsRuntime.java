@@ -45,21 +45,6 @@ public final class ModelPhysicsRuntime
     private static final float COLLISION_STATIC_FRICTION_EPS = 0.02f;
     private static final float COLLISION_CONTACT_SLOP = 0.02f;
 
-    /* Temporary pool to avoid allocations */
-    private static final Vector3f V1 = new Vector3f();
-    private static final Vector3f V2 = new Vector3f();
-    private static final Vector3f V3 = new Vector3f();
-    private static final Vector3f V4 = new Vector3f();
-    private static final Vector3f V5 = new Vector3f();
-    private static final Vector3f V6 = new Vector3f();
-    private static final Vector3f V7 = new Vector3f();
-    private static final Vector3f TARGET = new Vector3f();
-    private static final Quaternionf Q1 = new Quaternionf();
-    private static final Quaternionf Q2 = new Quaternionf();
-    private static final Quaternionf Q3 = new Quaternionf();
-    private static final Quaternionf Q4 = new Quaternionf();
-    private static final Quaternionf Q5 = new Quaternionf();
-    private static final Matrix4f M1 = new Matrix4f();
 
     private static final class ChainState
     {
@@ -250,8 +235,7 @@ public final class ModelPhysicsRuntime
 
             if (worldPos != null)
             {
-                TARGET.set(worldPos);
-                target = TARGET;
+                target = new Vector3f(worldPos);
             }
         }
 
@@ -347,6 +331,11 @@ public final class ModelPhysicsRuntime
         Vector3f rootPrev = settledPrev[0];
         Vector3f rootCurr = settled[0];
 
+        Vector3f V1 = new Vector3f();
+        Vector3f V2 = new Vector3f();
+        Quaternionf Q1 = new Quaternionf();
+        Quaternionf Q2 = new Quaternionf();
+
         Q1.set(liveAnchorRotation).mul(Q2.set(state.anchorRotation).invert()).normalize(); // anchor sub-tick swing
 
         for (int i = 0; i < render.length; i++)
@@ -384,6 +373,19 @@ public final class ModelPhysicsRuntime
         {
             return;
         }
+
+        Vector3f V1 = new Vector3f();
+        Vector3f V2 = new Vector3f();
+        Vector3f V3 = new Vector3f();
+        Vector3f V4 = new Vector3f();
+        Vector3f V5 = new Vector3f();
+        Vector3f V6 = new Vector3f();
+        Vector3f V7 = new Vector3f();
+        Quaternionf Q1 = new Quaternionf();
+        Quaternionf Q2 = new Quaternionf();
+        Quaternionf Q3 = new Quaternionf();
+        Quaternionf Q4 = new Quaternionf();
+        Quaternionf Q5 = new Quaternionf();
 
         if (state.lastAge == Integer.MIN_VALUE)
         {
@@ -670,10 +672,10 @@ public final class ModelPhysicsRuntime
             if (parentRotation != null)
             {
                 /* Apply user rotation in chain local space, then convert back to world space. */
-                Q1.set(parentRotation).invert();
-                Q1.transform(out);
+                Quaternionf inverseParent = new Quaternionf(parentRotation).invert();
+                inverseParent.transform(out);
                 chain.applyGravityRotation(out);
-                Q2.set(parentRotation).transform(out);
+                parentRotation.transform(out);
             }
             else
             {
