@@ -79,7 +79,7 @@ public class Gizmo
 
     public final static Gizmo INSTANCE = new Gizmo();
 
-    private Mode mode = Mode.TRANSLATE;
+    private Mode mode = Mode.COMBINED;
     /** The mode to return to when combined mode is toggled off. */
     private Mode previousMode = Mode.TRANSLATE;
 
