@@ -910,7 +910,16 @@ public class UITexturePainter extends UIElement
     {
         this.updateAltPipetteHold();
 
-        super.render(context);
+        BBSSettings.lightInputs = true;
+
+        try
+        {
+            super.render(context);
+        }
+        finally
+        {
+            BBSSettings.lightInputs = false;
+        }
 
         UITextureEditor editor = this.getCurrentEditor();
 
