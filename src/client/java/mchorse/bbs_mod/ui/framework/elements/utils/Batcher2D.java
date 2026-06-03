@@ -315,6 +315,12 @@ public class Batcher2D
 
     /* Icon */
 
+    /** In the light theme white foreground (text/icons) becomes black; other colours pass through. */
+    private static int darkenWhite(int color)
+    {
+        return (color & 0xFFFFFF) == 0xFFFFFF ? (color & 0xFF000000) : color;
+    }
+
     public void icon(Icon icon, float x, float y)
     {
         this.icon(icon, Colors.WHITE, x, y);
@@ -337,6 +343,11 @@ public class Batcher2D
             return;
         }
 
+        if (BBSSettings.isLightTheme())
+        {
+            color = darkenWhite(color);
+        }
+
         x -= icon.w * ax;
         y -= icon.h * ay;
 
@@ -350,6 +361,11 @@ public class Batcher2D
 
     public void iconArea(Icon icon, int color, float x, float y, float w, float h)
     {
+        if (BBSSettings.isLightTheme())
+        {
+            color = darkenWhite(color);
+        }
+
         this.texturedArea(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, w, h, icon.x, icon.y, icon.w, icon.h, icon.textureW, icon.textureH);
     }
 
@@ -493,6 +509,18 @@ public class Batcher2D
 
     public void text(String label, float x, float y, int color, boolean shadow)
     {
+        if (BBSSettings.isLightTheme())
+        {
+            shadow = false;
+            color = darkenWhite(color);
+        }
+
+        this.drawTextDirect(label, x, y, color, shadow);
+    }
+
+    /** Actual text draw (theming is applied by the public text() before calling this). */
+    private void drawTextDirect(String label, float x, float y, int color, boolean shadow)
+    {
         if (Colors.getA(color) <= 0F)
         {
             color = Colors.opaque(color);
@@ -562,6 +590,11 @@ public class Batcher2D
 
         if (a != 0)
         {
+            if (BBSSettings.isLightTheme() && (background & 0xFFFFFF) == 0)
+            {
+                background = (background & 0xFF000000) | 0xFFFFFF;
+            }
+
             this.box(x - offset, y - offset, x + this.font.getWidth(text) + offset - 1, y + this.font.getHeight() + offset, background);
         }
 
