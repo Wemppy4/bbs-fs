@@ -240,15 +240,6 @@ public abstract class UIClip <T extends Clip> extends UIElement
     }
 
     @Override
-    public void render(UIContext context)
-    {
-        context.batcher.gradientHBox(this.area.x - 40, this.area.y, this.area.ex() - 40, this.area.ey(), 0, Colors.A25);
-        context.batcher.box(this.area.ex() - 40, this.area.y, this.area.ex(), this.area.ey(), Colors.A25);
-
-        super.render(context);
-    }
-
-    @Override
     public void applyUndoData(MapType data)
     {
         super.applyUndoData(data);
