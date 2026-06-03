@@ -49,6 +49,8 @@
 	"bbs.config.personalization.colored_background-comment": "When disabled, panel backgrounds use neutral colors from the selected theme instead of the primary color",
 	"bbs.config.personalization.background_brightness": "Background brightness",
 	"bbs.config.personalization.background_brightness-comment": "Controls the brightness of panel and editor background surfaces",
+	"bbs.config.personalization.interface_shadows": "Shadows",
+	"bbs.config.personalization.interface_shadows-comment": "When enabled, buttons and toggles get raised highlights and shadows. When disabled, they stay flat.",
 	"bbs.config.personalization.track_width": "Keyframe track thickness",
 	"bbs.config.personalization.track_width-comment": "The thickness of the keyframe track strip in the dope sheet view",
 	"bbs.config.personalization.keyframe_default_shape": "Default keyframe shape",

@@ -138,6 +138,7 @@ public class BBSSettings {
 
 	public static ValueBoolean coloredBackground;
 	public static ValueFloat backgroundBrightness;
+	public static ValueBoolean interfaceShadows;
 
 	public static ValueBoolean shaderCurvesEnabled;
 
@@ -411,6 +412,7 @@ public class BBSSettings {
 		builder.category("personalization", Icons.COLOR);
 		coloredBackground = builder.getBoolean("colored_background", false);
 		backgroundBrightness = builder.getFloat("background_brightness", DEFAULT_BACKGROUND_BRIGHTNESS, MIN_BACKGROUND_BRIGHTNESS, MAX_BACKGROUND_BRIGHTNESS);
+		interfaceShadows = builder.getBoolean("interface_shadows", true);
 		primaryColor = builder.getInt("primary_color", DEFAULT_PRIMARY_COLOR).color();
 		stencilHighlightColor = builder.getInt("stencil_highlight_color", 0x2EFFFFFF).colorAlpha();
 		theme = builder.getInt("theme", DEFAULT_THEME);

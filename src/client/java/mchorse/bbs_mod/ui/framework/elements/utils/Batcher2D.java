@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.framework.elements.utils;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -135,10 +136,17 @@ public class Batcher2D
     {
         int ix2 = x2 - 1;
         int iy2 = y2 - 1;
-        int light = Colors.lerp(fill, Colors.WHITE, 0.35F);
 
         this.box(x1, y1, x2, y2, Colors.A100);
         this.box(x1 + 1, y1 + 1, ix2, iy2, fill);
+
+        if (!BBSSettings.interfaceShadows.get())
+        {
+            return;
+        }
+
+        int light = Colors.lerp(fill, Colors.WHITE, 0.35F);
+
         this.box(x1 + 1, y1 + 1, ix2, y1 + 2, light);
         this.box(x1 + 1, y1 + 1, x1 + 2, iy2, light);
 

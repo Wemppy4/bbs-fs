@@ -49,6 +49,8 @@
 	"bbs.config.personalization.colored_background-comment": "Если выключено, фоны панелей используют нейтральный цвет выбранной темы вместо основного цвета.",
 	"bbs.config.personalization.background_brightness": "Яркость фона",
 	"bbs.config.personalization.background_brightness-comment": "Регулирует яркость фоновых поверхностей панелей и редакторов",
+	"bbs.config.personalization.interface_shadows": "Тени",
+	"bbs.config.personalization.interface_shadows-comment": "Если включено, у кнопок и переключателей есть блики и тени. Если выключено — остаются плоскими.",
 	"bbs.config.personalization.track_width": "Толщина дорожки",
 	"bbs.config.personalization.track_width-comment": "Толщина полоски дорожки кейфреймов",
 	"bbs.config.personalization.keyframe_default_shape": "Форма кейфрейма по умолчанию",
