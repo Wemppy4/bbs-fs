@@ -131,6 +131,23 @@ public class Batcher2D
         builder.vertex(matrix4f, x + w, y, 0).color(color2).next();
     }
 
+    public void bevelBox(int x1, int y1, int x2, int y2, int fill, boolean shadow)
+    {
+        int ix2 = x2 - 1;
+        int iy2 = y2 - 1;
+        int light = Colors.lerp(fill, Colors.WHITE, 0.35F);
+
+        this.box(x1, y1, x2, y2, Colors.A100);
+        this.box(x1 + 1, y1 + 1, ix2, iy2, fill);
+        this.box(x1 + 1, y1 + 1, ix2, y1 + 2, light);
+        this.box(x1 + 1, y1 + 1, x1 + 2, iy2, light);
+
+        if (shadow)
+        {
+            this.box(x1 + 1, iy2 - 2, ix2, iy2, Colors.lerp(fill, Colors.A100, 0.4F));
+        }
+    }
+
     public void dropShadow(int left, int top, int right, int bottom, int offset, int opaque, int shadow)
     {
         left -= offset;

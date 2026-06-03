@@ -7,7 +7,7 @@ package mchorse.bbs_mod.ui.utils;
 public final class UIConstants
 {
     /** Height of standard form controls: trackpad, button, textbox, keybind, color strip. */
-    public static final int CONTROL_HEIGHT = 16;
+    public static final int CONTROL_HEIGHT = 18;
 
     /** Base spacing between related elements (within a row, or label + control). */
     public static final int MARGIN = 3;

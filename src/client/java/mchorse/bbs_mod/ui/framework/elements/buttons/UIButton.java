@@ -88,7 +88,7 @@ public class UIButton extends UIClickable<UIButton> implements ITextColoring
 
         if (this.background)
         {
-            this.area.render(context.batcher, color);
+            context.batcher.bevelBox(this.area.x, this.area.y, this.area.ex(), this.area.ey(), color | Colors.A100, true);
         }
 
         FontRenderer font = context.batcher.getFont();
