@@ -16,12 +16,22 @@ public class OpenALRecorder implements Runnable
     private static final int FORMAT = AL10.AL_FORMAT_MONO16;
     private static final int BUFFER_SAMPLES = 1024;
 
+    /** Rolling history of peak amplitudes (0..1) for the live waveform display. */
+    private static final int WAVEFORM_RESOLUTION = 256;
+    /** Peaks pushed per poll; sets how fast the waveform scrolls regardless of chunk size. */
+    private static final int WAVEFORM_POINTS_PER_POLL = 8;
+
     private long captureDevice;
     private ByteBuffer buffer;
     private boolean running = true;
+    private boolean cancelled;
     private Consumer<Wave> consumer;
     private long startTime;
     private float volume;
+
+    private final float[] waveformPeak = new float[WAVEFORM_RESOLUTION];
+    private final float[] waveformAverage = new float[WAVEFORM_RESOLUTION];
+    private int waveformHead;
 
     public OpenALRecorder(Consumer<Wave> consumer)
     {
@@ -33,6 +43,13 @@ public class OpenALRecorder implements Runnable
         this.running = false;
     }
 
+    /** Stop recording and discard the take — the wave is never delivered to the consumer. */
+    public void cancel()
+    {
+        this.cancelled = true;
+        this.running = false;
+    }
+
     public long getTime()
     {
         return System.currentTimeMillis() - this.startTime;
@@ -41,6 +58,63 @@ public class OpenALRecorder implements Runnable
     public float getVolume()
     {
         return this.volume;
+    }
+
+    /**
+     * Snapshot the rolling waveform history in chronological order (oldest first), reusing
+     * {@code out} when sized right. Returns {@code [peak, average]} amplitude arrays — the
+     * average is the darker inner envelope, like {@link mchorse.bbs_mod.audio.Waveform}.
+     * The recorder thread keeps appending, so this is synchronized against it.
+     */
+    public synchronized float[][] getWaveform(float[][] out)
+    {
+        int n = this.waveformPeak.length;
+
+        if (out == null || out.length != 2 || out[0].length != n)
+        {
+            out = new float[][] { new float[n], new float[n] };
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            int idx = (this.waveformHead + i) % n;
+
+            out[0][i] = this.waveformPeak[idx];
+            out[1][i] = this.waveformAverage[idx];
+        }
+
+        return out;
+    }
+
+    /**
+     * Downsample the freshly captured chunk into {@link #WAVEFORM_POINTS_PER_POLL} buckets,
+     * recording the peak and mean absolute amplitude of each, and append them to the history.
+     */
+    private synchronized void captureWaveform(ByteBuffer chunk, int available)
+    {
+        int per = Math.max(1, available / WAVEFORM_POINTS_PER_POLL);
+
+        for (int p = 0; p < WAVEFORM_POINTS_PER_POLL; p++)
+        {
+            int start = p * per;
+            int end = p == WAVEFORM_POINTS_PER_POLL - 1 ? available : Math.min(available, start + per);
+            float peak = 0F;
+            float sum = 0F;
+            int count = 0;
+
+            for (int i = start; i < end; i++)
+            {
+                float sample = Math.abs(chunk.getShort(i * 2) / 32768F);
+
+                peak = Math.max(peak, sample);
+                sum += sample;
+                count++;
+            }
+
+            this.waveformPeak[this.waveformHead] = peak;
+            this.waveformAverage[this.waveformHead] = count > 0 ? sum / count : 0F;
+            this.waveformHead = (this.waveformHead + 1) % this.waveformPeak.length;
+        }
     }
 
     public void init()
@@ -93,6 +167,8 @@ public class OpenALRecorder implements Runnable
             {
                 this.volume = Math.max(Math.abs(buffer.getShort(0) / 65535F), this.volume);
             }
+
+            this.captureWaveform(buffer, available);
         }
     }
 
@@ -103,17 +179,16 @@ public class OpenALRecorder implements Runnable
 
         this.buffer.flip();
 
-        byte[] pcm = new byte[this.buffer.limit()];
-
-        this.buffer.get(pcm);
-        MemoryUtil.memFree(this.buffer);
-
-        this.buffer = null;
-
-        if (this.consumer != null)
+        if (!this.cancelled && this.consumer != null)
         {
+            byte[] pcm = new byte[this.buffer.limit()];
+
+            this.buffer.get(pcm);
             this.consumer.accept(new Wave(1, 1, SAMPLE_RATE, 16, pcm));
         }
+
+        MemoryUtil.memFree(this.buffer);
+        this.buffer = null;
     }
 
     @Override

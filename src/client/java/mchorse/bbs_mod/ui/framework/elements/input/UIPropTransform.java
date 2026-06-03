@@ -103,6 +103,13 @@ public class UIPropTransform extends UITransform
     /** Previous cursor position, for the trackball's frame-to-frame mouse delta. */
     private int trackballLastX;
     private int trackballLastY;
+    /** Net cursor offset (pixels) since the trackball drag began, carried across
+     *  cursor wraps. The rotation is rebuilt from this absolute offset and the
+     *  cached start orientation every frame — never from the previous frame — so a
+     *  looping drag returns to the exact starting rotation instead of accumulating
+     *  roll (the classic incremental-trackball drift). */
+    private float trackballAccumX;
+    private float trackballAccumY;
     /** Whether {@link #dragStartRotateDeg} should be written back to {@code rotate2} instead of {@code rotate}. */
     private boolean dragRotateGizmoSpace;
     private boolean dragHasStart;
@@ -557,6 +564,8 @@ public class UIPropTransform extends UITransform
         this.cache.copy(this.transform);
         Gizmo.INSTANCE.trackTransform(this);
 
+        this.trackballAccumX = 0F;
+        this.trackballAccumY = 0F;
         this.beginRayRotateTrackball(context.mouseX, context.mouseY);
 
         if (!this.handler.hasParent())
@@ -1249,7 +1258,12 @@ public class UIPropTransform extends UITransform
     {
         this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
 
-        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+        /* Axes come from the cached start orientation, not the live one, so the
+         * screen right/up directions stay fixed for the whole drag. This also
+         * makes the call idempotent: a cursor wrap re-invokes it, and rebuilding
+         * from the unchanged cache yields the same axes (and never disturbs the
+         * accumulated offset). */
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
         Matrix3f parentInverse = this.computeParentInverse(source);
 
         if (parentInverse == null)
@@ -1299,21 +1313,31 @@ public class UIPropTransform extends UITransform
             return;
         }
 
-        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+        /* Track the net cursor offset since the drag began (telescoping the
+         * per-frame deltas keeps it correct across cursor wraps). */
+        this.trackballAccumX += dx;
+        this.trackballAccumY += dy;
 
-        Matrix3f rotation = new Matrix3f()
+        /* Rebuild the rotation from the FIXED start orientation plus this absolute
+         * offset, rather than nudging the previous frame's result. Because the
+         * outcome is a pure function of (accumX, accumY) — and number addition
+         * commutes, unlike rotation composition — a back-and-forth drag returns to
+         * the exact starting rotation, eliminating the trackball roll drift. */
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+
+        Matrix3f startRotation = new Matrix3f()
             .rotationZ(source.z)
             .rotateY(source.y)
             .rotateX(source.x);
 
         float sensitivity = BBSSettings.trackballSensitivity.get();
-        float yaw = MathUtils.toRad(dx * sensitivity);
-        float pitch = MathUtils.toRad(dy * sensitivity);
+        float yaw = MathUtils.toRad(this.trackballAccumX * sensitivity);
+        float pitch = MathUtils.toRad(this.trackballAccumY * sensitivity);
 
         Vector3f euler = new Matrix3f()
             .rotation(yaw, this.trackballUpLocal)
             .rotate(pitch, this.trackballRightLocal.x, this.trackballRightLocal.y, this.trackballRightLocal.z)
-            .mul(rotation)
+            .mul(startRotation)
             .getEulerAnglesZYX(new Vector3f());
 
         float rx = MathUtils.toDeg(euler.x);

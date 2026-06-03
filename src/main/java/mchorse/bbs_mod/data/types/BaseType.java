@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.data.types;
 
 import mchorse.bbs_mod.data.DataStorageContext;
+import mchorse.bbs_mod.math.Operation;
 
 import java.io.IOException;
 
@@ -81,6 +82,83 @@ public abstract class BaseType
     public static boolean is(BaseType data, byte type)
     {
         return data != null && data.getTypeId() == type;
+    }
+
+    /**
+     * Lenient structural comparison of two {@link BaseType} trees.
+     *
+     * <p>Unlike the default {@link Object#equals(Object)} on the data types, this
+     * treats <em>all</em> numbers as {@code double}: a {@link FloatType}
+     * and a {@link DoubleType} (or int, long, etc.) holding the
+     * same numeric value compare equal. That matters because data round-tripped
+     * through JSON comes back as doubles, while the in-memory structure stores
+     * floats — so a plain {@code equals()} reports them as different even though
+     * they represent the same value.</p>
+     *
+     * <p>Maps are compared by matching keys with recursively-equal values, lists
+     * element-wise, and everything else (strings, arrays) falls back to the
+     * type's own {@code equals()}.</p>
+     */
+    public static boolean equals(BaseType a, BaseType b)
+    {
+        if (a == b)
+        {
+            return true;
+        }
+
+        if (a == null || b == null)
+        {
+            return false;
+        }
+
+        if (a.isNumeric() && b.isNumeric())
+        {
+            return Operation.equals(a.asNumeric().doubleValue(), b.asNumeric().doubleValue());
+        }
+
+        if (a.isMap() && b.isMap())
+        {
+            MapType mapA = a.asMap();
+            MapType mapB = b.asMap();
+
+            if (mapA.size() != mapB.size())
+            {
+                return false;
+            }
+
+            for (String key : mapA.keys())
+            {
+                if (!mapB.has(key) || !equals(mapA.get(key), mapB.get(key)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (a.isList() && b.isList())
+        {
+            ListType listA = a.asList();
+            ListType listB = b.asList();
+
+            if (listA.size() != listB.size())
+            {
+                return false;
+            }
+
+            for (int i = 0; i < listA.size(); i++)
+            {
+                if (!equals(listA.get(i), listB.get(i)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return a.equals(b);
     }
 
     public void traverseKeys(DataStorageContext context)

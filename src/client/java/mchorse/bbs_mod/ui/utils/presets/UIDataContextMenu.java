@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.utils.presets;
 
+import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -33,6 +34,7 @@ public class UIDataContextMenu extends UIContextMenu
     private Supplier<MapType> supplier;
     private Consumer<MapType> callback;
     private String copyGroup = "_CopyPose";
+    private boolean scrolledToCurrent;
 
     public UIDataContextMenu(DataManager manager, String group, Supplier<MapType> supplier, Consumer<MapType> callback)
     {
@@ -112,6 +114,50 @@ public class UIDataContextMenu extends UIContextMenu
         this.entries.list.clear();
         this.entries.list.add(this.data.keys());
         this.entries.list.sort();
+
+        this.scrollToCurrent();
+    }
+
+    /**
+     * If the current copyable data matches a saved entry exactly, select it and
+     * jump the list straight to it (no smooth scroll), so opening the menu lands
+     * on the preset that's already applied.
+     */
+    private void scrollToCurrent()
+    {
+        MapType current = this.supplier == null ? null : this.supplier.get();
+
+        if (current == null)
+        {
+            return;
+        }
+
+        for (String key : this.data.keys())
+        {
+            MapType map = this.data.getMap(key);
+
+            if (BaseType.equals(current, map))
+            {
+                this.entries.list.setCurrentScroll(key);
+
+                break;
+            }
+        }
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        /* The list has no real size until the menu is shown, so the scroll can
+         * only be positioned once we're actually rendering — jump to the matching
+         * entry on the first frame. */
+        if (!this.scrolledToCurrent)
+        {
+            this.scrolledToCurrent = true;
+            this.scrollToCurrent();
+        }
+
+        super.render(context);
     }
 
     @Override

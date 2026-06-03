@@ -156,6 +156,12 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
             matrices.pop();
         }
 
+        if (UIScreen.getCurrentMenu() instanceof UIDashboard dashboard
+            && dashboard.getPanels().panel instanceof UIModelBlockPanel modelBlockPanel)
+        {
+            modelBlockPanel.renderWorldGizmo(matrices, entity);
+        }
+
         RenderSystem.disableDepthTest();
 
         if (mc.getDebugHud().shouldShowDebugHud())
@@ -277,7 +283,11 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
     {
         if (UIScreen.getCurrentMenu() instanceof UIDashboard dashboard)
         {
-            return dashboard.getPanels().panel instanceof UIModelBlockPanel modelBlockPanel;
+            if (dashboard.getPanels().panel instanceof UIModelBlockPanel modelBlockPanel)
+            {
+                /* The selected block shows the interactive gizmo instead of the plain axes. */
+                return !modelBlockPanel.isShowingGizmo(entity);
+            }
         }
 
         return false;
