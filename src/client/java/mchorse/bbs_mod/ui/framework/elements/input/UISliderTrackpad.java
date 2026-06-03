@@ -528,6 +528,8 @@ public class UISliderTrackpad extends UIElement
             context.batcher.box(this.handleArea.x, this.handleArea.y, this.handleArea.ex(), this.handleArea.ey(), handleColor);
         }
 
+        context.batcher.outline(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.inputBorderColor(false));
+
         FontRenderer font = context.batcher.getFont();
         String label = this.forcedLabel == null ? UITrackpad.format(this.value) : this.forcedLabel.get();
         int textColor = this.dragging ? Colors.WHITE : Colors.setA(Colors.WHITE, VALUE_ALPHA);
