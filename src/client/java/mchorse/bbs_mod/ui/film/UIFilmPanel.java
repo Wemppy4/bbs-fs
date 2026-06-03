@@ -2923,7 +2923,16 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             this.openOverlay.area.copy(this.openFilmMenu.area);
         }
 
-        super.render(context);
+        BBSSettings.lightInputs = true;
+
+        try
+        {
+            super.render(context);
+        }
+        finally
+        {
+            BBSSettings.lightInputs = false;
+        }
 
         if (this.entered)
         {

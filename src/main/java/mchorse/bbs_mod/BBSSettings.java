@@ -261,8 +261,11 @@ public class BBSSettings {
 		return primaryColor(alpha);
 	}
 
+	/** Render-scoped: the film editor sets this so its inputs stay light on its dark panels. */
+	public static boolean lightInputs = false;
+
 	public static int inputSurface() {
-		return raisedSurface();
+		return lightInputs ? raisedSurface() : deepSurface();
 	}
 
 	public static int panelShadowOpaqueColor() {
