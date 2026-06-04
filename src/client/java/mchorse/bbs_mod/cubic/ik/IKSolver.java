@@ -82,7 +82,7 @@ final class IKSolver
 
             if (constrained)
             {
-                clampRanges(positions, limits, rootParentRotation);
+                solveBendForLimits(positions, limits, rootParentRotation);
             }
         }
         else if (constrained)
@@ -337,13 +337,118 @@ final class IKSolver
      * extremes (e.g. a hyperextending elbow) — it enforces the range instead of
      * fighting the reach.
      */
-    private static void clampRanges(List<Vector3f> p, Limit[] limits, Quaternionf rootParentRotation)
+    /**
+     * Constrained two-bone bend: instead of clamping the elbow's angle after the
+     * solve (which would drag the tip off the goal), this searches the BEND
+     * DIRECTION — the rotation of the interior joints about the root-to-tip axis,
+     * which keeps the tip exactly on the goal — for the orientation where the
+     * joints best obey their euler limits. A locked axis (hinge) thus lands the
+     * bend in its allowed plane while the hand stays on target; a range limit only
+     * nudges the bend when it is actually exceeded, otherwise the pose/pole bend is
+     * kept (the cost tie-breaks toward no change). Reach is preserved either way.
+     */
+    private static void solveBendForLimits(List<Vector3f> p, Limit[] limits, Quaternionf rootParentRotation)
     {
         int n = p.size();
+
+        if (n < 3)
+        {
+            return;
+        }
+
+        Vector3f root = new Vector3f(p.get(0));
+        Vector3f axis = new Vector3f(p.get(n - 1)).sub(root);
+
+        if (!normalize(axis))
+        {
+            return;
+        }
+
+        float bestPhi = 0F;
+        float bestCost = bendCost(p, limits, rootParentRotation, root, axis, 0F);
+
+        if (bestCost > EPS)
+        {
+            /* Search ONLY the half-circle on the pole side (|phi| <= 90deg). The
+             * two limit-compliant bends are 180deg apart, so exactly one falls in
+             * this window — the one on the side the pole intended. The inverted
+             * bend (~180deg away) is excluded, so the solution can't snap to it
+             * frame-to-frame (that flicker was the bug). */
+            int half = 24;
+            float window = (float) (Math.PI / 2.0);
+
+            for (int s = -half; s <= half; s++)
+            {
+                if (s == 0)
+                {
+                    continue;
+                }
+
+                float phi = window * s / half;
+                float cost = bendCost(p, limits, rootParentRotation, root, axis, phi);
+
+                if (cost < bestCost)
+                {
+                    bestCost = cost;
+                    bestPhi = phi;
+                }
+            }
+
+            /* Refine within one coarse step of the best, staying in the window. */
+            float step = window / half;
+            float center = bestPhi;
+
+            for (int s = -5; s <= 5; s++)
+            {
+                float phi = center + step * s / 5F;
+
+                if (Math.abs(phi) > window)
+                {
+                    continue;
+                }
+
+                float cost = bendCost(p, limits, rootParentRotation, root, axis, phi);
+
+                if (cost < bestCost)
+                {
+                    bestCost = cost;
+                    bestPhi = phi;
+                }
+            }
+        }
+
+        if (Math.abs(bestPhi) > EPS)
+        {
+            Quaternionf q = new Quaternionf().fromAxisAngleRad(axis.x, axis.y, axis.z, bestPhi);
+            Vector3f rel = new Vector3f();
+
+            for (int i = 1; i < n - 1; i++)
+            {
+                rel.set(p.get(i)).sub(root);
+                q.transform(rel);
+                p.get(i).set(root).add(rel);
+            }
+        }
+    }
+
+    /** Limit violation (degrees) at bend angle {@code phi}, plus a tiny penalty for moving (keeps the pole bend when limits already hold). */
+    private static float bendCost(List<Vector3f> p, Limit[] limits, Quaternionf rootParentRotation, Vector3f root, Vector3f axis, float phi)
+    {
+        return bendViolation(p, limits, rootParentRotation, root, axis, phi) + 0.01F * Math.abs((float) Math.toDegrees(phi));
+    }
+
+    /** Sum of how far each constrained joint's euler is outside its limits, if the bend were rotated by {@code phi} about {@code axis}. */
+    private static float bendViolation(List<Vector3f> p, Limit[] limits, Quaternionf rootParentRotation, Vector3f root, Vector3f axis, float phi)
+    {
+        int n = p.size();
+        Quaternionf q = new Quaternionf().fromAxisAngleRad(axis.x, axis.y, axis.z, phi);
         Quaternionf parentWorld = new Quaternionf(rootParentRotation);
+        Vector3f a = new Vector3f();
+        Vector3f b = new Vector3f();
         Vector3f dirWorld = new Vector3f();
         Vector3f dirLocal = new Vector3f();
         Vector3f rel = new Vector3f();
+        float violation = 0F;
 
         for (int i = 0; i < n - 1; i++)
         {
@@ -354,7 +459,9 @@ final class IKSolver
                 continue;
             }
 
-            dirWorld.set(p.get(i + 1)).sub(p.get(i));
+            rotatedJoint(p, i, root, q, rel, a);
+            rotatedJoint(p, i + 1, root, q, rel, b);
+            dirWorld.set(b).sub(a);
 
             if (!normalize(dirWorld))
             {
@@ -373,36 +480,46 @@ final class IKSolver
 
             if (lim.enabled())
             {
-                float cx = clamp(euler.x, lim.minX(), lim.maxX());
-                float cy = clamp(euler.y, lim.minY(), lim.maxY());
-                float cz = clamp(euler.z, lim.minZ(), lim.maxZ());
-
-                if (cx != euler.x || cy != euler.y || cz != euler.z)
-                {
-                    Quaternionf clampedLocal = Matrices.toQuaternionZYXDegrees(cx, cy, cz);
-                    Vector3f clampedDirWorld = new Vector3f(lim.restDir());
-                    clampedLocal.transform(clampedDirWorld);
-                    parentWorld.transform(clampedDirWorld);
-
-                    if (normalize(clampedDirWorld))
-                    {
-                        Quaternionf q = new Quaternionf().rotationTo(dirWorld, clampedDirWorld);
-                        Vector3f pi = p.get(i);
-
-                        for (int k = i + 1; k < n; k++)
-                        {
-                            rel.set(p.get(k)).sub(pi);
-                            q.transform(rel);
-                            p.get(k).set(pi).add(rel);
-                        }
-
-                        euler.set(cx, cy, cz);
-                    }
-                }
+                violation += overflow(euler.x, lim.minX(), lim.maxX());
+                violation += overflow(euler.y, lim.minY(), lim.maxY());
+                violation += overflow(euler.z, lim.minZ(), lim.maxZ());
             }
 
             parentWorld.mul(Matrices.toQuaternionZYXDegrees(euler.x, euler.y, euler.z));
         }
+
+        return violation;
+    }
+
+    private static void rotatedJoint(List<Vector3f> p, int i, Vector3f root, Quaternionf q, Vector3f tmp, Vector3f out)
+    {
+        if (i == 0 || i == p.size() - 1)
+        {
+            out.set(p.get(i));
+
+            return;
+        }
+
+        tmp.set(p.get(i)).sub(root);
+        q.transform(tmp);
+        out.set(root).add(tmp);
+    }
+
+    private static float overflow(float value, float min, float max)
+    {
+        if (min > max)
+        {
+            float t = min;
+            min = max;
+            max = t;
+        }
+
+        if (value < min)
+        {
+            return min - value;
+        }
+
+        return value > max ? value - max : 0F;
     }
 
     /**
