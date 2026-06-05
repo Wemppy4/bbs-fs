@@ -271,6 +271,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
             CustomVertexConsumerProvider consumers = FormUtilsClient.getProvider();
             int light = context.light;
             BooleanHolder first = new BooleanHolder();
+            Matrix4f cached = new Matrix4f(RenderSystem.getModelViewMatrix());
 
             if (context.isPicking())
             {
@@ -349,7 +350,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
             }
 
             RenderSystem.enableDepthTest();
-            RenderSystem.getModelViewMatrix().identity();
+            RenderSystem.getModelViewMatrix().set(cached);
         }
     }
 
