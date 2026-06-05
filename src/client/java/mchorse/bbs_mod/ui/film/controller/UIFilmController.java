@@ -1233,14 +1233,14 @@ public class UIFilmController extends UIElement implements GizmoViewport
         MatrixStackUtils.cacheMatrices();
 
         RenderSystem.setProjectionMatrix(this.panel.lastProjection, VertexSorter.BY_Z);
-        InverseView.set(new Matrix3f(this.panel.lastView).invert());
+        InverseView.set(new Matrix3f(BBSRendering.camera).invert());
 
         /* Render the stencil */
         MatrixStack worldStack = this.worldRenderContext.matrixStack();
 
         worldStack.push();
         worldStack.loadIdentity();
-        MatrixStackUtils.multiply(worldStack, this.panel.lastView);
+        MatrixStackUtils.multiply(worldStack, BBSRendering.camera);
         this.renderStencil(this.worldRenderContext, this.getContext(), altPressed);
         worldStack.pop();
 

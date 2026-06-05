@@ -68,6 +68,8 @@ public class BBSRendering
     public static boolean renderingWorld;
     public static int lastAction;
 
+    public static final Matrix4f camera = new Matrix4f();
+
     private static boolean customSize;
     private static boolean iris;
     private static boolean sodium;
@@ -462,6 +464,17 @@ public class BBSRendering
 
     public static void renderCoolStuff(WorldRenderContext worldRenderContext)
     {
+        /* 1.21's Fabric no longer threads a matrix stack through the world render
+         * context (it carries a position matrix instead), so rebuild one from the
+         * view matrix for forms and gizmos that still render against a stack. */
+        if (worldRenderContext.matrixStack() == null && worldRenderContext instanceof WorldRenderContextImpl impl)
+        {
+            MatrixStack matrices = new MatrixStack();
+
+            matrices.multiplyPositionMatrix(worldRenderContext.positionMatrix());
+            impl.setMatrixStack(matrices);
+        }
+
         /* Feed the world camera orientation into the holder that replaced
          * RenderSystem's inverse view rotation matrix (removed in 1.21.1), so
          * billboards and particles keep facing the camera in world space. */

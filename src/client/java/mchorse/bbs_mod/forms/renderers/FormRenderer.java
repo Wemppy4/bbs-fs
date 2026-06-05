@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.renderers;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -23,6 +24,7 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Hand;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import java.util.Collections;
 import java.util.List;
@@ -49,6 +51,11 @@ public abstract class FormRenderer <T extends Form>
 
     public final void renderUI(UIContext context, int x1, int y1, int x2, int y2)
     {
+        Vector3f lightA = new Vector3f(0F, 1F, -0.2F).normalize();
+        Vector3f lightB = new Vector3f(-0.85F, 0.85F, 1F).normalize();
+
+        RenderSystem.setupLevelDiffuseLighting(lightA, lightB);
+
         this.renderInUI(context, x1, y1, x2, y2);
 
         FontRenderer font = context.batcher.getFont();

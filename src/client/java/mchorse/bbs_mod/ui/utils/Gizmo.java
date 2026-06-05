@@ -577,9 +577,19 @@ public class Gizmo
     {
         RenderSystem.setShaderColor(r, g, b, a);
         vbo.bind();
-        vbo.draw(stack.peek().getPositionMatrix(), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
+        vbo.draw(modelView(stack), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
         VertexBuffer.unbind();
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+    }
+
+    /* Cached gizmo geometry is uploaded as VBOs, so unlike the immediate-mode
+     * handles (which inherit the global model-view) the cached draws must fold
+     * in {@link RenderSystem#getModelViewMatrix()} themselves. In the form editor
+     * that matrix is identity (the camera lives in the stack), but in the film
+     * editor it carries the world camera, so omitting it left the rings adrift. */
+    private static Matrix4f modelView(MatrixStack stack)
+    {
+        return new Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.peek().getPositionMatrix());
     }
 
     private void drawCachedRing(MatrixStack stack, VertexBuffer vbo, Axis axis, int color)
@@ -603,10 +613,10 @@ public class Gizmo
 
         RenderSystem.setShaderColor(r, g, b, a);
         vbo.bind();
-        vbo.draw(stack.peek().getPositionMatrix(), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
+        vbo.draw(modelView(stack), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
         VertexBuffer.unbind();
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
-        
+
         stack.pop();
     }
 
@@ -633,7 +643,7 @@ public class Gizmo
 
         RenderSystem.setShaderColor(r, g, b, a);
         vbo.bind();
-        vbo.draw(stack.peek().getPositionMatrix(), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
+        vbo.draw(modelView(stack), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
         VertexBuffer.unbind();
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
 

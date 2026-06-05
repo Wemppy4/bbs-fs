@@ -226,10 +226,14 @@ public abstract class UIModelRenderer extends UIElement
         stack.translate(-this.camera.position.x, -this.camera.position.y, -this.camera.position.z);
         MatrixStackUtils.multiply(stack, this.transform);
 
-        RenderSystem.setupLevelDiffuseLighting(
-            new Vector3f(0, 0.85F, -1).normalize(),
-            new Vector3f(0, 0.85F, 1).normalize()
-        );
+        Vector3f a = new Vector3f(0F, 0.85F, -1F).normalize();
+        Vector3f b = new Vector3f(0F, 0.85F, 1F).normalize();
+        Matrix3f lightMatrix = new Matrix3f(this.camera.view);
+
+        lightMatrix.transform(a);
+        lightMatrix.transform(b);
+
+        RenderSystem.setupLevelDiffuseLighting(a, b);
 
         if (this.grid)
         {

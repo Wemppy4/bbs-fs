@@ -8,6 +8,7 @@ import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
@@ -74,5 +75,11 @@ public class WorldRendererMixin
         }
 
         BBSRendering.resizeExtraFramebuffers();
+    }
+
+    @Inject(method = "setupFrustum", at = @At("HEAD"))
+    private void onSetupFrustum(Vec3d pos, Matrix4f positionMatrix, Matrix4f projectionMatrix, CallbackInfo info)
+    {
+        BBSRendering.camera.set(positionMatrix);
     }
 }
