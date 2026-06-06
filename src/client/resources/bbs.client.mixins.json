@@ -39,7 +39,8 @@
         "BlockEntityRenderDispatcherMixin",
         "WorldMixin",
         "LivingEntityRendererInvoker",
-        "EntityRenderDispatcherMixin"
+        "EntityRenderDispatcherMixin",
+        "RenderTickCounterAccessor"
     ],
     "injectors": {
         "defaultRequire": 1
