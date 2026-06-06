@@ -165,8 +165,14 @@ public abstract class BaseFilmController
 
         if (relative)
         {
-            stack.peek().getPositionMatrix().identity();
-            stack.peek().getNormalMatrix().identity();
+            /* In 1.21.1 the camera view rotation lives in the global modelview
+             * (RenderSystem), not in this stack, so resetting the stack to
+             * identity no longer detaches the model from the camera's
+             * orientation. Bake the inverse camera rotation into the stack so it
+             * cancels the global view rotation, leaving the form positioned in
+             * pure camera/view space (i.e. truly relative to the camera). */
+            stack.peek().getPositionMatrix().rotation(context.camera.getRotation());
+            stack.peek().getNormalMatrix().rotation(context.camera.getRotation());
         }
 
         formContext.world.peek().getPositionMatrix().identity();
