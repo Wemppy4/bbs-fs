@@ -129,6 +129,8 @@
 	"bbs.config.editor.orbit_movement_requires_flight-comment": "Если включено, перемещение WASD требует режим полёта: без полёта нужны СКМ и клавиша-модификатор орбиты. Если выключено — по-старому: WASD и орбита по СКМ без входа в полёт.",
 	"bbs.config.editor.orbit_center_marker": "Маркер центра орбиты",
 	"bbs.config.editor.orbit_center_marker-comment": "Показывает debug-маркер в точке, вокруг которой сейчас вращается орбитальная камера.",
+	"bbs.config.editor.orbit_teleport_on_switch": "Телепортировать орбиту к записи при переключении",
+	"bbs.config.editor.orbit_teleport_on_switch-comment": "Если включено, переключение на другую запись переносит центр орбитальной камеры на неё. Если выключено — орбита сохраняет текущий центр.",
 	"bbs.config.editor.player_follows_camera": "Игрок следует за камерой",
 	"bbs.config.editor.player_follows_camera-comment": "Когда включено, игрок каждый тик телепортируется в позицию камеры фильма и поворачивается как она.",
 	"bbs.config.editor.jump": "Перешагнуть",

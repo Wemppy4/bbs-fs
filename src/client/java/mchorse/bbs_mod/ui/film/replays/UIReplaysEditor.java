@@ -449,6 +449,9 @@ public class UIReplaysEditor extends UIElement {
         if (resetOrbit) {
             this.filmPanel.getController().orbit.reset();
         }
+        else if (replay != null && BBSSettings.editorOrbitTeleportOnSwitch.get()) {
+            this.filmPanel.getController().orbit.teleportPivotToReplay();
+        }
 
         this.replayProperties.setReplay(replay);
         this.filmPanel.actionEditor.setClips(replay == null ? null : replay.actions);

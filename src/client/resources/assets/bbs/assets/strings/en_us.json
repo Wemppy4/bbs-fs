@@ -129,6 +129,8 @@
 	"bbs.config.editor.orbit_movement_requires_flight-comment": "When enabled, WASD movement in orbit camera requires flight: without flight you need middle mouse plus the orbit modifier key. When disabled, WASD and middle-mouse orbit work without entering flight.",
 	"bbs.config.editor.orbit_center_marker": "Orbit center marker",
 	"bbs.config.editor.orbit_center_marker-comment": "Shows a debug marker at the point the orbit camera currently rotates around.",
+	"bbs.config.editor.orbit_teleport_on_switch": "Teleport orbit to recording on switch",
+	"bbs.config.editor.orbit_teleport_on_switch-comment": "When enabled, switching to another recording moves the orbit camera's center onto it. When disabled, the orbit keeps its current center.",
 	"bbs.config.editor.player_follows_camera": "Player follows camera",
 	"bbs.config.editor.player_follows_camera-comment": "When enabled, your player is teleported each tick to match the film camera position and view direction.",
 	"bbs.config.editor.jump": "Jump",
