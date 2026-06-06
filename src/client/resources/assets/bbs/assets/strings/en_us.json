@@ -613,7 +613,6 @@
 	"bbs.ui.film.replay.looping-tooltip": "Setting to 0, disables replay's looping. Setting to any positive value, will make the replay loop. Keep in mind that looping doesn't change the duration of the film.",
 	"bbs.ui.film.replay.name_tag": "Name tag",
 	"bbs.ui.film.replay.orbit.camera": "Camera",
-	"bbs.ui.film.replay.orbit.bind_to_recording": "Bind to recording",
 	"bbs.ui.film.replay.orbit.first_person": "First-person",
 	"bbs.ui.film.replay.orbit.free": "Free",
 	"bbs.ui.film.replay.orbit.orbit": "Orbit",

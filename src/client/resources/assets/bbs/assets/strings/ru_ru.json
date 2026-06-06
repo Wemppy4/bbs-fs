@@ -613,7 +613,6 @@
 	"bbs.ui.film.replay.looping-tooltip": "Установив 0, отключает зацикленность у записи. Вписав любое положительное число, включит регион зацикленности у записи. Имейте в виду что зацикленность не меняет общую длину фильма",
 	"bbs.ui.film.replay.name_tag": "Именной тэг",
 	"bbs.ui.film.replay.orbit.camera": "Камера",
-	"bbs.ui.film.replay.orbit.bind_to_recording": "Привязать к записи",
 	"bbs.ui.film.replay.orbit.first_person": "Первое лицо",
 	"bbs.ui.film.replay.orbit.free": "Свободная",
 	"bbs.ui.film.replay.orbit.orbit": "Орбита",

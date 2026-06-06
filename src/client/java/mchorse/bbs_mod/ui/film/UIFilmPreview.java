@@ -150,7 +150,6 @@ public class UIFilmPreview extends UIElement
 
             if (controller.getPovMode() == UIFilmController.CAMERA_MODE_ORBIT)
             {
-                menu.action(Icons.ORBIT, UIKeys.FILM_REPLAY_ORBIT_BIND_TO_RECORDING, controller.isOrbitBoundToReplay(), controller::toggleOrbitBindToReplay);
                 menu.action(Icons.MOVE_TO, UIKeys.FILM_REPLAY_ORBIT_TELEPORT_TO_RECORDING, controller::teleportOrbitPivotToReplay);
             }
         });

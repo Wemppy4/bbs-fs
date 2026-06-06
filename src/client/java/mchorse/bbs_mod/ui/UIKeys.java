@@ -323,7 +323,6 @@ public class UIKeys
     public static final IKey FILM_REPLAY_LOOPING_TOOLTIP = L10n.lang("bbs.ui.film.replay.looping-tooltip");
     public static final IKey FILM_REPLAY_NAME_TAG = L10n.lang("bbs.ui.film.replay.name_tag");
     public static final IKey FILM_REPLAY_ORBIT_CAMERA = L10n.lang("bbs.ui.film.replay.orbit.camera");
-    public static final IKey FILM_REPLAY_ORBIT_BIND_TO_RECORDING = L10n.lang("bbs.ui.film.replay.orbit.bind_to_recording");
     public static final IKey FILM_REPLAY_ORBIT_FIRST_PERSON = L10n.lang("bbs.ui.film.replay.orbit.first_person");
     public static final IKey FILM_REPLAY_ORBIT_FREE = L10n.lang("bbs.ui.film.replay.orbit.free");
     public static final IKey FILM_REPLAY_ORBIT_ORBIT = L10n.lang("bbs.ui.film.replay.orbit.orbit");
