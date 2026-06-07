@@ -62,7 +62,6 @@ public class Keys
     public static final KeyCombo FLIGHT_TILT_DOWN = new KeyCombo("flight_tilt_down", UIKeys.CAMERA_FLIGHT_FLIGHT_TILT_DOWN, GLFW.GLFW_KEY_DOWN).categoryKey("flight");
     public static final KeyCombo FLIGHT_PAN_LEFT = new KeyCombo("flight_pan_left", UIKeys.CAMERA_FLIGHT_FLIGHT_PAN_LEFT, GLFW.GLFW_KEY_LEFT).categoryKey("flight");
     public static final KeyCombo FLIGHT_PAN_RIGHT = new KeyCombo("flight_pan_right", UIKeys.CAMERA_FLIGHT_FLIGHT_PAN_RIGHT, GLFW.GLFW_KEY_RIGHT).categoryKey("flight");
-    public static final KeyCombo FLIGHT_ORBIT = new KeyCombo("flight_orbit", UIKeys.CAMERA_FLIGHT_FLIGHT_ORBIT, GLFW.GLFW_KEY_Z).categoryKey("flight");
 
     /* Dashboard */
     public static final KeyCombo OPEN_UTILITY_PANEL = new KeyCombo("utility_panel", UIKeys.UTILITY_TITLE, GLFW.GLFW_KEY_F6).categoryKey("dashboard");
@@ -128,7 +127,7 @@ public class Keys
     public static final KeyCombo FILM_CONTROLLER_INSERT_FRAME = new KeyCombo("insert_frame", UIKeys.FILM_CONTROLLER_KEYS_INSERT_FRAME, GLFW.GLFW_KEY_I).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_TOGGLE_CONTROL = new KeyCombo("toggle_control", UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_CONTROL, GLFW.GLFW_KEY_H).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_TOGGLE_ORBIT_MODE = new KeyCombo("toggle_orbit_mode", UIKeys.FILM_CONTROLLER_KEYS_CHANGE_CAMERA_MODE, GLFW.GLFW_KEY_F3).categoryKey("film_controller");
-    public static final KeyCombo FILM_CONTROLLER_TELEPORT_ORBIT = new KeyCombo("teleport_orbit", UIKeys.FILM_REPLAY_ORBIT_TELEPORT_TO_RECORDING, GLFW.GLFW_KEY_Z).categoryKey("film_controller");
+    public static final KeyCombo FILM_CONTROLLER_TELEPORT_ORBIT = new KeyCombo("teleport_orbit_record", UIKeys.FILM_CONTROLLER_KEYS_TELEPORT_ORBIT, GLFW.GLFW_KEY_C).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_TOGGLE_REPLAY_MENU = new KeyCombo("toggle_replay_menu", UIKeys.FILM_CONTROLLER_KEYS_OPEN_REPLAYS, GLFW.GLFW_KEY_F4).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_MOVE_REPLAY_TO_CURSOR = new KeyCombo("move_replay_to_cursor", UIKeys.FILM_CONTROLLER_KEYS_MOVE_REPLAY_TO_CURSOR, GLFW.GLFW_KEY_G, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_RESTART_ACTIONS = new KeyCombo("restart_actions", UIKeys.FILM_CONTROLLER_KEYS_RESTART_ACTIONS, GLFW.GLFW_KEY_R, GLFW.GLFW_KEY_LEFT_ALT).categoryKey("film_controller");

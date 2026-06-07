@@ -68,7 +68,6 @@ public class UIKeys
     public static final IKey CAMERA_FLIGHT_FLIGHT_DOWN = L10n.lang("bbs.ui.camera.flight.down");
     public static final IKey CAMERA_FLIGHT_FLIGHT_FORWARD = L10n.lang("bbs.ui.camera.flight.forward");
     public static final IKey CAMERA_FLIGHT_FLIGHT_LEFT = L10n.lang("bbs.ui.camera.flight.left");
-    public static final IKey CAMERA_FLIGHT_FLIGHT_ORBIT = L10n.lang("bbs.ui.camera.flight.orbit");
     public static final IKey CAMERA_FLIGHT_FLIGHT_PAN_LEFT = L10n.lang("bbs.ui.camera.flight.camera_left");
     public static final IKey CAMERA_FLIGHT_FLIGHT_PAN_RIGHT = L10n.lang("bbs.ui.camera.flight.camera_right");
     public static final IKey CAMERA_FLIGHT_FLIGHT_RIGHT = L10n.lang("bbs.ui.camera.flight.right");
@@ -237,6 +236,7 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_KEYS_PREV_REPLAY = L10n.lang("bbs.ui.film.controller.keys.prev_replay");
     public static final IKey FILM_CONTROLLER_KEYS_RESTART_ACTIONS = L10n.lang("bbs.ui.film.controller.keys.restart_actions");
     public static final IKey FILM_CONTROLLER_KEYS_START_RECORDING = L10n.lang("bbs.ui.film.controller.keys.start_recording");
+    public static final IKey FILM_CONTROLLER_KEYS_TELEPORT_ORBIT = L10n.lang("bbs.ui.film.controller.keys.teleport_orbit");
     public static final IKey FILM_CONTROLLER_KEYS_TOGGLE_CONTROL = L10n.lang("bbs.ui.film.controller.keys.toggle_control");
     public static final IKey FILM_CONTROLLER_KEYS_TOGGLE_INSTANT_KEYFRAMES = L10n.lang("bbs.ui.film.controller.keys.toggle_instant_keyframes");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_ALL_DESCRIPTION = L10n.lang("bbs.ui.film.controller.onion_skin.all-description");
