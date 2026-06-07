@@ -1474,7 +1474,7 @@ public class UITextarea <T extends TextLine> extends UIElement implements IFocus
 
         if (this.focused)
         {
-            context.batcher.box(this.area.x, this.area.ey() - 1, this.area.ex(), this.area.ey(), BBSSettings.primaryColor.get());
+            context.batcher.box(this.area.x, this.area.ey() - 1, this.area.ex(), this.area.ey(), Colors.opaque(BBSSettings.primaryColor.get()));
         }
     }
 

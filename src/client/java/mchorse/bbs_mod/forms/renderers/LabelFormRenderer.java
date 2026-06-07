@@ -5,6 +5,7 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.LabelForm;
+import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
@@ -133,9 +134,9 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
         int y = (int) (-h * this.form.anchorY.get());
 
         Color shadowColor = this.form.shadowColor.get().copy();
-        Color color = this.form.color.get().copy();
+        Color color = new Color().set(context.color, true);
 
-        color.mul(context.color);
+        FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
         shadowColor.mul(context.color);
 
         if (shadowColor.a > 0)
@@ -240,9 +241,9 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
             y2 = y;
         }
 
-        Color cColor = this.form.color.get();
+        Color cColor = new Color().set(context.color, true);
 
-        cColor.mul(context.color);
+        FormColorBlend.blend(cColor, this.form.color.get(), this.form.additiveColor.get());
 
         int color = cColor.getARGBColor();
 

@@ -419,7 +419,7 @@ public class UIReplaysEditor extends UIElement {
         this.savePoseTabState(this.replay);
         this.expandedPoseTabsByReplay.clear();
         this.film = film;
-        this.filmPanel.getController().orbit.clearReplayStates();
+        this.filmPanel.getController().orbit.reset();
 
         if (film != null) {
             List<Replay> replays = film.replays.getList();
@@ -444,17 +444,13 @@ public class UIReplaysEditor extends UIElement {
 
     public void setReplay(Replay replay, boolean select, boolean resetOrbit) {
         this.savePoseTabState(this.replay);
-        Replay previousReplay = this.replay;
-
-        this.filmPanel.getController().orbit.saveReplayState(previousReplay);
         this.replay = replay;
 
         if (resetOrbit) {
             this.filmPanel.getController().orbit.reset();
         }
-        else
-        {
-            this.filmPanel.getController().orbit.restoreReplayState(replay, true);
+        else if (replay != null && BBSSettings.editorOrbitTeleportOnSwitch.get()) {
+            this.filmPanel.getController().orbit.teleportPivotToReplay();
         }
 
         this.replayProperties.setReplay(replay);

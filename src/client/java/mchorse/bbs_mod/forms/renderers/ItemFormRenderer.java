@@ -42,7 +42,7 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
         matrices.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
 
         Color set = Color.white();
-        FormColorBlend.blend(set, this.form.color.get(), FormColorBlend.BlendMode.MULTIPLY);
+        FormColorBlend.blend(set, this.form.color.get(), this.form.additiveColor.get());
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(set));
         consumers.setUI(true);
@@ -78,7 +78,7 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
         }
 
         BlockFormRenderer.color.set(context.color);
-        FormColorBlend.blend(BlockFormRenderer.color, this.form.color.get(), FormColorBlend.BlendMode.MULTIPLY);
+        FormColorBlend.blend(BlockFormRenderer.color, this.form.color.get(), this.form.additiveColor.get());
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(BlockFormRenderer.color));
         MinecraftClient.getInstance().getItemRenderer().renderItem(this.form.stack.get(), this.form.modelTransform.get(), light, context.overlay, context.stack, consumers, context.entity.getWorld(), 0);

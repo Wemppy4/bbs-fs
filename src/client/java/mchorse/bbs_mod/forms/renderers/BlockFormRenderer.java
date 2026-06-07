@@ -45,7 +45,7 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
         matrices.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
 
         Color set = Color.white();
-        FormColorBlend.blend(set, this.form.color.get(), FormColorBlend.BlendMode.MULTIPLY);
+        FormColorBlend.blend(set, this.form.color.get(), this.form.additiveColor.get());
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(set));
         consumers.setUI(true);
@@ -90,7 +90,7 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
         }
 
         color.set(context.color);
-        FormColorBlend.blend(color, this.form.color.get(), FormColorBlend.BlendMode.MULTIPLY);
+        FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(color));
         MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(this.form.blockState.get(), context.stack, consumers, light, context.overlay);

@@ -18,6 +18,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
@@ -164,7 +165,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         {
             if (this.category != null)
             {
-                this.options.add(new UISectionHeader(this.category));
+                this.options.add(new UISectionHeader(this, this.category));
                 this.appendValues(this.category, false);
             }
         }
@@ -179,7 +180,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
                     continue;
                 }
 
-                UISectionHeader header = new UISectionHeader(category);
+                UISectionHeader header = new UISectionHeader(this, category);
 
                 if (!first)
                 {
@@ -194,6 +195,26 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         }
 
         this.options.resize();
+    }
+
+    public void applyVideoPreset(int width, int height)
+    {
+        BBSSettings.videoArguments.set(BBSSettings.DEFAULT_FFMPEG_ARGUMENTS);
+        BBSSettings.videoWidth.set(width);
+        BBSSettings.videoHeight.set(height);
+        BBSSettings.videoFrameRate.set(60);
+
+        this.refresh();
+    }
+
+    public void swapVideoResolution()
+    {
+        int width = BBSSettings.videoWidth.get();
+
+        BBSSettings.videoWidth.set(BBSSettings.videoHeight.get());
+        BBSSettings.videoHeight.set(width);
+
+        this.refresh();
     }
 
     private void appendValues(ValueGroup category, boolean filtered)
@@ -332,12 +353,30 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         private final ValueGroup category;
         private final IKey label;
 
-        public UISectionHeader(ValueGroup category)
+        public UISectionHeader(UISettingsOverlayPanel panel, ValueGroup category)
         {
             this.category = category;
             this.label = L10n.lang(UIValueFactory.getCategoryTitleKey(category));
 
             this.h(18);
+
+            if (category.getId().equals("video"))
+            {
+                UIIcon presets = new UIIcon(Icons.FILM, (b) -> b.getContext().replaceContextMenu((menu) ->
+                {
+                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_720p, () -> panel.applyVideoPreset(1280, 720));
+                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1080P, () -> panel.applyVideoPreset(1920, 1080));
+                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_SHORTS_1080P, () -> panel.applyVideoPreset(1080, 1920));
+                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1440P, () -> panel.applyVideoPreset(2560, 1440));
+                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_4K, () -> panel.applyVideoPreset(3840, 2160));
+                    menu.action(Icons.REFRESH, UIKeys.VIDEO_SETTINGS_SWAP, panel::swapVideoResolution);
+                }));
+
+                presets.tooltip(UIKeys.GENERAL_PRESETS, Direction.LEFT);
+                presets.relative(this).x(1F, -18).y(0.5F, -9).wh(18, 18);
+
+                this.add(presets);
+            }
         }
 
         @Override

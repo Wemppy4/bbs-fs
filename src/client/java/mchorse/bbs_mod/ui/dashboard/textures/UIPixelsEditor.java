@@ -315,6 +315,16 @@ public class UIPixelsEditor extends UICanvasEditor
         return this.document;
     }
 
+    /**
+     * Colour at a document pixel composited across all layers (offsets and
+     * opacity included) — the colour the user actually sees. {@code null} when
+     * there's no document.
+     */
+    public Color getMergedColor(int x, int y)
+    {
+        return this.document == null ? null : this.document.getColorAt(x, y);
+    }
+
     public void setActiveLayer(int index)
     {
         if (this.document != null && index >= 0 && index < this.document.layers.size())
@@ -1092,7 +1102,7 @@ public class UIPixelsEditor extends UICanvasEditor
         UIContext context = this.getContext();
         int pixelX = (int) Math.floor(this.scaleX.from(context.mouseX)) + this.w / 2;
         int pixelY = (int) Math.floor(this.scaleY.from(context.mouseY)) + this.h / 2;
-        Color color = this.pixels.getColor(pixelX - this.getActiveOffsetX(), pixelY - this.getActiveOffsetY());
+        Color color = this.getMergedColor(pixelX, pixelY);
 
         if (color != null)
         {
@@ -1274,7 +1284,9 @@ public class UIPixelsEditor extends UICanvasEditor
         if (tool == TexturePaintTool.PIPETTE)
         {
             Vector2i pixel = this.getHoverPixel(context.mouseX, context.mouseY);
-            Color color = this.pixels.getColor(pixel.x - this.getActiveOffsetX(), pixel.y - this.getActiveOffsetY());
+            /* Pick the merged colour across all layers (the colour the user sees),
+             * not just the active layer. */
+            Color color = this.getMergedColor(pixel.x, pixel.y);
 
             if (color != null)
             {

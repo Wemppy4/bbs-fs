@@ -675,7 +675,7 @@ public class UITrackpad extends UIBaseTextbox
         if (this.textbox.isFocused())
         {
             this.textbox.render(context);
-            context.batcher.box(this.area.x, this.area.ey() - 1, this.area.ex(), this.area.ey(), BBSSettings.primaryColor.get());
+            context.batcher.box(this.area.x, this.area.ey() - 1, this.area.ex(), this.area.ey(), Colors.opaque(BBSSettings.primaryColor.get()));
         }
         else
         {

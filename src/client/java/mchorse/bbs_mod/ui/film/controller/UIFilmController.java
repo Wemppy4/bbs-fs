@@ -141,6 +141,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
     public UIFilmController(UIFilmPanel panel)
     {
         this.panel = panel;
+        this.setPov(BBSSettings.editorCameraMode.get());
 
         IKey category = UIKeys.FILM_CONTROLLER_KEYS_CATEGORY;
 
@@ -155,6 +156,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }).active(hasActor).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_CONTROL, this::toggleControl).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_ORBIT_MODE, this::toggleOrbitMode).category(category);
+        this.keys().register(Keys.FILM_CONTROLLER_TELEPORT_ORBIT, this::teleportOrbitPivotToReplay).active(() -> this.getPovMode() == CAMERA_MODE_ORBIT).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_REPLAY_MENU, this::toggleReplayMenu).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_MOVE_REPLAY_TO_CURSOR, () ->
         {
@@ -290,6 +292,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
     {
         this.pov = pov;
         this.orbit.enabled = this.getPovMode() > 1;
+
+        BBSSettings.editorCameraMode.set(this.getPovMode());
     }
 
     private int getMouseMode()
@@ -809,16 +813,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return Icons.CAMERA;
     }
 
-    public boolean isOrbitBoundToReplay()
-    {
-        return this.orbit.isBindToReplay();
-    }
-
-    public void toggleOrbitBindToReplay()
-    {
-        this.orbit.toggleBindToReplay();
-    }
-
     public void teleportOrbitPivotToReplay()
     {
         this.orbit.teleportPivotToReplay();
@@ -894,15 +888,16 @@ public class UIFilmController extends UIElement implements GizmoViewport
             if (mode == CAMERA_MODE_ORBIT)
             {
                 this.orbit.setup(camera, transition);
-
-                if (!this.panel.isFlying())
-                {
-                    camera.fov = BBSSettings.getFov();
-                }
             }
             else if (mode != CAMERA_MODE_FREE)
             {
                 this.handleFirstThirdPerson(camera, transition, mode);
+            }
+
+            /* While flying, the FOV is driven live by the flight camera, so don't overwrite it */
+            if (!this.panel.isFlying())
+            {
+                camera.fov = BBSSettings.getFov();
             }
         }
     }
@@ -934,7 +929,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
         {
             camera.position.set(position);
             camera.rotation.set(rotation.x, rotation.y + MathUtils.PI, 0F);
-            camera.fov = BBSSettings.getFov();
 
             return;
         }
@@ -960,7 +954,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         camera.position.set(position);
         camera.rotation.set(rotation.x * (back ? -1 : 1), rotation.y + (back ? 0 : MathUtils.PI), 0);
-        camera.fov = BBSSettings.getFov();
     }
 
     public void insertFrame()

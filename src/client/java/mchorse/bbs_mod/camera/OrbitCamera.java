@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.utils.Factor;
 import mchorse.bbs_mod.utils.MathUtils;
+import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Matrix3f;
@@ -35,6 +36,11 @@ public class OrbitCamera
         return (x - 30) * 10D;
     });
     public float fov;
+
+    /* The state the input drives; position/rotation/fov smoothly chase these. */
+    protected final Vector3d targetPosition = new Vector3d();
+    protected final Vector3f targetRotation = new Vector3f();
+    protected float targetFov;
 
     protected int dragging = -1;
     protected int lastX;
@@ -67,6 +73,19 @@ public class OrbitCamera
         this.position.set(camera.position);
         this.rotation.set(camera.rotation);
         this.fov = camera.fov;
+
+        this.syncTarget();
+    }
+
+    /**
+     * Snap the smoothing target onto the current state, so the camera doesn't
+     * glide when it's being synced rather than driven by input.
+     */
+    protected void syncTarget()
+    {
+        this.targetPosition.set(this.position);
+        this.targetRotation.set(this.rotation);
+        this.targetFov = this.fov;
     }
 
     public Vector3i getVelocityPosition()
@@ -116,6 +135,8 @@ public class OrbitCamera
 
         vector = this.getFinalPosition();
         position.point.set(vector.x, vector.y, vector.z);
+
+        this.syncTarget();
     }
 
     public void apply(Position position)
@@ -215,8 +236,8 @@ public class OrbitCamera
 
             if (x != 0 || y != 0)
             {
-                this.rotation.x += y * angleFactor;
-                this.rotation.y += x * angleFactor;
+                this.targetRotation.x += y * angleFactor;
+                this.targetRotation.y += x * angleFactor;
 
                 this.lastX = mouseX;
                 this.lastY = mouseY;
@@ -232,7 +253,7 @@ public class OrbitCamera
 
                 if (x != 0)
                 {
-                    this.rotation.z += x * angleFactor;
+                    this.targetRotation.z += x * angleFactor;
 
                     this.lastX = mouseX;
                     this.lastY = mouseY;
@@ -246,7 +267,7 @@ public class OrbitCamera
 
                 if (y != 0)
                 {
-                    this.fov += y * angleFactor;
+                    this.targetFov += y * angleFactor;
 
                     this.lastX = mouseX;
                     this.lastY = mouseY;
@@ -325,6 +346,8 @@ public class OrbitCamera
 
     public boolean update(UIContext context)
     {
+        this.applySmoothing();
+
         if (context.isFocused())
         {
             return false;
@@ -336,7 +359,7 @@ public class OrbitCamera
         {
             float lastFrameDuration = MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration() * 5F;
 
-            this.position.add(this.rotateVector(this.velocityPosition.x, 0, this.velocityPosition.z)
+            this.targetPosition.add(this.rotateVector(this.velocityPosition.x, 0, this.velocityPosition.z)
                 .add(0, this.velocityPosition.y, 0)
                 .mul(this.getSpeed() * lastFrameDuration));
 
@@ -347,12 +370,37 @@ public class OrbitCamera
         {
             float angleSpeed = -this.getAngleSpeed() * (this.getSpeed() * (1F / this.normal));
 
-            this.rotation.x += this.velocityAngle.x * angleSpeed;
-            this.rotation.y += this.velocityAngle.y * angleSpeed;
+            this.targetRotation.x += this.velocityAngle.x * angleSpeed;
+            this.targetRotation.y += this.velocityAngle.y * angleSpeed;
 
             changed = true;
         }
 
         return changed;
+    }
+
+    /**
+     * Ease the rendered position/rotation/fov toward the input-driven target,
+     * frame-rate independently. Smoothness 0 snaps (instant, legacy behaviour).
+     */
+    protected void applySmoothing()
+    {
+        float smoothness = BBSSettings.editorCameraSmoothness.get();
+
+        if (smoothness <= 0F)
+        {
+            this.position.set(this.targetPosition);
+            this.rotation.set(this.targetRotation);
+            this.fov = this.targetFov;
+
+            return;
+        }
+
+        float dt = MinecraftClient.getInstance().getLastFrameDuration();
+        float factor = MathUtils.clamp(1F - (float) Math.pow(Math.min(smoothness, 0.99F), dt), 0F, 1F);
+
+        this.position.lerp(this.targetPosition, factor);
+        this.rotation.lerp(this.targetRotation, factor);
+        this.fov = Lerps.lerp(this.fov, this.targetFov, factor);
     }
 }

@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
@@ -21,6 +22,15 @@ public class Window
     private static long lastScroll;
     private static final Map<Integer, Long> standardCursors = new HashMap<>();
     private static int currentCursorShape = -1;
+
+    private static final GLFWErrorCallback clipboardErrorPrint = GLFWErrorCallback.createPrint(System.err);
+    private static final GLFWErrorCallback clipboardErrorCallback = GLFWErrorCallback.create((error, description) ->
+    {
+        if (error != GLFW.GLFW_FORMAT_UNAVAILABLE)
+        {
+            clipboardErrorPrint.invoke(error, description);
+        }
+    });
 
     public static long getWindow()
     {
@@ -70,6 +80,8 @@ public class Window
 
     public static String getClipboard()
     {
+        GLFWErrorCallback previous = GLFW.glfwSetErrorCallback(clipboardErrorCallback);
+
         try
         {
             String string = GLFW.glfwGetClipboardString(getWindow());
@@ -78,6 +90,10 @@ public class Window
         }
         catch (Exception e)
         {}
+        finally
+        {
+            GLFW.glfwSetErrorCallback(previous);
+        }
 
         return "";
     }

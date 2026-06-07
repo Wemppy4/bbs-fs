@@ -118,6 +118,69 @@ public class Document implements IMapSerializable
         }
     }
 
+    /**
+     * Composite the colour at a single document pixel by blending every visible
+     * layer (respecting its offset and opacity), without allocating a whole
+     * flattened canvas. Mirrors {@link Pixels#draw}'s source-over blend, layer by
+     * layer from the bottom (index 0) to the top. Returns {@code null} when there
+     * are no layers; a pixel no layer covers yields transparent black.
+     */
+    public Color getColorAt(int x, int y)
+    {
+        if (this.layers.isEmpty())
+        {
+            return null;
+        }
+
+        float r = 0F;
+        float g = 0F;
+        float b = 0F;
+        float a = 0F;
+
+        for (TextureLayer layer : this.layers)
+        {
+            if (!layer.visible || layer.pixels == null || layer.opacity <= 0F)
+            {
+                continue;
+            }
+
+            int lx = x - layer.offsetX;
+            int ly = y - layer.offsetY;
+
+            if (lx < 0 || ly < 0 || lx >= layer.pixels.width || ly >= layer.pixels.height)
+            {
+                continue;
+            }
+
+            Color source = layer.pixels.getColor(lx, ly);
+
+            if (source == null)
+            {
+                continue;
+            }
+
+            /* This layer draws over what's accumulated below (source-over): the
+             * layer is the foreground, the accumulated colour is the background. */
+            float sr = source.r;
+            float sg = source.g;
+            float sb = source.b;
+            float sa = source.a * layer.opacity;
+
+            float outA = 1F - (1F - sa) * (1F - a);
+
+            if (outA > 0F)
+            {
+                r = (sr * sa + r * a * (1F - sa)) / outA;
+                g = (sg * sa + g * a * (1F - sa)) / outA;
+                b = (sb * sa + b * a * (1F - sa)) / outA;
+            }
+
+            a = outA;
+        }
+
+        return new Color(r, g, b, a);
+    }
+
     /** Flatten the visible layers (respecting opacity) into a freshly allocated {@link Pixels}. */
     public Pixels flatten()
     {

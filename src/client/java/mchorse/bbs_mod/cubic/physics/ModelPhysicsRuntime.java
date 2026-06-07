@@ -31,11 +31,21 @@ public final class ModelPhysicsRuntime
     private static final float EPS = 1.0e-6f;
     private static final float ANCHOR_ROTATION_POS_FOLLOW = 0.85F;
     private static final float ANCHOR_ROTATION_PREV_FOLLOW = 0.75F;
+    private static final float RENDER_SWING_TIP_FOLLOW = 0.7F;
     private static final float ANCHOR_TRANSLATION_INERTIA = 0.5F;
     private static final float ANCHOR_TRANSLATION_DRAG = 0.15F;
     private static final float COLLISION_FRICTION = 0.5F;
     private static final float COLLISION_MAX_ANCHOR_STEP = 0.25F;
-    private static final int COLLISION_MAX_SUBSTEPS = 8;
+
+    /**
+     * Fixed simulation sub-step, in game ticks. The solver is integrated at this constant step off a
+     * real-time accumulator (see {@link #step}) instead of once per 20 Hz game tick, so the physics
+     * produces a fresh chain shape several times per tick. That is what keeps fast anchor motion (e.g.
+     * sharp head turns) smooth: the in-between shapes are actually simulated rather than interpolated
+     * from two coarse 20 Hz snapshots. 1/3 tick ≈ 60 Hz output. Smaller = smoother but more solver work.
+     */
+    private static final float PHYSICS_STEP = 1F / 3F;
+    private static final int PHYSICS_MAX_STEPS = 30;
 
 
     private static final class ChainState
@@ -44,6 +54,9 @@ public final class ModelPhysicsRuntime
         public Vector3f anchor = new Vector3f();
         public Quaternionf anchorRotation = new Quaternionf();
         public Vector3f anchorVelocity = new Vector3f();
+        public float simTime;
+        public float accumulator;
+        public float renderAlpha;
         public Vector3f[] pos;
         public Vector3f[] prev;
         public Vector3f[] settled;
@@ -250,8 +263,8 @@ public final class ModelPhysicsRuntime
             }
         }
 
-        step(world, age, model, ids, chain, constraints, anchor, anchorRotation, chainFrames.get(0).parentRotation(), target, chainFrames, state);
-        Vector3f[] positions = renderInterpolate(state, transition, anchor, anchorRotation, target);
+        step(world, age, transition, model, ids, chain, constraints, anchor, anchorRotation, chainFrames.get(0).parentRotation(), target, chainFrames, state);
+        Vector3f[] positions = renderInterpolate(state, state.renderAlpha, anchor, anchorRotation, target);
         ModelRotationBlender.applyWeightedRotations(model, chainFrames.get(0).parentRotation(), ids, positions, weight);
     }
 
@@ -301,8 +314,10 @@ public final class ModelPhysicsRuntime
 
     /**
      * Interpolates the settled chain shape of the two latest simulation ticks and re-roots it onto the
-     * live anchor. The chain shape is carried relative to its own root so the root stays pinned to the
-     * anchor exactly, while the anchor's sub-tick rotation swings the whole chain.
+     * live anchor. The chain is rebuilt segment by segment from the anchor outwards: each segment's
+     * direction is slerped between the two ticks (so the bone swings along an arc, not a straight chord)
+     * and its length is lerped, while the anchor's sub-tick rotation swings the whole chain. This keeps
+     * the motion smooth between the 20 Hz simulation steps instead of reading as linear stepping.
      */
     private static Vector3f[] renderInterpolate(ChainState state, float transition, Vector3f liveAnchor, Quaternionf liveAnchorRotation, Vector3f target)
     {
@@ -317,23 +332,58 @@ public final class ModelPhysicsRuntime
 
         float alpha = clamp01(transition);
 
-        Vector3f rootPrev = settledPrev[0];
-        Vector3f rootCurr = settled[0];
+        Vector3f dir = new Vector3f();
+        Vector3f dirCurr = new Vector3f();
+        Quaternionf swing = new Quaternionf();
+        Quaternionf segRot = new Quaternionf();
+        Quaternionf frac = new Quaternionf();
 
-        Vector3f V1 = new Vector3f();
-        Vector3f V2 = new Vector3f();
-        Quaternionf Q1 = new Quaternionf();
-        Quaternionf Q2 = new Quaternionf();
+        swing.set(liveAnchorRotation).mul(segRot.set(state.anchorRotation).invert()).normalize(); // anchor sub-tick swing
 
-        Q1.set(liveAnchorRotation).mul(Q2.set(state.anchorRotation).invert()).normalize(); // anchor sub-tick swing
+        /* Root point is pinned to the live anchor, the rest is rebuilt outwards from it */
+        render[0].set(liveAnchor);
 
-        for (int i = 0; i < render.length; i++)
+        int segments = render.length - 1;
+
+        for (int i = 0; i + 1 < render.length; i++)
         {
-            V1.set(settledPrev[i]).sub(rootPrev); // shape last tick
-            V2.set(settled[i]).sub(rootCurr); // shape this tick
-            V1.lerp(V2, alpha);
-            Q1.transform(V1);
-            render[i].set(liveAnchor).add(V1);
+            dir.set(settledPrev[i + 1]).sub(settledPrev[i]); // segment last tick
+            dirCurr.set(settled[i + 1]).sub(settled[i]); // segment this tick
+
+            float lenPrev = dir.length();
+            float lenCurr = dirCurr.length();
+            float len = lenPrev + (lenCurr - lenPrev) * alpha;
+
+            boolean okPrev = lenPrev > EPS;
+            boolean okCurr = lenCurr > EPS;
+
+            if (okPrev && okCurr)
+            {
+                dir.div(lenPrev);
+                dirCurr.div(lenCurr);
+                segRot.rotationTo(dir, dirCurr); // full swing of this segment over the tick
+                frac.identity().slerp(segRot, alpha).transform(dir); // dir = direction at sub-tick alpha
+            }
+            else if (okCurr)
+            {
+                dir.set(dirCurr).div(lenCurr);
+            }
+            else if (okPrev)
+            {
+                dir.div(lenPrev);
+            }
+            else
+            {
+                render[i + 1].set(render[i]);
+                continue;
+            }
+
+            /* Soften the rigid swing: the segment nearest the anchor follows the head's sub-tick
+             * rotation fully, segments toward the tip follow progressively less so the tip trails
+             * the turn instead of snapping rigidly with it. */
+            float follow = segments <= 1 ? 1F : 1F - (1F - RENDER_SWING_TIP_FOLLOW) * (i / (float) (segments - 1));
+            frac.identity().slerp(swing, follow).transform(dir);
+            render[i + 1].set(render[i]).add(dir.mul(len));
         }
 
         if (target != null)
@@ -352,7 +402,7 @@ public final class ModelPhysicsRuntime
         }
     }
 
-    private static void step(World world, int age, IModel model, List<String> ids, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Vector3f anchorPosition, Quaternionf anchorRotation, Quaternionf parentRotation, Vector3f targetPosition, List<PivotFrame> chainFrames, ChainState state)
+    private static void step(World world, int age, float transition, IModel model, List<String> ids, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Vector3f anchorPosition, Quaternionf anchorRotation, Quaternionf parentRotation, Vector3f targetPosition, List<PivotFrame> chainFrames, ChainState state)
     {
         Vector3f newAnchor = anchorPosition;
         Quaternionf newAnchorRotation = anchorRotation;
@@ -366,15 +416,11 @@ public final class ModelPhysicsRuntime
         Vector3f V1 = new Vector3f();
         Vector3f V2 = new Vector3f();
         Vector3f V3 = new Vector3f();
-        Vector3f V4 = new Vector3f();
         Vector3f V5 = new Vector3f();
         Vector3f V6 = new Vector3f();
-        Vector3f V7 = new Vector3f();
         Quaternionf Q1 = new Quaternionf();
         Quaternionf Q2 = new Quaternionf();
         Quaternionf Q3 = new Quaternionf();
-        Quaternionf Q4 = new Quaternionf();
-        Quaternionf Q5 = new Quaternionf();
 
         if (state.lastAge == Integer.MIN_VALUE)
         {
@@ -417,20 +463,10 @@ public final class ModelPhysicsRuntime
             copyPositions(state.pos, state.settledPrev);
 
             state.lastAge = age;
+            state.simTime = age + transition;
+            state.accumulator = 0F;
+            state.renderAlpha = 0F;
             return;
-        }
-
-        int dt = age - state.lastAge;
-
-        if (dt <= 0)
-        {
-            return;
-        }
-
-        if (dt > 10)
-        {
-            dt = 10;
-            state.lastAge = age - dt;
         }
 
         float gravity = BASE_GRAVITY * chain.gravity();
@@ -440,80 +476,124 @@ public final class ModelPhysicsRuntime
         float radius = chain.radius();
         PhysicsRig rig = PhysicsRig.of(model);
 
-        computeGravityDirection(chain, parentRotation, gravity, V6);
-        float gravityX = V6.x;
-        float gravityY = V6.y;
-        float gravityZ = V6.z;
+        /* Real-time fixed-step accumulator: integrate the solver at PHYSICS_STEP regardless of the
+         * render frame rate or the 20 Hz game tick, so a fresh chain shape is produced several times
+         * per tick. age + transition is a continuous tick-clock; the leftover fraction (renderAlpha)
+         * interpolates the last two sub-steps in renderInterpolate. */
+        float now = age + transition;
+        float frameDt = now - state.simTime;
 
-        V1.set(state.anchor); // oldAnchorTick
-        V2.set(newAnchor).sub(V1).mul(1F / dt); // velAnchor
+        if (frameDt <= 0F)
+        {
+            return; // paused or scrubbed backwards — keep the last settled shape, render re-roots it
+        }
+
+        if (frameDt > 10F)
+        {
+            frameDt = 10F;
+        }
+
+        state.simTime = now;
+        state.accumulator += frameDt;
+
+        int steps = (int) (state.accumulator / PHYSICS_STEP);
+
+        if (steps > PHYSICS_MAX_STEPS)
+        {
+            steps = PHYSICS_MAX_STEPS;
+            state.accumulator = steps * PHYSICS_STEP;
+        }
+
+        state.accumulator -= steps * PHYSICS_STEP;
+        state.renderAlpha = clamp01(state.accumulator / PHYSICS_STEP);
+
+        if (steps <= 0)
+        {
+            return; // not enough time accrued for a sub-step yet; render interpolates the leftover
+        }
+
+        float h = PHYSICS_STEP;
+        float advanced = steps * h; // simulated time consumed this frame, in ticks
+        float dampMul = (float) Math.pow(1F - damping, h);
+        float gravityScale = h * h;
+
+        computeGravityDirection(chain, parentRotation, gravity, V6);
+        float gravityX = V6.x * gravityScale;
+        float gravityY = V6.y * gravityScale;
+        float gravityZ = V6.z * gravityScale;
+
+        /* Per-step rotation follow, scaled so the cumulative follow over a whole tick stays close to
+         * the original 20 Hz tuning no matter how many sub-steps fit into a tick. */
+        float followPos = 1F - (float) Math.pow(1F - ANCHOR_ROTATION_POS_FOLLOW, h);
+        float followPrev = 1F - (float) Math.pow(1F - ANCHOR_ROTATION_PREV_FOLLOW, h);
+
+        /* Anchor velocity/acceleration over the simulated span this frame (units per tick), for the
+         * inertia/drag kick. */
+        V1.set(state.anchor); // anchor where the simulation left it
+        V2.set(newAnchor).sub(V1).mul(1F / advanced); // velAnchor
         V3.set(V2).sub(state.anchorVelocity); // accelAnchor
         state.anchorVelocity.set(V2);
 
+        Vector3f startAnchor = new Vector3f(state.anchor);
+        Quaternionf startAnchorRotation = new Quaternionf(state.anchorRotation);
+        Vector3f stepAnchor = new Vector3f();
+        Quaternionf stepAnchorRotation = new Quaternionf();
+
         BlockPos.Mutable mutable = collisions ? new BlockPos.Mutable() : null;
 
-        for (int t = 0; t < dt; t++)
+        for (int s = 0; s < steps; s++)
         {
             copyPositions(state.settled, state.settledPrev);
 
-            V4.set(state.anchor);
-            Q4.set(state.anchorRotation);
+            /* Slide the anchor from where the simulation left it toward the live anchor across the
+             * sub-steps of this frame, so the chain sees a smooth anchor trajectory. */
+            float progress = (s + 1) / (float) steps;
+            stepAnchor.set(startAnchor).lerp(newAnchor, progress);
+            stepAnchorRotation.set(startAnchorRotation).slerp(newAnchorRotation, progress);
 
-            int substeps = computeSubsteps(V4, newAnchor);
+            V6.set(state.anchor);
+            Q1.set(stepAnchorRotation).mul(Q2.set(state.anchorRotation).invert()).normalize();
+            Q2.identity().slerp(Q1, followPos);
+            Q3.identity().slerp(Q1, followPrev);
 
-            for (int sub = 0; sub < substeps; sub++)
+            for (int i = 1; i < state.pos.length; i++)
             {
-                float alpha = (sub + 1) / (float) substeps;
+                Vector3f p = state.pos[i];
+                V5.set(p).sub(V6);
+                Q2.transform(V5);
+                p.set(stepAnchor).add(V5);
 
-                V7.set(V4).lerp(newAnchor, alpha);
-                Q5.set(Q4).slerp(newAnchorRotation, alpha);
-
-                V6.set(state.anchor);
-                Q1.set(Q5).mul(Q2.set(state.anchorRotation).invert()).normalize();
-                Q2.identity().slerp(Q1, ANCHOR_ROTATION_POS_FOLLOW);
-                Q3.identity().slerp(Q1, ANCHOR_ROTATION_PREV_FOLLOW);
-
-                for (int i = 1; i < state.pos.length; i++)
-                {
-                    Vector3f p = state.pos[i];
-                    V5.set(p).sub(V6);
-                    Q2.transform(V5);
-                    p.set(V7).add(V5);
-
-                    Vector3f prev = state.prev[i];
-                    V5.set(prev).sub(V6);
-                    Q3.transform(V5);
-                    prev.set(V7).add(V5);
-                }
-
-                state.anchor.set(V7);
-                state.anchorRotation.set(Q5);
-                state.pos[0].set(V7);
-                state.prev[0].set(V7);
-
-                /* Collisions are resolved later during the solver iterations */
+                Vector3f prev = state.prev[i];
+                V5.set(prev).sub(V6);
+                Q3.transform(V5);
+                prev.set(stepAnchor).add(V5);
             }
+
+            state.anchor.set(stepAnchor);
+            state.anchorRotation.set(stepAnchorRotation);
+            state.pos[0].set(stepAnchor);
+            state.prev[0].set(stepAnchor);
 
             for (int i = 1; i < state.pos.length; i++)
             {
                 Vector3f p = state.pos[i];
                 Vector3f prev = state.prev[i];
 
-                V5.set(p).sub(prev).mul(1F - damping); // vel
+                V5.set(p).sub(prev).mul(dampMul); // vel
 
                 prev.set(p);
                 p.add(V5);
-                if (t == 0 && ANCHOR_TRANSLATION_INERTIA > 0F)
+                if (s == 0 && ANCHOR_TRANSLATION_INERTIA > 0F)
                 {
-                    p.x -= V3.x * ANCHOR_TRANSLATION_INERTIA;
-                    p.y -= V3.y * ANCHOR_TRANSLATION_INERTIA;
-                    p.z -= V3.z * ANCHOR_TRANSLATION_INERTIA;
+                    p.x -= V3.x * ANCHOR_TRANSLATION_INERTIA * advanced;
+                    p.y -= V3.y * ANCHOR_TRANSLATION_INERTIA * advanced;
+                    p.z -= V3.z * ANCHOR_TRANSLATION_INERTIA * advanced;
                 }
-                if (t == 0 && ANCHOR_TRANSLATION_DRAG > 0F)
+                if (s == 0 && ANCHOR_TRANSLATION_DRAG > 0F)
                 {
-                    p.x -= V2.x * ANCHOR_TRANSLATION_DRAG;
-                    p.y -= V2.y * ANCHOR_TRANSLATION_DRAG;
-                    p.z -= V2.z * ANCHOR_TRANSLATION_DRAG;
+                    p.x -= V2.x * ANCHOR_TRANSLATION_DRAG * advanced;
+                    p.y -= V2.y * ANCHOR_TRANSLATION_DRAG * advanced;
+                    p.z -= V2.z * ANCHOR_TRANSLATION_DRAG * advanced;
                 }
                 p.x += gravityX;
                 p.y += gravityY;
@@ -635,8 +715,6 @@ public final class ModelPhysicsRuntime
             }
 
             copyPositions(state.pos, state.settled);
-
-            state.lastAge++;
         }
     }
 
@@ -672,28 +750,6 @@ public final class ModelPhysicsRuntime
         }
 
         out.normalize().mul(gravity);
-    }
-
-    private static int computeSubsteps(Vector3f from, Vector3f to)
-    {
-        float dx = to.x - from.x;
-        float dy = to.y - from.y;
-        float dz = to.z - from.z;
-        float d2 = dx * dx + dy * dy + dz * dz;
-
-        if (d2 <= COLLISION_MAX_ANCHOR_STEP * COLLISION_MAX_ANCHOR_STEP)
-        {
-            return 1;
-        }
-
-        int steps = (int) Math.ceil(Math.sqrt(d2) / COLLISION_MAX_ANCHOR_STEP);
-
-        if (steps < 1)
-        {
-            return 1;
-        }
-
-        return Math.min(steps, COLLISION_MAX_SUBSTEPS);
     }
 
     private static void applyAngleConstraints(PhysicsRig rig, List<String> ids, Vector3f[] pos, float[] lengths, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Quaternionf rootParentRotation)

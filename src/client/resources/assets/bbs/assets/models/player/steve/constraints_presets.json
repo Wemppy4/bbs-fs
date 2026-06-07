@@ -1,0 +1,26 @@
+{
+    "ik": {
+        "bones": {
+            "right_knee": {
+                "min": [-180.0, 0.0, 0.0],
+                "max": [180.0, 0.0, 0.0],
+                "enabled": true
+            },
+            "right_elbow": {
+                "min": [-180.0, 0.0, 0.0],
+                "max": [180.0, 0.0, 0.0],
+                "enabled": true
+            },
+            "left_knee": {
+                "min": [-180.0, 0.0, 0.0],
+                "max": [180.0, 0.0, 0.0],
+                "enabled": true
+            },
+            "left_elbow": {
+                "min": [-180.0, 0.0, 0.0],
+                "max": [180.0, 0.0, 0.0],
+                "enabled": true
+            }
+        }
+    }
+}

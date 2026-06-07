@@ -2,7 +2,6 @@ package mchorse.bbs_mod;
 
 import java.util.HashSet;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueString;
@@ -105,6 +104,9 @@ public class BBSSettings {
 	public static ValueBoolean editorHorizontalFlight;
 	public static ValueBoolean editorOrbitMovementRequiresFlight;
 	public static ValueBoolean editorOrbitCenterMarker;
+	public static ValueBoolean editorOrbitTeleportOnSwitch;
+	public static ValueFloat editorCameraSmoothness;
+	public static ValueInt editorCameraMode;
 	public static ValueBoolean editorPlayerFollowsCamera;
 	public static ValueEditorLayout editorLayoutSettings;
 	public static ValueOnionSkin editorOnionSkin;
@@ -160,7 +162,7 @@ public class BBSSettings {
 	private static final float MAX_BACKGROUND_BRIGHTNESS = 1.5F;
 	private static final float IDENTITY_BRIGHTNESS = 1F;
 	private static final float BRIGHTNESS_EPSILON = 0.001F;
-	private static final int DEFAULT_PRIMARY_COLOR = 0xffff3242;
+	private static final int DEFAULT_PRIMARY_COLOR = 0xff3242;
 	private static final int LIGHT_CHROME_SURFACE = 0xffe6e9ef;
 	private static final int DARK_CHROME_SURFACE = 0xff111316;
 	private static final int LIGHT_BASE_SURFACE = 0xfff1f4f8;
@@ -373,8 +375,8 @@ public class BBSSettings {
 
 		builder.category("appearance", Icons.LAYOUT);
 		builder.register(language = new ValueLanguage("language"));
-		enableTrackpadIncrements = builder.getBoolean("trackpad_increments", true);
-		enableTrackpadScrolling = builder.getBoolean("trackpad_scrolling", true);
+		enableTrackpadIncrements = builder.getBoolean("trackpad_increments", false);
+		enableTrackpadScrolling = builder.getBoolean("trackpad_scrolling", false);
 		userIntefaceScale = builder.getInt("ui_scale", 2, 0, 4);
 		fov = builder.getFloat("fov", 40, 0, 180);
 		hsvColorPicker = builder.getBoolean("hsv_color_picker", true);
@@ -423,8 +425,8 @@ public class BBSSettings {
 		keystrokeMode = builder.getInt("keystrokes_position", 1);
 
 		builder.category("background", Icons.IMAGE);
-		backgroundImage = builder.getRL("image", Link.assets("textures/banners/bg.png"));
-		backgroundColor = builder.getInt("color", Colors.WHITE).colorAlpha();
+		backgroundImage = builder.getRL("image", null);
+		backgroundColor = builder.getInt("color", 0xff101217).colorAlpha();
 
 		builder.category("chroma_sky", Icons.GLOBE);
 		chromaSkyEnabled = builder.getBoolean("enabled", false);
@@ -475,6 +477,10 @@ public class BBSSettings {
 		editorHorizontalFlight = builder.getBoolean("horizontal_flight", false);
 		editorOrbitMovementRequiresFlight = builder.getBoolean("orbit_movement_requires_flight", true);
 		editorOrbitCenterMarker = builder.getBoolean("orbit_center_marker", false);
+		editorOrbitTeleportOnSwitch = builder.getBoolean("orbit_teleport_on_switch", true);
+		editorCameraSmoothness = builder.getFloat("camera_smoothness", 0.1F, 0F, 0.95F);
+		editorCameraMode = builder.getInt("camera_mode", 0, 0, 5);
+		editorCameraMode.invisible();
 		editorPlayerFollowsCamera = builder.getBoolean("player_follows_camera", false);
 		builder.register(editorLayoutSettings = new ValueEditorLayout("layout"));
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));

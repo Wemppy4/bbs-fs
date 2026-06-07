@@ -114,7 +114,7 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
             GameRenderer gameRenderer = MinecraftClient.getInstance().gameRenderer;
             Color formColor = this.form.color.get();
 
-            FormColorBlend.blend(color, formColor, FormColorBlend.BlendMode.MULTIPLY);
+            FormColorBlend.blend(color, formColor, this.form.additiveColor.get());
 
             BBSModClient.getTextures().bindTexture(texture);
 

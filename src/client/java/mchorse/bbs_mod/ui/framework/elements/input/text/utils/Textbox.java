@@ -710,7 +710,7 @@ public class Textbox
 
             if (this.border && this.focused)
             {
-                context.batcher.box(this.area.x, this.area.ey() - 1, this.area.ex(), this.area.ey(), BBSSettings.primaryColor.get());
+                context.batcher.box(this.area.x, this.area.ey() - 1, this.area.ex(), this.area.ey(), Colors.opaque(BBSSettings.primaryColor.get()));
             }
 
             x = this.area.x + 4;

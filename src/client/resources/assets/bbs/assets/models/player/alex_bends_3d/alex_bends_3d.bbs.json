@@ -3952,6 +3952,10 @@
 				"origin": [-5.5, 12, 0],
 				"parent": "left_elbow"
 			},
+			"left_arm_end": {
+				"origin": [-5.5, 12, 0],
+				"parent": "left_elbow"
+			},
 			"left_elbow": {
 				"origin": [-5.5, 18, 0],
 				"parent": "left_arm",
@@ -6646,6 +6650,10 @@
 				]
 			},
 			"right_arm_item": {
+				"origin": [5.5, 12, 0],
+				"parent": "right_elbow"
+			},
+			"right_arm_end": {
 				"origin": [5.5, 12, 0],
 				"parent": "right_elbow"
 			},
@@ -14367,9 +14375,17 @@
 					}
 				]
 			},
+			"body_end": {
+				"origin": [0, 24, 0],
+				"parent": "low_body"
+			},
 			"low_body": {
 				"origin": [0, 12, 0],
-				"parent": "anchor"
+				"parent": "anchor_low"
+			},
+			"right_leg_end": {
+				"origin": [1.9, 0, 0],
+				"parent": "right_knee"
 			},
 			"right_knee": {
 				"origin": [2, 6, 0],
@@ -15857,7 +15873,7 @@
 			},
 			"right_leg": {
 				"origin": [2, 12, 0],
-				"parent": "anchor",
+				"parent": "anchor_low",
 				"cubes": [
 					{
 						"origin": [2, 12, 0],
@@ -17484,6 +17500,10 @@
 					}
 				]
 			},
+			"left_leg_end": {
+				"origin": [-2, 0, 0],
+				"parent": "left_knee"
+			},
 			"left_knee": {
 				"origin": [-2, 6, 0],
 				"parent": "left_leg",
@@ -18970,7 +18990,7 @@
 			},
 			"left_leg": {
 				"origin": [-2, 12, 0],
-				"parent": "anchor",
+				"parent": "anchor_low",
 				"cubes": [
 					{
 						"origin": [4, 6, 0],
@@ -20596,6 +20616,30 @@
 						}
 					}
 				]
+			},
+			"anchor_low": {
+				"origin": [0, 16, 0],
+				"parent": "anchor"
+			},
+			"controller_right_arm": {
+				"origin": [5.5, 11, 0],
+				"parent": "anchor"
+			},
+			"controller_left_arm": {
+				"origin": [-5.5, 11, 0],
+				"parent": "anchor"
+			},
+			"controller_right_leg": {
+				"origin": [2, -1, 0],
+				"parent": "anchor"
+			},
+			"controller_left_leg": {
+				"origin": [-2, -1, 0],
+				"parent": "anchor"
+			},
+			"controller_body": {
+				"origin": [0, 24, 0],
+				"parent": "anchor"
 			},
 			"anchor": {
 				"origin": [0, 16, 0]

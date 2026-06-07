@@ -40,6 +40,7 @@ public abstract class Form extends ValueGroup
     public final ValueFloat uiScale = new ValueFloat("uiScale", 1F);
     public final ValueAnchor anchor = new ValueAnchor("anchor", new Anchor());
     public final ValueBoolean shaderShadow = new ValueBoolean("shaderShadow", true);
+    public final ValueBoolean additiveColor = new ValueBoolean("additive_color", false);
 
     public final List<ValueTransform> additionalTransforms = new ArrayList<>();
 
@@ -74,6 +75,7 @@ public abstract class Form extends ValueGroup
         this.name.invisible();
         this.uiScale.invisible();
         this.shaderShadow.invisible();
+        this.additiveColor.invisible();
 
         this.add(this.visible);
         this.add(this.animatable);
@@ -94,6 +96,7 @@ public abstract class Form extends ValueGroup
         this.add(this.uiScale);
         this.add(this.anchor);
         this.add(this.shaderShadow);
+        this.add(this.additiveColor);
 
         this.hitbox.invisible();
         this.hitboxWidth.invisible();

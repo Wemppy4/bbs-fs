@@ -1,0 +1,32 @@
+{
+    "ik": {
+        "left_leg_end": {
+            "chain_length": 3,
+            "enabled": true,
+            "target": "controller_left_leg"
+        },
+        "left_arm_end": {
+            "chain_length": 3,
+            "pole_angle": 180.0,
+            "enabled": true,
+            "target": "controller_left_arm"
+        },
+        "right_leg_end": {
+            "chain_length": 3,
+            "pole_angle": -90.0,
+            "enabled": true,
+            "target": "controller_right_leg"
+        },
+        "right_arm_end": {
+            "chain_length": 3,
+            "pole_angle": 180.0,
+            "enabled": true,
+            "target": "controller_right_arm"
+        },
+        "body_end": {
+            "chain_length": 2,
+            "enabled": true,
+            "target": "controller_body"
+        }
+    }
+}
