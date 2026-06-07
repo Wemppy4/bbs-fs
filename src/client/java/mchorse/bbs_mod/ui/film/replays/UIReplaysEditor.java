@@ -100,6 +100,7 @@ public class UIReplaysEditor extends UIElement {
     private UIFilmPanel filmPanel;
     private Film film;
     private Replay replay;
+    private Pair<Form, String> pendingPick;
     private boolean timelineVisible = true;
     private boolean propertiesVisible = true;
     private Set<String> keys = new LinkedHashSet<>();
@@ -870,6 +871,16 @@ public class UIReplaysEditor extends UIElement {
 
         StencilFormFramebuffer stencil = this.filmPanel.getController().getStencil();
 
+        /* In orbit mode left-drag rotates the camera anywhere, even over a form.
+         * The form selection is deferred to release, so a click still selects but a
+         * drag orbits instead of being swallowed by the form under the cursor. */
+        if (area.isInside(context) && context.mouseButton == 0 && this.filmPanel.getController().orbit.enabled) {
+            this.pendingPick = stencil.hasPicked() ? stencil.getPicked() : null;
+            this.filmPanel.getController().orbit.start(context);
+
+            return true;
+        }
+
         if (stencil.hasPicked()) {
             Pair<Form, String> pair = stencil.getPicked();
 
@@ -938,13 +949,24 @@ public class UIReplaysEditor extends UIElement {
             }
         }
 
-        if (area.isInside(context) && context.mouseButton == 0 && this.filmPanel.getController().orbit.enabled) {
-            this.filmPanel.getController().orbit.start(context);
+        return false;
+    }
 
-            return true;
+    public void releaseViewport(UIContext context, boolean dragged) {
+        Pair<Form, String> pending = this.pendingPick;
+
+        this.pendingPick = null;
+
+        if (pending == null || dragged || context.mouseButton != 0) {
+            return;
         }
 
-        return false;
+        if (!this.isVisible()) {
+            this.filmPanel.showPanel(this);
+        }
+
+        UIReplaysEditorUtils.pickFormWithOffers(context, pending, (form, bone, insert) ->
+                UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.filmPanel, form, bone, insert));
     }
 
     public void close() {

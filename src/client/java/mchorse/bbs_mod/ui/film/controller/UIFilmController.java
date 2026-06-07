@@ -706,6 +706,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         this.stopGizmoInteraction();
 
+        this.panel.replayEditor.releaseViewport(context, this.orbit.wasDragged());
         this.orbit.stop();
 
         if (this.panel.isFlying() && context.mouseButton == 2)
