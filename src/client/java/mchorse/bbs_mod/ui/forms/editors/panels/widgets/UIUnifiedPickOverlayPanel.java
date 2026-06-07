@@ -9,8 +9,9 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
-import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.context.UISimpleContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
@@ -28,8 +29,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
-import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
@@ -357,12 +358,22 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         if (this.mode == PickerMode.ITEM)
         {
             Item item = Registries.ITEM.get(new Identifier(id));
-            ItemStack selected = new ItemStack(item);
+            ItemStack selected;
 
-            selected.setCount(Math.max(1, this.itemStack.getCount()));
-            if (this.itemStack.hasCustomName())
+            if (this.itemStack != null && !this.itemStack.isEmpty() && this.itemStack.getItem() == item)
             {
-                selected.setCustomName(this.itemStack.getName());
+                selected = this.itemStack.copy();
+            }
+            else
+            {
+                selected = new ItemStack(item);
+
+                selected.setCount(Math.max(1, this.itemStack.getCount()));
+
+                if (this.itemStack.hasCustomName())
+                {
+                    selected.setCustomName(this.itemStack.getName());
+                }
             }
 
             this.acceptItem(selected);
