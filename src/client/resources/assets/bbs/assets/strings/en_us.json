@@ -497,6 +497,7 @@
 	"bbs.ui.copy": "Copy",
 	"bbs.ui.dashboard.category": "Dashboard",
 	"bbs.ui.dashboard.context.toggle_visibility": "Toggle dashboard's visibility",
+	"bbs.ui.dashboard.keys.toggle_ik_debug": "Toggle IK debug overlay",
 	"bbs.ui.dashboard.optifine_ew-description": "IMPORTANT: BBS mod doesn't support Optifine! Optifine may break specific BBS mod features, USE AT YOUR OWN RISK!\n\nAs alternative, try installing Sodium and Iris.",
 	"bbs.ui.dashboard.optifine_ew-title": "Optifine DETECTED!",
 	"bbs.ui.download": "Download",

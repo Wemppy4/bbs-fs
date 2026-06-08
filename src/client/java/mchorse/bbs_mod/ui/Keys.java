@@ -68,6 +68,7 @@ public class Keys
     public static final KeyCombo OPEN_DATA_MANAGER = new KeyCombo("data_manager", UIKeys.PANELS_KEYS_OPEN_DATA_MANAGER, GLFW.GLFW_KEY_N).categoryKey("dashboard");
     public static final KeyCombo OPEN_NEW_TAB = new KeyCombo("new_tab", UIKeys.PANELS_KEYS_OPEN_NEW_TAB, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("dashboard");
     public static final KeyCombo TOGGLE_VISIBILITY = new KeyCombo("toggle", UIKeys.DASHBOARD_CONTEXT_TOGGLE_VISIBILITY, GLFW.GLFW_KEY_F1).categoryKey("dashboard");
+    public static final KeyCombo TOGGLE_IK_DEBUG = new KeyCombo("toggle_ik_debug", UIKeys.DASHBOARD_KEYS_TOGGLE_IK_DEBUG, GLFW.GLFW_KEY_F5).categoryKey("dashboard");
 
     /* Forms */
     public static final KeyCombo FORMS_FOCUS = new KeyCombo("focus", UIKeys.FORMS_LIST_CONTEXT_FOCUS, GLFW.GLFW_KEY_F, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("forms");

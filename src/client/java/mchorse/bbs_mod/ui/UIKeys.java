@@ -214,6 +214,7 @@ public class UIKeys
     public static final IKey CONTEXT_MENU_KEY_CATEGORY = L10n.lang("bbs.ui.context.key_category");
     public static final IKey DASHBOARD_CATEGORY = L10n.lang("bbs.ui.dashboard.category");
     public static final IKey DASHBOARD_CONTEXT_TOGGLE_VISIBILITY = L10n.lang("bbs.ui.dashboard.context.toggle_visibility");
+    public static final IKey DASHBOARD_KEYS_TOGGLE_IK_DEBUG = L10n.lang("bbs.ui.dashboard.keys.toggle_ik_debug");
     public static final IKey DASHBOARD_OPTIFINE_EW_DESCRIPTION = L10n.lang("bbs.ui.dashboard.optifine_ew-description");
     public static final IKey DASHBOARD_OPTIFINE_EW_TITLE = L10n.lang("bbs.ui.dashboard.optifine_ew-title");
     public static final IKey ENGINE_KEYSTROKES_POSITION_AUTO = L10n.lang("bbs.keystrokes_position.auto");

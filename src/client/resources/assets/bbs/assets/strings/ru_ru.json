@@ -498,6 +498,7 @@
 	"bbs.ui.copy": "Копировать",
 	"bbs.ui.dashboard.category": "Главная панель",
 	"bbs.ui.dashboard.context.toggle_visibility": "Включить видимость главной панели",
+	"bbs.ui.dashboard.keys.toggle_ik_debug": "Переключить отладку IK",
 	"bbs.ui.dashboard.optifine_ew-description": "ВНИМАНИЕ: ББС мод не поддерживает Optifine! Optifine может сломать определённые фичи ББС мода, ИСПОЛЬЗУЙТЕ НА СВОЙ РИСК!\n\nКак альтернатива, можете попробовать установить Sodium и Iris.",
 	"bbs.ui.dashboard.optifine_ew-title": "Optifine ОБНАРУЖЕН!",
 	"bbs.ui.download": "Скачать",
