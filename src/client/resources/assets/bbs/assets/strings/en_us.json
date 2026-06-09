@@ -239,6 +239,8 @@
 	"bbs.config.video.height-comment": "Height of the exported video in pixels.",
 	"bbs.config.video.frame_rate": "Frame rate",
 	"bbs.config.video.frame_rate-comment": "How many frames per second the exported video will have.",
+	"bbs.config.video.limit_frame_rate": "Limit frame rate",
+	"bbs.config.video.limit_frame_rate-comment": "When enabled, recording is throttled so it never renders faster than the frame rate above in real time. Use it on powerful machines where recording otherwise runs too fast (e.g. when capturing live or with audio).",
 	"bbs.config.video.export_path": "Export path",
 	"bbs.config.video.export_path-comment": "Folder where exported videos will be saved. If empty, the default export folder is used.",
 	"bbs.config.video.audio": "Export audio",

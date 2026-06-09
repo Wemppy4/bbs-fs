@@ -25,6 +25,8 @@ public class RenderTickCounterMixin
 
     private int heldFrames;
 
+    private long lastFrameTime;
+
     @Inject(method = "beginRenderTick", at = @At("HEAD"), cancellable = true)
     public void onBeginRenderTick(long timeMillis, CallbackInfoReturnable<Integer> info)
     {
@@ -39,6 +41,26 @@ public class RenderTickCounterMixin
 
             if (this.heldFrames == 0)
             {
+                /* When frame rate limiting is enabled, throttle the recording to the video
+                 * frame rate in real time, so a powerful machine doesn't render the recording
+                 * faster than wall-clock time. We hold the frame (without advancing the world)
+                 * until enough real time has passed to produce the next frame. */
+                if (BBSSettings.videoLimitFrameRate.get())
+                {
+                    long frameInterval = (long) (1000F / BBSRendering.getVideoFrameRate());
+
+                    if (timeMillis - this.lastFrameTime < frameInterval)
+                    {
+                        BBSRendering.canRender = false;
+
+                        info.setReturnValue(0);
+
+                        return;
+                    }
+
+                    this.lastFrameTime = timeMillis;
+                }
+
                 this.lastFrameDuration = 20F / (float) BBSRendering.getVideoFrameRate();
                 this.prevTimeMillis = timeMillis;
                 this.tickDelta += this.lastFrameDuration;
@@ -69,6 +91,7 @@ public class RenderTickCounterMixin
         else
         {
             this.heldFrames = 0;
+            this.lastFrameTime = 0;
         }
     }
 }
