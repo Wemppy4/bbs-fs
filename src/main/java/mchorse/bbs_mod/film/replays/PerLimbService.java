@@ -6,6 +6,7 @@ public class PerLimbService
 {
     public static final String POSE_BONES = "pose.bones.";
     public static final String IK_TARGETS = "ik_targets";
+    public static final String IK_CONTROLS = "ik_controls";
     public static final String POLE_TARGETS = "pole_targets";
     public static final String PHYSICS_TARGETS = "physics_targets";
 
@@ -114,6 +115,46 @@ public class PerLimbService
         }
 
         return formPath + FormUtils.PATH_SEPARATOR + IK_TARGETS + FormUtils.PATH_SEPARATOR + controller;
+    }
+
+    public static boolean isIKControlChannel(String id)
+    {
+        return id != null && id.contains(IK_CONTROLS);
+    }
+
+    /** The IK-controls channel is one per form (not per controller); this returns its owning form path. */
+    public static String parseIKControlFormPath(String id)
+    {
+        if (id == null)
+        {
+            return null;
+        }
+
+        int index = id.indexOf(IK_CONTROLS);
+
+        if (index < 0)
+        {
+            return null;
+        }
+
+        String formPath = id.substring(0, index);
+
+        if (formPath.endsWith(FormUtils.PATH_SEPARATOR))
+        {
+            formPath = formPath.substring(0, formPath.length() - 1);
+        }
+
+        return formPath;
+    }
+
+    public static String toIKControlKey(String formPath)
+    {
+        if (formPath == null || formPath.isEmpty())
+        {
+            return IK_CONTROLS;
+        }
+
+        return formPath + FormUtils.PATH_SEPARATOR + IK_CONTROLS;
     }
 
     public static PoleTargetPath parsePoleTargetPath(String id)

@@ -389,7 +389,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         if (!hasOverrides)
         {
-            ModelIKRuntime.applyWithPoseFix(model, this.poseFixByBone);
+            ModelIKRuntime.apply(model, null, null);
             return;
         }
 
@@ -399,11 +399,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         if (local.isEmpty() && poleLocal.isEmpty())
         {
-            ModelIKRuntime.applyWithPoseFix(model, this.poseFixByBone);
+            ModelIKRuntime.apply(model, null, null);
             return;
         }
 
-        ModelIKRuntime.apply(model, local.isEmpty() ? null : local, poleLocal.isEmpty() ? null : poleLocal, this.poseFixByBone);
+        ModelIKRuntime.apply(model, local.isEmpty() ? null : local, poleLocal.isEmpty() ? null : poleLocal);
     }
 
     /** World-space target overrides into the model's local space (the space the solver and pivot frames use). */

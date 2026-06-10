@@ -29,7 +29,7 @@ final class ModelIKApplier
     {
     }
 
-    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> poseFixByBone, Map<String, BoneConstraint> boneLimits)
+    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, IKControl> controlOverrides, Map<String, BoneConstraint> boneLimits)
     {
         if (model == null || chains == null || chains.isEmpty())
         {
@@ -56,7 +56,7 @@ final class ModelIKApplier
             Map<String, PivotFrame> frames = new HashMap<>(wanted.size() * 2);
             ModelPivotFrames.collect(model, wanted, frames);
 
-            applyChain(model, chain, frames, controllerTargets, poleTargets, poseFixByBone, boneLimits);
+            applyChain(model, chain, frames, controllerTargets, poleTargets, controlOverrides, boneLimits);
         }
     }
 
@@ -83,10 +83,22 @@ final class ModelIKApplier
         return depth;
     }
 
-    private static void applyChain(IModel model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> poseFixByBone, Map<String, BoneConstraint> boneLimits)
+    private static void applyChain(IModel model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, IKControl> controlOverrides, Map<String, BoneConstraint> boneLimits)
     {
-        float poseFix = getChainPoseFix(chain, poseFixByBone);
-        float weight = chain.weight() * (1F - poseFix);
+        /* The film's `ik` track may override the chain's static config scalars.
+         * IK weight is independent of pose `fix` — freezing a bone pins it to rest
+         * (changing the FK pose IK reads from) but no longer gates IK weight, which
+         * comes only from the config and the `ik` track. */
+        IKControl control = controlOverrides == null ? null : controlOverrides.get(chain.tip());
+
+        if (control != null && !control.enabled)
+        {
+            return;
+        }
+
+        boolean pole = control != null ? control.pole : chain.pole();
+        float softness = control != null ? control.softness : chain.softness();
+        float weight = control != null ? control.weight : chain.weight();
 
         if (weight <= 0F)
         {
@@ -129,10 +141,10 @@ final class ModelIKApplier
         Vector3f override = controllerTargets == null ? null : controllerTargets.get(chain.target());
         Vector3f target = override != null ? new Vector3f(override) : new Vector3f(targetFrame.position());
 
-        Vector3f polePoint = resolvePolePoint(chain, frames, poleTargets);
+        Vector3f polePoint = resolvePolePoint(pole, chain.poleTarget(), frames, poleTargets);
         IKSolver.Limit[] limits = buildLimits(model, chainIds, boneLimits);
 
-        List<Vector3f> solved = IKSolver.solve(currentPositions, target, chain.pole(), polePoint, chain.softness(), MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
+        List<Vector3f> solved = IKSolver.solve(currentPositions, target, pole, polePoint, softness, MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
 
         Vector3f[] solvedArray = solved.toArray(new Vector3f[solved.size()]);
         ModelRotationBlender.applyWeightedRotations(model, rootParentRotation, chainIds, solvedArray, weight);
@@ -144,21 +156,21 @@ final class ModelIKApplier
      * the pole bone's current position. Returns {@code null} (automatic hinge)
      * when the chain has no pole or no pole target.
      */
-    private static Vector3f resolvePolePoint(ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> poleTargets)
+    private static Vector3f resolvePolePoint(boolean pole, String poleTarget, Map<String, PivotFrame> frames, Map<String, Vector3f> poleTargets)
     {
-        if (!chain.pole() || chain.poleTarget() == null || chain.poleTarget().isEmpty())
+        if (!pole || poleTarget == null || poleTarget.isEmpty())
         {
             return null;
         }
 
-        Vector3f override = poleTargets == null ? null : poleTargets.get(chain.poleTarget());
+        Vector3f override = poleTargets == null ? null : poleTargets.get(poleTarget);
 
         if (override != null)
         {
             return new Vector3f(override);
         }
 
-        PivotFrame frame = frames.get(chain.poleTarget());
+        PivotFrame frame = frames.get(poleTarget);
 
         return frame == null ? null : new Vector3f(frame.position());
     }
@@ -279,44 +291,5 @@ final class ModelIKApplier
         restDir.normalize();
 
         return restDir;
-    }
-
-    private static float getChainPoseFix(ModelIKCache.CompiledChain chain, Map<String, Float> poseFixByBone)
-    {
-        if (poseFixByBone == null || poseFixByBone.isEmpty() || chain == null)
-        {
-            return 0F;
-        }
-
-        float maxFix = getFix(poseFixByBone, chain.target());
-
-        for (String bone : chain.chainRootToEffector())
-        {
-            maxFix = Math.max(maxFix, getFix(poseFixByBone, bone));
-
-            if (maxFix >= 1F)
-            {
-                return 1F;
-            }
-        }
-
-        return maxFix;
-    }
-
-    private static float getFix(Map<String, Float> poseFixByBone, String bone)
-    {
-        Float value = poseFixByBone.get(bone);
-
-        if (value == null)
-        {
-            return 0F;
-        }
-
-        if (value <= 0F)
-        {
-            return 0F;
-        }
-
-        return Math.min(value, 1F);
     }
 }

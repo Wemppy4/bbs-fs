@@ -273,6 +273,38 @@ public class UIReplaysEditorUtils
         }
     }
 
+    /**
+     * One IK-controls track per form (only if it has enabled chains): a single
+     * keyframe sheet whose value holds the per-chain scalars (weight, softness,
+     * pole, enabled), layered over the form's IK config at playback — mirrors the
+     * single pose track. It is not a form property, so it carries its owning form
+     * for the editor to list chains.
+     */
+    public static void addIKControlSheet(ModelForm modelForm, FormProperties properties, List<UIKeyframeSheet> out)
+    {
+        ModelInstance model = ModelFormRenderer.getModel(modelForm);
+
+        if (model == null)
+        {
+            return;
+        }
+
+        model.form = modelForm;
+
+        if (ModelIKRuntime.getControllers(model).isEmpty())
+        {
+            return;
+        }
+
+        String path = FormUtils.getPath(modelForm);
+        String id = PerLimbService.toIKControlKey(path);
+        String title = path.isEmpty() ? "IK" : path + "/IK";
+
+        KeyframeChannel channel = properties.registerChannel(id, KeyframeFactories.IK);
+
+        out.add(new UIKeyframeSheet(id, IKey.constant(title), Colors.YELLOW, false, channel, null).icon(Icons.LIMB).form(modelForm));
+    }
+
     public static void addPoleTargetSheets(ModelForm modelForm, FormProperties properties, List<UIKeyframeSheet> out)
     {
         ModelInstance model = ModelFormRenderer.getModel(modelForm);
