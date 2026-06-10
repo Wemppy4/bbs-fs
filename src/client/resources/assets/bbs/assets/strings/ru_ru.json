@@ -517,6 +517,7 @@
 	"bbs.ui.film.controller.keys.category": "Контролер игрока",
 	"bbs.ui.film.controller.keys.change_camera_mode": "Изменить режим камеры",
 	"bbs.ui.film.controller.keys.cycle_editors": "Переключить редакторы",
+	"bbs.ui.film.controller.keys.attach_orbit": "Привязать орбиту к записи",
 	"bbs.ui.film.controller.keys.insert_frame": "Вставить ключевой кадр",
 	"bbs.ui.film.controller.keys.move_replay_to_cursor": "Двинуть запись к курсору",
 	"bbs.ui.film.controller.keys.next_replay": "Выбрать следующую запись",

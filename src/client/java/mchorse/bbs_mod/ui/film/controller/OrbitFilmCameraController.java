@@ -14,6 +14,8 @@ import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.controller.ICameraController;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -62,6 +64,19 @@ public class OrbitFilmCameraController implements ICameraController
 
     /* Whether the pivot has been placed onto the subject after a reset. */
     private boolean positioned;
+
+    /*
+     * When attached, pivot and rotation are stored relative to the selected
+     * replay's anchor (interpolated position + body yaw), and world values are
+     * composed on the fly. Detached, the anchor is identity, so the same math
+     * passes world values through untouched. Rebasing between anchors preserves
+     * the world state, so attaching, detaching and switching replays never
+     * moves the camera.
+     */
+    private boolean attached = true;
+    private Replay anchorReplay;
+    private final Vector3d anchorPosition = new Vector3d();
+    private float anchorYaw;
 
     private final PanState panState = new PanState();
     protected final Vector3i velocityPosition = new Vector3i();
@@ -303,12 +318,15 @@ public class OrbitFilmCameraController implements ICameraController
     @Override
     public void setup(Camera camera, float transition)
     {
+        this.updateAnchor(transition);
+
         if (!this.positioned)
         {
             Vector3f replay = this.getReplayPivot(transition);
 
             if (replay != null)
             {
+                this.toLocal(replay);
                 this.pivot.set(replay);
                 this.targetPivot.set(replay);
                 this.positioned = true;
@@ -322,9 +340,9 @@ public class OrbitFilmCameraController implements ICameraController
 
         Vector3f offset = this.getOffset();
 
-        camera.position.set(this.pivot);
+        camera.position.set(this.toWorld(new Vector3f(this.pivot)));
         camera.position.add(offset);
-        camera.rotation.set(-this.rotation.x, -this.rotation.y, 0F);
+        camera.rotation.set(-this.rotation.x, -(this.rotation.y + this.anchorYaw), 0F);
     }
 
     @Override
@@ -335,7 +353,7 @@ public class OrbitFilmCameraController implements ICameraController
 
     public Vector3d getOrbitCenter(float transition)
     {
-        return new Vector3d(this.pivot);
+        return new Vector3d(this.toWorld(new Vector3f(this.pivot)));
     }
 
     public void teleportPivotToReplay()
@@ -344,9 +362,111 @@ public class OrbitFilmCameraController implements ICameraController
 
         if (replay != null)
         {
-            this.targetPivot.set(replay);
+            this.targetPivot.set(this.toLocal(replay));
             this.positioned = true;
         }
+    }
+
+    public boolean isAttached()
+    {
+        return this.attached;
+    }
+
+    public void toggleAttachment()
+    {
+        this.attached = !this.attached;
+        this.updateAnchor(this.getCurrentTransition());
+    }
+
+    private void updateAnchor(float transition)
+    {
+        Replay target = null;
+        IEntity entity = null;
+
+        if (this.attached)
+        {
+            target = this.controller.panel.replayEditor.getReplay();
+            entity = target == null ? null : this.resolveEntity(target);
+
+            if (entity == null)
+            {
+                target = this.anchorReplay;
+                entity = target == null ? null : this.resolveEntity(target);
+            }
+
+            if (entity == null)
+            {
+                target = null;
+            }
+        }
+
+        if (target != this.anchorReplay)
+        {
+            this.rebase(target, entity, transition);
+        }
+        else if (entity != null)
+        {
+            this.writeAnchor(entity, transition);
+        }
+    }
+
+    private void rebase(Replay replay, IEntity entity, float transition)
+    {
+        this.toWorld(this.pivot);
+        this.toWorld(this.targetPivot);
+        this.rotation.y += this.anchorYaw;
+        this.targetRotation.y += this.anchorYaw;
+
+        this.anchorReplay = replay;
+
+        if (entity == null)
+        {
+            this.anchorPosition.set(0D, 0D, 0D);
+            this.anchorYaw = 0F;
+        }
+        else
+        {
+            this.writeAnchor(entity, transition);
+        }
+
+        this.toLocal(this.pivot);
+        this.toLocal(this.targetPivot);
+        this.rotation.y -= this.anchorYaw;
+        this.targetRotation.y -= this.anchorYaw;
+    }
+
+    private void writeAnchor(IEntity entity, float transition)
+    {
+        this.anchorPosition.set(
+            Lerps.lerp(entity.getPrevX(), entity.getX(), transition),
+            Lerps.lerp(entity.getPrevY(), entity.getY(), transition),
+            Lerps.lerp(entity.getPrevZ(), entity.getZ(), transition)
+        );
+        this.anchorYaw = MathUtils.toRad(-Lerps.lerp(entity.getPrevBodyYaw(), entity.getBodyYaw(), transition));
+    }
+
+    private IEntity resolveEntity(Replay replay)
+    {
+        Film film = this.controller.panel.getData();
+
+        if (film == null)
+        {
+            return null;
+        }
+
+        int index = film.replays.getList().indexOf(replay);
+
+        return index < 0 ? null : this.controller.getEntities().get(index);
+    }
+
+    private Vector3f toWorld(Vector3f pivot)
+    {
+        return pivot.rotateY(this.anchorYaw).add((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z);
+    }
+
+    private Vector3f toLocal(Vector3f pivot)
+    {
+        return pivot.sub((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z).rotateY(-this.anchorYaw);
     }
 
     public void reset()
@@ -361,6 +481,9 @@ public class OrbitFilmCameraController implements ICameraController
         this.orbiting = false;
         this.orbitButton = -1;
         this.velocityPosition.set(0, 0, 0);
+        this.anchorReplay = null;
+        this.anchorPosition.set(0D, 0D, 0D);
+        this.anchorYaw = 0F;
     }
 
     private Vector3f getReplayPivot(float transition)
@@ -467,7 +590,7 @@ public class OrbitFilmCameraController implements ICameraController
 
     private void cachePanState(UIContext context)
     {
-        this.panState.pivot.set(this.pivot);
+        this.panState.pivot.set(this.toWorld(new Vector3f(this.pivot)));
         this.panState.camera.copy(this.controller.panel.getCamera());
         this.panState.plane.set(this.panState.camera.getLookDirection()).normalize();
         this.panState.intersection.set(this.calculateOnPlane(context));
@@ -476,10 +599,12 @@ public class OrbitFilmCameraController implements ICameraController
     private void pan(UIContext context)
     {
         Vector3d point = this.calculateOnPlane(context);
+        Vector3f pivot = new Vector3f(this.panState.pivot);
 
-        this.targetPivot.set(this.panState.pivot);
-        this.targetPivot.sub((float) point.x, (float) point.y, (float) point.z);
-        this.targetPivot.add((float) this.panState.intersection.x, (float) this.panState.intersection.y, (float) this.panState.intersection.z);
+        pivot.sub((float) point.x, (float) point.y, (float) point.z);
+        pivot.add((float) this.panState.intersection.x, (float) this.panState.intersection.y, (float) this.panState.intersection.z);
+
+        this.targetPivot.set(this.toLocal(pivot));
     }
 
     private void rotate(int dx, int dy)
@@ -492,7 +617,7 @@ public class OrbitFilmCameraController implements ICameraController
 
     private Vector3f getOffset()
     {
-        return this.rotateVector(0F, 0F, 1F, this.rotation.y, this.rotation.x, false).mul(this.distance);
+        return this.rotateVector(0F, 0F, 1F, this.rotation.y + this.anchorYaw, this.rotation.x, false).mul(this.distance);
     }
 
     private float getCurrentTransition()

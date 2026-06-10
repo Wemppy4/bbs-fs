@@ -157,6 +157,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_CONTROL, this::toggleControl).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_ORBIT_MODE, this::toggleOrbitMode).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TELEPORT_ORBIT, this::teleportOrbitPivotToReplay).strict().active(() -> this.getPovMode() == CAMERA_MODE_ORBIT).category(category);
+        this.keys().register(Keys.FILM_CONTROLLER_ATTACH_ORBIT, () ->
+        {
+            this.toggleOrbitAttachment();
+            UIUtils.playClick();
+        }).strict().active(() -> this.getPovMode() == CAMERA_MODE_ORBIT).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_REPLAY_MENU, this::toggleReplayMenu).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_MOVE_REPLAY_TO_CURSOR, () ->
         {
@@ -829,6 +834,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
     public void teleportOrbitPivotToReplay()
     {
         this.orbit.teleportPivotToReplay();
+    }
+
+    public void toggleOrbitAttachment()
+    {
+        this.orbit.toggleAttachment();
     }
 
     public boolean zoomOrbit(double mouseWheel)
