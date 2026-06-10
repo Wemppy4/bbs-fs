@@ -4,6 +4,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.interps.AutoBezier;
 import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Lerps;
 
@@ -64,6 +65,30 @@ public class PoseTransform extends Transform
             );
 
             this.lighting = (float) interp.interpolate(IInterp.context.set(preA1.lighting, a1.lighting, b1.lighting, postB1.lighting, x));
+        }
+    }
+
+    @Override
+    public void autoLerp(Transform preA, Transform a, Transform b, Transform postB, float pt, float at, float bt, float qt, boolean clamped, float x)
+    {
+        super.autoLerp(preA, a, b, postB, pt, at, bt, qt, clamped, x);
+
+        if (preA instanceof PoseTransform preA1)
+        {
+            PoseTransform a1 = (PoseTransform) a;
+            PoseTransform b1 = (PoseTransform) b;
+            PoseTransform postB1 = (PoseTransform) postB;
+
+            this.fix = (float) AutoBezier.get(preA1.fix, a1.fix, b1.fix, postB1.fix, pt, at, bt, qt, clamped, x);
+
+            this.color.set(
+                (float) MathUtils.clamp(AutoBezier.get(preA1.color.r, a1.color.r, b1.color.r, postB1.color.r, pt, at, bt, qt, clamped, x), 0F, 1F),
+                (float) MathUtils.clamp(AutoBezier.get(preA1.color.g, a1.color.g, b1.color.g, postB1.color.g, pt, at, bt, qt, clamped, x), 0F, 1F),
+                (float) MathUtils.clamp(AutoBezier.get(preA1.color.b, a1.color.b, b1.color.b, postB1.color.b, pt, at, bt, qt, clamped, x), 0F, 1F),
+                (float) MathUtils.clamp(AutoBezier.get(preA1.color.a, a1.color.a, b1.color.a, postB1.color.a, pt, at, bt, qt, clamped, x), 0F, 1F)
+            );
+
+            this.lighting = (float) AutoBezier.get(preA1.lighting, a1.lighting, b1.lighting, postB1.lighting, pt, at, bt, qt, clamped, x);
         }
     }
 

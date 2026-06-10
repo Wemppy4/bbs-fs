@@ -1338,6 +1338,8 @@
 	"bbs.ui.video_settings.width": "Ширина",
 	"bbs.ui.warning": "Предупреждение",
 	"bbs.ui.world.keys.cycle_panels": "Переключаться между панелями",
+	"interpolations.auto": "Авто",
+	"interpolations.auto_clamped": "Авто (без заскока)",
 	"interpolations.back_in": "Заскакивающая In",
 	"interpolations.back_inout": "Заскакивающая In/Out",
 	"interpolations.back_out": "Заскакивающая Out",

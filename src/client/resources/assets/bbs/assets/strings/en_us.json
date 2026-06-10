@@ -1349,6 +1349,8 @@
 	"bbs.ui.video_settings.width": "Width",
 	"bbs.ui.warning": "Warning",
 	"bbs.ui.world.keys.cycle_panels": "Cycle panels",
+	"interpolations.auto": "Auto",
+	"interpolations.auto_clamped": "Auto Clamped",
 	"interpolations.back_in": "Back In",
 	"interpolations.back_inout": "Back In/out",
 	"interpolations.back_out": "Back Out",
