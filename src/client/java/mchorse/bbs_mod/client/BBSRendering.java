@@ -39,6 +39,7 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.math.MatrixStack;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -77,6 +78,7 @@ public class BBSRendering
     private static Framebuffer framebuffer;
     private static Framebuffer clientFramebuffer;
     private static Texture texture;
+    private static mchorse.bbs_mod.graphics.Framebuffer exportFramebuffer;
 
     private static Runnable pendingExportResolutionAction;
 
@@ -378,11 +380,42 @@ public class BBSRendering
     public static void onRenderBeforeScreen()
     {
         Texture texture = getTexture();
+        int targetWidth = getVideoWidth();
+        int targetHeight = getVideoHeight();
 
-        texture.bind();
-        texture.setSize(framebuffer.textureWidth, framebuffer.textureHeight);
-        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, framebuffer.textureWidth, framebuffer.textureHeight);
-        texture.unbind();
+        if (texture.width != targetWidth || texture.height != targetHeight)
+        {
+            texture.bind();
+            texture.setSize(targetWidth, targetHeight);
+            texture.unbind();
+        }
+
+        if (exportFramebuffer == null)
+        {
+            exportFramebuffer = new mchorse.bbs_mod.graphics.Framebuffer();
+            exportFramebuffer.attach(texture, GL30.GL_COLOR_ATTACHMENT0);
+            exportFramebuffer.unbind();
+        }
+
+        /* The export framebuffer is rendered at the display's native resolution, which on
+         * HiDPI screens (such as Retina) is larger than the requested video size. Downscale
+         * it into the export texture with a linear blit so the recording stays at the
+         * resolution the user asked for (and gains free supersampling). A plain
+         * glCopyTexSubImage2D can't rescale, so it would copy the full-size frame and
+         * overflow the video recorder's frame buffer (macOS crashes in storeVecColor_BGR_UB). */
+        int prevRead = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int prevDraw = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, framebuffer.fbo);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, exportFramebuffer.id);
+        GL30.glBlitFramebuffer(
+            0, 0, framebuffer.textureWidth, framebuffer.textureHeight,
+            0, 0, targetWidth, targetHeight,
+            GL11.GL_COLOR_BUFFER_BIT, GL11.GL_LINEAR
+        );
+
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
 
         toggleFramebuffer(false);
 
