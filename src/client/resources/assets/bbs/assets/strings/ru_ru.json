@@ -730,6 +730,7 @@
 	"bbs.ui.forms.editors.billboard.uv_shift": "UV развёртка",
 	"bbs.ui.forms.editors.block.title": "Блок",
 	"bbs.ui.forms.editors.extruded.title": "Выпуклый",
+	"bbs.ui.forms.editors.framebuffer.title": "Фреймбуфер",
 	"bbs.ui.forms.editors.general": "Общие",
 	"bbs.ui.forms.editors.general.animatable": "Анимируется",
 	"bbs.ui.forms.editors.general.animatable-tooltip": "Эта опция влияет если эту форму (и её части тела) можно анимировать через ключевые кадры",

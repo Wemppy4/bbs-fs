@@ -730,6 +730,7 @@
 	"bbs.ui.forms.editors.billboard.uv_shift": "UV shift",
 	"bbs.ui.forms.editors.block.title": "Block",
 	"bbs.ui.forms.editors.extruded.title": "Extruded",
+	"bbs.ui.forms.editors.framebuffer.title": "Framebuffer",
 	"bbs.ui.forms.editors.general": "General",
 	"bbs.ui.forms.editors.general.animatable": "Animatable",
 	"bbs.ui.forms.editors.general.animatable-tooltip": "Whether this form provides keyframe tracks for animation",
