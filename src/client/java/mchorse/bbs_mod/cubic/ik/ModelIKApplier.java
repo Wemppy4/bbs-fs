@@ -1,9 +1,11 @@
 package mchorse.bbs_mod.cubic.ik;
 
+import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsConfig.BoneConstraint;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
 import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
 import mchorse.bbs_mod.cubic.render.ModelRotationBlender;
@@ -27,12 +29,7 @@ final class ModelIKApplier
     {
     }
 
-    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, Vector3f> controllerTargets, Map<String, Float> poseFixByBone)
-    {
-        apply(model, chains, controllerTargets, poseFixByBone, null);
-    }
-
-    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, Vector3f> controllerTargets, Map<String, Float> poseFixByBone, Map<String, BoneConstraint> boneLimits)
+    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, IKControl> controlOverrides, Map<String, BoneConstraint> boneLimits)
     {
         if (model == null || chains == null || chains.isEmpty())
         {
@@ -51,10 +48,15 @@ final class ModelIKApplier
             wanted.add(chain.target());
             wanted.addAll(chain.chainRootToEffector());
 
+            if (chain.poleTarget() != null && !chain.poleTarget().isEmpty())
+            {
+                wanted.add(chain.poleTarget());
+            }
+
             Map<String, PivotFrame> frames = new HashMap<>(wanted.size() * 2);
             ModelPivotFrames.collect(model, wanted, frames);
 
-            applyChain(model, chain, frames, controllerTargets, poseFixByBone, boneLimits);
+            applyChain(model, chain, frames, controllerTargets, poleTargets, controlOverrides, boneLimits);
         }
     }
 
@@ -81,10 +83,22 @@ final class ModelIKApplier
         return depth;
     }
 
-    private static void applyChain(IModel model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Float> poseFixByBone, Map<String, BoneConstraint> boneLimits)
+    private static void applyChain(IModel model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, IKControl> controlOverrides, Map<String, BoneConstraint> boneLimits)
     {
-        float poseFix = getChainPoseFix(chain, poseFixByBone);
-        float weight = chain.weight() * (1F - poseFix);
+        /* The film's `ik` track may override the chain's static config scalars.
+         * IK weight is independent of pose `fix` — freezing a bone pins it to rest
+         * (changing the FK pose IK reads from) but no longer gates IK weight, which
+         * comes only from the config and the `ik` track. */
+        IKControl control = controlOverrides == null ? null : controlOverrides.get(chain.tip());
+
+        if (control != null && !control.enabled)
+        {
+            return;
+        }
+
+        boolean pole = control != null ? control.pole : chain.pole();
+        float softness = control != null ? control.softness : chain.softness();
+        float weight = control != null ? control.weight : chain.weight();
 
         if (weight <= 0F)
         {
@@ -127,26 +141,54 @@ final class ModelIKApplier
         Vector3f override = controllerTargets == null ? null : controllerTargets.get(chain.target());
         Vector3f target = override != null ? new Vector3f(override) : new Vector3f(targetFrame.position());
 
-        float poleAngleRad = (float) Math.toRadians(chain.poleAngle());
+        Vector3f polePoint = resolvePolePoint(pole, chain.poleTarget(), frames, poleTargets);
         IKSolver.Limit[] limits = buildLimits(model, chainIds, boneLimits);
 
-        List<Vector3f> solved = IKSolver.solve(currentPositions, target, chain.pole(), poleAngleRad, chain.softness(), MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
+        List<Vector3f> solved = IKSolver.solve(currentPositions, target, pole, polePoint, softness, MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
 
         Vector3f[] solvedArray = solved.toArray(new Vector3f[solved.size()]);
         ModelRotationBlender.applyWeightedRotations(model, rootParentRotation, chainIds, solvedArray, weight);
     }
 
     /**
+     * Resolves the pole target into a model-space point the bend aims at: the
+     * film override position if the chain's pole bone is being driven, otherwise
+     * the pole bone's current position. Returns {@code null} (automatic hinge)
+     * when the chain has no pole or no pole target.
+     */
+    private static Vector3f resolvePolePoint(boolean pole, String poleTarget, Map<String, PivotFrame> frames, Map<String, Vector3f> poleTargets)
+    {
+        if (!pole || poleTarget == null || poleTarget.isEmpty())
+        {
+            return null;
+        }
+
+        Vector3f override = poleTargets == null ? null : poleTargets.get(poleTarget);
+
+        if (override != null)
+        {
+            return new Vector3f(override);
+        }
+
+        PivotFrame frame = frames.get(poleTarget);
+
+        return frame == null ? null : new Vector3f(frame.position());
+    }
+
+    /**
      * Builds per-bone rotation limits for the chain's directed bones (root..tip-1),
-     * matching the renderer's reconstruction so the clamp is exact. Returns
-     * {@code null} when no bone in the chain is constrained (unconstrained fast
-     * path) or when the model is not a cubic {@link Model}. Every returned entry
-     * carries the bone's local rest direction (needed to advance the parent frame
-     * during the clamp pass); {@code enabled} is set only where a constraint exists.
+     * matching the renderer's reconstruction so the clamp is exact. The solver math
+     * is in degrees and the {@link BoneConstraint} limits are degrees, so the same
+     * path serves cubic {@link Model} and {@link BOBJModel} — only the rest
+     * direction differs (each taken the way that model's renderer takes it).
+     * Returns {@code null} when no bone in the chain is constrained (fast path) or
+     * the model is neither type. Every entry carries the bone's local rest
+     * direction (needed to advance the parent frame during the clamp pass);
+     * {@code enabled} is set only where a constraint exists.
      */
     private static IKSolver.Limit[] buildLimits(IModel model, List<String> chainIds, Map<String, BoneConstraint> boneLimits)
     {
-        if (boneLimits == null || boneLimits.isEmpty() || !(model instanceof Model cubic))
+        if (boneLimits == null || boneLimits.isEmpty())
         {
             return null;
         }
@@ -181,22 +223,12 @@ final class ModelIKApplier
         for (int i = 0; i < directed; i++)
         {
             String id = chainIds.get(i);
-            ModelGroup bone = cubic.getGroup(id);
-            ModelGroup child = cubic.getGroup(chainIds.get(i + 1));
+            Vector3f restDir = restDirection(model, chainIds, i);
 
-            if (bone == null || child == null)
+            if (restDir == null)
             {
                 return null;
             }
-
-            Vector3f restDir = new Vector3f(child.initial.translate).sub(bone.initial.translate);
-
-            if (restDir.lengthSquared() < 1.0e-12f)
-            {
-                restDir.set(0F, -1F, 0F);
-            }
-
-            restDir.normalize();
 
             BoneConstraint c = boneLimits.get(id);
             boolean enabled = c != null && c.enabled();
@@ -209,42 +241,55 @@ final class ModelIKApplier
         return limits;
     }
 
-    private static float getChainPoseFix(ModelIKCache.CompiledChain chain, Map<String, Float> poseFixByBone)
+    /**
+     * The bone's local rest direction towards its child, taken exactly as that
+     * model's renderer takes it (cubic: pivot difference; BOBJ: the renderer's
+     * own {@link ModelRotationBlender#getBobjRestDirection}), so the limit clamp
+     * reconstructs the same swing the renderer applies.
+     */
+    private static Vector3f restDirection(IModel model, List<String> chainIds, int i)
     {
-        if (poseFixByBone == null || poseFixByBone.isEmpty() || chain == null)
+        String id = chainIds.get(i);
+        String childId = chainIds.get(i + 1);
+
+        if (model instanceof Model cubic)
         {
-            return 0F;
-        }
+            ModelGroup bone = cubic.getGroup(id);
+            ModelGroup child = cubic.getGroup(childId);
 
-        float maxFix = getFix(poseFixByBone, chain.target());
-
-        for (String bone : chain.chainRootToEffector())
-        {
-            maxFix = Math.max(maxFix, getFix(poseFixByBone, bone));
-
-            if (maxFix >= 1F)
+            if (bone == null || child == null)
             {
-                return 1F;
+                return null;
             }
+
+            return normalizeRest(new Vector3f(child.initial.translate).sub(bone.initial.translate));
         }
 
-        return maxFix;
+        if (model instanceof BOBJModel bobj)
+        {
+            BOBJBone bone = bobj.getArmature().bones.get(id);
+            BOBJBone child = bobj.getArmature().bones.get(childId);
+
+            if (bone == null)
+            {
+                return null;
+            }
+
+            return normalizeRest(ModelRotationBlender.getBobjRestDirection(bobj, bone, child, chainIds, i));
+        }
+
+        return null;
     }
 
-    private static float getFix(Map<String, Float> poseFixByBone, String bone)
+    private static Vector3f normalizeRest(Vector3f restDir)
     {
-        Float value = poseFixByBone.get(bone);
-
-        if (value == null)
+        if (restDir.lengthSquared() < 1.0e-12f)
         {
-            return 0F;
+            restDir.set(0F, -1F, 0F);
         }
 
-        if (value <= 0F)
-        {
-            return 0F;
-        }
+        restDir.normalize();
 
-        return Math.min(value, 1F);
+        return restDir;
     }
 }

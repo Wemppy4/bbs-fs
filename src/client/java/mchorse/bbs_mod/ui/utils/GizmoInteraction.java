@@ -42,7 +42,23 @@ public class GizmoInteraction
         return this.sphereHovered;
     }
 
+    /**
+     * Both passes in priority order — for hosts that have no click-competing
+     * handler between them. Those that do (actor pick in the film editor,
+     * model-block fill) must instead call {@link #mouseClickedHandle} first,
+     * then their own pick, then {@link #mouseClickedSphere} last.
+     */
     public boolean mouseClicked(UIContext context)
+    {
+        return this.mouseClickedHandle(context) || this.mouseClickedSphere(context);
+    }
+
+    /**
+     * Highest priority: the gizmo's own move/scale/rotate handles (stencil id
+     * in [STENCIL_X, STENCIL_MAX]). They render on top, so they must beat
+     * everything behind them. Call BEFORE the viewport's own picks.
+     */
+    public boolean mouseClickedHandle(UIContext context)
     {
         if (context.mouseButton != 0)
         {
@@ -59,28 +75,51 @@ public class GizmoInteraction
             {
                 return this.startGizmo(context, index);
             }
-
-            if (this.sphereHovered && Gizmo.INSTANCE.isSphereInteractive())
-            {
-                Pair<Form, String> pair = stencil.getPicked();
-
-                if (pair != null && pair.a != null)
-                {
-                    this.pendingDownX = context.mouseX;
-                    this.pendingDownY = context.mouseY;
-                    this.pendingPickForm = pair.a;
-                    this.pendingPickBone = pair.b == null ? "" : pair.b;
-
-                    return true;
-                }
-            }
-        }
-        else if (this.sphereHovered && Gizmo.INSTANCE.isSphereInteractive())
-        {
-            return this.startGizmo(context, Gizmo.STENCIL_TRACKBALL);
         }
 
         return false;
+    }
+
+    /**
+     * Lowest priority: the rotation sphere's screen-space disc — a deferred
+     * bone-vs-sphere pick when a form is under the cursor, or a trackball
+     * start on empty space. The disc is a flat screen circle unrelated to the
+     * stencil ordering, so it otherwise eats any click within its radius.
+     * Call AFTER all of the viewport's clickable things (icons, actor markers,
+     * model blocks) so it only takes what nothing else wanted.
+     */
+    public boolean mouseClickedSphere(UIContext context)
+    {
+        if (context.mouseButton != 0)
+        {
+            return false;
+        }
+
+        if (!this.sphereHovered || !Gizmo.INSTANCE.isSphereInteractive())
+        {
+            return false;
+        }
+
+        StencilFormFramebuffer stencil = this.viewport.getGizmoStencil();
+
+        if (stencil.hasPicked())
+        {
+            Pair<Form, String> pair = stencil.getPicked();
+
+            if (pair != null && pair.a != null)
+            {
+                this.pendingDownX = context.mouseX;
+                this.pendingDownY = context.mouseY;
+                this.pendingPickForm = pair.a;
+                this.pendingPickBone = pair.b == null ? "" : pair.b;
+
+                return true;
+            }
+
+            return false;
+        }
+
+        return this.startGizmo(context, Gizmo.STENCIL_TRACKBALL);
     }
 
     public boolean mouseReleased(UIContext context)
@@ -109,6 +148,16 @@ public class GizmoInteraction
     {
         this.promotePendingPick(context);
         this.updateSphereHover(context);
+    }
+
+    /**
+     * Composite the trackball sphere's hover highlight over this viewport. Call
+     * from the host's GUI overlay pass (after its own stencil hover), so the
+     * sphere reads with the same screen-space highlight as bones and handles.
+     */
+    public void renderSphereHighlight(UIContext context)
+    {
+        Gizmo.INSTANCE.renderSphereHighlight(context, this.viewport.getGizmoProjection(), this.viewport.getGizmoArea());
     }
 
     public void stop()

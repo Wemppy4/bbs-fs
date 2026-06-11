@@ -56,6 +56,7 @@ import mchorse.bbs_mod.ui.film.replays.UIRecordOverlayPanel;
 import mchorse.bbs_mod.ui.film.replays.UIReplayList;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
+import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -156,6 +157,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_CONTROL, this::toggleControl).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_ORBIT_MODE, this::toggleOrbitMode).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TELEPORT_ORBIT, this::teleportOrbitPivotToReplay).strict().active(() -> this.getPovMode() == CAMERA_MODE_ORBIT).category(category);
+        this.keys().register(Keys.FILM_CONTROLLER_ATTACH_ORBIT, () ->
+        {
+            this.toggleOrbitAttachment();
+            UIUtils.playClick();
+        }).strict().active(() -> this.getPovMode() == CAMERA_MODE_ORBIT).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_REPLAY_MENU, this::toggleReplayMenu).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_MOVE_REPLAY_TO_CURSOR, () ->
         {
@@ -631,7 +637,14 @@ public class UIFilmController extends UIElement implements GizmoViewport
             return true;
         }
 
-        if (this.gizmo.mouseClicked(context))
+        boolean gizmoShown = this.canShowGizmo();
+
+        /* Gizmo handles beat everything (rendered on top). The trackball
+         * sphere is deferred to the very end so its flat screen disc doesn't
+         * override actor markers and the viewport's other picks. Both are gated
+         * on the gizmo actually being shown — otherwise the sphere grabs clicks
+         * even with no bone selected (nothing rendered). */
+        if (gizmoShown && this.gizmo.mouseClickedHandle(context))
         {
             return true;
         }
@@ -641,6 +654,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
         {
             this.pickReplay(this.hoveredReplayIndex);
 
+            return true;
+        }
+
+        if (gizmoShown && this.gizmo.mouseClickedSphere(context))
+        {
             return true;
         }
 
@@ -816,6 +834,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
     public void teleportOrbitPivotToReplay()
     {
         this.orbit.teleportPivotToReplay();
+    }
+
+    public void toggleOrbitAttachment()
+    {
+        this.orbit.toggleAttachment();
     }
 
     public boolean zoomOrbit(double mouseWheel)
@@ -1243,7 +1266,12 @@ public class UIFilmController extends UIElement implements GizmoViewport
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
 
         this.hoveredReplayIndex = -1;
-        this.gizmo.update(context);
+
+        if (this.canShowGizmo())
+        {
+            this.gizmo.update(context);
+            this.gizmo.renderSphereHighlight(context);
+        }
 
         if (!this.stencil.hasPicked())
         {
@@ -1416,6 +1444,18 @@ public class UIFilmController extends UIElement implements GizmoViewport
         UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
 
         return keyframeEditor != null ? keyframeEditor.getBone() : null;
+    }
+
+    /**
+     * Whether the preview gizmo is actually drawn right now — the same gate the
+     * renderer uses ({@link BaseFilmController#render}): axes enabled, not
+     * recording, and a bone selected. The gizmo interaction must honour it, or
+     * its trackball sphere keeps grabbing clicks (and blocking actor markers)
+     * after a keyframe is deselected and nothing is rendered.
+     */
+    private boolean canShowGizmo()
+    {
+        return UIBaseMenu.renderAxes && !this.isRecording() && this.getBone() != null;
     }
 
     private void renderStencil(WorldRenderContext renderContext, UIContext context, boolean altPressed)

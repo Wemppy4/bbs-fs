@@ -2,6 +2,7 @@ package mchorse.bbs_mod.utils.keyframes.factories;
 
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
+import mchorse.bbs_mod.utils.interps.AutoBezier;
 import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.keyframes.BezierUtils;
@@ -67,6 +68,29 @@ public class Vector3fKeyframeFactory implements IKeyframeFactory<Vector3f>
                 a.getRx(2), a.getRy(2),
                 b.getLx(2), b.getLy(2),
                 x
+            );
+
+            return this.i;
+        }
+
+        if (interpolation.has(Interpolations.AUTO) || interpolation.has(Interpolations.AUTO_CLAMPED))
+        {
+            boolean clamped = interpolation.has(Interpolations.AUTO_CLAMPED);
+
+            this.i.x = (float) AutoBezier.get(
+                preA.getValue().x, a.getValue().x, b.getValue().x, postB.getValue().x,
+                preA.getTick(), a.getTick(), b.getTick(), postB.getTick(),
+                clamped, x
+            );
+            this.i.y = (float) AutoBezier.get(
+                preA.getValue().y, a.getValue().y, b.getValue().y, postB.getValue().y,
+                preA.getTick(), a.getTick(), b.getTick(), postB.getTick(),
+                clamped, x
+            );
+            this.i.z = (float) AutoBezier.get(
+                preA.getValue().z, a.getValue().z, b.getValue().z, postB.getValue().z,
+                preA.getTick(), a.getTick(), b.getTick(), postB.getTick(),
+                clamped, x
             );
 
             return this.i;

@@ -1,61 +1,61 @@
 package mchorse.bbs_mod.utils.keyframes.factories;
 
+import mchorse.bbs_mod.cubic.ik.IKControl;
+import mchorse.bbs_mod.cubic.ik.IKControls;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
-import mchorse.bbs_mod.utils.pose.Pose;
-import mchorse.bbs_mod.utils.pose.PoseTransform;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class PoseKeyframeFactory implements IKeyframeFactory<Pose>
+public class IKKeyframeFactory implements IKeyframeFactory<IKControls>
 {
     private static Set<String> keys = new HashSet<>();
 
-    private Pose i = new Pose();
+    private IKControls i = new IKControls();
 
     @Override
-    public Pose fromData(BaseType data)
+    public IKControls fromData(BaseType data)
     {
-        Pose pose = new Pose();
+        IKControls controls = new IKControls();
 
         if (data.isMap())
         {
-            pose.fromData(data.asMap());
+            controls.fromData(data.asMap());
         }
 
-        return pose;
+        return controls;
     }
 
     @Override
-    public BaseType toData(Pose value)
+    public BaseType toData(IKControls value)
     {
         return value.toData();
     }
 
     @Override
-    public Pose createEmpty()
+    public IKControls createEmpty()
     {
-        return new Pose();
+        return new IKControls();
     }
 
     @Override
-    public Pose copy(Pose value)
+    public IKControls copy(IKControls value)
     {
         return value.copy();
     }
 
     @Override
-    public Pose interpolate(Keyframe<Pose> preA, Keyframe<Pose> a, Keyframe<Pose> b, Keyframe<Pose> postB, IInterp interpolation, float x)
+    public IKControls interpolate(Keyframe<IKControls> preA, Keyframe<IKControls> a, Keyframe<IKControls> b, Keyframe<IKControls> postB, IInterp interpolation, float x)
     {
         if (interpolation.has(Interpolations.AUTO) || interpolation.has(Interpolations.AUTO_CLAMPED))
         {
-            Pose preAp = preA.getValue();
-            Pose ap = a.getValue();
-            Pose bp = b.getValue();
-            Pose postBp = postB.getValue();
+            IKControls preAp = preA.getValue();
+            IKControls ap = a.getValue();
+            IKControls bp = b.getValue();
+            IKControls postBp = postB.getValue();
 
             this.collect(preAp, ap, bp, postBp);
 
@@ -77,7 +77,7 @@ public class PoseKeyframeFactory implements IKeyframeFactory<Pose>
     }
 
     @Override
-    public Pose interpolate(Pose preA, Pose a, Pose b, Pose postB, IInterp interpolation, float x)
+    public IKControls interpolate(IKControls preA, IKControls a, IKControls b, IKControls postB, IInterp interpolation, float x)
     {
         this.collect(preA, a, b, postB);
 
@@ -89,16 +89,16 @@ public class PoseKeyframeFactory implements IKeyframeFactory<Pose>
         return this.i;
     }
 
-    private void collect(Pose preA, Pose a, Pose b, Pose postB)
+    private void collect(IKControls preA, IKControls a, IKControls b, IKControls postB)
     {
         keys.clear();
 
-        if (preA != a && preA != null) keys.addAll(preA.transforms.keySet());
-        if (a != null) keys.addAll(a.transforms.keySet());
-        if (b != null) keys.addAll(b.transforms.keySet());
-        if (postB != b && postB != null) keys.addAll(postB.transforms.keySet());
+        if (preA != a && preA != null) keys.addAll(preA.controls.keySet());
+        if (a != null) keys.addAll(a.controls.keySet());
+        if (b != null) keys.addAll(b.controls.keySet());
+        if (postB != b && postB != null) keys.addAll(postB.controls.keySet());
 
-        for (PoseTransform value : this.i.transforms.values())
+        for (IKControl value : this.i.controls.values())
         {
             value.identity();
         }

@@ -4,7 +4,12 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.ui.framework.UIBaseMenu;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.Axis;
@@ -17,7 +22,10 @@ import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gl.VertexBuffer;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -109,10 +117,21 @@ public class Gizmo
      *  project an edge point and report the sphere's real pixel size. */
     private float lastSphereLocalRadius;
 
-    /** Driven by {@link mchorse.bbs_mod.ui.film.controller.UIFilmController}'s
-     *  per-frame hover pass. When true the sphere is repainted with
-     *  {@link BBSSettings#stencilHighlightColor} so the user can see
-     *  the cursor sits in its pick disc. */
+    /** Model-view the sphere is actually drawn with this frame (origin frame
+     *  times the per-frame distanceScale). Reused by {@link #renderSphereHighlight}
+     *  to re-draw the sphere into a mask at the exact same on-screen footprint. */
+    private final Matrix4f lastSphereMatrix = new Matrix4f();
+    private boolean hasLastSphereMatrix;
+
+    /** Sphere-only mask the hover highlight is composited from. The sphere is
+     *  kept out of the pick stencil (one pixel can't be both "bone" and "sphere",
+     *  and the deferred bone-vs-sphere pick needs both), so its highlight gets a
+     *  private buffer it can own outright. */
+    private final StencilFormFramebuffer sphereHighlight = new StencilFormFramebuffer();
+
+    /** Driven by {@link GizmoInteraction}'s per-frame hover pass. When true the
+     *  sphere highlight is composited over the viewport (the screen-space hover
+     *  overlay, the same look bones/handles get from the pick stencil). */
     private boolean sphereHovered;
 
     private Gizmo()
@@ -315,6 +334,77 @@ public class Gizmo
     }
 
     /**
+     * Composite the trackball sphere's hover highlight over the viewport, the
+     * same screen-space overlay bones and handles get from the pick stencil.
+     *
+     * <p>The sphere can't share the pick stencil (its pixels would erase the
+     * bone ids the deferred bone-vs-sphere pick reads), so it gets a private
+     * mask: re-draw the sphere — at the exact matrix it was rendered with this
+     * frame ({@link #lastSphereMatrix}) and the viewport's projection — into
+     * {@link #sphereHighlight} carrying {@link #STENCIL_TRACKBALL} as its id,
+     * then run the picker-preview shader so only those pixels light up.
+     *
+     * <p>Called from each {@link GizmoViewport}'s GUI overlay pass via
+     * {@link GizmoInteraction#renderSphereHighlight}; {@code projection}/{@code area}
+     * are the same pair {@link #computeScreenCenter} uses, so the mask lands on
+     * the sphere's footprint regardless of mask resolution.
+     */
+    public void renderSphereHighlight(UIContext context, Matrix4f projection, Area area)
+    {
+        if (!this.sphereHovered || !this.hasLastSphereMatrix || !this.isSphereInteractive()
+            || !UIBaseMenu.renderAxes || this.rotateSphereVbo == null || projection == null || area == null)
+        {
+            return;
+        }
+
+        MinecraftClient mc = MinecraftClient.getInstance();
+
+        this.sphereHighlight.setup(Link.bbs("gizmo_sphere_highlight"));
+
+        int w = mc.getWindow().getWidth();
+        int h = mc.getWindow().getHeight();
+        Texture texture = this.sphereHighlight.getFramebuffer().getMainTexture();
+
+        if (texture.width != w || texture.height != h)
+        {
+            this.sphereHighlight.resize(w, h);
+        }
+
+        this.sphereHighlight.apply();
+
+        RenderSystem.disableDepthTest();
+        RenderSystem.setShaderColor(STENCIL_TRACKBALL / 255F, 0F, 0F, 1F);
+        this.rotateSphereVbo.bind();
+        this.rotateSphereVbo.draw(this.lastSphereMatrix, projection, GameRenderer.getPositionColorProgram());
+        VertexBuffer.unbind();
+        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+        RenderSystem.enableDepthTest();
+
+        this.sphereHighlight.unbind();
+        mc.getFramebuffer().beginWrite(true);
+
+        ShaderProgram previewProgram = BBSShaders.getPickerPreviewProgram();
+        GlUniform target = previewProgram.getUniform("Target");
+
+        if (target != null)
+        {
+            target.set(STENCIL_TRACKBALL);
+        }
+
+        GlUniform highlight = previewProgram.getUniform("HighlightColor");
+
+        if (highlight != null)
+        {
+            int color = BBSSettings.stencilHighlightColor.get();
+
+            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+        }
+
+        RenderSystem.enableBlend();
+        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE, area.x, area.y, area.w, area.h, 0, texture.height, texture.width, 0, texture.width, texture.height);
+    }
+
+    /**
      * Set the persistent gizmo mode. Returns {@code true} iff the mode
      * actually changed — callers (notably the tool-switch hotkey
      * helper) use this to distinguish a real switch from a no-op press
@@ -461,6 +551,8 @@ public class Gizmo
 
             stack.push();
             stack.scale(distanceScale, distanceScale, distanceScale);
+            this.lastSphereMatrix.set(stack.peek().getPositionMatrix());
+            this.hasLastSphereMatrix = true;
             this.drawAxes(stack, 0.25F, 0.008F);
             stack.pop();
         }
@@ -805,9 +897,10 @@ public class Gizmo
          * combined it sits as a faint tint behind the move/scale handles. */
         if (this.hasSphere() && BBSSettings.rotate3dSphere.get() && (!rotating || trackball))
         {
-            int color = this.sphereHovered
-                ? BBSSettings.stencilHighlightColor.get()
-                : BBSSettings.rotate3dSphereColor.get();
+            /* Always the base colour — hover is now a screen-space overlay
+             * composited in {@link #renderSphereHighlight}, so the sphere keeps
+             * its own colour and the highlight reads as a glow on top. */
+            int color = BBSSettings.rotate3dSphereColor.get();
 
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();

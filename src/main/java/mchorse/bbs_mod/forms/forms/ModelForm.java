@@ -2,6 +2,7 @@ package mchorse.bbs_mod.forms.forms;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
+import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.forms.values.ValueActionsConfig;
 import mchorse.bbs_mod.forms.values.ValueShapeKeys;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
@@ -36,6 +37,8 @@ public class ModelForm extends Form
 
     public final List<ValuePose> additionalOverlays = new ArrayList<>();
     public final transient Map<String, Vector3f> ikTargetOverrides = new HashMap<>();
+    public final transient Map<String, Vector3f> poleTargetOverrides = new HashMap<>();
+    public final transient Map<String, IKControl> ikControlOverrides = new HashMap<>();
     public final transient Map<String, Vector3f> physicsTargetOverrides = new HashMap<>();
 
     public ModelForm()

@@ -722,7 +722,32 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     {
         this.renderGrid(context);
         this.renderGraph(context);
+        this.renderTimelineGrid(context);
         this.renderPreviewHints(context);
+    }
+
+    /**
+     * Render the ruler's vertical lines over the tracks at full height (opt-in setting).
+     */
+    private void renderTimelineGrid(UIContext context)
+    {
+        if (!BBSSettings.editorTimelineGrid.get())
+        {
+            return;
+        }
+
+        Area area = this.keyframes.graphArea;
+        int ht = (int) this.keyframes.fromGraphX(area.x);
+
+        TimelineRulerRenderer.renderGrid(
+            context,
+            area,
+            TimelineRulerRenderer.getRulerBottom(area),
+            Math.max(ht, 0),
+            this.keyframes.getDuration(),
+            this.keyframes::toGraphX,
+            TimeUtils::formatTime
+        );
     }
 
     /**
@@ -731,16 +756,13 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     protected void renderGrid(UIContext context)
     {
         Area area = this.keyframes.graphArea;
-        int mult = this.keyframes.getXAxis().getMult();
         int ht = (int) this.keyframes.fromGraphX(area.x);
         int duration = this.keyframes.getDuration();
 
         TimelineRulerRenderer.render(
             context,
             area,
-            mult,
             Math.max(ht, 0),
-            duration,
             duration,
             this.keyframes::toGraphX,
             TimeUtils::formatTime,

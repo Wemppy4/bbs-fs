@@ -100,6 +100,7 @@ public class BBSSettings {
 	public static ValueBoolean editorCenterLines;
 	public static ValueBoolean editorCrosshair;
 	public static ValueBoolean editorSeconds;
+	public static ValueBoolean editorTimelineGrid;
 	public static ValueInt editorPeriodicSave;
 	public static ValueBoolean editorHorizontalFlight;
 	public static ValueBoolean editorOrbitMovementRequiresFlight;
@@ -473,6 +474,7 @@ public class BBSSettings {
 		editorCenterLines = builder.getBoolean("center_lines", false);
 		editorCrosshair = builder.getBoolean("crosshair", false);
 		editorSeconds = builder.getBoolean("seconds", false);
+		editorTimelineGrid = builder.getBoolean("timeline_grid", false);
 		editorPeriodicSave = builder.getInt("periodic_save", 60, 0, 3600);
 		editorHorizontalFlight = builder.getBoolean("horizontal_flight", false);
 		editorOrbitMovementRequiresFlight = builder.getBoolean("orbit_movement_requires_flight", true);

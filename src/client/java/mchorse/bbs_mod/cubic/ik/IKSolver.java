@@ -40,12 +40,12 @@ final class IKSolver
     {
     }
 
-    public static List<Vector3f> solve(List<Vector3f> positions, Vector3f target, boolean applyPole, float poleAngleRad, float softness, int maxIterations, float tolerance)
+    public static List<Vector3f> solve(List<Vector3f> positions, Vector3f target, boolean applyPole, Vector3f polePoint, float softness, int maxIterations, float tolerance)
     {
-        return solve(positions, target, applyPole, poleAngleRad, softness, maxIterations, tolerance, null, null);
+        return solve(positions, target, applyPole, polePoint, softness, maxIterations, tolerance, null, null);
     }
 
-    public static List<Vector3f> solve(List<Vector3f> positions, Vector3f target, boolean applyPole, float poleAngleRad, float softness, int maxIterations, float tolerance, Limit[] limits, Quaternionf rootParentRotation)
+    public static List<Vector3f> solve(List<Vector3f> positions, Vector3f target, boolean applyPole, Vector3f polePoint, float softness, int maxIterations, float tolerance, Limit[] limits, Quaternionf rootParentRotation)
     {
         int n = positions.size();
 
@@ -78,7 +78,7 @@ final class IKSolver
              * pole control. The pole defines the hinge; limits ride on top as
              * range clamps (e.g. stop the elbow hyperextending). */
             solveTwoBone(positions, root, goal);
-            orientBend(positions, hinge, poleAngleRad);
+            orientBend(positions, hinge, polePoint);
 
             if (constrained)
             {
@@ -91,12 +91,12 @@ final class IKSolver
              * pole rotates the whole chain about root->tip — that preserves every
              * joint's local rotation, so it can't break the limits. */
             solveCCD(positions, root, goal, maxIterations, tolerance, limits, rootParentRotation);
-            orientBend(positions, hinge, poleAngleRad);
+            orientBend(positions, hinge, polePoint);
         }
         else
         {
             solveCCD(positions, root, goal, maxIterations, tolerance, null, null);
-            orientBend(positions, hinge, poleAngleRad);
+            orientBend(positions, hinge, polePoint);
         }
 
         return positions;
@@ -523,18 +523,20 @@ final class IKSolver
     }
 
     /**
-     * Rotates the whole chain about the root-to-tip axis so its bend plane keeps
-     * the captured hinge orientation (the limb behaves like a hinge and never
-     * inverts), then tilts it by the pole angle. Aligning the bend-plane NORMAL
-     * (the hinge axis, which stays perpendicular to the limb as it swings)
-     * instead of the bend direction is what prevents the flip. The root and tip
+     * Rotates the whole chain about the root-to-tip axis so the bend points at
+     * the pole target. With no pole target it instead keeps the captured hinge
+     * orientation (the limb behaves like a hinge and never inverts). Either way
+     * the bend DIRECTION is aimed: at the pole point's perpendicular projection,
+     * or — for the hinge — at {@code axis x hinge}, which is the bend direction
+     * matching the bend-plane normal the hinge represents (so it stays
+     * perpendicular to the limb as it swings and can't flip). The root and tip
      * lie on the axis, so reach is preserved.
      */
-    private static void orientBend(List<Vector3f> p, Vector3f hinge, float poleAngleRad)
+    private static void orientBend(List<Vector3f> p, Vector3f hinge, Vector3f polePoint)
     {
         int n = p.size();
 
-        if (n < 3 || hinge == null)
+        if (n < 3)
         {
             return;
         }
@@ -547,27 +549,43 @@ final class IKSolver
             return;
         }
 
-        /* Current bend-plane normal = (elbow - root) x axis. */
-        Vector3f current = new Vector3f(p.get(1)).sub(root).cross(axis);
+        /* Current bend direction = where the elbow points off the limb axis. */
+        Vector3f current = new Vector3f(p.get(1)).sub(root);
 
-        if (!normalize(current))
+        if (!project(current, axis))
         {
             return;
         }
 
-        /* Desired normal = the captured hinge, projected onto the plane across
-         * the axis. Degenerate only when the limb points straight along the
-         * hinge (rare) — then we hold the current bend instead of flipping. */
-        Vector3f desired = new Vector3f(hinge);
+        Vector3f desired = new Vector3f();
 
-        if (!project(desired, axis))
+        if (polePoint != null)
+        {
+            /* Aim the elbow at the pole point — a stable external reference, so
+             * the bend can't flip as the target swings (the whole point of a
+             * pole). Degenerate only when the pole lies on the limb axis. */
+            desired.set(polePoint).sub(root);
+
+            if (!project(desired, axis))
+            {
+                return;
+            }
+        }
+        else if (hinge != null)
+        {
+            /* No pole target: bend direction derived from the captured hinge
+             * normal. Degenerate only when the limb points along the hinge
+             * (rare) — then we hold the current bend instead of flipping. */
+            desired.set(axis).cross(hinge);
+
+            if (!project(desired, axis))
+            {
+                return;
+            }
+        }
+        else
         {
             return;
-        }
-
-        if (poleAngleRad != 0F)
-        {
-            new Quaternionf().fromAxisAngleRad(axis.x, axis.y, axis.z, poleAngleRad).transform(desired);
         }
 
         float theta = signedAngle(current, desired, axis);

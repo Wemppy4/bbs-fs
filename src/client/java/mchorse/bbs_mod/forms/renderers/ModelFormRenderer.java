@@ -383,37 +383,50 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         this.ikAppliedThisRender = true;
         model.form = this.form;
-        if (baseTransform == null || this.form == null || this.form.ikTargetOverrides.isEmpty())
+
+        boolean hasOverrides = baseTransform != null && this.form != null
+            && (!this.form.ikTargetOverrides.isEmpty() || !this.form.poleTargetOverrides.isEmpty());
+
+        if (!hasOverrides)
         {
-            ModelIKRuntime.applyWithPoseFix(model, this.poseFixByBone);
+            ModelIKRuntime.apply(model, null, null);
             return;
         }
 
         Matrix4f inv = new Matrix4f(baseTransform).invert();
-        Map<String, Vector3f> local = new HashMap<>(this.form.ikTargetOverrides.size() * 2);
+        Map<String, Vector3f> local = toModelSpace(this.form.ikTargetOverrides, inv);
+        Map<String, Vector3f> poleLocal = toModelSpace(this.form.poleTargetOverrides, inv);
 
-        for (Map.Entry<String, Vector3f> entry : this.form.ikTargetOverrides.entrySet())
+        if (local.isEmpty() && poleLocal.isEmpty())
         {
-            String controller = entry.getKey();
+            ModelIKRuntime.apply(model, null, null);
+            return;
+        }
+
+        ModelIKRuntime.apply(model, local.isEmpty() ? null : local, poleLocal.isEmpty() ? null : poleLocal);
+    }
+
+    /** World-space target overrides into the model's local space (the space the solver and pivot frames use). */
+    private static Map<String, Vector3f> toModelSpace(Map<String, Vector3f> world, Matrix4f inv)
+    {
+        Map<String, Vector3f> local = new HashMap<>(world.size() * 2);
+
+        for (Map.Entry<String, Vector3f> entry : world.entrySet())
+        {
+            String key = entry.getKey();
             Vector3f worldPos = entry.getValue();
 
-            if (controller == null || controller.isEmpty() || worldPos == null)
+            if (key == null || key.isEmpty() || worldPos == null)
             {
                 continue;
             }
 
             Vector3f pos = new Vector3f(worldPos);
             inv.transformPosition(pos);
-            local.put(controller, pos);
+            local.put(key, pos);
         }
 
-        if (local.isEmpty())
-        {
-            ModelIKRuntime.applyWithPoseFix(model, this.poseFixByBone);
-            return;
-        }
-
-        ModelIKRuntime.apply(model, local, this.poseFixByBone);
+        return local;
     }
 
     private void applyPhysicsOnce(IEntity target, ModelInstance model, float transition, Matrix4f baseTransform)

@@ -25,6 +25,7 @@ import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
@@ -121,6 +122,11 @@ public class UIReplaysEditor extends UIElement {
                 Icons.POSE,
                 L10n.lang("bbs.ui.film.replays.category.pose"),
                 L10n.lang("bbs.ui.film.replays.category.pose.tooltip")
+        ),
+        IK(
+                Icons.LIMB,
+                L10n.lang("bbs.ui.film.replays.category.ik"),
+                L10n.lang("bbs.ui.film.replays.category.ik.tooltip")
         );
 
         public final Icon icon;
@@ -390,6 +396,9 @@ public class UIReplaysEditor extends UIElement {
         this.keys()
                 .register(Keys.REPLAYS_TAB_3, () -> this.setCategory(ReplayCategory.POSE))
                 .category(UIKeys.FILM_REPLAY_TITLE);
+        this.keys()
+                .register(Keys.REPLAYS_TAB_4, () -> this.setCategory(ReplayCategory.IK))
+                .category(UIKeys.FILM_REPLAY_TITLE);
 
         this.add(this.iconBar);
         this.markContainer();
@@ -485,6 +494,8 @@ public class UIReplaysEditor extends UIElement {
             return;
         }
 
+        this.updateIKTab();
+
         List<UIKeyframeSheet> sheets = new ArrayList<>();
         Map<UIKeyframeSheet, List<UIKeyframeSheet>> poseTabs = new HashMap<>();
         Map<UIKeyframeSheet, Integer> poseTabDepths = new HashMap<>();
@@ -492,6 +503,7 @@ public class UIReplaysEditor extends UIElement {
 
         this.collectCuratedSheets(sheets, tabsEnabled);
         this.collectFormPropertySheets(sheets, tabsEnabled, poseTabs, poseTabDepths);
+        this.collectIKSheets(sheets, tabsEnabled);
 
         this.keys.clear();
 
@@ -727,6 +739,81 @@ public class UIReplaysEditor extends UIElement {
         }
     }
 
+    /** IK tracks live in their own category; they are not form properties, so collect them by walking the form tree. */
+    private void collectIKSheets(List<UIKeyframeSheet> sheets, boolean tabsEnabled) {
+        if (tabsEnabled && this.category != ReplayCategory.IK) {
+            return;
+        }
+
+        this.collectIKSheets(sheets, this.replay.form.get());
+    }
+
+    private void collectIKSheets(List<UIKeyframeSheet> sheets, Form form) {
+        if (form == null) {
+            return;
+        }
+
+        if (form instanceof ModelForm modelForm) {
+            UIReplaysEditorUtils.addIKControlSheet(modelForm, this.replay.properties, sheets);
+            UIReplaysEditorUtils.addIKTargetSheets(modelForm, this.replay.properties, sheets);
+            UIReplaysEditorUtils.addPoleTargetSheets(modelForm, this.replay.properties, sheets);
+        }
+
+        for (BodyPart part : form.parts.getAllTyped()) {
+            this.collectIKSheets(sheets, part.getForm());
+        }
+    }
+
+    /** Show the IK tab only when the record actually has IK; bounce an active IK category back to Model when it does not. */
+    private void updateIKTab() {
+        UIIcon button = this.tabButtons.get(ReplayCategory.IK);
+
+        if (button == null) {
+            return;
+        }
+
+        boolean hasIK = this.formHasIK(this.replay.form.get());
+        boolean present = button.getParent() != null;
+
+        if (hasIK && !present) {
+            this.iconBar.add(button);
+            this.iconBar.resize();
+        } else if (!hasIK && present) {
+            button.removeFromParent();
+            this.iconBar.resize();
+        }
+
+        if (!hasIK && this.category == ReplayCategory.IK) {
+            this.category = ReplayCategory.MODEL;
+        }
+    }
+
+    private boolean formHasIK(Form form) {
+        if (form == null) {
+            return false;
+        }
+
+        if (form instanceof ModelForm modelForm) {
+            ModelInstance model = ModelFormRenderer.getModel(modelForm);
+
+            if (model != null) {
+                model.form = modelForm;
+
+                if (!ModelIKRuntime.getControllers(model).isEmpty()) {
+                    return true;
+                }
+            }
+        }
+
+        for (BodyPart part : form.parts.getAllTyped()) {
+            if (this.formHasIK(part.getForm())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void flushForm(
             List<UIKeyframeSheet> sheets,
             List<UIKeyframeSheet> formSheets,
@@ -753,10 +840,6 @@ public class UIReplaysEditor extends UIElement {
 
         if (form instanceof ModelForm modelForm) {
             if (!tabsEnabled || this.category == ReplayCategory.MODEL) {
-                List<UIKeyframeSheet> ikSheets = new ArrayList<>();
-                UIReplaysEditorUtils.addIKTargetSheets(modelForm, this.replay.properties, ikSheets);
-                orderedFormSheets.addAll(ikSheets);
-
                 List<UIKeyframeSheet> physicsSheets = new ArrayList<>();
                 UIReplaysEditorUtils.addPhysicsTargetSheets(modelForm, this.replay.properties, physicsSheets);
                 orderedFormSheets.addAll(physicsSheets);

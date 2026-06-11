@@ -14,6 +14,8 @@ import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.BodyPart;
+import mchorse.bbs_mod.cubic.ik.IKControl;
+import mchorse.bbs_mod.cubic.ik.IKControls;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
@@ -776,11 +778,25 @@ public abstract class BaseFilmController
                 continue;
             }
 
+            if (PerLimbService.isIKControlChannel(id))
+            {
+                this.applyIKControls(root, PerLimbService.parseIKControlFormPath(id), channel, tick);
+                continue;
+            }
+
             PerLimbService.IKTargetPath ikPath = PerLimbService.parseIKTargetPath(id);
 
             if (ikPath != null)
             {
-                this.applyOverride(root, ikPath.formPath(), ikPath.controller(), channel, tick, transition, true);
+                this.applyOverride(root, ikPath.formPath(), ikPath.controller(), channel, tick, transition, TargetKind.IK);
+                continue;
+            }
+
+            PerLimbService.PoleTargetPath polePath = PerLimbService.parsePoleTargetPath(id);
+
+            if (polePath != null)
+            {
+                this.applyOverride(root, polePath.formPath(), polePath.controller(), channel, tick, transition, TargetKind.POLE);
                 continue;
             }
 
@@ -788,12 +804,46 @@ public abstract class BaseFilmController
 
             if (physicsPath != null)
             {
-                this.applyOverride(root, physicsPath.formPath(), physicsPath.rootBone(), channel, tick, transition, false);
+                this.applyOverride(root, physicsPath.formPath(), physicsPath.rootBone(), channel, tick, transition, TargetKind.PHYSICS);
             }
         }
     }
 
-    private void applyOverride(Form root, String formPath, String targetId, KeyframeChannel<?> channel, float tick, float transition, boolean isIK)
+    private void applyIKControls(Form root, String formPath, KeyframeChannel<?> channel, float tick)
+    {
+        Form form = formPath == null || formPath.isEmpty() ? root : FormUtils.getForm(root, formPath);
+
+        if (!(form instanceof ModelForm modelForm))
+        {
+            return;
+        }
+
+        KeyframeSegment<?> segment = channel.find(tick);
+
+        if (segment == null)
+        {
+            return;
+        }
+
+        Object value = segment.createInterpolated();
+
+        if (!(value instanceof IKControls controls))
+        {
+            return;
+        }
+
+        for (Map.Entry<String, IKControl> entry : controls.controls.entrySet())
+        {
+            modelForm.ikControlOverrides.computeIfAbsent(entry.getKey(), (k) -> new IKControl()).copy(entry.getValue());
+        }
+    }
+
+    private enum TargetKind
+    {
+        IK, POLE, PHYSICS
+    }
+
+    private void applyOverride(Form root, String formPath, String targetId, KeyframeChannel<?> channel, float tick, float transition, TargetKind kind)
     {
         Form form = formPath.isEmpty() ? root : FormUtils.getForm(root, formPath);
 
@@ -803,7 +853,13 @@ public abstract class BaseFilmController
 
             if (position != null)
             {
-                Map<String, Vector3f> overrides = isIK ? modelForm.ikTargetOverrides : modelForm.physicsTargetOverrides;
+                Map<String, Vector3f> overrides = switch (kind)
+                {
+                    case IK -> modelForm.ikTargetOverrides;
+                    case POLE -> modelForm.poleTargetOverrides;
+                    case PHYSICS -> modelForm.physicsTargetOverrides;
+                };
+
                 overrides.computeIfAbsent(targetId, (k) -> new Vector3f()).set(position);
             }
         }
@@ -843,6 +899,8 @@ public abstract class BaseFilmController
         if (form instanceof ModelForm modelForm)
         {
             modelForm.ikTargetOverrides.clear();
+            modelForm.poleTargetOverrides.clear();
+            modelForm.ikControlOverrides.clear();
             modelForm.physicsTargetOverrides.clear();
         }
 

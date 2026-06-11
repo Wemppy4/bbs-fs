@@ -1201,6 +1201,11 @@ public class UIElement implements IUIElement, IUndoElement
     {
         for (int i = this.children.size() - 1; i >= 0; i--)
         {
+            if (i >= this.children.size())
+            {
+                continue;
+            }
+
             IUIElement element = this.children.get(i);
 
             if (element.isEnabled())
@@ -1221,6 +1226,11 @@ public class UIElement implements IUIElement, IUndoElement
     {
         for (int i = this.children.size() - 1; i >= 0; i--)
         {
+            if (i >= this.children.size())
+            {
+                continue;
+            }
+
             IUIElement element = this.children.get(i);
 
             if (element.isEnabled())
@@ -1241,6 +1251,11 @@ public class UIElement implements IUIElement, IUndoElement
     {
         for (int i = this.children.size() - 1; i >= 0; i--)
         {
+            if (i >= this.children.size())
+            {
+                continue;
+            }
+
             IUIElement element = this.children.get(i);
 
             if (element.isEnabled())
@@ -1261,6 +1276,11 @@ public class UIElement implements IUIElement, IUndoElement
     {
         for (int i = this.children.size() - 1; i >= 0; i--)
         {
+            if (i >= this.children.size())
+            {
+                continue;
+            }
+
             IUIElement element = this.children.get(i);
 
             if (element.isEnabled())
@@ -1281,6 +1301,11 @@ public class UIElement implements IUIElement, IUndoElement
     {
         for (int i = this.children.size() - 1; i >= 0; i--)
         {
+            if (i >= this.children.size())
+            {
+                continue;
+            }
+
             IUIElement element = this.children.get(i);
 
             if (element.isEnabled())

@@ -13,7 +13,7 @@ final class ModelIKCache
     {
     }
 
-    public record CompiledChain(String tip, String target, boolean pole, float poleAngle, float softness, float weight, List<String> chainRootToEffector)
+    public record CompiledChain(String tip, String target, boolean pole, String poleTarget, float softness, float weight, List<String> chainRootToEffector)
     {
     }
 
@@ -88,7 +88,17 @@ final class ModelIKCache
                 continue;
             }
 
-            out.add(new CompiledChain(chain.tip(), chain.target(), chain.pole(), chain.poleAngle(), chain.softness(), chain.weight(), chainIds));
+            /* A pole target that does not resolve to a real bone falls back to
+             * the automatic hinge (an empty pole target), so a stale reference
+             * never breaks the chain. */
+            String poleTarget = chain.poleTarget();
+
+            if (poleTarget != null && !poleTarget.isEmpty() && !model.getAllGroupKeys().contains(poleTarget))
+            {
+                poleTarget = "";
+            }
+
+            out.add(new CompiledChain(chain.tip(), chain.target(), chain.pole(), poleTarget, chain.softness(), chain.weight(), chainIds));
         }
 
         return out;

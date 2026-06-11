@@ -1794,6 +1794,19 @@ public class UIClips extends UIElement
         batcher.unclip(context);
         batcher.clip(this.vertical.area.x, rulerBottom, this.vertical.area.ex(), this.vertical.area.ey(), context);
 
+        if (BBSSettings.editorTimelineGrid.get())
+        {
+            TimelineRulerRenderer.renderGrid(
+                context,
+                area,
+                rulerBottom,
+                (int) this.scale.getMinValue(),
+                this.clips.calculateDuration(),
+                this::toGraphX,
+                TimeUtils::formatTime
+            );
+        }
+
         List<Clip> clips = this.clips.get();
 
         for (int i = 0, c = clips.size(); i < c; i++)
@@ -1902,17 +1915,13 @@ public class UIClips extends UIElement
      */
     private void renderTickMarkers(UIContext context, int y, int h)
     {
-        int mult = this.scale.getMult() * 2;
         int start = (int) this.scale.getMinValue();
-        int end = (int) this.scale.getMaxValue();
         int duration = this.clips.calculateDuration();
 
         TimelineRulerRenderer.render(
             context,
             this.area,
-            mult,
             start,
-            end,
             duration,
             this::toGraphX,
             TimeUtils::formatTime

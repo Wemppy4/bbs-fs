@@ -584,7 +584,9 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             return true;
         }
 
-        if (this.canShowGizmo() && this.gizmo.mouseClicked(context))
+        /* Gizmo handles first; the trackball sphere is deferred to the end so
+         * its screen disc doesn't block a click on the model block under it. */
+        if (this.canShowGizmo() && this.gizmo.mouseClickedHandle(context))
         {
             return true;
         }
@@ -592,9 +594,11 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         if (this.hovered != null && context.mouseButton == 0 && BBSSettings.clickModelBlocks.get())
         {
             this.fill(this.hovered, true);
+
+            return false;
         }
 
-        return false;
+        return this.canShowGizmo() && this.gizmo.mouseClickedSphere(context);
     }
 
     @Override
@@ -631,6 +635,11 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         super.render(context);
 
         this.renderGizmoHover(context);
+
+        if (this.canShowGizmo())
+        {
+            this.gizmo.renderSphereHighlight(context);
+        }
     }
 
     /**

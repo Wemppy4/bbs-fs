@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
@@ -21,6 +22,9 @@ public class UIKeyframeSheet extends UIKeyframeElement
     public final KeyframeSelection selection;
     public final BaseValueBasic property;
     public final boolean isBoneTrack;
+
+    /** Set for sheets that have no backing form property (e.g. the IK controls track), so the editor can find the owning form. */
+    public Form form;
 
     public UIKeyframeSheet(int color, boolean separator, KeyframeChannel channel, BaseValueBasic property)
     {
@@ -48,6 +52,13 @@ public class UIKeyframeSheet extends UIKeyframeElement
     public UIKeyframeSheet icon(Icon icon)
     {
         this.icon = icon;
+
+        return this;
+    }
+
+    public UIKeyframeSheet form(Form form)
+    {
+        this.form = form;
 
         return this;
     }

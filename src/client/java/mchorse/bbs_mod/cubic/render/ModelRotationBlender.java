@@ -229,7 +229,7 @@ public final class ModelRotationBlender
         }
     }
 
-    private static Vector3f getBobjRestDirection(BOBJModel model, BOBJBone bone, BOBJBone child, List<String> ids, int index)
+    public static Vector3f getBobjRestDirection(BOBJModel model, BOBJBone bone, BOBJBone child, List<String> ids, int index)
     {
         if (child != null)
         {

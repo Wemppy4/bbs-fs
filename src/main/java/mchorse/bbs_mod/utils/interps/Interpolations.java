@@ -110,6 +110,24 @@ public class Interpolations
         }
     };
 
+    public static final IInterp AUTO = new BaseInterp("auto", GLFW.GLFW_KEY_A)
+    {
+        @Override
+        public double interpolate(InterpContext context)
+        {
+            return AutoBezier.get(context.a0, context.a, context.b, context.b0, 0, 1, 2, 3, false, (float) context.x);
+        }
+    };
+
+    public static final IInterp AUTO_CLAMPED = new BaseInterp("auto_clamped", GLFW.GLFW_KEY_D)
+    {
+        @Override
+        public double interpolate(InterpContext context)
+        {
+            return AutoBezier.get(context.a0, context.a, context.b, context.b0, 0, 1, 2, 3, true, (float) context.x);
+        }
+    };
+
     public static final IInterp BSPLINE = new BaseInterp("bspline", GLFW.GLFW_KEY_J)
     {
         @Override
@@ -163,6 +181,8 @@ public class Interpolations
         MAP.put(CUBIC.getKey(), CUBIC);
         MAP.put(HERMITE.getKey(), HERMITE);
         MAP.put(BEZIER.getKey(), BEZIER);
+        MAP.put(AUTO.getKey(), AUTO);
+        MAP.put(AUTO_CLAMPED.getKey(), AUTO_CLAMPED);
         MAP.put(BSPLINE.getKey(), BSPLINE);
     }
 
