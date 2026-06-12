@@ -752,7 +752,7 @@ public class Gizmo
         Vector3f axisX = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(0, new Vector3f());
         Vector3f axisY = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(1, new Vector3f());
         Vector3f axisZ = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(2, new Vector3f());
-        Vector3f dragAxisDir = this.currentTransform.getDrag().rotateAxes.getColumn(axis.ordinal(), new Vector3f());
+        Vector3f dragAxisDir = this.currentTransform.getDragAxisDir();
 
         float gx = initialVec.dot(axisX);
         float gy = initialVec.dot(axisY);
