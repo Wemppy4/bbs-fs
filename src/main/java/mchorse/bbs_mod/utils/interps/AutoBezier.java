@@ -25,7 +25,10 @@ public class AutoBezier
         double w = bTick - aTick;
         double h = b - a;
 
-        if (h == 0) h = 0.00001;
+        /* Constant value across the segment: return it exactly. The old epsilon (0.00001) leaked a
+         * tiny non-zero into the result, which e.g. turned a constant pose-overlay fix=0 into ~1e-5
+         * and tripped exact "fix != 0" checks. */
+        if (h == 0) return a;
 
         double[] ah = new double[4];
         double[] bh = new double[4];

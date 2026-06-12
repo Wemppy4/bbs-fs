@@ -32,6 +32,7 @@ import mchorse.bbs_mod.graphics.texture.TextureManager;
 import mchorse.bbs_mod.items.GunProperties;
 import mchorse.bbs_mod.items.GunZoom;
 import mchorse.bbs_mod.l10n.L10n;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.network.ServerNetwork;
@@ -426,6 +427,38 @@ public class BBSModClient implements ClientModInitializer
             UIKeys.ENGINE_KEYSTROKES_POSITION_TOP_RIGHT,
             UIKeys.ENGINE_KEYSTROKES_POSITION_TOP_LEFT
         );
+
+        BBSSettings.rotate3dSphereMode.modes(
+            UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL,
+            UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL
+        );
+
+        BBSSettings.translateHotkeyOrder
+            .labels(
+                UIKeys.TRANSFORMS_TARGET_SCREEN,
+                IKey.constant("X"),
+                IKey.constant("Y"),
+                IKey.constant("Z")
+            )
+            .colors(0, Colors.A100 | Colors.RED, Colors.A100 | Colors.GREEN, Colors.A100 | Colors.BLUE);
+
+        BBSSettings.scaleHotkeyOrder
+            .labels(
+                IKey.constant("X"),
+                IKey.constant("Y"),
+                IKey.constant("Z")
+            )
+            .colors(Colors.A100 | Colors.RED, Colors.A100 | Colors.GREEN, Colors.A100 | Colors.BLUE);
+
+        BBSSettings.rotateHotkeyOrder
+            .labels(
+                UIKeys.TRANSFORMS_TARGET_VIEW,
+                UIKeys.TRANSFORMS_TARGET_SPHERE,
+                IKey.constant("X"),
+                IKey.constant("Y"),
+                IKey.constant("Z")
+            )
+            .colors(0, 0, Colors.A100 | Colors.RED, Colors.A100 | Colors.GREEN, Colors.A100 | Colors.BLUE);
 
         UIKeys.C_KEYBIND_CATGORIES.load(KeyCombo.getCategoryKeys());
         UIKeys.C_KEYBIND_CATGORIES_TOOLTIP.load(KeyCombo.getCategoryKeys());

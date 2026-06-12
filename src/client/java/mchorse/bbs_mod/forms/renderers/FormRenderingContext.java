@@ -63,7 +63,7 @@ public class FormRenderingContext
         return this;
     }
 
-    public FormRenderingContext camera(net.minecraft.client.render.Camera camera)
+    public FormRenderingContext camera(net.minecraft.client.render.Camera /* NECESSARY */ camera)
     {
         this.camera.position.set(camera.getPos().x, camera.getPos().y, camera.getPos().z);
         this.camera.rotation.set(MathUtils.toRad(-camera.getPitch()), MathUtils.toRad(camera.getYaw()), 0F);

@@ -9,6 +9,7 @@ import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
 import mchorse.bbs_mod.cubic.render.ModelRotationBlender;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -230,7 +231,7 @@ public final class ModelPhysicsRuntime
         Quaternionf anchorRotation = rootFrame.worldRotation();
 
         Vector3f target = null;
-        if (instance != null && instance.form instanceof mchorse.bbs_mod.forms.forms.ModelForm modelForm)
+        if (instance != null && instance.form instanceof ModelForm modelForm)
         {
             String rootBone = ids.get(0);
             Vector3f worldPos = modelForm.physicsTargetOverrides.get(rootBone);

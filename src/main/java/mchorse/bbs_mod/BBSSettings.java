@@ -12,6 +12,7 @@ import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.settings.values.ui.ValueEditorLayout;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
+import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -43,6 +44,7 @@ public class BBSSettings {
 	public static ValueFloat axesThickness;
 	public static ValueBoolean axesKeepScreenSize;
 	public static ValueBoolean rotate3dSphere;
+	public static ValueInt rotate3dSphereMode;
 	public static ValueInt rotate3dSphereColor;
 	public static ValueBoolean rotateHideRings;
 	public static ValueBoolean uniformScale;
@@ -50,6 +52,9 @@ public class BBSSettings {
 	public static ValueBoolean gizmos;
 	public static ValueBoolean transformLocalDefault;
 	public static ValueBoolean transformHotkeys3dRay;
+	public static ValueOrder translateHotkeyOrder;
+	public static ValueOrder scaleHotkeyOrder;
+	public static ValueOrder rotateHotkeyOrder;
 	public static ValueFloat trackballSensitivity;
 
 	public static ValueBoolean enableCursorRendering;
@@ -80,6 +85,7 @@ public class BBSSettings {
 	public static ValueInt videoWidth;
 	public static ValueInt videoHeight;
 	public static ValueInt videoFrameRate;
+	public static ValueBoolean videoLimitFrameRate;
 	public static ValueString videoExportPath;
 	public static ValueBoolean videoExportAudio;
 	public static ValueInt videoMotionBlur;
@@ -412,10 +418,17 @@ public class BBSSettings {
 		axesThickness = builder.getFloat("axes_thickness", 0.5F, 0.25F, 3F);
 		axesKeepScreenSize = builder.getBoolean("axes_keep_screen_size", true);
 		rotate3dSphere = builder.getBoolean("rotate_3d_sphere", true);
+		rotate3dSphereMode = builder.getInt("rotate_3d_sphere_mode", 0);
 		rotate3dSphereColor = builder.getInt("rotate_3d_sphere_color", Colors.setA(Colors.WHITE, 0F)).colorAlpha();
 		rotateHideRings = builder.getBoolean("rotate_hide_rings", false);
 		transformLocalDefault = builder.getBoolean("transform_local_default", false);
 		transformHotkeys3dRay = builder.getBoolean("hotkeys_3d_ray", true);
+		translateHotkeyOrder = new ValueOrder("translate_hotkey_order", "screen", "x", "y", "z");
+		builder.register(translateHotkeyOrder);
+		scaleHotkeyOrder = new ValueOrder("scale_hotkey_order", "x", "y", "z");
+		builder.register(scaleHotkeyOrder);
+		rotateHotkeyOrder = new ValueOrder("rotate_hotkey_order", "view", "sphere", "x", "y", "z");
+		builder.register(rotateHotkeyOrder);
 		trackballSensitivity = builder.getFloat("trackball_sensitivity", 1F, 0.05F, 2F);
 
 		builder.category("tutorials", Icons.HELP);
@@ -452,6 +465,7 @@ public class BBSSettings {
 		videoWidth = builder.getInt("width", 1280, 2, 8096);
 		videoHeight = builder.getInt("height", 720, 2, 8096);
 		videoFrameRate = builder.getInt("frame_rate", 60, 10, 1000);
+		videoLimitFrameRate = builder.getBoolean("limit_frame_rate", false);
 		videoExportPath = builder.getString("export_path", "");
 		videoExportAudio = builder.getBoolean("audio", false);
 		videoMotionBlur = builder.getInt("motion_blur", 0, 0, 6);

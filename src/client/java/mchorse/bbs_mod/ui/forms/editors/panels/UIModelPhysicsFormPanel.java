@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.forms.editors.panels;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsConfig;
+import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsIO;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
@@ -34,6 +35,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
     private static final int DEFAULT_ITERATIONS = 4;
     private static final float DEFAULT_RADIUS = 0.1F;
 
+    public UIToggle debug;
     public UIButton end;
     public UIButton targetBone;
     public UIStringList bones;
@@ -89,6 +91,9 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_SAVE,
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_NAME
         ));
+
+        this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DEBUG, (b) -> ModelPhysicsDebug.enabled = b.getValue());
+        this.debug.setValue(ModelPhysicsDebug.enabled);
 
         this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ENABLED, (b) ->
         {
@@ -314,6 +319,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         });
 
         this.options.add(
+            this.debug,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CHAINS),
             this.bones,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_SETTINGS).background().marginTop(UIConstants.SECTION_GAP),

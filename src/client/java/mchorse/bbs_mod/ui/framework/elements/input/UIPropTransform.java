@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
+import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -21,11 +22,14 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Matrix3f;
+import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class UIPropTransform extends UITransform
@@ -120,6 +124,21 @@ public class UIPropTransform extends UITransform
     private final Vector3f trackballViewLocal = new Vector3f();
     /** Accumulated wheel-driven view-axis roll (degrees) for the current trackball drag. */
     private float trackballRollDeg;
+    /** World-space unit axis from the sphere centre toward the camera, captured at arcball start. */
+    private final Vector3f arcballViewWorld = new Vector3f();
+    /** World→parent-frame rotation captured at arcball start (constant for the drag). */
+    private final Matrix3f arcballParentInverse = new Matrix3f();
+    /** Grab direction on the ball (parent frame) at the current anchor. */
+    private final Vector3f arcballStartLocal = new Vector3f();
+    /** Cursor's current direction on the ball (parent frame). */
+    private final Vector3f arcballCurrentLocal = new Vector3f();
+    /** Arc segments folded in by re-anchors (cursor wraps), parent frame. Within
+     *  one anchor the rotation stays a pure function of the cursor position. */
+    private final Quaternionf arcballAccum = new Quaternionf();
+    /** World-space radius of the rendered sphere, captured at arcball start. */
+    private float arcballRadius;
+    /** Whether the arcball anchor state is valid (guards the re-anchor fold). */
+    private boolean arcballAnchored;
     /** Whether {@link #dragStartRotateDeg} should be written back to {@code rotate2} instead of {@code rotate}. */
     private boolean dragRotateGizmoSpace;
     private boolean dragHasStart;
@@ -307,9 +326,10 @@ public class UIPropTransform extends UITransform
         return this.mode;
     }
 
-    public boolean isTrackball()
+    /** Whether the active rotation is one of the sphere's kinds (trackball or arcball). */
+    public boolean isSphereRotate()
     {
-        return this.rotateKind == RotateKind.TRACKBALL;
+        return this.rotateKind == RotateKind.TRACKBALL || this.rotateKind == RotateKind.ARCBALL;
     }
 
     public boolean isViewRotate()
@@ -406,35 +426,131 @@ public class UIPropTransform extends UITransform
     public void enableMode(int mode)
     {
         GizmoDrag drag = this.getHotkeyDrag();
+        boolean ray = BBSSettings.transformHotkeys3dRay.get() && drag != null;
 
-        if (mode == Gizmo.Mode.ROTATE.ordinal() && BBSSettings.transformHotkeys3dRay.get() && drag != null)
+        /* G/S/R walk their handles in the user-configured order (the
+         * *_hotkey_order settings), wrapping past the end back to the first
+         * step. Steps whose handle is unavailable drop out: the ray-driven
+         * ones without a rendered gizmo, the sphere when it's turned off. */
+        HotkeyTarget target = this.nextHotkeyTarget(mode, ray);
+
+        if (target == HotkeyTarget.VIEW)
         {
-            boolean rotating = this.editing && this.mode == mode;
-            boolean sphere = BBSSettings.rotate3dSphere.get();
+            this.enableViewRotate(drag, true);
+        }
+        else if (target == HotkeyTarget.SPHERE)
+        {
+            this.enableSphereRotate(drag, true);
+        }
+        else if (target == HotkeyTarget.SCREEN)
+        {
+            this.enableScreenTranslate(drag, true);
+        }
+        else
+        {
+            this.enableHotkeyAxis(mode, target.axis, drag);
+        }
+    }
 
-            /* R walks the 3D rotation handles before falling through to the
-             * per-axis rings: screen-plane ring -> trackball sphere -> X/Y/Z,
-             * each skipped when its handle is turned off. The screen-plane ring
-             * is always available (it is excluded from "Hide rotation rings"). */
-            boolean wantView = !rotating;
-            boolean wantSphere = sphere && rotating && this.rotateKind == RotateKind.VIEW;
-
-            if (wantView)
-            {
-                this.enableViewRotate(drag, true);
-
-                return;
-            }
-
-            if (wantSphere)
-            {
-                this.enableTrackball(drag, true);
-
-                return;
-            }
+    /** The walk step the active edit corresponds to ({@code null} when not editing this mode). */
+    private HotkeyTarget currentHotkeyTarget(int mode)
+    {
+        if (!this.editing || this.mode != mode)
+        {
+            return null;
         }
 
-        this.enableMode(mode, null, null, drag);
+        if (this.rotateKind == RotateKind.VIEW) return HotkeyTarget.VIEW;
+        if (this.isSphereRotate()) return HotkeyTarget.SPHERE;
+        if (this.translateScreen) return HotkeyTarget.SCREEN;
+        if (this.axis == Axis.Y) return HotkeyTarget.Y;
+        if (this.axis == Axis.Z) return HotkeyTarget.Z;
+
+        return HotkeyTarget.X;
+    }
+
+    private HotkeyTarget nextHotkeyTarget(int mode, boolean ray)
+    {
+        ValueOrder order = mode == 0 ? BBSSettings.translateHotkeyOrder : (mode == 1 ? BBSSettings.scaleHotkeyOrder : BBSSettings.rotateHotkeyOrder);
+        List<HotkeyTarget> steps = new ArrayList<>();
+
+        for (String token : order.get())
+        {
+            HotkeyTarget target = HotkeyTarget.byToken(token);
+
+            if (target == null || (target.needsRay && !ray))
+            {
+                continue;
+            }
+
+            if (target == HotkeyTarget.SPHERE && !BBSSettings.rotate3dSphere.get())
+            {
+                continue;
+            }
+
+            steps.add(target);
+        }
+
+        if (steps.isEmpty())
+        {
+            return HotkeyTarget.X;
+        }
+
+        int index = steps.indexOf(this.currentHotkeyTarget(mode));
+
+        return steps.get((index + 1) % steps.size());
+    }
+
+    /**
+     * Start (or switch to) a hotkey-driven operation along a specific axis.
+     * Unlike the mouse path through {@link #enableMode(int, Axis, Axis, GizmoDrag)}
+     * this keeps the hotkey semantics (numeric input, accept/reject overlay,
+     * the display-mode switch on the first press); the axis comes from the
+     * configured hotkey order rather than a fixed cycle.
+     */
+    private void enableHotkeyAxis(int mode, Axis axis, GizmoDrag drag)
+    {
+        if (Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(Gizmo.Mode.values()[mode]))
+        {
+            return;
+        }
+
+        UIContext context = this.getContext();
+        if (context == null || this.transform == null)
+        {
+            return;
+        }
+
+        this.clearNumericInput();
+
+        if (this.editing)
+        {
+            this.restore(true);
+        }
+
+        this.editing = true;
+        this.mode = mode;
+        this.rotateKind = RotateKind.AXIS;
+        this.translateScreen = false;
+        this.axis = axis;
+        this.axis2 = null;
+        this.hotkeyMode = true;
+        this.drag = drag;
+        this.lastX = context.mouseX;
+        this.lastY = context.mouseY;
+
+        this.cache.copy(this.transform);
+        Gizmo.INSTANCE.trackTransform(this);
+
+        if (this.useRayDrag())
+        {
+            this.beginRayDrag(context.mouseX, context.mouseY);
+        }
+
+        if (!this.handler.hasParent())
+        {
+            context.menu.overlay.add(this.handler);
+        }
     }
 
     public void enableMode(int mode, Axis axis)
@@ -447,17 +563,14 @@ public class UIPropTransform extends UITransform
         this.enableMode(mode, axis, axis2, null);
     }
 
+    /**
+     * Start an operation from a mouse handle pick: the axes come straight
+     * from the picked handle, so this never cycles and never switches the
+     * gizmo's display mode. The keyboard path goes through
+     * {@link #enableMode(int)} and the configured hotkey orders instead.
+     */
     public void enableMode(int mode, Axis axis, Axis axis2, GizmoDrag drag)
     {
-        /* Only the keyboard path (axis == null) flips the gizmo's display mode,
-         * and never while combined is on screen: there G/S/R run their operation
-         * and leave every handle visible. Grabbing a handle with the mouse
-         * (axis != null) likewise must not switch the displayed mode. */
-        if (axis == null && Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(Gizmo.Mode.values()[mode]))
-        {
-            return;
-        }
-
         UIContext context = this.getContext();
         if (context == null)
         {
@@ -473,48 +586,16 @@ public class UIPropTransform extends UITransform
 
         if (this.editing)
         {
-            if (this.translateScreen)
-            {
-                /* Leaving the screen-space grab via G constrains to X first, so further
-                 * presses cycle X -> Y -> Z like the regular axis walk. */
-                this.axis = Axis.X;
-            }
-            else
-            {
-                Axis[] values = Axis.values();
-
-                this.axis = values[MathUtils.cycler(this.axis != null ? this.axis.ordinal() + 1 : 0, 0, values.length - 1)];
-            }
-
-            this.axis2 = null;
-            this.translateScreen = false;
-            this.rotateKind = RotateKind.AXIS;
-            this.drag = drag;
-
             this.restore(true);
         }
-        else
-        {
-            /* G (translate hotkey) with ray dragging available grabs in screen space
-             * by default; X/Y/Z then constrain it to an axis. */
-            this.translateScreen = axis == null && mode == 0 && BBSSettings.transformHotkeys3dRay.get() && drag != null;
 
-            if (this.translateScreen)
-            {
-                this.axis = Axis.X;
-                this.axis2 = Axis.Y;
-            }
-            else
-            {
-                this.axis = axis == null ? Axis.X : axis;
-                this.axis2 = axis2;
-            }
-
-            this.rotateKind = RotateKind.AXIS;
-            this.lastX = context.mouseX;
-            this.lastY = context.mouseY;
-            this.drag = drag;
-        }
+        this.translateScreen = false;
+        this.rotateKind = RotateKind.AXIS;
+        this.axis = axis == null ? Axis.X : axis;
+        this.axis2 = axis2;
+        this.drag = drag;
+        this.lastX = context.mouseX;
+        this.lastY = context.mouseY;
 
         this.editing = true;
         this.mode = mode;
@@ -532,6 +613,18 @@ public class UIPropTransform extends UITransform
         {
             context.menu.overlay.add(this.handler);
         }
+    }
+
+    public void enableSphereRotate(GizmoDrag drag)
+    {
+        this.enableSphereRotate(drag, false);
+    }
+
+    /** Start whichever free rotation the sphere is configured to drive. */
+    public void enableSphereRotate(GizmoDrag drag, boolean hotkeyMode)
+    {
+        if (BBSSettings.rotate3dSphereMode.get() == 1) this.enableArcball(drag, hotkeyMode);
+        else this.enableTrackball(drag, hotkeyMode);
     }
 
     public void enableTrackball(GizmoDrag drag)
@@ -578,6 +671,57 @@ public class UIPropTransform extends UITransform
         this.trackballAccumY = 0F;
         this.trackballRollDeg = 0F;
         this.beginRayRotateTrackball(context.mouseX, context.mouseY);
+
+        if (!this.handler.hasParent())
+        {
+            context.menu.overlay.add(this.handler);
+        }
+    }
+
+    public void enableArcball(GizmoDrag drag)
+    {
+        this.enableArcball(drag, false);
+    }
+
+    public void enableArcball(GizmoDrag drag, boolean hotkeyMode)
+    {
+        if (hotkeyMode && Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(Gizmo.Mode.ROTATE))
+        {
+            return;
+        }
+
+        UIContext context = this.getContext();
+        if (context == null || this.transform == null)
+        {
+            return;
+        }
+
+        this.clearNumericInput();
+
+        if (this.editing)
+        {
+            this.restore(true);
+        }
+
+        this.editing = true;
+        this.rotateKind = RotateKind.ARCBALL;
+        this.trackballAxis = Axis.X;
+        this.translateScreen = false;
+        this.mode = 2; // ROTATE
+        this.axis = null;
+        this.axis2 = null;
+        this.hotkeyMode = hotkeyMode;
+        this.drag = drag;
+        this.lastX = context.mouseX;
+        this.lastY = context.mouseY;
+
+        this.cache.copy(this.transform);
+        Gizmo.INSTANCE.trackTransform(this);
+
+        this.trackballRollDeg = 0F;
+        this.arcballAccum.identity();
+        this.arcballAnchored = false;
+        this.beginRayRotateArcball(context.mouseX, context.mouseY);
 
         if (!this.handler.hasParent())
         {
@@ -639,12 +783,18 @@ public class UIPropTransform extends UITransform
 
     /**
      * Start a screen-space (view-plane) translate: the object moves along the
-     * camera's right/up axes in the plane facing the camera. Unlike {@link #enableMode}
-     * this never switches the gizmo's display mode, so grabbing the centre cube with
-     * the mouse leaves the visible handles untouched (like the other handle picks).
+     * camera's right/up axes in the plane facing the camera. Grabbing the
+     * centre cube with the mouse never switches the gizmo's display mode
+     * (like the other handle picks); as a hotkey walk step the first press
+     * switches it like the rest of the hotkey starters.
      */
     public void enableScreenTranslate(GizmoDrag drag, boolean hotkeyMode)
     {
+        if (hotkeyMode && Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(Gizmo.Mode.TRANSLATE))
+        {
+            return;
+        }
+
         UIContext context = this.getContext();
         if (context == null || this.transform == null)
         {
@@ -766,6 +916,7 @@ public class UIPropTransform extends UITransform
         if (this.mode == 2)
         {
             if (this.rotateKind == RotateKind.TRACKBALL) this.applyRayRotateTrackball(mouseX, mouseY);
+            else if (this.rotateKind == RotateKind.ARCBALL) this.applyRayRotateArcball(mouseX, mouseY);
             else if (this.rotateKind == RotateKind.VIEW) this.applyRayRotateView(mouseX, mouseY);
             else this.applyScreenRotate(mouseX, mouseY);
 
@@ -1118,6 +1269,10 @@ public class UIPropTransform extends UITransform
                 {
                     this.beginRayRotateTrackball(mouseX, mouseY);
                 }
+                else if (this.rotateKind == RotateKind.ARCBALL)
+                {
+                    this.beginRayRotateArcball(mouseX, mouseY);
+                }
                 else if (this.rotateKind == RotateKind.VIEW)
                 {
                     this.beginRayRotateView(mouseX, mouseY);
@@ -1334,9 +1489,9 @@ public class UIPropTransform extends UITransform
      * Roll the bone by the cursor's frame-to-frame motion: horizontal travel
      * turns it about the screen's vertical axis, vertical travel about the
      * screen's horizontal axis, like spinning a ball under the fingertip. The
-     * two turns are composed and premultiplied onto the live rotation matrix
-     * (then read back as Euler), so it stays smooth through gimbal lock and a
-     * circular drag naturally accumulates roll &mdash; the trackball feel.
+     * turns are rebuilt from the accumulated offset in
+     * {@link #updateTrackballRotation} (then read back as Euler), so the drag
+     * stays smooth through gimbal lock; roll comes only from the mouse wheel.
      */
     private void applyRayRotateTrackball(int mouseX, int mouseY)
     {
@@ -1399,13 +1554,13 @@ public class UIPropTransform extends UITransform
     }
 
     /**
-     * Mouse-wheel arcball roll while trackball-dragging: each notch rolls the
-     * object about the view axis (toward the camera), with Alt for fine (÷5) and
+     * Mouse-wheel roll while sphere-dragging: each notch rolls the object
+     * about the view axis (toward the camera), with Alt for fine (÷5) and
      * Ctrl for coarse (×5) steps. Returns whether the wheel was consumed.
      */
     public boolean scrollTrackballRoll(UIContext context)
     {
-        if (!this.editing || this.rotateKind != RotateKind.TRACKBALL || !this.dragHasStart || this.transform == null)
+        if (!this.editing || !this.isSphereRotate() || !this.dragHasStart || this.transform == null)
         {
             return false;
         }
@@ -1413,9 +1568,174 @@ public class UIPropTransform extends UITransform
         float step = applyStepModifiers((float) (context.mouseWheel * TRACKBALL_WHEEL_DEG));
 
         this.trackballRollDeg += step;
-        this.updateTrackballRotation();
+
+        if (this.rotateKind == RotateKind.ARCBALL) this.updateArcballRotation();
+        else this.updateTrackballRotation();
 
         return true;
+    }
+
+    /**
+     * Anchor an arcball drag: capture the sphere's world placement, the
+     * world&rarr;parent map and the grab direction under the cursor. A cursor
+     * wrap re-invokes this; the arc swept so far is folded into
+     * {@link #arcballAccum} first, so the fresh anchor continues from the
+     * current orientation instead of jumping back to the start.
+     */
+    private void beginRayRotateArcball(int mouseX, int mouseY)
+    {
+        if (this.arcballAnchored)
+        {
+            this.arcballAccum.premul(new Quaternionf().rotationTo(this.arcballStartLocal, this.arcballCurrentLocal));
+            this.arcballAnchored = false;
+        }
+
+        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
+
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+        Matrix3f parentInverse = this.computeParentInverse(source);
+        float radius = Gizmo.INSTANCE.getSphereWorldRadius();
+
+        if (parentInverse == null || radius <= 0F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        Vector3f view = new Vector3f(
+            (float) (this.drag.cameraOrigin.x - this.drag.gizmoOrigin.x),
+            (float) (this.drag.cameraOrigin.y - this.drag.gizmoOrigin.y),
+            (float) (this.drag.cameraOrigin.z - this.drag.gizmoOrigin.z)
+        );
+
+        if (view.lengthSquared() < 1.0E-8F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        this.arcballViewWorld.set(view.normalize());
+        this.arcballRadius = radius;
+        this.arcballParentInverse.set(parentInverse);
+
+        /* Screen axes in the parent frame, for the typed-angle input and the
+         * wheel roll — captured exactly like the trackball's. */
+        Matrix3f invView = this.drag.view.get3x3(new Matrix3f()).invert();
+
+        parentInverse.transform(invView.getColumn(0, new Vector3f()).normalize(), this.trackballRightLocal);
+        parentInverse.transform(invView.getColumn(1, new Vector3f()).normalize(), this.trackballUpLocal);
+        parentInverse.transform(invView.getColumn(2, new Vector3f()).normalize(), this.trackballViewLocal);
+
+        if (this.trackballRightLocal.lengthSquared() < 1.0E-8F || this.trackballUpLocal.lengthSquared() < 1.0E-8F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        this.trackballRightLocal.normalize();
+        this.trackballUpLocal.normalize();
+        this.trackballViewLocal.normalize();
+
+        Vector3f grab = this.mapArcball(mouseX, mouseY, new Vector3f());
+
+        if (grab == null)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        this.arcballParentInverse.transform(grab, this.arcballStartLocal).normalize();
+        this.arcballCurrentLocal.set(this.arcballStartLocal);
+        this.arcballAnchored = true;
+        this.dragHasStart = true;
+    }
+
+    /**
+     * Map the cursor to a unit direction from the sphere's centre, in world
+     * space. The cursor ray is dropped onto the camera-facing plane through
+     * the centre; inside the ball the offset lifts onto the sphere's surface,
+     * outside it follows Bell's hyperbola, so the turn degrades into a
+     * view-axis roll smoothly &mdash; no seam at the silhouette. Returns
+     * {@code null} when the ray misses the plane entirely.
+     */
+    private Vector3f mapArcball(int mouseX, int mouseY, Vector3f out)
+    {
+        Vector3d hit = new Vector3d();
+
+        if (!this.drag.intersectPlane(mouseX, mouseY, this.arcballViewWorld, hit))
+        {
+            return null;
+        }
+
+        float px = (float) (hit.x - this.drag.gizmoOrigin.x);
+        float py = (float) (hit.y - this.drag.gizmoOrigin.y);
+        float pz = (float) (hit.z - this.drag.gizmoOrigin.z);
+        float r = this.arcballRadius;
+        float dSq = px * px + py * py + pz * pz;
+        float z = dSq < r * r / 2F
+            ? (float) Math.sqrt(r * r - dSq)
+            : r * r / (2F * (float) Math.sqrt(dSq));
+
+        out.set(this.arcballViewWorld).mul(z).add(px, py, pz);
+
+        return out.normalize();
+    }
+
+    /**
+     * Turn the grabbed point to follow the cursor: the point picked on the
+     * ball at anchor time stays under the fingertip as it drags.
+     */
+    private void applyRayRotateArcball(int mouseX, int mouseY)
+    {
+        Vector3f current = this.mapArcball(mouseX, mouseY, new Vector3f());
+
+        if (current == null)
+        {
+            return;
+        }
+
+        this.arcballParentInverse.transform(current, this.arcballCurrentLocal).normalize();
+        this.updateArcballRotation();
+    }
+
+    /**
+     * Rebuild the arcball rotation from the cached start orientation plus the
+     * single shortest arc from the anchored grab direction to the cursor's
+     * current one (the folded {@link #arcballAccum} segments and the wheel
+     * roll on top). Within one anchor the result is a pure function of the
+     * cursor position, so backtracking the drag restores the exact starting
+     * rotation. Shared by the cursor drag and the mouse-wheel roll.
+     */
+    private void updateArcballRotation()
+    {
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+
+        Matrix3f startRotation = new Matrix3f()
+            .rotationZ(source.z)
+            .rotateY(source.y)
+            .rotateX(source.x);
+
+        Quaternionf arc = new Quaternionf()
+            .rotationTo(this.arcballStartLocal, this.arcballCurrentLocal)
+            .mul(this.arcballAccum);
+
+        Vector3f euler = new Matrix3f()
+            .rotation(MathUtils.toRad(this.trackballRollDeg), this.trackballViewLocal)
+            .rotate(arc)
+            .mul(startRotation)
+            .getEulerAnglesZYX(new Vector3f());
+
+        Vector3f live = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
+        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
+        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
+
+        if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     /**
@@ -1667,6 +1987,7 @@ public class UIPropTransform extends UITransform
         this.translateScreen = false;
         this.drag = null;
         this.dragHasStart = false;
+        this.arcballAnchored = false;
         this.clearNumericInput();
         Gizmo.INSTANCE.clearTrackedTransform(this);
 
@@ -1748,18 +2069,16 @@ public class UIPropTransform extends UITransform
 
         int key = context.getKeyCode();
 
-        /* In trackball, X/Y aim the typed angle at the horizontal (screen-up
-         * axis) or vertical (screen-right axis) turn instead of constraining to
-         * a ring. */
-        if (this.mode == 2 && this.rotateKind == RotateKind.TRACKBALL
+        /* While typing on the sphere, X/Y aim the typed angle at the
+         * horizontal (screen-up axis) or vertical (screen-right axis) turn.
+         * Without typed digits they must fall through to the axis keybinds
+         * and constrain to a ring, the same as Z — otherwise they read as
+         * dead keys. */
+        if (this.mode == 2 && this.isSphereRotate() && this.numericActive
             && (key == GLFW.GLFW_KEY_X || key == GLFW.GLFW_KEY_Y))
         {
             this.trackballAxis = key == GLFW.GLFW_KEY_Y ? Axis.Y : Axis.X;
-
-            if (this.numericActive)
-            {
-                this.applyNumericInput();
-            }
+            this.applyNumericInput();
 
             return true;
         }
@@ -2006,6 +2325,7 @@ public class UIPropTransform extends UITransform
                         this.applyNumericView(value);
                         break;
                     case TRACKBALL:
+                    case ARCBALL:
                         this.applyNumericTrackball(value);
                         break;
                     default:
@@ -2240,6 +2560,67 @@ public class UIPropTransform extends UITransform
         return super.subKeyPressed(context);
     }
 
+    /** Short label of what the active drag grabs: axis letters, the screen
+     *  plane, the view ring, or one of the sphere's rotations. */
+    private String editingTargetLabel()
+    {
+        if (this.translateScreen)
+        {
+            return UIKeys.TRANSFORMS_TARGET_SCREEN.get();
+        }
+
+        if (this.mode == 2)
+        {
+            if (this.rotateKind == RotateKind.TRACKBALL) return UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL.get();
+            if (this.rotateKind == RotateKind.ARCBALL) return UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL.get();
+            if (this.rotateKind == RotateKind.VIEW) return UIKeys.TRANSFORMS_TARGET_VIEW.get();
+        }
+
+        if (this.mode == 1 && Window.isCtrlPressed())
+        {
+            return "XYZ";
+        }
+
+        String label = this.axis == null ? "" : this.axis.name();
+
+        if (this.axis2 != null)
+        {
+            label += this.axis2.name();
+        }
+
+        return label;
+    }
+
+    /** Axis letters tint to their gizmo colors; everything else stays white. */
+    private int editingTargetColor()
+    {
+        boolean singleAxis = !this.translateScreen
+            && this.axis != null && this.axis2 == null
+            && (this.mode != 2 || this.rotateKind == RotateKind.AXIS)
+            && !(this.mode == 1 && Window.isCtrlPressed());
+
+        if (!singleAxis)
+        {
+            return Colors.WHITE;
+        }
+
+        if (this.axis == Axis.X) return Colors.A100 | Colors.RED;
+        if (this.axis == Axis.Y) return Colors.A100 | Colors.GREEN;
+
+        return Colors.A100 | Colors.BLUE;
+    }
+
+    /** Local/global chip; scale ignores the space toggle, so it gets none. */
+    private String editingSpaceLabel()
+    {
+        if (this.mode == 1)
+        {
+            return null;
+        }
+
+        return (this.local ? UIKeys.TRANSFORMS_SPACE_LOCAL : UIKeys.TRANSFORMS_SPACE_GLOBAL).get();
+    }
+
     @Override
     public void render(UIContext context)
     {
@@ -2344,14 +2725,37 @@ public class UIPropTransform extends UITransform
 
         if (this.editing)
         {
-            String label = UIKeys.TRANSFORMS_EDITING.get();
             FontRenderer font = context.batcher.getFont();
-            int x = this.area.mx(font.getWidth(label));
+            String op = (this.mode == 0 ? UIKeys.TRANSFORMS_TRANSLATE : this.mode == 1 ? UIKeys.TRANSFORMS_SCALE : UIKeys.TRANSFORMS_ROTATE).get();
+            String target = this.editingTargetLabel();
+            String space = this.editingSpaceLabel();
+
+            /* Chip row: the operation on the primary color, then what is
+             * grabbed (axis letters in their gizmo colors), then the editing
+             * space. The 5s account for textCard's box overhang at the
+             * default card offset. */
+            int gap = 2;
+            int rowWidth = font.getWidth(op) + 5 + gap + font.getWidth(target) + 5;
+
+            if (space != null)
+            {
+                rowWidth += gap + font.getWidth(space) + 5;
+            }
+
+            int x = this.area.mx(rowWidth) + 3;
             int y = this.area.my(font.getHeight());
 
-            context.batcher.textCard(label, x, y, Colors.WHITE, BBSSettings.primaryColor(Colors.A50));
+            context.batcher.textCard(op, x, y, Colors.WHITE, BBSSettings.primaryColor(Colors.A50));
+            x += font.getWidth(op) + 5 + gap;
+            context.batcher.textCard(target, x, y, this.editingTargetColor(), Colors.A50);
 
-            /* Label echoed both at the cursor and (when typing) under "Editing...". */
+            if (space != null)
+            {
+                x += font.getWidth(target) + 5 + gap;
+                context.batcher.textCard(space, x, y, Colors.LIGHTEST_GRAY, Colors.A50);
+            }
+
+            /* Label echoed both at the cursor and (when typing) under the info row. */
             String numericLabel = null;
 
             if (this.axis != null)
@@ -2393,16 +2797,16 @@ public class UIPropTransform extends UITransform
             }
             else if (this.numericActive)
             {
-                /* View (arcball) and trackball have no single axis component to
-                 * echo, so show the typed angle, plus the trackball direction. */
-                String prefix = this.rotateKind == RotateKind.TRACKBALL ? (this.trackballAxis == Axis.Y ? "X" : "Y") : "";
+                /* The view ring and the sphere have no single axis component to
+                 * echo, so show the typed angle, plus the aimed direction. */
+                String prefix = this.isSphereRotate() ? (this.trackballAxis == Axis.Y ? "X" : "Y") : "";
 
                 numericLabel = prefix + this.numericInputDisplay() + "°";
 
                 context.batcher.textCard(numericLabel, context.mouseX + 12, context.mouseY + 12, Colors.WHITE, Colors.A50);
             }
 
-            /* Mirror the live numeric input on its own card right under "Editing...". */
+            /* Mirror the live numeric input on its own card right under the info row. */
             if (numericLabel != null)
             {
                 int nx = this.area.mx(font.getWidth(numericLabel));
@@ -2415,13 +2819,53 @@ public class UIPropTransform extends UITransform
 
     /**
      * Which flavour of rotation a drag performs: around a single gizmo ring
-     * ({@link #AXIS}), freely about the picked point on the sphere
-     * ({@link #TRACKBALL}), or in the screen plane about the view axis
-     * ({@link #VIEW}) &mdash; the ring shared by all three axes.
+     * ({@link #AXIS}), freely by cursor motion ({@link #TRACKBALL}), by
+     * gripping a point on the ball ({@link #ARCBALL}), or in the screen plane
+     * about the view axis ({@link #VIEW}) &mdash; the ring shared by all three
+     * axes. The sphere starts trackball or arcball per the user's setting.
      */
     public enum RotateKind
     {
-        AXIS, TRACKBALL, VIEW;
+        AXIS, TRACKBALL, ARCBALL, VIEW;
+    }
+
+    /**
+     * A step of a transform hotkey's walk. Tokens match the entries of the
+     * translate/scale/rotate hotkey order settings.
+     */
+    public enum HotkeyTarget
+    {
+        VIEW("view", null, true),
+        SPHERE("sphere", null, true),
+        SCREEN("screen", null, true),
+        X("x", Axis.X, false),
+        Y("y", Axis.Y, false),
+        Z("z", Axis.Z, false);
+
+        public final String token;
+        public final Axis axis;
+        /** Whether the step is driven by the 3D ray and so needs a rendered gizmo. */
+        public final boolean needsRay;
+
+        HotkeyTarget(String token, Axis axis, boolean needsRay)
+        {
+            this.token = token;
+            this.axis = axis;
+            this.needsRay = needsRay;
+        }
+
+        public static HotkeyTarget byToken(String token)
+        {
+            for (HotkeyTarget target : values())
+            {
+                if (target.token.equals(token))
+                {
+                    return target;
+                }
+            }
+
+            return null;
+        }
     }
 
     public static class UITransformHandler extends UIElement

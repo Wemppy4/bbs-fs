@@ -240,7 +240,7 @@ public class UIVanillaSoundList extends UIStringList
     /**
      * Find all actual sound file paths from cached sounds.json (skip event references)
      */
-    private List<String> findAllSoundFilesFromCache(net.minecraft.util.Identifier soundId)
+    private List<String> findAllSoundFilesFromCache(Identifier soundId)
     {
         if (this.cachedSoundsJson == null)
         {

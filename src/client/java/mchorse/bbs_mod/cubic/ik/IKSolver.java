@@ -8,9 +8,10 @@ import java.util.List;
 
 /**
  * Single-chain IK modeled after Blender: the positions are solved to reach the
- * target (analytic for a two-bone limb, CCD otherwise), then the whole bend
- * plane is rotated about the root-to-tip axis towards the pole and offset by the
- * pole angle. With no pole the chain keeps the side it was posed towards.
+ * target (analytic for a two-bone limb, FABRIK for longer chains, constrained
+ * CCD when joint limits are involved), then the whole bend plane is rotated
+ * about the root-to-tip axis towards the pole target. With no pole the chain
+ * keeps the side it was posed towards.
  *
  * <p>When per-joint {@link Limit}s are supplied the solve runs as constrained
  * CCD: every sweep is followed by a clamp pass that reconstructs each bone's
@@ -95,7 +96,13 @@ final class IKSolver
         }
         else
         {
-            solveCCD(positions, root, goal, maxIterations, tolerance, null, null);
+            /* Longer unconstrained chain (a rope, a tail): FABRIK. CCD is the
+             * wrong tool here — it greedily over-rotates the joints near the tip,
+             * bunching the bend at the end, and its converged shape depends on the
+             * path taken, so a moving target makes the chain spring frame to
+             * frame. FABRIK distributes the bend evenly and lands on the same
+             * shape for the same input — a rope drapes instead of coiling. */
+            solveFabrik(positions, root, goal, maxIterations, tolerance);
             orientBend(positions, hinge, polePoint);
         }
 
@@ -169,6 +176,64 @@ final class IKSolver
 
         p.get(1).set(root).fma(l1 * cosA, dir).fma(l1 * sinA, bend);
         p.get(2).set(goal);
+    }
+
+    /**
+     * Forward-And-Backward Reaching IK for long unconstrained chains: the
+     * backward pass drags the chain onto the goal tip-first, the forward pass
+     * re-roots it, each preserving bone lengths. Converges in a few passes and
+     * spreads the bend evenly along the chain.
+     */
+    private static void solveFabrik(List<Vector3f> p, Vector3f root, Vector3f goal, int maxIterations, float tolerance)
+    {
+        int n = p.size();
+        float tolSq = tolerance * tolerance;
+        float[] lengths = new float[n - 1];
+
+        for (int i = 0; i < n - 1; i++)
+        {
+            lengths[i] = p.get(i).distance(p.get(i + 1));
+        }
+
+        Vector3f dir = new Vector3f();
+
+        for (int iter = 0; iter < maxIterations; iter++)
+        {
+            if (p.get(n - 1).distanceSquared(goal) <= tolSq)
+            {
+                break;
+            }
+
+            /* Backward: tip on the goal, walk towards the root. */
+            p.get(n - 1).set(goal);
+
+            for (int i = n - 2; i >= 0; i--)
+            {
+                dir.set(p.get(i)).sub(p.get(i + 1));
+
+                if (!normalize(dir))
+                {
+                    continue;
+                }
+
+                p.get(i).set(p.get(i + 1)).fma(lengths[i], dir);
+            }
+
+            /* Forward: root back in place, walk towards the tip. */
+            p.get(0).set(root);
+
+            for (int i = 0; i < n - 1; i++)
+            {
+                dir.set(p.get(i + 1)).sub(p.get(i));
+
+                if (!normalize(dir))
+                {
+                    continue;
+                }
+
+                p.get(i + 1).set(p.get(i)).fma(lengths[i], dir);
+            }
+        }
     }
 
     /**

@@ -229,7 +229,7 @@ public class Gizmo
             return false;
         }
 
-        if (this.currentTransform != null && this.currentTransform.isEditing() && !this.currentTransform.isTrackball())
+        if (this.currentTransform != null && this.currentTransform.isEditing() && !this.currentTransform.isSphereRotate())
         {
             return false;
         }
@@ -237,9 +237,15 @@ public class Gizmo
         return true;
     }
 
-    public boolean isTrackballDragging()
+    public boolean isSphereDragging()
     {
-        return this.currentTransform != null && this.currentTransform.isEditing() && this.currentTransform.isTrackball();
+        return this.currentTransform != null && this.currentTransform.isEditing() && this.currentTransform.isSphereRotate();
+    }
+
+    /** World-space radius the rotate sphere was last drawn at ({@code 0} until rendered). */
+    public float getSphereWorldRadius()
+    {
+        return this.hasLastRenderMatrix ? this.lastSphereLocalRadius : 0F;
     }
 
     /**
@@ -487,7 +493,7 @@ public class Gizmo
                     transform.enableScreenTranslate(drag);
                     break;
                 case TRACKBALL:
-                    if (BBSSettings.rotate3dSphere.get()) transform.enableTrackball(drag);
+                    if (BBSSettings.rotate3dSphere.get()) transform.enableSphereRotate(drag);
                     break;
                 case VIEW:
                     transform.enableViewRotate(drag);
@@ -890,12 +896,12 @@ public class Gizmo
 
         boolean rotating = editing && activeOp == Op.ROTATE.modeOrdinal;
         Axis activeAxis = rotating ? this.currentTransform.getAxis() : null;
-        boolean trackball = rotating && this.currentTransform.isTrackball();
+        boolean sphereActive = rotating && this.currentTransform.isSphereRotate();
         boolean viewActive = rotating && this.currentTransform.isViewRotate();
 
         /* The sphere is translucent and drawn before the bars/cubes, so in
          * combined it sits as a faint tint behind the move/scale handles. */
-        if (this.hasSphere() && BBSSettings.rotate3dSphere.get() && (!rotating || trackball))
+        if (this.hasSphere() && BBSSettings.rotate3dSphere.get() && (!rotating || sphereActive))
         {
             /* Always the base colour — hover is now a screen-space overlay
              * composited in {@link #renderSphereHighlight}, so the sphere keeps

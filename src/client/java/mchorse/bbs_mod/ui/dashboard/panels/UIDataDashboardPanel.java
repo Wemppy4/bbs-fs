@@ -24,6 +24,7 @@ import mchorse.bbs_mod.ui.utils.UIUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.IntPredicate;
 
 public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUDDashboardPanel
 {
@@ -270,7 +271,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
     }
 
-    private void closeTabsKeeping(java.util.function.IntPredicate keep, int targetIndex)
+    private void closeTabsKeeping(IntPredicate keep, int targetIndex)
     {
         if (!this.tabsEnabled || this.tabs.size() <= 1 || targetIndex < 0 || targetIndex >= this.tabs.size())
         {

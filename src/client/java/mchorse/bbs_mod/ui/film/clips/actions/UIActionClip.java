@@ -9,6 +9,7 @@ import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
@@ -66,7 +67,7 @@ public abstract class UIActionClip <T extends ActionClip> extends UIClip<T>
         z.context((menu) -> this.populateBlockPositionContext(menu, getX, getY, getZ, setX, setY, setZ));
     }
 
-    private void populateBlockPositionContext(mchorse.bbs_mod.ui.utils.context.ContextMenuManager menu, IntSupplier getX, IntSupplier getY, IntSupplier getZ, IntConsumer setX, IntConsumer setY, IntConsumer setZ)
+    private void populateBlockPositionContext(ContextMenuManager menu, IntSupplier getX, IntSupplier getY, IntSupplier getZ, IntConsumer setX, IntConsumer setY, IntConsumer setZ)
     {
         menu.action(Icons.COPY, UIKeys.CAMERA_PANELS_CONTEXT_COPY_POINT, Colors.POSITIVE, () ->
         {

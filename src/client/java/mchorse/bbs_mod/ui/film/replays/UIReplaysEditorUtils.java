@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film.replays;
 
 import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -342,7 +343,8 @@ public class UIReplaysEditorUtils
         }
 
         ModelPhysicsConfig physics = null;
-        if (modelForm.physics.get() instanceof mchorse.bbs_mod.data.types.MapType map)
+
+        if (modelForm.physics.get() instanceof MapType map)
         {
             physics = ModelPhysicsIO.fromData(map);
         }

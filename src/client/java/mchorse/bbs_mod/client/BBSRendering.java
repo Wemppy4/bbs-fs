@@ -78,7 +78,7 @@ public class BBSRendering
     private static Framebuffer framebuffer;
     private static Framebuffer clientFramebuffer;
     private static Texture texture;
-    private static mchorse.bbs_mod.graphics.Framebuffer exportFramebuffer;
+    private static mchorse.bbs_mod.graphics.Framebuffer /* NECESSARY */ exportFramebuffer;
 
     private static Runnable pendingExportResolutionAction;
 

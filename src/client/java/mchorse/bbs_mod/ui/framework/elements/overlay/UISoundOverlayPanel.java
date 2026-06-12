@@ -26,6 +26,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -396,7 +397,7 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
 
                 if (tempFile != null && tempFile.exists())
                 {
-                    try (java.io.FileInputStream fis = new java.io.FileInputStream(tempFile))
+                    try (FileInputStream fis = new FileInputStream(tempFile))
                     {
                         String pathLower = tempFile.getName().toLowerCase();
                         
