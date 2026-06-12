@@ -427,6 +427,11 @@ public class BBSModClient implements ClientModInitializer
             UIKeys.ENGINE_KEYSTROKES_POSITION_TOP_LEFT
         );
 
+        BBSSettings.rotate3dSphereMode.modes(
+            UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL,
+            UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL
+        );
+
         UIKeys.C_KEYBIND_CATGORIES.load(KeyCombo.getCategoryKeys());
         UIKeys.C_KEYBIND_CATGORIES_TOOLTIP.load(KeyCombo.getCategoryKeys());
 

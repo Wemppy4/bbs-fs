@@ -222,6 +222,8 @@ public class UIKeys
     public static final IKey ENGINE_KEYSTROKES_POSITION_BOTTOM_RIGHT = L10n.lang("bbs.keystrokes_position.bottom_right");
     public static final IKey ENGINE_KEYSTROKES_POSITION_TOP_LEFT = L10n.lang("bbs.keystrokes_position.top_left");
     public static final IKey ENGINE_KEYSTROKES_POSITION_TOP_RIGHT = L10n.lang("bbs.keystrokes_position.top_right");
+    public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL = L10n.lang("bbs.rotate_3d_sphere_mode.trackball");
+    public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL = L10n.lang("bbs.rotate_3d_sphere_mode.arcball");
     public static final IKey ENGINE_THEME_DARK = L10n.lang("bbs.theme.dark");
     public static final IKey ENGINE_THEME_LIGHT = L10n.lang("bbs.theme.light");
     public static final IKey FILM_CONTROLLER_CONTROL_MODE_TOOLTIP = L10n.lang("bbs.ui.film.controller.control_mode-tooltip");

@@ -206,7 +206,7 @@ public class GizmoInteraction
 
         if (Gizmo.INSTANCE.isSphereInteractive())
         {
-            if (Gizmo.INSTANCE.isTrackballDragging())
+            if (Gizmo.INSTANCE.isSphereDragging())
             {
                 hover = true;
             }
