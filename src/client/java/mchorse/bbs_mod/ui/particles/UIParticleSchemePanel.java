@@ -114,7 +114,7 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
 
         this.overlay.namesList.setFileIcon(Icons.PARTICLE);
 
-        UIIcon restart = new UIIcon(Icons.REFRESH, (b) ->
+        UIIcon restart = new UIIcon(Icons.TRASH, (b) ->
         {
             this.renderer.setScheme(this.data);
         });
@@ -134,15 +134,15 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         });
         presets.tooltip(UIKeys.FILM_LAYOUT_PRESETS, Direction.LEFT);
 
-        UIIcon resetLayout = new UIIcon(Icons.ALL_DIRECTIONS, (b) -> this.dock.resetLayout());
+        UIIcon lock = new UIIcon(() -> this.dock.isLocked() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.dock.toggleLock());
+        lock.tooltip(() -> (this.dock.isLocked() ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK).get(), Direction.LEFT);
+
+        UIIcon resetLayout = new UIIcon(Icons.REFRESH, (b) -> this.dock.resetLayout());
         resetLayout.tooltip(UIKeys.FILM_LAYOUT_RESET, Direction.LEFT);
 
-        UIIcon lock = new UIIcon(() -> this.dock.isLocked() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.dock.toggleLock());
-        lock.tooltip(UIKeys.FILM_LAYOUT_UNLOCK, Direction.LEFT);
-
         this.iconBar.add(presets);
-        this.iconBar.add(resetLayout);
         this.iconBar.add(lock);
+        this.iconBar.add(resetLayout);
 
         /* General tab */
         this.addSection(this.generalView, new UIParticleSchemeGeneralSection(this));
