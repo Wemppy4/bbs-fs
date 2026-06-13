@@ -959,7 +959,6 @@
     "bbs.ui.transforms.keys.category": "Dönüşümler",
     "bbs.ui.transforms.keys.toggle_axes": "XYZ eksenlerini aç/kapat",
     "bbs.ui.transforms.rotate": "Döndür",
-    "bbs.ui.transforms.rotate2": "Döndür (ikincil)",
     "bbs.ui.transforms.scale": "Ölçeklendir",
     "bbs.ui.transforms.translate": "Ötele",
     "bbs.ui.transforms.uniform_scale": "Eşit ölçeklendirmeyi aç/kapat",

@@ -10,6 +10,7 @@ import mchorse.bbs_mod.ui.forms.editors.panels.UIModelFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelIKFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelPhysicsFormPanel;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
 import mchorse.bbs_mod.utils.StringUtils;
@@ -52,13 +53,13 @@ public class UIModelForm extends UIForm<ModelForm>
     @Override
     public Matrix4f getOrigin(float transition)
     {
-        return this.getOrigin(transition, this.bonePath(), this.modelPanel.poseEditor.transform.isLocal());
+        return this.getOrigin(transition, this.bonePath(), this.modelPanel.poseEditor.transform.getSpace());
     }
 
     @Override
     public Matrix4f getOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, this.bonePath(), true);
+        return this.getOrigin(transition, this.bonePath(), TransformSpace.LOCAL);
     }
 
     private String bonePath()

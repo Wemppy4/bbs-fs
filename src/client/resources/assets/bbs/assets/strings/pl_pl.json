@@ -1004,7 +1004,6 @@
     "bbs.ui.transforms.keys.category": "Przekształcenia",
     "bbs.ui.transforms.keys.toggle_axes": "Przełącz osie XYZ",
     "bbs.ui.transforms.rotate": "Rotacja",
-    "bbs.ui.transforms.rotate2": "rotacja (2)",
     "bbs.ui.transforms.scale": "Rozmiar",
     "bbs.ui.transforms.translate": "Przesunięcie",
     "bbs.ui.transforms.uniform_scale": "Przełącz jednolitą skalę",

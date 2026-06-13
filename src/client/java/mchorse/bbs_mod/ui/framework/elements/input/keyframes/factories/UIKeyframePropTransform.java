@@ -111,13 +111,6 @@ public abstract class UIKeyframePropTransform extends UIPropTransform
     }
 
     @Override
-    public void pasteRotation2(Vector3d rotation)
-    {
-        this.applyToTarget((transform) -> transform.rotate2.set(Vectors.toRad(rotation)));
-        this.syncTargetTransform();
-    }
-
-    @Override
     public void setT(Axis axis, double x, double y, double z)
     {
         Transform transform = this.getTargetTransform();
@@ -184,30 +177,6 @@ public abstract class UIKeyframePropTransform extends UIPropTransform
             poseT.rotate.x += dx;
             poseT.rotate.y += dy;
             poseT.rotate.z += dz;
-        });
-
-        this.syncTargetTransform();
-    }
-
-    @Override
-    public void setR2(Axis axis, double x, double y, double z)
-    {
-        Transform transform = this.getTargetTransform();
-
-        if (transform == null)
-        {
-            return;
-        }
-
-        float dx = MathUtils.toRad((float) x) - transform.rotate2.x;
-        float dy = MathUtils.toRad((float) y) - transform.rotate2.y;
-        float dz = MathUtils.toRad((float) z) - transform.rotate2.z;
-
-        this.applyToTarget((poseT) ->
-        {
-            poseT.rotate2.x += dx;
-            poseT.rotate2.y += dy;
-            poseT.rotate2.z += dz;
         });
 
         this.syncTargetTransform();

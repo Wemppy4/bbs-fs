@@ -20,14 +20,12 @@ public class Transform implements IMapSerializable
     public final Vector3f translate = new Vector3f();
     public final Vector3f scale = new Vector3f(DEFAULT_SCALE);
     public final Vector3f rotate = new Vector3f();
-    public final Vector3f rotate2 = new Vector3f();
 
     public void lerp(Transform transform, float a)
     {
         this.translate.lerp(transform.translate, a);
         this.scale.lerp(transform.scale, a);
         this.rotate.lerp(transform.rotate, a);
-        this.rotate2.lerp(transform.rotate2, a);
     }
 
     public void lerp(Transform preA, Transform a, Transform b, Transform postB, IInterp interp, float x)
@@ -35,7 +33,6 @@ public class Transform implements IMapSerializable
         this.lerp(this.translate, preA.translate, a.translate, b.translate, postB.translate, interp, x);
         this.lerp(this.scale, preA.scale, a.scale, b.scale, postB.scale, interp, x);
         this.lerp(this.rotate, preA.rotate, a.rotate, b.rotate, postB.rotate, interp, x);
-        this.lerp(this.rotate2, preA.rotate2, a.rotate2, b.rotate2, postB.rotate2, interp, x);
     }
 
     private void lerp(Vector3f target, Vector3f preA, Vector3f a, Vector3f b, Vector3f postB, IInterp interp, float x)
@@ -50,7 +47,6 @@ public class Transform implements IMapSerializable
         this.autoLerp(this.translate, preA.translate, a.translate, b.translate, postB.translate, pt, at, bt, qt, clamped, x);
         this.autoLerp(this.scale, preA.scale, a.scale, b.scale, postB.scale, pt, at, bt, qt, clamped, x);
         this.autoLerp(this.rotate, preA.rotate, a.rotate, b.rotate, postB.rotate, pt, at, bt, qt, clamped, x);
-        this.autoLerp(this.rotate2, preA.rotate2, a.rotate2, b.rotate2, postB.rotate2, pt, at, bt, qt, clamped, x);
     }
 
     private void autoLerp(Vector3f target, Vector3f preA, Vector3f a, Vector3f b, Vector3f postB, float pt, float at, float bt, float qt, boolean clamped, float x)
@@ -65,7 +61,6 @@ public class Transform implements IMapSerializable
         this.translate.add(transform.translate);
         this.scale.mul(transform.scale);
         this.rotate.add(transform.rotate);
-        this.rotate2.add(transform.rotate2);
     }
 
     public void identity()
@@ -73,7 +68,6 @@ public class Transform implements IMapSerializable
         this.translate.set(0, 0, 0);
         this.scale.set(1, 1, 1);
         this.rotate.set(0, 0, 0);
-        this.rotate2.set(0, 0, 0);
     }
 
     public Matrix3f createRotationMatrix()
@@ -83,9 +77,6 @@ public class Transform implements IMapSerializable
         matrix.rotateZ(this.rotate.z);
         matrix.rotateY(this.rotate.y);
         matrix.rotateX(this.rotate.x);
-        matrix.rotateZ(this.rotate2.z);
-        matrix.rotateY(this.rotate2.y);
-        matrix.rotateX(this.rotate2.x);
 
         return matrix;
     }
@@ -101,9 +92,6 @@ public class Transform implements IMapSerializable
         matrix.rotateZ(this.rotate.z);
         matrix.rotateY(this.rotate.y);
         matrix.rotateX(this.rotate.x);
-        matrix.rotateZ(this.rotate2.z);
-        matrix.rotateY(this.rotate2.y);
-        matrix.rotateX(this.rotate2.x);
         matrix.scale(this.scale);
 
         return matrix;
@@ -123,8 +111,7 @@ public class Transform implements IMapSerializable
 
             return this.translate.equals(transform.translate)
                 && this.scale.equals(transform.scale)
-                && this.rotate.equals(transform.rotate)
-                && this.rotate2.equals(transform.rotate2);
+                && this.rotate.equals(transform.rotate);
         }
 
         return false;
@@ -144,7 +131,6 @@ public class Transform implements IMapSerializable
         this.translate.set(transform.translate);
         this.scale.set(transform.scale);
         this.rotate.set(transform.rotate);
-        this.rotate2.set(transform.rotate2);
     }
 
     public boolean isDefault()
@@ -157,9 +143,6 @@ public class Transform implements IMapSerializable
         this.rotate.x = MathUtils.toRad(this.rotate.x);
         this.rotate.y = MathUtils.toRad(this.rotate.y);
         this.rotate.z = MathUtils.toRad(this.rotate.z);
-        this.rotate2.x = MathUtils.toRad(this.rotate2.x);
-        this.rotate2.y = MathUtils.toRad(this.rotate2.y);
-        this.rotate2.z = MathUtils.toRad(this.rotate2.z);
     }
 
     @Override
@@ -170,7 +153,6 @@ public class Transform implements IMapSerializable
             data.put("t", DataStorageUtils.vector3fToData(this.translate));
             data.put("s", DataStorageUtils.vector3fToData(this.scale));
             data.put("r", DataStorageUtils.vector3fToData(this.rotate));
-            data.put("r2", DataStorageUtils.vector3fToData(this.rotate2));
         }
     }
 
@@ -182,6 +164,19 @@ public class Transform implements IMapSerializable
         this.translate.set(DataStorageUtils.vector3fFromData(data.getList("t")));
         this.scale.set(DataStorageUtils.vector3fFromData(data.getList("s"), DEFAULT_SCALE));
         this.rotate.set(DataStorageUtils.vector3fFromData(data.getList("r")));
-        this.rotate2.set(DataStorageUtils.vector3fFromData(data.getList("r2")));
+
+        /* Legacy second rotation ("gizmo space" edits) folds into the single rotate. */
+        if (data.has("r2"))
+        {
+            Vector3f r2 = DataStorageUtils.vector3fFromData(data.getList("r2"));
+
+            if (r2.x != 0F || r2.y != 0F || r2.z != 0F)
+            {
+                new Matrix3f()
+                    .rotationZ(this.rotate.z).rotateY(this.rotate.y).rotateX(this.rotate.x)
+                    .rotateZ(r2.z).rotateY(r2.y).rotateX(r2.x)
+                    .getEulerAnglesZYX(this.rotate);
+            }
+        }
     }
 }

@@ -51,7 +51,7 @@ public class UIVector3fKeyframeFactory extends UIKeyframeFactory<Vector3f>
         this.handlesY = new UIBezierHandles(keyframe, 1);
         this.handlesZ = new UIBezierHandles(keyframe, 2);
 
-        if (group.equals("rotate") || group.equals("rotate2"))
+        if (group.equals("rotate"))
         {
             this.x.degrees();
             this.y.degrees();
@@ -108,7 +108,7 @@ public class UIVector3fKeyframeFactory extends UIKeyframeFactory<Vector3f>
 
         String group = sheet.id.substring(index + 1);
 
-        return group.equals("translate") || group.equals("scale") || group.equals("rotate") || group.equals("rotate2") ? group : "";
+        return group.equals("translate") || group.equals("scale") || group.equals("rotate") ? group : "";
     }
 
     private Icon getIcon(String group)
@@ -117,7 +117,7 @@ public class UIVector3fKeyframeFactory extends UIKeyframeFactory<Vector3f>
         {
             case "translate" -> Icons.ALL_DIRECTIONS;
             case "scale" -> Icons.SCALE;
-            case "rotate", "rotate2" -> Icons.REFRESH;
+            case "rotate" -> Icons.REFRESH;
             default -> null;
         };
     }
@@ -129,7 +129,6 @@ public class UIVector3fKeyframeFactory extends UIKeyframeFactory<Vector3f>
             case "translate" -> UIKeys.TRANSFORMS_TRANSLATE;
             case "scale" -> UIKeys.TRANSFORMS_SCALE;
             case "rotate" -> UIKeys.TRANSFORMS_ROTATE;
-            case "rotate2" -> UIKeys.TRANSFORMS_ROTATE2;
             default -> null;
         };
     }

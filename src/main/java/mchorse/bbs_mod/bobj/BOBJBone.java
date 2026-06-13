@@ -87,10 +87,6 @@ public class BOBJBone
         if (this.transform.rotate.y != 0F) this.mat.rotateY(this.transform.rotate.y);
         if (this.transform.rotate.x != 0F) this.mat.rotateX(this.transform.rotate.x);
 
-        if (this.transform.rotate2.z != 0F) this.mat.rotateZ(this.transform.rotate2.z);
-        if (this.transform.rotate2.y != 0F) this.mat.rotateY(this.transform.rotate2.y);
-        if (this.transform.rotate2.x != 0F) this.mat.rotateX(this.transform.rotate2.x);
-
         this.mat.scale(this.transform.scale);
     }
 

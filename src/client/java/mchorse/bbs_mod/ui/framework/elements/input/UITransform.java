@@ -30,14 +30,10 @@ public abstract class UITransform extends UIElement
     public UITrackpad rx;
     public UITrackpad ry;
     public UITrackpad rz;
-    public UITrackpad r2x;
-    public UITrackpad r2y;
-    public UITrackpad r2z;
 
     protected UIIcon iconT;
     protected UIIcon iconS;
     protected UIIcon iconR;
-    protected UIIcon iconR2;
 
     protected UIElement scaleRow;
 
@@ -92,40 +88,26 @@ public abstract class UITransform extends UIElement
         this.rz.tooltip(raw.format(UIKeys.TRANSFORMS_ROTATE, UIKeys.GENERAL_Z));
         this.rz.textbox.setColor(Colors.BLUE);
 
-        this.r2x = new UITrackpad((value) -> this.internalSetR2(value, Axis.X)).degrees().onlyNumbers();
-        this.r2x.tooltip(raw.format(UIKeys.TRANSFORMS_ROTATE2, UIKeys.GENERAL_X));
-        this.r2x.textbox.setColor(Colors.RED);
-        this.r2y = new UITrackpad((value) -> this.internalSetR2(value, Axis.Y)).degrees().onlyNumbers();
-        this.r2y.tooltip(raw.format(UIKeys.TRANSFORMS_ROTATE2, UIKeys.GENERAL_Y));
-        this.r2y.textbox.setColor(Colors.GREEN);
-        this.r2z = new UITrackpad((value) -> this.internalSetR2(value, Axis.Z)).degrees().onlyNumbers();
-        this.r2z.tooltip(raw.format(UIKeys.TRANSFORMS_ROTATE2, UIKeys.GENERAL_Z));
-        this.r2z.textbox.setColor(Colors.BLUE);
-
         this.w(1F).column(2).stretch().vertical();
 
         this.iconT = new UIIcon(Icons.ALL_DIRECTIONS, null);
         this.iconS = new UIIcon(Icons.SCALE, (b) -> this.toggleUniformScale());
         this.iconS.tooltip(UIKeys.TRANSFORMS_UNIFORM_SCALE);
         this.iconR = new UIIcon(Icons.REFRESH, null);
-        this.iconR2 = new UIIcon(Icons.REFRESH, null);
 
         this.iconT.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
         this.iconS.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
         this.iconR.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-        this.iconR2.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
 
-        this.iconT.disabledColor = this.iconS.disabledColor = this.iconR.disabledColor = this.iconR2.disabledColor = Colors.WHITE;
-        this.iconT.hoverColor = this.iconS.hoverColor = this.iconR.hoverColor = this.iconR2.hoverColor = Colors.WHITE;
+        this.iconT.disabledColor = this.iconS.disabledColor = this.iconR.disabledColor = Colors.WHITE;
+        this.iconT.hoverColor = this.iconS.hoverColor = this.iconR.hoverColor = Colors.WHITE;
 
         this.iconT.setEnabled(false);
         this.iconR.setEnabled(false);
-        this.iconR2.setEnabled(false);
 
         this.add(UI.row(2, 0, UIConstants.CONTROL_HEIGHT, this.iconT, this.tx, this.ty, this.tz));
         this.add(this.scaleRow = UI.row(2, 0, UIConstants.CONTROL_HEIGHT, this.iconS, this.sx, this.sy, this.sz));
         this.add(UI.row(2, 0, UIConstants.CONTROL_HEIGHT, this.iconR, this.rx, this.ry, this.rz));
-        this.add(UI.row(2, 0, UIConstants.CONTROL_HEIGHT, this.iconR2, this.r2x, this.r2y, this.r2z));
 
         this.context((menu) ->
         {
@@ -151,7 +133,7 @@ public abstract class UITransform extends UIElement
             menu.action(Icons.CLOSE, UIKeys.TRANSFORMS_CONTEXT_RESET, this::reset);
         });
 
-        this.w(190).h(4 * UIConstants.CONTROL_HEIGHT);
+        this.w(190).h(3 * UIConstants.CONTROL_HEIGHT);
 
         this.keys().register(Keys.COPY, this::copyTransformations).inside().label(UIKeys.TRANSFORMS_CONTEXT_COPY);
         this.keys().register(Keys.PASTE, () ->
@@ -225,12 +207,6 @@ public abstract class UITransform extends UIElement
         this.setR(null, x, y, z);
     }
 
-    public void fillSetR2(double x, double y, double z)
-    {
-        this.fillR2(x, y, z);
-        this.setR2(null, x, y, z);
-    }
-
     public void fillT(double x, double y, double z)
     {
         this.tx.setValue(x);
@@ -252,13 +228,6 @@ public abstract class UITransform extends UIElement
         this.rz.setValue(z);
     }
 
-    public void fillR2(double x, double y, double z)
-    {
-        this.r2x.setValue(x);
-        this.r2y.setValue(y);
-        this.r2z.setValue(z);
-    }
-    
     protected void internalSetT(double x, Axis axis)
     {
         try
@@ -316,29 +285,11 @@ public abstract class UITransform extends UIElement
         }
     }
 
-    protected void internalSetR2(double x, Axis axis)
-    {
-        try
-        {
-            this.setR2(axis,
-                axis == Axis.X ? x : this.r2x.value,
-                axis == Axis.Y ? x : this.r2y.value,
-                axis == Axis.Z ? x : this.r2z.value
-            );
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-        }
-    }
-
     public abstract void setT(Axis axis, double x, double y, double z);
 
     public abstract void setS(Axis axis, double x, double y, double z);
 
     public abstract void setR(Axis axis, double x, double y, double z);
-
-    public abstract void setR2(Axis axis, double x, double y, double z);
 
     private void copyTransformations()
     {
@@ -353,9 +304,6 @@ public abstract class UITransform extends UIElement
         list.addDouble(this.rx.value);
         list.addDouble(this.ry.value);
         list.addDouble(this.rz.value);
-        list.addDouble(this.r2x.value);
-        list.addDouble(this.r2y.value);
-        list.addDouble(this.r2z.value);
 
         Window.setClipboard(list);
     }
@@ -365,7 +313,6 @@ public abstract class UITransform extends UIElement
         this.pasteTranslation(this.getVector(list, 0));
         this.pasteScale(this.getVector(list, 3));
         this.pasteRotation(this.getVector(list, 6));
-        this.pasteRotation2(this.getVector(list, 9));
     }
 
     public void pasteTranslation(Vector3d translation)
@@ -381,11 +328,6 @@ public abstract class UITransform extends UIElement
     public void pasteRotation(Vector3d rotation)
     {
         this.fillSetR(rotation.x, rotation.y, rotation.z);
-    }
-
-    public void pasteRotation2(Vector3d rotation)
-    {
-        this.fillSetR2(rotation.x, rotation.y, rotation.z);
     }
 
     private Vector3d getVector(ListType list, int offset)
@@ -418,7 +360,6 @@ public abstract class UITransform extends UIElement
         this.fillSetT(0, 0, 0);
         this.fillSetS(1, 1, 1);
         this.fillSetR(0, 0, 0);
-        this.fillSetR2(0, 0, 0);
     }
 
     @Override

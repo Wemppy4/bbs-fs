@@ -1037,7 +1037,6 @@
     "bbs.ui.transforms.keys.category": "การเปลี่ยนแปลง",
     "bbs.ui.transforms.keys.toggle_axes": "สลับแกน XYZ",
     "bbs.ui.transforms.rotate": "หมุน",
-    "bbs.ui.transforms.rotate2": "หมุน (2nd)",
     "bbs.ui.transforms.scale": "มาตราส่วน",
     "bbs.ui.transforms.translate": "แปล",
     "bbs.ui.transforms.uniform_scale": "สลับการปรับขนาดแบบสม่ำเสมอ",

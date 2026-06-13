@@ -1029,7 +1029,6 @@
     "bbs.ui.trackpad.global_amplifier": "Amplitude atualizada, o novo fator é %.2f",
     "bbs.ui.transforms.editing": "Editando...",
     "bbs.ui.transforms.rotate": "Rotacionar",
-    "bbs.ui.transforms.rotate2": "Rotacionar (2nd)",
     "bbs.ui.transforms.scale": "Redimensionar",
     "bbs.ui.transforms.translate": "Posicionar",
     "bbs.ui.transforms.uniform_scale": "Alternar escala uniforme",

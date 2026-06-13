@@ -2041,7 +2041,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
         {
             if (
                 transform.rotate.x == 0 && transform.rotate.z == 0 &&
-                transform.rotate2.x == 0 && transform.rotate2.y == 0 && transform.rotate2.z == 0 &&
                 transform.scale.x == 1 && transform.scale.y == 1 && transform.scale.z == 1
             ) {
                 double yaw = -Math.toDegrees(transform.rotate.y);

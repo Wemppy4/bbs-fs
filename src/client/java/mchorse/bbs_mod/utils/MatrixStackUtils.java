@@ -59,9 +59,6 @@ public class MatrixStackUtils
         stack.multiply(RotationAxis.POSITIVE_Z.rotation(transform.rotate.z));
         stack.multiply(RotationAxis.POSITIVE_Y.rotation(transform.rotate.y));
         stack.multiply(RotationAxis.POSITIVE_X.rotation(transform.rotate.x));
-        stack.multiply(RotationAxis.POSITIVE_Z.rotation(transform.rotate2.z));
-        stack.multiply(RotationAxis.POSITIVE_Y.rotation(transform.rotate2.y));
-        stack.multiply(RotationAxis.POSITIVE_X.rotation(transform.rotate2.x));
         scaleStack(stack, transform.scale.x, transform.scale.y, transform.scale.z);
     }
 

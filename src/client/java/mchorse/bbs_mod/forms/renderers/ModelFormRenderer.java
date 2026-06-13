@@ -185,14 +185,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 poseTransform.translate.lerp(value.translate, value.fix);
                 poseTransform.scale.lerp(value.scale, value.fix);
                 poseTransform.rotate.lerp(value.rotate, value.fix);
-                poseTransform.rotate2.lerp(value.rotate2, value.fix);
             }
             else
             {
                 poseTransform.translate.add(value.translate);
                 poseTransform.scale.add(value.scale).sub(1, 1, 1);
                 poseTransform.rotate.add(value.rotate);
-                poseTransform.rotate2.add(value.rotate2);
             }
         }
     }

@@ -15,6 +15,7 @@ import mchorse.bbs_mod.ui.forms.editors.panels.UIGeneralFormPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIPanelBase;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
@@ -22,6 +23,7 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>>
 {
@@ -58,12 +60,12 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public Matrix4f getOrigin(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), this.generalPanel != null && this.generalPanel.transform.isLocal());
+        return this.getOrigin(transition, FormUtils.getPath(this.form), this.generalPanel != null ? this.generalPanel.transform.getSpace() : TransformSpace.PARENT);
     }
 
     /**
      * Always returns the bone's full local matrix (including its own rotation),
-     * irrespective of the LOCAL/GLOBAL UI toggle. Required for sampling-based
+     * irrespective of the UI's space toggle. Required for sampling-based
      * gizmo helpers that need the rotation to be visible in the matrix &mdash;
      * the rotation-stripped &quot;origin&quot; variant doesn't move when
      * {@code transform.rotate} is perturbed, so axis extraction would silently
@@ -71,16 +73,21 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      */
     public Matrix4f getOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), true);
+        return this.getOrigin(transition, FormUtils.getPath(this.form), TransformSpace.LOCAL);
     }
 
-    protected Matrix4f getOrigin(float transition, String path, boolean local)
+    protected Matrix4f getOrigin(float transition, String path, TransformSpace space)
     {
         Form root = FormUtils.getRoot(this.form);
         MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
-        Matrix4f matrix = local ? map.get(path).matrix() : map.get(path).origin();
+        Matrix4f matrix = space == TransformSpace.LOCAL ? map.get(path).matrix() : map.get(path).origin();
 
-        return matrix == null ? Matrices.EMPTY_4F : matrix;
+        if (matrix == null)
+        {
+            return Matrices.EMPTY_4F;
+        }
+
+        return space == TransformSpace.WORLD ? new Matrix4f().translation(matrix.getTranslation(new Vector3f())) : matrix;
     }
 
     protected void registerDefaultPanels()

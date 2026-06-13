@@ -1035,7 +1035,6 @@
     "bbs.ui.transforms.keys.category": "Biến đổi",
     "bbs.ui.transforms.keys.toggle_axes": "bật XYZ axes",
     "bbs.ui.transforms.rotate": "Xoay",
-    "bbs.ui.transforms.rotate2": "Xoay (lần 2)",
     "bbs.ui.transforms.scale": "Tỷ lệ",
     "bbs.ui.transforms.translate": "Dịch chuyển",
     "bbs.ui.transforms.uniform_scale": "bật/tắt tỉ lệ đều",

@@ -66,7 +66,7 @@ public class UIBodyPartEditor extends UIScrollView
         this.bone = new UIStringList((l) -> this.part.bone.set(l.get(0)));
         this.bone.background().h(UIConstants.LIST_ITEM_HEIGHT * 6);
 
-        this.transform = new UIPropTransform().callbacks(() -> this.part.transform);
+        this.transform = new UIPropTransform().callbacks(() -> this.part.transform).barBackground();
 
         this.pick.keys().register(Keys.FORMS_EDIT, this.pick::clickItself);
 

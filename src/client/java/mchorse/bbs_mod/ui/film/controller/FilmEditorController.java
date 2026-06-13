@@ -11,6 +11,7 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.utils.CollectionUtils;
+import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -224,30 +225,29 @@ public class FilmEditorController extends BaseFilmController
     @Override
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
     {
-        Pair<String, Boolean> bone = this.isCurrent(entity) && !this.controller.panel.recorder.isRecording() ? this.controller.getBone() : null;
+        Pair<String, TransformSpace> bone = this.isCurrent(entity) && !this.controller.panel.recorder.isRecording() ? this.controller.getBone() : null;
         String aBone = bone == null ? null : bone.a;
-        boolean local = bone != null && bone.b;
+        TransformSpace space = bone == null ? TransformSpace.PARENT : bone.b;
         String aBone2 = null;
-        boolean local2 = false;
+        TransformSpace space2 = TransformSpace.PARENT;
 
         if (replay.axesPreview.get())
         {
             aBone2 = replay.axesPreviewBone.get();
-            local2 = true;
+            space2 = TransformSpace.LOCAL;
         }
 
         if (this.controller.panel.recorder.isRecording())
         {
             aBone = null;
-            local = false;
+            space = TransformSpace.PARENT;
             aBone2 = null;
-            local2 = false;
         }
 
         return super.getFilmControllerContext(context, replay, entity)
             .transition(this.getTransition(entity, context.tickDelta()))
-            .bone(aBone, local)
-            .bone2(aBone2, local2);
+            .bone(aBone, space)
+            .bone2(aBone2, space2);
     }
 
     private boolean isCurrent(IEntity entity)

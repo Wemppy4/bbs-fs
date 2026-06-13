@@ -154,11 +154,6 @@ public class Model implements IMapSerializable, IModel
                 (float) Math.toDegrees(transform.rotate.y),
                 (float) Math.toDegrees(transform.rotate.z)
             );
-            group.current.rotate2.add(
-                (float) Math.toDegrees(transform.rotate2.x),
-                (float) Math.toDegrees(transform.rotate2.y),
-                (float) Math.toDegrees(transform.rotate2.z)
-            );
         }
     }
 

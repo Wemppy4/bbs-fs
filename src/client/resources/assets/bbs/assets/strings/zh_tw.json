@@ -1051,7 +1051,6 @@
     "bbs.ui.transforms.keys.category": "變換",
     "bbs.ui.transforms.keys.toggle_axes": "切換 XYZ 座標軸",
     "bbs.ui.transforms.rotate": "旋轉",
-    "bbs.ui.transforms.rotate2": "旋轉（第二個）",
     "bbs.ui.transforms.scale": "縮放",
     "bbs.ui.transforms.translate": "平移",
     "bbs.ui.transforms.uniform_scale": "切換統一縮放",

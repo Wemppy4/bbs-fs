@@ -31,6 +31,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
+import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
@@ -406,7 +407,7 @@ public class UIAnimationStateEditor extends UIElement
             return Matrices.EMPTY_4F;
         }
 
-        Pair<String, Boolean> bone = this.keyframeEditor.getBone();
+        Pair<String, TransformSpace> bone = this.keyframeEditor.getBone();
 
         if (bone == null)
         {
@@ -415,9 +416,14 @@ public class UIAnimationStateEditor extends UIElement
 
         Form root = FormUtils.getRoot(this.editor.form);
         MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
-        Matrix4f matrix = (!forceMatrix && bone.b) ? map.get(bone.a).origin() : map.get(bone.a).matrix();
+        Matrix4f matrix = forceMatrix || bone.b == TransformSpace.LOCAL ? map.get(bone.a).matrix() : map.get(bone.a).origin();
 
-        return matrix == null ? Matrices.EMPTY_4F : matrix;
+        if (matrix == null)
+        {
+            return Matrices.EMPTY_4F;
+        }
+
+        return !forceMatrix && bone.b == TransformSpace.WORLD ? new Matrix4f().translation(matrix.getTranslation(new Vector3f())) : matrix;
     }
 
     @Override
