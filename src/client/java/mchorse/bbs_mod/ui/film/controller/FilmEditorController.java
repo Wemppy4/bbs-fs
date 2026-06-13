@@ -244,10 +244,15 @@ public class FilmEditorController extends BaseFilmController
             aBone2 = null;
         }
 
+        boolean anchorGizmo = this.isCurrent(entity)
+            && !this.controller.panel.recorder.isRecording()
+            && this.controller.isAnchorGizmo();
+
         return super.getFilmControllerContext(context, replay, entity)
             .transition(this.getTransition(entity, context.tickDelta()))
             .bone(aBone, space)
-            .bone2(aBone2, space2);
+            .bone2(aBone2, space2)
+            .anchorGizmo(anchorGizmo, this.controller.getAnchorSpace());
     }
 
     private boolean isCurrent(IEntity entity)

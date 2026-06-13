@@ -492,6 +492,13 @@ public class UIReplaysEditorUtils
 
         if (bone == null || bone.a == null || replay == null || entity == null)
         {
+            /* The anchor track has no model bone: its transform parents the whole
+             * form, so sample the form's resolved anchor matrix instead. */
+            if (keyframeEditor.isFormAnchorTrack() && replay != null && entity != null)
+            {
+                buildAnchorGizmoDrag(panel, camera, drag, transform, replay, entity, transition);
+            }
+
             return drag;
         }
 
@@ -537,6 +544,63 @@ public class UIReplaysEditorUtils
         }
 
         return drag;
+    }
+
+    /**
+     * Numeric Jacobian / rotate-axes for the anchor gizmo: the sampler returns
+     * the form's resolved anchor matrix ({@link BaseFilmController#getGizmoAnchorCompositeMatrix},
+     * the same {@code target} the form renders with), so perturbing the keyframe's
+     * {@code anchor.transform} reveals how it moves the form in world space —
+     * exactly mirroring the bone path in {@link #buildFilmGizmoDrag}.
+     */
+    private static void buildAnchorGizmoDrag(
+        UIFilmPanel panel,
+        mchorse.bbs_mod.camera.Camera camera,
+        GizmoDrag drag,
+        UIPropTransform transform,
+        Replay replay,
+        IEntity entity,
+        float transition
+    )
+    {
+        java.util.function.Supplier<Matrix4f> matrixSampler = () ->
+        {
+            Form form = entity.getForm();
+            float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
+
+            if (form != null)
+            {
+                /* Push the perturbed keyframe state onto the form so the resolved
+                 * anchor matrix reflects this sample. */
+                replay.properties.applyProperties(form, tick);
+            }
+
+            Matrix4f m = BaseFilmController.getGizmoAnchorCompositeMatrix(
+                panel.getController().getEntities(),
+                entity,
+                replay,
+                camera.position.x,
+                camera.position.y,
+                camera.position.z,
+                transition
+            );
+
+            return m == null ? new Matrix4f() : m;
+        };
+
+        drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform.getTransform(), matrixSampler));
+        drag.setJacobian(GizmoDrag.computeTranslateJacobian(
+            transform.getTransform(),
+            () -> matrixSampler.get().getTranslation(new Vector3f())
+        ));
+
+        /* Restore the form to its unperturbed state */
+        Form form = entity.getForm();
+        if (form != null)
+        {
+            float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
+            replay.properties.applyProperties(form, tick);
+        }
     }
 
     /* Picking form and form properties */

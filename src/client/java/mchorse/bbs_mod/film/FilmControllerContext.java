@@ -33,6 +33,10 @@ public class FilmControllerContext
     public String bone2;
     public TransformSpace space2 = TransformSpace.PARENT;
 
+    /** Draw the editing gizmo at the entity's resolved {@code form.anchor} matrix. */
+    public boolean anchorGizmo;
+    public TransformSpace anchorSpace = TransformSpace.PARENT;
+
     public String nameTag = "";
     public boolean relative;
 
@@ -46,6 +50,8 @@ public class FilmControllerContext
         this.color = Colors.WHITE;
         this.bone = null;
         this.space = TransformSpace.PARENT;
+        this.anchorGizmo = false;
+        this.anchorSpace = TransformSpace.PARENT;
         this.nameTag = "";
         this.relative = false;
     }
@@ -127,6 +133,14 @@ public class FilmControllerContext
     {
         this.bone2 = bone;
         this.space2 = space;
+
+        return this;
+    }
+
+    public FilmControllerContext anchorGizmo(boolean anchorGizmo, TransformSpace space)
+    {
+        this.anchorGizmo = anchorGizmo;
+        this.anchorSpace = space;
 
         return this;
     }

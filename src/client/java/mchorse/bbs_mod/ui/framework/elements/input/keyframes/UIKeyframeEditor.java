@@ -7,6 +7,7 @@ import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIPoseKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIPoseTransformKeyframeFactory;
@@ -255,6 +256,36 @@ public class UIKeyframeEditor extends UIElement
         }
 
         return null;
+    }
+
+    /**
+     * Whether the active editor is the form's "anchor" property track — the one
+     * that re-parents the whole form to another replay's attachment and carries
+     * a {@link mchorse.bbs_mod.utils.pose.Transform} offset the gizmo can edit.
+     * The IK/pole/physics target tracks reuse the {@code Anchor} value type but
+     * are created without a backing property, so the {@code property != null}
+     * test excludes them; the {@code "anchor"} id keeps it to the root form's
+     * track, whose placement {@link mchorse.bbs_mod.film.BaseFilmController}
+     * resolves from the entity's own {@code form.anchor}.
+     */
+    public boolean isFormAnchorTrack()
+    {
+        if (!(this.editor instanceof UIAnchorKeyframeFactory))
+        {
+            return false;
+        }
+
+        UIKeyframeSheet sheet = this.getSheet(this.editor.getKeyframe());
+
+        return sheet != null && sheet.property != null && "anchor".equals(sheet.id);
+    }
+
+    /** The shared transform space the anchor gizmo should be oriented in (mirrors {@link #getBone()}'s space). */
+    public TransformSpace getAnchorSpace()
+    {
+        return this.editor instanceof UIAnchorKeyframeFactory factory
+            ? factory.transform.getSpace()
+            : TransformSpace.PARENT;
     }
 
     @Override

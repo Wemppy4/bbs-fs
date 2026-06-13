@@ -3,6 +3,7 @@ package mchorse.bbs_mod.film;
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.netty.util.collection.IntObjectHashMap;
 import io.netty.util.collection.IntObjectMap;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.renderer.ModelBlockEntityRenderer;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.replays.PerLimbService;
@@ -18,6 +19,7 @@ import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.cubic.ik.IKControls;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
+import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
@@ -182,10 +184,15 @@ public abstract class BaseFilmController
         if (UIBaseMenu.renderAxes)
         {
             if (context.bone != null) renderAxes(context.bone, context.space, context.map, form, entity, transition, stack);
-            if (context.bone2 != null && context.map == null) renderAxes(context.bone2, context.space2, context.map, form, entity, transition, stack);
+            if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.space2, form, entity, transition, stack);
         }
 
         stack.pop();
+
+        if (UIBaseMenu.renderAxes && context.anchorGizmo)
+        {
+            renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.map, stack);
+        }
 
         if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F)
         {
@@ -239,6 +246,102 @@ public abstract class BaseFilmController
             RenderSystem.enableDepthTest();
             stack.pop();
         }
+    }
+
+    /**
+     * The replay's "axes preview" (a secondary bone): plain, non-interactive
+     * cool axes via {@link Draw#coolerAxes} — not the editing gizmo. Resolves the
+     * bone matrix exactly like {@link #renderAxes} and applies the same
+     * distance scaling the gizmo uses, so the preview keeps a constant on-screen
+     * size and matches the gizmo's axes.
+     */
+    private static void renderPreviewAxes(String bone, TransformSpace space, Form form, IEntity entity, float transition, MatrixStack stack)
+    {
+        String mapKey = bone != null && bone.contains(PerLimbService.POSE_BONES) ? bone.replace(PerLimbService.POSE_BONES, "") : bone;
+        Form root = FormUtils.getRoot(form);
+        MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(entity, transition);
+        MatrixCacheEntry entry = map.get(mapKey);
+
+        if (entry == null)
+        {
+            return;
+        }
+
+        Matrix4f matrix = space == TransformSpace.LOCAL ? entry.matrix() : entry.origin();
+
+        if (matrix == null)
+        {
+            return;
+        }
+
+        if (space == TransformSpace.LOCAL) matrix = MatrixStackUtils.stripScale(matrix);
+        else if (space == TransformSpace.WORLD) matrix = new Matrix4f().translation(matrix.getTranslation(new Vector3f()));
+
+        stack.push();
+        MatrixStackUtils.multiply(stack, matrix);
+
+        Vector3f cameraRelative = stack.peek().getPositionMatrix().getTranslation(new Vector3f());
+        Matrix4f proj = RenderSystem.getProjectionMatrix();
+        float fov = proj.m33() == 0 ? (float) (2.0 * Math.atan(1.0 / proj.m11())) : BBSSettings.getFov();
+        float distanceScale = BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov);
+
+        stack.scale(distanceScale, distanceScale, distanceScale);
+        Draw.coolerAxes(stack, 0.25F, 0.008F);
+
+        RenderSystem.enableDepthTest();
+        stack.pop();
+    }
+
+    /**
+     * Draw the editing gizmo for the form's anchor offset. The anchor is applied
+     * as {@code parent.mul(transform)} in {@link #getTotalMatrix}, so the gizmo
+     * sits at that resolved matrix {@code full} (already computed as the entity's
+     * render target) and edits {@code form.anchor.transform}. The space toggle
+     * mirrors {@link #renderAxes}: LOCAL keeps the anchor's own orientation,
+     * WORLD axis-aligns it, PARENT uses the attachment's orientation at the
+     * anchor's position.
+     */
+    private static void renderAnchorGizmo(IntObjectMap<IEntity> entities, IEntity entity, Matrix4f full, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, TransformSpace space, StencilMap stencilMap, MatrixStack stack)
+    {
+        Form form = entity.getForm();
+
+        if (form == null || full == null)
+        {
+            return;
+        }
+
+        Matrix4f matrix;
+
+        if (space == TransformSpace.WORLD)
+        {
+            matrix = new Matrix4f().translation(full.getTranslation(new Vector3f()));
+        }
+        else if (space == TransformSpace.PARENT)
+        {
+            Matrix4f parent = getEntityMatrix(entities, cx, cy, cz, form.anchor.get(), defaultMatrix, transition, 0, true);
+
+            matrix = MatrixStackUtils.stripScale(parent);
+            matrix.setTranslation(full.getTranslation(new Vector3f()));
+        }
+        else
+        {
+            matrix = MatrixStackUtils.stripScale(full);
+        }
+
+        stack.push();
+        MatrixStackUtils.multiply(stack, matrix);
+
+        if (stencilMap == null)
+        {
+            Gizmo.INSTANCE.render(stack);
+        }
+        else
+        {
+            Gizmo.INSTANCE.renderStencil(stack, stencilMap);
+        }
+
+        RenderSystem.enableDepthTest();
+        stack.pop();
     }
 
     public static Pair<Matrix4f, Float> getTotalMatrix(IntObjectMap<IEntity> entities, Anchor value, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, int i)
@@ -453,6 +556,56 @@ public abstract class BaseFilmController
         }
 
         return MatrixStackUtils.stripScale(new Matrix4f(target).mul(bone));
+    }
+
+    /**
+     * The anchor's resolved world matrix as composed for the film viewport — the
+     * same {@code target} {@link #renderEntity} renders the form with, i.e.
+     * {@code getTotalMatrix(form.anchor)}. Used by the gizmo drag to numerically
+     * sample how {@code form.anchor.transform} maps to world position/rotation
+     * (the counterpart of {@link #getGizmoBoneCompositeMatrix} for the anchor,
+     * with no bone multiply since the anchor moves the whole form).
+     */
+    public static Matrix4f getGizmoAnchorCompositeMatrix(
+        IntObjectMap<IEntity> entities,
+        IEntity entity,
+        Replay replay,
+        double cameraX,
+        double cameraY,
+        double cameraZ,
+        float transition
+    )
+    {
+        if (entity == null || entity.getForm() == null)
+        {
+            return null;
+        }
+
+        Form form = entity.getForm();
+        boolean relative = replay != null && replay.relative.get();
+
+        double cx = cameraX;
+        double cy = cameraY;
+        double cz = cameraZ;
+
+        if (relative && replay != null)
+        {
+            cx = replay.keyframes.x.interpolate(0F) + replay.relativeOffset.get().x;
+            cy = replay.keyframes.y.interpolate(0F) + replay.relativeOffset.get().y;
+            cz = replay.keyframes.z.interpolate(0F) + replay.relativeOffset.get().z;
+        }
+
+        Matrix4f defaultMatrix = getMatrixForRenderWithRotation(entity, cx, cy, cz, transition);
+        Matrix4f full = defaultMatrix;
+
+        if (!relative)
+        {
+            Pair<Matrix4f, Float> pair = getTotalMatrix(entities, form.anchor.get(), defaultMatrix, cx, cy, cz, transition, 0);
+
+            full = pair.a != null ? pair.a : defaultMatrix;
+        }
+
+        return MatrixStackUtils.stripScale(full);
     }
 
     private static void renderNameTag(IEntity entity, Text text, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light)

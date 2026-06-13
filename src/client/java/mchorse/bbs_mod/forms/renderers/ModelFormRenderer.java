@@ -32,6 +32,7 @@ import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
+import mchorse.bbs_mod.math.Operation;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -180,7 +181,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             PoseTransform poseTransform = targetPose.get(entry.getKey());
             PoseTransform value = entry.getValue();
 
-            if (Math.abs(value.fix) > 1e-4F)
+            if (!Operation.equals(value.fix, 0))
             {
                 poseTransform.translate.lerp(value.translate, value.fix);
                 poseTransform.scale.lerp(value.scale, value.fix);
