@@ -198,12 +198,12 @@ public class UIPropTransform extends UITransform
     private UIIcon spaceWorld;
     private boolean spacesBarBackground;
 
-    /* Right-hand toggle of the spaces bar: mirror edit. When on, a pose edit is
-     * reflected across the model's symmetry onto each bone's opposite-side
-     * counterpart. Only shown on editors that support it (see
-     * {@link #supportsMirror()}); the state is the shared, persisted
-     * {@link BBSSettings#poseMirrorEdit}. */
+    /* Right-hand toggles of the spaces bar, only on editors that support it (see
+     * {@link #supportsMirror()}): mirror edit reflects a pose change onto each
+     * bone's left/right counterpart; alternate-invert flips the rotation of every
+     * second selected bone. Both are shared, persisted settings. */
     private UIIcon mirror;
+    private UIIcon invert;
 
     public UIPropTransform()
     {
@@ -225,10 +225,12 @@ public class UIPropTransform extends UITransform
         {
             this.mirror = new UIIcon(Icons.CONVERT, (b) -> this.toggleMirrorEdit());
             this.mirror.tooltip(UIKeys.TRANSFORMS_MIRROR_EDIT);
+            this.invert = new UIIcon(Icons.REVERSE, (b) -> this.toggleAlternateInvert());
+            this.invert.tooltip(UIKeys.TRANSFORMS_ALTERNATE_INVERT);
 
             /* An empty, width-less spacer eats the leftover row width so the
-             * mirror toggle is pushed to the far (right) end of the bar. */
-            this.spacesBar.add(new UIElement(), this.mirror);
+             * toggles are pushed to the far (right) end of the bar. */
+            this.spacesBar.add(new UIElement(), this.mirror, this.invert);
         }
 
         this.prepend(this.spacesBar);
@@ -294,6 +296,17 @@ public class UIPropTransform extends UITransform
     private void toggleMirrorEdit()
     {
         BBSSettings.poseMirrorEdit.set(!BBSSettings.poseMirrorEdit.get());
+        UIUtils.playClick();
+    }
+
+    public boolean isAlternateInvert()
+    {
+        return BBSSettings.poseAlternateInvert.get();
+    }
+
+    private void toggleAlternateInvert()
+    {
+        BBSSettings.poseAlternateInvert.set(!BBSSettings.poseAlternateInvert.get());
         UIUtils.playClick();
     }
 
@@ -3041,6 +3054,11 @@ public class UIPropTransform extends UITransform
         if (this.mirror != null && BBSSettings.poseMirrorEdit.get())
         {
             UIDashboardPanels.renderHighlight(context.batcher, this.mirror.area);
+        }
+
+        if (this.invert != null && BBSSettings.poseAlternateInvert.get())
+        {
+            UIDashboardPanels.renderHighlight(context.batcher, this.invert.area);
         }
 
         super.render(context);

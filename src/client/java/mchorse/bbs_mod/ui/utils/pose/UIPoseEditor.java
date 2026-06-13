@@ -241,7 +241,7 @@ public class UIPoseEditor extends UIElement
         @Override
         protected void applyToSelection(Consumer<Transform> consumer)
         {
-            for (Map.Entry<String, Boolean> target : UIPoseEditor.this.resolveMirrorTargets(this.isMirrorEdit()).entrySet())
+            for (Map.Entry<String, BoneEdit> target : UIPoseEditor.this.resolveBoneEdits(this.isMirrorEdit(), this.isAlternateInvert()).entrySet())
             {
                 UIPoseEditor.this.applyToBone(target.getValue(), UIPoseEditor.this.pose.get(target.getKey()), consumer);
             }
@@ -307,37 +307,53 @@ public class UIPoseEditor extends UIElement
         }
     }
 
-    /**
-     * Bones an edit should touch and whether each one is mirrored. The selected
-     * bones are drivers (applied as-is); when {@code mirror} is on, each driver's
-     * opposite-side counterpart is added mirrored &mdash; even when it isn't
-     * selected &mdash; so editing one bone reflects onto its pair live, with no
-     * need to select both. A counterpart that is itself selected stays a driver
-     * (never double-applied). Shared by the model panel and film pose editors.
-     */
-    public Map<String, Boolean> resolveMirrorTargets(boolean mirror)
+    /** How a single bone should receive an edit: reflected onto its left/right
+     *  counterpart ({@link #mirror}) and/or with its rotation flipped ({@link #invert}). */
+    public static class BoneEdit
     {
-        Map<String, Boolean> targets = new LinkedHashMap<>();
+        public final boolean mirror;
+        public final boolean invert;
 
-        for (String bone : this.groups.getCurrent())
+        public BoneEdit(boolean mirror, boolean invert)
         {
-            targets.put(bone, false);
+            this.mirror = mirror;
+            this.invert = invert;
+        }
+    }
+
+    /**
+     * Bones an edit should touch and how. Selected bones are drivers; with
+     * {@code invert} on, every second selected bone (2nd, 4th, ... in selection
+     * order) has its rotation flipped. With {@code mirror} on, each driver's
+     * left/right counterpart is added reflected across the model's symmetry
+     * &mdash; even when unselected &mdash; so editing one bone mirrors onto its
+     * pair live. A counterpart that is itself selected stays a driver (never
+     * double-applied). Shared by the model panel and film pose editors.
+     */
+    public Map<String, BoneEdit> resolveBoneEdits(boolean mirror, boolean invert)
+    {
+        Map<String, BoneEdit> edits = new LinkedHashMap<>();
+        List<String> selected = this.groups.getCurrent();
+
+        for (int i = 0; i < selected.size(); i++)
+        {
+            edits.put(selected.get(i), new BoneEdit(false, invert && i % 2 == 1));
         }
 
         if (mirror)
         {
-            for (String bone : new ArrayList<>(targets.keySet()))
+            for (String bone : new ArrayList<>(edits.keySet()))
             {
                 String partner = this.mirrorPartner(bone);
 
-                if (partner != null && !targets.containsKey(partner))
+                if (partner != null && !edits.containsKey(partner))
                 {
-                    targets.put(partner, true);
+                    edits.put(partner, new BoneEdit(true, false));
                 }
             }
         }
 
-        return targets;
+        return edits;
     }
 
     /**
@@ -378,20 +394,33 @@ public class UIPoseEditor extends UIElement
     }
 
     /**
-     * Applies the edit to one bone, reflecting it across the model's symmetry
-     * (the same negation as {@link Pose#flip}) when {@code mirror} is true.
+     * Applies the edit to one bone: reflecting it across the model's symmetry when
+     * {@code edit.mirror} (the same negation as {@link Pose#flip}), and/or flipping
+     * its rotation when {@code edit.invert}. Both are involutions wrapped around the
+     * write, so whatever the edit does to that channel is reflected/inverted.
      */
-    public void applyToBone(boolean mirror, PoseTransform pt, Consumer<Transform> consumer)
+    public void applyToBone(BoneEdit edit, PoseTransform pt, Consumer<Transform> consumer)
     {
-        if (mirror)
+        if (edit.mirror)
         {
-            mirrorTransform(pt);
-            consumer.accept(pt);
             mirrorTransform(pt);
         }
-        else
+
+        if (edit.invert)
         {
-            consumer.accept(pt);
+            negateRotation(pt);
+        }
+
+        consumer.accept(pt);
+
+        if (edit.invert)
+        {
+            negateRotation(pt);
+        }
+
+        if (edit.mirror)
+        {
+            mirrorTransform(pt);
         }
     }
 
@@ -399,6 +428,11 @@ public class UIPoseEditor extends UIElement
     {
         transform.translate.mul(-1F, 1F, 1F);
         transform.rotate.mul(1F, -1F, -1F);
+    }
+
+    private static void negateRotation(Transform transform)
+    {
+        transform.rotate.mul(-1F, -1F, -1F);
     }
 
     private void applyFixToSelection(float value)

@@ -231,7 +231,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         @Override
         protected void applyToSelection(Consumer<Transform> consumer)
         {
-            Map<String, Boolean> targets = this.editor.resolveMirrorTargets(this.isMirrorEdit());
+            Map<String, UIPoseEditor.BoneEdit> targets = this.editor.resolveBoneEdits(this.isMirrorEdit(), this.isAlternateInvert());
 
             UIPoseFactoryEditor.applyBones(this.editor.editor, this.editor.keyframe, new ArrayList<>(targets.keySet()),
                 (bone, poseT) -> this.editor.applyToBone(targets.get(bone), poseT, consumer));
@@ -240,7 +240,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         @Override
         protected void applyDuringRecording(int tick, Consumer<Transform> consumer)
         {
-            Map<String, Boolean> targets = this.editor.resolveMirrorTargets(this.isMirrorEdit());
+            Map<String, UIPoseEditor.BoneEdit> targets = this.editor.resolveBoneEdits(this.isMirrorEdit(), this.isAlternateInvert());
 
             applyRecordingBones(this.editor.editor, this.editor.keyframe, tick, new ArrayList<>(targets.keySet()),
                 (bone, poseT) -> this.editor.applyToBone(targets.get(bone), poseT, consumer));

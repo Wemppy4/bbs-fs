@@ -1064,6 +1064,7 @@ public class UIKeys
     public static final IKey TRANSFORMS_CONTEXT_SWITCH_WORLD = L10n.lang("bbs.ui.transforms.context.switch_world");
     public static final IKey TRANSFORMS_EDITING = L10n.lang("bbs.ui.transforms.editing");
     public static final IKey TRANSFORMS_MIRROR_EDIT = L10n.lang("bbs.ui.transforms.mirror_edit");
+    public static final IKey TRANSFORMS_ALTERNATE_INVERT = L10n.lang("bbs.ui.transforms.alternate_invert");
     public static final IKey TRANSFORMS_SPACE_GLOBAL = L10n.lang("bbs.ui.transforms.space.global");
     public static final IKey TRANSFORMS_SPACE_LOCAL = L10n.lang("bbs.ui.transforms.space.local");
     public static final IKey TRANSFORMS_SPACE_WORLD = L10n.lang("bbs.ui.transforms.space.world");

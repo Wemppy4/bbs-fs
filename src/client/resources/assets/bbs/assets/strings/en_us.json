@@ -1357,6 +1357,7 @@
 	"bbs.ui.transforms.combined": "Combined",
 	"bbs.ui.transforms.editing": "Editing...",
 	"bbs.ui.transforms.mirror_edit": "Mirror edit\n\nWhen enabled, editing a bone also mirrors the change onto its opposite-side (left/right) counterpart in real time — even when the counterpart isn't selected — so a symmetric pose stays symmetric without having to select both.",
+	"bbs.ui.transforms.alternate_invert": "Alternate invert\n\nWith several bones selected, every second one (2nd, 4th, ...) gets its rotation inverted. E.g. rotate the 1st bone +90° on X and the 2nd rotates -90°. Works on the manual selection, in selection order.",
 	"bbs.ui.transforms.keys.category": "Transformations",
 	"bbs.ui.transforms.keys.toggle_axes": "Toggle XYZ axes",
 	"bbs.ui.transforms.keys.toggle_fix": "Toggle fix (0 / 1)",
