@@ -7,16 +7,17 @@ import mchorse.bbs_mod.particles.components.expiration.ParticleComponentExpireNo
 import mchorse.bbs_mod.particles.components.expiration.ParticleComponentKillPlane;
 import mchorse.bbs_mod.particles.components.expiration.ParticleComponentParticleLifetime;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UICirculate;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
+import mchorse.bbs_mod.ui.particles.utils.UIMolangExpression;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIParticleSchemeExpirationSection extends UIParticleSchemeSection
 {
     public UICirculate mode;
-    public UIButton expression;
+    public UIMolangExpression expression;
 
     public UITrackpad a;
     public UITrackpad b;
@@ -41,11 +42,11 @@ public class UIParticleSchemeExpirationSection extends UIParticleSchemeSection
         this.mode.addLabel(UIKeys.SNOWSTORM_EXPIRATION_EXPRESSION);
         this.mode.addLabel(UIKeys.SNOWSTORM_EXPIRATION_MAX);
 
-        this.expression = new UIButton(UIKeys.SNOWSTORM_EXPRESSION, (b) ->
+        this.expression = new UIMolangExpression(() -> this.lifetime.expression, (b) ->
         {
             this.editMoLang("expiration.lifetime", (str) -> this.lifetime.expression = this.parse(str, this.lifetime.expression), this.lifetime.expression);
         });
-        this.expression.tooltip(IKey.EMPTY);
+        this.expression.icon(Icons.SKULL).tooltip(IKey.EMPTY);
 
         this.a = new UITrackpad((value) ->
         {
