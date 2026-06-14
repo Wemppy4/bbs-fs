@@ -17,6 +17,7 @@ import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
@@ -69,6 +70,11 @@ public class FormProperties extends ValueGroup
         if (PerLimbService.isPoseBoneChannel(key))
         {
             return this.registerChannel(key, KeyframeFactories.POSE_TRANSFORM);
+        }
+
+        if (PerLimbService.isMaterialTextureChannel(key))
+        {
+            return this.registerChannel(key, KeyframeFactories.LINK);
         }
 
         return null;
@@ -208,6 +214,29 @@ public class FormProperties extends ValueGroup
                     Transform interpolated = (Transform) this.interpolateValue(value, new PoseTransform(), segment, blend);
 
                     transform.add(interpolated);
+                }
+            }
+
+            return;
+        }
+
+        PerLimbService.MaterialTexturePath materialPath = PerLimbService.parseMaterialTexturePath(value.getId());
+
+        if (materialPath != null)
+        {
+            Form targetForm = FormUtils.getForm(form, materialPath.formPath());
+
+            if (targetForm instanceof ModelForm modelForm)
+            {
+                KeyframeSegment segment = value.find(tick);
+
+                if (segment != null)
+                {
+                    modelForm.materialTextureOverrides.put(materialPath.material(), (Link) segment.createInterpolated());
+                }
+                else if (blend >= 1F)
+                {
+                    modelForm.materialTextureOverrides.remove(materialPath.material());
                 }
             }
 

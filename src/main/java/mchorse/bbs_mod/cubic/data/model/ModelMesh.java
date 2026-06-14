@@ -17,6 +17,13 @@ public class ModelMesh implements IMapSerializable
     public ModelData baseData = new ModelData();
     public Map<String, ModelData> data = new HashMap<>();
 
+    /**
+     * Name of the material this mesh belongs to (OBJ material name, BOBJ mesh name).
+     * Empty string means the model's default texture. Drives per-material texture
+     * selection at render time.
+     */
+    public String material = "";
+
     @Override
     public void fromData(MapType data)
     {
@@ -25,6 +32,7 @@ public class ModelMesh implements IMapSerializable
 
         this.origin.set(DataStorageUtils.vector3fFromData(data.getList("origin"), this.origin));
         this.rotate.set(DataStorageUtils.vector3fFromData(data.getList("rotate"), this.rotate));
+        this.material = data.getString("material", "");
 
         ListType vertices = data.getList("vertices");
         ListType uvs = data.getList("uvs");
@@ -85,5 +93,10 @@ public class ModelMesh implements IMapSerializable
         data.put("rotate", DataStorageUtils.vector3fToData(this.rotate));
         data.put("vertices", vertices);
         data.put("uvs", uvs);
+
+        if (!this.material.isEmpty())
+        {
+            data.putString("material", this.material);
+        }
     }
 }

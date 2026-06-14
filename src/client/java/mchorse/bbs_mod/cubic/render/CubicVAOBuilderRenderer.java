@@ -18,6 +18,8 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,16 +37,24 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
     private final static Vector2f u2 = new Vector2f();
     private final static Vector2f u3 = new Vector2f();
 
-    private Map<ModelGroup, ModelVAO> model;
+    private Map<ModelGroup, Map<String, ModelVAO>> model;
 
     /* Temporary variables to avoid allocating and GC vectors */
     private ModelVertex modelVertex = new ModelVertex();
     private Vector3f normal = new Vector3f();
     private Vector4f vertex = new Vector4f();
 
-    public CubicVAOBuilderRenderer(Map<ModelGroup, ModelVAO> model)
+    public CubicVAOBuilderRenderer(Map<ModelGroup, Map<String, ModelVAO>> model)
     {
         this.model = model;
+    }
+
+    /** Accumulated triangle data for a single material within a group. */
+    private static class MaterialBucket
+    {
+        private final List<Float> vertices = new ArrayList<>();
+        private final List<Float> normals = new ArrayList<>();
+        private final List<Float> uvs = new ArrayList<>();
     }
 
     @Override
@@ -54,34 +64,50 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
     @Override
     public boolean renderGroup(BufferBuilder builder, MatrixStack stack, ModelGroup group, Model model)
     {
-        List<Float> vertices = new ArrayList<>();
-        List<Float> normals = new ArrayList<>();
-        List<Float> uvs = new ArrayList<>();
+        /* Split a group's geometry by material so each material can be drawn with its own
+         * texture: cubes belong to the default material (""), meshes to their own. */
+        Map<String, MaterialBucket> buckets = new LinkedHashMap<>();
 
         for (ModelCube cube : group.cubes)
         {
-            this.renderCube(vertices, normals, uvs, stack, group, cube);
+            this.renderCube(buckets.computeIfAbsent("", (k) -> new MaterialBucket()), stack, group, cube);
         }
 
         for (ModelMesh mesh : group.meshes)
         {
-            this.renderMesh(vertices, normals, uvs, stack, model, group, mesh);
+            String material = mesh.material == null ? "" : mesh.material;
+
+            this.renderMesh(buckets.computeIfAbsent(material, (k) -> new MaterialBucket()), stack, model, group, mesh);
         }
 
-        if (!vertices.isEmpty())
+        Map<String, ModelVAO> groupVaos = new HashMap<>();
+
+        for (Map.Entry<String, MaterialBucket> entry : buckets.entrySet())
         {
-            float[] v = CollectionUtils.toArray(vertices);
-            float[] n = CollectionUtils.toArray(normals);
-            float[] u = CollectionUtils.toArray(uvs);
+            MaterialBucket bucket = entry.getValue();
+
+            if (bucket.vertices.isEmpty())
+            {
+                continue;
+            }
+
+            float[] v = CollectionUtils.toArray(bucket.vertices);
+            float[] n = CollectionUtils.toArray(bucket.normals);
+            float[] u = CollectionUtils.toArray(bucket.uvs);
             float[] t = BBSRendering.calculateTangents(v, n, u);
 
-            this.model.put(group, new ModelVAO(new ModelVAOData(v, n, t, u)));
+            groupVaos.put(entry.getKey(), new ModelVAO(new ModelVAOData(v, n, t, u)));
+        }
+
+        if (!groupVaos.isEmpty())
+        {
+            this.model.put(group, groupVaos);
         }
 
         return false;
     }
 
-    private void renderCube(List<Float> vertices, List<Float> normals, List<Float> uvs, MatrixStack stack, ModelGroup group, ModelCube cube)
+    private void renderCube(MaterialBucket bucket, MatrixStack stack, ModelGroup group, ModelCube cube)
     {
         stack.push();
         CubicCubeRenderer.moveToPivot(stack, cube.pivot);
@@ -95,19 +121,19 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
 
             if (quad.vertices.size() == 4)
             {
-                this.writeVertex(vertices, normals, uvs, stack, group, quad.vertices.get(0), this.normal);
-                this.writeVertex(vertices, normals, uvs, stack, group, quad.vertices.get(1), this.normal);
-                this.writeVertex(vertices, normals, uvs, stack, group, quad.vertices.get(2), this.normal);
-                this.writeVertex(vertices, normals, uvs, stack, group, quad.vertices.get(0), this.normal);
-                this.writeVertex(vertices, normals, uvs, stack, group, quad.vertices.get(2), this.normal);
-                this.writeVertex(vertices, normals, uvs, stack, group, quad.vertices.get(3), this.normal);
+                this.writeVertex(bucket, stack, group, quad.vertices.get(0), this.normal);
+                this.writeVertex(bucket, stack, group, quad.vertices.get(1), this.normal);
+                this.writeVertex(bucket, stack, group, quad.vertices.get(2), this.normal);
+                this.writeVertex(bucket, stack, group, quad.vertices.get(0), this.normal);
+                this.writeVertex(bucket, stack, group, quad.vertices.get(2), this.normal);
+                this.writeVertex(bucket, stack, group, quad.vertices.get(3), this.normal);
             }
         }
 
         stack.pop();
     }
 
-    private void renderMesh(List<Float> vertices, List<Float> normals, List<Float> uvs, MatrixStack stack, Model model, ModelGroup group, ModelMesh mesh)
+    private void renderMesh(MaterialBucket bucket, MatrixStack stack, Model model, ModelGroup group, ModelMesh mesh)
     {
         stack.push();
         CubicCubeRenderer.moveToPivot(stack, mesh.origin);
@@ -134,34 +160,34 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
             this.normal.set(n1.x, n1.y, n1.z);
             stack.peek().getNormalMatrix().transform(this.normal);
             this.modelVertex.set(v1, u1, model);
-            this.writeVertex(vertices, normals, uvs, stack, group, this.modelVertex, this.normal);
+            this.writeVertex(bucket, stack, group, this.modelVertex, this.normal);
 
             this.normal.set(n2.x, n2.y, n2.z);
             stack.peek().getNormalMatrix().transform(this.normal);
             this.modelVertex.set(v2, u2, model);
-            this.writeVertex(vertices, normals, uvs, stack, group, this.modelVertex, this.normal);
+            this.writeVertex(bucket, stack, group, this.modelVertex, this.normal);
 
             this.normal.set(n3.x, n3.y, n3.z);
             stack.peek().getNormalMatrix().transform(this.normal);
             this.modelVertex.set(v3, u3, model);
-            this.writeVertex(vertices, normals, uvs, stack, group, this.modelVertex, this.normal);
+            this.writeVertex(bucket, stack, group, this.modelVertex, this.normal);
         }
 
         stack.pop();
     }
 
-    private void writeVertex(List<Float> vertices, List<Float> normals, List<Float> uvs, MatrixStack stack, ModelGroup group, ModelVertex vertex, Vector3f normal)
+    private void writeVertex(MaterialBucket bucket, MatrixStack stack, ModelGroup group, ModelVertex vertex, Vector3f normal)
     {
         this.vertex.set(vertex.vertex.x, vertex.vertex.y, vertex.vertex.z, 1);
         stack.peek().getPositionMatrix().transform(this.vertex);
 
-        vertices.add(this.vertex.x);
-        vertices.add(this.vertex.y);
-        vertices.add(this.vertex.z);
-        normals.add(normal.x);
-        normals.add(normal.y);
-        normals.add(normal.z);
-        uvs.add(vertex.uv.x);
-        uvs.add(vertex.uv.y);
+        bucket.vertices.add(this.vertex.x);
+        bucket.vertices.add(this.vertex.y);
+        bucket.vertices.add(this.vertex.z);
+        bucket.normals.add(normal.x);
+        bucket.normals.add(normal.y);
+        bucket.normals.add(normal.z);
+        bucket.uvs.add(vertex.uv.x);
+        bucket.uvs.add(vertex.uv.y);
     }
 }

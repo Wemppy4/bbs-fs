@@ -9,9 +9,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelData;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.data.model.ModelMesh;
 import mchorse.bbs_mod.cubic.model.ModelManager;
-import mchorse.bbs_mod.data.DataToString;
 import mchorse.bbs_mod.data.types.BaseType;
-import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.obj.MeshOBJ;
 import mchorse.bbs_mod.obj.MeshesOBJ;
@@ -19,18 +17,10 @@ import mchorse.bbs_mod.obj.OBJMaterial;
 import mchorse.bbs_mod.obj.OBJParser;
 import mchorse.bbs_mod.resources.AssetProvider;
 import mchorse.bbs_mod.resources.Link;
-import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.utils.BoxPacker;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.IOUtils;
-import mchorse.bbs_mod.utils.PNGEncoder;
-import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.StringUtils;
-import mchorse.bbs_mod.utils.colors.Color;
-import mchorse.bbs_mod.utils.resources.Pixels;
-import org.joml.Vector2i;
+import mchorse.bbs_mod.utils.resources.LinkUtils;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -87,7 +77,7 @@ public class CubicModelLoader implements IModelLoader
                 theModel.textureHeight = 1;
             }
 
-            this.tryMakingFlatMaterials(models.provider, links, model, newModel, theModel, compile);
+            this.loadMaterialTextures(models.provider, links, model, newModel, theModel, compile);
 
             for (Map.Entry<String, MeshesOBJ> entry : compile.entrySet())
             {
@@ -105,6 +95,7 @@ public class CubicModelLoader implements IModelLoader
                 {
                     ModelMesh modelMesh = new ModelMesh();
 
+                    modelMesh.material = mesh.material == null ? "" : mesh.material.name;
                     modelMesh.baseData.fill(mesh, theModel.textureWidth, theModel.textureHeight);
                     group.meshes.add(modelMesh);
                 }
@@ -137,188 +128,50 @@ public class CubicModelLoader implements IModelLoader
         return newModel;
     }
 
-    private void tryMakingFlatMaterials(AssetProvider provider, Collection<Link> links, Link model, ModelInstance newModel, Model theModel, Map<String, MeshesOBJ> compile)
+    /**
+     * Load each material's default texture into the model instance. Textures live in a folder
+     * named after the material, either {@code <model>/<material>/} or {@code <model>/textures/<material>/}
+     * (first PNG wins); a material with no such file gets a 1x1 swatch of its flat diffuse (Kd)
+     * color. OBJ UVs stay normalized (0..1) into each material's own texture, so the model's
+     * texture sheet is kept at 1x1.
+     */
+    private void loadMaterialTextures(AssetProvider provider, Collection<Link> links, Link model, ModelInstance newModel, Model theModel, Map<String, MeshesOBJ> compile)
     {
-        Link paletteLink = model.combine("baked.png");
-        File paletteFile = provider.getFile(paletteLink);
-
-        /* Collect materials */
-        Map<OBJMaterial, Pair<Pixels, Area>> pixels = new HashMap<>();
         List<OBJMaterial> materials = new ArrayList<>();
 
         for (MeshesOBJ value : compile.values())
         {
             for (MeshOBJ mesh : value.meshes)
             {
-                if (mesh.material == null)
-                {
-                    continue;
-                }
-
-                if (!materials.contains(mesh.material))
+                if (mesh.material != null && !materials.contains(mesh.material))
                 {
                     materials.add(mesh.material);
                 }
             }
         }
 
-        if (materials.isEmpty() || materials.get(0).useTexture)
+        if (materials.isEmpty())
         {
             return;
         }
 
-        /* Read baked information and apply it */
-        Link bakedOffsets = model.combine("baked.json");
-
-        if (paletteFile.exists())
-        {
-            newModel.texture = paletteLink;
-
-            try (InputStream stream = provider.getAsset(bakedOffsets))
-            {
-                MapType type = DataToString.mapFromString(IOUtils.readText(stream));
-                ListType size = type.getList("size");
-                MapType offsets = type.getMap("offsets");
-
-                for (OBJMaterial material : materials)
-                {
-                    ListType list = offsets.getList(material.name);
-
-                    if (list.size() >= 4)
-                    {
-                        pixels.putIfAbsent(material, new Pair<>(null, new Area(list.getInt(0), list.getInt(1), list.getInt(2), list.getInt(3))));
-                    }
-                }
-
-                this.applyBakedOffsets(compile, pixels, new Vector2i(size.getInt(0), size.getInt(1)));
-            }
-            catch (Exception e)
-            {}
-
-            return;
-        }
-
-        /* Load pixels */
-        for (OBJMaterial material : materials)
-        {
-            if (material.useTexture)
-            {
-                List<Link> materialTextures = IModelLoader.getLinks(links, (a) ->
-                {
-                    String string = a.toString();
-
-                    return string.startsWith(model.toString()) && string.contains("/" + material.name + "/") && string.endsWith(".png");
-                });
-
-                Link link = materialTextures.get(0);
-
-                try (InputStream stream = provider.getAsset(link))
-                {
-                    Pixels newPixels = Pixels.fromPNGStream(stream);
-                    Area area = new Area();
-
-                    pixels.put(material, new Pair<>(newPixels, area));
-                    area.setSize(newPixels.width, newPixels.height);
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace();
-                }
-            }
-            else
-            {
-                Pixels newPixels = Pixels.fromSize(1, 1);
-                Area area = new Area();
-                Color set = new Color().set(material.r, material.g, material.b, 1F);
-
-                newPixels.setColor(0, 0, set);
-                pixels.put(material, new Pair<>(newPixels, area));
-                area.setSize(newPixels.width, newPixels.height);
-            }
-        }
-
-        /* Pack boxes to occupy the least space */
-        List<Area> boxes = new ArrayList<>();
-
-        for (Pair<Pixels, Area> value : pixels.values()) 
-        {
-            boxes.add(value.b);
-        }
-
-        Vector2i size = BoxPacker.pack(boxes, 0);
-
-        /* Bake all textures into a single texture and delete pixels */
-        Pixels output = Pixels.fromSize(size.x, size.y);
-
-        for (Pair<Pixels, Area> value : pixels.values())
-        {
-            output.draw(value.a, value.b.x, value.b.y);
-            value.a.delete();
-        }
-        
-        try
-        {
-            /* Write the baked texture to PNG */
-            PNGEncoder.writeToFile(output, paletteFile);
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-        }
-
-        output.delete();
-
-        this.applyBakedOffsets(compile, pixels, size);
-
-        MapType data = new MapType();
-        ListType dSize = new ListType();
-        MapType dOffsets = new MapType();
-
-        data.put("size", dSize);
-        data.put("offsets", dOffsets);
-
-        for (Map.Entry<OBJMaterial, Pair<Pixels, Area>> entry : pixels.entrySet())
-        {
-            ListType dOffset = new ListType();
-
-            dOffset.addInt(entry.getValue().b.x);
-            dOffset.addInt(entry.getValue().b.y);
-            dOffset.addInt(entry.getValue().b.w);
-            dOffset.addInt(entry.getValue().b.h);
-            dOffsets.put(entry.getKey().name, dOffset);
-        }
-
-        dSize.addInt(size.x);
-        dSize.addInt(size.y);
-
-        DataToString.writeSilently(provider.getFile(bakedOffsets), data, true);
-
-        newModel.texture = paletteLink;
         theModel.textureWidth = 1;
         theModel.textureHeight = 1;
-    }
 
-    private void applyBakedOffsets(Map<String, MeshesOBJ> compile, Map<OBJMaterial, Pair<Pixels, Area>> pixels, Vector2i size)
-    {
-        /* Remap UV coordinates */
-        for (MeshesOBJ value : compile.values())
+        for (OBJMaterial material : materials)
         {
-            for (MeshOBJ mesh : value.meshes)
+            newModel.materials.add(material.name);
+
+            Link texture = IModelLoader.findMaterialTexture(links, model, material.name);
+
+            if (texture == null)
             {
-                Pair<Pixels, Area> pair = pixels.get(mesh.material);
-
-                for (int i = 0, c = mesh.triangles; i < c; i++)
-                {
-                    float u = mesh.texData[i * 2];
-                    float v = mesh.texData[i * 2 + 1];
-
-                    u = (u * pair.b.w + pair.b.x) / (float) size.x;
-                    v = (v * pair.b.h + pair.b.y) / (float) size.y;
-
-                    mesh.texData[i * 2] = u;
-                    mesh.texData[i * 2 + 1] = v;
-                }
+                /* No texture yet: surface an empty folder for it and render the flat Kd color meanwhile. */
+                IModelLoader.ensureMaterialFolder(provider, model, material.name);
+                texture = LinkUtils.color(material.r, material.g, material.b);
             }
+
+            newModel.materialTextures.put(material.name, texture);
         }
     }
 

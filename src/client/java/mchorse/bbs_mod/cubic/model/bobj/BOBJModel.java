@@ -24,15 +24,16 @@ import java.util.Set;
 public class BOBJModel implements IModel
 {
     private BOBJArmature armature;
-    private BOBJLoader.CompiledData meshData;
+    private List<BOBJLoader.CompiledData> meshes;
 
-    private BOBJModelVAO vao;
+    /* One VAO per mesh; each mesh's name is its material for per-mesh texture selection. */
+    private List<BOBJModelVAO> vaos = new ArrayList<>();
     private boolean simple;
 
-    public BOBJModel(BOBJArmature armature, BOBJLoader.CompiledData meshData, boolean simple)
+    public BOBJModel(BOBJArmature armature, List<BOBJLoader.CompiledData> meshes, boolean simple)
     {
         this.armature = armature;
-        this.meshData = meshData;
+        this.meshes = meshes;
         this.simple = simple;
     }
 
@@ -41,31 +42,29 @@ public class BOBJModel implements IModel
         return this.armature;
     }
 
-    public BOBJLoader.CompiledData getMeshData()
+    public List<BOBJModelVAO> getVaos()
     {
-        return this.meshData;
-    }
-
-    public BOBJModelVAO getVao()
-    {
-        return this.vao;
+        return this.vaos;
     }
 
     public void delete()
     {
-        if (this.vao != null)
+        for (BOBJModelVAO vao : this.vaos)
         {
-            this.vao.delete();
-
-            this.vao = null;
+            vao.delete();
         }
+
+        this.vaos.clear();
     }
 
     public void setup()
     {
-        this.vao = this.simple
-            ? new BOBJModelSimpleVAO(this.meshData)
-            : new BOBJModelVAO(this.meshData);
+        this.delete();
+
+        for (BOBJLoader.CompiledData mesh : this.meshes)
+        {
+            this.vaos.add(this.simple ? new BOBJModelSimpleVAO(mesh) : new BOBJModelVAO(mesh));
+        }
 
         this.armature.setupMatrices();
     }

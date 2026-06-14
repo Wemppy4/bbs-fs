@@ -1447,6 +1447,21 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return keyframeEditor != null ? keyframeEditor.getBone() : null;
     }
 
+    /** Whether the selected keyframe is the form's anchor track, so its transform gets a gizmo. */
+    public boolean isAnchorGizmo()
+    {
+        UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
+
+        return keyframeEditor != null && keyframeEditor.isFormAnchorTrack();
+    }
+
+    public TransformSpace getAnchorSpace()
+    {
+        UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
+
+        return keyframeEditor == null ? TransformSpace.PARENT : keyframeEditor.getAnchorSpace();
+    }
+
     /**
      * Whether the preview gizmo is actually drawn right now — the same gate the
      * renderer uses ({@link BaseFilmController#render}): axes enabled, not
@@ -1456,7 +1471,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
      */
     private boolean canShowGizmo()
     {
-        return UIBaseMenu.renderAxes && !this.isRecording() && this.getBone() != null;
+        return UIBaseMenu.renderAxes && !this.isRecording() && (this.getBone() != null || this.isAnchorGizmo());
     }
 
     private void renderStencil(WorldRenderContext renderContext, UIContext context, boolean altPressed)
@@ -1511,7 +1526,9 @@ public class UIFilmController extends UIElement implements GizmoViewport
                     this.stencilMap.objectIndex = replays.size() + REPLAY_STENCIL_OFFSET;
                     this.stencilMap.setIncrement(true);
 
-                    filmContext.bone(bone == null ? null : bone.a, bone == null ? TransformSpace.PARENT : bone.b);
+                    filmContext
+                        .bone(bone == null ? null : bone.a, bone == null ? TransformSpace.PARENT : bone.b)
+                        .anchorGizmo(this.isAnchorGizmo(), this.getAnchorSpace());
                 }
                 else
                 {
@@ -1534,7 +1551,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
                 .transition(isPlaying ? renderContext.tickDelta() : 0)
                 .stencil(this.stencilMap)
                 .relative(replay.relative.get())
-                .bone(bone == null ? null : bone.a, bone == null ? TransformSpace.PARENT : bone.b));
+                .bone(bone == null ? null : bone.a, bone == null ? TransformSpace.PARENT : bone.b)
+                .anchorGizmo(this.isAnchorGizmo(), this.getAnchorSpace()));
         }
 
         int x = (int) ((context.mouseX - viewport.x) / (float) viewport.w * mainTexture.width);

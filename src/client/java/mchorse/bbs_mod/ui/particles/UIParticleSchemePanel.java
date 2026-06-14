@@ -14,6 +14,7 @@ import mchorse.bbs_mod.math.molang.expressions.MolangExpression;
 import mchorse.bbs_mod.particles.ParticleScheme;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.ContentType;
+import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
@@ -43,6 +44,7 @@ import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeShapeSection;
 import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeSpaceSection;
 import mchorse.bbs_mod.ui.particles.utils.MolangSyntaxHighlighter;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
@@ -144,6 +146,22 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         this.iconBar.add(presets);
         this.iconBar.add(lock);
         this.iconBar.add(resetLayout);
+
+        /* Ctrl+Tab / Ctrl+Shift+Tab cycle the tabs of the dock stack under the cursor (like the film editor). */
+        this.keys().register(Keys.FILM_CONTROLLER_NEXT_DOCK_TAB, () ->
+        {
+            if (this.dock.cycleDockStackTab(1))
+            {
+                UIUtils.playClick();
+            }
+        }).category(UIKeys.SNOWSTORM_TITLE);
+        this.keys().register(Keys.FILM_CONTROLLER_PREV_DOCK_TAB, () ->
+        {
+            if (this.dock.cycleDockStackTab(-1))
+            {
+                UIUtils.playClick();
+            }
+        }).category(UIKeys.SNOWSTORM_TITLE);
 
         /* General tab */
         this.addSection(this.generalView, new UIParticleSchemeGeneralSection(this));

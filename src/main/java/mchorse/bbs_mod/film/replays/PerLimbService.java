@@ -5,12 +5,16 @@ import mchorse.bbs_mod.forms.FormUtils;
 public class PerLimbService
 {
     public static final String POSE_BONES = "pose.bones.";
+    public static final String MATERIAL_TEXTURES = "texture.materials.";
     public static final String IK_TARGETS = "ik_targets";
     public static final String IK_CONTROLS = "ik_controls";
     public static final String POLE_TARGETS = "pole_targets";
     public static final String PHYSICS_TARGETS = "physics_targets";
 
     public static record PoseBonePath(String formPath, String bone)
+    {}
+
+    public static record MaterialTexturePath(String formPath, String material)
     {}
 
     public static record IKTargetPath(String formPath, String controller)
@@ -25,6 +29,46 @@ public class PerLimbService
     public static boolean isPoseBoneChannel(String id)
     {
         return id != null && id.contains(POSE_BONES);
+    }
+
+    public static boolean isMaterialTextureChannel(String id)
+    {
+        return id != null && id.contains(MATERIAL_TEXTURES);
+    }
+
+    public static MaterialTexturePath parseMaterialTexturePath(String id)
+    {
+        if (id == null)
+        {
+            return null;
+        }
+
+        int index = id.indexOf(MATERIAL_TEXTURES);
+
+        if (index < 0)
+        {
+            return null;
+        }
+
+        String material = id.substring(index + MATERIAL_TEXTURES.length());
+        String formPath = id.substring(0, index);
+
+        if (formPath.endsWith(FormUtils.PATH_SEPARATOR))
+        {
+            formPath = formPath.substring(0, formPath.length() - 1);
+        }
+
+        return new MaterialTexturePath(formPath, material);
+    }
+
+    public static String toMaterialTextureKey(String formPath, String material)
+    {
+        if (formPath == null || formPath.isEmpty())
+        {
+            return MATERIAL_TEXTURES + material;
+        }
+
+        return formPath + FormUtils.PATH_SEPARATOR + MATERIAL_TEXTURES + material;
     }
 
     public static boolean isIKTargetChannel(String id)

@@ -7,6 +7,7 @@ import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Transform;
+import org.joml.Quaternionf;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,11 @@ public class ModelGroup implements IMapSerializable
     public Transform initial = new Transform();
     public Transform current = new Transform();
 
+    /* Transient rigid roll about the IK chain's root-to-tip axis, applied raw in
+     * the render matrix so the pole rolls the whole chain (geometry included)
+     * without round-tripping through the swing/twist euler reconstruction. */
+    public Quaternionf ikRoll;
+
     public ModelGroup(String id)
     {
         this.id = id;
@@ -37,6 +43,7 @@ public class ModelGroup implements IMapSerializable
         this.lighting = 0F;
         this.color.set(1F, 1F, 1F);
         this.current.copy(this.initial);
+        this.ikRoll = null;
     }
 
     @Override

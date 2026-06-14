@@ -144,10 +144,50 @@ final class ModelIKApplier
         Vector3f polePoint = resolvePolePoint(pole, chain.poleTarget(), frames, poleTargets);
         IKSolver.Limit[] limits = buildLimits(model, chainIds, boneLimits);
 
-        List<Vector3f> solved = IKSolver.solve(currentPositions, target, pole, polePoint, softness, MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
+        IKSolver.Solution solution = IKSolver.solve(currentPositions, target, pole, polePoint, softness, MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
+        List<Vector3f> solved = solution.positions();
 
         Vector3f[] solvedArray = solved.toArray(new Vector3f[solved.size()]);
         ModelRotationBlender.applyWeightedRotations(model, rootParentRotation, chainIds, solvedArray, weight);
+        applyChainRoll(model, chainIds, solved, rootParentRotation, solution.roll(), weight);
+    }
+
+    /**
+     * Stores the pole roll as a transient rigid rotation on the chain's root bone.
+     * Applied raw in the render matrix (never written back to a euler bone), it
+     * rolls the whole chain about the root-to-tip axis the way Blender's pole does —
+     * geometry included — without the +-180 instability of carrying a roll through
+     * the swing/twist euler reconstruction. The axis passes through the root pivot,
+     * so the tip stays put and the hierarchy rolls rigidly. Cubic only; cleared each
+     * frame by {@link ModelGroup#reset()}.
+     */
+    private static void applyChainRoll(IModel model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float roll, float weight)
+    {
+        if (roll == 0F || chainIds.isEmpty() || !(model instanceof Model cubic))
+        {
+            return;
+        }
+
+        ModelGroup rootBone = cubic.getGroup(chainIds.get(0));
+
+        if (rootBone == null)
+        {
+            return;
+        }
+
+        Vector3f axis = new Vector3f(solved.get(solved.size() - 1)).sub(solved.get(0));
+
+        if (axis.lengthSquared() < 1.0e-12f)
+        {
+            return;
+        }
+
+        /* The renderer multiplies ikRoll in the root bone's PARENT frame (before
+         * the bone's own rotation), so express the world root->tip axis there. */
+        axis.normalize();
+        new Quaternionf(rootParentRotation).conjugate().transform(axis);
+
+        rootBone.ikRoll = new Quaternionf().fromAxisAngleRad(axis.x, axis.y, axis.z, roll * weight);
     }
 
     /**
