@@ -343,7 +343,20 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         this.applyIKOnce(model, baseTransform);
         this.applyPhysicsOnce(target, model, transition, baseTransform);
         this.applyConstraintsOnce(model);
-        model.render(newStack, program, finalColor, light, overlay, stencilMap, this.form.shapeKeys.get());
+
+        /* Default texture for materials without their own: the form's texture override, else the
+         * model's default. Per-material textures (folder defaults now, animation tracks later)
+         * layer on top via the resolver. */
+        Link defaultTexture = this.form.texture.get();
+
+        if (defaultTexture == null)
+        {
+            defaultTexture = model.texture;
+        }
+
+        final Link resolvedDefault = defaultTexture;
+
+        model.render(newStack, program, finalColor, light, overlay, stencilMap, this.form.shapeKeys.get(), (material) -> model.getMaterialTexture(material, resolvedDefault));
 
         if (stencilMap == null && ModelIKDebug.enabled && this.form != null && this.form.ik.get() instanceof MapType ikMap)
         {

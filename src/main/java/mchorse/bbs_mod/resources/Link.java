@@ -7,6 +7,8 @@ import java.util.Objects;
 public class Link
 {
     public static final String ASSETS = "assets";
+    /** Synthetic source for 1x1 solid-color textures; the path is the ARGB color in hex. */
+    public static final String COLOR = "color";
     public static final String SOURCE_SEPARATOR = ":";
 
     public final String source;
