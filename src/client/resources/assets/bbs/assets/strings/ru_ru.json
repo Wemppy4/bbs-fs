@@ -805,6 +805,7 @@
 	"bbs.ui.forms.editors.model.physics.gravity": "Сила гравитации",
 	"bbs.ui.forms.editors.model.physics.relative_gravity": "Направление родителя",
 	"bbs.ui.forms.editors.model.physics.relative_gravity_rotation": "Смещение направления гравитации",
+	"bbs.ui.forms.editors.model.physics.stiffness": "Жёсткость",
 	"bbs.ui.forms.editors.model.physics.damping": "Стабилизация",
 	"bbs.ui.forms.editors.model.physics.iterations": "Качество решателя",
 	"bbs.ui.forms.editors.model.physics.collisions": "Коллизии с миром",

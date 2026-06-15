@@ -32,6 +32,7 @@ import java.util.function.Consumer;
 public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
 {
     private static final float DEFAULT_GRAVITY = 1F;
+    private static final float DEFAULT_STIFFNESS = ModelPhysicsConfig.DEFAULT_STIFFNESS;
     private static final float DEFAULT_DAMPING = 0.15F;
     private static final int DEFAULT_ITERATIONS = 4;
     private static final float DEFAULT_RADIUS = 0.1F;
@@ -46,6 +47,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
     public UITrackpad relativeGravityRotateX;
     public UITrackpad relativeGravityRotateY;
     public UITrackpad relativeGravityRotateZ;
+    public UITrackpad stiffness;
     public UITrackpad damping;
     public UITrackpad iterations;
     public UIToggle collisions;
@@ -67,6 +69,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         public float relativeGravityRotateX;
         public float relativeGravityRotateY;
         public float relativeGravityRotateZ;
+        public float stiffness = DEFAULT_STIFFNESS;
         public float damping = DEFAULT_DAMPING;
         public int iterations = DEFAULT_ITERATIONS;
         public boolean collisions;
@@ -201,6 +204,24 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             }
         }, Colors.BLUE, axis.format(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY_ROTATION, UIKeys.GENERAL_Z));
 
+        this.stiffness = new UITrackpad((v) ->
+        {
+            if (this.syncingUI)
+            {
+                return;
+            }
+
+            BoneData d = this.getSelectedData();
+
+            if (d != null)
+            {
+                d.stiffness = v.floatValue();
+                this.commitChanges();
+            }
+        });
+        this.stiffness.onlyNumbers().values(0.05D, 0.01D, 0.2D).increment(0.01D).limit(0D, 1D);
+        this.stiffness.tooltip(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS);
+
         this.damping = new UITrackpad((v) ->
         {
             if (this.syncingUI)
@@ -332,6 +353,8 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             this.relativeGravity,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY_ROTATION),
             UI.row(this.relativeGravityRotateX, this.relativeGravityRotateY, this.relativeGravityRotateZ),
+            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS),
+            this.stiffness,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING),
             this.damping,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS),
@@ -390,6 +413,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         this.relativeGravityRotateX.setEnabled(enabled);
         this.relativeGravityRotateY.setEnabled(enabled);
         this.relativeGravityRotateZ.setEnabled(enabled);
+        this.stiffness.setEnabled(enabled);
         this.damping.setEnabled(enabled);
         this.iterations.setEnabled(enabled);
         this.collisions.setEnabled(enabled);
@@ -438,6 +462,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         this.relativeGravityRotateX.setEnabled(active);
         this.relativeGravityRotateY.setEnabled(active);
         this.relativeGravityRotateZ.setEnabled(active);
+        this.stiffness.setEnabled(active);
         this.damping.setEnabled(active);
         this.iterations.setEnabled(active);
         this.collisions.setEnabled(active);
@@ -456,6 +481,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
                 this.relativeGravityRotateX.setValue(0);
                 this.relativeGravityRotateY.setValue(0);
                 this.relativeGravityRotateZ.setValue(0);
+                this.stiffness.setValue(DEFAULT_STIFFNESS);
                 this.damping.setValue(DEFAULT_DAMPING);
                 this.iterations.setValue(DEFAULT_ITERATIONS);
                 this.collisions.setValue(false);
@@ -470,6 +496,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
                 this.relativeGravityRotateX.setValue(d.relativeGravityRotateX);
                 this.relativeGravityRotateY.setValue(d.relativeGravityRotateY);
                 this.relativeGravityRotateZ.setValue(d.relativeGravityRotateZ);
+                this.stiffness.setValue(d.stiffness);
                 this.damping.setValue(d.damping);
                 this.iterations.setValue(d.iterations);
                 this.collisions.setValue(d.collisions);
@@ -554,6 +581,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             d.relativeGravityRotateX = bone.relativeGravityRotateX();
             d.relativeGravityRotateY = bone.relativeGravityRotateY();
             d.relativeGravityRotateZ = bone.relativeGravityRotateZ();
+            d.stiffness = bone.stiffness();
             d.damping = bone.damping();
             d.iterations = bone.iterations();
             d.collisions = bone.collisions();
@@ -599,7 +627,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
                 target = "";
             }
 
-            bones.put(root, new ModelPhysicsConfig.Bone(d.end, target, d.gravity, d.damping, d.iterations, d.relativeGravity, d.relativeGravityRotateX, d.relativeGravityRotateY, d.relativeGravityRotateZ, d.collisions, d.radius, ModelPhysicsConfig.DEFAULT_WEIGHT));
+            bones.put(root, new ModelPhysicsConfig.Bone(d.end, target, d.gravity, d.damping, d.stiffness, d.iterations, d.relativeGravity, d.relativeGravityRotateX, d.relativeGravityRotateY, d.relativeGravityRotateZ, d.collisions, d.radius, ModelPhysicsConfig.DEFAULT_WEIGHT));
         }
 
         if (bones.isEmpty())

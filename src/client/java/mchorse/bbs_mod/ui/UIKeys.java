@@ -469,6 +469,7 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_GRAVITY = L10n.lang("bbs.ui.forms.editors.model.physics.gravity");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY = L10n.lang("bbs.ui.forms.editors.model.physics.relative_gravity");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY_ROTATION = L10n.lang("bbs.ui.forms.editors.model.physics.relative_gravity_rotation");
+    public static final IKey FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS = L10n.lang("bbs.ui.forms.editors.model.physics.stiffness");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_DAMPING = L10n.lang("bbs.ui.forms.editors.model.physics.damping");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS = L10n.lang("bbs.ui.forms.editors.model.physics.iterations");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS = L10n.lang("bbs.ui.forms.editors.model.physics.collisions");

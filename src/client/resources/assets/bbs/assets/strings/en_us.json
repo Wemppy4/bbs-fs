@@ -805,6 +805,7 @@
 	"bbs.ui.forms.editors.model.physics.gravity": "Gravity strength",
 	"bbs.ui.forms.editors.model.physics.relative_gravity": "Use parent direction",
 	"bbs.ui.forms.editors.model.physics.relative_gravity_rotation": "Gravity direction offset",
+	"bbs.ui.forms.editors.model.physics.stiffness": "Stiffness",
 	"bbs.ui.forms.editors.model.physics.damping": "Stabilization",
 	"bbs.ui.forms.editors.model.physics.iterations": "Solver quality",
 	"bbs.ui.forms.editors.model.physics.collisions": "World collisions",

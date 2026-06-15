@@ -31,11 +31,14 @@ public final class ModelPhysicsRuntime
 {
     private static final float BASE_GRAVITY = 0.08F;
     private static final float EPS = 1.0e-6f;
-    private static final float ANCHOR_ROTATION_POS_FOLLOW = 0.85F;
-    private static final float ANCHOR_ROTATION_PREV_FOLLOW = 0.75F;
-    private static final float RENDER_SWING_TIP_FOLLOW = 0.7F;
-    private static final float ANCHOR_TRANSLATION_INERTIA = 0.5F;
-    private static final float ANCHOR_TRANSLATION_DRAG = 0.15F;
+
+    /**
+     * Stiffness falloff along the chain: the tip is left this fraction as stiff as the root, so the
+     * base of the chain springs back to the pose firmly while the end stays loose and trails. A flat
+     * stiffness reads stiff and lifeless; the gradient is what gives the chain a living, whip-like tail.
+     */
+    private static final float TIP_STIFFNESS_SCALE = 0.4F;
+
     private static final float COLLISION_FRICTION = 0.5F;
     private static final float COLLISION_MAX_ANCHOR_STEP = 0.25F;
 
@@ -55,7 +58,6 @@ public final class ModelPhysicsRuntime
         public int lastAge = Integer.MIN_VALUE;
         public Vector3f anchor = new Vector3f();
         public Quaternionf anchorRotation = new Quaternionf();
-        public Vector3f anchorVelocity = new Vector3f();
         public float simTime;
         public float accumulator;
         public float renderAlpha;
@@ -64,6 +66,9 @@ public final class ModelPhysicsRuntime
         public Vector3f[] settled;
         public Vector3f[] settledPrev;
         public Vector3f[] render;
+
+        /** The animated pose the chain springs toward, stored relative to the live anchor frame. */
+        public Vector3f[] poseLocal;
     }
 
     private static final class InstanceState
@@ -200,6 +205,7 @@ public final class ModelPhysicsRuntime
             state.settled = new Vector3f[pointCount];
             state.settledPrev = new Vector3f[pointCount];
             state.render = new Vector3f[pointCount];
+            state.poseLocal = new Vector3f[pointCount];
 
             for (int i = 0; i < pointCount; i++)
             {
@@ -208,6 +214,7 @@ public final class ModelPhysicsRuntime
                 state.settled[i] = new Vector3f();
                 state.settledPrev[i] = new Vector3f();
                 state.render[i] = new Vector3f();
+                state.poseLocal[i] = new Vector3f();
             }
 
             state.lastAge = Integer.MIN_VALUE;
@@ -265,6 +272,7 @@ public final class ModelPhysicsRuntime
             }
         }
 
+        computePoseTargets(model, ids, chainFrames, chain.restLengths(), anchor, anchorRotation, target != null, state);
         step(world, age, transition, model, ids, chain, constraints, anchor, anchorRotation, chainFrames.get(0).parentRotation(), target, chainFrames, state);
         Vector3f[] positions = renderInterpolate(state, state.renderAlpha, anchor, anchorRotation, target);
         ModelRotationBlender.applyWeightedRotations(model, chainFrames.get(0).parentRotation(), ids, positions, weight);
@@ -315,11 +323,61 @@ public final class ModelPhysicsRuntime
     }
 
     /**
-     * Interpolates the settled chain shape of the two latest simulation ticks and re-roots it onto the
-     * live anchor. The chain is rebuilt segment by segment from the anchor outwards: each segment's
-     * direction is slerped between the two ticks (so the bone swings along an arc, not a straight chord)
-     * and its length is lerped, while the anchor's sub-tick rotation swings the whole chain. This keeps
-     * the motion smooth between the 20 Hz simulation steps instead of reading as linear stepping.
+     * Captures the animated pose the chain should spring back toward, stored relative to the live anchor
+     * frame so the sub-step solver can carry it rigidly with the sliding anchor. The real joints take
+     * their own animated world positions; the virtual tip past the last bone is reconstructed from the
+     * last bone's animated rotation and rest direction (the same convention the rotation appliers use),
+     * unless the tip is hard-pinned to a target, in which case its pose slot is left unused.
+     */
+    private static void computePoseTargets(IModel model, List<String> ids, List<PivotFrame> chainFrames, float[] lengths, Vector3f anchor, Quaternionf anchorRotation, boolean hardTarget, ChainState state)
+    {
+        Vector3f[] poseLocal = state.poseLocal;
+        int pivotCount = chainFrames.size();
+
+        if (poseLocal == null || poseLocal.length != pivotCount + 1)
+        {
+            return;
+        }
+
+        Quaternionf invAnchor = new Quaternionf(anchorRotation).invert();
+        Vector3f tmp = new Vector3f();
+
+        poseLocal[0].set(0F, 0F, 0F);
+
+        for (int i = 1; i < pivotCount; i++)
+        {
+            tmp.set(chainFrames.get(i).position()).sub(anchor);
+            poseLocal[i].set(invAnchor.transform(tmp));
+        }
+
+        int tip = poseLocal.length - 1;
+
+        if (hardTarget)
+        {
+            poseLocal[tip].set(poseLocal[pivotCount - 1]);
+            return;
+        }
+
+        Vector3f tipDir = lengths != null && lengths.length >= pivotCount ? PhysicsRig.tipRestDirectionLocal(model, ids) : null;
+
+        if (tipDir == null || tipDir.lengthSquared() < EPS * EPS)
+        {
+            poseLocal[tip].set(poseLocal[pivotCount - 1]);
+            return;
+        }
+
+        PivotFrame lastFrame = chainFrames.get(pivotCount - 1);
+        new Quaternionf(lastFrame.worldRotation()).transform(tipDir.normalize()).mul(lengths[pivotCount - 1]);
+        tmp.set(lastFrame.position()).add(tipDir).sub(anchor);
+        poseLocal[tip].set(invAnchor.transform(tmp));
+    }
+
+    /**
+     * Interpolates the settled chain shape of the two latest simulation sub-steps and re-roots it onto
+     * the live anchor. The chain is rebuilt segment by segment from the anchor outwards: each segment's
+     * direction is slerped between the two sub-steps (so the bone swings along an arc, not a straight
+     * chord) and its length is lerped, while the anchor's leftover sub-tick rotation carries the whole
+     * chain. This keeps the motion smooth between simulation sub-steps instead of reading as stepping.
      */
     private static Vector3f[] renderInterpolate(ChainState state, float transition, Vector3f liveAnchor, Quaternionf liveAnchorRotation, Vector3f target)
     {
@@ -344,8 +402,6 @@ public final class ModelPhysicsRuntime
 
         /* Root point is pinned to the live anchor, the rest is rebuilt outwards from it */
         render[0].set(liveAnchor);
-
-        int segments = render.length - 1;
 
         for (int i = 0; i + 1 < render.length; i++)
         {
@@ -380,11 +436,10 @@ public final class ModelPhysicsRuntime
                 continue;
             }
 
-            /* Soften the rigid swing: the segment nearest the anchor follows the head's sub-tick
-             * rotation fully, segments toward the tip follow progressively less so the tip trails
-             * the turn instead of snapping rigidly with it. */
-            float follow = segments <= 1 ? 1F : 1F - (1F - RENDER_SWING_TIP_FOLLOW) * (i / (float) (segments - 1));
-            frac.identity().slerp(swing, follow).transform(dir);
+            /* Carry the chain by the anchor's leftover sub-tick rotation. The lag of the tip during a
+             * turn is produced by the simulation now, so the render carries every segment equally
+             * instead of faking the trail with a per-segment falloff. */
+            swing.transform(dir);
             render[i + 1].set(render[i]).add(dir.mul(len));
         }
 
@@ -416,19 +471,11 @@ public final class ModelPhysicsRuntime
         }
 
         Vector3f V1 = new Vector3f();
-        Vector3f V2 = new Vector3f();
-        Vector3f V3 = new Vector3f();
-        Vector3f V5 = new Vector3f();
-        Vector3f V6 = new Vector3f();
-        Quaternionf Q1 = new Quaternionf();
-        Quaternionf Q2 = new Quaternionf();
-        Quaternionf Q3 = new Quaternionf();
 
         if (state.lastAge == Integer.MIN_VALUE)
         {
             state.anchor.set(newAnchor);
             state.anchorRotation.set(newAnchorRotation);
-            state.anchorVelocity.set(0F, 0F, 0F);
 
             state.pos[0].set(newAnchor);
             state.prev[0].set(newAnchor);
@@ -477,6 +524,8 @@ public final class ModelPhysicsRuntime
         boolean collisions = chain.collisions() && world != null && chain.radius() > 0F;
         float radius = chain.radius();
         PhysicsRig rig = PhysicsRig.of(model);
+        boolean hardTarget = targetPosition != null;
+        int last = state.pos.length - 1;
 
         /* Real-time fixed-step accumulator: integrate the solver at PHYSICS_STEP regardless of the
          * render frame rate or the 20 Hz game tick, so a fresh chain shape is produced several times
@@ -515,31 +564,27 @@ public final class ModelPhysicsRuntime
         }
 
         float h = PHYSICS_STEP;
-        float advanced = steps * h; // simulated time consumed this frame, in ticks
         float dampMul = (float) Math.pow(1F - damping, h);
         float gravityScale = h * h;
 
-        computeGravityDirection(chain, parentRotation, gravity, V6);
-        float gravityX = V6.x * gravityScale;
-        float gravityY = V6.y * gravityScale;
-        float gravityZ = V6.z * gravityScale;
+        Vector3f gravityVec = new Vector3f();
+        computeGravityDirection(chain, parentRotation, gravity, gravityVec);
+        float gravityX = gravityVec.x * gravityScale;
+        float gravityY = gravityVec.y * gravityScale;
+        float gravityZ = gravityVec.z * gravityScale;
 
-        /* Per-step rotation follow, scaled so the cumulative follow over a whole tick stays close to
-         * the original 20 Hz tuning no matter how many sub-steps fit into a tick. */
-        float followPos = 1F - (float) Math.pow(1F - ANCHOR_ROTATION_POS_FOLLOW, h);
-        float followPrev = 1F - (float) Math.pow(1F - ANCHOR_ROTATION_PREV_FOLLOW, h);
-
-        /* Anchor velocity/acceleration over the simulated span this frame (units per tick), for the
-         * inertia/drag kick. */
-        V1.set(state.anchor); // anchor where the simulation left it
-        V2.set(newAnchor).sub(V1).mul(1F / advanced); // velAnchor
-        V3.set(V2).sub(state.anchorVelocity); // accelAnchor
-        state.anchorVelocity.set(V2);
+        /* Per-point spring-back fraction toward the animated pose, applied once per sub-step. The base
+         * stiffness falls off toward the tip and is converted to a per-sub-step fraction so the pull
+         * over a whole tick stays the same no matter how many sub-steps run. */
+        float[] stiffStep = computeStiffnessSteps(clamp01(chain.stiffness()), state.pos.length, h);
 
         Vector3f startAnchor = new Vector3f(state.anchor);
         Quaternionf startAnchorRotation = new Quaternionf(state.anchorRotation);
         Vector3f stepAnchor = new Vector3f();
         Quaternionf stepAnchorRotation = new Quaternionf();
+        Vector3f vel = new Vector3f();
+        Vector3f poseTarget = new Vector3f();
+        Vector3f dir = new Vector3f();
 
         BlockPos.Mutable mutable = collisions ? new BlockPos.Mutable() : null;
 
@@ -553,119 +598,73 @@ public final class ModelPhysicsRuntime
             stepAnchor.set(startAnchor).lerp(newAnchor, progress);
             stepAnchorRotation.set(startAnchorRotation).slerp(newAnchorRotation, progress);
 
-            V6.set(state.anchor);
-            Q1.set(stepAnchorRotation).mul(Q2.set(state.anchorRotation).invert()).normalize();
-            Q2.identity().slerp(Q1, followPos);
-            Q3.identity().slerp(Q1, followPrev);
-
-            for (int i = 1; i < state.pos.length; i++)
-            {
-                Vector3f p = state.pos[i];
-                V5.set(p).sub(V6);
-                Q2.transform(V5);
-                p.set(stepAnchor).add(V5);
-
-                Vector3f prev = state.prev[i];
-                V5.set(prev).sub(V6);
-                Q3.transform(V5);
-                prev.set(stepAnchor).add(V5);
-            }
-
             state.anchor.set(stepAnchor);
             state.anchorRotation.set(stepAnchorRotation);
             state.pos[0].set(stepAnchor);
             state.prev[0].set(stepAnchor);
 
+            /* Verlet integration of the free points: inertia carried from the previous step plus
+             * gravity. The anchor's motion never forces the points — it reaches the chain only through
+             * the pose spring and the length constraints below, so lag and whip arise honestly. */
             for (int i = 1; i < state.pos.length; i++)
             {
                 Vector3f p = state.pos[i];
                 Vector3f prev = state.prev[i];
 
-                V5.set(p).sub(prev).mul(dampMul); // vel
-
+                vel.set(p).sub(prev).mul(dampMul);
                 prev.set(p);
-                p.add(V5);
-                if (s == 0 && ANCHOR_TRANSLATION_INERTIA > 0F)
-                {
-                    p.x -= V3.x * ANCHOR_TRANSLATION_INERTIA * advanced;
-                    p.y -= V3.y * ANCHOR_TRANSLATION_INERTIA * advanced;
-                    p.z -= V3.z * ANCHOR_TRANSLATION_INERTIA * advanced;
-                }
-                if (s == 0 && ANCHOR_TRANSLATION_DRAG > 0F)
-                {
-                    p.x -= V2.x * ANCHOR_TRANSLATION_DRAG * advanced;
-                    p.y -= V2.y * ANCHOR_TRANSLATION_DRAG * advanced;
-                    p.z -= V2.z * ANCHOR_TRANSLATION_DRAG * advanced;
-                }
+                p.add(vel);
                 p.x += gravityX;
                 p.y += gravityY;
                 p.z += gravityZ;
 
                 if (collisions)
                 {
-                    float dx = p.x - prev.x;
-                    float dy = p.y - prev.y;
-                    float dz = p.z - prev.z;
-
-                    float maxStep = Math.max(COLLISION_MAX_ANCHOR_STEP, radius * 2F);
-                    float maxStepSq = maxStep * maxStep;
-                    float lenSq = dx * dx + dy * dy + dz * dz;
-
-                    if (lenSq > maxStepSq)
-                    {
-                        float minX = Math.min(prev.x, p.x) - radius;
-                        float minY = Math.min(prev.y, p.y) - radius;
-                        float minZ = Math.min(prev.z, p.z) - radius;
-                        float maxX = Math.max(prev.x, p.x) + radius;
-                        float maxY = Math.max(prev.y, p.y) + radius;
-                        float maxZ = Math.max(prev.z, p.z) + radius;
-
-                        int minBX = MathHelper.floor(minX);
-                        int minBY = MathHelper.floor(minY);
-                        int minBZ = MathHelper.floor(minZ);
-                        int maxBX = MathHelper.floor(maxX);
-                        int maxBY = MathHelper.floor(maxY);
-                        int maxBZ = MathHelper.floor(maxZ);
-
-                        boolean nearSolids = ModelPhysicsWorldCollisions.hasFullCubeInAabb(world, mutable, minBX, minBY, minBZ, maxBX, maxBY, maxBZ);
-
-                        if (nearSolids)
-                        {
-                            float inv = maxStep / (float) Math.sqrt(lenSq);
-                            p.x = prev.x + dx * inv;
-                            p.y = prev.y + dy * inv;
-                            p.z = prev.z + dz * inv;
-                        }
-                    }
+                    clampTunnelStep(world, mutable, p, prev, radius);
                 }
+            }
+
+            /* Spring back toward the animated pose, carried rigidly by the sliding anchor frame. */
+            for (int i = 1; i < state.pos.length; i++)
+            {
+                float k = stiffStep[i];
+
+                if (k <= 0F || (hardTarget && i == last))
+                {
+                    continue;
+                }
+
+                poseTarget.set(state.poseLocal[i]);
+                stepAnchorRotation.transform(poseTarget).add(stepAnchor);
+                state.pos[i].lerp(poseTarget, k);
             }
 
             for (int iter = 0; iter < iterations; iter++)
             {
-                /* Backward pass (from target to anchor) */
-                if (targetPosition != null)
+                /* Backward pass (from tip to anchor) */
+                if (hardTarget)
                 {
-                    state.pos[state.pos.length - 1].set(targetPosition);
+                    state.pos[last].set(targetPosition);
                 }
 
-                for (int i = state.pos.length - 2; i >= 0; i--)
+                for (int i = last - 1; i >= 0; i--)
                 {
                     Vector3f a = state.pos[i];
                     Vector3f b = state.pos[i + 1];
 
-                    V5.set(a).sub(b); // dir
-                    float lenSq = V5.lengthSquared();
+                    dir.set(a).sub(b);
+                    float lenSq = dir.lengthSquared();
 
                     if (lenSq < EPS * EPS)
                     {
                         continue;
                     }
 
-                    V5.mul((float) (lengths[i] / Math.sqrt(lenSq)));
-                    a.set(b).add(V5);
+                    dir.mul((float) (lengths[i] / Math.sqrt(lenSq)));
+                    a.set(b).add(dir);
                 }
 
-                /* Forward pass (from anchor to target) */
+                /* Forward pass (from anchor to tip) */
                 state.pos[0].set(state.anchor);
 
                 for (int i = 1; i < state.pos.length; i++)
@@ -673,21 +672,21 @@ public final class ModelPhysicsRuntime
                     Vector3f a = state.pos[i - 1];
                     Vector3f b = state.pos[i];
 
-                    V5.set(b).sub(a); // dir
-                    float lenSq = V5.lengthSquared();
+                    dir.set(b).sub(a);
+                    float lenSq = dir.lengthSquared();
 
                     if (lenSq < EPS * EPS)
                     {
                         continue;
                     }
 
-                    V5.mul((float) (lengths[i - 1] / Math.sqrt(lenSq)));
-                    b.set(a).add(V5);
+                    dir.mul((float) (lengths[i - 1] / Math.sqrt(lenSq)));
+                    b.set(a).add(dir);
                 }
 
-                if (targetPosition != null)
+                if (hardTarget)
                 {
-                    state.pos[state.pos.length - 1].set(targetPosition);
+                    state.pos[last].set(targetPosition);
                 }
 
                 if (constraints != null && !constraints.isEmpty() && rig != null)
@@ -696,28 +695,94 @@ public final class ModelPhysicsRuntime
 
                     state.pos[0].set(state.anchor);
 
-                    if (targetPosition != null)
+                    if (hardTarget)
                     {
-                        state.pos[state.pos.length - 1].set(targetPosition);
+                        state.pos[last].set(targetPosition);
                     }
                 }
 
                 if (collisions)
                 {
-                    int from = 1;
-                    int to = targetPosition != null ? state.pos.length - 1 : state.pos.length;
-                    ModelPhysicsWorldCollisions.resolve(world, state.pos, state.prev, from, to, radius, COLLISION_FRICTION);
+                    int to = hardTarget ? last : state.pos.length;
+                    ModelPhysicsWorldCollisions.resolve(world, state.pos, state.prev, 1, to, radius, COLLISION_FRICTION);
 
                     state.pos[0].set(state.anchor);
-                    if (targetPosition != null)
+
+                    if (hardTarget)
                     {
-                        state.pos[state.pos.length - 1].set(targetPosition);
+                        state.pos[last].set(targetPosition);
                     }
                 }
             }
 
             copyPositions(state.pos, state.settled);
         }
+    }
+
+    /**
+     * Per-point spring-back fractions toward the animated pose for a single sub-step. The base
+     * stiffness falls off linearly from the root to {@link #TIP_STIFFNESS_SCALE} at the tip, then each
+     * factor is converted from a per-tick pull to a per-sub-step pull so the result is independent of
+     * how many sub-steps run. Index 0 (the anchor) and the unused slots stay zero.
+     */
+    private static float[] computeStiffnessSteps(float baseStiffness, int pointCount, float h)
+    {
+        float[] out = new float[pointCount];
+
+        if (baseStiffness <= 0F || pointCount <= 1)
+        {
+            return out;
+        }
+
+        int freeCount = pointCount - 1;
+
+        for (int i = 1; i < pointCount; i++)
+        {
+            float t = freeCount <= 1 ? 0F : (i - 1) / (float) (freeCount - 1);
+            float falloff = 1F - (1F - TIP_STIFFNESS_SCALE) * t;
+            float perTick = baseStiffness * falloff;
+
+            out[i] = 1F - (float) Math.pow(1F - perTick, h);
+        }
+
+        return out;
+    }
+
+    /**
+     * Anti-tunnelling guard: when a particle would travel further than {@link #COLLISION_MAX_ANCHOR_STEP}
+     * (or its own diameter) in one sub-step and there are solid blocks in its swept volume, clamp the
+     * step length so the depenetration pass can still catch it instead of passing through thin geometry.
+     */
+    private static void clampTunnelStep(World world, BlockPos.Mutable mutable, Vector3f p, Vector3f prev, float radius)
+    {
+        float dx = p.x - prev.x;
+        float dy = p.y - prev.y;
+        float dz = p.z - prev.z;
+
+        float maxStep = Math.max(COLLISION_MAX_ANCHOR_STEP, radius * 2F);
+        float lenSq = dx * dx + dy * dy + dz * dz;
+
+        if (lenSq <= maxStep * maxStep)
+        {
+            return;
+        }
+
+        int minBX = MathHelper.floor(Math.min(prev.x, p.x) - radius);
+        int minBY = MathHelper.floor(Math.min(prev.y, p.y) - radius);
+        int minBZ = MathHelper.floor(Math.min(prev.z, p.z) - radius);
+        int maxBX = MathHelper.floor(Math.max(prev.x, p.x) + radius);
+        int maxBY = MathHelper.floor(Math.max(prev.y, p.y) + radius);
+        int maxBZ = MathHelper.floor(Math.max(prev.z, p.z) + radius);
+
+        if (!ModelPhysicsWorldCollisions.hasFullCubeInAabb(world, mutable, minBX, minBY, minBZ, maxBX, maxBY, maxBZ))
+        {
+            return;
+        }
+
+        float inv = maxStep / (float) Math.sqrt(lenSq);
+        p.x = prev.x + dx * inv;
+        p.y = prev.y + dy * inv;
+        p.z = prev.z + dz * inv;
     }
 
     private static void computeGravityDirection(ModelPhysicsCache.CompiledChain chain, Quaternionf parentRotation, float gravity, Vector3f out)

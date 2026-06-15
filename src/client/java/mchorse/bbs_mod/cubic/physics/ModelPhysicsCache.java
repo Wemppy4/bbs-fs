@@ -22,6 +22,7 @@ final class ModelPhysicsCache
         private final float[] restLengths;
         private final float gravity;
         private final float damping;
+        private final float stiffness;
         private final int iterations;
         private final boolean relativeGravity;
         private final boolean hasGravityRotation;
@@ -39,6 +40,7 @@ final class ModelPhysicsCache
             this.restLengths = restLengths;
             this.gravity = bone.gravity();
             this.damping = bone.damping();
+            this.stiffness = bone.stiffness();
             this.iterations = bone.iterations();
             this.relativeGravity = bone.relativeGravity();
             this.hasGravityRotation = bone.hasRelativeGravityRotation();
@@ -47,7 +49,7 @@ final class ModelPhysicsCache
                 : new Quaternionf();
             this.collisions = bone.collisions();
             this.radius = bone.radius();
-            this.weight = ModelPhysicsConfig.DEFAULT_WEIGHT;
+            this.weight = bone.weight();
         }
 
         public String id()
@@ -83,6 +85,11 @@ final class ModelPhysicsCache
         public float damping()
         {
             return this.damping;
+        }
+
+        public float stiffness()
+        {
+            return this.stiffness;
         }
 
         public int iterations()

@@ -13,6 +13,7 @@ public final class ModelPhysicsIO
     private static final String KEY_TARGET_BONE = "target_bone";
     private static final String KEY_GRAVITY = "gravity";
     private static final String KEY_DAMPING = "damping";
+    private static final String KEY_STIFFNESS = "stiffness";
     private static final String KEY_ITERATIONS = "iterations";
     private static final String KEY_RELATIVE_GRAVITY = "relative_gravity";
     private static final String KEY_RELATIVE_GRAVITY_ROTATE_X = "relative_gravity_rotate_x";
@@ -24,6 +25,7 @@ public final class ModelPhysicsIO
 
     private static final float DEFAULT_GRAVITY = 1F;
     private static final float DEFAULT_DAMPING = 0.15F;
+    private static final float DEFAULT_STIFFNESS = ModelPhysicsConfig.DEFAULT_STIFFNESS;
     private static final int DEFAULT_ITERATIONS = 4;
     private static final boolean DEFAULT_RELATIVE_GRAVITY = false;
     private static final float DEFAULT_RELATIVE_GRAVITY_ROTATE_X = 0F;
@@ -65,6 +67,7 @@ public final class ModelPhysicsIO
 
             float gravity = entry.getFloat(KEY_GRAVITY, DEFAULT_GRAVITY);
             float damping = entry.getFloat(KEY_DAMPING, DEFAULT_DAMPING);
+            float stiffness = entry.getFloat(KEY_STIFFNESS, DEFAULT_STIFFNESS);
             int iterations = entry.getInt(KEY_ITERATIONS, DEFAULT_ITERATIONS);
             boolean relativeGravity = entry.getBool(KEY_RELATIVE_GRAVITY, DEFAULT_RELATIVE_GRAVITY);
             float relativeGravityRotateX = entry.getFloat(KEY_RELATIVE_GRAVITY_ROTATE_X, DEFAULT_RELATIVE_GRAVITY_ROTATE_X);
@@ -74,7 +77,7 @@ public final class ModelPhysicsIO
             float radius = entry.getFloat(KEY_RADIUS, DEFAULT_RADIUS);
             float weight = entry.getFloat(KEY_WEIGHT, DEFAULT_WEIGHT);
 
-            out.put(root, new ModelPhysicsConfig.Bone(end, targetBone, gravity, damping, iterations, relativeGravity, relativeGravityRotateX, relativeGravityRotateY, relativeGravityRotateZ, collisions, radius, weight));
+            out.put(root, new ModelPhysicsConfig.Bone(end, targetBone, gravity, damping, stiffness, iterations, relativeGravity, relativeGravityRotateX, relativeGravityRotateY, relativeGravityRotateZ, collisions, radius, weight));
         }
 
         return out.isEmpty() ? null : new ModelPhysicsConfig(out);
@@ -107,6 +110,12 @@ public final class ModelPhysicsIO
 
                 map.putFloat(KEY_GRAVITY, bone.gravity());
                 map.putFloat(KEY_DAMPING, bone.damping());
+
+                if (bone.stiffness() != DEFAULT_STIFFNESS)
+                {
+                    map.putFloat(KEY_STIFFNESS, bone.stiffness());
+                }
+
                 map.putInt(KEY_ITERATIONS, bone.iterations());
 
                 if (bone.relativeGravity())

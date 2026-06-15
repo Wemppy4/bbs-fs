@@ -5,7 +5,10 @@ import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
+import mchorse.bbs_mod.cubic.render.ModelRotationBlender;
 import org.joml.Vector3f;
+
+import java.util.List;
 
 /**
  * Bone geometry the solver needs, independent of the model backend. Lets the rest-length and
@@ -38,6 +41,50 @@ interface PhysicsRig
         if (model instanceof BOBJModel bobj)
         {
             return new BobjRig(bobj);
+        }
+
+        return null;
+    }
+
+    /**
+     * Local rest direction of the last bone's virtual tip — the point the solver simulates one segment
+     * past the chain end. This deliberately follows the rotation appliers' convention (last bone points
+     * away from its parent), which differs from {@link #restDirectionLocal}'s fallback order, so the
+     * solved tip and the reconstructed pose target agree at rest. Returns null when the bone is missing.
+     */
+    static Vector3f tipRestDirectionLocal(IModel model, List<String> ids)
+    {
+        String last = ids.get(ids.size() - 1);
+
+        if (model instanceof Model cubic)
+        {
+            ModelGroup bone = cubic.getGroup(last);
+
+            if (bone == null)
+            {
+                return null;
+            }
+
+            if (ids.size() >= 2)
+            {
+                ModelGroup parent = cubic.getGroup(ids.get(ids.size() - 2));
+
+                return parent == null ? null : new Vector3f(bone.initial.translate).sub(parent.initial.translate).mul(1F / 16F);
+            }
+
+            if (bone.children != null && !bone.children.isEmpty())
+            {
+                return new Vector3f(bone.children.get(0).initial.translate).sub(bone.initial.translate).mul(1F / 16F);
+            }
+
+            return new Vector3f(0F, -1F, 0F);
+        }
+
+        if (model instanceof BOBJModel bobj)
+        {
+            BOBJBone bone = bobj.getArmature().bones.get(last);
+
+            return bone == null ? null : ModelRotationBlender.getBobjRestDirection(bobj, bone, null, ids, ids.size() - 1);
         }
 
         return null;
