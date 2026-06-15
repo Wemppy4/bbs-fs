@@ -195,6 +195,7 @@ public class UIFormPalette extends UIElement implements IUIFormList
     public void setSelected(Form form)
     {
         this.list.setSelected(form);
+        this.list.scrollToSelected();
     }
 
     @Override

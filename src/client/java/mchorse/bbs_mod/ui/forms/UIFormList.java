@@ -46,6 +46,7 @@ public class UIFormList extends UIElement
 
     private long lastUpdate;
     private int lastScroll;
+    private boolean pendingScrollToSelected;
 
     public UIFormList(IUIFormList palette)
     {
@@ -270,6 +271,50 @@ public class UIFormList extends UIElement
         }
     }
 
+    /**
+     * Request the list to scroll so that the currently selected form becomes
+     * visible. The actual scrolling is deferred to {@link #render(UIContext)}
+     * because it needs the list's real (resized) width to lay the categories
+     * out at their final height.
+     */
+    public void scrollToSelected()
+    {
+        this.pendingScrollToSelected = true;
+    }
+
+    private void scrollToSelectedForm()
+    {
+        UIFormCategory category = this.getSelectedCategory();
+
+        if (category == null)
+        {
+            return;
+        }
+
+        /* Categories only learn their real height once they render (until then
+         * they keep the inflated, width-0 height from setupForms), so the bounds
+         * of off-screen categories above the selection are stale. Lay them all
+         * out at the real width first so the offsets below are final. */
+        this.afterSearchLayout();
+
+        int contentY = category.area.y - this.forms.area.y;
+        int itemHeight = UIFormCategory.HEADER_HEIGHT;
+        int index = category.getForms().indexOf(category.selected);
+
+        if (category.category.visible.get() && index >= 0)
+        {
+            int columnW = Math.max(UIFormCategory.CELL_WIDTH, this.forms.area.w);
+            int perRow = Math.max(1, columnW / UIFormCategory.CELL_WIDTH);
+
+            contentY += UIFormCategory.HEADER_HEIGHT + (index / perRow) * UIFormCategory.CELL_HEIGHT;
+            itemHeight = UIFormCategory.CELL_HEIGHT;
+        }
+
+        /* Center the selected form (or the category header when it's collapsed)
+         * within the visible area; scrollTo() clamps to the scroll bounds. */
+        this.forms.scroll.setScroll(contentY - (this.forms.area.h - itemHeight) / 2);
+    }
+
     @Override
     public void render(UIContext context)
     {
@@ -297,6 +342,13 @@ public class UIFormList extends UIElement
         super.render(context);
 
         DiffuseLighting.disableGuiDepthLighting();
+
+        if (this.pendingScrollToSelected && this.forms.area.w > 0)
+        {
+            this.scrollToSelectedForm();
+
+            this.pendingScrollToSelected = false;
+        }
 
         /* Render form's display name and ID */
         Form selected = this.getSelected();
