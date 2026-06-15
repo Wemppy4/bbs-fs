@@ -1370,6 +1370,7 @@
 	"bbs.ui.transforms.alternate_invert": "Инверсия через одну\n\nПри нескольких выделенных костях каждая вторая (2-я, 4-я, …) получает инвертированный поворот. Напр. крутишь 1-ю кость на +90° по X — 2-я крутится на −90°. Работает по ручному выделению, в порядке выделения.",
 	"bbs.ui.transforms.keys.category": "Трансформации",
 	"bbs.ui.transforms.keys.toggle_axes": "Переключить XYZ оси",
+	"bbs.ui.transforms.keys.hide_gizmo": "Скрыть гизмо (удержание)",
 	"bbs.ui.transforms.keys.toggle_fix": "Переключить фиксацию (0 / 1)",
 	"bbs.ui.transforms.rotate": "Поворот",
 	"bbs.ui.transforms.scale": "Размер",

@@ -181,7 +181,7 @@ public abstract class BaseFilmController
         MatrixStackUtils.multiply(stack, target);
         FormUtilsClient.render(form, formContext);
 
-        if (UIBaseMenu.renderAxes)
+        if (UIBaseMenu.shouldRenderAxes())
         {
             if (context.bone != null) renderAxes(context.bone, context.space, context.map, form, entity, transition, stack);
             if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.space2, form, entity, transition, stack);
@@ -189,7 +189,7 @@ public abstract class BaseFilmController
 
         stack.pop();
 
-        if (UIBaseMenu.renderAxes && context.anchorGizmo)
+        if (UIBaseMenu.shouldRenderAxes() && context.anchorGizmo)
         {
             renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.map, stack);
         }

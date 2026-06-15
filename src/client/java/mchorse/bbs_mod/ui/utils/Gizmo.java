@@ -366,7 +366,7 @@ public class Gizmo
     public void renderSphereHighlight(UIContext context, Matrix4f projection, Area area)
     {
         if (!this.sphereHovered || !this.hasLastSphereMatrix || !this.isSphereInteractive()
-            || !UIBaseMenu.renderAxes || this.rotateSphereVbo == null || projection == null || area == null)
+            || !UIBaseMenu.shouldRenderAxes() || this.rotateSphereVbo == null || projection == null || area == null)
         {
             return;
         }

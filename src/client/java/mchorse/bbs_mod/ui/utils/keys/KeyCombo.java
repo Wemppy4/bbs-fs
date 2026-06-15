@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.utils.keys;
 
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -75,6 +77,57 @@ public class KeyCombo
     public int getMainKey()
     {
         return this.keys.isEmpty() ? -1 : this.keys.get(0);
+    }
+
+    /**
+     * Whether every key in this combo is currently held down — keyboard keys, modifiers and mouse
+     * buttons alike (mouse buttons are stored as negative ids). Use this for hold-to-act behaviour,
+     * since the keybind system only dispatches discrete presses, not holds.
+     */
+    public boolean isHeld()
+    {
+        if (this.keys.isEmpty())
+        {
+            return false;
+        }
+
+        for (int key : this.keys)
+        {
+            if (!isKeyDown(key))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether a single combo key is down right now. Negative ids are mouse buttons; the shift/ctrl/alt
+     * modifiers map to the left/right-agnostic checks so either side counts. Shared by {@link #isHeld()}
+     * and {@link Keybind} so the held-key logic lives in one place.
+     */
+    public static boolean isKeyDown(int key)
+    {
+        if (key < 0)
+        {
+            return Window.isMouseButtonPressed(-key);
+        }
+
+        if (key == GLFW.GLFW_KEY_LEFT_SHIFT || key == GLFW.GLFW_KEY_RIGHT_SHIFT)
+        {
+            return Window.isShiftPressed();
+        }
+        else if (key == GLFW.GLFW_KEY_LEFT_CONTROL || key == GLFW.GLFW_KEY_RIGHT_CONTROL)
+        {
+            return Window.isCtrlPressed();
+        }
+        else if (key == GLFW.GLFW_KEY_LEFT_ALT || key == GLFW.GLFW_KEY_RIGHT_ALT)
+        {
+            return Window.isAltPressed();
+        }
+
+        return Window.isKeyPressed(key);
     }
 
     public String getKeyCombo()

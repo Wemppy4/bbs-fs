@@ -1377,6 +1377,7 @@
 	"bbs.ui.transforms.alternate_invert": "Alternate invert\n\nWith several bones selected, every second one (2nd, 4th, ...) gets its rotation inverted. E.g. rotate the 1st bone +90° on X and the 2nd rotates -90°. Works on the manual selection, in selection order.",
 	"bbs.ui.transforms.keys.category": "Transformations",
 	"bbs.ui.transforms.keys.toggle_axes": "Toggle XYZ axes",
+	"bbs.ui.transforms.keys.hide_gizmo": "Hide gizmo (hold)",
 	"bbs.ui.transforms.keys.toggle_fix": "Toggle fix (0 / 1)",
 	"bbs.ui.transforms.rotate": "Rotate",
 	"bbs.ui.transforms.scale": "Scale",

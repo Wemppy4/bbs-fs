@@ -1471,7 +1471,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
      */
     private boolean canShowGizmo()
     {
-        return UIBaseMenu.renderAxes && !this.isRecording() && (this.getBone() != null || this.isAnchorGizmo());
+        return UIBaseMenu.shouldRenderAxes() && !this.isRecording() && (this.getBone() != null || this.isAnchorGizmo());
     }
 
     private void renderStencil(WorldRenderContext renderContext, UIContext context, boolean altPressed)

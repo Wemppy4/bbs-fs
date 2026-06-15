@@ -195,7 +195,13 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
                 MatrixStackUtils.multiply(stack, MatrixStackUtils.stripScale(matrix));
             }
 
-            Gizmo.INSTANCE.renderStencil(context.batcher.getContext().getMatrices(), this.stencilMap);
+            /* Skip the gizmo's pick stencil while the hide-gizmo key is held, so its handles can't be
+             * clicked when hidden. Form-part picking (the stencil rendered above) is left intact, and
+             * the F8 axes toggle is untouched here on purpose. */
+            if (!UIBaseMenu.isHideGizmoHeld())
+            {
+                Gizmo.INSTANCE.renderStencil(context.batcher.getContext().getMatrices(), this.stencilMap);
+            }
 
             stack.pop();
 
@@ -227,7 +233,7 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
         }
 
         /* Draw axes */
-        if (UIBaseMenu.renderAxes)
+        if (UIBaseMenu.shouldRenderAxes())
         {
             RenderSystem.disableDepthTest();
             Gizmo.INSTANCE.render(stack);

@@ -201,7 +201,7 @@ public class UIParticleSchemeRenderer extends UIModelRenderer
     {
         super.renderGrid(context);
 
-        if (UIBaseMenu.renderAxes)
+        if (UIBaseMenu.shouldRenderAxes())
         {
             Draw.coolerAxes(context.batcher.getContext().getMatrices(), 1F, 0.005F);
         }

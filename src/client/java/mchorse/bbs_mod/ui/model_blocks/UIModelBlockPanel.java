@@ -21,6 +21,7 @@ import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
 import mchorse.bbs_mod.ui.forms.UIToggleEditorEvent;
+import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -335,6 +336,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
     {
         return this.modelBlock != null
             && BBSSettings.gizmos.get()
+            && !UIBaseMenu.isHideGizmoHeld()
             && this.getChildren(UIFormPalette.class).isEmpty();
     }
 
