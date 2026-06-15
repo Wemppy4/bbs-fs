@@ -581,6 +581,8 @@
 	"bbs.ui.film.insert_space-title": "Вставить пустоту",
 	"bbs.ui.film.move-description": "Введите относительные координаты для передвижения элементов (камера и реплеи) фильма:",
 	"bbs.ui.film.move-title": "Передвинуть фильм",
+	"bbs.ui.film.move.context.fill": "Заполнить смещением до игрока",
+	"bbs.ui.film.move.context.fill_rounded": "Заполнить смещением до игрока (округлённо)",
 	"bbs.ui.film.no_camera-description": "Вы кажется забыли настроить камеру. Эта фича не работает без камеры. Пожалуйста создайте хотя бы один клип камеры в редакторе камеры!",
 	"bbs.ui.film.no_camera-title": "Нет камеры...",
 	"bbs.ui.film.open_action_editor": "Открыть редактор действий",

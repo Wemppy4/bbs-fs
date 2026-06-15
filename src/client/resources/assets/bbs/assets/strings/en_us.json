@@ -581,6 +581,8 @@
 	"bbs.ui.film.insert_space-title": "Insert space",
 	"bbs.ui.film.move-description": "Input relative coordinates to move the scene:",
 	"bbs.ui.film.move-title": "Move film",
+	"bbs.ui.film.move.context.fill": "Fill offset to player",
+	"bbs.ui.film.move.context.fill_rounded": "Fill offset to player (rounded)",
 	"bbs.ui.film.no_camera-description": "It appears like you didn't setup the camera. This feature doesn't work without camera. Please setup at least one camera clip in the camera editor!",
 	"bbs.ui.film.no_camera-title": "No camera...",
 	"bbs.ui.film.open_action_editor": "Open action editor",

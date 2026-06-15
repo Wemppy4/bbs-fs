@@ -1821,7 +1821,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                 });
             });
 
-            UIOverlay.addOverlay(this.getContext(), panel, 200, 0.9F);
+            panel.difference(this::getMoveToPlayerOffset);
+
+            UIOverlay.addOverlay(this.getContext(), panel, 240, 140);
         });
 
         menu.action(Icons.TIME, UIKeys.FILM_INSERT_SPACE_TITLE, () ->
@@ -1861,6 +1863,56 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             UIOverlay.addOverlay(this.getContext(), new UIFilmDetailsOverlayPanel(this.getData()), 300, 260);
         });
+    }
+
+    /**
+     * Relative move that snaps the scene's first position keyframe onto the
+     * player's current position ({@code round} optionally snaps the player's
+     * position to whole coordinates) — offered through the move overlay's menu.
+     */
+    private Vector3d getMoveToPlayerOffset(boolean round)
+    {
+        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+
+        if (player == null)
+        {
+            return new Vector3d();
+        }
+
+        Vector3d first = this.getFirstReplayPosition();
+        double px = round ? Math.round(player.getX()) : player.getX();
+        double py = round ? Math.round(player.getY()) : player.getY();
+        double pz = round ? Math.round(player.getZ()) : player.getZ();
+
+        return new Vector3d(px - first.x, py - first.y, pz - first.z);
+    }
+
+    private Vector3d getFirstReplayPosition()
+    {
+        Replay selected = this.replayEditor.getReplay();
+
+        if (selected != null && (!selected.keyframes.x.isEmpty() || !selected.keyframes.y.isEmpty() || !selected.keyframes.z.isEmpty()))
+        {
+            return new Vector3d(
+                selected.keyframes.x.isEmpty() ? 0 : selected.keyframes.x.get(0).getValue(),
+                selected.keyframes.y.isEmpty() ? 0 : selected.keyframes.y.get(0).getValue(),
+                selected.keyframes.z.isEmpty() ? 0 : selected.keyframes.z.get(0).getValue()
+            );
+        }
+
+        for (Replay replay : this.data.replays.getList())
+        {
+            if (!replay.keyframes.x.isEmpty() || !replay.keyframes.y.isEmpty() || !replay.keyframes.z.isEmpty())
+            {
+                return new Vector3d(
+                    replay.keyframes.x.isEmpty() ? 0 : replay.keyframes.x.get(0).getValue(),
+                    replay.keyframes.y.isEmpty() ? 0 : replay.keyframes.y.get(0).getValue(),
+                    replay.keyframes.z.isEmpty() ? 0 : replay.keyframes.z.get(0).getValue()
+                );
+            }
+        }
+
+        return new Vector3d();
     }
 
     private void openFilmListOverlay()
