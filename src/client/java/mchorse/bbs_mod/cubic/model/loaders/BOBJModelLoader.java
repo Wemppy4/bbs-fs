@@ -36,6 +36,14 @@ public class BOBJModelLoader implements IModelLoader
     public ModelInstance load(String id, ModelManager models, Link model, Collection<Link> links, MapType config)
     {
         Link modelBOBJ = IModelLoader.getLink(model.combine("model.bobj"), links, ".bobj");
+
+        /* No BOBJ file in this model's folder — it's not a BOBJ model, let the
+         * next loader handle it instead of noisily failing to open a missing file. */
+        if (!links.contains(modelBOBJ))
+        {
+            return null;
+        }
+
         Link modelTexture = IModelLoader.getLink(model.combine("model.png"), links, ".png");
 
         try (InputStream stream = models.provider.getAsset(modelBOBJ))
