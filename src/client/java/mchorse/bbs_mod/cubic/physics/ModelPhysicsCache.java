@@ -7,6 +7,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.WeakHashMap;
 
@@ -169,13 +170,13 @@ final class ModelPhysicsCache
     {
         if (config == null || config.bones() == null || config.bones().isEmpty())
         {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         List<CompiledChain> out = new ArrayList<>();
 
         List<String> roots = new ArrayList<>(config.bones().keySet());
-        java.util.Collections.sort(roots);
+        Collections.sort(roots);
 
         for (String rootId : roots)
         {
@@ -227,7 +228,7 @@ final class ModelPhysicsCache
 
             if (group.equals(rootId))
             {
-                java.util.Collections.reverse(list);
+                Collections.reverse(list);
                 return list;
             }
 
@@ -241,7 +242,7 @@ final class ModelPhysicsCache
             group = parent;
         }
 
-        return java.util.Collections.emptyList();
+        return Collections.emptyList();
     }
 
     private static float[] computeRestLengths(IModel model, List<String> ids)

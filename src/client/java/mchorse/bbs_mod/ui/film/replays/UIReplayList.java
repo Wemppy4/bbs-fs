@@ -54,6 +54,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
+import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -1490,7 +1491,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 this.operations = new UILabelList<>((l) -> this.updateOperation())
                 {
                     @Override
-                    protected void renderElementPart(UIContext context, mchorse.bbs_mod.ui.utils.Label<NormalOperation> element, int i, int x, int y, boolean hover, boolean selected)
+                    protected void renderElementPart(UIContext context, Label<NormalOperation> element, int i, int x, int y, boolean hover, boolean selected)
                     {
                         int h = this.scroll.scrollItemSize;
                         Icon icon = element.value.icon;
@@ -1548,7 +1549,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             private void updateOperation()
             {
                 NormalOperation operation = null;
-                mchorse.bbs_mod.ui.utils.Label<NormalOperation> operationLabel = this.operations.getCurrentFirst();
+                Label<NormalOperation> operationLabel = this.operations.getCurrentFirst();
 
                 if (operationLabel != null)
                 {
@@ -1649,7 +1650,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
             private NormalOperation getSelectedOperation()
             {
-                mchorse.bbs_mod.ui.utils.Label<NormalOperation> operationLabel = this.operations.getCurrentFirst();
+                Label<NormalOperation> operationLabel = this.operations.getCurrentFirst();
 
                 return operationLabel == null ? null : operationLabel.value;
             }

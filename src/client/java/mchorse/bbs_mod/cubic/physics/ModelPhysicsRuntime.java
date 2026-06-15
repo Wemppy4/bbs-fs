@@ -21,6 +21,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -108,7 +109,7 @@ public final class ModelPhysicsRuntime
         IModel model = instance.model;
 
         ModelPhysicsCache.Compiled compiled = null;
-        if (instance.form instanceof mchorse.bbs_mod.forms.forms.ModelForm modelForm && modelForm.physics.get() instanceof MapType map)
+        if (instance.form instanceof ModelForm modelForm && modelForm.physics.get() instanceof MapType map)
         {
             compiled = ModelPhysicsCache.getFromData(model, map);
         }
@@ -144,7 +145,7 @@ public final class ModelPhysicsRuntime
 
         if (!state.chains.isEmpty())
         {
-            java.util.Iterator<String> it = state.chains.keySet().iterator();
+            Iterator<String> it = state.chains.keySet().iterator();
 
             while (it.hasNext())
             {

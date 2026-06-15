@@ -35,6 +35,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Supplier;
 
 public class UIPropTransform extends UITransform
@@ -3109,7 +3110,7 @@ public class UIPropTransform extends UITransform
                     val = MathUtils.toDeg(val);
                 }
 
-                String valueLabel = String.format(java.util.Locale.US, "%.2f", val);
+                String valueLabel = String.format(Locale.US, "%.2f", val);
 
                 if (this.axis2 != null)
                 {
@@ -3120,7 +3121,7 @@ public class UIPropTransform extends UITransform
                         val2 = MathUtils.toDeg(val2);
                     }
 
-                    valueLabel += ", " + String.format(java.util.Locale.US, "%.2f", val2);
+                    valueLabel += ", " + String.format(Locale.US, "%.2f", val2);
                 }
 
                 /* While typing, lead with the raw input so the user sees exactly

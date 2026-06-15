@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.replays;
 
+import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.BaseFilmController;
@@ -62,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class UIReplaysEditorUtils
 {
@@ -511,7 +513,7 @@ public class UIReplaysEditorUtils
      */
     public static GizmoDrag buildFilmGizmoDrag(
         UIFilmPanel panel,
-        mchorse.bbs_mod.camera.Camera camera,
+        Camera camera,
         Area viewport,
         UIPropTransform transform,
         float transition
@@ -547,7 +549,7 @@ public class UIReplaysEditorUtils
             return drag;
         }
 
-        java.util.function.Supplier<Matrix4f> matrixSampler = () ->
+        Supplier<Matrix4f> matrixSampler = () ->
         {
             Form form = entity.getForm();
             float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
@@ -600,7 +602,7 @@ public class UIReplaysEditorUtils
      */
     private static void buildAnchorGizmoDrag(
         UIFilmPanel panel,
-        mchorse.bbs_mod.camera.Camera camera,
+        Camera camera,
         GizmoDrag drag,
         UIPropTransform transform,
         Replay replay,
@@ -608,7 +610,7 @@ public class UIReplaysEditorUtils
         float transition
     )
     {
-        java.util.function.Supplier<Matrix4f> matrixSampler = () ->
+        Supplier<Matrix4f> matrixSampler = () ->
         {
             Form form = entity.getForm();
             float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);

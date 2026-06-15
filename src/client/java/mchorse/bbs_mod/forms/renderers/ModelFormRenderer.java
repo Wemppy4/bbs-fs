@@ -738,7 +738,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             ModelIKDebug.renderStencil(context.stack, model.model, ikMap, context.stencilMap, this.form);
         }
 
-        if (ModelPhysicsDebug.enabled && this.form != null && this.form.physics.get() instanceof mchorse.bbs_mod.data.types.MapType physicsMap)
+        if (ModelPhysicsDebug.enabled && this.form != null && this.form.physics.get() instanceof MapType physicsMap)
         {
             ModelPhysicsDebug.renderStencil(context.stack, model.model, physicsMap, context.stencilMap, this.form);
         }

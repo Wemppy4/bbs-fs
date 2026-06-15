@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
 {
@@ -481,7 +482,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         }
     }
 
-    private void openEndMenu(String current, java.util.function.Consumer<String> callback)
+    private void openEndMenu(String current, Consumer<String> callback)
     {
         if (this.availableBones.isEmpty() || this.selectedBone.isEmpty())
         {
@@ -742,7 +743,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         return out;
     }
 
-    private static UITrackpad axisTrackpad(java.util.function.Consumer<Double> callback, int color, IKey tooltip)
+    private static UITrackpad axisTrackpad(Consumer<Double> callback, int color, IKey tooltip)
     {
         UITrackpad t = new UITrackpad(callback).degrees().onlyNumbers().limit(-180D, 180D);
         t.textbox.setColor(color);
