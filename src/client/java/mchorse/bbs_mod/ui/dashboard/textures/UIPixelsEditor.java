@@ -1007,7 +1007,7 @@ public class UIPixelsEditor extends UICanvasEditor
      * marching-ants pattern, placed on the selected (inner) side. One textured quad over the document
      * area &mdash; no per-pixel CPU work.
      */
-    private void renderSelection(UIContext context, Area area)
+    private void renderSelection(UIContext context)
     {
         if (this.selectionMaskDirty || this.currentSelection != null)
         {
@@ -1021,6 +1021,18 @@ public class UIPixelsEditor extends UICanvasEditor
         {
             return;
         }
+
+        /* Re-derive the document area right here: calculate() returns a shared Area instance that the
+         * layer loop in renderCanvasFrame overwrites with each layer's offset, so a document area
+         * computed earlier is stale by now. Copy the values into locals immediately (the only call
+         * after this is texturedBox, which doesn't touch the shared Area). */
+        int x = -this.w / 2;
+        int y = -this.h / 2;
+        Area area = this.calculate(x, y, x + this.w, y + this.h);
+        int ax = area.x;
+        int ay = area.y;
+        int aw = area.w;
+        int ah = area.h;
 
         GlUniform phase = shader.getUniform("Phase");
 
@@ -1037,12 +1049,12 @@ public class UIPixelsEditor extends UICanvasEditor
         {
             /* Screen pixels per document pixel, so the shader can keep the outline a constant
              * on-screen size regardless of canvas size / zoom. */
-            scale.set(area.w / (float) this.selectionMaskTexture.width);
+            scale.set(aw / (float) this.selectionMaskTexture.width);
         }
 
         context.batcher.texturedBox(
             () -> shader, this.selectionMaskTexture.id, Colors.WHITE,
-            area.x, area.y, area.w, area.h,
+            ax, ay, aw, ah,
             0, 0, this.selectionMaskTexture.width, this.selectionMaskTexture.height,
             this.selectionMaskTexture.width, this.selectionMaskTexture.height
         );
@@ -1714,7 +1726,7 @@ public class UIPixelsEditor extends UICanvasEditor
         if (this.hasSelection || this.currentSelection != null)
         {
             context.batcher.clip(this.area, context);
-            this.renderSelection(context, area);
+            this.renderSelection(context);
             context.batcher.unclip(context);
         }
 
