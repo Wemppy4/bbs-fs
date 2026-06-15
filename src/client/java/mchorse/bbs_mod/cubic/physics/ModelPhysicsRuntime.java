@@ -689,34 +689,48 @@ public final class ModelPhysicsRuntime
                     state.pos[last].set(targetPosition);
                 }
 
-                if (constraints != null && !constraints.isEmpty() && rig != null)
+                if (collisions)
                 {
-                    applyAngleConstraints(rig, ids, state.pos, lengths, constraints, chainFrames.get(0).parentRotation());
-
-                    state.pos[0].set(state.anchor);
-
-                    if (hardTarget)
-                    {
-                        state.pos[last].set(targetPosition);
-                    }
+                    resolveCollisions(world, state.pos, state.prev, state.anchor, targetPosition, last, radius);
                 }
+            }
+
+            /* Angle limits run once, after the length solver has converged, so the clamp and the length
+             * constraints don't fight iteration to iteration. Re-pin the ends and let one last
+             * depenetration settle any point the clamp pushed into geometry. */
+            if (constraints != null && !constraints.isEmpty() && rig != null)
+            {
+                applyAngleConstraints(rig, ids, state.pos, lengths, constraints, chainFrames.get(0).parentRotation());
+                pinEnds(state.pos, state.anchor, targetPosition, last);
 
                 if (collisions)
                 {
-                    int to = hardTarget ? last : state.pos.length;
-                    ModelPhysicsWorldCollisions.resolve(world, state.pos, state.prev, 1, to, radius, COLLISION_FRICTION);
-
-                    state.pos[0].set(state.anchor);
-
-                    if (hardTarget)
-                    {
-                        state.pos[last].set(targetPosition);
-                    }
+                    resolveCollisions(world, state.pos, state.prev, state.anchor, targetPosition, last, radius);
                 }
             }
 
             copyPositions(state.pos, state.settled);
         }
+    }
+
+    /** Re-fixes the chain endpoints after a constraint pass: the root onto the anchor and, when the tip is hard-pinned, onto its target. */
+    private static void pinEnds(Vector3f[] pos, Vector3f anchor, Vector3f target, int last)
+    {
+        pos[0].set(anchor);
+
+        if (target != null)
+        {
+            pos[last].set(target);
+        }
+    }
+
+    /** Depenetrates the chain against the world, then re-pins the endpoints. The tip is excluded from the sweep when it is hard-pinned. */
+    private static void resolveCollisions(World world, Vector3f[] pos, Vector3f[] prev, Vector3f anchor, Vector3f target, int last, float radius)
+    {
+        int to = target != null ? last : pos.length;
+
+        ModelPhysicsWorldCollisions.resolve(world, pos, prev, 1, to, radius, COLLISION_FRICTION);
+        pinEnds(pos, anchor, target, last);
     }
 
     /**
