@@ -257,6 +257,8 @@
 	"bbs.config.video.export_path-comment": "Folder where exported videos will be saved. If empty, the default export folder is used.",
 	"bbs.config.video.audio": "Export audio",
 	"bbs.config.video.audio-comment": "This option exports audio clips as audio and then pieces it together with the recorded video (no Minecraft sounds)",
+	"bbs.config.video.mute_audio_while_render": "Mute film audio while rendering",
+	"bbs.config.video.mute_audio_while_render-comment": "When enabled, BBS audio clips in the film are silent on the speakers while a video export is recording (the exported audio track is unchanged if Export audio is enabled).",
 	"bbs.config.video.motion_blur": "Motion blur",
 	"bbs.config.video.motion_blur-comment": "The bigger the number, the better quality of motion blur, but also the longer it will take to record",
 	"bbs.config.video.held_frames": "Held frames",

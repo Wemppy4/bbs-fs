@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.camera.clips.misc;
 
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.audio.SoundPlayer;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
@@ -38,6 +39,8 @@ public class AudioClientClip extends AudioClip
     public static void manageSounds(ClipContext context)
     {
         Map<Link, Playback> playback = getPlayback(context);
+        boolean muteFilmAudioDuringVideoCapture = BBSSettings.videoMuteAudioWhileRender.get()
+            && BBSModClient.getVideoRecorder().isRecording();
 
         for (Map.Entry<Link, Playback> entry : playback.entrySet())
         {
@@ -50,7 +53,7 @@ public class AudioClientClip extends AudioClip
                 continue;
             }
 
-            player.setVolume(state.gain);
+            player.setVolume(muteFilmAudioDuringVideoCapture ? 0F : state.gain);
 
             if (tickTime < 0 || tickTime >= player.getBuffer().getDuration())
             {
