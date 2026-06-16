@@ -182,13 +182,23 @@ public class UIAnimationStateEditor extends UIElement
                 return true;
             }
 
-            String filterKey = v.isBoneTrack ? v.title.get() : StringUtils.fileName(v.id);
+            String filterKey = UIReplaysEditor.getSheetFilterKey(v);
+
             for (String s : BBSSettings.disabledSheets.get())
             {
                 if (filterKey.equals(s) || v.id.equals(s) || v.id.endsWith("/" + s))
                 {
                     return true;
                 }
+            }
+
+            Form owner = UIReplaysEditor.getSheetForm(v);
+
+            if (owner != null)
+            {
+                Set<String> ownerDisabled = owner.disabledTracks.get();
+
+                return ownerDisabled.contains(Form.DISABLED_ALL) || ownerDisabled.contains(filterKey);
             }
 
             return false;
