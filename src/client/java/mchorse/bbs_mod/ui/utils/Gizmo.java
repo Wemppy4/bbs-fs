@@ -27,6 +27,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gl.VertexBuffer;
+import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -365,7 +366,7 @@ public class Gizmo
     public void renderSphereHighlight(UIContext context, Matrix4f projection, Area area)
     {
         if (!this.sphereHovered || !this.hasLastSphereMatrix || !this.isSphereInteractive()
-            || !UIBaseMenu.renderAxes || this.rotateSphereVbo == null || projection == null || area == null)
+            || !UIBaseMenu.shouldRenderAxes() || this.rotateSphereVbo == null || projection == null || area == null)
         {
             return;
         }
@@ -707,8 +708,8 @@ public class Gizmo
     {
         stack.push();
         
-        if (axis == Axis.X) stack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotation(MathUtils.PI / 2F));
-        if (axis == Axis.Z) stack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotation(MathUtils.PI / 2F));
+        if (axis == Axis.X) stack.multiply(RotationAxis.POSITIVE_Z.rotation(MathUtils.PI / 2F));
+        if (axis == Axis.Z) stack.multiply(RotationAxis.POSITIVE_X.rotation(MathUtils.PI / 2F));
 
         RenderSystem.setShaderColor(r, g, b, a);
         vbo.bind();
@@ -800,8 +801,8 @@ public class Gizmo
 
         stack.push();
         
-        if (axis == Axis.X) stack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotation(MathUtils.PI / 2F));
-        if (axis == Axis.Z) stack.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotation(MathUtils.PI / 2F));
+        if (axis == Axis.X) stack.multiply(RotationAxis.POSITIVE_Z.rotation(MathUtils.PI / 2F));
+        if (axis == Axis.Z) stack.multiply(RotationAxis.POSITIVE_X.rotation(MathUtils.PI / 2F));
 
         int color = axis == Axis.X ? Colors.RED : (axis == Axis.Y ? Colors.GREEN : Colors.BLUE);
         float r = Colors.getR(color);
@@ -977,7 +978,9 @@ public class Gizmo
         }
 
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        if (!BBSSettings.rotateHideRings.get()) {
+
+        if (!BBSSettings.rotateHideRings.get())
+        {
             if (active == null || active == Handle.ROTATE_Z) this.drawCachedRing(stack, this.rotateRingVbo, Axis.Z, Colors.BLUE);
             if (active == null || active == Handle.ROTATE_X) this.drawCachedRing(stack, this.rotateRingVbo, Axis.X, Colors.RED);
             if (active == null || active == Handle.ROTATE_Y) this.drawCachedRing(stack, this.rotateRingVbo, Axis.Y, Colors.GREEN);
@@ -1184,7 +1187,8 @@ public class Gizmo
         {
             this.updateVbos();
 
-            if (!BBSSettings.rotateHideRings.get()) {
+            if (!BBSSettings.rotateHideRings.get())
+            {
                 if (active == null || active == Handle.ROTATE_Z) this.drawCachedRing(stack, this.rotateStencilRingVbo, Axis.Z, STENCIL_ROTATE_Z / 255F, 0F, 0F, 1F);
                 if (active == null || active == Handle.ROTATE_X) this.drawCachedRing(stack, this.rotateStencilRingVbo, Axis.X, STENCIL_ROTATE_X / 255F, 0F, 0F, 1F);
                 if (active == null || active == Handle.ROTATE_Y) this.drawCachedRing(stack, this.rotateStencilRingVbo, Axis.Y, STENCIL_ROTATE_Y / 255F, 0F, 0F, 1F);

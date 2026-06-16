@@ -323,6 +323,8 @@ public class UIKeys
     public static final IKey FILM_REPLAY_CONTEXT_MOVE_HERE = L10n.lang("bbs.ui.film.replay.context.move_here");
     public static final IKey FILM_REPLAY_FILTER_SHEETS = L10n.lang("bbs.ui.film.replay.filter_sheets");
     public static final IKey FILM_REPLAY_FILTER_SHEETS_TITLE = L10n.lang("bbs.ui.film.replay.filter_sheets-title");
+    public static final IKey FILM_REPLAY_FILTER_SHEETS_DISABLE_ALL = L10n.lang("bbs.ui.film.replay.filter_sheets-disable_all");
+    public static final IKey FILM_REPLAY_FILTER_SHEETS_ENABLE_ALL = L10n.lang("bbs.ui.film.replay.filter_sheets-enable_all");
     public static final IKey FILM_REPLAY_FP = L10n.lang("bbs.ui.film.replay.fp");
     public static final IKey FILM_REPLAY_LABEL = L10n.lang("bbs.ui.film.replay.label");
     public static final IKey FILM_REPLAY_LOOPING = L10n.lang("bbs.ui.film.replay.looping");
@@ -411,10 +413,10 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_EXTRUDED_TITLE = L10n.lang("bbs.ui.forms.editors.extruded.title");
     public static final IKey FORMS_EDITORS_FRAMEBUFFER_TITLE = L10n.lang("bbs.ui.forms.editors.framebuffer.title");
     public static final IKey FORMS_EDITORS_GENERAL = L10n.lang("bbs.ui.forms.editors.general");
-    public static final IKey FORMS_EDITORS_GENERAL_ANIMATABLE = L10n.lang("bbs.ui.forms.editors.general.animatable");
-    public static final IKey FORMS_EDITORS_GENERAL_ANIMATABLE_TOOLTIP = L10n.lang("bbs.ui.forms.editors.general.animatable-tooltip");
     public static final IKey FORMS_EDITORS_GENERAL_BONE_TRACKS = L10n.lang("bbs.ui.forms.editors.general.bone_tracks");
     public static final IKey FORMS_EDITORS_GENERAL_BONE_TRACKS_TOOLTIP = L10n.lang("bbs.ui.forms.editors.general.bone_tracks-tooltip");
+    public static final IKey FORMS_EDITORS_GENERAL_FILTER_TRACKS = L10n.lang("bbs.ui.forms.editors.general.filter_tracks");
+    public static final IKey FORMS_EDITORS_GENERAL_FILTER_TRACKS_TOOLTIP = L10n.lang("bbs.ui.forms.editors.general.filter_tracks-tooltip");
     public static final IKey FORMS_EDITORS_GENERAL_DISPLAY = L10n.lang("bbs.ui.forms.editors.general.display");
     public static final IKey FORMS_EDITORS_GENERAL_HITBOX = L10n.lang("bbs.ui.forms.editors.general.hitbox");
     public static final IKey FORMS_EDITORS_GENERAL_HITBOX_EYE_HEIGHT = L10n.lang("bbs.ui.forms.editors.general.hitbox_eye_height");
@@ -469,6 +471,7 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_GRAVITY = L10n.lang("bbs.ui.forms.editors.model.physics.gravity");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY = L10n.lang("bbs.ui.forms.editors.model.physics.relative_gravity");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY_ROTATION = L10n.lang("bbs.ui.forms.editors.model.physics.relative_gravity_rotation");
+    public static final IKey FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS = L10n.lang("bbs.ui.forms.editors.model.physics.stiffness");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_DAMPING = L10n.lang("bbs.ui.forms.editors.model.physics.damping");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS = L10n.lang("bbs.ui.forms.editors.model.physics.iterations");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS = L10n.lang("bbs.ui.forms.editors.model.physics.collisions");
@@ -547,6 +550,7 @@ public class UIKeys
     public static final IKey GENERAL_CLOSE = L10n.lang("bbs.ui.close");
     public static final IKey GENERAL_CONFIRM = L10n.lang("bbs.ui.confirm");
     public static final IKey GENERAL_COPY = L10n.lang("bbs.ui.copy");
+    public static final IKey GENERAL_CUT = L10n.lang("bbs.ui.cut");
     public static final IKey GENERAL_DOWNLOAD = L10n.lang("bbs.ui.download");
     public static final IKey GENERAL_DUPE = L10n.lang("bbs.ui.dupe");
     public static final IKey GENERAL_EDIT = L10n.lang("bbs.ui.edit");
@@ -965,6 +969,8 @@ public class UIKeys
     public static final IKey SNOWSTORM_SPACE_VELOCITY = L10n.lang("bbs.ui.snowstorm.space.velocity");
     public static final IKey SNOWSTORM_TITLE = L10n.lang("bbs.ui.snowstorm.title");
     public static final IKey TEXTURES_COPY = L10n.lang("bbs.ui.textures.copy");
+    public static final IKey TEXTURES_COPY_IMAGE = L10n.lang("bbs.ui.textures.copy_image");
+    public static final IKey TEXTURES_PASTE_IMAGE = L10n.lang("bbs.ui.textures.paste_image");
     public static final IKey TEXTURES_CREATE_MCMETA = L10n.lang("bbs.ui.textures.create_mcmeta");
     public static final IKey TEXTURES_DOWNLOAD = L10n.lang("bbs.ui.textures.download");
     public static final IKey TEXTURES_DOWNLOAD_DESCRIPTION = L10n.lang("bbs.ui.textures.download-description");
@@ -1001,6 +1007,10 @@ public class UIKeys
     public static final IKey TEXTURES_LAYERS_CONTEXT_REMOVE = L10n.lang("bbs.ui.textures.layers.context.remove");
     public static final IKey TEXTURES_LAYERS_CONTEXT_RENAME = L10n.lang("bbs.ui.textures.layers.context.rename");
     public static final IKey TEXTURES_LAYERS_CONTEXT_SELECT = L10n.lang("bbs.ui.textures.layers.context.select");
+    public static final IKey TEXTURES_LAYERS_CONTEXT_COPY = L10n.lang("bbs.ui.textures.layers.context.copy");
+    public static final IKey TEXTURES_LAYERS_CONTEXT_COPY_MERGED = L10n.lang("bbs.ui.textures.layers.context.copy_merged");
+    public static final IKey TEXTURES_LAYERS_CONTEXT_CUT = L10n.lang("bbs.ui.textures.layers.context.cut");
+    public static final IKey TEXTURES_LAYERS_CONTEXT_PASTE = L10n.lang("bbs.ui.textures.layers.context.paste");
     public static final IKey TEXTURES_LAYERS_ADD_IMAGE = L10n.lang("bbs.ui.textures.layers.add_image");
     public static final IKey TEXTURES_LAYERS_ADD_EMPTY = L10n.lang("bbs.ui.textures.layers.add_empty");
     public static final IKey TEXTURES_LAYERS_FROM_SELECTION = L10n.lang("bbs.ui.textures.layers.from_selection");
@@ -1080,7 +1090,9 @@ public class UIKeys
     public static final IKey ORDER_RESET = L10n.lang("bbs.ui.order.reset");
     public static final IKey TRANSFORMS_KEYS_CATEGORY = L10n.lang("bbs.ui.transforms.keys.category");
     public static final IKey TRANSFORMS_KEYS_TOGGLE_AXES = L10n.lang("bbs.ui.transforms.keys.toggle_axes");
+    public static final IKey TRANSFORMS_KEYS_HIDE_GIZMO = L10n.lang("bbs.ui.transforms.keys.hide_gizmo");
     public static final IKey TRANSFORMS_KEYS_TOGGLE_FIX = L10n.lang("bbs.ui.transforms.keys.toggle_fix");
+    public static final IKey TRANSFORMS_KEYS_MIRROR_EDIT = L10n.lang("bbs.ui.transforms.keys.mirror_edit");
     public static final IKey TRANSFORMS_COMBINED = L10n.lang("bbs.ui.transforms.combined");
     public static final IKey TRANSFORMS_ROTATE = L10n.lang("bbs.ui.transforms.rotate");
     public static final IKey TRANSFORMS_SCALE = L10n.lang("bbs.ui.transforms.scale");

@@ -286,15 +286,15 @@ public class UIKeyframes extends UIElement
 
             if (factory instanceof Vector3fKeyframeFactory)
             {
-                Vector3f v1 = (org.joml.Vector3f) kf.getValue();
-                Vector3f v2 = (org.joml.Vector3f) prevKf.getValue();
+                Vector3f v1 = (Vector3f) kf.getValue();
+                Vector3f v2 = (Vector3f) prevKf.getValue();
                 Vector3f diff = new Vector3f(v1).sub(v2);
 
                 selected.remove(index);
 
                 for (Keyframe keyframe : selected)
                 {
-                    keyframe.setValue(new Vector3f((org.joml.Vector3f) keyframe.getValue()).add(diff));
+                    keyframe.setValue(new Vector3f((Vector3f) keyframe.getValue()).add(diff));
                 }
             }
             else

@@ -197,7 +197,7 @@ public class SoundLikeManager
         return sound != null ? sound.getDisplayName() : null;
     }
 
-    public java.util.List<LikedSound> getLikedSounds()
+    public List<LikedSound> getLikedSounds()
     {
         return new ArrayList<>(this.likedSounds.values());
     }

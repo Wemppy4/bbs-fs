@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.dashboard.textures;
 
+import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.graphics.window.ImageClipboard;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.Keys;
@@ -24,8 +26,12 @@ import mchorse.bbs_mod.utils.resources.Pixels;
 import mchorse.bbs_mod.utils.undo.IUndo;
 import mchorse.bbs_mod.utils.undo.UndoManager;
 import mchorse.bbs_mod.ui.dashboard.textures.data.TextureLayer;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
 import org.joml.Vector2d;
 import org.joml.Vector2i;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -81,6 +87,8 @@ public class UIPixelsEditor extends UICanvasEditor
             int minY = Math.min(this.y1, this.y2);
             int maxY = Math.max(this.y1, this.y2);
 
+            int i = 0;
+
             return x >= minX && x <= maxX && y >= minY && y <= maxY;
         }
     }
@@ -127,7 +135,10 @@ public class UIPixelsEditor extends UICanvasEditor
         Supplier<Boolean> texture = () -> this.pixels != null;
         Supplier<Boolean> editing = () -> this.editing;
 
-        this.keys().register(Keys.COPY, this::copyPixel).label(UIKeys.TEXTURES_VIEWER_CONTEXT_COPY_HEX).inside().active(texture).category(category);
+        this.keys().register(Keys.COPY, this::copyImage).label(UIKeys.TEXTURES_COPY_IMAGE).inside().active(texture).category(category);
+        this.keys().register(Keys.PIXEL_COPY_HEX, this::copyPixel).label(UIKeys.TEXTURES_VIEWER_CONTEXT_COPY_HEX).inside().active(texture).category(category);
+        this.keys().register(Keys.CUT, this::cut).label(UIKeys.GENERAL_CUT).inside().active(editing).category(category);
+        this.keys().register(Keys.PASTE, this::pasteImage).label(UIKeys.TEXTURES_PASTE_IMAGE).inside().active(editing).category(category);
         this.keys().register(Keys.UNDO, this::undo).inside().active(editing).category(category);
         this.keys().register(Keys.REDO, this::redo).inside().active(editing).category(category);
         this.keys().register(Keys.PIXEL_DESELECT, this::clearSelection).inside().active(editing).category(category);
@@ -142,6 +153,7 @@ public class UIPixelsEditor extends UICanvasEditor
             this.hasSelection = false;
             this.selections.clear();
             this.currentSelection = null;
+            this.invalidateSelectionMask();
         }
     }
 
@@ -255,47 +267,41 @@ public class UIPixelsEditor extends UICanvasEditor
             return;
         }
 
-        int minX = this.pixels.width;
-        int minY = this.pixels.height;
-        int maxX = -1;
-        int maxY = -1;
+        /* The selection mask lives in document space, but the layer's pixels are shifted by its
+         * move-tool offset, so map each opaque pixel to document coordinates (and skip anything the
+         * offset pushed off-canvas). */
+        int ox = this.getActiveOffsetX();
+        int oy = this.getActiveOffsetY();
+
+        boolean[][] mask = this.createSelectionMask();
+        boolean any = false;
 
         for (int x = 0; x < this.pixels.width; x++)
         {
             for (int y = 0; y < this.pixels.height; y++)
             {
                 Color color = this.pixels.getColor(x, y);
+
                 if (color != null && color.a > 0F)
                 {
-                    if (x < minX) minX = x;
-                    if (y < minY) minY = y;
-                    if (x > maxX) maxX = x;
-                    if (y > maxY) maxY = y;
+                    int dx = x + ox;
+                    int dy = y + oy;
+
+                    if (dx >= 0 && dy >= 0 && dx < this.w && dy < this.h)
+                    {
+                        mask[dx][dy] = true;
+                        any = true;
+                    }
                 }
             }
         }
 
-        if (maxX >= minX && maxY >= minY)
+        if (any)
         {
-            this.selections.clear();
-            
-            // To make the selection rect inclusive of the last pixel, we need to add 1 to the bottom right coordinates
-            boolean[][] mask = this.createSelectionMask();
-            for (int x = minX; x <= maxX; x++)
-            {
-                for (int y = minY; y <= maxY; y++)
-                {
-                    Color color = this.pixels.getColor(x, y);
-                    if (color != null && color.a > 0F)
-                    {
-                        mask[x][y] = true;
-                    }
-                }
-            }
-            
             this.selections = this.buildSelectionsFromMask(mask);
             this.hasSelection = !this.selections.isEmpty();
             this.currentSelectionSubtract = false;
+            this.invalidateSelectionMask();
         }
         else
         {
@@ -348,7 +354,7 @@ public class UIPixelsEditor extends UICanvasEditor
             if (this.temporaryFlat == null)
             {
                 this.temporaryFlat = new Texture();
-                this.temporaryFlat.setFilter(org.lwjgl.opengl.GL11.GL_NEAREST);
+                this.temporaryFlat.setFilter(GL11.GL_NEAREST);
             }
             this.temporaryFlat.bind();
             this.temporaryFlat.updateTexture(flat);
@@ -939,74 +945,119 @@ public class UIPixelsEditor extends UICanvasEditor
         this.hasSelection = !this.selections.isEmpty();
         this.currentSelection = null;
         this.currentSelectionSubtract = false;
+        this.invalidateSelectionMask();
     }
 
-    private int getSelectionScreenX(int x)
+    /** Mark the GPU selection mask stale so it's rebuilt before the next render. */
+    private void invalidateSelectionMask()
     {
-        return (int) Math.round(this.scaleX.to(x - this.w / 2D));
+        this.selectionMaskDirty = true;
     }
 
-    private int getSelectionScreenY(int y)
+    /**
+     * Rebuild the GPU selection mask from the current selection (committed rects plus the in-progress
+     * drag rectangle): white where selected, transparent elsewhere. Runs only on selection change (or
+     * each frame during an active drag); the per-frame render just samples this texture in a shader.
+     */
+    private void updateSelectionMaskTexture()
     {
-        return (int) Math.round(this.scaleY.to(y - this.h / 2D));
-    }
+        boolean[][] mask = this.buildSelectionMask();
 
-    private int getSelectionPatternColor(int x, int y)
-    {
-        int phase = (int) (System.currentTimeMillis() / 150L);
+        this.fillSelectionMask(mask, this.currentSelection, !this.currentSelectionSubtract);
 
-        return ((x + y + phase) & 1) == 0 ? Colors.WHITE : 0xff000000;
-    }
-
-    private void renderSelectionHorizontalEdge(UIContext context, int x, int y)
-    {
-        int sx1 = this.getSelectionScreenX(x);
-        int sx2 = this.getSelectionScreenX(x + 1);
-        int sy = this.getSelectionScreenY(y);
-
-        context.batcher.box(sx1, sy, sx2, sy + 1, this.getSelectionPatternColor(x, y));
-    }
-
-    private void renderSelectionVerticalEdge(UIContext context, int x, int y)
-    {
-        int sx = this.getSelectionScreenX(x);
-        int sy1 = this.getSelectionScreenY(y);
-        int sy2 = this.getSelectionScreenY(y + 1);
-
-        context.batcher.box(sx, sy1, sx + 1, sy2, this.getSelectionPatternColor(x, y));
-    }
-
-    private void renderSelectionOutline(UIContext context, boolean[][] mask)
-    {
-        for (int y = 0; y <= this.h; y++)
+        if (this.selectionMaskPixels == null || this.selectionMaskPixels.width != this.w || this.selectionMaskPixels.height != this.h)
         {
-            for (int x = 0; x < this.w; x++)
+            if (this.selectionMaskPixels != null)
             {
-                boolean above = y > 0 && mask[x][y - 1];
-                boolean below = y < this.h && mask[x][y];
-                boolean boundary = above != below;
-
-                if (boundary)
-                {
-                    this.renderSelectionHorizontalEdge(context, x, y);
-                }
+                this.selectionMaskPixels.delete();
             }
+
+            this.selectionMaskPixels = Pixels.fromSize(this.w, this.h);
         }
 
-        for (int x = 0; x <= this.w; x++)
+        Color color = new Color();
+
+        for (int x = 0; x < this.w; x++)
         {
             for (int y = 0; y < this.h; y++)
             {
-                boolean left = x > 0 && mask[x - 1][y];
-                boolean right = x < this.w && mask[x][y];
-                boolean boundary = left != right;
+                float value = mask[x][y] ? 1F : 0F;
 
-                if (boundary)
-                {
-                    this.renderSelectionVerticalEdge(context, x, y);
-                }
+                color.set(value, value, value, value);
+                this.selectionMaskPixels.setColor(x, y, color);
             }
         }
+
+        if (this.selectionMaskTexture == null)
+        {
+            this.selectionMaskTexture = new Texture();
+            this.selectionMaskTexture.bind();
+            this.selectionMaskTexture.setFilter(GL11.GL_NEAREST);
+            this.selectionMaskTexture.setWrap(GL12.GL_CLAMP_TO_EDGE);
+        }
+
+        this.selectionMaskPixels.rewindBuffer();
+        this.selectionMaskTexture.bind();
+        this.selectionMaskTexture.updateTexture(this.selectionMaskPixels);
+    }
+
+    /**
+     * Draw the selection outline by sampling the mask texture in the {@code selection} shader, which
+     * marks border texels (selected texels adjacent to an unselected one) with an animated
+     * marching-ants pattern, placed on the selected (inner) side. One textured quad over the document
+     * area &mdash; no per-pixel CPU work.
+     */
+    private void renderSelection(UIContext context)
+    {
+        if (this.selectionMaskDirty || this.currentSelection != null)
+        {
+            this.updateSelectionMaskTexture();
+            this.selectionMaskDirty = false;
+        }
+
+        ShaderProgram shader = BBSShaders.getSelectionProgram();
+
+        if (shader == null || this.selectionMaskTexture == null)
+        {
+            return;
+        }
+
+        /* Re-derive the document area right here: calculate() returns a shared Area instance that the
+         * layer loop in renderCanvasFrame overwrites with each layer's offset, so a document area
+         * computed earlier is stale by now. Copy the values into locals immediately (the only call
+         * after this is texturedBox, which doesn't touch the shared Area). */
+        int x = -this.w / 2;
+        int y = -this.h / 2;
+        Area area = this.calculate(x, y, x + this.w, y + this.h);
+        int ax = area.x;
+        int ay = area.y;
+        int aw = area.w;
+        int ah = area.h;
+
+        GlUniform phase = shader.getUniform("Phase");
+
+        if (phase != null)
+        {
+            /* Only the parity matters for the marching ants, so toggle 0/1 (avoids float precision
+             * loss from feeding a huge millisecond count into the shader). */
+            phase.set((float) ((System.currentTimeMillis() / 150L) % 2L));
+        }
+
+        GlUniform scale = shader.getUniform("Scale");
+
+        if (scale != null)
+        {
+            /* Screen pixels per document pixel, so the shader can keep the outline a constant
+             * on-screen size regardless of canvas size / zoom. */
+            scale.set(aw / (float) this.selectionMaskTexture.width);
+        }
+
+        context.batcher.texturedBox(
+            () -> shader, this.selectionMaskTexture.id, Colors.WHITE,
+            ax, ay, aw, ah,
+            0, 0, this.selectionMaskTexture.width, this.selectionMaskTexture.height,
+            this.selectionMaskTexture.width, this.selectionMaskTexture.height
+        );
     }
 
     protected void wasChanged()
@@ -1097,6 +1148,226 @@ public class UIPixelsEditor extends UICanvasEditor
         this.undoManager.pushUndo(new LayerStateUndo(before, this.document.toData(), mergeTag));
     }
 
+    /**
+     * Ctrl+C: copy the active layer's pixels to the clipboard as an image. With a selection, only the
+     * selected region is copied (cropped to its bounding box, unselected pixels left transparent).
+     * Falls back to the displayed pixels in viewer mode (no document). Hex-pixel copy lives on
+     * Ctrl+Shift+C ({@link #copyPixel()}). Returns {@code false} when there is nothing to copy.
+     */
+    private boolean copyImage()
+    {
+        TextureLayer layer = this.document == null ? null : this.document.getActiveLayer();
+        Pixels source = layer != null ? layer.pixels : this.pixels;
+
+        if (source == null)
+        {
+            return false;
+        }
+
+        Pixels copy;
+
+        if (this.hasSelection())
+        {
+            copy = this.extractSelection(source, layer != null ? layer.offsetX : 0, layer != null ? layer.offsetY : 0);
+
+            if (copy == null)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            copy = source.createCopy(0, 0, source.width, source.height);
+        }
+
+        ImageClipboard.copy(copy);
+        copy.delete();
+        UIUtils.playClick();
+
+        return true;
+    }
+
+    /**
+     * Ctrl+X / layers "cut": copy the selection (or the whole active layer when nothing is selected) to
+     * the clipboard, then erase that region from the active layer (set transparent). The layer itself
+     * stays. Recorded as one undo step.
+     */
+    public void cut()
+    {
+        TextureLayer layer = this.document == null ? null : this.document.getActiveLayer();
+
+        if (layer == null || layer.pixels == null || !this.copyImage())
+        {
+            return;
+        }
+
+        this.recordLayerChange(null, () ->
+        {
+            Pixels pixels = layer.pixels;
+            Color transparent = new Color(0F, 0F, 0F, 0F);
+            boolean selection = this.hasSelection();
+            int ox = layer.offsetX;
+            int oy = layer.offsetY;
+
+            for (int x = 0; x < pixels.width; x++)
+            {
+                for (int y = 0; y < pixels.height; y++)
+                {
+                    if (!selection || this.isInsideSelection(x + ox, y + oy))
+                    {
+                        pixels.setColor(x, y, transparent);
+                    }
+                }
+            }
+
+            layer.updateTexture();
+            this.wasChanged();
+        });
+    }
+
+    /**
+     * Copy the merged (flattened) visible layers to the clipboard as an image, respecting the current
+     * selection (only the selected region, cropped to its bounding box). No-op when there's nothing to
+     * flatten.
+     */
+    public void copyMerged()
+    {
+        Pixels flat = this.flattenLayers();
+
+        if (flat == null)
+        {
+            return;
+        }
+
+        if (this.hasSelection())
+        {
+            Pixels cropped = this.extractSelection(flat, 0, 0);
+
+            if (cropped != null)
+            {
+                ImageClipboard.copy(cropped);
+                cropped.delete();
+                UIUtils.playClick();
+            }
+        }
+        else
+        {
+            ImageClipboard.copy(flat);
+            UIUtils.playClick();
+        }
+
+        flat.delete();
+    }
+
+    /**
+     * Extract the current selection from a document-space {@code source} into a new Pixels cropped to
+     * the selection's bounding box (unselected pixels left transparent). {@code offsetX/Y} map document
+     * coordinates into the source (0 for a document-sized image; the layer's offset for a layer).
+     * Returns {@code null} when the selection is empty.
+     */
+    private Pixels extractSelection(Pixels source, int offsetX, int offsetY)
+    {
+        int w = this.document != null ? this.document.width : source.width;
+        int h = this.document != null ? this.document.height : source.height;
+        int minX = w, minY = h, maxX = -1, maxY = -1;
+
+        for (int dx = 0; dx < w; dx++)
+        {
+            for (int dy = 0; dy < h; dy++)
+            {
+                if (this.isInsideSelection(dx, dy))
+                {
+                    if (dx < minX) minX = dx;
+                    if (dy < minY) minY = dy;
+                    if (dx > maxX) maxX = dx;
+                    if (dy > maxY) maxY = dy;
+                }
+            }
+        }
+
+        if (maxX < minX || maxY < minY)
+        {
+            return null;
+        }
+
+        Pixels copy = Pixels.fromSize(maxX - minX + 1, maxY - minY + 1);
+
+        for (int dx = minX; dx <= maxX; dx++)
+        {
+            for (int dy = minY; dy <= maxY; dy++)
+            {
+                if (!this.isInsideSelection(dx, dy))
+                {
+                    continue;
+                }
+
+                int lx = dx - offsetX;
+                int ly = dy - offsetY;
+
+                if (lx < 0 || ly < 0 || lx >= source.width || ly >= source.height)
+                {
+                    continue;
+                }
+
+                Color color = source.getColor(lx, ly);
+
+                if (color != null)
+                {
+                    copy.setColor(dx - minX, dy - minY, color);
+                }
+            }
+        }
+
+        return copy;
+    }
+
+    /**
+     * Ctrl+V (and the layers panel's "paste as layer"): paste a clipboard image as a new layer above
+     * the active one, centered on the canvas and clipped to it. No-op when the clipboard holds no
+     * image. Recorded as a single undo step; refreshes the layers list.
+     */
+    public void pasteImage()
+    {
+        if (this.document == null)
+        {
+            return;
+        }
+
+        Pixels pasted = ImageClipboard.paste();
+
+        if (pasted == null)
+        {
+            return;
+        }
+
+        this.recordLayerChange(null, () ->
+        {
+            int w = this.document.width;
+            int h = this.document.height;
+            Pixels layerPixels = Pixels.fromSize(w, h);
+
+            layerPixels.draw(pasted, (w - pasted.width) / 2, (h - pasted.height) / 2);
+            layerPixels.rewindBuffer();
+
+            int index = this.document.activeLayerIndex + 1;
+
+            if (index < 0)
+            {
+                index = this.document.layers.size();
+            }
+
+            this.document.layers.add(index, new TextureLayer(UIKeys.TEXTURES_LAYERS_DEFAULT_NAME.format(String.valueOf(this.document.layers.size() + 1)).get(), layerPixels));
+            this.setActiveLayer(index);
+            this.clearSelection();
+            this.wasChanged();
+        });
+
+        this.layersChangedCallback.run();
+
+        pasted.delete();
+        UIUtils.playClick();
+    }
+
     private void copyPixel()
     {
         UIContext context = this.getContext();
@@ -1153,6 +1424,20 @@ public class UIPixelsEditor extends UICanvasEditor
             this.temporaryFlat.delete();
             this.temporaryFlat = null;
         }
+
+        if (this.selectionMaskTexture != null)
+        {
+            this.selectionMaskTexture.delete();
+            this.selectionMaskTexture = null;
+        }
+
+        if (this.selectionMaskPixels != null)
+        {
+            this.selectionMaskPixels.delete();
+            this.selectionMaskPixels = null;
+        }
+
+        this.selectionMaskDirty = true;
     }
 
     /**
@@ -1441,11 +1726,7 @@ public class UIPixelsEditor extends UICanvasEditor
         if (this.hasSelection || this.currentSelection != null)
         {
             context.batcher.clip(this.area, context);
-            boolean[][] mask = this.buildSelectionMask();
-
-            this.fillSelectionMask(mask, this.currentSelection, !this.currentSelectionSubtract);
-            this.renderSelectionOutline(context, mask);
-
+            this.renderSelection(context);
             context.batcher.unclip(context);
         }
 
@@ -1514,6 +1795,12 @@ public class UIPixelsEditor extends UICanvasEditor
     }
 
     private Texture temporaryFlat;
+
+    /** GPU mask of the current selection (white = selected); the outline shader reads it. Rebuilt only
+     * when the selection changes (or every frame during an active drag), not on every render. */
+    private Texture selectionMaskTexture;
+    private Pixels selectionMaskPixels;
+    private boolean selectionMaskDirty = true;
 
     protected Texture getRenderTexture(UIContext context)
     {

@@ -51,21 +51,27 @@ public class ParticleScheme extends ValueGroup {
     public Particle particle;
     public ParticleEmitter emitter;
 
-    public static ParticleScheme parse(String json) {
+    public static ParticleScheme parse(String json)
+    {
         return parse(DataToString.mapFromString(json));
     }
 
-    public static ParticleScheme parse(MapType json) {
-        try {
+    public static ParticleScheme parse(MapType json)
+    {
+        try
+        {
             return PARSER.fromData(json);
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
             e.printStackTrace();
         }
 
         return null;
     }
 
-    public static MapType toData(ParticleScheme scheme) {
+    public static MapType toData(ParticleScheme scheme)
+    {
         return PARSER.toData(scheme);
     }
 
@@ -73,11 +79,13 @@ public class ParticleScheme extends ValueGroup {
      * Probably it's very expensive, but it's much easier than implementing copy methods
      * to every component in the particle system...
      */
-    public static ParticleScheme dupe(ParticleScheme scheme) {
+    public static ParticleScheme dupe(ParticleScheme scheme)
+    {
         return parse(toData(scheme));
     }
 
-    public ParticleScheme() {
+    public ParticleScheme()
+    {
         super("");
 
         this.parser = new ParticleMolangParser(this);

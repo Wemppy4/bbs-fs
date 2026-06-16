@@ -4,12 +4,14 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import io.netty.util.collection.IntObjectHashMap;
 import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.renderer.ModelBlockEntityRenderer;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.replays.PerLimbService;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
@@ -181,7 +183,7 @@ public abstract class BaseFilmController
         MatrixStackUtils.multiply(stack, target);
         FormUtilsClient.render(form, formContext);
 
-        if (UIBaseMenu.renderAxes)
+        if (UIBaseMenu.shouldRenderAxes())
         {
             if (context.bone != null) renderAxes(context.bone, context.space, context.map, form, entity, transition, stack);
             if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.space2, form, entity, transition, stack);
@@ -189,17 +191,41 @@ public abstract class BaseFilmController
 
         stack.pop();
 
-        if (UIBaseMenu.renderAxes && context.anchorGizmo)
+        if (UIBaseMenu.shouldRenderAxes() && context.anchorGizmo)
         {
             renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.map, stack);
         }
 
         if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F)
         {
-            stack.push();
-            stack.translate(position.x - cx, position.y - cy, position.z - cz);
+            /* Place the shadow under the replay's perceived position: shift the actual shadow position
+             * by how far the model (form transform + anchor-bone root motion) has moved from rest,
+             * mapped from form-local into world axes via the render target. Moving the position itself
+             * (not just translating the quad) makes the shadow's ground projection and shading match. */
+            double shadowX = position.x;
+            double shadowY = position.y;
+            double shadowZ = position.z;
 
-            ModelBlockEntityRenderer.renderShadow(context.consumers, stack, transition, position.x, position.y, position.z, 0F, 0F, 0F, context.shadowRadius, opacity);
+            FormRenderer renderer = FormUtilsClient.getRenderer(FormUtils.getRoot(form));
+
+            if (renderer != null && !BBSRendering.isIrisShadowPass())
+            {
+                Vector3f displacement = renderer.getShadowDisplacement(entity, transition);
+
+                if (displacement != null)
+                {
+                    target.transformDirection(displacement);
+
+                    shadowX += displacement.x;
+                    shadowY += displacement.y;
+                    shadowZ += displacement.z;
+                }
+            }
+
+            stack.push();
+            stack.translate(shadowX - cx, shadowY - cy, shadowZ - cz);
+
+            ModelBlockEntityRenderer.renderShadow(context.consumers, stack, transition, shadowX, shadowY, shadowZ, 0F, 0F, 0F, context.shadowRadius, opacity);
 
             stack.pop();
         }

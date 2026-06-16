@@ -384,13 +384,15 @@ public class UITextureEditor extends UIPixelsEditor
     @Override
     protected Texture getRenderTexture(UIContext context)
     {
-        if (this.isEditing()) {
+        if (this.isEditing())
+        {
             return super.getRenderTexture(context);
         }
 
         Texture original = context.render.getTextures().getTexture(this.getTexture());
         
-        if (!this.isDirty()) {
+        if (!this.isDirty())
+        {
             return original;
         }
         

@@ -205,6 +205,23 @@ public class UIReplaysEditor extends UIElement
         return Colors.BLUE;
     }
 
+    /** The key a sheet is identified by in track filters (global and per-form). */
+    public static String getSheetFilterKey(UIKeyframeSheet sheet)
+    {
+        return sheet.isBoneTrack ? sheet.title.get() : StringUtils.fileName(sheet.id);
+    }
+
+    /** The form a sheet belongs to, whether it backs a form property or carries its owner directly (bones, materials, IK). */
+    public static Form getSheetForm(UIKeyframeSheet sheet)
+    {
+        if (sheet.form != null)
+        {
+            return sheet.form;
+        }
+
+        return sheet.property == null ? null : FormUtils.getForm(sheet.property);
+    }
+
     public static void renderRuler(UIContext context, UIKeyframes keyframes, UIClipsPanel clipsPanel, Clips camera, int clipOffset)
     {
         Area area = keyframes.graphArea;
@@ -488,14 +505,14 @@ public class UIReplaysEditor extends UIElement
 
         for (UIKeyframeSheet sheet : sheets)
         {
-            this.keys.add(sheet.isBoneTrack ? sheet.title.get() : StringUtils.fileName(sheet.id));
+            this.keys.add(getSheetFilterKey(sheet));
         }
 
         Set<String> disabled = BBSSettings.disabledSheets.get();
 
         sheets.removeIf((v) ->
         {
-            String filterKey = v.isBoneTrack ? v.title.get() : StringUtils.fileName(v.id);
+            String filterKey = getSheetFilterKey(v);
 
             for (String s : disabled)
             {
@@ -503,6 +520,15 @@ public class UIReplaysEditor extends UIElement
                 {
                     return true;
                 }
+            }
+
+            Form owner = getSheetForm(v);
+
+            if (owner != null)
+            {
+                Set<String> ownerDisabled = owner.disabledTracks.get();
+
+                return ownerDisabled.contains(Form.DISABLED_ALL) || ownerDisabled.contains(filterKey);
             }
 
             return false;
@@ -614,8 +640,7 @@ public class UIReplaysEditor extends UIElement
                         Map<String, Integer> keyToColor = new HashMap<>();
                         for (UIKeyframeSheet sheet : this.keyframeEditor.view.getGraph().getSheets())
                         {
-                            String k = sheet.isBoneTrack ? sheet.title.get() : StringUtils.fileName(sheet.id);
-                            keyToColor.put(k, sheet.color);
+                            keyToColor.put(getSheetFilterKey(sheet), sheet.color);
                         }
                         UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(
                                 disabledSet,

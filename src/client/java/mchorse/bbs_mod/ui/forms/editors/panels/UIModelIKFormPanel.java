@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 {
@@ -247,7 +248,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         return true;
     }
 
-    private void openBoneMenu(String current, java.util.function.Consumer<String> callback)
+    private void openBoneMenu(String current, Consumer<String> callback)
     {
         if (this.bones.getList().isEmpty())
         {

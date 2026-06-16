@@ -4,6 +4,7 @@ import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.WeakHashMap;
 
@@ -59,7 +60,7 @@ final class ModelIKCache
     {
         if (config == null || config.chains() == null || config.chains().isEmpty())
         {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         List<CompiledChain> out = new ArrayList<>(config.chains().size());
@@ -133,7 +134,7 @@ final class ModelIKCache
             group = parent;
         }
 
-        java.util.Collections.reverse(list);
+        Collections.reverse(list);
 
         return list;
     }

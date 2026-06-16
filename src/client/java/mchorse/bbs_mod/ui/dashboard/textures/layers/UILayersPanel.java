@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.dashboard.textures.layers;
 
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.graphics.window.ImageClipboard;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
@@ -16,6 +17,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.resources.Pixels;
 
 public class UILayersPanel extends UIElement
@@ -41,6 +43,7 @@ public class UILayersPanel extends UIElement
 
         this.addLayer = new UIIcon(Icons.ADD, (b) -> this.openAddLayerMenu());
         this.addLayer.tooltip(UIKeys.TEXTURES_LAYERS_ADD);
+        this.addLayer.h(UIConstants.CONTROL_HEIGHT);
 
         this.opacity = new UITrackpad((v) ->
         {
@@ -89,6 +92,11 @@ public class UILayersPanel extends UIElement
         {
             menu.action(Icons.ADD, UIKeys.TEXTURES_LAYERS_ADD_EMPTY, this::addLayer);
             menu.action(Icons.IMAGE, UIKeys.TEXTURES_LAYERS_ADD_IMAGE, this::addImageLayer);
+
+            if (ImageClipboard.hasImage())
+            {
+                menu.action(Icons.PASTE, UIKeys.TEXTURES_LAYERS_CONTEXT_PASTE, () -> this.currentEditor.pasteImage());
+            }
 
             if (this.currentEditor.hasSelection())
             {
@@ -149,7 +157,7 @@ public class UILayersPanel extends UIElement
                         newPixels.draw(loaded, 0, 0);
                         loaded.delete();
 
-                        TextureLayer layer = new TextureLayer(mchorse.bbs_mod.utils.StringUtils.fileName(path), newPixels);
+                        TextureLayer layer = new TextureLayer(StringUtils.fileName(path), newPixels);
 
                         document.layers.add(layer);
                         this.currentEditor.setActiveLayer(document.layers.size() - 1);

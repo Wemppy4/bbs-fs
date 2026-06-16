@@ -51,6 +51,9 @@ public abstract class CameraWorkCameraController implements ICameraController
 
         AudioClientClip.manageSounds(this.context);
 
+        /* After sound management, since applyLast() re-runs context.setup() */
+        this.applyEditedClipEnd(ticks);
+
         this.context.currentLayer = 0;
 
         if (camera != null)
@@ -58,6 +61,15 @@ public abstract class CameraWorkCameraController implements ICameraController
             this.position.apply(camera);
         }
     }
+
+    /**
+     * Hook for letting the clip that's currently being edited render its final
+     * state (at {@code relativeTick == duration}) when the cursor sits on the
+     * clip's exclusive end boundary, which {@link Clips#getClips(int)} excludes.
+     * No-op during playback; only the editor preview controller overrides it.
+     */
+    protected void applyEditedClipEnd(int ticks)
+    {}
 
     @Override
     public int getPriority()

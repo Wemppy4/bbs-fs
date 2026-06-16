@@ -112,8 +112,10 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
             UIConfirmOverlayPanel confirmPanel = new UIConfirmOverlayPanel(
                 UIKeys.GENERAL_REMOVE,
                 UIKeys.GENERAL_REMOVE,
-                (confirmed) -> {
-                    if (confirmed) {
+                (confirmed) ->
+                {
+                    if (confirmed)
+                    {
                         this.deleteAudio(soundName);
                     }
                 }

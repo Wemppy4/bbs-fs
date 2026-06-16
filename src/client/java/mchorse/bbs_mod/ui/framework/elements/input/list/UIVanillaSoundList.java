@@ -399,6 +399,7 @@ public class UIVanillaSoundList extends UIStringList
                         context.mouseY < iconY + 16
                     ) {
                         this.downloadSound(element);
+
                         return true;
                     }
 

@@ -4,22 +4,33 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
+import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
+import mchorse.bbs_mod.ui.film.replays.overlays.UIKeyframeSheetFilterOverlayPanel;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIKeybind;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
+
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class UIGeneralFormPanel extends UIFormPanel
 {
     public UIKeybind hotkey;
 
     public UIToggle visible;
-    public UIToggle animatable;
+    public UIButton filterTracks;
     public UIToggle boneTracks;
     
     public UITextbox trackName;
@@ -51,8 +62,8 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.hotkey.single().tooltip(UIKeys.FORMS_EDITORS_GENERAL_HOTKEY);
 
         this.visible = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_VISIBLE, (b) -> this.form.visible.set(b.getValue()));
-        this.animatable = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_ANIMATABLE, (b) -> this.form.animatable.set(b.getValue()));
-        this.animatable.tooltip(UIKeys.FORMS_EDITORS_GENERAL_ANIMATABLE_TOOLTIP);
+        this.filterTracks = new UIButton(UIKeys.FORMS_EDITORS_GENERAL_FILTER_TRACKS, (b) -> this.openTrackFilter());
+        this.filterTracks.tooltip(UIKeys.FORMS_EDITORS_GENERAL_FILTER_TRACKS_TOOLTIP);
         this.boneTracks = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_BONE_TRACKS, (b) ->
         {
             if (this.form instanceof ModelForm m) m.boneTracks.set(b.getValue());
@@ -89,7 +100,7 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.stepHeight.limit(0F);
 
         this.options.add(UI.label(UIKeys.FORMS_EDITORS_GENERAL_DISPLAY), this.name);
-        this.options.add(this.hotkey, this.visible, this.animatable, this.boneTracks, this.trackName, this.lighting, this.shaderShadow, this.additiveColor);
+        this.options.add(this.hotkey, this.visible, this.filterTracks, this.boneTracks, this.trackName, this.lighting, this.shaderShadow, this.additiveColor);
         this.options.add(UI.label(UIKeys.FORMS_EDITORS_GENERAL_UI_SCALE), this.uiScale);
         this.options.add(this.transform.marginTop(4));
         this.options.add(this.hitbox.marginTop(UIConstants.SECTION_GAP), UI.row(this.hitboxWidth, this.hitboxHeight));
@@ -108,7 +119,6 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.hotkey.setKeyCombo(new KeyCombo(IKey.EMPTY, form.hotkey.get()));
 
         this.visible.setValue(form.visible.get());
-        this.animatable.setValue(form.animatable.get());
         if (form instanceof ModelForm m)
         {
             this.boneTracks.setValue(m.boneTracks.get());
@@ -137,5 +147,31 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.stepHeight.setValue(form.stepHeight.get());
 
         this.options.resize();
+    }
+
+    private void openTrackFilter()
+    {
+        if (this.form == null)
+        {
+            return;
+        }
+
+        Set<String> disabled = this.form.disabledTracks.get();
+        Set<String> keys = new LinkedHashSet<>();
+        Map<String, Integer> keyToColor = new HashMap<>();
+
+        for (UIKeyframeSheet sheet : UIReplaysEditorUtils.collectFormTrackSheets(this.form))
+        {
+            String key = UIReplaysEditor.getSheetFilterKey(sheet);
+
+            keys.add(key);
+            keyToColor.put(key, sheet.color);
+        }
+
+        UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(disabled, keys, keyToColor);
+
+        UIOverlay.addOverlay(this.getContext(), panel, 240, 0.9F);
+
+        panel.onClose(e -> this.form.disabledTracks.set(disabled));
     }
 }

@@ -17,7 +17,8 @@ public class TriangleKeyframeShapeRenderer implements IKeyframeShapeRenderer
     }
 
     @Override
-    public Icon getIcon() {
+    public Icon getIcon()
+    {
         return Icons.TRIANGLE;
     }
 

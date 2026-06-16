@@ -41,6 +41,7 @@ import mchorse.bbs_mod.ui.forms.editors.forms.UIParticleForm;
 import mchorse.bbs_mod.ui.forms.editors.forms.UITrailForm;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIVanillaParticleForm;
 import mchorse.bbs_mod.ui.forms.editors.states.UIAnimationStatesOverlayPanel;
+import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.forms.editors.states.keyframes.UIAnimationStateEditor;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -291,7 +292,19 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
             TOGGLED = !TOGGLED;
         });
         this.toggleSidebar.tooltip(UIKeys.FORMS_EDITOR_TOGGLE_TREE, Direction.RIGHT);
-        this.openStateEditor = new UIIcon(Icons.GALLERY, (b) -> this.toggleStateEditor());
+        this.openStateEditor = new UIIcon(Icons.GALLERY, (b) -> this.toggleStateEditor())
+        {
+            @Override
+            protected void renderSkin(UIContext context)
+            {
+                if (UIFormEditor.this.statesEditor.isVisible())
+                {
+                    UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.LEFT);
+                }
+
+                super.renderSkin(context);
+            }
+        };
         this.openStateEditor.tooltip(UIKeys.FORMS_EDITOR_STATES_TOGGLE, Direction.RIGHT);
         this.icons = UI.column(this.openStateEditor, this.toggleSidebar, this.finish);
         this.icons.relative(this).y(1F).w(20).anchorY(1F);

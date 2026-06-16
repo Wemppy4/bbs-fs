@@ -233,7 +233,8 @@ public class UIFilmRecorder extends UIElement
             {
                 this.getRecorder().stopRecording();
             }
-            catch (Exception e) {}
+            catch (Exception e)
+            {}
         }
 
         this.pendingAudioFile = null;

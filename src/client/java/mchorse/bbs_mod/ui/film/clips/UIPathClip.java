@@ -84,14 +84,7 @@ public class UIPathClip extends UIClip<PathClip>
 
         if (!Window.isCtrlPressed())
         {
-            int offset = this.clip.getTickForPoint(index);
-
-            if (offset == this.clip.duration.get())
-            {
-                offset -= 1;
-            }
-
-            this.editor.setCursor(this.clip.tick.get() + offset);
+            this.editor.setCursor(this.clip.tick.get() + this.clip.getTickForPoint(index));
             this.editor.setFlight(false);
         }
     }

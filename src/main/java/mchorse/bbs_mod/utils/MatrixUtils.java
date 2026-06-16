@@ -8,8 +8,10 @@ import java.lang.Math;
 /**
  * @author Christian Fritz (also known as Chryfi)
  */
-public class MatrixUtils {
-    public static Matrix3f getRotationFromTransformation(Matrix4f transformation) {
+public class MatrixUtils
+{
+    public static Matrix3f getRotationFromTransformation(Matrix4f transformation)
+    {
         Matrix3f rotation = new Matrix3f();
         Vector3f rx = new Vector3f(transformation.m00(), transformation.m10(), transformation.m20());
         Vector3f ry = new Vector3f(transformation.m01(), transformation.m11(), transformation.m21());
@@ -21,14 +23,17 @@ public class MatrixUtils {
         rotation.setRow(0, rx);
         rotation.setRow(1, ry);
         rotation.setRow(2, rz);
+
         return rotation;
     }
 
-    public static Vector3f cast3dTo3f(Vector3d vec) {
+    public static Vector3f cast3dTo3f(Vector3d vec)
+    {
         return new Vector3f((float) vec.x, (float) vec.y, (float) vec.z);
     }
 
-    public enum Axis {
+    public enum Axis
+    {
         X, Y, Z;
 
         /**
@@ -39,7 +44,8 @@ public class MatrixUtils {
          */
         public final int index;
 
-        Axis() {
+        Axis()
+        {
             this.index = this.name().toUpperCase().charAt(0) - 'X';
         }
 
@@ -49,8 +55,10 @@ public class MatrixUtils {
          *         e.g. index = 0 is axis X, index = 2 is axis Z and index > 2 is null.
          */
         @Nullable
-        public static Axis axisOfVectorIndex(int vecIndex) {
-            return switch (vecIndex) {
+        public static Axis axisOfVectorIndex(int vecIndex)
+        {
+            return switch (vecIndex)
+            {
                 case 0 -> X;
                 case 1 -> Y;
                 case 2 -> Z;
@@ -93,7 +101,8 @@ public class MatrixUtils {
         /**
          * @return the unit vector representing this axis.
          */
-        public Vector3d getAxisVector() {
+        public Vector3d getAxisVector()
+        {
             return new Vector3d(0, 0, 0).setComponent(this.index, 1);
         }
 
@@ -103,7 +112,8 @@ public class MatrixUtils {
          * @param v the vector to project and write the result to.
          * @return v
          */
-        public Vector3d projectOntoAxisPlane(Vector3d v) {
+        public Vector3d projectOntoAxisPlane(Vector3d v)
+        {
             return v.setComponent(this.index, 0);
         }
 
@@ -114,7 +124,8 @@ public class MatrixUtils {
          * @param rotation the rotation matrix to calculate the angle from
          * @return angle in radians around this axis
          */
-        public double getAngleAround(Axis forwardAxis, Matrix3d rotation) {
+        public double getAngleAround(Axis forwardAxis, Matrix3d rotation)
+        {
             return this.getAngleAround(forwardAxis, 1, rotation);
         }
 
@@ -122,7 +133,8 @@ public class MatrixUtils {
          * @param forwardAxis the forward axis to test for flips and rotation
          * @return angle in radians around this axis
          */
-        public double getAngleAround(Axis forwardAxis, int sign, Matrix3d rotation) {
+        public double getAngleAround(Axis forwardAxis, int sign, Matrix3d rotation)
+        {
             if (forwardAxis == this) return 0;
             sign = sign == 0 ? 1 : (int) Math.signum(sign);
 
@@ -138,14 +150,16 @@ public class MatrixUtils {
         }
     }
 
-    public enum RotationOrder {
+    public enum RotationOrder
+    {
         XYZ, XZY, YXZ, YZX, ZXY, ZYX;
 
         public final Axis rotAxis0;
         public final Axis rotAxis1;
         public final Axis rotAxis2;
 
-        RotationOrder() {
+        RotationOrder()
+        {
             String order = this.name().toUpperCase();
             this.rotAxis0 = Axis.axisOfVectorIndex(order.charAt(0) - 'X');
             this.rotAxis1 = Axis.axisOfVectorIndex(order.charAt(1) - 'X');
@@ -159,8 +173,10 @@ public class MatrixUtils {
          * @return rotation matrix produced by this rotation order and reordering the angles provided to fit
          * the axis.
          */
-        public Matrix3d getRotationMatrixFromXYZ(double x, double y, double z) {
+        public Matrix3d getRotationMatrixFromXYZ(double x, double y, double z)
+        {
             Vector3d angles = new Vector3d(x, y, z);
+
             return this.rotAxis0.getRotationMatrix(angles.get(this.rotAxis0.index))
                     .mul(this.rotAxis1.getRotationMatrix(angles.get(this.rotAxis1.index)))
                     .mul(this.rotAxis2.getRotationMatrix(angles.get(this.rotAxis2.index)));
@@ -172,7 +188,8 @@ public class MatrixUtils {
          * @param angle2 angle in radians around the third rotation axis
          * @return rotation matrix produced by the angles and this rotation order.
          */
-        public Matrix3d getRotationMatrix(double angle0, double angle1, double angle2) {
+        public Matrix3d getRotationMatrix(double angle0, double angle1, double angle2)
+        {
             return this.rotAxis0.getRotationMatrix(angle0)
                     .mul(this.rotAxis1.getRotationMatrix(angle1))
                     .mul(this.rotAxis2.getRotationMatrix(angle2));
@@ -180,34 +197,30 @@ public class MatrixUtils {
 
         /**
          * Orders the given angles that correspond to this rotation order back to a XYZ order.
+         *
          * @param angle0 around first rotation axis
          * @param angle1 around second rotation axis
          * @param angle2 around third rotation axis
          */
-        public Vector3d orderAnglesToXYZ(double angle0, double angle1, double angle2) {
+        public Vector3d orderAnglesToXYZ(double angle0, double angle1, double angle2)
+        {
             Vector3d angles = new Vector3d();
+
             angles.setComponent(this.rotAxis0.index, angle0);
             angles.setComponent(this.rotAxis1.index, angle1);
             angles.setComponent(this.rotAxis2.index, angle2);
+
             return angles;
         }
 
-        /**
-         *
-         * @param axis the axis around which an angle should be calculated
-         * @return the forward axis, orthogonal to the given axis, that is used for testing flips.
-         */
-        public Axis getForwardForRotationAxis(Axis axis) {
+        public Axis getForwardForRotationAxis(Axis axis)
+        {
             /* +z and +y are nice forwards, is more standard */
             return axis == Axis.Z ? Axis.Y : Axis.Z;
         }
 
-        /**
-         * Calculates the euler angles needed to achieve the given transformation matrix with this rotation order.
-         * @param transform
-         * @return euler xyz angles in radians
-         */
-        public Vector3d getEulerAngles(Matrix3d transform) {
+        public Vector3d getEulerAngles(Matrix3d transform)
+        {
             /* copy since we will modify this in the process */
             transform = new Matrix3d(transform);
 
@@ -218,11 +231,14 @@ public class MatrixUtils {
             return this.orderAnglesToXYZ(angle0, angle1, angle2);
         }
 
-        private double extractAngleAroundAxis(Axis axis, Matrix3d transform) {
+        private double extractAngleAroundAxis(Axis axis, Matrix3d transform)
+        {
             Matrix3d removeAxisRot = new Matrix3d().identity();
+
             double angle = axis.getAngleAround(this.getForwardForRotationAxis(axis), transform);
             axis.getRotationMatrix(removeAxisRot, -angle);
             transform.mulLocal(removeAxisRot);
+
             return angle;
         }
     }

@@ -10,6 +10,7 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,7 +68,7 @@ public final class ModelIKRuntime
     {
         if (instance == null || instance.model == null)
         {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         IModel model = instance.model;
@@ -80,7 +81,7 @@ public final class ModelIKRuntime
 
         if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
         {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         Set<String> unique = new LinkedHashSet<>();
@@ -93,7 +94,7 @@ public final class ModelIKRuntime
             }
         }
 
-        return unique.isEmpty() ? java.util.Collections.emptyList() : new ArrayList<>(unique);
+        return unique.isEmpty() ? Collections.emptyList() : new ArrayList<>(unique);
     }
 
     /** The pole-target bones of all enabled chains that have one — the film keys a pole anchor sheet off each. */
@@ -101,7 +102,7 @@ public final class ModelIKRuntime
     {
         if (instance == null || instance.model == null)
         {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         IModel model = instance.model;
@@ -114,7 +115,7 @@ public final class ModelIKRuntime
 
         if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
         {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         Set<String> unique = new LinkedHashSet<>();
@@ -127,6 +128,6 @@ public final class ModelIKRuntime
             }
         }
 
-        return unique.isEmpty() ? java.util.Collections.emptyList() : new ArrayList<>(unique);
+        return unique.isEmpty() ? Collections.emptyList() : new ArrayList<>(unique);
     }
 }

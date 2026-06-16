@@ -1,9 +1,11 @@
 package mchorse.bbs_mod.camera.controller;
 
 import mchorse.bbs_mod.camera.Camera;
+import mchorse.bbs_mod.camera.clips.CameraClip;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
+import mchorse.bbs_mod.utils.clips.Clip;
 
 import java.util.function.Consumer;
 
@@ -74,6 +76,25 @@ public class RunnerCameraController extends CameraWorkCameraController
             {
                 this.setPlaying(false);
             }
+        }
+    }
+
+    @Override
+    protected void applyEditedClipEnd(int ticks)
+    {
+        if (this.context.playing)
+        {
+            return;
+        }
+
+        Clip clip = this.panel.cameraEditor.getClip();
+
+        /* When editing a camera clip and the cursor rests on its exclusive end
+         * boundary, show (and thus allow editing of) the clip's final point /
+         * keyframe — which otherwise belongs to the next clip's first frame. */
+        if (clip instanceof CameraClip cameraClip && ticks == clip.tick.get() + clip.duration.get())
+        {
+            cameraClip.applyLast(this.context, this.position);
         }
     }
 

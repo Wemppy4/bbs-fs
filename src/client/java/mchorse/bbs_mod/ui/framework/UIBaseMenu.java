@@ -20,9 +20,31 @@ import org.lwjgl.opengl.GL11;
  */
 public abstract class UIBaseMenu
 {
+    /** F8 toggle for the transform gizmo / axes. Read through {@link #shouldRenderAxes()}, which also
+     *  honours the hold-to-hide key, rather than directly. */
     public static boolean renderAxes = true;
 
     private static InputRenderer inputRenderer = new InputRenderer();
+
+    /**
+     * Whether the transform gizmo / axes should be drawn (and pickable) right now: the F8 toggle
+     * {@link #renderAxes} is on AND the hold-to-hide key ({@link Keys#TRANSFORMATIONS_HIDE_GIZMO}) is
+     * not being held. Gizmo render, its stencil pass and picking all gate on this, so holding the key
+     * hides everything at once. The held state is polled (the keybind system only dispatches presses,
+     * not holds).
+     */
+    public static boolean shouldRenderAxes()
+    {
+        return renderAxes && !isHideGizmoHeld();
+    }
+
+    /** Whether the hold-to-hide gizmo key ({@link Keys#TRANSFORMATIONS_HIDE_GIZMO}) is currently held.
+     *  Use this to suppress gizmo stencil/picking at sites that aren't otherwise gated by the F8
+     *  {@link #renderAxes} flag, so the hold removes them without altering F8's behaviour. */
+    public static boolean isHideGizmoHeld()
+    {
+        return Keys.TRANSFORMATIONS_HIDE_GIZMO.isHeld();
+    }
 
     private UIRootElement root;
     public UIElement main;

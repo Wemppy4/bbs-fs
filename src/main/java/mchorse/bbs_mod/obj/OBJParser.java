@@ -243,12 +243,7 @@ public class OBJParser
             /* Collect faces */
             else if (first.equals("f"))
             {
-                List<OBJFace> faceList = mesh.groups.get(material);
-                if (faceList == null) {
-                    faceList = new ArrayList<OBJFace>();
-                    mesh.groups.put(material, faceList);
-                }
-                
+                List<OBJFace> faceList = mesh.groups.computeIfAbsent(material, k -> new ArrayList<>());
                 String[] faces = dropFirstArgument(tokens);
 
                 if (faces.length == 4)

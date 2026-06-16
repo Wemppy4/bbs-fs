@@ -28,7 +28,8 @@ public class InterpContext
         return this.set(a, a, b, b, x);
     }
 
-    public InterpContext set(double a0, double a, double b, double b0, double x) {
+    public InterpContext set(double a0, double a, double b, double b0, double x)
+    {
         this.a0 = a0;
         this.a = a;
         this.b = b;
@@ -39,22 +40,6 @@ public class InterpContext
 
         this.args.v1 = this.args.v2 = this.args.v3 = this.args.v4 = 0D;
         this.w0 = this.w1 = this.w2 = this.w3 = 1.0D;
-
-        return this;
-    }
-
-    public InterpContext weights(double w0, double w1, double w2, double w3) {
-        this.w0 = w0;
-        this.w1 = w1;
-        this.w2 = w2;
-        this.w3 = w3;
-
-        return this;
-    }
-
-    public InterpContext setBoundary(boolean isStart, boolean isEnd) {
-        this.isStart = isStart;
-        this.isEnd = isEnd;
 
         return this;
     }

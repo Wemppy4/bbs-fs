@@ -1,14 +1,10 @@
 package mchorse.bbs_mod.cubic.physics;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.cubic.data.model.Model;
-import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
 import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
-import mchorse.bbs_mod.cubic.render.ModelRotationBlender;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.Draw;
@@ -301,7 +297,7 @@ public final class ModelPhysicsDebug
             return null;
         }
 
-        Vector3f dir = tipRestDirection(model, ids);
+        Vector3f dir = PhysicsRig.tipRestDirectionLocal(model, ids);
 
         if (dir == null || dir.lengthSquared() < EPS * EPS)
         {
@@ -313,44 +309,6 @@ public final class ModelPhysicsDebug
         rotation.transform(dir.normalize()).mul(lengths[n - 1]);
 
         return new Vector3f(frame.position()).add(dir);
-    }
-
-    private static Vector3f tipRestDirection(IModel model, List<String> ids)
-    {
-        String last = ids.get(ids.size() - 1);
-
-        if (model instanceof Model cubic)
-        {
-            ModelGroup bone = cubic.getGroup(last);
-
-            if (bone == null)
-            {
-                return null;
-            }
-
-            if (ids.size() >= 2)
-            {
-                ModelGroup parent = cubic.getGroup(ids.get(ids.size() - 2));
-
-                return parent == null ? null : new Vector3f(bone.initial.translate).sub(parent.initial.translate).mul(1F / 16F);
-            }
-
-            if (bone.children != null && !bone.children.isEmpty())
-            {
-                return new Vector3f(bone.children.get(0).initial.translate).sub(bone.initial.translate).mul(1F / 16F);
-            }
-
-            return new Vector3f(0F, -1F, 0F);
-        }
-
-        if (model instanceof BOBJModel bobj)
-        {
-            BOBJBone bone = bobj.getArmature().bones.get(last);
-
-            return bone == null ? null : ModelRotationBlender.getBobjRestDirection(bobj, bone, null, ids, ids.size() - 1);
-        }
-
-        return null;
     }
 
     private static void orb(BufferBuilder builder, MatrixStack stack, Vector3f p, float radius, float[] col, float a)

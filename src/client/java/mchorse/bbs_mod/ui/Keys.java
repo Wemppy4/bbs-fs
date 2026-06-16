@@ -19,6 +19,7 @@ public class Keys
     public static final KeyCombo REDO = new KeyCombo("redo", UIKeys.CAMERA_EDITOR_KEYS_EDITOR_REDO, GLFW.GLFW_KEY_Y, GLFW.GLFW_KEY_LEFT_CONTROL);
     public static final KeyCombo UNDO = new KeyCombo("undo", UIKeys.CAMERA_EDITOR_KEYS_EDITOR_UNDO, GLFW.GLFW_KEY_Z, GLFW.GLFW_KEY_LEFT_CONTROL);
     public static final KeyCombo COPY = new KeyCombo("copy", UIKeys.GENERAL_COPY, GLFW.GLFW_KEY_C, GLFW.GLFW_KEY_LEFT_CONTROL);
+    public static final KeyCombo CUT = new KeyCombo("cut", UIKeys.GENERAL_CUT, GLFW.GLFW_KEY_X, GLFW.GLFW_KEY_LEFT_CONTROL);
     public static final KeyCombo PASTE = new KeyCombo("paste", UIKeys.GENERAL_PASTE, GLFW.GLFW_KEY_V, GLFW.GLFW_KEY_LEFT_CONTROL);
     public static final KeyCombo PRESETS = new KeyCombo("presets", UIKeys.GENERAL_PRESETS, GLFW.GLFW_KEY_V, GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_LEFT_CONTROL);
     public static final KeyCombo SAVE = new KeyCombo("save", UIKeys.GENERAL_SAVE, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_LEFT_CONTROL);
@@ -88,6 +89,7 @@ public class Keys
     public static final KeyCombo PIXEL_TOOL_FILL = new KeyCombo("tool_fill", UIKeys.TEXTURES_KEYS_TOOL_FILL, GLFW.GLFW_KEY_F).categoryKey("pixels");
     public static final KeyCombo PIXEL_TOOL_SELECTION = new KeyCombo("tool_selection", UIKeys.TEXTURES_TOOLS_SELECTION, GLFW.GLFW_KEY_M).categoryKey("pixels");
     public static final KeyCombo PIXEL_DESELECT = new KeyCombo("deselect", UIKeys.TEXTURES_DESELECT, GLFW.GLFW_KEY_D, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("pixels");
+    public static final KeyCombo PIXEL_COPY_HEX = new KeyCombo("copy_hex", UIKeys.TEXTURES_VIEWER_CONTEXT_COPY_HEX, GLFW.GLFW_KEY_C, GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
     public static final KeyCombo PIXEL_BRUSH_DEC = new KeyCombo("brush_dec", UIKeys.TEXTURES_KEYS_BRUSH_DEC, GLFW.GLFW_KEY_LEFT_BRACKET).repeatable().categoryKey("pixels");
     public static final KeyCombo PIXEL_BRUSH_INC = new KeyCombo("brush_inc", UIKeys.TEXTURES_KEYS_BRUSH_INC, GLFW.GLFW_KEY_RIGHT_BRACKET).repeatable().categoryKey("pixels");
 
@@ -121,8 +123,10 @@ public class Keys
     public static final KeyCombo TRANSFORMATIONS_Y = new KeyCombo("y", UIKeys.GENERAL_Y, GLFW.GLFW_KEY_Y).categoryKey("transformations");
     public static final KeyCombo TRANSFORMATIONS_Z = new KeyCombo("z", UIKeys.GENERAL_Z, GLFW.GLFW_KEY_Z).categoryKey("transformations");
     public static final KeyCombo TRANSFORMATIONS_TOGGLE_AXES = new KeyCombo("toggle_axes", UIKeys.TRANSFORMS_KEYS_TOGGLE_AXES, GLFW.GLFW_KEY_F8).categoryKey("transformations");
+    public static final KeyCombo TRANSFORMATIONS_HIDE_GIZMO = new KeyCombo("hide_gizmo", UIKeys.TRANSFORMS_KEYS_HIDE_GIZMO, GLFW.GLFW_KEY_LEFT_ALT).categoryKey("transformations");
     public static final KeyCombo TRANSFORMATIONS_TOGGLE_LOCAL = new KeyCombo("toggle_local", UIKeys.TRANSFORMS_CONTEXT_SWITCH_LOCAL, GLFW.GLFW_KEY_Q).categoryKey("transformations");
     public static final KeyCombo TRANSFORMATIONS_TOGGLE_FIX = new KeyCombo("toggle_fix", UIKeys.TRANSFORMS_KEYS_TOGGLE_FIX, GLFW.GLFW_KEY_Y).categoryKey("transformations");
+    public static final KeyCombo TRANSFORMATIONS_MIRROR_EDIT = new KeyCombo("mirror_edit", UIKeys.TRANSFORMS_KEYS_MIRROR_EDIT, GLFW.GLFW_KEY_F, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("transformations");
 
     /* Film controller */
     public static final KeyCombo FILM_CONTROLLER_START_RECORDING = new KeyCombo("start_recording", UIKeys.FILM_CONTROLLER_KEYS_START_RECORDING, GLFW.GLFW_KEY_R, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("film_controller");

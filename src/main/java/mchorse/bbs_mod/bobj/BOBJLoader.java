@@ -338,7 +338,8 @@ public class BOBJLoader
             idxGroups[2] = parseLine(v3);
         }
 
-        public Face() {}
+        public Face()
+        {}
 
         /**
          * Parse index group from a string in format of "1/2/3". It can be also
@@ -408,7 +409,8 @@ public class BOBJLoader
             this.idxVecNormal = n;
         }
 
-        public IndexGroup() {}
+        public IndexGroup()
+        {}
     }
 
     public static class Vertex

@@ -195,7 +195,8 @@ public class AudioRenderer
         return null;
     }
 
-    private record ActiveAudioAtTick(AudioClip clip, SoundBuffer buffer) {}
+    private record ActiveAudioAtTick(AudioClip clip, SoundBuffer buffer)
+    {}
 
     private static void drawWaveformPanelChrome(Batcher2D batcher, int x, int y, int w, int h)
     {

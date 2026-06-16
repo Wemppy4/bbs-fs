@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 {
@@ -113,7 +114,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         );
     }
 
-    private static UITrackpad axisTrackpad(java.util.function.Consumer<Double> c, int color, IKey tooltip)
+    private static UITrackpad axisTrackpad(Consumer<Double> c, int color, IKey tooltip)
     {
         UITrackpad t = new UITrackpad(c).degrees().onlyNumbers().limit(-180D, 180D);
         t.textbox.setColor(color);

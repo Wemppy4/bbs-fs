@@ -23,11 +23,8 @@ public class EntityRenderDispatcherMixin
             target = "Lnet/minecraft/client/render/entity/EntityRenderer;render(Lnet/minecraft/entity/Entity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V"
         )
     )
-    private <E extends Entity> void wrapRender(
-        EntityRenderer<E> renderer, E entity, float yaw, float tickDelta,
-        MatrixStack matrices, VertexConsumerProvider vcp, int light,
-        Operation<Void> original
-    ) {
+    private <E extends Entity> void wrapRender(EntityRenderer<E> renderer, E entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vcp, int light, Operation<Void> original)
+    {
         if (entity instanceof LivingEntity livingEntity)
         {
             float whiteOverlayProgress = 0;

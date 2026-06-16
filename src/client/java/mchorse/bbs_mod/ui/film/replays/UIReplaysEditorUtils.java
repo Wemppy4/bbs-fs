@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.replays;
 
+import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.BaseFilmController;
@@ -62,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class UIReplaysEditorUtils
 {
@@ -236,7 +238,7 @@ public class UIReplaysEditorUtils
             KeyframeChannel channel = properties.registerChannel(boneKey, KeyframeFactories.POSE_TRANSFORM);
             ValueTransform transform = new ValueTransform(boneKey, new PoseTransform());
 
-            out.add(new UIKeyframeSheet(boneKey, IKey.constant(title), color, false, channel, transform, true));
+            out.add(new UIKeyframeSheet(boneKey, IKey.constant(title), color, false, channel, transform, true).form(modelForm));
 
             if (depthBySheetId != null)
             {
@@ -273,7 +275,7 @@ public class UIReplaysEditorUtils
             String id = PerLimbService.toIKTargetKey(path, controller);
             String title = path.isEmpty() ? "ik/" + controller : path + "/ik/" + controller;
 
-            addTargetSheet(out, properties, id, title, Colors.CYAN, null);
+            addTargetSheet(out, properties, modelForm, id, title, Colors.CYAN, null);
         }
     }
 
@@ -332,7 +334,7 @@ public class UIReplaysEditorUtils
             String id = PerLimbService.toPoleTargetKey(path, controller);
             String title = path.isEmpty() ? "pole/" + controller : path + "/pole/" + controller;
 
-            addTargetSheet(out, properties, id, title, Colors.ORANGE, null);
+            addTargetSheet(out, properties, modelForm, id, title, Colors.ORANGE, null);
         }
     }
 
@@ -365,7 +367,7 @@ public class UIReplaysEditorUtils
             String id = PerLimbService.toPhysicsTargetKey(path, rootBone);
             String title = path.isEmpty() ? "physics/" + rootBone : path + "/physics/" + rootBone;
 
-            addTargetSheet(out, properties, id, title, Colors.MAGENTA, Icons.TIME);
+            addTargetSheet(out, properties, modelForm, id, title, Colors.MAGENTA, Icons.TIME);
         }
     }
 
@@ -408,15 +410,60 @@ public class UIReplaysEditorUtils
 
             ValueLink property = new ValueLink(id, materialDefault);
 
-            out.add(new UIKeyframeSheet(id, IKey.constant(title), Colors.BLUE, false, channel, property).icon(Icons.MATERIAL));
+            out.add(new UIKeyframeSheet(id, IKey.constant(title), Colors.BLUE, false, channel, property).icon(Icons.MATERIAL).form(modelForm));
         }
     }
 
-    private static void addTargetSheet(List<UIKeyframeSheet> out, FormProperties properties, String id, String title, int color, Icon icon)
+    /** Collect every track a single form contributes to the timeline (its own properties plus model sub-tracks), used to populate the per-form track filter. */
+    public static List<UIKeyframeSheet> collectFormTrackSheets(Form form)
+    {
+        List<UIKeyframeSheet> sheets = new ArrayList<>();
+
+        if (form == null)
+        {
+            return sheets;
+        }
+
+        FormProperties properties = new FormProperties("");
+
+        for (BaseValue property : form.getAll())
+        {
+            if (!property.isVisible() || property.getId().equals("anchor"))
+            {
+                continue;
+            }
+
+            String key = property.getId();
+            KeyframeChannel channel = properties.getOrCreate(form, key);
+
+            if (channel == null)
+            {
+                continue;
+            }
+
+            BaseValueBasic formProperty = FormUtils.getProperty(form, key);
+
+            sheets.add(new UIKeyframeSheet(UIReplaysEditor.getColor(key), false, channel, formProperty).icon(UIReplaysEditor.getIcon(key)));
+        }
+
+        if (form instanceof ModelForm modelForm)
+        {
+            addMaterialTextureSheets(modelForm, properties, sheets);
+            addPhysicsTargetSheets(modelForm, properties, sheets);
+            addBoneTrackSheets(modelForm, properties, sheets);
+            addIKControlSheet(modelForm, properties, sheets);
+            addIKTargetSheets(modelForm, properties, sheets);
+            addPoleTargetSheets(modelForm, properties, sheets);
+        }
+
+        return sheets;
+    }
+
+    private static void addTargetSheet(List<UIKeyframeSheet> out, FormProperties properties, ModelForm modelForm, String id, String title, int color, Icon icon)
     {
         KeyframeChannel channel = properties.registerChannel(id, KeyframeFactories.ANCHOR);
 
-        out.add(new UIKeyframeSheet(id, IKey.constant(title), color, false, channel, null).icon(icon));
+        out.add(new UIKeyframeSheet(id, IKey.constant(title), color, false, channel, null).icon(icon).form(modelForm));
     }
 
     private static int getBoneDepth(IModel model, String bone)
@@ -511,7 +558,7 @@ public class UIReplaysEditorUtils
      */
     public static GizmoDrag buildFilmGizmoDrag(
         UIFilmPanel panel,
-        mchorse.bbs_mod.camera.Camera camera,
+        Camera camera,
         Area viewport,
         UIPropTransform transform,
         float transition
@@ -547,7 +594,7 @@ public class UIReplaysEditorUtils
             return drag;
         }
 
-        java.util.function.Supplier<Matrix4f> matrixSampler = () ->
+        Supplier<Matrix4f> matrixSampler = () ->
         {
             Form form = entity.getForm();
             float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
@@ -600,7 +647,7 @@ public class UIReplaysEditorUtils
      */
     private static void buildAnchorGizmoDrag(
         UIFilmPanel panel,
-        mchorse.bbs_mod.camera.Camera camera,
+        Camera camera,
         GizmoDrag drag,
         UIPropTransform transform,
         Replay replay,
@@ -608,7 +655,7 @@ public class UIReplaysEditorUtils
         float transition
     )
     {
-        java.util.function.Supplier<Matrix4f> matrixSampler = () ->
+        Supplier<Matrix4f> matrixSampler = () ->
         {
             Form form = entity.getForm();
             float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);

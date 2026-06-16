@@ -162,25 +162,7 @@ public class Keybind
 
     protected boolean isKeyDown(int key)
     {
-        if (key < 0)
-        {
-            return Window.isMouseButtonPressed(-key);
-        }
-
-        if (key == GLFW.GLFW_KEY_LEFT_SHIFT || key == GLFW.GLFW_KEY_RIGHT_SHIFT)
-        {
-            return Window.isShiftPressed();
-        }
-        else if (key == GLFW.GLFW_KEY_LEFT_CONTROL || key == GLFW.GLFW_KEY_RIGHT_CONTROL)
-        {
-            return Window.isCtrlPressed();
-        }
-        else if (key == GLFW.GLFW_KEY_LEFT_ALT || key == GLFW.GLFW_KEY_RIGHT_ALT)
-        {
-            return Window.isAltPressed();
-        }
-
-        return Window.isKeyPressed(key);
+        return KeyCombo.isKeyDown(key);
     }
 
     public boolean isActive()
