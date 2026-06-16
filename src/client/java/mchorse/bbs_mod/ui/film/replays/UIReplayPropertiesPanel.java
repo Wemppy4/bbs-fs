@@ -27,6 +27,10 @@ public class UIReplayPropertiesPanel extends UIElement
     public UITextbox nameTag;
     public UIToggle shadow;
     public UITrackpad shadowSize;
+    public UIToggle shadowFollow;
+    public UITrackpad shadowOffsetX;
+    public UITrackpad shadowOffsetY;
+    public UITrackpad shadowOffsetZ;
     public UITrackpad looping;
     public UIToggle actor;
     public UIToggle fp;
@@ -71,6 +75,14 @@ public class UIReplayPropertiesPanel extends UIElement
         this.shadow = new UIToggle(UIKeys.FILM_REPLAY_SHADOW, (b) -> this.edit((replay) -> replay.shadow.set(b.getValue())));
         this.shadowSize = new UITrackpad((v) -> this.edit((replay) -> replay.shadowSize.set(v.floatValue())));
         this.shadowSize.tooltip(UIKeys.FILM_REPLAY_SHADOW_SIZE);
+        this.shadowFollow = new UIToggle(UIKeys.FILM_REPLAY_SHADOW_FOLLOW, (b) -> this.edit((replay) -> replay.shadowFollow.set(b.getValue())));
+        this.shadowFollow.tooltip(UIKeys.FILM_REPLAY_SHADOW_FOLLOW_TOOLTIP);
+        this.shadowOffsetX = new UITrackpad((v) -> this.edit((replay) -> BaseValue.edit(replay.shadowOffset, (value) -> value.get().x = v)));
+        this.shadowOffsetX.tooltip(UIKeys.FILM_REPLAY_SHADOW_OFFSET);
+        this.shadowOffsetY = new UITrackpad((v) -> this.edit((replay) -> BaseValue.edit(replay.shadowOffset, (value) -> value.get().y = v)));
+        this.shadowOffsetY.tooltip(UIKeys.FILM_REPLAY_SHADOW_OFFSET);
+        this.shadowOffsetZ = new UITrackpad((v) -> this.edit((replay) -> BaseValue.edit(replay.shadowOffset, (value) -> value.get().z = v)));
+        this.shadowOffsetZ.tooltip(UIKeys.FILM_REPLAY_SHADOW_OFFSET);
         this.looping = new UITrackpad((v) -> this.edit((replay) -> replay.looping.set(v.intValue())));
         this.looping.limit(0).integer().tooltip(UIKeys.FILM_REPLAY_LOOPING_TOOLTIP);
         this.actor = new UIToggle(UIKeys.FILM_REPLAY_ACTOR, (b) -> this.edit((replay) -> replay.actor.set(b.getValue())));
@@ -119,6 +131,7 @@ public class UIReplayPropertiesPanel extends UIElement
             this.pickEdit, this.enabled,
             this.label, this.nameTag,
             this.shadow, this.shadowSize,
+            this.shadowFollow, UI.row(this.shadowOffsetX, this.shadowOffsetY, this.shadowOffsetZ),
             UI.label(UIKeys.FILM_REPLAY_LOOPING),
             this.looping, this.actor, this.fp,
             this.relative, UI.row(this.relativeOffsetX, this.relativeOffsetY, this.relativeOffsetZ),
@@ -170,6 +183,10 @@ public class UIReplayPropertiesPanel extends UIElement
             this.nameTag.setText(replay.nameTag.get());
             this.shadow.setValue(replay.shadow.get());
             this.shadowSize.setValue(replay.shadowSize.get());
+            this.shadowFollow.setValue(replay.shadowFollow.get());
+            this.shadowOffsetX.setValue(replay.shadowOffset.get().x);
+            this.shadowOffsetY.setValue(replay.shadowOffset.get().y);
+            this.shadowOffsetZ.setValue(replay.shadowOffset.get().z);
             this.looping.setValue(replay.looping.get());
             this.actor.setValue(replay.actor.get());
             this.fp.setValue(replay.fp.get());

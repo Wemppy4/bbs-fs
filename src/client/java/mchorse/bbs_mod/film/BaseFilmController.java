@@ -5,6 +5,7 @@ import io.netty.util.collection.IntObjectHashMap;
 import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.client.renderer.ModelBlockEntityRenderer;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.replays.PerLimbService;
@@ -210,7 +211,7 @@ public abstract class BaseFilmController
 
             FormRenderer renderer = FormUtilsClient.getRenderer(FormUtils.getRoot(form));
 
-            if (renderer != null && !BBSRendering.isIrisShadowPass())
+            if (renderer != null && !BBSRendering.isIrisShadowPass() && context.replay != null && context.replay.shadowFollow.get())
             {
                 Vector3f displacement = renderer.getShadowDisplacement(entity, transition);
 
@@ -222,6 +223,14 @@ public abstract class BaseFilmController
                     shadowY += displacement.y;
                     shadowZ += displacement.z;
                 }
+
+                /* Extra world-space nudge to seat the shadow on the model's real floor (added after the
+                 * form-local displacement is mapped to world, so it stays vertical regardless of facing). */
+                Point offset = context.replay.shadowOffset.get();
+
+                shadowX += offset.x;
+                shadowY += offset.y;
+                shadowZ += offset.z;
             }
 
             stack.push();

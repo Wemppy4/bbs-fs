@@ -36,6 +36,10 @@ public class Replay extends ValueGroup
     public final ValueString nameTag = new ValueString("name_tag", "");
     public final ValueBoolean shadow = new ValueBoolean("shadow", true);
     public final ValueFloat shadowSize = new ValueFloat("shadow_size", 0.5F);
+    /** When enabled, the shadow follows the form's perceived position (anchor/transform motion). */
+    public final ValueBoolean shadowFollow = new ValueBoolean("shadow_follow", false);
+    /** Extra world-space offset added to the followed shadow position (corrects a model's shifted floor level). */
+    public final ValuePoint shadowOffset = new ValuePoint("shadow_offset", new Point(0, 0, 0));
     public final ValueInt looping = new ValueInt("looping", 0);
 
     public final ValueBoolean actor = new ValueBoolean("actor", false);
@@ -61,6 +65,8 @@ public class Replay extends ValueGroup
         this.add(this.nameTag);
         this.add(this.shadow);
         this.add(this.shadowSize);
+        this.add(this.shadowFollow);
+        this.add(this.shadowOffset);
         this.add(this.looping);
 
         this.add(this.actor);
