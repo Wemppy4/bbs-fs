@@ -75,6 +75,25 @@ public class IKControl implements IMapSerializable
     }
 
     @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj)
+        {
+            return true;
+        }
+
+        if (obj instanceof IKControl control)
+        {
+            return this.weight == control.weight
+                && this.softness == control.softness
+                && this.enabled == control.enabled
+                && this.pole == control.pole;
+        }
+
+        return false;
+    }
+
+    @Override
     public void toData(MapType data)
     {
         data.putDouble("weight", this.weight);

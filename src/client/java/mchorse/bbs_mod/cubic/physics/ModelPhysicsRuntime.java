@@ -100,11 +100,6 @@ public final class ModelPhysicsRuntime
 
     public static void apply(IEntity entity, ModelInstance instance, float transition, Matrix4f baseTransform)
     {
-        apply(entity, instance, transition, baseTransform, null);
-    }
-
-    public static void apply(IEntity entity, ModelInstance instance, float transition, Matrix4f baseTransform, Map<String, Float> poseFixByBone)
-    {
         if (entity == null || instance == null || instance.model == null)
         {
             return;
@@ -128,10 +123,10 @@ public final class ModelPhysicsRuntime
         Map<String, InstanceState> byModel = STATES.computeIfAbsent(entity, (e) -> new HashMap<>());
         InstanceState state = byModel.computeIfAbsent(instance.id, (k) -> new InstanceState());
 
-        applyCompiled(entity.getWorld(), entity.getAge(), transition, model, instance, compiled.chains(), constraints, state, baseTransform, poseFixByBone);
+        applyCompiled(entity.getWorld(), entity.getAge(), transition, model, instance, compiled.chains(), constraints, state, baseTransform);
     }
 
-    private static void applyCompiled(World world, int age, float transition, IModel model, ModelInstance instance, List<ModelPhysicsCache.CompiledChain> compiledChains, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, InstanceState state, Matrix4f baseTransform, Map<String, Float> poseFixByBone)
+    private static void applyCompiled(World world, int age, float transition, IModel model, ModelInstance instance, List<ModelPhysicsCache.CompiledChain> compiledChains, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, InstanceState state, Matrix4f baseTransform)
     {
         Set<String> wanted = new HashSet<>();
         Set<String> chainIds = new HashSet<>();
@@ -165,11 +160,11 @@ public final class ModelPhysicsRuntime
 
         for (ModelPhysicsCache.CompiledChain chain : compiledChains)
         {
-            applyChain(world, age, transition, model, instance, chain, constraints, frames, state, poseFixByBone);
+            applyChain(world, age, transition, model, instance, chain, constraints, frames, state);
         }
     }
 
-    private static void applyChain(World world, int age, float transition, IModel model, ModelInstance instance, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Map<String, PivotFrame> frames, InstanceState instanceState, Map<String, Float> poseFixByBone)
+    private static void applyChain(World world, int age, float transition, IModel model, ModelInstance instance, ModelPhysicsCache.CompiledChain chain, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Map<String, PivotFrame> frames, InstanceState instanceState)
     {
         List<String> ids = chain.chainRootToEnd();
         int pivotCount = ids.size();
@@ -204,14 +199,6 @@ public final class ModelPhysicsRuntime
         float gravity = control != null ? control.gravity : chain.gravity();
         float damping = control != null ? control.damping : chain.damping();
         float stiffness = control != null ? control.stiffness : chain.stiffness();
-
-        float poseFix = getChainPoseFix(ids, chain.targetBone(), poseFixByBone);
-        weight *= (1F - poseFix);
-
-        if (weight <= EPS)
-        {
-            return;
-        }
 
         ChainState state = instanceState.chains.computeIfAbsent(chain.id(), (k) -> new ChainState());
 
@@ -263,7 +250,24 @@ public final class ModelPhysicsRuntime
 
             if (worldPos != null)
             {
-                target = new Vector3f(worldPos);
+                float targetWeight = modelForm.physicsTargetWeights.getOrDefault(rootBone, 1F);
+
+                if (targetWeight >= 1F)
+                {
+                    target = new Vector3f(worldPos);
+                }
+                else if (targetWeight > 0F)
+                {
+                    /* The binding is fading in or out (it crossed a no-target keyframe). Easing the pin point
+                     * from the chain's current tip toward the full target by the fade amount lets the chain
+                     * travel there smoothly instead of snapping, with no soft-target mode in the solver. */
+                    Vector3f tip = state.pos[state.pos.length - 1];
+
+                    target = state.lastAge == Integer.MIN_VALUE
+                        ? new Vector3f(worldPos)
+                        : new Vector3f(tip).lerp(worldPos, targetWeight);
+                }
+                /* targetWeight <= 0: fully faded out — leave the chain free this frame. */
             }
         }
 
@@ -293,50 +297,6 @@ public final class ModelPhysicsRuntime
         step(world, age, transition, model, ids, chain, gravity, damping, stiffness, constraints, anchor, anchorRotation, chainFrames.get(0).parentRotation(), target, chainFrames, state);
         Vector3f[] positions = renderInterpolate(state, state.renderAlpha, anchor, anchorRotation, target);
         ModelRotationBlender.applyWeightedRotations(model, chainFrames.get(0).parentRotation(), ids, positions, weight);
-    }
-
-    private static float getChainPoseFix(List<String> ids, String targetBone, Map<String, Float> poseFixByBone)
-    {
-        if (poseFixByBone == null || poseFixByBone.isEmpty() || ids == null || ids.isEmpty())
-        {
-            return 0F;
-        }
-
-        float maxFix = 0F;
-
-        for (String id : ids)
-        {
-            maxFix = Math.max(maxFix, getFix(poseFixByBone, id));
-
-            if (maxFix >= 1F)
-            {
-                return 1F;
-            }
-        }
-
-        if (targetBone != null && !targetBone.isEmpty())
-        {
-            maxFix = Math.max(maxFix, getFix(poseFixByBone, targetBone));
-        }
-
-        return maxFix;
-    }
-
-    private static float getFix(Map<String, Float> poseFixByBone, String bone)
-    {
-        Float value = poseFixByBone.get(bone);
-
-        if (value == null)
-        {
-            return 0F;
-        }
-
-        if (value <= 0F)
-        {
-            return 0F;
-        }
-
-        return Math.min(value, 1F);
     }
 
     /**

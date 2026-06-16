@@ -131,6 +131,10 @@ public interface IUIKeyframeGraph
             {
                 value = sheet.channel.getFactory().copy(property.get());
             }
+            else if (sheet.seed != null)
+            {
+                value = sheet.seed.get();
+            }
             else
             {
                 value = sheet.channel.getFactory().createEmpty();

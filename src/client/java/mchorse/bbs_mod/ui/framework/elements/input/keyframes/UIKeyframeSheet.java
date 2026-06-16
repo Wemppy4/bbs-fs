@@ -11,6 +11,7 @@ import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class UIKeyframeSheet extends UIKeyframeElement
 {
@@ -25,6 +26,14 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
     /** Set for sheets that have no backing form property (e.g. the IK controls track), so the editor can find the owning form. */
     public Form form;
+
+    /**
+     * Initial value for a brand-new keyframe on a property-less track (IK / physics controls). Stands in for
+     * the missing {@code property.get()} seed the pose track uses, so a fresh keyframe holds a fully populated
+     * container instead of an empty one — without it an empty keyframe displays the form's config values yet
+     * interpolates toward the hardcoded defaults, so two "identical" keyframes silently drift apart.
+     */
+    public Supplier<Object> seed;
 
     public UIKeyframeSheet(int color, boolean separator, KeyframeChannel channel, BaseValueBasic property)
     {
@@ -59,6 +68,13 @@ public class UIKeyframeSheet extends UIKeyframeElement
     public UIKeyframeSheet form(Form form)
     {
         this.form = form;
+
+        return this;
+    }
+
+    public UIKeyframeSheet seed(Supplier<Object> seed)
+    {
+        this.seed = seed;
 
         return this;
     }

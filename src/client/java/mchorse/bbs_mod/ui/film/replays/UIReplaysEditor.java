@@ -71,6 +71,7 @@ import net.minecraft.world.World;
 import org.joml.Vector3d;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -372,15 +373,15 @@ public class UIReplaysEditor extends UIElement
 
         this.setCategory(ReplayCategory.PLAYER);
 
-        this.keys().register(Keys.REPLAYS_TAB_1, () -> this.setCategory(ReplayCategory.PLAYER))
+        this.keys().register(Keys.REPLAYS_TAB_1, () -> this.setCategoryByPosition(0))
             .category(UIKeys.FILM_REPLAY_TITLE);
-        this.keys().register(Keys.REPLAYS_TAB_2, () -> this.setCategory(ReplayCategory.MODEL))
+        this.keys().register(Keys.REPLAYS_TAB_2, () -> this.setCategoryByPosition(1))
             .category(UIKeys.FILM_REPLAY_TITLE);
-        this.keys().register(Keys.REPLAYS_TAB_3, () -> this.setCategory(ReplayCategory.POSE))
+        this.keys().register(Keys.REPLAYS_TAB_3, () -> this.setCategoryByPosition(2))
             .category(UIKeys.FILM_REPLAY_TITLE);
-        this.keys().register(Keys.REPLAYS_TAB_4, () -> this.setCategory(ReplayCategory.IK))
+        this.keys().register(Keys.REPLAYS_TAB_4, () -> this.setCategoryByPosition(3))
             .category(UIKeys.FILM_REPLAY_TITLE);
-        this.keys().register(Keys.REPLAYS_TAB_5, () -> this.setCategory(ReplayCategory.PHYSICS))
+        this.keys().register(Keys.REPLAYS_TAB_5, () -> this.setCategoryByPosition(4))
             .category(UIKeys.FILM_REPLAY_TITLE);
 
         this.add(this.iconBar, this.actionsToggle);
@@ -392,6 +393,33 @@ public class UIReplaysEditor extends UIElement
         this.actionsMode = false;
         this.category = c;
         this.updateChannelsList();
+    }
+
+    /**
+     * Select the category sitting at the given visual position in the tab bar. The IK and physics tabs are only
+     * present when the record has IK / physics, so a fixed key-to-category mapping would point past the gap; the
+     * number keys instead follow the tabs as the user sees them, left to right.
+     */
+    private void setCategoryByPosition(int index)
+    {
+        List<ReplayCategory> present = new ArrayList<>();
+
+        for (ReplayCategory category : ReplayCategory.values())
+        {
+            UIIcon button = this.tabButtons.get(category);
+
+            if (button != null && button.getParent() != null)
+            {
+                present.add(category);
+            }
+        }
+
+        present.sort(Comparator.comparingInt((c) -> this.tabButtons.get(c).area.x));
+
+        if (index >= 0 && index < present.size())
+        {
+            this.setCategory(present.get(index));
+        }
     }
 
     public ReplayCategory getCategory()

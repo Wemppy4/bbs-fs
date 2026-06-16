@@ -53,6 +53,7 @@ public class ModelForm extends Form
     public final transient Map<String, Vector3f> poleTargetOverrides = new HashMap<>();
     public final transient Map<String, IKControl> ikControlOverrides = new HashMap<>();
     public final transient Map<String, Vector3f> physicsTargetOverrides = new HashMap<>();
+    public final transient Map<String, Float> physicsTargetWeights = new HashMap<>();
     public final transient Map<String, PhysicsControl> physicsControlOverrides = new HashMap<>();
 
     public ModelForm()

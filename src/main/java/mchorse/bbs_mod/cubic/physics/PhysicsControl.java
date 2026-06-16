@@ -83,6 +83,26 @@ public class PhysicsControl implements IMapSerializable
     }
 
     @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj)
+        {
+            return true;
+        }
+
+        if (obj instanceof PhysicsControl control)
+        {
+            return this.weight == control.weight
+                && this.gravity == control.gravity
+                && this.damping == control.damping
+                && this.stiffness == control.stiffness
+                && this.enabled == control.enabled;
+        }
+
+        return false;
+    }
+
+    @Override
     public void toData(MapType data)
     {
         data.putDouble("weight", this.weight);

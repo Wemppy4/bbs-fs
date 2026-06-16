@@ -4,7 +4,9 @@ import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.MapType;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Keyframe value holding the per-chain {@link IKControl} scalars, keyed by the
@@ -14,6 +16,8 @@ import java.util.Map;
  */
 public class IKControls implements IMapSerializable
 {
+    private static Set<String> keys = new HashSet<>();
+
     public final Map<String, IKControl> controls = new HashMap<>();
 
     public IKControl get(String tip)
@@ -96,5 +100,36 @@ public class IKControls implements IMapSerializable
     public boolean isEmpty()
     {
         return this.controls.isEmpty();
+    }
+
+    /** Value equality over the union of chains, a chain absent on one side counting as default — so two keyframes the user means as identical are marked identical even when one dropped its default entries. */
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj)
+        {
+            return true;
+        }
+
+        if (obj instanceof IKControls other)
+        {
+            keys.clear();
+            keys.addAll(this.controls.keySet());
+            keys.addAll(other.controls.keySet());
+
+            for (String key : keys)
+            {
+                IKControl a = this.controls.get(key);
+                IKControl b = other.controls.get(key);
+
+                if (a != null && b != null && !a.equals(b)) return false;
+                if (a == null && !b.isDefault()) return false;
+                if (b == null && !a.isDefault()) return false;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }
