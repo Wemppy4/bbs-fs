@@ -45,19 +45,19 @@ public class UIModelForm extends UIForm<ModelForm>
     }
 
     @Override
-    protected UIPropTransform getFormEditableTransform()
+    public UIPropTransform getEditableTransform()
     {
         return this.modelPanel.poseEditor.transform;
     }
 
     @Override
-    protected Matrix4f getFormOrigin(float transition)
+    public Matrix4f getOrigin(float transition)
     {
         return this.getOrigin(transition, this.bonePath(), this.modelPanel.poseEditor.transform.getSpace());
     }
 
     @Override
-    protected Matrix4f getFormOriginMatrix(float transition)
+    public Matrix4f getOriginMatrix(float transition)
     {
         return this.getOrigin(transition, this.bonePath(), TransformSpace.LOCAL);
     }

@@ -48,28 +48,9 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public UIPropTransform getEditableTransform()
     {
-        if (this.isEditingBodyPart())
-        {
-            return this.bodyPartPanel.transform;
-        }
-
-        return this.getFormEditableTransform();
-    }
-
-    protected UIPropTransform getFormEditableTransform()
-    {
         this.setPanel(this.generalPanel);
 
         return this.general;
-    }
-
-    /**
-     * Whether the body part tab is the active panel &mdash; the gizmo then edits the body part's own
-     * transform (how this form attaches to its parent) instead of the form's/pose transform.
-     */
-    protected boolean isEditingBodyPart()
-    {
-        return this.bodyPartPanel != null && this.view == this.bodyPartPanel;
     }
 
     private void cyclePanels()
@@ -82,16 +63,6 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
     }
 
     public Matrix4f getOrigin(float transition)
-    {
-        if (this.isEditingBodyPart())
-        {
-            return this.getBodyPartOrigin(transition, this.bodyPartPanel.transform.getSpace());
-        }
-
-        return this.getFormOrigin(transition);
-    }
-
-    protected Matrix4f getFormOrigin(float transition)
     {
         return this.getOrigin(transition, FormUtils.getPath(this.form), this.generalPanel != null ? this.generalPanel.transform.getSpace() : TransformSpace.PARENT);
     }
@@ -106,30 +77,7 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      */
     public Matrix4f getOriginMatrix(float transition)
     {
-        if (this.isEditingBodyPart())
-        {
-            return this.getBodyPartOrigin(transition, TransformSpace.LOCAL);
-        }
-
-        return this.getFormOriginMatrix(transition);
-    }
-
-    protected Matrix4f getFormOriginMatrix(float transition)
-    {
         return this.getOrigin(transition, FormUtils.getPath(this.form), TransformSpace.LOCAL);
-    }
-
-    /**
-     * Origin matrix for the body part's own transform. The body part is rendered at its form's frame
-     * (the attach bone &middot; {@code part.transform}, see {@code ModelFormRenderer.collectMatrices}),
-     * which is exactly the matrix already cached under the form's own path &mdash; so the gizmo sits on
-     * the form, not on the parent's pivot. The drag math stays correct because the attach bone is
-     * constant w.r.t. {@code part.transform} and the form's own transform cancels in the derivatives.
-     * Always the form root (never a pose bone), regardless of the type-specific {@link #getFormOrigin}.
-     */
-    private Matrix4f getBodyPartOrigin(float transition, TransformSpace space)
-    {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), space);
     }
 
     protected Matrix4f getOrigin(float transition, String path, TransformSpace space)

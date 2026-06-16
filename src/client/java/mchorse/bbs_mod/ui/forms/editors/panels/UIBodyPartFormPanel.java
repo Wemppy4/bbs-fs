@@ -58,8 +58,6 @@ public class UIBodyPartFormPanel extends UIFormPanel
 
             return part == null ? null : part.transform;
         }).barBackground();
-        this.transform.enableHotkeys();
-        this.transform.hotkeyDrag(() -> this.editor.editor == null ? null : this.editor.editor.buildHotkeyDrag(this.transform));
     }
 
     private BodyPart getPart()
