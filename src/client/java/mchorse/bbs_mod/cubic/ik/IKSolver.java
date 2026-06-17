@@ -43,10 +43,10 @@ final class IKSolver
 
     public static List<Vector3f> solve(List<Vector3f> positions, Vector3f target, boolean applyPole, Vector3f polePoint, float poleAngle, float softness, int maxIterations, float tolerance)
     {
-        return solve(positions, target, applyPole, polePoint, poleAngle, softness, maxIterations, tolerance, null, null);
+        return solve(positions, target, applyPole, polePoint, poleAngle, softness, maxIterations, tolerance, null, null, null);
     }
 
-    public static List<Vector3f> solve(List<Vector3f> positions, Vector3f target, boolean applyPole, Vector3f polePoint, float poleAngle, float softness, int maxIterations, float tolerance, Limit[] limits, Quaternionf rootParentRotation)
+    public static List<Vector3f> solve(List<Vector3f> positions, Vector3f target, boolean applyPole, Vector3f polePoint, float poleAngle, float softness, int maxIterations, float tolerance, Limit[] limits, Quaternionf rootParentRotation, Vector3f restHinge)
     {
         int n = positions.size();
 
@@ -69,7 +69,38 @@ final class IKSolver
 
         Vector3f root = new Vector3f(positions.get(0));
         Vector3f goal = clampReach(root, target, total, softness);
-        Vector3f hinge = applyPole ? captureHingeAxis(positions) : null;
+
+        /* Bend direction. A two-bone limb follows the live posed bend when it is
+         * actually bent, else falls back to the chain's authored REST bend (knee
+         * forward, elbow back) carried into this frame — so a limb solved from a
+         * straight FK pose still bends the way the model was built, no pole needed.
+         * Longer chains (tails, ropes) keep the old pole-gated hinge: they have no
+         * single bend plane to enforce. The pole, when present, overrides either. */
+        Vector3f hinge;
+
+        if (n == 3)
+        {
+            /* Live posed bend if the limb is bent, else the authored rest bend, else
+             * a stable side axis — so the bend plane always exists (poleAngle has a
+             * reference to roll from) and the bend never lands on an arbitrary side
+             * when the model and pose are both straight. */
+            hinge = liveBendNormal(positions);
+
+            if (hinge == null)
+            {
+                hinge = restHinge;
+            }
+
+            if (hinge == null)
+            {
+                Vector3f limb = new Vector3f(positions.get(2)).sub(positions.get(0));
+                hinge = normalize(limb) ? sideAxis(limb) : null;
+            }
+        }
+        else
+        {
+            hinge = applyPole ? captureHingeAxis(positions) : null;
+        }
 
         boolean constrained = limits != null && rootParentRotation != null;
 
@@ -699,9 +730,28 @@ final class IKSolver
      */
     private static Vector3f captureHingeAxis(List<Vector3f> p)
     {
-        int n = p.size();
+        Vector3f normal = liveBendNormal(p);
 
-        if (n < 3)
+        if (normal != null)
+        {
+            return normal;
+        }
+
+        /* Straight limb: derive a stable side axis from the limb direction. */
+        Vector3f limb = new Vector3f(p.get(p.size() - 1)).sub(p.get(0));
+
+        return normalize(limb) ? sideAxis(limb) : null;
+    }
+
+    /**
+     * The normal of the limb's posed bend plane, {@code (elbow-root) x (tip-root)}
+     * — the side the limb is currently bent towards. Null when the limb is straight
+     * (no posed plane), letting the caller fall back to the authored rest bend or a
+     * fixed side axis.
+     */
+    private static Vector3f liveBendNormal(List<Vector3f> p)
+    {
+        if (p.size() < 3)
         {
             return null;
         }
@@ -709,15 +759,7 @@ final class IKSolver
         Vector3f a = p.get(0);
         Vector3f normal = new Vector3f(p.get(1)).sub(a).cross(new Vector3f(p.get(2)).sub(a));
 
-        if (normalize(normal))
-        {
-            return normal;
-        }
-
-        /* Straight limb: derive a stable side axis from the limb direction. */
-        Vector3f limb = new Vector3f(p.get(n - 1)).sub(a);
-
-        return normalize(limb) ? sideAxis(limb) : null;
+        return normalize(normal) ? normal : null;
     }
 
     /**

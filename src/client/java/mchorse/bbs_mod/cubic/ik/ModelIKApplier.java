@@ -174,8 +174,9 @@ final class ModelIKApplier
 
         Vector3f polePoint = resolvePolePoint(pole, chain.poleTarget(), frames, poleTargets, poleWeights);
         IKSolver.Limit[] limits = buildLimits(model, workIds, boneLimits);
+        Vector3f restHinge = restBendNormal(model, workIds, rootParentRotation);
 
-        List<Vector3f> solved = IKSolver.solve(currentPositions, target, pole, polePoint, poleAngle, softness, MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
+        List<Vector3f> solved = IKSolver.solve(currentPositions, target, pole, polePoint, poleAngle, softness, MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation, restHinge);
 
         /* A chain of two or more bones gets the Blender treatment: the pole owns the full
          * orientation (swing and roll), written raw to ikOrient so it bypasses euler
@@ -616,6 +617,41 @@ final class ModelIKApplier
         }
 
         return null;
+    }
+
+    /**
+     * The chain's authored bend side, in model space: the normal of the rest bend
+     * plane {@code restDir[0] x restDir[1]} — the side the limb was modelled bent
+     * towards (knee forward, elbow back) — taken in the root's local frame and
+     * lifted by the root's current world rotation, so it tracks the limb as the
+     * shoulder/hip turns. The two-bone solve falls back to this when the live FK
+     * pose is straight, so a limb bends the way it was built with no pole target.
+     * Returns {@code null} when the chain is shorter than two bones or the rest
+     * pose is dead straight (no plane — then only a pole or limit can pick a side).
+     */
+    private static Vector3f restBendNormal(IModel model, List<String> chainIds, Quaternionf rootParentRotation)
+    {
+        if (chainIds.size() < 3)
+        {
+            return null;
+        }
+
+        Vector3f a = restDirection(model, chainIds, 0);
+        Vector3f b = restDirection(model, chainIds, 1);
+
+        if (a == null || b == null)
+        {
+            return null;
+        }
+
+        Vector3f normal = new Vector3f(a).cross(b);
+
+        if (normal.lengthSquared() < EPS * EPS)
+        {
+            return null;
+        }
+
+        return rootParentRotation.transform(normal.normalize());
     }
 
     private static Vector3f normalizeRest(Vector3f restDir)
