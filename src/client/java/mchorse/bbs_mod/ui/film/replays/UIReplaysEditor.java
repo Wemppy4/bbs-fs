@@ -106,6 +106,7 @@ public class UIReplaysEditor extends UIElement
     private UIFilmPanel filmPanel;
     private Film film;
     private Replay replay;
+    private boolean settingReplay;
     private Pair<Form, String> pendingPick;
     private boolean timelineVisible = true;
     private boolean propertiesVisible = true;
@@ -330,7 +331,7 @@ public class UIReplaysEditor extends UIElement
     {
         this.filmPanel = filmPanel;
         this.replayProperties = new UIReplayPropertiesPanel(filmPanel);
-        this.replaysList = new UIReplaysListPanel(filmPanel, (l) -> this.setReplay(l.isEmpty() ? null : l.get(0), false, false), this.replayProperties.getFormConsumer());
+        this.replaysList = new UIReplaysListPanel(filmPanel, (l) -> this.setReplay(l.isEmpty() ? null : l.get(0), false, OrbitReaction.SWITCH), this.replayProperties.getFormConsumer());
         this.replayProperties.attachReplayList(this.replaysList.replays);
 
         this.iconBar = new UIElement();
@@ -458,7 +459,7 @@ public class UIReplaysEditor extends UIElement
             }
 
             this.replaysList.replays.refreshReplayList();
-            this.setReplay(replays.isEmpty() ? null : replays.get(index), true, false);
+            this.setReplay(replays.isEmpty() ? null : replays.get(index), true, OrbitReaction.SWITCH);
         }
     }
 
@@ -469,31 +470,49 @@ public class UIReplaysEditor extends UIElement
 
     public void setReplay(Replay replay)
     {
-        this.setReplay(replay, true, false);
+        this.setReplay(replay, true, OrbitReaction.SWITCH);
     }
 
-    public void setReplay(Replay replay, boolean select, boolean resetOrbit)
+    public void setReplay(Replay replay, boolean select, OrbitReaction orbit)
     {
-        this.savePoseTabState(this.replay);
-
-        this.replay = replay;
-
-        if (resetOrbit)
+        /* Guard against re-entry: scrollToReplay() below picks the replay in the list,
+         * which fires the list's selection callback and calls setReplay() again. The
+         * outermost call owns the orbit reaction, so the nested call is redundant and
+         * must not override it (otherwise undo would teleport via the SWITCH callback). */
+        if (this.settingReplay)
         {
-            this.filmPanel.getController().orbit.reset();
-        }
-        else if (replay != null && BBSSettings.editorOrbitTeleportOnSwitch.get())
-        {
-            this.filmPanel.getController().orbit.teleportPivotToReplay();
+            return;
         }
 
-        this.replayProperties.setReplay(replay);
-        this.filmPanel.actionEditor.setClips(replay == null ? null : replay.actions);
-        this.updateChannelsList();
+        this.settingReplay = true;
 
-        if (select && replay != null)
+        try
         {
-            this.replaysList.replays.scrollToReplay(replay);
+            this.savePoseTabState(this.replay);
+
+            this.replay = replay;
+
+            if (orbit == OrbitReaction.RESET)
+            {
+                this.filmPanel.getController().orbit.reset();
+            }
+            else if (orbit == OrbitReaction.SWITCH && replay != null && BBSSettings.editorOrbitTeleportOnSwitch.get())
+            {
+                this.filmPanel.getController().orbit.teleportPivotToReplay();
+            }
+
+            this.replayProperties.setReplay(replay);
+            this.filmPanel.actionEditor.setClips(replay == null ? null : replay.actions);
+            this.updateChannelsList();
+
+            if (select && replay != null)
+            {
+                this.replaysList.replays.scrollToReplay(replay);
+            }
+        }
+        finally
+        {
+            this.settingReplay = false;
         }
     }
 
@@ -1358,7 +1377,7 @@ public class UIReplaysEditor extends UIElement
         List<Integer> selection = DataStorageUtils.intListFromData(data.getList("selection"));
         List<Integer> currentIndices = this.replaysList.replays.getCurrentIndices();
 
-        this.setReplay(CollectionUtils.getSafe(this.film.replays.getList(), data.getInt("replay")), true, false);
+        this.setReplay(CollectionUtils.getSafe(this.film.replays.getList(), data.getInt("replay")), true, OrbitReaction.KEEP);
 
         currentIndices.clear();
         currentIndices.addAll(selection);
@@ -1374,5 +1393,18 @@ public class UIReplaysEditor extends UIElement
 
         data.putInt("replay", index);
         data.put("selection", DataStorageUtils.intListToData(this.replaysList.replays.getCurrentIndices()));
+    }
+
+    /**
+     * How the orbit camera should react when the selected replay is set.
+     */
+    public enum OrbitReaction
+    {
+        /** Reset the orbit camera to its default position. */
+        RESET,
+        /** Treat it as a user switching replays — teleport the pivot onto the replay if the setting allows. */
+        SWITCH,
+        /** Leave the orbit camera untouched (used when restoring selection during undo/redo). */
+        KEEP
     }
 }

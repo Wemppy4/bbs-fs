@@ -706,9 +706,10 @@ public abstract class BaseFilmController
             {
                 World world = MinecraftClient.getInstance().world;
                 IEntity entity = new StubEntity(world);
+                int ticks = replay.getTick(this.getTick());
 
                 entity.setForm(FormUtils.copy(replay.form.get()));
-                replay.keyframes.apply(0, entity);
+                replay.keyframes.apply(ticks, entity);
                 entity.setPrevX(entity.getX());
                 entity.setPrevY(entity.getY());
                 entity.setPrevZ(entity.getZ());
