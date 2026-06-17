@@ -159,13 +159,17 @@ final class ModelIKApplier
 
         List<Vector3f> solved = IKSolver.solve(currentPositions, target, pole, polePoint, poleAngle, softness, MAX_ITERATIONS, TOLERANCE, limits, limits == null ? null : rootParentRotation);
 
-        /* A cubic chain of two or more bones gets the Blender treatment: the pole owns
-         * the full orientation (swing and roll), written raw to ikOrient so it bypasses
-         * euler entirely — no gimbal, no 180-degree shortest-arc flip, no FK-twist
-         * mismatch. A single bone (size 2) and BOBJ keep the euler reconstruction. */
+        /* A chain of two or more bones gets the Blender treatment: the pole owns the
+         * full orientation (swing and roll), written raw to ikOrient so it bypasses euler
+         * entirely — no gimbal, no 180-degree shortest-arc flip, no FK-twist mismatch.
+         * A single bone (size 2) keeps the euler reconstruction. */
         if (model instanceof Model cubic && chainIds.size() >= 3)
         {
             buildChainOrientations(cubic, chainIds, solved, rootParentRotation, weight);
+        }
+        else if (model instanceof BOBJModel bobj && chainIds.size() >= 3)
+        {
+            buildChainOrientationsBobj(bobj, chainIds, solved, rootParentRotation, weight);
         }
         else
         {
@@ -275,6 +279,95 @@ final class ModelIKApplier
         Vector3f r = bone.current.rotate;
 
         return Matrices.toQuaternionZYXDegrees(r.x, r.y, r.z);
+    }
+
+    /**
+     * The BOBJ analogue of {@link #buildChainOrientations}: gives each BOBJ IK bone a
+     * full local orientation written to {@link BOBJBone#ikOrient}, which the armature
+     * applies in place of the euler rotate. Unlike the cubic chain, BOBJ bones carry a
+     * per-bone REST rotation (their {@code relBoneMat}), so the rest and solved frames
+     * are walked separately: the rest frame advances by {@code relBoneMat} alone, the
+     * solved frame by each bone's applied orientation then {@code relBoneMat}. Both build
+     * the roll reference by parallel transport in world, so at rest the two frames
+     * coincide and the orientation is identity — no baseline twist. Same X-mirror as
+     * cubic ({@link Matrices#orientMirroredX}).
+     */
+    private static void buildChainOrientationsBobj(BOBJModel model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float weight)
+    {
+        int bones = chainIds.size() - 1;
+        Map<String, BOBJBone> bonesMap = model.getArmature().bones;
+        BOBJBone[] chainBones = new BOBJBone[bones];
+        Vector3f[] restDir = new Vector3f[bones];
+        Quaternionf[] relRot = new Quaternionf[bones];
+        Vector3f[] segWorld = new Vector3f[bones];
+
+        for (int i = 0; i < bones; i++)
+        {
+            BOBJBone bone = bonesMap.get(chainIds.get(i));
+            Vector3f seg = new Vector3f(solved.get(i + 1)).sub(solved.get(i));
+
+            restDir[i] = restDirection(model, chainIds, i);
+
+            if (bone == null || restDir[i] == null || seg.lengthSquared() < EPS * EPS)
+            {
+                return;
+            }
+
+            chainBones[i] = bone;
+            relRot[i] = bone.relBoneMat.getNormalizedRotation(new Quaternionf());
+            segWorld[i] = seg.normalize();
+        }
+
+        /* Rest-pose world frames advance by relBoneMat alone (geometry rest, no bone
+         * rotation); the root's own relBoneMat is already baked into rootParentRotation. */
+        Quaternionf[] restFrame = new Quaternionf[bones];
+        restFrame[0] = new Quaternionf(rootParentRotation);
+
+        for (int i = 1; i < bones; i++)
+        {
+            restFrame[i] = new Quaternionf(restFrame[i - 1]).mul(relRot[i]);
+        }
+
+        Vector3f[] restDirWorld = new Vector3f[bones];
+
+        for (int i = 0; i < bones; i++)
+        {
+            restDirWorld[i] = restFrame[i].transform(new Vector3f(restDir[i]));
+        }
+
+        Vector3f[] restNormalWorld = transportNormals(restDirWorld);
+        Vector3f[] solvedNormalWorld = transportNormals(segWorld);
+
+        /* Solved-pose world frame advances by each bone's applied orientation, then the
+         * next bone's relBoneMat — so a child decomposes against the frame the armature
+         * actually establishes (blended orientation at weight < 1). */
+        Quaternionf originRot = new Quaternionf(rootParentRotation);
+
+        for (int i = 0; i < bones; i++)
+        {
+            Quaternionf invOrigin = new Quaternionf(originRot).conjugate();
+            Vector3f segLocal = invOrigin.transform(new Vector3f(segWorld[i]));
+            Vector3f normalLocal = invOrigin.transform(new Vector3f(solvedNormalWorld[i]));
+            Vector3f restNormalLocal = new Quaternionf(restFrame[i]).conjugate().transform(new Vector3f(restNormalWorld[i]));
+
+            Quaternionf localRot = Matrices.orientMirroredX(restDir[i], restNormalLocal, segLocal, normalLocal);
+            Quaternionf oriented = weight >= 1F - EPS ? new Quaternionf(localRot) : bobjFkLocal(chainBones[i]).slerp(localRot, weight);
+
+            chainBones[i].ikOrient = oriented;
+
+            if (i + 1 < bones)
+            {
+                originRot.mul(oriented).mul(relRot[i + 1]);
+            }
+        }
+    }
+
+    /** A BOBJ bone's FK local rotation (its radian euler rotate as a quaternion), the blend base when IK weight is below one. */
+    private static Quaternionf bobjFkLocal(BOBJBone bone)
+    {
+        Vector3f r = bone.transform.rotate;
+
+        return new Quaternionf().rotationZYX(r.z, r.y, r.x);
     }
 
     /** A deterministic unit perpendicular to {@code dir}, cross with world Z (falling back to world Y when parallel). */

@@ -2,6 +2,7 @@ package mchorse.bbs_mod.bobj;
 
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 
 public class BOBJBone
 {
@@ -36,6 +37,13 @@ public class BOBJBone
      * Relative-to-parent bone matrix
      */
     public Matrix4f relBoneMat = new Matrix4f();
+
+    /**
+     * Transient full local orientation an IK solve gives this bone, applied raw in
+     * place of the euler rotate triple so the pole owns the whole orientation
+     * (bypassing the swing/twist euler reconstruction). Null when not IK-driven.
+     */
+    public Quaternionf ikOrient;
 
     public BOBJBone(int index, String name, String parent, Matrix4f boneMat)
     {
@@ -83,9 +91,16 @@ public class BOBJBone
         this.mat.translate(this.transform.translate);
         this.originMat.translate(this.transform.translate);
 
-        if (this.transform.rotate.z != 0F) this.mat.rotateZ(this.transform.rotate.z);
-        if (this.transform.rotate.y != 0F) this.mat.rotateY(this.transform.rotate.y);
-        if (this.transform.rotate.x != 0F) this.mat.rotateX(this.transform.rotate.x);
+        if (this.ikOrient != null)
+        {
+            this.mat.rotate(this.ikOrient);
+        }
+        else
+        {
+            if (this.transform.rotate.z != 0F) this.mat.rotateZ(this.transform.rotate.z);
+            if (this.transform.rotate.y != 0F) this.mat.rotateY(this.transform.rotate.y);
+            if (this.transform.rotate.x != 0F) this.mat.rotateX(this.transform.rotate.x);
+        }
 
         this.mat.scale(this.transform.scale);
     }
@@ -93,5 +108,6 @@ public class BOBJBone
     public void reset()
     {
         this.transform.identity();
+        this.ikOrient = null;
     }
 }
