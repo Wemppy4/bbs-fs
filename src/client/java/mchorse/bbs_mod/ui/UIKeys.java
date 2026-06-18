@@ -1079,10 +1079,12 @@ public class UIKeys
     public static final IKey TEXTURE_URL_ERROR_HTTP = L10n.lang("bbs.ui.texture.url_error_http");
     public static final IKey TRACKPAD_GLOBAL_AMPLIFIER = L10n.lang("bbs.ui.trackpad.global_amplifier");
     public static final IKey TRANSFORMS_CONTEXT_COPY = L10n.lang("bbs.ui.transforms.context.copy");
+    public static final IKey TRANSFORMS_CONTEXT_COPY_WORLD = L10n.lang("bbs.ui.transforms.context.copy_world");
     public static final IKey TRANSFORMS_CONTEXT_PASTE = L10n.lang("bbs.ui.transforms.context.paste");
     public static final IKey TRANSFORMS_CONTEXT_PASTE_ROTATION = L10n.lang("bbs.ui.transforms.context.paste_rotation");
     public static final IKey TRANSFORMS_CONTEXT_PASTE_SCALE = L10n.lang("bbs.ui.transforms.context.paste_scale");
     public static final IKey TRANSFORMS_CONTEXT_PASTE_TRANSLATION = L10n.lang("bbs.ui.transforms.context.paste_translation");
+    public static final IKey TRANSFORMS_CONTEXT_PASTE_WORLD = L10n.lang("bbs.ui.transforms.context.paste_world");
     public static final IKey TRANSFORMS_CONTEXT_RESET = L10n.lang("bbs.ui.transforms.context.reset");
     public static final IKey TRANSFORMS_CONTEXT_SWITCH_GLOBAL = L10n.lang("bbs.ui.transforms.context.switch_global");
     public static final IKey TRANSFORMS_CONTEXT_SWITCH_LOCAL = L10n.lang("bbs.ui.transforms.context.switch_local");

@@ -7,6 +7,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.client.renderer.ModelBlockEntityRenderer;
+import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.replays.PerLimbService;
 import mchorse.bbs_mod.film.replays.Replay;
@@ -545,6 +546,27 @@ public abstract class BaseFilmController
         boolean useBoneMatrix
     )
     {
+        Matrix4f matrix = getBoneCompositeMatrix(entities, entity, replay, cameraX, cameraY, cameraZ, transition, bonePath, useBoneMatrix);
+
+        return matrix == null ? null : MatrixStackUtils.stripScale(matrix);
+    }
+
+    /**
+     * The same composite as {@link #getGizmoBoneCompositeMatrix} but with the bone's scale kept.
+     * The gizmo drops scale on purpose (a gizmo must not inherit it); world-space transform capture
+     * needs the full matrix, so it goes through this variant instead.
+     */
+    public static Matrix4f getBoneCompositeMatrix(
+        IntObjectMap<IEntity> entities,
+        IEntity entity,
+        Replay replay,
+        double cameraX,
+        double cameraY,
+        double cameraZ,
+        float transition,
+        String bonePath,
+        boolean useBoneMatrix
+    ) {
         if (entity == null || entity.getForm() == null || bonePath == null)
         {
             return null;
@@ -592,7 +614,7 @@ public abstract class BaseFilmController
             return null;
         }
 
-        return MatrixStackUtils.stripScale(new Matrix4f(target).mul(bone));
+        return new Matrix4f(target).mul(bone);
     }
 
     /**
@@ -611,8 +633,7 @@ public abstract class BaseFilmController
         double cameraY,
         double cameraZ,
         float transition
-    )
-    {
+    ) {
         if (entity == null || entity.getForm() == null)
         {
             return null;

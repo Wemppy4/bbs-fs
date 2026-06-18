@@ -8,13 +8,24 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.utils.GizmoDrag;
+import mchorse.bbs_mod.ui.utils.IWorldTransformProvider;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.WorldTransformClipboard;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Axis;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.pose.Transform;
+import org.joml.AxisAngle4f;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.function.Supplier;
 
 /**
  * Transformation editor GUI (compact layout: CONTROL_HEIGHT rows, MARGIN between).
@@ -39,6 +50,12 @@ public abstract class UITransform extends UIElement
 
     private boolean uniformDrag;
     private boolean uniformScale;
+
+    /** Refinement passes for the non-linear (rotation/scale) part of a world paste. */
+    private static final int WORLD_PASTE_ITERATIONS = 6;
+
+    /** Host hook for world-space copy/paste; when null those context actions don't appear. */
+    private IWorldTransformProvider worldProvider;
 
     public UITransform()
     {
@@ -128,6 +145,16 @@ public abstract class UITransform extends UIElement
                 menu.action(Icons.ALL_DIRECTIONS, UIKeys.TRANSFORMS_CONTEXT_PASTE_TRANSLATION, () -> this.pasteTranslation(this.getVector(innerList, 0)));
                 menu.action(Icons.MAXIMIZE, UIKeys.TRANSFORMS_CONTEXT_PASTE_SCALE, () -> this.pasteScale(this.getVector(innerList, 3)));
                 menu.action(Icons.REFRESH, UIKeys.TRANSFORMS_CONTEXT_PASTE_ROTATION, () -> this.pasteRotation(this.getVector(innerList, 6)));
+            }
+
+            if (this.worldProvider != null && this.worldProvider.getWorldMatrix(new Matrix4f()))
+            {
+                menu.action(Icons.GLOBE, UIKeys.TRANSFORMS_CONTEXT_COPY_WORLD, this::copyWorldTransform);
+
+                if (WorldTransformClipboard.has())
+                {
+                    menu.action(Icons.GLOBE, UIKeys.TRANSFORMS_CONTEXT_PASTE_WORLD, this::pasteWorldTransform);
+                }
             }
 
             menu.action(Icons.CLOSE, UIKeys.TRANSFORMS_CONTEXT_RESET, this::reset);
@@ -353,6 +380,181 @@ public abstract class UITransform extends UIElement
         }
 
         return result;
+    }
+
+    /**
+     * Give this editor a way to read its element's world matrices, which enables the world-space
+     * copy/paste actions in the context menu. Hosts without a hierarchy/tick context leave it unset.
+     */
+    public UITransform worldTransform(IWorldTransformProvider provider)
+    {
+        this.worldProvider = provider;
+
+        return this;
+    }
+
+    /** Capture the element's current full world matrix into the shared world clipboard. */
+    private void copyWorldTransform()
+    {
+        if (this.worldProvider == null)
+        {
+            return;
+        }
+
+        Matrix4f world = new Matrix4f();
+
+        if (this.worldProvider.getWorldMatrix(world))
+        {
+            WorldTransformClipboard.set(world);
+        }
+    }
+
+    /** The transform this editor mutates, exposed for the world-space solve. {@code null} when the
+     *  host doesn't back the editor with one — then world paste does nothing. */
+    protected Transform getEditedTransform()
+    {
+        return null;
+    }
+
+    /**
+     * Drive this element's transform until its world matrix matches the captured one. An analytic
+     * decompose can't be trusted here: the renderer composes a bone's pose in its own frame (the
+     * cubic /16 pixel scale, a post-applied {@code Ry(180)} that flips local X/Z, parent chains),
+     * so the matrix the editor would decompose lives in a different frame than the channels it
+     * writes. Instead we solve numerically against a live world-matrix sampler, the same
+     * finite-difference approach the gizmo drag uses, which measures those quirks instead of
+     * assuming them away.
+     *
+     * <p>Translation is linear in {@code translate} and independent of rotation/scale, so it solves
+     * exactly in one step through the local→world Jacobian. Rotation and scale are non-linear, so
+     * they are refined over a few passes around the current pose using the renderer's true
+     * per-channel rotation axes.
+     */
+    private void pasteWorldTransform()
+    {
+        Matrix4f cached = WorldTransformClipboard.get();
+        Transform transform = this.getEditedTransform();
+
+        if (cached == null || this.worldProvider == null || transform == null)
+        {
+            return;
+        }
+
+        if (!this.worldProvider.getWorldMatrix(new Matrix4f()))
+        {
+            return;
+        }
+
+        Supplier<Matrix4f> sampler = () ->
+        {
+            Matrix4f matrix = new Matrix4f();
+
+            this.worldProvider.getWorldMatrix(matrix);
+
+            return matrix;
+        };
+
+        Vector3f startTranslate = new Vector3f(transform.translate);
+        Vector3f startRotate = new Vector3f(transform.rotate);
+        Vector3f startScale = new Vector3f(transform.scale);
+
+        Vector3f targetScale = new Vector3f();
+        Matrix3f targetRotation = orthonormalize(cached.get3x3(new Matrix3f()), targetScale);
+        Vector3f targetPosition = cached.getTranslation(new Vector3f());
+
+        Matrix3f jacobian = GizmoDrag.computeTranslateJacobian(transform, () -> sampler.get().getTranslation(new Vector3f()));
+
+        if (Math.abs(jacobian.determinant()) > 1.0E-9F)
+        {
+            Vector3f error = targetPosition.sub(sampler.get().getTranslation(new Vector3f()), new Vector3f());
+
+            jacobian.invert().transform(error);
+            transform.translate.add(error);
+        }
+
+        for (int i = 0; i < WORLD_PASTE_ITERATIONS; i++)
+        {
+            Matrix3f axes = GizmoDrag.computeRotateAxes(transform, sampler);
+
+            if (Math.abs(axes.determinant()) > 1.0E-9F)
+            {
+                Matrix3f current = orthonormalize(sampler.get().get3x3(new Matrix3f()), new Vector3f());
+                Matrix3f delta = new Matrix3f(targetRotation).mul(current.invert());
+                AxisAngle4f axisAngle = new AxisAngle4f().set(delta);
+                Vector3f error = new Vector3f(axisAngle.x, axisAngle.y, axisAngle.z).mul(axisAngle.angle);
+
+                axes.invert().transform(error);
+                transform.rotate.add(error);
+            }
+
+            this.solveScale(transform, sampler, targetScale);
+        }
+
+        Vector3f finalTranslate = new Vector3f(transform.translate);
+        Vector3f finalRotate = new Vector3f(transform.rotate);
+        Vector3f finalScale = new Vector3f(transform.scale);
+
+        /* The solve used the live transform as scratch; hand the net result to the editor's own
+         * apply path (undo, notify, multi-bone) from the original values. */
+        transform.translate.set(startTranslate);
+        transform.rotate.set(startRotate);
+        transform.scale.set(startScale);
+
+        this.fillSetT(finalTranslate.x, finalTranslate.y, finalTranslate.z);
+        this.fillSetS(finalScale.x, finalScale.y, finalScale.z);
+        this.fillSetR(MathUtils.toDeg(finalRotate.x), MathUtils.toDeg(finalRotate.y), MathUtils.toDeg(finalRotate.z));
+    }
+
+    /**
+     * Nudge each scale channel so the world basis column lengths reach {@code targetScale},
+     * measuring each channel's effect on its world column numerically (one extra sample per axis).
+     */
+    private void solveScale(Transform transform, Supplier<Matrix4f> sampler, Vector3f targetScale)
+    {
+        float epsilon = 0.05F;
+        Vector3f current = new Vector3f();
+
+        orthonormalize(sampler.get().get3x3(new Matrix3f()), current);
+
+        for (int axis = 0; axis < 3; axis++)
+        {
+            float saved = transform.scale.get(axis);
+
+            transform.scale.setComponent(axis, saved + epsilon);
+
+            Vector3f perturbed = new Vector3f();
+
+            orthonormalize(sampler.get().get3x3(new Matrix3f()), perturbed);
+            transform.scale.setComponent(axis, saved);
+
+            float slope = (perturbed.get(axis) - current.get(axis)) / epsilon;
+
+            if (Math.abs(slope) > 1.0E-6F)
+            {
+                transform.scale.setComponent(axis, saved + (targetScale.get(axis) - current.get(axis)) / slope);
+            }
+        }
+    }
+
+    /**
+     * Normalize a basis's columns to unit length, returning the lengths in {@code scaleOut} and
+     * leaving the orthonormal rotation in {@code basis}. Assumes a rigid-plus-scale basis (no shear).
+     */
+    private static Matrix3f orthonormalize(Matrix3f basis, Vector3f scaleOut)
+    {
+        Vector3f column = new Vector3f();
+
+        float sx = basis.getColumn(0, column).length();
+        float sy = basis.getColumn(1, column).length();
+        float sz = basis.getColumn(2, column).length();
+
+        scaleOut.set(sx, sy, sz);
+
+        if (sx > 1.0E-6F) basis.setColumn(0, basis.getColumn(0, column).div(sx));
+        if (sy > 1.0E-6F) basis.setColumn(1, basis.getColumn(1, column).div(sy));
+        if (sz > 1.0E-6F) basis.setColumn(2, basis.getColumn(2, column).div(sz));
+
+        return basis;
     }
 
     protected void reset()

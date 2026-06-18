@@ -447,6 +447,12 @@ public class UIPropTransform extends UITransform
         return this.transform;
     }
 
+    @Override
+    protected Transform getEditedTransform()
+    {
+        return this.transform;
+    }
+
     public boolean isEditing()
     {
         return this.editing;
