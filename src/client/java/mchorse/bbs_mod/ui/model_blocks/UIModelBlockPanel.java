@@ -258,10 +258,19 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         return this.gizmoProjection;
     }
 
+    /**
+     * The screen region the gizmo actually renders into: the full UI viewport, NOT this panel's own
+     * area. The dashboard shrinks a panel by the 20px taskbar ({@code h(1F, -20)}), but the block
+     * gizmo is drawn straight onto Minecraft's full-screen world — so its on-screen projection,
+     * trackball sphere highlight and sphere pick must map against the whole screen. Using the shorter
+     * panel area squishes/shifts them by that 20px (a constant, camera-independent offset).
+     */
     @Override
     public Area getGizmoArea()
     {
-        return this.area;
+        UIContext context = this.getContext();
+
+        return context != null ? context.menu.viewport : this.area;
     }
 
     @Override
@@ -298,7 +307,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             return null;
         }
 
-        GizmoDrag drag = GizmoDrag.fromRenderedGizmo(this.gizmoCamera, this.area);
+        GizmoDrag drag = GizmoDrag.fromRenderedGizmo(this.gizmoCamera, this.getGizmoArea());
         Transform transform = this.modelBlock.getProperties().getTransform();
 
         if (drag != null && transform != null)
