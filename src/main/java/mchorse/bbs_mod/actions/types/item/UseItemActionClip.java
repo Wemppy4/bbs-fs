@@ -20,7 +20,7 @@ public class UseItemActionClip extends ItemActionClip
 
         this.applyPositionRotation(player, replay, tick);
         player.setStackInHand(hand, this.itemStack.get().copy());
-        this.itemStack.get().use(player.getWorld(), player, hand);
+        this.itemStack.get().use(player.getEntityWorld(), player, hand);
         player.setStackInHand(hand, ItemStack.EMPTY);
 
         GunItem.actor = null;

@@ -16,6 +16,8 @@ import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -113,23 +115,30 @@ public class ModelBlockEntity extends BlockEntity
     @Override
     public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registryLookup)
     {
-        return this.createNbtWithId(registryLookup);
+        return this.createNbt(registryLookup);
     }
 
     @Override
-    protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup)
+    protected void writeData(WriteView view)
     {
-        super.writeNbt(nbt, registryLookup);
+        super.writeData(view);
 
         MapType data = this.properties.toData();
+        NbtCompound nbt = new NbtCompound();
 
         DataStorageUtils.writeToNbtCompound(nbt, "Properties", data);
+
+        view.put("Properties", NbtCompound.CODEC, nbt.getCompoundOrEmpty("Properties"));
     }
 
     @Override
-    public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup)
+    protected void readData(ReadView view)
     {
-        super.readNbt(nbt, registryLookup);
+        super.readData(view);
+
+        NbtCompound nbt = new NbtCompound();
+
+        view.read("Properties", NbtCompound.CODEC).ifPresent((compound) -> nbt.put("Properties", compound));
 
         BaseType baseType = DataStorageUtils.readFromNbtCompound(nbt, "Properties");
 

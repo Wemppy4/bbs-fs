@@ -238,19 +238,19 @@ public abstract class Form extends ValueGroup
 
         if (hp != 20F)
         {
-            entity.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(hp);
+            entity.getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(hp);
             entity.setHealth(hp);
         }
-        if (speed != 0.1F) entity.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(speed);
-        if (stepHeight != 0.5F) entity.getAttributeInstance(EntityAttributes.GENERIC_STEP_HEIGHT).setBaseValue(stepHeight);
+        if (speed != 0.1F) entity.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(speed);
+        if (stepHeight != 0.5F) entity.getAttributeInstance(EntityAttributes.STEP_HEIGHT).setBaseValue(stepHeight);
     }
 
     public void onDemorph(LivingEntity entity)
     {
-        entity.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(20F);
+        entity.getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(20F);
         entity.setHealth(20F);
-        entity.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(0.1F);
-        entity.getAttributeInstance(EntityAttributes.GENERIC_STEP_HEIGHT).setBaseValue(0.5F);
+        entity.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED).setBaseValue(0.1F);
+        entity.getAttributeInstance(EntityAttributes.STEP_HEIGHT).setBaseValue(0.5F);
     }
 
     /* ID and display name */

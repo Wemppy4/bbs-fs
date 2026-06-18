@@ -25,7 +25,7 @@ public class ServerPlayerEntityMixin
             {
                 ItemDropActionClip actionClip = new ItemDropActionClip();
                 Vec3d velocity = entity.getVelocity();
-                Vec3d pos = entity.getPos();
+                Vec3d pos = entity.getEntityPos();
 
                 actionClip.velocityX.set((float) velocity.x);
                 actionClip.velocityY.set((float) velocity.y);

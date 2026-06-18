@@ -23,9 +23,9 @@ public class ChatActionClip extends ActionClip
     @Override
     public void applyAction(LivingEntity actor, SuperFakePlayer player, Film film, Replay replay, int tick)
     {
-        for (PlayerEntity entity : player.getWorld().getPlayers())
+        for (PlayerEntity entity : player.getEntityWorld().getPlayers())
         {
-            entity.sendMessage(Text.literal(StringUtils.processColoredText(this.message.get())));
+            entity.sendMessage(Text.literal(StringUtils.processColoredText(this.message.get())), false);
         }
     }
 

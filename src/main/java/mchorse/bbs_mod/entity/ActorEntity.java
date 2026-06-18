@@ -11,10 +11,11 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.ItemPickupAnimationS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.util.Arm;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
@@ -28,10 +29,10 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
     public static DefaultAttributeContainer.Builder createActorAttributes()
     {
         return LivingEntity.createLivingAttributes()
-            .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 1D)
-            .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.1D)
-            .add(EntityAttributes.GENERIC_ATTACK_SPEED)
-            .add(EntityAttributes.GENERIC_LUCK);
+            .add(EntityAttributes.ATTACK_DAMAGE, 1D)
+            .add(EntityAttributes.MOVEMENT_SPEED, 0.1D)
+            .add(EntityAttributes.ATTACK_SPEED)
+            .add(EntityAttributes.LUCK);
     }
 
     private boolean despawn;
@@ -45,7 +46,7 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
         super(entityType, world);
     }
 
-    public MCEntity getEntity()
+    public MCEntity getFormEntity()
     {
         return this.entity;
     }
@@ -69,7 +70,7 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
 
         this.form = form;
 
-        if (!this.getWorld().isClient())
+        if (!this.getEntityWorld().isClient())
         {
             if (lastForm != null) lastForm.onDemorph(this);
             if (form != null) form.onMorph(this);
@@ -89,13 +90,11 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
         return distance < (d * 256D) * (d * 256D);
     }
 
-    @Override
     public Iterable<ItemStack> getHandItems()
     {
         return List.of(this.getEquippedStack(EquipmentSlot.MAINHAND), this.getEquippedStack(EquipmentSlot.OFFHAND));
     }
 
-    @Override
     public Iterable<ItemStack> getArmorItems()
     {
         return List.of(this.getEquippedStack(EquipmentSlot.FEET), this.getEquippedStack(EquipmentSlot.LEGS), this.getEquippedStack(EquipmentSlot.CHEST), this.getEquippedStack(EquipmentSlot.HEAD));
@@ -131,14 +130,14 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
             this.form.update(this.entity);
         }
 
-        if (this.getWorld().isClient)
+        if (this.getEntityWorld().isClient())
         {
             return;
         }
 
         /* Pickup items */
         Box box = this.getBoundingBox().expand(1D, 0.5D, 1D);
-        List<Entity> list = this.getWorld().getOtherEntities(this, box);
+        List<Entity> list = this.getEntityWorld().getOtherEntities(this, box);
 
         for (Entity entity : list)
         {
@@ -149,7 +148,7 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
 
                 if (!entity.isRemoved() && !itemEntity.cannotPickup())
                 {
-                    ((ServerWorld) this.getWorld()).getChunkManager().sendToOtherNearbyPlayers(entity, new ItemPickupAnimationS2CPacket(entity.getId(), this.getId(), i));
+                    ((ServerWorld) this.getEntityWorld()).getChunkManager().sendToOtherNearbyPlayers(entity, new ItemPickupAnimationS2CPacket(entity.getId(), this.getId(), i));
                     entity.discard();
                 }
             }
@@ -176,24 +175,18 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
     }
 
     @Override
-    public void readCustomDataFromNbt(NbtCompound nbt)
+    public void readCustomData(ReadView view)
     {
-        super.readCustomDataFromNbt(nbt);
+        super.readCustomData(view);
 
-        this.despawn = nbt.getBoolean("despawn");
+        this.despawn = view.getBoolean("despawn", false);
     }
 
     @Override
-    public void writeCustomDataToNbt(NbtCompound nbt)
+    public void writeCustomData(WriteView view)
     {
-        super.writeCustomDataToNbt(nbt);
+        super.writeCustomData(view);
 
-        nbt.putBoolean("despawn", true);
-    }
-
-    @Override
-    protected int getPermissionLevel()
-    {
-        return 4;
+        view.putBoolean("despawn", true);
     }
 }

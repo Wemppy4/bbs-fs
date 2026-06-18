@@ -1,0 +1,92 @@
+
+> Configure project :
+Fabric Loom: 1.15.5
+
+> Task :compileJava FAILED
+C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-fs\src\main\java\mchorse\bbs_mod\items\GunItem.java:73: error: cannot find symbol
+                serverWorld.getServer().getCommandManager().executeWithPrefix(owner.getCommandSource(serverWorld), properties.cmdFiring);
+                                                           ^
+  symbol:   method executeWithPrefix(ServerCommandSource,String)
+  location: class CommandManager
+C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-fs\src\main\java\mchorse\bbs_mod\blocks\ModelBlock.java:73: error: no suitable method found for set(ComponentType<TypedEntityData<BlockEntityType<?>>>,NbtComponent)
+            stack.set(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.of(modelBlock.createNbt(world.getRegistryManager())));
+                 ^
+    method ItemStack.<T#1>set(ComponentType<T#1>,T#1) is not applicable
+      (inference variable T#1 has incompatible bounds
+        equality constraints: TypedEntityData<BlockEntityType<?>>
+        lower bounds: NbtComponent)
+    method ItemStack.<T#2>set(Component<T#2>) is not applicable
+      (cannot infer type-variable(s) T#2
+        (actual and formal argument lists differ in length))
+  where T#1,T#2 are type-variables:
+    T#1 extends Object declared in method <T#1>set(ComponentType<T#1>,T#1)
+    T#2 extends Object declared in method <T#2>set(Component<T#2>)
+C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-fs\src\main\java\mchorse\bbs_mod\blocks\ModelBlock.java:140: error: no suitable method found for set(ComponentType<TypedEntityData<BlockEntityType<?>>>,NbtComponent)
+                stack.set(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.of(model.createNbt(world.getRegistryManager())));
+                     ^
+    method ItemStack.<T#1>set(ComponentType<T#1>,T#1) is not applicable
+      (inference variable T#1 has incompatible bounds
+        equality constraints: TypedEntityData<BlockEntityType<?>>
+        lower bounds: NbtComponent)
+    method ItemStack.<T#2>set(Component<T#2>) is not applicable
+      (cannot infer type-variable(s) T#2
+        (actual and formal argument lists differ in length))
+  where T#1,T#2 are type-variables:
+    T#1 extends Object declared in method <T#1>set(ComponentType<T#1>,T#1)
+    T#2 extends Object declared in method <T#2>set(Component<T#2>)
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+3 errors
+
+[Incubating] Problems report is available at: file:///C:/Users/Qualet/Documents/Project/Minecraft/BBS/bbs-fs/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-fs\src\main\java\mchorse\bbs_mod\blocks\ModelBlock.java:73: error: no suitable method found for set(ComponentType<TypedEntityData<BlockEntityType<?>>>,NbtComponent)
+              stack.set(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.of(modelBlock.createNbt(world.getRegistryManager())));
+                   ^
+      method ItemStack.<T#1>set(ComponentType<T#1>,T#1) is not applicable
+        (inference variable T#1 has incompatible bounds
+          equality constraints: TypedEntityData<BlockEntityType<?>>
+          lower bounds: NbtComponent)
+      method ItemStack.<T#2>set(Component<T#2>) is not applicable
+        (cannot infer type-variable(s) T#2
+          (actual and formal argument lists differ in length))
+    where T#1,T#2 are type-variables:
+      T#1 extends Object declared in method <T#1>set(ComponentType<T#1>,T#1)
+      T#2 extends Object declared in method <T#2>set(Component<T#2>)
+  C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-fs\src\main\java\mchorse\bbs_mod\blocks\ModelBlock.java:140: error: no suitable method found for set(ComponentType<TypedEntityData<BlockEntityType<?>>>,NbtComponent)
+                  stack.set(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.of(model.createNbt(world.getRegistryManager())));
+                       ^
+      method ItemStack.<T#1>set(ComponentType<T#1>,T#1) is not applicable
+        (inference variable T#1 has incompatible bounds
+          equality constraints: TypedEntityData<BlockEntityType<?>>
+          lower bounds: NbtComponent)
+      method ItemStack.<T#2>set(Component<T#2>) is not applicable
+        (cannot infer type-variable(s) T#2
+          (actual and formal argument lists differ in length))
+    where T#1,T#2 are type-variables:
+      T#1 extends Object declared in method <T#1>set(ComponentType<T#1>,T#1)
+      T#2 extends Object declared in method <T#2>set(Component<T#2>)
+  Note: Recompile with -Xlint:deprecation for details.
+  Note: Recompile with -Xlint:unchecked for details.
+  Note: Some input files use or override a deprecated API.
+  Note: Some input files use unchecked or unsafe operations.
+  C:\Users\Qualet\Documents\Project\Minecraft\BBS\bbs-fs\src\main\java\mchorse\bbs_mod\items\GunItem.java:73: error: cannot find symbol
+                  serverWorld.getServer().getCommandManager().executeWithPrefix(owner.getCommandSource(serverWorld), properties.cmdFiring);
+                                                             ^
+    symbol:   method executeWithPrefix(ServerCommandSource,String)
+    location: class CommandManager
+  3 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (powered by Develocity).
+
+BUILD FAILED in 2s
+1 actionable task: 1 executed

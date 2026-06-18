@@ -40,7 +40,7 @@ public class WorldChunkMixin
 
             if (blockEntity != null)
             {
-                replaced.set(blockEntity.createNbtWithId(world.getRegistryManager()));
+                replaced.set(blockEntity.createNbtWithIdentifyingData(world.getRegistryManager()));
             }
         }
     }

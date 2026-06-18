@@ -128,7 +128,7 @@ public class ActionManager
 
     public void startRecording(Film film, ServerPlayerEntity entity, int tick, int countdown, int replayId)
     {
-        ActionPlayer play = this.play(entity, entity.getServerWorld(), film, tick, countdown, replayId, PlayerType.RECORDING);
+        ActionPlayer play = this.play(entity, entity.getEntityWorld(), film, tick, countdown, replayId, PlayerType.RECORDING);
 
         play.stopDamage = false;
 
@@ -155,7 +155,7 @@ public class ActionManager
         ActionRecorder remove = this.recorders.remove(entity);
 
         this.stop(remove.getFilm().getId());
-        this.stopDamage(entity.getServerWorld());
+        this.stopDamage(entity.getEntityWorld());
 
         return remove;
     }
