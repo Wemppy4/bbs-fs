@@ -41,4 +41,7 @@ replay_*.log
 *.hprof
 *.jfr
 
-ik_test/*.port/
+ik_test/*
+
+# bbs port scaffolding (migration refs + compiler logs)
+.port/
