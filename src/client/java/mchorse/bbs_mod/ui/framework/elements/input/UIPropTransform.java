@@ -92,10 +92,9 @@ public class UIPropTransform extends UITransform
     private final Vector3d dragStartHit = new Vector3d();
     private final Vector3f dragStartTranslate = new Vector3f();
 
-    /* Per-mode start state. Translate uses dragStartTranslate above; scale and
-     * rotate get their own snapshots so each mode is self-contained. */
+    /* Per-mode start state. Translate uses dragStartTranslate above; scale gets its own snapshot
+     * so each mode is self-contained. */
     private final Vector3f dragStartScale = new Vector3f();
-    private final Vector3f dragStartRotateDeg = new Vector3f();
     /** World-space direction of the active handle, captured at drag start. */
     private final Vector3f dragAxisDir = new Vector3f();
     /** Axis the rotation composes about, expressed in the bone's parent frame and
@@ -1301,41 +1300,12 @@ public class UIPropTransform extends UITransform
 
         this.accumulatedRotateDeg += angleDeg;
 
-        /* LOCAL and WORLD compose the whole accumulated sweep about the grabbed
-         * ring's parent-frame axis on top of the cached start orientation — the
-         * snap lands on whole degrees of the sweep, since after the
-         * decomposition no single euler channel corresponds to it. */
-        if (this.getSpace() != TransformSpace.PARENT)
-        {
-            this.applyAxisRotation(this.snapGizmoValue(this.accumulatedRotateDeg), this.rotateParentAxis);
-
-            return;
-        }
-
-        float rx = this.dragStartRotateDeg.x;
-        float ry = this.dragStartRotateDeg.y;
-        float rz = this.dragStartRotateDeg.z;
-
-        switch (this.axis)
-        {
-            case X: rx += angleDeg; break;
-            case Y: ry += angleDeg; break;
-            case Z: rz += angleDeg; break;
-        }
-
-        /* Keep the raw accumulation so the drag stays smooth, then snap only the
-         * axis the user is actually turning — the other two carry their start
-         * values and must not be rounded out from under the user. */
-        this.dragStartRotateDeg.set(rx, ry, rz);
-
-        switch (this.axis)
-        {
-            case X: rx = (float) this.snapGizmoValue(rx); break;
-            case Y: ry = (float) this.snapGizmoValue(ry); break;
-            case Z: rz = (float) this.snapGizmoValue(rz); break;
-        }
-
-        this.setR(null, rx, ry, rz);
+        /* Every space composes the whole accumulated sweep about the grabbed ring's parent-frame
+         * axis on top of the cached start orientation — including PARENT, which turns about the
+         * parent frame's fixed axes (the rings as drawn), not the bone's own like LOCAL. The snap
+         * lands on whole degrees of the sweep, since after the decomposition no single euler channel
+         * corresponds to it. */
+        this.applyAxisRotation(this.snapGizmoValue(this.accumulatedRotateDeg), this.rotateParentAxis);
     }
 
     /**
@@ -2043,15 +2013,10 @@ public class UIPropTransform extends UITransform
 
     private void beginRayRotate(int mouseX, int mouseY)
     {
-        boolean composed = this.getSpace() != TransformSpace.PARENT;
-
-        /* PARENT turns the stored euler channel, so it needs the renderer's
-         * actual channel axis (GizmoDrag.computeRotateAxes) — for cubic models
-         * it differs in sign on X/Z from the visible arrows, because the
-         * renderer post-multiplies by Ry(180°) after the bone's own rotation.
-         * LOCAL and WORLD compose about the ring the user actually grabbed, so
-         * there the rendered gizmo axis is the right one by definition. */
-        Vector3f axisDir = (composed ? this.drag.gizmoWorldAxes : this.drag.rotateAxes).getColumn(this.axis.ordinal(), new Vector3f());
+        /* Every space composes the sweep about the ring the user actually grabbed, so the rendered
+         * gizmo axis is the right one by definition — whether the gizmo is drawn in the bone's own
+         * frame (LOCAL), the parent's (PARENT) or world-aligned (WORLD). */
+        Vector3f axisDir = this.drag.gizmoWorldAxes.getColumn(this.axis.ordinal(), new Vector3f());
 
         if (axisDir.lengthSquared() < 1.0E-8F)
         {
@@ -2094,36 +2059,25 @@ public class UIPropTransform extends UITransform
         this.initialDragRingVec.set(this.computeStartRingVec(mouseX, mouseY, axisDir));
         this.accumulatedRotateDeg = 0;
 
-        if (composed)
+        Matrix3f parentInverse = this.computeParentInverse(this.transform.rotate);
+
+        if (parentInverse == null)
         {
-            Matrix3f parentInverse = this.computeParentInverse(this.transform.rotate);
+            this.dragHasStart = false;
 
-            if (parentInverse == null)
-            {
-                this.dragHasStart = false;
-
-                return;
-            }
-
-            parentInverse.transform(axisDir, this.rotateParentAxis);
-
-            if (this.rotateParentAxis.lengthSquared() < 1.0E-8F)
-            {
-                this.dragHasStart = false;
-
-                return;
-            }
-
-            this.rotateParentAxis.normalize();
+            return;
         }
 
-        Vector3f source = this.transform.rotate;
+        parentInverse.transform(axisDir, this.rotateParentAxis);
 
-        this.dragStartRotateDeg.set(
-            MathUtils.toDeg(source.x),
-            MathUtils.toDeg(source.y),
-            MathUtils.toDeg(source.z)
-        );
+        if (this.rotateParentAxis.lengthSquared() < 1.0E-8F)
+        {
+            this.dragHasStart = false;
+
+            return;
+        }
+
+        this.rotateParentAxis.normalize();
 
         /* Freeze the ring at this orientation so it stays put while we drag,
          * instead of writhing as the live rotation is recomposed each frame. */
@@ -2553,27 +2507,24 @@ public class UIPropTransform extends UITransform
 
     private void applyNumericRotate(double value)
     {
-        TransformSpace space = this.getSpace();
-
-        if (space != TransformSpace.PARENT)
+        /* With a live ray anchor every space composes about the grabbed ring's axis (PARENT and
+         * WORLD included — the parent/world fixed axes, not the bone's own). */
+        if (this.useRayDrag() && this.dragHasStart)
         {
-            if (this.useRayDrag() && this.dragHasStart)
-            {
-                this.applyAxisRotation(value, this.rotateParentAxis);
+            this.applyAxisRotation(value, this.rotateParentAxis);
 
-                return;
-            }
-
-            if (space == TransformSpace.LOCAL)
-            {
-                this.applyLocalBodyRotation(value, this.cache.rotate);
-
-                return;
-            }
-
-            /* WORLD without a ray anchor has no world axis in reach; the channel
-             * add below stands in — exact wherever parent == world. */
+            return;
         }
+
+        if (this.getSpace() == TransformSpace.LOCAL)
+        {
+            this.applyLocalBodyRotation(value, this.cache.rotate);
+
+            return;
+        }
+
+        /* PARENT/WORLD without a ray anchor have no axis in reach; the channel add below stands
+         * in — exact wherever parent == world. */
 
         Vector3f source = this.cache.rotate;
 
