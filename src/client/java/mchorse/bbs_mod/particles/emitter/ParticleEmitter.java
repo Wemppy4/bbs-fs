@@ -452,25 +452,23 @@ public class ParticleEmitter
 
             Matrix4f matrix = stack.peek().getPositionMatrix();
 
-            BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
+            /* The UI preview particle now renders through the same non-picker particles layer the in-world path
+             * uses (BBSShaders.getParticlesLayer(), POSITION_TEXTURE_COLOR_LIGHT). The 1.21.1 original drew this
+             * via GameRenderer::getPositionTexColorProgram with culling disabled; the migrated particles pipeline
+             * has cull off too, and the components' renderUI writes a full-bright light so the lightmap sampler
+             * (the only difference from the original POSITION_TEXTURE_COLOR format) leaves the colour unchanged. */
+            BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR_LIGHT);
 
             for (IComponentParticleRender render : list)
             {
                 render.renderUI(this.uiParticle, builder, matrix, transition);
             }
 
-            /* TODO(1.21.11 render): the on-screen UI particle render (POSITION_TEXTURE_COLOR) had stood
-             * in the picker_particles layer as a normal draw during the build-only port. That pipeline now
-             * declares the BBSPicker UBO and can no longer be drawn through the immediate RenderLayer path
-             * (it would assert on the unbound custom uniform), and picker shaders only ever emit a
-             * Target-index colour anyway — never the texture. Route this through a proper non-picker
-             * POSITION_TEXTURE_COLOR layer once one exists; drop the buffer for now (this path already drew
-             * nothing while the picker pipeline was a #version 150 no-op, so behaviour is unchanged). */
             BuiltBuffer built = builder.endNullable();
 
             if (built != null)
             {
-                built.close();
+                BBSShaders.getParticlesLayer().draw(built);
             }
         }
     }

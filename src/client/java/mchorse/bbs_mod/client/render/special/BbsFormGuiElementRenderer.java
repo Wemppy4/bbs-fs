@@ -10,7 +10,7 @@ import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
-import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.render.SpecialGuiElementRenderer;
@@ -29,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Renders BBS model-form thumbnails into off-screen FBOs and composites them into form-list cells via the
+ * Renders BBS form thumbnails (model/billboard/extruded/block/particle) into off-screen FBOs and composites them into form-list cells via the
  * vanilla special-element pipeline. Registered into the otherwise-closed special-element registry by
  * {@code GuiRendererMixin}. This is the mechanism vanilla uses for entity/item 3D-in-GUI thumbnails, adopted
  * here because the form list draws each cell in the GUI record phase where a direct immediate 3D draw cannot
@@ -179,7 +179,7 @@ public class BbsFormGuiElementRenderer extends SpecialGuiElementRenderer<BbsForm
         return this.lights;
     }
 
-    private Target acquire(ModelFormRenderer key, int w, int h)
+    private Target acquire(FormRenderer<?> key, int w, int h)
     {
         String id = System.identityHashCode(key) + "_" + w + "x" + h;
         Target target = this.targets.get(id);

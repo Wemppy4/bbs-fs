@@ -452,9 +452,13 @@ public class ParticleComponentAppearanceBillboard extends ParticleComponentBase 
 
     private void writeVertexUI(BufferBuilder builder, Matrix4f matrix, Vector4f vertex, float u, float v, Particle particle)
     {
+        /* POSITION_TEXTURE_COLOR_LIGHT: the UI preview now draws through BBSShaders.getParticlesLayer() (which
+         * declares a lightmap sampler), so emit a full-bright light — the original POSITION_TEXTURE_COLOR had no
+         * lightmap, and full-bright leaves the sampled colour unchanged, matching the original appearance. */
         builder.vertex(matrix, vertex.x, vertex.y, 0F)
             .texture(u, v)
             .color(particle.r, particle.g, particle.b, particle.a)
+            .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
             ;
     }
 

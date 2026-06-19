@@ -80,30 +80,40 @@ public class ParticleFormRenderer extends FormRenderer<ParticleForm> implements 
     @Override
     public void renderInUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        this.ensureEmitter(MinecraftClient.getInstance().world, context.getTransition());
+        /* List/icon preview: submit a special GUI element so the emitter's preview particle draws off-screen
+         * during the GUI prepare phase (two-phase GUI drops a direct immediate draw here). BbsFormGuiElementRenderer
+         * calls back into renderUIPreview inside the FBO render pass — same path as ModelForm. */
+        this.submitUIPreview(context, x1, y1, x2, y2);
+    }
+
+    @Override
+    public void renderUIPreview(MatrixStack stack, float angle, float transition, int x1, int y1, int x2, int y2)
+    {
+        this.ensureEmitter(MinecraftClient.getInstance().world, transition);
 
         ParticleEmitter emitter = this.emitter;
 
-        if (emitter != null)
+        if (emitter == null)
         {
-            /* DrawContext.getMatrices() is now a 2D Matrix3x2fStack (1.21.5 UI rewrite), but the
-             * emitter renders 3D quads through a 3D MatrixStack. Build a dedicated 3D stack here.
-             * TODO(1.21.11 render): verify at runtime — the previous 2D UI matrix offset/scale is
-             * not folded in, so the preview may need its transform re-derived from the UI matrix. */
-            MatrixStack stack = new MatrixStack();
-            int scale = (y2 - y1) / 2;
-
-            stack.push();
-            stack.translate((x2 + x1) / 2, (y2 + y1) / 2, 40);
-            MatrixStackUtils.scaleStack(stack, scale, scale, scale);
-
-            this.updateTexture(context.getTransition());
-            emitter.lastGlobal.set(new Vector3f(0, 0, 0));
-            emitter.rotation.identity();
-            emitter.renderUI(stack, context.getTransition());
-
-            stack.pop();
+            return;
         }
+
+        /* The base renderer pre-translated the stack to the cell at (centre, 0.85*height down) + scale(f,f,-f).
+         * The original particle preview placed the emitter at the cell CENTRE with scale (y2-y1)/2, so move the
+         * origin up from 0.85*height to the centre (0.5*height -> -0.35*(y2-y1) in base units) then apply that
+         * scale. Z handedness is irrelevant: emitter.renderUI builds a screen-facing quad at z=0 and the
+         * particle pipeline disables culling. */
+        stack.push();
+        stack.translate(0F, -0.35F * (y2 - y1), 0F);
+        float scale = (y2 - y1) / 2F;
+        stack.scale(scale, scale, scale);
+
+        this.updateTexture(transition);
+        emitter.lastGlobal.set(new Vector3f(0, 0, 0));
+        emitter.rotation.identity();
+        emitter.renderUI(stack, transition);
+
+        stack.pop();
     }
 
     @Override

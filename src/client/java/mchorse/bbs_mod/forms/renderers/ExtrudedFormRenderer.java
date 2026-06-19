@@ -32,17 +32,24 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
     @Override
     public void renderInUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        /* TODO(1.21.11 render): context.batcher.getContext().getMatrices() now returns a 2D
-         * Matrix3x2fStack; the extruded model draw needs a 3D MatrixStack. Build a fresh 3D stack
-         * from the UI matrix so the model-building math below stays intact (the actual draw is a
-         * stub until the model RenderPipeline path is wired). */
-        MatrixStack stack = new MatrixStack();
+        /* List/icon preview: submit a special GUI element so the extruded model draws off-screen during the GUI
+         * prepare phase (two-phase GUI drops a direct immediate draw here). BbsFormGuiElementRenderer calls back
+         * into renderUIPreview inside the FBO render pass — same path as ModelForm. */
+        this.submitUIPreview(context, x1, y1, x2, y2);
+    }
+
+    @Override
+    public void renderUIPreview(MatrixStack stack, float angle, float transition, int x1, int y1, int x2, int y2)
+    {
+        /* The base renderer pre-translated the stack to the cell (centre, 0.85*height down) + scale(f,f,-f);
+         * apply the rest of the original getUIMatrix framing here, then the original extruded post-ops + draw
+         * (ModelVAORenderer.render via getModelLayer, the same path render3D uses, confirmed working in-world). */
+        Matrix4f uiMatrix = getUIPreviewMatrix(angle, y1, y2);
+
+        this.applyTransforms(uiMatrix, transition);
 
         stack.push();
 
-        Matrix4f uiMatrix = ModelFormRenderer.getUIMatrix(context, x1, y1, x2, y2);
-
-        this.applyTransforms(uiMatrix, context.getTransition());
         MatrixStackUtils.multiply(stack, uiMatrix);
         stack.translate(0F, 1F, 0F);
         stack.scale(1.5F, 1.5F, 4F);
@@ -57,7 +64,7 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
         this.renderModel(BBSShaders::getModel,
             stack,
             OverlayTexture.DEFAULT_UV, LightmapTextureManager.MAX_LIGHT_COORDINATE, Colors.WHITE,
-            context.getTransition()
+            transition
         );
 
         stack.pop();

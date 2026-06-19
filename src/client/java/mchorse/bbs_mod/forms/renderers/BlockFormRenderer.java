@@ -27,35 +27,41 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
     @Override
     public void renderInUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        /* DrawContext.draw() was removed in the 1.21.5 UI rewrite (immediate draws are flushed by the
-         * engine); the previous flush before block rendering is no longer available here. */
+        /* List/icon preview: submit a special GUI element so the block draws off-screen during the GUI prepare
+         * phase (two-phase GUI drops a direct immediate draw here). BbsFormGuiElementRenderer calls back into
+         * renderUIPreview inside the FBO render pass — same path as ModelForm. */
+        this.submitUIPreview(context, x1, y1, x2, y2);
+    }
+
+    @Override
+    public void renderUIPreview(MatrixStack stack, float angle, float transition, int x1, int y1, int x2, int y2)
+    {
         CustomVertexConsumerProvider consumers = FormUtilsClient.getProvider();
-        /* DrawContext.getMatrices() now returns a 2D Matrix3x2fStack; the block renders through a 3D
-         * MatrixStack, so build a dedicated one and apply the UI matrix to it.
-         * TODO(1.21.11 render): verify at runtime — the 2D UI stack transform is not folded in. */
-        MatrixStack matrices = new MatrixStack();
 
-        Matrix4f uiMatrix = ModelFormRenderer.getUIMatrix(context, x1, y1, x2, y2);
+        /* The base renderer pre-translated the stack to the cell (centre, 0.85*height down) + scale(f,f,-f);
+         * apply the rest of the original getUIMatrix framing here, then the original block post-ops + draw
+         * (renderBlockAsEntity + consumers.draw, the same path render3D uses, confirmed working in-world). */
+        Matrix4f uiMatrix = getUIPreviewMatrix(angle, y1, y2);
 
-        matrices.push();
-        MatrixStackUtils.multiply(matrices, uiMatrix);
-        matrices.scale(this.form.uiScale.get(), this.form.uiScale.get(), this.form.uiScale.get());
-        matrices.translate(-0.5F, 0F, -0.5F);
+        stack.push();
+        MatrixStackUtils.multiply(stack, uiMatrix);
+        stack.scale(this.form.uiScale.get(), this.form.uiScale.get(), this.form.uiScale.get());
+        stack.translate(-0.5F, 0F, -0.5F);
 
-        matrices.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
-        matrices.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
+        stack.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
+        stack.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
 
         Color set = Color.white();
         FormColorBlend.blend(set, this.form.color.get(), this.form.additiveColor.get());
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(set));
         consumers.setUI(true);
-        MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(this.form.blockState.get(), matrices, consumers, LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
+        MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(this.form.blockState.get(), stack, consumers, LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
         consumers.draw();
         consumers.setUI(false);
         consumers.setSubstitute(null);
 
-        matrices.pop();
+        stack.pop();
     }
 
     @Override

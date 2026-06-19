@@ -2,11 +2,13 @@ package mchorse.bbs_mod.forms.renderers;
 
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
+import mchorse.bbs_mod.client.render.special.BbsFormGuiElementRenderState;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -18,10 +20,13 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Hand;
+import org.joml.Matrix3x2f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -84,6 +89,67 @@ public abstract class FormRenderer <T extends Form>
     }
 
     protected abstract void renderInUI(UIContext context, int x1, int y1, int x2, int y2);
+
+    /**
+     * Submit this form as a vanilla special GUI element so it renders off-screen during the GUI prepare phase
+     * and the deferred GUI composites it into the list/icon cell. The list draws each cell in the GUI record
+     * phase, where a direct immediate 3D draw can't composite (two-phase GUI, 1.21.6+), so 3D form types route
+     * their {@code renderInUI} through here — the same mechanism vanilla uses for entity/item thumbnails.
+     * {@link BbsFormGuiElementRenderer} then calls back into {@link #renderUIPreview} inside the FBO render pass.
+     * Form-type-agnostic: every renderer passes {@code this}; the cursor-driven yaw, the live 2D GUI matrix
+     * (carries the list's scroll translate) and the active scissor are captured here, exactly like the original
+     * which rendered onto {@code context.batcher.getContext().getMatrices()} bracketed by the GL scissor.
+     */
+    protected final void submitUIPreview(UIContext context, int x1, int y1, int x2, int y2)
+    {
+        context.batcher.flush();
+
+        float angle = MathUtils.toRad(context.mouseX - (x1 + x2) / 2) + MathUtils.PI;
+
+        if (BBSSettings.freezeModels.get())
+        {
+            angle = -MathUtils.PI + MathUtils.PI / 8;
+        }
+
+        DrawContext dc = context.batcher.getContext();
+        Matrix3x2f pose = new Matrix3x2f(dc.getMatrices());
+        ScreenRect scissor = dc.scissorStack.peekLast();
+
+        dc.state.addSpecialElement(new BbsFormGuiElementRenderState(
+            this, angle, context.getTransition(), pose, x1, y1, x2, y2, 1.0F, scissor));
+    }
+
+    /**
+     * Render this form into the special-element off-screen FBO bound by {@link BbsFormGuiElementRenderer} for a
+     * form-list thumbnail. The base renderer has set an ORTHOGRAPHIC projection and pre-translated {@code stack}
+     * to the cell (origin at the horizontal centre, {@code 0.85*height} down) then {@code scale(f, f, -f)}; an
+     * override applies the rest of the {@link #getUIPreviewMatrix} framing and draws. Default is
+     * a no-op: form types that still render their UI preview the old (2D/immediate) way don't submit a special
+     * element, so this is never called for them. The caller manages {@code ModelPreviewRenderer.ACTIVE} +
+     * diffuse lighting + restore.
+     */
+    public void renderUIPreview(MatrixStack stack, float angle, float transition, int x1, int y1, int x2, int y2)
+    {}
+
+    /**
+     * The cell-relative framing for the special-element FBO preview path, shared by every 3D form type's
+     * {@link #renderUIPreview}. The base {@code BbsFormGuiElementRenderer} already pre-translated the stack to the
+     * cell (centre, {@code 0.85*height} down) and applied {@code scale(f, f, -f)}, so only the cell scale + 22.5°
+     * forward tilt + cursor-driven yaw remain. The original {@code ModelFormRenderer.getUIMatrix} used
+     * {@code scale(s, -s, s)}; the base's extra {@code -Z} means we flip Z here to net the same handedness.
+     */
+    public static Matrix4f getUIPreviewMatrix(float angle, int y1, int y2)
+    {
+        float cellScale = (y2 - y1) / 2.5F;
+
+        Matrix4f uiMatrix = new Matrix4f();
+
+        uiMatrix.scale(cellScale, -cellScale, -cellScale);
+        uiMatrix.rotateX(MathUtils.PI / 8F);
+        uiMatrix.rotateY(angle);
+
+        return uiMatrix;
+    }
 
     public boolean renderArm(MatrixStack matrices, int light, AbstractClientPlayerEntity player, Hand hand)
     {
