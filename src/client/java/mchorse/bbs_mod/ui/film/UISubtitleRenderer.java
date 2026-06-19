@@ -176,9 +176,17 @@ public class UISubtitleRenderer
             stack.translate(x, y, 0);
             MatrixStackUtils.applyTransform(stack, transform);
 
-            /* TODO(1.21.11 render): the subtitles shader's per-draw uniforms ("Blur" = subtitle.shadow/shadowOpaque,
-             * "TextureSize" = texture.width/height) were set via GlUniform on the old ShaderProgram. RenderPipeline
-             * has no GlUniform accessor; feed these through the new uniform/UBO mechanism once available. */
+            /* TODO(1.21.11 render): the subtitles blur shader's per-draw uniforms ("Blur" = subtitle.shadow/
+             * shadowOpaque, "TextureSize" = texture.width/height). The bbs:core/subtitles GLSL is now migrated to
+             * #version 330 std140 and its pipeline (BBSShaders.getSubtitlesProgram()/getSubtitlesLayer()) declares
+             * the builtin DynamicTransforms/Projection UBOs + the custom SubtitlesInfo UBO (Blur/TextureSize) +
+             * Sampler0. What is STILL missing is the per-draw dispatch: the texturedBox(Supplier,...) below routes
+             * through the AdoptedTexture -> GUI_TEXTURED bridge (the Supplier/pipeline is IGNORED), so the blur is
+             * NOT applied and SubtitlesInfo is never uploaded. Reviving it needs a manual RenderPass binding
+             * getSubtitlesProgram(), setUniform("SubtitlesInfo", <Std140 slice of Blur/TextureSize>) + Sampler0,
+             * applied as an off-screen full-screen-quad pass over the text FBO before compositing the result via
+             * the bridge (cf. BbsFormGuiElementRenderer's manual GPU path). Tracked as the separate "revive GUI
+             * custom shaders" work; until then the subtitle text composites without the blur. */
 
             /* TODO(1.21.11 render): blend state now lives in the RenderPipeline/RenderLayer; removed
              * RenderSystem.enableBlend()/blendFuncSeparate(...) */

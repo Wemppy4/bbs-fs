@@ -219,12 +219,18 @@ public class UIMultiLinkEditor extends UICanvasEditor
                     context.batcher.box(area.x, area.y, area.ex(), area.ey(), Colors.setA(Colors.RED, 0.25F));
                 }
 
-                /* TODO(1.21.11 render): the pixelate/erase "multilink" filter used to push
-                 * Size/Filters uniforms + an atlas texture sampler onto a custom ShaderProgram.
-                 * GlUniform/RenderSystem.setShaderTexture/ShaderProgram are gone in 1.21.5+; uniforms
-                 * and samplers are now declared on the RenderPipeline (BBSShaders.getMultilinkProgram()).
-                 * texturedBox is itself a no-op stub right now, so the buffer just compiles. Re-wire
-                 * the Size/Filters uniforms + atlas sampler when textured GUI drawing is ported. */
+                /* TODO(1.21.11 render): the pixelate/erase "multilink" filter.
+                 * The bbs:core/multilink GLSL is now migrated to #version 330 std140 and its pipeline
+                 * (BBSShaders.getMultilinkProgram()/getMultilinkLayer()) declares the builtin
+                 * DynamicTransforms/Projection UBOs + the custom MultilinkInfo UBO (Filters/Size) + the
+                 * Sampler0/Sampler3 atlas samplers. What is STILL missing is the per-draw dispatch:
+                 * texturedBox(Supplier,...) routes through the AdoptedTexture -> GUI_TEXTURED bridge
+                 * (the Supplier/pipeline is IGNORED), so the pixelate/erase shader is NOT applied and the
+                 * MultilinkInfo UBO is never uploaded. Reviving it needs a custom two-phase-GUI draw: a
+                 * manual RenderPass binding getMultilinkProgram(), setUniform("MultilinkInfo", <Std140 slice
+                 * of Filters/Size>), the Sampler0 texture + Sampler3 erase-atlas, rendered into an off-screen
+                 * target composited via a SpecialGuiElementRenderer (cf. BbsFormGuiElementRenderer). Until
+                 * then the child draws unfiltered. Tracked as the separate "revive GUI custom shaders" work. */
                 final RenderPipeline finalProgram = needsMultLinkShader
                     ? BBSShaders.getMultilinkProgram()
                     : net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED;
