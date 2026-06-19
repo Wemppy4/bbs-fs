@@ -8,7 +8,6 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.graphics.Draw;
-import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
@@ -270,68 +269,6 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
     public void render(UIContext context)
     {
         super.render(context);
-
-        /* PROBE(1.21.11 render, problem A): clear the panel FBO to solid magenta via explicit
-         * glClearBufferfv (does NOT touch global glClearColor -> no GlStateManager desync) and blit
-         * it through the proven AdoptedTexture path (same as icons). This isolates the two-phase-GUI
-         * compositing mechanism from the still-dead 3D render: if a magenta square fills the preview
-         * panel, problem A is solved and only the real 3D draw (problem B) remains. Remove once real. */
-        Framebuffer probeFb = this.stencil.getFramebuffer();
-
-        if (context.getTick() % 30L == 0L)
-        {
-            Texture mt = probeFb == null ? null : probeFb.getMainTexture();
-            System.out.println("[BBS probe] pickable.render area=" + this.area.x + "," + this.area.y + " " + this.area.w + "x" + this.area.h
-                + " fb=" + (probeFb == null ? "null" : ("fbId" + probeFb.id + " tex" + (mt == null ? "null" : (mt.id + " " + mt.width + "x" + mt.height))))
-                + " picked=" + this.stencil.hasPicked());
-        }
-
-        if (probeFb != null)
-        {
-            probeFb.bind();
-
-            /* The ambient GUI color-write mask has ALPHA DISABLED (GUI does not write framebuffer alpha),
-             * so the clear's alpha (and a future model render's alpha) is dropped -> FBO alpha stays 0 ->
-             * the GUI_TEXTURED blit multiplies by texel alpha 0 and draws fully transparent (invisible).
-             * Force all 4 channels writable for the clear, then restore the previous mask. Raw GL save/
-             * restore is safe: at exit GL == previous == GlStateManager cache, so no tracker desync. */
-            byte[] prevMask = new byte[4];
-
-            try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush())
-            {
-                java.nio.ByteBuffer mask = stack.malloc(4);
-                org.lwjgl.opengl.GL11.glGetBooleanv(org.lwjgl.opengl.GL11.GL_COLOR_WRITEMASK, mask);
-                prevMask[0] = mask.get(0);
-                prevMask[1] = mask.get(1);
-                prevMask[2] = mask.get(2);
-                prevMask[3] = mask.get(3);
-            }
-
-            org.lwjgl.opengl.GL11.glColorMask(true, true, true, true);
-            org.lwjgl.opengl.GL30.glClearBufferfv(org.lwjgl.opengl.GL30.GL_COLOR, 0, new float[]{1F, 0F, 1F, 1F});
-
-            /* DIAGNOSTIC: read back 1px after the clear to confirm alpha now writes (expect 1,0,1,1). */
-            if (context.getTick() % 30L == 0L)
-            {
-                try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush())
-                {
-                    java.nio.FloatBuffer px = stack.mallocFloat(4);
-                    org.lwjgl.opengl.GL11.glReadPixels(10, 10, 1, 1, org.lwjgl.opengl.GL11.GL_RGBA, org.lwjgl.opengl.GL11.GL_FLOAT, px);
-                    System.out.println("[BBS probe] FBO readback after clear @(10,10)=" + px.get(0) + "," + px.get(1) + "," + px.get(2) + "," + px.get(3)
-                        + " prevMask=" + prevMask[0] + prevMask[1] + prevMask[2] + prevMask[3]);
-                }
-            }
-
-            org.lwjgl.opengl.GL11.glColorMask(prevMask[0] != 0, prevMask[1] != 0, prevMask[2] != 0, prevMask[3] != 0);
-
-            probeFb.unbind();
-
-            Texture probe = probeFb.getMainTexture();
-            int pw = probe.width;
-            int ph = probe.height;
-
-            context.batcher.texturedBox(probe, Colors.WHITE, this.area.x + 8, this.area.y + 8, this.area.w - 16, this.area.h - 16, 0, ph, pw, 0, pw, ph);
-        }
 
         if (!this.stencil.hasPicked())
         {
