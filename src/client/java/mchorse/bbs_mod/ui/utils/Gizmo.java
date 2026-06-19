@@ -1,6 +1,11 @@
 package mchorse.bbs_mod.ui.utils;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.client.BBSRendering;
@@ -11,7 +16,16 @@ import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.MathUtils;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderSetup;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -69,6 +83,24 @@ public class Gizmo
      *  passes match and the hitbox lines up with the drawn cube. */
     private final static float SCREEN_CUBE_HALF = 0.016F;
 
+    /* POSITION_COLOR / TRIANGLES, no depth test — the gizmo handles, rings, sphere, infinite line and
+     * rotate-pie were all originally drawn under RenderSystem.depthFunc(GL_ALWAYS) so they read on top of
+     * the model. The 1.21.5 GPU rewrite removed RenderSystem.setShader / GameRenderer.getPositionColorProgram
+     * / BufferRenderer.drawWithGlobalProgram / VertexBuffer, so geometry is now built into a BufferBuilder
+     * and submitted through this RenderLayer (same approach as mchorse.bbs_mod.graphics.Draw, whose public
+     * fillBox/arc3D/sphere builders this class reuses). Self-contained here to keep the fix isolated. */
+    private static final RenderPipeline GIZMO_PIPELINE = RenderPipelines.register(
+        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/gizmo_position_color_no_depth"))
+            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            .withCull(false)
+            .build()
+    );
+
+    private static RenderLayer gizmoLayer;
+
     public final static Gizmo INSTANCE = new Gizmo();
 
     private Mode mode = Mode.COMBINED;
@@ -88,11 +120,6 @@ public class Gizmo
     private final Matrix4f lastRenderMatrix = new Matrix4f();
     private boolean hasLastRenderMatrix;
 
-    /* TODO(1.21.11 render): VBO caching for rotation rings disabled — net.minecraft.client.gl.VertexBuffer
-     * was removed in the 1.21.5 GPU rewrite (replaced by GpuBuffer/VertexBufferManager). Re-introduce a
-     * cached-geometry path once the custom RenderPipeline foundation lands. */
-    private float lastScale = -1F;
-    private float lastThickness = -1F;
     /** World-space radius the sphere is drawn at, expressed in
      *  the local coordinate frame {@link #lastRenderMatrix} describes
      *  (i.e. already includes axesScale and the per-frame distanceScale).
@@ -108,6 +135,34 @@ public class Gizmo
 
     private Gizmo()
     {}
+
+    private static RenderLayer getGizmoLayer()
+    {
+        if (gizmoLayer == null)
+        {
+            gizmoLayer = RenderLayer.of(BBSMod.MOD_ID + "_gizmo_position_color",
+                RenderSetup.builder(GIZMO_PIPELINE).translucent().build());
+        }
+
+        return gizmoLayer;
+    }
+
+    /** Start a POSITION_COLOR / TRIANGLES buffer for the gizmo geometry. */
+    private static BufferBuilder begin()
+    {
+        return Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+    }
+
+    /** Finish a buffer and submit it through the always-on-top gizmo layer (no-op on an empty buffer). */
+    private static void flush(BufferBuilder builder)
+    {
+        BuiltBuffer built = builder.endNullable();
+
+        if (built != null)
+        {
+            getGizmoLayer().draw(built);
+        }
+    }
 
     /**
      * Reconstruct the world-space origin of the gizmo from the most recent
@@ -494,74 +549,170 @@ public class Gizmo
             return;
         }
 
-        /* TODO(1.21.11 render): immediate-mode infinite line disabled. RenderSystem.setShader /
-         * GameRenderer.getPositionColorProgram / BufferRenderer.drawWithGlobalProgram / depthFunc were
-         * removed in the 1.21.5 GPU rewrite. Re-implement once the POSITION_COLOR pipeline + depth-state
-         * RenderLayer foundation is in place (geometry: Draw.fillBox bars along the active axis/axes). */
+        BufferBuilder builder = begin();
+
+        float size = 10000F;
+        float t = 0.005F;
+
+        if (debugIndex == STENCIL_X || debugIndex == STENCIL_XZ || debugIndex == STENCIL_XY)
+        {
+            Draw.fillBox(builder, stack, -size, -t, -t, size, t, t, Colors.RED);
+        }
+
+        if (debugIndex == STENCIL_Y || debugIndex == STENCIL_XY || debugIndex == STENCIL_ZY)
+        {
+            Draw.fillBox(builder, stack, -t, -size, -t, t, size, t, Colors.GREEN);
+        }
+
+        if (debugIndex == STENCIL_Z || debugIndex == STENCIL_XZ || debugIndex == STENCIL_ZY)
+        {
+            Draw.fillBox(builder, stack, -t, -t, -size, t, t, size, Colors.BLUE);
+        }
+
+        flush(builder);
     }
 
-    private void updateVbos()
-    {
-        /* TODO(1.21.11 render): rotation-ring/sphere VBO caching disabled — VertexBuffer was removed in
-         * the 1.21.5 GPU rewrite. When the cached-geometry path is rebuilt (GpuBuffer + custom
-         * POSITION_COLOR RenderPipeline), re-upload the ring (arc3D), stencil ring, and sphere meshes
-         * here, keyed on axesScale/axesThickness changes. */
-        this.lastScale = BBSSettings.axesScale.get();
-        this.lastThickness = BBSSettings.axesThickness.get();
-    }
-
-    private void drawCachedSphere(MatrixStack stack, float r, float g, float b, float a)
-    {
-        /* TODO(1.21.11 render): cached sphere VBO draw disabled (VertexBuffer.draw / setShaderColor /
-         * getProjectionMatrix removed in the 1.21.5 GPU rewrite). Re-route through the new pipeline. */
-    }
-
-    /* Cached gizmo geometry is uploaded as VBOs, so unlike the immediate-mode
-     * handles (which inherit the global model-view) the cached draws must fold
-     * in {@link RenderSystem#getModelViewMatrix()} themselves. In the form editor
-     * that matrix is identity (the camera lives in the stack), but in the film
-     * editor it carries the world camera, so omitting it left the rings adrift. */
+    /* Full modelview — view * translate(-cam) * gizmoChain — folding in the global model-view that the
+     * world render keeps outside the stack (since 1.21.1 stack.peek() alone no longer carries the camera
+     * rotation; in the form editor the camera lives in the stack and this is a no-op). Used ONLY by
+     * {@link #captureRenderMatrix} for the drag/pick math (computeWorldOrigin/Axes/ScreenCenter). The
+     * actual geometry draws bake stack.peek() per-vertex and let the gizmo RenderLayer apply the active
+     * global model-view itself (same as the move/scale handles always did), so they must NOT fold it in
+     * again here. */
     private static Matrix4f modelView(MatrixStack stack)
     {
         return new Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.peek().getPositionMatrix());
-    }
-
-    private void drawCachedRing(MatrixStack stack, Axis axis, int color)
-    {
-        float alpha = Colors.getA(color);
-
-        if (alpha <= 0F)
-        {
-            alpha = 1F;
-        }
-
-        this.drawCachedRing(stack, axis, Colors.getR(color), Colors.getG(color), Colors.getB(color), alpha);
-    }
-
-    private void drawCachedRing(MatrixStack stack, Axis axis, float r, float g, float b, float a)
-    {
-        /* TODO(1.21.11 render): cached ring VBO draw disabled (VertexBuffer.draw / setShaderColor /
-         * getProjectionMatrix removed in the 1.21.5 GPU rewrite). The axis orientation math is kept for
-         * reference; re-route the draw through the new pipeline. */
-    }
-
-    private void drawCachedRingBillboard(MatrixStack stack, float r, float g, float b, float a)
-    {
-        /* TODO(1.21.11 render): cached billboard ring VBO draw disabled (VertexBuffer.draw /
-         * setShaderColor / getProjectionMatrix removed in the 1.21.5 GPU rewrite). Re-route through the
-         * new pipeline. */
     }
 
     private void drawRotatePie(MatrixStack stack, Axis axis)
     {
         if (this.currentTransform == null || this.currentTransform.getDrag() == null) return;
 
-        /* TODO(1.21.11 render): rotate-pie immediate-mode fill+outline disabled. It used
-         * Tessellator/BufferBuilder + RenderSystem.setShader / enableBlend / defaultBlendFunc /
-         * depthFunc / disableCull / enableCull / disableBlend + BufferRenderer.drawWithGlobalProgram +
-         * GameRenderer.getPositionColorProgram, all removed in the 1.21.5 GPU rewrite. Re-implement the
-         * pie sweep (segments from startDeg over the accumulated rotation, plus start/end outline lines)
-         * once the POSITION_COLOR pipeline lands. */
+        float scale = BBSSettings.axesScale.get();
+        float radius = 0.22F * scale;
+
+        Vector3f initialVec = this.currentTransform.getInitialDragRingVec();
+
+        Vector3f axisX = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(0, new Vector3f());
+        Vector3f axisY = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(1, new Vector3f());
+        Vector3f axisZ = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(2, new Vector3f());
+        Vector3f dragAxisDir = this.currentTransform.getDrag().rotateAxes.getColumn(axis.ordinal(), new Vector3f());
+
+        float gx = initialVec.dot(axisX);
+        float gy = initialVec.dot(axisY);
+        float gz = initialVec.dot(axisZ);
+
+        float px = 0;
+        float pz = 0;
+        float sweepDir = 1;
+
+        if (axis == Axis.Y)
+        {
+            px = gx;
+            pz = gz;
+            sweepDir = Math.signum(dragAxisDir.dot(new Vector3f(axisY).mul(-1)));
+        }
+        else if (axis == Axis.X)
+        {
+            px = gy;
+            pz = gz;
+            sweepDir = Math.signum(dragAxisDir.dot(axisX));
+        }
+        else if (axis == Axis.Z)
+        {
+            px = gx;
+            pz = -gy;
+            sweepDir = Math.signum(dragAxisDir.dot(new Vector3f(axisZ).mul(-1)));
+        }
+
+        if (sweepDir == 0) sweepDir = 1;
+
+        float startDeg = MathUtils.toDeg((float) Math.atan2(pz, px));
+        float sweepDeg = this.currentTransform.getAccumulatedRotateDeg() * sweepDir;
+
+        if (this.currentTransform.isLocal())
+        {
+            startDeg -= sweepDeg;
+        }
+
+        stack.push();
+
+        if (axis == Axis.X) stack.multiply(RotationAxis.POSITIVE_Z.rotation(MathUtils.PI / 2F));
+        if (axis == Axis.Z) stack.multiply(RotationAxis.POSITIVE_X.rotation(MathUtils.PI / 2F));
+
+        int color = axis == Axis.X ? Colors.RED : (axis == Axis.Y ? Colors.GREEN : Colors.BLUE);
+        float r = Colors.getR(color);
+        float g = Colors.getG(color);
+        float b = Colors.getB(color);
+        float a = 0.25F;
+
+        Matrix4f mat = stack.peek().getPositionMatrix();
+
+        /* Blend, no-depth and no-cull all live in the gizmo pipeline now (the original toggled them via
+         * RenderSystem.enableBlend/depthFunc(GL_ALWAYS)/disableCull). */
+        BufferBuilder builder = begin();
+
+        int segments = Math.max(12, (int) (Math.abs(sweepDeg) / 360F * 64F));
+        float step = sweepDeg / segments;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float a1 = MathUtils.toRad(startDeg + step * i);
+            float a2 = MathUtils.toRad(startDeg + step * (i + 1));
+
+            float x1 = (float) Math.cos(a1) * radius;
+            float z1 = (float) Math.sin(a1) * radius;
+            float x2 = (float) Math.cos(a2) * radius;
+            float z2 = (float) Math.sin(a2) * radius;
+
+            builder.vertex(mat, 0, 0, 0).color(r, g, b, a);
+
+            if (sweepDeg > 0)
+            {
+                builder.vertex(mat, x1, 0, z1).color(r, g, b, a);
+                builder.vertex(mat, x2, 0, z2).color(r, g, b, a);
+            }
+            else
+            {
+                builder.vertex(mat, x2, 0, z2).color(r, g, b, a);
+                builder.vertex(mat, x1, 0, z1).color(r, g, b, a);
+            }
+        }
+
+        flush(builder);
+
+        float lineThickness = 0.005F * scale;
+        builder = begin();
+
+        float endDeg = startDeg + sweepDeg;
+
+        float sx = (float) Math.cos(MathUtils.toRad(startDeg)) * radius;
+        float sz = (float) Math.sin(MathUtils.toRad(startDeg)) * radius;
+        float ex = (float) Math.cos(MathUtils.toRad(endDeg)) * radius;
+        float ez = (float) Math.sin(MathUtils.toRad(endDeg)) * radius;
+
+        Vector3f p1 = new Vector3f(-sz, 0, sx).normalize().mul(lineThickness);
+
+        builder.vertex(mat, p1.x, 0, p1.z).color(r, g, b, 1F);
+        builder.vertex(mat, -p1.x, 0, -p1.z).color(r, g, b, 1F);
+        builder.vertex(mat, sx - p1.x, 0, sz - p1.z).color(r, g, b, 1F);
+
+        builder.vertex(mat, p1.x, 0, p1.z).color(r, g, b, 1F);
+        builder.vertex(mat, sx - p1.x, 0, sz - p1.z).color(r, g, b, 1F);
+        builder.vertex(mat, sx + p1.x, 0, sz + p1.z).color(r, g, b, 1F);
+
+        Vector3f p2 = new Vector3f(-ez, 0, ex).normalize().mul(lineThickness);
+        builder.vertex(mat, p2.x, 0, p2.z).color(r, g, b, 1F);
+        builder.vertex(mat, -p2.x, 0, -p2.z).color(r, g, b, 1F);
+        builder.vertex(mat, ex - p2.x, 0, ez - p2.z).color(r, g, b, 1F);
+
+        builder.vertex(mat, p2.x, 0, p2.z).color(r, g, b, 1F);
+        builder.vertex(mat, ex - p2.x, 0, ez - p2.z).color(r, g, b, 1F);
+        builder.vertex(mat, ex + p2.x, 0, ez + p2.z).color(r, g, b, 1F);
+
+        flush(builder);
+
+        stack.pop();
     }
 
     /**
@@ -576,7 +727,14 @@ public class Gizmo
 
     private void drawRotateHandles(MatrixStack stack, boolean editing, int activeOp)
     {
-        this.updateVbos();
+        float scale = BBSSettings.axesScale.get();
+        float thickness = BBSSettings.axesThickness.get();
+
+        /* Faithful to the original cached-VBO geometry (updateVbos): VertexBuffer was removed in the
+         * 1.21.5 GPU rewrite, so the ring/sphere are rebuilt immediately each frame via Draw's public
+         * arc3D/sphere builders with the same parameters instead of being cached. */
+        float radius = 0.22F * scale;
+        float thicknessRing = 0.02F * scale * thickness;
 
         boolean rotating = editing && activeOp == Op.ROTATE.modeOrdinal;
         Axis activeAxis = rotating ? this.currentTransform.getAxis() : null;
@@ -584,33 +742,65 @@ public class Gizmo
         boolean viewActive = rotating && this.currentTransform.isViewRotate();
 
         /* The sphere is translucent and drawn before the bars/cubes, so in
-         * combined it sits as a faint tint behind the move/scale handles. */
+         * combined it sits as a faint tint behind the move/scale handles.
+         * Blend lives in the gizmo pipeline now (original toggled RenderSystem.enableBlend). */
         if (this.hasSphere() && BBSSettings.rotate3dSphere.get() && (!rotating || trackball))
         {
             int color = this.sphereHovered
                 ? BBSSettings.stencilHighlightColor.get()
                 : BBSSettings.rotate3dSphereColor.get();
 
-            /* TODO(1.21.11 render): RenderSystem.enableBlend/defaultBlendFunc/disableBlend removed
-             * (1.21.5); blend state belongs to the RenderPipeline now. */
-            this.drawCachedSphere(stack, Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+            BufferBuilder builder = begin();
+
+            Draw.sphere(builder, stack, radius, 24, 24, Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+            flush(builder);
         }
 
-        /* TODO(1.21.11 render): RenderSystem.depthFunc removed (1.21.5); depth state belongs to the
-         * RenderPipeline now. */
-        if (!BBSSettings.rotateHideRings.get()) {
-            if (!rotating || activeAxis == Axis.Z) this.drawCachedRing(stack, Axis.Z, Colors.BLUE);
-            if (!rotating || activeAxis == Axis.X) this.drawCachedRing(stack, Axis.X, Colors.RED);
-            if (!rotating || activeAxis == Axis.Y) this.drawCachedRing(stack, Axis.Y, Colors.GREEN);
+        /* Always-on-top depth (original RenderSystem.depthFunc(GL_ALWAYS)) is encoded by the gizmo
+         * pipeline's NO_DEPTH_TEST. Draw.arc3D applies the same per-axis orientation the cached ring
+         * used (X → rotateZ 90°, Z → rotateX 90°, Y → none). */
+        if (!BBSSettings.rotateHideRings.get())
+        {
+            BufferBuilder builder = begin();
+
+            if (!rotating || activeAxis == Axis.Z) Draw.arc3D(builder, stack, Axis.Z, radius, thicknessRing, Colors.BLUE);
+            if (!rotating || activeAxis == Axis.X) Draw.arc3D(builder, stack, Axis.X, radius, thicknessRing, Colors.RED);
+            if (!rotating || activeAxis == Axis.Y) Draw.arc3D(builder, stack, Axis.Y, radius, thicknessRing, Colors.GREEN);
+
+            flush(builder);
         }
 
         /* The screen-space (billboard) view-rotation ring is intentionally excluded from the
          * "Hide rotation rings" option, so it is always drawn regardless of that setting. */
         if (!rotating || viewActive)
         {
-            int color = Colors.LIGHTEST_GRAY;
+            stack.push();
 
-            this.drawCachedRingBillboard(stack, Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+            /* Billboard the ring to face the camera, then enlarge it past the per-axis rings.
+             * Orientation is derived from stack.peek() exactly as the original did. */
+            Matrix4f matrix = stack.peek().getPositionMatrix();
+            Vector3f toCamera = matrix.getTranslation(new Vector3f()).negate();
+            Matrix3f basis = matrix.get3x3(new Matrix3f());
+
+            if (Math.abs(basis.determinant()) > 1.0E-8F)
+            {
+                basis.invert().transform(toCamera);
+            }
+
+            if (toCamera.lengthSquared() > 1.0E-8F)
+            {
+                toCamera.normalize();
+                stack.multiply(new Quaternionf().rotationTo(0F, 1F, 0F, toCamera.x, toCamera.y, toCamera.z));
+            }
+
+            stack.scale(VIEW_RING_SCALE, VIEW_RING_SCALE, VIEW_RING_SCALE);
+
+            BufferBuilder builder = begin();
+
+            Draw.arc3D(builder, stack, Axis.Y, radius, thicknessRing, Colors.LIGHTEST_GRAY);
+            flush(builder);
+
+            stack.pop();
         }
 
         if (rotating && activeAxis != null)
@@ -634,17 +824,66 @@ public class Gizmo
         axisSize *= scale * this.combinedInnerScale();
         axisOffset *= scale * thickness;
 
+        BufferBuilder builder = null;
+        boolean building = false;
+
         if (showRotate)
         {
             this.drawRotateHandles(stack, editing, activeOp);
         }
 
-        /* TODO(1.21.11 render): move/scale handle immediate-mode geometry disabled. It built a
-         * POSITION_COLOR BufferBuilder (axis bars, screen cube, plane quads, scale end cubes, centre
-         * cube) and drew it via RenderSystem.setShader + GameRenderer.getPositionColorProgram +
-         * RenderSystem.depthFunc + BufferRenderer.drawWithGlobalProgram — all removed in the 1.21.5 GPU
-         * rewrite. Re-emit these Draw.fillBox shapes through the new POSITION_COLOR pipeline once the
-         * foundation lands. */
+        if (showMove || showScale)
+        {
+            builder = begin();
+            building = true;
+
+            Draw.fillBox(builder, stack, 0, -axisOffset, -axisOffset, axisSize, axisOffset, axisOffset, Colors.RED);
+            Draw.fillBox(builder, stack, -axisOffset, 0, -axisOffset, axisOffset, axisSize, axisOffset, Colors.GREEN);
+            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, Colors.BLUE);
+
+            /* Screen-space (view-plane) translate handle: a white cube at the centre, twice the bars'
+             * thickness. Drawn before the planes so they overlay it, and after the rotation sphere (above)
+             * so it stays visible in combined. */
+            if (showMove)
+            {
+                float screenHalf = SCREEN_CUBE_HALF * scale * thickness;
+
+                Draw.fillBox(builder, stack, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, Colors.WHITE);
+            }
+
+            float planeStart = axisSize * 0.2F;
+            float planeEnd = planeStart + axisSize * 0.4F * thickness;
+            float planeThickness = axisOffset * 0.5F;
+
+            Draw.fillBox(builder, stack, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.PLANE_XZ);
+            Draw.fillBox(builder, stack, planeStart, planeStart, -planeThickness, planeEnd, planeEnd, planeThickness, Colors.PLANE_XY);
+            Draw.fillBox(builder, stack, -planeThickness, planeStart, planeStart, planeThickness, planeEnd, planeEnd, Colors.PLANE_ZY);
+
+            if (showScale)
+            {
+                float cubeHalf = SCALE_CUBE_HALF * scale * thickness;
+
+                Draw.fillBox(builder, stack, axisSize - cubeHalf, -cubeHalf, -cubeHalf, axisSize + cubeHalf, cubeHalf, cubeHalf, Colors.RED);
+                Draw.fillBox(builder, stack, -cubeHalf, axisSize - cubeHalf, -cubeHalf, cubeHalf, axisSize + cubeHalf, cubeHalf, Colors.GREEN);
+                Draw.fillBox(builder, stack, -cubeHalf, -cubeHalf, axisSize - cubeHalf, cubeHalf, cubeHalf, axisSize + cubeHalf, Colors.BLUE);
+            }
+        }
+
+        if ((showMove || showScale) || (showRotate && !editing))
+        {
+            if (!building)
+            {
+                builder = begin();
+                building = true;
+            }
+
+            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
+        }
+
+        if (building)
+        {
+            flush(builder);
+        }
     }
 
     public void renderStencil(MatrixStack stack, StencilMap map)
@@ -700,36 +939,15 @@ public class Gizmo
         axisSize *= scale * this.combinedInnerScale();
         axisOffset *= scale * thickness;
 
-        /* TODO(1.21.11 render): RenderSystem.disableDepthTest/enableDepthTest removed (1.21.5); depth
-         * state belongs to the RenderPipeline now. */
-
-        if (showRotate)
-        {
-            this.updateVbos();
-
-            boolean rotating = editing && activeOp == Op.ROTATE.modeOrdinal;
-            Axis activeAxis = rotating ? this.currentTransform.getAxis() : null;
-            boolean viewActive = rotating && this.currentTransform.isViewRotate();
-
-            if (!BBSSettings.rotateHideRings.get()) {
-                if (!rotating || activeAxis == Axis.Z) this.drawCachedRing(stack, Axis.Z, STENCIL_ROTATE_Z / 255F, 0F, 0F, 1F);
-                if (!rotating || activeAxis == Axis.X) this.drawCachedRing(stack, Axis.X, STENCIL_ROTATE_X / 255F, 0F, 0F, 1F);
-                if (!rotating || activeAxis == Axis.Y) this.drawCachedRing(stack, Axis.Y, STENCIL_ROTATE_Y / 255F, 0F, 0F, 1F);
-            }
-
-            /* View ring stays pickable even when the rings are hidden (see drawAxes visual pass). */
-            if (!rotating || viewActive) this.drawCachedRingBillboard(stack, STENCIL_VIEW / 255F, 0F, 0F, 1F);
-        }
-
-        if (showMove || showScale)
-        {
-            /* TODO(1.21.11 render): move/scale stencil-id geometry disabled. It built a POSITION_COLOR
-             * BufferBuilder encoding each handle's stencil id in the red channel (bars, screen cube,
-             * plane quads, scale end cubes) and drew it via RenderSystem.setShader +
-             * GameRenderer.getPositionColorProgram + BufferRenderer.drawWithGlobalProgram — all removed
-             * in the 1.21.5 GPU rewrite. The stencil-pick path (StencilMap) depends on this, so picking
-             * gizmo handles will not work until this is re-emitted through the new pipeline. */
-        }
+        /* The whole stencil (picking) pass is intentionally left non-drawing. Unlike the visual pass,
+         * it must render handle-id colours into a dedicated off-screen framebuffer (StencilFormFramebuffer),
+         * but in 1.21.5+ the immediate RenderLayer.draw path renders into RenderSystem.outputColorTextureOverride
+         * rather than the raw-GL framebuffer StencilFormFramebuffer.apply() binds — so emitting the geometry
+         * here would leak the id-coloured handles into the visible target. Gizmo-handle picking therefore
+         * stays disabled until that framebuffer bridge is ported (tracked with the picking subsystem); the
+         * geometry mirrors the visual drawAxes pass exactly, encoding each stencil id in the red channel.
+         * Locals (showMove/showScale/showRotate/axisSize/axisOffset) are computed above so re-enabling is a
+         * drop-in. */
     }
 
     public static enum Mode
