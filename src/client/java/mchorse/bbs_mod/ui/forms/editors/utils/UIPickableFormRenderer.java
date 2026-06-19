@@ -8,6 +8,7 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
@@ -269,6 +270,26 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
     public void render(UIContext context)
     {
         super.render(context);
+
+        /* PROBE(1.21.11 render, problem A): clear the panel FBO to solid magenta via explicit
+         * glClearBufferfv (does NOT touch global glClearColor -> no GlStateManager desync) and blit
+         * it through the proven AdoptedTexture path (same as icons). This isolates the two-phase-GUI
+         * compositing mechanism from the still-dead 3D render: if a magenta square fills the preview
+         * panel, problem A is solved and only the real 3D draw (problem B) remains. Remove once real. */
+        Framebuffer probeFb = this.stencil.getFramebuffer();
+
+        if (probeFb != null)
+        {
+            probeFb.bind();
+            org.lwjgl.opengl.GL30.glClearBufferfv(org.lwjgl.opengl.GL30.GL_COLOR, 0, new float[]{1F, 0F, 1F, 1F});
+            probeFb.unbind();
+
+            Texture probe = probeFb.getMainTexture();
+            int pw = probe.width;
+            int ph = probe.height;
+
+            context.batcher.texturedBox(probe, Colors.WHITE, this.area.x, this.area.y, this.area.w, this.area.h, 0, ph, pw, 0, pw, ph);
+        }
 
         if (!this.stencil.hasPicked())
         {
