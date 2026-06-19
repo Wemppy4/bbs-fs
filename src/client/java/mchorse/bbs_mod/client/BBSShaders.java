@@ -59,22 +59,20 @@ public class BBSShaders
     /* ---- multilink ----
      * VertexFormat: POSITION_TEXTURE_COLOR
      * Samplers: Sampler0, Sampler3
-     * Custom uniforms: ColorModulator(vec4), Size(vec2), Filters(vec4)
+     * Builtin std140 UBOs (1.21.5+): DynamicTransforms (ModelViewMat/ColorModulator), Projection (ProjMat).
+     * Custom std140 UBO MultilinkInfo: Filters(vec4), Size(vec2) — the BBS-specific pixelate/erase params
+     * the 1.21.1 shader set imperatively as loose `uniform`s. No fog/lighting (2D UI shader).
      */
-    private static final RenderPipeline MULTILINK = register(
-        "multilink", VertexFormats.POSITION_TEXTURE_COLOR,
-        "Sampler0", "Sampler3"
-    );
+    private static final RenderPipeline MULTILINK = registerMultilink();
 
     /* ---- subtitles ----
      * VertexFormat: POSITION_TEXTURE_COLOR
      * Samplers: Sampler0
-     * Custom uniforms: Blur(vec2), TextureSize(vec2)
+     * Builtin std140 UBOs (1.21.5+): DynamicTransforms (ModelViewMat), Projection (ProjMat).
+     * Custom std140 UBO SubtitlesInfo: Blur(vec2), TextureSize(vec2) — the BBS-specific blur params
+     * the 1.21.1 shader set imperatively as loose `uniform`s. No ColorModulator/fog/lighting (2D UI shader).
      */
-    private static final RenderPipeline SUBTITLES = register(
-        "subtitles", VertexFormats.POSITION_TEXTURE_COLOR,
-        "Sampler0"
-    );
+    private static final RenderPipeline SUBTITLES = registerSubtitles();
 
     /* ---- picker_preview ----
      * VertexFormat: POSITION_TEXTURE_COLOR
@@ -371,6 +369,71 @@ public class BBSShaders
             .withUniform("Fog", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0")
             .withSampler("Sampler2");
+
+        return RenderPipelines.register(builder.build());
+    }
+
+    /**
+     * Build and register the multilink pipeline (texture-picker pixelate/erase preview). Declares the
+     * builtin std140 UBOs the migrated {@code bbs:core/multilink} GLSL imports (DynamicTransforms for
+     * ModelViewMat + ColorModulator, Projection for ProjMat) plus the custom std140 {@code MultilinkInfo}
+     * block carrying the BBS-specific Filters(vec4)/Size(vec2) that the 1.21.1 shader set as loose
+     * uniforms. No Fog/Lighting — it is a 2D UI shader.
+     *
+     * TODO(1.21.11 render): the per-draw MultilinkInfo UBO (Filters/Size) still needs to be uploaded by
+     * the caller when this pipeline is actually dispatched — the multilink editor currently routes
+     * through the deprecated Batcher2D.texturedBox bridge which ignores the pipeline, so the values are
+     * not yet supplied. Wire the UBO when the multilink preview is re-routed onto this layer.
+     */
+    private static RenderPipeline registerMultilink()
+    {
+        Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/multilink");
+
+        RenderPipeline.Builder builder = RenderPipeline.builder()
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/multilink"))
+            .withVertexShader(shader)
+            .withFragmentShader(shader)
+            .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
+            .withBlend(BLEND)
+            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withCull(false)
+            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .withUniform("MultilinkInfo", UniformType.UNIFORM_BUFFER)
+            .withSampler("Sampler0")
+            .withSampler("Sampler3");
+
+        return RenderPipelines.register(builder.build());
+    }
+
+    /**
+     * Build and register the subtitles pipeline (blurred subtitle text). Declares the builtin std140
+     * UBOs the migrated {@code bbs:core/subtitles} GLSL imports (DynamicTransforms for ModelViewMat,
+     * Projection for ProjMat) plus the custom std140 {@code SubtitlesInfo} block carrying the
+     * BBS-specific Blur(vec2)/TextureSize(vec2) that the 1.21.1 shader set as loose uniforms. No
+     * ColorModulator/Fog/Lighting — it is a 2D UI shader that modulates by vertexColor only.
+     *
+     * TODO(1.21.11 render): the per-draw SubtitlesInfo UBO (Blur/TextureSize) still needs to be uploaded
+     * by the caller when this pipeline is actually dispatched — the subtitle renderer currently routes
+     * through the deprecated Batcher2D.texturedBox bridge which ignores the pipeline, so the values are
+     * not yet supplied. Wire the UBO when the subtitle blur is re-routed onto this layer.
+     */
+    private static RenderPipeline registerSubtitles()
+    {
+        Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/subtitles");
+
+        RenderPipeline.Builder builder = RenderPipeline.builder()
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/subtitles"))
+            .withVertexShader(shader)
+            .withFragmentShader(shader)
+            .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
+            .withBlend(BLEND)
+            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withCull(false)
+            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .withUniform("SubtitlesInfo", UniformType.UNIFORM_BUFFER)
+            .withSampler("Sampler0");
 
         return RenderPipelines.register(builder.build());
     }

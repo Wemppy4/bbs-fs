@@ -1,11 +1,14 @@
-#version 150
+#version 330
+
+#moj_import <minecraft:dynamictransforms.glsl>
 
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler3;
 
-uniform vec4 ColorModulator;
-uniform vec2 Size;
-uniform vec4 Filters;
+layout(std140) uniform MultilinkInfo {
+    vec4 Filters;
+    vec2 Size;
+};
 
 in vec4 vertexColor;
 in vec2 texCoord0;
