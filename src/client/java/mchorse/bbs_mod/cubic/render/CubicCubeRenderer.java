@@ -144,10 +144,11 @@ public class CubicCubeRenderer implements ICubicRenderer
 
             if (quad.vertices.size() == 4)
             {
+                /* QUADS draw mode (matches the vanilla entity RenderLayer): emit the 4 face vertices
+                 * directly. The previous 6-vertex triangle fan (0,1,2, 0,2,3) is equivalent to the QUADS
+                 * index pattern (0,1,2, 2,3,0) — same two triangles, same winding. */
                 this.writeVertex(builder, stack, group, quad.vertices.get(0), this.normal);
                 this.writeVertex(builder, stack, group, quad.vertices.get(1), this.normal);
-                this.writeVertex(builder, stack, group, quad.vertices.get(2), this.normal);
-                this.writeVertex(builder, stack, group, quad.vertices.get(0), this.normal);
                 this.writeVertex(builder, stack, group, quad.vertices.get(2), this.normal);
                 this.writeVertex(builder, stack, group, quad.vertices.get(3), this.normal);
             }
@@ -216,6 +217,9 @@ public class CubicCubeRenderer implements ICubicRenderer
             this.normal.set(n3.x, n3.y, n3.z);
             stack.peek().getNormalMatrix().transform(this.normal);
             this.modelVertex.set(v3, u3, model);
+            this.writeVertex(builder, stack, group, this.modelVertex, this.normal);
+
+            /* QUADS draw mode: repeat the 3rd vertex so each mesh triangle is emitted as a degenerate quad. */
             this.writeVertex(builder, stack, group, this.modelVertex, this.normal);
         }
 

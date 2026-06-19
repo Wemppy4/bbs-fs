@@ -17,6 +17,7 @@ import mchorse.bbs_mod.cubic.render.CubicVAORenderer;
 import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.data.DataStorageUtils;
+import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
@@ -35,6 +36,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
@@ -383,18 +385,26 @@ public class ModelInstance implements IModelInstance
             else
             {
                 /* TODO(1.21.11 render): RenderSystem.setShader(...) + BufferRenderer.drawWithGlobalProgram(...)
-                 * were removed in 1.21.5+. The immediate (non-VAO) cube geometry is now built into a
-                 * BufferBuilder and drawn through the BBS model RenderLayer (which wraps the model
-                 * RenderPipeline). Verify at runtime that the layer's pipeline/UBO state matches what the
-                 * old model ShaderProgram supplied. */
-                BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
+                 * were removed in 1.21.5+. The immediate (non-VAO) cube geometry is built into a BufferBuilder
+                 * in QUADS mode (CubicCubeRenderer now emits 4 verts/face) so it can be drawn through a vanilla
+                 * entity RenderLayer (POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL + QUADS). During an in-panel
+                 * preview (ModelPreviewRenderer.ACTIVE) it goes to entityCutoutNoCull(adopted model texture);
+                 * the world path still targets the not-yet-ported BBS model layer (no-op until VARIANT 2). */
+                BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
                 CubicRenderer.processRenderModel(renderProcessor, builder, stack, model);
 
                 BuiltBuffer built = builder.endNullable();
 
                 if (built != null)
                 {
-                    BBSShaders.getModelLayer().draw(built);
+                    if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.TEXTURE != null)
+                    {
+                        RenderLayers.entityCutoutNoCull(ModelPreviewRenderer.TEXTURE).draw(built);
+                    }
+                    else
+                    {
+                        BBSShaders.getModelLayer().draw(built);
+                    }
                 }
             }
         }

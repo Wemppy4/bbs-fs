@@ -6,6 +6,8 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
 import mchorse.bbs_mod.cubic.ModelInstance;
+import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
+import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.Animator;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
@@ -642,6 +644,13 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             }
 
             BBSModClient.getTextures().bindTexture(texture);
+
+            if (ModelPreviewRenderer.ACTIVE)
+            {
+                /* In-panel 3D preview: route cubic geometry through a vanilla entity layer keyed on this
+                 * model's texture (adopted zero-copy into the vanilla TextureManager). */
+                ModelPreviewRenderer.TEXTURE = AdoptedTexture.identifier(BBSModClient.getTextures().getTexture(texture));
+            }
 
             Supplier<ShaderProgram> mainShader = this.getMainShader(model);
             /* TODO(1.21.11 render): picker shader is now BBSShaders.getPickerModelsProgram() -> RenderPipeline.

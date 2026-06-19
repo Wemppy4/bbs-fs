@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.framework.elements.utils;
 
 import mchorse.bbs_mod.graphics.InverseView;
+import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -10,6 +11,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.utils.Factor;
 import mchorse.bbs_mod.utils.MathUtils;
+import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Intersectiond;
 import org.joml.Matrix3d;
@@ -48,6 +50,12 @@ public abstract class UIModelRenderer extends UIElement
 
     private long tick;
     private Matrix4f transform = new Matrix4f();
+
+    /* In-panel 3D preview off-screen target (1.21.11): the model is rendered into its own colour+depth
+     * textures via a vanilla entity RenderLayer, then blitted back into the GUI. */
+    private final ModelPreviewRenderer preview = new ModelPreviewRenderer();
+    protected int viewportW;
+    protected int viewportH;
 
     public UIModelRenderer()
     {
@@ -210,15 +218,41 @@ public abstract class UIModelRenderer extends UIElement
         this.setupPosition();
         this.setupViewport(context);
 
-        /* TODO(1.21.11 render): the 3D model-viewport render is disabled. It depended on the 1.21.5+
-         * GPU rewrite removals: RenderSystem.depthFunc, RenderSystem.setProjectionMatrix(Matrix4f,
-         * VertexSorter) (now GpuBufferSlice/ProjectionType), RenderSystem.setupLevelDiffuseLighting,
-         * DiffuseLighting.disableGuiDepthLighting (UBO-based now), RenderSystem.viewport, and a 3D
-         * MatrixStack from DrawContext.getMatrices() (now a 2D Matrix3x2fStack). The camera setup math
-         * (setupPosition/setupViewport) and InverseView are preserved so subclasses and the immersive
-         * morphing camera keep working; restore the projection push + camera-view multiply + light setup
-         * + renderGrid()/renderUserModel() draw through the new pipeline + a 3D MatrixStack foundation. */
         InverseView.set(new Matrix3f(this.camera.view).invert());
+
+        int vw = this.viewportW;
+        int vh = this.viewportH;
+
+        /* 1.21.11 render: the imperative 3D-into-GUI draw moved to an off-screen target (the 1.21.5 GPU
+         * rewrite removed RenderSystem.setProjectionMatrix(Matrix4f)/raw-FBO binding, and the 1.21.6 two-phase
+         * GUI defers compositing). Model-view = camera.view (rotation) * translate(-position) * transform,
+         * exactly as the old global RenderSystem model-view; per-model transforms are baked into the vertices.
+         * The colour texture is then blitted back into the deferred GUI (V-flipped, FBO origin is bottom-up). */
+        if (vw > 0 && vh > 0)
+        {
+            Matrix4f modelView = new Matrix4f(this.camera.view);
+
+            modelView.translate(-(float) this.camera.position.x, -(float) this.camera.position.y, -(float) this.camera.position.z);
+            modelView.mul(this.transform);
+
+            ModelPreviewRenderer.ACTIVE = true;
+            this.preview.begin(vw, vh, this.camera.projection, modelView);
+
+            try
+            {
+                this.renderUserModel(context);
+            }
+            finally
+            {
+                this.preview.end();
+                ModelPreviewRenderer.ACTIVE = false;
+                ModelPreviewRenderer.TEXTURE = null;
+            }
+
+            context.batcher.texturedBox(this.preview.getColorGlId(), Colors.WHITE,
+                this.area.x, this.area.y, this.area.w, this.area.h,
+                0, vh, vw, 0, vw, vh);
+        }
 
         this.processInputs(context);
     }
@@ -300,6 +334,9 @@ public abstract class UIModelRenderer extends UIElement
         int vy = (int) (mc.getWindow().getHeight() - (this.area.y + this.area.h) * ry);
         int vw = (int) (this.area.w * rx);
         int vh = (int) (this.area.h * ry);
+
+        this.viewportW = vw;
+        this.viewportH = vh;
 
         this.camera.updatePerspectiveProjection(vw, vh);
         this.camera.updateView();
