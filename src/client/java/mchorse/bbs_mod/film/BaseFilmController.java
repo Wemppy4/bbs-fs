@@ -854,6 +854,7 @@ public abstract class BaseFilmController
                             double y = replay.keyframes.y.interpolate(ticks);
                             double z = replay.keyframes.z.interpolate(ticks);
                             boolean sneaking = replay.keyframes.sneaking.interpolate(ticks) > 0;
+                            boolean grounded = replay.keyframes.grounded.interpolate(ticks) > 0;
 
                             Vec3d pos = player.getPos();
 
@@ -861,7 +862,19 @@ public abstract class BaseFilmController
                             player.setPosition(x, y, z);
 
                             player.setSneaking(sneaking);
-                            player.setOnGround(replay.keyframes.grounded.interpolate(ticks) > 0);
+                            player.setOnGround(grounded);
+
+                            /* First person teleports the player from keyframes instead of walking it, so vanilla's
+                             * stride distance (the view-bobbing amplitude) is computed from a zero velocity and stays
+                             * flat. Re-derive it from the actual per-tick displacement (the same source as the limb
+                             * animation) with vanilla's own easing. prevStrideDistance already holds last tick's value
+                             * (snapshotted by the player tick), so only the current one is advanced — keeping the bob
+                             * smooth between frames. */
+                            float dx = (float) (player.getX() - player.prevX);
+                            float dz = (float) (player.getZ() - player.prevZ);
+                            float stride = grounded ? Math.min(0.1F, (float) Math.sqrt(dx * dx + dz * dz)) : 0F;
+
+                            player.strideDistance = player.prevStrideDistance + (stride - player.prevStrideDistance) * 0.4F;
 
                             if (player instanceof ClientPlayerEntityAccessor accessor)
                             {
