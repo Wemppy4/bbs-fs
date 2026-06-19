@@ -22,7 +22,8 @@
         "ClientPlayerEntityAccessor",
         "SimpleOptionMixin",
         "WorldMixin",
-        "RenderTickCounterAccessor"
+        "RenderTickCounterAccessor",
+        "GuiRendererMixin"
     ],
     "injectors": {
         "defaultRequire": 1

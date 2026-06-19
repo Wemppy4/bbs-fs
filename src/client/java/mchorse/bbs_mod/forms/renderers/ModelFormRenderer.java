@@ -248,6 +248,14 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     {
         context.batcher.flush();
 
+        /* List/icon form preview: submit a vanilla special GUI element so the form's model renders off-screen
+         * and the deferred GUI composites it into this cell. The list path runs in the GUI record phase where
+         * a direct immediate 3D draw can't composite (two-phase GUI), so we reuse the mechanism vanilla uses
+         * for entity/item thumbnails. PHASE 1: BbsFormGuiElementRenderer.render only logs (validate routing). */
+        net.minecraft.client.gui.DrawContext bbs$dc = context.batcher.getContext();
+        bbs$dc.state.addSpecialElement(new mchorse.bbs_mod.client.render.special.BbsFormGuiElementRenderState(
+            this.form, x1, y1, x2, y2, 1.0F, null));
+
         this.ensureAnimator(context.getTransition());
 
         ModelInstance model = this.getModel();
