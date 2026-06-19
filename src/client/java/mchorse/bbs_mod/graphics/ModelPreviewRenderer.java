@@ -50,12 +50,6 @@ public class ModelPreviewRenderer
     /** Adopted {@link net.minecraft.util.Identifier} of the current model texture (set by {@code ModelFormRenderer}). */
     public static net.minecraft.util.Identifier TEXTURE = null;
 
-    /** DIAGNOSTIC: incremented by ModelInstance each time the preview entity-layer draw fires this frame. */
-    public static int DRAW_CALLS = 0;
-
-    /** DIAGNOSTIC: breakdown of the immediate-branch gate (isVao/texNull) captured by ModelInstance. */
-    public static String DEBUG = "";
-
     private final RawProjectionMatrix projection = new RawProjectionMatrix("bbs_model_preview");
 
     private GpuTexture color;
@@ -93,10 +87,11 @@ public class ModelPreviewRenderer
     {
         this.resize(w, h);
 
-        /* DIAGNOSTIC: opaque dark-gray clear so the panel content is unambiguous (gray => blit works but
-         * the model did not draw/landed off-screen; gray + 3D model => success). TODO: restore 0x00000000. */
+        /* Clear the FBO to fully transparent (RGBA 0) so only the model's own pixels carry alpha; the
+         * GUI_TEXTURED blit (texel.a * vertex.a) then composites the model over the panel with the empty
+         * area transparent. The model draws opaque via entityCutoutNoCull, so its silhouette stays alpha=1. */
         RenderSystem.getDevice().createCommandEncoder()
-            .clearColorAndDepthTextures(this.color, 0xFF303030, this.depth, 1.0D);
+            .clearColorAndDepthTextures(this.color, 0x00000000, this.depth, 1.0D);
 
         RenderSystem.backupProjectionMatrix();
         RenderSystem.setProjectionMatrix(this.projection.set(projectionMatrix), ProjectionType.PERSPECTIVE);

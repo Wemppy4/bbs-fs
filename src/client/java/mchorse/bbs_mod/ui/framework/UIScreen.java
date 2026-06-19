@@ -83,10 +83,10 @@ public class UIScreen extends Screen implements IFileDropListener
         this.menu.renderInWorld(context);
 
         /* Render in-panel 3D model previews into their off-screen textures HERE — during the world phase,
-         * OUTSIDE the two-phase-GUI recording window (guiState.clear()..guiRenderer.render()). Issuing the
-         * model's immediate entity RenderLayer.draw during Screen.render corrupts the deferred GuiRenderState
-         * (the blit then only showed when a hovered tooltip reshuffled the layer tree). Screen.render then
-         * only RECORDS the cached blit. */
+         * OUTSIDE the two-phase-GUI recording window. The model's immediate entity RenderLayer.draw opens
+         * its own GPU render pass, and during Screen.render the GUI colour-write mask has alpha disabled
+         * (which would zero the FBO alpha); rendering here avoids both. Screen.render then only RECORDS the
+         * cached blit (isolated on its own root layer so it composites correctly). */
         for (UIModelRenderer renderer : this.menu.getRoot().getChildren(UIModelRenderer.class))
         {
             try
@@ -95,8 +95,7 @@ public class UIScreen extends Screen implements IFileDropListener
             }
             catch (Exception e)
             {
-                System.out.println("[BBS preview] renderModelToTexture failed on " + renderer.getClass().getSimpleName() + ":");
-                e.printStackTrace();
+                /* Defensive: a failure in one preview must not abort the world-render loop or other previews. */
             }
         }
     }

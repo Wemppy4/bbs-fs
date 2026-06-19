@@ -171,18 +171,6 @@ public abstract class UIModelRenderer extends UIElement
     {
         this.updateLogic(context);
 
-        /* PROBE(1.21.11 render, diagnostic): GREEN 2px OUTLINE of the panel rect via the proven 2D path
-         * (context.fill). Fires for ANY model/form preview. Reveals the true panel bounds without obscuring
-         * the interior, so the magenta FBO blit (UIPickableFormRenderer, inset) shows inside the frame when
-         * the FBO-texture blit path composites. Remove once preview is real. */
-        {
-            int ax = this.area.x, ay = this.area.y, aw = this.area.w, ah = this.area.h, t = 2, g = 0xff00ff00;
-            context.batcher.box(ax, ay, ax + aw, ay + t, g);
-            context.batcher.box(ax, ay + ah - t, ax + aw, ay + ah, g);
-            context.batcher.box(ax, ay, ax + t, ay + ah, g);
-            context.batcher.box(ax + aw - t, ay, ax + aw, ay + ah, g);
-        }
-
         context.batcher.clip(this.area, context);
         this.renderModel(context);
         context.batcher.unclip(context);
@@ -219,12 +207,12 @@ public abstract class UIModelRenderer extends UIElement
     }
 
     /**
-     * Render the model into the OFF-SCREEN preview texture. MUST be called OUTSIDE the two-phase-GUI
-     * recording window — i.e. during the world phase (driven by UIScreen.renderInWorld), NOT during
-     * Screen.render. The immediate entity RenderLayer.draw it issues opens its own GPU render pass and
-     * shares RenderSystem's dynamic-uniform/index ring buffers; doing that mid-record corrupts the
-     * deferred GuiRenderState, so the recorded blit only composited when a tooltip happened to reshuffle
-     * the layer tree. Done here (pre-GUI) it is harmless, and Screen.render then only RECORDS the blit.
+     * Render the model into the OFF-SCREEN preview texture. Called during the world phase (driven by
+     * UIScreen.renderInWorld), OUTSIDE the two-phase-GUI recording window: the immediate entity
+     * RenderLayer.draw it issues opens its own GPU render pass, and during Screen.render the GUI's
+     * colour-write mask has alpha disabled (which would zero the FBO alpha). Doing it here (pre-GUI)
+     * avoids both; Screen.render then only RECORDS the blit (see {@link #renderModel}, which isolates
+     * the blit on its own root layer so it composites correctly).
      */
     public void renderModelToTexture(UIContext context)
     {
@@ -240,8 +228,6 @@ public abstract class UIModelRenderer extends UIElement
 
         if (vw > 0 && vh > 0)
         {
-            ModelPreviewRenderer.DRAW_CALLS = 0;
-            ModelPreviewRenderer.DEBUG = "(model-render not reached)";
             ModelPreviewRenderer.ACTIVE = true;
             this.preview.begin(vw, vh, this.camera.projection);
 
@@ -254,10 +240,6 @@ public abstract class UIModelRenderer extends UIElement
                 /* The MODEL geometry already drew into the FBO before any failure; only editor overlays
                  * (renderAxes/gizmo) NPE in the world phase because they need GUI-flow state. Swallow so the
                  * model still blits; overlays are handled separately. */
-                if (context.getTick() % 60L == 0L)
-                {
-                    System.out.println("[BBS preview] overlay failed (model still drawn): " + e);
-                }
             }
             finally
             {
@@ -269,15 +251,6 @@ public abstract class UIModelRenderer extends UIElement
             this.previewGlId = this.preview.getColorGlId();
             this.previewVw = vw;
             this.previewVh = vh;
-
-            if (context.getTick() % 30L == 0L)
-            {
-                System.out.println("[BBS preview] toTexture vw=" + vw + " vh=" + vh
-                    + " camPos=(" + (float) this.camera.position.x + "," + (float) this.camera.position.y + "," + (float) this.camera.position.z + ")"
-                    + " drawCalls=" + ModelPreviewRenderer.DRAW_CALLS
-                    + " [" + ModelPreviewRenderer.DEBUG + "]"
-                    + " glId=" + this.previewGlId);
-            }
         }
     }
 

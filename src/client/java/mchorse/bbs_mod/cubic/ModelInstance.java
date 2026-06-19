@@ -382,11 +382,6 @@ public class ModelInstance implements IModelInstance
         {
             boolean isVao = this.isVAORendered();
 
-            if (ModelPreviewRenderer.ACTIVE)
-            {
-                ModelPreviewRenderer.DEBUG = "isModel=true isVao=" + isVao + " texNull=" + (ModelPreviewRenderer.TEXTURE == null) + " vaos=" + this.vaos.size();
-            }
-
             CubicCubeRenderer renderProcessor = isVao
                 ? new CubicVAORenderer(shader, this, light, overlay, stencilMap, keys)
                 : new CubicCubeRenderer(light, overlay, stencilMap, keys);
@@ -414,7 +409,6 @@ public class ModelInstance implements IModelInstance
                 {
                     if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.TEXTURE != null)
                     {
-                        ModelPreviewRenderer.DRAW_CALLS++;
                         RenderLayers.entityCutoutNoCull(ModelPreviewRenderer.TEXTURE).draw(built);
                     }
                     else
