@@ -66,8 +66,45 @@ public class BBSPickerRenderer
     /** Per-frame triple-buffered ring for the BBSPicker UBO. Lazily created (needs the GPU device). */
     private static MappableRingBuffer uboRing;
 
+    /** Off-screen colour/depth the picker draws render into (StencilFormFramebuffer). Null = the main framebuffer. */
+    private static GpuTextureView targetColor;
+    private static GpuTextureView targetDepth;
+
+    /** Sampler0 (albedo) bound for the next picker draw — the form/model texture, for the alpha cutout. */
+    private static GpuTextureView sampler0View;
+    private static GpuSampler sampler0;
+
     private BBSPickerRenderer()
     {}
+
+    /**
+     * Point subsequent picker draws at an off-screen colour/depth pair (the picking framebuffer) instead of
+     * the world framebuffer. {@code StencilFormFramebuffer} sets this around the picking render pass so the
+     * index colours land in a readable target. Pass {@code null}/{@code null} (or {@link #clearRenderTarget})
+     * to restore the default (main framebuffer) behaviour.
+     */
+    public static void setRenderTarget(GpuTextureView color, GpuTextureView depth)
+    {
+        BBSPickerRenderer.targetColor = color;
+        BBSPickerRenderer.targetDepth = depth;
+    }
+
+    public static void clearRenderTarget()
+    {
+        BBSPickerRenderer.targetColor = null;
+        BBSPickerRenderer.targetDepth = null;
+    }
+
+    /**
+     * Record the Sampler0 albedo texture to bind on the next picker draw. The picker shaders sample it for the
+     * alpha cutout ({@code color.a < 0.1 -> discard}); the form/model renderer resolves it from the (adopted)
+     * vanilla texture right before issuing the draw.
+     */
+    public static void setSampler0(GpuTextureView view, GpuSampler sampler)
+    {
+        BBSPickerRenderer.sampler0View = view;
+        BBSPickerRenderer.sampler0 = sampler;
+    }
 
     /**
      * Record the picking index to upload on the next picker draw. Replaces the 1.21.1
@@ -126,18 +163,21 @@ public class BBSPickerRenderer
     }
 
     /**
-     * Draw a {@link BuiltBuffer} with a picker {@link RenderPipeline}, into the current Minecraft
-     * framebuffer, binding the engine builtins (Projection/Fog/Globals/Lighting via
-     * {@link RenderSystem#bindDefaultUniforms}, DynamicTransforms via the dynamic-uniform ring), the
-     * custom {@code BBSPicker} UBO carrying the Target index, and Sampler0. Faithful replication of
-     * {@code RenderLayer.draw(BuiltBuffer)} plus the one extra custom-UBO bind.
+     * Draw a {@link BuiltBuffer} with a picker {@link RenderPipeline}, into the active picking target (the
+     * off-screen colour/depth set via {@link #setRenderTarget}, or the main framebuffer when none is set),
+     * binding the engine builtins (Projection/Fog/Globals/Lighting via {@link RenderSystem#bindDefaultUniforms},
+     * DynamicTransforms via the dynamic-uniform ring), the custom {@code BBSPicker} UBO carrying the Target
+     * index, and Sampler0 (the albedo set via {@link #setSampler0}, for the shader's alpha cutout). Faithful
+     * replication of {@code RenderLayer.draw(BuiltBuffer)} plus the one extra custom-UBO bind.
      *
-     * @param sampler0View the form/particle albedo texture view (Sampler0)
-     * @param sampler0     the sampler for Sampler0
-     * @param modelView    the pose model-view (typically {@link RenderSystem#getModelViewMatrix()} with
-     *                     the form's stack folded in)
+     * <p>The render pass loads (does not clear) the target, so consecutive draws accumulate with depth testing
+     * — the picking framebuffer is cleared once up-front by {@code StencilFormFramebuffer.apply}.</p>
+     *
+     * @param modelView the pose model-view (typically {@link RenderSystem#getModelViewMatrix()} with the
+     *                  form's stack folded in; for the in-panel preview it is identity, the camera being
+     *                  baked into the vertices)
      */
-    public static void draw(RenderPipeline pipeline, BuiltBuffer buffer, GpuTextureView sampler0View, GpuSampler sampler0, Matrix4f modelView)
+    public static void draw(RenderPipeline pipeline, BuiltBuffer buffer, Matrix4f modelView)
     {
         GpuDevice device = RenderSystem.getDevice();
         CommandEncoder encoder = device.createCommandEncoder();
@@ -168,9 +208,21 @@ public class BBSPickerRenderer
             indexType = buffer.getDrawParameters().indexType();
         }
 
-        Framebuffer framebuffer = MinecraftClient.getInstance().getFramebuffer();
-        GpuTextureView color = framebuffer.getColorAttachmentView();
-        GpuTextureView depth = framebuffer.useDepthAttachment ? framebuffer.getDepthAttachmentView() : null;
+        GpuTextureView color;
+        GpuTextureView depth;
+
+        if (targetColor != null)
+        {
+            color = targetColor;
+            depth = targetDepth;
+        }
+        else
+        {
+            Framebuffer framebuffer = MinecraftClient.getInstance().getFramebuffer();
+
+            color = framebuffer.getColorAttachmentView();
+            depth = framebuffer.useDepthAttachment ? framebuffer.getDepthAttachmentView() : null;
+        }
 
         try (RenderPass pass = encoder.createRenderPass(() -> "bbs:picker_draw", color, OptionalInt.empty(), depth, OptionalDouble.empty()))
         {

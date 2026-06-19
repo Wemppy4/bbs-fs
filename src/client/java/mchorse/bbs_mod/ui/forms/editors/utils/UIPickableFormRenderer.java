@@ -174,22 +174,30 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
 
         this.renderAxes(context);
 
-        /* TODO(1.21.11 render): the stencil-picking pass is DISABLED. In 1.21.5+ an immediate
-         * RenderLayer.draw renders into RenderSystem.outputColorTextureOverride — which
-         * ModelPreviewRenderer.begin points at the preview FBO — NOT into the raw-GL framebuffer that
-         * StencilFormFramebuffer.apply() binds. So this second (picking) render of the model leaked into the
-         * preview FBO and visibly darkened/overwrote the model whenever the cursor was over the panel
-         * (the pass is hover-gated by area.isInside). Picking is non-functional regardless until
-         * StencilFormFramebuffer is ported to bind via the GpuTexture/output-override path (so the picking
-         * render targets the stencil FBO and glReadPixels reads that target). Re-enable the block then:
-         *
-         *   if (this.area.isInside(context)) {
-         *       this.stencilMap.setup(); this.stencil.apply();
-         *       FormUtilsClient.render(this.form, formContext.stencilMap(this.stencilMap));
-         *       ... Gizmo.INSTANCE.renderStencil(...); this.stencil.pickGUI(context, this.area);
-         *       this.stencil.unbind(this.stencilMap);
-         *   } */
-        this.stencil.clearPicking();
+        /* Picking pass: render the form a second time with the picker shaders into the off-screen
+         * StencilFormFramebuffer — each bone of a model form gets a unique index colour (Target + per-vertex
+         * sub-index) — then read back the pixel under the cursor to resolve the hovered form/bone. The picker
+         * draw is driven by BBSPickerRenderer through an explicit render pass targeting the stencil colour/depth
+         * (set in stencil.apply), so it lands in the readable stencil texture rather than the preview FBO.
+         * Hover-gated so the second render only runs when the cursor is over the viewport. */
+        if (this.area.isInside(context))
+        {
+            this.stencilMap.setup();
+            this.stencil.apply();
+
+            FormUtilsClient.render(this.form, formContext.stencilMap(this.stencilMap));
+
+            /* TODO(1.21.11 render): gizmo handle stencil (Gizmo.INSTANCE.renderStencil) is still stubbed —
+             * handles own indices 0..STENCIL_MAX and simply won't be hit until ported; form/bone picking
+             * (indices past STENCIL_MAX) is unaffected. */
+
+            this.stencil.pickGUI(context, this.area);
+            this.stencil.unbind(this.stencilMap);
+        }
+        else
+        {
+            this.stencil.clearPicking();
+        }
 
         this.gizmo.update(context);
     }

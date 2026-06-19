@@ -458,7 +458,8 @@ public class MCEntity implements IEntity
     {
         if (this.mcEntity instanceof LivingEntity living)
         {
-            return living.limbAnimator.getAmplitude(tickDelta);
+            /* 1.21.11: getPos(tickDelta) became getAnimationProgress(tickDelta) (the ever-growing walk phase) */
+            return living.limbAnimator.getAnimationProgress(tickDelta);
         }
 
         return 0F;
@@ -469,7 +470,8 @@ public class MCEntity implements IEntity
     {
         if (this.mcEntity instanceof LivingEntity living)
         {
-            return living.limbAnimator.getSpeed();
+            /* 1.21.11: getSpeed(tickDelta) became getAmplitude(tickDelta) (interpolated limb swing amount) */
+            return living.limbAnimator.getAmplitude(tickDelta);
         }
 
         return 0F;

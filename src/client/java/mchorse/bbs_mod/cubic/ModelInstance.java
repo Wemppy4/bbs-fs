@@ -1,7 +1,9 @@
 package mchorse.bbs_mod.cubic;
 
 import mchorse.bbs_mod.bobj.BOBJBone;
+import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.cubic.data.animation.Animations;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
@@ -402,7 +404,16 @@ public class ModelInstance implements IModelInstance
 
                 if (built != null)
                 {
-                    if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.TEXTURE != null)
+                    if (stencilMap != null)
+                    {
+                        /* Picking pass: draw the index colours (Target + per-vertex bone sub-index in UV2.x)
+                         * with the picker_models pipeline into the StencilFormFramebuffer target. The custom
+                         * BBSPicker UBO can't ride the immediate RenderLayer path, so it goes through
+                         * BBSPickerRenderer; the model-view is identity here (the camera is baked into the
+                         * vertices, same as the visible draw above). Target/Sampler0 were set by the renderer. */
+                        BBSPickerRenderer.draw(BBSShaders.getPickerModelsProgram(), built, RenderSystem.getModelViewMatrix());
+                    }
+                    else if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.TEXTURE != null)
                     {
                         RenderLayers.entityCutoutNoCull(ModelPreviewRenderer.TEXTURE).draw(built);
                     }

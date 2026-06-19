@@ -4,10 +4,12 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
+import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.Animator;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
@@ -130,6 +132,26 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         uiMatrix.translate(x, y, 40);
         uiMatrix.scale(scale, -scale, scale);
         uiMatrix.rotateX(MathUtils.PI / 8);
+        uiMatrix.rotateY(angle);
+
+        return uiMatrix;
+    }
+
+    /**
+     * The cell-relative part of {@link #getUIMatrix} for the special-element FBO preview path, shared by every
+     * 3D form type's {@link #renderUIPreview}. The base {@code BbsFormGuiElementRenderer} already pre-translated
+     * the stack to the cell (centre, {@code 0.85*height} down) and applied {@code scale(f, f, -f)}, so only the
+     * cell scale + 22.5° forward tilt + cursor-driven yaw remain. The original {@link #getUIMatrix} used
+     * {@code scale(s, -s, s)}; the base's extra {@code -Z} means we flip Z here to net the same handedness.
+     */
+    public static Matrix4f getUIPreviewMatrix(float angle, int y1, int y2)
+    {
+        float cellScale = (y2 - y1) / 2.5F;
+
+        Matrix4f uiMatrix = new Matrix4f();
+
+        uiMatrix.scale(cellScale, -cellScale, -cellScale);
+        uiMatrix.rotateX(MathUtils.PI / 8F);
         uiMatrix.rotateY(angle);
 
         return uiMatrix;
@@ -681,9 +703,25 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             }
 
             Supplier<ShaderProgram> mainShader = this.getMainShader(model);
-            /* TODO(1.21.11 render): picker shader is now BBSShaders.getPickerModelsProgram() -> RenderPipeline.
-             * ModelInstance.render still wants Supplier<ShaderProgram>; picking path stubbed (null) until ported. */
+            /* getShader records the Target picking index (setupTarget -> BBSPickerRenderer.setTarget) when
+             * picking; ModelInstance.render then issues the picker_models draw itself. The legacy
+             * Supplier<ShaderProgram> is unused by that pipeline path (picker programs are RenderPipelines). */
             Supplier<ShaderProgram> shader = this.getShader(context, mainShader, () -> null);
+
+            if (context.isPicking())
+            {
+                /* picker_models samples Sampler0 for the alpha cutout. Bridge the bound (raw-GL) model texture
+                 * into a vanilla GpuTextureView via AdoptedTexture so BBSPickerRenderer can bind it. */
+                Texture tex = BBSModClient.getTextures().getTexture(texture);
+                net.minecraft.util.Identifier adopted = AdoptedTexture.identifier(tex);
+
+                if (adopted != null)
+                {
+                    net.minecraft.client.texture.AbstractTexture at = MinecraftClient.getInstance().getTextureManager().getTexture(adopted);
+
+                    BBSPickerRenderer.setSampler0(at.getGlTextureView(), at.getSampler());
+                }
+            }
 
             this.renderModel(context.entity, shader, context.stack, model, context.light, context.overlay, contextColor, formColor, additive, false, context.stencilMap, context.getTransition(), context.world);
         }
