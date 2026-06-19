@@ -59,6 +59,12 @@ public abstract class UIModelRenderer extends UIElement
     protected int viewportW;
     protected int viewportH;
 
+    /* Off-screen preview texture rendered during the world phase (renderModelToTexture), blitted during
+     * the GUI phase (renderModel). previewGlId < 0 means "nothing rendered this frame -> skip blit". */
+    private int previewGlId = -1;
+    private int previewVw;
+    private int previewVh;
+
     public UIModelRenderer()
     {
         super();
@@ -213,9 +219,14 @@ public abstract class UIModelRenderer extends UIElement
     }
 
     /**
-     * Draw currently edited model
+     * Render the model into the OFF-SCREEN preview texture. MUST be called OUTSIDE the two-phase-GUI
+     * recording window — i.e. during the world phase (driven by UIScreen.renderInWorld), NOT during
+     * Screen.render. The immediate entity RenderLayer.draw it issues opens its own GPU render pass and
+     * shares RenderSystem's dynamic-uniform/index ring buffers; doing that mid-record corrupts the
+     * deferred GuiRenderState, so the recorded blit only composited when a tooltip happened to reshuffle
+     * the layer tree. Done here (pre-GUI) it is harmless, and Screen.render then only RECORDS the blit.
      */
-    private void renderModel(UIContext context)
+    public void renderModelToTexture(UIContext context)
     {
         this.setupPosition();
         this.setupViewport(context);
@@ -225,11 +236,8 @@ public abstract class UIModelRenderer extends UIElement
         int vw = this.viewportW;
         int vh = this.viewportH;
 
-        /* 1.21.11 render: the imperative 3D-into-GUI draw moved to an off-screen target (the 1.21.5 GPU
-         * rewrite removed RenderSystem.setProjectionMatrix(Matrix4f)/raw-FBO binding, and the 1.21.6 two-phase
-         * GUI defers compositing). Model-view = camera.view (rotation) * translate(-position) * transform,
-         * exactly as the old global RenderSystem model-view; per-model transforms are baked into the vertices.
-         * The colour texture is then blitted back into the deferred GUI (V-flipped, FBO origin is bottom-up). */
+        this.previewGlId = -1;
+
         if (vw > 0 && vh > 0)
         {
             ModelPreviewRenderer.DRAW_CALLS = 0;
@@ -248,22 +256,33 @@ public abstract class UIModelRenderer extends UIElement
                 ModelPreviewRenderer.TEXTURE = null;
             }
 
+            this.previewGlId = this.preview.getColorGlId();
+            this.previewVw = vw;
+            this.previewVh = vh;
+
             if (context.getTick() % 30L == 0L)
             {
-                Matrix4f mv = this.createCameraStack().peek().getPositionMatrix();
-                System.out.println("[BBS preview] vw=" + vw + " vh=" + vh
+                System.out.println("[BBS preview] toTexture vw=" + vw + " vh=" + vh
                     + " camPos=(" + (float) this.camera.position.x + "," + (float) this.camera.position.y + "," + (float) this.camera.position.z + ")"
-                    + " dist=" + this.distance.getValue()
                     + " drawCalls=" + ModelPreviewRenderer.DRAW_CALLS
                     + " [" + ModelPreviewRenderer.DEBUG + "]"
-                    + " glId=" + this.preview.getColorGlId()
-                    + "\n  proj=" + this.camera.projection
-                    + "\n  modelView=" + mv);
+                    + " glId=" + this.previewGlId);
             }
+        }
+    }
 
-            context.batcher.texturedBox(this.preview.getColorGlId(), Colors.WHITE,
+    /**
+     * GUI phase: blit the texture rendered earlier this frame by {@link #renderModelToTexture} (world
+     * phase) and process viewport input. The blit is a normal recorded {@code drawTexture}, so it
+     * composites like any icon (V-flipped: FBO origin is bottom-up).
+     */
+    private void renderModel(UIContext context)
+    {
+        if (this.previewGlId >= 0 && this.previewVw > 0 && this.previewVh > 0)
+        {
+            context.batcher.texturedBox(this.previewGlId, Colors.WHITE,
                 this.area.x, this.area.y, this.area.w, this.area.h,
-                0, vh, vw, 0, vw, vh);
+                0, this.previewVh, this.previewVw, 0, this.previewVw, this.previewVh);
         }
 
         this.processInputs(context);

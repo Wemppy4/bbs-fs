@@ -8,6 +8,7 @@ import mchorse.bbs_mod.importers.Importers;
 import mchorse.bbs_mod.importers.types.IImporter;
 import mchorse.bbs_mod.mixin.client.RenderTickCounterAccessor;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer;
 import mchorse.bbs_mod.ui.utils.IFileDropListener;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.utils.FFMpegUtils;
@@ -80,6 +81,23 @@ public class UIScreen extends Screen implements IFileDropListener
     public void renderInWorld(WorldRenderContext context)
     {
         this.menu.renderInWorld(context);
+
+        /* Render in-panel 3D model previews into their off-screen textures HERE — during the world phase,
+         * OUTSIDE the two-phase-GUI recording window (guiState.clear()..guiRenderer.render()). Issuing the
+         * model's immediate entity RenderLayer.draw during Screen.render corrupts the deferred GuiRenderState
+         * (the blit then only showed when a hovered tooltip reshuffled the layer tree). Screen.render then
+         * only RECORDS the cached blit. */
+        for (UIModelRenderer renderer : this.menu.getRoot().getChildren(UIModelRenderer.class))
+        {
+            try
+            {
+                renderer.renderModelToTexture(this.menu.context);
+            }
+            catch (Exception e)
+            {
+                System.out.println("[BBS preview] renderModelToTexture failed: " + e);
+            }
+        }
     }
 
     @Override
