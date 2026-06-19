@@ -168,6 +168,23 @@ public class Batcher2D
         this.context = context;
     }
 
+    /**
+     * Open a fresh root layer in the deferred {@link net.minecraft.client.gui.render.state.GuiRenderState}.
+     *
+     * <p>The two-phase GUI (1.21.6+) records draws into a layer tree and composites it later. Within a
+     * single root layer the z-order of overlapping elements is decided by bounds-intersection
+     * ({@code GuiRenderState.findAndGoToLayerIntersecting}), NOT recording order, so an element can be
+     * overpainted by sibling chrome that was recorded earlier but climbed onto a higher sub-layer. Root
+     * layers, by contrast, composite in strict insertion (painter's) order. Bracketing a draw with this
+     * call therefore forces it onto its own root layer with a deterministic z relative to everything
+     * recorded before/after it. Vanilla brackets {@code renderBackground}/{@code render} exactly this way
+     * (see {@code Screen.renderWithTooltip}).</p>
+     */
+    public void newRootLayer()
+    {
+        this.context.createNewRootLayer();
+    }
+
     public FontRenderer getFont()
     {
         return this.font;

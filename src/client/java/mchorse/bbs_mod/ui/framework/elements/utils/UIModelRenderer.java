@@ -290,9 +290,16 @@ public abstract class UIModelRenderer extends UIElement
     {
         if (this.previewGlId >= 0 && this.previewVw > 0 && this.previewVh > 0)
         {
+            /* Isolate the FBO blit on its own root layer: prior panel chrome (recorded into earlier root
+             * layers) then composites strictly BEHIND it, and later UI strictly in front, instead of the
+             * blit landing on a bounds-intersection sub-layer that sibling chrome overpaints. This is the
+             * deterministic version of what previously only happened by luck when a hovered tooltip
+             * appended a late root layer (GuiRenderState painter-order; see Batcher2D.newRootLayer). */
+            context.batcher.newRootLayer();
             context.batcher.texturedBox(this.previewGlId, Colors.WHITE,
                 this.area.x, this.area.y, this.area.w, this.area.h,
                 0, this.previewVh, this.previewVw, 0, this.previewVw, this.previewVh);
+            context.batcher.newRootLayer();
         }
 
         this.processInputs(context);
