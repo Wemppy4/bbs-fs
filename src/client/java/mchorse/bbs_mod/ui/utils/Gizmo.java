@@ -567,7 +567,7 @@ public class Gizmo
 
             stack.push();
             stack.scale(distanceScale, distanceScale, distanceScale);
-            this.lastSphereMatrix.set(stack.peek().getPositionMatrix());
+            this.lastSphereMatrix.set(modelView(stack));
             this.hasLastSphereMatrix = true;
             this.drawAxes(stack, 0.25F, 0.008F);
             stack.pop();
@@ -1129,12 +1129,23 @@ public class Gizmo
      * the drawing stack is rewound to {@link #bakedRotationMatrix} (the live
      * {@link #lastRenderMatrix} is left untouched for pick/projection helpers).
      * The origin is unchanged by a rotation, so only the orientation is pinned.
+     *
+     * <p>{@link #bakedRotationMatrix} is the full world model-view (the
+     * camera-consistent frame {@link #modelView} produces in every editor). The
+     * gizmo is drawn in two passes with different camera conventions — the visual
+     * pass keeps the camera in {@link RenderSystem}'s global model-view while the
+     * stencil pass bakes it into the stack — so we strip the pass's current
+     * model-view here and let it be re-applied once when the handles draw. Plugging
+     * the baked model-view in raw would double the camera in the visual pass and
+     * drift the whole gizmo (most visible in world editors).
      */
     private void applyBakedRotation(MatrixStack stack)
     {
         if (this.isBakingRotation())
         {
-            stack.peek().getPositionMatrix().set(this.bakedRotationMatrix);
+            Matrix4f local = new Matrix4f(RenderSystem.getModelViewMatrix()).invert().mul(this.bakedRotationMatrix);
+
+            stack.peek().getPositionMatrix().set(local);
         }
     }
 
