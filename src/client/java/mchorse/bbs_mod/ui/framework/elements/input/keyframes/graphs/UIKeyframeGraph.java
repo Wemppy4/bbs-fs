@@ -22,7 +22,8 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
-import net.minecraft.client.render.BufferBuilder;
+import mchorse.bbs_mod.graphics.GuiQuadMesh;
+import net.minecraft.client.render.VertexConsumer;
 import org.joml.Matrix3x2fc;
 
 import java.util.Collections;
@@ -614,13 +615,13 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         lineBuilder.render(context.batcher, SolidColorLineRenderer.get(Colors.COLOR.set(Colors.setA(sheet.color, 1F))));
 
         /* Render track bars (horizontal lines) */
-        BufferBuilder builder = UIKeyframeDopeSheet.beginShapes();
+        VertexConsumer builder = UIKeyframeDopeSheet.beginShapes();
         this.renderGraphPointShapes(context, builder, matrix, keyframes);
 
-        UIKeyframeDopeSheet.drawShapes(builder);
+        UIKeyframeDopeSheet.drawShapes(context, builder);
     }
 
-    protected void renderGraphPointShapes(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, List keyframes)
+    protected void renderGraphPointShapes(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, List keyframes)
     {
         /* Draw keyframe handles (outer) */
         int forcedIndex = 0;
@@ -726,9 +727,9 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         List keyframes = this.sheet.channel.getKeyframes();
 
         context.batcher.clip(area, context);
-        BufferBuilder builder = UIKeyframeDopeSheet.beginShapes();
+        VertexConsumer builder = UIKeyframeDopeSheet.beginShapes();
         this.renderGraphPointShapes(context, builder, matrix, keyframes);
-        UIKeyframeDopeSheet.drawShapes(builder);
+        UIKeyframeDopeSheet.drawShapes(context, builder);
         context.batcher.unclip(context);
     }
 

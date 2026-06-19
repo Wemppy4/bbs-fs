@@ -1,9 +1,5 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.data.types.MapType;
@@ -28,13 +24,8 @@ import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormats;
+import mchorse.bbs_mod.graphics.GuiQuadMesh;
+import net.minecraft.client.render.VertexConsumer;
 import org.joml.Matrix3x2fc;
 
 import java.util.ArrayList;
@@ -64,49 +55,26 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     private Scroll dopeSheet;
     private double trackHeight;
 
-    /* TODO(1.21.11 render): POSITION_COLOR QUADS pipeline/layer mirrored from Batcher2D (its
-     * pipeline + layer are private). Used to flush the keyframe shape buffers that are built up
-     * across many fillRect/renderShape calls and submitted in one draw. Verify at runtime that
-     * this picks up the current 2D GUI projection. */
-    private static final RenderPipeline KEYFRAMES_QUADS = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(net.minecraft.util.Identifier.of(BBSMod.MOD_ID, "pipeline/keyframes_color_quads"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withCull(false)
-            .build()
-    );
+    /* Keyframe shape geometry (POSITION_COLOR QUADS) is recorded into a {@link GuiQuadMesh} across many
+     * fillRect/renderShape calls and submitted as one deferred GUI element. The immediate RenderLayer.draw it
+     * used to do is overpainted by the two-phase GUI (1.21.6+) — see GuiQuadMesh / Batcher2D.drawQuadMesh. */
 
-    private static RenderLayer keyframesQuadsLayer;
-
-    static RenderLayer getKeyframesQuadsLayer()
+    /** Begin recording a POSITION_COLOR QUADS mesh for keyframe shapes. */
+    static GuiQuadMesh beginShapes()
     {
-        if (keyframesQuadsLayer == null)
-        {
-            keyframesQuadsLayer = RenderLayer.of(BBSMod.MOD_ID + "_keyframes_color_quads", RenderSetup.builder(KEYFRAMES_QUADS).translucent().build());
-        }
-
-        return keyframesQuadsLayer;
+        return new GuiQuadMesh();
     }
 
-    /** Begin a POSITION_COLOR QUADS buffer for keyframe shapes. */
-    static BufferBuilder beginShapes()
+    /** Submit a recorded keyframe-shape mesh into the deferred GUI (no-op on an empty mesh). */
+    static void drawShapes(UIContext context, VertexConsumer builder)
     {
-        return Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-    }
-
-    /** Finish a keyframe-shape buffer and submit it (no-op on an empty buffer). */
-    static void drawShapes(BufferBuilder builder)
-    {
-        BuiltBuffer built = builder.endNullable();
-
-        if (built != null)
+        if (builder instanceof GuiQuadMesh mesh)
         {
-            getKeyframesQuadsLayer().draw(built);
+            context.batcher.drawQuadMesh(mesh);
         }
     }
 
-    public static IKeyframeShapeRenderer renderShape(Keyframe frame, UIContext context, BufferBuilder builder, Matrix3x2fc matrix, int x, int y, int offset, int c)
+    public static IKeyframeShapeRenderer renderShape(Keyframe frame, UIContext context, VertexConsumer builder, Matrix3x2fc matrix, int x, int y, int offset, int c)
     {
         KeyframeShape keyframeShape = frame.getShape();
         IKeyframeShapeRenderer shape = KeyframeShapeRenderers.SHAPES.get(keyframeShape);
@@ -949,7 +917,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         Area area = this.keyframes.graphArea;
         int rulerBottom = TimelineRulerRenderer.getRulerBottom(area);
         Matrix3x2fc matrix = context.batcher.getContext().getMatrices();
-        BufferBuilder builder = null;
+        VertexConsumer builder = null;
 
         context.batcher.clip(area.x, rulerBottom, area.ex(), area.ey(), context);
         this.renderElements(context, builder, matrix, area, this.elements, 0, this.getDopeSheetY());
@@ -957,7 +925,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         context.batcher.unclip(context);
     }
 
-    private void renderOutOfRangeShading(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area)
+    private void renderOutOfRangeShading(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area)
     {
         int timelineBottom = TimelineRulerRenderer.getTimelineBottom(area);
         int contentY = Math.min(area.ey(), timelineBottom + 1);
@@ -984,7 +952,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
     }
 
-    private void renderLabels(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, List<UIKeyframeElement> elements, int offset, int y)
+    private void renderLabels(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, List<UIKeyframeElement> elements, int offset, int y)
     {
         Area area = this.keyframes.area;
         int w = this.keyframes.getLabelWidth();
@@ -1021,7 +989,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         context.batcher.unclip(context);
     }
 
-    private void renderGroupLabel(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area, UIKeyframeGroup group, int offset, int y, int w)
+    private void renderGroupLabel(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area, UIKeyframeGroup group, int offset, int y, int w)
     {
         if (y + this.trackHeight < area.y || y > area.ey())
         {
@@ -1051,7 +1019,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         context.batcher.icon(group.collapsed ? Icons.ARROW_RIGHT : Icons.ARROW_DOWN, lx + w - 16, ty);
     }
 
-    private void renderSheetLabel(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area, UIKeyframeSheet sheet, int offset, int y, int w)
+    private void renderSheetLabel(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area, UIKeyframeSheet sheet, int offset, int y, int w)
     {
         if (y + this.trackHeight < area.y || y > area.ey())
         {
@@ -1088,7 +1056,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
     }
 
-    private int renderElements(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area, List<UIKeyframeElement> elements, int offset, int y)
+    private int renderElements(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area, List<UIKeyframeElement> elements, int offset, int y)
     {
         for (UIKeyframeElement element : elements)
         {
@@ -1132,7 +1100,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         return Math.max(2, (int) this.trackHeight - gap * 2);
     }
 
-    private void renderGroup(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area, UIKeyframeGroup group, int offset, int y)
+    private void renderGroup(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area, UIKeyframeGroup group, int offset, int y)
     {
         if (y + this.trackHeight < area.y || y > area.ey())
         {
@@ -1153,7 +1121,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
     }
 
-    private void renderSheet(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area, UIKeyframeSheet sheet, int offset, int y)
+    private void renderSheet(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area, UIKeyframeSheet sheet, int offset, int y)
     {
         if (!this.isVisible(sheet))
         {
@@ -1272,10 +1240,10 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             shapeResult.renderKeyframeBackground(context, builder, matrix, mx, my, 2, mc);
         }
 
-        drawShapes(builder);
+        drawShapes(context, builder);
     }
 
-    private void renderSheetKeyframeShapes(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area, UIKeyframeSheet sheet, int y)
+    private void renderSheetKeyframeShapes(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area, UIKeyframeSheet sheet, int y)
     {
         if (!this.isVisible(sheet))
         {
@@ -1336,7 +1304,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
     }
 
-    private int renderElementsTopmostKeyframes(UIContext context, BufferBuilder builder, Matrix3x2fc matrix, Area area, List<UIKeyframeElement> elements, int y)
+    private int renderElementsTopmostKeyframes(UIContext context, VertexConsumer builder, Matrix3x2fc matrix, Area area, List<UIKeyframeElement> elements, int y)
     {
         for (UIKeyframeElement element : elements)
         {
@@ -1369,9 +1337,9 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         Matrix3x2fc matrix = context.batcher.getContext().getMatrices();
 
         context.batcher.clip(area.x, rulerBottom, area.ex(), area.ey(), context);
-        BufferBuilder builder = beginShapes();
+        VertexConsumer builder = beginShapes();
         this.renderElementsTopmostKeyframes(context, builder, matrix, area, this.elements, this.getDopeSheetY());
-        drawShapes(builder);
+        drawShapes(context, builder);
         context.batcher.unclip(context);
     }
 
@@ -1409,7 +1377,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         if (!this.elements.isEmpty())
         {
             Matrix3x2fc matrix = context.batcher.getContext().getMatrices();
-            BufferBuilder builder = null;
+            VertexConsumer builder = null;
 
             this.renderLabels(context, builder, matrix, this.elements, 0, this.getDopeSheetY());
         }

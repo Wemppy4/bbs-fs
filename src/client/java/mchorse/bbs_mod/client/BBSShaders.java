@@ -74,54 +74,62 @@ public class BBSShaders
      */
     private static final RenderPipeline SUBTITLES = registerSubtitles();
 
+    /**
+     * The std140 UBO block name shared by every migrated picker shader. The block packs the two
+     * BBS-custom uniforms the old loose {@code uniform int Target} / {@code uniform vec4 HighlightColor}
+     * became (vec4 first for std140 16-byte alignment):
+     * <pre>layout(std140) uniform BBSPicker { vec4 HighlightColor; int Target; };</pre>
+     * It is uploaded per draw by {@link mchorse.bbs_mod.client.render.picker.BBSPickerRenderer}; the
+     * RenderLayer immediate path cannot carry it (it binds only the engine builtins), so picker draws
+     * go through that renderer's manual render pass instead of {@link RenderLayer#draw}.
+     */
+    public static final String PICKER_UNIFORM = "BBSPicker";
+
     /* ---- picker_preview ----
      * VertexFormat: POSITION_TEXTURE_COLOR
      * Samplers: Sampler0
-     * Custom uniforms: ColorModulator(vec4), Target(int), HighlightColor(vec4)
+     * Builtin std140 UBOs: DynamicTransforms (ModelViewMat/ColorModulator), Projection (ProjMat).
+     * Custom std140 UBO: BBSPicker (HighlightColor vec4, Target int).
      */
-    private static final RenderPipeline PICKER_PREVIEW = register(
-        "picker_preview", VertexFormats.POSITION_TEXTURE_COLOR,
-        "Sampler0"
+    private static final RenderPipeline PICKER_PREVIEW = registerPicker(
+        "picker_preview", VertexFormats.POSITION_TEXTURE_COLOR
     );
 
     /* ---- picker_billboard ----
      * VertexFormat: POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
-     * Samplers: Sampler0, Sampler2
-     * Custom uniforms: IViewRotMat(mat3), Target(int)
+     * Samplers: Sampler0
+     * Custom std140 UBO: BBSPicker (Target int).
      */
-    private static final RenderPipeline PICKER_BILLBOARD = register(
-        "picker_billboard", VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL,
-        "Sampler0", "Sampler2"
+    private static final RenderPipeline PICKER_BILLBOARD = registerPicker(
+        "picker_billboard", VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
     );
 
     /* ---- picker_billboard_no_shading ----
      * VertexFormat: POSITION_TEXTURE_LIGHT_COLOR
-     * Samplers: Sampler0, Sampler2
-     * Custom uniforms: IViewRotMat(mat3), Target(int)
+     * Samplers: Sampler0
+     * Custom std140 UBO: BBSPicker (Target int).
      */
-    private static final RenderPipeline PICKER_BILLBOARD_NO_SHADING = register(
-        "picker_billboard_no_shading", VertexFormats.POSITION_TEXTURE_LIGHT_COLOR,
-        "Sampler0", "Sampler2"
+    private static final RenderPipeline PICKER_BILLBOARD_NO_SHADING = registerPicker(
+        "picker_billboard_no_shading", VertexFormats.POSITION_TEXTURE_LIGHT_COLOR
     );
 
     /* ---- picker_particles ----
      * VertexFormat: POSITION_COLOR_TEXTURE_LIGHT
      * Samplers: Sampler0
-     * Custom uniforms: ColorModulator(vec4), Target(int)
+     * Builtin std140 UBO: DynamicTransforms (ColorModulator), Projection.
+     * Custom std140 UBO: BBSPicker (Target int).
      */
-    private static final RenderPipeline PICKER_PARTICLES = register(
-        "picker_particles", VertexFormats.POSITION_COLOR_TEXTURE_LIGHT,
-        "Sampler0"
+    private static final RenderPipeline PICKER_PARTICLES = registerPicker(
+        "picker_particles", VertexFormats.POSITION_COLOR_TEXTURE_LIGHT
     );
 
     /* ---- picker_models ----
      * VertexFormat: POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
-     * Samplers: Sampler0, Sampler2
-     * Custom uniforms: IViewRotMat(mat3), Target(int)
+     * Samplers: Sampler0
+     * Custom std140 UBO: BBSPicker (Target int); per-vertex sub-index added from UV2.x in the shader.
      */
-    private static final RenderPipeline PICKER_MODELS = register(
-        "picker_models", VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL,
-        "Sampler0", "Sampler2"
+    private static final RenderPipeline PICKER_MODELS = registerPicker(
+        "picker_models", VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
     );
 
     /* ---- particles ----
@@ -433,6 +441,33 @@ public class BBSShaders
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withUniform("SubtitlesInfo", UniformType.UNIFORM_BUFFER)
+            .withSampler("Sampler0");
+
+        return RenderPipelines.register(builder.build());
+    }
+
+    /**
+     * Build and register a picker RenderPipeline. The migrated {@code bbs:core/picker_*} GLSL imports
+     * the builtin DynamicTransforms (ModelViewMat/ColorModulator) and Projection (ProjMat) std140 UBOs
+     * and declares one custom std140 block, {@link #PICKER_UNIFORM} (HighlightColor vec4, Target int),
+     * uploaded per draw. Only Sampler0 is used (picking never samples the lightmap). The original
+     * 1.21.1 picker programs declared a Sampler2 they never read; it is dropped here.
+     */
+    private static RenderPipeline registerPicker(String name, VertexFormat format)
+    {
+        Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/" + name);
+
+        RenderPipeline.Builder builder = RenderPipeline.builder()
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/" + name))
+            .withVertexShader(shader)
+            .withFragmentShader(shader)
+            .withVertexFormat(format, VertexFormat.DrawMode.QUADS)
+            .withBlend(BLEND)
+            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withCull(false)
+            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .withUniform(PICKER_UNIFORM, UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0");
 
         return RenderPipelines.register(builder.build());

@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.graphics.GuiQuadMesh;
 import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -16,15 +17,20 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderSetup;
 import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.texture.TextureSetup;
 import net.minecraft.util.Identifier;
 import org.joml.Matrix3x2fc;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -92,6 +98,11 @@ public class Batcher2D
 
     private DrawContext context;
     private FontRenderer font;
+
+    /* Mirror of the live GUI scissor stack (vanilla's DrawContext.scissorStack is private). Kept in lock-step
+     * with enableScissor/disableScissor by clip()/unclip() so custom deferred elements (drawQuadMesh) can be
+     * scissored identically to context.fill. Cleared each frame in setContext (vanilla rebuilds its stack). */
+    private final Deque<ScreenRect> scissorStack = new ArrayDeque<>();
 
     private static RenderPipeline.Builder guiColorBuilder(String name, VertexFormat.DrawMode mode)
     {
@@ -166,6 +177,40 @@ public class Batcher2D
     public void setContext(DrawContext context)
     {
         this.context = context;
+        this.scissorStack.clear();
+    }
+
+    /** The active GUI scissor (top of the mirrored stack), or {@code null} when nothing is clipped. */
+    public ScreenRect getCurrentScissor()
+    {
+        return this.scissorStack.peek();
+    }
+
+    /**
+     * Submit a recorded POSITION_COLOR quad mesh into the deferred GUI as one simple element (mirrors how
+     * {@code context.fill} records a {@code ColoredQuadGuiElementRenderState}). The mesh is clipped by the
+     * current scissor and composites in the correct GUI layer order — unlike an immediate {@code RenderLayer
+     * .draw}, which is overpainted by the two-phase GUI. No-op for an empty / fully-clipped mesh.
+     */
+    public void drawQuadMesh(GuiQuadMesh mesh)
+    {
+        if (mesh == null || mesh.isEmpty())
+        {
+            return;
+        }
+
+        ScreenRect scissor = this.getCurrentScissor();
+        ScreenRect bounds = mesh.computeBounds(scissor);
+
+        if (bounds == null)
+        {
+            return;
+        }
+
+        this.context.state.addSimpleElement(new GuiQuadMesh.State(
+            RenderPipelines.GUI, TextureSetup.empty(),
+            mesh.xs(), mesh.ys(), mesh.colors(), mesh.count(),
+            scissor, bounds));
     }
 
     /**
@@ -213,6 +258,19 @@ public class Batcher2D
     public void clip(int x, int y, int w, int h, int sw, int sh)
     {
         this.context.enableScissor(x, y, x + w, y + h);
+
+        /* Mirror vanilla's ScissorStack: push (x,y,w,h) intersected with the current top. */
+        ScreenRect rect = new ScreenRect(x, y, Math.max(0, w), Math.max(0, h));
+        ScreenRect top = this.scissorStack.peek();
+
+        if (top != null)
+        {
+            ScreenRect intersection = top.intersection(rect);
+
+            rect = intersection != null ? intersection : ScreenRect.empty();
+        }
+
+        this.scissorStack.push(rect);
     }
 
     public void unclip(UIContext context)
@@ -223,6 +281,11 @@ public class Batcher2D
     public void unclip(int sw, int sh)
     {
         this.context.disableScissor();
+
+        if (!this.scissorStack.isEmpty())
+        {
+            this.scissorStack.pop();
+        }
     }
 
     /* Solid rectangles */
@@ -272,7 +335,7 @@ public class Batcher2D
         }
     }
 
-    public void fillRect(BufferBuilder builder, Matrix3x2fc matrix, float x, float y, float w, float h, int color1, int color2, int color3, int color4)
+    public void fillRect(VertexConsumer builder, Matrix3x2fc matrix, float x, float y, float w, float h, int color1, int color2, int color3, int color4)
     {
         /* c1 ---- c2
          * |        |

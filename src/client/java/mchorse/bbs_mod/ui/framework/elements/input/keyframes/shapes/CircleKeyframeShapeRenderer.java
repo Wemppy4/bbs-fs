@@ -5,7 +5,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.VertexConsumer;
 import org.joml.Matrix3x2fc;
 
 public class CircleKeyframeShapeRenderer implements IKeyframeShapeRenderer
@@ -23,7 +23,7 @@ public class CircleKeyframeShapeRenderer implements IKeyframeShapeRenderer
     }
 
     @Override
-    public void renderKeyframe(UIContext uiContext, BufferBuilder builder, Matrix3x2fc matrix, int x, int y, int offset, int c)
+    public void renderKeyframe(UIContext uiContext, VertexConsumer builder, Matrix3x2fc matrix, int x, int y, int offset, int c)
     {
         final int NUM_SEGMENTS = 32;
 
@@ -57,7 +57,7 @@ public class CircleKeyframeShapeRenderer implements IKeyframeShapeRenderer
     }
 
     @Override
-    public void renderKeyframeBackground(UIContext uiContext, BufferBuilder builder, Matrix3x2fc matrix, int x, int y, int offset, int c)
+    public void renderKeyframeBackground(UIContext uiContext, VertexConsumer builder, Matrix3x2fc matrix, int x, int y, int offset, int c)
     {
         float centerSize = offset * 0.2f;
         float half = centerSize * 2;

@@ -1,10 +1,13 @@
-#version 150
+#version 330
+
+#moj_import <minecraft:dynamictransforms.glsl>
 
 uniform sampler2D Sampler0;
 
-uniform vec4 ColorModulator;
-uniform int Target;
-uniform vec4 HighlightColor;
+layout(std140) uniform BBSPicker {
+    vec4 HighlightColor;
+    int Target;
+};
 
 in vec2 texCoord0;
 in vec4 vertexColor;

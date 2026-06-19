@@ -1,8 +1,11 @@
-#version 150
+#version 330
 
 uniform sampler2D Sampler0;
 
-uniform int Target;
+layout(std140) uniform BBSPicker {
+    vec4 HighlightColor;
+    int Target;
+};
 
 in vec4 vertexColor;
 in vec2 texCoord0;
