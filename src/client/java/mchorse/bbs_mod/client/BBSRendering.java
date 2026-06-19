@@ -34,9 +34,11 @@ import net.minecraft.client.gl.WindowFramebuffer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.texture.GlTexture;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.math.MatrixStack;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL43;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -176,7 +178,9 @@ public class BBSRendering
         if (texture == null)
         {
             texture = new Texture();
-            texture.setFormat(TextureFormat.RGB_U8);
+            /* RGBA8 (not RGB8) so glCopyImageSubData from the framebuffer's RGBA8 colour attachment is
+             * format-class compatible; the export read-back uses GL_BGR so the dropped alpha is harmless. */
+            texture.setFormat(TextureFormat.RGBA_U8);
             texture.setFilter(GL11.GL_NEAREST);
         }
 
@@ -264,7 +268,6 @@ public class BBSRendering
         }
 
         MinecraftClient mc = MinecraftClient.getInstance();
-        Window window = mc.getWindow();
 
         BBSRendering.toggleFramebuffer = toggleFramebuffer;
 
@@ -284,16 +287,13 @@ public class BBSRendering
 
             reassignFramebuffer(framebuffer);
 
-            /* TODO(1.21.11 render): Framebuffer.beginWrite(boolean) was removed (render targets are now bound
-             * through the GPU command queue / RenderPass). Rebind our custom framebuffer as the active draw
-             * target via the new pipeline foundation. */
+            /* 1.21.11: Framebuffer.beginWrite(boolean) was removed — render targets are bound implicitly from
+             * mc.getFramebuffer() when WorldRenderer/GameRenderer build their render passes. Reassigning
+             * mc.framebuffer above is therefore sufficient to redirect the world render into our framebuffer. */
         }
         else
         {
             reassignFramebuffer(clientFramebuffer);
-
-            /* TODO(1.21.11 render): Framebuffer.beginWrite(boolean) removed; rebind MC's main framebuffer as the
-             * draw target via the new pipeline foundation. */
 
             if (width != 0)
             {
@@ -304,8 +304,9 @@ public class BBSRendering
                     && dashboard.getPanels().panel instanceof UIFilmPanel;
                 if (!filmPanelShowing)
                 {
-                    /* TODO(1.21.11 render): Framebuffer.draw(w, h) removed; blit our framebuffer to the window
-                     * via Framebuffer.blitToScreen()/drawBlit(GpuTextureView) once the pipeline foundation lands. */
+                    /* 1.21.11: Framebuffer.draw(w, h) → blitToScreen() (presents our framebuffer to the window).
+                     * Only runs for the no-UI live recording overlay; the film-panel preview path skips it. */
+                    framebuffer.blitToScreen();
                 }
             }
         }
@@ -378,12 +379,38 @@ public class BBSRendering
 
     public static void onRenderBeforeScreen()
     {
-        Texture texture = getTexture();
+        /* Snapshot only when we actually redirected the world into our framebuffer this frame (film panel
+         * open / recording). Outside that, mc.framebuffer was never swapped, so our framebuffer holds nothing
+         * worth copying and the snapshot would just waste a per-frame GPU copy. */
+        if (customSize)
+        {
+            Texture texture = getTexture();
+            int w = framebuffer.textureWidth;
+            int h = framebuffer.textureHeight;
 
-        texture.bind();
-        texture.setSize(framebuffer.textureWidth, framebuffer.textureHeight);
-        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, framebuffer.textureWidth, framebuffer.textureHeight);
-        texture.unbind();
+            /* Snapshot the world that just rendered into our reassigned WindowFramebuffer into the BBS texture
+             * that the film preview blits and the VideoRecorder reads back.
+             *
+             * 1.21.11: Framebuffer.beginWrite() was removed, so glCopyTexSubImage2D (which reads from the
+             * currently GL-bound read framebuffer) no longer has our framebuffer bound and would copy garbage.
+             * Instead copy the colour attachment (a GlTexture, RGBA8) straight into the snapshot texture with
+             * glCopyImageSubData — a direct texture-to-texture copy that touches no FBO or texture-unit binding
+             * state (avoiding the GlStateManager corruption that raw unit binds cause in this port). */
+            if (texture.width != w || texture.height != h)
+            {
+                texture.bind();
+                texture.setSize(w, h);
+                texture.unbind();
+            }
+
+            int sourceId = ((GlTexture) framebuffer.getColorAttachment()).getGlId();
+
+            GL43.glCopyImageSubData(
+                sourceId, GL11.GL_TEXTURE_2D, 0, 0, 0, 0,
+                texture.id, GL11.GL_TEXTURE_2D, 0, 0, 0, 0,
+                w, h, 1
+            );
+        }
 
         toggleFramebuffer(false);
 
