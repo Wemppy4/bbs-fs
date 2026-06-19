@@ -315,10 +315,27 @@ public class Batcher2D
 
     public void dropShadow(int left, int top, int right, int bottom, int offset, int opaque, int shadow)
     {
-        /* TODO(1.21.11 render): the feathered drop shadow was a custom POSITION_COLOR gradient mesh;
-         * the two-phase GUI has no native primitive for it. Approximate with a flat opaque fill over
-         * the content bounds (drawn behind the content) for the prototype. */
-        this.box(left, top, right, bottom, opaque);
+        /* The original feathered drop shadow was a custom POSITION_COLOR gradient mesh (opaque centre
+         * covered by the surface drawn on top, soft halo bleeding outward). The two-phase GUI has no
+         * native primitive for that mesh, so reproduce the visible part — the outset halo — as a stack
+         * of concentric 1px rings whose colour fades opaque -> transparent outward.
+         *
+         * Crucially the rings stay strictly OUTSIDE [left, top, right, bottom]: never place translucent
+         * geometry under the opaque panel surface. The two-phase GUI defers translucent draws into a
+         * separate depth-tested pass that runs AFTER opaque geometry, so an interior translucent fill
+         * (the old stub) re-emerged wherever opaque content didn't cover it — leaking primary colour
+         * around the panel borders. Drawing only the exterior halo avoids that entirely. */
+        if (offset <= 0)
+        {
+            return;
+        }
+
+        for (int i = 1; i <= offset; i++)
+        {
+            int color = Colors.lerp(opaque, shadow, (float) i / offset);
+
+            this.outline(left - i, top - i, right + i, bottom + i, color, 1);
+        }
     }
 
     /* Gradients */
