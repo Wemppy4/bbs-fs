@@ -126,6 +126,17 @@ public class BBSShaders
         "Sampler0", "Sampler2"
     );
 
+    /* ---- particles ----
+     * The NORMAL (non-picking) particle pipeline, the faithful equivalent of the 1.21.1
+     * GameRenderer::getParticleProgram the original ParticleFormRenderer used for non-shaders
+     * rendering (the picker_particles pipeline is for picking only — it outputs a Target-index
+     * colour, not the texture). Migrated std140 clone of vanilla's particle shader.
+     * VertexFormat: POSITION_TEXTURE_COLOR_LIGHT (matches ParticleEmitter's non-shaders buffer)
+     * Samplers: Sampler0 (albedo), Sampler2 (lightmap)
+     * Builtin std140 UBOs: DynamicTransforms (ModelViewMat/ColorModulator), Projection, Fog.
+     */
+    private static final RenderPipeline PARTICLES = registerParticles();
+
     /* Lazily-built render layers (one per pipeline). RenderLayer.of caches nothing itself, so we
      * memoize here to keep a single instance the immediate buffer source can key on. */
     private static RenderLayer modelLayer;
@@ -136,6 +147,7 @@ public class BBSShaders
     private static RenderLayer pickerBillboardNoShadingLayer;
     private static RenderLayer pickerParticlesLayer;
     private static RenderLayer pickerModelsLayer;
+    private static RenderLayer particlesLayer;
 
     /**
      * Kept for API compatibility with the old {@code BBSShaders.setup()} callsite
@@ -281,6 +293,27 @@ public class BBSShaders
         return pickerModelsLayer;
     }
 
+    /**
+     * The normal (non-picking) particle layer. Built with only useLightmap() (Sampler2) — the
+     * POSITION_TEXTURE_COLOR_LIGHT format has no overlay (UV1), so unlike {@link #layer} it must NOT
+     * call useOverlay(). Sampler0 (the per-emitter texture) is fed via the global texture binding
+     * ParticleEmitter.render performs before the draw, same as BillboardFormRenderer.
+     */
+    public static RenderLayer getParticlesLayer()
+    {
+        if (particlesLayer == null)
+        {
+            RenderSetup.Builder setup = RenderSetup.builder(PARTICLES)
+                .expectedBufferSize(RenderLayer.field_64008)
+                .translucent()
+                .useLightmap();
+
+            particlesLayer = RenderLayer.of(BBSMod.MOD_ID + "_particles", setup.build());
+        }
+
+        return particlesLayer;
+    }
+
     /* ----------------------------------------------------------------------------------------
      * Builders
      * ---------------------------------------------------------------------------------------- */
@@ -310,6 +343,33 @@ public class BBSShaders
             .withUniform("Lighting", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0")
             .withSampler("Sampler1")
+            .withSampler("Sampler2");
+
+        return RenderPipelines.register(builder.build());
+    }
+
+    /**
+     * Build and register the particles pipeline. Like {@link #registerModel} it declares the builtin
+     * std140 UBOs the migrated {@code bbs:core/particles} GLSL imports (fog / dynamictransforms /
+     * projection), but no Lighting block (particles are not directionally lit) and the
+     * POSITION_TEXTURE_COLOR_LIGHT format the emitter builds. Sampler0 = albedo, Sampler2 = lightmap.
+     */
+    private static RenderPipeline registerParticles()
+    {
+        Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/particles");
+
+        RenderPipeline.Builder builder = RenderPipeline.builder()
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/particles"))
+            .withVertexShader(shader)
+            .withFragmentShader(shader)
+            .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR_LIGHT, VertexFormat.DrawMode.QUADS)
+            .withBlend(BLEND)
+            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withCull(false)
+            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .withUniform("Fog", UniformType.UNIFORM_BUFFER)
+            .withSampler("Sampler0")
             .withSampler("Sampler2");
 
         return RenderPipelines.register(builder.build());

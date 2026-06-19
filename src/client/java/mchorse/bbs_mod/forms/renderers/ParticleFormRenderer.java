@@ -165,14 +165,28 @@ public class ParticleFormRenderer extends FormRenderer<ParticleForm> implements 
 
                 /* 1.21.5: ParticleEmitter.render now takes the target RenderLayer directly instead of a
                  * Supplier<ShaderProgram> (ShaderProgram + GameRenderer.getXxxProgram() were removed).
-                 * The shaders path uses the billboard layer, the no-shaders path the particles layer.
-                 * TODO(1.21.11 render): the old picking branch routed through getShader()/setupTarget()
-                 * to upload the per-object Target uniform. That uniform must now be supplied via the
-                 * pipeline's UBO/DynamicUniforms; for picking we still select the picker layer so the
-                 * correct pipeline is bound, but the Target index upload needs wiring at runtime. */
-                RenderLayer layer = shadersEnabled
-                    ? BBSShaders.getPickerBillboardLayer()
-                    : BBSShaders.getPickerParticlesLayer();
+                 * Faithful to the original getShader(normal, picker) split: normal rendering uses the
+                 * actual particle/entity-translucent layer, the picker layer is ONLY for picking (its
+                 * shader writes a Target-index colour, not the texture). The no-shaders normal path uses
+                 * the new bbs:core/particles layer (the 1.21.1 GameRenderer::getParticleProgram
+                 * equivalent); the shaders path borrows the model layer (entity-translucent equivalent).
+                 * TODO(1.21.11 render): the picker branch still needs the per-object Target UBO upload
+                 * wired (picker_particles pipeline also still needs its std140 migration); picking is a
+                 * no-op until then, but normal in-world particles now render. */
+                RenderLayer layer;
+
+                if (context.isPicking())
+                {
+                    layer = shadersEnabled
+                        ? BBSShaders.getPickerBillboardLayer()
+                        : BBSShaders.getPickerParticlesLayer();
+                }
+                else
+                {
+                    layer = shadersEnabled
+                        ? BBSShaders.getModelLayer()
+                        : BBSShaders.getParticlesLayer();
+                }
 
                 emitter.setupCameraProperties(context.camera);
                 emitter.render(format, layer, context.stack, context.overlay, context.getTransition());
