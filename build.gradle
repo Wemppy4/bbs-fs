@@ -66,8 +66,13 @@ dependencies {
 	modImplementation "maven.modrinth:sodium:mc1.21.11-0.8.7-fabric"
 	modImplementation "maven.modrinth:iris:1.10.7+1.21.11-fabric"
 
+	// Iris needs jcpp + glsl-transformer at RUNTIME for shaderpack compile. In the Loom dev
+	// (runClient) env, Iris's nested JiJ copies are NOT put on the classpath, so we declare
+	// them explicitly — pinned to the EXACT versions Iris 1.10.7 bundles (glsl-transformer
+	// 3.0.0-pre3 + jcpp 1.4.14) to avoid a version clash. (The old 2.0.0-pre13 lacked
+	// ParsingCacheStrategy.TWO_TIER and crashed Iris.)
 	modImplementation "org.anarres:jcpp:1.4.14"
-	modImplementation "io.github.douira:glsl-transformer:2.0.0-pre13"
+	modImplementation "io.github.douira:glsl-transformer:3.0.0-pre3"
 }
 
 processResources {
