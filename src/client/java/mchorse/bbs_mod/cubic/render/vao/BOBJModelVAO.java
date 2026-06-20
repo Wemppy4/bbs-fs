@@ -6,10 +6,12 @@ import mchorse.bbs_mod.bobj.BOBJArmature;
 import mchorse.bbs_mod.bobj.BOBJLoader;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
+import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
@@ -192,6 +194,15 @@ public class BOBJModelVAO
                  * StencilFormFramebuffer target, same as the cubic immediate path. Target/Sampler0 are set by
                  * ModelFormRenderer before the render; model-view is identity (camera baked into the vertices). */
                 BBSPickerRenderer.draw(BBSShaders.getPickerModelsProgram(), built, RenderSystem.getModelViewMatrix());
+            }
+            else if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.TEXTURE != null)
+            {
+                /* In-panel form/replay list preview: bind the adopted model texture and draw through a vanilla
+                 * entity cutout layer, mirroring the cubic immediate path in ModelInstance.render. This restores
+                 * the 1.21.1 per-mesh textureResolver bind (BBSModClient.getTextures().bindTexture before each
+                 * vao.render) which the immediate-VAO port dropped, so the texture shows on the idle/non-selected
+                 * preview path too (not only on hover/selected). */
+                RenderLayers.entityCutoutNoCull(ModelPreviewRenderer.TEXTURE).draw(built);
             }
             else
             {
