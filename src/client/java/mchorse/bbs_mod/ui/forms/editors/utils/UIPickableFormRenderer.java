@@ -31,11 +31,6 @@ import java.util.function.Supplier;
 
 public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewport
 {
-    /* TODO(strip): toggle to draw + log the bone-highlight alignment measurement (see render()). Default ON so
-     * the user can read the rect/scale numbers on first run; set to false (or delete the block) once confirmed. */
-    private static final boolean DEBUG_ALIGN = true;
-    private static int debugFrame;
-
     public UIFormEditor formEditor;
 
     private boolean update;
@@ -316,31 +311,6 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
 
             context.batcher.texturedBox(BBSPickerRenderer.getHighlightGlId(), Colors.WHITE,
                 this.area.x, this.area.y, this.area.w, this.area.h, 0, vh, vw, 0, vw, vh);
-        }
-
-        /* TODO(strip): measurement debug for the bone-highlight alignment. Draws the blit/model rect (yellow
-         * outline = this.area, where BOTH the model and highlight blit) and prints the GUI-scale factors that
-         * drive the two textures, so any residual offset can be read off a screenshot + log. The model FBO is
-         * sized by rx = viewportW/area.w; the old stencil used getGUIScale(). If these differ, that WAS the
-         * offset. Remove this block once alignment is confirmed. */
-        if (DEBUG_ALIGN)
-        {
-            int yellow = 0xFFFFFF00;
-
-            context.batcher.outline(this.area.x, this.area.y, this.area.ex(), this.area.ey(), yellow, 1);
-
-            if ((debugFrame++ % 15) == 0)
-            {
-                float rxScale = this.area.w == 0 ? 0F : this.viewportW / (float) this.area.w;
-                float ryScale = this.area.h == 0 ? 0F : this.viewportH / (float) this.area.h;
-
-                System.out.println("[bone-highlight align] area=" + this.area.x + "," + this.area.y + " " + this.area.w + "x" + this.area.h
-                    + " | viewportFBO=" + this.viewportW + "x" + this.viewportH
-                    + " | fboScale(rx,ry)=" + rxScale + "," + ryScale
-                    + " | getGUIScale()=" + BBSModClient.getGUIScale()
-                    + " | highlightTex=" + BBSPickerRenderer.getHighlightWidth() + "x" + BBSPickerRenderer.getHighlightHeight()
-                    + " | index=" + index);
-            }
         }
 
         if (pair != null && pair.a != null)
