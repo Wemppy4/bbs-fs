@@ -292,7 +292,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         /* Read the live GUI scissor (set by the caller's batcher.clip, e.g. UIReplayList clips the form preview
          * to the row's square) and carry it as the composite quad's scissorArea — without it the model renders
          * full-size and overflows the cell instead of being cropped. Faithful to the original, where renderUI
-         * was bracketed by batcher.clip/unclip and the immediate 3D draw respected the GL scissor. */
+         * was bracketed by batcher.clip/unclip and the immediate 3D draw respected the GL scissor.
+         *
+         * The scissor here is now correct under scroll: Batcher2D.clip neutralises the GUI matrix pose around
+         * DrawContext.enableScissor (which on 1.21.11 transforms the rect by that pose, double-shifting it by the
+         * scroll), so the stored scissor is shifted by the scroll exactly once (to y - S) — in lock-step with the
+         * geometry placed by bbs$pose. */
         net.minecraft.client.gui.ScreenRect bbs$scissor = bbs$dc.scissorStack.peekLast();
 
         bbs$dc.state.addSpecialElement(new mchorse.bbs_mod.client.render.special.BbsFormGuiElementRenderState(

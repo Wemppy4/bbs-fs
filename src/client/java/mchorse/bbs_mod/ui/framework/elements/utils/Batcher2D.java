@@ -242,11 +242,33 @@ public class Batcher2D
     }
 
     /**
-     * Scissor (clip) the screen
+     * Scissor (clip) the screen.
+     *
+     * <p>The incoming rect is already in final screen space: the context overload globalises it via
+     * {@code context.globalX/globalY} (subtracting the scroll shift S once), and the raw-coordinate
+     * callers pass an already-absolute rect. On 1.21.1 {@code DrawContext.enableScissor} pushed this
+     * rect verbatim, so it was the correct scissor.</p>
+     *
+     * <p>On 1.21.11 {@code DrawContext.enableScissor} additionally transforms the rect by the live GUI
+     * matrix pose ({@code ScreenRect.transform(matrices)}) before pushing it. That pose carries the
+     * scroll translate (UIContext.shiftY does {@code getMatrices().translate(0, -S)}), so the rect would
+     * be shifted by the scroll a SECOND time — landing at y - 2S while the geometry (drawn through the
+     * same pose) lands at y - S. As you scroll down the scissor drifts up and crops the bottom of
+     * everything clipped (whole-UI lists and the special-element form previews alike).</p>
+     *
+     * <p>Fix: neutralise the pose around {@code enableScissor} by pushing an identity matrix, so vanilla's
+     * transform is a no-op and the already-globalised rect is pushed verbatim — reproducing the 1.21.1 net
+     * result (scissor shifted by the scroll exactly once) while reusing vanilla's scissor-stack intersection
+     * and the deferred-GUI scissor application. The pose is restored immediately for subsequent geometry.</p>
      */
     public void clip(int x, int y, int w, int h, int sw, int sh)
     {
+        org.joml.Matrix3x2fStack matrices = this.context.getMatrices();
+
+        matrices.pushMatrix();
+        matrices.identity();
         this.context.enableScissor(x, y, x + w, y + h);
+        matrices.popMatrix();
     }
 
     public void unclip(UIContext context)

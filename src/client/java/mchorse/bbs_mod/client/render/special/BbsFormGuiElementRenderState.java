@@ -35,7 +35,15 @@ public record BbsFormGuiElementRenderState(
 {
     public BbsFormGuiElementRenderState(FormRenderer<?> renderer, float angle, float transition, Matrix3x2f pose, int x1, int y1, int x2, int y2, float scale, @Nullable ScreenRect scissorArea)
     {
+        /* The cell rect (x1..y2) is unscrolled content space; the composite quad is placed on-screen by `pose`
+         * (which carries the list's scroll translate), and `scissorArea` was likewise captured already scrolled.
+         * So the on-screen bounds must be computed from the POSE-SHIFTED cell, not the raw cell — otherwise the
+         * raw (unscrolled) cell intersected with the scrolled scissor shrinks as you scroll and goes empty (null)
+         * once the scroll exceeds the cell height, culling the thumbnail entirely (crop-then-vanish on scroll).
+         * Shift the cell by the pose translate so bounds, scissor and the drawn geometry share one screen space. */
         this(renderer, angle, transition, pose, x1, y1, x2, y2, scale, scissorArea,
-            SpecialGuiElementRenderState.createBounds(x1, y1, x2, y2, scissorArea));
+            SpecialGuiElementRenderState.createBounds(
+                x1 + (int) pose.m20(), y1 + (int) pose.m21(),
+                x2 + (int) pose.m20(), y2 + (int) pose.m21(), scissorArea));
     }
 }
