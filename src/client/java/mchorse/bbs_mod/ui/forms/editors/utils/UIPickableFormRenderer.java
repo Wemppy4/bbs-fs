@@ -200,9 +200,27 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
 
             FormUtilsClient.render(this.form, formContext.stencilMap(this.stencilMap));
 
-            /* TODO(1.21.11 render): gizmo handle stencil (Gizmo.INSTANCE.renderStencil) is still stubbed —
-             * handles own indices 0..STENCIL_MAX and simply won't be hit until ported; form/bone picking
-             * (indices past STENCIL_MAX) is unaffected. */
+            /* Gizmo handle picking: re-draw the gizmo into the stencil AFTER the form so the handle ids overwrite
+             * the form/bone ids where they overlap (the handles must win the pick — faithful to the original
+             * depth-test-disabled gizmo stencil). This whole block runs inside ModelPreviewRenderer.begin/end, so
+             * the perspective preview projection and identity global model-view are still active here — the same
+             * frame the visible gizmo (renderAxes, below) draws in, so the pick aligns 1:1 with it. Matrix stack is
+             * built exactly as renderAxes does (stripScale of the editor origin). */
+            if (UIBaseMenu.renderAxes)
+            {
+                Matrix4f gizmoMatrix = this.formEditor.getOrigin(context.getTransition());
+                MatrixStack gizmoStack = new MatrixStack();
+
+                gizmoStack.push();
+
+                if (gizmoMatrix != null)
+                {
+                    MatrixStackUtils.multiply(gizmoStack, MatrixStackUtils.stripScale(gizmoMatrix));
+                }
+
+                Gizmo.INSTANCE.renderStencil(gizmoStack, this.stencilMap);
+                gizmoStack.pop();
+            }
 
             /* Pick-read with the SAME scale the stencil was sized at: map the cursor (in GUI units, relative to
              * the area, V-flipped for the bottom-up texture) to picking-texture pixels via vpw/area.w & vph/area.h
