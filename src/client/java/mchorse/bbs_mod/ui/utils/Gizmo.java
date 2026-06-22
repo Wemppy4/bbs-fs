@@ -1207,6 +1207,18 @@ public class Gizmo
         stack.push();
         MatrixStackUtils.scaleBack(stack);
         this.captureRenderMatrix(stack);
+        this.drawStencilAxes(stack, map);
+        stack.pop();
+    }
+
+    /**
+     * Draw the gizmo handles as stencil IDs into the currently bound picking
+     * framebuffer, from a stack already positioned at the gizmo origin. Shared by
+     * the world-pass {@link #renderStencil} and the UI-pass
+     * {@link #renderStencilInterface}.
+     */
+    private void drawStencilAxes(MatrixStack stack, StencilMap map)
+    {
         this.applyBakedRotation(stack);
 
         float distanceScale = this.getAxesDistanceScale(stack);
@@ -1215,7 +1227,57 @@ public class Gizmo
         stack.scale(distanceScale, distanceScale, distanceScale);
         this.drawAxes(stack, map, 0.25F, 0.025F);
         stack.pop();
-        stack.pop();
+    }
+
+    /**
+     * Draw the gizmo's pick stencil over a {@link GizmoViewport} in the UI pass,
+     * from the model-view captured this frame ({@link #lastRenderMatrix}, set by
+     * {@link #captureVisual}). This is the stencil counterpart of
+     * {@link #renderInterface}: it uses the identical viewport / projection /
+     * matrix setup, so the handle IDs land on exactly the pixels the visual
+     * draws and picking lines up with what the user sees, instead of being
+     * rendered in the world pass on a separate frame of reference.
+     *
+     * <p>The caller binds the picking framebuffer before this call (and reads it
+     * back / unbinds afterwards); it must also flush the UI batcher first, since
+     * this does not (the bound framebuffer is the pick buffer, not the screen).
+     */
+    public void renderStencilInterface(UIContext context, Matrix4f projection, Area area, StencilMap map)
+    {
+        if (BBSRendering.isIrisShadowPass() || !this.hasLastRenderMatrix
+            || context == null || projection == null || area == null || !BBSSettings.gizmos.get())
+        {
+            return;
+        }
+
+        MinecraftClient mc = MinecraftClient.getInstance();
+
+        this.setViewportScale(context.menu.height / (float) area.h);
+
+        MatrixStackUtils.cacheMatrices();
+        RenderSystem.setProjectionMatrix(projection, VertexSorter.BY_Z);
+
+        /* Map the UI area to a framebuffer-pixel viewport, exactly as
+         * renderInterface does, so the stencil matches the drawn visual pixel for
+         * pixel. The pick framebuffer is sized to the window, so the same mapping
+         * applies. */
+        float rx = (float) Math.round(mc.getWindow().getWidth() / (double) context.menu.width);
+        float ry = (float) Math.round(mc.getWindow().getHeight() / (double) context.menu.height);
+        float size = BBSModClient.getOriginalFramebufferScale();
+        int vx = (int) (area.x * rx);
+        int vy = (int) (mc.getWindow().getHeight() - (area.y + area.h) * ry);
+        int vw = (int) (area.w * rx);
+        int vh = (int) (area.h * ry);
+
+        RenderSystem.viewport((int) (vx * size), (int) (vy * size), (int) (vw * size), (int) (vh * size));
+
+        MatrixStack stack = new MatrixStack();
+        MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+
+        this.drawStencilAxes(stack, map);
+
+        RenderSystem.viewport(0, 0, mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight());
+        MatrixStackUtils.restoreMatrices();
     }
 
     private void captureRenderMatrix(MatrixStack stack)
