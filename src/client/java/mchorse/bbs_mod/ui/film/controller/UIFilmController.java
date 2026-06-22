@@ -1503,6 +1503,10 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         this.ensureStencilFramebuffer();
 
+        /* Match the visual gizmo's on-screen size compensation (see
+         * Gizmo#setViewportScale) so the pick handles line up with what is drawn. */
+        Gizmo.INSTANCE.setViewportScale(context.menu.height / (float) viewport.h);
+
         boolean isPlaying = this.isPlaying();
         Texture mainTexture = this.stencil.getFramebuffer().getMainTexture();
 

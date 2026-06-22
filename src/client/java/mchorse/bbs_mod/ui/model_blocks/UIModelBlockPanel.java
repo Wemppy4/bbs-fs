@@ -370,6 +370,17 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         this.gizmoCamera.view.set(stack.peek().getPositionMatrix());
         this.gizmoCamera.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
 
+        /* Match the visual gizmo's on-screen size compensation (see
+         * Gizmo#setViewportScale) so the pick handles line up with what is drawn.
+         * The block gizmo fills the whole screen, so this is ~1, but it is set
+         * explicitly so a switch from a smaller-preview editor cannot leak in. */
+        UIContext uiContext = this.getContext();
+
+        if (uiContext != null)
+        {
+            Gizmo.INSTANCE.setViewportScale(uiContext.menu.height / (float) this.getGizmoArea().h);
+        }
+
         this.renderGizmoStencil(stack, cameraPos, mc);
 
         RenderSystem.enableDepthTest();

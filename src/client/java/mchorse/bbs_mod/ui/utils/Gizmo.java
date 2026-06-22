@@ -144,6 +144,15 @@ public class Gizmo
      *  overlay, the same look bones/handles get from the pick stencil). */
     private boolean sphereHovered;
 
+    /** Per-frame on-screen size compensation, {@code menu.height / viewportArea.h}.
+     *  {@link #getAxesDistanceScale} otherwise keeps the gizmo a constant fraction
+     *  of its viewport, so it shrinks in a small preview (the film) versus a
+     *  full-screen editor (forms); this factor makes it a constant fraction of the
+     *  window instead, i.e. the same on-screen size in every editor. Each viewport
+     *  sets it via {@link #setViewportScale} before BOTH its visual and stencil
+     *  pass so the drawn gizmo and its pick hitbox scale together. */
+    private float viewportScale = 1F;
+
     private Gizmo()
     {}
 
@@ -219,6 +228,17 @@ public class Gizmo
     public void setSphereHovered(boolean hovered)
     {
         this.sphereHovered = hovered;
+    }
+
+    /**
+     * Set this frame's on-screen size compensation ({@code menu.height /
+     * viewportArea.h}). Call before the visual and stencil pass of the gizmo's
+     * viewport, with the same value for both, so the drawn gizmo and its pick
+     * hitbox stay the same constant on-screen size across editors.
+     */
+    public void setViewportScale(float viewportScale)
+    {
+        this.viewportScale = viewportScale > 0F && Float.isFinite(viewportScale) ? viewportScale : 1F;
     }
 
     /** The trackball sphere shows in the dedicated rotate mode and in combined. */
@@ -611,6 +631,8 @@ public class Gizmo
 
         MinecraftClient mc = MinecraftClient.getInstance();
 
+        this.setViewportScale(context.menu.height / (float) area.h);
+
         context.batcher.flush();
 
         MatrixStackUtils.cacheMatrices();
@@ -684,7 +706,7 @@ public class Gizmo
         Matrix4f proj = com.mojang.blaze3d.systems.RenderSystem.getProjectionMatrix();
         float fov = proj.m33() == 0 ? (float) (2.0 * Math.atan(1.0 / proj.m11())) : BBSSettings.getFov();
 
-        return BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov);
+        return BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov) * this.viewportScale;
     }
 
     private void drawInfiniteLine(MatrixStack stack)
