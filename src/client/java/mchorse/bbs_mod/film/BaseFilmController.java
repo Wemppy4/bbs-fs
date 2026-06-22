@@ -200,9 +200,13 @@ public abstract class BaseFilmController
             renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.map, stack);
         }
 
-        if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F)
+        if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F && form.visible.get())
         {
-            /* Place the shadow under the replay's perceived position: shift the actual shadow position
+            /* Skip the shadow when the form is hidden (form.visible, animatable via keyframes): the form
+             * itself renders nothing then - see FormRenderer.render - so its shadow must vanish too.
+             * The animated value is live here, applied to form.visible in startRenderFrame this frame.
+             *
+             * Place the shadow under the replay's perceived position: shift the actual shadow position
              * by how far the model (form transform + anchor-bone root motion) has moved from rest,
              * mapped from form-local into world axes via the render target. Moving the position itself
              * (not just translating the quad) makes the shadow's ground projection and shading match. */
