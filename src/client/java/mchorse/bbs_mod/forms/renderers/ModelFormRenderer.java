@@ -354,13 +354,21 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         final Link resolvedDefault = defaultTexture;
 
-        /* The form's single "Default" texture (form.texture) only applies when the model exposes no
-         * materials (e.g. cubic). Once there's a material list, materials fall back only to the model's
-         * base texture - the Default is hidden in the editor and must not affect them here either. */
-        final Link materialFallback = model.materials.isEmpty() ? resolvedDefault : model.texture;
+        /* A model with at most one material ignores the material system entirely: a single texture
+         * (form.texture, else the model's base texture) covers the whole model, regardless of any
+         * per-material folder/Kd default, editor pick, or animation track. Only with multiple materials
+         * is the Default ambiguous - it's hidden in the editor then and must not affect them here either,
+         * so they fall back to the model base texture. */
+        final boolean ignoreMaterials = model.materials.size() <= 1;
+        final Link materialFallback = ignoreMaterials ? resolvedDefault : model.texture;
 
         model.render(newStack, program, finalColor, light, overlay, stencilMap, this.form.shapeKeys.get(), (material) ->
         {
+            if (ignoreMaterials)
+            {
+                return resolvedDefault;
+            }
+
             /* Resolution order: animated per-material track > editor-picked static per-material
              * texture > the material's loaded default (folder/Kd) > the model base texture. */
             Link override = this.form.materialTextureOverrides.get(material);

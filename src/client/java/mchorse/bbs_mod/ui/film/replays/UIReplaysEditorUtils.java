@@ -493,6 +493,13 @@ public class UIReplaysEditorUtils
             return;
         }
 
+        /* A model with at most one material ignores the material system entirely (its single texture is
+         * driven by form.texture), so it exposes no per-material texture tracks - see the renderer. */
+        if (model.materials.size() <= 1)
+        {
+            return;
+        }
+
         String path = FormUtils.getPath(modelForm);
 
         for (String material : model.materials)
