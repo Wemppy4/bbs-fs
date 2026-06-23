@@ -75,9 +75,6 @@ public class MotionPath
     private static final Vector3d LIVE = new Vector3d();
     private static final Vector3f TEMP = new Vector3f();
 
-    /* TEMPORARY diagnostic logging (throttled), to chase the jerky bone path. Remove afterwards. */
-    private static long lastLogTime;
-
     /* A scratch entity reused across recomputes (re-posed per tick), so a recompute — which
      * happens every frame while a bone is being dragged — does not pay a deep form copy each
      * time; it is only rebuilt when the form itself changes. */
@@ -381,48 +378,11 @@ public class MotionPath
 
         if (boneCache == null || !signature.equals(boneCacheSignature))
         {
-            boolean log = canLog();
-
-            if (log)
-            {
-                System.out.println("[MotionPath] recompute bone=" + bonePath + " (data changed)");
-            }
-
-            boneCache = computeBoneTrajectory(entities, replay, bonePath, log);
+            boneCache = computeBoneTrajectory(entities, replay, bonePath);
             boneCacheSignature = signature;
         }
 
         return boneCache;
-    }
-
-    /* TEMPORARY: throttle the diagnostic dump to at most once per ~2s so dragging does not spam. */
-    private static boolean canLog()
-    {
-        long now = System.currentTimeMillis();
-
-        if (now - lastLogTime >= 2000L)
-        {
-            lastLogTime = now;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private static double sq(double v)
-    {
-        return v * v;
-    }
-
-    private static String fmt(double v)
-    {
-        return String.format(java.util.Locale.ROOT, "%.4f", v);
-    }
-
-    private static String fmt(Vector3d v)
-    {
-        return "(" + fmt(v.x) + ", " + fmt(v.y) + ", " + fmt(v.z) + ")";
     }
 
     /**
@@ -460,7 +420,7 @@ public class MotionPath
         return true;
     }
 
-    private static BoneTrajectory computeBoneTrajectory(IntObjectMap<IEntity> entities, Replay replay, String bonePath, boolean log)
+    private static BoneTrajectory computeBoneTrajectory(IntObjectMap<IEntity> entities, Replay replay, String bonePath)
     {
         float[] range = range(replay);
 
@@ -475,48 +435,16 @@ public class MotionPath
 
         double[] points = new double[count * 3];
 
-        if (log)
-        {
-            System.out.println("[MotionPath] sample bone=" + bonePath + " base=" + base + " count=" + count + " range=[" + fmt(range[0]) + ", " + fmt(range[1]) + "]");
-        }
-
-        double maxDelta = 0D;
-        int maxDeltaTick = -1;
-
         for (int i = 0; i < count; i++)
         {
             if (!sampleBoneWorld(entities, replay, bonePath, base + i, LIVE))
             {
-                if (log)
-                {
-                    System.out.println("[MotionPath]  t=" + (base + i) + " NULL matrix (bone not resolved) — falling back to root path");
-                }
-
                 return null;
             }
 
             points[i * 3] = LIVE.x;
             points[i * 3 + 1] = LIVE.y;
             points[i * 3 + 2] = LIVE.z;
-
-            if (log)
-            {
-                double delta = i == 0 ? 0D : Math.sqrt(
-                    sq(points[i * 3] - points[i * 3 - 3]) + sq(points[i * 3 + 1] - points[i * 3 - 2]) + sq(points[i * 3 + 2] - points[i * 3 - 1]));
-
-                if (delta > maxDelta)
-                {
-                    maxDelta = delta;
-                    maxDeltaTick = base + i;
-                }
-
-                System.out.println("[MotionPath]  t=" + (base + i) + " p=" + fmt(LIVE) + " d=" + fmt(delta));
-            }
-        }
-
-        if (log)
-        {
-            System.out.println("[MotionPath] done bone=" + bonePath + " maxDelta=" + fmt(maxDelta) + " @t=" + maxDeltaTick);
         }
 
         TreeSet<Float> ticks = new TreeSet<>();
