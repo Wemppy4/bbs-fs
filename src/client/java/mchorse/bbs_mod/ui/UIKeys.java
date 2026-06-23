@@ -251,6 +251,14 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_ONION_SKIN_NEXT = L10n.lang("bbs.ui.film.controller.onion_skin.next");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_PREV = L10n.lang("bbs.ui.film.controller.onion_skin.prev");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_TITLE = L10n.lang("bbs.ui.film.controller.onion_skin.title");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_TITLE = L10n.lang("bbs.ui.film.controller.motion_path.title");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_GRADIENT = L10n.lang("bbs.ui.film.controller.motion_path.gradient");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_AROUND = L10n.lang("bbs.ui.film.controller.motion_path.around");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_LINE = L10n.lang("bbs.ui.film.controller.motion_path.line");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_FRAMES = L10n.lang("bbs.ui.film.controller.motion_path.frames");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_KEYFRAMES = L10n.lang("bbs.ui.film.controller.motion_path.keyframes");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_CURRENT = L10n.lang("bbs.ui.film.controller.motion_path.current");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_RANGE = L10n.lang("bbs.ui.film.controller.motion_path.range");
     public static final IKey FILM_CONTROLLER_RECORD_DESCRIPTION = L10n.lang("bbs.ui.film.controller.record-description");
     public static final IKey FILM_CONTROLLER_RECORD_TITLE = L10n.lang("bbs.ui.film.controller.record-title");
     public static final IKey FILM_CONTROLLER_SERVER_WARNING = L10n.lang("bbs.ui.film.controller.server_warning");

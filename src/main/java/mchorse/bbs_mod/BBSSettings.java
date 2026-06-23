@@ -11,6 +11,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.settings.values.ui.ValueEditorLayout;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
+import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
@@ -118,7 +119,7 @@ public class BBSSettings {
 	public static ValueBoolean editorHorizontalFlight;
 	public static ValueBoolean editorOrbitMovementRequiresFlight;
 	public static ValueBoolean editorOrbitCenterMarker;
-	public static ValueBoolean editorMotionPath;
+	public static ValueMotionPath editorMotionPath;
 	public static ValueBoolean editorOrbitTeleportOnSwitch;
 	public static ValueFloat editorCameraSmoothness;
 	public static ValueInt editorCameraMode;
@@ -547,7 +548,6 @@ public class BBSSettings {
 		editorHorizontalFlight = builder.getBoolean("horizontal_flight", false);
 		editorOrbitMovementRequiresFlight = builder.getBoolean("orbit_movement_requires_flight", true);
 		editorOrbitCenterMarker = builder.getBoolean("orbit_center_marker", false);
-		editorMotionPath = builder.getBoolean("motion_path", false);
 		editorOrbitTeleportOnSwitch = builder.getBoolean("orbit_teleport_on_switch", true);
 		editorCameraSmoothness = builder.getFloat("camera_smoothness", 0.1F, 0F, 0.95F);
 		editorCameraMode = builder.getInt("camera_mode", 0, 0, 5);
@@ -555,6 +555,7 @@ public class BBSSettings {
 		editorPlayerFollowsCamera = builder.getBoolean("player_follows_camera", false);
 		builder.register(editorLayoutSettings = new ValueEditorLayout("layout"));
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
+		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
 		editorSnapToMarkers = builder.getBoolean("snap_to_markers", false);
 		editorClipPreview = builder.getBoolean("clip_preview", true);
 		editorRewind = builder.getBoolean("rewind", true);

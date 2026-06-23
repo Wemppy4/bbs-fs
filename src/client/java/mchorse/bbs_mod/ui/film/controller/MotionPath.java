@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
@@ -27,7 +28,8 @@ import java.util.TreeSet;
  * curve sampled from the position channels ({@link Replay#keyframes}) with a dot
  * on every tick, a bigger marker on every keyed tick and a highlight on the
  * current frame — the same idea as Blender's motion paths, a read-only overlay
- * that shows the shape of the movement.
+ * that shows the shape of the movement. Every part is configured through
+ * {@link ValueMotionPath} (edited from the preview's motion path button).
  *
  * <p>It draws in the world / 3D pass like {@link UIFilmController}'s orbit
  * centre marker (camera-relative, depth disabled so the whole path stays
@@ -37,26 +39,15 @@ import java.util.TreeSet;
  * {@code position_color} program. A ribbon is used instead of a GL line
  * (clamped to 1px in the core profile) or a rotated box (the box's orientation
  * maths mis-aimed it).
- *
- * <p>The curve and the per-tick dots fade from the primary colour around the
- * current frame towards a dim shade in the past and a bright shade in the
- * future, so the direction of movement in time reads at a glance.
  */
 public class MotionPath
 {
-    private static final float LINE_HALF_WIDTH = 0.03F;
-    private static final float FRAME_RADIUS = 0.035F;
-    private static final float KEYFRAME_RADIUS = 0.06F;
-    private static final float CURRENT_RADIUS = 0.08F;
-
-    private static final float[] KEYFRAME_COLOR = {1F, 1F, 1F};
-    private static final float[] CURRENT_COLOR = {1F, 0.68F, 0.12F};
-
     private static final float[] COLOR_A = new float[3];
     private static final float[] COLOR_B = new float[3];
     private static final float[] DOT_COLOR = new float[3];
+    private static final float[] SCRATCH = new float[3];
 
-    public static void render(WorldRenderContext context, Replay replay, float currentTick)
+    public static void render(WorldRenderContext context, ValueMotionPath config, Replay replay, float currentTick)
     {
         if (replay == null || replay.relative.get())
         {
@@ -84,6 +75,18 @@ public class MotionPath
             }
         }
 
+        /* Limit the path to a window around the current frame. */
+        if (config.aroundCurrent.get())
+        {
+            first = Math.max(first, currentTick - config.before.get());
+            last = Math.min(last, currentTick + config.after.get());
+
+            if (first > last)
+            {
+                return;
+            }
+        }
+
         Camera camera = context.camera();
         MatrixStack stack = context.matrixStack();
 
@@ -97,7 +100,7 @@ public class MotionPath
         double cz = camera.getPos().z;
 
         Matrix4f matrix = stack.peek().getPositionMatrix();
-        int primary = BBSSettings.primaryColor.get();
+        float halfWidth = config.width.get() * 0.5F;
 
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
@@ -112,8 +115,12 @@ public class MotionPath
          * endpoints kept regardless of a fractional range. */
         Vector3d prev = sample(replay, first, cx, cy, cz, new Vector3d());
 
-        gradient(primary, first, currentTick, first, last, COLOR_A);
-        dot(builder, stack, prev, FRAME_RADIUS, brighten(COLOR_A, DOT_COLOR));
+        gradient(config, first, currentTick, first, last, COLOR_A);
+
+        if (config.frames.get())
+        {
+            dot(builder, stack, prev, config.frameSize.get(), brighten(COLOR_A, DOT_COLOR));
+        }
 
         for (float tick = first; tick < last; )
         {
@@ -121,30 +128,43 @@ public class MotionPath
 
             Vector3d point = sample(replay, tick, cx, cy, cz, new Vector3d());
 
-            gradient(primary, tick, currentTick, first, last, COLOR_B);
-            ribbon(builder, matrix, prev, point, COLOR_A, COLOR_B);
-            dot(builder, stack, point, FRAME_RADIUS, brighten(COLOR_B, DOT_COLOR));
+            gradient(config, tick, currentTick, first, last, COLOR_B);
+            ribbon(builder, matrix, prev, point, COLOR_A, COLOR_B, halfWidth);
+
+            if (config.frames.get())
+            {
+                dot(builder, stack, point, config.frameSize.get(), brighten(COLOR_B, DOT_COLOR));
+            }
 
             prev = point;
             System.arraycopy(COLOR_B, 0, COLOR_A, 0, 3);
         }
 
         /* A bigger marker on every keyed tick across the three channels. */
-        TreeSet<Float> ticks = new TreeSet<>();
-
-        collectTicks(ticks, x);
-        collectTicks(ticks, y);
-        collectTicks(ticks, z);
-
-        for (float tick : ticks)
+        if (config.keyframes.get())
         {
-            dot(builder, stack, sample(replay, tick, cx, cy, cz, prev), KEYFRAME_RADIUS, KEYFRAME_COLOR);
+            unpack(config.keyframeColor.get(), SCRATCH);
+
+            TreeSet<Float> ticks = new TreeSet<>();
+
+            collectTicks(ticks, x);
+            collectTicks(ticks, y);
+            collectTicks(ticks, z);
+
+            for (float tick : ticks)
+            {
+                if (tick >= first && tick <= last)
+                {
+                    dot(builder, stack, sample(replay, tick, cx, cy, cz, prev), config.keyframeSize.get(), SCRATCH);
+                }
+            }
         }
 
         /* The current frame's place on the path, when it falls inside the range. */
-        if (currentTick >= first && currentTick <= last)
+        if (config.current.get() && currentTick >= first && currentTick <= last)
         {
-            dot(builder, stack, sample(replay, currentTick, cx, cy, cz, prev), CURRENT_RADIUS, CURRENT_COLOR);
+            unpack(config.currentColor.get(), SCRATCH);
+            dot(builder, stack, sample(replay, currentTick, cx, cy, cz, prev), config.currentSize.get(), SCRATCH);
         }
 
         BufferRenderer.drawWithGlobalProgram(builder.end());
@@ -154,15 +174,19 @@ public class MotionPath
     }
 
     /**
-     * The colour for a point at {@code tick}: the primary colour at the current
-     * frame, fading to a dim shade fully in the past and a bright shade fully in
-     * the future, so the direction in time is visible.
+     * The colour for a point at {@code tick}: the line colour at the current
+     * frame, fading to {@code pastColor} fully in the past and {@code futureColor}
+     * fully in the future, so the direction in time is visible. With the gradient
+     * off it is just the line colour.
      */
-    private static void gradient(int primary, float tick, float current, float first, float last, float[] out)
+    private static void gradient(ValueMotionPath config, float tick, float current, float first, float last, float[] out)
     {
-        float pr = Colors.getR(primary);
-        float pg = Colors.getG(primary);
-        float pb = Colors.getB(primary);
+        unpack(config.color.get(), out);
+
+        if (!config.gradient.get())
+        {
+            return;
+        }
 
         float factor;
 
@@ -175,27 +199,13 @@ public class MotionPath
             factor = current >= last ? 0F : (tick - current) / (last - current);
         }
 
+        unpack(factor < 0F ? config.pastColor.get() : config.futureColor.get(), SCRATCH);
+
         float weight = Math.abs(factor);
-        float tr, tg, tb;
 
-        if (factor < 0F)
-        {
-            /* Past: dim towards black. */
-            tr = pr * 0.4F;
-            tg = pg * 0.4F;
-            tb = pb * 0.4F;
-        }
-        else
-        {
-            /* Future: brighten towards white. */
-            tr = pr + (1F - pr) * 0.6F;
-            tg = pg + (1F - pg) * 0.6F;
-            tb = pb + (1F - pb) * 0.6F;
-        }
-
-        out[0] = pr + (tr - pr) * weight;
-        out[1] = pg + (tg - pg) * weight;
-        out[2] = pb + (tb - pb) * weight;
+        out[0] += (SCRATCH[0] - out[0]) * weight;
+        out[1] += (SCRATCH[1] - out[1]) * weight;
+        out[2] += (SCRATCH[2] - out[2]) * weight;
     }
 
     /** Lighten a colour towards white, so the per-frame dots read against the ribbon they sit on. */
@@ -222,7 +232,7 @@ public class MotionPath
      * camera. Its width is distance-scaled to stay a constant on-screen size; the
      * two ends carry {@code colorA} / {@code colorB} for the time gradient.
      */
-    private static void ribbon(BufferBuilder builder, Matrix4f matrix, Vector3d a, Vector3d b, float[] colorA, float[] colorB)
+    private static void ribbon(BufferBuilder builder, Matrix4f matrix, Vector3d a, Vector3d b, float[] colorA, float[] colorB, float halfWidth)
     {
         double dx = b.x - a.x;
         double dy = b.y - a.y;
@@ -243,7 +253,7 @@ public class MotionPath
             return;
         }
 
-        double half = LINE_HALF_WIDTH * BBSSettings.getAxesDistanceScale((float) Math.sqrt(mx * mx + my * my + mz * mz)) / length;
+        double half = halfWidth * BBSSettings.getAxesDistanceScale((float) Math.sqrt(mx * mx + my * my + mz * mz)) / length;
 
         sx *= half;
         sy *= half;
@@ -261,6 +271,13 @@ public class MotionPath
         builder.vertex(matrix, ax1, ay1, az1).color(colorA[0], colorA[1], colorA[2], 1F).next();
         builder.vertex(matrix, bx2, by2, bz2).color(colorB[0], colorB[1], colorB[2], 1F).next();
         builder.vertex(matrix, bx1, by1, bz1).color(colorB[0], colorB[1], colorB[2], 1F).next();
+    }
+
+    private static void unpack(int color, float[] out)
+    {
+        out[0] = Colors.getR(color);
+        out[1] = Colors.getG(color);
+        out[2] = Colors.getB(color);
     }
 
     private static void collectTicks(TreeSet<Float> ticks, KeyframeChannel<Double> channel)
