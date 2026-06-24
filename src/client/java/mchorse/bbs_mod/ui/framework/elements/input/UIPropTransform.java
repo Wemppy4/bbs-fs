@@ -1323,6 +1323,41 @@ public class UIPropTransform extends UITransform
     }
 
     /**
+     * Decompose {@code matrix} into ZYX Euler degrees, returning whichever of the
+     * two equivalent Euler solutions sits nearest the reference angles. At the
+     * Y=&plusmn;90 gimbal pole {@link Matrix3f#getEulerAnglesZYX} pours the whole
+     * turn into X and Z (both near &plusmn;180); the dual solution
+     * {@code (x+180, 180-y, z+180)} keeps them near the reference instead. Both
+     * rebuild the identical rotation, so this never changes the orientation &mdash;
+     * it only keeps the Euler channels continuous frame to frame, which stops
+     * keyframes from landing on alternating branches and tearing on playback.
+     */
+    private Vector3f continuousEulerZYXDeg(Matrix3f matrix, Vector3f reference)
+    {
+        float refX = MathUtils.toDeg(reference.x);
+        float refY = MathUtils.toDeg(reference.y);
+        float refZ = MathUtils.toDeg(reference.z);
+
+        Vector3f euler = matrix.getEulerAnglesZYX(new Vector3f());
+        float ax = MathUtils.toDeg(euler.x);
+        float ay = MathUtils.toDeg(euler.y);
+        float az = MathUtils.toDeg(euler.z);
+
+        float px = unwrapDeg(ax, refX);
+        float py = unwrapDeg(ay, refY);
+        float pz = unwrapDeg(az, refZ);
+
+        float dx = unwrapDeg(ax + 180F, refX);
+        float dy = unwrapDeg(180F - ay, refY);
+        float dz = unwrapDeg(az + 180F, refZ);
+
+        float primary = Math.abs(px - refX) + Math.abs(py - refY) + Math.abs(pz - refZ);
+        float dual = Math.abs(dx - refX) + Math.abs(dy - refY) + Math.abs(dz - refZ);
+
+        return dual < primary ? new Vector3f(dx, dy, dz) : new Vector3f(px, py, pz);
+    }
+
+    /**
      * World-space ring direction (perpendicular to the rotation axis) at the
      * point where the drag started. Only feeds the rotation pie preview, so a
      * perpendicular fallback is acceptable when the cursor ray runs parallel to
@@ -1674,19 +1709,16 @@ public class UIPropTransform extends UITransform
         float pitch = MathUtils.toRad(this.trackballAccumY * sensitivity);
         float roll = MathUtils.toRad(this.trackballRollDeg);
 
-        Vector3f euler = new Matrix3f()
+        Matrix3f rotation = new Matrix3f()
             .rotation(roll, this.trackballViewLocal)
             .rotate(yaw, this.trackballUpLocal.x, this.trackballUpLocal.y, this.trackballUpLocal.z)
             .rotate(pitch, this.trackballRightLocal.x, this.trackballRightLocal.y, this.trackballRightLocal.z)
-            .mul(startRotation)
-            .getEulerAnglesZYX(new Vector3f());
+            .mul(startRotation);
 
         Vector3f live = this.transform.rotate;
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
+        Vector3f euler = this.continuousEulerZYXDeg(rotation, live);
 
-        this.setR(null, rx, ry, rz);
+        this.setR(null, euler.x, euler.y, euler.z);
     }
 
     /**
@@ -1856,18 +1888,15 @@ public class UIPropTransform extends UITransform
             .rotationTo(this.arcballStartLocal, this.arcballCurrentLocal)
             .mul(this.arcballAccum);
 
-        Vector3f euler = new Matrix3f()
+        Matrix3f rotation = new Matrix3f()
             .rotation(MathUtils.toRad(this.trackballRollDeg), this.trackballViewLocal)
             .rotate(arc)
-            .mul(startRotation)
-            .getEulerAnglesZYX(new Vector3f());
+            .mul(startRotation);
 
         Vector3f live = this.transform.rotate;
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
+        Vector3f euler = this.continuousEulerZYXDeg(rotation, live);
 
-        this.setR(null, rx, ry, rz);
+        this.setR(null, euler.x, euler.y, euler.z);
     }
 
     /**
@@ -1995,20 +2024,12 @@ public class UIPropTransform extends UITransform
         Vector3f source = this.transform.rotate;
 
         Matrix3f rotation = new Matrix3f()
-            .rotationZ(source.z)
-            .rotateY(source.y)
-            .rotateX(source.x);
-
-        Vector3f euler = new Matrix3f()
             .rotation(angle, this.rotateParentAxis)
-            .mul(rotation)
-            .getEulerAnglesZYX(new Vector3f());
+            .mul(new Matrix3f().rotationZ(source.z).rotateY(source.y).rotateX(source.x));
 
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(source.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(source.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(source.z));
+        Vector3f euler = this.continuousEulerZYXDeg(rotation, source);
 
-        this.setR(null, rx, ry, rz);
+        this.setR(null, euler.x, euler.y, euler.z);
     }
 
     private void beginRayRotate(int mouseX, int mouseY)
@@ -2078,6 +2099,57 @@ public class UIPropTransform extends UITransform
         }
 
         this.rotateParentAxis.normalize();
+
+        /* PARENT space turns about the parent frame's own axes, which in that frame
+         * ARE the canonical basis vectors at any pose — so snap to the exact axis and
+         * drop the numeric rotateAxes round-trip, whose ~1-2° tilt explodes into X/Z
+         * runaway at the gimbal pole. The sign is kept from the rendered axis so a
+         * cubic model's Ry(180) flip doesn't invert the X/Z drag direction. */
+        if (this.getSpace() == TransformSpace.PARENT)
+        {
+            Vector3f canonical = new Vector3f(
+                this.axis == Axis.X ? 1F : 0F,
+                this.axis == Axis.Y ? 1F : 0F,
+                this.axis == Axis.Z ? 1F : 0F
+            );
+
+            if (this.rotateParentAxis.dot(canonical) < 0F)
+            {
+                canonical.negate();
+            }
+
+            this.rotateParentAxis.set(canonical);
+        }
+        else if (this.getSpace() == TransformSpace.LOCAL)
+        {
+            /* LOCAL turns about the bone's OWN axes: the canonical basis vector
+             * carried into the parent frame by the bone's start rotation
+             * (Rstart · e_axis, Rstart = the cached start euler the drag composes
+             * onto). At rest that's canonical; for a turned bone it follows the
+             * bone. Exact, unlike the numeric estimate whose tilt blows X/Z up at
+             * the pole. Sign kept from the rendered axis (cubic Ry(180) flip). */
+            Vector3f boneAxis = new Matrix3f()
+                .rotationZ(this.cache.rotate.z)
+                .rotateY(this.cache.rotate.y)
+                .rotateX(this.cache.rotate.x)
+                .transform(new Vector3f(
+                    this.axis == Axis.X ? 1F : 0F,
+                    this.axis == Axis.Y ? 1F : 0F,
+                    this.axis == Axis.Z ? 1F : 0F
+                ));
+
+            if (boneAxis.lengthSquared() > 1.0E-8F)
+            {
+                boneAxis.normalize();
+
+                if (this.rotateParentAxis.dot(boneAxis) < 0F)
+                {
+                    boneAxis.negate();
+                }
+
+                this.rotateParentAxis.set(boneAxis);
+            }
+        }
 
         /* Freeze the ring at this orientation so it stays put while we drag,
          * instead of writhing as the live rotation is recomposed each frame. */
@@ -2565,18 +2637,15 @@ public class UIPropTransform extends UITransform
         }
 
         Vector3f source = this.cache.rotate;
-
-        Vector3f euler = new Matrix3f()
-            .rotation(MathUtils.toRad((float) degrees), parentAxis)
-            .mul(new Matrix3f().rotationZ(source.z).rotateY(source.y).rotateX(source.x))
-            .getEulerAnglesZYX(new Vector3f());
-
         Vector3f live = this.transform.rotate;
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
 
-        this.setR(null, rx, ry, rz);
+        Matrix3f rotation = new Matrix3f()
+            .rotation(MathUtils.toRad((float) degrees), parentAxis)
+            .mul(new Matrix3f().rotationZ(source.z).rotateY(source.y).rotateX(source.x));
+
+        Vector3f euler = this.continuousEulerZYXDeg(rotation, live);
+
+        this.setR(null, euler.x, euler.y, euler.z);
     }
 
     /**
@@ -2602,14 +2671,10 @@ public class UIPropTransform extends UITransform
             rotateBodyAxis(rotation, rad, this.axis2);
         }
 
-        Vector3f euler = rotation.getEulerAnglesZYX(new Vector3f());
         Vector3f live = this.transform.rotate;
+        Vector3f euler = this.continuousEulerZYXDeg(rotation, live);
 
-        this.setR(null,
-            unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x)),
-            unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y)),
-            unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z))
-        );
+        this.setR(null, euler.x, euler.y, euler.z);
     }
 
     private static void rotateBodyAxis(Matrix3f rotation, float rad, Axis axis)
