@@ -15,7 +15,6 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -95,7 +94,7 @@ public class MotionPath
             return;
         }
 
-        Pair<String, TransformSpace> bone = controller.getBone();
+        Pair<String, Boolean> bone = controller.getBone();
         String bonePath = bone == null ? null : bone.a;
 
         Trajectory trajectory = bonePath == null ? null : boneTrajectory(controller, replay, bonePath);
