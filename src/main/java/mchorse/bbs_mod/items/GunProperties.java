@@ -121,14 +121,15 @@ public class GunProperties extends ModelProperties
         form.texture.set(Link.assets("textures/gun.png"));
         properties.setForm(form);
 
-        /* Ry(-90°) followed by a local Rz(45°), folded into a single ZYX euler. */
         fp.translate.set(0.25F, 0.125F, -0.25F);
-        fp.rotate.set(-MathUtils.PI / 2, -MathUtils.PI / 4, MathUtils.PI / 2);
+        fp.rotate.y = -MathUtils.PI / 2;
+        fp.rotate2.z = MathUtils.PI / 4;
 
         tp.translate.y = 0.375F;
         tp.translate.z = 0.125F;
         tp.scale.set(0.666F);
-        tp.rotate.set(-MathUtils.PI / 2, -MathUtils.PI / 4, MathUtils.PI / 2);
+        tp.rotate.y = -MathUtils.PI / 2;
+        tp.rotate2.z = MathUtils.PI / 4;
     }
 
     public Form getZoomForm()

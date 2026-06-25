@@ -107,8 +107,10 @@ public class Pose implements IMapSerializable
 
             r.translate.mul(-1F, 1F, 1F);
             r.rotate.mul(1F, -1F, -1F);
+            r.rotate2.mul(1F, -1F, -1F);
             l.translate.mul(-1F, 1F, 1F);
             l.rotate.mul(1F, -1F, -1F);
+            l.rotate2.mul(1F, -1F, -1F);
 
             bones.remove(pair.a);
             bones.remove(pair.b);
@@ -120,6 +122,7 @@ public class Pose implements IMapSerializable
 
             poseTransform.translate.mul(-1F, 1F, 1F);
             poseTransform.rotate.mul(1F, -1F, -1F);
+            poseTransform.rotate2.mul(1F, -1F, -1F);
         }
     }
 

@@ -36,7 +36,6 @@ import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.utils.Gizmo;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
@@ -196,20 +195,24 @@ public abstract class BaseFilmController
 
         if (UIBaseMenu.shouldRenderAxes())
         {
-            if (context.bone != null) renderAxes(context.bone, context.space, context.map, form, entity, transition, stack);
-            if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.space2, form, entity, transition, stack);
+            if (context.bone != null) renderAxes(context.bone, context.local, context.map, form, entity, transition, stack);
+            if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.local2, form, entity, transition, stack);
         }
 
         stack.pop();
 
         if (UIBaseMenu.shouldRenderAxes() && context.anchorGizmo)
         {
-            renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.map, stack);
+            renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorLocal, context.map, stack);
         }
 
-        if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F)
+        if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F && form.visible.get())
         {
-            /* Place the shadow under the replay's perceived position: shift the actual shadow position
+            /* Skip the shadow when the form is hidden (form.visible, animatable via keyframes): the form
+             * itself renders nothing then - see FormRenderer.render - so its shadow must vanish too.
+             * The animated value is live here, applied to form.visible in startRenderFrame this frame.
+             *
+             * Place the shadow under the replay's perceived position: shift the actual shadow position
              * by how far the model (form transform + anchor-bone root motion) has moved from rest,
              * mapped from form-local into world axes via the render target. Moving the position itself
              * (not just translating the quad) makes the shadow's ground projection and shading match. */
@@ -262,26 +265,23 @@ public abstract class BaseFilmController
         RenderSystem.enableDepthTest();
     }
 
-    private static void renderAxes(String bone, TransformSpace space, StencilMap stencilMap, Form form, IEntity entity, float transition, MatrixStack stack)
+    private static void renderAxes(String bone, boolean local, StencilMap stencilMap, Form form, IEntity entity, float transition, MatrixStack stack)
     {
         String mapKey = bone != null && bone.contains(PerLimbService.POSE_BONES) ? bone.replace(PerLimbService.POSE_BONES, "") : bone;
         Form root = FormUtils.getRoot(form);
         MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(entity, transition);
-        Matrix4f matrix = space == TransformSpace.LOCAL ? map.get(mapKey).matrix() : map.get(mapKey).origin();
+        Matrix4f matrix = local ? map.get(mapKey).matrix() : map.get(mapKey).origin();
 
         if (matrix != null)
         {
-            /* LOCAL strips the bone's scale (the gizmo must not inherit it, the
-             * form editor does the same); WORLD keeps only the position. */
-            if (space == TransformSpace.LOCAL) matrix = MatrixStackUtils.stripScale(matrix);
-            else if (space == TransformSpace.WORLD) matrix = new Matrix4f().translation(matrix.getTranslation(new Vector3f()));
-
             stack.push();
             MatrixStackUtils.multiply(stack, matrix);
 
             if (stencilMap == null)
             {
-                Gizmo.INSTANCE.render(stack);
+                /* The visual is drawn later, in the panel's UI pass (see
+                 * Gizmo#renderInterface) — here we only snapshot its placement. */
+                Gizmo.INSTANCE.captureVisual(stack);
             }
             else
             {
@@ -300,7 +300,7 @@ public abstract class BaseFilmController
      * distance scaling the gizmo uses, so the preview keeps a constant on-screen
      * size and matches the gizmo's axes.
      */
-    private static void renderPreviewAxes(String bone, TransformSpace space, Form form, IEntity entity, float transition, MatrixStack stack)
+    private static void renderPreviewAxes(String bone, boolean local, Form form, IEntity entity, float transition, MatrixStack stack)
     {
         String mapKey = bone != null && bone.contains(PerLimbService.POSE_BONES) ? bone.replace(PerLimbService.POSE_BONES, "") : bone;
         Form root = FormUtils.getRoot(form);
@@ -312,15 +312,14 @@ public abstract class BaseFilmController
             return;
         }
 
-        Matrix4f matrix = space == TransformSpace.LOCAL ? entry.matrix() : entry.origin();
+        Matrix4f matrix = local ? entry.matrix() : entry.origin();
 
         if (matrix == null)
         {
             return;
         }
 
-        if (space == TransformSpace.LOCAL) matrix = MatrixStackUtils.stripScale(matrix);
-        else if (space == TransformSpace.WORLD) matrix = new Matrix4f().translation(matrix.getTranslation(new Vector3f()));
+        if (local) matrix = MatrixStackUtils.stripScale(matrix);
 
         stack.push();
         MatrixStackUtils.multiply(stack, matrix);
@@ -342,11 +341,10 @@ public abstract class BaseFilmController
      * as {@code parent.mul(transform)} in {@link #getTotalMatrix}, so the gizmo
      * sits at that resolved matrix {@code full} (already computed as the entity's
      * render target) and edits {@code form.anchor.transform}. The space toggle
-     * mirrors {@link #renderAxes}: LOCAL keeps the anchor's own orientation,
-     * WORLD axis-aligns it, PARENT uses the attachment's orientation at the
-     * anchor's position.
+     * mirrors {@link #renderAxes}: local keeps the anchor's own orientation,
+     * otherwise the attachment's orientation at the anchor's position is used.
      */
-    private static void renderAnchorGizmo(IntObjectMap<IEntity> entities, IEntity entity, Matrix4f full, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, TransformSpace space, StencilMap stencilMap, MatrixStack stack)
+    private static void renderAnchorGizmo(IntObjectMap<IEntity> entities, IEntity entity, Matrix4f full, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, boolean local, StencilMap stencilMap, MatrixStack stack)
     {
         Form form = entity.getForm();
 
@@ -357,20 +355,16 @@ public abstract class BaseFilmController
 
         Matrix4f matrix;
 
-        if (space == TransformSpace.WORLD)
+        if (local)
         {
-            matrix = new Matrix4f().translation(full.getTranslation(new Vector3f()));
+            matrix = MatrixStackUtils.stripScale(full);
         }
-        else if (space == TransformSpace.PARENT)
+        else
         {
             Matrix4f parent = getEntityMatrix(entities, cx, cy, cz, form.anchor.get(), defaultMatrix, transition, 0, true);
 
             matrix = MatrixStackUtils.stripScale(parent);
             matrix.setTranslation(full.getTranslation(new Vector3f()));
-        }
-        else
-        {
-            matrix = MatrixStackUtils.stripScale(full);
         }
 
         stack.push();
@@ -378,7 +372,9 @@ public abstract class BaseFilmController
 
         if (stencilMap == null)
         {
-            Gizmo.INSTANCE.render(stack);
+            /* The visual is drawn later, in the panel's UI pass (see
+             * Gizmo#renderInterface) — here we only snapshot its placement. */
+            Gizmo.INSTANCE.captureVisual(stack);
         }
         else
         {
@@ -868,6 +864,7 @@ public abstract class BaseFilmController
                             double y = replay.keyframes.y.interpolate(ticks);
                             double z = replay.keyframes.z.interpolate(ticks);
                             boolean sneaking = replay.keyframes.sneaking.interpolate(ticks) > 0;
+                            boolean grounded = replay.keyframes.grounded.interpolate(ticks) > 0;
 
                             Vec3d pos = player.getPos();
 
@@ -875,7 +872,19 @@ public abstract class BaseFilmController
                             player.setPosition(x, y, z);
 
                             player.setSneaking(sneaking);
-                            player.setOnGround(replay.keyframes.grounded.interpolate(ticks) > 0);
+                            player.setOnGround(grounded);
+
+                            /* First person teleports the player from keyframes instead of walking it, so vanilla's
+                             * stride distance (the view-bobbing amplitude) is computed from a zero velocity and stays
+                             * flat. Re-derive it from the actual per-tick displacement (the same source as the limb
+                             * animation) with vanilla's own easing. prevStrideDistance already holds last tick's value
+                             * (snapshotted by the player tick), so only the current one is advanced — keeping the bob
+                             * smooth between frames. */
+                            float dx = (float) (player.getX() - player.prevX);
+                            float dz = (float) (player.getZ() - player.prevZ);
+                            float stride = grounded ? Math.min(0.1F, (float) Math.sqrt(dx * dx + dz * dz)) : 0F;
+
+                            player.strideDistance = player.prevStrideDistance + (stride - player.prevStrideDistance) * 0.4F;
 
                             if (player instanceof ClientPlayerEntityAccessor accessor)
                             {

@@ -7,7 +7,6 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.utils.IWorldTransformProvider;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.utils.Pair;
 import org.joml.Matrix4f;
 
@@ -44,7 +43,7 @@ public class FilmBoneWorldProvider implements IWorldTransformProvider
             return false;
         }
 
-        Pair<String, TransformSpace> bone = keyframeEditor.getBone();
+        Pair<String, Boolean> bone = keyframeEditor.getBone();
         Replay replay = replayEditor.getReplay();
         IEntity entity = this.panel.getController().getCurrentEntity();
 

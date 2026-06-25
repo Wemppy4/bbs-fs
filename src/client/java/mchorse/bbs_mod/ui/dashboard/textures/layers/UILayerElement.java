@@ -71,7 +71,7 @@ public class UILayerElement extends UIElement
 
         menu.action(Icons.COPY, UIKeys.TEXTURES_LAYERS_CONTEXT_COPY, () ->
         {
-            ImageClipboard.copy(this.layer.pixels);
+            ImageClipboard.copy(this.layer.pixels, this.layer.offsetX, this.layer.offsetY);
             UIUtils.playClick();
         });
 

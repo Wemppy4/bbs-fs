@@ -151,6 +151,20 @@ public class GizmoInteraction
     }
 
     /**
+     * Draw this viewport's gizmo visual in the UI pass: always-on-top and
+     * through the UI pipeline, so its translucent parts (rotation sphere, sweep
+     * pie, view ring) blend correctly — the world shaders that used to draw it
+     * mangled their transparency. It pairs with the model-view captured in the
+     * viewport's world / 3D pass ({@link Gizmo#captureVisual} or
+     * {@link Gizmo#renderStencil}). Call before {@link #update} so the sphere's
+     * on-screen radius is current for the hover check.
+     */
+    public void renderGizmo(UIContext context)
+    {
+        Gizmo.INSTANCE.renderInterface(context, this.viewport.getGizmoProjection(), this.viewport.getGizmoArea());
+    }
+
+    /**
      * Composite the trackball sphere's hover highlight over this viewport. Call
      * from the host's GUI overlay pass (after its own stencil hover), so the
      * sphere reads with the same screen-space highlight as bones and handles.

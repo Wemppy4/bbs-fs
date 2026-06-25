@@ -946,6 +946,7 @@
     "bbs.ui.transforms.editing": "Éditer...",
     "bbs.ui.transforms.keys.toggle_axes": "Activer les axes XYZ",
     "bbs.ui.transforms.rotate": "Rotation",
+    "bbs.ui.transforms.rotate2": "Rotation (2ème)",
     "bbs.ui.transforms.scale": "Échelle",
     "bbs.ui.transforms.translate": "Position",
     "bbs.ui.transforms.uniform_scale": "Activer l'échelle uniform",

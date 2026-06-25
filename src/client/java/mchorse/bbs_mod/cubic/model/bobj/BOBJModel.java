@@ -122,6 +122,7 @@ public class BOBJModel implements IModel
             bone.transform.translate.add(transform.translate);
             bone.transform.scale.add(transform.scale).sub(1, 1, 1);
             bone.transform.rotate.add(transform.rotate);
+            bone.transform.rotate2.add(transform.rotate2);
         }
     }
 

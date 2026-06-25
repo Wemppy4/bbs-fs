@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.utils;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.VertexSorter;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.client.BBSRendering;
@@ -142,6 +144,15 @@ public class Gizmo
      *  overlay, the same look bones/handles get from the pick stencil). */
     private boolean sphereHovered;
 
+    /** Per-frame on-screen size compensation, {@code menu.height / viewportArea.h}.
+     *  {@link #getAxesDistanceScale} otherwise keeps the gizmo a constant fraction
+     *  of its viewport, so it shrinks in a small preview (the film) versus a
+     *  full-screen editor (forms); this factor makes it a constant fraction of the
+     *  window instead, i.e. the same on-screen size in every editor. Each viewport
+     *  sets it via {@link #setViewportScale} before BOTH its visual and stencil
+     *  pass so the drawn gizmo and its pick hitbox scale together. */
+    private float viewportScale = 1F;
+
     private Gizmo()
     {}
 
@@ -217,6 +228,17 @@ public class Gizmo
     public void setSphereHovered(boolean hovered)
     {
         this.sphereHovered = hovered;
+    }
+
+    /**
+     * Set this frame's on-screen size compensation ({@code menu.height /
+     * viewportArea.h}). Call before the visual and stencil pass of the gizmo's
+     * viewport, with the same value for both, so the drawn gizmo and its pick
+     * hitbox stay the same constant on-screen size across editors.
+     */
+    public void setViewportScale(float viewportScale)
+    {
+        this.viewportScale = viewportScale > 0F && Float.isFinite(viewportScale) ? viewportScale : 1F;
     }
 
     /** The trackball sphere shows in the dedicated rotate mode and in combined. */
@@ -553,6 +575,99 @@ public class Gizmo
         stack.push();
         MatrixStackUtils.scaleBack(stack);
         this.captureRenderMatrix(stack);
+        this.drawGizmo(stack);
+        stack.pop();
+    }
+
+    /**
+     * Capture the gizmo's model-view for the deferred interface-pass visual
+     * ({@link #renderInterface}) without drawing anything in the caller's world
+     * / 3D pass. The visual moved out of the world pass so its translucent parts
+     * (the rotation sphere, the sweep pie, the view ring) composite through the
+     * UI pipeline instead of the world shaders, which did not blend them.
+     */
+    public void captureVisual(MatrixStack stack)
+    {
+        if (BBSRendering.isIrisShadowPass())
+        {
+            return;
+        }
+
+        stack.push();
+        MatrixStackUtils.scaleBack(stack);
+        this.captureRenderMatrix(stack);
+        stack.pop();
+    }
+
+    /**
+     * Draw the gizmo's visual over a {@link GizmoViewport} in the UI pass, from
+     * the model-view captured this frame ({@link #lastRenderMatrix}, set by
+     * {@link #captureVisual} or {@link #renderStencil}).
+     *
+     * <p>It draws straight onto the main framebuffer through the UI pipeline with
+     * the GL viewport set to {@code area} — the same setup the form editor's
+     * model pass uses ({@link mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer}).
+     * This fixes the transparency the world shaders mangled (the whole point of
+     * the move) and places the gizmo correctly: the film world is itself
+     * rendered into that same {@code area}, and {@code projection} maps NDC onto
+     * the area, so the gizmo lines up with the model and stays inside the
+     * preview (the frustum clips it to the viewport rect). It is NOT rendered
+     * to an off-screen buffer and blitted, the way the pick stencil and sphere
+     * highlight are: those are opaque masks, but the rotation pie is translucent,
+     * and an intermediate buffer applies its alpha twice (once on draw, once on
+     * blit), leaving it nearly invisible.
+     *
+     * <p>The projection is applied before drawing because
+     * {@link #getAxesDistanceScale} reads it back from {@link RenderSystem} to
+     * keep the gizmo a constant on-screen size.
+     */
+    public void renderInterface(UIContext context, Matrix4f projection, Area area)
+    {
+        if (BBSRendering.isIrisShadowPass() || !this.hasLastRenderMatrix
+            || context == null || projection == null || area == null)
+        {
+            return;
+        }
+
+        MinecraftClient mc = MinecraftClient.getInstance();
+
+        this.setViewportScale(context.menu.height / (float) area.h);
+
+        context.batcher.flush();
+
+        MatrixStackUtils.cacheMatrices();
+        RenderSystem.setProjectionMatrix(projection, VertexSorter.BY_Z);
+
+        /* Map the UI area to a framebuffer-pixel viewport, exactly as the form
+         * editor's model pass does, so the gizmo renders into the preview and is
+         * clipped to it by the view frustum. */
+        float rx = (float) Math.round(mc.getWindow().getWidth() / (double) context.menu.width);
+        float ry = (float) Math.round(mc.getWindow().getHeight() / (double) context.menu.height);
+        float size = BBSModClient.getOriginalFramebufferScale();
+        int vx = (int) (area.x * rx);
+        int vy = (int) (mc.getWindow().getHeight() - (area.y + area.h) * ry);
+        int vw = (int) (area.w * rx);
+        int vh = (int) (area.h * ry);
+
+        RenderSystem.viewport((int) (vx * size), (int) (vy * size), (int) (vw * size), (int) (vh * size));
+
+        MatrixStack stack = new MatrixStack();
+        MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+
+        RenderSystem.disableDepthTest();
+        this.drawGizmo(stack);
+        RenderSystem.enableDepthTest();
+
+        RenderSystem.viewport(0, 0, mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight());
+        MatrixStackUtils.restoreMatrices();
+
+        /* Leave the depth state the UI expects after a 3D interlude (always-pass),
+         * the same exit state as the form editor's model pass. */
+        RenderSystem.depthFunc(GL11.GL_ALWAYS);
+    }
+
+    private void drawGizmo(MatrixStack stack)
+    {
         this.applyBakedRotation(stack);
 
         if (BBSSettings.gizmos.get())
@@ -583,7 +698,6 @@ public class Gizmo
         }
 
         this.drawInfiniteLine(stack);
-        stack.pop();
     }
 
     private float getAxesDistanceScale(MatrixStack stack)
@@ -592,7 +706,7 @@ public class Gizmo
         Matrix4f proj = com.mojang.blaze3d.systems.RenderSystem.getProjectionMatrix();
         float fov = proj.m33() == 0 ? (float) (2.0 * Math.atan(1.0 / proj.m11())) : BBSSettings.getFov();
 
-        return BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov);
+        return BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov) * this.viewportScale;
     }
 
     private void drawInfiniteLine(MatrixStack stack)
@@ -761,7 +875,7 @@ public class Gizmo
         Vector3f axisX = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(0, new Vector3f());
         Vector3f axisY = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(1, new Vector3f());
         Vector3f axisZ = this.currentTransform.getDrag().gizmoWorldAxes.getColumn(2, new Vector3f());
-        Vector3f dragAxisDir = this.currentTransform.getDragAxisDir();
+        Vector3f dragAxisDir = this.currentTransform.getDrag().rotateAxes.getColumn(axis.ordinal(), new Vector3f());
 
         float gx = initialVec.dot(axisX);
         float gy = initialVec.dot(axisY);
@@ -1100,6 +1214,18 @@ public class Gizmo
         stack.push();
         MatrixStackUtils.scaleBack(stack);
         this.captureRenderMatrix(stack);
+        this.drawStencilAxes(stack, map);
+        stack.pop();
+    }
+
+    /**
+     * Draw the gizmo handles as stencil IDs into the currently bound picking
+     * framebuffer, from a stack already positioned at the gizmo origin. Shared by
+     * the world-pass {@link #renderStencil} and the UI-pass
+     * {@link #renderStencilInterface}.
+     */
+    private void drawStencilAxes(MatrixStack stack, StencilMap map)
+    {
         this.applyBakedRotation(stack);
 
         float distanceScale = this.getAxesDistanceScale(stack);
@@ -1108,7 +1234,57 @@ public class Gizmo
         stack.scale(distanceScale, distanceScale, distanceScale);
         this.drawAxes(stack, map, 0.25F, 0.025F);
         stack.pop();
-        stack.pop();
+    }
+
+    /**
+     * Draw the gizmo's pick stencil over a {@link GizmoViewport} in the UI pass,
+     * from the model-view captured this frame ({@link #lastRenderMatrix}, set by
+     * {@link #captureVisual}). This is the stencil counterpart of
+     * {@link #renderInterface}: it uses the identical viewport / projection /
+     * matrix setup, so the handle IDs land on exactly the pixels the visual
+     * draws and picking lines up with what the user sees, instead of being
+     * rendered in the world pass on a separate frame of reference.
+     *
+     * <p>The caller binds the picking framebuffer before this call (and reads it
+     * back / unbinds afterwards); it must also flush the UI batcher first, since
+     * this does not (the bound framebuffer is the pick buffer, not the screen).
+     */
+    public void renderStencilInterface(UIContext context, Matrix4f projection, Area area, StencilMap map)
+    {
+        if (BBSRendering.isIrisShadowPass() || !this.hasLastRenderMatrix
+            || context == null || projection == null || area == null || !BBSSettings.gizmos.get())
+        {
+            return;
+        }
+
+        MinecraftClient mc = MinecraftClient.getInstance();
+
+        this.setViewportScale(context.menu.height / (float) area.h);
+
+        MatrixStackUtils.cacheMatrices();
+        RenderSystem.setProjectionMatrix(projection, VertexSorter.BY_Z);
+
+        /* Map the UI area to a framebuffer-pixel viewport, exactly as
+         * renderInterface does, so the stencil matches the drawn visual pixel for
+         * pixel. The pick framebuffer is sized to the window, so the same mapping
+         * applies. */
+        float rx = (float) Math.round(mc.getWindow().getWidth() / (double) context.menu.width);
+        float ry = (float) Math.round(mc.getWindow().getHeight() / (double) context.menu.height);
+        float size = BBSModClient.getOriginalFramebufferScale();
+        int vx = (int) (area.x * rx);
+        int vy = (int) (mc.getWindow().getHeight() - (area.y + area.h) * ry);
+        int vw = (int) (area.w * rx);
+        int vh = (int) (area.h * ry);
+
+        RenderSystem.viewport((int) (vx * size), (int) (vy * size), (int) (vw * size), (int) (vh * size));
+
+        MatrixStack stack = new MatrixStack();
+        MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+
+        this.drawStencilAxes(stack, map);
+
+        RenderSystem.viewport(0, 0, mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight());
+        MatrixStackUtils.restoreMatrices();
     }
 
     private void captureRenderMatrix(MatrixStack stack)

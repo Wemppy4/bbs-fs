@@ -187,6 +187,7 @@ public abstract class FormRenderer <T extends Form>
         transform.translate.add(overlay.translate);
         transform.scale.add(overlay.scale).sub(1, 1, 1);
         transform.rotate.add(overlay.rotate);
+        transform.rotate2.add(overlay.rotate2);
     }
 
     /**

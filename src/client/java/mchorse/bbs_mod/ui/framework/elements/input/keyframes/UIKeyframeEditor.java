@@ -12,7 +12,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyfram
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIPoseKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIPoseTransformKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UITransformKeyframeFactory;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -181,11 +180,11 @@ public class UIKeyframeEditor extends UIElement
         return null;
     }
 
-    public Pair<String, TransformSpace> getBone()
+    public Pair<String, Boolean> getBone()
     {
         UIKeyframeFactory editor = this.editor;
         String bone = null;
-        TransformSpace space = TransformSpace.PARENT;
+        boolean local = false;
 
         if (editor instanceof UIPoseKeyframeFactory pose)
         {
@@ -206,7 +205,7 @@ public class UIKeyframeEditor extends UIElement
                         int i = sheet.id.lastIndexOf('/');
                         bone = i >= 0 ? sheet.id.substring(0, i + 1) + currentFirst : currentFirst;
                     }
-                    space = pose.poseEditor.transform.getSpace();
+                    local = pose.poseEditor.transform.isLocal();
                 }
             }
         }
@@ -223,14 +222,14 @@ public class UIKeyframeEditor extends UIElement
                 if (poseBonePath != null)
                 {
                     bone = poseBonePath.formPath().isEmpty() ? poseBonePath.bone() : poseBonePath.formPath() + "/" + poseBonePath.bone();
-                    space = transform.transform.getSpace();
+                    local = transform.transform.isLocal();
                 }
                 else if (id.startsWith("transform"))
                 {
                     int i = sheet.id.lastIndexOf('/');
 
                     bone = i >= 0 ? sheet.id.substring(0, i) : "";
-                    space = transform.transform.getSpace();
+                    local = transform.transform.isLocal();
                 }
             }
         }
@@ -245,14 +244,14 @@ public class UIKeyframeEditor extends UIElement
                 if (poseBonePath != null)
                 {
                     bone = poseBonePath.formPath().isEmpty() ? poseBonePath.bone() : poseBonePath.formPath() + "/" + poseBonePath.bone();
-                    space = poseTransform.transform.getSpace();
+                    local = poseTransform.transform.isLocal();
                 }
             }
         }
 
         if (bone != null)
         {
-            return new Pair<>(bone, space);
+            return new Pair<>(bone, local);
         }
 
         return null;
@@ -280,12 +279,10 @@ public class UIKeyframeEditor extends UIElement
         return sheet != null && sheet.property != null && "anchor".equals(sheet.id);
     }
 
-    /** The shared transform space the anchor gizmo should be oriented in (mirrors {@link #getBone()}'s space). */
-    public TransformSpace getAnchorSpace()
+    /** Whether the anchor gizmo should be oriented in the bone's local space (mirrors {@link #getBone()}'s flag). */
+    public boolean getAnchorLocal()
     {
-        return this.editor instanceof UIAnchorKeyframeFactory factory
-            ? factory.transform.getSpace()
-            : TransformSpace.PARENT;
+        return this.editor instanceof UIAnchorKeyframeFactory factory && factory.transform.isLocal();
     }
 
     @Override

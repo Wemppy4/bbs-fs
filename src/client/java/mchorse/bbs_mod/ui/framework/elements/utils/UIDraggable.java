@@ -22,6 +22,7 @@ public class UIDraggable extends UIElement
     private boolean referenceY = true;
     private int hoverCursor = GLFW.GLFW_HAND_CURSOR;
     private int dragCursor = GLFW.GLFW_HAND_CURSOR;
+    private Supplier<Boolean> enabled = () -> true;
 
     private int mouseX;
     private int mouseY;
@@ -90,6 +91,18 @@ public class UIDraggable extends UIElement
         return this;
     }
 
+    /**
+     * Gate interactivity: when the supplier returns {@code false} the draggable is inert &mdash; it
+     * neither claims clicks nor requests a hover/drag cursor, so the area behaves as if the handle
+     * weren't there. Defaults to always enabled.
+     */
+    public UIDraggable enabled(Supplier<Boolean> enabled)
+    {
+        this.enabled = enabled != null ? enabled : () -> true;
+
+        return this;
+    }
+
     public boolean isDragging()
     {
         return this.dragging;
@@ -98,7 +111,7 @@ public class UIDraggable extends UIElement
     @Override
     protected boolean subMouseClicked(UIContext context)
     {
-        if (this.area.isInside(context) && context.mouseButton == 0)
+        if (this.enabled.get() && this.area.isInside(context) && context.mouseButton == 0)
         {
             this.mouseX = context.mouseX;
             this.mouseY = context.mouseY;
@@ -135,13 +148,16 @@ public class UIDraggable extends UIElement
     {
         super.render(context);
 
-        if (this.dragging)
+        if (this.enabled.get())
         {
-            context.requestCursor(this.dragCursor);
-        }
-        else if (this.area.isInside(context))
-        {
-            context.requestCursor(this.hoverCursor);
+            if (this.dragging)
+            {
+                context.requestCursor(this.dragCursor);
+            }
+            else if (this.area.isInside(context))
+            {
+                context.requestCursor(this.hoverCursor);
+            }
         }
 
         if (!this.hover || this.area.isInside(context) || this.dragging)

@@ -4,7 +4,6 @@ import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.render.Camera;
@@ -28,14 +27,14 @@ public class FilmControllerContext
     public float shadowRadius;
 
     public String bone;
-    public TransformSpace space = TransformSpace.PARENT;
+    public boolean local;
 
     public String bone2;
-    public TransformSpace space2 = TransformSpace.PARENT;
+    public boolean local2;
 
     /** Draw the editing gizmo at the entity's resolved {@code form.anchor} matrix. */
     public boolean anchorGizmo;
-    public TransformSpace anchorSpace = TransformSpace.PARENT;
+    public boolean anchorLocal;
 
     public String nameTag = "";
     public boolean relative;
@@ -49,9 +48,9 @@ public class FilmControllerContext
         this.shadowRadius = 0F;
         this.color = Colors.WHITE;
         this.bone = null;
-        this.space = TransformSpace.PARENT;
+        this.local = false;
         this.anchorGizmo = false;
-        this.anchorSpace = TransformSpace.PARENT;
+        this.anchorLocal = false;
         this.nameTag = "";
         this.relative = false;
     }
@@ -121,26 +120,26 @@ public class FilmControllerContext
         return this;
     }
 
-    public FilmControllerContext bone(String bone, TransformSpace space)
+    public FilmControllerContext bone(String bone, boolean local)
     {
         this.bone = bone;
-        this.space = space;
+        this.local = local;
 
         return this;
     }
 
-    public FilmControllerContext bone2(String bone, TransformSpace space)
+    public FilmControllerContext bone2(String bone, boolean local)
     {
         this.bone2 = bone;
-        this.space2 = space;
+        this.local2 = local;
 
         return this;
     }
 
-    public FilmControllerContext anchorGizmo(boolean anchorGizmo, TransformSpace space)
+    public FilmControllerContext anchorGizmo(boolean anchorGizmo, boolean anchorLocal)
     {
         this.anchorGizmo = anchorGizmo;
-        this.anchorSpace = space;
+        this.anchorLocal = anchorLocal;
 
         return this;
     }

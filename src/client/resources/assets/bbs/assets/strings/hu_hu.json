@@ -1010,6 +1010,7 @@
     "bbs.ui.transforms.keys.category": "Átalakulások",
     "bbs.ui.transforms.keys.toggle_axes": "XYZ tengelyek kapcsolása",
     "bbs.ui.transforms.rotate": "Forgatás",
+    "bbs.ui.transforms.rotate2": "Forgatás (2.)",
     "bbs.ui.transforms.scale": "Skála",
     "bbs.ui.transforms.translate": "Fordítsd le",
     "bbs.ui.transforms.uniform_scale": "Egységes skála kapcsolása",

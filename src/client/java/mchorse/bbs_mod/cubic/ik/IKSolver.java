@@ -148,8 +148,11 @@ final class IKSolver
      * Maps the target onto an effective reach distance. With {@code softness > 0}
      * this is "soft IK": near full extension the effective distance approaches the
      * chain length asymptotically (and C1-continuously), so the limb never snaps
-     * dead straight when the target is pulled out of reach. With softness 0 it is
-     * a hard clamp at {@code total * REACH_LIMIT}.
+     * dead straight when the target is pulled out of reach. The effective reach is
+     * still capped at {@code total * REACH_LIMIT}, same as the hard clamp — a fully
+     * extended chain has an undefined bend plane and would roll/writhe as the target
+     * moves; the soft falloff just approaches that cap smoothly instead of snapping.
+     * With softness 0 it is a hard clamp at {@code total * REACH_LIMIT}.
      */
     private static Vector3f clampReach(Vector3f root, Vector3f target, float total, float softness)
     {
@@ -171,7 +174,7 @@ final class IKSolver
             if (dist > da)
             {
                 float eff = total - soft * (float) Math.exp(-(dist - da) / soft);
-                goal.set(root).fma(eff, dir);
+                goal.set(root).fma(Math.min(eff, total * REACH_LIMIT), dir);
             }
         }
         else if (dist > total * REACH_LIMIT)

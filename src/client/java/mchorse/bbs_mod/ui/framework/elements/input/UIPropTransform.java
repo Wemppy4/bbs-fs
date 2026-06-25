@@ -7,20 +7,15 @@ import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
-import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Axis;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -35,7 +30,6 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Supplier;
 
 public class UIPropTransform extends UITransform
@@ -51,8 +45,6 @@ public class UIPropTransform extends UITransform
     private static final float TRACKBALL_WHEEL_DEG = 5F;
     /** Factor the modifier keys apply to a gizmo step: Ctrl coarsens, Alt refines. */
     private static final float STEP_MODIFIER = 5F;
-    /** Cursor-speed multiplier for a ray gesture while Shift is held (precision drag). */
-    private static final float FINE_DRAG_FACTOR = 0.1F;
 
     private Transform transform;
     private Runnable preCallback;
@@ -66,6 +58,9 @@ public class UIPropTransform extends UITransform
     private int lastY;
     private Transform cache = new Transform();
     private Timer checker = new Timer(30);
+
+    private boolean model;
+    private boolean local;
 
     /* Ray-based drag state for translate mode */
     private GizmoDrag drag;
@@ -92,15 +87,14 @@ public class UIPropTransform extends UITransform
     private final Vector3d dragStartHit = new Vector3d();
     private final Vector3f dragStartTranslate = new Vector3f();
 
-    /* Per-mode start state. Translate uses dragStartTranslate above; scale gets its own snapshot
-     * so each mode is self-contained. */
+    /* Per-mode start state. Translate uses dragStartTranslate above; scale and
+     * rotate get their own snapshots so each mode is self-contained. */
     private final Vector3f dragStartScale = new Vector3f();
+    private final Vector3f dragStartRotateDeg = new Vector3f();
     /** World-space direction of the active handle, captured at drag start. */
     private final Vector3f dragAxisDir = new Vector3f();
-    /** Axis the rotation composes about, expressed in the bone's parent frame and
-     *  captured at drag start: the view axis for VIEW, the grabbed ring's axis for
-     *  LOCAL-space ring drags. */
-    private final Vector3f rotateParentAxis = new Vector3f();
+    /** View axis expressed in the bone's parent frame, captured at view-rotate start. */
+    private final Vector3f viewLocalAxis = new Vector3f();
     /** Signed projection of {@code (startHit - origin)} onto {@link #dragAxisDir}. Used for ratio-based scale. */
     private float dragStartScaleProj;
     /** Original unit ring direction (perpendicular to rotation axis) captured at the very start of the drag. */
@@ -145,6 +139,8 @@ public class UIPropTransform extends UITransform
     private float arcballRadius;
     /** Whether the arcball anchor state is valid (guards the re-anchor fold). */
     private boolean arcballAnchored;
+    /** Whether {@link #dragStartRotateDeg} should be written back to {@code rotate2} instead of {@code rotate}. */
+    private boolean dragRotateGizmoSpace;
     private boolean dragHasStart;
     private RotateKind rotateKind = RotateKind.AXIS;
     /**
@@ -175,62 +171,28 @@ public class UIPropTransform extends UITransform
      *  {@link Axis#Y} = vertical (screen-right axis). */
     private Axis trackballAxis = Axis.X;
 
-    /* Fine-drag (Shift) precision: a virtual cursor that lags the real one,
-     * advancing at {@link #FINE_DRAG_FACTOR} speed while Shift is held, so every
-     * ray gesture slows uniformly without per-mode code. The lag is the
-     * accumulated offset between the two. */
-    private float fineOffsetX;
-    private float fineOffsetY;
-    private int fineLastX;
-    private int fineLastY;
-    private boolean fineHasLast;
-
     private UITransformHandler handler;
-
-    /* The spaces bar: one square icon per editing space, the active one carries
-     * the dashboard-style primary highlight. */
-    private UIElement spacesBar;
-    private UIIcon spaceParent;
-    private UIIcon spaceLocal;
-    private UIIcon spaceWorld;
-    private boolean spacesBarBackground;
-
-    /* Right-hand toggles of the spaces bar, only on editors that support it (see
-     * {@link #supportsMirror()}): mirror edit reflects a pose change onto each
-     * bone's left/right counterpart; alternate-invert flips the rotation of every
-     * second selected bone. Both are shared, persisted settings. */
-    private UIIcon mirror;
-    private UIIcon invert;
 
     public UIPropTransform()
     {
         this.handler = new UITransformHandler(this);
+        this.local = BBSSettings.transformSpace.get() == 1;
 
-        this.spaceParent = new UIIcon(Icons.ALL_DIRECTIONS, (b) -> this.setSpace(TransformSpace.PARENT));
-        this.spaceParent.tooltip(UIKeys.TRANSFORMS_CONTEXT_SWITCH_GLOBAL);
-        this.spaceLocal = new UIIcon(Icons.MINIMIZE, (b) -> this.setSpace(TransformSpace.LOCAL));
-        this.spaceLocal.tooltip(UIKeys.TRANSFORMS_CONTEXT_SWITCH_LOCAL);
-        this.spaceWorld = new UIIcon(Icons.GLOBE, (b) -> this.setSpace(TransformSpace.WORLD));
-        this.spaceWorld.tooltip(UIKeys.TRANSFORMS_CONTEXT_SWITCH_WORLD);
-
-        this.spacesBar = new UIElement();
-        this.spacesBar.h(UIConstants.CONTROL_HEIGHT).row(0).resize();
-        this.spacesBar.add(this.spaceParent, this.spaceLocal, this.spaceWorld);
-
-        if (this.supportsMirror())
+        this.context((menu) ->
         {
-            this.mirror = new UIIcon(Icons.CONVERT, (b) -> this.toggleMirrorEdit());
-            this.mirror.tooltip(UIKeys.TRANSFORMS_MIRROR_EDIT);
-            this.invert = new UIIcon(Icons.REVERSE, (b) -> this.toggleAlternateInvert());
-            this.invert.tooltip(UIKeys.TRANSFORMS_ALTERNATE_INVERT);
+            menu.action(
+                this.local ? Icons.FULLSCREEN : Icons.MINIMIZE,
+                this.local ? UIKeys.TRANSFORMS_CONTEXT_SWITCH_GLOBAL : UIKeys.TRANSFORMS_CONTEXT_SWITCH_LOCAL,
+                this::toggleLocal
+            );
 
-            /* An empty, width-less spacer eats the leftover row width so the
-             * toggles are pushed to the far (right) end of the bar. */
-            this.spacesBar.add(new UIElement(), this.mirror, this.invert);
-        }
+            menu.actions.add(0, menu.actions.remove(menu.actions.size() - 1));
+        });
 
-        this.prepend(this.spacesBar);
-        this.h(4 * UIConstants.CONTROL_HEIGHT);
+        this.iconT.callback = (b) -> this.toggleLocal();
+        this.iconT.hoverColor = Colors.LIGHTEST_GRAY;
+        this.iconT.setEnabled(true);
+        this.updateLocalUI();
 
         this.noCulling();
     }
@@ -261,6 +223,11 @@ public class UIPropTransform extends UITransform
         if (this.postCallback != null) this.postCallback.run();
     }
 
+    public void setModel()
+    {
+        this.model = true;
+    }
+
     public UIPropTransform hotkeyDrag(Supplier<GizmoDrag> supplier)
     {
         this.hotkeyDragSupplier = supplier;
@@ -268,15 +235,33 @@ public class UIPropTransform extends UITransform
         return this;
     }
 
-    /** Give the spaces bar a backdrop — for hosts where the panel floats over the preview. */
+    public boolean isLocal()
+    {
+        return this.local;
+    }
+
+    @Override
+    protected Transform getEditedTransform()
+    {
+        return this.transform;
+    }
+
+    public Axis getAxis2()
+    {
+        return this.axis2;
+    }
+
+    public boolean isScreenTranslate()
+    {
+        return this.translateScreen;
+    }
+
+    /** Old-logic no-op: kept so hosts that gave the spaces bar a backdrop still compile. */
     public UIPropTransform barBackground()
     {
-        this.spacesBarBackground = true;
-
         return this;
     }
 
-    /** Whether this editor offers the mirror-edit toggle (pose multi-bone editors do). */
     protected boolean supportsMirror()
     {
         return false;
@@ -287,120 +272,54 @@ public class UIPropTransform extends UITransform
         return BBSSettings.poseMirrorEdit.get();
     }
 
-    private void toggleMirrorEdit()
-    {
-        BBSSettings.poseMirrorEdit.set(!BBSSettings.poseMirrorEdit.get());
-        UIUtils.playClick();
-    }
-
     public boolean isAlternateInvert()
     {
         return BBSSettings.poseAlternateInvert.get();
     }
 
-    private void toggleAlternateInvert()
-    {
-        BBSSettings.poseAlternateInvert.set(!BBSSettings.poseAlternateInvert.get());
-        UIUtils.playClick();
-    }
-
-    public boolean isLocal()
-    {
-        return this.getSpace() == TransformSpace.LOCAL;
-    }
-
-    /** The editing space is shared between every transform panel and persists with the settings. */
-    public TransformSpace getSpace()
-    {
-        TransformSpace[] values = TransformSpace.values();
-
-        return values[MathUtils.clamp(BBSSettings.transformSpace.get(), 0, values.length - 1)];
-    }
-
-    private UIIcon activeSpaceIcon()
-    {
-        TransformSpace space = this.getSpace();
-
-        if (space == TransformSpace.LOCAL) return this.spaceLocal;
-        if (space == TransformSpace.WORLD) return this.spaceWorld;
-
-        return this.spaceParent;
-    }
-
-    private void setSpace(TransformSpace space)
-    {
-        BBSSettings.transformSpace.set(space.ordinal());
-    }
-
     private void toggleLocal()
     {
-        this.setSpace(this.getSpace().next());
-    }
+        this.local = !this.local;
 
-    /**
-     * Unit direction (in {@code transform.translate} units) one unit of input
-     * moves along the given axis in the active space. The anchored ray basis is
-     * preferred when one is live (so typed amounts match the handles, renderer
-     * conventions included); without it LOCAL falls back to the transform's own
-     * rotation and WORLD to a freshly built drag's Jacobian. PARENT is the
-     * plain channel axis, which is also the last-resort fallback — exact
-     * wherever the parent frame is the world itself (e.g. model blocks).
-     */
-    private Vector3f spaceTranslateDir(Axis axis)
-    {
-        Vector3f dir = new Vector3f();
-        TransformSpace space = this.getSpace();
-
-        if (space != TransformSpace.PARENT && this.transform != null)
+        if (!this.local && this.transform != null)
         {
-            if (this.drag != null && this.dragHasStart && this.mode == 0)
-            {
-                this.dragTranslateBasis.getColumn(axis.ordinal(), dir);
-            }
-
-            if (dir.lengthSquared() < 1.0E-12F)
-            {
-                if (space == TransformSpace.LOCAL)
-                {
-                    this.transform.createRotationMatrix().getColumn(axis.ordinal(), dir);
-                }
-                else
-                {
-                    this.worldTranslateDir(axis, dir);
-                }
-            }
-
-            if (dir.lengthSquared() >= 1.0E-12F)
-            {
-                return dir.normalize();
-            }
+            this.fillT(this.transform.translate.x, this.transform.translate.y, this.transform.translate.z);
         }
 
-        return dir.set(
-            axis == Axis.X ? 1F : 0F,
-            axis == Axis.Y ? 1F : 0F,
-            axis == Axis.Z ? 1F : 0F
+        this.updateLocalUI();
+    }
+
+    private void updateLocalUI()
+    {
+        this.tx.forcedLabel(this.local ? UIKeys.GENERAL_X : null);
+        this.ty.forcedLabel(this.local ? UIKeys.GENERAL_Y : null);
+        this.tz.forcedLabel(this.local ? UIKeys.GENERAL_Z : null);
+        this.tx.relative(this.local);
+        this.ty.relative(this.local);
+        this.tz.relative(this.local);
+        this.iconT.tooltip(this.local ? UIKeys.TRANSFORMS_CONTEXT_SWITCH_GLOBAL : UIKeys.TRANSFORMS_CONTEXT_SWITCH_LOCAL);
+    }
+
+    private Vector3f calculateLocalVector(double factor, Axis axis)
+    {
+        if (this.transform == null)
+        {
+            return new Vector3f();
+        }
+
+        Vector3f vector3f = new Vector3f(
+            (float) (axis == Axis.X ? factor : 0D),
+            (float) (axis == Axis.Y ? factor : 0D),
+            (float) (axis == Axis.Z ? factor : 0D)
         );
-    }
+        /* I have no fucking idea why I have to rotate it 180 degrees by X axis... but it works! */
+        Matrix3f matrix = new Matrix3f()
+            .rotateX(this.model ? MathUtils.PI : 0F)
+            .mul(this.transform.createRotationMatrix());
 
-    /** World axis mapped into translate units via a freshly built drag's Jacobian. */
-    private void worldTranslateDir(Axis axis, Vector3f dir)
-    {
-        GizmoDrag drag = this.getHotkeyDrag();
+        matrix.transform(vector3f);
 
-        if (drag == null)
-        {
-            return;
-        }
-
-        Matrix3f inverse = new Matrix3f(drag.translateJacobian);
-
-        if (Math.abs(inverse.determinant()) < 1.0E-8F)
-        {
-            return;
-        }
-
-        inverse.invert().getColumn(axis.ordinal(), dir);
+        return vector3f;
     }
 
     public UIPropTransform enableHotkeys()
@@ -408,13 +327,6 @@ public class UIPropTransform extends UITransform
         return this.enableHotkeys(() -> true);
     }
 
-    /**
-     * Same as {@link #enableHotkeys()}, but every registered hotkey is gated by {@code enabled}. When
-     * it returns {@code false} the keybinds report inactive, so input propagation flows past this
-     * transform to whichever element is checked next &mdash; this is how two transforms that coexist in
-     * the tree (e.g. the body part transform in the sidebar alongside the active form panel's transform)
-     * avoid both grabbing on G/S/R: only the one whose gate is on responds.
-     */
     public UIPropTransform enableHotkeys(Supplier<Boolean> enabled)
     {
         IKey category = UIKeys.TRANSFORMS_KEYS_CATEGORY;
@@ -431,23 +343,12 @@ public class UIPropTransform extends UITransform
         {
             this.toggleLocal();
             UIUtils.playClick();
-        }).strict().active(enabled).category(category);
-
-        if (this.supportsMirror())
-        {
-            this.keys().register(Keys.TRANSFORMATIONS_MIRROR_EDIT, this::toggleMirrorEdit).active(enabled).category(category);
-        }
+        }).active(enabled).category(category);
 
         return this;
     }
 
     public Transform getTransform()
-    {
-        return this.transform;
-    }
-
-    @Override
-    protected Transform getEditedTransform()
     {
         return this.transform;
     }
@@ -462,20 +363,9 @@ public class UIPropTransform extends UITransform
         return this.axis;
     }
 
-    public Axis getAxis2()
-    {
-        return this.axis2;
-    }
-
     public int getMode()
     {
         return this.mode;
-    }
-
-    /** Whether the active translate is the screen-space (view-plane) grab. */
-    public boolean isScreenTranslate()
-    {
-        return this.translateScreen;
     }
 
     /** Whether the active rotation is one of the sphere's kinds (trackball or arcball). */
@@ -492,12 +382,6 @@ public class UIPropTransform extends UITransform
     public Vector3f getInitialDragRingVec()
     {
         return this.initialDragRingVec;
-    }
-
-    /** World-space axis of the active ring drag, as captured at its start. */
-    public Vector3f getDragAxisDir()
-    {
-        return this.dragAxisDir;
     }
 
     public float getAccumulatedRotateDeg()
@@ -557,6 +441,7 @@ public class UIPropTransform extends UITransform
             this.fillT(0, 0, 0);
             this.fillS(1, 1, 1);
             this.fillR(0, 0, 0);
+            this.fillR2(0, 0, 0);
 
             return;
         }
@@ -577,6 +462,7 @@ public class UIPropTransform extends UITransform
         this.fillT(transform.translate.x, transform.translate.y, transform.translate.z);
         this.fillS(transform.scale.x, transform.scale.y, transform.scale.z);
         this.fillR(MathUtils.toDeg(transform.rotate.x), MathUtils.toDeg(transform.rotate.y), MathUtils.toDeg(transform.rotate.z));
+        this.fillR2(MathUtils.toDeg(transform.rotate2.x), MathUtils.toDeg(transform.rotate2.y), MathUtils.toDeg(transform.rotate2.z));
     }
 
     public void enableMode(int mode)
@@ -1225,15 +1111,6 @@ public class UIPropTransform extends UITransform
             this.applyRayScaleAxis(hit, this.axis2, all, s);
         }
 
-        if (this.shouldSnap(1))
-        {
-            float step = BBSSettings.snapScale.get();
-
-            if (all || this.axis == Axis.X || this.axis2 == Axis.X) s.x = (float) snap(s.x, step);
-            if (all || this.axis == Axis.Y || this.axis2 == Axis.Y) s.y = (float) snap(s.y, step);
-            if (all || this.axis == Axis.Z || this.axis2 == Axis.Z) s.z = (float) snap(s.z, step);
-        }
-
         this.setS(null, s.x, s.y, s.z);
     }
 
@@ -1282,7 +1159,8 @@ public class UIPropTransform extends UITransform
      * projection this stays accurate when the ring faces the camera (where the
      * plane hit degenerates), and the per-frame deltas are unwrapped and
      * accumulated without limit so the user can wind several full turns in
-     * either direction.
+     * either direction. When {@code local && gizmos enabled} the change goes
+     * into {@code rotate2}, otherwise into {@code rotate}.
      */
     private void applyScreenRotate(int mouseX, int mouseY)
     {
@@ -1300,12 +1178,31 @@ public class UIPropTransform extends UITransform
 
         this.accumulatedRotateDeg += angleDeg;
 
-        /* Every space composes the whole accumulated sweep about the grabbed ring's parent-frame
-         * axis on top of the cached start orientation — including PARENT, which turns about the
-         * parent frame's fixed axes (the rings as drawn), not the bone's own like LOCAL. The snap
-         * lands on whole degrees of the sweep, since after the decomposition no single euler channel
-         * corresponds to it. */
-        this.applyAxisRotation(this.snapGizmoValue(this.accumulatedRotateDeg), this.rotateParentAxis);
+        float rx = this.dragStartRotateDeg.x;
+        float ry = this.dragStartRotateDeg.y;
+        float rz = this.dragStartRotateDeg.z;
+
+        switch (this.axis)
+        {
+            case X: rx += angleDeg; break;
+            case Y: ry += angleDeg; break;
+            case Z: rz += angleDeg; break;
+        }
+
+        /* Keep the raw accumulation so the drag stays smooth, then snap only the
+         * axis the user is actually turning — the other two carry their start
+         * values and must not be rounded out from under the user. */
+        this.dragStartRotateDeg.set(rx, ry, rz);
+
+        switch (this.axis)
+        {
+            case X: rx = (float) this.snapGizmoValue(rx); break;
+            case Y: ry = (float) this.snapGizmoValue(ry); break;
+            case Z: rz = (float) this.snapGizmoValue(rz); break;
+        }
+
+        if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     /**
@@ -1384,19 +1281,6 @@ public class UIPropTransform extends UITransform
         Vector3f translateAxis = new Vector3f();
 
         this.dragTranslateBasis.getColumn(axis.ordinal(), translateAxis);
-
-        /* Snap the distance moved along the handle in translate units, so the
-         * step means the same thing whatever frame the handle works in. */
-        if (this.shouldSnap(0))
-        {
-            float length = translateAxis.length();
-
-            if (length > 1.0E-8F)
-            {
-                t = (float) (snap(t * length, BBSSettings.snapTranslate.get()) / length);
-            }
-        }
-
         out.add(translateAxis.mul(t));
     }
 
@@ -1455,24 +1339,42 @@ public class UIPropTransform extends UITransform
             return;
         }
 
-        /* The handles drag along the axes the gizmo is rendered with — the
-         * viewport orients those by the active space (parent frame in GLOBAL,
-         * the bone's own frame in LOCAL), so the math here is space-agnostic.
-         * Pushing them through the inverse Jacobian recovers the matching
-         * change in translate-space, whatever units translate is in. */
-        Matrix3f inverse = new Matrix3f(this.drag.translateJacobian);
+        Matrix3f jacobian = new Matrix3f(this.drag.translateJacobian);
 
-        if (Math.abs(inverse.determinant()) < 1.0E-8F)
+        if (this.local)
         {
-            inverse.identity();
+            /* Local: each handle moves along the form's own axes (after the
+             * legacy 180° X correction). The translate-space direction is
+             * R.col(axis); pushed through the Jacobian we get the world-space
+             * direction with the proper scale baked in. */
+            Matrix3f rotation = new Matrix3f()
+                .rotateX(this.model ? MathUtils.PI : 0F)
+                .mul(this.transform.createRotationMatrix());
+
+            this.dragTranslateBasis.set(rotation);
+            this.dragWorldBasis.set(jacobian).mul(rotation);
         }
         else
         {
-            inverse.invert();
-        }
+            /* Global (Parent space): handles align with the bone's origin axes
+             * (which includes parent rotations and entity yaw). 
+             * We use the rendered gizmo's world axes for the drag plane, and
+             * push them through the inverse Jacobian to find the matching 
+             * change in translate-space. */
+            Matrix3f inverse = new Matrix3f(jacobian);
 
-        this.dragTranslateBasis.set(inverse).mul(this.drag.gizmoWorldAxes);
-        this.dragWorldBasis.set(this.drag.gizmoWorldAxes);
+            if (Math.abs(inverse.determinant()) < 1.0E-8F)
+            {
+                inverse.identity();
+            }
+            else
+            {
+                inverse.invert();
+            }
+
+            this.dragTranslateBasis.set(inverse).mul(this.drag.gizmoWorldAxes);
+            this.dragWorldBasis.set(this.drag.gizmoWorldAxes);
+        }
 
         if (this.axis2 == null)
         {
@@ -1587,12 +1489,15 @@ public class UIPropTransform extends UITransform
      */
     private void beginRayRotateTrackball(int mouseX, int mouseY)
     {
+        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
+
         /* Axes come from the cached start orientation, not the live one, so the
          * screen right/up directions stay fixed for the whole drag. This also
          * makes the call idempotent: a cursor wrap re-invokes it, and rebuilding
          * from the unchanged cache yields the same axes (and never disturbs the
          * accumulated offset). */
-        Matrix3f parentInverse = this.computeParentInverse(this.cache.rotate);
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+        Matrix3f parentInverse = this.computeParentInverse(source);
 
         if (parentInverse == null)
         {
@@ -1662,7 +1567,7 @@ public class UIPropTransform extends UITransform
      */
     private void updateTrackballRotation()
     {
-        Vector3f source = this.cache.rotate;
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
 
         Matrix3f startRotation = new Matrix3f()
             .rotationZ(source.z)
@@ -1681,12 +1586,13 @@ public class UIPropTransform extends UITransform
             .mul(startRotation)
             .getEulerAnglesZYX(new Vector3f());
 
-        Vector3f live = this.transform.rotate;
+        Vector3f live = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
         float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
         float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
         float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
 
-        this.setR(null, rx, ry, rz);
+        if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     /**
@@ -1726,7 +1632,10 @@ public class UIPropTransform extends UITransform
             this.arcballAnchored = false;
         }
 
-        Matrix3f parentInverse = this.computeParentInverse(this.cache.rotate);
+        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
+
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+        Matrix3f parentInverse = this.computeParentInverse(source);
         float radius = Gizmo.INSTANCE.getSphereWorldRadius();
 
         if (parentInverse == null || radius <= 0F)
@@ -1845,7 +1754,7 @@ public class UIPropTransform extends UITransform
      */
     private void updateArcballRotation()
     {
-        Vector3f source = this.cache.rotate;
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
 
         Matrix3f startRotation = new Matrix3f()
             .rotationZ(source.z)
@@ -1862,12 +1771,13 @@ public class UIPropTransform extends UITransform
             .mul(startRotation)
             .getEulerAnglesZYX(new Vector3f());
 
-        Vector3f live = this.transform.rotate;
+        Vector3f live = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
         float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
         float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
         float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
 
-        this.setR(null, rx, ry, rz);
+        if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     /**
@@ -1902,10 +1812,13 @@ public class UIPropTransform extends UITransform
         this.dragRotateSign = -1F;
         this.accumulatedRotateDeg = 0;
 
+        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
+
         /* Express the view axis once in the bone's parent frame; it stays
          * constant for the whole drag, while applyRayRotateView premultiplies
          * the live rotation by a turn about it. */
-        Matrix3f parentInverse = this.computeParentInverse(this.transform.rotate);
+        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+        Matrix3f parentInverse = this.computeParentInverse(source);
 
         if (parentInverse == null)
         {
@@ -1914,16 +1827,16 @@ public class UIPropTransform extends UITransform
             return;
         }
 
-        parentInverse.transform(this.dragAxisDir, this.rotateParentAxis);
+        parentInverse.transform(this.dragAxisDir, this.viewLocalAxis);
 
-        if (this.rotateParentAxis.lengthSquared() < 1.0E-8F)
+        if (this.viewLocalAxis.lengthSquared() < 1.0E-8F)
         {
             this.dragHasStart = false;
 
             return;
         }
 
-        this.rotateParentAxis.normalize();
+        this.viewLocalAxis.normalize();
         this.dragHasStart = true;
     }
 
@@ -1971,7 +1884,7 @@ public class UIPropTransform extends UITransform
      * passes through it and twitches), it premultiplies the live rotation matrix
      * by the spin and reads the Euler angles back out. The orientation stays
      * continuous through gimbal; only its Euler representation jumps, which is
-     * invisible. The spin axis is the constant parent-frame {@link #rotateParentAxis}.
+     * invisible. The spin axis is the constant parent-frame {@link #viewLocalAxis}.
      */
     private void applyRayRotateView(int mouseX, int mouseY)
     {
@@ -1992,7 +1905,7 @@ public class UIPropTransform extends UITransform
 
         this.accumulatedRotateDeg += MathUtils.toDeg(angle);
 
-        Vector3f source = this.transform.rotate;
+        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
 
         Matrix3f rotation = new Matrix3f()
             .rotationZ(source.z)
@@ -2000,7 +1913,7 @@ public class UIPropTransform extends UITransform
             .rotateX(source.x);
 
         Vector3f euler = new Matrix3f()
-            .rotation(angle, this.rotateParentAxis)
+            .rotation(angle, this.viewLocalAxis)
             .mul(rotation)
             .getEulerAnglesZYX(new Vector3f());
 
@@ -2008,15 +1921,20 @@ public class UIPropTransform extends UITransform
         float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(source.y));
         float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(source.z));
 
-        this.setR(null, rx, ry, rz);
+        if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     private void beginRayRotate(int mouseX, int mouseY)
     {
-        /* Every space composes the sweep about the ring the user actually grabbed, so the rendered
-         * gizmo axis is the right one by definition — whether the gizmo is drawn in the bone's own
-         * frame (LOCAL), the parent's (PARENT) or world-aligned (WORLD). */
-        Vector3f axisDir = this.drag.gizmoWorldAxes.getColumn(this.axis.ordinal(), new Vector3f());
+        /* Use the renderer's actual rotation axis (filled by the editor via
+         * GizmoDrag.computeRotateAxes), not the visible gizmo arrow direction.
+         * For cubic models these can differ in sign on X/Z because the renderer
+         * post-multiplies by Ry(180°) after the bone's own rotation, flipping
+         * bone-local X and Z while preserving Y. Without this the angle we
+         * write into transform.rotate winds up running opposite to the user's
+         * physical drag. */
+        Vector3f axisDir = this.drag.rotateAxes.getColumn(this.axis.ordinal(), new Vector3f());
 
         if (axisDir.lengthSquared() < 1.0E-8F)
         {
@@ -2059,29 +1977,15 @@ public class UIPropTransform extends UITransform
         this.initialDragRingVec.set(this.computeStartRingVec(mouseX, mouseY, axisDir));
         this.accumulatedRotateDeg = 0;
 
-        Matrix3f parentInverse = this.computeParentInverse(this.transform.rotate);
+        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
 
-        if (parentInverse == null)
-        {
-            this.dragHasStart = false;
+        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
 
-            return;
-        }
-
-        parentInverse.transform(axisDir, this.rotateParentAxis);
-
-        if (this.rotateParentAxis.lengthSquared() < 1.0E-8F)
-        {
-            this.dragHasStart = false;
-
-            return;
-        }
-
-        this.rotateParentAxis.normalize();
-
-        /* Freeze the ring at this orientation so it stays put while we drag,
-         * instead of writhing as the live rotation is recomposed each frame. */
-        Gizmo.INSTANCE.bakeRotation();
+        this.dragStartRotateDeg.set(
+            MathUtils.toDeg(source.x),
+            MathUtils.toDeg(source.y),
+            MathUtils.toDeg(source.z)
+        );
 
         this.dragHasStart = true;
     }
@@ -2099,7 +2003,7 @@ public class UIPropTransform extends UITransform
         }
         else if (this.mode == 2)
         {
-            return this.transform.rotate;
+            return this.local && BBSSettings.gizmos.get() ? this.transform.rotate2 : this.transform.rotate;
         }
 
         return this.transform.translate;
@@ -2109,7 +2013,11 @@ public class UIPropTransform extends UITransform
     {
         if (this.mode == 0 || fully) this.setT(null, this.cache.translate.x, this.cache.translate.y, this.cache.translate.z);
         if (this.mode == 1 || fully) this.setS(null, this.cache.scale.x, this.cache.scale.y, this.cache.scale.z);
-        if (this.mode == 2 || fully) this.setR(null, MathUtils.toDeg(this.cache.rotate.x), MathUtils.toDeg(this.cache.rotate.y), MathUtils.toDeg(this.cache.rotate.z));
+        if (this.mode == 2 || fully)
+        {
+            this.setR(null, MathUtils.toDeg(this.cache.rotate.x), MathUtils.toDeg(this.cache.rotate.y), MathUtils.toDeg(this.cache.rotate.z));
+            this.setR2(null, MathUtils.toDeg(this.cache.rotate2.x), MathUtils.toDeg(this.cache.rotate2.y), MathUtils.toDeg(this.cache.rotate2.z));
+        }
     }
 
     private void disable()
@@ -2122,7 +2030,6 @@ public class UIPropTransform extends UITransform
         this.drag = null;
         this.dragHasStart = false;
         this.arcballAnchored = false;
-        this.fineHasLast = false;
         this.clearNumericInput();
         Gizmo.INSTANCE.clearTrackedTransform(this);
 
@@ -2422,10 +2329,6 @@ public class UIPropTransform extends UITransform
         this.lastX = context.mouseX;
         this.lastY = context.mouseY;
 
-        /* The cursor was free to roam while typing; re-anchor the precision
-         * tracking here so the resumed drag doesn't inherit a stale lag. */
-        this.resetFineCursor(context.mouseX, context.mouseY);
-
         if (this.useRayDrag())
         {
             this.beginRayDrag(context.mouseX, context.mouseY);
@@ -2479,18 +2382,31 @@ public class UIPropTransform extends UITransform
 
     private void applyNumericTranslate(double value)
     {
-        Vector3f offset = this.spaceTranslateDir(this.axis).mul((float) value);
-
-        if (this.axis2 != null)
+        if (this.local)
         {
-            offset.add(this.spaceTranslateDir(this.axis2).mul((float) value));
-        }
+            Vector3f offset = this.calculateLocalVector(value, this.axis);
 
-        this.setT(null,
-            this.cache.translate.x + offset.x,
-            this.cache.translate.y + offset.y,
-            this.cache.translate.z + offset.z
-        );
+            if (this.axis2 != null)
+            {
+                offset.add(this.calculateLocalVector(value, this.axis2));
+            }
+
+            this.setT(null,
+                this.cache.translate.x + offset.x,
+                this.cache.translate.y + offset.y,
+                this.cache.translate.z + offset.z
+            );
+        }
+        else
+        {
+            Vector3f t = new Vector3f(this.cache.translate);
+
+            if (this.axis == Axis.X || this.axis2 == Axis.X) t.x = this.cache.translate.x + (float) value;
+            if (this.axis == Axis.Y || this.axis2 == Axis.Y) t.y = this.cache.translate.y + (float) value;
+            if (this.axis == Axis.Z || this.axis2 == Axis.Z) t.z = this.cache.translate.z + (float) value;
+
+            this.setT(null, t.x, t.y, t.z);
+        }
     }
 
     private void applyNumericScale(double value)
@@ -2507,26 +2423,8 @@ public class UIPropTransform extends UITransform
 
     private void applyNumericRotate(double value)
     {
-        /* With a live ray anchor every space composes about the grabbed ring's axis (PARENT and
-         * WORLD included — the parent/world fixed axes, not the bone's own). */
-        if (this.useRayDrag() && this.dragHasStart)
-        {
-            this.applyAxisRotation(value, this.rotateParentAxis);
-
-            return;
-        }
-
-        if (this.getSpace() == TransformSpace.LOCAL)
-        {
-            this.applyLocalBodyRotation(value, this.cache.rotate);
-
-            return;
-        }
-
-        /* PARENT/WORLD without a ray anchor have no axis in reach; the channel add below stands
-         * in — exact wherever parent == world. */
-
-        Vector3f source = this.cache.rotate;
+        boolean gizmoSpace = this.local && BBSSettings.gizmos.get();
+        Vector3f source = gizmoSpace ? this.cache.rotate2 : this.cache.rotate;
 
         float rx = MathUtils.toDeg(source.x);
         float ry = MathUtils.toDeg(source.y);
@@ -2536,111 +2434,94 @@ public class UIPropTransform extends UITransform
         if (this.axis == Axis.Y || this.axis2 == Axis.Y) ry += value;
         if (this.axis == Axis.Z || this.axis2 == Axis.Z) rz += value;
 
-        this.setR(null, rx, ry, rz);
+        if (gizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
     private void applyNumericView(double value)
     {
-        this.applyAxisRotation(value, this.rotateParentAxis);
+        this.applyNumericAxisRotation(value, this.viewLocalAxis);
     }
 
     private void applyNumericTrackball(double value)
     {
-        this.applyAxisRotation(value, this.trackballAxis == Axis.Y ? this.trackballRightLocal : this.trackballUpLocal);
+        this.applyNumericAxisRotation(value, this.trackballAxis == Axis.Y ? this.trackballRightLocal : this.trackballUpLocal);
     }
 
     /**
-     * Premultiply the start orientation ({@link #cache}) by a turn of the given
+     * Premultiply the start orientation ({@link #cache}) by a turn of the typed
      * degrees about a fixed parent-frame axis, then read the Euler angles back —
-     * the composition shared by the view ring, the sphere's typed angles and the
-     * LOCAL-space ring (cursor-driven and typed alike). {@code parentAxis} is
-     * captured at drag start and stays constant; unwrapping against the live
-     * values keeps the channels continuous across decomposition seams.
+     * the same composition the cursor-driven view/trackball drags use, but from a
+     * single exact angle. {@code localAxis} is captured at drag start
+     * ({@link #viewLocalAxis} or the trackball screen axes) and stays constant.
      */
-    private void applyAxisRotation(double degrees, Vector3f parentAxis)
+    private void applyNumericAxisRotation(double degrees, Vector3f localAxis)
     {
-        if (parentAxis.lengthSquared() < 1.0E-8F)
+        if (localAxis.lengthSquared() < 1.0E-8F)
         {
             return;
         }
 
-        Vector3f source = this.cache.rotate;
+        boolean gizmoSpace = this.dragRotateGizmoSpace;
+        Vector3f source = gizmoSpace ? this.cache.rotate2 : this.cache.rotate;
 
         Vector3f euler = new Matrix3f()
-            .rotation(MathUtils.toRad((float) degrees), parentAxis)
+            .rotation(MathUtils.toRad((float) degrees), localAxis)
             .mul(new Matrix3f().rotationZ(source.z).rotateY(source.y).rotateX(source.x))
             .getEulerAnglesZYX(new Vector3f());
 
-        Vector3f live = this.transform.rotate;
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
+        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(source.x));
+        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(source.y));
+        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(source.z));
 
-        this.setR(null, rx, ry, rz);
+        if (gizmoSpace) this.setR2(null, rx, ry, rz);
+        else this.setR(null, rx, ry, rz);
     }
 
-    /**
-     * Post-multiply a base orientation by a turn about the bone's own axis (and
-     * the optional second one) and write the Euler angles back. Without a ray
-     * anchor this is the exact meaning of "rotate in local space" — it needs no
-     * renderer or parent context at all, so it serves the classic cursor drag
-     * (base = live, the single-axis composition telescopes exactly) and typed
-     * input (base = the cached start).
-     */
-    private void applyLocalBodyRotation(double degrees, Vector3f baseRotate)
+    @Override
+    protected void internalSetT(double x, Axis axis)
     {
-        float rad = MathUtils.toRad((float) degrees);
-        Matrix3f rotation = new Matrix3f()
-            .rotationZ(baseRotate.z)
-            .rotateY(baseRotate.y)
-            .rotateX(baseRotate.x);
-
-        rotateBodyAxis(rotation, rad, this.axis);
-
-        if (this.axis2 != null)
+        if (this.transform == null)
         {
-            rotateBodyAxis(rotation, rad, this.axis2);
+            return;
         }
 
-        Vector3f euler = rotation.getEulerAnglesZYX(new Vector3f());
-        Vector3f live = this.transform.rotate;
+        if (this.local)
+        {
+            try
+            {
+                Vector3f vector3f = this.calculateLocalVector(x, axis);
 
-        this.setR(null,
-            unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x)),
-            unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y)),
-            unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z))
-        );
+                this.setT(null,
+                    this.transform.translate.x + vector3f.x,
+                    this.transform.translate.y + vector3f.y,
+                    this.transform.translate.z + vector3f.z
+                );
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+        else
+        {
+            super.internalSetT(x, axis);
+        }
     }
 
-    private static void rotateBodyAxis(Matrix3f rotation, float rad, Axis axis)
+    private boolean shouldSnapGizmoValues()
     {
-        if (axis == Axis.X) rotation.rotateX(rad);
-        else if (axis == Axis.Y) rotation.rotateY(rad);
-        else rotation.rotateZ(rad);
-    }
-
-    /* Blender-style snapping: every gesture is free by default and snaps to the
-     * configured step only while Ctrl is held. Typed numeric input is exact
-     * already, so it never snaps. */
-
-    private boolean shouldSnap(int mode)
-    {
-        return this.editing && this.mode == mode && Window.isCtrlPressed() && !this.numericActive;
-    }
-
-    private static double snap(double value, float step)
-    {
-        return step <= 0F ? value : Math.round(value / step) * (double) step;
+        return this.editing && this.mode == 2 && this.rotateKind == RotateKind.AXIS && !Window.isAltPressed() && !this.numericActive;
     }
 
     private double snapGizmoValue(double value)
     {
-        if (this.rotateKind != RotateKind.AXIS || !this.shouldSnap(2))
+        if (!this.shouldSnapGizmoValues())
         {
             return value;
         }
 
-        return snap(value, BBSSettings.snapRotate.get());
+        return value < 0D ? Math.ceil(value) : Math.floor(value);
     }
 
     @Override
@@ -2679,6 +2560,19 @@ public class UIPropTransform extends UITransform
 
         this.preCallback();
         this.transform.rotate.set(MathUtils.toRad((float) x), MathUtils.toRad((float) y), MathUtils.toRad((float) z));
+        this.postCallback();
+    }
+
+    @Override
+    public void setR2(Axis axis, double x, double y, double z)
+    {
+        if (this.transform == null)
+        {
+            return;
+        }
+
+        this.preCallback();
+        this.transform.rotate2.set(MathUtils.toRad((float) x), MathUtils.toRad((float) y), MathUtils.toRad((float) z));
         this.postCallback();
     }
 
@@ -2758,68 +2652,15 @@ public class UIPropTransform extends UITransform
         return Colors.A100 | Colors.BLUE;
     }
 
-    /** Local/global chip; scale ignores the space toggle and the view/sphere
-     *  rotations are screen-driven, so neither gets one. */
+    /** Local/global chip; scale ignores the space toggle, so it gets none. */
     private String editingSpaceLabel()
     {
-        if (this.mode == 1 || (this.mode == 2 && this.rotateKind != RotateKind.AXIS))
+        if (this.mode == 1)
         {
             return null;
         }
 
-        TransformSpace space = this.getSpace();
-        IKey label = space == TransformSpace.LOCAL ? UIKeys.TRANSFORMS_SPACE_LOCAL
-            : space == TransformSpace.WORLD ? UIKeys.TRANSFORMS_SPACE_WORLD
-            : UIKeys.TRANSFORMS_SPACE_GLOBAL;
-
-        return label.get();
-    }
-
-    /**
-     * Maintain the virtual cursor for the current frame. While Shift is held it
-     * advances at {@link #FINE_DRAG_FACTOR} of the real cursor — the rest of the
-     * motion piles into the lag offset; released, it tracks the cursor 1:1 again
-     * with no jump. Ray gestures read {@link #fineX}/{@link #fineY} so they all
-     * slow uniformly without any per-mode code.
-     */
-    private void updateFineCursor(int mouseX, int mouseY)
-    {
-        if (!this.fineHasLast)
-        {
-            this.resetFineCursor(mouseX, mouseY);
-
-            return;
-        }
-
-        if (Window.isShiftPressed())
-        {
-            float keep = 1F - FINE_DRAG_FACTOR;
-
-            this.fineOffsetX += (mouseX - this.fineLastX) * keep;
-            this.fineOffsetY += (mouseY - this.fineLastY) * keep;
-        }
-
-        this.fineLastX = mouseX;
-        this.fineLastY = mouseY;
-    }
-
-    private void resetFineCursor(int mouseX, int mouseY)
-    {
-        this.fineOffsetX = 0F;
-        this.fineOffsetY = 0F;
-        this.fineLastX = mouseX;
-        this.fineLastY = mouseY;
-        this.fineHasLast = true;
-    }
-
-    private int fineX(int mouseX)
-    {
-        return Math.round(mouseX - this.fineOffsetX);
-    }
-
-    private int fineY(int mouseY)
-    {
-        return Math.round(mouseY - this.fineOffsetY);
+        return (this.local ? UIKeys.TRANSFORMS_SPACE_LOCAL : UIKeys.TRANSFORMS_SPACE_GLOBAL).get();
     }
 
     @Override
@@ -2843,18 +2684,12 @@ public class UIPropTransform extends UITransform
             int border = 5;
             int borderPadding = border + 1;
 
-            this.updateFineCursor(context.mouseX, context.mouseY);
-
             if (rawX <= border)
             {
                 Window.moveCursor(w - borderPadding, (int) mc.mouse.getY());
 
                 this.lastX = context.menu.width - (int) (borderPadding / fx);
                 this.checker.mark();
-
-                /* The wrap re-anchors the drag at the teleported position, so the
-                 * virtual cursor resets there too — no lag carries across the seam. */
-                this.resetFineCursor(this.lastX, context.mouseY);
 
                 if (this.useRayDrag()) this.beginRayDrag(this.lastX, context.mouseY);
             }
@@ -2865,13 +2700,11 @@ public class UIPropTransform extends UITransform
                 this.lastX = (int) (borderPadding / fx);
                 this.checker.mark();
 
-                this.resetFineCursor(this.lastX, context.mouseY);
-
                 if (this.useRayDrag()) this.beginRayDrag(this.lastX, context.mouseY);
             }
             else if (this.useRayDrag())
             {
-                this.applyRayDrag(this.fineX(context.mouseX), this.fineY(context.mouseY));
+                this.applyRayDrag(context.mouseX, context.mouseY);
             }
             else
             {
@@ -2879,22 +2712,18 @@ public class UIPropTransform extends UITransform
                 Vector3f vector = this.getValue();
                 boolean all = this.mode == 1 && Window.isCtrlPressed();
                 UITrackpad reference = this.mode == 0 ? this.tx : (this.mode == 1 ? this.sx : this.rx);
-                float factor = (float) reference.getValueModifier() * (Window.isShiftPressed() ? FINE_DRAG_FACTOR : 1F);
+                float factor = (float) reference.getValueModifier();
 
-                if (this.mode == 0)
+                if (this.local && this.mode == 0)
                 {
-                    Vector3f offset = this.spaceTranslateDir(this.axis).mul(factor * dx);
+                    Vector3f vector3f = this.calculateLocalVector(factor * dx, this.axis);
 
                     if (this.axis2 != null)
                     {
-                        offset.add(this.spaceTranslateDir(this.axis2).mul(factor * dx));
+                        vector3f.add(this.calculateLocalVector(factor * dx, this.axis2));
                     }
 
-                    this.setT(null, vector.x + offset.x, vector.y + offset.y, vector.z + offset.z);
-                }
-                else if (this.mode == 2 && this.getSpace() == TransformSpace.LOCAL)
-                {
-                    this.applyLocalBodyRotation(factor * dx, this.transform.rotate);
+                    this.setT(null, vector.x + vector3f.x, vector.y + vector3f.y, vector.z + vector3f.z);
                 }
                 else
                 {
@@ -2912,8 +2741,13 @@ public class UIPropTransform extends UITransform
                     if (!all && this.axis2 == Axis.Y) vector3f.y += factor * dx;
                     if (!all && this.axis2 == Axis.Z) vector3f.z += factor * dx;
 
+                    if (this.mode == 0) this.setT(null, vector3f.x, vector3f.y, vector3f.z);
                     if (this.mode == 1) this.setS(null, vector3f.x, vector3f.y, vector3f.z);
-                    if (this.mode == 2) this.setR(null, vector3f.x, vector3f.y, vector3f.z);
+                    if (this.mode == 2)
+                    {
+                        if (this.local && BBSSettings.gizmos.get()) this.setR2(null, vector3f.x, vector3f.y, vector3f.z);
+                        else this.setR(null, vector3f.x, vector3f.y, vector3f.z);
+                    }
                 }
             }
 
@@ -2927,23 +2761,6 @@ public class UIPropTransform extends UITransform
                 this.lastX = context.mouseX;
                 this.lastY = context.mouseY;
             }
-        }
-
-        if (this.spacesBarBackground)
-        {
-            this.spacesBar.area.render(context.batcher, Colors.A50);
-        }
-
-        UIDashboardPanels.renderHighlight(context.batcher, this.activeSpaceIcon().area, Direction.BOTTOM);
-
-        if (this.mirror != null && BBSSettings.poseMirrorEdit.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.mirror.area, Direction.BOTTOM);
-        }
-
-        if (this.invert != null && BBSSettings.poseAlternateInvert.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.invert.area, Direction.BOTTOM);
         }
 
         super.render(context);
@@ -2993,7 +2810,7 @@ public class UIPropTransform extends UITransform
                     val = MathUtils.toDeg(val);
                 }
 
-                String valueLabel = String.format(Locale.US, "%.2f", val);
+                String valueLabel = String.format(java.util.Locale.US, "%.2f", val);
 
                 if (this.axis2 != null)
                 {
@@ -3004,7 +2821,7 @@ public class UIPropTransform extends UITransform
                         val2 = MathUtils.toDeg(val2);
                     }
 
-                    valueLabel += ", " + String.format(Locale.US, "%.2f", val2);
+                    valueLabel += ", " + String.format(java.util.Locale.US, "%.2f", val2);
                 }
 
                 /* While typing, lead with the raw input so the user sees exactly

@@ -15,8 +15,6 @@ import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Matrix3f;
-import org.joml.Vector3f;
 
 import java.util.Arrays;
 import java.util.List;
@@ -161,6 +159,7 @@ public class ProceduralAnimator implements IAnimator
                     if (target.isUsingRiptide())
                     {
                         group.current.rotate.x = -90.0F - pitch;
+                        group.current.rotate2.y = age * -75.0F;
                     }
 
                     if (target.isFallFlying())
@@ -197,19 +196,6 @@ public class ProceduralAnimator implements IAnimator
                             group.current.translate.y -= 0.5F * 16F;
                             group.current.translate.z += 0.3F * 16F;
                         }
-                    }
-
-                    /* The spin turns about the anchor's own Y axis, so it composes
-                     * after the branches above are done writing the euler channels. */
-                    if (target.isUsingRiptide())
-                    {
-                        Vector3f r = group.current.rotate;
-                        Vector3f spun = new Matrix3f()
-                            .rotationZ(MathUtils.toRad(r.z)).rotateY(MathUtils.toRad(r.y)).rotateX(MathUtils.toRad(r.x))
-                            .rotateY(MathUtils.toRad(age * -75.0F))
-                            .getEulerAnglesZYX(new Vector3f());
-
-                        r.set(MathUtils.toDeg(spun.x), MathUtils.toDeg(spun.y), MathUtils.toDeg(spun.z));
                     }
                 }
                 else if (group.id.equals("head"))
@@ -314,6 +300,7 @@ public class ProceduralAnimator implements IAnimator
                     if (target.isUsingRiptide())
                     {
                         bone.transform.rotate.x = MathUtils.toRad(-90.0F - pitch);
+                        bone.transform.rotate2.y = MathUtils.toRad(age * -75.0F);
                     }
 
                     if (target.isFallFlying())
@@ -350,18 +337,6 @@ public class ProceduralAnimator implements IAnimator
                             bone.transform.translate.y -= MathUtils.toRad(0.5F * 16F);
                             bone.transform.translate.z += MathUtils.toRad(0.3F * 16F);
                         }
-                    }
-
-                    /* Same as the cubic anchor: the spin composes about the bone's own Y
-                     * after the branches above are done writing the euler channels. */
-                    if (target.isUsingRiptide())
-                    {
-                        Vector3f r = bone.transform.rotate;
-
-                        new Matrix3f()
-                            .rotationZ(r.z).rotateY(r.y).rotateX(r.x)
-                            .rotateY(MathUtils.toRad(age * -75.0F))
-                            .getEulerAnglesZYX(r);
                     }
                 }
                 else if (bone.name.equals("head"))

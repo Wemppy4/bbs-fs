@@ -311,6 +311,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
                 poseT.translate.set(0F, 0F, 0F);
                 poseT.scale.set(1F, 1F, 1F);
                 poseT.rotate.set(0F, 0F, 0F);
+                poseT.rotate2.set(0F, 0F, 0F);
             });
             this.refillTransform();
         }

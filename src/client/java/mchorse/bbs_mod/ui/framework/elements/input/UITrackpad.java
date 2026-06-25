@@ -63,7 +63,6 @@ public class UITrackpad extends UIBaseTextbox
     public boolean delayedInput;
     public boolean onlyNumbers;
 
-    /** Feed the callback per-change deltas instead of the absolute value. */
     public boolean relative;
     public boolean allowCanceling = true;
     public IKey forcedLabel;
@@ -308,14 +307,14 @@ public class UITrackpad extends UIBaseTextbox
         double oldValue = this.value;
 
         this.setValue(value);
-        this.accept(oldValue);
+        this.accept(value, oldValue);
     }
 
-    private void accept(double oldValue)
+    private void accept(double value, double oldValue)
     {
         if (this.callback != null)
         {
-            this.callback.accept(this.relative ? this.value - oldValue : this.value);
+            this.callback.accept(this.relative ? value - oldValue : this.value);
         }
     }
 
@@ -574,7 +573,7 @@ public class UITrackpad extends UIBaseTextbox
 
                 if (!this.delayedInput)
                 {
-                    this.accept(oldValue);
+                    this.accept(this.value, oldValue);
                 }
             }
             catch (Exception e)
@@ -634,7 +633,7 @@ public class UITrackpad extends UIBaseTextbox
 
                 if (!this.delayedInput)
                 {
-                    this.accept(oldValue);
+                    this.accept(this.value, oldValue);
                 }
             }
             catch (Exception e)

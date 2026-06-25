@@ -72,7 +72,6 @@ import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoInteraction;
 import mchorse.bbs_mod.ui.utils.GizmoViewport;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -1231,6 +1230,15 @@ public class UIFilmController extends UIElement implements GizmoViewport
             }
         }
 
+        /* The visual gizmo draws here, before the picking preview, so the bone /
+         * sphere hover highlights composite on top of it. It moved out of the
+         * world pass into the UI pipeline so its translucent parts blend
+         * correctly (see Gizmo#renderInterface). */
+        if (this.canShowGizmo())
+        {
+            this.gizmo.renderGizmo(context);
+        }
+
         this.renderPickingPreview(context, area);
 
         this.orbit.handleOrbiting(context);
@@ -1441,7 +1449,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return context == null ? 0F : context.getTransition();
     }
 
-    public Pair<String, TransformSpace> getBone()
+    public Pair<String, Boolean> getBone()
     {
         UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
 
@@ -1456,11 +1464,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return keyframeEditor != null && keyframeEditor.isFormAnchorTrack();
     }
 
-    public TransformSpace getAnchorSpace()
+    public boolean getAnchorLocal()
     {
         UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
 
-        return keyframeEditor == null ? TransformSpace.PARENT : keyframeEditor.getAnchorSpace();
+        return keyframeEditor != null && keyframeEditor.getAnchorLocal();
     }
 
     /**
@@ -1495,6 +1503,10 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         this.ensureStencilFramebuffer();
 
+        /* Match the visual gizmo's on-screen size compensation (see
+         * Gizmo#setViewportScale) so the pick handles line up with what is drawn. */
+        Gizmo.INSTANCE.setViewportScale(context.menu.height / (float) viewport.h);
+
         boolean isPlaying = this.isPlaying();
         Texture mainTexture = this.stencil.getFramebuffer().getMainTexture();
 
@@ -1505,7 +1517,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         {
             List<Replay> replays = this.panel.getData().replays.getList();
             int selectedReplayIndex = this.getCurrentReplayIndex();
-            Pair<String, TransformSpace> bone = this.getBone();
+            Pair<String, Boolean> bone = this.getBone();
 
             for (Map.Entry<Integer, IEntity> entry : this.getEntities().entrySet())
             {
@@ -1528,8 +1540,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
                     this.stencilMap.setIncrement(true);
 
                     filmContext
-                        .bone(bone == null ? null : bone.a, bone == null ? TransformSpace.PARENT : bone.b)
-                        .anchorGizmo(this.isAnchorGizmo(), this.getAnchorSpace());
+                        .bone(bone == null ? null : bone.a, bone != null && bone.b)
+                        .anchorGizmo(this.isAnchorGizmo(), this.getAnchorLocal());
                 }
                 else
                 {
@@ -1543,7 +1555,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         else
         {
             Replay replay = this.panel.replayEditor.getReplay();
-            Pair<String, TransformSpace> bone = this.getBone();
+            Pair<String, Boolean> bone = this.getBone();
 
             this.stencilMap.setIncrement(true);
 
@@ -1552,8 +1564,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
                 .transition(isPlaying ? renderContext.tickCounter().getTickDelta(false) : 0)
                 .stencil(this.stencilMap)
                 .relative(replay.relative.get())
-                .bone(bone == null ? null : bone.a, bone == null ? TransformSpace.PARENT : bone.b)
-                .anchorGizmo(this.isAnchorGizmo(), this.getAnchorSpace()));
+                .bone(bone == null ? null : bone.a, bone != null && bone.b)
+                .anchorGizmo(this.isAnchorGizmo(), this.getAnchorLocal()));
         }
 
         int x = (int) ((context.mouseX - viewport.x) / (float) viewport.w * mainTexture.width);

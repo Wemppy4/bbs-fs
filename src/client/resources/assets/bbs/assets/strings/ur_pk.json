@@ -1007,6 +1007,7 @@
     "bbs.ui.trackpad.global_amplifier": "ایمپلی ٹیوڈ اپ ڈیٹ؛ نیا فیکٹر %.2f ہے",
     "bbs.ui.transforms.editing": "ترمیم ہو رہی ہے...",
     "bbs.ui.transforms.rotate": "گھمائیں",
+    "bbs.ui.transforms.rotate2": "گھمائیں (دوسرا)",
     "bbs.ui.transforms.scale": "سکیل",
     "bbs.ui.transforms.translate": "منتقلی",
     "bbs.ui.transforms.uniform_scale": "یونیفارم سکیل ٹوگل کریں",

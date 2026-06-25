@@ -965,6 +965,7 @@
     "bbs.ui.transforms.keys.category": "التحولات",
     "bbs.ui.transforms.keys.toggle_axes": "تبديل محاور XYZ",
     "bbs.ui.transforms.rotate": "تدوير",
+    "bbs.ui.transforms.rotate2": "تدوير (ثاني)",
     "bbs.ui.transforms.scale": "تحجيم",
     "bbs.ui.transforms.translate": "نقل",
     "bbs.ui.transforms.uniform_scale": "تبديل التحجيم الموحد",

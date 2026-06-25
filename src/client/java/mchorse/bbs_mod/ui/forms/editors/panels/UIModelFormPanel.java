@@ -73,16 +73,12 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
             ModelInstance model = ModelFormRenderer.getModel(this.form);
             List<String> materials = model == null ? Collections.emptyList() : model.materials;
 
-            /* No materials (single global texture, e.g. cubic): pick the form's default texture.
-             * Exactly one material: pick it directly. Multiple: choose which material to pick. When
-             * materials exist the form's "Default" texture is irrelevant, so it isn't offered. */
-            if (materials.isEmpty())
+            /* At most one material (a single global texture, e.g. cubic, or one unambiguous material):
+             * pick the form's default texture. Multiple: choose which material to pick - the form's
+             * "Default" texture is ambiguous then, so it isn't offered. */
+            if (materials.size() <= 1)
             {
                 this.openTexturePicker(null);
-            }
-            else if (materials.size() == 1)
-            {
-                this.openTexturePicker(materials.get(0));
             }
             else
             {

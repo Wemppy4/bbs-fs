@@ -55,7 +55,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
-import mchorse.bbs_mod.ui.utils.TransformSpace;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -937,7 +936,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
 
         if (this.isBodyPartGizmoMode())
         {
-            return this.editor.getBodyPartGizmoOrigin(transition, this.bodyPartEditor.transform.getSpace());
+            return this.editor.getBodyPartGizmoOrigin(transition, this.bodyPartEditor.transform.isLocal());
         }
 
         return this.editor.getOrigin(transition);
@@ -958,7 +957,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
 
         if (this.isBodyPartGizmoMode())
         {
-            return this.editor.getBodyPartGizmoOrigin(transition, TransformSpace.LOCAL);
+            return this.editor.getBodyPartGizmoOrigin(transition, true);
         }
 
         return this.editor.getOriginMatrix(transition);

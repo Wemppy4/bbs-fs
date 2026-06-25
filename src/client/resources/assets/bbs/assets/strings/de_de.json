@@ -968,6 +968,7 @@
     "bbs.ui.transforms.keys.category": "Transformationen",
     "bbs.ui.transforms.keys.toggle_axes": "XYZ Achsen umschalten",
     "bbs.ui.transforms.rotate": "Rotieren",
+    "bbs.ui.transforms.rotate2": "Rotieren (2.)",
     "bbs.ui.transforms.scale": "Skalieren",
     "bbs.ui.transforms.translate": "Bewegen",
     "bbs.ui.transforms.uniform_scale": "Einheitliche Skalierung umschalten",

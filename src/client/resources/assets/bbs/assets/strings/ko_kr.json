@@ -946,6 +946,7 @@
     "bbs.ui.transforms.keys.category": "변환",
     "bbs.ui.transforms.keys.toggle_axes": "XYZ 축 전환",
     "bbs.ui.transforms.rotate": "회전",
+    "bbs.ui.transforms.rotate2": "회전 (2차)",
     "bbs.ui.transforms.scale": "크기",
     "bbs.ui.transforms.translate": "이동",
     "bbs.ui.transforms.uniform_scale": "균일 크기 조절 전환",

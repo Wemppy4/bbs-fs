@@ -1147,6 +1147,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             }
         };
 
+        /* Disable the handle entirely (no click, no resize cursor) when panel resizing is turned off. */
+        handle.enabled(() -> BBSSettings.editorResizablePanels.get());
+
         handle.dragEnd(() ->
         {
             this.clearSplitterDragState();
@@ -1162,7 +1165,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     private void beginSplitterDrag(int index, int mouseX, int mouseY)
     {
-        if (index < 0 || index >= this.splitterHandleInfos.size())
+        if (!BBSSettings.editorResizablePanels.get() || index < 0 || index >= this.splitterHandleInfos.size())
         {
             this.clearSplitterDragState();
             return;
@@ -1705,7 +1708,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         EditorLayoutNode.SplitterHandleInfo info = this.splitterHandleInfos.get(index);
         int lineColor = BBSSettings.primaryColor(Colors.A100);
 
-        if (splitter.isDragging() || splitter.area.isInside(context))
+        if ((splitter.isDragging() || splitter.area.isInside(context)) && BBSSettings.editorResizablePanels.get())
         {
             context.requestCursor(this.getSplitterCursor(index, context.mouseX, context.mouseY));
         }

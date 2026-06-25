@@ -156,12 +156,6 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
             matrices.pop();
         }
 
-        if (UIScreen.getCurrentMenu() instanceof UIDashboard dashboard
-            && dashboard.getPanels().panel instanceof UIModelBlockPanel modelBlockPanel)
-        {
-            modelBlockPanel.renderWorldGizmo(matrices, entity);
-        }
-
         RenderSystem.disableDepthTest();
 
         if (mc.getDebugHud().shouldShowDebugHud())
