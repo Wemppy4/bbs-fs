@@ -352,6 +352,7 @@ public class UIKeys
     public static final IKey FILM_REPLAY_RELATIVE_TOOLTIP = L10n.lang("bbs.ui.film.replay.relative-tooltip");
     public static final IKey FILM_REPLAY_REPLAY = L10n.lang("bbs.ui.film.replay.replay");
     public static final IKey FILM_REPLAY_SHADOW = L10n.lang("bbs.ui.film.replay.shadow");
+    public static final IKey FILM_REPLAY_SECTION_OTHER = L10n.lang("bbs.ui.film.replay.section_other");
     public static final IKey FILM_REPLAY_SHADOW_SIZE = L10n.lang("bbs.ui.film.replay.shadow_size");
     public static final IKey FILM_REPLAY_SHADOW_FOLLOW = L10n.lang("bbs.ui.film.replay.shadow_follow");
     public static final IKey FILM_REPLAY_SHADOW_FOLLOW_TOOLTIP = L10n.lang("bbs.ui.film.replay.shadow_follow_tooltip");
@@ -448,6 +449,10 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_GENERAL_TRACK_NAME_TOOLTIP = L10n.lang("bbs.ui.forms.editors.general.track_name-tooltip");
     public static final IKey FORMS_EDITORS_GENERAL_UI_SCALE = L10n.lang("bbs.ui.forms.editors.general.ui_scale");
     public static final IKey FORMS_EDITORS_GENERAL_VISIBLE = L10n.lang("bbs.ui.forms.editors.general.visible");
+    public static final IKey FORMS_EDITORS_GENERAL_SECTION_DISPLAY = L10n.lang("bbs.ui.forms.editors.general.section_display");
+    public static final IKey FORMS_EDITORS_GENERAL_SECTION_TRACKS = L10n.lang("bbs.ui.forms.editors.general.section_tracks");
+    public static final IKey FORMS_EDITORS_GENERAL_SECTION_TRANSFORM = L10n.lang("bbs.ui.forms.editors.general.section_transform");
+    public static final IKey FORMS_EDITORS_GENERAL_SECTION_MOVEMENT = L10n.lang("bbs.ui.forms.editors.general.section_movement");
     public static final IKey FORMS_EDITORS_ITEM_TITLE = L10n.lang("bbs.ui.forms.editors.item.title");
     public static final IKey FORMS_EDITORS_ITEM_TRANSFORMS = L10n.lang("bbs.ui.forms.editors.item.transforms");
     public static final IKey FORMS_EDITORS_LABEL_ANCHOR = L10n.lang("bbs.ui.forms.editors.label.anchor");

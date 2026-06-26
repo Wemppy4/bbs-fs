@@ -10,6 +10,7 @@ import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
@@ -201,11 +202,9 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             this.commitChanges();
         });
 
-        this.options.add(
-            this.debug,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_BONES),
-            this.bones,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_SETTINGS).background().marginTop(UIConstants.SECTION_GAP),
+        UISection settings = new UISection(UIKeys.FORMS_EDITORS_MODEL_IK_SETTINGS);
+
+        settings.fields.add(
             this.enabled,
             this.target,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH).marginTop(UIConstants.SECTION_GAP),
@@ -219,6 +218,16 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT).marginTop(UIConstants.SECTION_GAP),
             this.weight,
             this.tipRotation
+        );
+
+        UISection bonesSection = new UISection(UIKeys.FORMS_EDITORS_MODEL_IK_BONES);
+
+        bonesSection.fields.add(this.bones);
+
+        this.options.add(
+            this.debug,
+            bonesSection.marginTop(UIConstants.SECTION_GAP),
+            settings.marginTop(UIConstants.SECTION_GAP)
         );
     }
 

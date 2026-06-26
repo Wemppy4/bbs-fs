@@ -11,6 +11,7 @@ import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
@@ -340,11 +341,9 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             });
         });
 
-        this.options.add(
-            this.debug,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CHAINS),
-            this.bones,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_SETTINGS).background().marginTop(UIConstants.SECTION_GAP),
+        UISection settings = new UISection(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_SETTINGS);
+
+        settings.fields.add(
             this.enabled,
             this.end,
             this.targetBone,
@@ -358,10 +357,26 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING),
             this.damping,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS),
-            this.iterations,
-            this.collisions.marginTop(UIConstants.SECTION_GAP),
+            this.iterations
+        );
+
+        UISection collisionsSection = new UISection(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS);
+
+        collisionsSection.fields.add(
+            this.collisions,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RADIUS),
             this.radius
+        );
+
+        UISection chains = new UISection(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CHAINS);
+
+        chains.fields.add(this.bones);
+
+        this.options.add(
+            this.debug,
+            chains.marginTop(UIConstants.SECTION_GAP),
+            settings.marginTop(UIConstants.SECTION_GAP),
+            collisionsSection.marginTop(UIConstants.SECTION_GAP)
         );
     }
 

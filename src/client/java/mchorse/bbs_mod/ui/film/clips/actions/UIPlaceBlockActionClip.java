@@ -50,9 +50,8 @@ public class UIPlaceBlockActionClip extends UIActionClip<PlaceBlockActionClip>
     {
         super.registerPanels();
 
-        this.panels.add(UI.label(UIKeys.ACTIONS_BLOCK_POSITION).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(UI.row(this.x, this.y, this.z), this.drop);
-        this.panels.add(UI.label(UIKeys.ACTIONS_BLOCK_STATE).marginTop(UIConstants.SECTION_GAP), this.blockState);
+        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_POSITION, UI.row(this.x, this.y, this.z), this.drop).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_STATE, this.blockState).marginTop(UIConstants.SECTION_GAP));
     }
 
     @Override

@@ -91,8 +91,11 @@ public class UIAudioClip extends UIClip<AudioClip>
     {
         super.registerPanels();
 
-        this.panels.add(UI.column(UIClip.label(UIKeys.C_CLIP.get("bbs:audio")), UI.row(this.pickAudio, this.extendDuration, this.openFolder)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(UI.column(UIClip.label(UIKeys.CAMERA_PANELS_AUDIO_OFFSET).marginTop(UIConstants.SECTION_GAP), this.offset, UIClip.label(UIKeys.CAMERA_PANELS_AUDIO_VOLUME).marginTop(UIConstants.SECTION_GAP), this.volume).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:audio"),
+            UI.row(this.pickAudio, this.extendDuration, this.openFolder),
+            UI.label(UIKeys.CAMERA_PANELS_AUDIO_OFFSET).marginTop(UIConstants.SECTION_GAP), this.offset,
+            UI.label(UIKeys.CAMERA_PANELS_AUDIO_VOLUME).marginTop(UIConstants.SECTION_GAP), this.volume
+        ).marginTop(UIConstants.SECTION_GAP));
     }
 
     @Override

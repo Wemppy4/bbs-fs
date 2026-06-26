@@ -5,17 +5,19 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
-import mchorse.bbs_mod.ui.film.clips.UIClip;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 
-public class UIPointModule extends UIAbstractModule
+public class UIPointModule extends UISection
 {
     public UITrackpad x;
     public UITrackpad y;
     public UITrackpad z;
 
     public ValuePoint point;
+
+    protected IUIClipsDelegate editor;
 
     public UIPointModule(IUIClipsDelegate editor)
     {
@@ -24,7 +26,9 @@ public class UIPointModule extends UIAbstractModule
 
     public UIPointModule(IUIClipsDelegate editor, IKey title)
     {
-        super(editor);
+        super(title);
+
+        this.editor = editor;
 
         this.x = new UITrackpad((value) -> BaseValue.edit(this.point, (point) -> point.get().x = value));
         this.x.tooltip(UIKeys.GENERAL_X);
@@ -39,8 +43,7 @@ public class UIPointModule extends UIAbstractModule
         this.y.values(0.1F);
         this.z.values(0.1F);
 
-        this.column().vertical().stretch().height(20);
-        this.add(UIClip.label(title), this.x, this.y, this.z);
+        this.fields.add(this.x, this.y, this.z);
     }
 
     public UIPointModule contextMenu()

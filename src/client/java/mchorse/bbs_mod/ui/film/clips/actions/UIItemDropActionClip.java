@@ -45,12 +45,9 @@ public class UIItemDropActionClip extends UIActionClip<ItemDropActionClip>
     {
         super.registerPanels();
 
-        this.panels.add(UI.label(UIKeys.ACTIONS_ITEM_POSITION).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(UI.row(this.posX, this.posY, this.posZ));
-        this.panels.add(UI.row(this.relative));
-        this.panels.add(UI.label(UIKeys.ACTIONS_ITEM_VELOCITY).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(UI.row(this.velocityX, this.velocityY, this.velocityZ));
-        this.panels.add(UI.label(UIKeys.ACTIONS_ITEM_STACK).marginTop(UIConstants.SECTION_GAP), this.itemStack);
+        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_POSITION, UI.row(this.posX, this.posY, this.posZ), UI.row(this.relative)).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_VELOCITY, UI.row(this.velocityX, this.velocityY, this.velocityZ)).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_STACK, this.itemStack).marginTop(UIConstants.SECTION_GAP));
     }
 
     @Override
