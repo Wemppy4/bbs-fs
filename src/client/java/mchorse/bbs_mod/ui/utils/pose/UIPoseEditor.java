@@ -1,12 +1,9 @@
 package mchorse.bbs_mod.ui.utils.pose;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
-import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -15,17 +12,14 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIDeltaPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.resizers.AutomaticResizer;
-import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseManager;
@@ -47,25 +41,11 @@ public class UIPoseEditor extends UIElement
     /** The bone list never shrinks below this height when it gets stretched to fill the panel. */
     private static final int MIN_LIST_HEIGHT = UIStringList.DEFAULT_HEIGHT * 4;
 
-    public UIPoseBoneStringList groups;
+    public UIBoneList groups;
     public UITrackpad fix;
     public UIColor color;
     public UIToggle lighting;
     public UIPropTransform transform;
-
-    /** The search + pose-toggle row above the bone list; a field so subclasses can re-lay-out. */
-    public UIElement toggles;
-
-    /* Pose-edit toggles sitting above the bone list: mirror-edit applies the edit to each bone's
-     * left/right counterpart; alternate-invert flips the rotation of every second selected bone. */
-    private UIIcon mirror;
-    private UIIcon invert;
-
-    /* Bone search next to the toggles. allGroups keeps the unfiltered source so the list can be
-     * re-filtered as the query changes; sortGroups remembers whether the source was sorted. */
-    private UITextbox search;
-    private final List<String> allGroups = new ArrayList<>();
-    private boolean sortGroups;
 
     private String group = "";
     private Pose pose;
@@ -74,10 +54,10 @@ public class UIPoseEditor extends UIElement
 
     public UIPoseEditor()
     {
-        this.groups = new UIPoseBoneStringList(this::pickBones);
-        this.groups.background().h(UIStringList.DEFAULT_HEIGHT * 8 - 8);
-        this.groups.scroll.cancelScrolling();
-        this.groups.context(() ->
+        this.groups = new UIBoneList(this::pickBones);
+        this.groups.onFiltered = this::afterFilter;
+        this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 8 - 8);
+        this.groups.list.context(() ->
         {
             UIDataContextMenu menu = new UIDataContextMenu(PoseManager.INSTANCE, this.group, () -> this.pose.toData(), this::pastePose);
             UIIcon flip = new UIIcon(Icons.CONVERT, (b) -> this.flipPose());
@@ -118,26 +98,10 @@ public class UIPoseEditor extends UIElement
         this.transform = this.createTransformEditor();
         this.transform.setModel();
 
-        this.search = new UITextbox(100, (str) -> this.applyGroupsFilter(false)).placeholder(UIKeys.GENERAL_SEARCH);
-        this.search.h(20);
-
-        this.mirror = new UIIcon(Icons.CONVERT, (b) -> this.toggleMirrorEdit());
-        this.mirror.tooltip(UIKeys.TRANSFORMS_MIRROR_EDIT);
-        this.mirror.wh(20, 20);
-        this.invert = new UIIcon(Icons.REVERSE, (b) -> this.toggleAlternateInvert());
-        this.invert.tooltip(UIKeys.TRANSFORMS_ALTERNATE_INVERT);
-        this.invert.wh(20, 20);
-
-        this.toggles = new UIElement();
-        this.toggles.h(20).row(0).height(20);
-        /* The bone search fills the row; the two pose toggles sit fixed-width at the right (all 20px tall). */
-        this.toggles.add(this.search, this.mirror, this.invert);
-
         this.keys().register(Keys.TRANSFORMATIONS_TOGGLE_FIX, this::toggleFix).category(UIKeys.TRANSFORMS_KEYS_CATEGORY);
-        this.keys().register(Keys.TRANSFORMATIONS_MIRROR_EDIT, this::toggleMirrorEdit).category(UIKeys.TRANSFORMS_KEYS_CATEGORY);
 
         this.column().vertical().stretch();
-        this.add(this.toggles, this.groups.marginTop(-UIConstants.MARGIN), UI.label(UIKeys.POSE_CONTEXT_FIX), this.fix, UI.row(this.color, this.lighting), this.transform.marginTop(4));
+        this.add(this.groups, UI.label(UIKeys.POSE_CONTEXT_FIX), this.fix, UI.row(this.color, this.lighting), this.transform.marginTop(4));
     }
 
     @Override
@@ -171,9 +135,9 @@ public class UIPoseEditor extends UIElement
         }
 
         int target = viewport.area.ey() - this.getViewportPadding(viewport);
-        int height = this.groups.getFlex().getH() + (target - this.area.ey());
+        int height = this.groups.list.getFlex().getH() + (target - this.area.ey());
 
-        this.groups.h(Math.max(height, MIN_LIST_HEIGHT));
+        this.groups.list.h(Math.max(height, MIN_LIST_HEIGHT));
     }
 
     private UIScrollView getViewport()
@@ -205,34 +169,6 @@ public class UIPoseEditor extends UIElement
         return UIConstants.SCROLL_PADDING;
     }
 
-    private void toggleMirrorEdit()
-    {
-        BBSSettings.poseMirrorEdit.set(!BBSSettings.poseMirrorEdit.get());
-        UIUtils.playClick();
-    }
-
-    private void toggleAlternateInvert()
-    {
-        BBSSettings.poseAlternateInvert.set(!BBSSettings.poseAlternateInvert.get());
-        UIUtils.playClick();
-    }
-
-    @Override
-    public void render(UIContext context)
-    {
-        if (BBSSettings.poseMirrorEdit.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.mirror.area, Direction.BOTTOM);
-        }
-
-        if (BBSSettings.poseAlternateInvert.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.invert.area, Direction.BOTTOM);
-        }
-
-        super.render(context);
-    }
-
     private void applyChildren(Consumer<PoseTransform> consumer)
     {
         if (this.model == null)
@@ -240,7 +176,7 @@ public class UIPoseEditor extends UIElement
             return;
         }
 
-        for (String bone : this.groups.getCurrent())
+        for (String bone : this.groups.list.getCurrent())
         {
             Collection<String> keys = this.model.getAllChildrenKeys(bone);
 
@@ -261,7 +197,7 @@ public class UIPoseEditor extends UIElement
      */
     public String getGroup()
     {
-        return this.groups.getCurrentFirst();
+        return this.groups.list.getCurrentFirst();
     }
 
     protected void pastePose(MapType data)
@@ -276,11 +212,11 @@ public class UIPoseEditor extends UIElement
 
     private void restoreSelectionAfter(Runnable action)
     {
-        List<String> current = new ArrayList<>(this.groups.getCurrent());
+        List<String> current = new ArrayList<>(this.groups.list.getCurrent());
 
         action.run();
-        this.groups.setCurrent(current);
-        this.pickBones(this.groups.getCurrent());
+        this.groups.list.setCurrent(current);
+        this.pickBones(this.groups.list.getCurrent());
     }
 
     public void setPose(Pose pose, String group)
@@ -321,55 +257,36 @@ public class UIPoseEditor extends UIElement
 
     private void fillInGroups(Collection<String> groups, boolean reset, boolean sort)
     {
-        this.allGroups.clear();
-        this.allGroups.addAll(groups);
-        this.sortGroups = sort;
-
-        this.applyGroupsFilter(reset);
+        this.groups.setSource(groups, sort);
+        this.groups.filter(reset);
     }
 
     /**
-     * Repopulate the visible bone list from {@link #allGroups}, keeping only the bones whose name
-     * contains the search query. Runs both on a fresh fill and on every keystroke in the search box.
+     * Runs after each filter pass (see {@link UIBoneList#filter}): toggle the dependent editors by
+     * whether any bones exist, then re-select a bone &mdash; the first on a reset, otherwise the
+     * last edited one if it survived the filter.
      */
-    private void applyGroupsFilter(boolean reset)
+    private void afterFilter(boolean reset)
     {
-        String query = this.search == null ? "" : this.search.getText().trim().toLowerCase();
-        List<String> visible = new ArrayList<>();
+        boolean hasBones = this.groups.hasBones();
 
-        for (String bone : this.allGroups)
-        {
-            if (query.isEmpty() || bone.toLowerCase().contains(query))
-            {
-                visible.add(bone);
-            }
-        }
-
-        this.groups.clear();
-        this.groups.add(visible);
-        if (this.sortGroups)
-        {
-            this.groups.sort();
-        }
-
-        boolean hasBones = !this.allGroups.isEmpty();
         this.fix.setVisible(hasBones);
         this.color.setVisible(hasBones);
         this.transform.setVisible(hasBones);
 
-        List<String> list = this.groups.getList();
+        List<String> list = this.groups.list.getList();
         int i = Math.max(reset ? 0 : list.indexOf(lastLimb), 0);
 
-        this.groups.setCurrentScroll(CollectionUtils.getSafe(list, i));
-        this.pickBones(this.groups.getCurrent());
+        this.groups.list.setCurrentScroll(CollectionUtils.getSafe(list, i));
+        this.pickBones(this.groups.list.getCurrent());
     }
 
     public void selectBone(String bone)
     {
         lastLimb = bone;
 
-        this.groups.setCurrentScroll(bone);
-        this.pickBones(this.groups.getCurrent());
+        this.groups.list.setCurrentScroll(bone);
+        this.pickBones(this.groups.list.getCurrent());
     }
 
     /* Subclass overridable methods */
@@ -467,7 +384,7 @@ public class UIPoseEditor extends UIElement
 
     private void forEachSelectedPose(Consumer<? super PoseTransform> consumer)
     {
-        for (String bone : this.groups.getCurrent())
+        for (String bone : this.groups.list.getCurrent())
         {
             consumer.accept(this.pose.get(bone));
         }
@@ -499,7 +416,7 @@ public class UIPoseEditor extends UIElement
     public Map<String, BoneEdit> resolveBoneEdits(boolean mirror, boolean invert)
     {
         Map<String, BoneEdit> edits = new LinkedHashMap<>();
-        List<String> selected = this.groups.getCurrent();
+        List<String> selected = this.groups.list.getCurrent();
 
         for (int i = 0; i < selected.size(); i++)
         {
@@ -556,7 +473,7 @@ public class UIPoseEditor extends UIElement
             partner = mirrored.equals(bone) ? null : mirrored;
         }
 
-        return partner != null && this.groups.getList().contains(partner) ? partner : null;
+        return partner != null && this.groups.list.getList().contains(partner) ? partner : null;
     }
 
     /**
@@ -621,7 +538,7 @@ public class UIPoseEditor extends UIElement
 
     private void toggleFix()
     {
-        if (this.groups.getCurrent().isEmpty())
+        if (this.groups.list.getCurrent().isEmpty())
         {
             return;
         }

@@ -64,6 +64,6 @@ public class UIModelForm extends UIForm<ModelForm>
 
     private String bonePath()
     {
-        return StringUtils.combinePaths(FormUtils.getPath(this.form), this.modelPanel.poseEditor.groups.getCurrentFirst());
+        return StringUtils.combinePaths(FormUtils.getPath(this.form), this.modelPanel.poseEditor.groups.list.getCurrentFirst());
     }
 }

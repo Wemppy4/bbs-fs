@@ -183,21 +183,21 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         @Override
         protected void pastePose(MapType data)
         {
-            List<String> current = new ArrayList<>(this.groups.getCurrent());
+            List<String> current = new ArrayList<>(this.groups.list.getCurrent());
 
             apply(this.editor, this.keyframe, (pose) -> pose.fromData(data));
-            this.groups.setCurrent(current);
-            this.pickBones(this.groups.getCurrent());
+            this.groups.list.setCurrent(current);
+            this.pickBones(this.groups.list.getCurrent());
         }
 
         @Override
         protected void flipPose()
         {
-            List<String> current = new ArrayList<>(this.groups.getCurrent());
+            List<String> current = new ArrayList<>(this.groups.list.getCurrent());
 
             apply(this.editor, this.keyframe, (pose) -> pose.flip(this.flippedParts));
-            this.groups.setCurrent(current);
-            this.pickBones(this.groups.getCurrent());
+            this.groups.list.setCurrent(current);
+            this.pickBones(this.groups.list.getCurrent());
         }
 
         @Override
@@ -312,7 +312,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         @Override
         protected void reset()
         {
-            UIPoseFactoryEditor.apply(this.editor.editor, this.editor.keyframe, this.editor.groups.getCurrent(), (poseT) ->
+            UIPoseFactoryEditor.apply(this.editor.editor, this.editor.keyframe, this.editor.groups.list.getCurrent(), (poseT) ->
             {
                 poseT.translate.set(0F, 0F, 0F);
                 poseT.scale.set(1F, 1F, 1F);

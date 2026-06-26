@@ -14,7 +14,7 @@ public class UIModelPoseEditor extends UIPoseEditor
 
     public UIModelPoseEditor()
     {
-        this.groups.h(UIStringList.DEFAULT_HEIGHT * 17);
+        this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 17);
     }
 
     public void setValuePose(ValuePose valuePose)
