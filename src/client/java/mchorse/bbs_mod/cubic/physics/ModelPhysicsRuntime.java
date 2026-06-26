@@ -549,34 +549,22 @@ public final class ModelPhysicsRuntime
         float gravityY = gravityVec.y * gravityScale;
         float gravityZ = gravityVec.z * gravityScale;
 
-        /* Per-point spring-back fraction toward the animated pose, applied once per sub-step. The base
-         * stiffness falls off toward the tip and is converted to a per-sub-step fraction so the pull
-         * over a whole tick stays the same no matter how many sub-steps run. */
+        /* Per-point spring-back fraction toward the animated pose for one sub-step, falling off toward the
+         * floppier tip. Applied as an angular pull in solveSpring, not a positional one. */
         float[] stiffStep = computeStiffnessSteps(clamp01(stiffnessValue), state.pos.length, h);
 
         /* Per-bone swing limits, as the cosine of the widest deviation each bone may take from its pose
-         * direction. refDir holds that pose direction per segment, rebuilt each sub-step from the sliding
-         * anchor. Both are null when no bone in the chain is constrained, so the cone pass is skipped. */
+         * direction; null when no bone in the chain is constrained, so the cone clamp is skipped. */
         float[] coneCos = computeConeLimits(ids, constraints);
-        Vector3f[] refDir = null;
-
-        if (coneCos != null)
-        {
-            refDir = new Vector3f[last];
-
-            for (int i = 0; i < last; i++)
-            {
-                refDir[i] = new Vector3f();
-            }
-        }
 
         Vector3f startAnchor = new Vector3f(state.anchor);
         Quaternionf startAnchorRotation = new Quaternionf(state.anchorRotation);
         Vector3f stepAnchor = new Vector3f();
         Quaternionf stepAnchorRotation = new Quaternionf();
         Vector3f vel = new Vector3f();
-        Vector3f poseTarget = new Vector3f();
-        Vector3f dir = new Vector3f();
+
+        Vector3f poseDir = new Vector3f();
+        Vector3f curDir = new Vector3f();
 
         BlockPos.Mutable mutable = collisions ? new BlockPos.Mutable() : null;
 
@@ -594,17 +582,6 @@ public final class ModelPhysicsRuntime
             state.anchorRotation.set(stepAnchorRotation);
             state.pos[0].set(stepAnchor);
             state.prev[0].set(stepAnchor);
-
-            /* Pose direction of each segment in world, carried by this sub-step's anchor — the centre of
-             * the swing cone the limit pass clamps against. */
-            if (refDir != null)
-            {
-                for (int i = 0; i < refDir.length; i++)
-                {
-                    refDir[i].set(state.poseLocal[i + 1]).sub(state.poseLocal[i]);
-                    stepAnchorRotation.transform(refDir[i]);
-                }
-            }
 
             /* Verlet integration of the free points: inertia carried from the previous step plus
              * gravity. The anchor's motion never forces the points — it reaches the chain only through
@@ -627,84 +604,47 @@ public final class ModelPhysicsRuntime
                 }
             }
 
-            /* Spring back toward the animated pose, carried rigidly by the sliding anchor frame. */
-            for (int i = 1; i < state.pos.length; i++)
-            {
-                float k = stiffStep[i];
+            /* Angular spring: nudge each segment's direction toward its animated pose direction (carried by
+             * the anchor), keeping its current length — the length relaxation below fixes lengths. Each
+             * segment springs independently, so long chains can't build a self-reinforcing wave. A no-op at
+             * stiffness 0, leaving a pure rope. */
+            solveSpring(state.pos, stepAnchorRotation, state.poseLocal, stiffStep, poseDir, curDir);
 
-                if (k <= 0F || (hardTarget && i == last))
-                {
-                    continue;
-                }
-
-                poseTarget.set(state.poseLocal[i]);
-                stepAnchorRotation.transform(poseTarget).add(stepAnchor);
-                state.pos[i].lerp(poseTarget, k);
-            }
-
+            /* Length relaxation: backward then forward passes, iterated. The symmetric two-way sweep is
+             * what keeps a long chain stable — a single forward-only ("follow the leader") pass would let
+             * each joint rigidly inherit its parent's motion, which Verlet reads back as spurious velocity
+             * and pumps into a slow standing wave that never settles while the anchor moves. The cone is
+             * folded in so length and limit converge together. */
             for (int iter = 0; iter < iterations; iter++)
             {
-                /* Backward pass (from tip to anchor) */
                 if (hardTarget)
                 {
                     state.pos[last].set(targetPosition);
                 }
 
-                for (int i = last - 1; i >= 0; i--)
-                {
-                    Vector3f a = state.pos[i];
-                    Vector3f b = state.pos[i + 1];
-
-                    dir.set(a).sub(b);
-                    float lenSq = dir.lengthSquared();
-
-                    if (lenSq < EPS * EPS)
-                    {
-                        continue;
-                    }
-
-                    dir.mul((float) (lengths[i] / Math.sqrt(lenSq)));
-                    a.set(b).add(dir);
-                }
-
-                /* Forward pass (from anchor to tip) */
+                lengthBackward(state.pos, lengths, last);
                 state.pos[0].set(state.anchor);
-
-                for (int i = 1; i < state.pos.length; i++)
-                {
-                    Vector3f a = state.pos[i - 1];
-                    Vector3f b = state.pos[i];
-
-                    dir.set(b).sub(a);
-                    float lenSq = dir.lengthSquared();
-
-                    if (lenSq < EPS * EPS)
-                    {
-                        continue;
-                    }
-
-                    dir.mul((float) (lengths[i - 1] / Math.sqrt(lenSq)));
-                    b.set(a).add(dir);
-                }
+                lengthForward(state.pos, lengths);
 
                 if (hardTarget)
                 {
                     state.pos[last].set(targetPosition);
                 }
 
-                /* Swing limits, iterated together with the length passes so the two converge instead of
-                 * fighting: each bone is held within a cone of its pose direction, and the next length
-                 * pass redistributes that correction down the tail. */
-                if (refDir != null)
+                if (coneCos != null)
                 {
-                    applyConeLimits(state.pos, refDir, coneCos, last);
+                    applyConeLimits(state.pos, stepAnchorRotation, state.poseLocal, coneCos, last);
                     pinEnds(state.pos, state.anchor, targetPosition, last);
                 }
+            }
 
-                if (collisions)
-                {
-                    resolveCollisions(world, state.pos, state.prev, state.anchor, targetPosition, last, radius);
-                }
+            /* World collisions once per sub-step (friction applied a single time, inside resolve), then
+             * re-impose the lengths and endpoints the depenetration disturbed. */
+            if (collisions)
+            {
+                resolveCollisions(world, state.pos, state.prev, state.anchor, targetPosition, last, radius);
+                lengthForward(state.pos, lengths);
+                pinEnds(state.pos, state.anchor, targetPosition, last);
             }
 
             copyPositions(state.pos, state.settled);
@@ -877,14 +817,159 @@ public final class ModelPhysicsRuntime
     }
 
     /**
-     * Holds each segment within a cone of its animated pose direction: when a bone has swung past its
-     * limit, its direction is rotated back to the cone boundary along the shortest arc — a pure direction
-     * projection, no euler decomposition and no gimbal. Only the child point moves; the length passes
-     * carry that correction down the tail over the solver iterations. The velocity lost against the limit
-     * falls out of the Verlet step, so the chain settles against the limit instead of grinding or jumping.
+     * Nudges each segment's direction toward its animated pose direction (carried by the anchor) by the
+     * per-point stiffness, keeping the segment's CURRENT length — the length relaxation that follows fixes
+     * lengths and shares corrections both ways. Each segment springs independently of its neighbours, so a
+     * long chain can't build a self-reinforcing wave; the tail still trails through inertia and the shared
+     * length chain. A no-op at stiffness 0, leaving the integrated rope untouched.
      */
-    private static void applyConeLimits(Vector3f[] pos, Vector3f[] refDir, float[] coneCos, int segments)
+    private static void solveSpring(Vector3f[] pos, Quaternionf anchorRotation, Vector3f[] poseLocal, float[] stiffStep, Vector3f poseDir, Vector3f curDir)
     {
+        int last = pos.length - 1;
+
+        for (int i = 1; i <= last; i++)
+        {
+            float k = stiffStep[i];
+
+            if (k <= 0F)
+            {
+                continue;
+            }
+
+            curDir.set(pos[i]).sub(pos[i - 1]);
+
+            float curLen = curDir.length();
+
+            if (curLen < EPS)
+            {
+                continue;
+            }
+
+            poseDir.set(poseLocal[i]).sub(poseLocal[i - 1]);
+            anchorRotation.transform(poseDir);
+
+            float poseLen = poseDir.length();
+
+            if (poseLen < EPS)
+            {
+                continue;
+            }
+
+            poseDir.div(poseLen);
+            curDir.div(curLen);
+            curDir.lerp(poseDir, k);
+
+            float blendLen = curDir.length();
+
+            if (blendLen < EPS)
+            {
+                curDir.set(poseDir);
+            }
+            else
+            {
+                curDir.div(blendLen);
+            }
+
+            /* Keep the segment's current length; only rotate it toward the pose. */
+            pos[i].set(pos[i - 1]).add(curDir.mul(curLen));
+        }
+    }
+
+    /** Length-projects the chain from the tip inward, holding each segment at its rest length (paired with {@link #lengthForward} for a symmetric two-way relaxation). */
+    private static void lengthBackward(Vector3f[] pos, float[] lengths, int last)
+    {
+        Vector3f dir = new Vector3f();
+
+        for (int i = last - 1; i >= 0; i--)
+        {
+            Vector3f a = pos[i];
+            Vector3f b = pos[i + 1];
+
+            dir.set(a).sub(b);
+
+            float lenSq = dir.lengthSquared();
+
+            if (lenSq < EPS * EPS)
+            {
+                continue;
+            }
+
+            dir.mul((float) (lengths[i] / Math.sqrt(lenSq)));
+            a.set(b).add(dir);
+        }
+    }
+
+    /** Length-projects the chain from the anchor outward, holding each segment at its rest length. */
+    private static void lengthForward(Vector3f[] pos, float[] lengths)
+    {
+        Vector3f dir = new Vector3f();
+
+        for (int i = 1; i < pos.length; i++)
+        {
+            Vector3f a = pos[i - 1];
+            Vector3f b = pos[i];
+
+            dir.set(b).sub(a);
+
+            float lenSq = dir.lengthSquared();
+
+            if (lenSq < EPS * EPS)
+            {
+                continue;
+            }
+
+            dir.mul((float) (lengths[i - 1] / Math.sqrt(lenSq)));
+            b.set(a).add(dir);
+        }
+    }
+
+    /**
+     * Clamps a unit direction into a cone of half-angle acos(cosMax) around a unit reference, rotating it
+     * back to the cone boundary along the shortest arc — pure direction projection, no euler, no gimbal.
+     * No-op when the direction is already inside the cone or the bone has no active limit (cosMax &gt; 1).
+     */
+    private static void projectIntoCone(Vector3f dir, Vector3f ref, float cosMax)
+    {
+        if (cosMax > 1F)
+        {
+            return;
+        }
+
+        float cos = dir.x * ref.x + dir.y * ref.y + dir.z * ref.z;
+
+        if (cos >= cosMax)
+        {
+            return;
+        }
+
+        float sin = (float) Math.sqrt(Math.max(0F, 1F - cos * cos));
+
+        if (sin < EPS)
+        {
+            /* Pointing straight back along the pose — no defined arc, snap to the pose direction. */
+            dir.set(ref);
+            return;
+        }
+
+        float sinMax = (float) Math.sqrt(Math.max(0F, 1F - cosMax * cosMax));
+        float invSin = 1F / sin;
+        float tx = (dir.x - ref.x * cos) * invSin;
+        float ty = (dir.y - ref.y * cos) * invSin;
+        float tz = (dir.z - ref.z * cos) * invSin;
+
+        dir.set(ref.x * cosMax + tx * sinMax, ref.y * cosMax + ty * sinMax, ref.z * cosMax + tz * sinMax);
+    }
+
+    /**
+     * Holds each segment within the cone of its animated pose direction (rebuilt from the anchor). Only the
+     * child point moves; the length passes carry the correction down the tail. Iterated together with the
+     * length relaxation so limit and length converge instead of fighting.
+     */
+    private static void applyConeLimits(Vector3f[] pos, Quaternionf anchorRotation, Vector3f[] poseLocal, float[] coneCos, int segments)
+    {
+        Vector3f ref = new Vector3f();
+        Vector3f dir = new Vector3f();
+
         for (int i = 0; i < segments; i++)
         {
             float cosMax = coneCos[i];
@@ -894,68 +979,33 @@ public final class ModelPhysicsRuntime
                 continue;
             }
 
+            ref.set(poseLocal[i + 1]).sub(poseLocal[i]);
+            anchorRotation.transform(ref);
+
+            float refLen = ref.length();
+
+            if (refLen < EPS)
+            {
+                continue;
+            }
+
+            ref.div(refLen);
+
             Vector3f a = pos[i];
             Vector3f b = pos[i + 1];
 
-            float dx = b.x - a.x;
-            float dy = b.y - a.y;
-            float dz = b.z - a.z;
-            float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            dir.set(b).sub(a);
 
-            Vector3f ref = refDir[i];
-            float refLen = ref.length();
+            float len = dir.length();
 
-            if (len < EPS || refLen < EPS)
+            if (len < EPS)
             {
                 continue;
             }
 
-            float invLen = 1F / len;
-            float curX = dx * invLen;
-            float curY = dy * invLen;
-            float curZ = dz * invLen;
-
-            float invRef = 1F / refLen;
-            float refX = ref.x * invRef;
-            float refY = ref.y * invRef;
-            float refZ = ref.z * invRef;
-
-            float cos = curX * refX + curY * refY + curZ * refZ;
-
-            if (cos >= cosMax)
-            {
-                continue;
-            }
-
-            float sin = (float) Math.sqrt(Math.max(0F, 1F - cos * cos));
-            float sinMax = (float) Math.sqrt(Math.max(0F, 1F - cosMax * cosMax));
-
-            float nx;
-            float ny;
-            float nz;
-
-            if (sin < EPS)
-            {
-                /* Pointing straight back along the pose — no defined arc, snap to the pose direction. */
-                nx = refX;
-                ny = refY;
-                nz = refZ;
-            }
-            else
-            {
-                /* Component of the current direction perpendicular to the pose, then the boundary
-                 * direction sitting at the limit angle in the same plane. */
-                float invSin = 1F / sin;
-                float tx = (curX - refX * cos) * invSin;
-                float ty = (curY - refY * cos) * invSin;
-                float tz = (curZ - refZ * cos) * invSin;
-
-                nx = refX * cosMax + tx * sinMax;
-                ny = refY * cosMax + ty * sinMax;
-                nz = refZ * cosMax + tz * sinMax;
-            }
-
-            b.set(a.x + nx * len, a.y + ny * len, a.z + nz * len);
+            dir.div(len);
+            projectIntoCone(dir, ref, cosMax);
+            b.set(a.x + dir.x * len, a.y + dir.y * len, a.z + dir.z * len);
         }
     }
 

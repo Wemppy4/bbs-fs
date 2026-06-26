@@ -50,9 +50,14 @@ public final class ModelPhysicsWorldCollisions
 
         for (int relax = 0; relax < RELAXATIONS; relax++)
         {
+            /* Friction is a velocity change, so it must land once per solve, not once per relaxation —
+             * applying it every pass would compound (1-friction) and stick contacts far harder than the
+             * coefficient asks. Depenetration runs every pass; friction only on the last. */
+            boolean applyFriction = relax == RELAXATIONS - 1;
+
             for (int i = from; i < to; i++)
             {
-                collideSphere(pos[i], prev[i], radius, f, boxes, normal);
+                collideSphere(pos[i], prev[i], radius, f, boxes, normal, applyFriction);
             }
 
             for (int i = from; i < to - 1; i++)
@@ -62,7 +67,7 @@ public final class ModelPhysicsWorldCollisions
         }
     }
 
-    private static void collideSphere(Vector3f p, Vector3f prev, float radius, float friction, List<float[]> boxes, Vector3f normal)
+    private static void collideSphere(Vector3f p, Vector3f prev, float radius, float friction, List<float[]> boxes, Vector3f normal, boolean applyFriction)
     {
         float pushX = 0F;
         float pushY = 0F;
@@ -84,6 +89,11 @@ public final class ModelPhysicsWorldCollisions
             pushX += normal.x * pen;
             pushY += normal.y * pen;
             pushZ += normal.z * pen;
+        }
+
+        if (!applyFriction)
+        {
+            return;
         }
 
         float pushLenSq = pushX * pushX + pushY * pushY + pushZ * pushZ;
