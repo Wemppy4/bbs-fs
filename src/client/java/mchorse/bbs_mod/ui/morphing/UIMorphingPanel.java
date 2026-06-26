@@ -29,7 +29,7 @@ public class UIMorphingPanel extends UIDashboardPanel
     {
         super(dashboard);
 
-        this.palette = new UIFormPalette(this::setForm, true);
+        this.palette = new UIFormPalette(this::setForm);
         this.palette.updatable().cantExit();
         this.palette.immersive();
         this.palette.full(this);

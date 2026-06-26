@@ -40,7 +40,6 @@ public class UIFormList extends UIElement
     public UIIcon close;
     public UIIcon categoryFilter;
 
-    private final boolean morphCategoryFilter;
     private UIFormCategory recent;
     private List<UIFormCategory> categories = new ArrayList<>();
 
@@ -50,13 +49,7 @@ public class UIFormList extends UIElement
 
     public UIFormList(IUIFormList palette)
     {
-        this(palette, false);
-    }
-
-    public UIFormList(IUIFormList palette, boolean morphCategoryFilter)
-    {
         this.palette = palette;
-        this.morphCategoryFilter = morphCategoryFilter;
 
         this.forms = UI.scrollView(0, 0);
         this.forms.scroll.cancelScrolling();
@@ -70,18 +63,10 @@ public class UIFormList extends UIElement
         this.bar.relative(this).x(10).y(1F, -30).w(1F, -20).h(20).row().height(20);
         this.close.w(20);
 
-        if (morphCategoryFilter)
-        {
-            this.categoryFilter = new UIIcon(Icons.FILTER, this::openMorphCategoryFilter);
-            this.categoryFilter.tooltip(UIKeys.MORPHING_FILTER_CATEGORIES, Direction.TOP);
-            this.categoryFilter.w(20);
-            this.bar.add(this.categoryFilter, this.search, this.edit, this.close);
-        }
-        else
-        {
-            this.categoryFilter = null;
-            this.bar.add(this.search, this.edit, this.close);
-        }
+        this.categoryFilter = new UIIcon(Icons.FILTER, this::openMorphCategoryFilter);
+        this.categoryFilter.tooltip(UIKeys.MORPHING_FILTER_CATEGORIES, Direction.TOP);
+        this.categoryFilter.w(20);
+        this.bar.add(this.categoryFilter, this.search, this.edit, this.close);
 
         this.add(this.forms, this.bar);
 
@@ -128,7 +113,7 @@ public class UIFormList extends UIElement
 
         for (FormCategory category : forms.getAllCategories())
         {
-            if (this.morphCategoryFilter && BBSSettings.disabledMorphFormCategories.get().contains(category.visible.getId()))
+            if (BBSSettings.disabledMorphFormCategories.get().contains(category.visible.getId()))
             {
                 continue;
             }
