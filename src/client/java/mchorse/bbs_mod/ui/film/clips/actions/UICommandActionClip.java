@@ -4,8 +4,6 @@ import mchorse.bbs_mod.actions.types.chat.CommandActionClip;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-
 public class UICommandActionClip extends UIActionClip<CommandActionClip>
 {
     public UITextbox command;
@@ -28,7 +26,7 @@ public class UICommandActionClip extends UIActionClip<CommandActionClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.ACTIONS_COMMAND_COMMAND, this.command).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.ACTIONS_COMMAND_COMMAND, this.command));
     }
 
     @Override

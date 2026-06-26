@@ -9,9 +9,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.Direction;
 
 public class UISubtitleClip extends UIClip<SubtitleClip>
@@ -133,15 +131,15 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_OFFSET, UI.row(this.x, this.y)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SIZE, this.size, this.color, this.textShadow).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_ANCHOR, UI.row(this.anchorX, this.anchorY)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_WINDOW, UI.row(this.windowX, this.windowY)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_BACKGROUND, this.background, this.backgroundOffset).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SHADOW, this.shadow, this.shadowOpaque).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_TRANSFORM, this.transform).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_CONSTRAINT, UI.row(this.lineHeight, this.maxWidth)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE, this.pickImage, this.imageRight, this.imageScale).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_OFFSET, UI.row(this.x, this.y)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SIZE, this.size, this.color, this.textShadow));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_ANCHOR, UI.row(this.anchorX, this.anchorY)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_WINDOW, UI.row(this.windowX, this.windowY)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_BACKGROUND, this.background, this.backgroundOffset));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SHADOW, this.shadow, this.shadowOpaque));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_TRANSFORM, this.transform));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_CONSTRAINT, UI.row(this.lineHeight, this.maxWidth)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE, this.pickImage, this.imageRight, this.imageScale));
     }
 
     @Override

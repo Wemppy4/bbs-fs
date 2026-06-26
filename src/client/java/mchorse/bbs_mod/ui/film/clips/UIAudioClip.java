@@ -95,7 +95,7 @@ public class UIAudioClip extends UIClip<AudioClip>
             UI.row(this.pickAudio, this.extendDuration, this.openFolder),
             UI.label(UIKeys.CAMERA_PANELS_AUDIO_OFFSET).marginTop(UIConstants.SECTION_GAP), this.offset,
             UI.label(UIKeys.CAMERA_PANELS_AUDIO_VOLUME).marginTop(UIConstants.SECTION_GAP), this.volume
-        ).marginTop(UIConstants.SECTION_GAP));
+        ));
     }
 
     @Override

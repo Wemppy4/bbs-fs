@@ -4,9 +4,7 @@ import mchorse.bbs_mod.actions.types.blocks.InteractBlockActionClip;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIBlockHitResult;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;import mchorse.bbs_mod.ui.utils.UI;
 
 public class UIInteractBlockActionClip extends UIActionClip<InteractBlockActionClip>
 {
@@ -32,9 +30,9 @@ public class UIInteractBlockActionClip extends UIActionClip<InteractBlockActionC
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_POSITION, UI.row(this.hit.x, this.hit.y, this.hit.z)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_HIT, UI.row(this.hit.hitX, this.hit.hitY, this.hit.hitZ)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_DIRECTION, this.hit.direction, this.hit.inside, this.hand).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_POSITION, UI.row(this.hit.x, this.hit.y, this.hit.z)));
+        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_HIT, UI.row(this.hit.hitX, this.hit.hitY, this.hit.hitZ)));
+        this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_DIRECTION, this.hit.direction, this.hit.inside, this.hand));
     }
 
     @Override

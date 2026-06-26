@@ -44,6 +44,7 @@ import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeShapeSection;
 import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeSpaceSection;
 import mchorse.bbs_mod.ui.particles.utils.MolangSyntaxHighlighter;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -301,7 +302,7 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
 
     private UIScrollView createSectionView()
     {
-        UIScrollView view = UI.scrollView(20, 10);
+        UIScrollView view = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
         view.scroll.cancelScrolling().opposite().scrollSpeed *= 3;
 
         return view;

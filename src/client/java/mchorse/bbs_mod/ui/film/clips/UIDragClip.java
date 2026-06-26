@@ -6,8 +6,6 @@ import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIBitToggle;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-
 public class UIDragClip extends UIClip<DragClip>
 {
     public UIToggle deterministic;
@@ -50,8 +48,8 @@ public class UIDragClip extends UIClip<DragClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:drag"), this.deterministic).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_FACTOR, this.factor, this.rate).marginTop(UIConstants.SECTION_GAP), this.active);
+        this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:drag"), this.deterministic));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_FACTOR, this.factor, this.rate), this.active);
     }
 
     @Override

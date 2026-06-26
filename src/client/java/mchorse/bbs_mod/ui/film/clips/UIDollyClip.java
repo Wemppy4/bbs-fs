@@ -12,9 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIDollyClip extends UIClip<DollyClip>
@@ -62,8 +60,8 @@ public class UIDollyClip extends UIClip<DollyClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_DOLLY_TITLE, UI.row(0, 0, 20, this.distance, this.reverse), this.yaw, this.pitch, this.interp).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.point.marginTop(UIConstants.SECTION_GAP), this.angle.marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_DOLLY_TITLE, UI.row(0, 0, 20, this.distance, this.reverse), this.yaw, this.pitch, this.interp));
+        this.panels.add(this.point, this.angle);
         this.panels.context((menu) -> UICameraUtils.positionContextMenu(menu, this.editor, this.clip.position));
     }
 

@@ -226,8 +226,8 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
         this.options.add(
             this.debug,
-            bonesSection.marginTop(UIConstants.SECTION_GAP),
-            settings.marginTop(UIConstants.SECTION_GAP)
+            bonesSection,
+            settings
         );
     }
 

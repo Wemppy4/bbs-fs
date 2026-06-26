@@ -201,7 +201,7 @@ public abstract class UIClip <T extends Clip> extends UIElement
 
     protected void addEnvelopes()
     {
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_ENVELOPES_TITLE, this.envelope).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_ENVELOPES_TITLE, this.envelope));
     }
 
     /**

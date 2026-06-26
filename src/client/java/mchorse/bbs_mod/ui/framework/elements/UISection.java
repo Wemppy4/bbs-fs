@@ -45,13 +45,12 @@ public class UISection extends UIElement
                 UISection.this.renderHeader(context, this);
             }
         };
-        this.title.background(() -> Colors.A50 | BBSSettings.primaryColor.get());
         this.title.h(HEADER_HEIGHT);
 
         this.fields = new UIElement();
         this.fields.column().stretch().vertical().height(20);
 
-        this.column(UIConstants.MARGIN).stretch().vertical();
+        this.column(UIConstants.MARGIN).stretch().vertical().padding(4);
         this.add(this.title, this.fields);
     }
 
@@ -101,20 +100,37 @@ public class UISection extends UIElement
         }
     }
 
+    @Override
+    public void render(UIContext context)
+    {
+        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.raisedSurface());
+
+        /* The block is the raised (light) surface, so inputs inside it drop to the deep surface to
+         * stay readable - mirroring how the film editor scopes lightInputs for its dark panels. */
+        boolean lightInputs = BBSSettings.lightInputs;
+
+        BBSSettings.lightInputs = false;
+
+        try
+        {
+            super.render(context);
+        }
+        finally
+        {
+            BBSSettings.lightInputs = lightInputs;
+        }
+    }
+
     private void renderHeader(UIContext context, UILabel title)
     {
-        Area area = title.area;
+        Area header = title.area;
         FontRenderer font = context.batcher.getFont();
-        int background = title.backgroundColor == null ? title.background : title.backgroundColor.get();
 
-        context.batcher.box(area.x, area.y, area.ex(), area.ey(), background);
+        this.renderArrow(context, header.ex() - ARROW_SIZE / 2F, header.my());
 
-        this.renderArrow(context, area.ex() - 4 - ARROW_SIZE / 2F, area.my());
+        String label = font.limitToWidth(title.label.get(), header.w - ARROW_SIZE - 2);
 
-        int textX = area.x + 4;
-        String label = font.limitToWidth(title.label.get(), area.ex() - 4 - ARROW_SIZE - 4 - textX);
-
-        context.batcher.textShadow(label, textX, area.my() - font.getHeight() / 2, title.color);
+        context.batcher.textShadow(label, header.x, header.my() - font.getHeight() / 2, title.color);
     }
 
     /**

@@ -143,10 +143,10 @@ public class UIReplayPropertiesPanel extends UIElement
             this.axesPreview, this.pickAxesPreviewBone
         );
 
-        this.properties = UI.scrollView(5, 6,
+        this.properties = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,
             this.pickEdit, this.enabled, this.label, this.nameTag,
-            shadowSection.marginTop(UIConstants.SECTION_GAP),
-            other.marginTop(UIConstants.SECTION_GAP)
+            shadowSection,
+            other
         );
         this.refreshEditPanelOffset();
 

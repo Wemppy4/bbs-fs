@@ -5,8 +5,6 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemStack;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-
 public class UIUseItemActionClip extends UIActionClip<UseItemActionClip>
 {
     public UIToggle hand;
@@ -31,8 +29,8 @@ public class UIUseItemActionClip extends UIActionClip<UseItemActionClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.hand.marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_STACK, this.itemStack).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.hand);
+        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_STACK, this.itemStack));
     }
 
     @Override

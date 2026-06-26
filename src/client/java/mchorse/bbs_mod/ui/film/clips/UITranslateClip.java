@@ -4,8 +4,6 @@ import mchorse.bbs_mod.camera.clips.modifiers.TranslateClip;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.modules.UIPointModule;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIBitToggle;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-
 public class UITranslateClip extends UIClip<TranslateClip>
 {
     public UIPointModule point;
@@ -30,7 +28,7 @@ public class UITranslateClip extends UIClip<TranslateClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.point.marginTop(UIConstants.SECTION_GAP), this.active);
+        this.panels.add(this.point, this.active);
     }
 
     @Override

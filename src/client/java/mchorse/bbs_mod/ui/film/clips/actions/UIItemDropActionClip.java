@@ -5,9 +5,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemStack;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
-import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;import mchorse.bbs_mod.ui.utils.UI;
 
 public class UIItemDropActionClip extends UIActionClip<ItemDropActionClip>
 {
@@ -45,9 +43,9 @@ public class UIItemDropActionClip extends UIActionClip<ItemDropActionClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_POSITION, UI.row(this.posX, this.posY, this.posZ), UI.row(this.relative)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_VELOCITY, UI.row(this.velocityX, this.velocityY, this.velocityZ)).marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_STACK, this.itemStack).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_POSITION, UI.row(this.posX, this.posY, this.posZ), UI.row(this.relative)));
+        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_VELOCITY, UI.row(this.velocityX, this.velocityY, this.velocityZ)));
+        this.panels.add(this.section(UIKeys.ACTIONS_ITEM_STACK, this.itemStack));
     }
 
     @Override

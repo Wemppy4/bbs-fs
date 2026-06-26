@@ -119,7 +119,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 
         this.options.add(
             bonesSection,
-            params.marginTop(UIConstants.SECTION_GAP)
+            params
         );
     }
 

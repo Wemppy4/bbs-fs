@@ -10,8 +10,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-
 public class UITrackerClip extends UIClip<TrackerClip>
 {
     public UIButton selector;
@@ -67,10 +65,10 @@ public class UITrackerClip extends UIClip<TrackerClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_TARGET, this.selector, this.group).marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_TARGET, this.selector, this.group));
 
-        this.panels.add(this.point.marginTop(UIConstants.SECTION_GAP));
-        this.panels.add(this.angle.marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.point);
+        this.panels.add(this.angle);
         this.panels.add(this.fov);
         this.panels.add(this.lookAt);
         this.panels.add(this.relative);

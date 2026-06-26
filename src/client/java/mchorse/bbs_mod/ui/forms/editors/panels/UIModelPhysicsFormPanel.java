@@ -374,9 +374,9 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
 
         this.options.add(
             this.debug,
-            chains.marginTop(UIConstants.SECTION_GAP),
-            settings.marginTop(UIConstants.SECTION_GAP),
-            collisionsSection.marginTop(UIConstants.SECTION_GAP)
+            chains,
+            settings,
+            collisionsSection
         );
     }
 

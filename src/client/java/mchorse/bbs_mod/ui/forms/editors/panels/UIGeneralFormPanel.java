@@ -18,7 +18,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 
 import java.util.HashMap;
@@ -136,10 +135,10 @@ public class UIGeneralFormPanel extends UIFormPanel
 
         this.options.add(
             display,
-            tracks.marginTop(UIConstants.SECTION_GAP),
-            transform.marginTop(UIConstants.SECTION_GAP),
-            hitbox.marginTop(UIConstants.SECTION_GAP),
-            movement.marginTop(UIConstants.SECTION_GAP)
+            tracks,
+            transform,
+            hitbox,
+            movement
         );
     }
 

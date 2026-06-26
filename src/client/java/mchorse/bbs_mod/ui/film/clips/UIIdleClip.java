@@ -6,8 +6,6 @@ import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.modules.UIAngleModule;
 import mchorse.bbs_mod.ui.film.clips.modules.UIPointModule;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-
 /**
  * Idle clip panel
  *
@@ -38,7 +36,7 @@ public class UIIdleClip extends UIClip<IdleClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.point.marginTop(UIConstants.SECTION_GAP), this.angle.marginTop(UIConstants.SECTION_GAP));
+        this.panels.add(this.point, this.angle);
         this.panels.context((menu) -> UICameraUtils.positionContextMenu(menu, this.editor, this.clip.position));
     }
 
