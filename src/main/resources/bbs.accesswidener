@@ -8,3 +8,9 @@ accessible class com/mojang/blaze3d/platform/GlStateManager$Texture2DState
 
 accessible field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
 mutable field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
+
+# BufferBuilder internals for the structure form's fast replay path (bulk byte copy + in-place fixup)
+accessible field net/minecraft/client/render/BufferBuilder buffer Ljava/nio/ByteBuffer;
+accessible field net/minecraft/client/render/BufferBuilder elementOffset I
+accessible field net/minecraft/client/render/BufferBuilder vertexCount I
+accessible method net/minecraft/client/render/BufferBuilder grow (I)V

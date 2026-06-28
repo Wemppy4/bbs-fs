@@ -12,6 +12,7 @@ import mchorse.bbs_mod.forms.forms.LabelForm;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.ParticleForm;
+import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.forms.TrailForm;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.forms.renderers.AnchorFormRenderer;
@@ -26,6 +27,7 @@ import mchorse.bbs_mod.forms.renderers.LabelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ParticleFormRenderer;
+import mchorse.bbs_mod.forms.renderers.StructureFormRenderer;
 import mchorse.bbs_mod.forms.renderers.TrailFormRenderer;
 import mchorse.bbs_mod.forms.renderers.VanillaParticleFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -56,6 +58,15 @@ public class FormUtilsClient
             map.put(TexturedRenderLayers.getEntitySolid(), storage.get(RenderLayer.getSolid()));
             map.put(TexturedRenderLayers.getEntityCutout(), storage.get(RenderLayer.getCutout()));
             map.put(TexturedRenderLayers.getBannerPatterns(), storage.get(RenderLayer.getCutoutMipped()));
+            /* Dedicated buffers for the terrain block layers, so forms that render real blocks (the
+             * structure form) get them keyed — drawn together at draw() with correct depth — instead
+             * of falling through to the shared fallback buffer, which flushes on every layer switch
+             * and loses depth between opaque layers (e.g. cutout leaves drawing over solid blocks).
+             * Kept before the translucent layer so opaque draws first. Empty for forms that don't
+             * use terrain layers. */
+            assignBufferBuilder(map, RenderLayer.getSolid());
+            assignBufferBuilder(map, RenderLayer.getCutout());
+            assignBufferBuilder(map, RenderLayer.getCutoutMipped());
             map.put(TexturedRenderLayers.getEntityTranslucentCull(), storage.get(RenderLayer.getTranslucent()));
             assignBufferBuilder(map, TexturedRenderLayers.getShieldPatterns());
             assignBufferBuilder(map, TexturedRenderLayers.getBeds());
@@ -88,6 +99,7 @@ public class FormUtilsClient
         register(VanillaParticleForm.class, VanillaParticleFormRenderer::new);
         register(TrailForm.class, TrailFormRenderer::new);
         register(FramebufferForm.class, FramebufferFormRenderer::new);
+        register(StructureForm.class, StructureFormRenderer::new);
     }
 
     private static void assignBufferBuilder(Object2ObjectLinkedOpenHashMap<RenderLayer, BufferBuilder> builderStorage, RenderLayer layer)
