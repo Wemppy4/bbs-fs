@@ -50,8 +50,8 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 
             if (model != null)
             {
-                this.poseEditor.setPose(keyframe.getValue(), model.poseGroup);
-                this.poseEditor.fillGroups(model.model, model.flippedParts, false, model.disabledBones);
+                this.poseEditor.setPose(keyframe.getValue(), model.getPoseGroup());
+                this.poseEditor.fillGroups(model.model, model.getFlippedParts(), false, model.getDisabledBones());
             }
         }
         else if (FormUtils.getForm(sheet.property) instanceof MobForm mobForm)

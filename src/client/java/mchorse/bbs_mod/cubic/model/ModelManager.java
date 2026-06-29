@@ -3,6 +3,7 @@ package mchorse.bbs_mod.cubic.model;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.MolangHelper;
+import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
@@ -23,6 +24,7 @@ import mchorse.bbs_mod.utils.pose.ShapeKeysManager;
 import mchorse.bbs_mod.utils.watchdog.IWatchDogListener;
 import mchorse.bbs_mod.utils.watchdog.WatchDogEvent;
 
+import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -152,6 +154,25 @@ public class ModelManager implements IWatchDogListener
         {}
 
         return null;
+    }
+
+    /**
+     * Write a model's {@link ModelConfig} back to its {@code config.json}, in the user assets folder
+     * ({@code config/bbs/assets/models/<id>/}). For a built-in model served from the jar this forks a
+     * user copy that overrides it on the next load. Returns whether the file was written.
+     */
+    public boolean saveConfig(String id, ModelConfig config)
+    {
+        File file = this.provider.getFile(Link.assets(MODELS_PREFIX + id).combine("config.json"));
+
+        if (file == null)
+        {
+            return false;
+        }
+
+        file.getParentFile().mkdirs();
+
+        return DataToString.writeSilently(file, config.toData(), true);
     }
 
     public void reload()

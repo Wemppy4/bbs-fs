@@ -10,6 +10,7 @@ import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.View;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
+import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.render.CubicCubeRenderer;
 import mchorse.bbs_mod.cubic.render.CubicMatrixRenderer;
 import mchorse.bbs_mod.cubic.render.CubicRenderer;
@@ -19,9 +20,6 @@ import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
-import mchorse.bbs_mod.data.DataStorageUtils;
-import mchorse.bbs_mod.data.types.BaseType;
-import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
@@ -32,7 +30,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Pose;
-import mchorse.bbs_mod.utils.resources.LinkUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.BufferBuilder;
@@ -49,6 +46,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -57,7 +55,9 @@ public class ModelInstance implements IModelInstance
     public final String id;
     public IModel model;
     public Animations animations;
-    public Link texture;
+
+    /** The model's intrinsic texture from its loader; {@link ModelConfig#texture} overrides it when set. */
+    public Link baseTexture;
 
     /**
      * Per-material default textures, loaded from the model's {@code textures/<material>/}
@@ -70,34 +70,11 @@ public class ModelInstance implements IModelInstance
     /** Ordered, distinct list of material names present on the model (for the editor and resolution). */
     public List<String> materials = new ArrayList<>();
 
-    /* Model's additional properties */
-    public String poseGroup;
-    public boolean procedural;
-    public boolean culling = true;
-    public boolean onCpu;
-    public String anchorGroup = "";
-
-    public View view;
-
-    public Vector3f scale = new Vector3f(1F);
-    public float uiScale = 1F;
-    public Pose sneakingPose = new Pose();
-
-    public List<ArmorSlot> itemsMain = new ArrayList<>();
-    public List<ArmorSlot> itemsOff = new ArrayList<>();
-    public List<String> disabledBones = new ArrayList<>();
-    public Map<String, String> flippedParts = new HashMap<>();
-    public Map<String, String> pickingOverrides = new HashMap<>();
-    public Map<ArmorType, ArmorSlot> armorSlots = new HashMap<>();
-
-    /** Welds declared in the model's config — glue a bone's face onto another's to seal a bending joint. */
-    public List<ModelWeld> welds = new ArrayList<>();
+    /** The model's {@code config.json} as an editable value tree; the instance reads every setting from here. */
+    public final ModelConfig config;
 
     /** Welds resolved against the model (groups/cubes/corners). Built lazily on first render, kept across frames. */
     private List<WeldBinding> weldBindings;
-
-    public ArmorSlot fpMain;
-    public ArmorSlot fpOffhand;
 
     /** Per group, the geometry split into one VAO per material name (empty key = default texture). */
     private Map<ModelGroup, Map<String, ModelVAO>> vaos = new HashMap<>();
@@ -110,9 +87,8 @@ public class ModelInstance implements IModelInstance
         this.id = id;
         this.model = model;
         this.animations = animations;
-        this.texture = texture;
-
-        this.poseGroup = id;
+        this.baseTexture = texture;
+        this.config = new ModelConfig(id);
     }
 
     @Override
@@ -124,7 +100,7 @@ public class ModelInstance implements IModelInstance
     @Override
     public Pose getSneakingPose()
     {
-        return this.sneakingPose;
+        return this.config.getSneakingPose();
     }
 
     @Override
@@ -147,7 +123,7 @@ public class ModelInstance implements IModelInstance
 
             if (this.model instanceof Model model)
             {
-                for (ModelWeld weld : this.welds)
+                for (ModelWeld weld : this.config.getWelds())
                 {
                     WeldBinding binding = WeldBinding.resolve(model, weld);
 
@@ -178,152 +154,100 @@ public class ModelInstance implements IModelInstance
     public String getAnchor()
     {
         String anchor = this.model.getAnchor();
+        String anchorGroup = this.config.anchor.get();
 
-        if (this.anchorGroup.isEmpty() && !anchor.isEmpty())
+        if (anchorGroup.isEmpty() && !anchor.isEmpty())
         {
             return anchor;
         }
 
-        return this.anchorGroup;
+        return anchorGroup;
     }
 
-    public void applyConfig(MapType config)
+    public void applyConfig(MapType data)
     {
-        if (config == null)
+        if (data == null)
         {
             return;
         }
 
-        this.procedural = config.getBool("procedural", this.procedural);
-        this.culling = config.getBool("culling", this.culling);
-        this.onCpu = config.getBool("on_cpu", this.onCpu);
-        this.poseGroup = config.getString("pose_group", this.poseGroup);
+        this.config.fromData(data);
+    }
 
-        if (config.has("texture"))
-        {
-            this.texture = LinkUtils.create(config.get("texture"));
-        }
-        if (config.has("items_main"))
-        {
-            ListType list = config.get("items_main").asList();
+    /* Config accessors — the instance reads all of these from {@link #config}. */
 
-            for (BaseType type : list)
-            {
-                ArmorSlot slot = new ArmorSlot();
+    public Link getTexture()
+    {
+        Link texture = this.config.getTexture();
 
-                slot.fromData(type);
-                this.itemsMain.add(slot);
-            }
-        }
-        if (config.has("items_off"))
-        {
-            ListType list = config.get("items_off").asList();
+        return texture != null ? texture : this.baseTexture;
+    }
 
-            for (BaseType type : list)
-            {
-                ArmorSlot slot = new ArmorSlot();
+    public Vector3f getScale()
+    {
+        return this.config.scale.get();
+    }
 
-                slot.fromData(type);
-                this.itemsOff.add(slot);
-            }
-        }
-        if (config.has("ui_scale")) this.uiScale = config.getFloat("ui_scale");
-        if (config.has("scale")) this.scale = DataStorageUtils.vector3fFromData(config.getList("scale"), new Vector3f(1F));
-        if (config.has("sneaking_pose", BaseType.TYPE_MAP))
-        {
-            this.sneakingPose = new Pose();
-            this.sneakingPose.fromData(config.getMap("sneaking_pose"));
-        }
-        if (config.has("anchor")) this.anchorGroup = config.getString("anchor");
-        if (config.has("disabledBones"))
-        {
-            ListType list = config.getList("disabledBones");
+    public float getUiScale()
+    {
+        return this.config.uiScale.get();
+    }
 
-            for (BaseType type : list)
-            {
-                this.disabledBones.add(type.asString());
-            }
-        }
-        if (config.has("flipped_parts"))
-        {
-            MapType map = config.getMap("flipped_parts");
+    public boolean isProcedural()
+    {
+        return this.config.procedural.get();
+    }
 
-            for (String key : map.keys())
-            {
-                String string = map.getString(key);
+    public boolean isCulling()
+    {
+        return this.config.culling.get();
+    }
 
-                if (!string.trim().isEmpty())
-                {
-                    this.flippedParts.put(key, string);
-                }
-            }
-        }
-        if (config.has("picking_overrides"))
-        {
-            MapType map = config.getMap("picking_overrides");
+    public String getPoseGroup()
+    {
+        String group = this.config.poseGroup.get();
 
-            for (String key : map.keys())
-            {
-                String string = map.getString(key);
+        return group.isEmpty() ? this.id : group;
+    }
 
-                if (!string.trim().isEmpty())
-                {
-                    this.pickingOverrides.put(key, string);
-                }
-            }
-        }
-        if (config.has("armor_slots"))
-        {
-            MapType map = config.getMap("armor_slots");
+    public View getView()
+    {
+        return this.config.getView();
+    }
 
-            for (String key : map.keys())
-            {
-                try
-                {
-                    ArmorType type = ArmorType.valueOf(key.toUpperCase());
-                    ArmorSlot slot = new ArmorSlot();
+    public Set<String> getDisabledBones()
+    {
+        return this.config.disabledBones.get();
+    }
 
-                    slot.fromData(map.getMap(key));
-                    this.armorSlots.put(type, slot);
-                }
-                catch (Exception e)
-                {}
-            }
-        }
-        if (config.has("fp_main"))
-        {
-            this.fpMain = new ArmorSlot();
-            this.fpMain.fromData(config.get("fp_main"));
-        }
-        if (config.has("fp_offhand"))
-        {
-            this.fpOffhand = new ArmorSlot();
-            this.fpOffhand.fromData(config.get("fp_offhand"));
-        }
+    public Map<String, String> getFlippedParts()
+    {
+        return this.config.getFlippedParts();
+    }
 
-        /* Optional look-at configuration */
-        if (config.has("look_at", BaseType.TYPE_MAP))
-        {
-            this.view = new View();
+    public Map<ArmorType, ArmorSlot> getArmorSlots()
+    {
+        return this.config.getArmorSlots();
+    }
 
-            this.view.fromData(config.getMap("look_at"));
-        }
+    public List<ArmorSlot> getItemsMain()
+    {
+        return this.config.getItemsMain();
+    }
 
-        if (config.has("welds"))
-        {
-            for (BaseType type : config.getList("welds"))
-            {
-                MapType weld = (MapType) type;
+    public List<ArmorSlot> getItemsOff()
+    {
+        return this.config.getItemsOff();
+    }
 
-                this.welds.add(new ModelWeld(
-                    weld.getString("source_bone"),
-                    weld.getString("source_face"),
-                    weld.getString("target_bone"),
-                    weld.getString("target_face"),
-                    weld.has("max_angle") ? weld.getFloat("max_angle") : 120F
-                ));
-            }
-        }
+    public ArmorSlot getFpMain()
+    {
+        return this.config.getFpMain();
+    }
+
+    public ArmorSlot getFpOffhand()
+    {
+        return this.config.getFpOffhand();
     }
 
     public void setup()
@@ -341,12 +265,12 @@ public class ModelInstance implements IModelInstance
 
         /* Welded cubes deform per-vertex against another bone's live transform, which baked VAOs can't do,
          * so a welded model stays on the immediate (CPU) render path. */
-        if (!this.welds.isEmpty())
+        if (!this.config.getWelds().isEmpty())
         {
             return;
         }
 
-        if (this.model instanceof Model model && !this.onCpu)
+        if (this.model instanceof Model model && !this.config.onCpu.get())
         {
             MinecraftClient.getInstance().execute(() ->
             {
@@ -400,7 +324,7 @@ public class ModelInstance implements IModelInstance
      */
     private String getPickingBone(String bone)
     {
-        return this.pickingOverrides.getOrDefault(bone, bone);
+        return this.config.getPickingOverrides().getOrDefault(bone, bone);
     }
 
     public void captureMatrices(MatrixCache bones)
@@ -487,7 +411,7 @@ public class ModelInstance implements IModelInstance
 
             renderProcessor.setColor(color.r, color.g, color.b, color.a);
 
-            boolean welded = !isVao && !this.welds.isEmpty();
+            boolean welded = !isVao && !this.config.getWelds().isEmpty();
 
             if (welded)
             {

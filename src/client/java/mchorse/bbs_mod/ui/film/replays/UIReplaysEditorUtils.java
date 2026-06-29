@@ -234,7 +234,7 @@ public class UIReplaysEditorUtils
 
         for (String bone : bones)
         {
-            if (PoseBones.isHidden(model.disabledBones, bone))
+            if (PoseBones.isHidden(model.getDisabledBones(), bone))
             {
                 continue;
             }
@@ -576,7 +576,7 @@ public class UIReplaysEditorUtils
 
             if (materialDefault == null)
             {
-                materialDefault = model.getMaterialTexture(material, model.texture);
+                materialDefault = model.getMaterialTexture(material, model.getTexture());
             }
 
             ValueLink property = new ValueLink(id, materialDefault);
@@ -1251,7 +1251,7 @@ public class UIReplaysEditorUtils
 
         List<String> bones = new ArrayList<>(model.model.getGroupKeysInHierarchyOrder());
 
-        bones.removeIf((bone) -> PoseBones.isHidden(model.disabledBones, bone));
+        bones.removeIf((bone) -> PoseBones.isHidden(model.getDisabledBones(), bone));
 
         List<Keyframe<Pose>> selectedKeyframes = (List<Keyframe<Pose>>) (List<?>) poseSheet.selection.getSelected();
 
@@ -1395,7 +1395,7 @@ public class UIReplaysEditorUtils
             {
                 for (String modelGroup : model.model.getAdjacentGroups(bone))
                 {
-                    if (PoseBones.isHidden(model.disabledBones, modelGroup))
+                    if (PoseBones.isHidden(model.getDisabledBones(), modelGroup))
                     {
                         continue;
                     }
@@ -1428,7 +1428,7 @@ public class UIReplaysEditorUtils
             {
                 for (String modelGroup : model.model.getHierarchyGroups(bone))
                 {
-                    if (PoseBones.isHidden(model.disabledBones, modelGroup))
+                    if (PoseBones.isHidden(model.getDisabledBones(), modelGroup))
                     {
                         continue;
                     }

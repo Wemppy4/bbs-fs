@@ -6,6 +6,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.cubic.ModelInstance;
+import mchorse.bbs_mod.cubic.model.View;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -212,13 +213,15 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
         {
             ModelInstance model = ModelFormRenderer.getModel(modelForm);
 
-            if (model != null && model.view != null)
+            View view = model == null ? null : model.getView();
+
+            if (view != null)
             {
-                String headKey = model.view.headBone;
+                String headKey = view.headBone;
 
                 lookAt = true;
-                constraint = model.view.constraint;
-                isPitching = model.view.pitch;
+                constraint = view.constraint;
+                isPitching = view.pitch;
 
                 if (FormUtilsClient.getBones(modelForm).contains(headKey))
                 {

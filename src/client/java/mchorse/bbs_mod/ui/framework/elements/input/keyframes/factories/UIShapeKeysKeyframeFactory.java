@@ -30,7 +30,7 @@ public class UIShapeKeysKeyframeFactory extends UIKeyframeFactory<ShapeKeys>
 
         if (!shapeKeys.isEmpty())
         {
-            this.shapeKeys.setShapeKeys(model.poseGroup, shapeKeys, keyframe.getValue());
+            this.shapeKeys.setShapeKeys(model.getPoseGroup(), shapeKeys, keyframe.getValue());
             this.scroll.add(this.shapeKeys);
         }
     }

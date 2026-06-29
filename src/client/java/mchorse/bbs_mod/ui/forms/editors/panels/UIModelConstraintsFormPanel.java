@@ -152,7 +152,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         }
 
         List<String> bones = new ArrayList<>(model.model.getGroupKeysInHierarchyOrder());
-        bones.removeIf(model.disabledBones::contains);
+        bones.removeIf(model.getDisabledBones()::contains);
         this.availableBones = bones;
 
         this.bones.setList(bones);
@@ -451,7 +451,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 
     private String resolvePresetGroup(ModelForm form, ModelInstance model)
     {
-        String group = model != null ? model.poseGroup : "";
+        String group = model != null ? model.getPoseGroup() : "";
 
         if (group == null || group.isEmpty())
         {
