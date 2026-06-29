@@ -6,6 +6,7 @@ import mchorse.bbs_mod.cubic.model.View;
 import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueData;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
@@ -47,8 +48,9 @@ public class ModelConfig extends ValueGroup
     public final WeldList welds = new WeldList("welds");
     public final ValueStringKeys disabledBones = new ValueStringKeys("disabledBones");
 
+    public final LookAtValue lookAt = new LookAtValue("look_at");
+
     /* Richer blocks kept raw until an editor promotes them; rebuilt into the caches below. */
-    public final ValueData lookAt = new ValueData("look_at");
     public final ValueData sneakingPose = new ValueData("sneaking_pose");
     public final ValueData itemsMain = new ValueData("items_main");
     public final ValueData itemsOff = new ValueData("items_off");
@@ -104,6 +106,18 @@ public class ModelConfig extends ValueGroup
         this.rebuild();
     }
 
+    @Override
+    protected boolean canPersist(BaseValue value)
+    {
+        /* An inactive look-at (no head bone) stays absent from the file, matching how it was authored. */
+        if (value == this.lookAt)
+        {
+            return this.lookAt.isActive();
+        }
+
+        return super.canPersist(value);
+    }
+
     /**
      * Re-derive the typed runtime forms (welds, poses, armor...) from the raw values. Call after
      * editing any of the raw {@link ValueData} blocks so the runtime sees the change.
@@ -126,12 +140,12 @@ public class ModelConfig extends ValueGroup
             this.sneakingPoseCache.fromData(pose.asMap());
         }
 
-        BaseType look = this.lookAt.get();
-
-        if (look != null && look.isMap())
+        if (this.lookAt.isActive())
         {
             this.viewCache = new View();
-            this.viewCache.fromData(look.asMap());
+            this.viewCache.headBone = this.lookAt.head.get();
+            this.viewCache.pitch = this.lookAt.pitch.get();
+            this.viewCache.constraint = this.lookAt.headLimit.get();
         }
         else
         {

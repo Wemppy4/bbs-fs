@@ -757,6 +757,10 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_MAX_ANGLE = L10n.lang("bbs.ui.model_editor.weld.max_angle");
     public static final IKey MODEL_EDITOR_WELD_ADD = L10n.lang("bbs.ui.model_editor.weld.add");
     public static final IKey MODEL_EDITOR_WELD_REMOVE = L10n.lang("bbs.ui.model_editor.weld.remove");
+    public static final IKey MODEL_EDITOR_LOOK_AT = L10n.lang("bbs.ui.model_editor.look_at");
+    public static final IKey MODEL_EDITOR_LOOK_AT_HEAD = L10n.lang("bbs.ui.model_editor.look_at.head");
+    public static final IKey MODEL_EDITOR_LOOK_AT_PITCH = L10n.lang("bbs.ui.model_editor.look_at.pitch");
+    public static final IKey MODEL_EDITOR_LOOK_AT_LIMIT = L10n.lang("bbs.ui.model_editor.look_at.limit");
     public static final IKey MODEL_BLOCKS_TRANSFORM_FIRST_PERSON = L10n.lang("bbs.ui.model_blocks.transform.first_person");
     public static final IKey MODEL_BLOCKS_TRANSFORM_INVENTORY = L10n.lang("bbs.ui.model_blocks.transform.inventory");
     public static final IKey MODEL_BLOCKS_TRANSFORM_THIRD_PERSON = L10n.lang("bbs.ui.model_blocks.transform.third_person");

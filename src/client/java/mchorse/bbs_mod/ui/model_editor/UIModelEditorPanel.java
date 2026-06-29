@@ -197,7 +197,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         if (config != null)
         {
-            this.general.add(this.generalSection(config), this.weldsSection(config));
+            this.general.add(this.generalSection(config), this.weldsSection(config), this.lookAtSection(config));
         }
 
         this.general.resize();
@@ -219,6 +219,55 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         );
 
         return section;
+    }
+
+    private UISection lookAtSection(ModelConfig config)
+    {
+        UISection section = new UISection(UIKeys.MODEL_EDITOR_LOOK_AT);
+
+        section.fields.add(
+            UI.label(UIKeys.MODEL_EDITOR_LOOK_AT_HEAD), this.lookAtHead(config),
+            this.lookAtPitch(config),
+            UI.label(UIKeys.MODEL_EDITOR_LOOK_AT_LIMIT), this.lookAtLimit(config)
+        );
+
+        return section;
+    }
+
+    private UITextbox lookAtHead(ModelConfig config)
+    {
+        UITextbox textbox = new UITextbox(100, (t) ->
+        {
+            config.lookAt.head.set(t);
+            config.rebuild();
+        });
+
+        textbox.setText(config.lookAt.head.get());
+
+        return textbox;
+    }
+
+    private UIToggle lookAtPitch(ModelConfig config)
+    {
+        return new UIToggle(UIKeys.MODEL_EDITOR_LOOK_AT_PITCH, config.lookAt.pitch.get(), (t) ->
+        {
+            config.lookAt.pitch.set(t.getValue());
+            config.rebuild();
+        });
+    }
+
+    private UITrackpad lookAtLimit(ModelConfig config)
+    {
+        UITrackpad trackpad = new UITrackpad((v) ->
+        {
+            config.lookAt.headLimit.set(v.floatValue());
+            config.rebuild();
+        });
+
+        trackpad.setValue(config.lookAt.headLimit.get());
+        trackpad.delayedInput();
+
+        return trackpad;
     }
 
     private UISection weldsSection(ModelConfig config)
