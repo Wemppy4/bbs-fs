@@ -17,6 +17,8 @@ import mchorse.bbs_mod.cubic.render.CubicVAOBuilderRenderer;
 import mchorse.bbs_mod.cubic.render.CubicVAORenderer;
 import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
+import mchorse.bbs_mod.cubic.weld.ModelWeld;
+import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
@@ -88,6 +90,12 @@ public class ModelInstance implements IModelInstance
     public Map<String, String> pickingOverrides = new HashMap<>();
     public Map<ArmorType, ArmorSlot> armorSlots = new HashMap<>();
 
+    /** Welds declared in the model's config — glue a bone's face onto another's to seal a bending joint. */
+    public List<ModelWeld> welds = new ArrayList<>();
+
+    /** Welds resolved against the model (groups/cubes/corners). Built lazily on first render, kept across frames. */
+    private List<WeldBinding> weldBindings;
+
     public ArmorSlot fpMain;
     public ArmorSlot fpOffhand;
 
@@ -128,6 +136,30 @@ public class ModelInstance implements IModelInstance
     public Map<ModelGroup, Map<String, ModelVAO>> getVaos()
     {
         return this.vaos;
+    }
+
+    /** Welds resolved against this model, built once. Empty when the model declares none or isn't cubic. */
+    public List<WeldBinding> getWeldBindings()
+    {
+        if (this.weldBindings == null)
+        {
+            this.weldBindings = new ArrayList<>();
+
+            if (this.model instanceof Model model)
+            {
+                for (ModelWeld weld : this.welds)
+                {
+                    WeldBinding binding = WeldBinding.resolve(model, weld);
+
+                    if (binding != null)
+                    {
+                        this.weldBindings.add(binding);
+                    }
+                }
+            }
+        }
+
+        return this.weldBindings;
     }
 
     /**
@@ -276,6 +308,22 @@ public class ModelInstance implements IModelInstance
 
             this.view.fromData(config.getMap("look_at"));
         }
+
+        if (config.has("welds"))
+        {
+            for (BaseType type : config.getList("welds"))
+            {
+                MapType weld = (MapType) type;
+
+                this.welds.add(new ModelWeld(
+                    weld.getString("source_bone"),
+                    weld.getString("source_face"),
+                    weld.getString("target_bone"),
+                    weld.getString("target_face"),
+                    weld.has("max_angle") ? weld.getFloat("max_angle") : 120F
+                ));
+            }
+        }
     }
 
     public void setup()
@@ -287,6 +335,13 @@ public class ModelInstance implements IModelInstance
 
         /* VAOs should be only generated if there are no shape keys */
         if (!this.model.getShapeKeys().isEmpty())
+        {
+            return;
+        }
+
+        /* Welded cubes deform per-vertex against another bone's live transform, which baked VAOs can't do,
+         * so a welded model stays on the immediate (CPU) render path. */
+        if (!this.welds.isEmpty())
         {
             return;
         }
@@ -393,6 +448,32 @@ public class ModelInstance implements IModelInstance
         }
     }
 
+    /** First weld pass: capture the rigid world corners of every welded face with no drawing, then build the seams. */
+    private void captureWelds(CubicCubeRenderer renderProcessor, MatrixStack stack, Model model)
+    {
+        List<WeldBinding> bindings = this.getWeldBindings();
+
+        for (WeldBinding binding : bindings)
+        {
+            for (WeldBinding.Layer layer : binding.layers)
+            {
+                layer.resetCapture();
+            }
+        }
+
+        renderProcessor.setCaptureOnly(true);
+        CubicRenderer.processRenderModel(renderProcessor, null, stack, model);
+        renderProcessor.setCaptureOnly(false);
+
+        for (WeldBinding binding : bindings)
+        {
+            for (WeldBinding.Layer layer : binding.layers)
+            {
+                layer.computeSeam();
+            }
+        }
+    }
+
     public void render(MatrixStack stack, Supplier<ShaderProgram> program, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
     {
         ShaderProgram shader = program.get();
@@ -406,6 +487,13 @@ public class ModelInstance implements IModelInstance
 
             renderProcessor.setColor(color.r, color.g, color.b, color.a);
 
+            boolean welded = !isVao && !this.welds.isEmpty();
+
+            if (welded)
+            {
+                renderProcessor.setWelds(this.getWeldBindings());
+            }
+
             if (isVao)
             {
                 CubicRenderer.processRenderModel(renderProcessor, null, stack, model);
@@ -413,6 +501,11 @@ public class ModelInstance implements IModelInstance
             else
             {
                 RenderSystem.setShader(() -> shader);
+
+                if (welded)
+                {
+                    this.captureWelds(renderProcessor, stack, model);
+                }
 
                 BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
