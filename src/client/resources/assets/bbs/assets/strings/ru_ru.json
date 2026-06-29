@@ -1001,6 +1001,7 @@
 	"bbs.ui.model_blocks.keys.toggle_rendering": "Переключить отрисовку в мире",
 	"bbs.ui.model_blocks.shadow": "Тень",
 	"bbs.ui.model_blocks.title": "Блок-модели",
+	"bbs.ui.model_editor.title": "Редактор моделей",
 	"bbs.ui.model_blocks.transform.default": "Трансформация по умолчанию",
 	"bbs.ui.model_blocks.transform.first_person": "Трансформация от первого лица",
 	"bbs.ui.model_blocks.transform.inventory": "Трансформация в инвентаре (GUI)",

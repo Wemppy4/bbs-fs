@@ -1007,6 +1007,7 @@
 	"bbs.ui.model_blocks.keys.toggle_rendering": "Toggle world rendering",
 	"bbs.ui.model_blocks.shadow": "Shadow",
 	"bbs.ui.model_blocks.title": "Model blocks",
+	"bbs.ui.model_editor.title": "Model editor",
 	"bbs.ui.model_blocks.transform.default": "Default transform",
 	"bbs.ui.model_blocks.transform.first_person": "First person transform",
 	"bbs.ui.model_blocks.transform.inventory": "Inventory (GUI) transform",
