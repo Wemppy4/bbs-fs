@@ -741,6 +741,14 @@ public class UIKeys
     public static final IKey MODEL_BLOCKS_TITLE = L10n.lang("bbs.ui.model_blocks.title");
     public static final IKey MODEL_BLOCKS_TRANSFORM_DEFAULT = L10n.lang("bbs.ui.model_blocks.transform.default");
     public static final IKey MODEL_EDITOR_TITLE = L10n.lang("bbs.ui.model_editor.title");
+    public static final IKey MODEL_EDITOR_PROCEDURAL = L10n.lang("bbs.ui.model_editor.procedural");
+    public static final IKey MODEL_EDITOR_CULLING = L10n.lang("bbs.ui.model_editor.culling");
+    public static final IKey MODEL_EDITOR_ON_CPU = L10n.lang("bbs.ui.model_editor.on_cpu");
+    public static final IKey MODEL_EDITOR_POSE_GROUP = L10n.lang("bbs.ui.model_editor.pose_group");
+    public static final IKey MODEL_EDITOR_ANCHOR = L10n.lang("bbs.ui.model_editor.anchor");
+    public static final IKey MODEL_EDITOR_TEXTURE = L10n.lang("bbs.ui.model_editor.texture");
+    public static final IKey MODEL_EDITOR_UI_SCALE = L10n.lang("bbs.ui.model_editor.ui_scale");
+    public static final IKey MODEL_EDITOR_SCALE = L10n.lang("bbs.ui.model_editor.scale");
     public static final IKey MODEL_BLOCKS_TRANSFORM_FIRST_PERSON = L10n.lang("bbs.ui.model_blocks.transform.first_person");
     public static final IKey MODEL_BLOCKS_TRANSFORM_INVENTORY = L10n.lang("bbs.ui.model_blocks.transform.inventory");
     public static final IKey MODEL_BLOCKS_TRANSFORM_THIRD_PERSON = L10n.lang("bbs.ui.model_blocks.transform.third_person");

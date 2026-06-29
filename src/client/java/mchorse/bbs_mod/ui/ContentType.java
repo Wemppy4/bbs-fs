@@ -2,6 +2,8 @@ package mchorse.bbs_mod.ui;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.cubic.model.config.ModelConfig;
+import mchorse.bbs_mod.cubic.model.config.ModelManagerRepository;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmManager;
 import mchorse.bbs_mod.network.ClientNetwork;
@@ -10,6 +12,7 @@ import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
 import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
 import mchorse.bbs_mod.utils.repos.FilmRepository;
 import mchorse.bbs_mod.utils.repos.FolderManagerRepository;
@@ -22,11 +25,13 @@ import java.util.function.Supplier;
 
 public class ContentType
 {
+    private static final IRepository<ModelConfig> MODEL_REPOSITORY = new ModelManagerRepository();
     private static final IRepository<ParticleScheme> PARTICLE_REPOSITORY = new FolderManagerRepository<>(BBSModClient.getParticles());
     private static final IRepository<Film> FILMS_REPOSITORY = new FolderManagerRepository<>(BBSMod.getFilms());
     private static final IRepository<Film> FILMS_LOCAL_REPOSITORY = new FolderManagerRepository<>(new FilmManager(() -> new File(BBSMod.getAssetsFolder().getParentFile(), "data/films")));
     private static final IRepository<Film> FILMS_REMOTE_REPOSITORY = new FilmRepository();
 
+    public static final ContentType MODELS = new ContentType("models", () -> MODEL_REPOSITORY, (dashboard) -> dashboard.getPanel(UIModelEditorPanel.class));
     public static final ContentType PARTICLES = new ContentType("particles", () -> PARTICLE_REPOSITORY, (dashboard) -> dashboard.getPanel(UIParticleSchemePanel.class));
     public static final ContentType FILMS = new ContentType("films", ContentType::getFilmsRepository, (dashboard) -> dashboard.getPanel(UIFilmPanel.class));
 

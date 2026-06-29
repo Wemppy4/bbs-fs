@@ -163,6 +163,11 @@ public class ModelManager implements IWatchDogListener
      */
     public boolean saveConfig(String id, ModelConfig config)
     {
+        return this.saveConfig(id, config.toData().asMap());
+    }
+
+    public boolean saveConfig(String id, MapType data)
+    {
         File file = this.provider.getFile(Link.assets(MODELS_PREFIX + id).combine("config.json"));
 
         if (file == null)
@@ -172,7 +177,7 @@ public class ModelManager implements IWatchDogListener
 
         file.getParentFile().mkdirs();
 
-        return DataToString.writeSilently(file, config.toData(), true);
+        return DataToString.writeSilently(file, data, true);
     }
 
     public void reload()
