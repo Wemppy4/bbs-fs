@@ -162,6 +162,16 @@ public class Transform implements IMapSerializable
         this.rotate2.z = MathUtils.toRad(this.rotate2.z);
     }
 
+    public void toDeg()
+    {
+        this.rotate.x = MathUtils.toDeg(this.rotate.x);
+        this.rotate.y = MathUtils.toDeg(this.rotate.y);
+        this.rotate.z = MathUtils.toDeg(this.rotate.z);
+        this.rotate2.x = MathUtils.toDeg(this.rotate2.x);
+        this.rotate2.y = MathUtils.toDeg(this.rotate2.y);
+        this.rotate2.z = MathUtils.toDeg(this.rotate2.z);
+    }
+
     @Override
     public void toData(MapType data)
     {
