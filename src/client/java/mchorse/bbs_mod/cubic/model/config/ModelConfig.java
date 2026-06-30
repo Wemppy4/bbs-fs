@@ -5,17 +5,19 @@ import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.View;
 import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.data.types.BaseType;
+import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
-import mchorse.bbs_mod.settings.values.core.ValueData;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueList;
+import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
+import mchorse.bbs_mod.settings.values.ui.ValueStringMap;
 import mchorse.bbs_mod.utils.pose.Pose;
 import org.joml.Vector3f;
 
@@ -28,12 +30,10 @@ import java.util.Map;
  * A model's {@code config.json} as an editable value tree. Loading and saving the file is the
  * {@link ValueGroup} machinery's recursive {@link #fromData}/{@link #toData} — no manual parsing.
  *
- * <p>The flat settings (procedural, scale, texture...) are first-class values. The richer blocks
- * that aren't surfaced in an editor yet (poses, armor, item slots, flip/picking maps) ride along
- * as raw {@link ValueData} so they round-trip losslessly; their typed runtime forms are derived
- * lazily into the caches below and rebuilt whenever the tree is reloaded or edited via {@link
- * #rebuild()}. The runtime ({@code ModelInstance}) reads everything through this class — it keeps
- * no config fields of its own.</p>
+ * <p>Every block is a first-class value now (slots, armor, item hands, bone maps, the sneaking pose),
+ * so the editor binds straight to them. The runtime ({@code ModelInstance}) reads everything through
+ * this class — it keeps no config fields of its own. The few runtime forms that get walked every frame
+ * (the armor/item {@link ArmorSlot}s) are cached and rebuilt via {@link #rebuild()} on load or edit.</p>
  */
 public class ModelConfig extends ValueGroup
 {
@@ -49,24 +49,19 @@ public class ModelConfig extends ValueGroup
     public final ValueStringKeys disabledBones = new ValueStringKeys("disabledBones");
 
     public final LookAtValue lookAt = new LookAtValue("look_at");
-
-    /* Richer blocks kept raw until an editor promotes them; rebuilt into the caches below. */
-    public final ValueData sneakingPose = new ValueData("sneaking_pose");
-    public final ValueData itemsMain = new ValueData("items_main");
-    public final ValueData itemsOff = new ValueData("items_off");
-    public final ValueData armorSlots = new ValueData("armor_slots");
-    public final ValueData flippedParts = new ValueData("flipped_parts");
-    public final ValueData pickingOverrides = new ValueData("picking_overrides");
-    public final ValueData fpMain = new ValueData("fp_main");
-    public final ValueData fpOffhand = new ValueData("fp_offhand");
+    public final ValuePose sneakingPose = new ValuePose("sneaking_pose", new Pose());
+    public final ItemSlotList itemsMain = new ItemSlotList("items_main");
+    public final ItemSlotList itemsOff = new ItemSlotList("items_off");
+    public final ArmorSlotsValue armorSlots = new ArmorSlotsValue("armor_slots");
+    public final ValueStringMap flippedParts = new ValueStringMap("flipped_parts");
+    public final ValueStringMap pickingOverrides = new ValueStringMap("picking_overrides");
+    public final ArmorSlotValue fpMain = new ArmorSlotValue("fp_main");
+    public final ArmorSlotValue fpOffhand = new ArmorSlotValue("fp_offhand");
 
     private final List<ModelWeld> weldsCache = new ArrayList<>();
     private final List<ArmorSlot> itemsMainCache = new ArrayList<>();
     private final List<ArmorSlot> itemsOffCache = new ArrayList<>();
     private final Map<ArmorType, ArmorSlot> armorSlotsCache = new HashMap<>();
-    private final Map<String, String> flippedPartsCache = new HashMap<>();
-    private final Map<String, String> pickingOverridesCache = new HashMap<>();
-    private Pose sneakingPoseCache = new Pose();
     private View viewCache;
     private ArmorSlot fpMainCache;
     private ArmorSlot fpOffhandCache;
@@ -109,18 +104,24 @@ public class ModelConfig extends ValueGroup
     @Override
     protected boolean canPersist(BaseValue value)
     {
-        /* An inactive look-at (no head bone) stays absent from the file, matching how it was authored. */
-        if (value == this.lookAt)
-        {
-            return this.lookAt.isActive();
-        }
+        /* Optional blocks stay absent from the file when empty, matching how they were authored. */
+        if (value == this.lookAt) return this.lookAt.isActive();
+        if (value == this.fpMain) return this.fpMain.isActive();
+        if (value == this.fpOffhand) return this.fpOffhand.isActive();
+        if (value == this.sneakingPose) return !this.sneakingPose.get().isEmpty();
+        if (value == this.itemsMain) return this.itemsMain.hasActive();
+        if (value == this.itemsOff) return this.itemsOff.hasActive();
+        if (value == this.flippedParts) return !this.flippedParts.get().isEmpty();
+        if (value == this.pickingOverrides) return !this.pickingOverrides.get().isEmpty();
+        if (value == this.armorSlots) return this.armorSlots.hasActive();
 
         return super.canPersist(value);
     }
 
     /**
-     * Re-derive the typed runtime forms (welds, poses, armor...) from the raw values. Call after
-     * editing any of the raw {@link ValueData} blocks so the runtime sees the change.
+     * Re-derive the per-frame runtime forms (welds, view, armor/item slots) from the value tree. Call
+     * after editing a block so the runtime sees the change. The plain maps (flip/picking) and the pose
+     * are read straight off their values, so they don't need rebuilding.
      */
     public void rebuild()
     {
@@ -129,15 +130,6 @@ public class ModelConfig extends ValueGroup
         for (WeldValue weld : this.welds.getAllTyped())
         {
             this.weldsCache.add(weld.toWeld());
-        }
-
-        this.sneakingPoseCache = new Pose();
-
-        BaseType pose = this.sneakingPose.get();
-
-        if (pose != null && pose.isMap())
-        {
-            this.sneakingPoseCache.fromData(pose.asMap());
         }
 
         if (this.lookAt.isActive())
@@ -152,80 +144,25 @@ public class ModelConfig extends ValueGroup
             this.viewCache = null;
         }
 
-        this.fpMainCache = this.toSlot(this.fpMain.get());
-        this.fpOffhandCache = this.toSlot(this.fpOffhand.get());
+        this.fpMainCache = this.fpMain.isActive() ? this.fpMain.toSlot() : null;
+        this.fpOffhandCache = this.fpOffhand.isActive() ? this.fpOffhand.toSlot() : null;
 
-        this.fillSlots(this.itemsMain.get(), this.itemsMainCache);
-        this.fillSlots(this.itemsOff.get(), this.itemsOffCache);
-        this.fillStringMap(this.flippedParts.get(), this.flippedPartsCache);
-        this.fillStringMap(this.pickingOverrides.get(), this.pickingOverridesCache);
+        this.fillSlots(this.itemsMain, this.itemsMainCache);
+        this.fillSlots(this.itemsOff, this.itemsOffCache);
 
         this.armorSlotsCache.clear();
-
-        BaseType armor = this.armorSlots.get();
-
-        if (armor != null && armor.isMap())
-        {
-            for (String key : armor.asMap().keys())
-            {
-                try
-                {
-                    ArmorType type = ArmorType.valueOf(key.toUpperCase());
-                    ArmorSlot slot = new ArmorSlot();
-
-                    slot.fromData(armor.asMap().getMap(key));
-                    this.armorSlotsCache.put(type, slot);
-                }
-                catch (Exception e)
-                {}
-            }
-        }
+        this.armorSlotsCache.putAll(this.armorSlots.toMap());
     }
 
-    private ArmorSlot toSlot(BaseType data)
-    {
-        if (data == null)
-        {
-            return null;
-        }
-
-        ArmorSlot slot = new ArmorSlot();
-
-        slot.fromData(data);
-
-        return slot;
-    }
-
-    private void fillSlots(BaseType data, List<ArmorSlot> out)
+    private void fillSlots(ItemSlotList list, List<ArmorSlot> out)
     {
         out.clear();
 
-        if (data != null && data.isList())
+        for (ArmorSlotValue slot : list.getAllTyped())
         {
-            for (BaseType type : data.asList())
+            if (slot.isActive())
             {
-                ArmorSlot slot = new ArmorSlot();
-
-                slot.fromData(type);
-                out.add(slot);
-            }
-        }
-    }
-
-    private void fillStringMap(BaseType data, Map<String, String> out)
-    {
-        out.clear();
-
-        if (data != null && data.isMap())
-        {
-            for (String key : data.asMap().keys())
-            {
-                String value = data.asMap().getString(key);
-
-                if (!value.trim().isEmpty())
-                {
-                    out.put(key, value);
-                }
+                out.add(slot.toSlot());
             }
         }
     }
@@ -237,7 +174,7 @@ public class ModelConfig extends ValueGroup
 
     public Pose getSneakingPose()
     {
-        return this.sneakingPoseCache;
+        return this.sneakingPose.get();
     }
 
     public View getView()
@@ -272,12 +209,12 @@ public class ModelConfig extends ValueGroup
 
     public Map<String, String> getFlippedParts()
     {
-        return this.flippedPartsCache;
+        return this.flippedParts.get();
     }
 
     public Map<String, String> getPickingOverrides()
     {
-        return this.pickingOverridesCache;
+        return this.pickingOverrides.get();
     }
 
     public Link getTexture()
@@ -296,6 +233,49 @@ public class ModelConfig extends ValueGroup
         protected WeldValue create(String id)
         {
             return new WeldValue(id);
+        }
+    }
+
+    public static class ItemSlotList extends ValueList<ArmorSlotValue>
+    {
+        public ItemSlotList(String id)
+        {
+            super(id);
+        }
+
+        @Override
+        protected ArmorSlotValue create(String id)
+        {
+            return new ArmorSlotValue(id);
+        }
+
+        public boolean hasActive()
+        {
+            for (ArmorSlotValue slot : this.getAllTyped())
+            {
+                if (slot.isActive())
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        @Override
+        public BaseType toData()
+        {
+            ListType list = new ListType();
+
+            for (ArmorSlotValue slot : this.getAllTyped())
+            {
+                if (slot.isActive())
+                {
+                    list.add(slot.toData());
+                }
+            }
+
+            return list;
         }
     }
 }
