@@ -180,7 +180,7 @@ public class CubicCubeRenderer implements ICubicRenderer
     {
         if (this.captureOnly)
         {
-            stack.peek().getPositionMatrix().getNormalizedRotation(this.boneRot);
+            stack.peek().getPositionMatrix().getUnnormalizedRotation(this.boneRot);
         }
 
         stack.push();
@@ -525,7 +525,7 @@ public class CubicCubeRenderer implements ICubicRenderer
             {
                 if (!this.targetLayer.targetCaptured)
                 {
-                    matrix.getNormalizedRotation(this.targetLayer.capturedTargetRot);
+                    matrix.getUnnormalizedRotation(this.targetLayer.capturedTargetRot);
                     this.targetLayer.capturedTargetBoneRot.set(this.boneRot);
                 }
 
