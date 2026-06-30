@@ -206,7 +206,7 @@ final class ModelIKApplier
         }
         else if (model instanceof BOBJModel bobj && workIds.size() >= 3)
         {
-            buildChainOrientationsBobj(bobj, workIds, solved, rootParentRotation, weight, tipTarget);
+            buildChainOrientationsBobj(bobj, workIds, solved, rootParentRotation, weight, tipTarget, stretchGap);
         }
         else
         {
@@ -456,7 +456,7 @@ final class ModelIKApplier
      * coincide and the orientation is identity — no baseline twist. Same X-mirror as
      * cubic ({@link Matrices#orientMirroredX}).
      */
-    private static void buildChainOrientationsBobj(BOBJModel model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float weight, Quaternionf tipTarget)
+    private static void buildChainOrientationsBobj(BOBJModel model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float weight, Quaternionf tipTarget, Vector3f stretchGap)
     {
         int bones = chainIds.size() - 1;
         Map<String, BOBJBone> bonesMap = model.getArmature().bones;
@@ -541,6 +541,73 @@ final class ModelIKApplier
                 tip.orient = weight >= 1F - EPS ? new Quaternionf(tipLocal) : bobjFkLocal(tip).slerp(tipLocal, weight);
             }
         }
+
+        if (stretchGap != null)
+        {
+            stretchBobj(model, bonesMap, chainIds, solved, stretchGap);
+        }
+    }
+
+    /**
+     * Telescopes a BOBJ chain past its reach: each bone gets the CUMULATIVE world shift that carries
+     * its head joint towards the controller — the gap scaled by how far along the chain the bone sits,
+     * so the last DEFORMING bone lands the skin on the target and the mesh stretches smoothly between
+     * bones (vertices blend the per-bone shifts). Unlike the cubic rigid telescope this opens no hard
+     * seams; the continuous skin just follows. The distribution stops at the last bone with skin — a
+     * trailing bare end-marker carries no vertices, so reaching it instead would leave the visible
+     * mesh short of the controller (its share capped to the full gap so any stray child still rides).
+     * Written to {@link BOBJBone#offset}, which the armature folds into the skinning matrix only,
+     * leaving the skeleton frames nominal.
+     */
+    private static void stretchBobj(BOBJModel model, Map<String, BOBJBone> bonesMap, List<String> chainIds, List<Vector3f> solved, Vector3f gap)
+    {
+        int joints = chainIds.size();
+        int reach = lastInfluenceIndex(model, bonesMap, chainIds);
+        float reachTotal = 0F;
+
+        for (int i = 0; i < reach; i++)
+        {
+            reachTotal += solved.get(i).distance(solved.get(i + 1));
+        }
+
+        if (reach < 1 || reachTotal <= EPS)
+        {
+            return;
+        }
+
+        float arclen = 0F;
+
+        for (int i = 1; i < joints; i++)
+        {
+            arclen += solved.get(i - 1).distance(solved.get(i));
+
+            BOBJBone bone = bonesMap.get(chainIds.get(i));
+
+            if (bone != null)
+            {
+                bone.offset = new Vector3f(gap).mul(Math.min(arclen / reachTotal, 1F));
+            }
+        }
+    }
+
+    /**
+     * The deepest chain bone that deforms mesh — the BOBJ analogue of {@link #lastGeometryIndex}.
+     * Trailing bones with no skin are bare reach markers (the end-bone pattern); the stretch ends on
+     * the bone before them so the visible mesh lands on the controller. Falls back to the last bone.
+     */
+    private static int lastInfluenceIndex(BOBJModel model, Map<String, BOBJBone> bonesMap, List<String> chainIds)
+    {
+        for (int i = chainIds.size() - 1; i >= 0; i--)
+        {
+            BOBJBone bone = bonesMap.get(chainIds.get(i));
+
+            if (bone != null && model.boneDeformsMesh(bone.index))
+            {
+                return i;
+            }
+        }
+
+        return chainIds.size() - 1;
     }
 
     /** A BOBJ bone's FK local rotation (its radian euler rotate as a quaternion), the blend base when IK weight is below one. */
