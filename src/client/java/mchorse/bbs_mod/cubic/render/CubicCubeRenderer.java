@@ -17,6 +17,7 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -65,6 +66,10 @@ public class CubicCubeRenderer implements ICubicRenderer
 
     /* Capture pass records the rigid world corners of welded faces without drawing; the draw pass snaps to the seam. */
     private boolean captureOnly;
+
+    /* Bone (group) world rotation of the cube being captured, sampled before the cube's own rotate — feeds the bend
+     * angle so a cube's static modeling rotation can't leak in and read as a folded joint. */
+    private final Quaternionf boneRot = new Quaternionf();
 
     /* A welded cube's faces bend within a band near the seam; drawn as two flat triangles their texture warps
      * unevenly, so the edge running ALONG the bone is split into this many segments and the bend is resolved
@@ -173,6 +178,11 @@ public class CubicCubeRenderer implements ICubicRenderer
 
     protected void renderCube(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelCube cube)
     {
+        if (this.captureOnly)
+        {
+            stack.peek().getPositionMatrix().getNormalizedRotation(this.boneRot);
+        }
+
         stack.push();
         moveToPivot(stack, cube.pivot);
         rotate(stack, cube.rotate);
@@ -504,7 +514,7 @@ public class CubicCubeRenderer implements ICubicRenderer
         return 1F - x * x * (3F - 2F * x);
     }
 
-    /** Capture pass: record a welded face corner's rigid world position, plus the face orientation once. */
+    /** Capture pass: record a welded face corner's rigid world position, plus the face and bone orientations once. */
     private void captureWeldCorner(Vector3f local, Matrix4f matrix)
     {
         if (this.targetLayer != null)
@@ -516,6 +526,7 @@ public class CubicCubeRenderer implements ICubicRenderer
                 if (!this.targetLayer.targetCaptured)
                 {
                     matrix.getNormalizedRotation(this.targetLayer.capturedTargetRot);
+                    this.targetLayer.capturedTargetBoneRot.set(this.boneRot);
                 }
 
                 this.targetLayer.capturedTargetWorld[corner].set(this.vertex.x, this.vertex.y, this.vertex.z);
@@ -531,7 +542,7 @@ public class CubicCubeRenderer implements ICubicRenderer
             {
                 if (!this.sourceLayer.sourceCaptured)
                 {
-                    matrix.getNormalizedRotation(this.sourceLayer.capturedSourceRot);
+                    this.sourceLayer.capturedSourceBoneRot.set(this.boneRot);
                 }
 
                 this.sourceLayer.capturedSourceWorld[corner].set(this.vertex.x, this.vertex.y, this.vertex.z);
