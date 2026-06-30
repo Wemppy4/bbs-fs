@@ -6,6 +6,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.data.model.ModelQuad;
 import mchorse.bbs_mod.cubic.data.model.ModelVertex;
 import org.joml.Quaternionf;
+import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -18,9 +19,10 @@ import java.util.List;
  * parent.
  *
  * <p>A bone is usually two coincident cubes — the base skin and the inflated jacket layer. Each layer is a
- * different size, so they get their OWN seam: the cubes of the two bones are paired by inflate (outermost to
- * outermost) and every pair seals independently. A single shared seam would drag the base layer out to the
- * jacket's size and puff the joint.
+ * different size, so they get their OWN seam: the cubes of the two bones are paired by matching welded-face
+ * cross-section (base to base, jacket to jacket — whether the layers differ by inflate or by raw size) and
+ * every pair seals independently. A single shared seam would drag the base layer out to the jacket's size
+ * and puff the joint.
  *
  * <p>Because the parent draws before the child, the rigid world poses of both faces can't be known in one
  * traversal — the renderer runs a capture pass first (the renderer fills {@link Layer#resetCapture} state),
@@ -55,20 +57,19 @@ public class WeldBinding
 
         List<ModelCube> sourceCubes = facedCubes(sourceGroup, sourceFace);
         List<ModelCube> targetCubes = facedCubes(targetGroup, targetFace);
-        int count = Math.min(sourceCubes.size(), targetCubes.size());
         float maxBend = (float) Math.toRadians(weld.maxAngle);
         float falloff = weld.seamFalloff;
         List<Layer> layers = new ArrayList<>();
 
-        for (int i = 0; i < count; i++)
+        for (int[] pair : pairByCrossSection(sourceCubes, sourceFace, targetCubes, targetFace))
         {
-            layers.add(new Layer(sourceCubes.get(i), sourceFace, targetCubes.get(i), targetFace, maxBend, falloff));
+            layers.add(new Layer(sourceCubes.get(pair[0]), sourceFace, targetCubes.get(pair[1]), targetFace, maxBend, falloff));
         }
 
         return layers.isEmpty() ? null : new WeldBinding(sourceGroup, targetGroup, layers);
     }
 
-    /** The group's cubes that carry the welded face, outermost (most inflated) first, so layers pair up. */
+    /** The group's cubes that carry the welded face, in model order; {@link #pairByCrossSection} pairs them up. */
     private static List<ModelCube> facedCubes(ModelGroup group, CubeFace face)
     {
         List<ModelCube> cubes = new ArrayList<>();
@@ -81,9 +82,85 @@ public class WeldBinding
             }
         }
 
-        cubes.sort((a, b) -> Float.compare(b.inflate, a.inflate));
-
         return cubes;
+    }
+
+    /**
+     * Pair source cubes to target cubes by how closely their welded faces match in cross-section, so each
+     * skin layer welds to its own counterpart (base to base, inflated jacket to jacket) whether the layers
+     * differ by inflate or by raw size. Greedy: the closest-matching free pair is taken first, so a spare
+     * cube on the longer side is left unwelded instead of dragging a mismatched partner onto its seam.
+     */
+    private static List<int[]> pairByCrossSection(List<ModelCube> sources, CubeFace sourceFace, List<ModelCube> targets, CubeFace targetFace)
+    {
+        Vector2f[] sourceSizes = crossSections(sources, sourceFace);
+        Vector2f[] targetSizes = crossSections(targets, targetFace);
+        List<int[]> candidates = new ArrayList<>();
+
+        for (int s = 0; s < sources.size(); s++)
+        {
+            for (int t = 0; t < targets.size(); t++)
+            {
+                candidates.add(new int[] {s, t});
+            }
+        }
+
+        candidates.sort((a, b) ->
+        {
+            int byScore = Float.compare(crossSectionDistance(sourceSizes[a[0]], targetSizes[a[1]]), crossSectionDistance(sourceSizes[b[0]], targetSizes[b[1]]));
+
+            if (byScore != 0) return byScore;
+            if (a[0] != b[0]) return Integer.compare(a[0], b[0]);
+
+            return Integer.compare(a[1], b[1]);
+        });
+
+        boolean[] sourceUsed = new boolean[sources.size()];
+        boolean[] targetUsed = new boolean[targets.size()];
+        List<int[]> pairs = new ArrayList<>();
+
+        for (int[] pair : candidates)
+        {
+            if (!sourceUsed[pair[0]] && !targetUsed[pair[1]])
+            {
+                sourceUsed[pair[0]] = true;
+                targetUsed[pair[1]] = true;
+                pairs.add(pair);
+            }
+        }
+
+        return pairs;
+    }
+
+    /** The two in-plane extents of each cube's welded face (sorted small-to-large) — its cross-section size. */
+    private static Vector2f[] crossSections(List<ModelCube> cubes, CubeFace face)
+    {
+        Vector3f[] axes = inPlaneAxes(face.normal);
+        Vector2f[] sizes = new Vector2f[cubes.size()];
+
+        for (int i = 0; i < cubes.size(); i++)
+        {
+            float a = axisExtent(cubes.get(i), axes[0]);
+            float b = axisExtent(cubes.get(i), axes[1]);
+
+            sizes[i] = a <= b ? new Vector2f(a, b) : new Vector2f(b, a);
+        }
+
+        return sizes;
+    }
+
+    private static float crossSectionDistance(Vector2f a, Vector2f b)
+    {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    /** The two unit axes spanning an axis-aligned face's plane (the pair that isn't its normal). */
+    private static Vector3f[] inPlaneAxes(Vector3f normal)
+    {
+        if (Math.abs(normal.x) > 0.5F) return new Vector3f[] {new Vector3f(0F, 1F, 0F), new Vector3f(0F, 0F, 1F)};
+        if (Math.abs(normal.y) > 0.5F) return new Vector3f[] {new Vector3f(1F, 0F, 0F), new Vector3f(0F, 0F, 1F)};
+
+        return new Vector3f[] {new Vector3f(1F, 0F, 0F), new Vector3f(0F, 1F, 0F)};
     }
 
     /** Index of the corner matching {@code local} (by position), or -1 if none — used to spot welded vertices. */
