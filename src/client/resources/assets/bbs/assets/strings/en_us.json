@@ -1051,6 +1051,7 @@
 	"bbs.ui.model_editor.armor.right_leg": "Right leg",
 	"bbs.ui.model_editor.armor.left_boot": "Left boot",
 	"bbs.ui.model_editor.armor.right_boot": "Right boot",
+	"bbs.ui.model_editor.armor.boots": "Boots",
 	"bbs.ui.model_editor.first_person": "First person",
 	"bbs.ui.model_editor.maps": "Bone maps",
 	"bbs.ui.model_editor.flipped_parts": "Flipped parts",

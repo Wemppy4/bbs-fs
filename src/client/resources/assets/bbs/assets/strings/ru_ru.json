@@ -1045,6 +1045,7 @@
 	"bbs.ui.model_editor.armor.right_leg": "Правая нога",
 	"bbs.ui.model_editor.armor.left_boot": "Левый ботинок",
 	"bbs.ui.model_editor.armor.right_boot": "Правый ботинок",
+	"bbs.ui.model_editor.armor.boots": "Ботинки",
 	"bbs.ui.model_editor.first_person": "От первого лица",
 	"bbs.ui.model_editor.maps": "Карты костей",
 	"bbs.ui.model_editor.flipped_parts": "Зеркальные кости",

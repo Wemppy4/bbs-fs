@@ -1,8 +1,11 @@
 package mchorse.bbs_mod.ui.model_editor;
 
+import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.model.ArmorType;
+import mchorse.bbs_mod.cubic.model.ModelManager;
 import mchorse.bbs_mod.cubic.model.config.ArmorSlotValue;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.model.config.WeldValue;
@@ -22,7 +25,10 @@ import mchorse.bbs_mod.ui.ContentType;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
+import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
+import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -39,15 +45,20 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
+import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseManager;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,7 +81,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     /** The model id whose instance we're waiting on; models load asynchronously, so the fill is deferred. */
     private String pendingId;
-    private int splitWidth = 220;
+    private int splitWidth = 200;
 
     /** Cube faces in enum order; the face picker adds its icons in this order so the index maps straight back. */
     private static final CubeFace[] FACES = CubeFace.values();
@@ -82,6 +93,31 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
      *  a half-filled row survives a section rebuild. Committed back to the value on every edit. */
     private final List<String[]> flippedEntries = new ArrayList<>();
     private final List<String[]> pickingEntries = new ArrayList<>();
+
+    /** Armor types grouped by body region, one row per region icon (helmet / chest+arms / legs / boots). */
+    private static final ArmorType[][] ARMOR_REGIONS =
+    {
+        {ArmorType.HELMET},
+        {ArmorType.CHEST, ArmorType.LEFT_ARM, ArmorType.RIGHT_ARM},
+        {ArmorType.LEGGINGS, ArmorType.LEFT_LEG, ArmorType.RIGHT_LEG},
+        {ArmorType.LEFT_BOOT, ArmorType.RIGHT_BOOT},
+    };
+
+    /** The armor region the icon row currently shows; its slots fill {@link #armorBody}. */
+    private int armorRegion;
+    private UIElement armorBody;
+
+    /** Open/closed state of each section by title, so a panel rebuild doesn't reset what the user folded. */
+    private final Map<IKey, Boolean> expanded = new HashMap<>();
+
+    /** Landing screen shown when the current tab has no model open. */
+    private UIModelSelectionScreen selectionPanel;
+
+    /** A small morph-style model thumbnail pinned to the top-right of the orbit viewport. */
+    private UIElement miniPreview;
+
+    /** Opens the current model's asset folder; enabled only while a model is open. */
+    private UIIcon folderIcon;
 
     public UIModelEditorPanel(UIDashboard dashboard)
     {
@@ -103,25 +139,71 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.layoutPanes();
 
+        this.miniPreview = new UIElement()
+        {
+            @Override
+            public void render(UIContext context)
+            {
+                int x1 = this.area.x;
+                int y1 = this.area.y;
+                int x2 = this.area.ex();
+                int y2 = this.area.ey();
+
+                context.batcher.box(x1, y1, x2, y2, BBSSettings.deepSurface());
+                FormUtilsClient.renderUI(UIModelEditorPanel.this.form, context, x1, y1, x2, y2);
+                context.batcher.outline(x1, y1, x2, y2, Colors.setA(Colors.WHITE, 0.2F));
+
+                super.render(context);
+            }
+
+            /* It's a thumbnail — swallow clicks so they don't orbit the main viewport underneath. */
+            @Override
+            public boolean subMouseClicked(UIContext context)
+            {
+                return this.area.isInside(context);
+            }
+        };
+        this.miniPreview.relative(this.renderer).x(1F, -6).y(6).wh(64, 64).anchor(1F, 0F);
+        this.renderer.add(this.miniPreview);
+
         this.editor.add(this.general, this.renderer, this.splitter);
 
-        UIIcon pick = new UIIcon(Icons.SEARCH, (b) -> this.openPicker());
+        UIIcon pick = new UIIcon(Icons.LIST, (b) -> this.openPicker());
 
         pick.tooltip(UIKeys.FORMS_EDITOR_MODEL_PICK_MODEL, Direction.LEFT);
-        this.iconBar.add(pick);
+        this.iconBar.prepend(pick);
+
+        this.folderIcon = new UIIcon(Icons.FOLDER, (b) -> this.openModelFolder());
+        this.folderIcon.tooltip(UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_FOLDER, Direction.LEFT);
+        this.iconBar.add(this.folderIcon);
+
+        /* Models are assets — no CRUD overlay; opening goes through the selection screen and the picker. */
+        this.openOverlay.removeFromParent();
+
+        this.selectionPanel = new UIModelSelectionScreen(this);
+        this.selectionPanel.relative(this).y(UIDataTabs.TABS_HEIGHT_PX).wTo(this.iconBar.area).h(1F, -UIDataTabs.TABS_HEIGHT_PX);
+        this.add(this.selectionPanel);
+
+        this.fill(null);
     }
 
     private void layoutPanes()
     {
         this.general.relative(this.editor).x(0).y(0).w(this.splitWidth).h(1F);
-        this.splitter.relative(this.editor).x(this.splitWidth).y(0).w(4).h(1F);
-        this.renderer.relative(this.editor).x(this.splitWidth + 4).y(0).w(1F, -(this.splitWidth + 4)).h(1F);
+        this.renderer.relative(this.editor).x(this.splitWidth).y(0).w(1F, -this.splitWidth).h(1F);
+        this.splitter.relative(this.editor).x(this.splitWidth).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
     }
 
     @Override
     public ContentType getType()
     {
         return ContentType.MODELS;
+    }
+
+    @Override
+    public Icon getTabIcon(DataTab tab)
+    {
+        return tab != null && tab.dataId == null ? Icons.SEARCH : Icons.POSE;
     }
 
     @Override
@@ -187,6 +269,27 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.seedMap(this.pickingEntries, data == null ? null : data.pickingOverrides);
 
         this.rebuildSections(data);
+
+        if (this.selectionPanel != null)
+        {
+            this.selectionPanel.setVisible(data == null);
+        }
+
+        if (this.folderIcon != null)
+        {
+            this.folderIcon.setEnabled(data != null);
+        }
+    }
+
+    @Override
+    public void fillNames(Collection<String> names)
+    {
+        super.fillNames(names);
+
+        if (this.selectionPanel != null)
+        {
+            this.selectionPanel.fillNames(names);
+        }
     }
 
     private void seedMap(List<String[]> entries, ValueStringMap value)
@@ -207,16 +310,27 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         super.appear();
 
-        if (this.data == null && this.pendingId == null)
+        /* No model open → the selection screen is up; refresh its list each time the panel is shown. */
+        if (this.selectionPanel != null && this.selectionPanel.isVisible())
         {
-            List<String> keys = BBSModClient.getModels().getAvailableKeys();
+            this.requestNames();
+        }
+    }
 
-            keys.sort(String::compareToIgnoreCase);
+    @Override
+    protected void openDataManager()
+    {
+        /* Redirect the data-manager keybind to the simple model picker — no CRUD overlay for assets. */
+        this.openPicker();
+    }
 
-            if (!keys.isEmpty())
-            {
-                this.pickData(keys.get(0));
-            }
+    private void openModelFolder()
+    {
+        String id = this.form.model.get();
+
+        if (id != null && !id.isEmpty())
+        {
+            UIUtils.openFolder(BBSMod.getAssetsPath(ModelManager.MODELS_PREFIX + id + "/"));
         }
     }
 
@@ -231,8 +345,88 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         UIOverlay.addOverlay(this.getContext(), picker);
     }
 
+    private UISection section(IKey title, boolean defaultExpanded)
+    {
+        return new StateSection(title, title, defaultExpanded);
+    }
+
+    /** A section whose title carries a live count/marker but whose fold state is still keyed by {@code key}. */
+    private UISection section(IKey key, IKey title, boolean defaultExpanded)
+    {
+        return new StateSection(key, title, defaultExpanded);
+    }
+
+    /** {@code base} with a "(n)" suffix when non-zero, so a folded section still shows how much it holds. */
+    private IKey countTitle(IKey base, int count)
+    {
+        return count > 0 ? IKey.constant(base.get() + " (" + count + ")") : base;
+    }
+
+    private int activeCount(ModelConfig.ItemSlotList list)
+    {
+        int count = 0;
+
+        for (ArmorSlotValue slot : list.getAllTyped())
+        {
+            if (slot.isActive())
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private int armorCount(ModelConfig config)
+    {
+        int count = 0;
+
+        for (ArmorType type : ArmorType.values())
+        {
+            ArmorSlotValue slot = config.armorSlots.slot(type);
+
+            if (slot != null && slot.isActive())
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /** A "label : widget" row (widget fills the rest) — half the height of a stacked label + widget.
+     *  Label and widget share the same height and centre vertically, so they line up on their own. */
+    private UIElement labeledRow(IKey label, UIElement widget)
+    {
+        return this.labeledRow(label, widget, 64);
+    }
+
+    private UIElement labeledRow(IKey label, UIElement widget, int labelWidth)
+    {
+        return UI.row(UIConstants.MARGIN, 0, UIConstants.CONTROL_HEIGHT,
+            UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F).w(labelWidth),
+            widget
+        );
+    }
+
+    /** A sub-list header: a label on the left and a compact "+" add button pinned to the right. */
+    private UIElement listHeader(IKey label, IKey tooltip, Runnable add)
+    {
+        UIIcon plus = new UIIcon(Icons.ADD, (b) -> add.run());
+
+        plus.tooltip(tooltip, Direction.LEFT);
+        plus.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
+
+        return UI.row(UIConstants.MARGIN, 0, UIConstants.CONTROL_HEIGHT,
+            UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F),
+            plus
+        );
+    }
+
     private void rebuildSections(ModelConfig config)
     {
+        double scroll = this.general.scroll.getScroll();
+
         this.general.removeAll();
 
         if (config != null)
@@ -251,21 +445,25 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
 
         this.general.resize();
+
+        /* Keep the scroll where it was so add/remove (which rebuilds everything) doesn't snap to the top. */
+        this.general.scroll.setScroll(scroll);
+        this.general.scroll.clamp();
     }
 
     private UISection generalSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.FORMS_EDITORS_GENERAL);
+        UISection section = this.section(UIKeys.FORMS_EDITORS_GENERAL, true);
 
         section.fields.add(
             this.toggleRefresh(UIKeys.MODEL_EDITOR_PROCEDURAL, config.procedural),
             this.toggle(UIKeys.MODEL_EDITOR_CULLING, config.culling),
             this.toggleRefresh(UIKeys.MODEL_EDITOR_ON_CPU, config.onCpu),
-            UI.label(UIKeys.MODEL_EDITOR_UI_SCALE), this.floatField(config.uiScale),
+            this.labeledRow(UIKeys.MODEL_EDITOR_UI_SCALE, this.floatField(config.uiScale)),
             UI.label(UIKeys.MODEL_EDITOR_SCALE), UI.row(this.component(config.scale, 0), this.component(config.scale, 1), this.component(config.scale, 2)),
-            UI.label(UIKeys.MODEL_EDITOR_POSE_GROUP), this.stringField(config.poseGroup),
-            UI.label(UIKeys.MODEL_EDITOR_ANCHOR), this.bonePicker(config.anchor::get, config.anchor::set, () -> {}),
-            UI.label(UIKeys.MODEL_EDITOR_TEXTURE), this.textureField(config.texture)
+            this.labeledRow(UIKeys.MODEL_EDITOR_POSE_GROUP, this.stringField(config.poseGroup)),
+            this.labeledRow(UIKeys.MODEL_EDITOR_ANCHOR, this.bonePicker(config.anchor::get, config.anchor::set, () -> {})),
+            this.labeledRow(UIKeys.MODEL_EDITOR_TEXTURE, this.textureField(config.texture))
         );
 
         return section;
@@ -273,12 +471,12 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection lookAtSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_LOOK_AT);
+        UISection section = this.section(UIKeys.MODEL_EDITOR_LOOK_AT, this.countTitle(UIKeys.MODEL_EDITOR_LOOK_AT, config.lookAt.isActive() ? 1 : 0), false);
 
         section.fields.add(
-            UI.label(UIKeys.MODEL_EDITOR_LOOK_AT_HEAD), this.bonePicker(config.lookAt.head::get, config.lookAt.head::set, config::rebuild),
+            this.labeledRow(UIKeys.MODEL_EDITOR_LOOK_AT_HEAD, this.bonePicker(config.lookAt.head::get, config.lookAt.head::set, config::rebuild)),
             this.lookAtPitch(config),
-            UI.label(UIKeys.MODEL_EDITOR_LOOK_AT_LIMIT), this.lookAtLimit(config)
+            this.labeledRow(UIKeys.MODEL_EDITOR_LOOK_AT_LIMIT, this.lookAtLimit(config))
         );
 
         return section;
@@ -321,7 +519,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection itemsSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_ITEMS);
+        int count = this.activeCount(config.itemsMain) + this.activeCount(config.itemsOff);
+        UISection section = this.section(UIKeys.MODEL_EDITOR_ITEMS, this.countTitle(UIKeys.MODEL_EDITOR_ITEMS, count), false);
 
         this.fillItemList(section, config, config.itemsMain, UIKeys.MODEL_EDITOR_ITEMS_MAIN);
         this.fillItemList(section, config, config.itemsOff, UIKeys.MODEL_EDITOR_ITEMS_OFF);
@@ -331,20 +530,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void fillItemList(UISection section, ModelConfig config, ModelConfig.ItemSlotList list, IKey label)
     {
-        section.fields.add(UI.label(label).marginTop(4));
-
-        for (ArmorSlotValue slot : list.getAllTyped())
-        {
-            section.fields.add(this.itemEntry(config, list, slot));
-        }
-
-        section.fields.add(new UIButton(UIKeys.MODEL_EDITOR_ITEM_ADD, (b) ->
+        section.fields.add(this.listHeader(label, UIKeys.MODEL_EDITOR_ITEM_ADD, () ->
         {
             list.add(new ArmorSlotValue(String.valueOf(list.getList().size())));
             list.sync();
             config.rebuild();
             this.rebuildSections(config);
         }));
+
+        for (ArmorSlotValue slot : list.getAllTyped())
+        {
+            section.fields.add(this.itemEntry(config, list, slot));
+        }
     }
 
     private UIElement itemEntry(ModelConfig config, ModelConfig.ItemSlotList list, ArmorSlotValue slot)
@@ -358,7 +555,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         });
 
         remove.tooltip(UIKeys.MODEL_EDITOR_ITEM_REMOVE, Direction.LEFT);
-        remove.wh(20, 20);
+        remove.wh(20, UIConstants.CONTROL_HEIGHT);
 
         UIElement head = new UIElement();
 
@@ -374,14 +571,45 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection armorSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_ARMOR);
+        UISection section = this.section(UIKeys.MODEL_EDITOR_ARMOR, this.countTitle(UIKeys.MODEL_EDITOR_ARMOR, this.armorCount(config)), false);
 
-        for (ArmorType type : ArmorType.values())
+        UIIcons regions = new UIIcons((b) ->
         {
-            section.fields.add(this.armorRow(config, type));
-        }
+            this.armorRegion = b.getValue();
+            this.fillArmorBody(config);
+        });
+
+        regions.add(Icons.ARMOR_HELMET, UIKeys.MODEL_EDITOR_ARMOR_HELMET);
+        regions.add(Icons.ARMOR_CHESTPLATE, UIKeys.MODEL_EDITOR_ARMOR_CHEST);
+        regions.add(Icons.ARMOR_LEGGINGS, UIKeys.MODEL_EDITOR_ARMOR_LEGGINGS);
+        regions.add(Icons.ARMOR_BOOTS, UIKeys.MODEL_EDITOR_ARMOR_BOOTS);
+        regions.setValue(this.armorRegion);
+
+        this.armorBody = new UIElement();
+        this.armorBody.column(UIConstants.MARGIN).vertical().stretch();
+
+        section.fields.add(regions, this.armorBody);
+        this.fillArmorBody(config);
 
         return section;
+    }
+
+    private void fillArmorBody(ModelConfig config)
+    {
+        if (this.armorBody == null)
+        {
+            return;
+        }
+
+        this.armorBody.removeAll();
+
+        for (ArmorType type : ARMOR_REGIONS[this.armorRegion])
+        {
+            this.armorBody.add(this.armorRow(config, type));
+        }
+
+        /* Resize from the scroll so the section's height tracks the new slot count, not just armorBody. */
+        this.general.resize();
     }
 
     private UIElement armorRow(ModelConfig config, ArmorType type)
@@ -389,12 +617,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         ArmorSlotValue slot = config.armorSlots.slot(type);
 
         UIElement column = UI.column(
-            UI.label(this.armorTypeLabel(type)),
-            this.bonePicker(slot.group::get, slot.group::set, () ->
+            this.labeledRow(this.armorTypeLabel(type), this.bonePicker(slot.group::get, slot.group::set, () ->
             {
                 config.rebuild();
-                this.rebuildSections(config);
-            })
+                this.fillArmorBody(config);
+            }), 88)
         );
 
         if (slot.isActive())
@@ -425,7 +652,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection firstPersonSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_FIRST_PERSON);
+        int count = (config.fpMain.isActive() ? 1 : 0) + (config.fpOffhand.isActive() ? 1 : 0);
+        UISection section = this.section(UIKeys.MODEL_EDITOR_FIRST_PERSON, this.countTitle(UIKeys.MODEL_EDITOR_FIRST_PERSON, count), false);
 
         section.fields.add(this.fpRow(config, UIKeys.MODEL_EDITOR_ITEMS_MAIN, config.fpMain));
         section.fields.add(this.fpRow(config, UIKeys.MODEL_EDITOR_ITEMS_OFF, config.fpOffhand));
@@ -436,12 +664,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     private UIElement fpRow(ModelConfig config, IKey label, ArmorSlotValue slot)
     {
         UIElement column = UI.column(
-            UI.label(label),
-            this.bonePicker(slot.group::get, slot.group::set, () ->
+            this.labeledRow(label, this.bonePicker(slot.group::get, slot.group::set, () ->
             {
                 config.rebuild();
                 this.rebuildSections(config);
-            })
+            }), 88)
         );
 
         if (slot.isActive())
@@ -458,7 +685,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection mapsSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_MAPS);
+        int count = config.flippedParts.get().size() + config.pickingOverrides.get().size();
+        UISection section = this.section(UIKeys.MODEL_EDITOR_MAPS, this.countTitle(UIKeys.MODEL_EDITOR_MAPS, count), false);
 
         this.fillMap(section, config, config.flippedParts, this.flippedEntries, UIKeys.MODEL_EDITOR_FLIPPED_PARTS);
         this.fillMap(section, config, config.pickingOverrides, this.pickingEntries, UIKeys.MODEL_EDITOR_PICKING_OVERRIDES);
@@ -468,18 +696,16 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void fillMap(UISection section, ModelConfig config, ValueStringMap value, List<String[]> entries, IKey label)
     {
-        section.fields.add(UI.label(label).marginTop(4));
+        section.fields.add(this.listHeader(label, UIKeys.MODEL_EDITOR_MAP_ADD, () ->
+        {
+            entries.add(new String[] {"", ""});
+            this.rebuildSections(config);
+        }));
 
         for (String[] pair : entries)
         {
             section.fields.add(this.mapEntry(config, value, entries, pair));
         }
-
-        section.fields.add(new UIButton(UIKeys.MODEL_EDITOR_MAP_ADD, (b) ->
-        {
-            entries.add(new String[] {"", ""});
-            this.rebuildSections(config);
-        }));
     }
 
     private UIElement mapEntry(ModelConfig config, ValueStringMap value, List<String[]> entries, String[] pair)
@@ -494,18 +720,31 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         });
 
         remove.tooltip(UIKeys.MODEL_EDITOR_MAP_REMOVE, Direction.LEFT);
-        remove.wh(20, 20);
+        remove.wh(20, UIConstants.CONTROL_HEIGHT);
 
         UIElement row = new UIElement();
 
         row.row(UIConstants.MARGIN).preferred(0);
         row.add(
             this.bonePicker(() -> pair[0], (v) -> pair[0] = v, commit),
+            this.arrowSeparator(),
             this.bonePicker(() -> pair[1], (v) -> pair[1] = v, commit),
             remove
         );
 
         return row;
+    }
+
+    /** A non-interactive right-arrow drawn between the two bones of a map pair. */
+    private UIIcon arrowSeparator()
+    {
+        UIIcon arrow = new UIIcon(Icons.ARROW_RIGHT, null);
+
+        arrow.setEnabled(false);
+        arrow.disabledColor = Colors.setA(Colors.WHITE, 0.5F);
+        arrow.wh(12, UIConstants.CONTROL_HEIGHT);
+
+        return arrow;
     }
 
     private void commitMap(ValueStringMap value, List<String[]> entries)
@@ -527,9 +766,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection sneakingSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_SNEAKING);
-
         boolean has = !config.sneakingPose.get().isEmpty();
+        UISection section = this.section(UIKeys.MODEL_EDITOR_SNEAKING, this.countTitle(UIKeys.MODEL_EDITOR_SNEAKING, has ? 1 : 0), false);
 
         section.fields.add(new UIButton(has ? UIKeys.MODEL_EDITOR_SNEAKING_SET : UIKeys.MODEL_EDITOR_SNEAKING_PICK, (b) -> this.openPosePicker(config)));
 
@@ -552,7 +790,14 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             return;
         }
 
-        MapType poses = PoseManager.INSTANCE.getData(this.bound.getPoseGroup());
+        String group = config.poseGroup.get();
+
+        if (group.isEmpty())
+        {
+            group = this.form.model.get();
+        }
+
+        MapType poses = PoseManager.INSTANCE.getData(group);
 
         this.getContext().replaceContextMenu((menu) ->
         {
@@ -572,7 +817,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection bonesSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_BONES);
+        UISection section = this.section(UIKeys.MODEL_EDITOR_BONES, this.countTitle(UIKeys.MODEL_EDITOR_BONES, config.disabledBones.get().size()), false);
 
         UIScrollView list = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
 
@@ -626,14 +871,14 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private UISection weldsSection(ModelConfig config)
     {
-        UISection section = new UISection(UIKeys.MODEL_EDITOR_WELDS);
+        UISection section = this.section(UIKeys.MODEL_EDITOR_WELDS, this.countTitle(UIKeys.MODEL_EDITOR_WELDS, config.welds.getList().size()), false);
+
+        section.fields.add(this.listHeader(IKey.EMPTY, UIKeys.MODEL_EDITOR_WELD_ADD, () -> this.addWeld(config)));
 
         for (WeldValue weld : config.welds.getAllTyped())
         {
             section.fields.add(this.weldEntry(config, weld));
         }
-
-        section.fields.add(new UIButton(UIKeys.MODEL_EDITOR_WELD_ADD, (b) -> this.addWeld(config)));
 
         return section;
     }
@@ -643,7 +888,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         UIIcon remove = new UIIcon(Icons.REMOVE, (b) -> this.removeWeld(config, weld));
 
         remove.tooltip(UIKeys.MODEL_EDITOR_WELD_REMOVE, Direction.LEFT);
-        remove.wh(20, 20);
+        remove.wh(20, UIConstants.CONTROL_HEIGHT);
 
         UIElement angle = new UIElement();
 
@@ -847,5 +1092,27 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         trackpad.delayedInput();
 
         return trackpad;
+    }
+
+    /** A {@link UISection} whose open/closed state survives a panel rebuild — stored in {@link #expanded} by title. */
+    private class StateSection extends UISection
+    {
+        private final IKey key;
+
+        public StateSection(IKey key, IKey title, boolean defaultExpanded)
+        {
+            super(title);
+
+            this.key = key;
+            super.setExpanded(UIModelEditorPanel.this.expanded.getOrDefault(key, defaultExpanded));
+        }
+
+        @Override
+        public void setExpanded(boolean expanded)
+        {
+            super.setExpanded(expanded);
+
+            UIModelEditorPanel.this.expanded.put(this.key, expanded);
+        }
     }
 }
