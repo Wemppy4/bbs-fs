@@ -14,7 +14,7 @@ final class ModelIKCache
     {
     }
 
-    public record CompiledChain(String tip, String target, boolean pole, String poleTarget, float poleAngle, float softness, float weight, boolean tipRotation, List<String> chainRootToEffector)
+    public record CompiledChain(String tip, String target, boolean pole, String poleTarget, float poleAngle, float softness, float weight, boolean tipRotation, boolean stretch, List<String> chainRootToEffector)
     {
     }
 
@@ -99,7 +99,7 @@ final class ModelIKCache
                 poleTarget = "";
             }
 
-            out.add(new CompiledChain(chain.tip(), chain.target(), chain.pole(), poleTarget, chain.poleAngle(), chain.softness(), chain.weight(), chain.tipRotation(), chainIds));
+            out.add(new CompiledChain(chain.tip(), chain.target(), chain.pole(), poleTarget, chain.poleAngle(), chain.softness(), chain.weight(), chain.tipRotation(), chain.stretch(), chainIds));
         }
 
         return out;

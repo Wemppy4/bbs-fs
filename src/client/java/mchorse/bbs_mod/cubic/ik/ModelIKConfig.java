@@ -10,6 +10,7 @@ public record ModelIKConfig(List<Chain> chains)
     public static final float DEFAULT_SOFTNESS = 0.05F;
     public static final int DEFAULT_CHAIN_LENGTH = 0;
     public static final boolean DEFAULT_TIP_ROTATION = false;
+    public static final boolean DEFAULT_STRETCH = false;
 
     /**
      * One IK constraint, modeled after Blender: it lives on the {@code tip}
@@ -21,8 +22,11 @@ public record ModelIKConfig(List<Chain> chains)
      * then rolls the aimed bend about the limb axis — Blender's pole angle. With
      * {@code tipRotation} on, the tip bone copies the {@code target} controller's
      * orientation (Blender's "use tip rotation") instead of keeping its FK pose.
+     * With {@code stretch} on, a chain whose target is pulled past its reach
+     * telescopes towards it — every bone slides out along the limb so the gaps
+     * between them open up and the tip lands on the controller (no bone scaling).
      */
-    public record Chain(String tip, String target, int chainLength, boolean pole, String poleTarget, float poleAngle, float softness, float weight, boolean enabled, boolean tipRotation)
+    public record Chain(String tip, String target, int chainLength, boolean pole, String poleTarget, float poleAngle, float softness, float weight, boolean enabled, boolean tipRotation, boolean stretch)
     {
         public Chain
         {

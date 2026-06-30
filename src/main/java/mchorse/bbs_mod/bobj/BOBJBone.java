@@ -4,6 +4,7 @@ import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 public class BOBJBone
 {
@@ -46,6 +47,15 @@ public class BOBJBone
      */
     public Quaternionf orient;
 
+    /**
+     * Transient CUMULATIVE world translation an IK "stretch" gives this bone, applied raw to the
+     * skinning matrix (only) so the deformed mesh telescopes towards the controller — vertices
+     * weighted across bones blend the shifts into a smooth stretch. Kept off {@link #mat} and
+     * {@link #originMat} so the skeleton frames the IK solve and debug overlay read stay un-stretched.
+     * Null when the bone has no such shift this frame.
+     */
+    public Vector3f offset;
+
     public BOBJBone(int index, String name, String parent, Matrix4f boneMat)
     {
         this.index = index;
@@ -65,6 +75,14 @@ public class BOBJBone
 
         this.mat.set(mat);
         mat.mul(this.invBoneMat);
+
+        /* Stretch shifts only the skinning matrix — pre-multiplied, so the deformed vertices land
+         * `offset` further along in world. mat/originMat stay nominal, so child bones and pivot
+         * frames are unaffected; the offset is already the bone's full cumulative shift. */
+        if (this.offset != null)
+        {
+            mat.translateLocal(this.offset);
+        }
 
         return mat;
     }
@@ -138,5 +156,6 @@ public class BOBJBone
     {
         this.transform.identity();
         this.orient = null;
+        this.offset = null;
     }
 }

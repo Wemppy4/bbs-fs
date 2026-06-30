@@ -818,6 +818,7 @@
 	"bbs.ui.forms.editors.model.ik.softness": "Мягкость",
 	"bbs.ui.forms.editors.model.ik.weight": "Влияние",
 	"bbs.ui.forms.editors.model.ik.tip_rotation": "Кончик следует за целью",
+	"bbs.ui.forms.editors.model.ik.stretch": "Растягивать за предел",
 	"bbs.ui.forms.editors.model.ik.context.copy": "Скопировать IK",
 	"bbs.ui.forms.editors.model.ik.context.paste": "Вставить IK",
 	"bbs.ui.forms.editors.model.ik.context.reset": "Сбросить IK",

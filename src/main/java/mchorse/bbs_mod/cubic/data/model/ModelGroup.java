@@ -9,6 +9,7 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,14 @@ public class ModelGroup implements IMapSerializable
      * overlay this frame, in which case the renderer falls back to the euler rotate/rotate2 triples. */
     public Quaternionf orient;
 
+    /* Transient translation for this bone, applied raw in the render matrix BEFORE its own translate — in
+     * the bone's parent world frame, so it shifts this bone and everything below it without touching the
+     * pose. IK "stretch" telescopes a chain past its reach by pushing each bone out along the limb (the
+     * gaps between bones open up); null when the bone has no such shift this frame. RENDER ONLY — it is
+     * deliberately NOT applied when collecting pivot frames, so the IK solve and the debug overlay read
+     * the un-stretched solved chain (the rotation solve), and orb/line sizing stays stable. */
+    public Vector3f offset;
+
     public ModelGroup(String id)
     {
         this.id = id;
@@ -46,6 +55,7 @@ public class ModelGroup implements IMapSerializable
         this.color.set(1F, 1F, 1F);
         this.current.copy(this.initial);
         this.orient = null;
+        this.offset = null;
     }
 
     /**
