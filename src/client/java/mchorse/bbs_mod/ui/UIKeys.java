@@ -755,6 +755,7 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_TARGET_BONE = L10n.lang("bbs.ui.model_editor.weld.target_bone");
     public static final IKey MODEL_EDITOR_WELD_TARGET_FACE = L10n.lang("bbs.ui.model_editor.weld.target_face");
     public static final IKey MODEL_EDITOR_WELD_MAX_ANGLE = L10n.lang("bbs.ui.model_editor.weld.max_angle");
+    public static final IKey MODEL_EDITOR_WELD_SEAM_FALLOFF = L10n.lang("bbs.ui.model_editor.weld.seam_falloff");
     public static final IKey MODEL_EDITOR_WELD_ADD = L10n.lang("bbs.ui.model_editor.weld.add");
     public static final IKey MODEL_EDITOR_WELD_REMOVE = L10n.lang("bbs.ui.model_editor.weld.remove");
     public static final IKey MODEL_EDITOR_LOOK_AT = L10n.lang("bbs.ui.model_editor.look_at");

@@ -4,6 +4,7 @@ import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelCube;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.data.model.ModelQuad;
+import mchorse.bbs_mod.cubic.data.model.ModelVertex;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -56,11 +57,12 @@ public class WeldBinding
         List<ModelCube> targetCubes = facedCubes(targetGroup, targetFace);
         int count = Math.min(sourceCubes.size(), targetCubes.size());
         float maxBend = (float) Math.toRadians(weld.maxAngle);
+        float falloff = weld.seamFalloff;
         List<Layer> layers = new ArrayList<>();
 
         for (int i = 0; i < count; i++)
         {
-            layers.add(new Layer(sourceCubes.get(i), sourceFace, targetCubes.get(i), targetFace, maxBend));
+            layers.add(new Layer(sourceCubes.get(i), sourceFace, targetCubes.get(i), targetFace, maxBend, falloff));
         }
 
         return layers.isEmpty() ? null : new WeldBinding(sourceGroup, targetGroup, layers);
@@ -142,6 +144,26 @@ public class WeldBinding
         return corners;
     }
 
+    /** How far the cube spans along {@code normal} in local space — the range of its vertices projected on it. */
+    private static float axisExtent(ModelCube cube, Vector3f normal)
+    {
+        float min = Float.MAX_VALUE;
+        float max = -Float.MAX_VALUE;
+
+        for (ModelQuad quad : cube.quads)
+        {
+            for (ModelVertex vertex : quad.vertices)
+            {
+                float projection = vertex.vertex.dot(normal);
+
+                min = Math.min(min, projection);
+                max = Math.max(max, projection);
+            }
+        }
+
+        return max - min;
+    }
+
     private static ModelQuad faceQuad(ModelCube cube, CubeFace face)
     {
         for (ModelQuad quad : cube.quads)
@@ -168,11 +190,23 @@ public class WeldBinding
         public final Vector3f[] sourceCorners;
         public final Vector3f[] targetCorners;
 
-        /* Local outward normal of the target face — the axis the seam slides along (the parent bone's length). */
+        /* Local outward normals of each welded face — the axis the bend spreads along (each bone's length). */
         public final Vector3f targetFaceNormal;
+        public final Vector3f sourceFaceNormal;
+
+        /* Local coordinate of each welded face along its own normal — the plane the bend is measured from. */
+        public final float targetWeldPlane;
+        public final float sourceWeldPlane;
+
+        /* Length of each cube along its welded-face normal — the bend band is a fraction of this. */
+        public final float targetAxisExtent;
+        public final float sourceAxisExtent;
 
         /* Largest bend (radians) the seam follows; beyond it the shear holds steady. */
         public final float maxBend;
+
+        /* Fraction (0..1) of a cube's axis length the bend spreads from the seam; smaller = tighter band. */
+        public final float falloff;
 
         /* Rigid world poses of the two faces, captured each frame before any snapping. */
         public final Vector3f[] capturedSourceWorld = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
@@ -190,14 +224,20 @@ public class WeldBinding
         public boolean targetCaptured;
         public boolean seamReady;
 
-        private Layer(ModelCube sourceCube, CubeFace sourceFace, ModelCube targetCube, CubeFace targetFace, float maxBend)
+        private Layer(ModelCube sourceCube, CubeFace sourceFace, ModelCube targetCube, CubeFace targetFace, float maxBend, float falloff)
         {
             this.sourceCube = sourceCube;
             this.targetCube = targetCube;
             this.sourceCorners = faceCorners(sourceCube, sourceFace);
             this.targetCorners = faceCorners(targetCube, targetFace);
             this.targetFaceNormal = new Vector3f(targetFace.normal);
+            this.sourceFaceNormal = new Vector3f(sourceFace.normal);
+            this.targetWeldPlane = this.targetCorners[0].dot(this.targetFaceNormal);
+            this.sourceWeldPlane = this.sourceCorners[0].dot(this.sourceFaceNormal);
+            this.targetAxisExtent = axisExtent(targetCube, this.targetFaceNormal);
+            this.sourceAxisExtent = axisExtent(sourceCube, this.sourceFaceNormal);
             this.maxBend = maxBend;
+            this.falloff = falloff;
         }
 
         public void resetCapture()

@@ -15,12 +15,20 @@ public class ModelWeld
     /** Largest bend (degrees) the seam keeps following; past it the shear holds so extreme poses don't blow it out. */
     public final float maxAngle;
 
-    public ModelWeld(String sourceBone, String sourceFace, String targetBone, String targetFace, float maxAngle)
+    /**
+     * How far the bend spreads from the seam, as a fraction (0..1) of each welded cube's length along the
+     * bone axis. Small values keep the deformation in a thin band right at the joint (the rest of the cube
+     * stays rigid); near 1 it spreads across the whole cube the way a plain shear does.
+     */
+    public final float seamFalloff;
+
+    public ModelWeld(String sourceBone, String sourceFace, String targetBone, String targetFace, float maxAngle, float seamFalloff)
     {
         this.sourceBone = sourceBone;
         this.sourceFace = sourceFace;
         this.targetBone = targetBone;
         this.targetFace = targetFace;
         this.maxAngle = maxAngle;
+        this.seamFalloff = seamFalloff;
     }
 }

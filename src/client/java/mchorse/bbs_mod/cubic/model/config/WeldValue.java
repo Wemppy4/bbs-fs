@@ -16,6 +16,7 @@ public class WeldValue extends ValueGroup
     public final ValueString targetBone = new ValueString("target_bone", "");
     public final ValueString targetFace = new ValueString("target_face", "");
     public final ValueFloat maxAngle = new ValueFloat("max_angle", 120F);
+    public final ValueFloat seamFalloff = new ValueFloat("seam_falloff", 0.35F, 0F, 1F);
 
     public WeldValue(String id)
     {
@@ -26,6 +27,7 @@ public class WeldValue extends ValueGroup
         this.add(this.targetBone);
         this.add(this.targetFace);
         this.add(this.maxAngle);
+        this.add(this.seamFalloff);
     }
 
     public ModelWeld toWeld()
@@ -35,7 +37,8 @@ public class WeldValue extends ValueGroup
             this.sourceFace.get(),
             this.targetBone.get(),
             this.targetFace.get(),
-            this.maxAngle.get()
+            this.maxAngle.get(),
+            this.seamFalloff.get()
         );
     }
 }

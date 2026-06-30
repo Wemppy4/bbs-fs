@@ -66,13 +66,23 @@ public class CubicCubeRenderer implements ICubicRenderer
     /* Capture pass records the rigid world corners of welded faces without drawing; the draw pass snaps to the seam. */
     private boolean captureOnly;
 
-    /* A welded cube's faces shear into trapezoids; drawn as two flat triangles their texture warps unevenly, so
-     * they are tessellated into this many sub-quads per side and the deformation is interpolated across them. */
-    private static final int WELD_SUBDIVISIONS = 4;
+    /* A welded cube's faces bend within a band near the seam; drawn as two flat triangles their texture warps
+     * unevenly, so they are tessellated into this many sub-quads per side and the bend is resolved across them.
+     * Kept fairly high so a narrow falloff band stays smooth instead of faceting over too few cells. */
+    private static final int WELD_SUBDIVISIONS = 8;
 
+    private final Vector3f[] rigidPos = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
     private final Vector3f[] cornerPos = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
+    private final float[] cornerDistTarget = new float[4];
+    private final float[] cornerDistSource = new float[4];
     private final float[] cornerU = new float[4];
     private final float[] cornerV = new float[4];
+
+    /* Per-cube weld band state, set up before a welded cube's faces are subdivided. */
+    private boolean weldHasTarget;
+    private boolean weldHasSource;
+    private float weldBandTarget;
+    private float weldBandSource;
 
     public static void moveToPivot(MatrixStack stack, Vector3f pivot)
     {
@@ -344,19 +354,35 @@ public class CubicCubeRenderer implements ICubicRenderer
     }
 
     /**
-     * Draw a welded cube's face as a tessellated grid instead of two triangles. The four corners are resolved
-     * to their deformed world positions (snapped to the seam where welded), then every sub-vertex is found by
-     * bilinear interpolation of those corners and their UVs. Fine sub-quads are each nearly affine, so the
-     * texture warps smoothly across the bend instead of kinking along the single diagonal of a flat trapezoid.
+     * Draw a welded cube's face as a tessellated grid instead of two triangles. Each corner is resolved both
+     * rigidly (its plain transformed position) and welded (snapped to the seam), and tagged with its distance
+     * from the seam along the bone axis. Every sub-vertex interpolates that distance, turns it into a falloff
+     * weight (full at the joint, fading to nothing a band away), and blends between its rigid and welded
+     * position by it — so only the strip near the seam bends while the rest of the cube stays straight. The
+     * weight is evaluated per sub-vertex (not interpolated from the corners, which only ever sit at distance 0
+     * or the full length) so the band actually shapes the bend. Fine sub-quads are each nearly affine, so the
+     * texture warps smoothly across that band instead of kinking along the diagonal of a flat trapezoid.
      */
     private void renderQuadSubdivided(BufferBuilder builder, Matrix4f matrix, ModelGroup group, ModelQuad quad, Vector3f normal)
     {
+        this.weldHasTarget = this.targetLayer != null && this.targetLayer.seamReady;
+        this.weldHasSource = this.sourceLayer != null && this.sourceLayer.seamReady;
+        this.weldBandTarget = this.weldHasTarget ? this.targetLayer.falloff * this.targetLayer.targetAxisExtent : 0F;
+        this.weldBandSource = this.weldHasSource ? this.sourceLayer.falloff * this.sourceLayer.sourceAxisExtent : 0F;
+
         for (int i = 0; i < 4; i++)
         {
             ModelVertex corner = quad.vertices.get(i);
 
             this.vertex.set(corner.vertex.x, corner.vertex.y, corner.vertex.z, 1);
             matrix.transform(this.vertex);
+            this.rigidPos[i].set(this.vertex.x, this.vertex.y, this.vertex.z);
+
+            this.cornerDistTarget[i] = this.weldHasTarget
+                ? Math.abs(corner.vertex.dot(this.targetLayer.targetFaceNormal) - this.targetLayer.targetWeldPlane) : 0F;
+            this.cornerDistSource[i] = this.weldHasSource
+                ? Math.abs(corner.vertex.dot(this.sourceLayer.sourceFaceNormal) - this.sourceLayer.sourceWeldPlane) : 0F;
+
             this.snapWeldCorner(corner.vertex);
 
             this.cornerPos[i].set(this.vertex.x, this.vertex.y, this.vertex.z);
@@ -385,29 +411,71 @@ public class CubicCubeRenderer implements ICubicRenderer
         }
     }
 
-    /** Bilinearly interpolate position and UV across the four resolved corners (s along 0->1, t along 0->3). */
+    /**
+     * Bilinearly interpolate UV and both the rigid and welded position across the four corners (s along 0->1,
+     * t along 0->3), then blend the two positions by the seam weight — the falloff curve evaluated on this
+     * sub-vertex's interpolated distance from the seam — so the bend stays local.
+     */
     private void emitInterp(BufferBuilder builder, ModelGroup group, float s, float t, Vector3f normal)
     {
-        Vector3f c0 = this.cornerPos[0];
-        Vector3f c1 = this.cornerPos[1];
-        Vector3f c2 = this.cornerPos[2];
-        Vector3f c3 = this.cornerPos[3];
+        float w = 0F;
 
-        float bx = c0.x + (c1.x - c0.x) * s;
-        float by = c0.y + (c1.y - c0.y) * s;
-        float bz = c0.z + (c1.z - c0.z) * s;
-        float tx = c3.x + (c2.x - c3.x) * s;
-        float ty = c3.y + (c2.y - c3.y) * s;
-        float tz = c3.z + (c2.z - c3.z) * s;
+        if (this.weldHasTarget)
+        {
+            float distance = bilerp(this.cornerDistTarget[0], this.cornerDistTarget[1], this.cornerDistTarget[2], this.cornerDistTarget[3], s, t);
 
-        float bu = this.cornerU[0] + (this.cornerU[1] - this.cornerU[0]) * s;
-        float bv = this.cornerV[0] + (this.cornerV[1] - this.cornerV[0]) * s;
-        float tu = this.cornerU[3] + (this.cornerU[2] - this.cornerU[3]) * s;
-        float tv = this.cornerV[3] + (this.cornerV[2] - this.cornerV[3]) * s;
+            w = Math.max(w, falloffWeight(distance, this.weldBandTarget));
+        }
+
+        if (this.weldHasSource)
+        {
+            float distance = bilerp(this.cornerDistSource[0], this.cornerDistSource[1], this.cornerDistSource[2], this.cornerDistSource[3], s, t);
+
+            w = Math.max(w, falloffWeight(distance, this.weldBandSource));
+        }
+
+        Vector3f[] r = this.rigidPos;
+        Vector3f[] c = this.cornerPos;
+
+        float rx = bilerp(r[0].x, r[1].x, r[2].x, r[3].x, s, t);
+        float ry = bilerp(r[0].y, r[1].y, r[2].y, r[3].y, s, t);
+        float rz = bilerp(r[0].z, r[1].z, r[2].z, r[3].z, s, t);
+
+        float sx = bilerp(c[0].x, c[1].x, c[2].x, c[3].x, s, t);
+        float sy = bilerp(c[0].y, c[1].y, c[2].y, c[3].y, s, t);
+        float sz = bilerp(c[0].z, c[1].z, c[2].z, c[3].z, s, t);
+
+        float u = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
+        float v = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
 
         this.emit(builder, group,
-            bx + (tx - bx) * t, by + (ty - by) * t, bz + (tz - bz) * t,
-            bu + (tu - bu) * t, bv + (tv - bv) * t, normal);
+            rx + (sx - rx) * w, ry + (sy - ry) * w, rz + (sz - rz) * w,
+            u, v, normal);
+    }
+
+    /** Bilinear blend of four corner scalars laid out as (0,1) along the bottom edge and (3,2) along the top. */
+    private static float bilerp(float c0, float c1, float c2, float c3, float s, float t)
+    {
+        float bottom = c0 + (c1 - c0) * s;
+        float top = c3 + (c2 - c3) * s;
+
+        return bottom + (top - bottom) * t;
+    }
+
+    /** Smoothstep falloff: 1 at the seam, 0 at or beyond {@code band}, with a smooth (no-kink) ramp between. */
+    private static float falloffWeight(float distance, float band)
+    {
+        if (band <= 1.0e-5F)
+        {
+            return distance <= 1.0e-5F ? 1F : 0F;
+        }
+
+        float x = distance / band;
+
+        if (x <= 0F) return 1F;
+        if (x >= 1F) return 0F;
+
+        return 1F - x * x * (3F - 2F * x);
     }
 
     /** Capture pass: record a welded face corner's rigid world position, plus the face orientation once. */

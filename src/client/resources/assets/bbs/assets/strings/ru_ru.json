@@ -1024,6 +1024,7 @@
 	"bbs.ui.model_editor.weld.target_bone": "кость-цель",
 	"bbs.ui.model_editor.weld.target_face": "грань-цель",
 	"bbs.ui.model_editor.weld.max_angle": "Макс. угол",
+	"bbs.ui.model_editor.weld.seam_falloff": "Ширина изгиба",
 	"bbs.ui.model_editor.weld.add": "Добавить шов",
 	"bbs.ui.model_editor.weld.remove": "Удалить шов",
 	"bbs.ui.model_editor.look_at": "Взгляд",

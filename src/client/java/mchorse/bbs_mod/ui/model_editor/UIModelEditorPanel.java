@@ -899,7 +899,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             UI.row(this.bonePicker(weld.sourceBone::get, weld.sourceBone::set, this::invalidateWelds), this.facePicker(weld.sourceFace, this::invalidateWelds)),
             UI.row(this.bonePicker(weld.targetBone::get, weld.targetBone::set, this::invalidateWelds), this.facePicker(weld.targetFace, this::invalidateWelds)),
             UI.label(UIKeys.MODEL_EDITOR_WELD_MAX_ANGLE),
-            angle
+            angle,
+            UI.label(UIKeys.MODEL_EDITOR_WELD_SEAM_FALLOFF),
+            this.weldFalloff(weld)
         );
 
         entry.marginBottom(6);
@@ -978,6 +980,21 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         });
 
         trackpad.setValue(weld.maxAngle.get());
+        trackpad.delayedInput();
+
+        return trackpad;
+    }
+
+    private UITrackpad weldFalloff(WeldValue weld)
+    {
+        UITrackpad trackpad = new UITrackpad((v) ->
+        {
+            weld.seamFalloff.set(v.floatValue());
+            this.invalidateWelds();
+        });
+
+        trackpad.limit(0F, 1F).increment(0.05F);
+        trackpad.setValue(weld.seamFalloff.get());
         trackpad.delayedInput();
 
         return trackpad;

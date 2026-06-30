@@ -1030,6 +1030,7 @@
 	"bbs.ui.model_editor.weld.target_bone": "target bone",
 	"bbs.ui.model_editor.weld.target_face": "target face",
 	"bbs.ui.model_editor.weld.max_angle": "Max angle",
+	"bbs.ui.model_editor.weld.seam_falloff": "Bend width",
 	"bbs.ui.model_editor.weld.add": "Add weld",
 	"bbs.ui.model_editor.weld.remove": "Remove weld",
 	"bbs.ui.model_editor.look_at": "Look at",
