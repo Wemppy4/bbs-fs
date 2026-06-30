@@ -288,8 +288,14 @@ public class WeldBinding
         /* Rigid world poses of the two faces, captured each frame before any snapping. */
         public final Vector3f[] capturedSourceWorld = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
         public final Vector3f[] capturedTargetWorld = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
+
+        /* World rotation of the target face INCL. the cube's own rotate — the real outward normal to shear along. */
         public final Quaternionf capturedTargetRot = new Quaternionf();
-        public final Quaternionf capturedSourceRot = new Quaternionf();
+
+        /* World rotation of each BONE (group) WITHOUT the cubes' own rotate — the bend is measured between these, so a
+         * cube rotated in Blockbench can't masquerade as a folded joint (its rotate would read as a false bend). */
+        public final Quaternionf capturedTargetBoneRot = new Quaternionf();
+        public final Quaternionf capturedSourceBoneRot = new Quaternionf();
 
         /* Source corner -> target corner, matched by proximity once both faces are captured. */
         public final int[] sourceToTarget = {-1, -1, -1, -1};
@@ -407,7 +413,7 @@ public class WeldBinding
 
         private float bendAngle()
         {
-            Quaternionf relative = new Quaternionf(this.capturedTargetRot).conjugate().mul(this.capturedSourceRot);
+            Quaternionf relative = new Quaternionf(this.capturedTargetBoneRot).conjugate().mul(this.capturedSourceBoneRot);
             float angle = relative.angle();
 
             return angle > (float) Math.PI ? (float) (2.0 * Math.PI) - angle : angle;
