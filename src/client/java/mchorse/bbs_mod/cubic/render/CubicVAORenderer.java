@@ -18,6 +18,7 @@ import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 public class CubicVAORenderer extends CubicCubeRenderer
@@ -25,6 +26,13 @@ public class CubicVAORenderer extends CubicCubeRenderer
     private ShaderProgram program;
     private ModelInstance model;
     private Function<String, Link> textureResolver;
+
+    /**
+     * Non-null puts the renderer in hybrid mode (a welded model): these groups — and any group with no baked VAO —
+     * fall through to the CPU immediate path so their welded cubes can deform against a live neighbour, while every
+     * other group still rides its VAO on the GPU. Null keeps the plain all-VAO behaviour for unwelded models.
+     */
+    private Set<ModelGroup> weldedGroups;
 
     public CubicVAORenderer(ShaderProgram program, ModelInstance model, int light, int overlay, StencilMap stencilMap, ShapeKeys shapeKeys, Function<String, Link> textureResolver)
     {
@@ -35,10 +43,22 @@ public class CubicVAORenderer extends CubicCubeRenderer
         this.textureResolver = textureResolver;
     }
 
+    public void setWeldedGroups(Set<ModelGroup> weldedGroups)
+    {
+        this.weldedGroups = weldedGroups;
+    }
+
     @Override
     public boolean renderGroup(BufferBuilder builder, MatrixStack stack, ModelGroup group, Model model)
     {
         Map<String, ModelVAO> groupVaos = this.model.getVaos().get(group);
+
+        if (this.weldedGroups != null && (this.weldedGroups.contains(group) || groupVaos == null || groupVaos.isEmpty()))
+        {
+            /* Welded bone (or a group with no VAO, e.g. shape-keyed/on-CPU models): render its cubes on the CPU via
+             * the parent renderer so the weld seam can deform them. */
+            return super.renderGroup(builder, stack, group, model);
+        }
 
         if (groupVaos == null || groupVaos.isEmpty() || !group.visible)
         {

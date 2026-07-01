@@ -5,7 +5,6 @@ import mchorse.bbs_mod.cubic.data.model.ModelCube;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.data.model.ModelQuad;
 import mchorse.bbs_mod.cubic.data.model.ModelVertex;
-import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
@@ -289,13 +288,15 @@ public class WeldBinding
         public final Vector3f[] capturedSourceWorld = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
         public final Vector3f[] capturedTargetWorld = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
 
-        /* World rotation of the target face INCL. the cube's own rotate — the real outward normal to shear along. */
-        public final Quaternionf capturedTargetRot = new Quaternionf();
+        /* World shear axis: the target face's outward normal carried to world by the FULL cube matrix (bone x cube
+         * rotate) — the direction the seam slides along. A vector (not a quaternion) so a scaled or MIRRORED matrix
+         * (the UI preview flips Y) carries exactly; quaternion extraction from such a matrix is garbage. */
+        public final Vector3f capturedTargetNormalWorld = new Vector3f();
 
-        /* World rotation of each BONE (group) WITHOUT the cubes' own rotate — the bend is measured between these, so a
-         * cube rotated in Blockbench can't masquerade as a folded joint (its rotate would read as a false bend). */
-        public final Quaternionf capturedTargetBoneRot = new Quaternionf();
-        public final Quaternionf capturedSourceBoneRot = new Quaternionf();
+        /* World bend axes of each BONE (group) WITHOUT the cubes' own rotate — the same face normal by the bone basis
+         * only. The bend is the angle between these, so a cube rotated in Blockbench can't masquerade as a fold. */
+        public final Vector3f capturedTargetBoneAxis = new Vector3f();
+        public final Vector3f capturedSourceBoneAxis = new Vector3f();
 
         /* Source corner -> target corner, matched by proximity once both faces are captured. */
         public final int[] sourceToTarget = {-1, -1, -1, -1};
@@ -356,9 +357,7 @@ public class WeldBinding
                 }
             }
 
-            Vector3f normal = new Vector3f(this.targetFaceNormal);
-            this.capturedTargetRot.transform(normal).normalize();
-
+            Vector3f normal = new Vector3f(this.capturedTargetNormalWorld);
             Vector3f center = average(this.capturedTargetWorld);
             Vector3f across = this.foldAxis(normal, center);
 
@@ -411,12 +410,17 @@ public class WeldBinding
             return axis.lengthSquared() < EPS_SQ ? null : axis.normalize();
         }
 
+        /**
+         * The fold angle, from the two bones' world axes alone (no quaternions, so scale/reflection are irrelevant).
+         * At rest a straight limb has the two welded faces pointing apart, so their bone-carried normals are opposite
+         * (angle PI); folding closes that gap, so the bend is PI minus the angle between the axes. Only the swing is
+         * measured — twist around the bone axis (which the seam ignores anyway) never leaks in.
+         */
         private float bendAngle()
         {
-            Quaternionf relative = new Quaternionf(this.capturedTargetBoneRot).conjugate().mul(this.capturedSourceBoneRot);
-            float angle = relative.angle();
+            float dot = this.capturedTargetBoneAxis.dot(this.capturedSourceBoneAxis);
 
-            return angle > (float) Math.PI ? (float) (2.0 * Math.PI) - angle : angle;
+            return (float) Math.PI - (float) Math.acos(Math.max(-1F, Math.min(1F, dot)));
         }
 
         private int sourceForTarget(int k)

@@ -3,6 +3,8 @@ package mchorse.bbs_mod.cubic;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.bobj.BOBJBone;
+import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.cubic.data.animation.Animations;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
@@ -31,6 +33,7 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Pose;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
@@ -39,11 +42,13 @@ import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +57,9 @@ import java.util.function.Supplier;
 
 public class ModelInstance implements IModelInstance
 {
+    /** Identity NormalMat for the welded immediate draw — its normals are already CPU-transformed to world space. */
+    private static final Matrix3f WELD_NORMAL_MAT = new Matrix3f();
+
     public final String id;
     public IModel model;
     public Animations animations;
@@ -273,13 +281,8 @@ public class ModelInstance implements IModelInstance
             return;
         }
 
-        /* Welded cubes deform per-vertex against another bone's live transform, which baked VAOs can't do,
-         * so a welded model stays on the immediate (CPU) render path. */
-        if (!this.config.getWelds().isEmpty())
-        {
-            return;
-        }
-
+        /* A welded model still builds VAOs: only its welded bones render on the immediate (CPU) path, the rest ride
+         * their VAOs on the GPU (see {@link #renderWelded}). */
         if (this.model instanceof Model model && !this.config.onCpu.get())
         {
             MinecraftClient.getInstance().execute(() ->
@@ -291,6 +294,13 @@ public class ModelInstance implements IModelInstance
 
     public boolean isVAORendered()
     {
+        /* A welded model builds VAOs too, but renders through the hybrid weld path — external callers (shader choice,
+         * etc.) must still treat it as non-VAO, so report false while it has active welds. */
+        if (!this.getWeldBindings().isEmpty())
+        {
+            return false;
+        }
+
         return !this.vaos.isEmpty() || this.model instanceof BOBJModel;
     }
 
@@ -382,11 +392,13 @@ public class ModelInstance implements IModelInstance
         }
     }
 
-    /** First weld pass: capture the rigid world corners of every welded face with no drawing, then build the seams. */
-    private void captureWelds(CubicCubeRenderer renderProcessor, MatrixStack stack, Model model)
+    /**
+     * First weld pass: capture the rigid world corners of every welded face with no drawing, then build the seams.
+     * Runs a dedicated capture-only renderer that only touches welded cubes (and only their welded face's corners),
+     * so it's a light matrix walk over the tree rather than a full per-vertex pass.
+     */
+    private void captureWelds(List<WeldBinding> bindings, MatrixStack stack, Model model, int light, int overlay, StencilMap stencilMap, ShapeKeys keys)
     {
-        List<WeldBinding> bindings = this.getWeldBindings();
-
         for (WeldBinding binding : bindings)
         {
             for (WeldBinding.Layer layer : binding.layers)
@@ -395,9 +407,11 @@ public class ModelInstance implements IModelInstance
             }
         }
 
-        renderProcessor.setCaptureOnly(true);
-        CubicRenderer.processRenderModel(renderProcessor, null, stack, model);
-        renderProcessor.setCaptureOnly(false);
+        CubicCubeRenderer capture = new CubicCubeRenderer(light, overlay, stencilMap, keys);
+
+        capture.setWelds(bindings);
+        capture.setCaptureOnly(true);
+        CubicRenderer.processRenderModel(capture, null, stack, model);
 
         for (WeldBinding binding : bindings)
         {
@@ -408,38 +422,125 @@ public class ModelInstance implements IModelInstance
         }
     }
 
+    /**
+     * Hybrid weld render: unwelded bones ride their baked VAOs on the GPU; only the welded bones — and any bone with
+     * no VAO (shape-keyed/on-CPU models) — go through the immediate CPU path, where their cubes deform against the
+     * seam. A light capture pass fills the seams first; picking (stencil) skips it and just draws the rest pose.
+     */
+    private void renderWelded(MatrixStack stack, ShaderProgram shader, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver, Model model, List<WeldBinding> bindings)
+    {
+        Set<ModelGroup> weldedGroups = new HashSet<>();
+
+        for (WeldBinding binding : bindings)
+        {
+            weldedGroups.add(binding.sourceGroup);
+            weldedGroups.add(binding.targetGroup);
+        }
+
+        /* Seams only shape the drawn pose; picking renders the rest pose, so it needs no capture. */
+        if (stencilMap == null)
+        {
+            this.captureWelds(bindings, stack, model, light, overlay, stencilMap, keys);
+        }
+
+        /* The welded cubes draw immediate with world-space corners, so — outside picking and the Iris pipeline, which
+         * run their own shader state — they go through the BBS model shader with NormalMat pinned to identity (the
+         * normals are already in world space, the same space the VAO path's NormalMat*Normal resolves to; else the
+         * first-person hand during video export inherits a foreign NormalMat and darkens). The VAO bones use the same
+         * shader so both halves of the model match. */
+        boolean explicitWeld = stencilMap == null && !(BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld());
+        ShaderProgram drawShader = explicitWeld ? BBSShaders.getModel() : shader;
+
+        CubicVAORenderer renderProcessor = new CubicVAORenderer(drawShader, this, light, overlay, stencilMap, keys, textureResolver);
+
+        renderProcessor.setColor(color.r, color.g, color.b, color.a);
+        renderProcessor.setWelds(bindings);
+        renderProcessor.setWeldedGroups(weldedGroups);
+
+        RenderSystem.setShader(() -> drawShader);
+
+        /* The CPU path doesn't switch textures per material — it draws with whatever's bound. The VAO bones rebind
+         * per material as they draw, so remember the caller's default texture and restore it for the CPU draw
+         * (matches the old all-CPU path, which drew the welded cubes with that same default). */
+        int defaultTexture = RenderSystem.getShaderTexture(0);
+
+        /* Open the shared CPU buffer only if some group actually renders on the CPU (a visible welded bone, or a
+         * visible bone with geometry but no VAO) — drawing an empty buffer would fail. */
+        boolean cpuGeometry = this.hasCpuWeldGeometry(model, weldedGroups);
+        BufferBuilder builder = null;
+
+        if (cpuGeometry)
+        {
+            builder = Tessellator.getInstance().getBuffer();
+            builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
+        }
+
+        CubicRenderer.processRenderModel(renderProcessor, builder, stack, model);
+
+        if (cpuGeometry)
+        {
+            RenderSystem.setShaderTexture(0, defaultTexture);
+
+            if (explicitWeld)
+            {
+                GlUniform normalMat = drawShader.getUniform("NormalMat");
+
+                if (normalMat != null)
+                {
+                    normalMat.set(WELD_NORMAL_MAT);
+                }
+            }
+
+            BufferRenderer.drawWithGlobalProgram(builder.end());
+        }
+    }
+
+    /** Whether the immediate path will emit anything: a visible welded bone, or a visible bone with geometry but no VAO. */
+    private boolean hasCpuWeldGeometry(Model model, Set<ModelGroup> weldedGroups)
+    {
+        for (ModelGroup group : model.getAllGroups())
+        {
+            if (!group.visible || (group.cubes.isEmpty() && group.meshes.isEmpty()))
+            {
+                continue;
+            }
+
+            Map<String, ModelVAO> groupVaos = this.vaos.get(group);
+
+            if (weldedGroups.contains(group) || groupVaos == null || groupVaos.isEmpty())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public void render(MatrixStack stack, Supplier<ShaderProgram> program, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
     {
         ShaderProgram shader = program.get();
 
         if (this.model instanceof Model model)
         {
-            boolean isVao = this.isVAORendered();
-            CubicCubeRenderer renderProcessor = isVao
-                ? new CubicVAORenderer(shader, this, light, overlay, stencilMap, keys, textureResolver)
-                : new CubicCubeRenderer(light, overlay, stencilMap, keys);
+            List<WeldBinding> bindings = this.getWeldBindings();
 
-            renderProcessor.setColor(color.r, color.g, color.b, color.a);
-
-            boolean welded = !isVao && !this.config.getWelds().isEmpty();
-
-            if (welded)
+            if (!bindings.isEmpty())
             {
-                renderProcessor.setWelds(this.getWeldBindings());
+                this.renderWelded(stack, shader, color, light, overlay, stencilMap, keys, textureResolver, model, bindings);
             }
-
-            if (isVao)
+            else if (this.isVAORendered())
             {
+                CubicVAORenderer renderProcessor = new CubicVAORenderer(shader, this, light, overlay, stencilMap, keys, textureResolver);
+
+                renderProcessor.setColor(color.r, color.g, color.b, color.a);
                 CubicRenderer.processRenderModel(renderProcessor, null, stack, model);
             }
             else
             {
-                RenderSystem.setShader(() -> shader);
+                CubicCubeRenderer renderProcessor = new CubicCubeRenderer(light, overlay, stencilMap, keys);
 
-                if (welded)
-                {
-                    this.captureWelds(renderProcessor, stack, model);
-                }
+                renderProcessor.setColor(color.r, color.g, color.b, color.a);
+                RenderSystem.setShader(() -> shader);
 
                 BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
