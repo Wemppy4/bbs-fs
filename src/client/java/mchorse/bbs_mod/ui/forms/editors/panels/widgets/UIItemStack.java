@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors.panels.widgets;
 
+import java.util.function.Consumer;
+
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -7,7 +9,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -18,10 +20,10 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
-import java.util.function.Consumer;
-
 public class UIItemStack extends UIElement
 {
+    private static final int HEIGHT = 20;
+
     private Consumer<ItemStack> callback;
     private ItemStack stack;
     private boolean opened;
@@ -49,7 +51,7 @@ public class UIItemStack extends UIElement
             }
         });
 
-        this.h(UIConstants.CONTROL_HEIGHT);
+        this.h(HEIGHT);
     }
 
     public void setStack(ItemStack stack)
@@ -86,22 +88,59 @@ public class UIItemStack extends UIElement
 
     public void render(UIContext context)
     {
-        int border = this.opened ? Colors.A100 | BBSSettings.primaryColor.get() : Colors.WHITE;
+        boolean hover = this.area.isInside(context);
+        boolean empty = this.stack == null || this.stack.isEmpty();
+        int slot = this.area.h;
 
-        context.batcher.box((float)this.area.x, (float)this.area.y, (float)this.area.ex(), (float)this.area.ey(), border);
-        context.batcher.box((float)(this.area.x + 1), (float)(this.area.y + 1), (float)(this.area.ex() - 1), (float)(this.area.ey() - 1), -3750202);
+        if (hover)
+        {
+            this.area.render(context.batcher, Colors.A25);
+        }
 
-        if (this.stack != null && !this.stack.isEmpty())
+        int border = this.opened ? Colors.A100 | BBSSettings.primaryColor.get() : Colors.LIGHTER_GRAY;
+
+        context.batcher.box(this.area.x, this.area.y, this.area.x + slot, this.area.ey(), border);
+        context.batcher.box(this.area.x + 1, this.area.y + 1, this.area.x + slot - 1, this.area.ey() - 1, Colors.A50);
+
+        if (!empty)
         {
             MatrixStack matrices = context.batcher.getContext().getMatrices();
             CustomVertexConsumerProvider consumers = FormUtilsClient.getProvider();
 
             matrices.push();
             consumers.setUI(true);
-            context.batcher.getContext().drawItem(this.stack, this.area.mx() - 8, this.area.my() - 8);
-            context.batcher.getContext().drawItemInSlot(context.batcher.getFont().getRenderer(), this.stack, this.area.mx() - 8, this.area.my() - 8);
+            context.batcher.getContext().drawItem(this.stack, this.area.x + (slot - 16) / 2, this.area.my() - 8);
             consumers.setUI(false);
             matrices.pop();
+        }
+
+        FontRenderer font = context.batcher.getFont();
+        int tx = this.area.x + slot + 5;
+        int ty = this.area.y + (this.area.h - font.getHeight()) / 2;
+        int maxW = this.area.ex() - tx - 4;
+
+        if (empty)
+        {
+            context.batcher.textShadow(font.limitToWidth(UIKeys.FORMS_EDITORS_ITEM_EMPTY.get(), maxW), tx, ty, Colors.GRAY);
+        }
+        else
+        {
+            int color = hover ? Colors.HIGHLIGHT : Colors.WHITE;
+            String name = this.stack.getName().getString();
+
+            if (this.stack.getCount() > 1)
+            {
+                String suffix = " ×" + this.stack.getCount();
+
+                name = font.limitToWidth(name, maxW - font.getWidth(suffix));
+
+                context.batcher.textShadow(name, tx, ty, color);
+                context.batcher.textShadow(suffix, tx + font.getWidth(name), ty, Colors.LIGHTER_GRAY);
+            }
+            else
+            {
+                context.batcher.textShadow(font.limitToWidth(name, maxW), tx, ty, color);
+            }
         }
 
         super.render(context);

@@ -7,7 +7,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 
 public class UIBlockStateEditor extends UIElement
 {
+    private static final int HEIGHT = 20;
+
     private final Consumer<BlockState> callback;
     private BlockState blockState;
     private boolean opened;
@@ -42,7 +44,7 @@ public class UIBlockStateEditor extends UIElement
             }
         });
 
-        this.h(UIConstants.CONTROL_HEIGHT);
+        this.h(HEIGHT);
     }
 
     @Override
@@ -85,12 +87,21 @@ public class UIBlockStateEditor extends UIElement
     @Override
     public void render(UIContext context)
     {
-        int border = this.opened ? Colors.A100 | BBSSettings.primaryColor.get() : Colors.WHITE;
+        boolean hover = this.area.isInside(context);
+        boolean empty = this.blockState == null || this.blockState.isAir();
+        int slot = this.area.h;
 
-        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), border);
-        context.batcher.box(this.area.x + 1, this.area.y + 1, this.area.ex() - 1, this.area.ey() - 1, -3750202);
+        if (hover)
+        {
+            this.area.render(context.batcher, Colors.A25);
+        }
 
-        ItemStack stack = new ItemStack(this.blockState.getBlock().asItem());
+        int border = this.opened ? Colors.A100 | BBSSettings.primaryColor.get() : Colors.LIGHTER_GRAY;
+
+        context.batcher.box(this.area.x, this.area.y, this.area.x + slot, this.area.ey(), border);
+        context.batcher.box(this.area.x + 1, this.area.y + 1, this.area.x + slot - 1, this.area.ey() - 1, Colors.A50);
+
+        ItemStack stack = empty ? ItemStack.EMPTY : new ItemStack(this.blockState.getBlock().asItem());
 
         if (!stack.isEmpty())
         {
@@ -99,11 +110,19 @@ public class UIBlockStateEditor extends UIElement
 
             matrices.push();
             consumers.setUI(true);
-            context.batcher.getContext().drawItem(stack, this.area.mx() - 8, this.area.my() - 8);
-            context.batcher.getContext().drawItemInSlot(context.batcher.getFont().getRenderer(), stack, this.area.mx() - 8, this.area.my() - 8);
+            context.batcher.getContext().drawItem(stack, this.area.x + (slot - 16) / 2, this.area.my() - 8);
             consumers.setUI(false);
             matrices.pop();
         }
+
+        FontRenderer font = context.batcher.getFont();
+        int tx = this.area.x + slot + 5;
+        int ty = this.area.y + (this.area.h - font.getHeight()) / 2;
+        int maxW = this.area.ex() - tx - 4;
+        String label = empty ? UIKeys.FORMS_EDITORS_BLOCK_EMPTY.get() : this.blockState.getBlock().getName().getString();
+        int color = empty ? Colors.GRAY : (hover ? Colors.HIGHLIGHT : Colors.WHITE);
+
+        context.batcher.textShadow(font.limitToWidth(label, maxW), tx, ty, color);
 
         super.render(context);
     }
