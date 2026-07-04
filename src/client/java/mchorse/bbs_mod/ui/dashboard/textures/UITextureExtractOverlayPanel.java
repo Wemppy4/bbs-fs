@@ -47,7 +47,7 @@ public class UITextureExtractOverlayPanel extends UIOverlayPanel
         });
 
         this.content.column(UIConstants.MARGIN).vertical().stretch().padding(UIConstants.SCROLL_PADDING);
-        this.content.add(UI.label(UIKeys.TEXTURES_EXTRACT_FRAMES_FRAMES), this.frames);
+        this.content.add(UI.labelRow(UIKeys.TEXTURES_EXTRACT_FRAMES_FRAMES, this.frames));
         this.content.add(UI.label(UIKeys.TEXTURES_EXTRACT_FRAMES_RESOLUTION).marginTop(UIConstants.SECTION_GAP), this.frameWidth, this.frameHeight);
         this.content.add(UI.label(UIKeys.TEXTURES_EXTRACT_FRAMES_STEP).marginTop(UIConstants.SECTION_GAP), this.frameStepX, this.frameStepY);
         this.content.add(this.extract.marginTop(UIConstants.SECTION_GAP));

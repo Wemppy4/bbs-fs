@@ -78,6 +78,32 @@ public class UI
         return element;
     }
 
+    /**
+     * A compact "label : control" row on a single line — the name fills the left,
+     * the control keeps a fixed width and pins to the right, so control left edges
+     * line up into one divider column across rows and the name never truncates.
+     *
+     * Use it for a single compact control (trackpad, dropdown, textbox);
+     * multi-element groups (X/Y/Z, colors) stay stacked under a plain label.
+     */
+    public static UIElement labelRow(IKey label, UIElement element)
+    {
+        return labelRow(label, UIConstants.VALUE_WIDTH, element);
+    }
+
+    public static UIElement labelRow(IKey label, int controlWidth, UIElement element)
+    {
+        UIElement row = new UIElement();
+
+        row.row(UIConstants.MARGIN).preferred(0).height(UIConstants.CONTROL_HEIGHT);
+        row.add(
+            label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F),
+            element.w(controlWidth)
+        );
+
+        return row;
+    }
+
     public static UIScrollView scrollView(UIElement... elements)
     {
         return scrollView(UIConstants.MARGIN, elements);

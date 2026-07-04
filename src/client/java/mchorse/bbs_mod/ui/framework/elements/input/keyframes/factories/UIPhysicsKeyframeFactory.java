@@ -78,14 +78,10 @@ public class UIPhysicsKeyframeFactory extends UIKeyframeFactory<PhysicsControls>
 
         this.scroll.add(UI.column(
             this.chains,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT).marginTop(UIConstants.SECTION_GAP),
-            this.weight,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_GRAVITY).marginTop(UIConstants.SECTION_GAP),
-            this.gravity,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING).marginTop(UIConstants.SECTION_GAP),
-            this.damping,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS).marginTop(UIConstants.SECTION_GAP),
-            this.stiffness,
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT, this.weight).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_GRAVITY, this.gravity).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING, this.damping).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS, this.stiffness).marginTop(UIConstants.SECTION_GAP),
             this.enabled
         ));
 

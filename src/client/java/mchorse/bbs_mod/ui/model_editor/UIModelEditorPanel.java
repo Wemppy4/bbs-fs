@@ -394,19 +394,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         return count;
     }
 
-    /** A "label : widget" row (widget fills the rest) — half the height of a stacked label + widget.
-     *  Label and widget share the same height and centre vertically, so they line up on their own. */
     private UIElement labeledRow(IKey label, UIElement widget)
     {
-        return this.labeledRow(label, widget, 64);
-    }
-
-    private UIElement labeledRow(IKey label, UIElement widget, int labelWidth)
-    {
-        return UI.row(UIConstants.MARGIN, 0, UIConstants.CONTROL_HEIGHT,
-            UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F).w(labelWidth),
-            widget
-        );
+        return UI.labelRow(label, widget);
     }
 
     /** A sub-list header: a label on the left and a compact "+" add button pinned to the right. */
@@ -621,7 +611,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             {
                 config.rebuild();
                 this.fillArmorBody(config);
-            }), 88)
+            }))
         );
 
         if (slot.isActive())
@@ -668,7 +658,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             {
                 config.rebuild();
                 this.rebuildSections(config);
-            }), 88)
+            }))
         );
 
         if (slot.isActive())

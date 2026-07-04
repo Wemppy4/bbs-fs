@@ -28,7 +28,7 @@ public class UITrailFormPanel extends UIFormPanel<TrailForm>
         this.loop = new UIToggle(UIKeys.FORMS_EDITORS_TRAIL_LOOP, (b) -> this.form.loop.set(b.getValue()));
         this.paused = new UIToggle(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_PAUSED, (b) -> this.form.paused.set(b.getValue()));
 
-        this.options.add(this.pick, UI.label(UIKeys.FORMS_EDITORS_TRAIL_LENGTH), this.length, this.loop, this.paused);
+        this.options.add(this.pick, UI.labelRow(UIKeys.FORMS_EDITORS_TRAIL_LENGTH, this.length), this.loop, this.paused);
     }
 
     @Override

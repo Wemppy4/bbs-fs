@@ -46,13 +46,13 @@ public class UIActionsConfigKeyframeFactory extends UIKeyframeFactory<ActionsCon
             this.actionsEditor.add(UI.row(
                 UI.column(
                     UI.label(UIKeys.FORMS_EDITORS_MODEL_ACTIONS), this.actionsEditor.actions,
-                    UI.label(UIKeys.FORMS_EDITORS_ACTIONS_SPEED).marginTop(UIConstants.SECTION_GAP), this.actionsEditor.speed,
+                    UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_SPEED, this.actionsEditor.speed).marginTop(UIConstants.SECTION_GAP),
                     this.actionsEditor.loop.marginTop(UIConstants.SECTION_GAP)
                 ),
                 UI.column(
                     UI.label(UIKeys.FORMS_EDITORS_ACTIONS_ANIMATIONS), this.actionsEditor.animations,
-                    UI.label(UIKeys.FORMS_EDITORS_ACTIONS_FADE).marginTop(UIConstants.SECTION_GAP), this.actionsEditor.fade,
-                    UI.label(UIKeys.FORMS_EDITORS_ACTIONS_TICK).marginTop(UIConstants.SECTION_GAP), this.actionsEditor.tick
+                    UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_FADE, this.actionsEditor.fade),
+                    UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_TICK, this.actionsEditor.tick)
                 )
             ));
         }
@@ -60,9 +60,9 @@ public class UIActionsConfigKeyframeFactory extends UIKeyframeFactory<ActionsCon
         {
             this.actionsEditor.add(UI.label(UIKeys.FORMS_EDITORS_MODEL_ACTIONS), this.actionsEditor.actions);
             this.actionsEditor.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_ANIMATIONS).marginTop(UIConstants.SECTION_GAP), this.actionsEditor.animations, this.actionsEditor.loop.marginTop(UIConstants.SECTION_GAP));
-            this.actionsEditor.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_SPEED).marginTop(UIConstants.SECTION_GAP), this.actionsEditor.speed);
-            this.actionsEditor.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_FADE).marginTop(UIConstants.SECTION_GAP), this.actionsEditor.fade);
-            this.actionsEditor.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_TICK).marginTop(UIConstants.SECTION_GAP), this.actionsEditor.tick);
+            this.actionsEditor.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_SPEED, this.actionsEditor.speed).marginTop(UIConstants.SECTION_GAP));
+            this.actionsEditor.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_FADE, this.actionsEditor.fade));
+            this.actionsEditor.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_TICK, this.actionsEditor.tick));
         }
 
         super.resize();

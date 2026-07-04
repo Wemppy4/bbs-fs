@@ -133,10 +133,8 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
         this.column = UI.column(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,
             this.enabled,
             this.form,
-            UI.label(UIKeys.SELECTORS_ENTITY_ID).marginTop(UIConstants.SECTION_GAP),
-            this.entity,
-            UI.label(UIKeys.SELECTORS_NAME_TAG).marginTop(UIConstants.SECTION_GAP),
-            this.name,
+            UI.labelRow(UIKeys.SELECTORS_ENTITY_ID, this.entity).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.SELECTORS_NAME_TAG, this.name).marginTop(UIConstants.SECTION_GAP),
             UI.label(UIKeys.SELECTORS_NBT).marginTop(UIConstants.SECTION_GAP),
             this.nbt
         );

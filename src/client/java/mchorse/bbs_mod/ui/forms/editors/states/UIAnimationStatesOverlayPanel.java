@@ -105,9 +105,9 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         this.offset.tooltip(UIKeys.FORMS_EDITOR_STATES_MANAGER_OFFSET);
 
         this.editor = UI.scrollView(
-            UI.label(UIKeys.FORMS_EDITOR_STATES_MANAGER_ID), this.id,
+            UI.labelRow(UIKeys.FORMS_EDITOR_STATES_MANAGER_ID, this.id),
             this.main, this.keybind,
-            UI.label(UIKeys.FORMS_EDITOR_STATES_MANAGER_DURATION).marginTop(UIConstants.SECTION_GAP), this.duration,
+            UI.labelRow(UIKeys.FORMS_EDITOR_STATES_MANAGER_DURATION, this.duration).marginTop(UIConstants.SECTION_GAP),
             UI.label(IKey.comp(Arrays.asList(UIKeys.CAMERA_PANELS_ENVELOPES_START_D, IKey.constant(" / "), UIKeys.CAMERA_PANELS_ENVELOPES_END_D))).marginTop(UIConstants.SECTION_GAP), UI.row(this.fadeIn, this.fadeOut),
             this.looping.marginTop(UIConstants.SECTION_GAP), this.offset
         );

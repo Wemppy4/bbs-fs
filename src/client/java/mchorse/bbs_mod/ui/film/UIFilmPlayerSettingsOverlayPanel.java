@@ -32,8 +32,7 @@ public class UIFilmPlayerSettingsOverlayPanel extends UIMessageBarOverlayPanel
 
         this.film = film;
 
-        this.message.textAnchorX(0F);
-        this.message.relative(this.content).xy(6, 6).w(1F, -12).anchorX(0F);
+        this.message.removeFromParent();
 
         this.hp = new UITrackpad((v) -> BaseValue.edit(this.film.hp, (value) -> value.set(v.floatValue())));
         this.hp.limit(1, 20, true).setValue(this.film.hp.get());
@@ -54,27 +53,19 @@ public class UIFilmPlayerSettingsOverlayPanel extends UIMessageBarOverlayPanel
         this.replaceInventory = new UIButton(UIKeys.FILM_REPLACE_INVENTORY, (b) ->
             BaseValue.edit(this.film.inventory, (inv) -> inv.fromPlayer(MinecraftClient.getInstance().player)));
         this.replaceInventory.setEnabled(MinecraftClient.getInstance().player != null);
-        this.replaceInventory.w(1F);
 
         this.applyToPlayer = new UIButton(UIKeys.FILM_APPLY_PLAYER_SETTINGS_TO_PLAYER, (b) -> ClientNetwork.sendApplyFilmPlayerSettingsToPlayer(this.film));
         this.applyToPlayer.setEnabled(MinecraftClient.getInstance().player != null);
-        this.applyToPlayer.w(1F);
 
-        this.editor = UI.scrollView(5, 6,
-            UI.label(UIKeys.FILM_PLAYER_SETTINGS_HP),
-            this.hp,
-            UI.label(UIKeys.FILM_PLAYER_SETTINGS_HUNGER).marginTop(UIConstants.SECTION_GAP),
-            this.hunger,
-            UI.label(UIKeys.FILM_PLAYER_SETTINGS_XP_LEVEL).marginTop(UIConstants.SECTION_GAP),
-            this.xpLevel,
-            UI.label(UIKeys.FILM_PLAYER_SETTINGS_XP_PROGRESS).marginTop(UIConstants.SECTION_GAP),
-            this.xpProgress,
-            UI.label(UIKeys.FILM_PLAYER_SETTINGS_MOB_RECORDING_RADIUS).marginTop(UIConstants.SECTION_GAP),
-            this.mobRecordingRadius,
-            this.replaceInventory.marginTop(10),
-            this.applyToPlayer.marginTop(4)
+        this.editor = UI.scrollView(3, 6,
+            UI.labelRow(UIKeys.FILM_PLAYER_SETTINGS_HP, this.hp),
+            UI.labelRow(UIKeys.FILM_PLAYER_SETTINGS_HUNGER, this.hunger),
+            UI.labelRow(UIKeys.FILM_PLAYER_SETTINGS_XP_LEVEL, this.xpLevel),
+            UI.labelRow(UIKeys.FILM_PLAYER_SETTINGS_XP_PROGRESS, this.xpProgress),
+            UI.labelRow(UIKeys.FILM_PLAYER_SETTINGS_MOB_RECORDING_RADIUS, this.mobRecordingRadius),
+            UI.row(this.replaceInventory, this.applyToPlayer).marginTop(UIConstants.SECTION_GAP)
         );
-        this.editor.relative(this.message).x(0).w(1F).y(1F, 6).hTo(this.bar.area, -6);
+        this.editor.relative(this.content).x(6).w(1F, -12).y(6).hTo(this.bar.area, -6);
 
         this.content.add(this.editor);
     }
