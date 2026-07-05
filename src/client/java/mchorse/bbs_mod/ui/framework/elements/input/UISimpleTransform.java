@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.ui.framework.elements.input;
 
+import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
@@ -8,9 +10,14 @@ import mchorse.bbs_mod.utils.pose.Transform;
  * A plain numeric {@link Transform} editor — the trackpad rows of {@link UITransform} without the
  * gizmo of {@link UIPropTransform}. Used where there's no 3D handle to drag (e.g. the model editor's
  * attachment slots): edits write straight into the bound transform and notify {@link #onChange}.
+ *
+ * <p>The transform is edited in place, so each edit is bracketed in the backing {@link ValueTransform}'s
+ * notify (via {@link BaseValue#edit}) — that's what lets undo/redo catch it. Binding a raw {@link Transform}
+ * without a value still works (it just won't be undoable).
  */
 public class UISimpleTransform extends UITransform
 {
+    private ValueTransform value;
     private Transform transform;
     private Runnable onChange;
 
@@ -19,6 +26,14 @@ public class UISimpleTransform extends UITransform
         super();
 
         this.onChange = onChange;
+    }
+
+    /** Bind the value whose transform this editor mutates; edits go through its notify so they're undoable. */
+    public void setValue(ValueTransform value)
+    {
+        this.value = value;
+
+        this.setTransform(value == null ? null : value.get());
     }
 
     public void setTransform(Transform transform)
@@ -49,6 +64,24 @@ public class UISimpleTransform extends UITransform
         }
     }
 
+    /**
+     * Mutate the bound transform in place, bracketing it in the value's notify when one is bound so the
+     * undo handler caches the value before the change and diffs it after.
+     */
+    private void edit(Runnable mutation)
+    {
+        if (this.value != null)
+        {
+            BaseValue.edit(this.value, (v) -> mutation.run());
+        }
+        else
+        {
+            mutation.run();
+        }
+
+        this.changed();
+    }
+
     @Override
     public void setT(Axis axis, double x, double y, double z)
     {
@@ -57,8 +90,7 @@ public class UISimpleTransform extends UITransform
             return;
         }
 
-        this.transform.translate.set((float) x, (float) y, (float) z);
-        this.changed();
+        this.edit(() -> this.transform.translate.set((float) x, (float) y, (float) z));
     }
 
     @Override
@@ -69,8 +101,7 @@ public class UISimpleTransform extends UITransform
             return;
         }
 
-        this.transform.scale.set((float) x, (float) y, (float) z);
-        this.changed();
+        this.edit(() -> this.transform.scale.set((float) x, (float) y, (float) z));
     }
 
     @Override
@@ -81,8 +112,7 @@ public class UISimpleTransform extends UITransform
             return;
         }
 
-        this.transform.rotate.set(MathUtils.toRad((float) x), MathUtils.toRad((float) y), MathUtils.toRad((float) z));
-        this.changed();
+        this.edit(() -> this.transform.rotate.set(MathUtils.toRad((float) x), MathUtils.toRad((float) y), MathUtils.toRad((float) z)));
     }
 
     @Override
@@ -93,7 +123,6 @@ public class UISimpleTransform extends UITransform
             return;
         }
 
-        this.transform.rotate2.set(MathUtils.toRad((float) x), MathUtils.toRad((float) y), MathUtils.toRad((float) z));
-        this.changed();
+        this.edit(() -> this.transform.rotate2.set(MathUtils.toRad((float) x), MathUtils.toRad((float) y), MathUtils.toRad((float) z)));
     }
 }

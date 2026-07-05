@@ -1078,6 +1078,8 @@
 	"bbs.ui.model_editor.sneaking.pick": "Выбрать позу",
 	"bbs.ui.model_editor.sneaking.set": "Сменить позу",
 	"bbs.ui.model_editor.sneaking.clear": "Убрать позу",
+	"bbs.ui.model_editor.open_history": "Открыть историю изменений...",
+	"bbs.ui.model_editor.history-title": "История изменений",
 	"bbs.ui.model_blocks.transform.default": "Трансформация по умолчанию",
 	"bbs.ui.model_blocks.transform.first_person": "Трансформация от первого лица",
 	"bbs.ui.model_blocks.transform.inventory": "Трансформация в инвентаре (GUI)",

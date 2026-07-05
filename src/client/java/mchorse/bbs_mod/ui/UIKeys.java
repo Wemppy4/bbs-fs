@@ -805,6 +805,8 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_SNEAKING_PICK = L10n.lang("bbs.ui.model_editor.sneaking.pick");
     public static final IKey MODEL_EDITOR_SNEAKING_SET = L10n.lang("bbs.ui.model_editor.sneaking.set");
     public static final IKey MODEL_EDITOR_SNEAKING_CLEAR = L10n.lang("bbs.ui.model_editor.sneaking.clear");
+    public static final IKey MODEL_EDITOR_OPEN_HISTORY = L10n.lang("bbs.ui.model_editor.open_history");
+    public static final IKey MODEL_EDITOR_HISTORY_TITLE = L10n.lang("bbs.ui.model_editor.history-title");
     public static final IKey MODEL_BLOCKS_TRANSFORM_FIRST_PERSON = L10n.lang("bbs.ui.model_blocks.transform.first_person");
     public static final IKey MODEL_BLOCKS_TRANSFORM_INVENTORY = L10n.lang("bbs.ui.model_blocks.transform.inventory");
     public static final IKey MODEL_BLOCKS_TRANSFORM_THIRD_PERSON = L10n.lang("bbs.ui.model_blocks.transform.third_person");

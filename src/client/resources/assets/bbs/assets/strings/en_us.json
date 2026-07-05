@@ -1084,6 +1084,8 @@
 	"bbs.ui.model_editor.sneaking.pick": "Pick a pose",
 	"bbs.ui.model_editor.sneaking.set": "Change pose",
 	"bbs.ui.model_editor.sneaking.clear": "Clear pose",
+	"bbs.ui.model_editor.open_history": "Open undo/redo history...",
+	"bbs.ui.model_editor.history-title": "Undo history",
 	"bbs.ui.model_blocks.transform.default": "Default transform",
 	"bbs.ui.model_blocks.transform.first_person": "First person transform",
 	"bbs.ui.model_blocks.transform.inventory": "Inventory (GUI) transform",
