@@ -1199,6 +1199,13 @@ public class UIFilmController extends UIElement implements GizmoViewport
         int x = area.ex() - 4;
         int y = area.y + 5;
 
+        if (BBSSettings.editorLoop.get())
+        {
+            context.batcher.icon(Icons.REFRESH, Colors.WHITE | Colors.A100, x, y, 1F, 0F);
+
+            y += 16 + 5;
+        }
+
         if (this.panel.isFlying())
         {
             String label = UIKeys.FILM_CONTROLLER_SPEED.format(this.panel.dashboard.orbit.speed.getValue()).get();
