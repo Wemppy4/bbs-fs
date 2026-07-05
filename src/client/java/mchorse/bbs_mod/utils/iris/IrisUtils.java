@@ -10,6 +10,7 @@ import mchorse.bbs_mod.utils.DataPath;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.gl.uniform.UniformUpdateFrequency;
+import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shaderpack.LanguageMap;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.option.menu.OptionMenuContainer;
@@ -173,6 +174,16 @@ public class IrisUtils
     public static boolean isShaderPackEnabled()
     {
         return IrisApi.getInstance().isShaderPackInUse();
+    }
+
+    public static void setMainBound(boolean bound)
+    {
+        WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipelineNullable();
+
+        if (pipeline != null)
+        {
+            pipeline.getRenderTargetStateListener().setIsMainBound(bound);
+        }
     }
 
     public static boolean isShadowPass()
