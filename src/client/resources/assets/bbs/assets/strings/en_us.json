@@ -564,6 +564,7 @@
 	"bbs.ui.film.controller.onion_skin.prev": "Previous frames and colors",
 	"bbs.ui.film.controller.onion_skin.title": "Onion skin",
 	"bbs.ui.film.controller.motion_path.title": "Motion path",
+	"bbs.ui.film.controller.motion_path.pin": "Pin the current path: keeps showing this recording's (or bone's) path no matter what gets selected. Click again to follow the selection.",
 	"bbs.ui.film.controller.motion_path.gradient": "Time gradient (past to future)",
 	"bbs.ui.film.controller.motion_path.around": "Only around the current frame",
 	"bbs.ui.film.controller.motion_path.line": "Line",

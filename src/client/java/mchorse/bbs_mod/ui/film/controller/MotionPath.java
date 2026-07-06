@@ -87,14 +87,13 @@ public class MotionPath
         "swipe", "jump", "jump_alt", "hurt", "land", "shoot", "consume", "base_pre", "base_post"
     };
 
-    public static void render(WorldRenderContext context, ValueMotionPath config, UIFilmController controller, Replay replay, float currentTick)
+    public static void render(WorldRenderContext context, ValueMotionPath config, UIFilmController controller, Replay replay, Pair<String, Boolean> bone, float currentTick)
     {
         if (replay == null || replay.relative.get())
         {
             return;
         }
 
-        Pair<String, Boolean> bone = controller.getBone();
         String bonePath = bone == null ? null : bone.a;
 
         Trajectory trajectory = bonePath == null ? null : boneTrajectory(controller, replay, bonePath);
