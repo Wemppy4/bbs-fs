@@ -1,9 +1,9 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsConfig;
-import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsIO;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
@@ -11,8 +11,11 @@ import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.forms.editors.utils.UIDebugOverlayContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
@@ -132,8 +135,9 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_NAME
         ));
 
-        this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DEBUG, (b) -> ModelPhysicsDebug.enabled = b.getValue());
-        this.debug.setValue(ModelPhysicsDebug.enabled);
+        this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DEBUG, (b) -> BBSSettings.physicsDebug.enabled.set(b.getValue()));
+        this.debug.setValue(BBSSettings.physicsDebug.enabled.get());
+        this.debug.context(() -> new UIDebugOverlayContextMenu(BBSSettings.physicsDebug));
 
         this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ENABLED, (b) ->
         {
@@ -465,25 +469,20 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             this.enabled,
             this.end,
             this.targetBone,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_GRAVITY),
-            this.gravity,
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_GRAVITY, this.gravity),
             this.relativeGravity,
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY_ROTATION),
             UI.row(this.relativeGravityRotateX, this.relativeGravityRotateY, this.relativeGravityRotateZ),
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS),
-            this.stiffness,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING),
-            this.damping,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS),
-            this.iterations
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS, this.stiffness),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING, this.damping),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS, this.iterations)
         );
 
         UISection collisionsSection = new UISection(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS);
 
         collisionsSection.fields.add(
             this.collisions,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RADIUS),
-            this.radius
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RADIUS, this.radius)
         );
 
         /* Wind is one field for the whole model's physics, not bound to any bone, so the section is always
@@ -491,20 +490,26 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         UISection windSection = new UISection(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND);
 
         windSection.fields.add(
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_STRENGTH),
-            this.windStrength,
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_STRENGTH, this.windStrength),
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_DIRECTION),
             UI.row(this.windX, this.windY, this.windZ),
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE),
-            this.windTurbulence,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SPEED),
-            this.windTurbulenceSpeed,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SCALE),
-            this.windTurbulenceScale
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE, this.windTurbulence),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SPEED, this.windTurbulenceSpeed),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SCALE, this.windTurbulenceScale)
         );
 
+        UIIcon debugSettings = new UIIcon(Icons.GEAR, (b) -> this.getContext().replaceContextMenu(new UIDebugOverlayContextMenu(BBSSettings.physicsDebug)));
+
+        debugSettings.tooltip(UIKeys.MODEL_DEBUG_CONFIGURE);
+        debugSettings.wh(20, 14);
+
+        UIElement debugRow = new UIElement();
+
+        debugRow.row(0).preferred(0).height(14);
+        debugRow.add(this.debug, debugSettings);
+
         this.options.add(
-            this.debug,
+            debugRow,
             this.bones,
             settings,
             collisionsSection,
@@ -516,6 +521,8 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
     public void startEdit(ModelForm form)
     {
         super.startEdit(form);
+
+        this.debug.setValue(BBSSettings.physicsDebug.enabled.get());
 
         ModelInstance model = ModelFormRenderer.getModel(form);
         this.modelInstance = model;

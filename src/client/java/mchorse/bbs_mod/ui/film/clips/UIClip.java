@@ -1,5 +1,8 @@
 package mchorse.bbs_mod.ui.film.clips;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.actions.types.AttackActionClip;
 import mchorse.bbs_mod.actions.types.DamageActionClip;
@@ -48,7 +51,6 @@ import mchorse.bbs_mod.ui.film.clips.actions.UISwipeActionClip;
 import mchorse.bbs_mod.ui.film.clips.actions.UIUseBlockItemActionClip;
 import mchorse.bbs_mod.ui.film.clips.actions.UIUseItemActionClip;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIEnvelope;
-import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -56,14 +58,11 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
-import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.TimeUtilsClient;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.undo.IUndo;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public abstract class UIClip <T extends Clip> extends UIElement
 {
@@ -195,6 +194,7 @@ public abstract class UIClip <T extends Clip> extends UIElement
     protected void registerPanels()
     {
         this.panels.add(UI.row(this.title, this.enabled.label(IKey.EMPTY).w(26)));
+        this.panels.add(UI.row(this.layer, this.tick, this.duration));
 
         this.addEnvelopes();
     }

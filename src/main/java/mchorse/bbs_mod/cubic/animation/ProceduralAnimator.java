@@ -143,6 +143,18 @@ public class ProceduralAnimator implements IAnimator
         if (target.isSneaking())
         {
             model.applyPose(armature.getSneakingPose());
+
+            /* The code below finalizes bones in euler, and the sneaking pose fully lives in its euler
+             * readback — drop the composed orientation so the euler writes stay authoritative. */
+            for (ModelGroup group : model.getAllGroups())
+            {
+                group.orient = null;
+            }
+
+            for (BOBJBone bone : model.getAllBOBJBones())
+            {
+                bone.orient = null;
+            }
         }
 
         /* For regular models */

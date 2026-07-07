@@ -15,18 +15,22 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
 import mchorse.bbs_mod.settings.values.ui.ValueStringMap;
 import mchorse.bbs_mod.ui.ContentType;
+import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
+import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -58,7 +62,9 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,6 +125,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     /** Opens the current model's asset folder; enabled only while a model is open. */
     private UIIcon folderIcon;
 
+    /** Opens the undo/redo history overlay; enabled only while a model is open. */
+    private UIIcon historyIcon;
+
+    /** Undo/redo over the model's {@link ModelConfig} value tree — reuses the form editor's diff handler. */
+    private UIFormUndoHandler undoHandler;
+
+    /** Configs we've already wired the undo pre-callback into (by identity), so a re-open doesn't stack it. */
+    private final Set<ModelConfig> hookedConfigs = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /** Set for one {@link #fill} when re-binding to a reloaded instance, so the reload keeps the undo stack. */
+    private boolean preserveUndo;
+
     public UIModelEditorPanel(UIDashboard dashboard)
     {
         super(dashboard);
@@ -177,12 +195,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.folderIcon.tooltip(UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_FOLDER, Direction.LEFT);
         this.iconBar.add(this.folderIcon);
 
+        this.historyIcon = new UIIcon(Icons.UNDO, (b) -> this.openHistory());
+        this.historyIcon.tooltip(UIKeys.MODEL_EDITOR_OPEN_HISTORY, Direction.LEFT);
+        this.iconBar.add(this.historyIcon);
+
         /* Models are assets — no CRUD overlay; opening goes through the selection screen and the picker. */
         this.openOverlay.removeFromParent();
 
         this.selectionPanel = new UIModelSelectionScreen(this);
         this.selectionPanel.relative(this).y(UIDataTabs.TABS_HEIGHT_PX).wTo(this.iconBar.area).h(1F, -UIDataTabs.TABS_HEIGHT_PX);
         this.add(this.selectionPanel);
+
+        this.add(new UIModelEditorUndoKeys(this).full(this));
 
         this.fill(null);
     }
@@ -192,6 +216,16 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.general.relative(this.editor).x(0).y(0).w(this.splitWidth).h(1F);
         this.renderer.relative(this.editor).x(this.splitWidth).y(0).w(1F, -this.splitWidth).h(1F);
         this.splitter.relative(this.editor).x(this.splitWidth).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        /* A fully solid dark backdrop over the whole panel so the dashboard background doesn't show through
+         * the settings pane or behind the preview. deepSurface() is the same solid the mini preview uses. */
+        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.deepSurface());
+
+        super.render(context);
     }
 
     @Override
@@ -231,6 +265,50 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         super.update();
 
         this.tryLoadPending();
+        this.checkReload();
+
+        if (this.undoHandler != null)
+        {
+            this.undoHandler.submitUndo();
+        }
+    }
+
+    /**
+     * When the model's files change on disk (e.g. a bone deleted in Blockbench) the watchdog drops the old
+     * {@link ModelInstance} and a fresh one loads under the same id. The preview follows it by id every frame,
+     * but our settings widgets are static — built off {@link #bound} — so the bone lists keep the old bones
+     * until re-entering the tab. Detect the swap and re-bind + rebuild so they track the reload live.
+     *
+     * <p>Gated on a model actually being open here ({@code data != null}): switching to a new tab first
+     * auto-saves the model we're leaving, whose {@code config.json} write trips the same watchdog reload —
+     * without this gate that reload would yank the old model back over the fresh tab's empty picker.
+     */
+    private void checkReload()
+    {
+        if (this.data == null || this.bound == null || this.pendingId != null)
+        {
+            return;
+        }
+
+        String id = this.form.model.get();
+
+        if (id == null || id.isEmpty())
+        {
+            return;
+        }
+
+        ModelInstance instance = BBSModClient.getModels().getModel(id);
+
+        if (instance != null && instance != this.bound)
+        {
+            /* A reload (our own 60s periodic save writes config.json too, tripping the watchdog) — keep the
+             * undo stack: its commands are path-based and resolve fine against the fresh config, so re-binding
+             * shouldn't wipe the user's history every time it autosaves. */
+            this.preserveUndo = true;
+            this.hookedConfigs.remove(this.data);
+            this.bound = instance;
+            this.fill(instance.config);
+        }
     }
 
     private void tryLoadPending()
@@ -265,6 +343,15 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     @Override
     protected void fillData(ModelConfig data)
     {
+        if (data == null)
+        {
+            /* No model open in this tab — drop the (possibly already watchdog-deleted) instance so neither
+             * the preview nor checkReload clings to it while the picker is up. */
+            this.bound = null;
+        }
+
+        this.setupUndo(data);
+
         this.seedMap(this.flippedEntries, data == null ? null : data.flippedParts);
         this.seedMap(this.pickingEntries, data == null ? null : data.pickingOverrides);
 
@@ -279,6 +366,83 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         {
             this.folderIcon.setEnabled(data != null);
         }
+
+        if (this.historyIcon != null)
+        {
+            this.historyIcon.setEnabled(data != null);
+        }
+    }
+
+    private void openHistory()
+    {
+        if (this.data == null || this.undoHandler == null)
+        {
+            return;
+        }
+
+        UIOverlay.addOverlay(this.getContext(), new UIUndoHistoryOverlay(UIKeys.MODEL_EDITOR_HISTORY_TITLE, this.undoHandler.getUndoManager(), () -> this.data, this::afterUndo), 200, 0.6F);
+    }
+
+    /**
+     * Wire (or reset) undo for the config that just got filled in. The handler is created once and kept —
+     * so the pre-callback bound into each config stays valid — while its stack is cleared per tab switch.
+     * Each distinct config instance gets the pre-callback registered exactly once (tracked by identity).
+     */
+    private void setupUndo(ModelConfig data)
+    {
+        if (data == null)
+        {
+            return;
+        }
+
+        if (this.undoHandler == null)
+        {
+            this.undoHandler = new UIFormUndoHandler(this);
+        }
+        else if (!this.preserveUndo)
+        {
+            /* Reset on real navigation (open / tab switch / pick) but keep it across a live reload re-bind. */
+            this.undoHandler.reset();
+        }
+
+        this.preserveUndo = false;
+
+        if (this.hookedConfigs.add(data))
+        {
+            data.preCallback(this.undoHandler::handlePreValues);
+        }
+    }
+
+    public void undo()
+    {
+        if (this.data != null && this.undoHandler != null && this.undoHandler.getUndoManager().undo(this.data))
+        {
+            this.afterUndo();
+            UIUtils.playClick();
+        }
+    }
+
+    public void redo()
+    {
+        if (this.data != null && this.undoHandler != null && this.undoHandler.getUndoManager().redo(this.data))
+        {
+            this.afterUndo();
+            UIUtils.playClick();
+        }
+    }
+
+    /**
+     * An undo/redo restores config values straight through {@code fromData}, which the static widgets and
+     * baked geometry don't track. Re-derive the config's caches, re-bake the instance, re-seed the working
+     * map rows and rebuild the sections so the whole editor reflects the restored state.
+     */
+    private void afterUndo()
+    {
+        this.data.rebuild();
+        this.refresh();
+        this.seedMap(this.flippedEntries, this.data.flippedParts);
+        this.seedMap(this.pickingEntries, this.data.pickingOverrides);
+        this.rebuildSections(this.data);
     }
 
     @Override
@@ -394,19 +558,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         return count;
     }
 
-    /** A "label : widget" row (widget fills the rest) — half the height of a stacked label + widget.
-     *  Label and widget share the same height and centre vertically, so they line up on their own. */
     private UIElement labeledRow(IKey label, UIElement widget)
     {
-        return this.labeledRow(label, widget, 64);
-    }
-
-    private UIElement labeledRow(IKey label, UIElement widget, int labelWidth)
-    {
-        return UI.row(UIConstants.MARGIN, 0, UIConstants.CONTROL_HEIGHT,
-            UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F).w(labelWidth),
-            widget
-        );
+        return UI.labelRow(label, widget);
     }
 
     /** A sub-list header: a label on the left and a compact "+" add button pinned to the right. */
@@ -511,7 +665,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         UISimpleTransform transform = new UISimpleTransform(config::rebuild);
 
-        transform.setTransform(slot.transform.get());
+        transform.setValue(slot.transform);
         transform.w(1F);
 
         return transform;
@@ -532,8 +686,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         section.fields.add(this.listHeader(label, UIKeys.MODEL_EDITOR_ITEM_ADD, () ->
         {
-            list.add(new ArmorSlotValue(String.valueOf(list.getList().size())));
-            list.sync();
+            BaseValue.edit(list, (v) ->
+            {
+                list.add(new ArmorSlotValue(String.valueOf(list.getList().size())));
+                list.sync();
+            });
             config.rebuild();
             this.rebuildSections(config);
         }));
@@ -548,8 +705,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         UIIcon remove = new UIIcon(Icons.REMOVE, (b) ->
         {
-            list.getAllTyped().remove(slot);
-            list.sync();
+            BaseValue.edit(list, (v) ->
+            {
+                list.getAllTyped().remove(slot);
+                list.sync();
+            });
             config.rebuild();
             this.rebuildSections(config);
         });
@@ -621,7 +781,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             {
                 config.rebuild();
                 this.fillArmorBody(config);
-            }), 88)
+            }))
         );
 
         if (slot.isActive())
@@ -668,7 +828,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             {
                 config.rebuild();
                 this.rebuildSections(config);
-            }), 88)
+            }))
         );
 
         if (slot.isActive())
@@ -749,17 +909,21 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void commitMap(ValueStringMap value, List<String[]> entries)
     {
-        Map<String, String> map = value.get();
-
-        map.clear();
-
-        for (String[] pair : entries)
+        /* The map is mutated in place, so bracket it in a notify (via edit) for the undo handler to catch. */
+        BaseValue.edit(value, (v) ->
         {
-            if (!pair[0].trim().isEmpty())
+            Map<String, String> map = value.get();
+
+            map.clear();
+
+            for (String[] pair : entries)
             {
-                map.put(pair[0], pair[1]);
+                if (!pair[0].trim().isEmpty())
+                {
+                    map.put(pair[0], pair[1]);
+                }
             }
-        }
+        });
     }
 
     /* The sneaking pose is picked from the model's pose presets rather than edited here. */
@@ -839,7 +1003,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         if (this.bound != null)
         {
-            Set<String> hidden = config.disabledBones.get();
+            ValueStringKeys hidden = config.disabledBones;
             String filter = query.trim().toLowerCase();
 
             for (String bone : this.bound.getModel().getGroupKeysInHierarchyOrder())
@@ -854,18 +1018,22 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         list.resize();
     }
 
-    private UIToggle boneToggle(String bone, Set<String> hidden)
+    private UIToggle boneToggle(String bone, ValueStringKeys hidden)
     {
-        return new UIToggle(IKey.raw(bone), !hidden.contains(bone), (t) ->
+        return new UIToggle(IKey.raw(bone), !hidden.get().contains(bone), (t) ->
         {
-            if (t.getValue())
+            /* The set is mutated in place, so bracket it in a notify (via edit) for the undo handler to catch. */
+            BaseValue.edit(hidden, (v) ->
             {
-                hidden.remove(bone);
-            }
-            else
-            {
-                hidden.add(bone);
-            }
+                if (t.getValue())
+                {
+                    hidden.get().remove(bone);
+                }
+                else
+                {
+                    hidden.get().add(bone);
+                }
+            });
         });
     }
 
@@ -1002,16 +1170,22 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void addWeld(ModelConfig config)
     {
-        config.welds.add(new WeldValue(String.valueOf(config.welds.getList().size())));
-        config.welds.sync();
+        BaseValue.edit(config.welds, (v) ->
+        {
+            config.welds.add(new WeldValue(String.valueOf(config.welds.getList().size())));
+            config.welds.sync();
+        });
         this.refresh();
         this.rebuildSections(config);
     }
 
     private void removeWeld(ModelConfig config, WeldValue weld)
     {
-        config.welds.getAllTyped().remove(weld);
-        config.welds.sync();
+        BaseValue.edit(config.welds, (v) ->
+        {
+            config.welds.getAllTyped().remove(weld);
+            config.welds.sync();
+        });
         this.refresh();
         this.rebuildSections(config);
     }
@@ -1094,7 +1268,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         UITrackpad trackpad = new UITrackpad((v) ->
         {
-            Vector3f vector = value.get();
+            /* Edit a copy so the stored vector stays at its old value until set() notifies — otherwise the
+             * undo handler would cache the already-mutated value and the change wouldn't be undoable. */
+            Vector3f vector = new Vector3f(value.get());
 
             if (axis == 0) vector.x = v.floatValue();
             else if (axis == 1) vector.y = v.floatValue();

@@ -43,7 +43,7 @@ public class UIItemFormPanel extends UIFormPanel<ItemForm>
 
         this.itemStackEditor = new UIItemStack((itemStack) -> this.form.stack.set(itemStack.copy()));
 
-        this.options.add(this.color, UI.label(UIKeys.FORMS_EDITORS_ITEM_TRANSFORMS), this.modelTransform, this.itemStackEditor);
+        this.options.add(this.color, UI.labelRow(UIKeys.FORMS_EDITORS_ITEM_TRANSFORMS, this.modelTransform), this.itemStackEditor);
     }
 
     private void setModelTransform(ModelTransformationMode value)

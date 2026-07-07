@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.film.clips.renderer;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -41,15 +40,15 @@ public class UIClipRenderer <T extends Clip> implements IUIClipRenderer<T>
         int left = area.x;
         int right = area.ex();
 
-        if (current)
-        {
-            int color = BBSSettings.primaryColor.get();
-
-            context.batcher.dropShadow(left + 2, y + 2, right - 2, y + h - 2, 8, Colors.A75 + color, color);
-        }
-
         ClipFactoryData data = clips.getFactory().getData(clip);
         int color = Colors.A100 | data.color;
+
+        if (current)
+        {
+            int shadow = data.color & Colors.RGB;
+
+            context.batcher.dropShadow(left + 2, y + 2, right - 2, y + h - 2, 8, Colors.A75 | shadow, shadow);
+        }
 
         if (clip.enabled.get())
         {
@@ -159,38 +158,42 @@ public class UIClipRenderer <T extends Clip> implements IUIClipRenderer<T>
     }
 
     /**
-     * Render simple envelope (using start and end values).
+     * Render simple envelope by sampling its actual shape, so the fade in/out edges
+     * follow the chosen {@code pre}/{@code post} interpolation instead of straight lines.
      */
     protected void renderSimpleEnvelope(BufferBuilder builder, Matrix4f matrix, Envelope envelope, int duration, int x1, int y1, int x2, int y2)
     {
-        /* First triangle */
+        int width = x2 - x1;
+        int height = y2 - y1;
+
+        if (width <= 0)
+        {
+            return;
+        }
+
         int c = ENVELOPE_COLOR.getARGBColor();
-        Vector2f point = this.calculateEnvelopePoint(vector, (int) envelope.getStartX(duration), 0, duration, x1, y1, x2, y2);
-        builder.vertex(matrix, point.x, point.y, 0F).color(c).next();
+        int steps = Math.min(width, 200);
 
-        previous.set(point);
-        point = this.calculateEnvelopePoint(vector, (int) envelope.getStartDuration(duration), 1, duration, x1, y1, x2, y2);
-        builder.vertex(matrix, point.x, y2, 0F).color(c).next();
-        builder.vertex(matrix, point.x, point.y, 0F).color(c).next();
+        float prevX = x1;
+        float prevY = y1 + height * (1 - MathUtils.clamp(envelope.factor(duration, 0), 0F, 1F));
 
-        /* Second triangle */
-        previous.set(point);
-        point = this.calculateEnvelopePoint(vector, (int) envelope.getEndDuration(duration), 1, duration, x1, y1, x2, y2);
-        builder.vertex(matrix, point.x, point.y, 0F).color(c).next();
-        builder.vertex(matrix, previous.x, y2, 0F).color(c).next();
-        builder.vertex(matrix, point.x, y2, 0F).color(c).next();
+        for (int i = 1; i <= steps; i++)
+        {
+            float f = i / (float) steps;
+            float x = x1 + width * f;
+            float y = y1 + height * (1 - MathUtils.clamp(envelope.factor(duration, duration * f), 0F, 1F));
 
-        /* Third triangle */
-        builder.vertex(matrix, point.x, point.y, 0F).color(c).next();
-        builder.vertex(matrix, previous.x, previous.y, 0F).color(c).next();
-        builder.vertex(matrix, previous.x, y2, 0F).color(c).next();
+            builder.vertex(matrix, prevX, prevY, 0F).color(c).next();
+            builder.vertex(matrix, prevX, y2, 0F).color(c).next();
+            builder.vertex(matrix, x, y2, 0F).color(c).next();
 
-        /* Fourth triangle */
-        previous.set(point);
-        point = this.calculateEnvelopePoint(vector, (int) envelope.getEndX(duration), 0, duration, x1, y1, x2, y2);
-        builder.vertex(matrix, previous.x, previous.y, 0F).color(c).next();
-        builder.vertex(matrix, previous.x, y2, 0F).color(c).next();
-        builder.vertex(matrix, point.x, point.y, 0F).color(c).next();
+            builder.vertex(matrix, prevX, prevY, 0F).color(c).next();
+            builder.vertex(matrix, x, y2, 0F).color(c).next();
+            builder.vertex(matrix, x, y, 0F).color(c).next();
+
+            prevX = x;
+            prevY = y;
+        }
     }
 
     protected Vector2f calculateEnvelopePoint(Vector2f vector, int tick, float value, int duration, int x1, int y1, int x2, int y2)

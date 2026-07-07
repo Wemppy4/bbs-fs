@@ -102,10 +102,10 @@ public class UIGeneralFormPanel extends UIFormPanel
         UISection display = new UISection(UIKeys.FORMS_EDITORS_GENERAL_SECTION_DISPLAY);
 
         display.fields.add(
-            UI.label(UIKeys.FORMS_EDITORS_GENERAL_DISPLAY), this.name,
+            UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_DISPLAY, this.name),
             this.hotkey, this.visible,
             this.lighting, this.shaderShadow, this.additiveColor,
-            UI.label(UIKeys.FORMS_EDITORS_GENERAL_UI_SCALE), this.uiScale
+            UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_UI_SCALE, this.uiScale)
         );
 
         UISection tracks = new UISection(UIKeys.FORMS_EDITORS_GENERAL_SECTION_TRACKS);
@@ -121,16 +121,16 @@ public class UIGeneralFormPanel extends UIFormPanel
         hitbox.fields.add(
             this.hitbox,
             UI.row(this.hitboxWidth, this.hitboxHeight),
-            UI.label(UIKeys.FORMS_EDITORS_GENERAL_HITBOX_SNEAK_MULTIPLIER), this.hitboxSneakMultiplier,
-            UI.label(UIKeys.FORMS_EDITORS_GENERAL_HITBOX_EYE_HEIGHT), this.hitboxEyeHeight
+            UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_HITBOX_SNEAK_MULTIPLIER, this.hitboxSneakMultiplier),
+            UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_HITBOX_EYE_HEIGHT, this.hitboxEyeHeight)
         );
 
         UISection movement = new UISection(UIKeys.FORMS_EDITORS_GENERAL_SECTION_MOVEMENT);
 
         movement.fields.add(
-            UI.label(UIKeys.FORMS_EDITORS_GENERAL_HP), this.hp,
-            UI.label(UIKeys.FORMS_EDITORS_GENERAL_MOVEMENT_SPEED), this.speed.tooltip(UIKeys.FORMS_EDITORS_GENERAL_MOVEMENT_SPEED_TOOLTIP),
-            UI.label(UIKeys.FORMS_EDITORS_GENERAL_STEP_HEIGHT), this.stepHeight
+            UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_HP, this.hp),
+            UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_MOVEMENT_SPEED, this.speed.tooltip(UIKeys.FORMS_EDITORS_GENERAL_MOVEMENT_SPEED_TOOLTIP)),
+            UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_STEP_HEIGHT, this.stepHeight)
         );
 
         this.options.add(

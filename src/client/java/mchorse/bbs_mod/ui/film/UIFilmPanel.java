@@ -425,7 +425,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         /* Setup elements */
 
-        this.editor.add(new UIRenderable(this::renderPanelSurfaces), this.main, new UIRenderable(this::renderPanelBorders), new UIRenderable(this::renderIcons), new UIRenderable(this::renderDropZoneHighlight));
+        this.editor.add(new UIRenderable(this::renderPanelSurfaces), this.main, new UIRenderable(this::renderPanelBorders), new UIRenderable(this::renderDropZoneHighlight));
         for (String id : this.panelById.keySet())
         {
             UIDraggable handle = this.createPanelDragHandle(id);
@@ -1790,7 +1790,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         menu.action(Icons.LIST, UIKeys.FILM_OPEN_HISTORY, () ->
         {
-            UIOverlay.addOverlay(this.getContext(), new UIUndoHistoryOverlay(this), 200, 0.6F);
+            UIOverlay.addOverlay(this.getContext(), new UIUndoHistoryOverlay(UIKeys.FILM_HISTORY_TITLE, this.getUndoHandler().getUndoManager(), this::getData, null), 200, 0.6F);
         });
 
         menu.action(Icons.ARROW_RIGHT, UIKeys.FILM_MOVE_TITLE, () ->
@@ -1858,7 +1858,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         menu.action(Icons.GEAR, UIKeys.FILM_PLAYER_SETTINGS, () ->
         {
-            UIOverlay.addOverlay(this.getContext(), new UIFilmPlayerSettingsOverlayPanel(this.getData()), 280, 0.8F);
+            UIOverlay.addOverlay(this.getContext(), new UIFilmPlayerSettingsOverlayPanel(this.getData()), 280, 0.4F);
         });
 
         menu.action(Icons.HELP, L10n.lang("bbs.ui.film.details.button"), () ->
@@ -3104,21 +3104,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
     }
 
-    /**
-     * Draw icons for indicating different active states (like syncing
-     * or flight mode)
-     */
-    private void renderIcons(UIContext context)
-    {
-        int x = this.iconBar.area.ex() - 18;
-        int y = this.iconBar.area.ey() - EDIT_PANEL_TOP_OFFSET_PX * 2 - 20;
-
-        if (BBSSettings.editorLoop.get())
-        {
-            context.batcher.icon(Icons.REFRESH, x, y);
-        }
-    }
-
     @Override
     public void startRenderFrame(float tickDelta)
     {
@@ -3214,6 +3199,19 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     public boolean canUseKeybinds()
     {
         return !this.isFlying();
+    }
+
+    /**
+     * Whether a visible clips timeline has a clip selected — i.e. the clip
+     * keybinds (like {@code M} for duration) would claim the key. Preview
+     * shortcuts that share a key with a clip keybind (the motion path toggle)
+     * step aside when this is true, since the clips editor sits before the
+     * controller in the key dispatch and would otherwise never see the press.
+     */
+    public boolean hasSelectedClip()
+    {
+        return (this.cameraEditor != null && this.cameraEditor.isVisible() && this.cameraEditor.getClip() != null)
+            || (this.actionEditor != null && this.actionEditor.isVisible() && this.actionEditor.getClip() != null);
     }
 
     public void fillData()

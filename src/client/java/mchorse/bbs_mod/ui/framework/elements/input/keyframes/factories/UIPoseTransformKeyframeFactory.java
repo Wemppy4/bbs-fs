@@ -71,7 +71,7 @@ public class UIPoseTransformKeyframeFactory extends UIKeyframeFactory<PoseTransf
         this.lighting.h(UIConstants.CONTROL_HEIGHT);
         this.lighting.setValue(keyframe.getValue().lighting == 0F);
 
-        this.scroll.add(UI.label(UIKeys.POSE_CONTEXT_FIX), this.fix, UI.row(this.color, this.lighting), this.transform.marginTop(4));
+        this.scroll.add(UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.fix), UI.row(this.color, this.lighting), this.transform.marginTop(4));
     }
 
     private void toggleFix()

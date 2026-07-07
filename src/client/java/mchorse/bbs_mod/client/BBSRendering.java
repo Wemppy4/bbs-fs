@@ -543,6 +543,22 @@ public class BBSRendering
         return IrisUtils.isShadowPass();
     }
 
+    /**
+     * Iris considers a vanilla core program applied during world rendering a stray
+     * draw into its G-buffers and masks its color/depth writes. Reporting that the
+     * main framebuffer isn't bound (like vanilla render targets do via bindWrite)
+     * turns both core shader overrides and that masking off.
+     */
+    public static void setIrisMainBound(boolean bound)
+    {
+        if (!iris)
+        {
+            return;
+        }
+
+        IrisUtils.setMainBound(bound);
+    }
+
     public static void trackTexture(Texture texture)
     {
         if (!iris)

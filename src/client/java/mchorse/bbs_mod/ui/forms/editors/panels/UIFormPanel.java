@@ -15,7 +15,7 @@ import java.util.Map;
 
 public abstract class UIFormPanel <T extends Form> extends UIElement
 {
-    private static final float DEFAULT_OPTIONS_WIDTH = 0.1F;
+    private static final float DEFAULT_OPTIONS_WIDTH = 0.2F;
 
     private static Map<Class, Float> widths = new HashMap<>();
 
@@ -31,7 +31,7 @@ public abstract class UIFormPanel <T extends Form> extends UIElement
 
         this.options = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
         this.options.scroll.cancelScrolling();
-        this.options.relative(this).x(1F).w(widths.getOrDefault(this.getClass(), DEFAULT_OPTIONS_WIDTH)).minW(140).h(1F).anchorX(1F);
+        this.options.relative(this).x(1F).w(widths.getOrDefault(this.getClass(), DEFAULT_OPTIONS_WIDTH)).minW(120).h(1F).anchorX(1F);
 
         this.draggable = new UIDraggable((context) ->
         {

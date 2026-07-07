@@ -1092,8 +1092,9 @@ public class UITextarea <T extends TextLine> extends UIElement implements IFocus
         boolean shift = Window.isShiftPressed();
 
         TextEditUndo undo = new TextEditUndo(this);
+        boolean handled = this.handleKeys(context, undo, ctrl, shift);
 
-        if (this.handleKeys(context, undo, ctrl, shift))
+        if (handled)
         {
             this.moveViewportToCursor();
         }
@@ -1107,7 +1108,7 @@ public class UITextarea <T extends TextLine> extends UIElement implements IFocus
         this.horizontal.clamp();
         this.vertical.clamp();
 
-        return super.subKeyPressed(context);
+        return handled || super.subKeyPressed(context);
     }
 
     @Override
@@ -1170,6 +1171,8 @@ public class UITextarea <T extends TextLine> extends UIElement implements IFocus
         else if (ctrl && context.isPressed(GLFW.GLFW_KEY_A))
         {
             this.selectAll();
+
+            return true;
         }
         /* Cursor and navigation */
         else if (context.isHeld(GLFW.GLFW_KEY_UP) || context.isHeld(GLFW.GLFW_KEY_DOWN) || context.isHeld(GLFW.GLFW_KEY_RIGHT) || context.isHeld(GLFW.GLFW_KEY_LEFT))

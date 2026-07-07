@@ -175,7 +175,6 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
 
     private final UISearchList<String> list;
     private final UIElement itemPanel;
-    private final UIElement itemDetailsWrap;
     private final UIElement blockPanel;
     private final UIElement blockPropertiesWrap;
     private final UIElement blockProperties;
@@ -224,10 +223,6 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         this.itemPanel.relative(this.content).xy(PADDING, PADDING).w(1F, -PADDING * 2).h(1F, -PADDING * 2);
         this.itemPanel.setVisible(mode == PickerMode.ITEM);
 
-        this.itemDetailsWrap = new UIElement();
-        this.itemDetailsWrap.relative(this.itemPanel).x(0.5F, GAP).y(0).w(0.5F, -GAP).h(1F);
-        this.itemDetailsWrap.setVisible(mode == PickerMode.ITEM);
-
         this.blockPanel = new UIElement();
         this.blockPanel.relative(this.content).xy(PADDING, PADDING).w(1F, -PADDING * 2).h(1F, -PADDING * 2);
         this.blockPanel.setVisible(mode == PickerMode.BLOCK);
@@ -273,7 +268,14 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
                 ItemStack parsed = ItemStack.fromNbt(nbt);
 
                 this.acceptItem(parsed);
-                this.selectId(Registries.ITEM.getId(parsed.getItem()).toString());
+
+                String id = Registries.ITEM.getId(parsed.getItem()).toString();
+
+                if (!id.equals(this.selectedId))
+                {
+                    this.selectedId = id;
+                    this.list.list.setCurrentScroll(id);
+                }
             }
             catch (Exception e)
             {}
@@ -281,7 +283,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         this.itemNbt.wrap();
 
         this.blockProperties = UI.scrollView(4, 0);
-        this.blockProperties.relative(this.blockPropertiesWrap).xy(0, 20).w(1F).h(1F, -20);
+        this.blockProperties.relative(this.blockPropertiesWrap).xy(0, HEADER_HEIGHT).w(1F).h(1F, -HEADER_HEIGHT);
 
         if (mode == PickerMode.ITEM)
         {

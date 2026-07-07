@@ -81,9 +81,9 @@ public class UIActionsConfigEditor extends UIElement
         this.column().vertical().stretch();
         this.add(UI.label(UIKeys.FORMS_EDITORS_MODEL_ACTIONS), this.actions);
         this.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_ANIMATIONS).marginTop(UIConstants.SECTION_GAP), this.animations, this.loop);
-        this.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_SPEED).marginTop(UIConstants.SECTION_GAP), this.speed);
-        this.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_FADE).marginTop(UIConstants.SECTION_GAP), this.fade);
-        this.add(UI.label(UIKeys.FORMS_EDITORS_ACTIONS_TICK).marginTop(UIConstants.SECTION_GAP), this.tick);
+        this.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_SPEED, this.speed).marginTop(UIConstants.SECTION_GAP));
+        this.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_FADE, this.fade));
+        this.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_TICK, this.tick));
     }
 
     private void callback(Runnable runnable)

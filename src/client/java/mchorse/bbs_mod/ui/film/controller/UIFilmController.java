@@ -194,6 +194,18 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
             UIUtils.playClick();
         }).category(category);
+        this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_MOTION_PATH, () ->
+        {
+            this.getMotionPath().enabled.toggle();
+
+            UIUtils.playClick();
+        }).strict().active(() -> !this.panel.hasSelectedClip()).category(category);
+        this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_MOTION_PATH_PIN, () ->
+        {
+            this.toggleMotionPathPin();
+
+            UIUtils.playClick();
+        }).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_OPEN_REPLAYS, () ->
         {
             this.panel.showPanel(this.panel.replayEditor);
@@ -258,6 +270,52 @@ public class UIFilmController extends UIElement implements GizmoViewport
     public ValueMotionPath getMotionPath()
     {
         return BBSSettings.editorMotionPath;
+    }
+
+    /**
+     * A motion path target pinned so it keeps showing regardless of what's
+     * selected. When nothing is pinned the path follows the selection (the
+     * selected replay's bone, or its root coordinates). The pinned replay is
+     * held live (not by id), so it self-clears once the replay is gone.
+     */
+    private Replay pinnedReplay;
+    private Pair<String, Boolean> pinnedBone;
+
+    public boolean isMotionPathPinned()
+    {
+        if (this.pinnedReplay != null && this.panel.getData() != null && !this.panel.getData().replays.getList().contains(this.pinnedReplay))
+        {
+            this.unpinMotionPath();
+        }
+
+        return this.pinnedReplay != null;
+    }
+
+    /** Pin the currently selected replay and bone so its motion path stays shown. */
+    public void pinMotionPath()
+    {
+        Replay replay = this.getReplay();
+
+        this.pinnedReplay = replay;
+        this.pinnedBone = replay == null ? null : this.getBone();
+    }
+
+    public void unpinMotionPath()
+    {
+        this.pinnedReplay = null;
+        this.pinnedBone = null;
+    }
+
+    public void toggleMotionPathPin()
+    {
+        if (this.isMotionPathPinned())
+        {
+            this.unpinMotionPath();
+        }
+        else
+        {
+            this.pinMotionPath();
+        }
     }
 
     private int getTick()
@@ -1199,6 +1257,13 @@ public class UIFilmController extends UIElement implements GizmoViewport
         int x = area.ex() - 4;
         int y = area.y + 5;
 
+        if (BBSSettings.editorLoop.get())
+        {
+            context.batcher.icon(Icons.REFRESH, Colors.WHITE | Colors.A100, x, y, 1F, 0F);
+
+            y += 16 + 5;
+        }
+
         if (this.panel.isFlying())
         {
             String label = UIKeys.FILM_CONTROLLER_SPEED.format(this.panel.dashboard.orbit.speed.getValue()).get();
@@ -1389,9 +1454,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         if (motionPath.enabled.get() && !this.isRecording())
         {
-            Replay replay = this.panel.replayEditor.getReplay();
+            boolean pinned = this.isMotionPathPinned();
+            Replay replay = pinned ? this.pinnedReplay : this.getReplay();
+            Pair<String, Boolean> bone = pinned ? this.pinnedBone : this.getBone();
 
-            MotionPath.render(context, motionPath, this, replay, replay == null ? 0F : replay.getTick(this.getTick()));
+            MotionPath.render(context, motionPath, this, replay, bone, replay == null ? 0F : replay.getTick(this.getTick()));
         }
 
         Mouse mouse = MinecraftClient.getInstance().mouse;

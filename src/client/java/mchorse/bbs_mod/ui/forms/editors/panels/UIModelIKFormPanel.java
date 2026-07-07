@@ -1,8 +1,8 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.ik.ModelIKConfig;
-import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
 import mchorse.bbs_mod.cubic.ik.ModelIKIO;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
@@ -10,8 +10,11 @@ import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.forms.editors.utils.UIDebugOverlayContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
@@ -81,8 +84,9 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_NAME
         ));
 
-        this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_DEBUG, (b) -> ModelIKDebug.enabled = b.getValue());
-        this.debug.setValue(ModelIKDebug.enabled);
+        this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_DEBUG, (b) -> BBSSettings.ikDebug.enabled.set(b.getValue()));
+        this.debug.setValue(BBSSettings.ikDebug.enabled.get());
+        this.debug.context(() -> new UIDebugOverlayContextMenu(BBSSettings.ikDebug));
 
         this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_ENABLED, (b) ->
         {
@@ -221,22 +225,28 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         settings.fields.add(
             this.enabled,
             this.target,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH).marginTop(UIConstants.SECTION_GAP),
-            this.chainLength,
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH, this.chainLength).marginTop(UIConstants.SECTION_GAP),
             this.pole,
             this.poleTarget,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_POLE_ANGLE).marginTop(UIConstants.SECTION_GAP),
-            this.poleAngle,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_SOFTNESS).marginTop(UIConstants.SECTION_GAP),
-            this.softness,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT).marginTop(UIConstants.SECTION_GAP),
-            this.weight,
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_POLE_ANGLE, this.poleAngle).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_SOFTNESS, this.softness).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT, this.weight).marginTop(UIConstants.SECTION_GAP),
             this.tipRotation,
             this.stretch
         );
 
+        UIIcon debugSettings = new UIIcon(Icons.GEAR, (b) -> this.getContext().replaceContextMenu(new UIDebugOverlayContextMenu(BBSSettings.ikDebug)));
+
+        debugSettings.tooltip(UIKeys.MODEL_DEBUG_CONFIGURE);
+        debugSettings.wh(20, 14);
+
+        UIElement debugRow = new UIElement();
+
+        debugRow.row(0).preferred(0).height(14);
+        debugRow.add(this.debug, debugSettings);
+
         this.options.add(
-            this.debug,
+            debugRow,
             this.bones,
             settings
         );
@@ -246,6 +256,8 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     public void startEdit(ModelForm form)
     {
         super.startEdit(form);
+
+        this.debug.setValue(BBSSettings.ikDebug.enabled.get());
 
         ModelInstance model = ModelFormRenderer.getModel(form);
         this.presetGroup = this.resolvePresetGroup(form, model);

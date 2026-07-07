@@ -17,6 +17,7 @@ import mchorse.bbs_mod.utils.Direction;
 public class UIMotionPathContextMenu extends UIContextMenu
 {
     public UIIcon enable;
+    public UIIcon pin;
     public UIIcon gradient;
     public UIIcon around;
 
@@ -52,6 +53,8 @@ public class UIMotionPathContextMenu extends UIContextMenu
 
         this.enable = new UIIcon(() -> this.motionPath.enabled.get() ? Icons.VISIBLE : Icons.INVISIBLE, (b) -> this.motionPath.enabled.toggle());
         this.enable.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE);
+        this.pin = new UIIcon(() -> this.panel.getController().isMotionPathPinned() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.togglePin());
+        this.pin.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_PIN);
         this.gradient = new UIIcon(Icons.GRAPH, (b) -> this.motionPath.gradient.toggle());
         this.gradient.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_GRADIENT);
         this.around = new UIIcon(Icons.MAXIMIZE, (b) -> this.motionPath.aroundCurrent.toggle());
@@ -92,7 +95,7 @@ public class UIMotionPathContextMenu extends UIContextMenu
         this.after.limit(1, 1000, true).setValue(this.motionPath.after.get());
 
         this.column = UI.column(4, 8,
-            UI.row(this.enable, this.gradient, this.around),
+            UI.row(this.enable, this.pin, this.gradient, this.around),
             UI.label(UIKeys.FILM_CONTROLLER_MOTION_PATH_LINE), UI.row(this.color, this.width),
             UI.label(UIKeys.FILM_CONTROLLER_MOTION_PATH_GRADIENT), UI.row(this.pastColor, this.futureColor),
             UI.label(UIKeys.FILM_CONTROLLER_MOTION_PATH_FRAMES), UI.row(this.frames, this.frameSize),
@@ -104,6 +107,11 @@ public class UIMotionPathContextMenu extends UIContextMenu
 
         this.add(this.column);
         this.column.resize();
+    }
+
+    private void togglePin()
+    {
+        this.panel.getController().toggleMotionPathPin();
     }
 
     @Override

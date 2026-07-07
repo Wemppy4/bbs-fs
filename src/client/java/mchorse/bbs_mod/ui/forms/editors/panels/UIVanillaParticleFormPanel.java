@@ -46,10 +46,10 @@ public class UIVanillaParticleFormPanel extends UIFormPanel<VanillaParticleForm>
         this.offsetZ = new UITrackpad((v) -> this.form.offsetZ.set(v.floatValue()));
         this.offsetZ.tooltip(UIKeys.GENERAL_Z);
 
-        this.options.add(this.settings, this.paused.marginTop(UIConstants.SECTION_GAP), this.local, UI.label(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_VELOCITY).marginTop(UIConstants.SECTION_GAP), this.velocity);
-        this.options.add(UI.label(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_EMISSION).marginTop(UIConstants.SECTION_GAP), this.count, this.frequency);
-        this.options.add(UI.label(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_SCATTER).marginTop(UIConstants.SECTION_GAP), this.scatteringYaw, this.scatteringPitch);
-        this.options.add(UI.label(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_OFFSET).marginTop(UIConstants.SECTION_GAP), this.offsetX, this.offsetY, this.offsetZ);
+        this.options.add(this.settings, this.paused.marginTop(UIConstants.SECTION_GAP), this.local, UI.labelRow(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_VELOCITY, this.velocity).marginTop(UIConstants.SECTION_GAP));
+        this.options.add(UI.label(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_EMISSION).marginTop(UIConstants.SECTION_GAP), UI.row(this.count, this.frequency));
+        this.options.add(UI.label(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_SCATTER).marginTop(UIConstants.SECTION_GAP), UI.row(this.scatteringYaw, this.scatteringPitch));
+        this.options.add(UI.label(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_OFFSET).marginTop(UIConstants.SECTION_GAP), UI.row(this.offsetX, this.offsetY, this.offsetZ));
     }
 
     @Override

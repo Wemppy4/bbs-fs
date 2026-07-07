@@ -38,6 +38,8 @@ public class Keys
     public static final KeyCombo CLIP_SELECT_TRACK = new KeyCombo("clip_select_track", UIKeys.CAMERA_EDITOR_KEYS_CLIPS_SELECT_TRACK, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("camera");
     public static final KeyCombo CLIP_SELECT_TRACK_BEFORE = new KeyCombo("clip_select_track_before", UIKeys.CAMERA_EDITOR_KEYS_CLIPS_SELECT_TRACK_BEFORE, GLFW.GLFW_KEY_COMMA, GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("camera");
     public static final KeyCombo CLIP_SELECT_TRACK_AFTER = new KeyCombo("clip_select_track_after", UIKeys.CAMERA_EDITOR_KEYS_CLIPS_SELECT_TRACK_AFTER, GLFW.GLFW_KEY_PERIOD, GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("camera");
+    public static final KeyCombo CLIP_LAYER_UP = new KeyCombo("clip_layer_up", UIKeys.CAMERA_EDITOR_KEYS_CLIPS_LAYER_UP, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_LEFT_ALT).repeatable().categoryKey("camera");
+    public static final KeyCombo CLIP_LAYER_DOWN = new KeyCombo("clip_layer_down", UIKeys.CAMERA_EDITOR_KEYS_CLIPS_LAYER_DOWN, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_LEFT_ALT).repeatable().categoryKey("camera");
     public static final KeyCombo CLIP_SHIFT = new KeyCombo("clip_shift", UIKeys.CAMERA_TIMELINE_CONTEXT_SHIFT, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("camera");
     public static final KeyCombo CLIP_SELECT_AFTER = new KeyCombo("clip_select_after", UIKeys.CAMERA_EDITOR_KEYS_EDITOR_SELECT_AFTER, GLFW.GLFW_KEY_PERIOD, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("camera");
     public static final KeyCombo CLIP_SELECT_BEFORE = new KeyCombo("clip_select_before", UIKeys.CAMERA_EDITOR_KEYS_EDITOR_SELECT_BEFORE, GLFW.GLFW_KEY_COMMA, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("camera");
@@ -142,6 +144,8 @@ public class Keys
     public static final KeyCombo FILM_CONTROLLER_MOVE_REPLAY_TO_CURSOR = new KeyCombo("move_replay_to_cursor", UIKeys.FILM_CONTROLLER_KEYS_MOVE_REPLAY_TO_CURSOR, GLFW.GLFW_KEY_G, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_RESTART_ACTIONS = new KeyCombo("restart_actions", UIKeys.FILM_CONTROLLER_KEYS_RESTART_ACTIONS, GLFW.GLFW_KEY_R, GLFW.GLFW_KEY_LEFT_ALT).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_TOGGLE_ONION_SKIN = new KeyCombo("toggle_onion_skin", UIKeys.FILM_CONTROLLER_ONION_SKIN_KEYS_TOGGLE, GLFW.GLFW_KEY_O).categoryKey("film_controller");
+    public static final KeyCombo FILM_CONTROLLER_TOGGLE_MOTION_PATH = new KeyCombo("toggle_motion_path", UIKeys.FILM_CONTROLLER_MOTION_PATH_KEYS_TOGGLE, GLFW.GLFW_KEY_M).categoryKey("film_controller");
+    public static final KeyCombo FILM_CONTROLLER_TOGGLE_MOTION_PATH_PIN = new KeyCombo("toggle_motion_path_pin", UIKeys.FILM_CONTROLLER_MOTION_PATH_KEYS_TOGGLE_PIN, GLFW.GLFW_KEY_M, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_OPEN_REPLAYS = new KeyCombo("toggle_replays", UIKeys.FILM_CONTROLLER_KEYS_OPEN_REPLAYS, GLFW.GLFW_KEY_RIGHT_SHIFT).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_CYCLE_EDITORS = new KeyCombo("cycle_editors", UIKeys.FILM_CONTROLLER_KEYS_CYCLE_EDITORS, GLFW.GLFW_KEY_GRAVE_ACCENT).categoryKey("film_controller");
     public static final KeyCombo FILM_CONTROLLER_NEXT_DOCK_TAB = new KeyCombo("next_dock_tab", UIKeys.FILM_CONTROLLER_KEYS_CYCLE_EDITORS, GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("film_controller");

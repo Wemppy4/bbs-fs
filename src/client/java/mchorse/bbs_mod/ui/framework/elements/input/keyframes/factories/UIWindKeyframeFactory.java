@@ -50,16 +50,12 @@ public class UIWindKeyframeFactory extends UIKeyframeFactory<WindControl>
         this.turbulenceScale.limit(0D, 10D).increment(0.1D).values(0.1D, 0.05D, 0.5D);
 
         this.scroll.add(UI.column(
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_STRENGTH).marginTop(UIConstants.SECTION_GAP),
-            this.strength,
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_STRENGTH, this.strength).marginTop(UIConstants.SECTION_GAP),
             UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_DIRECTION).marginTop(UIConstants.SECTION_GAP),
             UI.row(this.x, this.y, this.z),
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE).marginTop(UIConstants.SECTION_GAP),
-            this.turbulence,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SPEED).marginTop(UIConstants.SECTION_GAP),
-            this.turbulenceSpeed,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SCALE).marginTop(UIConstants.SECTION_GAP),
-            this.turbulenceScale
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE, this.turbulence).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SPEED, this.turbulenceSpeed).marginTop(UIConstants.SECTION_GAP),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE_SCALE, this.turbulenceScale).marginTop(UIConstants.SECTION_GAP)
         ));
 
         this.display();

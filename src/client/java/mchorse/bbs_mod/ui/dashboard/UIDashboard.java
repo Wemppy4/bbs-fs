@@ -8,8 +8,6 @@ import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.OrbitCamera;
 import mchorse.bbs_mod.camera.controller.OrbitCameraController;
 import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
-import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.events.register.RegisterDashboardPanelsEvent;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -135,10 +133,10 @@ public class UIDashboard extends UIBaseMenu
         }).category(category);
         this.overlay.keys().register(Keys.TOGGLE_DEBUG, () ->
         {
-            boolean enabled = !(ModelIKDebug.enabled || ModelPhysicsDebug.enabled);
+            boolean enabled = !(BBSSettings.ikDebug.enabled.get() || BBSSettings.physicsDebug.enabled.get());
 
-            ModelIKDebug.enabled = enabled;
-            ModelPhysicsDebug.enabled = enabled;
+            BBSSettings.ikDebug.enabled.set(enabled);
+            BBSSettings.physicsDebug.enabled.set(enabled);
         }).category(category);
         this.overlay.keys().register(Keys.OPEN_UTILITY_PANEL, () ->
         {

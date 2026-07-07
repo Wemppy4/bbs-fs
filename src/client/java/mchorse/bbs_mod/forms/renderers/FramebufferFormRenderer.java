@@ -3,6 +3,7 @@ package mchorse.bbs_mod.forms.renderers;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
@@ -154,6 +155,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         depth += 1;
 
+        if (depth == 1)
+        {
+            BBSRendering.setIrisMainBound(false);
+        }
+
         try
         {
             super.renderBodyParts(context);
@@ -161,6 +167,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         finally
         {
             depth -= 1;
+
+            if (depth == 0)
+            {
+                BBSRendering.setIrisMainBound(true);
+            }
         }
 
         context.stack.pop();

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.cubic.physics;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsConfig;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
+import mchorse.bbs_mod.utils.joml.Matrices;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
@@ -15,7 +16,7 @@ import java.util.Map;
 /**
  * The per-chain bone-physics solver. Given a chain's {@link ChainState}, the animated pose and the chain
  * config, it integrates the Verlet particles a fixed number of sub-steps per film tick, springs each segment
- * toward the pose, holds segment lengths and swing cones, resolves world collisions, and reconstructs the
+ * toward the pose, holds segment lengths and per-bone angle limits, resolves world collisions, and reconstructs the
  * render shape. Stateless beyond the {@link ChainState} it is handed — the runtime owns lifecycle and timing.
  */
 final class ChainSolver
@@ -283,9 +284,15 @@ final class ChainSolver
          * floppier tip. Applied as an angular pull in solveSpring, not a positional one. */
         float[] stiffStep = computeStiffnessSteps(clamp01(stiffnessValue), state.pos.length, h);
 
-        /* Per-bone swing limits, as the cosine of the widest deviation each bone may take from its pose
-         * direction; null when no bone in the chain is constrained, so the cone clamp is skipped. */
-        float[] coneCos = computeConeLimits(ids, constraints);
+        /* Per-bone angle limits: each bone's swing is decomposed into a local euler rotation off its rest
+         * direction and clamped to its constraint's per-axis min/max. Skipped when nothing is constrained. */
+        boolean limits = constraints != null && !constraints.isEmpty();
+        PhysicsRig rig = limits ? PhysicsRig.of(model) : null;
+
+        if (rig == null)
+        {
+            limits = false;
+        }
 
         Vector3f startAnchor = new Vector3f(state.anchor);
         Quaternionf startAnchorRotation = new Quaternionf(state.anchorRotation);
@@ -354,8 +361,8 @@ final class ChainSolver
             /* Length relaxation: backward then forward passes, iterated. The symmetric two-way sweep is
              * what keeps a long chain stable — a single forward-only ("follow the leader") pass would let
              * each joint rigidly inherit its parent's motion, which Verlet reads back as spurious velocity
-             * and pumps into a slow standing wave that never settles while the anchor moves. The cone is
-             * folded in so length and limit converge together. */
+             * and pumps into a slow standing wave that never settles while the anchor moves. The angle
+             * limits run once after this converges, so the two don't fight iteration to iteration. */
             for (int iter = 0; iter < iterations; iter++)
             {
                 if (hardTarget)
@@ -371,10 +378,18 @@ final class ChainSolver
                 {
                     state.pos[last].set(targetPosition);
                 }
+            }
 
-                if (coneCos != null)
+            /* Angle limits run once, after the length solver has converged, so the clamp and the length
+             * constraints don't fight iteration to iteration. The collision pass below re-imposes the
+             * lengths and endpoints the clamp disturbed; when collisions are off, do it here. */
+            if (limits)
+            {
+                applyAngleConstraints(rig, ids, state.pos, lengths, constraints, parentRotation);
+
+                if (!collisions)
                 {
-                    applyConeLimits(state.pos, stepAnchorRotation, state.poseLocal, coneCos, last);
+                    lengthForward(state.pos, lengths);
                     pinEnds(state.pos, state.anchor, targetPosition, last);
                 }
             }
@@ -527,51 +542,6 @@ final class ChainSolver
     }
 
     /**
-     * Per-bone cosine of the widest swing the bone may take from its animated pose direction, read from
-     * its enabled constraint's bend limits. A value above 1 marks a bone with no active limit. Returns
-     * null when no bone in the chain is constrained, so the solver skips the cone pass entirely.
-     */
-    private static float[] computeConeLimits(List<String> ids, Map<String, ModelConstraintsConfig.BoneConstraint> constraints)
-    {
-        if (constraints == null || constraints.isEmpty())
-        {
-            return null;
-        }
-
-        int boneCount = ids.size();
-        float[] coneCos = new float[boneCount];
-        boolean any = false;
-
-        for (int i = 0; i < boneCount; i++)
-        {
-            String boneId = ids.get(i);
-            ModelConstraintsConfig.BoneConstraint c = boneId == null ? null : constraints.get(boneId);
-
-            if (c == null || !c.enabled())
-            {
-                coneCos[i] = 2F;
-                continue;
-            }
-
-            /* The bone points down its own -Y, so bending it is rotation about X and Z; the widest of
-             * those bounds is the cone half-angle. Twist (Y) does not move the direction, so it is left
-             * to the animation and ignored here. */
-            float halfAngle = Math.max(Math.max(Math.abs(c.minX()), Math.abs(c.maxX())), Math.max(Math.abs(c.minZ()), Math.abs(c.maxZ())));
-
-            if (halfAngle >= 180F)
-            {
-                coneCos[i] = 2F;
-                continue;
-            }
-
-            coneCos[i] = (float) Math.cos(Math.toRadians(halfAngle));
-            any = true;
-        }
-
-        return any ? coneCos : null;
-    }
-
-    /**
      * Nudges each segment's direction toward its animated pose direction (carried by the anchor) by the
      * per-point stiffness, keeping the segment's CURRENT length — the length relaxation that follows fixes
      * lengths and shares corrections both ways. Each segment springs independently of its neighbours, so a
@@ -679,88 +649,109 @@ final class ChainSolver
     }
 
     /**
-     * Clamps a unit direction into a cone of half-angle acos(cosMax) around a unit reference, rotating it
-     * back to the cone boundary along the shortest arc — pure direction projection, no euler, no gimbal.
-     * No-op when the direction is already inside the cone or the bone has no active limit (cosMax &gt; 1).
+     * Holds each bone within its constraint's per-axis angle limits. Walking the chain from the root out,
+     * each bone's swing is expressed as a local euler rotation off its rest direction (relative to the
+     * running parent-world frame), clamped to the bone's min/max on X/Y/Z, and the child point is rewritten
+     * along the clamped direction. Only enabled constraints clamp; every bone still advances the parent
+     * frame so the next bone is measured in the right space.
      */
-    private static void projectIntoCone(Vector3f dir, Vector3f ref, float cosMax)
+    private static void applyAngleConstraints(PhysicsRig rig, List<String> ids, Vector3f[] pos, float[] lengths, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Quaternionf rootParentRotation)
     {
-        if (cosMax > 1F)
+        int boneCount = ids.size();
+
+        if (boneCount == 0 || pos == null || pos.length < 2 || lengths == null || lengths.length < 1 || rootParentRotation == null)
         {
             return;
         }
 
-        float cos = dir.x * ref.x + dir.y * ref.y + dir.z * ref.z;
+        Quaternionf parentWorld = new Quaternionf(rootParentRotation);
 
-        if (cos >= cosMax)
+        for (int i = 0; i < boneCount; i++)
         {
-            return;
-        }
+            String boneId = ids.get(i);
+            String childId = i + 1 < boneCount ? ids.get(i + 1) : null;
+            ModelConstraintsConfig.BoneConstraint c = boneId == null ? null : constraints.get(boneId);
 
-        float sin = (float) Math.sqrt(Math.max(0F, 1F - cos * cos));
+            Vector3f restDirLocal = rig.restDirectionLocal(boneId, childId);
 
-        if (sin < EPS)
-        {
-            /* Pointing straight back along the pose — no defined arc, snap to the pose direction. */
-            dir.set(ref);
-            return;
-        }
+            if (restDirLocal == null)
+            {
+                return;
+            }
 
-        float sinMax = (float) Math.sqrt(Math.max(0F, 1F - cosMax * cosMax));
-        float invSin = 1F / sin;
-        float tx = (dir.x - ref.x * cos) * invSin;
-        float ty = (dir.y - ref.y * cos) * invSin;
-        float tz = (dir.z - ref.z * cos) * invSin;
+            Vector3f desiredDirWorld = new Vector3f(pos[i + 1]).sub(pos[i]);
 
-        dir.set(ref.x * cosMax + tx * sinMax, ref.y * cosMax + ty * sinMax, ref.z * cosMax + tz * sinMax);
-    }
-
-    /**
-     * Holds each segment within the cone of its animated pose direction (rebuilt from the anchor). Only the
-     * child point moves; the length passes carry the correction down the tail. Iterated together with the
-     * length relaxation so limit and length converge instead of fighting.
-     */
-    private static void applyConeLimits(Vector3f[] pos, Quaternionf anchorRotation, Vector3f[] poseLocal, float[] coneCos, int segments)
-    {
-        Vector3f ref = new Vector3f();
-        Vector3f dir = new Vector3f();
-
-        for (int i = 0; i < segments; i++)
-        {
-            float cosMax = coneCos[i];
-
-            if (cosMax > 1F)
+            if (restDirLocal.lengthSquared() < EPS * EPS || desiredDirWorld.lengthSquared() < EPS * EPS)
             {
                 continue;
             }
 
-            ref.set(poseLocal[i + 1]).sub(poseLocal[i]);
-            anchorRotation.transform(ref);
+            restDirLocal.normalize();
+            desiredDirWorld.normalize();
 
-            float refLen = ref.length();
+            Quaternionf invParent = new Quaternionf(parentWorld).invert();
+            Vector3f desiredDirLocal = new Vector3f(desiredDirWorld);
+            invParent.transform(desiredDirLocal);
 
-            if (refLen < EPS)
+            if (desiredDirLocal.lengthSquared() < EPS * EPS)
             {
                 continue;
             }
 
-            ref.div(refLen);
+            desiredDirLocal.normalize();
 
-            Vector3f a = pos[i];
-            Vector3f b = pos[i + 1];
+            Quaternionf localRot = Matrices.fromToMirroredX(restDirLocal, desiredDirLocal);
+            Quaternionf applied = localRot;
 
-            dir.set(b).sub(a);
-
-            float len = dir.length();
-
-            if (len < EPS)
+            if (c != null && c.enabled())
             {
-                continue;
+                Vector3f eulerDeg = Matrices.toEulerZYXDegrees(localRot);
+
+                float minX = c.minX();
+                float minY = c.minY();
+                float minZ = c.minZ();
+                float maxX = c.maxX();
+                float maxY = c.maxY();
+                float maxZ = c.maxZ();
+
+                if (minX > maxX)
+                {
+                    float t = minX;
+                    minX = maxX;
+                    maxX = t;
+                }
+
+                if (minY > maxY)
+                {
+                    float t = minY;
+                    minY = maxY;
+                    maxY = t;
+                }
+
+                if (minZ > maxZ)
+                {
+                    float t = minZ;
+                    minZ = maxZ;
+                    maxZ = t;
+                }
+
+                eulerDeg.x = eulerDeg.x < minX ? minX : Math.min(eulerDeg.x, maxX);
+                eulerDeg.y = eulerDeg.y < minY ? minY : Math.min(eulerDeg.y, maxY);
+                eulerDeg.z = eulerDeg.z < minZ ? minZ : Math.min(eulerDeg.z, maxZ);
+
+                applied = Matrices.toQuaternionZYXDegrees(eulerDeg.x, eulerDeg.y, eulerDeg.z);
+                Vector3f dirLocal = new Vector3f(restDirLocal);
+                applied.transform(dirLocal);
+                parentWorld.transform(dirLocal);
+
+                if (dirLocal.lengthSquared() >= EPS * EPS)
+                {
+                    dirLocal.normalize().mul(lengths[i]);
+                    pos[i + 1].set(pos[i]).add(dirLocal);
+                }
             }
 
-            dir.div(len);
-            projectIntoCone(dir, ref, cosMax);
-            b.set(a.x + dir.x * len, a.y + dir.y * len, a.z + dir.z * len);
+            parentWorld.mul(applied);
         }
     }
 

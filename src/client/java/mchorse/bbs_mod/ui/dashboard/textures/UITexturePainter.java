@@ -25,7 +25,6 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
-import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -78,7 +77,7 @@ public class UITexturePainter extends UIElement
 
     private static final int ICON_BAR_W = 20;
     private static final int TOOL_SEPARATOR_GAP = 9;
-    private static final float DEFAULT_OPTIONS_WIDTH = 0F;
+    private static final float DEFAULT_OPTIONS_WIDTH = 0.2F;
     private static final int MIN_OPTIONS_WIDTH = 140;
     private static final int MAX_BRUSH_SIZE = 1024;
 
@@ -130,12 +129,12 @@ public class UITexturePainter extends UIElement
     private UIDraggable modelPreviewDraggable;
     private UIModelPreviewPanel modelPreviewPanel;
 
-    private UILabel brushSizeLabel;
-    private UILabel brushSoftnessLabel;
+    private UIElement brushSizeRow;
+    private UIElement brushSoftnessRow;
     private UIToggle roundBrushToggle;
     private UIToggle brushBuildUpToggle;
     private UIToggle alphaLockToggle;
-    private UILabel eraserOpacityLabel;
+    private UIElement eraserOpacityRow;
     private UITrackpad eraserOpacity;
 
     private UITextureTabs tabs;
@@ -273,26 +272,26 @@ public class UITexturePainter extends UIElement
         this.brushSoftness = new UITrackpad((v) -> {});
         this.brushSoftness.integer().limit(0, 100, true).setValue(0);
 
-        this.brushSizeLabel = UI.label(UIKeys.TEXTURES_BRUSH_SIZE);
-        this.brushSoftnessLabel = UI.label(UIKeys.TEXTURES_BRUSH_SOFTNESS);
+        this.brushSizeRow = UI.labelRow(UIKeys.TEXTURES_BRUSH_SIZE, this.brushSize);
+        this.brushSoftnessRow = UI.labelRow(UIKeys.TEXTURES_BRUSH_SOFTNESS, this.brushSoftness);
         this.roundBrushToggle = new UIToggle(UIKeys.TEXTURES_BRUSH_SHAPE_CIRCLE, this.activeStrokeShape == TextureStrokeShape.CIRCLE, (b) -> this.setRoundBrushEnabled(b.getValue()));
         this.roundBrushToggle.h(UIConstants.CONTROL_HEIGHT);
         this.brushBuildUpToggle = new UIToggle(UIKeys.TEXTURES_BRUSH_ACCUMULATIVE, this.brushBuildUp, (b) -> this.brushBuildUp = b.getValue());
         this.brushBuildUpToggle.h(UIConstants.CONTROL_HEIGHT);
 
-        this.eraserOpacityLabel = UI.label(UIKeys.TEXTURES_ERASER_OPACITY);
         this.eraserOpacity = new UITrackpad((v) -> {});
         this.eraserOpacity.limit(0, 100).setValue(100);
+        this.eraserOpacityRow = UI.labelRow(UIKeys.TEXTURES_ERASER_OPACITY, this.eraserOpacity);
 
         this.options.add(
             this.colorPickersRow,
             this.alphaLockToggle,
-            this.brightness,
-            this.brushSizeLabel, this.brushSize,
-            this.brushSoftnessLabel, this.brushSoftness,
+            UI.labelRow(UIKeys.TEXTURES_VIEWER_BRIGHTNESS, this.brightness),
+            this.brushSizeRow,
+            this.brushSoftnessRow,
             this.roundBrushToggle,
             this.brushBuildUpToggle,
-            this.eraserOpacityLabel, this.eraserOpacity
+            this.eraserOpacityRow
         );
     }
 
@@ -527,14 +526,11 @@ public class UITexturePainter extends UIElement
         boolean strokeTool = this.activeTool == TexturePaintTool.BRUSH || this.activeTool == TexturePaintTool.ERASER;
         boolean eraserTool = this.activeTool == TexturePaintTool.ERASER;
 
-        this.brushSizeLabel.setVisible(strokeTool);
-        this.brushSize.setVisible(strokeTool);
-        this.brushSoftnessLabel.setVisible(strokeTool);
-        this.brushSoftness.setVisible(strokeTool);
+        this.brushSizeRow.setVisible(strokeTool);
+        this.brushSoftnessRow.setVisible(strokeTool);
         this.roundBrushToggle.setVisible(strokeTool);
         this.brushBuildUpToggle.setVisible(strokeTool);
-        this.eraserOpacityLabel.setVisible(eraserTool);
-        this.eraserOpacity.setVisible(eraserTool);
+        this.eraserOpacityRow.setVisible(eraserTool);
 
         this.optionsHost.resize();
     }
