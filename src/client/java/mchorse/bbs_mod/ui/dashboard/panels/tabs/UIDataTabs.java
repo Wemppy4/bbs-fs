@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.dashboard.panels.tabs;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -12,7 +11,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
 
@@ -24,22 +22,22 @@ public class UIDataTabs extends UIElement
     private static final int TAB_MAX_WIDTH = 230;
     private static final int TABS_GAP = 0;
 
-    public final UIDataDashboardPanel<?> panel;
+    public final IUITabs host;
     public final UIScrollView scroll;
     public final UIIcon add;
     private final ArrayList<UIDataTabElement> tabs = new ArrayList<>();
     private int rightInsetPx;
 
-    public UIDataTabs(UIDataDashboardPanel<?> panel)
+    public UIDataTabs(IUITabs host)
     {
-        this.panel = panel;
+        this.host = host;
         this.scroll = new UIScrollView(ScrollDirection.HORIZONTAL);
         this.scroll.scroll.scrollSpeed = 20;
         this.scroll.column(TABS_GAP).scroll();
         this.scroll.scroll.noScrollbar();
         this.updateScrollBounds();
 
-        this.add = new UIIcon(Icons.ADD, (b) -> panel.addTab());
+        this.add = new UIIcon(Icons.ADD, (b) -> host.addTab());
         this.add.wh(TABS_HEIGHT_PX, TABS_HEIGHT_PX);
 
         this.add(new UIRenderable(this::renderBackground), this.scroll);
@@ -58,7 +56,7 @@ public class UIDataTabs extends UIElement
 
     public void sync()
     {
-        if (!this.panel.areTabsEnabled())
+        if (!this.host.areTabsEnabled())
         {
             this.setVisible(false);
             return;
@@ -67,11 +65,11 @@ public class UIDataTabs extends UIElement
         this.setVisible(true);
 
         double scrollPos = this.scroll.scroll.getScroll();
-        int count = this.panel.tabs.size();
+        int count = this.host.getTabCount();
 
         while (this.tabs.size() < count)
         {
-            this.tabs.add(new UIDataTabElement(this.panel, TABS_HEIGHT_PX));
+            this.tabs.add(new UIDataTabElement(this.host, TABS_HEIGHT_PX));
         }
 
         while (this.tabs.size() > count)
@@ -83,7 +81,7 @@ public class UIDataTabs extends UIElement
         this.scroll.removeAll();
 
         FontRenderer font = Batcher2D.getDefaultTextRenderer();
-        int baseMin = UIDataTabElement.measureWidth(font, this.panel.getNewTabLabel());
+        int baseMin = UIDataTabElement.measureWidth(font, this.host.getNewTabLabel());
 
         baseMin = Math.max(TAB_MIN_WIDTH, Math.min(TAB_MAX_WIDTH, baseMin));
 
@@ -91,16 +89,15 @@ public class UIDataTabs extends UIElement
 
         for (int i = 0; i < count; i++)
         {
-            DataTab tab = this.panel.tabs.get(i);
-            IKey label = tab.dataId == null ? this.panel.getNewTabLabel() : IKey.raw(tab.dataId);
+            IKey label = this.host.getTabLabel(i);
             int w = UIDataTabElement.measureWidth(font, label);
 
             w = Math.max(baseMin, Math.min(TAB_MAX_WIDTH, w));
-            hasNewTab |= this.panel.isNewTab(tab);
+            hasNewTab |= this.host.isNewTab(i);
 
             UIDataTabElement tabElement = this.tabs.get(i);
 
-            tabElement.setTab(tab, label, this.panel.getTabIcon(tab));
+            tabElement.setTab(i, label, this.host.getTabTooltip(i), this.host.getTabIcon(i));
             tabElement.wh(w, TABS_HEIGHT_PX);
             this.scroll.add(tabElement);
         }

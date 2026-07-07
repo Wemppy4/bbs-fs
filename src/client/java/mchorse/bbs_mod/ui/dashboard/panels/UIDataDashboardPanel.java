@@ -10,6 +10,7 @@ import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UIDataOverlayPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
+import mchorse.bbs_mod.ui.dashboard.panels.tabs.IUITabs;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -26,7 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.IntPredicate;
 
-public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUDDashboardPanel
+public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUDDashboardPanel implements IUITabs
 {
     public UIIcon saveIcon;
 
@@ -138,6 +139,79 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     public boolean isNewTab(DataTab tab)
     {
         return tab != null && tab.dataId == null;
+    }
+
+    /* IUITabs — index-based adapters over the DataTab list */
+
+    @Override
+    public int getTabCount()
+    {
+        return this.tabs.size();
+    }
+
+    @Override
+    public int getCurrentTab()
+    {
+        return this.currentTab;
+    }
+
+    @Override
+    public IKey getTabLabel(int index)
+    {
+        DataTab tab = this.tabs.get(index);
+
+        return tab.dataId == null ? this.getNewTabLabel() : IKey.raw(tab.dataId);
+    }
+
+    @Override
+    public IKey getTabTooltip(int index)
+    {
+        return null;
+    }
+
+    @Override
+    public Icon getTabIcon(int index)
+    {
+        return this.getTabIcon(this.tabs.get(index));
+    }
+
+    @Override
+    public boolean isNewTab(int index)
+    {
+        return this.isNewTab(this.tabs.get(index));
+    }
+
+    @Override
+    public boolean canCloseTab(int index)
+    {
+        return index >= 0 && index < this.tabs.size();
+    }
+
+    @Override
+    public void closeOtherTabs(int index)
+    {
+        if (index >= 0 && index < this.tabs.size())
+        {
+            this.closeOtherTabs(this.tabs.get(index));
+        }
+    }
+
+    @Override
+    public void closeTabsLeft(int index)
+    {
+        if (index >= 0 && index < this.tabs.size())
+        {
+            this.closeTabsLeft(this.tabs.get(index));
+        }
+    }
+
+    @Override
+    public void closeTabsRight(int index)
+    {
+        if (index >= 0 && index < this.tabs.size())
+        {
+            this.closeTabsRight(this.tabs.get(index));
+        }
     }
 
     public int findNewTabIndex()

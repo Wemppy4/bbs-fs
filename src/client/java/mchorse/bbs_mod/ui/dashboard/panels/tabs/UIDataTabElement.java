@@ -3,13 +3,13 @@ package mchorse.bbs_mod.ui.dashboard.panels.tabs;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIClickable;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 public class UIDataTabElement extends UIClickable<UIDataTabElement>
@@ -24,33 +24,33 @@ public class UIDataTabElement extends UIClickable<UIDataTabElement>
     private static final int CLOSE_GAP = 4;
     private static final int CLOSE_ZONE = CLOSE_SIZE + TEXT_RIGHT_PADDING;
 
+    private int index;
     private IKey label;
     private Icon icon;
-    private DataTab tab;
-    private final UIDataDashboardPanel<?> panel;
+    private final IUITabs host;
     private final UIIcon close;
 
-    public UIDataTabElement(UIDataDashboardPanel<?> panel, int h)
+    public UIDataTabElement(IUITabs host, int h)
     {
         super(null);
 
-        this.panel = panel;
+        this.host = host;
         this.h(h);
         this.label = IKey.raw("");
         this.icon = Icons.SEARCH;
 
-        this.callback = (b) -> this.panel.switchTab(this.tab);
+        this.callback = (b) -> this.host.switchTab(this.index);
 
-        this.close = new UIIcon(Icons.CLOSE, (b) -> this.panel.closeTab(this.tab));
+        this.close = new UIIcon(Icons.CLOSE, (b) -> this.host.closeTab(this.index));
         this.close.relative(this).x(1F, -(CLOSE_SIZE + CLOSE_GAP + RIGHT_GAP)).y(0.5F).w(CLOSE_SIZE).h(CLOSE_SIZE).anchor(0, 0.5F);
 
         this.add(this.close);
 
         this.context((menu) ->
         {
-            menu.action(Icons.CLOSE, UIKeys.PANELS_TABS_CONTEXT_CLOSE_OTHERS, this::closeOtherTabs);
-            menu.action(Icons.ARROW_LEFT, UIKeys.PANELS_TABS_CONTEXT_CLOSE_LEFT, this::closeTabsLeft);
-            menu.action(Icons.ARROW_RIGHT, UIKeys.PANELS_TABS_CONTEXT_CLOSE_RIGHT, this::closeTabsRight);
+            menu.action(Icons.CLOSE, UIKeys.PANELS_TABS_CONTEXT_CLOSE_OTHERS, () -> this.host.closeOtherTabs(this.index));
+            menu.action(Icons.ARROW_LEFT, UIKeys.PANELS_TABS_CONTEXT_CLOSE_LEFT, () -> this.host.closeTabsLeft(this.index));
+            menu.action(Icons.ARROW_RIGHT, UIKeys.PANELS_TABS_CONTEXT_CLOSE_RIGHT, () -> this.host.closeTabsRight(this.index));
         });
     }
 
@@ -59,26 +59,16 @@ public class UIDataTabElement extends UIClickable<UIDataTabElement>
         return TEXT_X + font.getWidth(label.get()) + CLOSE_ZONE + RIGHT_GAP;
     }
 
-    public void setTab(DataTab tab, IKey label, Icon icon)
+    public void setTab(int index, IKey label, IKey tooltip, Icon icon)
     {
-        this.tab = tab;
+        this.index = index;
         this.label = label;
         this.icon = icon;
-    }
 
-    private void closeOtherTabs()
-    {
-        this.panel.closeOtherTabs(this.tab);
-    }
-
-    private void closeTabsLeft()
-    {
-        this.panel.closeTabsLeft(this.tab);
-    }
-
-    private void closeTabsRight()
-    {
-        this.panel.closeTabsRight(this.tab);
+        if (tooltip != null)
+        {
+            this.tooltip(tooltip, Direction.BOTTOM);
+        }
     }
 
     @Override
@@ -90,9 +80,9 @@ public class UIDataTabElement extends UIClickable<UIDataTabElement>
     @Override
     public boolean subMouseClicked(UIContext context)
     {
-        if (this.area.isInside(context) && context.mouseButton == 2)
+        if (this.area.isInside(context) && context.mouseButton == 2 && this.host.canCloseTab(this.index))
         {
-            this.panel.closeTab(this.tab);
+            this.host.closeTab(this.index);
 
             return true;
         }
@@ -103,10 +93,10 @@ public class UIDataTabElement extends UIClickable<UIDataTabElement>
     @Override
     protected void renderSkin(UIContext context)
     {
-        boolean active = this.tab != null && this.tab == this.panel.getCurrentDataTab();
+        boolean active = this.index == this.host.getCurrentTab();
         boolean hover = this.hover;
 
-        boolean showClose = active || hover;
+        boolean showClose = this.host.canCloseTab(this.index) && (active || hover);
         this.close.setVisible(showClose);
 
         int ex = this.area.ex() - RIGHT_GAP;

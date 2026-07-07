@@ -9,10 +9,14 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.importers.IImportPathProvider;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.resources.packs.URLSourcePack;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.panels.tabs.IUITabs;
+import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
+import mchorse.bbs_mod.ui.dashboard.textures.UITextureEditor;
 import mchorse.bbs_mod.ui.dashboard.textures.UITexturePainter;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -30,6 +34,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
@@ -60,7 +65,7 @@ import java.util.function.Consumer;
  * This bad boy allows picking a texture from the file browser, and also 
  * it allows creating multi-skins. See {@link MultiLink} for more information.
  */
-public class UITexturePicker extends UIElement implements IImportPathProvider
+public class UITexturePicker extends UIElement implements IImportPathProvider, IUITabs
 {
     public UIElement right;
     public UITextbox text;
@@ -72,7 +77,18 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
     public UIButton multi;
     public UIFilteredLinkList multiList;
     public UIMultiLinkEditor editor;
-    public UITexturePainter pixelEditor;
+
+    public UIDataTabs tabs;
+    public UIElement browseContent;
+    public UITexturePainter painter;
+
+    /**
+     * Open textures shown as tabs 1..N (tab 0 is the file browser). Shared across every picker so the
+     * dashboard manager and the "select texture" pop-up show one and the same set of tabs, and the tabs
+     * survive a pop-up being closed and reopened.
+     */
+    private static final List<UITextureEditor> EDITORS = new ArrayList<>();
+    private int currentTab = 0;
 
     public UIElement buttons;
     public UIIcon add;
@@ -90,6 +106,9 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
     public Link current;
 
     private String initialModelPreview;
+
+    private Link lastClickedFile;
+    private long lastClickTime;
 
     private Timer lastTyped = new Timer(1000);
     private Timer lastChecked = new Timer(1000);
@@ -169,6 +188,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
             .canCopy(() -> this.current != null);
 
         this.right = new UIElement();
+        this.browseContent = new UIElement();
         this.text = new UITextbox(1000, (str) -> this.selectCurrent(str.isEmpty() ? null : LinkUtils.create(str)));
         this.text.delayedInput().context((menu) ->
         {
@@ -198,8 +218,8 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
         this.close = new UIIcon(Icons.CLOSE, (b) -> this.close());
         this.folder = new UIIcon(Icons.FOLDER, (b) -> this.openFolder());
         this.folder.tooltip(UIKeys.TEXTURE_OPEN_FOLDER, Direction.BOTTOM);
-        this.pixelEdit = new UIIcon(Icons.EDIT, (b) -> this.togglePixelEditor());
-        this.picker = new UIFileLinkList(this::selectCurrent)
+        this.pixelEdit = new UIIcon(Icons.EDIT, (b) -> this.editCurrent());
+        this.picker = new UIFileLinkList(this::onFileClicked)
         {
             @Override
             public void setPath(Link folder, boolean fastForward)
@@ -250,7 +270,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
             }
         });
         this.options = UI.column(5, 10, this.linear, this.mipmap);
-        this.options.relative(this).xy(1F, 1F).w(148).anchor(1F, 1F);
+        this.options.relative(this.browseContent).xy(1F, 1F).w(148).anchor(1F, 1F);
 
         this.multi = new UIButton(UIKeys.TEXTURE_MULTISKIN, (b) -> this.toggleMulti());
         this.multiList = new UIFilteredLinkList((list) -> this.setFilteredLink(list.get(0)));
@@ -267,24 +287,34 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
         UIElement icons = UI.row(0, this.pixelEdit, this.folder, this.close);
 
         icons.row().preferred(0);
-        icons.relative(this).x(1F, -10).y(10).w(60).h(20).anchorX(1F);
+        icons.relative(this.browseContent).x(1F, -10).y(10).w(60).h(20).anchorX(1F);
 
-        this.right.full(this);
+        this.right.full(this.browseContent);
         this.text.relative(this.multi).x(1F, 20).wTo(icons.area).h(20);
         this.picker.relative(this.right).set(10, 30, 0, 0).w(1, -10).h(1, -30);
 
-        this.multi.relative(this).set(10, 10, 100, 20);
-        this.multiList.relative(this).set(10, 35, 100, 0).hTo(this.buttons.getFlex());
-        this.editor.relative(this).set(120, 0, 0, 0).w(1F, -120).h(1F);
+        this.multi.relative(this.browseContent).set(10, 10, 100, 20);
+        this.multiList.relative(this.browseContent).set(10, 35, 100, 0).hTo(this.buttons.getFlex());
+        this.editor.relative(this.browseContent).set(120, 0, 0, 0).w(1F, -120).h(1F);
 
-        this.buttons.relative(this).y(1F, -20).wTo(this.right.area).h(20);
+        this.buttons.relative(this.browseContent).y(1F, -20).wTo(this.right.area).h(20);
         this.add.relative(this.buttons).set(0, 0, 20, 20);
         this.remove.relative(this.add).set(20, 0, 20, 20);
         this.edit.relative(this.buttons).wh(20, 20).x(1F, -20);
 
         this.right.add(icons, this.text, this.picker);
         this.buttons.add(this.add, this.remove, this.edit);
-        this.add(this.multi, this.multiList, this.right, this.editor, this.buttons, this.options);
+        this.browseContent.add(this.multi, this.multiList, this.right, this.editor, this.buttons, this.options);
+
+        this.tabs = new UIDataTabs(this);
+        this.tabs.relative(this).w(1F).h(UIDataTabs.TABS_HEIGHT_PX);
+        this.browseContent.relative(this.tabs).y(1F).w(1F).hTo(this.area, 1F);
+
+        this.painter = new UITexturePainter(this::onTextureSaved).onRename(this::onTextureRenamed);
+        this.painter.relative(this.tabs).y(1F).w(1F).hTo(this.area, 1F);
+        this.painter.setVisible(false);
+
+        this.add(this.tabs, this.browseContent, this.painter);
 
         this.callback = callback;
 
@@ -297,8 +327,13 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
             });
         });
 
+        this.keys().register(Keys.CYCLE_PANELS, this::cycleTabs).inside();
+        this.keys().register(Keys.OPEN_NEW_TAB, this::addTab);
+
         this.fill(null);
         this.markContainer().eventPropagataion(EventPropagation.BLOCK);
+
+        this.showTab(0);
     }
 
     public UITexturePicker withModelPreview(String model)
@@ -451,43 +486,316 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
         }
     }
 
-    public void togglePixelEditor()
+    private void editCurrent()
     {
         if (this.current == null || this.multiLink != null)
         {
             return;
         }
 
-        if (this.pixelEditor == null)
-        {
-            this.pixelEditor = new UITexturePainter((l) ->
-            {
-                this.selectCurrent(l);
-                this.displayCurrent(l);
-            });
-            this.pixelEditor.full(this);
+        this.openTexture(this.current);
+    }
 
-            /* Attach and resize the painter before populating it so the inner editor
-             * host has a valid area when the first document is created. Otherwise the
-             * canvas renders blank until the editor is reopened. */
-            this.add(this.pixelEditor);
-            this.pixelEditor.resize();
-            this.pixelEditor.fillTexture(this.current);
-            
-            if (this.initialModelPreview != null && !this.initialModelPreview.isEmpty())
+    /**
+     * File-list click: selects the texture (single click), and opens it in a tab on a double click of
+     * the same file.
+     */
+    private void onFileClicked(Link link)
+    {
+        long now = System.currentTimeMillis();
+        boolean doubleClick = link != null && link.equals(this.lastClickedFile) && now - this.lastClickTime < 300;
+
+        this.lastClickedFile = link;
+        this.lastClickTime = now;
+
+        this.selectCurrent(link);
+
+        if (doubleClick && this.multiLink == null)
+        {
+            this.openTexture(link);
+        }
+    }
+
+    /**
+     * Opens {@code link} as a texture tab (tabs 1..N) on top of the browser tab: focuses an existing
+     * tab for it, otherwise loads it into a fresh editor and appends a tab. Fired by the pencil.
+     */
+    public void openTexture(Link link)
+    {
+        if (link == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < EDITORS.size(); i++)
+        {
+            UITextureEditor editor = EDITORS.get(i);
+
+            if (editor.getTexture() != null && link.toString().equals(editor.getTexture().toString()))
             {
-                this.pixelEditor.openModelPreview(this.initialModelPreview);
+                this.showTab(i + 1);
+
+                return;
             }
+        }
+
+        UITextureEditor editor = this.painter.openEditor(link);
+
+        if (editor == null)
+        {
+            return;
+        }
+
+        editor.setEditing(true);
+        EDITORS.add(editor);
+        this.showTab(EDITORS.size());
+
+        if (this.initialModelPreview != null && !this.initialModelPreview.isEmpty())
+        {
+            this.painter.openModelPreview(this.initialModelPreview);
+            this.initialModelPreview = null;
+        }
+    }
+
+    /** Shows tab {@code index}: the file browser for tab 0, otherwise the painter for editor {@code index - 1}. */
+    private void showTab(int index)
+    {
+        this.currentTab = index;
+
+        boolean browse = index == 0;
+        UITextureEditor editor = browse ? null : EDITORS.get(index - 1);
+
+        this.painter.setEditor(editor);
+        this.painter.setVisible(!browse);
+        this.browseContent.setVisible(browse);
+
+        this.tabs.sync();
+        this.resize();
+    }
+
+    /**
+     * Re-attaches the shared open textures after another picker changed them: re-hosts the current
+     * texture in this picker's painter (a pop-up may have grabbed it) and clamps to the browser tab if
+     * the current texture was closed elsewhere. Call when this picker becomes active again.
+     */
+    public void syncToSharedTabs()
+    {
+        if (this.currentTab < 0 || this.currentTab > EDITORS.size())
+        {
+            this.currentTab = 0;
+        }
+
+        this.showTab(this.currentTab);
+    }
+
+    private void cycleTabs()
+    {
+        int count = this.getTabCount();
+
+        if (count <= 1)
+        {
+            return;
+        }
+
+        int next = this.currentTab + (Window.isShiftPressed() ? -1 : 1);
+
+        next = ((next % count) + count) % count;
+
+        this.showTab(next);
+        UIUtils.playClick();
+    }
+
+    private void onTextureSaved(Link link)
+    {
+        this.selectCurrent(link);
+        this.displayCurrent(link);
+        this.tabs.sync();
+    }
+
+    /**
+     * A Save As changed {@code editor}'s link: close any other tab that already referenced the new
+     * link (its file was just overwritten) and refresh the strip.
+     */
+    private void onTextureRenamed(UITextureEditor editor, Link newLink)
+    {
+        for (int i = EDITORS.size() - 1; i >= 0; i--)
+        {
+            UITextureEditor other = EDITORS.get(i);
+
+            if (other != editor && newLink.equals(other.getTexture()))
+            {
+                other.removeFromParent();
+                other.deleteTexture();
+                EDITORS.remove(i);
+            }
+        }
+
+        this.currentTab = EDITORS.indexOf(editor) + 1;
+        this.tabs.sync();
+    }
+
+    /* IUITabs — tab 0 is the browser, tabs 1..N are open textures */
+
+    @Override
+    public boolean areTabsEnabled()
+    {
+        return true;
+    }
+
+    @Override
+    public int getTabCount()
+    {
+        return EDITORS.size() + 1;
+    }
+
+    @Override
+    public int getCurrentTab()
+    {
+        return this.currentTab;
+    }
+
+    @Override
+    public IKey getTabLabel(int index)
+    {
+        return index == 0 ? UIKeys.TEXTURES_TOOLTIP : IKey.raw(StringUtils.fileName(EDITORS.get(index - 1).getTexture().path));
+    }
+
+    @Override
+    public IKey getTabTooltip(int index)
+    {
+        return index == 0 ? null : IKey.raw(EDITORS.get(index - 1).getTexture().path);
+    }
+
+    @Override
+    public Icon getTabIcon(int index)
+    {
+        return index == 0 ? Icons.FOLDER : Icons.MATERIAL;
+    }
+
+    @Override
+    public IKey getNewTabLabel()
+    {
+        return UIKeys.TEXTURES_TOOLTIP;
+    }
+
+    @Override
+    public boolean isNewTab(int index)
+    {
+        return false;
+    }
+
+    @Override
+    public boolean canCloseTab(int index)
+    {
+        return index >= 1 && index <= EDITORS.size();
+    }
+
+    @Override
+    public void addTab()
+    {
+        findAllTextures(this.getContext(), this.current, (path) -> this.openTexture(Link.create(path)));
+    }
+
+    @Override
+    public void switchTab(int index)
+    {
+        if (index >= 0 && index < this.getTabCount())
+        {
+            this.showTab(index);
+        }
+    }
+
+    @Override
+    public void closeTab(int index)
+    {
+        if (index < 1 || index > EDITORS.size())
+        {
+            return;
+        }
+
+        UITextureEditor editor = EDITORS.remove(index - 1);
+
+        editor.removeFromParent();
+        editor.deleteTexture();
+
+        int target;
+
+        if (this.currentTab == index)
+        {
+            target = Math.min(index, EDITORS.size());
+        }
+        else if (this.currentTab > index)
+        {
+            target = this.currentTab - 1;
         }
         else
         {
-            this.pixelEditor.removeFromParent();
-            this.pixelEditor = null;
+            target = this.currentTab;
         }
 
-        this.right.setVisible(this.pixelEditor == null);
-        this.multi.setVisible(this.pixelEditor == null);
-        this.options.setVisible(this.pixelEditor == null);
+        this.showTab(target);
+    }
+
+    @Override
+    public void closeOtherTabs(int index)
+    {
+        if (index < 1 || index > EDITORS.size())
+        {
+            return;
+        }
+
+        UITextureEditor keep = EDITORS.get(index - 1);
+
+        for (int i = EDITORS.size() - 1; i >= 0; i--)
+        {
+            if (EDITORS.get(i) != keep)
+            {
+                UITextureEditor editor = EDITORS.remove(i);
+
+                editor.removeFromParent();
+                editor.deleteTexture();
+            }
+        }
+
+        this.showTab(1);
+    }
+
+    @Override
+    public void closeTabsLeft(int index)
+    {
+        if (index < 2 || index > EDITORS.size())
+        {
+            return;
+        }
+
+        for (int i = index - 2; i >= 0; i--)
+        {
+            UITextureEditor editor = EDITORS.remove(i);
+
+            editor.removeFromParent();
+            editor.deleteTexture();
+        }
+
+        this.showTab(1);
+    }
+
+    @Override
+    public void closeTabsRight(int index)
+    {
+        if (index < 1 || index >= EDITORS.size())
+        {
+            return;
+        }
+
+        for (int i = EDITORS.size() - 1; i >= index; i--)
+        {
+            UITextureEditor editor = EDITORS.remove(i);
+
+            editor.removeFromParent();
+            editor.deleteTexture();
+        }
+
+        this.showTab(index);
     }
 
     public void updateFolderButton()
@@ -741,9 +1049,9 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
         }
         else if (context.isPressed(GLFW.GLFW_KEY_ESCAPE))
         {
-            if (this.pixelEditor != null)
+            if (this.currentTab != 0)
             {
-                this.togglePixelEditor();
+                this.showTab(0);
                 return true;
             }
             else if (this.canBeClosed)
@@ -834,25 +1142,28 @@ public class UITexturePicker extends UIElement implements IImportPathProvider
             this.picker.scroll.setScroll(scroll);
         }
 
-        /* Draw the background */
-        context.batcher.gradientVBox(this.area.x, this.area.y, this.area.ex(), this.area.ey(), Colors.A50, Colors.A100);
-
-        if (this.multiList.isVisible())
+        /* Draw the background (browser tab only; the painter draws its own) */
+        if (this.currentTab == 0)
         {
-            context.batcher.box(this.area.x, this.area.y, this.area.x + 120, this.area.ey(), 0xff181818);
-            context.batcher.box(this.area.x, this.area.y, this.area.x + 120, this.area.y + 30, Colors.A25);
-            context.batcher.gradientVBox(this.area.x, this.area.ey() - 20, this.buttons.area.ex(), this.area.ey(), 0, Colors.A50);
-        }
+            context.batcher.gradientVBox(this.browseContent.area.x, this.browseContent.area.y, this.browseContent.area.ex(), this.browseContent.area.ey(), Colors.A50, Colors.A100);
 
-        if (this.editor.isVisible())
-        {
-            this.edit.area.render(context.batcher, Colors.A50 | BBSSettings.primaryColor.get());
+            if (this.multiList.isVisible())
+            {
+                context.batcher.box(this.browseContent.area.x, this.browseContent.area.y, this.browseContent.area.x + 120, this.browseContent.area.ey(), 0xff181818);
+                context.batcher.box(this.browseContent.area.x, this.browseContent.area.y, this.browseContent.area.x + 120, this.browseContent.area.y + 30, Colors.A25);
+                context.batcher.gradientVBox(this.browseContent.area.x, this.browseContent.area.ey() - 20, this.buttons.area.ex(), this.browseContent.area.ey(), 0, Colors.A50);
+            }
+
+            if (this.editor.isVisible())
+            {
+                this.edit.area.render(context.batcher, Colors.A50 | BBSSettings.primaryColor.get());
+            }
         }
 
         super.render(context);
 
         /* Draw the overlays */
-        if (this.right.isVisible())
+        if (this.currentTab == 0 && this.right.isVisible())
         {
             FontRenderer font = context.batcher.getFont();
 
