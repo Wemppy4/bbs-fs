@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.interps.Interpolation;
@@ -149,10 +150,25 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
     public void setInterpolation(Interpolation interpolation)
     {
-        for (Keyframe keyframe : this.selection.getSelected())
+        List<Keyframe> selected = this.selection.getSelected();
+
+        if (selected.isEmpty())
+        {
+            return;
+        }
+
+        /* The keyframe's interpolation isn't wired into the value tree, so copying it
+         * directly never reaches the undo handler. Notify through the channel (whose
+         * data captures each keyframe's interpolation) so the change is recorded, and
+         * mark it unmergeable — a picked interpolation is a discrete edit. */
+        this.channel.preNotify(IValueListener.FLAG_UNMERGEABLE);
+
+        for (Keyframe keyframe : selected)
         {
             keyframe.getInterpolation().copy(interpolation);
         }
+
+        this.channel.postNotify(IValueListener.FLAG_UNMERGEABLE);
     }
 
     public void remove(Keyframe keyframe)

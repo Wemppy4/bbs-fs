@@ -3,12 +3,14 @@ package mchorse.bbs_mod.ui.framework.elements.input;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
@@ -49,6 +51,7 @@ public class UIPropTransform extends UITransform
     private Transform transform;
     private Runnable preCallback;
     private Runnable postCallback;
+    private Runnable endCallback;
 
     private boolean editing;
     private int mode;
@@ -194,6 +197,13 @@ public class UIPropTransform extends UITransform
         this.iconT.setEnabled(true);
         this.updateLocalUI();
 
+        /* Each finished value-field drag closes the current undo block, so dragging a
+         * field several times in a row undoes one drag at a time (see endGesture). */
+        for (UITrackpad field : new UITrackpad[]{this.tx, this.ty, this.tz, this.sx, this.sy, this.sz, this.rx, this.ry, this.rz, this.r2x, this.r2y, this.r2z})
+        {
+            field.getEvents().register(UITrackpadDragEndEvent.class, (e) -> this.endGesture());
+        }
+
         this.noCulling();
     }
 
@@ -201,14 +211,21 @@ public class UIPropTransform extends UITransform
     {
         return this.callbacks(
             () -> notifier.get().preNotify(),
-            () -> notifier.get().postNotify()
+            () -> notifier.get().postNotify(),
+            () -> notifier.get().preNotify(IValueListener.FLAG_UNMERGEABLE)
         );
     }
 
     public UIPropTransform callbacks(Runnable pre, Runnable post)
     {
+        return this.callbacks(pre, post, null);
+    }
+
+    public UIPropTransform callbacks(Runnable pre, Runnable post, Runnable end)
+    {
         this.preCallback = pre;
         this.postCallback = post;
+        this.endCallback = end;
 
         return this;
     }
@@ -221,6 +238,17 @@ public class UIPropTransform extends UITransform
     public void postCallback()
     {
         if (this.postCallback != null) this.postCallback.run();
+    }
+
+    /**
+     * Close the current undo block so the next transform gesture starts a fresh,
+     * separately-undoable entry. Fired at each gesture boundary — a value-field drag
+     * end and the gizmo commit — rather than per value change, so one continuous drag
+     * still merges into a single undo while consecutive drags stay distinct.
+     */
+    public void endGesture()
+    {
+        if (this.endCallback != null) this.endCallback.run();
     }
 
     public void setModel()
@@ -2043,6 +2071,7 @@ public class UIPropTransform extends UITransform
     {
         this.disable();
         this.setTransform(this.transform);
+        this.endGesture();
     }
 
     public void rejectChanges()

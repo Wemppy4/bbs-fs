@@ -289,6 +289,22 @@ public class UIPoseEditor extends UIElement
         this.pickBones(this.groups.list.getCurrent());
     }
 
+    /**
+     * Restore a previous multi-bone selection. Undo/redo rebuilds the form panel from
+     * scratch (which resets the selection to the first bone), so the host re-applies the
+     * remembered selection afterwards.
+     */
+    public void restoreSelection(List<String> bones)
+    {
+        if (bones == null || bones.isEmpty())
+        {
+            return;
+        }
+
+        this.groups.list.setCurrent(bones);
+        this.pickBones(this.groups.list.getCurrent());
+    }
+
     /* Subclass overridable methods */
 
     protected UIPropTransform createTransformEditor()

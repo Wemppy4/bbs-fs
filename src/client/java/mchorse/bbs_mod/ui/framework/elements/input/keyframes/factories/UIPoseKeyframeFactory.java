@@ -7,6 +7,7 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
@@ -320,6 +321,15 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
                 poseT.rotate2.set(0F, 0F, 0F);
             });
             this.refillTransform();
+        }
+
+        @Override
+        public void endGesture()
+        {
+            /* Film pose edits land on the selected keyframe(s) (not via a notifier callback),
+             * so seal those to close the undo block — consecutive drags stay distinct. */
+            UIReplaysEditorUtils.forEachSelectedKeyframe(this.editor.editor, this.editor.keyframe,
+                (selected) -> selected.preNotify(IValueListener.FLAG_UNMERGEABLE));
         }
     }
 }

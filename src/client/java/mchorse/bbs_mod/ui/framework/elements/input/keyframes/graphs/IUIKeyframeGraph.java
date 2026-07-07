@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs;
 
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
@@ -141,6 +142,10 @@ public interface IUIKeyframeGraph
             }
         }
 
+        /* Adding a keyframe is a discrete edit: seal the undo so several keyframes made
+         * in a row (within the merge window) each undo separately, not all at once. */
+        sheet.channel.preNotify(IValueListener.FLAG_UNMERGEABLE);
+
         int index = sheet.channel.insert(tick, value);
         Keyframe keyframe = sheet.channel.get(index);
 
@@ -161,6 +166,7 @@ public interface IUIKeyframeGraph
         UIKeyframeSheet sheet = this.getSheet(keyframe);
 
         sheet.remove(keyframe);
+        sheet.channel.preNotify(IValueListener.FLAG_UNMERGEABLE);
         this.clearSelection();
         this.pickKeyframe(null);
     }
