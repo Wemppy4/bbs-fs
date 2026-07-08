@@ -57,7 +57,7 @@ public class CubicCubeRenderer implements ICubicRenderer
     private ShapeKeys shapeKeys;
 
     /* Welds active for the model being rendered (null when it has none). Resolved once on the instance. */
-    private List<WeldBinding> welds;
+    protected List<WeldBinding> welds;
 
     /* Weld layers the cube currently being rendered is the target/source of — set per cube, consulted per vertex. */
     private WeldBinding.Layer targetLayer;
@@ -73,14 +73,20 @@ public class CubicCubeRenderer implements ICubicRenderer
      * band stays smooth instead of faceting over too few cells — cheap now that it is one direction, not N×N. */
     private static final int WELD_SUBDIVISIONS = 8;
 
+    /* Since coordinates are in /16 model units, this catches vertices lying on a welded plane without
+     * grabbing anything a texel away. */
+    private static final float WELD_PLANE_EPS = 1.0e-4F;
+
     private final Vector3f[] rigidPos = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
     private final Vector3f[] cornerPos = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
+    private final Vector3f[] cornerNormal = {new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
     private final float[] cornerDistTarget = new float[4];
     private final float[] cornerDistSource = new float[4];
     private final float[] cornerU = new float[4];
     private final float[] cornerV = new float[4];
+    private final Vector3f seamPosition = new Vector3f();
 
-    /* Per-cube weld band state, set up before a welded cube's faces are subdivided. */
+    /* Per-cube weld band state, set in renderCube: nearSeam culls by it, the subdivided path blends by it. */
     private boolean weldHasTarget;
     private boolean weldHasSource;
     private float weldBandTarget;
@@ -188,35 +194,67 @@ public class CubicCubeRenderer implements ICubicRenderer
 
         this.pickWelds(cube);
 
-        boolean subdivide = (this.targetLayer != null && this.targetLayer.seamReady) || (this.sourceLayer != null && this.sourceLayer.seamReady);
-        Matrix4f matrix = stack.peek().getPositionMatrix();
+        this.weldHasTarget = this.targetLayer != null && this.targetLayer.seamReady;
+        this.weldHasSource = this.sourceLayer != null && this.sourceLayer.seamReady;
+        this.weldBandTarget = this.weldHasTarget ? this.targetLayer.falloff * this.targetLayer.targetAxisExtent : 0F;
+        this.weldBandSource = this.weldHasSource ? this.sourceLayer.falloff * this.sourceLayer.sourceAxisExtent : 0F;
+
+        boolean subdivide = this.weldHasTarget || this.weldHasSource;
 
         for (ModelQuad quad : cube.quads)
         {
-            this.normal.set(quad.normal.x, quad.normal.y, quad.normal.z);
-            stack.peek().getNormalMatrix().transform(this.normal);
+            int count = quad.vertices.size();
 
-            if (quad.vertices.size() != 4)
+            if (count != 3 && count != 4)
             {
                 continue;
             }
 
-            if (subdivide)
+            /* Only quads within a seam's bend band tessellate — everything further is rigid anyway, so it
+             * takes the plain path (a beveled cube is mostly far quads). */
+            if (subdivide && this.nearSeam(quad))
             {
-                this.renderQuadSubdivided(builder, matrix, group, quad, this.normal);
+                this.renderQuadSubdivided(builder, stack, group, quad);
             }
             else
             {
-                this.writeVertex(builder, stack, group, quad.vertices.get(0), this.normal);
-                this.writeVertex(builder, stack, group, quad.vertices.get(1), this.normal);
-                this.writeVertex(builder, stack, group, quad.vertices.get(2), this.normal);
-                this.writeVertex(builder, stack, group, quad.vertices.get(0), this.normal);
-                this.writeVertex(builder, stack, group, quad.vertices.get(2), this.normal);
-                this.writeVertex(builder, stack, group, quad.vertices.get(3), this.normal);
+                this.writeVertex(builder, stack, group, quad.vertices.get(0));
+                this.writeVertex(builder, stack, group, quad.vertices.get(1));
+                this.writeVertex(builder, stack, group, quad.vertices.get(2));
+
+                if (count == 4)
+                {
+                    this.writeVertex(builder, stack, group, quad.vertices.get(0));
+                    this.writeVertex(builder, stack, group, quad.vertices.get(2));
+                    this.writeVertex(builder, stack, group, quad.vertices.get(3));
+                }
             }
         }
 
         stack.pop();
+    }
+
+    /**
+     * Whether any of the quad's corners sits within a seam's bend band; on-plane vertices always count.
+     * Checking corners is exact, not approximate: a cube sits entirely on one side of its own welded
+     * plane, so the distance over a planar quad is affine and takes its minimum at a corner.
+     */
+    private boolean nearSeam(ModelQuad quad)
+    {
+        for (ModelVertex vertex : quad.vertices)
+        {
+            if (this.weldHasTarget && Math.abs(vertex.vertex.dot(this.targetLayer.targetFaceNormal) - this.targetLayer.targetWeldPlane) <= this.weldBandTarget + WELD_PLANE_EPS)
+            {
+                return true;
+            }
+
+            if (this.weldHasSource && Math.abs(vertex.vertex.dot(this.sourceLayer.sourceFaceNormal) - this.sourceLayer.sourceWeldPlane) <= this.weldBandSource + WELD_PLANE_EPS)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected void renderMesh(BufferBuilder builder, MatrixStack stack, Model model, ModelGroup group, ModelMesh mesh)
@@ -328,6 +366,15 @@ public class CubicCubeRenderer implements ICubicRenderer
         }
     }
 
+    /** Write a cube vertex with its own normal (bevel strips shade smooth), transformed per vertex. */
+    protected void writeVertex(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelVertex vertex)
+    {
+        this.normal.set(vertex.normal.x, vertex.normal.y, vertex.normal.z);
+        stack.peek().getNormalMatrix().transform(this.normal);
+
+        this.writeVertex(builder, stack, group, vertex, this.normal);
+    }
+
     protected void writeVertex(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelVertex vertex, Vector3f normal)
     {
         this.vertex.set(vertex.vertex.x, vertex.vertex.y, vertex.vertex.z, 1);
@@ -370,21 +417,25 @@ public class CubicCubeRenderer implements ICubicRenderer
      * weight is evaluated per sub-vertex (not interpolated from the corners, which only ever sit at distance 0
      * or the full length) so the band actually shapes the bend. Fine sub-quads are each nearly affine, so the
      * texture warps smoothly across that band instead of kinking along the diagonal of a flat trapezoid.
+     * Normals interpolate from the corners' own normals, so beveled strips keep their smooth shading.
      */
-    private void renderQuadSubdivided(BufferBuilder builder, Matrix4f matrix, ModelGroup group, ModelQuad quad, Vector3f normal)
+    private void renderQuadSubdivided(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelQuad quad)
     {
-        this.weldHasTarget = this.targetLayer != null && this.targetLayer.seamReady;
-        this.weldHasSource = this.sourceLayer != null && this.sourceLayer.seamReady;
-        this.weldBandTarget = this.weldHasTarget ? this.targetLayer.falloff * this.targetLayer.targetAxisExtent : 0F;
-        this.weldBandSource = this.weldHasSource ? this.sourceLayer.falloff * this.sourceLayer.sourceAxisExtent : 0F;
+        Matrix4f matrix = stack.peek().getPositionMatrix();
+        Matrix3f normalMatrix = stack.peek().getNormalMatrix();
+        int count = quad.vertices.size();
 
         for (int i = 0; i < 4; i++)
         {
-            ModelVertex corner = quad.vertices.get(i);
+            /* A triangle (beveled corner) rides through as a quad with its last corner doubled. */
+            ModelVertex corner = quad.vertices.get(Math.min(i, count - 1));
 
             this.vertex.set(corner.vertex.x, corner.vertex.y, corner.vertex.z, 1);
             matrix.transform(this.vertex);
             this.rigidPos[i].set(this.vertex.x, this.vertex.y, this.vertex.z);
+
+            this.cornerNormal[i].set(corner.normal);
+            normalMatrix.transform(this.cornerNormal[i]);
 
             this.cornerDistTarget[i] = this.weldHasTarget
                 ? Math.abs(corner.vertex.dot(this.targetLayer.targetFaceNormal) - this.targetLayer.targetWeldPlane) : 0F;
@@ -405,8 +456,10 @@ public class CubicCubeRenderer implements ICubicRenderer
         if (axis != null)
         {
             Vector3f c0 = quad.vertices.get(0).vertex;
-            float alongS = Math.abs((quad.vertices.get(1).vertex.x - c0.x) * axis.x + (quad.vertices.get(1).vertex.y - c0.y) * axis.y + (quad.vertices.get(1).vertex.z - c0.z) * axis.z);
-            float alongT = Math.abs((quad.vertices.get(3).vertex.x - c0.x) * axis.x + (quad.vertices.get(3).vertex.y - c0.y) * axis.y + (quad.vertices.get(3).vertex.z - c0.z) * axis.z);
+            Vector3f cS = quad.vertices.get(1).vertex;
+            Vector3f cT = quad.vertices.get(Math.min(3, count - 1)).vertex;
+            float alongS = Math.abs((cS.x - c0.x) * axis.x + (cS.y - c0.y) * axis.y + (cS.z - c0.z) * axis.z);
+            float alongT = Math.abs((cT.x - c0.x) * axis.x + (cT.y - c0.y) * axis.y + (cT.z - c0.z) * axis.z);
 
             /* Only the edge running along the bone bends non-linearly; the other stays linear, so 1 segment is exact. */
             if (Math.max(alongS, alongT) > 1.0e-4F)
@@ -425,12 +478,12 @@ public class CubicCubeRenderer implements ICubicRenderer
                 float t0 = (float) row / nT;
                 float t1 = (float) (row + 1) / nT;
 
-                this.emitInterp(builder, group, s0, t0, normal);
-                this.emitInterp(builder, group, s1, t0, normal);
-                this.emitInterp(builder, group, s1, t1, normal);
-                this.emitInterp(builder, group, s0, t0, normal);
-                this.emitInterp(builder, group, s1, t1, normal);
-                this.emitInterp(builder, group, s0, t1, normal);
+                this.emitInterp(builder, group, s0, t0);
+                this.emitInterp(builder, group, s1, t0);
+                this.emitInterp(builder, group, s1, t1);
+                this.emitInterp(builder, group, s0, t0);
+                this.emitInterp(builder, group, s1, t1);
+                this.emitInterp(builder, group, s0, t1);
             }
         }
     }
@@ -449,7 +502,7 @@ public class CubicCubeRenderer implements ICubicRenderer
      * t along 0->3), then blend the two positions by the seam weight — the falloff curve evaluated on this
      * sub-vertex's interpolated distance from the seam — so the bend stays local.
      */
-    private void emitInterp(BufferBuilder builder, ModelGroup group, float s, float t, Vector3f normal)
+    private void emitInterp(BufferBuilder builder, ModelGroup group, float s, float t)
     {
         float w = 0F;
 
@@ -480,10 +533,17 @@ public class CubicCubeRenderer implements ICubicRenderer
 
         float u = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
         float v = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
+        Vector3f[] n = this.cornerNormal;
+
+        this.normal.set(
+            bilerp(n[0].x, n[1].x, n[2].x, n[3].x, s, t),
+            bilerp(n[0].y, n[1].y, n[2].y, n[3].y, s, t),
+            bilerp(n[0].z, n[1].z, n[2].z, n[3].z, s, t)
+        ).normalize();
 
         this.emit(builder, group,
             rx + (sx - rx) * w, ry + (sy - ry) * w, rz + (sz - rz) * w,
-            u, v, normal);
+            u, v, this.normal);
     }
 
     /** Bilinear blend of four corner scalars laid out as (0,1) along the bottom edge and (3,2) along the top. */
@@ -566,38 +626,28 @@ public class CubicCubeRenderer implements ICubicRenderer
         stack.pop();
     }
 
-    /** Draw pass: pull a welded corner onto the layer's seam, so both sides of the joint bend toward it. */
+    /**
+     * Draw pass: pull a vertex lying on a welded plane onto the layer's seam — bilinear over the welded
+     * face's rect, so inset bevel geometry at the joint rides the seam too, not only the four exact corners.
+     */
     private void snapWeldCorner(Vector3f local)
     {
-        if (this.targetLayer != null && this.targetLayer.seamReady)
+        if (this.targetLayer != null && this.targetLayer.seamReady
+            && Math.abs(local.dot(this.targetLayer.targetFaceNormal) - this.targetLayer.targetWeldPlane) < WELD_PLANE_EPS)
         {
-            int corner = WeldBinding.cornerIndex(this.targetLayer.targetCorners, local);
+            Vector3f seam = this.targetLayer.seamAtTarget(local, this.seamPosition);
 
-            if (corner != -1)
-            {
-                Vector3f seam = this.targetLayer.seam[corner];
+            this.vertex.set(seam.x, seam.y, seam.z, 1);
 
-                this.vertex.set(seam.x, seam.y, seam.z, 1);
-
-                return;
-            }
+            return;
         }
 
-        if (this.sourceLayer != null && this.sourceLayer.seamReady)
+        if (this.sourceLayer != null && this.sourceLayer.seamReady
+            && Math.abs(local.dot(this.sourceLayer.sourceFaceNormal) - this.sourceLayer.sourceWeldPlane) < WELD_PLANE_EPS)
         {
-            int corner = WeldBinding.cornerIndex(this.sourceLayer.sourceCorners, local);
+            Vector3f seam = this.sourceLayer.seamAtSource(local, this.seamPosition);
 
-            if (corner != -1)
-            {
-                int target = this.sourceLayer.sourceToTarget[corner];
-
-                if (target != -1)
-                {
-                    Vector3f seam = this.sourceLayer.seam[target];
-
-                    this.vertex.set(seam.x, seam.y, seam.z, 1);
-                }
-            }
+            this.vertex.set(seam.x, seam.y, seam.z, 1);
         }
     }
 }

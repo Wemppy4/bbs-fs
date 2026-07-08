@@ -6,6 +6,7 @@ import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
+import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -53,11 +54,16 @@ public class CubicVAORenderer extends CubicCubeRenderer
     {
         Map<String, ModelVAO> groupVaos = this.model.getVaos().get(group);
 
-        if (this.weldedGroups != null && (this.weldedGroups.contains(group) || groupVaos == null || groupVaos.isEmpty()))
+        if (this.weldedGroups != null)
         {
-            /* Welded bone (or a group with no VAO, e.g. shape-keyed/on-CPU models): render its cubes on the CPU via
-             * the parent renderer so the weld seam can deform them. */
-            return super.renderGroup(builder, stack, group, model);
+            /* A welded bone tessellates on the CPU only while its seam actually bends — at rest it rides
+             * its VAO like everything else. Groups with no VAO (shape-keyed meshes) always render immediate. */
+            boolean welded = this.weldedGroups.contains(group) && WeldBinding.hasActiveSeam(this.welds, group);
+
+            if (welded || groupVaos == null || groupVaos.isEmpty())
+            {
+                return super.renderGroup(builder, stack, group, model);
+            }
         }
 
         if (groupVaos == null || groupVaos.isEmpty() || !group.visible)

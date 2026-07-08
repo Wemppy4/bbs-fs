@@ -766,6 +766,8 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_TEXTURE = L10n.lang("bbs.ui.model_editor.texture");
     public static final IKey MODEL_EDITOR_UI_SCALE = L10n.lang("bbs.ui.model_editor.ui_scale");
     public static final IKey MODEL_EDITOR_SCALE = L10n.lang("bbs.ui.model_editor.scale");
+    public static final IKey MODEL_EDITOR_BEVEL = L10n.lang("bbs.ui.model_editor.bevel");
+    public static final IKey MODEL_EDITOR_BEVEL_SEGMENTS = L10n.lang("bbs.ui.model_editor.bevel_segments");
     public static final IKey MODEL_EDITOR_WELDS = L10n.lang("bbs.ui.model_editor.welds");
     public static final IKey MODEL_EDITOR_WELD_SOURCE_BONE = L10n.lang("bbs.ui.model_editor.weld.source_bone");
     public static final IKey MODEL_EDITOR_WELD_SOURCE_FACE = L10n.lang("bbs.ui.model_editor.weld.source_face");

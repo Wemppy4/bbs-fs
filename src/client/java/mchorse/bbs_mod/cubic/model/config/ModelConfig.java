@@ -16,6 +16,7 @@ import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
 import mchorse.bbs_mod.settings.values.ui.ValueStringMap;
 import mchorse.bbs_mod.utils.pose.Pose;
@@ -45,6 +46,8 @@ public class ModelConfig extends ValueGroup
     public final ValueLink texture = new ValueLink("texture", null);
     public final ValueFloat uiScale = new ValueFloat("ui_scale", 1F);
     public final ValueVector3f scale = new ValueVector3f("scale", new Vector3f(1F));
+    public final ValueFloat bevel = new ValueFloat("bevel", 0F, 0F, 16F);
+    public final ValueInt bevelSegments = new ValueInt("bevel_segments", 2, 1, 8);
     public final WeldList welds = new WeldList("welds");
     public final ValueStringKeys disabledBones = new ValueStringKeys("disabledBones");
 
@@ -78,6 +81,8 @@ public class ModelConfig extends ValueGroup
         this.add(this.texture);
         this.add(this.uiScale);
         this.add(this.scale);
+        this.add(this.bevel);
+        this.add(this.bevelSegments);
         this.add(this.welds);
         this.add(this.disabledBones);
         this.add(this.lookAt);

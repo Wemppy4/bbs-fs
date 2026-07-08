@@ -7,6 +7,7 @@ public class ModelVertex
 {
     public Vector3f vertex = new Vector3f();
     public Vector2f uv = new Vector2f();
+    public Vector3f normal = new Vector3f();
 
     public void set(Vector3f vertex, Vector2f uv, Model model)
     {

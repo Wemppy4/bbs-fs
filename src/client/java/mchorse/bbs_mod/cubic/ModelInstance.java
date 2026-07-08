@@ -7,7 +7,11 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.cubic.data.animation.Animations;
 import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.data.model.ModelCube;
+import mchorse.bbs_mod.cubic.data.model.ModelCubeBevel;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.data.model.ModelMesh;
+import mchorse.bbs_mod.cubic.data.model.ModelQuad;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.View;
@@ -47,6 +51,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -83,6 +88,12 @@ public class ModelInstance implements IModelInstance
 
     /** Welds resolved against the model (groups/cubes/corners). Built lazily on first render, kept across frames. */
     private List<WeldBinding> weldBindings;
+
+    /** Whether the cubes' quads currently carry a bevel, so {@link #applyBevel} knows to reset them. */
+    private boolean beveled;
+
+    /** Whether the VAO bake skipped some groups (shape-keyed meshes) — those render immediate via the hybrid path. */
+    private boolean partialVaos;
 
     /** Per group, the geometry split into one VAO per material name (empty key = default texture). */
     private Map<ModelGroup, Map<String, ModelVAO>> vaos = new HashMap<>();
@@ -190,6 +201,45 @@ public class ModelInstance implements IModelInstance
         }
 
         this.config.fromData(data);
+        this.applyBevel();
+    }
+
+    /**
+     * (Re)generate the cubes' quads to match the config's bevel. Welded faces (and their edges) stay
+     * sharp — the seam lives on them — while the rest of a welded cube still rounds. Rebuilding VAOs
+     * afterwards is the caller's business (the load order does it naturally; the editor's refresh re-bakes).
+     */
+    public void applyBevel()
+    {
+        float bevel = this.config.bevel.get();
+
+        if (!(this.model instanceof Model model) || (bevel <= 0F && !this.beveled))
+        {
+            return;
+        }
+
+        for (ModelGroup group : model.getAllGroups())
+        {
+            for (ModelCube cube : group.cubes)
+            {
+                cube.generateQuads(model.textureWidth, model.textureHeight);
+            }
+        }
+
+        if (bevel > 0F)
+        {
+            Map<ModelCube, Set<ModelQuad>> welded = WeldBinding.weldedFaces(model, this.config.getWelds());
+
+            for (ModelGroup group : model.getAllGroups())
+            {
+                for (ModelCube cube : group.cubes)
+                {
+                    ModelCubeBevel.apply(cube, bevel, this.config.bevelSegments.get(), welded.getOrDefault(cube, Collections.emptySet()));
+                }
+            }
+        }
+
+        this.beveled = bevel > 0F;
     }
 
     /* Config accessors — the instance reads all of these from {@link #config}. */
@@ -275,28 +325,46 @@ public class ModelInstance implements IModelInstance
             MinecraftClient.getInstance().execute(model::setup);
         }
 
-        /* VAOs should be only generated if there are no shape keys */
-        if (!this.model.getShapeKeys().isEmpty())
+        /* A welded or shape-keyed model still builds VAOs: only its welded bones and shape-keyed groups render
+         * on the immediate (CPU) path, the rest ride their VAOs on the GPU (see {@link #renderHybrid}). */
+        if (this.model instanceof Model model)
         {
-            return;
+            boolean bake = !this.config.onCpu.get();
+
+            this.partialVaos = bake && this.hasShapeKeyedGroups(model);
+
+            if (bake)
+            {
+                MinecraftClient.getInstance().execute(() ->
+                {
+                    CubicRenderer.processRenderModel(new CubicVAOBuilderRenderer(this.vaos), null, new MatrixStack(), model);
+                });
+            }
+        }
+    }
+
+    /** Whether some group carries shape-keyed meshes — the VAO builder skips those, so the render is hybrid. */
+    private boolean hasShapeKeyedGroups(Model model)
+    {
+        for (ModelGroup group : model.getAllGroups())
+        {
+            for (ModelMesh mesh : group.meshes)
+            {
+                if (!mesh.data.isEmpty())
+                {
+                    return true;
+                }
+            }
         }
 
-        /* A welded model still builds VAOs: only its welded bones render on the immediate (CPU) path, the rest ride
-         * their VAOs on the GPU (see {@link #renderWelded}). */
-        if (this.model instanceof Model model && !this.config.onCpu.get())
-        {
-            MinecraftClient.getInstance().execute(() ->
-            {
-                CubicRenderer.processRenderModel(new CubicVAOBuilderRenderer(this.vaos), null, new MatrixStack(), model);
-            });
-        }
+        return false;
     }
 
     public boolean isVAORendered()
     {
-        /* A welded model builds VAOs too, but renders through the hybrid weld path — external callers (shader choice,
-         * etc.) must still treat it as non-VAO, so report false while it has active welds. */
-        if (!this.getWeldBindings().isEmpty())
+        /* A welded or shape-keyed model builds VAOs too, but renders through the hybrid path — external
+         * callers (shader choice, etc.) must still treat it as non-VAO, so report false for those. */
+        if (!this.getWeldBindings().isEmpty() || this.partialVaos)
         {
             return false;
         }
@@ -423,11 +491,12 @@ public class ModelInstance implements IModelInstance
     }
 
     /**
-     * Hybrid weld render: unwelded bones ride their baked VAOs on the GPU; only the welded bones — and any bone with
-     * no VAO (shape-keyed/on-CPU models) — go through the immediate CPU path, where their cubes deform against the
-     * seam. A light capture pass fills the seams first; picking (stencil) skips it and just draws the rest pose.
+     * Hybrid render: bones with baked VAOs ride the GPU; only actively-bending welded bones and groups
+     * with no VAO (shape-keyed meshes, or none baked yet) go through the immediate CPU path, where their
+     * cubes deform against the seam or morph. A light capture pass fills the seams first — for picking
+     * too, so the stencil matches the deformed geometry.
      */
-    private void renderWelded(MatrixStack stack, ShaderProgram shader, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver, Model model, List<WeldBinding> bindings)
+    private void renderHybrid(MatrixStack stack, ShaderProgram shader, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver, Model model, List<WeldBinding> bindings)
     {
         Set<ModelGroup> weldedGroups = new HashSet<>();
 
@@ -439,7 +508,10 @@ public class ModelInstance implements IModelInstance
 
         /* Capture the seams for the visible draw AND for picking: the stencil must match the deformed geometry, or
          * hovering a bent welded bone highlights its wrong, un-sealed rest silhouette at the joint. */
-        this.captureWelds(bindings, stack, model, light, overlay, stencilMap, keys);
+        if (!bindings.isEmpty())
+        {
+            this.captureWelds(bindings, stack, model, light, overlay, stencilMap, keys);
+        }
 
         /* The welded cubes draw immediate with world-space corners, so — outside picking and the Iris pipeline, which
          * run their own shader state — they go through the BBS model shader with NormalMat pinned to identity (the
@@ -462,9 +534,9 @@ public class ModelInstance implements IModelInstance
          * (matches the old all-CPU path, which drew the welded cubes with that same default). */
         int defaultTexture = RenderSystem.getShaderTexture(0);
 
-        /* Open the shared CPU buffer only if some group actually renders on the CPU (a visible welded bone, or a
-         * visible bone with geometry but no VAO) — drawing an empty buffer would fail. */
-        boolean cpuGeometry = this.hasCpuWeldGeometry(model, weldedGroups);
+        /* Open the shared CPU buffer only if some group actually renders on the CPU (a visible bending welded
+         * bone, or a visible bone with geometry but no VAO) — drawing an empty buffer would fail. */
+        boolean cpuGeometry = this.hasCpuGeometry(model, bindings, weldedGroups);
         BufferBuilder builder = null;
 
         if (cpuGeometry)
@@ -493,8 +565,8 @@ public class ModelInstance implements IModelInstance
         }
     }
 
-    /** Whether the immediate path will emit anything: a visible welded bone, or a visible bone with geometry but no VAO. */
-    private boolean hasCpuWeldGeometry(Model model, Set<ModelGroup> weldedGroups)
+    /** Whether the immediate path will emit anything: a visible bending welded bone, or a visible bone with geometry but no VAO. */
+    private boolean hasCpuGeometry(Model model, List<WeldBinding> bindings, Set<ModelGroup> weldedGroups)
     {
         for (ModelGroup group : model.getAllGroups())
         {
@@ -505,7 +577,7 @@ public class ModelInstance implements IModelInstance
 
             Map<String, ModelVAO> groupVaos = this.vaos.get(group);
 
-            if (weldedGroups.contains(group) || groupVaos == null || groupVaos.isEmpty())
+            if ((weldedGroups.contains(group) && WeldBinding.hasActiveSeam(bindings, group)) || groupVaos == null || groupVaos.isEmpty())
             {
                 return true;
             }
@@ -522,9 +594,11 @@ public class ModelInstance implements IModelInstance
         {
             List<WeldBinding> bindings = this.getWeldBindings();
 
-            if (!bindings.isEmpty())
+            /* Welds and partially-baked (shape-keyed) models mix VAO and immediate rendering; a partial
+             * model whose VAOs aren't baked yet falls through to the plain CPU path below. */
+            if (!bindings.isEmpty() || (this.partialVaos && !this.vaos.isEmpty()))
             {
-                this.renderWelded(stack, shader, color, light, overlay, stencilMap, keys, textureResolver, model, bindings);
+                this.renderHybrid(stack, shader, color, light, overlay, stencilMap, keys, textureResolver, model, bindings);
             }
             else if (this.isVAORendered())
             {

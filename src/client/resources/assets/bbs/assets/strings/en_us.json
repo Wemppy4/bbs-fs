@@ -1045,6 +1045,8 @@
 	"bbs.ui.model_editor.texture": "Texture",
 	"bbs.ui.model_editor.ui_scale": "Interface scale",
 	"bbs.ui.model_editor.scale": "Scale",
+	"bbs.ui.model_editor.bevel": "Bevel radius (pixels)",
+	"bbs.ui.model_editor.bevel_segments": "Bevel segments",
 	"bbs.ui.model_editor.welds": "Welds",
 	"bbs.ui.model_editor.weld.source_bone": "source bone",
 	"bbs.ui.model_editor.weld.source_face": "source face",

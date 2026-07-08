@@ -1039,6 +1039,8 @@
 	"bbs.ui.model_editor.texture": "Текстура",
 	"bbs.ui.model_editor.ui_scale": "Масштаб в интерфейсе",
 	"bbs.ui.model_editor.scale": "Масштаб",
+	"bbs.ui.model_editor.bevel": "Скругление рёбер (пиксели)",
+	"bbs.ui.model_editor.bevel_segments": "Сегменты скругления",
 	"bbs.ui.model_editor.welds": "Сварка",
 	"bbs.ui.model_editor.weld.source_bone": "кость-источник",
 	"bbs.ui.model_editor.weld.source_face": "грань-источник",

@@ -21,6 +21,7 @@ import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
 import mchorse.bbs_mod.settings.values.ui.ValueStringMap;
 import mchorse.bbs_mod.ui.ContentType;
@@ -615,6 +616,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             this.toggleRefresh(UIKeys.MODEL_EDITOR_ON_CPU, config.onCpu),
             this.labeledRow(UIKeys.MODEL_EDITOR_UI_SCALE, this.floatField(config.uiScale)),
             UI.label(UIKeys.MODEL_EDITOR_SCALE), UI.row(this.component(config.scale, 0), this.component(config.scale, 1), this.component(config.scale, 2)),
+            this.labeledRow(UIKeys.MODEL_EDITOR_BEVEL, this.floatFieldRefresh(config.bevel)),
+            this.labeledRow(UIKeys.MODEL_EDITOR_BEVEL_SEGMENTS, this.intFieldRefresh(config.bevelSegments)),
             this.labeledRow(UIKeys.MODEL_EDITOR_POSE_GROUP, this.stringField(config.poseGroup)),
             this.labeledRow(UIKeys.MODEL_EDITOR_ANCHOR, this.bonePicker(config.anchor::get, config.anchor::set, () -> {})),
             this.labeledRow(UIKeys.MODEL_EDITOR_TEXTURE, this.textureField(config.texture))
@@ -1215,9 +1218,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     /**
      * Rebuild the live instance's baked state so a config edit that changed the render path or geometry
-     * shows in the preview without saving: re-resolve welds + derived caches, re-bake VAOs, and reset the
-     * renderer's cached animator (the procedural/non-procedural choice). The plain scalar reads (scale,
-     * texture, culling...) already update every frame, so they don't go through here.
+     * shows in the preview without saving: re-resolve welds + derived caches, re-apply the bevel, re-bake
+     * VAOs, and reset the renderer's cached animator (the procedural/non-procedural choice). The plain
+     * scalar reads (scale, texture, culling...) already update every frame, so they don't go through here.
      */
     private void refresh()
     {
@@ -1227,6 +1230,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
 
         this.bound.invalidateWelds();
+        this.bound.applyBevel();
         this.bound.delete();
         this.bound.setup();
         this.resetAnimator();
@@ -1245,6 +1249,35 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         UITrackpad trackpad = new UITrackpad((v) -> value.set(v.floatValue()));
 
         trackpad.limit(value.getMin(), value.getMax()).delayedInput();
+        trackpad.setValue(value.get());
+
+        return trackpad;
+    }
+
+    /** A float field for a setting that changes baked geometry (bevel) — refreshes like {@link #toggleRefresh}. */
+    private UITrackpad floatFieldRefresh(ValueFloat value)
+    {
+        UITrackpad trackpad = new UITrackpad((v) ->
+        {
+            value.set(v.floatValue());
+            this.refresh();
+        });
+
+        trackpad.limit(value.getMin(), value.getMax()).delayedInput();
+        trackpad.setValue(value.get());
+
+        return trackpad;
+    }
+
+    private UITrackpad intFieldRefresh(ValueInt value)
+    {
+        UITrackpad trackpad = new UITrackpad((v) ->
+        {
+            value.set(v.intValue());
+            this.refresh();
+        });
+
+        trackpad.limit(value.getMin(), value.getMax()).integer().delayedInput();
         trackpad.setValue(value.get());
 
         return trackpad;
