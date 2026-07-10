@@ -60,6 +60,7 @@ import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
+import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -138,12 +139,17 @@ public class UIReplayList extends UIList<ReplayListEntry>
         this.presetController = new UICopyPasteController(PresetManager.REPLAYS, "_CopyReplay")
             .supplier(() -> this.hasReplaySelection() ? this.replaysToData() : null)
             .consumer((data, mouseX, mouseY) -> this.pasteReplay(data))
-            .canCopy(this::hasReplaySelection);
+            .canCopy(this::hasReplaySelection)
+            .canPaste(() -> this.panel != null && this.panel.getData() != null);
 
         this.multi().sorting();
         this.context((menu) ->
         {
             Film film = this.panel.getData();
+            UIContext context = this.getContext();
+
+            menu.custom(new UIPresetContextMenu(this.presetController, context.mouseX, context.mouseY)
+                .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE));
 
             menu.action(Icons.ADD, UIKeys.SCENE_REPLAYS_CONTEXT_ADD, this::addReplay);
 
@@ -157,23 +163,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 String cat = this.contextFolderCategoryName;
 
                 menu.action(Icons.TRASH, UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE_CATEGORY, () -> this.removeReplayCategory(cat));
-            }
-
-            if (this.hasReplaySelection())
-            {
-                menu.action(Icons.COPY, UIKeys.SCENE_REPLAYS_CONTEXT_COPY, this::copyReplay);
-            }
-
-            MapType copyReplay = Window.getClipboardMap("_CopyReplay");
-
-            if (copyReplay != null)
-            {
-                menu.action(Icons.PASTE, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE, () -> this.pasteReplay(copyReplay));
-            }
-
-            if (film != null)
-            {
-                menu.action(Icons.MORE, UIKeys.GENERAL_PRESETS, this::openReplayPresets);
             }
 
             if (film != null)
