@@ -45,6 +45,8 @@
 	"bbs.config.transformation.snap_scale-comment": "Шаг, к которому привязывается масштаб, пока зажат Ctrl (Ctrl также масштабирует равномерно)",
 	"bbs.config.transformation.gizmo_hover_tolerance": "Допуск наведения на ручки",
 	"bbs.config.transformation.gizmo_hover_tolerance-comment": "На сколько пикселей рядом с ручкой гизмо (линией, кольцом, плейном) курсор всё ещё её захватывает — побеждает ближайшая ручка в этом радиусе. 0 требует точного попадания",
+	"bbs.config.transformation.gizmo_opacity": "Непрозрачность гизмо",
+	"bbs.config.transformation.gizmo_opacity-comment": "Насколько непрозрачно рисуется гизмо — снизь, чтобы видеть модель сквозь ручки. 1 — полностью непрозрачно",
 	"bbs.config.transformation.hotkeys_3d_ray": "3D-луч для R/G/S",
 	"bbs.config.transformation.hotkeys_3d_ray-comment": "Если включено, трансформация через горячие клавиши R/G/S работает по 3D-лучу, а не по экранному смещению влево/вправо",
 	"bbs.config.transformation.rotate_hotkey_order": "Очередь режимов вращения",

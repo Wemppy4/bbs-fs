@@ -737,6 +737,8 @@ public class Gizmo
      */
     private void drawOccludedGizmo(MatrixStack stack)
     {
+        float opacity = BBSSettings.gizmoOpacity.get();
+
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(true);
 
@@ -748,14 +750,23 @@ public class Gizmo
         GL11.glDepthRange(0D, 1D);
         RenderSystem.colorMask(true, true, true, true);
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
+
+        /* The gizmo opacity rides on the shader colour's alpha, which the
+         * position_color program multiplies into every vertex — so blend must be
+         * on for it to show (at opacity 1 this is just opaque, no change). */
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(1F, 1F, 1F, opacity);
         this.drawAxes(stack, 0.25F, 0.008F);
 
         /* The sweep pie overlays the handles and must not write depth. */
         RenderSystem.depthMask(false);
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        RenderSystem.setShaderColor(1F, 1F, 1F, opacity);
         this.drawRotatePieIfActive(stack);
         RenderSystem.depthMask(true);
 
+        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
     }
 
@@ -1398,7 +1409,9 @@ public class Gizmo
         {
             int color = Colors.LIGHTEST_GRAY;
 
-            this.drawCachedRingBillboard(stack, this.rotateRingVbo, Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+            /* This VBO ring sets the shader colour itself, so the opacity modulator
+             * doesn't reach it — fold it into the alpha here instead. */
+            this.drawCachedRingBillboard(stack, this.rotateRingVbo, Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color) * BBSSettings.gizmoOpacity.get());
         }
     }
 
@@ -1500,7 +1513,10 @@ public class Gizmo
         if (building)
         {
             /* Depth func/mask is owned by {@link #drawOccludedGizmo} so bars,
-             * planes and cubes depth-sort against the rings and each other. */
+             * planes and cubes depth-sort against the rings and each other.
+             * Re-assert the opacity modulator: the billboard view ring above sets
+             * the shader colour itself and leaves it opaque. */
+            RenderSystem.setShaderColor(1F, 1F, 1F, BBSSettings.gizmoOpacity.get());
             RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
             BufferRenderer.drawWithGlobalProgram(builder.end());

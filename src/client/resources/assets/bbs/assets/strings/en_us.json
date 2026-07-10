@@ -47,6 +47,8 @@
 	"bbs.config.transformation.snap_scale-comment": "Step the scale snaps to while Ctrl is held during a drag (Ctrl also scales uniformly)",
 	"bbs.config.transformation.gizmo_hover_tolerance": "Handle hover tolerance",
 	"bbs.config.transformation.gizmo_hover_tolerance-comment": "How many pixels away from a gizmo handle (line, ring, plane) the cursor still grabs it — the nearest handle within this radius wins. 0 requires an exact hit",
+	"bbs.config.transformation.gizmo_opacity": "Gizmo opacity",
+	"bbs.config.transformation.gizmo_opacity-comment": "How opaque the gizmo draws — lower it to see the model through the handles. 1 is fully opaque",
 	"bbs.config.transformation.hotkeys_3d_ray": "3D ray for R/G/S",
 	"bbs.config.transformation.hotkeys_3d_ray-comment": "When enabled, transformations started with R/G/S use a 3D ray instead of the old left/right screen-space drag",
 	"bbs.config.transformation.rotate_hotkey_order": "Rotation key cycle",
