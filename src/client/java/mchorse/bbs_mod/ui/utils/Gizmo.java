@@ -1275,8 +1275,11 @@ public class Gizmo
                 Draw.fillBox(builder, stack, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, Colors.WHITE);
             }
 
-            float planeStart = axisSize * 0.2F;
-            float planeEnd = planeStart + axisSize * 0.4F * thickness;
+            /* The plane quad's footprint is a fixed fraction of the axis length,
+             * independent of axesThickness — thickness only fattens the bars and
+             * the flat slab depth, not how big the two-axis plane reads. */
+            float planeStart = axisSize * 0.25F;
+            float planeEnd = planeStart + axisSize * 0.25F;
             float planeThickness = axisOffset * 0.5F;
 
             if (active == null || active == planeXZ) Draw.fillBox(builder, stack, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.PLANE_XZ);
@@ -1512,8 +1515,11 @@ public class Gizmo
                 Draw.fillBox(builder, stack, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, STENCIL_SCREEN / 255F, 0F, 0F);
             }
 
-            float planeStart = axisSize * 0.2F;
-            float planeEnd = planeStart + axisSize * 0.4F * thickness;
+            /* The plane quad's footprint is a fixed fraction of the axis length,
+             * independent of axesThickness — thickness only fattens the bars and
+             * the flat slab depth, not how big the two-axis plane reads. */
+            float planeStart = axisSize * 0.25F;
+            float planeEnd = planeStart + axisSize * 0.25F;
             float planeThickness = axisOffset * 0.5F;
 
             if (active == null || active == planeXZ) Draw.fillBox(builder, stack, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, planeXZ.index / 255F, 0F, 0F);
