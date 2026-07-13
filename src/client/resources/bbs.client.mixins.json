@@ -7,6 +7,8 @@
         "GameRendererMixin",
         "MouseMixin",
         "EntityRendererDispatcherInvoker",
+        "EntityModelLoaderMixin",
+        "ModelPartAccessor",
         "PlayerEntityRendererMixin",
         "RenderTickCounterMixin",
         "IntegratedServerMixin",
