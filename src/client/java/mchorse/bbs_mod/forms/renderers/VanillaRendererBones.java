@@ -1,8 +1,10 @@
 package mchorse.bbs_mod.forms.renderers;
 
 import com.mojang.datafixers.util.Pair;
+import mchorse.bbs_mod.mixin.client.LivingEntityRendererAccessor;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.render.entity.feature.FeatureRenderer;
 import net.minecraft.client.render.entity.model.CompositeEntityModel;
 import net.minecraft.client.render.entity.model.SinglePartEntityModel;
 
@@ -25,9 +27,10 @@ import java.util.TreeMap;
  * Discovers the baked model hierarchies owned by a vanilla entity renderer.
  *
  * <p>The scanner deliberately only descends into models, model parts and a small set of
- * containers used by vanilla renderers. In particular, arbitrary renderer-owned objects and
- * feature renderers are not traversed. Results are cached by renderer identity and contain only
- * the weak part references supplied by {@link VanillaBoneHierarchy}.</p>
+ * containers used by vanilla renderers. Living renderer features are obtained through a controlled
+ * accessor and scanned as separate owners; arbitrary renderer-owned objects are never traversed.
+ * Results are cached by renderer identity and contain only the weak part references supplied by
+ * {@link VanillaBoneHierarchy}.</p>
  */
 public final class VanillaRendererBones
 {
@@ -55,6 +58,15 @@ public final class VanillaRendererBones
             Scanner scanner = new Scanner();
 
             scanner.scanFields(renderer);
+
+            if (renderer instanceof LivingEntityRendererAccessor accessor)
+            {
+                for (FeatureRenderer<?, ?> feature : accessor.bbs$getFeatures())
+                {
+                    scanner.scanFields(feature);
+                }
+            }
+
             discovery = scanner.createDiscovery(hierarchyRevision);
             CACHE.put(new IdentityWeakReference(renderer, STALE_RENDERERS), discovery);
         }
@@ -118,8 +130,13 @@ public final class VanillaRendererBones
             return this.boneIds;
         }
 
+        public List<VanillaBoneHierarchy.Hierarchy> getHierarchies()
+        {
+            return this.hierarchies;
+        }
+
         /**
-         * Resolves a stable ID or an unambiguous relative/legacy name across all main layers.
+         * Resolves a stable ID or an unambiguous relative/legacy name across all discovered layers.
          */
         public Optional<VanillaBoneHierarchy.Bone> resolve(String id)
         {

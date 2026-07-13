@@ -17,6 +17,7 @@
         "LanguageManagerMixin",
         "LivingEntityMixin",
         "LivingEntityUpdateMixin",
+        "LivingEntityRendererAccessor",
         "LivingEntityRendererMixin",
         "iris.SystemTimeUniformsTimerMixin",
         "InGameHudMixin",
