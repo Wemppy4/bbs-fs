@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.mixin.client;
 
 import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
+import mchorse.bbs_mod.forms.renderers.VanillaRendererBones;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
@@ -50,42 +51,41 @@ public abstract class LivingEntityRendererMixin
                 }
             }
 
-            Map<String, ModelPart> parts = MobFormRenderer.getParts().get(livingEntity.getClass());
+            VanillaRendererBones.Discovery discovery = VanillaRendererBones.discover(this);
 
-            if (parts != null)
+            for (Map.Entry<String, PoseTransform> entry : pose.transforms.entrySet())
             {
-                for (Map.Entry<String, ModelPart> entry : parts.entrySet())
+                ModelPart value = discovery.resolve(entry.getKey())
+                    .map((bone) -> bone.getPart())
+                    .orElse(null);
+
+                if (value != null)
                 {
-                    String key = entry.getKey();
-                    ModelPart value = entry.getValue();
-                    PoseTransform poseTransform = pose.transforms.get(key);
+                    PoseTransform poseTransform = entry.getValue();
 
-                    if (poseTransform != null)
-                    {
-                        Transform transform = new Transform();
+                    Transform transform = new Transform();
 
-                        transform.translate.x = value.pivotX;
-                        transform.translate.y = value.pivotY;
-                        transform.translate.z = value.pivotZ;
-                        transform.rotate.x = value.pitch;
-                        transform.rotate.y = value.yaw;
-                        transform.rotate.z = value.roll;
-                        transform.scale.x = value.xScale;
-                        transform.scale.y = value.yScale;
-                        transform.scale.z = value.zScale;
+                    transform.translate.x = value.pivotX;
+                    transform.translate.y = value.pivotY;
+                    transform.translate.z = value.pivotZ;
+                    transform.rotate.x = value.pitch;
+                    transform.rotate.y = value.yaw;
+                    transform.rotate.z = value.roll;
+                    transform.scale.x = value.xScale;
+                    transform.scale.y = value.yScale;
+                    transform.scale.z = value.zScale;
 
-                        value.pivotX += poseTransform.translate.x;
-                        value.pivotY += poseTransform.translate.y;
-                        value.pivotZ += poseTransform.translate.z;
-                        value.pitch += poseTransform.rotate.x;
-                        value.yaw += poseTransform.rotate.y;
-                        value.roll += poseTransform.rotate.z;
-                        value.xScale += poseTransform.scale.x - 1F;
-                        value.yScale += poseTransform.scale.y - 1F;
-                        value.zScale += poseTransform.scale.z - 1F;
+                    value.pivotX += poseTransform.translate.x;
+                    value.pivotY += poseTransform.translate.y;
+                    value.pivotZ += poseTransform.translate.z;
+                    value.pitch += poseTransform.rotate.x;
+                    value.yaw += poseTransform.rotate.y;
+                    value.roll += poseTransform.rotate.z;
+                    value.xScale += poseTransform.scale.x - 1F;
+                    value.yScale += poseTransform.scale.y - 1F;
+                    value.zScale += poseTransform.scale.z - 1F;
 
-                        MobFormRenderer.getCache().put(value, transform);
-                    }
+                    MobFormRenderer.getCache().put(value, transform);
                 }
             }
         }

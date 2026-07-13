@@ -24,8 +24,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.client.render.LightmapTextureManager;
-import net.minecraft.client.render.entity.LivingEntityRenderer;
-import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityPose;
@@ -41,18 +39,13 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 {
-    private static final Map<Class, Map<String, ModelPart>> parts = new HashMap<>();
     private static final Map<ModelPart, Transform> cache = new HashMap<>();
     private static Pose currentPose;
     private static Pose currentPoseOverlay;
@@ -80,11 +73,6 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
         return currentPoseOverlay;
     }
 
-    public static Map<Class, Map<String, ModelPart>> getParts()
-    {
-        return parts;
-    }
-
     public static Map<ModelPart, Transform> getCache()
     {
         return cache;
@@ -102,52 +90,9 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 
         if (this.entity != null)
         {
-            Map<String, ModelPart> stringModelPartMap = parts.get(this.entity.getClass());
+            Object renderer = MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(this.entity);
 
-            if (stringModelPartMap == null)
-            {
-                stringModelPartMap = new HashMap<>();
-
-                if (MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(this.entity) instanceof LivingEntityRenderer renderer)
-                {
-                    EntityModel model = renderer.getModel();
-                    Set<Field> fields = new HashSet<>();
-                    Class aClass = model.getClass();
-
-                    while (aClass != Object.class)
-                    {
-                        for (Field field : aClass.getDeclaredFields())
-                        {
-                            fields.add(field);
-                        }
-
-                        aClass = aClass.getSuperclass();
-                    }
-
-                    for (Field declaredField : fields)
-                    {
-                        if (declaredField.getType().equals(ModelPart.class))
-                        {
-                            try
-                            {
-                                declaredField.setAccessible(true);
-
-                                ModelPart part = (ModelPart) declaredField.get(model);
-
-                                stringModelPartMap.put(declaredField.getName(), part);
-                            }
-                            catch (Exception e)
-                            {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-
-                parts.put(this.entity.getClass(), stringModelPartMap);
-            }
-
-            return new ArrayList<>(stringModelPartMap.keySet());
+            return VanillaRendererBones.discover(renderer).getBoneIds();
         }
 
         return super.getBones();

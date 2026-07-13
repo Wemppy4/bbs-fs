@@ -26,6 +26,7 @@ public final class VanillaBoneHierarchy
     private static final ReferenceQueue<ModelPart> STALE_PARTS = new ReferenceQueue<>();
     private static final Map<IdentityWeakReference, RegisteredNode> NODES = new HashMap<>();
     private static final Map<String, Structure> STRUCTURES = new HashMap<>();
+    private static volatile long revision;
 
     private VanillaBoneHierarchy()
     {}
@@ -111,6 +112,8 @@ public final class VanillaBoneHierarchy
             put(entry.getKey(), new RegisteredNode(hierarchy, byId.get(entry.getValue().descriptor().id())));
         }
 
+        revision++;
+
         return hierarchy;
     }
 
@@ -132,9 +135,15 @@ public final class VanillaBoneHierarchy
     {
         NODES.clear();
         STRUCTURES.clear();
+        revision++;
 
         while (STALE_PARTS.poll() != null)
         {}
+    }
+
+    public static long getRevision()
+    {
+        return revision;
     }
 
     public static String toLayerId(EntityModelLayer layer)

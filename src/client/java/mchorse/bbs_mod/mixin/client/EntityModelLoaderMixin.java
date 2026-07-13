@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.mixin.client;
 
 import mchorse.bbs_mod.forms.renderers.VanillaBoneHierarchy;
+import mchorse.bbs_mod.forms.renderers.VanillaRendererBones;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.model.EntityModelLayer;
 import net.minecraft.client.render.entity.model.EntityModelLoader;
@@ -23,6 +24,7 @@ public class EntityModelLoaderMixin
     @Inject(method = "reload", at = @At("HEAD"))
     private void bbs$clearBoneHierarchies(ResourceManager manager, CallbackInfo info)
     {
+        VanillaRendererBones.clear();
         VanillaBoneHierarchy.clear();
     }
 }
