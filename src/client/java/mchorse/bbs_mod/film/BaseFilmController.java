@@ -247,8 +247,10 @@ public abstract class BaseFilmController
             stack.pop();
         }
 
-        if (!relative && !context.nameTag.isEmpty() && context.map == null)
+        if (!relative && !context.nameTag.isEmpty() && context.map == null && form.visible.get())
         {
+            /* Hide the name tag along with the form (form.visible, animatable via keyframes): when the
+             * form renders nothing, its name tag must vanish too - same reasoning as the shadow above. */
             stack.push();
             stack.translate(position.x - cx, position.y - cy, position.z - cz);
 

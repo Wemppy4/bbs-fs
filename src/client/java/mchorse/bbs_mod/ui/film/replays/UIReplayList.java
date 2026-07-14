@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film.replays;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.Camera;
@@ -2245,14 +2246,16 @@ public class UIReplayList extends UIList<ReplayListEntry>
         if (form != null)
         {
             int formX = this.area.x + this.area.w - 30;
-
-            context.batcher.clip(formX, y, 40, 20, context);
-
             int formY = y - 10;
 
-            FormUtilsClient.renderUI(form, context, formX, formY, formX + 40, formY + 40);
+            if (BBSSettings.listModelPreview.get())
+            {
+                context.batcher.clip(formX, y, 40, 20, context);
 
-            context.batcher.unclip(context);
+                FormUtilsClient.renderUI(form, context, formX, formY, formX + 40, formY + 40);
+
+                context.batcher.unclip(context);
+            }
 
             if (replay.fp.get())
             {

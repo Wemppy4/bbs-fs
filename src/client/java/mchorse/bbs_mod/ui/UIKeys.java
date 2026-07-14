@@ -355,6 +355,7 @@ public class UIKeys
     public static final IKey FILM_REPLAY_ORBIT_THIRD_PERSON_FRONT = L10n.lang("bbs.ui.film.replay.orbit.third_person_front");
     public static final IKey FILM_REPLAY_PICK_AXES_PREVIEW = L10n.lang("bbs.ui.film.replay.pick_axes_preview");
     public static final IKey FILM_REPLAY_RECORD = L10n.lang("bbs.ui.film.replay.record");
+    public static final IKey FILM_REPLAY_TELEPORT_TO_PLAYER = L10n.lang("bbs.ui.film.replay.teleport_to_player");
     public static final IKey FILM_REPLAY_RELATIVE_TOOLTIP = L10n.lang("bbs.ui.film.replay.relative-tooltip");
     public static final IKey FILM_REPLAY_REPLAY = L10n.lang("bbs.ui.film.replay.replay");
     public static final IKey FILM_REPLAY_SHADOW = L10n.lang("bbs.ui.film.replay.shadow");

@@ -166,6 +166,8 @@ public class UIFilmPreview extends UIElement
             {
                 this.panel.getController().toggleInstantKeyframes();
             });
+
+            menu.action(Icons.MOVE_TO, UIKeys.FILM_REPLAY_TELEPORT_TO_PLAYER, () -> this.panel.getController().insertPlayerFrame());
         });
         this.recordVideo = new UIIcon(Icons.VIDEO_CAMERA, (b) ->
         {

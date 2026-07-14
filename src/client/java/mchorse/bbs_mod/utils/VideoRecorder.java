@@ -66,7 +66,7 @@ public class VideoRecorder
     /**
      * Start recording the video using ffmpeg
      */
-    public void startRecording(File audioFile, int textureId, int width, int height)
+    public void startRecording(String movieName, File audioFile, int textureId, int width, int height)
     {
         if (this.recording)
         {
@@ -92,7 +92,12 @@ public class VideoRecorder
             movies.mkdirs();
 
             Path path = Paths.get(movies.toString());
-            String movieName = StringUtils.createTimestampFilename();
+
+            if (movieName == null || movieName.isEmpty())
+            {
+                movieName = StringUtils.createTimestampFilename();
+            }
+
             String params = audioFile == null
                 ? BBSSettings.videoArguments.get()
                 : BBSSettings.videoArgumentsAudio.get();
@@ -371,7 +376,7 @@ public class VideoRecorder
         }
         else
         {
-            this.startRecording(null, textureId, textureWidth, textureHeight);
+            this.startRecording(StringUtils.createTimestampFilename(), null, textureId, textureWidth, textureHeight);
         }
 
         UIUtils.playClick();

@@ -48,6 +48,55 @@ public class StringUtils
         return new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
     }
 
+    /**
+     * Resolve a user-authored filename format (with {@code {placeholder}} tokens) into a
+     * sanitized base filename (no extension) for an exported film. Supported placeholders:
+     * {@code {name}} (film id), {@code {date}}, {@code {time}}, {@code {datetime}},
+     * {@code {width}}, {@code {height}}, {@code {fps}}, {@code {duration}} (whole seconds).
+     * An empty format, or one that sanitizes down to nothing, falls back to a timestamp so
+     * the export always gets a usable name.
+     */
+    public static String resolveExportFilename(String format, String filmName, int width, int height, int fps, int durationTicks)
+    {
+        if (format == null || format.trim().isEmpty())
+        {
+            return createTimestampFilename();
+        }
+
+        Date now = new Date();
+        String resolved = format
+            .replace("{name}", filmName == null ? "" : filmName)
+            .replace("{date}", new SimpleDateFormat("yyyy-MM-dd").format(now))
+            .replace("{time}", new SimpleDateFormat("HH-mm-ss").format(now))
+            .replace("{datetime}", new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(now))
+            .replace("{width}", String.valueOf(width))
+            .replace("{height}", String.valueOf(height))
+            .replace("{fps}", String.valueOf(fps))
+            .replace("{duration}", String.valueOf(Math.round(durationTicks / 20D)));
+
+        resolved = sanitizeFilename(resolved);
+
+        return resolved.isEmpty() ? createTimestampFilename() : resolved;
+    }
+
+    /**
+     * Strip characters that are illegal in file names on common filesystems (Windows being
+     * the strictest) so a formatted export name can't produce an invalid or path-traversing
+     * file. Illegal characters become '_'; trailing dots/spaces (which Windows rejects) are
+     * trimmed.
+     */
+    public static String sanitizeFilename(String name)
+    {
+        if (name == null)
+        {
+            return "";
+        }
+
+        String cleaned = name.replaceAll("[\\\\/:*?\"<>|\\r\\n\\t\\x00-\\x1F]", "_");
+
+        return cleaned.replaceAll("[. ]+$", "").trim();
+    }
+
     public static String combinePaths(String a, String b)
     {
         return combinePaths(a, b, "/");

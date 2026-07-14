@@ -680,7 +680,7 @@ public class BBSModClient implements ClientModInitializer
             return;
         }
 
-        worldExportSession.start(null);
+        worldExportSession.start(null, null);
     }
 
     private KeyBinding createKey(String id, int key)
@@ -764,7 +764,7 @@ public class BBSModClient implements ClientModInitializer
             return;
         }
 
-        worldExportSession.start(filmId);
+        worldExportSession.start(filmId, panel.getData());
     }
 
     private void keyPauseFilm()

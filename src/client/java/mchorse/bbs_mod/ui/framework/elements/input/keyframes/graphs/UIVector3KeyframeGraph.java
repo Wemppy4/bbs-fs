@@ -473,7 +473,7 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
                 v = new Vector3f(y, y, y);
             }
             
-            this.addKeyframe(sheet, tick, v);
+            this.addKeyframeManually(sheet, tick, v);
         }
 
         return sheet != null;

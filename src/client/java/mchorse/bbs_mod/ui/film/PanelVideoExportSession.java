@@ -6,6 +6,7 @@ import mchorse.bbs_mod.audio.AudioRenderer;
 import mchorse.bbs_mod.camera.clips.misc.AudioClip;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.VideoExportSession;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -93,6 +94,60 @@ public class PanelVideoExportSession extends VideoExportSession
         this.ui.attachOverlay();
 
         return true;
+    }
+
+    @Override
+    protected String getMovieName()
+    {
+        Film film = this.editor.getData();
+        String base = StringUtils.resolveExportFilename(
+            BBSSettings.videoExportFilenameFormat.get(),
+            film == null ? "" : film.getId(),
+            this.width,
+            this.height,
+            BBSRendering.getVideoFrameRate(),
+            film == null ? 0 : film.camera.calculateDuration()
+        );
+
+        return uniqueName(BBSRendering.getVideoFolder(), base);
+    }
+
+    /**
+     * Avoid overwriting a previous export - and, with it, hanging ffmpeg (whose default args
+     * carry no {@code -y}): when a file with this base name already exists, append " (n)".
+     */
+    private static String uniqueName(File folder, String base)
+    {
+        String candidate = base;
+
+        for (int i = 1; nameTaken(folder, candidate); i++)
+        {
+            candidate = base + " (" + i + ")";
+        }
+
+        return candidate;
+    }
+
+    private static boolean nameTaken(File folder, String base)
+    {
+        File[] files = folder.listFiles();
+
+        if (files == null)
+        {
+            return false;
+        }
+
+        String prefix = (base + ".").toLowerCase();
+
+        for (File file : files)
+        {
+            if (file.getName().toLowerCase().startsWith(prefix))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.selectors;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.selectors.EntitySelector;
@@ -48,7 +49,7 @@ public class UISelectorList extends UIList<EntitySelector>
 
         Form form = element.form;
 
-        if (form != null)
+        if (form != null && BBSSettings.listModelPreview.get())
         {
             x += this.area.w - 30;
 

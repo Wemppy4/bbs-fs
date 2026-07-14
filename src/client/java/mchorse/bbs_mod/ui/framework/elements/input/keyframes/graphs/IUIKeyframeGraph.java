@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
@@ -157,6 +158,29 @@ public interface IUIKeyframeGraph
         this.clearSelection();
         this.pickKeyframe(keyframe);
         sheet.selection.add(index);
+
+        return keyframe;
+    }
+
+    /**
+     * Same as {@link #addKeyframe(UIKeyframeSheet, float, Object)}, but for keyframes the user
+     * creates by hand (clicking/keybinding in the editor). Inheritance from a neighbour is kept
+     * exactly as before; only the "empty spot" case - where the keyframe would otherwise default
+     * to linear - is stamped with the configured default interpolation
+     * ({@link BBSSettings#getDefaultKeyframeInterpolation()}). Automated inserts (recording, pose
+     * capture, animation baking) call the plain {@link #addKeyframe} so they are never affected.
+     */
+    public default Keyframe addKeyframeManually(UIKeyframeSheet sheet, float tick, Object value)
+    {
+        /* addKeyframe inherits (copyOverExtra) only when no explicit value is given and the
+         * channel already has keyframes; in every other case the new keyframe is left at linear. */
+        boolean inherits = value == null && !sheet.channel.isEmpty();
+        Keyframe keyframe = this.addKeyframe(sheet, tick, value);
+
+        if (keyframe != null && !inherits)
+        {
+            keyframe.getInterpolation().setInterp(BBSSettings.getDefaultKeyframeInterpolation());
+        }
 
         return keyframe;
     }

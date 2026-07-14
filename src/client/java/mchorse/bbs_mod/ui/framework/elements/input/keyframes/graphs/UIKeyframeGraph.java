@@ -193,7 +193,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
 
         if (sheet != null)
         {
-            this.addKeyframe(sheet, tick, sheet.channel.getFactory().yToValue(this.fromGraphY(mouseY)));
+            this.addKeyframeManually(sheet, tick, sheet.channel.getFactory().yToValue(this.fromGraphY(mouseY)));
         }
 
         return sheet != null;

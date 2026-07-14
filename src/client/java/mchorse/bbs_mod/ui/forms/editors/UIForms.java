@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.forms.editors;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -74,7 +75,7 @@ public class UIForms extends UIList<UIForms.FormEntry>
 
         Form form = element.getForm();
 
-        if (form != null)
+        if (form != null && BBSSettings.listModelPreview.get())
         {
             x += this.area.w - 40;
 

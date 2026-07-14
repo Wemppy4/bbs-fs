@@ -1105,6 +1105,47 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
     }
 
+    /**
+     * Insert position and rotation keyframes at the current tick from the live
+     * Minecraft player's world transform - a quick way to "teleport" the replay
+     * to where the player is standing (and facing). Only the transform channels
+     * are touched (unlike full player recording), so no stance/velocity noise is
+     * added to the replay.
+     */
+    public void insertPlayerFrame()
+    {
+        Replay replay = this.getReplay();
+
+        if (replay == null || MinecraftClient.getInstance().player == null)
+        {
+            return;
+        }
+
+        Morph morph = Morph.getMorph(MinecraftClient.getInstance().player);
+
+        if (morph == null)
+        {
+            return;
+        }
+
+        IEntity player = morph.entity;
+        int tick = this.getTick();
+
+        BaseValue.edit(replay.keyframes, (keyframes) ->
+        {
+            keyframes.x.insert(tick, player.getX());
+            keyframes.y.insert(tick, player.getY());
+            keyframes.z.insert(tick, player.getZ());
+
+            keyframes.yaw.insert(tick, (double) player.getYaw());
+            keyframes.pitch.insert(tick, (double) player.getPitch());
+            keyframes.headYaw.insert(tick, (double) player.getHeadYaw());
+            keyframes.bodyYaw.insert(tick, (double) player.getBodyYaw());
+        });
+
+        UIUtils.playClick();
+    }
+
     /* Update */
 
     public void update()

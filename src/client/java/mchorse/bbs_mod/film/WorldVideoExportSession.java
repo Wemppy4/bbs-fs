@@ -3,11 +3,18 @@ package mchorse.bbs_mod.film;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.actions.ActionState;
+import mchorse.bbs_mod.audio.AudioRenderer;
+import mchorse.bbs_mod.camera.clips.misc.AudioClip;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.network.ClientNetwork;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.WorldExportWindowSession;
+import mchorse.bbs_mod.utils.clips.Clips;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * Video export of the live world, driven by the F4 (record) and F6 (play film
@@ -21,6 +28,8 @@ public class WorldVideoExportSession extends VideoExportSession
 
     /** Id of the film being played and recorded (F6), or {@code null} for a plain world recording (F4). */
     private String filmId;
+    /** The film being recorded (F6), used to render its audio track; {@code null} for a plain world recording (F4). */
+    private Film film;
     private boolean firstTickPaused;
 
     public String getFilmId()
@@ -29,10 +38,12 @@ public class WorldVideoExportSession extends VideoExportSession
     }
 
     /**
-     * Start a world recording. Pass a film id to also play that film and stop
-     * when it finishes (F6), or {@code null} to record the live world (F4).
+     * Start a world recording. Pass a film id and its data to also play that film
+     * and stop when it finishes (F6), or {@code null}/{@code null} to record the
+     * live world (F4). The film is used to render its audio track when the
+     * "export audio" setting is on.
      */
-    public boolean start(String filmId)
+    public boolean start(String filmId, Film film)
     {
         if (this.isExporting() || this.getRecorder().isRecording())
         {
@@ -45,6 +56,7 @@ public class WorldVideoExportSession extends VideoExportSession
         this.applyWindowSize(size);
 
         this.filmId = filmId;
+        this.film = film;
         this.firstTickPaused = false;
 
         long delayMs = (long) (Math.max(0F, BBSSettings.videoDelay.get()) * 1000F);
@@ -54,6 +66,7 @@ public class WorldVideoExportSession extends VideoExportSession
         {
             this.windowSession.restore();
             this.filmId = null;
+            this.film = null;
 
             return false;
         }
@@ -69,6 +82,28 @@ public class WorldVideoExportSession extends VideoExportSession
     @Override
     protected boolean prepare()
     {
+        /* When recording a film (F6) with "export audio" on, render its audio track to a
+         * temp WAV so the recorder muxes it into the video (same as the film-panel export).
+         * Best-effort: a failure here just yields a silent video, never aborts the render. */
+        if (this.film != null && BBSSettings.videoExportAudio.get())
+        {
+            try
+            {
+                Clips camera = this.film.camera;
+                List<AudioClip> audioClips = camera.getClips(AudioClip.class);
+                File file = new File(BBSRendering.getVideoFolder(), StringUtils.createTimestampFilename() + ".wav");
+
+                if (AudioRenderer.renderAudio(file, audioClips, camera.calculateDuration(), 48000, 0, 0))
+                {
+                    this.audioFile = file;
+                }
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+
         return true;
     }
 
@@ -162,6 +197,7 @@ public class WorldVideoExportSession extends VideoExportSession
         this.windowSession.restore();
 
         this.filmId = null;
+        this.film = null;
         this.firstTickPaused = false;
     }
 

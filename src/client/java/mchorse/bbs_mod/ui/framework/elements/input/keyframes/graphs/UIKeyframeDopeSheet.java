@@ -499,7 +499,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
         if (sheet != null)
         {
-            this.addKeyframe(sheet, tick, null);
+            this.addKeyframeManually(sheet, tick, null);
         }
 
         return sheet != null;
@@ -641,8 +641,8 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
                         return true;
                     }
 
-                    this.addKeyframe(sheet, this.keyframes.getTick(), null);
-                    
+                    this.addKeyframeManually(sheet, this.keyframes.getTick(), null);
+
                     return true;
                 }
             }

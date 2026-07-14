@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.film;
 
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.VideoRecorder;
 
 import java.io.File;
@@ -151,7 +152,7 @@ public abstract class VideoExportSession
 
         try
         {
-            recorder.startRecording(this.audioFile, this.textureId, this.width, this.height);
+            recorder.startRecording(this.getMovieName(), this.audioFile, this.textureId, this.width, this.height);
         }
         catch (Exception e)
         {
@@ -233,6 +234,15 @@ public abstract class VideoExportSession
     }
 
     /* Hooks */
+
+    /**
+     * The base filename (no extension) the recorder should write to. Defaults to a timestamp;
+     * the film-panel export overrides this to honour the user's filename format setting.
+     */
+    protected String getMovieName()
+    {
+        return StringUtils.createTimestampFilename();
+    }
 
     /**
      * Gather everything needed to record (size already stored, plus audio,
