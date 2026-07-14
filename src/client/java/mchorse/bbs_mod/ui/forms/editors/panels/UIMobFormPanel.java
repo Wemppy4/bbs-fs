@@ -9,10 +9,10 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
 import mchorse.bbs_mod.ui.framework.elements.input.text.utils.TextLine;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.utils.colors.Color;
 import net.minecraft.entity.EntityType;
 import net.minecraft.registry.Registries;
@@ -24,31 +24,42 @@ import java.util.List;
 
 public class UIMobFormPanel extends UIPoseFormPanel<MobForm>
 {
-    private static List<String> mobIDs;
+    private static final List<String> MOB_IDS = new ArrayList<>();
 
+    public UIButton pickMob;
     public UIButton pick;
     public UIColor color;
     public UIToggle action;
     public UIToggle slim;
-    public UISearchList<String> mobID;
     public UITextarea<TextLine> mobNBT;
 
     static
     {
-        mobIDs = new ArrayList<>();
-
         for (RegistryKey<EntityType<?>> key : Registries.ENTITY_TYPE.getKeys())
         {
-            mobIDs.add(key.getValue().toString());
+            MOB_IDS.add(key.getValue().toString());
         }
 
-        mobIDs.sort(Comparator.comparing((a) -> a));
+        MOB_IDS.sort(Comparator.naturalOrder());
     }
 
     public UIMobFormPanel(UIForm editor)
     {
         super(editor);
 
+        this.pickMob = new UIButton(UIKeys.FORMS_EDITORS_MOB_PICK_ENTITY, (b) ->
+        {
+            UIListOverlayPanel list = new UIListOverlayPanel(UIKeys.FORMS_EDITORS_MOB_ENTITIES, (id) ->
+            {
+                this.form.mobID.set(id);
+                this.editor.startEdit(this.form);
+            });
+
+            list.addValues(MOB_IDS);
+            list.setValue(this.form.mobID.get());
+
+            UIOverlay.addOverlay(this.getContext(), list);
+        });
         this.pick = new UIButton(UIKeys.FORMS_EDITOR_MODEL_PICK_TEXTURE, (b) ->
         {
             Link link = this.form.texture.get();
@@ -64,17 +75,6 @@ public class UIMobFormPanel extends UIPoseFormPanel<MobForm>
         });
         this.slim.tooltip(UIKeys.FORMS_EDITOR_SLIM_TOOLTIP);
 
-        this.mobID = new UISearchList<>(new UIStringList((l) ->
-        {
-            if (!l.isEmpty())
-            {
-                this.form.mobID.set(l.get(0));
-                this.refreshPoseEditor();
-            }
-        }));
-        this.mobID.list.background().add(mobIDs);
-        this.mobID.h(20 + 16 * 8);
-
         this.mobNBT = new UITextarea<>((t) ->
         {
             this.form.mobNBT.set(t);
@@ -83,7 +83,7 @@ public class UIMobFormPanel extends UIPoseFormPanel<MobForm>
         this.mobNBT.background().h(160);
         this.mobNBT.wrap();
 
-        this.options.add(this.pick, this.color, this.action, this.slim, this.mobID, this.mobNBT, this.poseEditor);
+        this.options.add(this.pickMob, this.pick, this.color, this.action, this.slim, this.mobNBT, this.poseEditor);
     }
 
     @Override
@@ -94,7 +94,6 @@ public class UIMobFormPanel extends UIPoseFormPanel<MobForm>
         this.color.setColor(this.form.color.get().getARGBColor());
         this.action.setValue(this.form.action.get());
         this.slim.setValue(this.form.slim.get());
-        this.mobID.list.setCurrentScroll(this.form.mobID.get());
         this.mobNBT.setText(this.form.mobNBT.get());
         this.refreshPoseEditor();
     }

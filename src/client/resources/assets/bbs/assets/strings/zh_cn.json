@@ -630,6 +630,8 @@
     "bbs.ui.forms.editors.label.title": "文字标签选项",
     "bbs.ui.forms.editors.mob.title": "生物",
     "bbs.ui.forms.editors.mob.action": "播放原版动画",
+    "bbs.ui.forms.editors.mob.entities": "生物",
+    "bbs.ui.forms.editors.mob.pick_entity": "选取生物...",
     "bbs.ui.forms.editors.model.actions": "动作",
     "bbs.ui.forms.editors.model.pose": "姿势",
     "bbs.ui.forms.editors.trail.length": "长度",
