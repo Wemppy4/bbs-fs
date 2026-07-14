@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
+import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -21,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-public class UIMobFormPanel extends UIFormPanel<MobForm>
+public class UIMobFormPanel extends UIPoseFormPanel<MobForm>
 {
     private static List<String> mobIDs;
 
@@ -59,18 +60,30 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
         this.slim = new UIToggle(UIKeys.FORMS_EDITOR_SLIM, (b) ->
         {
             this.form.slim.set(b.getValue());
+            this.refreshPoseEditor();
         });
         this.slim.tooltip(UIKeys.FORMS_EDITOR_SLIM_TOOLTIP);
 
-        this.mobID = new UISearchList<>(new UIStringList((l) -> this.form.mobID.set(l.get(0))));
+        this.mobID = new UISearchList<>(new UIStringList((l) ->
+        {
+            if (!l.isEmpty())
+            {
+                this.form.mobID.set(l.get(0));
+                this.refreshPoseEditor();
+            }
+        }));
         this.mobID.list.background().add(mobIDs);
         this.mobID.h(20 + 16 * 8);
 
-        this.mobNBT = new UITextarea<>((t) -> this.form.mobNBT.set(t));
+        this.mobNBT = new UITextarea<>((t) ->
+        {
+            this.form.mobNBT.set(t);
+            this.refreshPoseEditor();
+        });
         this.mobNBT.background().h(160);
         this.mobNBT.wrap();
 
-        this.options.add(this.pick, this.color, this.action, this.slim, this.mobID, this.mobNBT);
+        this.options.add(this.pick, this.color, this.action, this.slim, this.mobID, this.mobNBT, this.poseEditor);
     }
 
     @Override
@@ -83,5 +96,17 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
         this.slim.setValue(this.form.slim.get());
         this.mobID.list.setCurrentScroll(this.form.mobID.get());
         this.mobNBT.setText(this.form.mobNBT.get());
+        this.refreshPoseEditor();
+    }
+
+    private void refreshPoseEditor()
+    {
+        if (this.form == null)
+        {
+            return;
+        }
+
+        this.bindPose(this.form, "");
+        this.poseEditor.fillGroups(FormUtilsClient.getBoneHierarchy(this.form), true);
     }
 }

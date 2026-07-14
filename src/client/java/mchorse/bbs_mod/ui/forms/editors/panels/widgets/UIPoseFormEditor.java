@@ -8,11 +8,12 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 
-public class UIModelPoseEditor extends UIPoseEditor
+/** Pose editor bound to a form's own {@link ValuePose}, including undo notifications. */
+public class UIPoseFormEditor extends UIPoseEditor
 {
     private ValuePose valuePose;
 
-    public UIModelPoseEditor()
+    public UIPoseFormEditor()
     {
         this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 17);
     }

@@ -76,6 +76,35 @@ public final class BoneHierarchy
         return adjacent;
     }
 
+    /** Returns every descendant of the selected bone in hierarchy order, excluding itself. */
+    public List<Bone> getDescendants(String id)
+    {
+        if (this.getBone(id) == null)
+        {
+            return Collections.emptyList();
+        }
+
+        List<Bone> descendants = new ArrayList<>();
+
+        for (Bone candidate : this.bones)
+        {
+            Bone parent = candidate.parentId() == null ? null : this.getBone(candidate.parentId());
+
+            while (parent != null)
+            {
+                if (id.equals(parent.id()))
+                {
+                    descendants.add(candidate);
+                    break;
+                }
+
+                parent = parent.parentId() == null ? null : this.getBone(parent.parentId());
+            }
+        }
+
+        return descendants;
+    }
+
     /** Returns the ancestry path from the root down to the selected bone. */
     public List<Bone> getAncestors(String id)
     {
