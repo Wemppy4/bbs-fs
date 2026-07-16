@@ -781,9 +781,11 @@ public class UIReplaysEditorUtils
             return m == null ? new Matrix4f() : m;
         };
 
+        Vector3f rotationOffset = BaseFilmController.getGizmoBoneRotationOffset(entity, transition, bone.a);
+
         drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform.getTransform(), matrixSampler));
         drag.setRotate2Axes(GizmoDrag.computeRotateAxes(transform.getTransform(), true, matrixSampler));
-        drag.setRotationOffset(BaseFilmController.getGizmoBoneRotationOffset(entity, transition, bone.a));
+        drag.setRotationParents(transform.getTransform(), rotationOffset, matrixSampler);
         drag.setJacobian(GizmoDrag.computeTranslateJacobian(
             transform.getTransform(),
             () -> matrixSampler.get().getTranslation(new Vector3f())
@@ -844,6 +846,7 @@ public class UIReplaysEditorUtils
 
         drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform.getTransform(), matrixSampler));
         drag.setRotate2Axes(GizmoDrag.computeRotateAxes(transform.getTransform(), true, matrixSampler));
+        drag.setRotationParents(transform.getTransform(), null, matrixSampler);
         drag.setJacobian(GizmoDrag.computeTranslateJacobian(
             transform.getTransform(),
             () -> matrixSampler.get().getTranslation(new Vector3f())

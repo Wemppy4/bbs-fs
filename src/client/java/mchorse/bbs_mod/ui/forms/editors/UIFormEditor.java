@@ -443,6 +443,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
 
         if (drag != null)
         {
+            Supplier<Matrix4f> rotationSampler = () ->
+            {
+                Matrix4f origin = this.getOriginMatrix(transition);
+
+                return origin == null ? new Matrix4f() : MatrixStackUtils.stripScale(origin);
+            };
+            Vector3f rotationOffset = this.isBodyPartGizmoMode() ? null : this.editor.getRotationOffset(transition);
+
             drag.setJacobian(GizmoDrag.computeTranslateJacobian(
                 transform.getTransform(),
                 () ->
@@ -454,29 +462,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
             ));
             drag.setRotateAxes(GizmoDrag.computeRotateAxes(
                 transform.getTransform(),
-                () ->
-                {
-                    /* Always sample the rotation-bearing matrix &mdash; the
-                     * UI's GLOBAL toggle would otherwise hand us an origin
-                     * matrix without rotation, in which the perturbation we
-                     * apply leaves no trace and axis extraction silently
-                     * collapses to identity. */
-                    Matrix4f origin = this.getOriginMatrix(transition);
-
-                    return origin == null ? new Matrix4f() : MatrixStackUtils.stripScale(origin);
-                }
+                rotationSampler
             ));
             drag.setRotate2Axes(GizmoDrag.computeRotateAxes(
                 transform.getTransform(),
                 true,
-                () ->
-                {
-                    Matrix4f origin = this.getOriginMatrix(transition);
-
-                    return origin == null ? new Matrix4f() : MatrixStackUtils.stripScale(origin);
-                }
+                rotationSampler
             ));
-            drag.setRotationOffset(this.isBodyPartGizmoMode() ? null : this.editor.getRotationOffset(transition));
+            drag.setRotationParents(transform.getTransform(), rotationOffset, rotationSampler);
         }
 
         return drag;

@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 public class UIAnimationStateEditor extends UIElement
 {
@@ -424,6 +425,14 @@ public class UIAnimationStateEditor extends UIElement
         if (drag != null)
         {
             float tick = this.editor.getSamplingTick();
+            Supplier<Matrix4f> rotationSampler = () ->
+            {
+                this.editor.applyStateForSampling(tick);
+
+                Matrix4f origin = this.getOriginMatrix(transition);
+
+                return origin == null ? new Matrix4f() : MatrixStackUtils.stripScale(origin);
+            };
 
             /* The bone matrices come from the previewed form, which only reflects a keyframe edit
              * once the animation state is re-applied. computeRotateAxes / computeTranslateJacobian
@@ -443,30 +452,12 @@ public class UIAnimationStateEditor extends UIElement
             ));
             drag.setRotateAxes(GizmoDrag.computeRotateAxes(
                 transform.getTransform(),
-                () ->
-                {
-                    this.editor.applyStateForSampling(tick);
-
-                    /* Always sample the rotation-bearing matrix; the GLOBAL
-                     * keyframe variant would otherwise return an origin
-                     * matrix without rotation and the axis sampling would
-                     * collapse to identity. */
-                    Matrix4f origin = this.getOriginMatrix(transition);
-
-                    return origin == null ? new Matrix4f() : MatrixStackUtils.stripScale(origin);
-                }
+                rotationSampler
             ));
             drag.setRotate2Axes(GizmoDrag.computeRotateAxes(
                 transform.getTransform(),
                 true,
-                () ->
-                {
-                    this.editor.applyStateForSampling(tick);
-
-                    Matrix4f origin = this.getOriginMatrix(transition);
-
-                    return origin == null ? new Matrix4f() : MatrixStackUtils.stripScale(origin);
-                }
+                rotationSampler
             ));
 
             /* Restore the previewed form to the unperturbed pose: the compute* helpers above have
@@ -474,7 +465,8 @@ public class UIAnimationStateEditor extends UIElement
             this.editor.applyStateForSampling(tick);
             Vector3f rotationOffset = this.getMatrixEntry(transition).rotationOffset();
 
-            drag.setRotationOffset(rotationOffset);
+            drag.setRotationParents(transform.getTransform(), rotationOffset, rotationSampler);
+            this.editor.applyStateForSampling(tick);
         }
 
         return drag;

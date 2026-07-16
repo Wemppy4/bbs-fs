@@ -1745,8 +1745,7 @@ public class UIPropTransform extends UITransform
          * makes the call idempotent: a cursor wrap re-invokes it, and rebuilding
          * from the unchanged cache yields the same axes (and never disturbs the
          * accumulated offset). */
-        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
-        Matrix3f parentInverse = this.computeParentInverse(source);
+        Matrix3f parentInverse = this.computeParentInverse();
 
         if (parentInverse == null)
         {
@@ -1885,8 +1884,7 @@ public class UIPropTransform extends UITransform
 
         this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
 
-        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
-        Matrix3f parentInverse = this.computeParentInverse(source);
+        Matrix3f parentInverse = this.computeParentInverse();
         float radius = Gizmo.INSTANCE.getSphereWorldRadius();
 
         if (parentInverse == null || radius <= 0F)
@@ -2071,8 +2069,7 @@ public class UIPropTransform extends UITransform
         /* Express the view axis once in the bone's parent frame; it stays
          * constant for the whole drag, while applyRayRotateView premultiplies
          * the live rotation by a turn about it. */
-        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
-        Matrix3f parentInverse = this.computeParentInverse(source);
+        Matrix3f parentInverse = this.computeParentInverse();
 
         if (parentInverse == null)
         {
@@ -2094,15 +2091,20 @@ public class UIPropTransform extends UITransform
         this.dragHasStart = true;
     }
 
-    /**
-     * World-direction &rarr; bone-parent-frame map captured at drag start:
-     * {@code parent^-1 = startEulerAxes * rotateAxes^-1}. {@code rotateAxes}
-     * already folds in the parent and any model flips, so this recovers the
-     * pure parent rotation; it is constant for the whole drag since the parent
-     * doesn't move. Returns {@code null} when {@code rotateAxes} is degenerate.
-     */
-    private Matrix3f computeParentInverse(Vector3f sourceRadians)
+    /** World-direction to rotation-parent-frame map captured at drag start. */
+    private Matrix3f computeParentInverse()
     {
+        if (this.dragRotateGizmoSpace && this.drag.hasRotate2ParentInverse)
+        {
+            return new Matrix3f(this.drag.rotate2ParentInverse);
+        }
+
+        if (!this.dragRotateGizmoSpace && this.drag.hasRotateParentInverse)
+        {
+            return new Matrix3f(this.drag.rotateParentInverse);
+        }
+
+        /* Compatibility fallback for callers which have not supplied a sampled parent frame. */
         Matrix3f rotateAxesInverse = new Matrix3f(this.getActiveRotateAxes());
 
         if (Math.abs(rotateAxesInverse.determinant()) < 1.0E-4F)
@@ -2110,7 +2112,9 @@ public class UIPropTransform extends UITransform
             return null;
         }
 
-        return this.eulerAxes(this.toTotalRotation(sourceRadians, new Vector3f())).mul(rotateAxesInverse.invert());
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+
+        return this.eulerAxes(this.toTotalRotation(source, new Vector3f())).mul(rotateAxesInverse.invert());
     }
 
     private Matrix3f getActiveRotateAxes()
