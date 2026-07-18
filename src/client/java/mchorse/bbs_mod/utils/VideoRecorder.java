@@ -24,7 +24,6 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -111,22 +110,34 @@ public class VideoRecorder
                 filters.append(",tblend=all_mode=average,framestep=2");
             }
 
-            params = params.replace("%WIDTH%", String.valueOf(width));
-            params = params.replace("%HEIGHT%", String.valueOf(height));
-            params = params.replace("%FPS%", String.valueOf(frameRate));
-            params = params.replace("%NAME%", movieName);
-            params = params.replace("%FILTERS%", filters.toString());
-
-            if (audioFile != null)
-            {
-                params = params.replace("%AUDIO_TRACK%", "\"" + audioFile.getAbsolutePath() + "\"");
-            }
-
             List<String> args = new ArrayList<>();
             String encoder = FFMpegUtils.getFFMPEG();
 
             args.add(encoder);
-            args.addAll(Arrays.asList(params.split(" ")));
+
+            /* Tokens are substituted after splitting, so a movie name or an audio path
+             * with spaces stays a single argument. ProcessBuilder passes quote characters
+             * literally, so they must not be added around paths either. */
+            for (String arg : params.split(" "))
+            {
+                if (arg.isEmpty())
+                {
+                    continue;
+                }
+
+                arg = arg.replace("%WIDTH%", String.valueOf(width));
+                arg = arg.replace("%HEIGHT%", String.valueOf(height));
+                arg = arg.replace("%FPS%", String.valueOf(frameRate));
+                arg = arg.replace("%NAME%", movieName);
+                arg = arg.replace("%FILTERS%", filters.toString());
+
+                if (audioFile != null)
+                {
+                    arg = arg.replace("%AUDIO_TRACK%", audioFile.getAbsolutePath());
+                }
+
+                args.add(arg);
+            }
 
             System.out.println("Recording video with following arguments: " + args);
 

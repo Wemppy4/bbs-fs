@@ -200,9 +200,12 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         this.options.resize();
     }
 
+    /**
+     * Presets only promise a resolution and 60 FPS (see their labels) - the encoder
+     * arguments are the user's own and must survive.
+     */
     public void applyVideoPreset(int width, int height)
     {
-        BBSSettings.videoArguments.set(BBSSettings.DEFAULT_FFMPEG_ARGUMENTS);
         BBSSettings.videoWidth.set(width);
         BBSSettings.videoHeight.set(height);
         BBSSettings.videoFrameRate.set(60);
