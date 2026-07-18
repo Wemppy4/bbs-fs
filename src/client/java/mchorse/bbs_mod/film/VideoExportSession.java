@@ -387,11 +387,7 @@ public abstract class VideoExportSession
                 continue;
             }
 
-            String rest = file.getName().substring(prefix.length()).toLowerCase();
-
-            /* Skip this export's other artifacts: the audio track, encoder logs and
-             * leftovers of a previously failed merge */
-            if (rest.equals("wav") || rest.equals("log") || rest.endsWith(".log") || rest.startsWith("tmp."))
+            if (isExportArtifact(file.getName().substring(prefix.length())))
             {
                 continue;
             }
@@ -409,6 +405,19 @@ public abstract class VideoExportSession
         }
 
         return found;
+    }
+
+    /**
+     * Whether a file named {@code <movie name>.<rest>} is a side product of an export -
+     * the audio track, an encoder log or the leftover of a failed merge - rather than the
+     * video itself. Shared so picking the recorded video and allocating a free movie name
+     * agree on what counts as an export's video.
+     */
+    protected static boolean isExportArtifact(String rest)
+    {
+        rest = rest.toLowerCase();
+
+        return rest.equals("wav") || rest.equals("log") || rest.endsWith(".log") || rest.startsWith("tmp.");
     }
 
     private void reset()

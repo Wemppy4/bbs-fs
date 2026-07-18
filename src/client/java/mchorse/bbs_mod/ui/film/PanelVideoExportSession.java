@@ -141,7 +141,12 @@ public class PanelVideoExportSession extends VideoExportSession
 
         for (File file : files)
         {
-            if (file.getName().toLowerCase().startsWith(prefix))
+            String name = file.getName().toLowerCase();
+
+            /* Only a video of an earlier export takes the name: the audio track this
+             * export just rendered sits in the same folder under the same base name and
+             * must not bump every audio export to a "(1)" */
+            if (name.startsWith(prefix) && !isExportArtifact(name.substring(prefix.length())))
             {
                 return true;
             }
