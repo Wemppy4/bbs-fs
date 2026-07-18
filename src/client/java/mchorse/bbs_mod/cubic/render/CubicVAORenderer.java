@@ -7,6 +7,8 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
+import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -17,6 +19,8 @@ import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 
 import java.util.Map;
 import java.util.Set;
@@ -92,17 +96,50 @@ public class CubicVAORenderer extends CubicCubeRenderer
         /* One draw per material; bind that material's resolved texture before each. */
         for (Map.Entry<String, ModelVAO> entry : groupVaos.entrySet())
         {
+            Texture texture = null;
+
             if (this.textureResolver != null)
             {
                 Link link = this.textureResolver.apply(entry.getKey());
 
                 if (link != null)
                 {
-                    BBSModClient.getTextures().bindTexture(link);
+                    texture = BBSModClient.getTextures().getTexture(link);
+                    BBSModClient.getTextures().bindTexture(texture);
                 }
             }
 
-            ModelVAORenderer.render(this.program, entry.getValue(), stack, r, g, b, a, light, this.overlay);
+            if (texture == null)
+            {
+                /* No per-material override — the draw uses the form's base texture bound earlier. */
+                texture = BBSModClient.getTextures().getLastBound();
+            }
+
+            if (FormTranslucentQueue.needsSplit(this.program, this.stencilMap, texture, a))
+            {
+                Matrix4f modelView = ModelVAORenderer.captureModelView(stack);
+                Matrix3f normalMat = new Matrix3f(stack.peek().getNormalMatrix());
+
+                FormTranslucentQueue.setPassMode(this.program, FormTranslucentQueue.PASS_OPAQUE);
+                ModelVAORenderer.render(this.program, entry.getValue(), modelView, normalMat, r, g, b, a, light, this.overlay);
+                FormTranslucentQueue.setPassMode(this.program, FormTranslucentQueue.PASS_SINGLE);
+
+                FormTranslucentQueue.add(new FormTranslucentQueue.ModelVAOCommand(entry.getValue(), texture, modelView, normalMat, r, g, b, a, light, this.overlay, this.model.isCulling()));
+            }
+            else if (FormTranslucentQueue.needsWholeDefer(this.program, this.stencilMap, texture, a))
+            {
+                /* Iris: no PassMode uniform to split with, so the whole draw defers into the
+                 * sorted end-of-frame pass instead of drawing now. */
+                Matrix4f modelView = ModelVAORenderer.captureModelView(stack);
+                Matrix3f normalMat = new Matrix3f(stack.peek().getNormalMatrix());
+                ShaderProgram program = this.program;
+
+                FormTranslucentQueue.add(new FormTranslucentQueue.ModelVAOCommand(entry.getValue(), () -> program, FormTranslucentQueue.PASS_SINGLE, true, texture, modelView, normalMat, r, g, b, a, light, this.overlay, this.model.isCulling()));
+            }
+            else
+            {
+                ModelVAORenderer.render(this.program, entry.getValue(), stack, r, g, b, a, light, this.overlay);
+            }
         }
 
         return false;
