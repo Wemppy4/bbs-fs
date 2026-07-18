@@ -178,14 +178,17 @@ public abstract class BaseFilmController
 
         if (relative)
         {
-            /* In 1.21.1 the camera view rotation lives in the global modelview
-             * (RenderSystem), not in this stack, so resetting the stack to
-             * identity no longer detaches the model from the camera's
-             * orientation. Bake the inverse camera rotation into the stack so it
-             * cancels the global view rotation, leaving the form positioned in
-             * pure camera/view space (i.e. truly relative to the camera). */
-            stack.peek().getPositionMatrix().rotation(context.camera.getRotation());
-            stack.peek().getNormalMatrix().rotation(context.camera.getRotation());
+            /* Cancel the current view rotation so the form ends up in pure camera/view
+             * space (truly relative to the camera). Compose the camera rotation ONTO the
+             * stack (rotate, not rotation) instead of overwriting it: this is view-source
+             * agnostic. In the vanilla path the stack is identity (the view rotation lives
+             * in the global RenderSystem modelview), so rotate == the old rotation() —
+             * byte-identical. Under Iris the current pass's view is seeded INTO this stack
+             * (BBSRendering.renderCoolStuff), so overwriting it dropped the pass view and
+             * the form rendered in the wrong place; multiplying preserves it, making the
+             * on-screen result identical to vanilla. */
+            stack.peek().getPositionMatrix().rotate(context.camera.getRotation());
+            stack.peek().getNormalMatrix().rotate(context.camera.getRotation());
         }
 
         formContext.world.peek().getPositionMatrix().identity();
