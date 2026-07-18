@@ -14,6 +14,34 @@ public class WaveWriter
         write(new FileOutputStream(file), wave);
     }
 
+    /**
+     * Write just the 44 byte RIFF/WAVE header of a plain PCM stream whose sample
+     * data the caller streams right after - for mixes too large to hold in memory.
+     */
+    public static void writeHeader(OutputStream stream, int numChannels, int sampleRate, int bitsPerSample, int dataLength) throws IOException
+    {
+        int bytesPerSample = bitsPerSample / 8;
+
+        writeString(stream, "RIFF");
+        writeInt(stream, 36 + dataLength);
+        writeString(stream, "WAVE");
+
+        writeString(stream, "fmt ");
+        writeInt(stream, 16);
+        /* PCM */
+        writeShort(stream, 1);
+        writeShort(stream, numChannels);
+
+        writeInt(stream, sampleRate);
+        writeInt(stream, sampleRate * numChannels * bytesPerSample);
+
+        writeShort(stream, numChannels * bytesPerSample);
+        writeShort(stream, bitsPerSample);
+
+        writeString(stream, "data");
+        writeInt(stream, dataLength);
+    }
+
     public static void write(OutputStream stream, Wave wave) throws IOException
     {
         writeString(stream, "RIFF");

@@ -13,9 +13,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -59,10 +63,38 @@ public class IOUtils
 
     public static void writeText(File file, String string) throws IOException
     {
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
+        File parent = file.getParentFile();
 
-        writer.write(string);
-        writer.close();
+        if (parent != null && !parent.isDirectory())
+        {
+            parent.mkdirs();
+        }
+
+        /* Write to a sibling temp file, flush it all the way to disk, then atomically
+         * swap it into place. A direct FileOutputStream(file) truncates the live file
+         * the instant the stream opens, so a crash or power loss mid-write left it empty
+         * or partial — which is why an unexpected shutdown wiped settings/keybinds. With
+         * temp + fsync + atomic move, a crash leaves either the old intact file or the
+         * new one, never a corrupt one. */
+        File temp = new File(parent, file.getName() + ".tmp");
+
+        try (FileOutputStream fos = new FileOutputStream(temp))
+        {
+            Writer writer = new BufferedWriter(new OutputStreamWriter(fos, StandardCharsets.UTF_8));
+
+            writer.write(string);
+            writer.flush();
+            fos.getFD().sync();
+        }
+
+        try
+        {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        }
+        catch (AtomicMoveNotSupportedException e)
+        {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     /**

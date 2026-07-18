@@ -25,7 +25,7 @@ public class DiamondKeyframeShapeRenderer implements IKeyframeShapeRenderer
     @Override
     public void renderKeyframe(UIContext uiContext, BufferBuilder builder, Matrix4f matrix, int x, int y, int offset, int c)
     {
-        float fOffset = offset * 1.3F;
+        float fOffset = offset * 1.5F;
 
         builder.vertex(matrix, x, y - fOffset, 0F).color(c).next();
         builder.vertex(matrix, x - fOffset, y, 0F).color(c).next();

@@ -211,6 +211,16 @@ public class VideoRecorder
      */
     public void stopRecording()
     {
+        this.stopRecording(true);
+    }
+
+    /**
+     * Stop recording. With {@code finishEffects} false the completion sound and the
+     * folder opening are skipped - the caller runs {@link #playFinishEffects()} itself
+     * once the file is actually final (audio post pass).
+     */
+    public void stopRecording(boolean finishEffects)
+    {
         if (!this.recording)
         {
             return;
@@ -265,6 +275,19 @@ public class VideoRecorder
 
         this.recording = false;
 
+        if (finishEffects)
+        {
+            this.playFinishEffects();
+        }
+
+        this.serverTicks = this.lastServerTicks = 0;
+    }
+
+    /**
+     * The end-of-export feedback (completion sound, opening the movies folder).
+     */
+    public void playFinishEffects()
+    {
         if (BBSSettings.videoPlaySoundAfterExport.get())
         {
             if (BBSModClient.getSounds().play(RENDER_COMPLETE_SOUND) == null)
@@ -278,8 +301,6 @@ public class VideoRecorder
             File folder = BBSRendering.getVideoFolder();
             MinecraftClient.getInstance().execute(() -> UIUtils.openFolder(folder));
         }
-
-        this.serverTicks = this.lastServerTicks = 0;
     }
 
     /**

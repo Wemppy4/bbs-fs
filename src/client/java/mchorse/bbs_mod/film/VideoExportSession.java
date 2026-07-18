@@ -1,10 +1,19 @@
 package mchorse.bbs_mod.film;
 
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.audio.MinecraftSoundCapture;
+import mchorse.bbs_mod.audio.MinecraftSoundMixer;
+import mchorse.bbs_mod.audio.Wave;
+import mchorse.bbs_mod.audio.wav.WaveReader;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.VideoMuxer;
 import mchorse.bbs_mod.utils.VideoRecorder;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 
 /**
  * Owns the lifecycle of a single video export: the optional warm-up delay,
@@ -33,6 +42,15 @@ public abstract class VideoExportSession
     protected int textureId;
     protected int width;
     protected int height;
+
+    /** Name (no extension) the recorder writes to; kept for the captured-sounds post pass. */
+    private String movieName;
+    /** Film audio rendered by prepare() whose muxing is deferred to the post pass (Minecraft sounds capture). */
+    private File deferredAudioFile;
+    /** Frame rate the frames are actually recorded at (motion blur included), for the audio timeline. */
+    private double recordingFrameRate;
+    /** When the recorder was started - the post pass ignores files older than this. */
+    private long recordingStartedAtMs;
 
     private FinishedListener finishedListener;
 
@@ -150,9 +168,29 @@ public abstract class VideoExportSession
          * still routes through teardown and restores whatever prepare() applied. */
         this.state = State.RECORDING;
 
+        String movieName = this.getMovieName();
+
+        if (movieName == null || movieName.isEmpty())
+        {
+            /* Mirror the recorder's own fallback - the post pass must know the real name */
+            movieName = StringUtils.createTimestampFilename();
+        }
+
+        File muxAudioFile = this.audioFile;
+        boolean captureSounds = BBSSettings.videoExportMinecraftSounds.get();
+
+        if (captureSounds)
+        {
+            /* Minecraft sounds are only known once the recording ends, so the whole
+             * audio track (film audio + captured sounds) is muxed in a post pass
+             * instead of being handed to the recording ffmpeg process. */
+            this.deferredAudioFile = this.audioFile;
+            muxAudioFile = null;
+        }
+
         try
         {
-            recorder.startRecording(this.getMovieName(), this.audioFile, this.textureId, this.width, this.height);
+            recorder.startRecording(movieName, muxAudioFile, this.textureId, this.width, this.height);
         }
         catch (Exception e)
         {
@@ -167,6 +205,16 @@ public abstract class VideoExportSession
             this.cancel();
 
             return;
+        }
+
+        this.movieName = movieName;
+        this.recordingStartedAtMs = System.currentTimeMillis();
+
+        if (captureSounds)
+        {
+            this.recordingFrameRate = BBSRendering.getVideoFrameRate();
+
+            BBSModClient.getMinecraftSoundCapture().begin();
         }
 
         this.onRecordingStarted();
@@ -199,15 +247,32 @@ public abstract class VideoExportSession
         }
 
         VideoRecorder recorder = this.getRecorder();
+        int recordedFrames = recorder.getCounter();
+        MinecraftSoundCapture capture = BBSModClient.getMinecraftSoundCapture();
+        boolean postPass = capture.isActive();
 
         if (recorder.isRecording())
         {
             try
             {
-                recorder.stopRecording();
+                /* With a post pass ahead the file isn't final yet - the completion
+                 * sound and the folder opening wait until the audio is merged */
+                recorder.stopRecording(!postPass);
             }
             catch (Exception e)
             {}
+        }
+
+        if (postPass)
+        {
+            this.finishCapturedSounds(capture, recordedFrames);
+            recorder.playFinishEffects();
+        }
+        else if (this.deferredAudioFile != null)
+        {
+            /* The recording never started after prepare() had rendered the film
+             * audio for the post pass - there is no video to merge it into */
+            this.deferredAudioFile.delete();
         }
 
         this.state = State.IDLE;
@@ -223,6 +288,129 @@ public abstract class VideoExportSession
         }
     }
 
+    /**
+     * Post pass of the Minecraft sounds capture: mix the captured sounds with the
+     * deferred film audio into a stereo WAV and merge it into the recorded video.
+     * Best effort - a failure logs and leaves the recorded video without audio (and
+     * keeps the deferred film audio WAV on disk for manual recovery).
+     */
+    private void finishCapturedSounds(MinecraftSoundCapture capture, int recordedFrames)
+    {
+        capture.end();
+
+        File deferred = this.deferredAudioFile;
+
+        this.deferredAudioFile = null;
+
+        try
+        {
+            if (recordedFrames <= 0)
+            {
+                /* Nothing was recorded - there is no video to merge into */
+                if (deferred != null)
+                {
+                    deferred.delete();
+                }
+
+                return;
+            }
+
+            File folder = BBSRendering.getVideoFolder();
+            File audio = new File(folder, this.movieName + ".wav");
+
+            if (!MinecraftSoundMixer.mixToFile(audio, capture.getSounds(), capture.getFrames(), readWave(deferred), 48000, this.recordingFrameRate, recordedFrames))
+            {
+                return;
+            }
+
+            File video = this.findRecordedVideo(folder);
+
+            if (video != null && VideoMuxer.mux(video, audio, this.movieName) != null && deferred != null)
+            {
+                /* Only a successful merge makes the deferred film track redundant */
+                deferred.delete();
+            }
+        }
+        catch (Throwable e)
+        {
+            /* Best effort - even an OutOfMemoryError of a huge mix must not take
+             * down the game after a completed recording */
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Read back the film audio track that prepare() rendered but that wasn't handed
+     * to the recorder because the whole track is muxed in the post pass.
+     */
+    private static Wave readWave(File file)
+    {
+        if (file == null || !file.isFile())
+        {
+            return null;
+        }
+
+        try (InputStream stream = new FileInputStream(file))
+        {
+            return new WaveReader().read(stream);
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+
+            return null;
+        }
+    }
+
+    /**
+     * The video file this session's recording produced: its base name is known, but the
+     * extension is up to the user's encoder arguments.
+     */
+    private File findRecordedVideo(File folder)
+    {
+        File[] files = folder.listFiles();
+
+        if (files == null)
+        {
+            return null;
+        }
+
+        String prefix = this.movieName + ".";
+        /* Slack for coarse file system timestamps (e.g. FAT's 2 second resolution) */
+        long notBefore = this.recordingStartedAtMs - 10_000L;
+        File found = null;
+
+        for (File file : files)
+        {
+            if (!file.isFile() || !file.getName().startsWith(prefix))
+            {
+                continue;
+            }
+
+            String rest = file.getName().substring(prefix.length()).toLowerCase();
+
+            /* Skip this export's other artifacts: the audio track, encoder logs and
+             * leftovers of a previously failed merge */
+            if (rest.equals("wav") || rest.equals("log") || rest.endsWith(".log") || rest.startsWith("tmp."))
+            {
+                continue;
+            }
+
+            /* A same-named file from an older export must never be picked up */
+            if (file.lastModified() < notBefore)
+            {
+                continue;
+            }
+
+            if (found == null || file.lastModified() > found.lastModified())
+            {
+                found = file;
+            }
+        }
+
+        return found;
+    }
+
     private void reset()
     {
         this.state = State.IDLE;
@@ -231,6 +419,10 @@ public abstract class VideoExportSession
         this.textureId = 0;
         this.width = 0;
         this.height = 0;
+        this.movieName = null;
+        this.deferredAudioFile = null;
+        this.recordingFrameRate = 0D;
+        this.recordingStartedAtMs = 0L;
     }
 
     /* Hooks */

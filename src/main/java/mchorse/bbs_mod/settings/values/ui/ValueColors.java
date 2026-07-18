@@ -13,9 +13,21 @@ public class ValueColors extends BaseValue
 {
     private List<Color> colors = new ArrayList<>();
 
+    /** Maximum number of stored colors, 0 = unlimited. Recent colors are capped so the
+     * palette can't grow unboundedly and shove the picker popup off the screen; favorites
+     * stay unlimited. */
+    private int limit;
+
     public ValueColors(String id)
     {
         super(id);
+    }
+
+    public ValueColors limit(int limit)
+    {
+        this.limit = limit;
+
+        return this;
     }
 
     public List<Color> getCurrentColors()
@@ -31,7 +43,17 @@ public class ValueColors extends BaseValue
         {
             this.preNotify();
             this.colors.add(color.copy());
+            this.trim();
             this.postNotify();
+        }
+    }
+
+    /** Drop the oldest entries (front of the list; newest is appended at the end). */
+    private void trim()
+    {
+        while (this.limit > 0 && this.colors.size() > this.limit)
+        {
+            this.colors.remove(0);
         }
     }
 
@@ -72,6 +94,8 @@ public class ValueColors extends BaseValue
                 this.colors.add(new Color().set(color.asNumeric().intValue()));
             }
         }
+
+        this.trim();
     }
 
     @Override

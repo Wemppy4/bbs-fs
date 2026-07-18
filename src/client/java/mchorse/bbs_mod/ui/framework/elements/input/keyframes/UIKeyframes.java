@@ -375,6 +375,12 @@ public class UIKeyframes extends UIElement
         {
             UIContext context = this.getContext();
             UIKeyframeSheet sheet = this.getGraph().getSheet(context.mouseY);
+
+            if (sheet == null)
+            {
+                return;
+            }
+
             KeyframeSegment segment = sheet.channel.find((float) this.fromGraphX(context.mouseX));
 
             if (segment != null)

@@ -97,13 +97,13 @@ public class ModelFormSection extends SubFormSection
             if (event == WatchDogEvent.DELETED)
             {
                 this.remove(key);
-                this.parent.markDirty();
             }
-            else if (event == WatchDogEvent.CREATED)
+            else
             {
                 this.add(key);
-                this.parent.markDirty();
             }
+
+            this.parent.markDirty();
         }
     }
 

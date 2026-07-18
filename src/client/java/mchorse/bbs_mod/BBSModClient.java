@@ -1,6 +1,7 @@
 package mchorse.bbs_mod;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import mchorse.bbs_mod.audio.MinecraftSoundCapture;
 import mchorse.bbs_mod.audio.SoundManager;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
@@ -103,6 +104,7 @@ public class BBSModClient implements ClientModInitializer
     private static FormCategories formCategories;
     private static ScreenshotRecorder screenshotRecorder;
     private static VideoRecorder videoRecorder;
+    private static final MinecraftSoundCapture minecraftSoundCapture = new MinecraftSoundCapture();
     private static EntitySelectors selectors;
 
     private static ParticleManager particles;
@@ -170,6 +172,11 @@ public class BBSModClient implements ClientModInitializer
     public static VideoRecorder getVideoRecorder()
     {
         return videoRecorder;
+    }
+
+    public static MinecraftSoundCapture getMinecraftSoundCapture()
+    {
+        return minecraftSoundCapture;
     }
 
     public static EntitySelectors getSelectors()
@@ -507,6 +514,7 @@ public class BBSModClient implements ClientModInitializer
         {
             if (videoRecorder.isRecording() && BBSRendering.canRender)
             {
+                minecraftSoundCapture.captureFrame();
                 videoRecorder.recordFrame();
             }
         });
@@ -515,6 +523,11 @@ public class BBSModClient implements ClientModInitializer
         {
             dashboard = null;
             worldExportSession.stop();
+
+            /* A panel export dies with its dashboard without finishing - the sound
+             * capture must not keep accumulating into the next session */
+            minecraftSoundCapture.end();
+
             films = new Films();
 
             ClientNetwork.resetHandshake();
