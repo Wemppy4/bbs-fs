@@ -575,11 +575,18 @@ public class UIPropTransform extends UITransform
             return;
         }
 
-        float minScale = Math.min(transform.scale.x, Math.min(transform.scale.y, transform.scale.z));
-        float maxScale = Math.max(transform.scale.x, Math.max(transform.scale.y, transform.scale.z));
-
-        if (BBSSettings.uniformScale.get())
+        /* The uniform-scale auto-sync restructures the scale row (removeAll/add).
+         * That must never run while a drag is being simulated inside render(): mutating
+         * the element tree mid-traversal throws ConcurrentModificationException (only when
+         * uniformScale is on and the scale crosses the uniform boundary during a drag —
+         * hence the intermittent crash). During a live drag the row also shouldn't relayout
+         * under the cursor. The sync runs when a transform is loaded into the panel
+         * (editing == false) and once more when the gesture ends via disable(). */
+        if (!this.editing && BBSSettings.uniformScale.get())
         {
+            float minScale = Math.min(transform.scale.x, Math.min(transform.scale.y, transform.scale.z));
+            float maxScale = Math.max(transform.scale.x, Math.max(transform.scale.y, transform.scale.z));
+
             if (
                 (minScale == maxScale && !this.isUniformScale()) ||
                 (minScale != maxScale && this.isUniformScale())
