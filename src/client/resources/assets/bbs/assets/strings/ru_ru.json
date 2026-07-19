@@ -1044,6 +1044,8 @@
 	"bbs.ui.keyframes.tick": "Тик",
 	"bbs.ui.keyframes.record_value": "Записать значение",
 	"bbs.ui.keys.list": "Список горячих клавиш",
+	"bbs.ui.keys.ui_scale_inc": "Увеличить масштаб интерфейса",
+	"bbs.ui.keys.ui_scale_dec": "Уменьшить масштаб интерфейса",
 	"bbs.ui.language.credits": "Автор перевода: McHorse и Kirkus",
 	"bbs.ui.language.pick": "Выбрать язык...",
 	"bbs.ui.language.pick.title": "Язык",

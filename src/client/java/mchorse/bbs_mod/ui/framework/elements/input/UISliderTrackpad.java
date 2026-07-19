@@ -464,7 +464,8 @@ public class UISliderTrackpad extends UIElement
 
                 return true;
             }
-            else if ((context.isPressed(GLFW.GLFW_KEY_MINUS) || context.isPressed(GLFW.GLFW_KEY_KP_SUBTRACT)))
+            /* Not with ctrl — Ctrl+minus is the global GUI scale shortcut */
+            else if (!Window.isCtrlPressed() && (context.isPressed(GLFW.GLFW_KEY_MINUS) || context.isPressed(GLFW.GLFW_KEY_KP_SUBTRACT)))
             {
                 this.setValueAndNotify(-this.value);
 

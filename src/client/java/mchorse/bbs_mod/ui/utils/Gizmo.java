@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.utils;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
-import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.client.BBSRendering;
@@ -664,15 +663,7 @@ public class Gizmo
         /* Map the UI area to a framebuffer-pixel viewport, exactly as the form
          * editor's model pass does, so the gizmo renders into the preview and is
          * clipped to it by the view frustum. */
-        float rx = (float) Math.round(mc.getWindow().getWidth() / (double) context.menu.width);
-        float ry = (float) Math.round(mc.getWindow().getHeight() / (double) context.menu.height);
-        float size = BBSModClient.getOriginalFramebufferScale();
-        int vx = (int) (area.x * rx);
-        int vy = (int) (mc.getWindow().getHeight() - (area.y + area.h) * ry);
-        int vw = (int) (area.w * rx);
-        int vh = (int) (area.h * ry);
-
-        RenderSystem.viewport((int) (vx * size), (int) (vy * size), (int) (vw * size), (int) (vh * size));
+        UIUtils.viewportArea(area);
 
         MatrixStack stack = new MatrixStack();
         MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
@@ -1586,15 +1577,7 @@ public class Gizmo
          * renderInterface does, so the stencil matches the drawn visual pixel for
          * pixel. The pick framebuffer is sized to the window, so the same mapping
          * applies. */
-        float rx = (float) Math.round(mc.getWindow().getWidth() / (double) context.menu.width);
-        float ry = (float) Math.round(mc.getWindow().getHeight() / (double) context.menu.height);
-        float size = BBSModClient.getOriginalFramebufferScale();
-        int vx = (int) (area.x * rx);
-        int vy = (int) (mc.getWindow().getHeight() - (area.y + area.h) * ry);
-        int vw = (int) (area.w * rx);
-        int vh = (int) (area.h * ry);
-
-        RenderSystem.viewport((int) (vx * size), (int) (vy * size), (int) (vw * size), (int) (vh * size));
+        UIUtils.viewportArea(area);
 
         MatrixStack stack = new MatrixStack();
         MatrixStackUtils.multiply(stack, this.lastRenderMatrix);

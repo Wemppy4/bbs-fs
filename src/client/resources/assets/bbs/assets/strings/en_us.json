@@ -1050,6 +1050,8 @@
 	"bbs.ui.keyframes.tick": "Tick",
 	"bbs.ui.keyframes.record_value": "Record value",
 	"bbs.ui.keys.list": "Keybind list",
+	"bbs.ui.keys.ui_scale_inc": "Increase GUI scale",
+	"bbs.ui.keys.ui_scale_dec": "Decrease GUI scale",
 	"bbs.ui.language.credits": "Translated by McHorse",
 	"bbs.ui.language.pick": "Pick language...",
 	"bbs.ui.language.pick.title": "Language",

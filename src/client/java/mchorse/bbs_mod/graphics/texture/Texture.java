@@ -24,6 +24,7 @@ public class Texture
 
     private boolean mipmap;
     private boolean clearable;
+    private boolean translucent;
 
     private AnimatedTexture parent;
     private TextureFormat format = TextureFormat.RGBA_U8;
@@ -92,6 +93,16 @@ public class Texture
     public boolean isMipmap()
     {
         return this.mipmap;
+    }
+
+    /**
+     * Whether this texture has semi-transparent pixels (alpha strictly between the model
+     * shader's 0.1 cutout threshold and fully opaque). Such textures need the two-pass
+     * translucency treatment; plain opaque/cutout textures render in a single pass.
+     */
+    public boolean hasTranslucency()
+    {
+        return this.translucent;
     }
 
     public boolean isReallyMipmap()
@@ -222,6 +233,11 @@ public class Texture
          * https://www.khronos.org/opengl/wiki/Pixel_Transfer#Pixel_layout */
         GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
 
+        if (level == 0)
+        {
+            this.translucent = scanTranslucency(pixels);
+        }
+
         this.setFormat(pixels.bits == 4 ? TextureFormat.RGBA_U8 : TextureFormat.RGB_U8);
         this.uploadTexture(target, level, pixels.width, pixels.height, pixels.getBuffer());
 
@@ -248,5 +264,31 @@ public class Texture
         this.mipmap = true;
 
         GL30.glGenerateMipmap(this.target);
+    }
+
+    /**
+     * The 26..254 alpha range mirrors the model shader: below 0.1 the fragment is discarded
+     * outright (cutout), at 255 it's opaque — only the range between makes blending matter.
+     */
+    private static boolean scanTranslucency(Pixels pixels)
+    {
+        if (pixels.bits != 4)
+        {
+            return false;
+        }
+
+        ByteBuffer buffer = pixels.getBuffer();
+
+        for (int i = 3, c = buffer.limit(); i < c; i += 4)
+        {
+            int alpha = buffer.get(i) & 0xff;
+
+            if (alpha >= 26 && alpha <= 254)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

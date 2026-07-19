@@ -735,6 +735,8 @@ public class UIKeys
     public static final IKey KEYFRAMES_TICK = L10n.lang("bbs.ui.keyframes.tick");
     public static final IKey KEYFRAMES_RECORD_VALUE = L10n.lang("bbs.ui.keyframes.record_value");
     public static final IKey KEYS_LIST = L10n.lang("bbs.ui.keys.list");
+    public static final IKey KEYS_UI_SCALE_INC = L10n.lang("bbs.ui.keys.ui_scale_inc");
+    public static final IKey KEYS_UI_SCALE_DEC = L10n.lang("bbs.ui.keys.ui_scale_dec");
     public static final IKey LANGUAGE_CREDITS = L10n.lang("bbs.ui.language.credits");
     public static final IKey LANGUAGE_EDITOR_CONTEXT_COPY_KEY = L10n.lang("studio.ui.language.editor.context.copy_key");
     public static final IKey LANGUAGE_EDITOR_CONTEXT_COPY_ORIGINAL = L10n.lang("studio.ui.language.editor.context.copy_original");

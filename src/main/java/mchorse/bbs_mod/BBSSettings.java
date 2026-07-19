@@ -39,7 +39,7 @@ public class BBSSettings {
 	public static ValueInt stencilHighlightColor;
 	public static ValueBoolean enableTrackpadIncrements;
 	public static ValueBoolean enableTrackpadScrolling;
-	public static ValueInt userIntefaceScale;
+	public static ValueFloat userIntefaceScale;
 	public static ValueInt theme;
 	public static ValueFloat fov;
 	public static ValueBoolean hsvColorPicker;
@@ -463,7 +463,7 @@ public class BBSSettings {
 		builder.register(language = new ValueLanguage("language"));
 		enableTrackpadIncrements = builder.getBoolean("trackpad_increments", false);
 		enableTrackpadScrolling = builder.getBoolean("trackpad_scrolling", false);
-		userIntefaceScale = builder.getInt("ui_scale", 2, 0, 4);
+		userIntefaceScale = builder.getFloat("ui_scale", 2F, 0F, 4F);
 		fov = builder.getFloat("fov", 40, 0, 180);
 		hsvColorPicker = builder.getBoolean("hsv_color_picker", true);
 		forceQwerty = builder.getBoolean("force_qwerty", false);

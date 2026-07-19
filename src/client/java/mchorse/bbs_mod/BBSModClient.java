@@ -133,6 +133,7 @@ public class BBSModClient implements ClientModInitializer
     private static final WorldVideoExportSession worldExportSession = new WorldVideoExportSession();
 
     private static float originalFramebufferScale;
+    private static boolean customGUIScale;
 
     public static TextureManager getTextures()
     {
@@ -240,16 +241,32 @@ public class BBSModClient implements ClientModInitializer
         return dashboard;
     }
 
-    public static int getGUIScale()
+    /**
+     * Whether BBS's UI is on screen right now, i.e. whether the ui_scale setting
+     * should drive the window's scale factor (see WindowMixin).
+     */
+    public static void setCustomGUIScale(boolean enabled)
     {
-        int scale = BBSSettings.userIntefaceScale.get();
+        customGUIScale = enabled;
+    }
 
-        if (scale == 0)
-        {
-            return MinecraftClient.getInstance().options.getGuiScale().getValue();
-        }
+    /**
+     * GUI scale that should be forced upon the window, or 0 to leave
+     * Minecraft's own scale in charge (BBS UI closed, or ui_scale is 0).
+     */
+    public static float getCustomGUIScale()
+    {
+        return customGUIScale ? BBSSettings.userIntefaceScale.get() : 0F;
+    }
 
-        return scale;
+    /**
+     * The scale at which GUI is being rendered right now (GUI pixels to
+     * framebuffer pixels). Unlike the ui_scale setting itself, this is always
+     * the actual applied value, including the "0 = Minecraft's scale" mode.
+     */
+    public static float getGUIScale()
+    {
+        return (float) MinecraftClient.getInstance().getWindow().getScaleFactor();
     }
 
     public static float getOriginalFramebufferScale()
@@ -383,6 +400,15 @@ public class BBSModClient implements ClientModInitializer
         BBSMod.events.post(new RegisterClientSettingsEvent());
 
         BBSSettings.language.postCallback((v, f) -> reloadLanguage(getLanguageKey()));
+        BBSSettings.userIntefaceScale.postCallback((v, f) ->
+        {
+            MinecraftClient mc = MinecraftClient.getInstance();
+
+            if (mc.currentScreen instanceof UIScreen)
+            {
+                mc.onResolutionChanged();
+            }
+        });
         BBSSettings.editorSeconds.postCallback((v, f) ->
         {
             if (dashboard != null && dashboard.getPanels().panel instanceof UIFilmPanel panel)

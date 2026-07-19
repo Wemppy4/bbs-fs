@@ -76,12 +76,9 @@ public class StencilFormFramebuffer
 
     public void resizeGUI(int w, int h)
     {
-        this.resize(w, h, BBSModClient.getGUIScale());
-    }
+        float scale = BBSModClient.getGUIScale();
 
-    public void resize(int w, int h, int scale)
-    {
-        this.resize(w * scale, h * scale);
+        this.resize(Math.round(w * scale), Math.round(h * scale));
     }
 
     public void resize(int w, int h)
@@ -106,18 +103,18 @@ public class StencilFormFramebuffer
      *  ({@code radius} in GUI pixels; ids in {@code [1, handleMax]} grab from nearby). */
     public void pickGUI(UIContext context, Area area, int radius, int handleMax)
     {
-        int scale = BBSModClient.getGUIScale();
-        int x = (context.mouseX - area.x) * scale;
-        int y = (area.h - context.mouseY + area.y) * scale;
+        float scale = BBSModClient.getGUIScale();
+        int x = Math.round((context.mouseX - area.x) * scale);
+        int y = Math.round((area.h - context.mouseY + area.y) * scale);
 
-        this.pick(x, y, radius * scale, handleMax);
+        this.pick(x, y, Math.round(radius * scale), handleMax);
     }
 
     public void pickGUI(int x, int y)
     {
-        int scale = BBSModClient.getGUIScale();
+        float scale = BBSModClient.getGUIScale();
 
-        this.pick(x * scale, y * scale);
+        this.pick(Math.round(x * scale), Math.round(y * scale));
     }
 
     public void pick(int x, int y)

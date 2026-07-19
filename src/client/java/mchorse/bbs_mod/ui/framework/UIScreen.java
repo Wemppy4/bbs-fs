@@ -27,8 +27,6 @@ public class UIScreen extends Screen implements IFileDropListener
     private UIBaseMenu menu;
     private UIRenderingContext context;
 
-    private int lastGuiScale;
-
     public static void open(UIBaseMenu menu)
     {
         MinecraftClient.getInstance().setScreen(new UIScreen(Text.empty(), menu));
@@ -94,7 +92,7 @@ public class UIScreen extends Screen implements IFileDropListener
     @Override
     public void removed()
     {
-        MinecraftClient.getInstance().options.getGuiScale().setValue(this.lastGuiScale);
+        BBSModClient.setCustomGUIScale(false);
         MinecraftClient.getInstance().onResolutionChanged();
 
         super.removed();
@@ -110,9 +108,7 @@ public class UIScreen extends Screen implements IFileDropListener
     @Override
     public void onDisplayed()
     {
-        this.lastGuiScale = MinecraftClient.getInstance().options.getGuiScale().getValue();
-
-        MinecraftClient.getInstance().options.getGuiScale().setValue(BBSModClient.getGUIScale());
+        BBSModClient.setCustomGUIScale(true);
         MinecraftClient.getInstance().onResolutionChanged();
 
         super.onDisplayed();

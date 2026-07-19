@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.ui.utils;
 
-import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -119,9 +119,9 @@ public class UIChalkboard extends UIElement
             this.pixels.delete();
         }
 
-        int scale = BBSSettings.userIntefaceScale.get();
+        float scale = BBSModClient.getGUIScale();
 
-        this.pixels = Pixels.fromSize(this.area.w * scale, this.area.h * scale);
+        this.pixels = Pixels.fromSize(Math.round(this.area.w * scale), Math.round(this.area.h * scale));
         this.pixels.rewindBuffer();
         this.texture.bind();
         this.texture.updateTexture(this.pixels);
@@ -135,7 +135,7 @@ public class UIChalkboard extends UIElement
             return;
         }
 
-        int scale = BBSSettings.userIntefaceScale.get();
+        float scale = BBSModClient.getGUIScale();
         int x = context.mouseX;
         int y = context.mouseY;
 

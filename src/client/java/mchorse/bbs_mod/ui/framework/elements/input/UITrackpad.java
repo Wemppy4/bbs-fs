@@ -551,7 +551,8 @@ public class UITrackpad extends UIBaseTextbox
         }
         else if (this.area.isInside(context))
         {
-            if (!context.isFocused() && (context.isPressed(GLFW.GLFW_KEY_MINUS) || context.isPressed(GLFW.GLFW_KEY_KP_SUBTRACT)))
+            /* Not with ctrl — Ctrl+minus is the global GUI scale shortcut */
+            if (!context.isFocused() && !Window.isCtrlPressed() && (context.isPressed(GLFW.GLFW_KEY_MINUS) || context.isPressed(GLFW.GLFW_KEY_KP_SUBTRACT)))
             {
                 this.setValueAndNotify(-this.value);
 

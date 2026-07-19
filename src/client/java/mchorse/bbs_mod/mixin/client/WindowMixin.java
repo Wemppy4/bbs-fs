@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Window.class)
@@ -32,6 +33,29 @@ public class WindowMixin
 
     @Shadow
     private double scaleFactor;
+
+    /**
+     * While BBS UI is open, its ui_scale setting replaces whatever integer scale
+     * vanilla derived from the guiScale option. setScaleFactor() and everything
+     * downstream (scaled size, mouse, GUI projection) already operate on doubles,
+     * so fractional values work out of the box.
+     */
+    @ModifyVariable(method = "setScaleFactor", at = @At("HEAD"), argsOnly = true)
+    private double bbs$overrideScaleFactor(double scaleFactor)
+    {
+        float custom = BBSModClient.getCustomGUIScale();
+
+        if (custom > 0F)
+        {
+            /* Same lower bound vanilla's calculateScaleFactor() enforces: keep at
+             * least ~320x240 GUI units on screen, so UI stays usable on small windows */
+            double max = Math.max(1D, Math.min(this.framebufferWidth / 320D, this.framebufferHeight / 240D));
+
+            return Math.min(Math.max(custom, 0.5D), max);
+        }
+
+        return scaleFactor;
+    }
 
     @Inject(method = "getWidth", at = @At("HEAD"), cancellable = true)
     public void onGetWidth(CallbackInfoReturnable<Integer> info)

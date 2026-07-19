@@ -26,6 +26,8 @@ public class Keys
     public static final KeyCombo DELETE = new KeyCombo("delete", UIKeys.GENERAL_REMOVE, GLFW.GLFW_KEY_DELETE);
     public static final KeyCombo CONFIRM = new KeyCombo("confirm", UIKeys.GENERAL_CONFIRM, GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_LEFT_CONTROL);
     public static final KeyCombo CLOSE = new KeyCombo("close", UIKeys.GENERAL_CLOSE, GLFW.GLFW_KEY_ESCAPE);
+    public static final KeyCombo UI_SCALE_INC = new KeyCombo("ui_scale_inc", UIKeys.KEYS_UI_SCALE_INC, GLFW.GLFW_KEY_EQUAL, GLFW.GLFW_KEY_LEFT_CONTROL).repeatable();
+    public static final KeyCombo UI_SCALE_DEC = new KeyCombo("ui_scale_dec", UIKeys.KEYS_UI_SCALE_DEC, GLFW.GLFW_KEY_MINUS, GLFW.GLFW_KEY_LEFT_CONTROL).repeatable();
 
     /* Camera editor */
     public static final KeyCombo ADD_AT_CURSOR = new KeyCombo("add_at_cursor", UIKeys.CAMERA_TIMELINE_CONTEXT_ADD_AT_CURSOR, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("camera");
