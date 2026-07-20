@@ -591,6 +591,10 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
                 this.currentTab = 0;
             }
 
+            /* Swapping the document inside a tab drops the old one just like switching tabs does, so it
+             * has to flush it first — otherwise edits made since the last periodic save never reach disk. */
+            this.save();
+
             this.tabs.get(this.currentTab).dataId = id;
             this.requestData(id);
 

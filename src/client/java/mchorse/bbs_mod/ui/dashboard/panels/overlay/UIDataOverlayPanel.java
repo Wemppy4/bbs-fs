@@ -24,7 +24,14 @@ public class UIDataOverlayPanel <T extends ValueGroup> extends UICRUDOverlayPane
 
         this.namesList.context((menu) ->
         {
-            menu.action(Icons.FOLDER, UIKeys.PANELS_MODALS_ADD_FOLDER_TITLE, this::addNewFolder);
+            /* The entries that create data follow the header buttons; copying and opening the folder are
+             * read-only, so they stay available even when the panel is a pure picker. */
+            boolean editable = this.showActionButtons();
+
+            if (editable)
+            {
+                menu.action(Icons.FOLDER, UIKeys.PANELS_MODALS_ADD_FOLDER_TITLE, this::addNewFolder);
+            }
 
             if (this.panel.getData() != null)
             {
@@ -33,7 +40,7 @@ public class UIDataOverlayPanel <T extends ValueGroup> extends UICRUDOverlayPane
 
             try
             {
-                MapType data = Window.getClipboardMap("_ContentType_" + this.panel.getType().getId());
+                MapType data = editable ? Window.getClipboardMap("_ContentType_" + this.panel.getType().getId()) : null;
 
                 if (data != null)
                 {

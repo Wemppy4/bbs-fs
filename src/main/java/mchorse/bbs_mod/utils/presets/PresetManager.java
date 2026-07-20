@@ -24,6 +24,8 @@ public class PresetManager
     public static final PresetManager GUNS = new PresetManager(BBSMod.getSettingsPath("presets/guns"));
     public static final PresetManager ANIMATION_STATES = new PresetManager(BBSMod.getSettingsPath("presets/animation_states"));
     public static final PresetManager REPLAYS = new PresetManager(BBSMod.getSettingsPath("presets/replays"));
+    public static final PresetManager MODEL_SLOTS = new PresetManager(BBSMod.getSettingsPath("presets/model_slots"));
+    public static final PresetManager MODEL_WELDS = new PresetManager(BBSMod.getSettingsPath("presets/model_welds"));
 
     private final File folder;
     private final Path rootPath;

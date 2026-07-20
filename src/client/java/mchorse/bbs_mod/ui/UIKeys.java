@@ -820,6 +820,12 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_SNEAKING_CLEAR = L10n.lang("bbs.ui.model_editor.sneaking.clear");
     public static final IKey MODEL_EDITOR_OPEN_HISTORY = L10n.lang("bbs.ui.model_editor.open_history");
     public static final IKey MODEL_EDITOR_HISTORY_TITLE = L10n.lang("bbs.ui.model_editor.history-title");
+    public static final IKey MODEL_EDITOR_ITEM_DUPLICATE = L10n.lang("bbs.ui.model_editor.item.duplicate");
+    public static final IKey MODEL_EDITOR_WELD_DUPLICATE = L10n.lang("bbs.ui.model_editor.weld.duplicate");
+    public static final IKey MODEL_EDITOR_MAP_DUPLICATE = L10n.lang("bbs.ui.model_editor.map.duplicate");
+    public static final IKey MODEL_EDITOR_KEYS_EXPAND_ALL = L10n.lang("bbs.ui.model_editor.keys.expand_all");
+    public static final IKey MODEL_EDITOR_KEYS_COLLAPSE_ALL = L10n.lang("bbs.ui.model_editor.keys.collapse_all");
+    public static final IKey MODEL_EDITOR_KEYS_FIND_BONE = L10n.lang("bbs.ui.model_editor.keys.find_bone");
     public static final IKey MODEL_BLOCKS_TRANSFORM_FIRST_PERSON = L10n.lang("bbs.ui.model_blocks.transform.first_person");
     public static final IKey MODEL_BLOCKS_TRANSFORM_INVENTORY = L10n.lang("bbs.ui.model_blocks.transform.inventory");
     public static final IKey MODEL_BLOCKS_TRANSFORM_THIRD_PERSON = L10n.lang("bbs.ui.model_blocks.transform.third_person");

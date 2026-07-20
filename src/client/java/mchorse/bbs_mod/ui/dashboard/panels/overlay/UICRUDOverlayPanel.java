@@ -61,7 +61,20 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
         this.names.label(UIKeys.GENERAL_SEARCH);
         this.content.add(this.names);
 
-        this.icons.add(this.add, this.dupe, this.rename, this.remove);
+        if (this.showActionButtons())
+        {
+            this.icons.add(this.add, this.dupe, this.rename, this.remove);
+        }
+    }
+
+    /**
+     * Whether create/duplicate/rename/remove are offered. Asset-backed panels (e.g. the model editor)
+     * turn this off, leaving the overlay as a pure picker — mirroring the same hook on the selection
+     * screen. The buttons still exist as fields, they're just never mounted. Default true.
+     */
+    protected boolean showActionButtons()
+    {
+        return true;
     }
 
     private String getNextAutoId()
