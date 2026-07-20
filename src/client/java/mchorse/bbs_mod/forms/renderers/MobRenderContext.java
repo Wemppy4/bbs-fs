@@ -16,9 +16,11 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The pose state scoped to one MobForm entity render.
@@ -221,9 +223,15 @@ public final class MobRenderContext implements AutoCloseable
 
     /**
      * Completes matrices for models which vanilla skipped because their variant, equipment or
-     * render condition was absent. Compatible feature parts and models in the same runtime variant
-     * container inherit the pose calculated by a rendered part, then MobForm's transform is applied
-     * through the regular ModelPart hook.
+     * render condition was absent.
+     *
+     * <p>Inactive equipment-style feature layers (armour overlays, …) reuse the same relative part
+     * paths as their owning context model. When the feature's path set is a subset of a context
+     * capture, each part inherits that context pose so gizmos track the body. Independent feature
+     * models that only share an attachment point (shoulder pets, …) keep their own local tree and
+     * are rooted under the context model instead — path-name collisions such as {@code body} are
+     * deliberately not inherited. Renderer variant containers still share captures only within
+     * their group. MobForm's transform is applied through the regular ModelPart hook.</p>
      */
     public void completeMatrices()
     {
@@ -232,6 +240,7 @@ public final class MobRenderContext implements AutoCloseable
             return;
         }
 
+        IdentityHashMap<VanillaBoneHierarchy.Hierarchy, Map<String, CapturedBone>> capturedByHierarchy = new IdentityHashMap<>();
         Map<List<String>, Map<String, CapturedBone>> capturedByStructure = new HashMap<>();
         IdentityHashMap<Object, Map<String, CapturedBone>> capturedByVariant = new IdentityHashMap<>();
         Matrix4f modelRoot = null;
@@ -247,7 +256,7 @@ public final class MobRenderContext implements AutoCloseable
                 {
                     CapturedBone captured = new CapturedBone(part, this.matrices.get(canonicalBone.getId()));
 
-                    this.putCaptured(hierarchy, bone, captured, capturedByStructure, capturedByVariant);
+                    this.putCaptured(hierarchy, bone, captured, capturedByHierarchy, capturedByStructure, capturedByVariant);
 
                     if (modelRoot == null && bone.getParentId() == null)
                     {
@@ -269,7 +278,9 @@ public final class MobRenderContext implements AutoCloseable
                 }
 
                 ModelPart part = bone.getPart();
-                CapturedBone reference = this.getCapturedReference(hierarchy, bone, capturedByStructure, capturedByVariant);
+                CapturedBone reference = this.getCapturedReference(
+                    hierarchy, bone, capturedByHierarchy, capturedByStructure, capturedByVariant
+                );
                 Matrix4f parent = this.getFallbackParent(hierarchy, bone, reference, modelRoot);
 
                 if (part == null || parent == null)
@@ -301,7 +312,7 @@ public final class MobRenderContext implements AutoCloseable
                 {
                     CapturedBone captured = new CapturedBone(part, this.matrices.get(canonicalBone.getId()));
 
-                    this.putCaptured(hierarchy, bone, captured, capturedByStructure, capturedByVariant);
+                    this.putCaptured(hierarchy, bone, captured, capturedByHierarchy, capturedByStructure, capturedByVariant);
                 }
             }
         }
@@ -311,43 +322,220 @@ public final class MobRenderContext implements AutoCloseable
         VanillaBoneHierarchy.Hierarchy hierarchy,
         VanillaBoneHierarchy.Bone bone,
         CapturedBone captured,
+        IdentityHashMap<VanillaBoneHierarchy.Hierarchy, Map<String, CapturedBone>> capturedByHierarchy,
         Map<List<String>, Map<String, CapturedBone>> capturedByStructure,
         IdentityHashMap<Object, Map<String, CapturedBone>> capturedByVariant
     )
     {
+        capturedByHierarchy.computeIfAbsent(hierarchy, (key) -> new HashMap<>())
+            .putIfAbsent(bone.getPath(), captured);
+
         Object variantGroup = this.discovery.getVariantGroup(hierarchy);
 
-        if (variantGroup == null && this.discovery.getFeatureContexts(hierarchy).isEmpty())
-        {
-            capturedByStructure.computeIfAbsent(hierarchy.getStructureKey(), (key) -> new HashMap<>())
-                .putIfAbsent(bone.getPath(), captured);
-        }
-        else if (variantGroup != null)
+        if (variantGroup != null)
         {
             capturedByVariant.computeIfAbsent(variantGroup, (key) -> new HashMap<>())
                 .putIfAbsent(bone.getPath(), captured);
         }
+
+        /* Structure-keyed maps isolate independent primary models that share common leaf names
+         * without being related feature layers, and also expose primary / equipment captures for
+         * subset-based feature inheritance. */
+        capturedByStructure.computeIfAbsent(hierarchy.getStructureKey(), (key) -> new HashMap<>())
+            .putIfAbsent(bone.getPath(), captured);
     }
 
     private CapturedBone getCapturedReference(
         VanillaBoneHierarchy.Hierarchy hierarchy,
         VanillaBoneHierarchy.Bone bone,
+        IdentityHashMap<VanillaBoneHierarchy.Hierarchy, Map<String, CapturedBone>> capturedByHierarchy,
         Map<List<String>, Map<String, CapturedBone>> capturedByStructure,
         IdentityHashMap<Object, Map<String, CapturedBone>> capturedByVariant
     )
     {
         Object variantGroup = this.discovery.getVariantGroup(hierarchy);
 
-        if (variantGroup == null)
+        if (variantGroup != null)
         {
-            Map<String, CapturedBone> captured = capturedByStructure.get(hierarchy.getStructureKey());
+            Map<String, CapturedBone> variants = capturedByVariant.get(variantGroup);
+            CapturedBone fromVariant = variants == null ? null : variants.get(bone.getPath());
 
-            return captured == null ? null : captured.get(bone.getPath());
+            if (fromVariant != null)
+            {
+                return fromVariant;
+            }
         }
 
-        Map<String, CapturedBone> variants = capturedByVariant.get(variantGroup);
+        Map<String, CapturedBone> own = capturedByHierarchy.get(hierarchy);
+        CapturedBone exact = own == null ? null : own.get(bone.getPath());
 
-        return variants == null ? null : variants.get(bone.getPath());
+        if (exact != null)
+        {
+            return exact;
+        }
+
+        Map<String, CapturedBone> sameStructure = capturedByStructure.get(hierarchy.getStructureKey());
+        CapturedBone structureExact = sameStructure == null ? null : sameStructure.get(bone.getPath());
+
+        if (structureExact != null)
+        {
+            return structureExact;
+        }
+
+        CapturedBone fromFeatureContext = this.findCapturedInFeatureContexts(hierarchy, bone.getPath(), capturedByHierarchy);
+
+        if (fromFeatureContext != null)
+        {
+            return fromFeatureContext;
+        }
+
+        /* Inactive equipment layers that are not registered with a feature context still inherit
+         * from any rendered structure that fully contains their part paths. */
+        return this.findCompatibleCaptured(hierarchy, bone.getPath(), capturedByStructure);
+    }
+
+    /**
+     * Prefer the feature's declared context model(s). Equipment layers attach to that context and
+     * intentionally reuse the same relative part paths. Accidental name collisions with unrelated
+     * feature models (for example parrot {@code body} vs player {@code body}) are rejected because
+     * the feature path set is not a subset of the context tree.
+     */
+    private CapturedBone findCapturedInFeatureContexts(
+        VanillaBoneHierarchy.Hierarchy hierarchy,
+        String path,
+        IdentityHashMap<VanillaBoneHierarchy.Hierarchy, Map<String, CapturedBone>> capturedByHierarchy
+    )
+    {
+        CapturedBone matched = null;
+        String matchedId = null;
+
+        for (VanillaBoneHierarchy.Hierarchy contextHierarchy : this.discovery.getFeatureContexts(hierarchy))
+        {
+            if (!isEquipmentStyleFeature(hierarchy, contextHierarchy))
+            {
+                continue;
+            }
+
+            Map<String, CapturedBone> captured = capturedByHierarchy.get(contextHierarchy);
+            CapturedBone candidate = captured == null ? null : captured.get(path);
+
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            VanillaBoneHierarchy.Bone canonicalBone = this.discovery.getCanonicalBone(candidate.part());
+            String candidateId = canonicalBone == null ? null : canonicalBone.getId();
+
+            if (candidateId == null)
+            {
+                continue;
+            }
+
+            if (matchedId != null && !matchedId.equals(candidateId))
+            {
+                return null;
+            }
+
+            matchedId = candidateId;
+            matched = candidate;
+        }
+
+        return matched;
+    }
+
+    /**
+     * Fall back to any captured structure whose path set fully contains this hierarchy's paths.
+     * Score by shared path count so a humanoid armour layer prefers the densest matching body tree.
+     */
+    private CapturedBone findCompatibleCaptured(
+        VanillaBoneHierarchy.Hierarchy hierarchy,
+        String path,
+        Map<List<String>, Map<String, CapturedBone>> capturedByStructure
+    )
+    {
+        List<String> structure = hierarchy.getStructureKey();
+        CapturedBone best = null;
+        int bestScore = 0;
+        String bestId = null;
+
+        for (Map.Entry<List<String>, Map<String, CapturedBone>> entry : capturedByStructure.entrySet())
+        {
+            if (entry.getKey().equals(structure) || !isPathSubset(structure, entry.getKey()))
+            {
+                continue;
+            }
+
+            CapturedBone candidate = entry.getValue().get(path);
+
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            VanillaBoneHierarchy.Bone canonicalBone = this.discovery.getCanonicalBone(candidate.part());
+            String candidateId = canonicalBone == null ? null : canonicalBone.getId();
+
+            if (candidateId == null)
+            {
+                continue;
+            }
+
+            /* Prefer the densest containing tree so a full body model wins over a thinner overlay. */
+            int score = entry.getKey().size();
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+                bestId = candidateId;
+            }
+            else if (score == bestScore && bestId != null && !bestId.equals(candidateId))
+            {
+                /* Ambiguous same-score donors: refuse rather than pick arbitrarily. */
+                best = null;
+                bestId = null;
+            }
+        }
+
+        return best;
+    }
+
+    /**
+     * Equipment / armour layers re-use the context model's relative paths (often as a strict
+     * subset). Independent feature models (parrots, held items, …) introduce their own parts and
+     * must not inherit coincidentally shared names.
+     */
+    private static boolean isEquipmentStyleFeature(
+        VanillaBoneHierarchy.Hierarchy feature,
+        VanillaBoneHierarchy.Hierarchy context
+    )
+    {
+        return isPathSubset(feature.getStructureKey(), context.getStructureKey());
+    }
+
+    /**
+     * True when every path in {@code feature} also exists in {@code context}. Empty trees never
+     * match so accidental root-only models cannot inherit arbitrary poses.
+     */
+    private static boolean isPathSubset(List<String> feature, List<String> context)
+    {
+        if (feature.isEmpty() || context.isEmpty())
+        {
+            return false;
+        }
+
+        Set<String> contextPaths = new HashSet<>(context);
+
+        for (String path : feature)
+        {
+            if (!contextPaths.contains(path))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private Matrix4f getFallbackParent(
@@ -384,15 +572,18 @@ public final class MobRenderContext implements AutoCloseable
             return featureParent;
         }
 
-        /* A renderer variant can have an external attachment transform which is not represented by
-         * its ModelPart tree. Without a rendered sibling, the primary model root is not a valid
-         * substitute for that attachment frame. */
-        if (this.discovery.getVariantGroup(hierarchy) != null)
+        Matrix4f contextRoot = this.getFeatureContextRoot(hierarchy);
+
+        if (contextRoot != null)
         {
-            return null;
+            return contextRoot;
         }
 
-        if (!this.discovery.getFeatureContexts(hierarchy).isEmpty())
+        /* A pure renderer variant (boat types, …) can have an external attachment transform which
+         * is not represented by its ModelPart tree. Without a rendered sibling or a feature context,
+         * the primary model root is not a valid substitute. Feature layers still fall back to the
+         * model root so inactive equipment / attachment bones remain gizmo-editable. */
+        if (this.discovery.getVariantGroup(hierarchy) != null && this.discovery.getFeatureContexts(hierarchy).isEmpty())
         {
             return null;
         }
@@ -409,7 +600,9 @@ public final class MobRenderContext implements AutoCloseable
 
         for (VanillaBoneHierarchy.Hierarchy contextHierarchy : this.discovery.getFeatureContexts(hierarchy))
         {
-            if (!skull && !hierarchy.getStructureKey().equals(contextHierarchy.getStructureKey()))
+            /* Path attachment only for equipment-style layers (or skulls, which attach through a
+             * known external correction). Independent feature trees fall through to the context root. */
+            if (!skull && !isEquipmentStyleFeature(hierarchy, contextHierarchy))
             {
                 continue;
             }
@@ -452,6 +645,65 @@ public final class MobRenderContext implements AutoCloseable
         }
 
         return parent;
+    }
+
+    /**
+     * When a feature model has no path-compatible capture, place its root under a rendered context
+     * root so gizmos remain interactive. Attachment-specific offsets applied by the feature renderer
+     * itself are still unavailable without that render pass.
+     */
+    private Matrix4f getFeatureContextRoot(VanillaBoneHierarchy.Hierarchy hierarchy)
+    {
+        if (this.discovery.getFeatureContexts(hierarchy).isEmpty())
+        {
+            return null;
+        }
+
+        Matrix4f matched = null;
+        String matchedId = null;
+
+        for (VanillaBoneHierarchy.Hierarchy contextHierarchy : this.discovery.getFeatureContexts(hierarchy))
+        {
+            for (VanillaBoneHierarchy.Bone contextBone : contextHierarchy.getBones())
+            {
+                if (contextBone.getParentId() != null)
+                {
+                    continue;
+                }
+
+                VanillaBoneHierarchy.Bone canonicalBone = this.discovery.getCanonicalBone(contextBone);
+                ModelPart part = contextBone.getPart();
+
+                if (canonicalBone == null || part == null || !this.matrices.has(canonicalBone.getId()))
+                {
+                    continue;
+                }
+
+                MatrixCacheEntry entry = this.matrices.get(canonicalBone.getId());
+
+                if (entry.origin() == null)
+                {
+                    continue;
+                }
+
+                Matrix4f root = this.getCapturedParent(new CapturedBone(part, entry));
+
+                if (root == null)
+                {
+                    continue;
+                }
+
+                if (matchedId != null && !matchedId.equals(canonicalBone.getId()))
+                {
+                    return null;
+                }
+
+                matchedId = canonicalBone.getId();
+                matched = root;
+            }
+        }
+
+        return matched;
     }
 
     private Matrix4f getCapturedParent(CapturedBone reference)
