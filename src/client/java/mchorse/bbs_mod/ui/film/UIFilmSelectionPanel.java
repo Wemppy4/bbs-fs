@@ -9,15 +9,12 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.DataPath;
 
 import java.util.List;
 
 public class UIFilmSelectionPanel extends UISelectionScreen<Film>
 {
-    private static final Link BANNER = Link.assets("textures/banners/bg.png");
-
     private UIIcon duplicateCurrentFilm;
 
     public UIFilmSelectionPanel(UIFilmPanel panel)
@@ -66,12 +63,6 @@ public class UIFilmSelectionPanel extends UISelectionScreen<Film>
 
             this.duplicateCurrentFilm.setEnabled(filmPanel.getData() != null || hasSelectedFilm);
         }
-    }
-
-    @Override
-    protected Link getBannerTexture()
-    {
-        return BANNER;
     }
 
     private void openDuplicateCurrentFilmPrompt()
