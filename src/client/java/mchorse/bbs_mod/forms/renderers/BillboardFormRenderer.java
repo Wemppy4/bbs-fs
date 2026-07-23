@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
-import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -18,7 +17,6 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
-import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
@@ -68,7 +66,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         this.renderModel(format, GameRenderer::getRenderTypeEntityTranslucentProgram,
             stack,
             OverlayTexture.DEFAULT_UV, LightmapTextureManager.MAX_LIGHT_COORDINATE, Colors.WHITE,
-            context.getTransition(), false
+            context.getTransition()
         );
 
         stack.pop();
@@ -90,10 +88,10 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
             shading ? BBSShaders::getPickerBillboardProgram : BBSShaders::getPickerBillboardNoShadingProgram
         );
 
-        this.renderModel(format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+        this.renderModel(format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition());
     }
 
-    private void renderModel(VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderModel(VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
     {
         Link t = this.form.texture.get();
 
@@ -166,10 +164,10 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
             uvQuad.transform(matrix);
         }
 
-        this.renderQuad(format, texture, shader, matrices, overlay, light, overlayColor, transition, defer);
+        this.renderQuad(format, texture, shader, matrices, overlay, light, overlayColor, transition);
     }
 
-    private void renderQuad(VertexFormat format, Texture texture, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderQuad(VertexFormat format, Texture texture, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
     {
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         Color color = new Color().set(overlayColor, true);
@@ -228,41 +226,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
 
         RenderSystem.defaultBlendFunc();
         RenderSystem.enableBlend();
-
-        boolean linear = this.form.linear.get();
-        boolean mipmap = this.form.mipmap.get();
-        boolean translucent = texture.hasTranslucency() || color.a < 1F || linear || mipmap;
-
-        if (defer && translucent && FormTranslucentQueue.isActive())
-        {
-            /* The whole quad defers to the end-of-frame translucent pass: depth testing still
-             * hides it behind opaque geometry, while the far-to-near sort blends it correctly
-             * against other translucent forms — and it never occludes models behind it.
-             * Linear/mipmap sampling manufactures fractional alpha at the edges even from a
-             * binary-alpha texture, hence those flags count as translucency. */
-            VertexBuffer buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
-
-            buffer.bind();
-            buffer.upload(builder.end());
-            VertexBuffer.unbind();
-
-            Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
-            Vector3f origin = modelView.transformPosition(matrix.getTranslation(new Vector3f()));
-
-            FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(
-                buffer, () -> finalShader, texture, modelView, null, origin, true,
-                () ->
-                {
-                    texture.bind();
-                    texture.setFilterMipmap(linear, mipmap);
-                },
-                () -> texture.setFilterMipmap(false, false)
-            ));
-        }
-        else
-        {
-            BufferRenderer.drawWithGlobalProgram(builder.end());
-        }
+        BufferRenderer.drawWithGlobalProgram(builder.end());
 
         texture.setFilterMipmap(false, false);
 

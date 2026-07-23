@@ -22,7 +22,6 @@ import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
-import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -528,15 +527,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             CustomVertexConsumerProvider.hijackVertexFormat((l) -> RenderSystem.enableBlend());
 
-            /* Translucent armor layers ride the deferred sorted pass (see
-             * CustomVertexConsumerProvider#draw(RenderLayer)); only reached outside picking. */
-            Vector3f armorOrigin = stack.peek().getPositionMatrix().getTranslation(new Vector3f());
-
-            FormTranslucentQueue.setSortOrigin(new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(armorOrigin));
-
             ActorEntityRenderer.armorRenderer.renderArmorSlot(stack, consumers, target, type.slot, type, light);
             consumers.draw();
-            FormTranslucentQueue.setSortOrigin(null);
 
             CustomVertexConsumerProvider.clearRunnables();
 
@@ -573,12 +565,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
                 CustomVertexConsumerProvider.hijackVertexFormat((l) -> RenderSystem.enableBlend());
 
-                /* Translucent item layers (potions, glass blocks in hand) ride the deferred
-                 * sorted pass; only reached outside picking. */
-                Vector3f itemOrigin = stack.peek().getPositionMatrix().getTranslation(new Vector3f());
-
-                FormTranslucentQueue.setSortOrigin(new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(itemOrigin));
-
                 consumers.setSubstitute(BBSRendering.getColorConsumer(color));
 
                 /* For some reason, due to Sodium and my color consumer, in some cases items like Trident,
@@ -596,7 +582,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 MinecraftClient.getInstance().getItemRenderer().renderItem(null, itemStack, mode, mode == ModelTransformationMode.THIRD_PERSON_LEFT_HAND, stack, consumers, target.getWorld(), light, overlay, 0);
                 consumers.draw();
                 consumers.setSubstitute(null);
-                FormTranslucentQueue.setSortOrigin(null);
 
                 CustomVertexConsumerProvider.clearRunnables();
 

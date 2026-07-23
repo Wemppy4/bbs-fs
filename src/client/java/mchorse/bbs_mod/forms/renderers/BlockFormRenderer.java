@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
-import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.BlockForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
@@ -17,7 +16,6 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 
 public class BlockFormRenderer extends FormRenderer<BlockForm>
 {
@@ -94,21 +92,10 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
         color.set(context.color);
         FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
 
-        /* Publishing the form's camera-space origin opts its translucent layers into the
-         * deferred sorted pass (see CustomVertexConsumerProvider#draw(RenderLayer)); the
-         * picking branch above never publishes, so the stencil keeps every pixel. */
-        if (!context.isPicking())
-        {
-            Vector3f origin = context.stack.peek().getPositionMatrix().getTranslation(new Vector3f());
-
-            FormTranslucentQueue.setSortOrigin(new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(origin));
-        }
-
         consumers.setSubstitute(BBSRendering.getColorConsumer(color));
         MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(this.form.blockState.get(), context.stack, consumers, light, context.overlay);
         consumers.draw();
         consumers.setSubstitute(null);
-        FormTranslucentQueue.setSortOrigin(null);
 
         CustomVertexConsumerProvider.clearRunnables();
 

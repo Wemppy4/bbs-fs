@@ -64,7 +64,6 @@
 			"values": [0.0, 0.0, 0.0, 0.0]
 		},
 		{ "name": "FogShape", "type": "int", "count": 1, "values": [0] },
-		{ "name": "PassMode", "type": "int", "count": 1, "values": [0] },
 		{
 			"name": "NormalMat",
 			"type": "matrix3x3",

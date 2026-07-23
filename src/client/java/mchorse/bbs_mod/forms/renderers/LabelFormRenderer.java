@@ -3,7 +3,6 @@ package mchorse.bbs_mod.forms.renderers;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
-import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.LabelForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
@@ -15,7 +14,6 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
@@ -109,18 +107,6 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
             light = 0;
         }
 
-        /* The whole label (text + background) records as ONE deferred group: its parts rely on
-         * each other's depth (glyphs over the background quad), so they replay together in
-         * original order, while the group as a whole sorts against other translucent forms. */
-        boolean grouped = !context.isPicking() && FormTranslucentQueue.isActive();
-
-        if (grouped)
-        {
-            Vector3f origin = context.stack.peek().getPositionMatrix().getTranslation(new Vector3f());
-
-            FormTranslucentQueue.beginGroup(new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(origin), false);
-        }
-
         if (this.form.max.get() <= 10)
         {
             this.renderString(context, consumers, renderer, light);
@@ -128,11 +114,6 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
         else
         {
             this.renderLimitedString(context, consumers, renderer, light);
-        }
-
-        if (grouped)
-        {
-            FormTranslucentQueue.endGroup();
         }
 
         CustomVertexConsumerProvider.clearRunnables();
@@ -323,26 +304,7 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
         RenderSystem.enableBlend();
         RenderSystem.enableDepthTest();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-
-        if (FormTranslucentQueue.isGroupOpen())
-        {
-            VertexBuffer buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
-
-            buffer.bind();
-            buffer.upload(builder.end());
-            VertexBuffer.unbind();
-
-            FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(
-                buffer, GameRenderer::getPositionColorProgram, null,
-                new Matrix4f(RenderSystem.getModelViewMatrix()),
-                null, new Vector3f(FormTranslucentQueue.getSortOrigin()), false, null, null
-            ));
-        }
-        else
-        {
-            BufferRenderer.drawWithGlobalProgram(builder.end());
-        }
-
+        BufferRenderer.drawWithGlobalProgram(builder.end());
         context.stack.pop();
     }
 }

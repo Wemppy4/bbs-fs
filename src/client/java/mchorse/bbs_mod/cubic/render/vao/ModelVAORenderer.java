@@ -3,34 +3,19 @@ package mchorse.bbs_mod.cubic.render.vao;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL30;
 
 public class ModelVAORenderer
 {
-    /**
-     * The full model-view a draw issued right now would use. Deferred translucent commands
-     * capture it at enqueue time, because the global model-view is different by the time
-     * the queue flushes at the end of the frame.
-     */
-    public static Matrix4f captureModelView(MatrixStack stack)
-    {
-        return new Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.peek().getPositionMatrix());
-    }
-
     public static void render(ShaderProgram shader, IModelVAO modelVAO, MatrixStack stack, float r, float g, float b, float a, int light, int overlay)
-    {
-        render(shader, modelVAO, captureModelView(stack), stack.peek().getNormalMatrix(), r, g, b, a, light, overlay);
-    }
-
-    public static void render(ShaderProgram shader, IModelVAO modelVAO, Matrix4f modelView, Matrix3f normalMat, float r, float g, float b, float a, int light, int overlay)
     {
         int currentVAO = GL30.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         int currentElementArrayBuffer = GL30.glGetInteger(GL30.GL_ELEMENT_ARRAY_BUFFER_BINDING);
 
-        setupUniforms(shader, modelView, normalMat);
+        setupUniforms(stack, shader);
 
         shader.bind();
         modelVAO.render(shader.getFormat(), r, g, b, a, light, overlay);
@@ -41,11 +26,6 @@ public class ModelVAORenderer
     }
 
     public static void setupUniforms(MatrixStack stack, ShaderProgram shader)
-    {
-        setupUniforms(shader, captureModelView(stack), stack.peek().getNormalMatrix());
-    }
-
-    public static void setupUniforms(ShaderProgram shader, Matrix4f modelView, Matrix3f normalMat)
     {
         for (int i = 0; i < 12; i++)
         {
@@ -59,7 +39,7 @@ public class ModelVAORenderer
 
         if (shader.modelViewMat != null)
         {
-            shader.modelViewMat.set(modelView);
+            shader.modelViewMat.set(new Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.peek().getPositionMatrix()));
         }
 
         /* NormalMat is present by default in Iris' shaders, but when there is no Iris,
@@ -70,7 +50,7 @@ public class ModelVAORenderer
 
         if (normalUniform != null)
         {
-            normalUniform.set(normalMat);
+            normalUniform.set(stack.peek().getNormalMatrix());
         }
 
         if (shader.viewRotationMat != null)

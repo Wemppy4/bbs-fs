@@ -6,7 +6,6 @@ import com.mojang.brigadier.StringReader;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
-import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -38,7 +37,6 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 
 import java.lang.reflect.Field;
@@ -336,21 +334,11 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
             currentPose = this.form.pose.get();
             currentPoseOverlay = this.form.poseOverlay.get();
 
-            /* Publishing the form's camera-space origin opts its translucent layers (slime
-             * bodies, ghost textures) into the deferred sorted pass. */
-            if (!context.isPicking())
-            {
-                Vector3f origin = context.stack.peek().getPositionMatrix().getTranslation(new Vector3f());
-
-                FormTranslucentQueue.setSortOrigin(new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(origin));
-            }
-
             MinecraftClient.getInstance().getEntityRenderDispatcher().render(this.entity, 0D, 0D, 0D, 0F, context.getTransition(), context.stack, consumers, light);
 
             currentPose = currentPoseOverlay = null;
 
             consumers.draw();
-            FormTranslucentQueue.setSortOrigin(null);
             CustomVertexConsumerProvider.clearRunnables();
 
             context.stack.pop();

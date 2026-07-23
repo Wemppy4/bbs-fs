@@ -1,9 +1,9 @@
 package mchorse.bbs_mod.cubic.render.vao;
 
+import mchorse.bbs_mod.bobj.BOBJArmature;
 import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.bobj.BOBJLoader;
 import mchorse.bbs_mod.utils.MathUtils;
-import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
 import java.util.ArrayList;
@@ -29,7 +29,7 @@ public class BOBJModelSimpleVAO extends BOBJModelVAO
     }
 
     @Override
-    protected void processData(float[] newVertices, float[] newNormals, Matrix4f[] matrices)
+    protected void processData(float[] newVertices, float[] newNormals)
     {
         if (!this.armLeft.isFilled())
         {
@@ -100,11 +100,11 @@ public class BOBJModelSimpleVAO extends BOBJModelVAO
             }
         }
 
-        this.armRight.process(this.data, matrices, newVertices, newNormals);
-        this.armLeft.process(this.data, matrices, newVertices, newNormals);
-        this.legRight.process(this.data, matrices, newVertices, newNormals);
-        this.legLeft.process(this.data, matrices, newVertices, newNormals);
-        this.body.process(this.data, matrices, newVertices, newNormals);
+        this.armRight.process(this.data, this.armature, newVertices, newNormals);
+        this.armLeft.process(this.data, this.armature, newVertices, newNormals);
+        this.legRight.process(this.data, this.armature, newVertices, newNormals);
+        this.legLeft.process(this.data, this.armature, newVertices, newNormals);
+        this.body.process(this.data, this.armature, newVertices, newNormals);
     }
 
     public static class Joint
@@ -127,7 +127,7 @@ public class BOBJModelSimpleVAO extends BOBJModelVAO
             return !this.front.isEmpty();
         }
 
-        public void process(BOBJLoader.CompiledData data, Matrix4f[] matrices, float[] posData, float[] normalData)
+        public void process(BOBJLoader.CompiledData data, BOBJArmature armature, float[] posData, float[] normalData)
         {
             final float pi = (float) Math.PI;
 
@@ -135,11 +135,11 @@ public class BOBJModelSimpleVAO extends BOBJModelVAO
             float frontFactor = MathUtils.clamp((rotation + pi / 2F) / pi, 0, 1);
             float backFactor = 1 - frontFactor;
 
-            this.processSide(data, matrices, this.front, posData, normalData, frontFactor);
-            this.processSide(data, matrices, this.back, posData, normalData, backFactor);
+            this.processSide(data, armature, this.front, posData, normalData, frontFactor);
+            this.processSide(data, armature, this.back, posData, normalData, backFactor);
         }
 
-        protected void processSide(BOBJLoader.CompiledData data, Matrix4f[] matrices, List<Integer> indices, float[] posData, float[] normalData, float factor)
+        protected void processSide(BOBJLoader.CompiledData data, BOBJArmature armature, List<Integer> indices, float[] posData, float[] normalData, float factor)
         {
             int prevIndex = 0;
 
@@ -150,7 +150,7 @@ public class BOBJModelSimpleVAO extends BOBJModelVAO
                 float z = data.posData[i * 3 + 2];
 
                 temporary.set(x, y, z, 1F);
-                matrices[this.top.index].transform(temporary);
+                armature.matrices[this.top.index].transform(temporary);
 
                 posData[i * 3] = temporary.x;
                 posData[i * 3 + 1] = temporary.y;

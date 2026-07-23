@@ -7,7 +7,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -34,13 +33,6 @@ public class BOBJModelVAO
     private float[] tmpNormals;
     private int[] tmpLight;
     private float[] tmpTangents;
-
-    /**
-     * Bumped on every VBO upload. The VBO is shared between actors using the same model, so a
-     * deferred translucent command compares this against the value it captured to know whether
-     * someone re-skinned the mesh since — and re-uploads from its armature snapshot if so.
-     */
-    private int uploadCount;
 
     public BOBJModelVAO(BOBJLoader.CompiledData data)
     {
@@ -114,36 +106,12 @@ public class BOBJModelVAO
         GL15.glDeleteBuffers(this.midTextureBuffer);
     }
 
-    public int getUploadCount()
-    {
-        return this.uploadCount;
-    }
-
-    /** A deep copy of the armature's current skinning matrices, for deferred re-uploads. */
-    public Matrix4f[] snapshotArmature()
-    {
-        Matrix4f[] matrices = this.armature.matrices;
-        Matrix4f[] snapshot = new Matrix4f[matrices.length];
-
-        for (int i = 0; i < matrices.length; i++)
-        {
-            snapshot[i] = matrices[i] == null ? null : new Matrix4f(matrices[i]);
-        }
-
-        return snapshot;
-    }
-
     /**
-     * Update this mesh. This method is responsible for applying
-     * matrix transformations to vertices and normals according to its
+     * Update this mesh. This method is responsible for applying 
+     * matrix transformations to vertices and normals according to its 
      * bone owners and these bone influences.
      */
     public void updateMesh(StencilMap stencilMap)
-    {
-        this.updateMesh(stencilMap, this.armature.matrices);
-    }
-
-    public void updateMesh(StencilMap stencilMap, Matrix4f[] matrices)
     {
         Vector4f sum = new Vector4f();
         Vector4f result = new Vector4f(0F, 0F, 0F, 0F);
@@ -154,6 +122,8 @@ public class BOBJModelVAO
         float[] newVertices = this.tmpVertices;
         float[] oldNormals = this.data.normData;
         float[] newNormals = this.tmpNormals;
+
+        Matrix4f[] matrices = this.armature.matrices;
 
         for (int i = 0, c = this.count; i < c; i++)
         {
@@ -215,9 +185,7 @@ public class BOBJModelVAO
             }
         }
 
-        this.processData(newVertices, newNormals, matrices);
-
-        this.uploadCount += 1;
+        this.processData(newVertices, newNormals);
 
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, this.vertexBuffer);
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, newVertices, GL15.GL_DYNAMIC_DRAW);
@@ -240,15 +208,10 @@ public class BOBJModelVAO
         }
     }
 
-    protected void processData(float[] newVertices, float[] newNormals, Matrix4f[] matrices)
+    protected void processData(float[] newVertices, float[] newNormals)
     {}
 
     public void render(ShaderProgram shader, MatrixStack stack, float r, float g, float b, float a, StencilMap stencilMap, int light, int overlay)
-    {
-        this.render(shader, ModelVAORenderer.captureModelView(stack), stack.peek().getNormalMatrix(), r, g, b, a, stencilMap, light, overlay);
-    }
-
-    public void render(ShaderProgram shader, Matrix4f modelView, Matrix3f normalMat, float r, float g, float b, float a, StencilMap stencilMap, int light, int overlay)
     {
         boolean hasShaders = BBSRendering.isIrisShadersEnabled();
 
@@ -259,7 +222,7 @@ public class BOBJModelVAO
         int currentVAO = GL30.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         int currentElementArrayBuffer = GL30.glGetInteger(GL30.GL_ELEMENT_ARRAY_BUFFER_BINDING);
 
-        ModelVAORenderer.setupUniforms(shader, modelView, normalMat);
+        ModelVAORenderer.setupUniforms(stack, shader);
 
         shader.bind();
 
