@@ -124,11 +124,21 @@ public class KeyframeSelection
         this.selected.clear();
     }
 
+    /**
+     * The selection stores indices, so a channel edited underneath it (a removed keyframe, an
+     * undone insertion) can leave indices that no longer resolve. Skip those, like
+     * {@link #getSelected()} does, instead of reporting "nothing selected" on the first stale one.
+     */
     public Keyframe getFirst()
     {
         for (Integer integer : this.selected)
         {
-            return this.channel.get(integer);
+            Keyframe keyframe = this.channel.get(integer);
+
+            if (keyframe != null)
+            {
+                return keyframe;
+            }
         }
 
         return null;

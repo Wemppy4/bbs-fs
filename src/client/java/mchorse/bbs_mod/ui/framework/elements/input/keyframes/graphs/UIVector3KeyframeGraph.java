@@ -410,6 +410,12 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
     public void setValue(Object value, boolean unmergeable)
     {
         Keyframe selected = this.getSelected();
+
+        if (selected == null)
+        {
+            return;
+        }
+
         IKeyframeFactory factory = selected.getFactory();
         Vector3f keyframe = (Vector3f) factory.copy(selected.getValue());
         
