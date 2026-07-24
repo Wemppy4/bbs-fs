@@ -1787,7 +1787,11 @@ public class UIPixelsEditor extends UICanvasEditor
                     }
                 }
             }
-            else if (this.isStrokePaintTool())
+            /* Only an actually started stroke can be continued: the undo record is created in
+             * startDragging() and holds the pre-stroke pixels that blending, the eraser and alpha
+             * lock read back. Switching to a stroke tool (or enabling the editor) while the button
+             * is already held leaves the drag without one &mdash; such a drag paints nothing. */
+            else if (this.isStrokePaintTool() && this.pixelsUndo != null)
             {
                 Vector2i last = this.getHoverPixel(this.lastX, this.lastY);
                 Vector2i current = this.getHoverPixel(context.mouseX, context.mouseY);

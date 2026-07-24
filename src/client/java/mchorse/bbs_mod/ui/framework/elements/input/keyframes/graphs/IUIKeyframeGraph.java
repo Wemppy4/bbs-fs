@@ -222,6 +222,12 @@ public interface IUIKeyframeGraph
     public default void setTick(float tick, boolean dirty)
     {
         Keyframe selected = this.getSelected();
+
+        if (selected == null)
+        {
+            return;
+        }
+
         float diff = tick - selected.getTick();
 
         for (UIKeyframeSheet sheet : this.getSheets())
@@ -255,9 +261,21 @@ public interface IUIKeyframeGraph
         }
     }
 
+    /**
+     * Both this and {@link #setTick(float, boolean)} are driven by the keyframe properties panel,
+     * which outlives the selection it was built for: an undo or a removed keyframe can empty the
+     * selection without rebuilding the panel. Without a selected keyframe there is nothing to edit
+     * relative to, so the edit is dropped rather than applied blindly to the whole channel.
+     */
     public default void setValue(Object value, boolean unmergeable)
     {
         Keyframe selected = this.getSelected();
+
+        if (selected == null)
+        {
+            return;
+        }
+
         IKeyframeFactory factory = selected.getFactory();
         Object keyframe = factory.copy(selected.getValue());
 
