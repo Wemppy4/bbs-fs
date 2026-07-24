@@ -4,10 +4,12 @@ import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.PoseForm;
 import mchorse.bbs_mod.settings.values.base.BaseKeyframeFactoryValue;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
+import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -165,9 +167,9 @@ public class FormProperties extends ValueGroup
                     {
                         Form targetForm = FormUtils.getForm(form, formPath);
 
-                        if (targetForm instanceof ModelForm modelForm)
+                        if (targetForm instanceof PoseForm poseForm)
                         {
-                            modelForm.pose.setRuntimeValue(null);
+                            poseForm.getPose().setRuntimeValue(null);
                         }
                     }
                 }
@@ -190,26 +192,21 @@ public class FormProperties extends ValueGroup
             String bone = poseBonePath.bone();
             Form targetForm = FormUtils.getForm(form, formPath);
 
-            if (targetForm instanceof ModelForm modelForm)
+            if (targetForm instanceof PoseForm poseForm)
             {
                 KeyframeSegment segment = value.find(tick);
 
                 if (segment != null)
                 {
                     /* Copy on write */
-                    if (modelForm.pose.getRuntimeValue() == null)
+                    ValuePose pose = poseForm.getPose();
+
+                    if (pose.getRuntimeValue() == null)
                     {
-                        modelForm.pose.setRuntimeValue(modelForm.pose.getOriginalValue().copy());
+                        pose.setRuntimeValue(pose.getOriginalValue().copy());
                     }
 
-                    PoseTransform transform = modelForm.pose.get().get(bone);
-                    boolean isNew = transform == null;
-
-                    if (isNew)
-                    {
-                        transform = new PoseTransform();
-                        modelForm.pose.get().transforms.put(bone, transform);
-                    }
+                    PoseTransform transform = pose.get().get(bone);
 
                     Transform interpolated = (Transform) this.interpolateValue(value, new PoseTransform(), segment, blend);
 
@@ -297,11 +294,25 @@ public class FormProperties extends ValueGroup
 
         for (KeyframeChannel value : this.properties.values())
         {
+            PerLimbService.PoseBonePath poseBonePath = PerLimbService.parsePoseBonePath(value.getId());
+
+            if (poseBonePath != null)
+            {
+                Form targetForm = FormUtils.getForm(form, poseBonePath.formPath());
+
+                if (targetForm instanceof PoseForm poseForm)
+                {
+                    poseForm.getPose().setRuntimeValue(null);
+                }
+
+                continue;
+            }
+
             BaseValueBasic property = FormUtils.getProperty(form, value.getId());
 
             if (property == null)
             {
-                return;
+                continue;
             }
 
             property.setRuntimeValue(null);

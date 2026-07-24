@@ -16,6 +16,7 @@ import mchorse.bbs_mod.forms.forms.TrailForm;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.forms.renderers.AnchorFormRenderer;
 import mchorse.bbs_mod.forms.renderers.BillboardFormRenderer;
+import mchorse.bbs_mod.forms.renderers.BoneHierarchy;
 import mchorse.bbs_mod.forms.renderers.BlockFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ExtrudedFormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
@@ -175,6 +176,26 @@ public class FormUtilsClient
         }
 
         return Collections.emptyList();
+    }
+
+    public static BoneHierarchy getBoneHierarchy(Form form)
+    {
+        FormRenderer renderer = getRenderer(form);
+
+        return renderer == null ? BoneHierarchy.EMPTY : renderer.getBoneHierarchy();
+    }
+
+    public static String getBoneLabel(Form form, String bone)
+    {
+        if (bone == null || bone.isEmpty())
+        {
+            return "";
+        }
+
+        BoneHierarchy hierarchy = getBoneHierarchy(form);
+        String resolved = hierarchy.resolveId(bone);
+
+        return hierarchy.getLabels(false).getOrDefault(resolved, bone);
     }
 
     public static interface IFormRendererFactory <T extends Form>

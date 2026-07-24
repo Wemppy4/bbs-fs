@@ -835,6 +835,8 @@
 	"bbs.ui.forms.editors.label.shadow_offset": "Shadow offset",
 	"bbs.ui.forms.editors.label.title": "Label options",
 	"bbs.ui.forms.editors.mob.title": "Mob",
+	"bbs.ui.forms.editors.mob.entities": "Entities",
+	"bbs.ui.forms.editors.mob.pick_entity": "Pick an entity...",
 	"bbs.ui.forms.editors.model.actions": "Actions",
 	"bbs.ui.forms.editors.model.ik": "IK Chains",
 	"bbs.ui.forms.editors.model.ik.debug": "Show debug overlay",

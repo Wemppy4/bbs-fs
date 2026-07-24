@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.PoseForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
@@ -66,7 +66,7 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.filterTracks.tooltip(UIKeys.FORMS_EDITORS_GENERAL_FILTER_TRACKS_TOOLTIP);
         this.boneTracks = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_BONE_TRACKS, (b) ->
         {
-            if (this.form instanceof ModelForm m) m.boneTracks.set(b.getValue());
+            if (this.form instanceof PoseForm poseForm) poseForm.getBoneTracks().set(b.getValue());
         });
         this.boneTracks.tooltip(UIKeys.FORMS_EDITORS_GENERAL_BONE_TRACKS_TOOLTIP);
         this.trackName = new UITextbox(120, (t) -> this.form.trackName.set(t));
@@ -150,9 +150,9 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.hotkey.setKeyCombo(new KeyCombo(IKey.EMPTY, form.hotkey.get()));
 
         this.visible.setValue(form.visible.get());
-        if (form instanceof ModelForm m)
+        if (form instanceof PoseForm poseForm)
         {
-            this.boneTracks.setValue(m.boneTracks.get());
+            this.boneTracks.setValue(poseForm.getBoneTracks().get());
             this.boneTracks.setVisible(true);
         }
         else
@@ -190,6 +190,7 @@ public class UIGeneralFormPanel extends UIFormPanel
         Set<String> disabled = this.form.disabledTracks.get();
         Set<String> keys = new LinkedHashSet<>();
         Map<String, Integer> keyToColor = new HashMap<>();
+        Map<String, String> keyToLabel = new HashMap<>();
 
         for (UIKeyframeSheet sheet : UIReplaysEditorUtils.collectFormTrackSheets(this.form))
         {
@@ -197,9 +198,10 @@ public class UIGeneralFormPanel extends UIFormPanel
 
             keys.add(key);
             keyToColor.put(key, sheet.color);
+            keyToLabel.put(key, sheet.title.get());
         }
 
-        UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(disabled, keys, keyToColor);
+        UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(disabled, keys, keyToColor, keyToLabel);
 
         UIOverlay.addOverlay(this.getContext(), panel, 240, 0.9F);
 

@@ -1,8 +1,5 @@
 package mchorse.bbs_mod.ui.forms.editors.forms;
 
-import mchorse.bbs_mod.data.DataStorageUtils;
-import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -11,21 +8,16 @@ import mchorse.bbs_mod.ui.forms.editors.panels.UIModelConstraintsFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelIKFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelPhysicsFormPanel;
-import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
-import mchorse.bbs_mod.utils.StringUtils;
-import org.joml.Matrix4f;
 
-public class UIModelForm extends UIForm<ModelForm>
+public class UIModelForm extends UIPoseForm<ModelForm>
 {
     public UIModelFormPanel modelPanel;
 
     public UIModelForm()
     {
         this.modelPanel = new UIModelFormPanel(this);
-        this.modelPanel.poseEditor.transform.hotkeyDrag(() -> this.editor == null ? null : this.editor.buildHotkeyDrag(this.modelPanel.poseEditor.transform));
-        this.modelPanel.poseEditor.transform.worldTransform(new FormBoneWorldProvider(this));
+        this.setupPosePanel(this.modelPanel);
         this.defaultPanel = this.modelPanel;
 
         this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_MODEL_POSE, Icons.POSE);
@@ -46,58 +38,4 @@ public class UIModelForm extends UIForm<ModelForm>
         });
     }
 
-    @Override
-    public UIPropTransform getEditableTransform()
-    {
-        return this.modelPanel.poseEditor.transform;
-    }
-
-    @Override
-    public void collectUndoData(MapType data)
-    {
-        super.collectUndoData(data);
-
-        data.put("bones", DataStorageUtils.stringListToData(this.modelPanel.poseEditor.groups.list.getCurrent()));
-    }
-
-    @Override
-    public void applyUndoData(MapType data)
-    {
-        super.applyUndoData(data);
-
-        if (data.has("bones"))
-        {
-            this.modelPanel.poseEditor.restoreSelection(DataStorageUtils.stringListFromData(data.get("bones")));
-        }
-    }
-
-    @Override
-    public Matrix4f getOrigin(float transition)
-    {
-        return this.getOrigin(transition, this.bonePath(), this.modelPanel.poseEditor.transform.isLocal());
-    }
-
-    @Override
-    public Matrix4f getOriginMatrix(float transition)
-    {
-        return this.getOrigin(transition, this.bonePath(), true);
-    }
-
-    private String bonePath()
-    {
-        return StringUtils.combinePaths(FormUtils.getPath(this.form), this.modelPanel.poseEditor.groups.list.getCurrentFirst());
-    }
-
-    @Override
-    public boolean toggleBoneSelection(String bone)
-    {
-        if (!this.modelPanel.poseEditor.hasBone(bone))
-        {
-            return false;
-        }
-
-        this.modelPanel.poseEditor.selectBone(bone, true);
-
-        return true;
-    }
 }

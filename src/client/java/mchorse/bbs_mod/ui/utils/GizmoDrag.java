@@ -68,6 +68,16 @@ public class GizmoDrag
      * doesn't have to know which model type it's editing.
      */
     public final Matrix3f rotateAxes = new Matrix3f();
+    /** Renderer axes for the post-rotation {@code transform.rotate2}. */
+    public final Matrix3f rotate2Axes = new Matrix3f();
+    /** World-to-parent rotation before {@code transform.rotate}. */
+    public final Matrix3f rotateParentInverse = new Matrix3f();
+    /** World-to-parent rotation before {@code transform.rotate2}. */
+    public final Matrix3f rotate2ParentInverse = new Matrix3f();
+    public boolean hasRotateParentInverse;
+    public boolean hasRotate2ParentInverse;
+    /** Renderer-owned Euler rotation added before {@code transform.rotate}. */
+    public final Vector3f rotationOffset = new Vector3f();
 
     public GizmoDrag setup(Camera camera, Area viewport, Vector3f gizmoOrigin)
     {
@@ -100,6 +110,7 @@ public class GizmoDrag
          * renderer's actual rotation axes (e.g. cubic models) can override via
          * setRotateAxes() to fix sign mismatches caused by post-applied flips. */
         drag.rotateAxes.set(drag.gizmoWorldAxes);
+        drag.rotate2Axes.set(drag.gizmoWorldAxes);
 
         return drag;
     }
@@ -248,6 +259,72 @@ public class GizmoDrag
         return this;
     }
 
+    public GizmoDrag setRotate2Axes(Matrix3f axes)
+    {
+        this.rotate2Axes.set(axes);
+
+        return this;
+    }
+
+    public GizmoDrag setRotationOffset(Vector3f offset)
+    {
+        this.rotationOffset.set(offset == null ? new Vector3f() : offset);
+
+        return this;
+    }
+
+    /**
+     * Capture the actual world-to-parent frames used by the renderer's two rotation stages.
+     * Unlike recovering the parent from the three Euler derivative axes, this decomposition
+     * remains invertible at Euler gimbal-lock poses such as yaw = +/-90 degrees.
+     */
+    public GizmoDrag setRotationParents(Transform transform, Vector3f offset, Supplier<Matrix4f> matrixSampler)
+    {
+        this.setRotationOffset(offset);
+        this.hasRotateParentInverse = computeRotationParentInverse(
+            transform,
+            this.rotationOffset,
+            false,
+            matrixSampler,
+            this.rotateParentInverse
+        );
+        this.hasRotate2ParentInverse = computeRotationParentInverse(
+            transform,
+            this.rotationOffset,
+            true,
+            matrixSampler,
+            this.rotate2ParentInverse
+        );
+
+        return this;
+    }
+
+    private static boolean computeRotationParentInverse(
+        Transform transform,
+        Vector3f offset,
+        boolean secondary,
+        Supplier<Matrix4f> matrixSampler,
+        Matrix3f out
+    )
+    {
+        Vector3f rotation = secondary ? transform.rotate2 : transform.rotate;
+        Vector3f neutral = secondary
+            ? new Vector3f()
+            : new Vector3f(offset == null ? new Vector3f() : offset).negate();
+        Matrix3f parentAxes = computeRotateAxes(rotation, neutral, matrixSampler, false);
+
+        if (Math.abs(parentAxes.determinant()) < 1.0E-4F)
+        {
+            out.zero();
+
+            return false;
+        }
+
+        out.set(parentAxes).invert();
+
+        return true;
+    }
+
     /**
      * Numerically estimate how the gizmo's world position responds to changes
      * of {@code transform.translate}. Calls the sampler four times: at the
@@ -319,14 +396,39 @@ public class GizmoDrag
      */
     public static Matrix3f computeRotateAxes(Transform transform, Supplier<Matrix4f> matrixSampler)
     {
-        Vector3f saved = new Vector3f(transform.rotate);
+        return computeRotateAxes(transform, false, matrixSampler);
+    }
+
+    public static Matrix3f computeRotateAxes(Transform transform, boolean secondary, Supplier<Matrix4f> matrixSampler)
+    {
+        Vector3f rotation = secondary ? transform.rotate2 : transform.rotate;
+        return computeRotateAxes(rotation, new Vector3f(rotation), matrixSampler, true);
+    }
+
+    private static Matrix3f computeRotateAxes(
+        Vector3f rotation,
+        Vector3f baseRotation,
+        Supplier<Matrix4f> matrixSampler,
+        boolean fallbackIdentity
+    )
+    {
+        Vector3f saved = new Vector3f(rotation);
         float delta = 0.05F;
 
         try
         {
+            rotation.set(baseRotation);
+
+            Matrix4f sampled = matrixSampler.get();
+
+            if (sampled == null)
+            {
+                return new Matrix3f().zero();
+            }
+
             Matrix3f base = new Matrix3f();
 
-            matrixSampler.get().get3x3(base);
+            sampled.get3x3(base);
 
             Matrix3f baseInverse = new Matrix3f(base);
 
@@ -344,13 +446,20 @@ public class GizmoDrag
 
             for (int i = 0; i < 3; i++)
             {
-                transform.rotate.set(saved);
+                rotation.set(baseRotation);
 
-                if (i == 0) transform.rotate.x += delta;
-                else if (i == 1) transform.rotate.y += delta;
-                else transform.rotate.z += delta;
+                if (i == 0) rotation.x += delta;
+                else if (i == 1) rotation.y += delta;
+                else rotation.z += delta;
 
-                matrixSampler.get().get3x3(perturbed);
+                Matrix4f sample = matrixSampler.get();
+
+                if (sample == null)
+                {
+                    return new Matrix3f().zero();
+                }
+
+                sample.get3x3(perturbed);
                 relative.set(perturbed).mul(baseInverse);
 
                 /* Antisymmetric part of a rotation matrix is sin(θ)·[axis]_skew.
@@ -367,6 +476,11 @@ public class GizmoDrag
 
                 if (lenSq < 1.0E-12F)
                 {
+                    if (!fallbackIdentity)
+                    {
+                        return new Matrix3f().zero();
+                    }
+
                     col.set(i == 0 ? 1F : 0F, i == 1 ? 1F : 0F, i == 2 ? 1F : 0F);
                 }
                 else
@@ -381,7 +495,7 @@ public class GizmoDrag
         }
         finally
         {
-            transform.rotate.set(saved);
+            rotation.set(saved);
         }
     }
 }

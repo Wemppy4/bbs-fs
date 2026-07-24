@@ -4,7 +4,8 @@ import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.PoseForm;
+import mchorse.bbs_mod.forms.renderers.BoneHierarchy;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -14,6 +15,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.pose.UIBoneHierarchyList;
 import mchorse.bbs_mod.utils.Pair;
 
 public class UIBodyPartEditor extends UIScrollView
@@ -41,9 +43,9 @@ public class UIBodyPartEditor extends UIScrollView
 
                 Form partForm = current.part.getForm();
 
-                if (partForm instanceof ModelForm m)
+                if (partForm instanceof PoseForm poseForm)
                 {
-                    m.boneTracks.set(false);
+                    poseForm.getBoneTracks().set(false);
                 }
 
                 if (partForm != null && partForm.getFormId().contains("particle"))
@@ -63,7 +65,7 @@ public class UIBodyPartEditor extends UIScrollView
             this.part.useTarget.set(b.getValue());
         });
 
-        this.bone = new UIStringList((l) -> this.part.bone.set(l.get(0)));
+        this.bone = new UIBoneHierarchyList((l) -> this.part.bone.set(l.get(0)));
         this.bone.background().h(UIConstants.LIST_ITEM_HEIGHT * 6);
 
         this.transform = new UIPropTransform().callbacks(() -> this.part.transform).barBackground();
@@ -84,9 +86,13 @@ public class UIBodyPartEditor extends UIScrollView
 
         this.useTarget.setValue(part.useTarget.get());
         this.bone.clear();
-        this.bone.add(FormUtilsClient.getBones(form));
-        this.bone.sort();
-        this.bone.setCurrentScroll(part.bone.get());
+        BoneHierarchy hierarchy = FormUtilsClient.getBoneHierarchy(form);
+
+        ((UIBoneHierarchyList) this.bone).setLabels(hierarchy.getLabels(false));
+        this.bone.add(hierarchy.getBoneIds());
+        String boneId = hierarchy.resolveId(part.bone.get());
+
+        this.bone.setCurrentScroll(boneId == null ? part.bone.get() : boneId);
 
         if (!this.bone.getList().isEmpty())
         {

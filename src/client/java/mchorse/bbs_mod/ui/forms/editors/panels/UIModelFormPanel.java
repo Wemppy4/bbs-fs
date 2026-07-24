@@ -2,7 +2,9 @@ package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.cubic.ModelInstance;
+import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.BoneHierarchy;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -10,7 +12,6 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
-import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPoseEditor;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
@@ -26,10 +27,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
-public class UIModelFormPanel extends UIFormPanel<ModelForm>
+public class UIModelFormPanel extends UIPoseFormPanel<ModelForm>
 {
     public UIColor color;
-    public UIModelPoseEditor poseEditor;
     public UIShapeKeys shapeKeys;
     public UISection shapeKeysSection;
 
@@ -67,8 +67,6 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
         });
         this.color = new UIColor((c) -> this.form.color.set(new Color().set(c))).withAlpha();
         this.color.direction(Direction.LEFT);
-        this.poseEditor = new UIModelPoseEditor();
-        this.poseEditor.transform.barBackground();
         this.shapeKeys = new UIShapeKeys();
         this.shapeKeys.title.removeFromParent();
         this.shapeKeysSection = new UISection(UIKeys.SHAPE_KEYS_TITLE);
@@ -145,21 +143,23 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
         }
     }
 
-    private void pickGroup(String group)
-    {
-        this.poseEditor.selectBone(group);
-    }
-
     @Override
     public void startEdit(ModelForm form)
     {
         super.startEdit(form);
 
         ModelInstance model = ModelFormRenderer.getModel(this.form);
+        BoneHierarchy hierarchy = FormUtilsClient.getBoneHierarchy(form);
 
-        this.poseEditor.setValuePose(form.pose);
-        this.poseEditor.setPose(form.pose.get(), model == null ? this.form.model.get() : model.getPoseGroup());
-        this.poseEditor.fillGroups(model == null ? null : model.model, model == null ? null : model.getFlippedParts(), true, model == null ? null : model.getDisabledBones());
+        this.bindPose(form, model == null ? this.form.model.get() : model.getPoseGroup());
+        this.poseEditor.migratePose(hierarchy);
+        this.poseEditor.fillGroups(
+            model == null ? null : model.model,
+            model == null ? null : model.getFlippedParts(),
+            true,
+            model == null ? null : model.getDisabledBones(),
+            hierarchy
+        );
         this.color.setColor(form.color.get().getARGBColor());
 
         Set<String> modelShapeKeys = model == null ? Collections.emptySet() : model.model.getShapeKeys();
@@ -171,11 +171,4 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
         this.options.resize();
     }
 
-    @Override
-    public void pickBone(String bone)
-    {
-        super.pickBone(bone);
-
-        this.pickGroup(bone);
-    }
 }

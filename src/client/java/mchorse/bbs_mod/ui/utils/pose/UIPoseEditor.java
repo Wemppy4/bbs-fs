@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.utils.pose;
 
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.forms.renderers.BoneHierarchy;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -51,6 +53,7 @@ public class UIPoseEditor extends UIElement
     private Pose pose;
     protected IModel model;
     protected Map<String, String> flippedParts;
+    private BoneHierarchy hierarchy = BoneHierarchy.EMPTY;
 
     public UIPoseEditor()
     {
@@ -171,19 +174,26 @@ public class UIPoseEditor extends UIElement
 
     private void applyChildren(Consumer<PoseTransform> consumer)
     {
-        if (this.model == null)
-        {
-            return;
-        }
+        LinkedHashSet<String> children = new LinkedHashSet<>();
 
         for (String bone : this.groups.list.getCurrent())
         {
-            Collection<String> keys = this.model.getAllChildrenKeys(bone);
-
-            for (String key : keys)
+            if (this.model != null)
             {
-                consumer.accept(this.pose.get(key));
+                children.addAll(this.model.getAllChildrenKeys(bone));
             }
+            else
+            {
+                for (BoneHierarchy.Bone child : this.hierarchy.getDescendants(bone))
+                {
+                    children.add(child.id());
+                }
+            }
+        }
+
+        for (String child : children)
+        {
+            consumer.accept(this.pose.get(child));
         }
     }
 
@@ -229,8 +239,23 @@ public class UIPoseEditor extends UIElement
     {
         this.model = null;
         this.flippedParts = null;
+        this.hierarchy = BoneHierarchy.EMPTY;
 
         this.fillInGroups(groups, reset, true);
+    }
+
+    public void fillGroups(BoneHierarchy hierarchy, boolean reset)
+    {
+        this.fillGroups(hierarchy, reset, false);
+    }
+
+    public void fillGroups(BoneHierarchy hierarchy, boolean reset, boolean hierarchicalLabels)
+    {
+        this.model = null;
+        this.hierarchy = hierarchy == null ? BoneHierarchy.EMPTY : hierarchy;
+        this.flippedParts = this.createHierarchyFlipMap(this.hierarchy);
+
+        this.fillInGroups(this.hierarchy, reset, hierarchicalLabels);
     }
 
     public void fillGroups(IModel model, Map<String, String> flippedParts, boolean reset)
@@ -240,8 +265,32 @@ public class UIPoseEditor extends UIElement
 
     public void fillGroups(IModel model, Map<String, String> flippedParts, boolean reset, Collection<String> disabledBones)
     {
+        this.fillGroups(model, flippedParts, reset, disabledBones, null);
+    }
+
+    public void fillGroups(IModel model, Map<String, String> flippedParts, boolean reset, Collection<String> disabledBones, BoneHierarchy hierarchy)
+    {
+        this.fillGroups(model, flippedParts, reset, disabledBones, hierarchy, false);
+    }
+
+    public void fillGroups(
+        IModel model,
+        Map<String, String> flippedParts,
+        boolean reset,
+        Collection<String> disabledBones,
+        BoneHierarchy hierarchy,
+        boolean hierarchicalLabels
+    )
+    {
         this.model = model;
         this.flippedParts = flippedParts;
+        this.hierarchy = hierarchy == null ? BoneHierarchy.EMPTY : hierarchy;
+
+        if (!this.hierarchy.getBones().isEmpty())
+        {
+            this.fillInGroups(this.hierarchy, reset, hierarchicalLabels);
+            return;
+        }
 
         if (model == null)
         {
@@ -253,6 +302,65 @@ public class UIPoseEditor extends UIElement
 
         bones.removeIf((bone) -> PoseBones.isHidden(disabledBones, bone));
         this.fillInGroups(bones, reset, false);
+    }
+
+    private void fillInGroups(BoneHierarchy hierarchy, boolean reset, boolean hierarchicalLabels)
+    {
+        this.groups.setSource(hierarchy.getBoneIds(), hierarchy.getLabels(hierarchicalLabels), false);
+        this.groups.filter(reset);
+    }
+
+    /**
+     * Vanilla pose IDs contain a model-layer prefix and a full child path, so the legacy
+     * left/right matcher cannot safely operate on the ID itself. Resolve mirrored paths from the
+     * hierarchy's official names and keep the stable IDs as the actual edit targets.
+     */
+    private Map<String, String> createHierarchyFlipMap(BoneHierarchy hierarchy)
+    {
+        Map<String, String> idsByPath = new LinkedHashMap<>();
+        Map<String, String> flipped = new LinkedHashMap<>();
+        LinkedHashSet<String> paired = new LinkedHashSet<>();
+
+        for (BoneHierarchy.Bone bone : hierarchy.getBones())
+        {
+            idsByPath.put(this.hierarchyPathKey(hierarchy, bone, false), bone.id());
+        }
+
+        for (BoneHierarchy.Bone bone : hierarchy.getBones())
+        {
+            String path = this.hierarchyPathKey(hierarchy, bone, false);
+            String mirroredPath = this.hierarchyPathKey(hierarchy, bone, true);
+            String partner = idsByPath.get(mirroredPath);
+
+            if (
+                !path.equals(mirroredPath)
+                    && partner != null
+                    && !partner.equals(bone.id())
+                    && !paired.contains(bone.id())
+                    && !paired.contains(partner)
+            )
+            {
+                flipped.put(bone.id(), partner);
+                paired.add(bone.id());
+                paired.add(partner);
+            }
+        }
+
+        return flipped;
+    }
+
+    private String hierarchyPathKey(BoneHierarchy hierarchy, BoneHierarchy.Bone bone, boolean mirror)
+    {
+        StringBuilder key = new StringBuilder(bone.layerId());
+
+        for (BoneHierarchy.Bone ancestor : hierarchy.getAncestors(bone.id()))
+        {
+            String name = mirror ? Pose.getMirrorName(ancestor.name()) : ancestor.name();
+
+            key.append('\u0000').append(name.length()).append(':').append(name);
+        }
+
+        return key.toString();
     }
 
     private void fillInGroups(Collection<String> groups, boolean reset, boolean sort)
@@ -272,6 +380,7 @@ public class UIPoseEditor extends UIElement
 
         this.fix.setVisible(hasBones);
         this.color.setVisible(hasBones);
+        this.lighting.setVisible(hasBones);
         this.transform.setVisible(hasBones);
 
         List<String> list = this.groups.list.getList();
@@ -434,7 +543,9 @@ public class UIPoseEditor extends UIElement
 
     private void forEachSelectedPose(Consumer<? super PoseTransform> consumer)
     {
-        for (String bone : this.groups.list.getCurrent())
+        List<String> selected = new ArrayList<>(this.groups.list.getCurrent());
+
+        for (String bone : selected)
         {
             consumer.accept(this.pose.get(bone));
         }
@@ -561,11 +672,13 @@ public class UIPoseEditor extends UIElement
     {
         transform.translate.mul(-1F, 1F, 1F);
         transform.rotate.mul(1F, -1F, -1F);
+        transform.rotate2.mul(1F, -1F, -1F);
     }
 
     private static void negateRotation(Transform transform)
     {
         transform.rotate.mul(-1F, -1F, -1F);
+        transform.rotate2.mul(-1F, -1F, -1F);
     }
 
     private void applyFixToSelection(float value)

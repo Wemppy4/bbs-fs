@@ -1745,8 +1745,7 @@ public class UIPropTransform extends UITransform
          * makes the call idempotent: a cursor wrap re-invokes it, and rebuilding
          * from the unchanged cache yields the same axes (and never disturbs the
          * accumulated offset). */
-        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
-        Matrix3f parentInverse = this.computeParentInverse(source);
+        Matrix3f parentInverse = this.computeParentInverse();
 
         if (parentInverse == null)
         {
@@ -1817,11 +1816,12 @@ public class UIPropTransform extends UITransform
     private void updateTrackballRotation()
     {
         Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+        Vector3f total = this.toTotalRotation(source, new Vector3f());
 
         Matrix3f startRotation = new Matrix3f()
-            .rotationZ(source.z)
-            .rotateY(source.y)
-            .rotateX(source.x);
+            .rotationZ(total.z)
+            .rotateY(total.y)
+            .rotateX(total.x);
 
         float sensitivity = BBSSettings.trackballSensitivity.get();
         float yaw = MathUtils.toRad(this.trackballAccumX * sensitivity);
@@ -1836,9 +1836,10 @@ public class UIPropTransform extends UITransform
             .getEulerAnglesZYX(new Vector3f());
 
         Vector3f live = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
+        Vector3f stored = this.toStoredRotation(euler, new Vector3f());
+        float rx = unwrapDeg(MathUtils.toDeg(stored.x), MathUtils.toDeg(live.x));
+        float ry = unwrapDeg(MathUtils.toDeg(stored.y), MathUtils.toDeg(live.y));
+        float rz = unwrapDeg(MathUtils.toDeg(stored.z), MathUtils.toDeg(live.z));
 
         if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
         else this.setR(null, rx, ry, rz);
@@ -1883,8 +1884,7 @@ public class UIPropTransform extends UITransform
 
         this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
 
-        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
-        Matrix3f parentInverse = this.computeParentInverse(source);
+        Matrix3f parentInverse = this.computeParentInverse();
         float radius = Gizmo.INSTANCE.getSphereWorldRadius();
 
         if (parentInverse == null || radius <= 0F)
@@ -2004,11 +2004,12 @@ public class UIPropTransform extends UITransform
     private void updateArcballRotation()
     {
         Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+        Vector3f total = this.toTotalRotation(source, new Vector3f());
 
         Matrix3f startRotation = new Matrix3f()
-            .rotationZ(source.z)
-            .rotateY(source.y)
-            .rotateX(source.x);
+            .rotationZ(total.z)
+            .rotateY(total.y)
+            .rotateX(total.x);
 
         Quaternionf arc = new Quaternionf()
             .rotationTo(this.arcballStartLocal, this.arcballCurrentLocal)
@@ -2021,9 +2022,10 @@ public class UIPropTransform extends UITransform
             .getEulerAnglesZYX(new Vector3f());
 
         Vector3f live = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(live.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(live.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(live.z));
+        Vector3f stored = this.toStoredRotation(euler, new Vector3f());
+        float rx = unwrapDeg(MathUtils.toDeg(stored.x), MathUtils.toDeg(live.x));
+        float ry = unwrapDeg(MathUtils.toDeg(stored.y), MathUtils.toDeg(live.y));
+        float rz = unwrapDeg(MathUtils.toDeg(stored.z), MathUtils.toDeg(live.z));
 
         if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
         else this.setR(null, rx, ry, rz);
@@ -2067,8 +2069,7 @@ public class UIPropTransform extends UITransform
         /* Express the view axis once in the bone's parent frame; it stays
          * constant for the whole drag, while applyRayRotateView premultiplies
          * the live rotation by a turn about it. */
-        Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
-        Matrix3f parentInverse = this.computeParentInverse(source);
+        Matrix3f parentInverse = this.computeParentInverse();
 
         if (parentInverse == null)
         {
@@ -2090,23 +2091,59 @@ public class UIPropTransform extends UITransform
         this.dragHasStart = true;
     }
 
-    /**
-     * World-direction &rarr; bone-parent-frame map captured at drag start:
-     * {@code parent^-1 = startEulerAxes * rotateAxes^-1}. {@code rotateAxes}
-     * already folds in the parent and any model flips, so this recovers the
-     * pure parent rotation; it is constant for the whole drag since the parent
-     * doesn't move. Returns {@code null} when {@code rotateAxes} is degenerate.
-     */
-    private Matrix3f computeParentInverse(Vector3f sourceRadians)
+    /** World-direction to rotation-parent-frame map captured at drag start. */
+    private Matrix3f computeParentInverse()
     {
-        Matrix3f rotateAxesInverse = new Matrix3f(this.drag.rotateAxes);
+        if (this.dragRotateGizmoSpace && this.drag.hasRotate2ParentInverse)
+        {
+            return new Matrix3f(this.drag.rotate2ParentInverse);
+        }
+
+        if (!this.dragRotateGizmoSpace && this.drag.hasRotateParentInverse)
+        {
+            return new Matrix3f(this.drag.rotateParentInverse);
+        }
+
+        /* Compatibility fallback for callers which have not supplied a sampled parent frame. */
+        Matrix3f rotateAxesInverse = new Matrix3f(this.getActiveRotateAxes());
 
         if (Math.abs(rotateAxesInverse.determinant()) < 1.0E-4F)
         {
             return null;
         }
 
-        return this.eulerAxes(sourceRadians).mul(rotateAxesInverse.invert());
+        Vector3f source = this.dragRotateGizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+
+        return this.eulerAxes(this.toTotalRotation(source, new Vector3f())).mul(rotateAxesInverse.invert());
+    }
+
+    private Matrix3f getActiveRotateAxes()
+    {
+        return this.dragRotateGizmoSpace ? this.drag.rotate2Axes : this.drag.rotateAxes;
+    }
+
+    private Vector3f toTotalRotation(Vector3f stored, Vector3f out)
+    {
+        out.set(stored);
+
+        if (!this.dragRotateGizmoSpace && this.drag != null)
+        {
+            out.add(this.drag.rotationOffset);
+        }
+
+        return out;
+    }
+
+    private Vector3f toStoredRotation(Vector3f total, Vector3f out)
+    {
+        out.set(total);
+
+        if (!this.dragRotateGizmoSpace && this.drag != null)
+        {
+            out.sub(this.drag.rotationOffset);
+        }
+
+        return out;
     }
 
     /**
@@ -2156,20 +2193,22 @@ public class UIPropTransform extends UITransform
         this.accumulatedRotateDeg += MathUtils.toDeg(angle);
 
         Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
+        Vector3f total = this.toTotalRotation(source, new Vector3f());
 
         Matrix3f rotation = new Matrix3f()
-            .rotationZ(source.z)
-            .rotateY(source.y)
-            .rotateX(source.x);
+            .rotationZ(total.z)
+            .rotateY(total.y)
+            .rotateX(total.x);
 
         Vector3f euler = new Matrix3f()
             .rotation(angle, this.viewLocalAxis)
             .mul(rotation)
             .getEulerAnglesZYX(new Vector3f());
 
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(source.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(source.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(source.z));
+        Vector3f stored = this.toStoredRotation(euler, new Vector3f());
+        float rx = unwrapDeg(MathUtils.toDeg(stored.x), MathUtils.toDeg(source.x));
+        float ry = unwrapDeg(MathUtils.toDeg(stored.y), MathUtils.toDeg(source.y));
+        float rz = unwrapDeg(MathUtils.toDeg(stored.z), MathUtils.toDeg(source.z));
 
         if (this.dragRotateGizmoSpace) this.setR2(null, rx, ry, rz);
         else this.setR(null, rx, ry, rz);
@@ -2184,7 +2223,9 @@ public class UIPropTransform extends UITransform
          * bone-local X and Z while preserving Y. Without this the angle we
          * write into transform.rotate winds up running opposite to the user's
          * physical drag. */
-        Vector3f axisDir = this.drag.rotateAxes.getColumn(this.axis.ordinal(), new Vector3f());
+        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
+
+        Vector3f axisDir = this.getActiveRotateAxes().getColumn(this.axis.ordinal(), new Vector3f());
 
         if (axisDir.lengthSquared() < 1.0E-8F)
         {
@@ -2226,8 +2267,6 @@ public class UIPropTransform extends UITransform
 
         this.initialDragRingVec.set(this.computeStartRingVec(mouseX, mouseY, axisDir));
         this.accumulatedRotateDeg = 0;
-
-        this.dragRotateGizmoSpace = this.local && BBSSettings.gizmos.get();
 
         Vector3f source = this.dragRotateGizmoSpace ? this.transform.rotate2 : this.transform.rotate;
 
@@ -2721,15 +2760,17 @@ public class UIPropTransform extends UITransform
 
         boolean gizmoSpace = this.dragRotateGizmoSpace;
         Vector3f source = gizmoSpace ? this.cache.rotate2 : this.cache.rotate;
+        Vector3f total = this.toTotalRotation(source, new Vector3f());
 
         Vector3f euler = new Matrix3f()
             .rotation(MathUtils.toRad((float) degrees), localAxis)
-            .mul(new Matrix3f().rotationZ(source.z).rotateY(source.y).rotateX(source.x))
+            .mul(new Matrix3f().rotationZ(total.z).rotateY(total.y).rotateX(total.x))
             .getEulerAnglesZYX(new Vector3f());
 
-        float rx = unwrapDeg(MathUtils.toDeg(euler.x), MathUtils.toDeg(source.x));
-        float ry = unwrapDeg(MathUtils.toDeg(euler.y), MathUtils.toDeg(source.y));
-        float rz = unwrapDeg(MathUtils.toDeg(euler.z), MathUtils.toDeg(source.z));
+        Vector3f stored = this.toStoredRotation(euler, new Vector3f());
+        float rx = unwrapDeg(MathUtils.toDeg(stored.x), MathUtils.toDeg(source.x));
+        float ry = unwrapDeg(MathUtils.toDeg(stored.y), MathUtils.toDeg(source.y));
+        float rz = unwrapDeg(MathUtils.toDeg(stored.z), MathUtils.toDeg(source.z));
 
         if (gizmoSpace) this.setR2(null, rx, ry, rz);
         else this.setR(null, rx, ry, rz);

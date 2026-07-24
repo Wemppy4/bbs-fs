@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.forms.renderers.utils;
 
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +31,11 @@ public class MatrixCache
     public void put(String path, Matrix4f matrix, Matrix4f origin)
     {
         this.entries.put(path, new MatrixCacheEntry(matrix, origin));
+    }
+
+    public void put(String path, Matrix4f matrix, Matrix4f origin, Vector3f rotationOffset)
+    {
+        this.entries.put(path, new MatrixCacheEntry(matrix, origin, rotationOffset));
     }
 
     public Set<String> keySet()

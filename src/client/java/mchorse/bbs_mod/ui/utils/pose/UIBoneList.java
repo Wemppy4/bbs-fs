@@ -15,7 +15,10 @@ import mchorse.bbs_mod.utils.Direction;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -39,6 +42,7 @@ public class UIBoneList extends UIElement
     /** Unfiltered source kept so the list can be re-filtered as the query changes; {@link #sort}
      *  remembers whether that source should be sorted alphabetically. */
     private final List<String> allGroups = new ArrayList<>();
+    private final Map<String, String> labels = new HashMap<>();
     private boolean sort;
 
     /** Fired after each filter pass with the fill's {@code reset} flag, so the host can re-pick a
@@ -80,8 +84,16 @@ public class UIBoneList extends UIElement
 
     public void setSource(Collection<String> groups, boolean sort)
     {
+        this.setSource(groups, Collections.emptyMap(), sort);
+    }
+
+    public void setSource(Collection<String> groups, Map<String, String> labels, boolean sort)
+    {
         this.allGroups.clear();
         this.allGroups.addAll(groups);
+        this.labels.clear();
+        this.labels.putAll(labels);
+        this.list.setLabels(this.labels);
         this.sort = sort;
     }
 
@@ -97,7 +109,9 @@ public class UIBoneList extends UIElement
 
         for (String bone : this.allGroups)
         {
-            if (query.isEmpty() || bone.toLowerCase().contains(query))
+            String label = this.labels.getOrDefault(bone, bone);
+
+            if (query.isEmpty() || bone.toLowerCase().contains(query) || label.trim().toLowerCase().contains(query))
             {
                 visible.add(bone);
             }

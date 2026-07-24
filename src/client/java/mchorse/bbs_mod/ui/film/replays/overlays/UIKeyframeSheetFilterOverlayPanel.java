@@ -32,6 +32,11 @@ public class UIKeyframeSheetFilterOverlayPanel extends UIOverlayPanel
 
     public UIKeyframeSheetFilterOverlayPanel(Set<String> disabled, Set<String> keys, Map<String, Integer> keyToColor)
     {
+        this(disabled, keys, keyToColor, null);
+    }
+
+    public UIKeyframeSheetFilterOverlayPanel(Set<String> disabled, Set<String> keys, Map<String, Integer> keyToColor, Map<String, String> keyToLabel)
+    {
         super(UIKeys.FILM_REPLAY_FILTER_SHEETS_TITLE);
 
         /* Expand the legacy "hide everything" sentinel into concrete keys so the toggles below stay consistent. */
@@ -73,7 +78,8 @@ public class UIKeyframeSheetFilterOverlayPanel extends UIOverlayPanel
         for (String key : keys)
         {
             int color = keyToColor != null && keyToColor.containsKey(key) ? keyToColor.get(key) : UIReplaysEditor.getColor(key);
-            UIToggle toggle = new UICoolToggle(key, IKey.constant(key), color, (b) ->
+            String label = keyToLabel == null ? key : keyToLabel.getOrDefault(key, key);
+            UIToggle toggle = new UICoolToggle(key, IKey.constant(label), color, (b) ->
             {
                 if (disabled.contains(key))
                 {
