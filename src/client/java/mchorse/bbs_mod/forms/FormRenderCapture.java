@@ -2,6 +2,7 @@ package mchorse.bbs_mod.forms;
 
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
+import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
@@ -17,13 +18,16 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemDisplayContext;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -51,8 +55,13 @@ import java.util.function.Consumer;
  */
 public class FormRenderCapture
 {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private static Map<RenderLayer, List<Captured>> active;
     private static int depth;
+
+    /** Draw-mode pairs already complained about, so the per-frame path logs each one once. */
+    private static final Set<String> reported = new HashSet<>();
 
     public record Captured(BuiltBuffer.DrawParameters params, ByteBuffer data)
     {}
@@ -163,59 +172,249 @@ public class FormRenderCapture
             return;
         }
 
+        int vertices = 0;
+
         for (Map.Entry<RenderLayer, List<Captured>> entry : captured.entrySet())
         {
+            RenderLayer layer = entry.getKey();
+
             for (Captured single : entry.getValue())
             {
-                queue.submitCustom(matrices, entry.getKey(), (matricesEntry, consumer) -> emit(single, consumer));
+                vertices += single.params().vertexCount();
+
+                queue.submitCustom(matrices, layer, (matricesEntry, consumer) ->
+                {
+                    probeExecution(displayContext);
+                    emit(single, layer.getDrawMode(), consumer);
+                });
             }
+        }
+
+        probe(displayContext, form, transform, captured, captured.size(), vertices);
+    }
+
+    /* TEMPORARY (1.21.11 items diagnosis) — remove once the in-hand/in-menu bugs are closed.
+     * Logs one line per display context whenever what that context submits actually changes, so
+     * an edit that never reaches the renderer and a render that never happens look different in
+     * the log instead of both looking like "nothing moved". */
+    private static final Map<ItemDisplayContext, String> lastProbe = new java.util.EnumMap<>(ItemDisplayContext.class);
+
+    /** TEMPORARY (1.21.11 items diagnosis) — last logged render-call status per display context. */
+    private static final Map<ItemDisplayContext, String> lastCall = new java.util.EnumMap<>(ItemDisplayContext.class);
+
+    /** TEMPORARY (1.21.11 items diagnosis) — last logged lighting profile per display context. */
+    private static final Map<ItemDisplayContext, String> lastLighting = new java.util.EnumMap<>(ItemDisplayContext.class);
+
+    /** TEMPORARY (1.21.11 items diagnosis) — last logged line per free-form probe stage. */
+    private static final Map<String, String> lastStage = new java.util.HashMap<>();
+
+    /**
+     * TEMPORARY (1.21.11 items diagnosis). Free-form single-shot stage probe: logs when the line
+     * for the given stage key changes. Used by the vanilla-chain hooks (held-item feature, morph
+     * suppression) to locate WHERE the third-person path breaks.
+     */
+    public static void probeStage(String stage, String detail)
+    {
+        if (!detail.equals(lastStage.put(stage, detail)))
+        {
+            LOGGER.info("[BBS item probe] STAGE {} {}", stage, detail);
         }
     }
 
     /**
-     * Re-emit a captured buffer into the queue's consumer. Decodes the vertex format by element
-     * usage (POSITION / COLOR / UV0-2 / NORMAL), so any layout the form pipeline produces rides
-     * through; unknown elements are skipped.
+     * TEMPORARY (1.21.11 items diagnosis). Called by the special renderers on EVERY render call,
+     * including the ones that draw nothing — a call that arrives with a null form and a call that
+     * never happens are two different bugs, and the main probe cannot tell them apart (it only
+     * fires when something is actually submitted).
      */
-    public static void emit(Captured captured, VertexConsumer consumer)
+    public static void probeRenderCall(String renderer, ItemDisplayContext displayContext, boolean hasData, boolean hasForm)
     {
-        BuiltBuffer.DrawParameters params = captured.params();
-        VertexFormat format = params.format();
-        int stride = format.getVertexSize();
-        /* duplicate() resets byte order to BIG_ENDIAN — see the matching note in capture(). */
-        ByteBuffer data = captured.data().duplicate().order(ByteOrder.nativeOrder());
+        String line = renderer + " data=" + (hasData ? "ok" : "NULL") + " form=" + (hasForm ? "ok" : "NULL");
 
-        for (int v = 0; v < params.vertexCount(); v++)
+        if (!line.equals(lastCall.put(displayContext, line)))
         {
-            int base = v * stride;
+            LOGGER.info("[BBS item probe] CALL {} {}", displayContext, line);
+        }
+    }
+
+    /**
+     * TEMPORARY (1.21.11 items diagnosis). Runs inside the queued command, i.e. at EXECUTION time:
+     * identifies which DiffuseLighting profile the pass will bind by locating the current shader
+     * lights slice inside the lighting UBO ring. The model shader's mix_light output swings from
+     * 1.0 (LEVEL, world profile) to 0.4 (ITEMS_*, both directions behind a hand-held quad), so a
+     * wrong profile here IS the "items look dark" bug.
+     */
+    private static void probeExecution(ItemDisplayContext displayContext)
+    {
+        String name;
+
+        try
+        {
+            com.mojang.blaze3d.buffers.GpuBufferSlice slice = com.mojang.blaze3d.systems.RenderSystem.getShaderLights();
+
+            if (slice == null)
+            {
+                name = "none";
+            }
+            else
+            {
+                long rounded = net.minecraft.util.math.MathHelper.roundUpToMultiple(
+                    net.minecraft.client.render.DiffuseLighting.UBO_SIZE,
+                    com.mojang.blaze3d.systems.RenderSystem.getDevice().getUniformOffsetAlignment());
+                int ordinal = (int) (slice.offset() / rounded);
+                net.minecraft.client.render.DiffuseLighting.Type[] types = net.minecraft.client.render.DiffuseLighting.Type.values();
+
+                name = ordinal >= 0 && ordinal < types.length ? types[ordinal].name() : "offset=" + slice.offset();
+            }
+        }
+        catch (Exception e)
+        {
+            name = "error: " + e;
+        }
+
+        if (!name.equals(lastLighting.put(displayContext, name)))
+        {
+            LOGGER.info("[BBS item probe] EXEC {} lighting={}", displayContext, name);
+        }
+    }
+
+    private static void probe(ItemDisplayContext displayContext, Form form, Transform transform, Map<RenderLayer, List<Captured>> captured, int layers, int vertices)
+    {
+        StringBuilder first = new StringBuilder();
+
+        for (Map.Entry<RenderLayer, List<Captured>> entry : captured.entrySet())
+        {
+            Captured single = entry.getValue().get(0);
+            VertexFormat format = single.params().format();
+            ByteBuffer data = single.data().duplicate().order(ByteOrder.nativeOrder());
+
+            first.append(" | ").append(entry.getKey()).append(" mode=").append(single.params().mode());
 
             for (VertexFormatElement element : format.getElements())
             {
-                int offset = base + format.getOffset(element);
+                int offset = format.getOffset(element);
 
                 switch (element.usage())
                 {
-                    case POSITION -> consumer.vertex(data.getFloat(offset), data.getFloat(offset + 4), data.getFloat(offset + 8));
-                    case COLOR -> consumer.color(data.get(offset) & 0xFF, data.get(offset + 1) & 0xFF, data.get(offset + 2) & 0xFF, data.get(offset + 3) & 0xFF);
+                    case COLOR -> first.append(String.format(" color=%d,%d,%d,%d", data.get(offset) & 0xFF, data.get(offset + 1) & 0xFF, data.get(offset + 2) & 0xFF, data.get(offset + 3) & 0xFF));
+                    case NORMAL -> first.append(String.format(" normal=%.2f,%.2f,%.2f", data.get(offset) / 127F, data.get(offset + 1) / 127F, data.get(offset + 2) / 127F));
                     case UV ->
                     {
-                        if (element.index() == 0)
+                        if (element.index() == 2)
                         {
-                            consumer.texture(data.getFloat(offset), data.getFloat(offset + 4));
-                        }
-                        else if (element.index() == 1)
-                        {
-                            consumer.overlay(Short.toUnsignedInt(data.getShort(offset)), Short.toUnsignedInt(data.getShort(offset + 2)));
-                        }
-                        else if (element.index() == 2)
-                        {
-                            consumer.light(Short.toUnsignedInt(data.getShort(offset)), Short.toUnsignedInt(data.getShort(offset + 2)));
+                            first.append(String.format(" light=%d,%d", Short.toUnsignedInt(data.getShort(offset)), Short.toUnsignedInt(data.getShort(offset + 2))));
                         }
                     }
-                    case NORMAL -> consumer.normal(data.get(offset) / 127F, data.get(offset + 1) / 127F, data.get(offset + 2) / 127F);
                     default ->
                     {}
                 }
+            }
+        }
+
+        String line = String.format("form=%s layers=%d verts=%d t=%s r=%s s=%s%s",
+            form.getId(), layers, vertices, transform.translate, transform.rotate, transform.scale, first);
+
+        if (!line.equals(lastProbe.put(displayContext, line)))
+        {
+            LOGGER.info("[BBS item probe] {} {}", displayContext, line);
+        }
+    }
+
+    /**
+     * Re-emit a captured buffer into the queue's consumer, rewritten from the buffer's own draw
+     * mode into the target layer's.
+     *
+     * <p>The immediate path takes the primitive mode from the {@link BuiltBuffer} it is handed, so
+     * one layer happily served buffers of different modes: cubic models build QUADS, billboards
+     * (and labels, trails) build TRIANGLES, and both draw through the BBS model layer. Re-emitting
+     * hands vertices to the layer's shared buffer instead, and the indices come from
+     * {@link RenderLayer#getDrawMode()} — so a TRIANGLES capture fed to a QUADS layer gets its
+     * triangles re-cut every 4 vertices and shreds into diagonal ribbons. Rewrite instead of
+     * assuming: a triangle becomes a quad with a doubled last vertex (the second, degenerate
+     * triangle rasterises to nothing), a quad becomes its two triangles.
+     */
+    public static void emit(Captured captured, VertexFormat.DrawMode target, VertexConsumer consumer)
+    {
+        BuiltBuffer.DrawParameters params = captured.params();
+        VertexFormat.DrawMode source = params.mode();
+        int count = params.vertexCount();
+
+        if (source == target)
+        {
+            for (int v = 0; v < count; v++)
+            {
+                emitVertex(captured, v, consumer);
+            }
+        }
+        else if (source == VertexFormat.DrawMode.TRIANGLES && target == VertexFormat.DrawMode.QUADS)
+        {
+            for (int v = 0; v + 2 < count; v += 3)
+            {
+                emitVertex(captured, v, consumer);
+                emitVertex(captured, v + 1, consumer);
+                emitVertex(captured, v + 2, consumer);
+                emitVertex(captured, v + 2, consumer);
+            }
+        }
+        else if (source == VertexFormat.DrawMode.QUADS && target == VertexFormat.DrawMode.TRIANGLES)
+        {
+            for (int v = 0; v + 3 < count; v += 4)
+            {
+                emitVertex(captured, v, consumer);
+                emitVertex(captured, v + 1, consumer);
+                emitVertex(captured, v + 2, consumer);
+                emitVertex(captured, v, consumer);
+                emitVertex(captured, v + 2, consumer);
+                emitVertex(captured, v + 3, consumer);
+            }
+        }
+        else if (reported.add(source + " -> " + target))
+        {
+            /* No rewrite known — emitting raw would draw garbage, so drop the buffer loudly
+             * rather than let a mangled mesh pass for a rendering bug elsewhere. Once per
+             * combination: this runs per frame, per item. */
+            LOGGER.error("Can't re-emit a captured {} buffer into a {} layer", source, target);
+        }
+    }
+
+    /**
+     * Write a single captured vertex into the consumer. Decodes the vertex format by element
+     * usage (POSITION / COLOR / UV0-2 / NORMAL), so any layout the form pipeline produces rides
+     * through; unknown elements are skipped.
+     */
+    private static void emitVertex(Captured captured, int index, VertexConsumer consumer)
+    {
+        VertexFormat format = captured.params().format();
+        int base = index * format.getVertexSize();
+        /* duplicate() resets byte order to BIG_ENDIAN — see the matching note in capture(). */
+        ByteBuffer data = captured.data().duplicate().order(ByteOrder.nativeOrder());
+
+        for (VertexFormatElement element : format.getElements())
+        {
+            int offset = base + format.getOffset(element);
+
+            switch (element.usage())
+            {
+                case POSITION -> consumer.vertex(data.getFloat(offset), data.getFloat(offset + 4), data.getFloat(offset + 8));
+                case COLOR -> consumer.color(data.get(offset) & 0xFF, data.get(offset + 1) & 0xFF, data.get(offset + 2) & 0xFF, data.get(offset + 3) & 0xFF);
+                case UV ->
+                {
+                    if (element.index() == 0)
+                    {
+                        consumer.texture(data.getFloat(offset), data.getFloat(offset + 4));
+                    }
+                    else if (element.index() == 1)
+                    {
+                        consumer.overlay(Short.toUnsignedInt(data.getShort(offset)), Short.toUnsignedInt(data.getShort(offset + 2)));
+                    }
+                    else if (element.index() == 2)
+                    {
+                        consumer.light(Short.toUnsignedInt(data.getShort(offset)), Short.toUnsignedInt(data.getShort(offset + 2)));
+                    }
+                }
+                case NORMAL -> consumer.normal(data.get(offset) / 127F, data.get(offset + 1) / 127F, data.get(offset + 2) / 127F);
+                default ->
+                {}
             }
         }
     }
