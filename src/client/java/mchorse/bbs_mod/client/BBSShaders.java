@@ -143,9 +143,22 @@ public class BBSShaders
      */
     private static final RenderPipeline PARTICLES = registerParticles();
 
+    /* ---- billboard (no shading) ----
+     * The unlit billboard pipeline: full texture brightness, no directional light, no lightmap —
+     * the faithful equivalent of the 1.21.1 no-shading path, which drew through the vanilla
+     * GameRenderer::getPositionTexColorProgram. Reuses vanilla's own position_tex_color GLSL, so
+     * there is no BBS shader asset to maintain.
+     * VertexFormat: POSITION_TEXTURE_COLOR; Samplers: Sampler0 (albedo).
+     * Builtin std140 UBOs: DynamicTransforms (ModelViewMat/ColorModulator), Projection.
+     * TRIANGLES: BillboardFormRenderer builds two explicit triangles per side, and the item
+     * capture path re-emits by the layer's draw mode — declaring TRIANGLES here keeps both the
+     * immediate draw and the re-emit in the buffer's native mode. */
+    private static final RenderPipeline BILLBOARD = registerBillboard();
+
     /* Lazily-built render layers (one per pipeline). RenderLayer.of caches nothing itself, so we
      * memoize here to keep a single instance the immediate buffer source can key on. */
     private static RenderLayer modelLayer;
+    private static RenderLayer billboardLayer;
     private static RenderLayer multiLinkLayer;
     private static RenderLayer subtitlesLayer;
     private static RenderLayer pickerPreviewLayer;
@@ -259,6 +272,42 @@ public class BBSShaders
         mchorse.bbs_mod.graphics.texture.Texture bound = mchorse.bbs_mod.BBSModClient.getTextures().getLastBound();
 
         return getModelLayer(bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound));
+    }
+
+    /** Unlit billboard layers keyed by texture, mirroring {@link #getModelLayer(net.minecraft.util.Identifier)}. */
+    private static final java.util.Map<net.minecraft.util.Identifier, RenderLayer> texturedBillboardLayers = new java.util.HashMap<>();
+
+    /**
+     * The unlit (no-shading) billboard layer bound to the last texture the BBS texture manager bound —
+     * same resolution rule as {@link #getBoundModelLayer()}. Full texture brightness: vanilla
+     * position_tex_color applies neither directional light nor the lightmap, which is exactly how the
+     * 1.21.1 no-shading billboard drew.
+     */
+    public static RenderLayer getBoundBillboardLayer()
+    {
+        mchorse.bbs_mod.graphics.texture.Texture bound = mchorse.bbs_mod.BBSModClient.getTextures().getLastBound();
+        net.minecraft.util.Identifier id = bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound);
+
+        if (id == null)
+        {
+            if (billboardLayer == null)
+            {
+                billboardLayer = RenderLayer.of(BBSMod.MOD_ID + "_billboard", RenderSetup.builder(BILLBOARD)
+                    .expectedBufferSize(RenderLayer.field_64008)
+                    .translucent()
+                    .build());
+            }
+
+            return billboardLayer;
+        }
+
+        return texturedBillboardLayers.computeIfAbsent(id, (key) -> RenderLayer.of(
+            BBSMod.MOD_ID + "_billboard_" + key.getPath(),
+            RenderSetup.builder(BILLBOARD)
+                .expectedBufferSize(RenderLayer.field_64008)
+                .translucent()
+                .texture("Sampler0", key)
+                .build()));
     }
 
     public static RenderLayer getModelLayer()
@@ -396,6 +445,30 @@ public class BBSShaders
             .withSampler("Sampler0")
             .withSampler("Sampler1")
             .withSampler("Sampler2");
+
+        return RenderPipelines.register(builder.build());
+    }
+
+    /**
+     * Build and register the unlit billboard pipeline on vanilla's own {@code position_tex_color}
+     * shader (see the BILLBOARD field note). Cull off: the billboard emits explicit front AND back
+     * faces, and negative form scales must not drop either.
+     */
+    private static RenderPipeline registerBillboard()
+    {
+        Identifier shader = Identifier.of("minecraft", "core/position_tex_color");
+
+        RenderPipeline.Builder builder = RenderPipeline.builder()
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/billboard"))
+            .withVertexShader(shader)
+            .withFragmentShader(shader)
+            .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.TRIANGLES)
+            .withBlend(BLEND)
+            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withCull(false)
+            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .withSampler("Sampler0");
 
         return RenderPipelines.register(builder.build());
     }

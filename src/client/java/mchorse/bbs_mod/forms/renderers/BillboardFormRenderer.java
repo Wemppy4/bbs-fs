@@ -74,7 +74,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
 
         /* The shading (POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL) path uses the BBS model layer
          * (formerly GameRenderer::getRenderTypeEntityTranslucentProgram). */
-        this.renderModel(format, BBSShaders::getModelLayer,
+        this.renderModel(format, BBSShaders::getBoundModelLayer,
             stack,
             OverlayTexture.DEFAULT_UV, LightmapTextureManager.MAX_LIGHT_COORDINATE, Colors.WHITE,
             transition
@@ -93,22 +93,15 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
             shading = true;
         }
 
-        /* 1.21.11 render: the no-shading billboard path (POSITION_TEXTURE_LIGHT_COLOR) has no dedicated
-         * non-picker BBS RenderLayer. The 1.21.1 original drew it via the vanilla
-         * getPositionTexLightmapColorProgram and used picker_billboard_no_shading ONLY for picking; the
-         * build-only port stood in the picker layer for the normal draw too. That pipeline now declares
-         * the BBSPicker UBO and cannot be drawn through the immediate RenderLayer path, so the no-shading
-         * normal path is skipped until a proper non-picker layer is added (it already drew nothing while
-         * the picker pipeline was a #version 150 no-op, so this is not a regression). Picker billboard
-         * draws go through BBSPickerRenderer. The shaded path (the common case) is unchanged. */
-        if (!shading)
-        {
-            return;
-        }
+        /* The shaded path draws through the BBS model layer (directional light + lightmap, formerly
+         * GameRenderer::getRenderTypeEntityTranslucentProgram). The no-shading path draws at full
+         * texture brightness through the unlit billboard layer on vanilla's position_tex_color —
+         * the same program the 1.21.1 no-shading path used. Picking still goes through
+         * BBSPickerRenderer, not here. */
+        VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_COLOR;
+        Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundModelLayer : BBSShaders::getBoundBillboardLayer;
 
-        VertexFormat format = VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL;
-
-        this.renderModel(format, BBSShaders::getModelLayer, context.stack, context.overlay, context.light, context.color, context.getTransition());
+        this.renderModel(format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition());
     }
 
     private void renderModel(VertexFormat format, Supplier<RenderLayer> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
@@ -203,12 +196,17 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         /* Was: lightmap.enable() + overlay.setupOverlayColor() + RenderSystem.setShader(finalShader).
          * Lightmap/overlay are now bound by the RenderLayer (the BBS model layer uses
          * useLightmap()/useOverlay()); the shader is the layer's RenderPipeline. */
-        RenderLayer layer = shader.get();
-
         BBSModClient.getTextures().bindTexture(texture);
 
         texture.bind();
         texture.setFilterMipmap(this.form.linear.get(), this.form.mipmap.get());
+
+        /* After the bind, never before: the layer is resolved from the last bound texture, so that
+         * the layer carries this texture in its own Sampler0 (as the cubic/VAO paths already do).
+         * A layer with no texture only ever worked because the immediate draw happened while the
+         * global GL binding still pointed at it — deferred through the item command queue, that
+         * binding is long gone by execution time and the billboard samples whatever is left. */
+        RenderLayer layer = shader.get();
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, format);
 
         /* Front */
@@ -230,10 +228,8 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         this.fill(format, builder, matrix, quad.p3.x, quad.p3.y, color, uvQuad.p3.x, uvQuad.p3.y, overlay, light, entry, -1F);
 
         /* Was: defaultBlendFunc + enableBlend + BufferRenderer.drawWithGlobalProgram. Blend is now
-         * encoded in the layer's pipeline; submit the built buffer through the layer.
-         * TODO(1.21.11 render): the bound texture (Sampler0) is currently fed via the old global
-         * texture binding; the BBS layer's sampler wiring (replacing RenderSystem.getShaderTexture)
-         * is part of the pipeline-foundation work, so the billboard texture may not sample until then. */
+         * encoded in the layer's pipeline; submit the built buffer through the layer, which carries
+         * this billboard's texture in its own Sampler0 (resolved after the bind above). */
         BuiltBuffer built = builder.endNullable();
 
         if (built != null)
@@ -246,6 +242,12 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
 
     private VertexConsumer fill(VertexFormat format, VertexConsumer consumer, Matrix4f matrix, float x, float y, Color color, float u, float v, int overlay, int light, MatrixStack.Entry entry, float nz)
     {
+        if (format == VertexFormats.POSITION_TEXTURE_COLOR)
+        {
+            /* The unlit path: vanilla position_tex_color reads exactly Position/UV0/Color. */
+            return consumer.vertex(matrix, x, y, 0F).texture(u, v).color(color.r, color.g, color.b, color.a);
+        }
+
         if (format == VertexFormats.POSITION_TEXTURE_LIGHT_COLOR)
         {
             return consumer.vertex(matrix, x, y, 0F).texture(u, v).light(light).color(color.r, color.g, color.b, color.a);
