@@ -23,22 +23,50 @@ import java.util.function.Consumer;
  * {@code GunItemRenderer} did) by capturing the immediate form pipeline and replaying it
  * into the item command queue — see {@link FormRenderCapture}.
  */
-public class GunSpecialRenderer implements SpecialModelRenderer<GunItemRenderer.Item>
+public class GunSpecialRenderer implements SpecialModelRenderer<GunSpecialRenderer.Key>
 {
+    private static int generation;
+
+    /**
+     * Per-stack render data plus the GUI cache key — same invalidation rule as
+     * {@link ModelBlockSpecialRenderer.Key}: a stable key caches the GUI atlas entry, a per-frame
+     * generation while the transform editor is open keeps hotbar edits live.
+     */
+    public record Key(GunItemRenderer.Item item, int generation)
+    {}
+
     @Override
-    public GunItemRenderer.Item getData(ItemStack stack)
+    public Key getData(ItemStack stack)
     {
-        return BBSModClient.getGunItemRenderer().get(stack);
+        GunItemRenderer.Item item = BBSModClient.getGunItemRenderer().get(stack);
+
+        if (item == null)
+        {
+            return null;
+        }
+
+        if (UIModelBlockEditorMenu.isEditing(item.properties))
+        {
+            /* See ModelBlockSpecialRenderer.getData — the edited entry must not expire mid-edit. */
+            item.expiration = 20;
+
+            return new Key(item, ++generation);
+        }
+
+        return new Key(item, 0);
     }
 
     @Override
-    public void render(GunItemRenderer.Item item, ItemDisplayContext displayContext, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, int overlay, boolean glint, int outlineColor)
+    public void render(Key key, ItemDisplayContext displayContext, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, int overlay, boolean glint, int outlineColor)
     {
-        if (item == null)
+        if (key == null)
         {
+            FormRenderCapture.probeRenderCall("gun", displayContext, false, false);
+
             return;
         }
 
+        GunItemRenderer.Item item = key.item();
         GunProperties properties = item.properties;
         Form form = properties.getForm(displayContext);
         Transform transform = properties.getTransform(displayContext);
@@ -56,6 +84,8 @@ public class GunSpecialRenderer implements SpecialModelRenderer<GunItemRenderer.
             form = editorMenu.getGunProperties().getZoomForm();
             transform = editorMenu.getGunProperties().zoomTransform;
         }
+
+        FormRenderCapture.probeRenderCall("gun", displayContext, true, form != null);
 
         if (form != null)
         {
