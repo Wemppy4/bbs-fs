@@ -19,6 +19,7 @@ import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIRenderingContext;
+import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
@@ -106,8 +107,16 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
         this.uiOrbitCamera.setControl(true);
         this.uiOrbitCamera.orbit = orbit;
         this.orbitCameraController = new OrbitCameraController(this.uiOrbitCamera.orbit);
-        this.orbitCameraController.camera.position.set(player.getEntityPos().x, player.getEntityPos().y + 1D, player.getEntityPos().z);
-        this.orbitCameraController.camera.rotation.set(0, MathUtils.toRad(player.bodyYaw), 0);
+
+        Camera camera = new Camera();
+
+        camera.position.set(player.getEntityPos().x, player.getEntityPos().y + 1D, player.getEntityPos().z);
+        camera.rotation.set(0, MathUtils.toRad(player.bodyYaw), 0);
+
+        /* setup() — not a raw position/rotation write: the orbit smoothly chases its target*
+         * fields, so a write that skips syncTarget() is dragged back to the zero target the
+         * next frame (the camera dives to world origin). */
+        orbit.setup(camera);
 
         if (this.gunProperties != null)
         {
@@ -130,6 +139,17 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
         }
 
         this.createUI();
+    }
+
+    /**
+     * Whether the menu currently open on screen is editing exactly this properties object. The item
+     * renderers use this to switch the GUI item cache key to a per-frame value: the 1.21.6+ GUI
+     * draws items into an atlas and only re-renders when the model key changes, so live transform
+     * edits would otherwise freeze in the hotbar until the menu is closed.
+     */
+    public static boolean isEditing(ModelProperties properties)
+    {
+        return UIScreen.getCurrentMenu() instanceof UIModelBlockEditorMenu menu && menu.properties == properties;
     }
 
     public GunProperties getGunProperties()
