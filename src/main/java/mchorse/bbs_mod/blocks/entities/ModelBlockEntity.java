@@ -140,6 +140,17 @@ public class ModelBlockEntity extends BlockEntity
 
         view.read("Properties", NbtCompound.CODEC).ifPresent((compound) -> nbt.put("Properties", compound));
 
+        this.readProperties(nbt);
+    }
+
+    /**
+     * Read the properties out of a raw block-entity NBT compound — the shape {@link #writeData(WriteView)}
+     * produces, and the shape the item's {@code BLOCK_ENTITY_DATA} component carries. The item renderer
+     * hydrates its off-world entity through here: {@link #readData(ReadView)} is protected, and the
+     * component hands out plain NBT rather than a {@link ReadView}.
+     */
+    public void readProperties(NbtCompound nbt)
+    {
         BaseType baseType = DataStorageUtils.readFromNbtCompound(nbt, "Properties");
 
         if (baseType instanceof MapType mapType)

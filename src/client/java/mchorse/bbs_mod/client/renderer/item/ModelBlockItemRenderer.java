@@ -8,7 +8,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.TypedEntityData;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.HashMap;
@@ -68,12 +67,7 @@ public class ModelBlockItemRenderer
             return item;
         }
 
-        NbtCompound nbt = beComponent.copyNbtWithoutId();
-
-        // TODO(1.21.11 render): populate the ModelBlockEntity from `nbt`. The old
-        // entity.readNbt(nbt, registryManager) was removed by the 1.21.6 persistence rewrite;
-        // ModelBlockEntity.readData(ReadView) is protected and not callable from here. Re-wire
-        // once the item-model render path is restored (e.g. via NbtReadView + an accessor).
+        entity.readProperties(beComponent.copyNbtWithoutId());
 
         return item;
     }
