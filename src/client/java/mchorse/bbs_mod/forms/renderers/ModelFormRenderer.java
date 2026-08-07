@@ -652,12 +652,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
                 consumers.setSubstitute(BBSRendering.getColorConsumer(color));
 
-                /* TODO(1.21.11 render): ItemRenderer.renderItem(entity, stack, mode, leftHanded, matrices,
-                 * vcp, world, light, overlay, seed) was removed by the 1.21.4 item-model rewrite. Item
-                 * rendering (incl. the 0-size OAK_BUTTON Sodium workaround for the BOBJModel case) needs to
-                 * be reimplemented against the new ItemRenderState / SpecialModelRenderer system.
-                 * Neutralized for build-only; held items currently do not render. mode/leftHanded was:
-                 * mode == ItemDisplayContext.THIRD_PERSON_LEFT_HAND. */
+                /* The 1.21.1 entity-flavored ItemRenderer.renderItem overload is gone; the shared replay in
+                 * ItemFormRenderer resolves the stack through the new item-model system and replays BOTH
+                 * vanilla item layers and BBS special-model custom commands into these consumers.
+                 * (Left-handedness rides inside the display context now. The 1.21.1-era 0-size OAK_BUTTON
+                 * Sodium workaround for BOBJ models is not restored — revisit if BOBJ held items misbehave.) */
+                ItemFormRenderer.renderItem(itemStack, mode, stack, consumers, target.getWorld(), light, overlay);
                 consumers.draw();
                 consumers.setSubstitute(null);
                 FormTranslucentQueue.setSortOrigin(null);

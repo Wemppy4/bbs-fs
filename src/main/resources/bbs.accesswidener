@@ -12,3 +12,7 @@ accessWidener v2 named
 
 accessible field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
 mutable field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
+
+# Held-item replay in form renderers: the private item queue's custom commands (BBS special-model
+# geometry lands there via submitCustom) have no accessor — ItemFormRenderer.renderItem replays them.
+accessible field net/minecraft/client/render/command/CustomCommandRenderer$Commands customCommands Ljava/util/Map;

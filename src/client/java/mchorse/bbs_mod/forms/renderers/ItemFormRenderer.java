@@ -15,6 +15,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.item.ItemModelManager;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.command.BatchingRenderCommandQueue;
 import net.minecraft.client.render.command.OrderedRenderCommandQueueImpl;
 import net.minecraft.client.render.item.ItemRenderState;
@@ -25,6 +27,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
+import java.util.List;
+import java.util.Map;
 
 public class ItemFormRenderer extends FormRenderer<ItemForm>
 {
@@ -154,8 +159,11 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
      * </ol>
      * This mirrors what {@link net.minecraft.client.render.command.ItemCommandRenderer} does internally, but
      * routes geometry through the recolor provider instead of the engine's {@code Immediate}.
+     *
+     * <p>Also the shared held-item renderer: {@code ModelFormRenderer.renderItems} draws the items a form
+     * holds on its bones through here (the 1.21.1 high-level renderItem it used is gone the same way).
      */
-    private static void renderItem(ItemStack stack, ItemDisplayContext displayContext, MatrixStack matrices, CustomVertexConsumerProvider consumers, World world, int light, int overlay)
+    public static void renderItem(ItemStack stack, ItemDisplayContext displayContext, MatrixStack matrices, CustomVertexConsumerProvider consumers, World world, int light, int overlay)
     {
         if (stack == null || stack.isEmpty())
         {
@@ -195,6 +203,20 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
                     command.glintType()
                 );
                 matrices.pop();
+            }
+
+            /* BBS special-model items (model block, gun) land in the queue as CUSTOM commands —
+             * FormRenderCapture.submitForm captures the form's immediate draws and re-emits them via
+             * submitCustom. ItemCommand replay alone would silently drop exactly the mod's own items
+             * (field opened by bbs.accesswidener; vanilla's CustomCommandRenderer reads it the same way). */
+            for (Map.Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.CustomCommand>> entry : batch.getCustomCommands().customCommands.entrySet())
+            {
+                VertexConsumer buffer = consumers.getBuffer(entry.getKey());
+
+                for (OrderedRenderCommandQueueImpl.CustomCommand command : entry.getValue())
+                {
+                    command.customRenderer().render(command.matricesEntry(), buffer);
+                }
             }
         }
     }
