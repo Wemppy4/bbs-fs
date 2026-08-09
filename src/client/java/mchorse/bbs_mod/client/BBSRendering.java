@@ -123,6 +123,9 @@ public class BBSRendering
     /** Private read FBO used to snapshot our framebuffer's colour attachment into {@link #texture}. */
     private static int captureReadFramebuffer = -1;
 
+    /** Set while a world recording is holding its snapshot back until the interface has been drawn. */
+    private static boolean deferredCapture;
+
     private static Runnable pendingExportResolutionAction;
 
     public static int getMotionBlur()
@@ -475,6 +478,16 @@ public class BBSRendering
 
         renderingWorld = true;
 
+        /* A capture deferred to after the interface never got its turn (the interface pass threw, or the
+         * frame ended some other way). Unwind it here rather than starting a second frame on top of a
+         * still-swapped mc.framebuffer — that is how the screen goes black and stays black. */
+        if (deferredCapture)
+        {
+            deferredCapture = false;
+
+            toggleFramebuffer(false);
+        }
+
         if (!customSize)
         {
             return;
@@ -533,6 +546,48 @@ public class BBSRendering
     }
 
     public static void onRenderBeforeScreen()
+    {
+        /* On 1.21.1 InGameHud.render DREW the interface, into whatever was bound — our export framebuffer,
+         * because the restore below sat at that method's TAIL, after the drawing. That is why a world
+         * recording carried the hotbar, the health bar and everything else. On 1.21.11 InGameHud.render only
+         * RECORDS into a GuiRenderState; the drawing happens later, in GuiRenderer.render. Capturing here
+         * would capture the bare world, which is exactly what went missing from first-person recordings.
+         *
+         * So when no BBS menu is up — the world recording — hold both the snapshot and the restore until
+         * {@link #onRenderAfterInterface()}, which runs once the interface really has been drawn, still into
+         * our framebuffer because mc.framebuffer is still pointed at it. The size the interface lays itself
+         * out at already follows (see canReplaceFramebuffer).
+         *
+         * With a BBS menu open the interface must NOT land in the export framebuffer: the film panel draws
+         * its own UI at window size and blits the preview texture into it, so that path captures and restores
+         * right here, before the interface is composited. */
+        if (customSize && UIScreen.getCurrentMenu() == null)
+        {
+            deferredCapture = true;
+
+            return;
+        }
+
+        captureAndRestore();
+    }
+
+    /**
+     * Runs right after the interface has been composited (see {@code GameRendererMixin}), for the world
+     * recording that deferred its capture in {@link #onRenderBeforeScreen()}.
+     */
+    public static void onRenderAfterInterface()
+    {
+        if (!deferredCapture)
+        {
+            return;
+        }
+
+        deferredCapture = false;
+
+        captureAndRestore();
+    }
+
+    private static void captureAndRestore()
     {
         /* Snapshot only when we actually redirected the world into our framebuffer this frame (film panel
          * open / recording). Outside that, mc.framebuffer was never swapped, so our framebuffer holds nothing
