@@ -962,14 +962,48 @@ public class BBSRendering
     }
 
     /**
-     * 1.21.1 told Iris the main target was unbound so it would neither override BBS's own program nor
-     * mask its writes, and BBS drew the form with its own GLSL. {@link #assignIrisPipeline} replaces
-     * that whole approach — the pack draws the form itself — so this is left as a no-op rather than
-     * re-pointed at {@code WorldRenderingPipeline.setIsMainBound}, which still exists but would now be
-     * fighting the assignment.
+     * Open a span in which BBS may draw with its own programs while a shaderpack is loaded, and close
+     * it with {@link #endUnmanagedDraws()}. Does nothing without Iris, and nothing without a pack.
+     *
+     * <p>Iris skips every program that is not one of its own while it believes the world is being
+     * drawn into the main target — see {@link IrisUtils#setMainBound} for the two methods that say so.
+     * That is why forms went missing under a pack: the draws were made and then dropped. Saying the
+     * main target is not bound for the span of BBS's own drawing is what 1.21.1 did too, and it also
+     * keeps Iris from substituting a pack program underneath geometry whose vertex format would not
+     * feed it.
+     *
+     * <p>Forms therefore draw unshaded — lit by BBS's own model shader, not by the pack. Shading them
+     * with the pack is a different and much larger job (their pipelines would have to be world-only
+     * and carry the full entity vertex format; see {@link #assignIrisPipeline}). Visible and unshaded
+     * beats correct and absent.
      */
-    public static void setIrisMainBound(boolean bound)
-    {}
+    public static void beginUnmanagedDraws()
+    {
+        setIrisMainBound(false);
+    }
+
+    /** Closes {@link #beginUnmanagedDraws()}. */
+    public static void endUnmanagedDraws()
+    {
+        setIrisMainBound(true);
+    }
+
+    private static void setIrisMainBound(boolean bound)
+    {
+        if (!iris)
+        {
+            return;
+        }
+
+        try
+        {
+            IrisUtils.setMainBound(bound);
+        }
+        catch (Throwable e)
+        {
+            LOGGER.error("[BBS shaders] failed to tell Iris the main target is {}", bound ? "bound" : "unbound", e);
+        }
+    }
 
     public static void trackTexture(Texture texture)
     {}

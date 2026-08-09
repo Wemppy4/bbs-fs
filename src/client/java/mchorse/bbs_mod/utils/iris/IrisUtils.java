@@ -2,8 +2,10 @@ package mchorse.bbs_mod.utils.iris;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import mchorse.bbs_mod.client.BBSRendering;
+import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.api.v0.IrisProgram;
+import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 
 /**
  * Everything BBS asks of Iris, in one class that is only ever touched when the Iris mod is actually
@@ -44,6 +46,33 @@ public class IrisUtils
      * <p>Iris throws if a pipeline is assigned twice, so assignment happens once per pipeline, at the
      * point each is registered.
      */
+    /**
+     * Tell Iris whether the main render target is bound.
+     *
+     * <p>It gates {@code IrisRenderingPipeline.shouldOverrideShaders()}, which is
+     * {@code isRenderingWorld && isMainBound}, and that in turn decides
+     * {@code MixinCompiledShaderProgram.iris$shouldSkipThis()}:
+     *
+     * <pre>return !(this instanceof ExtendedShader) &amp;&amp; !(this instanceof FallbackShader) &amp;&amp; shouldOverrideShaders();</pre>
+     *
+     * <p>Read it plainly: while the world is being drawn into the main target, Iris SKIPS every
+     * program that is not one of its own. BBS draws its forms with its own programs, so under a
+     * shaderpack the draws were thrown away — some forms gone, the ones that ride vanilla layers still
+     * there, which is what "some show, some look transparent" was.
+     *
+     * <p>Iris keeps this flag itself from every render-target bind (MixinRenderTarget), so it is only
+     * ever ours for the span we set it.
+     */
+    public static void setMainBound(boolean bound)
+    {
+        WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipelineNullable();
+
+        if (pipeline != null)
+        {
+            pipeline.setIsMainBound(bound);
+        }
+    }
+
     public static void assignPipeline(RenderPipeline pipeline, BBSRendering.IrisProgramKind kind)
     {
         IrisApi.getInstance().assignPipeline(pipeline, translate(kind));

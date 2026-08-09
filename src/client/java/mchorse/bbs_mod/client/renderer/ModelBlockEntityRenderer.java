@@ -2,6 +2,7 @@ package mchorse.bbs_mod.client.renderer;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.model.View;
@@ -132,6 +133,25 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
         {
             return;
         }
+
+        /* The form below draws with BBS's own programs, which a loaded shaderpack would otherwise
+         * throw away — see BBSRendering#beginUnmanagedDraws. Block entities render in their own vanilla
+         * pass, so this needs its own span; the one around the film's AFTER_ENTITIES drawing has
+         * already closed by now. */
+        BBSRendering.beginUnmanagedDraws();
+
+        try
+        {
+            this.renderBlock(state, entity, matrices, queue, cameraState);
+        }
+        finally
+        {
+            BBSRendering.endUnmanagedDraws();
+        }
+    }
+
+    private void renderBlock(ModelBlockRenderState state, ModelBlockEntity entity, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState)
+    {
 
         float tickDelta = state.tickDelta;
         int overlay = net.minecraft.client.render.OverlayTexture.DEFAULT_UV;

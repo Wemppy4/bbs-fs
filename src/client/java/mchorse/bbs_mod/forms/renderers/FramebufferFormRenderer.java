@@ -134,7 +134,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         if (depth == 1)
         {
-            BBSRendering.setIrisMainBound(false);
+            BBSRendering.beginUnmanagedDraws();
         }
 
         /* The nested forms render under an ortho projection into this framebuffer — deferring
@@ -152,7 +152,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
             if (depth == 0)
             {
-                BBSRendering.setIrisMainBound(true);
+                BBSRendering.endUnmanagedDraws();
             }
 
             FormTranslucentQueue.restore(queueWasActive);
