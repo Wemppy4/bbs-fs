@@ -25,6 +25,7 @@ import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.iris.IrisUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
@@ -101,7 +102,15 @@ public class BBSRendering
     }
 
     private static boolean customSize;
-    private static boolean iris;
+
+    /**
+     * Resolved at class initialisation rather than in {@link #setup()} on purpose: BBSShaders assigns
+     * each pipeline to an Iris program as it registers it, and its own pipelines are static finals, so
+     * whether the flag is set yet would otherwise depend on which class the client happened to touch
+     * first — and a false read here fails silently, leaving forms invisible under a shaderpack again.
+     * FabricLoader is up long before any of this.
+     */
+    private static boolean iris = FabricLoader.getInstance().isModLoaded("iris");
     private static boolean sodium;
     private static boolean optifine;
 
@@ -260,9 +269,16 @@ public class BBSRendering
 
     public static void setup()
     {
-        /* Iris/Sodium support has been decoupled; these stay permanently disabled. */
-        iris = false;
+        /* Iris is coupled again — see the field, which resolves itself, plus the pipeline assignment in
+         * BBSShaders. Enough for a shaderpack to draw BBS forms and for the shadow pass to be told
+         * apart; the rest of the 1.21.1 integration (PBR textures, shader-curve uniforms, the pack's
+         * option menus inside BBS's UI) stays decoupled.
+         *
+         * Sodium still is: nothing in BBS asks it anything except the ortho frame's point-camera
+         * culling relaxation, which is a nicety. */
         sodium = false;
+
+        LOGGER.info("[BBS shaders] Iris integration {}", iris ? "on" : "off (mod not present)");
         optifine = FabricLoader.getInstance().isModLoaded("optifabric");
 
         /* Under the orthographic projection the whole frame sits at roughly the same depth, but
@@ -842,32 +858,91 @@ public class BBSRendering
         return new Matrix4f().setOrtho(-halfWidth, halfWidth, -halfHeight, halfHeight, near, far);
     }
 
+    /**
+     * Whether a shaderpack is drawing the world. Around twenty places in BBS already ask this and the
+     * matching {@link #isIrisShadowPass()} — the port kept every one of those branches and cut only the
+     * sensor, pinning both to false, which is why turning shaders on made replays vanish and left the
+     * shadow pass drawing forms and honouring the film camera's FOV.
+     */
     public static boolean isIrisShadersEnabled()
     {
-        return false;
-    }
+        if (!iris)
+        {
+            return false;
+        }
 
-    public static boolean isIrisShadowPass()
-    {
-        return false;
+        return IrisUtils.isShaderPackEnabled();
     }
 
     /**
-     * Iris considers a vanilla core program applied during world rendering a stray
-     * draw into its G-buffers and masks its color/depth writes. Reporting that the
-     * main framebuffer isn't bound (like vanilla render targets do via bindWrite)
-     * turns both core shader overrides and that masking off.
+     * Whether Iris is currently filling its shadow map rather than the frame the player sees. That pass
+     * runs the world render a second time from the sun's point of view, so anything BBS draws without
+     * checking lands in the shadow map at the shadow camera's placement — a form smeared away from the
+     * thing it belongs to.
      */
-    public static void setIrisMainBound(boolean bound)
+    public static boolean isIrisShadowPass()
     {
         if (!iris)
+        {
+            return false;
+        }
+
+        return IrisUtils.isShadowPass();
+    }
+
+    /**
+     * Hand a BBS pipeline to Iris so a loaded shaderpack draws it with one of its own programs.
+     * Silently does nothing without Iris. Assign each pipeline exactly once — Iris rejects a second
+     * assignment — which is why this is called from the registration of each one.
+     *
+     * @param translucent picks the pack's translucent program over its solid one.
+     */
+    public static void assignIrisPipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, boolean translucent)
+    {
+        if (!iris || pipeline == null)
         {
             return;
         }
 
-        /* TODO(1.21.11 render): IrisUtils.setMainBound(bound) went with the decoupled Iris
-         * integration (this branch keeps iris = false, so the call is unreachable anyway). */
+        try
+        {
+            IrisUtils.assignPipeline(pipeline, translucent);
+        }
+        catch (Throwable e)
+        {
+            /* A pack-less Iris, a version whose API moved, a double assignment we failed to prevent:
+             * none of that is worth taking the editor down for — the form just draws unshaded. */
+            LOGGER.error("[BBS shaders] failed to hand {} to Iris", pipeline.getLocation(), e);
+        }
     }
+
+    /** Same, for the particle pipeline: the pack's particle program rather than its entity one. */
+    public static void assignIrisParticlePipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, boolean translucent)
+    {
+        if (!iris || pipeline == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IrisUtils.assignParticlePipeline(pipeline, translucent);
+        }
+        catch (Throwable e)
+        {
+            LOGGER.error("[BBS shaders] failed to hand {} to Iris", pipeline.getLocation(), e);
+        }
+    }
+
+    /**
+     * 1.21.1 told Iris the main target was unbound so it would neither override BBS's own program nor
+     * mask its writes, and BBS drew the form with its own GLSL. {@link #assignIrisPipeline} replaces
+     * that whole approach — the pack draws the form itself — so this is left as a no-op rather than
+     * re-pointed at {@code WorldRenderingPipeline.setIsMainBound}, which still exists but would now be
+     * fighting the assignment.
+     */
+    public static void setIrisMainBound(boolean bound)
+    {}
 
     public static void trackTexture(Texture texture)
     {}

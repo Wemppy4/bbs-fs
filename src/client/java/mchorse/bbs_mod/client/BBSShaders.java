@@ -541,6 +541,7 @@ public class BBSShaders
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
 
+        BBSRendering.assignIrisPipeline(pipeline, variant.pass() == FormTranslucentQueue.PASS_TRANSLUCENT);
         modelPipelines.put(variant, pipeline);
 
         return pipeline;
@@ -570,7 +571,11 @@ public class BBSShaders
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0");
 
-        return RenderPipelines.register(builder.build());
+        RenderPipeline pipeline = RenderPipelines.register(builder.build());
+
+        BBSRendering.assignIrisPipeline(pipeline, false);
+
+        return pipeline;
     }
 
     /**
@@ -597,7 +602,11 @@ public class BBSShaders
             .withSampler("Sampler0")
             .withSampler("Sampler2");
 
-        return RenderPipelines.register(builder.build());
+        RenderPipeline pipeline = RenderPipelines.register(builder.build());
+
+        BBSRendering.assignIrisParticlePipeline(pipeline, false);
+
+        return pipeline;
     }
 
     /**
