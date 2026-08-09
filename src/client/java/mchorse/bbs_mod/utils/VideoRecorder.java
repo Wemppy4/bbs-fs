@@ -353,12 +353,16 @@ public class VideoRecorder
             GL30.glBindTexture(GL30.GL_TEXTURE_2D, this.textureId);
             GL30.glGetTexImage(GL30.GL_TEXTURE_2D, 0, GL30.GL_BGR, GL30.GL_UNSIGNED_BYTE, 0);
 
+            int readError = GL30.glGetError();
+
             GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[nextPbo]);
 
             ByteBuffer mappedBuffer = GL30.glMapBuffer(GL30.GL_PIXEL_PACK_BUFFER, GL30.GL_READ_ONLY);
 
             if (mappedBuffer != null && this.counter != 0)
             {
+                this.probeFrame(mappedBuffer, readError);
+
                 this.channel.write(mappedBuffer);
             }
 
@@ -371,6 +375,29 @@ public class VideoRecorder
         {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * TEMPORARY(1.21.11 export diagnostics): sum the luminance of the pixels about to be handed to
+     * ffmpeg, next to what {@link BBSRendering} saw in the framebuffer it snapshotted. A black PBO
+     * under a lit framebuffer means the capture path drops the frame; both black means the world
+     * render never reached our framebuffer. Delete along with the BBSRendering probes.
+     */
+    private void probeFrame(ByteBuffer mapped, int readError)
+    {
+        long sum = 0;
+        int step = Math.max(3, (this.textureWidth * this.textureHeight * 3) / 4096 / 3 * 3);
+
+        for (int i = 0; i + 2 < mapped.limit(); i += step)
+        {
+            sum += (mapped.get(i) & 0xFF) + (mapped.get(i + 1) & 0xFF) + (mapped.get(i + 2) & 0xFF);
+        }
+
+        System.out.println(String.format(
+            "[BBS export] frame=%d counter=%d snapshots=%d fbLum=%d fbErr=0x%x pboLum=%d texErr=0x%x %s",
+            BBSRendering.getProbeFrame(), this.counter, BBSRendering.getProbeSnapshots(),
+            BBSRendering.getProbeLuminance(), BBSRendering.getProbeError(), sum, readError,
+            BBSRendering.getProbeState()));
     }
 
     /**
