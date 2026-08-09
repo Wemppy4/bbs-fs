@@ -51,6 +51,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 
 import java.io.File;
@@ -397,9 +398,7 @@ public class BBSRendering
                     && dashboard.getPanels().panel instanceof UIFilmPanel;
                 if (!filmPanelShowing)
                 {
-                    /* 1.21.11: Framebuffer.draw(w, h) → blitToScreen() (presents our framebuffer to the window).
-                     * Only runs for the no-UI live recording overlay; the film-panel preview path skips it. */
-                    framebuffer.blitToScreen();
+                    composeIntoClientFramebuffer();
                 }
             }
         }
@@ -408,6 +407,51 @@ public class BBSRendering
     private static void reassignFramebuffer(Framebuffer framebuffer)
     {
         MinecraftClient.getInstance().framebuffer = framebuffer;
+    }
+
+    /**
+     * Hand the frame we rendered off-screen back to the client framebuffer, so the game presents it
+     * the way it presents any other frame. Only the no-UI recording path needs this: with the film
+     * panel open the preview draws the snapshot texture itself.
+     *
+     * <p>1.21.1 did this with {@code framebuffer.draw(w, h)} — a fullscreen quad into whatever was
+     * bound, which the line above had just made the client framebuffer. The 1.21.11 method that
+     * inherited the name, {@code blitToScreen()}, is NOT that: it is
+     * {@code CommandEncoder.presentTexture}, which goes straight to the window. And vanilla presents
+     * again at the end of the same frame — {@code MinecraftClient.render} captures its framebuffer
+     * BEFORE the world render (so it captures the client one, not ours) and blits that. Our frame was
+     * therefore shown and immediately overwritten by a client framebuffer holding nothing but the
+     * frame's opening clear: two presents per frame, the second one black. That is the black flicker
+     * that covered the whole screen for the length of every world recording.
+     *
+     * <p>Copying the colour attachment across is the faithful replacement. {@code drawBlit} is not:
+     * it runs through {@code ENTITY_OUTLINE_BLIT}, which alpha-blends (SRC_ALPHA/ONE_MINUS_SRC_ALPHA),
+     * and the world framebuffer's sky and cleared regions carry a non-opaque alpha (the same alpha
+     * {@link #getTexture()} drops by capturing into RGB8), so blending would darken them into the
+     * black destination.
+     */
+    private static void composeIntoClientFramebuffer()
+    {
+        Framebuffer client = clientFramebuffer;
+
+        if (client == null || client.getColorAttachment() == null || framebuffer.getColorAttachment() == null)
+        {
+            return;
+        }
+
+        /* The two normally match (the world export sizes the window to the export resolution, and
+         * without that it exports at the window size), but the export size is rounded to even pixels,
+         * so a copy of the shared region is what is always defined. */
+        int w = Math.min(framebuffer.textureWidth, client.textureWidth);
+        int h = Math.min(framebuffer.textureHeight, client.textureHeight);
+
+        if (w <= 0 || h <= 0)
+        {
+            return;
+        }
+
+        RenderSystem.getDevice().createCommandEncoder().copyTextureToTexture(
+            framebuffer.getColorAttachment(), client.getColorAttachment(), 0, 0, 0, 0, 0, w, h);
     }
 
     /* Rendering */
