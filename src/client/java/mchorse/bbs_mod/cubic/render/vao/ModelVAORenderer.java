@@ -1,8 +1,10 @@
 package mchorse.bbs_mod.cubic.render.vao;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.Tessellator;
@@ -44,6 +46,27 @@ public class ModelVAORenderer
         if (built != null)
         {
             (cull ? BBSShaders.getBoundCulledModelLayer() : BBSShaders.getBoundModelLayer()).draw(built);
+        }
+    }
+
+    /**
+     * Draw the mesh through a picker {@link RenderPipeline} instead of a RenderLayer. The picker shaders
+     * need the custom BBSPicker UBO (the Target index), which the immediate RenderLayer path cannot carry,
+     * so the draw is driven by {@link BBSPickerRenderer}. The caller records the Target and Sampler0 first.
+     */
+    public static void renderPicking(ModelVAO modelVAO, MatrixStack stack, float r, float g, float b, float a, int light, int overlay, RenderPipeline picker)
+    {
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
+
+        modelVAO.writeImmediate(builder, stack, r, g, b, a, light, overlay);
+
+        BuiltBuffer built = builder.endNullable();
+
+        if (built != null)
+        {
+            /* Identity-free: the camera is already baked into the vertices by writeImmediate, so the pass
+             * gets the global model-view, the same argument the cubic/BOBJ picking draws pass. */
+            BBSPickerRenderer.draw(picker, built, RenderSystem.getModelViewMatrix());
         }
     }
 }

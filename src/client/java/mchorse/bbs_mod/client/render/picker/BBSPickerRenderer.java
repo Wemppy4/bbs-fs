@@ -18,7 +18,10 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
+import mchorse.bbs_mod.graphics.texture.Texture;
 import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.client.gl.UniformType;
 import net.minecraft.util.Identifier;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -198,6 +201,26 @@ public class BBSPickerRenderer
     {
         BBSPickerRenderer.sampler0View = view;
         BBSPickerRenderer.sampler0 = sampler;
+    }
+
+    /**
+     * {@link #setSampler0(GpuTextureView, GpuSampler)} for a BBS raw-GL texture: the mapped API cannot bind a
+     * bare GL id, so the texture is bridged through {@link AdoptedTexture} (zero-copy) into the vanilla
+     * TextureManager first. Every form renderer that picks needs exactly this, so it lives here rather than
+     * being spelled out at each call site.
+     */
+    public static void setSampler0(Texture texture)
+    {
+        Identifier adopted = AdoptedTexture.identifier(texture);
+
+        if (adopted == null)
+        {
+            return;
+        }
+
+        AbstractTexture at = MinecraftClient.getInstance().getTextureManager().getTexture(adopted);
+
+        setSampler0(at.getGlTextureView(), at.getSampler());
     }
 
     /**

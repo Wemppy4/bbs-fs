@@ -1,10 +1,12 @@
 package mchorse.bbs_mod.forms.renderers;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
@@ -77,7 +79,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
          * GL culling vanilla keeps on) — see the note in render3D. The preview stack carries a
          * negative Z scale, which flips both faces' winding at once, so culling still keeps the one
          * turned towards the viewer. */
-        this.renderModel(format, BBSShaders::getBoundCulledModelLayer,
+        this.renderModel(format, BBSShaders::getBoundCulledModelLayer, null,
             stack,
             OverlayTexture.DEFAULT_UV, LightmapTextureManager.MAX_LIGHT_COORDINATE, Colors.WHITE,
             transition
@@ -109,13 +111,31 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
          * the deferred billboard command carried cull = true). Drawn without culling, the back face
          * lands second on the exact same depth, LEQUAL lets it through, and the visible side is the
          * one lit from behind: mix_light 0.40 against the front face's ~1.0. */
+        if (context.isPicking())
+        {
+            /* Picking draws the same quad through the picker pipeline, which writes the object index
+             * instead of the texture (it still samples Sampler0 for the alpha cutout, so a cropped-out
+             * corner isn't pickable). setupTarget records the index into the BBSPicker UBO, exactly where
+             * the 1.21.1 getShader(...) call set the Target uniform. The no-shading picker keeps the
+             * 1.21.1 POSITION_TEXTURE_LIGHT_COLOR layout — the visible unlit path dropped LIGHT when it
+             * moved onto vanilla's position_tex_color, the picker shader still declares it. */
+            this.setupTarget(context, null);
+
+            VertexFormat pickFormat = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
+            RenderPipeline picker = shading ? BBSShaders.getPickerBillboardProgram() : BBSShaders.getPickerBillboardNoShadingProgram();
+
+            this.renderModel(pickFormat, null, picker, context.stack, context.overlay, context.light, context.color, context.getTransition());
+
+            return;
+        }
+
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_COLOR;
         Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundCulledModelLayer : BBSShaders::getBoundBillboardLayer;
 
-        this.renderModel(format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition());
+        this.renderModel(format, layer, null, context.stack, context.overlay, context.light, context.color, context.getTransition());
     }
 
-    private void renderModel(VertexFormat format, Supplier<RenderLayer> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
+    private void renderModel(VertexFormat format, Supplier<RenderLayer> shader, RenderPipeline picker, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
     {
         Link t = this.form.texture.get();
 
@@ -188,10 +208,10 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
             uvQuad.transform(matrix);
         }
 
-        this.renderQuad(format, texture, shader, matrices, overlay, light, overlayColor, transition);
+        this.renderQuad(format, texture, shader, picker, matrices, overlay, light, overlayColor, transition);
     }
 
-    private void renderQuad(VertexFormat format, Texture texture, Supplier<RenderLayer> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
+    private void renderQuad(VertexFormat format, Texture texture, Supplier<RenderLayer> shader, RenderPipeline picker, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
     {
         Color color = new Color().set(overlayColor, true);
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -216,8 +236,16 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
          * the layer carries this texture in its own Sampler0 (as the cubic/VAO paths already do).
          * A layer with no texture only ever worked because the immediate draw happened while the
          * global GL binding still pointed at it — deferred through the item command queue, that
-         * binding is long gone by execution time and the billboard samples whatever is left. */
-        RenderLayer layer = shader.get();
+         * binding is long gone by execution time and the billboard samples whatever is left.
+         * Picking has no layer: the picker pipeline is driven by BBSPickerRenderer, which binds
+         * Sampler0 itself from the same texture. */
+        RenderLayer layer = picker == null ? shader.get() : null;
+
+        if (picker != null)
+        {
+            BBSPickerRenderer.setSampler0(texture);
+        }
+
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, format);
 
         /* Front */
@@ -245,7 +273,17 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
 
         if (built != null)
         {
-            layer.draw(built);
+            if (picker != null)
+            {
+                /* The camera is already folded into the vertices (they were built against the stack's
+                 * position matrix), so the pass only needs the global model-view — the same argument the
+                 * cubic/BOBJ picking draws pass. */
+                BBSPickerRenderer.draw(picker, built, RenderSystem.getModelViewMatrix());
+            }
+            else
+            {
+                layer.draw(built);
+            }
         }
 
         texture.setFilterMipmap(false, false);

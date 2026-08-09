@@ -4,6 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
@@ -64,7 +65,7 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
 
         /* Was: RenderSystem.depthFunc(GL_LEQUAL) ... depthFunc(GL_ALWAYS). Depth test is now
          * per-pipeline (the model pipeline declares LEQUAL_DEPTH_TEST). */
-        this.renderModel(BBSShaders::getModel,
+        this.renderModel(null,
             stack,
             OverlayTexture.DEFAULT_UV, LightmapTextureManager.MAX_LIGHT_COORDINATE, Colors.WHITE,
             transition
@@ -83,17 +84,24 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
             shading = true;
         }
 
-        /* TODO(1.21.11 render): ShaderProgram and GameRenderer::getRenderTypeEntityTranslucentProgram
-         * /getPositionTexColorProgram are removed; the old getShader(...) picking path (which set the
-         * Target GlUniform via setupTarget) is gone. For now always select the BBS model
-         * RenderPipeline; the picker pipeline (BBSShaders.getPickerBillboard[NoShading]Program) must
-         * be selected + its Target UBO uniform supplied once the picking foundation lands. */
-        Supplier<RenderPipeline> shader = BBSShaders::getModel;
+        /* Picking replaces the visible draw with the picker pipeline, which writes the form's object
+         * index instead of the texture. setupTarget records that index into the BBSPicker UBO — the
+         * spot where 1.21.1's getShader(...) set the Target uniform. Extrusion always builds the
+         * lit vertex layout, so it picks with picker_billboard in both shading modes, exactly as on
+         * 1.21.1 (which chose the no-shading picker only for the layout it never produced here). */
+        RenderPipeline picker = null;
 
-        this.renderModel(shader, context.stack, context.overlay, context.light, context.color, context.getTransition());
+        if (context.isPicking())
+        {
+            this.setupTarget(context, null);
+
+            picker = BBSShaders.getPickerBillboardProgram();
+        }
+
+        this.renderModel(picker, context.stack, context.overlay, context.light, context.color, context.getTransition());
     }
 
-    private void renderModel(Supplier<RenderPipeline> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
+    private void renderModel(RenderPipeline picker, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
     {
         Link texture = this.form.texture.get();
         ModelVAO data = BBSModClient.getTextures().getExtruder().get(texture);
@@ -114,11 +122,19 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
 
             BBSModClient.getTextures().bindTexture(textureObject);
 
-            /* Blend/depth/cull and the lightmap/overlay samplers are encoded by the model RenderLayer
-             * (BBSShaders.getModelLayer()); the geometry is baked CPU-side and drawn immediately, the
-             * same proven path cubic Models/Billboards use. The picker pipeline carried by `shader`
-             * will be selected here once the picking foundation lands (see render3D TODO). */
-            /* Culled, like the 1.21.1 draw: extrusion is closed geometry, nothing of it should ever be
+            if (picker != null)
+            {
+                /* The picker shader still samples Sampler0 for its alpha cutout, so the extruded
+                 * silhouette stays pickable exactly where it is visible. */
+                BBSPickerRenderer.setSampler0(textureObject);
+                ModelVAORenderer.renderPicking(data, matrices, color.r, color.g, color.b, color.a, light, overlay, picker);
+
+                return;
+            }
+
+            /* Blend/depth and the lightmap/overlay samplers are encoded by the model RenderLayer; the
+             * geometry is baked CPU-side and drawn immediately, the same proven path cubic models use.
+             * Culled, like the 1.21.1 draw: extrusion is closed geometry, nothing of it should ever be
              * seen from the inside, and its back faces are pure overdraw (doubled alpha where the
              * texture is translucent). ExtrudedFormRenderer never touched the global GL cull, so on
              * 1.21.1 it drew with vanilla's culling on. */
