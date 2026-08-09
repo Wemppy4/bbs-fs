@@ -918,24 +918,29 @@ public class BBSRendering
      * Hand a BBS pipeline to Iris so a loaded shaderpack draws it with one of its own programs.
      * Silently does nothing without Iris.
      *
-     * <p>NOTHING CALLS THIS, and the two things a run proved should be read before anything does:
+     * <p>Called by {@link BBSShaders} for the WORLD variants of the form pipelines only, and the two
+     * conditions that makes it satisfy were both proven by a run that assigned the shared pipelines:
      *
      * <ul>
-     *   <li>Assigning a plain position/colour pipeline (the gizmo, the world overlays) to the pack's
-     *       BASIC program drew it BLACK. The pack's program reads attributes that geometry does not
-     *       carry, so what Iris says about leaving those alone — "Missing program ... in override
-     *       list. This is not a critical problem" — is the better outcome of the two.</li>
-     *   <li>A BBS pipeline is not world-only. The model pipeline draws the form editor's preview and
-     *       the film panel's too, into framebuffers of BBS's own. Assignment is per pipeline, so the
-     *       pack's entity program followed the model into those previews and clipped the form against
-     *       a depth buffer that has nothing to do with it — "part of the form hidden as if behind
-     *       blocks", in a viewport with no blocks in it.</li>
+     *   <li>The program's vertex format must match. Assigning a plain position/colour pipeline (the
+     *       gizmo, the world overlays) to the pack's BASIC program drew it BLACK — the pack's program
+     *       reads attributes that geometry does not carry. Only the full entity format (model,
+     *       billboard-with-shading) and the particle format are handed over.</li>
+     *   <li>The pipeline must be world-only. The shared model pipeline also draws the form editor's
+     *       preview and the film panel's, into framebuffers of BBS's own; assignment is per pipeline,
+     *       so the pack's entity program followed it there and clipped the form against a depth
+     *       buffer that has nothing to do with it — "part of the form hidden as if behind blocks",
+     *       in a viewport with no blocks in it. Hence the split: the world variants exist for the
+     *       world's own frame and nothing else.</li>
      * </ul>
      *
-     * <p>Iris matches the entity-shaped pipelines on its own anyway ("Found *decent* program match ...
-     * ENTITIES_ALPHA"), which is the part that was worth having. Assignment only becomes the right
-     * tool once a pipeline is world-only and carries the full entity vertex format — split the model
-     * pipeline per context first, then assign the world one.
+     * <p>Why assignment is the only way a form survives a shaderpack on 1.21.11 (read out of Iris
+     * 1.10.7 + vanilla bytecode): a pack draws the world into its OWN G-buffers — every render pass
+     * whose program is the pack's binds them via {@code ExtendedShader.iris$setupState} — and at the
+     * end of the frame composites the result into the client framebuffer, overwriting it. A draw
+     * that keeps a BBS program lands in the client framebuffer (the pass's declared target) and is
+     * wiped by that composite even when it is not skipped outright. Only draws carrying the pack's
+     * programs land in the G-buffers and survive — and come out lit, fogged and shadowed by the pack.
      */
     public static void assignIrisPipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, IrisProgramKind kind)
     {
@@ -962,30 +967,78 @@ public class BBSRendering
     }
 
     /**
-     * Open a span in which BBS may draw with its own programs while a shaderpack is loaded, and close
-     * it with {@link #endUnmanagedDraws()}. Does nothing without Iris, and nothing without a pack.
-     *
-     * <p>Iris skips every program that is not one of its own while it believes the world is being
-     * drawn into the main target — see {@link IrisUtils#setMainBound} for the two methods that say so.
-     * That is why forms went missing under a pack: the draws were made and then dropped. Saying the
-     * main target is not bound for the span of BBS's own drawing is what 1.21.1 did too, and it also
-     * keeps Iris from substituting a pack program underneath geometry whose vertex format would not
-     * feed it.
-     *
-     * <p>Forms therefore draw unshaded — lit by BBS's own model shader, not by the pack. Shading them
-     * with the pack is a different and much larger job (their pipelines would have to be world-only
-     * and carry the full entity vertex format; see {@link #assignIrisPipeline}). Visible and unshaded
-     * beats correct and absent.
+     * True while form draws are aimed at the world's own frame — the film's AFTER_ENTITIES pass and
+     * the model block's vanilla pass. {@link BBSShaders} reads it (through {@link #isIrisWorldForms()})
+     * to hand those draws the world variants of its pipelines, the ones assigned to a shaderpack's
+     * programs; everywhere else (editor previews, GUI, offscreen framebuffers) forms keep the shared
+     * pipelines and BBS's own shaders.
      */
-    public static void beginUnmanagedDraws()
+    private static boolean worldForms;
+
+    /**
+     * Open the span in which form draws belong to the world's frame; close with {@link #endWorldForms()}.
+     *
+     * <p>This used to set Iris's {@code isMainBound} false for the span, the 1.21.1 lever against a
+     * pack dropping BBS's draws — and a run proved that on 1.21.11 it is worse than useless. The write
+     * gate it opens no longer matters (the draws land in the client framebuffer either way, and the
+     * pack's end-of-frame composite wipes them — see {@link #assignIrisPipeline}), while the SAME flag
+     * gates Iris's program substitution ({@code shouldOverrideShaders()} in
+     * {@code MixinShaderManager_Overrides}): with it forced false, the vanilla-layer draws inside the
+     * span — item forms, mob forms — lost the pack's programs too and died with everything else.
+     * So the span now marks context only; the Iris flag is left alone.
+     */
+    public static void beginWorldForms()
     {
-        setIrisMainBound(false);
+        worldForms = true;
     }
 
-    /** Closes {@link #beginUnmanagedDraws()}. */
-    public static void endUnmanagedDraws()
+    /** Closes {@link #beginWorldForms()}. */
+    public static void endWorldForms()
+    {
+        worldForms = false;
+    }
+
+    /**
+     * Pause the world-forms span for a nested offscreen render (a framebuffer form drawing its
+     * children into its own target mid-frame): those draws must keep BBS's shared pipelines — a pack
+     * program would bind the pack's G-buffers underneath them and the pixels would leave the form's
+     * framebuffer entirely. Restore with {@link #restoreWorldForms(boolean)}.
+     *
+     * <p>This also tells Iris the main target is unbound for the span ({@link IrisUtils#setMainBound}):
+     * inside the world render Iris otherwise disables colour/depth writes for any program that is not
+     * its own ({@code MixinCompiledShaderProgram} → {@code DepthColorStorage.disableDepthColor}), and
+     * these draws are BBS's own programs into BBS's own framebuffer. That is the one place the 1.21.1
+     * lever is still right: the target really is not the main one.
+     */
+    public static boolean suspendWorldForms()
+    {
+        boolean prev = worldForms;
+
+        worldForms = false;
+
+        setIrisMainBound(false);
+
+        return prev;
+    }
+
+    /** Closes {@link #suspendWorldForms()}. */
+    public static void restoreWorldForms(boolean prev)
     {
         setIrisMainBound(true);
+
+        worldForms = prev;
+    }
+
+    /**
+     * Whether form draws right now should carry a shaderpack's programs: inside the world-forms span
+     * with a pack enabled. This is the single switch {@link BBSShaders} keys its world pipeline
+     * variants on, and {@link mchorse.bbs_mod.forms.FormTranslucentQueue} its two-pass split — the
+     * pack's program ignores the PASS_MODE define, so splitting under it would draw both passes in
+     * full and double every translucent texel.
+     */
+    public static boolean isIrisWorldForms()
+    {
+        return worldForms && isIrisShadersEnabled();
     }
 
     private static void setIrisMainBound(boolean bound)

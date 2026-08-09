@@ -120,11 +120,16 @@ public class FormTranslucentQueue
      * opaque threshold — the split's immediate pass would draw nothing at all, leaving a pointless
      * empty draw call. False outside an active queue scope (UI previews, first-person arm) and during
      * picking (the stencil needs every pixel).
+     *
+     * <p>Also false when the draws carry a shaderpack's programs ({@link BBSRendering#isIrisWorldForms()}):
+     * the split rides the PASS_MODE shader define, which the pack's program knows nothing about — both
+     * passes would draw the full texture and every translucent texel would blend twice. Under a pack
+     * the draw goes out single-pass and the pack's own pipeline handles its transparency.
      */
     public static boolean needsSplit(StencilMap stencilMap, Texture texture, float alpha)
     {
         return alpha >= 1F && texture != null && texture.hasTranslucency()
-            && isActive() && stencilMap == null;
+            && isActive() && stencilMap == null && !BBSRendering.isIrisWorldForms();
     }
 
     /**

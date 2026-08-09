@@ -132,10 +132,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         depth += 1;
 
-        if (depth == 1)
-        {
-            BBSRendering.beginUnmanagedDraws();
-        }
+        /* The nested forms draw into this framebuffer, not the world's frame: suspend the world-forms
+         * span (a pack program would bind the pack's G-buffers underneath them) and tell Iris the main
+         * target is unbound (it would disable colour/depth writes for BBS's programs otherwise). Only
+         * the outermost level talks to Iris — see BBSRendering#suspendWorldForms. */
+        boolean worldWasActive = depth == 1 ? BBSRendering.suspendWorldForms() : false;
 
         /* The nested forms render under an ortho projection into this framebuffer — deferring
          * their translucent pixels into the world's queue would replay them with the wrong
@@ -152,7 +153,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
             if (depth == 0)
             {
-                BBSRendering.endUnmanagedDraws();
+                BBSRendering.restoreWorldForms(worldWasActive);
             }
 
             FormTranslucentQueue.restore(queueWasActive);

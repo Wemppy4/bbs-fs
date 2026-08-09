@@ -134,11 +134,11 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
             return;
         }
 
-        /* The form below draws with BBS's own programs, which a loaded shaderpack would otherwise
-         * throw away — see BBSRendering#beginUnmanagedDraws. Block entities render in their own vanilla
-         * pass, so this needs its own span; the one around the film's AFTER_ENTITIES drawing has
-         * already closed by now. */
-        BBSRendering.beginUnmanagedDraws();
+        /* The form below draws into the world's frame, so under a shaderpack it must carry the pack's
+         * programs — the span makes BBSShaders hand it the world pipeline variants (see
+         * BBSRendering#beginWorldForms). Block entities render in their own vanilla pass, so this
+         * needs its own span; the one around the film's AFTER_ENTITIES drawing has already closed. */
+        BBSRendering.beginWorldForms();
 
         try
         {
@@ -146,7 +146,7 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
         }
         finally
         {
-            BBSRendering.endUnmanagedDraws();
+            BBSRendering.endWorldForms();
         }
     }
 

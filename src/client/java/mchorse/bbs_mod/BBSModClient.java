@@ -513,10 +513,10 @@ public class BBSModClient implements ClientModInitializer
              * (BBSRendering#onRenderChunkLayer). Keeping the 1.21.1 gate once the Iris sensor was
              * reconnected meant forms drew NOWHERE with shaders on — replays gone entirely.
              *
-             * Wrapped so a loaded shaderpack does not throw the draws away: while Iris believes the
-             * world is going into the main target, it skips every program that is not its own, and
-             * these are BBS's own. See BBSRendering#beginUnmanagedDraws. */
-            BBSRendering.beginUnmanagedDraws();
+             * The span marks these draws as the world's own: under a shaderpack BBSShaders hands them
+             * the world pipeline variants, the ones assigned to the pack's programs — the only draws
+             * a pack composites into the frame instead of over. See BBSRendering#beginWorldForms. */
+            BBSRendering.beginWorldForms();
 
             try
             {
@@ -524,7 +524,7 @@ public class BBSModClient implements ClientModInitializer
             }
             finally
             {
-                BBSRendering.endUnmanagedDraws();
+                BBSRendering.endWorldForms();
             }
 
             if (BBSSettings.chromaSkyEnabled.get())

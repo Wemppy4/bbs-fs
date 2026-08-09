@@ -30,23 +30,6 @@ public class IrisUtils
     }
 
     /**
-     * Tell Iris which of the shaderpack's programs a BBS pipeline should be drawn with.
-     *
-     * <p>Iris keeps a map from {@code RenderPipeline} to shaderpack program and substitutes the pack's
-     * program for anything in it; a pipeline that is not there gets no substitution, so with a pack
-     * loaded the draw never reaches the pack's G-buffers and the geometry simply is not in the frame.
-     * That is what made every form — replays included — disappear the moment shaders were turned on.
-     *
-     * <p>1.21.1 solved the same problem from the other side: it told Iris the main target was unbound
-     * ({@code WorldRenderingPipeline.setIsMainBound(false)}) so Iris would neither override BBS's own
-     * program nor mask its writes, and BBS drew with its own GLSL. Assigning is the supported way now,
-     * and the better one — the forms come out lit, shadowed and fogged by the pack like any entity,
-     * instead of being a flat patch pasted into a shaded world.
-     *
-     * <p>Iris throws if a pipeline is assigned twice, so assignment happens once per pipeline, at the
-     * point each is registered.
-     */
-    /**
      * Tell Iris whether the main render target is bound.
      *
      * <p>It gates {@code IrisRenderingPipeline.shouldOverrideShaders()}, which is
@@ -73,6 +56,14 @@ public class IrisUtils
         }
     }
 
+    /**
+     * Tell Iris which of the shaderpack's programs a BBS pipeline should be drawn with.
+     *
+     * <p>The substitution itself is dynamic — {@code MixinShaderManager_Overrides} consults the
+     * assignment map every time a pass resolves its program — so assigning at registration time works
+     * no matter when the pack loads. Iris throws if a pipeline is assigned twice, so assignment
+     * happens once per pipeline, at the point each is registered.
+     */
     public static void assignPipeline(RenderPipeline pipeline, BBSRendering.IrisProgramKind kind)
     {
         IrisApi.getInstance().assignPipeline(pipeline, translate(kind));

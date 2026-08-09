@@ -47,13 +47,26 @@ public class BBSShaders
     private static final BlendFunction BLEND = BlendFunction.TRANSLUCENT;
 
     /**
+     * A model pipeline is registered per (variant, world) pair. The world axis exists for shaderpacks:
+     * the world copy of a pipeline is assigned to one of the pack's programs
+     * ({@link BBSRendering#assignIrisPipeline}), which is the only way its draws land in the pack's
+     * G-buffers and survive the end-of-frame composite. Assignment is per pipeline and permanent, so
+     * the shared copy — which also draws the form editor's and film panel's previews into BBS's own
+     * framebuffers — must never be the assigned one: a run proved the pack's program follows it there
+     * and clips the preview against the world's depth. {@link BBSRendering#isIrisWorldForms()} is the
+     * switch between the two.
+     */
+    private record PipelineKey(ModelVariant variant, boolean world)
+    {}
+
+    /**
      * Registered model pipelines by variant; each is a separate GLSL compile (different PASS_MODE define).
      *
      * <p>MUST stay above the pipeline fields below: static fields initialise in declaration order, and
      * those fields call {@link #modelPipeline} — which reads this map. Declared after them it is still
      * null at that point, and the whole class fails to initialise.
      */
-    private static final java.util.Map<ModelVariant, RenderPipeline> modelPipelines = new java.util.HashMap<>();
+    private static final java.util.Map<PipelineKey, RenderPipeline> modelPipelines = new java.util.HashMap<>();
 
     /* ---- model ----
      * VertexFormat: POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
@@ -64,7 +77,7 @@ public class BBSShaders
      * CPU-side at buffer-build time (CubicCubeRenderer transforms each Normal before emitting it), so
      * the migrated bbs:core/model GLSL feeds the raw Normal straight into minecraft_mix_light.
      */
-    private static final RenderPipeline MODEL = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, false));
+    private static final RenderPipeline MODEL = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, false), false);
 
     /* ---- model (culled) ----
      * The MODEL pipeline with backface culling ON, for geometry built as explicit front/back face
@@ -76,7 +89,7 @@ public class BBSShaders
      * keeps culling enabled — only LabelFormRenderer and cubic models with !isCulling() switched it
      * off around their own draws, and the billboard's deferred command was flagged cull = true.
      */
-    private static final RenderPipeline MODEL_CULLED = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, true));
+    private static final RenderPipeline MODEL_CULLED = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, true), false);
 
     /**
      * What distinguishes one model-pipeline variant from another. On 1.21.1 all three were mutable
@@ -203,7 +216,15 @@ public class BBSShaders
      * Samplers: Sampler0 (albedo), Sampler2 (lightmap)
      * Builtin std140 UBOs: DynamicTransforms (ModelViewMat/ColorModulator), Projection, Fog.
      */
-    private static final RenderPipeline PARTICLES = registerParticles();
+    private static final RenderPipeline PARTICLES = registerParticles(false);
+
+    /**
+     * The world copy of the particle pipeline, assigned to the pack's PARTICLES program (see
+     * {@link PipelineKey} for why the shared one cannot be). Built lazily on the first world draw
+     * under a pack rather than in {@code <clinit>} — the shared fields above initialise in
+     * declaration order and nothing here may run before the pipeline cache exists.
+     */
+    private static RenderPipeline particlesWorld;
 
     /* ---- billboard (no shading) ----
      * The unlit billboard pipeline: full texture brightness, no directional light, no lightmap —
@@ -228,6 +249,7 @@ public class BBSShaders
     private static RenderLayer pickerParticlesLayer;
     private static RenderLayer pickerModelsLayer;
     private static RenderLayer particlesLayer;
+    private static RenderLayer particlesWorldLayer;
 
     /**
      * Kept for API compatibility with the old {@code BBSShaders.setup()} callsite
@@ -300,17 +322,22 @@ public class BBSShaders
      * through a vanilla entity layer keyed on the adopted texture, which carries that texture's own
      * sampler.) Keyed by variant because pass/depth-write/cull are pipeline state on 1.21.5+.
      */
-    private record ModelLayerKey(ModelVariant variant, net.minecraft.util.Identifier texture)
+    private record ModelLayerKey(ModelVariant variant, net.minecraft.util.Identifier texture, boolean world)
     {}
 
     private static final java.util.Map<ModelLayerKey, RenderLayer> texturedModelLayers = new java.util.HashMap<>();
 
-    /** The model layer for {@code variant}, bound to {@code texture} (null = no texture bound). */
+    /**
+     * The model layer for {@code variant}, bound to {@code texture} (null = no texture bound). Inside
+     * the world-forms span with a shaderpack on it resolves to the world copy of the pipeline — the
+     * one assigned to the pack's entity program (see {@link PipelineKey}); everywhere else, and always
+     * without a pack, the shared copy with BBS's own shader.
+     */
     public static RenderLayer getModelLayer(ModelVariant variant, net.minecraft.util.Identifier texture)
     {
-        return texturedModelLayers.computeIfAbsent(new ModelLayerKey(variant, texture), (key) ->
+        return texturedModelLayers.computeIfAbsent(new ModelLayerKey(variant, texture, BBSRendering.isIrisWorldForms()), (key) ->
         {
-            RenderSetup.Builder setup = RenderSetup.builder(modelPipeline(key.variant()))
+            RenderSetup.Builder setup = RenderSetup.builder(modelPipeline(key.variant(), key.world()))
                 .expectedBufferSize(RenderLayer.field_64008)
                 .translucent()
                 .useLightmap()
@@ -321,7 +348,7 @@ public class BBSShaders
                 setup.texture("Sampler0", key.texture());
             }
 
-            return RenderLayer.of(BBSMod.MOD_ID + "_model" + key.variant().suffix()
+            return RenderLayer.of(BBSMod.MOD_ID + "_model" + key.variant().suffix() + (key.world() ? "_world" : "")
                 + (key.texture() == null ? "" : "_" + key.texture().getPath()), setup.build());
         });
     }
@@ -477,6 +504,25 @@ public class BBSShaders
      */
     public static RenderLayer getParticlesLayer()
     {
+        if (BBSRendering.isIrisWorldForms())
+        {
+            if (particlesWorldLayer == null)
+            {
+                if (particlesWorld == null)
+                {
+                    particlesWorld = registerParticles(true);
+                }
+
+                particlesWorldLayer = RenderLayer.of(BBSMod.MOD_ID + "_particles_world", RenderSetup.builder(particlesWorld)
+                    .expectedBufferSize(RenderLayer.field_64008)
+                    .translucent()
+                    .useLightmap()
+                    .build());
+            }
+
+            return particlesWorldLayer;
+        }
+
         if (particlesLayer == null)
         {
             RenderSetup.Builder setup = RenderSetup.builder(PARTICLES)
@@ -506,9 +552,10 @@ public class BBSShaders
      * the draw. Registered on first request and memoized — the engine compiles the GLSL lazily, so a
      * variant nothing asks for costs nothing.
      */
-    private static RenderPipeline modelPipeline(ModelVariant variant)
+    private static RenderPipeline modelPipeline(ModelVariant variant, boolean world)
     {
-        RenderPipeline existing = modelPipelines.get(variant);
+        PipelineKey key = new PipelineKey(variant, world);
+        RenderPipeline existing = modelPipelines.get(key);
 
         if (existing != null)
         {
@@ -518,7 +565,7 @@ public class BBSShaders
         Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/model");
 
         RenderPipeline.Builder builder = RenderPipeline.builder()
-            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/model" + variant.suffix()))
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/model" + variant.suffix() + (world ? "_world" : "")))
             .withVertexShader(shader)
             .withFragmentShader(shader)
             .withVertexFormat(VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS)
@@ -541,7 +588,17 @@ public class BBSShaders
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
 
-        modelPipelines.put(variant, pipeline);
+        if (world)
+        {
+            /* The full entity vertex format, mapped the way vanilla's own entity pipelines map. The
+             * translucent pass goes to the pack's translucent entity program; everything else —
+             * including the immediate opaque half of a split — is solid geometry. */
+            BBSRendering.assignIrisPipeline(pipeline, variant.pass() == FormTranslucentQueue.PASS_TRANSLUCENT
+                ? BBSRendering.IrisProgramKind.ENTITY_TRANSLUCENT
+                : BBSRendering.IrisProgramKind.ENTITY);
+        }
+
+        modelPipelines.put(key, pipeline);
 
         return pipeline;
     }
@@ -582,12 +639,12 @@ public class BBSShaders
      * projection), but no Lighting block (particles are not directionally lit) and the
      * POSITION_TEXTURE_COLOR_LIGHT format the emitter builds. Sampler0 = albedo, Sampler2 = lightmap.
      */
-    private static RenderPipeline registerParticles()
+    private static RenderPipeline registerParticles(boolean world)
     {
         Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/particles");
 
         RenderPipeline.Builder builder = RenderPipeline.builder()
-            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/particles"))
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/particles" + (world ? "_world" : "")))
             .withVertexShader(shader)
             .withFragmentShader(shader)
             .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR_LIGHT, VertexFormat.DrawMode.QUADS)
@@ -602,6 +659,10 @@ public class BBSShaders
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
 
+        if (world)
+        {
+            BBSRendering.assignIrisPipeline(pipeline, BBSRendering.IrisProgramKind.PARTICLE);
+        }
 
         return pipeline;
     }
