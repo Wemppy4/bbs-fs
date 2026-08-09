@@ -72,9 +72,12 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
 
         VertexFormat format = VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL;
 
-        /* The shading (POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL) path uses the BBS model layer
-         * (formerly GameRenderer::getRenderTypeEntityTranslucentProgram). */
-        this.renderModel(format, BBSShaders::getBoundModelLayer,
+        /* The shading (POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL) path uses the culled BBS model
+         * layer (formerly GameRenderer::getRenderTypeEntityTranslucentProgram, drawn with the global
+         * GL culling vanilla keeps on) — see the note in render3D. The preview stack carries a
+         * negative Z scale, which flips both faces' winding at once, so culling still keeps the one
+         * turned towards the viewer. */
+        this.renderModel(format, BBSShaders::getBoundCulledModelLayer,
             stack,
             OverlayTexture.DEFAULT_UV, LightmapTextureManager.MAX_LIGHT_COORDINATE, Colors.WHITE,
             transition
@@ -97,9 +100,17 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
          * GameRenderer::getRenderTypeEntityTranslucentProgram). The no-shading path draws at full
          * texture brightness through the unlit billboard layer on vanilla's position_tex_color —
          * the same program the 1.21.1 no-shading path used. Picking still goes through
-         * BBSPickerRenderer, not here. */
+         * BBSPickerRenderer, not here.
+         *
+         * Both layers cull backfaces, because renderQuad emits the quad TWICE — once per side, with
+         * opposite winding and opposite normals — and expects the GPU to keep only the side facing
+         * the viewer. That is what the 1.21.1 draws got for free from the global GL state (vanilla
+         * keeps culling on; only LabelFormRenderer and non-culling cubic models turned it off, and
+         * the deferred billboard command carried cull = true). Drawn without culling, the back face
+         * lands second on the exact same depth, LEQUAL lets it through, and the visible side is the
+         * one lit from behind: mix_light 0.40 against the front face's ~1.0. */
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_COLOR;
-        Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundModelLayer : BBSShaders::getBoundBillboardLayer;
+        Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundCulledModelLayer : BBSShaders::getBoundBillboardLayer;
 
         this.renderModel(format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition());
     }

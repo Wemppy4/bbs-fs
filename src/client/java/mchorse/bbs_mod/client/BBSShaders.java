@@ -54,7 +54,19 @@ public class BBSShaders
      * CPU-side at buffer-build time (CubicCubeRenderer transforms each Normal before emitting it), so
      * the migrated bbs:core/model GLSL feeds the raw Normal straight into minecraft_mix_light.
      */
-    private static final RenderPipeline MODEL = registerModel();
+    private static final RenderPipeline MODEL = registerModel(false);
+
+    /* ---- model (culled) ----
+     * The MODEL pipeline with backface culling ON, for geometry built as explicit front/back face
+     * pairs — the billboard quad emits both faces with opposite winding AND opposite normals, and
+     * relies on the GPU to drop the one turned away from the viewer. Without culling both survive:
+     * they are coplanar, the back one is emitted second, and LEQUAL lets equal depth through, so
+     * the quad ends up showing its back face and is lit from behind (mix_light 0.40 instead of the
+     * front face's ~1.0). On 1.21.1 these draws went through the global GL state, where vanilla
+     * keeps culling enabled — only LabelFormRenderer and cubic models with !isCulling() switched it
+     * off around their own draws, and the billboard's deferred command was flagged cull = true.
+     */
+    private static final RenderPipeline MODEL_CULLED = registerModel(true);
 
     /* ---- multilink ----
      * VertexFormat: POSITION_TEXTURE_COLOR
@@ -274,6 +286,47 @@ public class BBSShaders
         return getModelLayer(bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound));
     }
 
+    /** Culled model layers keyed by texture, mirroring {@link #texturedModelLayers}. */
+    private static final java.util.Map<net.minecraft.util.Identifier, RenderLayer> texturedCulledModelLayers = new java.util.HashMap<>();
+
+    private static RenderLayer culledModelLayer;
+
+    /**
+     * The backface-culled model layer bound to {@code texture} — {@link #getModelLayer(net.minecraft.util.Identifier)}
+     * on the MODEL_CULLED pipeline. For geometry that emits front AND back faces itself and expects the
+     * GPU to keep only the one facing the viewer (see MODEL_CULLED).
+     */
+    public static RenderLayer getCulledModelLayer(net.minecraft.util.Identifier texture)
+    {
+        if (texture == null)
+        {
+            if (culledModelLayer == null)
+            {
+                culledModelLayer = layer("model_culled", MODEL_CULLED, true);
+            }
+
+            return culledModelLayer;
+        }
+
+        return texturedCulledModelLayers.computeIfAbsent(texture, (id) -> RenderLayer.of(
+            BBSMod.MOD_ID + "_model_culled_" + id.getPath(),
+            RenderSetup.builder(MODEL_CULLED)
+                .expectedBufferSize(RenderLayer.field_64008)
+                .translucent()
+                .useLightmap()
+                .useOverlay()
+                .texture("Sampler0", id)
+                .build()));
+    }
+
+    /** {@link #getBoundModelLayer()} on the culled variant. */
+    public static RenderLayer getBoundCulledModelLayer()
+    {
+        mchorse.bbs_mod.graphics.texture.Texture bound = mchorse.bbs_mod.BBSModClient.getTextures().getLastBound();
+
+        return getCulledModelLayer(bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound));
+    }
+
     /** Unlit billboard layers keyed by texture, mirroring {@link #getModelLayer(net.minecraft.util.Identifier)}. */
     private static final java.util.Map<net.minecraft.util.Identifier, RenderLayer> texturedBillboardLayers = new java.util.HashMap<>();
 
@@ -425,19 +478,21 @@ public class BBSShaders
      * (light.glsl / fog.glsl / dynamictransforms.glsl / projection.glsl). Declared in the same order
      * the vanilla entity pipeline uses (DynamicTransforms, Projection, Fog, Lighting) so the engine
      * binds them; without these the model shader fails to link and every world draw is a no-op.
+     *
+     * <p>{@code cull} picks between the two registered variants — see MODEL / MODEL_CULLED.
      */
-    private static RenderPipeline registerModel()
+    private static RenderPipeline registerModel(boolean cull)
     {
         Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/model");
 
         RenderPipeline.Builder builder = RenderPipeline.builder()
-            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/model"))
+            .withLocation(Identifier.of(BBSMod.MOD_ID, cull ? "pipeline/model_culled" : "pipeline/model"))
             .withVertexShader(shader)
             .withFragmentShader(shader)
             .withVertexFormat(VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS)
             .withBlend(BLEND)
             .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-            .withCull(false)
+            .withCull(cull)
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withUniform("Fog", UniformType.UNIFORM_BUFFER)
@@ -451,8 +506,11 @@ public class BBSShaders
 
     /**
      * Build and register the unlit billboard pipeline on vanilla's own {@code position_tex_color}
-     * shader (see the BILLBOARD field note). Cull off: the billboard emits explicit front AND back
-     * faces, and negative form scales must not drop either.
+     * shader (see the BILLBOARD field note). Cull ON, like the 1.21.1 draw: the billboard emits the
+     * quad as an explicit front/back face pair with opposite winding, so culling keeps exactly one
+     * of them — the one facing the viewer. Negative form scales flip both windings together, which
+     * only swaps which of the two survives, never drops both. Without culling the two coplanar
+     * faces stack, and a semi-transparent texture is blended over itself.
      */
     private static RenderPipeline registerBillboard()
     {
@@ -465,7 +523,7 @@ public class BBSShaders
             .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.TRIANGLES)
             .withBlend(BLEND)
             .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-            .withCull(false)
+            .withCull(true)
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0");
