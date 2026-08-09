@@ -916,12 +916,26 @@ public class BBSRendering
 
     /**
      * Hand a BBS pipeline to Iris so a loaded shaderpack draws it with one of its own programs.
-     * Silently does nothing without Iris. Assign each pipeline exactly once — Iris rejects a second
-     * assignment — which is why this is called from the registration of each one.
+     * Silently does nothing without Iris.
      *
-     * <p>Only for geometry that goes into the WORLD. Pipelines that draw into a BBS framebuffer of our
-     * own — the pickers, the gizmo's highlight, the IK stencil — must stay unassigned: their colours
-     * are identity payloads, and a pack reshading them would break what reads them back.
+     * <p>NOTHING CALLS THIS, and the two things a run proved should be read before anything does:
+     *
+     * <ul>
+     *   <li>Assigning a plain position/colour pipeline (the gizmo, the world overlays) to the pack's
+     *       BASIC program drew it BLACK. The pack's program reads attributes that geometry does not
+     *       carry, so what Iris says about leaving those alone — "Missing program ... in override
+     *       list. This is not a critical problem" — is the better outcome of the two.</li>
+     *   <li>A BBS pipeline is not world-only. The model pipeline draws the form editor's preview and
+     *       the film panel's too, into framebuffers of BBS's own. Assignment is per pipeline, so the
+     *       pack's entity program followed the model into those previews and clipped the form against
+     *       a depth buffer that has nothing to do with it — "part of the form hidden as if behind
+     *       blocks", in a viewport with no blocks in it.</li>
+     * </ul>
+     *
+     * <p>Iris matches the entity-shaped pipelines on its own anyway ("Found *decent* program match ...
+     * ENTITIES_ALPHA"), which is the part that was worth having. Assignment only becomes the right
+     * tool once a pipeline is world-only and carries the full entity vertex format — split the model
+     * pipeline per context first, then assign the world one.
      */
     public static void assignIrisPipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, IrisProgramKind kind)
     {

@@ -541,8 +541,6 @@ public class BBSShaders
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
 
-        BBSRendering.assignIrisPipeline(pipeline, variant.pass() == FormTranslucentQueue.PASS_TRANSLUCENT
-            ? BBSRendering.IrisProgramKind.ENTITY_TRANSLUCENT : BBSRendering.IrisProgramKind.ENTITY);
         modelPipelines.put(variant, pipeline);
 
         return pipeline;
@@ -574,7 +572,6 @@ public class BBSShaders
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
 
-        BBSRendering.assignIrisPipeline(pipeline, BBSRendering.IrisProgramKind.ENTITY);
 
         return pipeline;
     }
@@ -605,7 +602,6 @@ public class BBSShaders
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
 
-        BBSRendering.assignIrisPipeline(pipeline, BBSRendering.IrisProgramKind.PARTICLE);
 
         return pipeline;
     }

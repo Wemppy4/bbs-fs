@@ -511,9 +511,7 @@ public class BBSModClient implements ClientModInitializer
              * was filling; that hook needs a WorldRenderContext rebuilt from render-state objects the
              * 1.21.11 Fabric API no longer hands out, so it is an empty stub here
              * (BBSRendering#onRenderChunkLayer). Keeping the 1.21.1 gate once the Iris sensor was
-             * reconnected meant forms drew NOWHERE with shaders on — replays gone entirely. What made
-             * the split necessary is handled differently now anyway: Iris is told which of the pack's
-             * programs each BBS pipeline belongs to (BBSRendering#assignIrisPipeline). */
+             * reconnected meant forms drew NOWHERE with shaders on — replays gone entirely. */
             BBSRendering.renderCoolStuff(context);
 
             if (BBSSettings.chromaSkyEnabled.get())
