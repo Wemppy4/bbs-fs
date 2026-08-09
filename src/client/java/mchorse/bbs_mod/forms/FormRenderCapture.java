@@ -112,6 +112,21 @@ public class FormRenderCapture
             return;
         }
 
+        active.computeIfAbsent(layer, (key) -> new ArrayList<>()).add(copy(buffer));
+
+        buffer.close();
+    }
+
+    /**
+     * Take an independent CPU copy of a built buffer's vertices, so the geometry outlives the
+     * {@link BuiltBuffer} (whose allocator slice is recycled the moment it is drawn or closed).
+     * Shared by the item capture above and {@link FormTranslucentQueue}'s deferred replay.
+     *
+     * <p>Does not close the buffer: the item path cancels its draw and closes it, the deferred path
+     * draws it immediately and lets the draw close it.
+     */
+    public static Captured copy(BuiltBuffer buffer)
+    {
         BuiltBuffer.DrawParameters params = buffer.getDrawParameters();
         /* ByteBuffer.duplicate() does NOT inherit byte order — the duplicate is always BIG_ENDIAN,
          * while BufferBuilder wrote the vertex data in native (little-endian) order. Reading floats
@@ -126,9 +141,7 @@ public class FormRenderCapture
         copy.put(source);
         copy.flip();
 
-        active.computeIfAbsent(layer, (key) -> new ArrayList<>()).add(new Captured(params, copy));
-
-        buffer.close();
+        return new Captured(params, copy);
     }
 
     /**

@@ -79,7 +79,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
          * GL culling vanilla keeps on) — see the note in render3D. The preview stack carries a
          * negative Z scale, which flips both faces' winding at once, so culling still keeps the one
          * turned towards the viewer. */
-        this.renderModel(format, BBSShaders::getBoundCulledModelLayer, null,
+        this.renderModel(format, BBSShaders::getBoundCulledModelLayer, null, false,
             stack,
             OverlayTexture.DEFAULT_UV, LightmapTextureManager.MAX_LIGHT_COORDINATE, Colors.WHITE,
             transition
@@ -124,7 +124,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
             VertexFormat pickFormat = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
             RenderPipeline picker = shading ? BBSShaders.getPickerBillboardProgram() : BBSShaders.getPickerBillboardNoShadingProgram();
 
-            this.renderModel(pickFormat, null, picker, context.stack, context.overlay, context.light, context.color, context.getTransition());
+            this.renderModel(pickFormat, null, picker, false, context.stack, context.overlay, context.light, context.color, context.getTransition());
 
             return;
         }
@@ -132,10 +132,10 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_COLOR;
         Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundCulledModelLayer : BBSShaders::getBoundBillboardLayer;
 
-        this.renderModel(format, layer, null, context.stack, context.overlay, context.light, context.color, context.getTransition());
+        this.renderModel(format, layer, null, shading, context.stack, context.overlay, context.light, context.color, context.getTransition());
     }
 
-    private void renderModel(VertexFormat format, Supplier<RenderLayer> shader, RenderPipeline picker, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
+    private void renderModel(VertexFormat format, Supplier<RenderLayer> shader, RenderPipeline picker, boolean deferrable, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
     {
         Link t = this.form.texture.get();
 
@@ -208,10 +208,10 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
             uvQuad.transform(matrix);
         }
 
-        this.renderQuad(format, texture, shader, picker, matrices, overlay, light, overlayColor, transition);
+        this.renderQuad(format, texture, shader, picker, deferrable, matrices, overlay, light, overlayColor, transition);
     }
 
-    private void renderQuad(VertexFormat format, Texture texture, Supplier<RenderLayer> shader, RenderPipeline picker, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
+    private void renderQuad(VertexFormat format, Texture texture, Supplier<RenderLayer> shader, RenderPipeline picker, boolean deferrable, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
     {
         Color color = new Color().set(overlayColor, true);
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -279,6 +279,17 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
                  * position matrix), so the pass only needs the global model-view — the same argument the
                  * cubic/BOBJ picking draws pass. */
                 BBSPickerRenderer.draw(picker, built, RenderSystem.getModelViewMatrix());
+            }
+            else if (deferrable)
+            {
+                /* A flat quad has no self-occlusion to preserve, so its deferred pass drops the depth
+                 * write — that is what keeps two billboards from hiding each other once the sort has
+                 * ordered them. Only the shaded path can defer: the unlit one draws through vanilla's
+                 * position_tex_color, which has no PASS_MODE split to make an opaque pass out of. */
+                FormTranslucentQueue.submit(built,
+                    new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, false, true),
+                    texture, color.a, null,
+                    new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(matrix.getTranslation(new Vector3f())));
             }
             else
             {

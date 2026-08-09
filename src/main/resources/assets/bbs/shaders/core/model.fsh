@@ -14,13 +14,15 @@ in vec2 texCoord0;
 
 out vec4 fragColor;
 
-/* TODO(1.21.11 render): two-pass translucency. On 1.21.1 this shader took a loose
- * `uniform int PassMode` that split the draw — pass 1 kept only the opaque texels (they write
- * depth), pass 2 kept only the semi-transparent ones and replayed them sorted far-to-near from
- * FormTranslucentQueue. 1.21.5+ has no mutable GlUniforms (a custom uniform must ride a std140
- * UBO declared on the RenderPipeline) and no VertexBuffer/BufferRenderer for the deferred
- * replay, so the queue is disabled on this branch and this shader draws single-pass.
- * Re-adding it needs a PassMode UBO entry plus one pipeline variant per pass. */
+/* Two-pass translucency. On 1.21.1 the split rode a mutable `uniform int PassMode`; 1.21.5+ has no
+ * mutable GlUniforms, so it is a compile-time define instead and each pass is its own registered
+ * RenderPipeline variant (BBSShaders.getModelLayer). Same semantics as 1.21.1: pass 1 keeps only the
+ * opaque texels (drawn immediately, writing depth), pass 2 keeps only the semi-transparent ones and
+ * is replayed at the end of the frame sorted far-to-near by FormTranslucentQueue. The test uses the
+ * FINAL alpha, so form/bone colour alpha counts too. 0 = single pass. */
+#ifndef PASS_MODE
+#define PASS_MODE 0
+#endif
 
 void main()
 {
@@ -32,6 +34,18 @@ void main()
     }
 
     color *= vertexColor * ColorModulator;
+
+#if PASS_MODE == 1
+    if (color.a < 0.999)
+    {
+        discard;
+    }
+#elif PASS_MODE == 2
+    if (color.a >= 0.999)
+    {
+        discard;
+    }
+#endif
 
     color.rgb = mix(overlayColor.rgb, color.rgb, overlayColor.a);
     color *= lightMapColor;

@@ -2,10 +2,12 @@ package mchorse.bbs_mod.cubic.render.vao;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.bobj.BOBJArmature;
 import mchorse.bbs_mod.bobj.BOBJLoader;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.joml.Matrices;
@@ -238,7 +240,12 @@ public class BOBJModelVAO
             }
             else
             {
-                (cull ? BBSShaders.getBoundCulledModelLayer() : BBSShaders.getBoundModelLayer()).draw(built);
+                /* Solid geometry: depth write stays on, so a deferred translucent pass still
+                 * self-occludes (see FormTranslucentQueue). */
+                FormTranslucentQueue.submit(built,
+                    new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, cull),
+                    BBSModClient.getTextures().getLastBound(), a, stencilMap,
+                    ModelVAORenderer.captureModelView(stack).getTranslation(new Vector3f()));
             }
         }
     }

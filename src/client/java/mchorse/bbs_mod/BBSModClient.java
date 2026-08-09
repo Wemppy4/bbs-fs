@@ -26,6 +26,7 @@ import mchorse.bbs_mod.film.Recorder;
 import mchorse.bbs_mod.film.WorldVideoExportSession;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormCategories;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.FramebufferManager;
@@ -554,6 +555,13 @@ public class BBSModClient implements ClientModInitializer
                     stack.pop();
                 }
             }
+
+            /* Every form has drawn by now (renderCoolStuff above is where replays, morphs and film
+             * forms render), so this is where the deferred translucent pass replays — sorted far to
+             * near, before the translucent terrain layer, the same place the 1.21.1 renderLayer hook
+             * flushed it. WorldRendererMixin keeps a flush on render RETURN as a safety net for
+             * anything that draws a form after this point; the second call is a no-op. */
+            FormTranslucentQueue.flush();
         });
 
         WorldRenderEvents.END_MAIN.register((context) ->

@@ -5,6 +5,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gl.UniformType;
 import net.minecraft.client.render.RenderLayer;
@@ -54,7 +55,7 @@ public class BBSShaders
      * CPU-side at buffer-build time (CubicCubeRenderer transforms each Normal before emitting it), so
      * the migrated bbs:core/model GLSL feeds the raw Normal straight into minecraft_mix_light.
      */
-    private static final RenderPipeline MODEL = registerModel(false);
+    private static final RenderPipeline MODEL = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, false));
 
     /* ---- model (culled) ----
      * The MODEL pipeline with backface culling ON, for geometry built as explicit front/back face
@@ -66,7 +67,49 @@ public class BBSShaders
      * keeps culling enabled — only LabelFormRenderer and cubic models with !isCulling() switched it
      * off around their own draws, and the billboard's deferred command was flagged cull = true.
      */
-    private static final RenderPipeline MODEL_CULLED = registerModel(true);
+    private static final RenderPipeline MODEL_CULLED = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, true));
+
+    /**
+     * What distinguishes one model-pipeline variant from another. On 1.21.1 all three were mutable
+     * state around a single program — {@code PassMode} a loose uniform, depth-write and cull global GL
+     * toggles flipped per draw by {@link FormTranslucentQueue#flush()}. 1.21.5+ has none of that: a
+     * pipeline is immutable, so each combination the form renderers actually ask for is its own
+     * registered pipeline, built on demand from the same {@code bbs:core/model} GLSL with PASS_MODE
+     * supplied as a shader define.
+     *
+     * @param pass       {@link FormTranslucentQueue#PASS_SINGLE}/{@code PASS_OPAQUE}/{@code PASS_TRANSLUCENT}
+     * @param depthWrite solid geometry keeps writing depth so it self-occludes; flat single-quad forms don't
+     * @param cull       the model's own culling flag (see MODEL_CULLED)
+     */
+    public record ModelVariant(int pass, boolean depthWrite, boolean cull)
+    {
+        public static final ModelVariant SINGLE = new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, false);
+
+        public ModelVariant withPass(int pass)
+        {
+            return new ModelVariant(pass, this.depthWrite, this.cull);
+        }
+
+        public ModelVariant withDepthWrite(boolean depthWrite)
+        {
+            return new ModelVariant(this.pass, depthWrite, this.cull);
+        }
+
+        public ModelVariant withCull(boolean cull)
+        {
+            return new ModelVariant(this.pass, this.depthWrite, cull);
+        }
+
+        private String suffix()
+        {
+            return (this.pass == FormTranslucentQueue.PASS_OPAQUE ? "_opaque" : this.pass == FormTranslucentQueue.PASS_TRANSLUCENT ? "_translucent" : "")
+                + (this.depthWrite ? "" : "_nodepth")
+                + (this.cull ? "_culled" : "");
+        }
+    }
+
+    /** Registered model pipelines by variant; each is a separate GLSL compile (different PASS_MODE define). */
+    private static final java.util.Map<ModelVariant, RenderPipeline> modelPipelines = new java.util.HashMap<>();
 
     /* ---- multilink ----
      * VertexFormat: POSITION_TEXTURE_COLOR
@@ -169,7 +212,6 @@ public class BBSShaders
 
     /* Lazily-built render layers (one per pipeline). RenderLayer.of caches nothing itself, so we
      * memoize here to keep a single instance the immediate buffer source can key on. */
-    private static RenderLayer modelLayer;
     private static RenderLayer billboardLayer;
     private static RenderLayer multiLinkLayer;
     private static RenderLayer subtitlesLayer;
@@ -244,87 +286,68 @@ public class BBSShaders
      * RenderSystem.setShader(...) + manual buffer flow.
      * ---------------------------------------------------------------------------------------- */
 
-    /** Model layers keyed by the texture they sample, so each carries its own NEAREST-sampled binding. */
-    private static final java.util.Map<net.minecraft.util.Identifier, RenderLayer> texturedModelLayers = new java.util.HashMap<>();
-
     /**
-     * The model layer bound to {@code texture}.
-     *
-     * <p>{@link #getModelLayer()} declares no texture at all, so Sampler0 was left to whatever the driver
-     * had — which is how models drew blurred even though their textures were NEAREST and GL agreed. The
-     * form editor never showed it because its preview path draws through a vanilla entity layer keyed on
-     * the adopted texture, which carries that texture's own (NEAREST) sampler. Binding the texture here
-     * gives the world/film path the same guarantee.
+     * Model layers keyed by variant + the texture they sample. Keyed by texture because a layer with no
+     * texture leaves Sampler0 to whatever the driver had — which is how models drew blurred even though
+     * their textures were NEAREST and GL agreed. (The form editor never showed it: its preview draws
+     * through a vanilla entity layer keyed on the adopted texture, which carries that texture's own
+     * sampler.) Keyed by variant because pass/depth-write/cull are pipeline state on 1.21.5+.
      */
-    public static RenderLayer getModelLayer(net.minecraft.util.Identifier texture)
-    {
-        if (texture == null)
-        {
-            return getModelLayer();
-        }
+    private record ModelLayerKey(ModelVariant variant, net.minecraft.util.Identifier texture)
+    {}
 
-        return texturedModelLayers.computeIfAbsent(texture, (id) -> RenderLayer.of(
-            BBSMod.MOD_ID + "_model_" + id.getPath(),
-            RenderSetup.builder(MODEL)
+    private static final java.util.Map<ModelLayerKey, RenderLayer> texturedModelLayers = new java.util.HashMap<>();
+
+    /** The model layer for {@code variant}, bound to {@code texture} (null = no texture bound). */
+    public static RenderLayer getModelLayer(ModelVariant variant, net.minecraft.util.Identifier texture)
+    {
+        return texturedModelLayers.computeIfAbsent(new ModelLayerKey(variant, texture), (key) ->
+        {
+            RenderSetup.Builder setup = RenderSetup.builder(modelPipeline(key.variant()))
                 .expectedBufferSize(RenderLayer.field_64008)
                 .translucent()
                 .useLightmap()
-                .useOverlay()
-                .texture("Sampler0", id)
-                .build()));
-    }
+                .useOverlay();
 
-    /**
-     * The model layer bound to whatever texture the renderers last bound through BBS's own texture manager
-     * — which is how the immediate model path has always chosen its texture. Resolving it into a real
-     * TextureSetup is what keeps Sampler0 on that texture's NEAREST sampler.
-     */
-    public static RenderLayer getBoundModelLayer()
-    {
-        mchorse.bbs_mod.graphics.texture.Texture bound = mchorse.bbs_mod.BBSModClient.getTextures().getLastBound();
-
-        return getModelLayer(bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound));
-    }
-
-    /** Culled model layers keyed by texture, mirroring {@link #texturedModelLayers}. */
-    private static final java.util.Map<net.minecraft.util.Identifier, RenderLayer> texturedCulledModelLayers = new java.util.HashMap<>();
-
-    private static RenderLayer culledModelLayer;
-
-    /**
-     * The backface-culled model layer bound to {@code texture} — {@link #getModelLayer(net.minecraft.util.Identifier)}
-     * on the MODEL_CULLED pipeline. For geometry that emits front AND back faces itself and expects the
-     * GPU to keep only the one facing the viewer (see MODEL_CULLED).
-     */
-    public static RenderLayer getCulledModelLayer(net.minecraft.util.Identifier texture)
-    {
-        if (texture == null)
-        {
-            if (culledModelLayer == null)
+            if (key.texture() != null)
             {
-                culledModelLayer = layer("model_culled", MODEL_CULLED, true);
+                setup.texture("Sampler0", key.texture());
             }
 
-            return culledModelLayer;
-        }
-
-        return texturedCulledModelLayers.computeIfAbsent(texture, (id) -> RenderLayer.of(
-            BBSMod.MOD_ID + "_model_culled_" + id.getPath(),
-            RenderSetup.builder(MODEL_CULLED)
-                .expectedBufferSize(RenderLayer.field_64008)
-                .translucent()
-                .useLightmap()
-                .useOverlay()
-                .texture("Sampler0", id)
-                .build()));
+            return RenderLayer.of(BBSMod.MOD_ID + "_model" + key.variant().suffix()
+                + (key.texture() == null ? "" : "_" + key.texture().getPath()), setup.build());
+        });
     }
 
-    /** {@link #getBoundModelLayer()} on the culled variant. */
-    public static RenderLayer getBoundCulledModelLayer()
+    /**
+     * The model layer for {@code variant}, bound to whatever texture the renderers last bound through BBS's
+     * own texture manager — which is how the immediate model path has always chosen its texture. Resolving
+     * it into a real TextureSetup is what keeps Sampler0 on that texture's own sampler.
+     */
+    public static RenderLayer getBoundModelLayer(ModelVariant variant)
     {
         mchorse.bbs_mod.graphics.texture.Texture bound = mchorse.bbs_mod.BBSModClient.getTextures().getLastBound();
 
-        return getCulledModelLayer(bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound));
+        return getModelLayer(variant, bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound));
+    }
+
+    public static RenderLayer getModelLayer(net.minecraft.util.Identifier texture)
+    {
+        return getModelLayer(ModelVariant.SINGLE, texture);
+    }
+
+    public static RenderLayer getBoundModelLayer()
+    {
+        return getBoundModelLayer(ModelVariant.SINGLE);
+    }
+
+    /**
+     * The backface-culled single-pass model layer: for geometry that emits front AND back faces itself and
+     * expects the GPU to keep only the one facing the viewer (see MODEL_CULLED).
+     */
+    public static RenderLayer getBoundCulledModelLayer()
+    {
+        return getBoundModelLayer(ModelVariant.SINGLE.withCull(true));
     }
 
     /** Unlit billboard layers keyed by texture, mirroring {@link #getModelLayer(net.minecraft.util.Identifier)}. */
@@ -363,18 +386,10 @@ public class BBSShaders
                 .build()));
     }
 
+    /** The untextured single-pass model layer (Sampler0 left to the driver — see {@link #getModelLayer(ModelVariant, net.minecraft.util.Identifier)}). */
     public static RenderLayer getModelLayer()
     {
-        if (modelLayer == null)
-        {
-            // TODO(1.21.11 render merge): old ShaderProgram/ProxyResourceFactory infra — re-port against pipeline API
-            // (was: 1.21.1 lazily constructed ShaderProgram model/multiLink/subtitles/selection + 5 picker* programs
-            //  from a ProxyResourceFactory over the resource manager, exposed via get*Program() accessors; this whole
-            //  ShaderProgram system is replaced by the RenderPipeline/RenderLayer infra above).
-            modelLayer = layer("model", MODEL, true);
-        }
-
-        return modelLayer;
+        return getModelLayer(ModelVariant.SINGLE, null);
     }
 
     public static RenderLayer getMultilinkLayer()
@@ -479,20 +494,31 @@ public class BBSShaders
      * the vanilla entity pipeline uses (DynamicTransforms, Projection, Fog, Lighting) so the engine
      * binds them; without these the model shader fails to link and every world draw is a no-op.
      *
-     * <p>{@code cull} picks between the two registered variants — see MODEL / MODEL_CULLED.
+     * <p>One pipeline per {@link ModelVariant}: PASS_MODE rides in as a shader define (the 1.21.1 loose
+     * uniform is gone), and depth-write/cull are pipeline state now instead of GL toggles flipped around
+     * the draw. Registered on first request and memoized — the engine compiles the GLSL lazily, so a
+     * variant nothing asks for costs nothing.
      */
-    private static RenderPipeline registerModel(boolean cull)
+    private static RenderPipeline modelPipeline(ModelVariant variant)
     {
+        RenderPipeline existing = modelPipelines.get(variant);
+
+        if (existing != null)
+        {
+            return existing;
+        }
+
         Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/model");
 
         RenderPipeline.Builder builder = RenderPipeline.builder()
-            .withLocation(Identifier.of(BBSMod.MOD_ID, cull ? "pipeline/model_culled" : "pipeline/model"))
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/model" + variant.suffix()))
             .withVertexShader(shader)
             .withFragmentShader(shader)
             .withVertexFormat(VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL, VertexFormat.DrawMode.QUADS)
             .withBlend(BLEND)
             .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-            .withCull(cull)
+            .withDepthWrite(variant.depthWrite())
+            .withCull(variant.cull())
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withUniform("Fog", UniformType.UNIFORM_BUFFER)
@@ -501,7 +527,16 @@ public class BBSShaders
             .withSampler("Sampler1")
             .withSampler("Sampler2");
 
-        return RenderPipelines.register(builder.build());
+        if (variant.pass() != FormTranslucentQueue.PASS_SINGLE)
+        {
+            builder.withShaderDefine("PASS_MODE", variant.pass());
+        }
+
+        RenderPipeline pipeline = RenderPipelines.register(builder.build());
+
+        modelPipelines.put(variant, pipeline);
+
+        return pipeline;
     }
 
     /**

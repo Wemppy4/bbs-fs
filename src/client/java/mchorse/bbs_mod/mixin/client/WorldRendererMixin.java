@@ -25,10 +25,10 @@ public class WorldRendererMixin
     private Framebuffer entityOutlineFramebuffer;
 
     /* Deferred form translucency spans the frame: forms enqueue their translucent pass while
-     * entities render, and the queue flushes right before the translucent terrain layer so the
-     * blending sits under water/glass the way vanilla entities do. The RETURN hook is a safety
-     * net for frames where the translucent layer never draws (e.g. a replaced terrain pipeline).
-     * Both are no-ops while FormTranslucentQueue is an inert facade on this branch. */
+     * entities render, and the queue flushes at the end of WorldRenderEvents.AFTER_ENTITIES (see
+     * BBSModClient), right after the last form has drawn. The RETURN hook here is the safety net
+     * for anything that draws a form later in the frame — the flush deactivates the queue, so
+     * whichever of the two runs first owns the replay and the other is a no-op. */
     @Inject(method = "render", at = @At("HEAD"))
     public void onRenderWorldStart(CallbackInfo info)
     {

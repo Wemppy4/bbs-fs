@@ -21,6 +21,7 @@ import mchorse.bbs_mod.cubic.render.CubicVAOBuilderRenderer;
 import mchorse.bbs_mod.cubic.render.CubicVAORenderer;
 import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
 import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
@@ -545,8 +546,13 @@ public class ModelInstance implements IModelInstance
                     {
                         /* model.culling picks the layer variant. On 1.21.1 it was a global GL toggle
                          * (ModelFormRenderer disabled culling around the whole render when the model
-                         * asked for it and restored it afterwards); the pipeline encodes it now. */
-                        (this.isCulling() ? BBSShaders.getBoundCulledModelLayer() : BBSShaders.getBoundModelLayer()).draw(built);
+                         * asked for it and restored it afterwards); the pipeline encodes it now.
+                         * Depth write stays on: model geometry is solid, so its own semi-transparent
+                         * texels must keep occluding the ones behind them even in the deferred pass. */
+                        FormTranslucentQueue.submit(built,
+                            new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, this.isCulling()),
+                            BBSModClient.getTextures().getLastBound(), color.a, stencilMap,
+                            ModelVAORenderer.captureModelView(stack).getTranslation(new Vector3f()));
                     }
                 }
             }

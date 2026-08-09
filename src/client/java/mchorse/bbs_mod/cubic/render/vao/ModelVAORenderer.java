@@ -3,14 +3,17 @@ package mchorse.bbs_mod.cubic.render.vao;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 public class ModelVAORenderer
 {
@@ -45,7 +48,12 @@ public class ModelVAORenderer
 
         if (built != null)
         {
-            (cull ? BBSShaders.getBoundCulledModelLayer() : BBSShaders.getBoundModelLayer()).draw(built);
+            /* Solid geometry: depth write stays on, so a deferred translucent pass still
+             * self-occludes (see FormTranslucentQueue). */
+            FormTranslucentQueue.submit(built,
+                new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, cull),
+                BBSModClient.getTextures().getLastBound(), a, null,
+                captureModelView(stack).getTranslation(new Vector3f()));
         }
     }
 
