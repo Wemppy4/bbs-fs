@@ -81,6 +81,10 @@ public final class ModelIKDebug
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(POSITION_COLOR_TRIS_NO_DEPTH, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.BASIC); }
 
     private static final RenderPipeline POSITION_COLOR_LINES_NO_DEPTH = RenderPipelines.register(
         RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
@@ -91,6 +95,10 @@ public final class ModelIKDebug
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(POSITION_COLOR_LINES_NO_DEPTH, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.LINES); }
 
     /* The picking pass encodes the object index as the exact vertex colour, so blend MUST be off
      * (a blended pixel would corrupt the id read back from the framebuffer). Depth-test stays

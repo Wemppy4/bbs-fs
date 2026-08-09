@@ -57,6 +57,10 @@ public class Draw
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(POSITION_COLOR_TRIS, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.BASIC); }
 
     /* POSITION_COLOR / TRIANGLES, no depth test (coolerAxes did RenderSystem.disableDepthTest()). */
     private static final RenderPipeline POSITION_COLOR_TRIS_NO_DEPTH = RenderPipelines.register(
@@ -68,6 +72,10 @@ public class Draw
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(POSITION_COLOR_TRIS_NO_DEPTH, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.BASIC); }
 
     /* POSITION_COLOR / DEBUG_LINES, depth-tested. Replaces the old DEBUG_LINES + GameRenderer::getPositionColorProgram
      * path (e.g. the 3D model-preview ground grid); GL_LINES width 1, no cull, drawn under LEQUAL depth as the
@@ -81,6 +89,10 @@ public class Draw
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(POSITION_COLOR_LINES, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.LINES); }
 
     private static RenderLayer positionColorLayer;
     private static RenderLayer positionColorNoDepthLayer;

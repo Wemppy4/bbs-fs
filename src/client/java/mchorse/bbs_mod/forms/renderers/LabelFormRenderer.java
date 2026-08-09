@@ -48,6 +48,10 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(SHADOW_PIPELINE, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.BASIC); }
 
     private static RenderLayer shadowLayer;
 

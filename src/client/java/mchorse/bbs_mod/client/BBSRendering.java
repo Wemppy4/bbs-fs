@@ -894,13 +894,36 @@ public class BBSRendering
     }
 
     /**
+     * The family of shaderpack program a BBS pipeline belongs to. Kept BBS-side so that every
+     * registration site can name one without dragging Iris's classes into itself;
+     * {@link IrisUtils#assignPipeline} does the translation.
+     */
+    public enum IrisProgramKind
+    {
+        /** Lit, textured geometry with light and normals: forms. */
+        ENTITY,
+        /** The same, for the translucent pass. */
+        ENTITY_TRANSLUCENT,
+        /** BBS's own particle emitter. */
+        PARTICLE,
+        /** Textured geometry with no colour or light of its own — trail strips. */
+        TEXTURED,
+        /** Flat coloured triangles: label shadows, gizmo bodies, IK debug, the world overlays. */
+        BASIC,
+        /** The same in line mode. */
+        LINES
+    }
+
+    /**
      * Hand a BBS pipeline to Iris so a loaded shaderpack draws it with one of its own programs.
      * Silently does nothing without Iris. Assign each pipeline exactly once — Iris rejects a second
      * assignment — which is why this is called from the registration of each one.
      *
-     * @param translucent picks the pack's translucent program over its solid one.
+     * <p>Only for geometry that goes into the WORLD. Pipelines that draw into a BBS framebuffer of our
+     * own — the pickers, the gizmo's highlight, the IK stencil — must stay unassigned: their colours
+     * are identity payloads, and a pack reshading them would break what reads them back.
      */
-    public static void assignIrisPipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, boolean translucent)
+    public static void assignIrisPipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, IrisProgramKind kind)
     {
         if (!iris || pipeline == null)
         {
@@ -909,37 +932,17 @@ public class BBSRendering
 
         try
         {
-            IrisUtils.assignPipeline(pipeline, translucent);
+            IrisUtils.assignPipeline(pipeline, kind);
 
-            /* One line per pipeline, and BBS registers a handful — worth keeping, because a pipeline
-             * missing from this list is a form that a shaderpack will not draw, and that reads in game
-             * as "some replays show and some don't" rather than as anything shader-shaped. */
-            LOGGER.info("[BBS shaders] {} -> Iris {}", pipeline.getLocation(), translucent ? "ENTITIES_TRANSLUCENT" : "ENTITIES");
+            /* One line per pipeline, and BBS registers a good dozen — worth keeping, because a pipeline
+             * missing from this list is geometry a shaderpack will not draw, and in game that reads as
+             * "some replays show and some don't" rather than as anything shader-shaped. */
+            LOGGER.info("[BBS shaders] {} -> Iris {}", pipeline.getLocation(), kind);
         }
         catch (Throwable e)
         {
             /* A pack-less Iris, a version whose API moved, a double assignment we failed to prevent:
-             * none of that is worth taking the editor down for — the form just draws unshaded. */
-            LOGGER.error("[BBS shaders] failed to hand {} to Iris", pipeline.getLocation(), e);
-        }
-    }
-
-    /** Same, for the particle pipeline: the pack's particle program rather than its entity one. */
-    public static void assignIrisParticlePipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, boolean translucent)
-    {
-        if (!iris || pipeline == null)
-        {
-            return;
-        }
-
-        try
-        {
-            IrisUtils.assignParticlePipeline(pipeline, translucent);
-
-            LOGGER.info("[BBS shaders] {} -> Iris {}", pipeline.getLocation(), translucent ? "PARTICLES_TRANSLUCENT" : "PARTICLES");
-        }
-        catch (Throwable e)
-        {
+             * none of that is worth taking the editor down for — the geometry just draws unshaded. */
             LOGGER.error("[BBS shaders] failed to hand {} to Iris", pipeline.getLocation(), e);
         }
     }

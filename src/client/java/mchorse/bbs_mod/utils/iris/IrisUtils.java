@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.utils.iris;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import mchorse.bbs_mod.client.BBSRendering;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.api.v0.IrisProgram;
 
@@ -43,14 +44,29 @@ public class IrisUtils
      * <p>Iris throws if a pipeline is assigned twice, so assignment happens once per pipeline, at the
      * point each is registered.
      */
-    public static void assignPipeline(RenderPipeline pipeline, boolean translucent)
+    public static void assignPipeline(RenderPipeline pipeline, BBSRendering.IrisProgramKind kind)
     {
-        IrisApi.getInstance().assignPipeline(pipeline, translucent ? IrisProgram.ENTITIES_TRANSLUCENT : IrisProgram.ENTITIES);
+        IrisApi.getInstance().assignPipeline(pipeline, translate(kind));
     }
 
-    /** Same, for the particle pipeline: the pack's particle program, not its entity one. */
-    public static void assignParticlePipeline(RenderPipeline pipeline, boolean translucent)
+    /**
+     * Which of the pack's programs a kind means. Chosen to follow the VERTEX FORMAT, the way vanilla's
+     * own pipelines map: a pack's entity program reads colour, both light coordinates and a normal, so
+     * handing it geometry that carries only position and a colour would have it read attributes that
+     * are not there. Iris guesses this itself for anything shaped like an entity draw ("Found *decent*
+     * program match ... ENTITIES_ALPHA" in the log) and gives up on the plainer formats ("Missing
+     * program ... in override list") — those are the ones that have to be named here.
+     */
+    private static IrisProgram translate(BBSRendering.IrisProgramKind kind)
     {
-        IrisApi.getInstance().assignPipeline(pipeline, translucent ? IrisProgram.PARTICLES_TRANSLUCENT : IrisProgram.PARTICLES);
+        return switch (kind)
+        {
+            case ENTITY -> IrisProgram.ENTITIES;
+            case ENTITY_TRANSLUCENT -> IrisProgram.ENTITIES_TRANSLUCENT;
+            case PARTICLE -> IrisProgram.PARTICLES;
+            case TEXTURED -> IrisProgram.TEXTURED;
+            case LINES -> IrisProgram.LINES;
+            case BASIC -> IrisProgram.BASIC;
+        };
     }
 }

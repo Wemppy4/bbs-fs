@@ -59,6 +59,10 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(AXES_PIPELINE, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.BASIC); }
 
     /* POSITION_TEXTURE / QUADS, depth-tested (the trail strip path enabled depth test + blend).
      * TODO(1.21.11 render): this is seeded from POSITION_TEX_COLOR_SNIPPET because there is no
@@ -75,6 +79,10 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
             .withCull(false)
             .build()
     );
+    /* Named for a shaderpack: Iris cannot guess a program for a plain position/colour draw and
+     * logs "Missing program ... in override list", after which the geometry renders wrong or not
+     * at all. Does nothing without Iris. */
+    static { mchorse.bbs_mod.client.BBSRendering.assignIrisPipeline(TRAIL_PIPELINE, mchorse.bbs_mod.client.BBSRendering.IrisProgramKind.TEXTURED); }
 
     private static RenderLayer axesLayer;
     private static RenderLayer trailLayer;
