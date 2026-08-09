@@ -910,6 +910,11 @@ public class BBSRendering
         try
         {
             IrisUtils.assignPipeline(pipeline, translucent);
+
+            /* One line per pipeline, and BBS registers a handful — worth keeping, because a pipeline
+             * missing from this list is a form that a shaderpack will not draw, and that reads in game
+             * as "some replays show and some don't" rather than as anything shader-shaped. */
+            LOGGER.info("[BBS shaders] {} -> Iris {}", pipeline.getLocation(), translucent ? "ENTITIES_TRANSLUCENT" : "ENTITIES");
         }
         catch (Throwable e)
         {
@@ -930,6 +935,8 @@ public class BBSRendering
         try
         {
             IrisUtils.assignParticlePipeline(pipeline, translucent);
+
+            LOGGER.info("[BBS shaders] {} -> Iris {}", pipeline.getLocation(), translucent ? "PARTICLES_TRANSLUCENT" : "PARTICLES");
         }
         catch (Throwable e)
         {
