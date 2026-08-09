@@ -6,6 +6,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -337,6 +338,37 @@ public class VideoRecorder
     }
 
     /**
+     * Bind the captured frame for a read-back, returning the binding to hand back to
+     * {@link #restoreAfterReadBack(int)}.
+     *
+     * <p>The read-back happens in the middle of the world render (the recorder is driven from
+     * {@code WorldRenderEvents.END_MAIN}), so it must leave the texture state exactly as it found it.
+     * A raw {@code glBindTexture} does not: since 1.21.5 {@code GlStateManager} caches the bound
+     * texture per unit and SKIPS the real bind when it believes the id is already bound, so binding
+     * behind its back makes vanilla skip a bind it needs and the draw samples this snapshot instead.
+     *
+     * <p>That is what made every recording flicker. The lightmap sampler was reading the captured
+     * frame, which darkened and tinted the whole image — for two frames out of every three. The third
+     * was the frame carrying the game tick, on which the lightmap is rebuilt and the binding resynced,
+     * so exactly one frame in three came out correct (the recording paces one tick per three frames at
+     * 60 fps, which is where the period came from). {@link mchorse.bbs_mod.graphics.texture.Texture}
+     * routes through GlStateManager for the same reason; this path was the one left on raw GL.
+     */
+    private int bindForReadBack()
+    {
+        int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+
+        GlStateManager._bindTexture(this.textureId);
+
+        return previousTexture;
+    }
+
+    private void restoreAfterReadBack(int previousTexture)
+    {
+        GlStateManager._bindTexture(previousTexture);
+    }
+
+    /**
      * Asynchronous read-back path (Windows/Linux): {@code glGetTexImage} into a ping-pong
      * pair of pixel pack buffers, mapping the previously filled buffer to overlap GPU
      * read-back with the CPU-side write to ffmpeg.
@@ -350,10 +382,12 @@ public class VideoRecorder
 
             GL30.glPixelStorei(GL30.GL_PACK_ALIGNMENT, 1);
             GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[pbo]);
-            GL30.glBindTexture(GL30.GL_TEXTURE_2D, this.textureId);
+
+            int previousTexture = this.bindForReadBack();
+
             GL30.glGetTexImage(GL30.GL_TEXTURE_2D, 0, GL30.GL_BGR, GL30.GL_UNSIGNED_BYTE, 0);
 
-            int readError = GL30.glGetError();
+            this.restoreAfterReadBack(previousTexture);
 
             GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[nextPbo]);
 
@@ -361,8 +395,6 @@ public class VideoRecorder
 
             if (mappedBuffer != null && this.counter != 0)
             {
-                this.probeFrame(mappedBuffer, readError);
-
                 this.channel.write(mappedBuffer);
             }
 
@@ -378,29 +410,6 @@ public class VideoRecorder
     }
 
     /**
-     * TEMPORARY(1.21.11 export diagnostics): sum the luminance of the pixels about to be handed to
-     * ffmpeg, next to what {@link BBSRendering} saw in the framebuffer it snapshotted. A black PBO
-     * under a lit framebuffer means the capture path drops the frame; both black means the world
-     * render never reached our framebuffer. Delete along with the BBSRendering probes.
-     */
-    private void probeFrame(ByteBuffer mapped, int readError)
-    {
-        long sum = 0;
-        int step = Math.max(3, (this.textureWidth * this.textureHeight * 3) / 4096 / 3 * 3);
-
-        for (int i = 0; i + 2 < mapped.limit(); i += step)
-        {
-            sum += (mapped.get(i) & 0xFF) + (mapped.get(i + 1) & 0xFF) + (mapped.get(i + 2) & 0xFF);
-        }
-
-        System.out.println(String.format(
-            "[BBS export] frame=%d counter=%d snapshots=%d fbLum=%d fbErr=0x%x pboLum=%d texErr=0x%x %s",
-            BBSRendering.getProbeFrame(), this.counter, BBSRendering.getProbeSnapshots(),
-            BBSRendering.getProbeLuminance(), BBSRendering.getProbeError(), sum, readError,
-            BBSRendering.getProbeState()));
-    }
-
-    /**
      * Synchronous read-back path (macOS): {@code glGetTexImage} straight into {@link #buffer}
      * and write it to ffmpeg. Simpler and stalls the render thread, but avoids the
      * pixel-pack-buffer path that renders black on macOS.
@@ -410,8 +419,13 @@ public class VideoRecorder
         this.buffer.clear();
 
         GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.textureId);
+
+        int previousTexture = this.bindForReadBack();
+
         GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGR, GL11.GL_UNSIGNED_BYTE, this.buffer);
+
+        this.restoreAfterReadBack(previousTexture);
+
         this.buffer.rewind();
 
         try

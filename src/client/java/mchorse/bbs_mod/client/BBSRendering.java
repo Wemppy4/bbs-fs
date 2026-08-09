@@ -475,9 +475,6 @@ public class BBSRendering
 
         renderingWorld = true;
 
-        /* TEMPORARY(1.21.11 export diagnostics) — see probeFramebuffer. */
-        startExportFrame();
-
         if (!customSize)
         {
             return;
@@ -577,8 +574,6 @@ public class BBSRendering
             GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, w, h);
             texture.unbind();
 
-            probeFramebuffer(w, h);
-
             GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, previousRead);
         }
         // TODO(1.21.11 render merge): HiDPI export-downscale supersampling — re-port against pipeline API
@@ -601,107 +596,6 @@ public class BBSRendering
     public static void scheduleAfterNextExportFrame(Runnable action)
     {
         pendingExportResolutionAction = action;
-    }
-
-    /* TEMPORARY(1.21.11 export diagnostics): the recorded video flickers black frame by frame, and the
-     * flicker is in the file as well as on screen — so the black is in the CAPTURE, upstream of how the
-     * frame is presented. These probes split that in two: this one samples what our framebuffer actually
-     * holds at snapshot time (i.e. did the world render land in it at all), and VideoRecorder samples the
-     * pixels it is about to hand ffmpeg. Two black patterns that agree blame the world render; a black
-     * PBO under a lit framebuffer blames the copy/read-back. Delete both once the cause is proven. */
-
-    private static java.nio.ByteBuffer probeRow;
-    private static long probeLuminance;
-    private static int probeError;
-    private static int probeFrame;
-    private static int probeSnapshots;
-    private static String probeState = "";
-
-    public static void startExportFrame()
-    {
-        probeFrame += 1;
-        probeSnapshots = 0;
-    }
-
-    public static int getProbeFrame()
-    {
-        return probeFrame;
-    }
-
-    public static int getProbeSnapshots()
-    {
-        return probeSnapshots;
-    }
-
-    public static long getProbeLuminance()
-    {
-        return probeLuminance;
-    }
-
-    public static int getProbeError()
-    {
-        return probeError;
-    }
-
-    public static String getProbeState()
-    {
-        return probeState;
-    }
-
-    public static boolean isProbingExport()
-    {
-        return BBSModClient.getVideoRecorder().isRecording();
-    }
-
-    /**
-     * Read one horizontal line out of the middle of the framebuffer we just snapshotted (its colour
-     * attachment is still bound to the capture read FBO) and sum the luminance of every 32nd pixel.
-     * One synchronous read per frame; only ever runs while the recorder is running.
-     */
-    private static void probeFramebuffer(int w, int h)
-    {
-        probeSnapshots += 1;
-
-        if (!isProbingExport() || w <= 0 || h <= 0)
-        {
-            return;
-        }
-
-        Texture snapshot = getTexture();
-
-        probeState = String.format("fb=%dx%d tex=%dx%d mcFbIsOurs=%b customSize=%b toggled=%b menu=%b",
-            w, h, snapshot.width, snapshot.height,
-            MinecraftClient.getInstance().getFramebuffer() == framebuffer,
-            customSize, toggleFramebuffer, UIScreen.getCurrentMenu() != null);
-
-        int stride = w * 3;
-
-        if (probeRow == null || probeRow.capacity() < stride)
-        {
-            probeRow = org.lwjgl.system.MemoryUtil.memAlloc(stride);
-        }
-
-        /* glReadPixels honours a bound pixel pack buffer; the recorder leaves it at 0, but be explicit
-         * so the probe can never end up writing into the recorder's PBO. */
-        GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
-        GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
-        GL11.glGetError();
-
-        probeRow.clear();
-        GL11.glReadPixels(0, h / 2, w, 1, GL11.GL_RGB, GL11.GL_UNSIGNED_BYTE, probeRow);
-
-        probeError = GL11.glGetError();
-
-        long sum = 0;
-
-        for (int x = 0; x < w; x += 32)
-        {
-            int i = x * 3;
-
-            sum += (probeRow.get(i) & 0xFF) + (probeRow.get(i + 1) & 0xFF) + (probeRow.get(i + 2) & 0xFF);
-        }
-
-        probeLuminance = sum;
     }
 
     public static void onRenderChunkLayer(Matrix4f positionMatrix)
