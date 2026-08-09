@@ -676,9 +676,12 @@ public class BBSRendering
          * projectionMatrix, positionMatrix, consumers, profiler, advancedTranslucency, world) signature. That API
          * is gone: the context now lives in net.fabricmc.fabric.impl.client.rendering.world and prepare(...) takes
          * the new world-render-state objects (WorldRenderState/SectionRenderState/GpuBufferSlice command queue),
-         * and RenderSystem.getProjectionMatrix()/MinecraftClient.getProfiler() were removed. Iris support is
-         * permanently disabled (isIrisShadersEnabled() == false), so this path is currently dead; rebuild the
-         * context through the new pipeline foundation if/when Iris is reintroduced. */
+         * and RenderSystem.getProjectionMatrix()/MinecraftClient.getProfiler() were removed.
+         *
+         * Still a stub now that Iris is coupled again — and nothing waits on it: forms draw from
+         * AFTER_ENTITIES in every case (see BBSModClient), and the reason 1.21.1 needed this hook at all
+         * is covered by handing Iris the pipeline-to-program mapping instead. Rebuild it only if a pack
+         * turns out to need BBS geometry inside the chunk-layer pass specifically. */
         if (isIrisShadersEnabled())
         {
             /* renderCoolStuff(context) — needs a reconstructed WorldRenderContext (see TODO above). */

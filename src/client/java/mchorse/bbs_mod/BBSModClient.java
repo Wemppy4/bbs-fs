@@ -506,10 +506,15 @@ public class BBSModClient implements ClientModInitializer
 
         WorldRenderEvents.AFTER_ENTITIES.register((context) ->
         {
-            if (!BBSRendering.isIrisShadersEnabled())
-            {
-                BBSRendering.renderCoolStuff(context);
-            }
+            /* Forms draw here whether or not a shaderpack is loaded. 1.21.1 skipped this call under
+             * Iris and drew them from its own chunk-layer hook instead, to land inside the pass Iris
+             * was filling; that hook needs a WorldRenderContext rebuilt from render-state objects the
+             * 1.21.11 Fabric API no longer hands out, so it is an empty stub here
+             * (BBSRendering#onRenderChunkLayer). Keeping the 1.21.1 gate once the Iris sensor was
+             * reconnected meant forms drew NOWHERE with shaders on — replays gone entirely. What made
+             * the split necessary is handled differently now anyway: Iris is told which of the pack's
+             * programs each BBS pipeline belongs to (BBSRendering#assignIrisPipeline). */
+            BBSRendering.renderCoolStuff(context);
 
             if (BBSSettings.chromaSkyEnabled.get())
             {
