@@ -37,7 +37,11 @@ public enum TransformSpace
      *  to face (form editor, model blocks) keep the plain world axes. */
     GLOBAL(true),
 
-    /** The camera's right/up/forward — a constrained edit runs in screen space. */
+    /** The camera's right/up/forward — a constrained edit runs in screen space.
+     *  The handles are additionally drawn facing the eye rather than merely
+     *  parallel to the screen, so an off-centre gizmo reads dead flat instead of
+     *  slightly turned away (see {@code Gizmo.applyViewShear}); the edit frame
+     *  itself is the plain camera basis. */
     VIEW(true),
 
     /** The parent's frame — the frame the bone's own channels compose in.

@@ -159,7 +159,11 @@ public class UIOverlayPanel extends UIElement
 
     protected void renderBackground(UIContext context)
     {
-        context.batcher.dropShadow(this.area.x, this.area.y, this.area.ex(), this.area.ey(), 10, BBSSettings.panelShadowOpaqueColor(), BBSSettings.panelShadowTransparentColor());
+        if (BBSSettings.hasOverlayGradientBorder())
+        {
+            context.batcher.dropShadow(this.area.x, this.area.y, this.area.ex(), this.area.ey(), 10, BBSSettings.panelShadowOpaqueColor(), BBSSettings.panelShadowTransparentColor());
+        }
+
         this.area.render(context.batcher, BBSSettings.raisedSurface());
         this.icons.area.render(context.batcher, BBSSettings.chromeSurface());
 

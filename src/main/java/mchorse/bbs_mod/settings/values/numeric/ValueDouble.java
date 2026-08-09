@@ -27,6 +27,14 @@ public class ValueDouble extends BaseValueNumber<Double>
     }
 
     @Override
+    public ValueDouble slider(double step)
+    {
+        super.slider(step);
+
+        return this;
+    }
+
+    @Override
     protected Double clamp(Double value)
     {
         return MathUtils.clamp(value, this.min, this.max);

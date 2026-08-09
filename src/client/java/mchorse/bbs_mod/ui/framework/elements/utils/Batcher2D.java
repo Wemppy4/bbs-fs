@@ -71,6 +71,9 @@ import java.util.function.Supplier;
  */
 public class Batcher2D
 {
+    /** How far a lit edge is pulled towards white, see {@link #surfaceBox}. */
+    private static final float HIGHLIGHT_STRENGTH = 0.15F;
+
     private static final BlendFunction BLEND = BlendFunction.TRANSLUCENT;
 
     /* BBS-owned 2D POSITION_COLOR pipelines (no depth test - GUI overlay), one per draw mode used
@@ -149,6 +152,13 @@ public class Batcher2D
 
         return fontRenderer;
     }
+
+    /* TODO(1.21.11 render): pixel-art program for textured UI quads. 1.21.1 picked BBS's own program
+     * here (keeping the seam between texels at a fractional ui_scale) and fell back to
+     * GameRenderer.getPositionTexColorProgram, skipping it for textures the user asked to be linear or
+     * mipmapped. Both the selection point (RenderSystem.setShader) and the fallback getter are gone on
+     * 1.21.11 — the batcher composites through GUI pipelines / drawTexture instead — so the choice has
+     * to be re-expressed as a pipeline variant. See the matching note in GameRendererMixin. */
 
     public Batcher2D(DrawContext context)
     {
@@ -357,7 +367,7 @@ public class Batcher2D
         builder.vertex(matrix, x + w, y).color(color2);
     }
 
-    public void bevelBox(int x1, int y1, int x2, int y2, int fill, boolean shadow, boolean border)
+    public void surfaceBox(int x1, int y1, int x2, int y2, int fill, boolean shadow, boolean border)
     {
         if (border)
         {
@@ -371,17 +381,18 @@ public class Batcher2D
 
         this.box(x1, y1, x2, y2, fill);
 
-        if (!BBSSettings.interfaceShadows.get())
+        /* Highlight and shadow are separate settings: the lit edges are the loud
+         * half of the old bevel, so they're off by default and weaker than they
+         * were — about six steps of the surface ramp instead of thirteen. */
+        if (BBSSettings.interfaceHighlights.get())
         {
-            return;
+            int light = Colors.lerp(fill, Colors.WHITE, HIGHLIGHT_STRENGTH);
+
+            this.box(x1, y1, x2, y1 + 1, light);
+            this.box(x1, y1, x1 + 1, y2, light);
         }
 
-        int light = Colors.lerp(fill, Colors.WHITE, 0.35F);
-
-        this.box(x1, y1, x2, y1 + 1, light);
-        this.box(x1, y1, x1 + 1, y2, light);
-
-        if (shadow)
+        if (shadow && BBSSettings.interfaceShadows.get())
         {
             this.box(x1, y2 - 2, x2, y2, Colors.lerp(fill, Colors.A100, 0.4F));
         }

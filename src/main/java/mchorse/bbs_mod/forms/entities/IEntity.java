@@ -27,6 +27,27 @@ public interface IEntity
 
     public void setEquipmentStack(EquipmentSlot slot, ItemStack stack);
 
+    /**
+     * Hotbar cell at given index. Entities without a hotbar of their own (mobs, actors) still
+     * answer for slot 0 with their main hand, since {@link #getSelectedSlot()} keeps them there
+     * - so "the hand is the selected hotbar slot" holds for everyone.
+     */
+    public ItemStack getHotbarStack(int slot);
+
+    public void setHotbarStack(int slot, ItemStack stack);
+
+    /**
+     * Whether the main hand is a view of the hotbar rather than a slot of its own.
+     *
+     * On a player it is: the hand is the selected cell, so writing to it means writing into
+     * whichever cell is selected at that instant - and during playback the selection can still
+     * be a frame behind, which drops the item into the cell the player just left.
+     */
+    public default boolean isMainHandInHotbar()
+    {
+        return false;
+    }
+
     public int getSelectedSlot();
 
     public boolean isSneaking();

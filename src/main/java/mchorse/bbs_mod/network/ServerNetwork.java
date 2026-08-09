@@ -3,7 +3,6 @@ package mchorse.bbs_mod.network;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.actions.ActionManager;
 import mchorse.bbs_mod.actions.ActionPlayer;
-import mchorse.bbs_mod.film.replays.Inventory;
 import mchorse.bbs_mod.actions.ActionRecorder;
 import mchorse.bbs_mod.actions.ActionState;
 import mchorse.bbs_mod.actions.PlayerType;
@@ -17,12 +16,15 @@ import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.entity.IEntityFormProvider;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmManager;
+import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.items.GunProperties;
 import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.utils.DataPath;
 import mchorse.bbs_mod.utils.EnumUtils;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.PermissionUtils;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.repos.RepositoryOperation;
@@ -659,27 +661,30 @@ public class ServerNetwork
         float hunger = buf.readFloat();
         int xpLevel = buf.readInt();
         float xpProgress = buf.readFloat();
-        int invSize = buf.readInt();
-        byte[] invBytes = invSize > 0 ? new byte[invSize] : null;
+        int selectedSlot = buf.readInt();
+        int dressSize = buf.readInt();
+        byte[] dressBytes = dressSize > 0 ? new byte[dressSize] : null;
 
-        if (invBytes != null)
+        if (dressBytes != null)
         {
-            buf.readBytes(invBytes);
+            buf.readBytes(dressBytes);
         }
 
-        final byte[] invBytesFinal = invBytes;
+        final byte[] dressBytesFinal = dressBytes;
 
         server.execute(() ->
         {
             ActionPlayer.applyFilmPlayerSettingsTo(player, hp, hunger, xpLevel, xpProgress);
 
-            if (invBytesFinal != null)
+            if (dressBytesFinal != null)
             {
-                BaseType invData = DataStorageUtils.readFromBytes(invBytesFinal);
+                BaseType dressData = DataStorageUtils.readFromBytes(dressBytesFinal);
 
-                if (invData.isList())
+                if (dressData.isList())
                 {
-                    Inventory.applyToPlayer(player, invData.asList());
+                    ReplayKeyframes.applyPackedEquipment(new MCEntity(player), dressData.asList());
+
+                    sendSelectedSlot(player, MathUtils.clamp(selectedSlot, 0, ReplayKeyframes.HOTBAR_SIZE - 1));
                 }
             }
         });

@@ -90,11 +90,12 @@ public class UIValueFactory
     /**
      * The field a numeric setting is edited with. Values that declare
      * themselves sliders get a track, the rest keep the drag field — see
-     * {@link BaseValueNumber#slider()} for what earns one.
+     * {@link BaseValueNumber#slider()} for what earns one. A step of 0 is the
+     * track cutting one out of the range itself.
      */
     private static UINumericInput<?> numericUI(BaseValueNumber<?> value, Consumer<Double> callback)
     {
-        return value.isSlider() ? new UISliderTrackpad(callback) : new UITrackpad(callback);
+        return value.isSlider() ? new UISliderTrackpad(callback).snap(value.getSliderStep()) : new UITrackpad(callback);
     }
 
     public static UIColor colorUI(ValueInt value, Consumer<Integer> callback)

@@ -86,7 +86,7 @@ public abstract class ActionClip extends Clip
         player.setHeadYaw(keyframes.headYaw.interpolate(tick).floatValue());
         player.setBodyYaw(keyframes.bodyYaw.interpolate(tick).floatValue());
         player.setPitch(keyframes.pitch.interpolate(tick).floatValue());
-        player.setStackInHand(Hand.MAIN_HAND, keyframes.mainHand.interpolate(tick, ItemStack.EMPTY).copy());
+        player.setStackInHand(Hand.MAIN_HAND, keyframes.getMainHandStack(tick).copy());
         player.setStackInHand(Hand.OFF_HAND, keyframes.offHand.interpolate(tick, ItemStack.EMPTY).copy());
     }
 }

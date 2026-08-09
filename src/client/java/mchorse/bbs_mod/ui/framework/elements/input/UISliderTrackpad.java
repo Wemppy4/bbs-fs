@@ -25,6 +25,13 @@ import mchorse.bbs_mod.utils.colors.Colors;
  * further, and ctrl snaps onto {@link #increment}. Arrow keys and the wheel
  * still move by the step fields.
  *
+ * A drag lands on a grid rather than wherever the pixels divided out — see
+ * {@link #snap}. The grid is absolute (multiples of the step counted from zero)
+ * rather than measured from where the gesture began, so dragging a value also
+ * heals one that was typed off the grid. Typing, the arrows and the wheel are
+ * left alone: the step belongs to the gesture, not to the field, so an exact
+ * number stays reachable through the text box.
+ *
  * Given no finite limits there is no track to travel along, so the drag falls
  * back to a trackpad's relative one rather than leaving the element inert.
  */
@@ -40,8 +47,26 @@ public class UISliderTrackpad extends UINumericInput<UISliderTrackpad>
     private static final double SLOW_DRAG = 0.25D;
     private static final double PRECISE_DRAG = 0.05D;
 
+    /** How much finer the same modifiers cut the step they land on. */
+    private static final double SLOW_STEPS = 5D;
+    private static final double PRECISE_STEPS = 25D;
+
+    /** How many steps a range is cut into when nobody named a step of its own. */
+    private static final double AUTO_STEPS = 100D;
+
+    /** Below this a step is too fine for the float dust to be worth sweeping. */
+    private static final double CLEAN_LIMIT = 0.000001D;
+
     /** Dead zone of an unbounded drag, matching {@link UITrackpad}'s. */
     private static final int DRAG_THRESHOLD = 3;
+
+    /**
+     * The step a drag lands on, or 0 to cut one out of the range — see
+     * {@link #getBaseStep()}. Worth naming only when the value has a unit of
+     * its own that the range can't be guessed from (an interface scale that
+     * moves in quarters, say).
+     */
+    public double snap;
 
     protected final Area handleArea = new Area();
 
@@ -63,6 +88,17 @@ public class UISliderTrackpad extends UINumericInput<UISliderTrackpad>
     public UISliderTrackpad(Consumer<Double> callback)
     {
         super(callback);
+    }
+
+    /**
+     * Land the drag on multiples of the given number. 0 hands the choice back
+     * to the range.
+     */
+    public UISliderTrackpad snap(double snap)
+    {
+        this.snap = snap;
+
+        return this;
     }
 
     @Override
@@ -129,6 +165,108 @@ public class UISliderTrackpad extends UINumericInput<UISliderTrackpad>
         this.handleArea.set(handleCenter - handleWidth / 2, this.area.y, handleWidth, this.area.h);
     }
 
+    /* Steps */
+
+    /**
+     * The nearest number at or above the given one that a person would call
+     * round: 1, 2 and 5 in every decade. Everything a step is cut out of goes
+     * through here, so a step is never something like 0.036.
+     */
+    protected static double niceStep(double raw)
+    {
+        if (!(raw > 0D) || !Double.isFinite(raw))
+        {
+            return 0D;
+        }
+
+        double decade = Math.pow(10D, Math.floor(Math.log10(raw)));
+        double mantissa = raw / decade;
+
+        /* A hair of tolerance, or a mantissa that divides out as 1.0000000002
+         * gets bumped a whole notch up */
+        double nice = mantissa <= 1.000001D ? 1D : (mantissa <= 2.000001D ? 2D : (mantissa <= 5.000001D ? 5D : 10D));
+
+        return nice * decade;
+    }
+
+    /**
+     * Sweep up the dust a step multiplication leaves behind — 0.1 taken three
+     * times is famously 0.30000000000000004 — so a value is as round in the
+     * file as it looks in the field.
+     */
+    protected static double clean(double value)
+    {
+        if (!Double.isFinite(value) || Math.abs(value) >= 1e9D)
+        {
+            return value;
+        }
+
+        return Math.rint(value * 1e6D) / 1e6D;
+    }
+
+    /**
+     * The step a drag lands on before the modifiers cut it finer: whatever the
+     * caller named, or a round hundredth of the range.
+     */
+    protected double getBaseStep()
+    {
+        if (this.snap > 0D)
+        {
+            return this.snap;
+        }
+
+        return this.hasSliderRange() ? niceStep((this.max - this.min) / AUTO_STEPS) : 0D;
+    }
+
+    /**
+     * The step this very moment lands on. The modifiers that slow the travel
+     * divide the step by about as much, so slowing down actually buys
+     * precision instead of crawling along the same grid — and by a whole
+     * number, so every coarse stop is still a stop of the finer grid.
+     */
+    protected double getStep()
+    {
+        double base = this.getBaseStep();
+
+        if (base <= 0D)
+        {
+            return 0D;
+        }
+
+        if (Window.isAltPressed())
+        {
+            base /= PRECISE_STEPS;
+        }
+        else if (Window.isShiftPressed())
+        {
+            base /= SLOW_STEPS;
+        }
+
+        /* A whole-number field has nothing to gain from a finer grid, and a
+         * step landing on exact integers is what keeps the (int) in
+         * normalize() from shaving the value off the cursor */
+        return this.integer ? Math.max(1D, Math.rint(base)) : base;
+    }
+
+    /**
+     * Put the value on the grid. Ctrl asks for the coarse notch instead —
+     * {@link #increment} is the deliberate one (15 degrees, a sixteenth of a
+     * block), while the step is merely as fine as the track can be aimed.
+     */
+    protected double snapValue(double value)
+    {
+        double step = Window.isCtrlPressed() && this.increment > 0D ? this.increment : this.getStep();
+
+        if (step <= 0D)
+        {
+            return value;
+        }
+
+        double snapped = Math.rint(value / step) * step;
+
+        return step >= CLEAN_LIMIT ? clean(snapped) : snapped;
+    }
+
     /* Dragging */
 
     /**
@@ -139,7 +277,7 @@ public class UISliderTrackpad extends UINumericInput<UISliderTrackpad>
         int left = this.area.x + this.getHandlePadding();
         double factor = MathUtils.clamp((mouseX - left) / (double) this.getTrackWidth(), 0D, 1D);
 
-        return this.min + factor * (this.max - this.min);
+        return this.snapValue(this.min + factor * (this.max - this.min));
     }
 
     /**
@@ -155,17 +293,10 @@ public class UISliderTrackpad extends UINumericInput<UISliderTrackpad>
         {
             double diff = (Math.abs(dx) - DRAG_THRESHOLD) * this.getValueModifier();
 
-            return diff < 0D ? this.anchorValue : this.anchorValue + (dx < 0 ? -diff : diff);
+            return diff < 0D ? this.anchorValue : this.snapValue(this.anchorValue + (dx < 0 ? -diff : diff));
         }
 
-        double value = this.anchorValue + (dx / (double) this.getTrackWidth()) * (this.max - this.min) * this.getDragPrecision();
-
-        if (Window.isCtrlPressed() && this.increment > 0D)
-        {
-            value = Math.round(value / this.increment) * this.increment;
-        }
-
-        return value;
+        return this.snapValue(this.anchorValue + (dx / (double) this.getTrackWidth()) * (this.max - this.min) * this.getDragPrecision());
     }
 
     protected double getDragPrecision()

@@ -340,7 +340,8 @@ public class UIKeys
     public static final IKey FILM_PLAYER_SETTINGS_MOB_RECORDING_RADIUS = L10n.lang("bbs.ui.film.player_settings.mob_recording_radius");
     public static final IKey FILM_PLAYER_SETTINGS_MOB_RECORDING_RADIUS_TOOLTIP = L10n.lang("bbs.ui.film.player_settings.mob_recording_radius_tooltip");
     public static final IKey FILM_APPLY_PLAYER_SETTINGS_TO_PLAYER = L10n.lang("bbs.ui.film.apply_player_settings_to_player");
-    public static final IKey FILM_REPLACE_INVENTORY = L10n.lang("bbs.ui.film.replace_inventory");
+    public static final IKey FILM_RECORD_HOTBAR = L10n.lang("bbs.ui.film.record_hotbar");
+    public static final IKey FILM_RECORD_HOTBAR_TOOLTIP = L10n.lang("bbs.ui.film.record_hotbar_tooltip");
     public static final IKey FILM_REPLAY_ACTOR = L10n.lang("bbs.ui.film.replay.actor");
     public static final IKey FILM_REPLAY_ACTOR_TOOLTIP = L10n.lang("bbs.ui.film.replay.actor-tooltip");
     public static final IKey FILM_REPLAY_ANIMATION_TO_POSE_GENERATE = L10n.lang("bbs.ui.film.replay.animation_to_pose.generate");

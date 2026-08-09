@@ -83,9 +83,12 @@ public class UIToggle extends UIClickable<UIToggle> implements ITextColoring
         return this;
     }
 
-    private static final int TRACK_W = 22;
-    private static final int TRACK_H = 10;
-    private static final int KNOB = 12;
+    private static final int TRACK_W = 20;
+    private static final int TRACK_H = 8;
+    private static final int KNOB = 10;
+
+    /** Neutral, a touch below the brightest thing the interface draws. */
+    private static final int KNOB_COLOR = 0xffc4c4c4;
 
     @Override
     protected void renderSkin(UIContext context)
@@ -98,20 +101,24 @@ public class UIToggle extends UIClickable<UIToggle> implements ITextColoring
         int my = this.area.my();
         int trackRight = this.area.ex() - 2;
         int trackLeft = trackRight - TRACK_W;
-        int trackTop = my + KNOB / 2 - TRACK_H;
-        int trackBottom = my + KNOB / 2;
 
-        int trackFill = this.value ? Colors.A100 | BBSSettings.primaryColor.get() : 0xff3a3d41;
-
-        /* Track background: beveled fill with a 1px inner black border, no bottom shadow */
-        context.batcher.bevelBox(trackLeft, trackTop, trackRight, trackBottom, trackFill, false, true);
-
-        /* Knob: 12x12, taller than the track so it pokes out the top, 1px inner black border */
+        /* The knob is centred and taller than the track; the track sits flush
+         * with the knob's bottom edge, so the knob rises out of it upwards */
         int knobLeft = trackLeft + (this.value ? TRACK_W - KNOB : 0);
         int knobTop = my - KNOB / 2;
-        int knobColor = this.hover ? Colors.lerp(0xffc9cdd2, Colors.WHITE, 0.2F) : 0xffc9cdd2;
+        int trackBottom = knobTop + KNOB;
+        int trackTop = trackBottom - TRACK_H;
 
-        context.batcher.bevelBox(knobLeft, knobTop, knobLeft + KNOB, knobTop + KNOB, knobColor, true, true);
+        /* No outline at all: off is a well in the surface ramp, on is the accent,
+         * and the knob is light enough to stand on either without being drawn
+         * around. */
+        int trackFill = this.value ? Colors.A100 | BBSSettings.primaryColor.get() : BBSSettings.deepSurface();
+
+        context.batcher.box(trackLeft, trackTop, trackRight, trackBottom, trackFill);
+
+        int knobColor = this.hover ? Colors.lerp(KNOB_COLOR, Colors.WHITE, 0.2F) : KNOB_COLOR;
+
+        context.batcher.surfaceBox(knobLeft, knobTop, knobLeft + KNOB, knobTop + KNOB, knobColor, true, false);
 
         if (!this.isEnabled())
         {

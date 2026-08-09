@@ -291,7 +291,7 @@ public class UIReplaysEditorUtils
             String id = PerLimbService.toIKTargetKey(path, controller);
             String title = path.isEmpty() ? "ik/" + controller : path + "/ik/" + controller;
 
-            addTargetSheet(out, properties, modelForm, id, title, Colors.CYAN, null);
+            addTargetSheet(out, properties, modelForm, id, title, Colors.CYAN, Icons.IK);
         }
     }
 
@@ -325,7 +325,7 @@ public class UIReplaysEditorUtils
         KeyframeChannel channel = properties.registerChannel(id, KeyframeFactories.IK);
 
         out.add(new UIKeyframeSheet(id, IKey.constant(title), Colors.YELLOW, false, channel, null)
-            .icon(Icons.LIMB).form(modelForm).seed(() -> buildIKControls(modelForm)));
+            .icon(Icons.IK).form(modelForm).seed(() -> buildIKControls(modelForm)));
     }
 
     /** A fully populated IK-controls value seeded from the form's IK config (one entry per enabled chain), so a fresh keyframe matches what the editor shows instead of an empty container that drifts to defaults. */
@@ -383,7 +383,7 @@ public class UIReplaysEditorUtils
             String id = PerLimbService.toPoleTargetKey(path, controller);
             String title = path.isEmpty() ? "pole/" + controller : path + "/pole/" + controller;
 
-            addTargetSheet(out, properties, modelForm, id, title, Colors.ORANGE, null);
+            addTargetSheet(out, properties, modelForm, id, title, Colors.ORANGE, Icons.IK);
         }
     }
 
@@ -415,7 +415,7 @@ public class UIReplaysEditorUtils
         KeyframeChannel channel = properties.registerChannel(id, KeyframeFactories.PHYSICS);
 
         out.add(new UIKeyframeSheet(id, IKey.constant(title), Colors.GREEN, false, channel, null)
-            .icon(Icons.DROP).form(modelForm).seed(() -> buildPhysicsControls(modelForm)));
+            .icon(Icons.PHYSICS).form(modelForm).seed(() -> buildPhysicsControls(modelForm)));
     }
 
     /** A fully populated physics-controls value seeded from the form's physics config (one entry per chain root), mirroring {@link #buildIKControls}. */
@@ -536,7 +536,7 @@ public class UIReplaysEditorUtils
             String id = PerLimbService.toPhysicsTargetKey(path, rootBone);
             String title = path.isEmpty() ? "physics/" + rootBone : path + "/physics/" + rootBone;
 
-            addTargetSheet(out, properties, modelForm, id, title, Colors.MAGENTA, Icons.TIME);
+            addTargetSheet(out, properties, modelForm, id, title, Colors.MAGENTA, Icons.PHYSICS);
         }
     }
 

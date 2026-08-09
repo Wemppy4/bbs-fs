@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.entities;
 
+import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.utils.AABB;
 import net.minecraft.entity.EntityPose;
@@ -52,6 +53,7 @@ public class StubEntity implements IEntity
 
     private LimbAnimator limbAnimator = new LimbAnimator();
     private final Map<EquipmentSlot, ItemStack> items = new HashMap<>();
+    private final ItemStack[] hotbar = new ItemStack[ReplayKeyframes.HOTBAR_SIZE];
 
     public StubEntity(World world)
     {
@@ -105,6 +107,23 @@ public class StubEntity implements IEntity
         }
 
         this.items.put(slot, stack);
+    }
+
+    @Override
+    public ItemStack getHotbarStack(int slot)
+    {
+        ItemStack stack = slot >= 0 && slot < this.hotbar.length ? this.hotbar[slot] : null;
+
+        return stack == null ? ItemStack.EMPTY : stack;
+    }
+
+    @Override
+    public void setHotbarStack(int slot, ItemStack stack)
+    {
+        if (slot >= 0 && slot < this.hotbar.length)
+        {
+            this.hotbar[slot] = stack == null ? ItemStack.EMPTY : stack;
+        }
     }
 
     @Override

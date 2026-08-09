@@ -381,6 +381,25 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
         this.sort();
     }
 
+    /**
+     * Drop keys that repeat the value of the key before them.
+     *
+     * Only sound where interpolation is stepped, as it is for item stacks: there a key holding
+     * what the previous one already holds changes nothing, so dropping it plays back the same
+     * frame for frame. On a numeric channel the same key is a corner of the curve and carries
+     * real shape, so this must not be pointed at one.
+     */
+    public void dropRepeats()
+    {
+        for (int i = this.list.size() - 1; i > 0; i--)
+        {
+            if (this.factory.compare(this.list.get(i).getValue(), this.list.get(i - 1).getValue()))
+            {
+                this.list.remove(i);
+            }
+        }
+    }
+
     public void copyOver(KeyframeChannel channel, int tick)
     {
         if (this.factory != channel.factory || channel.isEmpty())

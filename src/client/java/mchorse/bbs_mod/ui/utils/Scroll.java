@@ -91,7 +91,7 @@ public class Scroll
             return;
         }
 
-        batcher.bevelBox(x1, y1, x2, y2, fill, true, false);
+        batcher.surfaceBox(x1, y1, x2, y2, fill, true, false);
     }
 
     public Scroll(Area area)

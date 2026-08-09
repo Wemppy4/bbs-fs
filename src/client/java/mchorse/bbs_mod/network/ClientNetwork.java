@@ -12,6 +12,7 @@ import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.entity.IEntityFormProvider;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.Films;
+import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.items.GunProperties;
@@ -574,19 +575,32 @@ public class ClientNetwork
         ClientPlayNetworking.send(ServerNetwork.BufPayload.from(buf, ServerNetwork.idFor(ServerNetwork.SERVER_PAUSE_FILM)));
     }
 
-    public static void sendApplyFilmPlayerSettingsToPlayer(Film film)
+    /**
+     * Dress the player like the film's first person replay at given tick, and give them its
+     * health, hunger and experience.
+     */
+    public static void sendApplyFilmPlayerSettingsToPlayer(Film film, int tick)
     {
         PacketByteBuf buf = PacketByteBufs.create();
+        Replay replay = film.getFirstPersonReplay();
 
         buf.writeFloat(film.hp.get());
         buf.writeFloat(film.hunger.get());
         buf.writeInt(film.xpLevel.get());
         buf.writeFloat(film.xpProgress.get());
+        buf.writeInt(replay == null ? 0 : replay.keyframes.getSelectedSlot(tick));
 
-        byte[] invBytes = DataStorageUtils.writeToBytes(film.inventory.toData());
+        if (replay == null)
+        {
+            buf.writeInt(0);
+        }
+        else
+        {
+            byte[] dressBytes = DataStorageUtils.writeToBytes(replay.keyframes.packEquipment(tick));
 
-        buf.writeInt(invBytes.length);
-        buf.writeBytes(invBytes);
+            buf.writeInt(dressBytes.length);
+            buf.writeBytes(dressBytes);
+        }
 
         ClientPlayNetworking.send(ServerNetwork.BufPayload.from(buf, ServerNetwork.idFor(ServerNetwork.SERVER_APPLY_FILM_PLAYER_SETTINGS)));
     }

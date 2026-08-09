@@ -529,6 +529,7 @@ public class BBSMod implements ModInitializer
 
         ServerLifecycleEvents.SERVER_STARTED.register((event) -> worldFolder = event.getSavePath(WorldSavePath.ROOT).toFile());
         ServerPlayConnectionEvents.JOIN.register((a, b, c) -> ServerNetwork.sendHandshake(c, b));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> actions.stopFor(handler.getPlayer()));
 
         ActionHandler.registerHandlers(actions);
 

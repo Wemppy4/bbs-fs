@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.film;
 
 import mchorse.bbs_mod.BBSMod;
-import mchorse.bbs_mod.film.replays.Inventory;
+import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.Replays;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
@@ -29,7 +29,6 @@ public class Film extends ValueGroup
      */
     public final ValueStringKeys replayCategoryNames = new ValueStringKeys("replay_categories");
 
-    public final Inventory inventory = new Inventory("inventory");
     public final ValueFloat hp = new ValueFloat("hp", 20F);
     public final ValueFloat hunger = new ValueFloat("hunger", 20F);
     public final ValueInt xpLevel = new ValueInt("xp_level", 0);
@@ -55,7 +54,6 @@ public class Film extends ValueGroup
         this.add(this.replays);
         this.add(this.replayCategoryNames);
 
-        this.add(this.inventory);
         this.add(this.hp);
         this.add(this.hunger);
         this.add(this.xpLevel);
@@ -65,6 +63,14 @@ public class Film extends ValueGroup
         this.add(this.description);
         this.add(this.createdAt);
         this.add(this.timeSpentActive);
+    }
+
+    @Override
+    public void fromData(BaseType data)
+    {
+        super.fromData(data);
+
+        FilmLegacy.migrateHotbar(this, data);
     }
 
     public void stampCreationTimeNow()

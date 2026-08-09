@@ -61,6 +61,14 @@ public class ValueInt extends BaseValueNumber<Integer>
         return this;
     }
 
+    @Override
+    public ValueInt slider(double step)
+    {
+        super.slider(step);
+
+        return this;
+    }
+
     public ValueInt subtype(Subtype subtype)
     {
         this.subtype = subtype;

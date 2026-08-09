@@ -192,7 +192,11 @@ public class Icons
     public static final Icon SPACE_GLOBAL = register(new Icon(ATLAS, "space_global", 160, 160));
     public static final Icon SPACE_LOCAL = register(new Icon(ATLAS, "space_local", 176, 160));
     public static final Icon SPACE_VIEW = register(new Icon(ATLAS, "space_view", 192, 160));
-    public static final Icon SPACE_PARENT = register(new Icon(ATLAS, "space_parent", 208, 160)); 
+    public static final Icon SPACE_PARENT = register(new Icon(ATLAS, "space_parent", 208, 160));
+    public static final Icon IK = register(new Icon(ATLAS, "ik", 224, 160));
+    public static final Icon PHYSICS = register(new Icon(ATLAS, "physics", 240, 160));
+
+    public static final Icon HOTBAR = register(new Icon(ATLAS, "hotbar", 0, 176));
 
     public static final Icon INTERP_LINEAR = register(new Icon(ATLAS, "interp_linear", 0, 192));
     public static final Icon INTERP_CONST = register(new Icon(ATLAS, "interp_const", 16, 192));

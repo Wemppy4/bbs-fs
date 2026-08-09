@@ -8,7 +8,6 @@ import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.replays.FormProperties;
-import mchorse.bbs_mod.film.replays.Inventory;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.MCEntity;
@@ -48,7 +47,6 @@ public class Recorder extends WorldFilmController
 {
     public ReplayKeyframes keyframes = new ReplayKeyframes("keyframes");
     public FormProperties properties = new FormProperties("properties");
-    public Inventory inventory = new Inventory("inventory");
 
     /**
      * Mobs captured within {@link Film#mobRecordingRadius} when recording started.
@@ -186,7 +184,6 @@ public class Recorder extends WorldFilmController
         {
             this.lastPosition = new Vector3d(player.getX(), player.getY(), player.getZ());
             this.lastRotation = new Vector4f(player.getYaw(), player.getPitch(), player.getHeadYaw(), player.getBodyYaw());
-            this.inventory.fromPlayer(player);
 
             this.hp = player.getHealth();
             this.hunger = player.getHungerManager().getFoodLevel();

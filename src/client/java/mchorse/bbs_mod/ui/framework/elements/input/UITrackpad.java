@@ -6,6 +6,10 @@ import org.lwjgl.glfw.GLFW;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.settings.values.numeric.ValueDouble;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -47,6 +51,141 @@ public class UITrackpad extends UINumericInput<UITrackpad>
     public UITrackpad(Consumer<Double> callback)
     {
         super(callback);
+    }
+
+    /* Builders
+     *
+     * Every one of these already works through {@link UINumericInput}, and for
+     * source code the inherited version would do. They are restated here for
+     * the sake of the byte code: the self type {@code T} erases to
+     * {@code UINumericInput}, so the inherited methods carry that in their
+     * descriptor, while add-ons compiled against the older UITrackpad — where
+     * these lived directly — look up a descriptor ending in {@code UITrackpad}
+     * and die with a NoSuchMethodError. A covariant override makes javac emit
+     * exactly that old descriptor again (plus a bridge to the base one), so
+     * both the old and the new binaries resolve.
+     *
+     * Nothing may be dropped from this list without breaking somebody's jar.
+     */
+
+    @Override
+    public UITrackpad max(double max)
+    {
+        return super.max(max);
+    }
+
+    @Override
+    public UITrackpad limit(double min)
+    {
+        return super.limit(min);
+    }
+
+    @Override
+    public UITrackpad limit(double min, double max)
+    {
+        return super.limit(min, max);
+    }
+
+    @Override
+    public UITrackpad limit(ValueInt value)
+    {
+        return super.limit(value);
+    }
+
+    @Override
+    public UITrackpad limit(ValueFloat value)
+    {
+        return super.limit(value);
+    }
+
+    @Override
+    public UITrackpad limit(ValueDouble value)
+    {
+        return super.limit(value);
+    }
+
+    @Override
+    public UITrackpad limit(double min, double max, boolean integer)
+    {
+        return super.limit(min, max, integer);
+    }
+
+    @Override
+    public UITrackpad integer()
+    {
+        return super.integer();
+    }
+
+    @Override
+    public UITrackpad increment(double increment)
+    {
+        return super.increment(increment);
+    }
+
+    @Override
+    public UITrackpad values(double normal)
+    {
+        return super.values(normal);
+    }
+
+    @Override
+    public UITrackpad values(double normal, double weak, double strong)
+    {
+        return super.values(normal, weak, strong);
+    }
+
+    @Override
+    public UITrackpad delayedInput()
+    {
+        return super.delayedInput();
+    }
+
+    @Override
+    public UITrackpad onlyNumbers()
+    {
+        return super.onlyNumbers();
+    }
+
+    @Override
+    public UITrackpad relative(boolean relative)
+    {
+        return super.relative(relative);
+    }
+
+    @Override
+    public UITrackpad forcedLabel(IKey label)
+    {
+        return super.forcedLabel(label);
+    }
+
+    @Override
+    public UITrackpad disableCanceling()
+    {
+        return super.disableCanceling();
+    }
+
+    @Override
+    public UITrackpad degrees()
+    {
+        return super.degrees();
+    }
+
+    @Override
+    public UITrackpad block()
+    {
+        return super.block();
+    }
+
+    @Override
+    public UITrackpad factor()
+    {
+        return super.factor();
+    }
+
+    @Override
+    public UITrackpad metric()
+    {
+        return super.metric();
     }
 
     @Override

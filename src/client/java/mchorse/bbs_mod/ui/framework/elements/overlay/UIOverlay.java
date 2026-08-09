@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.overlay;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
@@ -16,7 +17,8 @@ public class UIOverlay extends UIElement
 {
     private static final Map<String, Vector2i> offsets = new HashMap<>();
 
-    private int background = Colors.A50;
+    /** Null means the dimming from the settings; a set value overrides it. */
+    private Integer background;
 
     public static UIOverlay addOverlay(UIContext context, UIOverlayPanel panel)
     {
@@ -164,9 +166,11 @@ public class UIOverlay extends UIElement
     @Override
     public void render(UIContext context)
     {
-        if (Colors.getA(this.background) > 0F)
+        int background = this.background == null ? BBSSettings.overlayBackground() : this.background;
+
+        if (Colors.getA(background) > 0F)
         {
-            this.area.render(context.batcher, this.background);
+            this.area.render(context.batcher, background);
         }
 
         super.render(context);

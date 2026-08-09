@@ -24,7 +24,7 @@ public class UINestedEdit extends UIElement
         this.edit.relative(this).h(1F);
         this.pick.relative(this).h(1F);
 
-        this.h(UIConstants.CONTROL_HEIGHT).row(0);
+        this.h(UIConstants.CONTROL_HEIGHT).row(UIConstants.MARGIN);
         this.add(this.pick, this.edit);
     }
 

@@ -353,7 +353,10 @@ public class GizmoDrag
      * spelled out: {@link TransformSpace#GLOBAL} is {@code view · globalAxes},
      * {@link TransformSpace#WORLD} the view rotation itself
      * ({@code view · identity}) and {@link TransformSpace#VIEW} the identity
-     * ({@code view · view⁻¹}).
+     * ({@code view · view⁻¹}) &mdash; whose third column the draw passes then lay
+     * on the eye ray so the handles face the screen instead of merely paralleling
+     * it ({@link Gizmo#applyViewShear}); the frame returned here, and everything
+     * the drags read from it, stays orthonormal.
      * {@code globalAxes} is the drawn twin of {@link #globalWorldAxes} and must
      * come from the same source the drag's does &mdash; {@code null} means the
      * plain world axes. {@link TransformSpace#LOCAL} and

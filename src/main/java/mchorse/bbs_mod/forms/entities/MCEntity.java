@@ -74,13 +74,59 @@ public class MCEntity implements IEntity
         return ItemStack.EMPTY;
     }
 
+    /**
+     * The stack lands on a live entity, which vanilla is free to mutate, and it usually comes
+     * out of a keyframe - so it's copied, and left alone when the cell already holds it. That
+     * second part matters on players: the film writes every tick, and an unchanged write would
+     * still count as an inventory change for the client sync.
+     */
     @Override
     public void setEquipmentStack(EquipmentSlot slot, ItemStack stack)
     {
-        if (this.mcEntity instanceof LivingEntity living)
+        if (this.mcEntity instanceof LivingEntity living && !ItemStack.areEqual(living.getEquippedStack(slot), stack))
         {
-            living.equipStack(slot, stack == null ? ItemStack.EMPTY : stack);
+            living.equipStack(slot, stack == null ? ItemStack.EMPTY : stack.copy());
         }
+    }
+
+    @Override
+    public ItemStack getHotbarStack(int slot)
+    {
+        if (this.mcEntity instanceof PlayerEntity player)
+        {
+            return player.getInventory().getStack(slot);
+        }
+
+        /* Mobs and actors have no hotbar, and their selected slot is 0 - so their main hand
+         * is what slot 0 holds. */
+        return slot == 0 ? this.getEquipmentStack(EquipmentSlot.MAINHAND) : ItemStack.EMPTY;
+    }
+
+    @Override
+    public void setHotbarStack(int slot, ItemStack stack)
+    {
+        if (stack == null)
+        {
+            stack = ItemStack.EMPTY;
+        }
+
+        if (this.mcEntity instanceof PlayerEntity player)
+        {
+            if (!ItemStack.areEqual(player.getInventory().getStack(slot), stack))
+            {
+                player.getInventory().setStack(slot, stack.copy());
+            }
+        }
+        else if (slot == 0)
+        {
+            this.setEquipmentStack(EquipmentSlot.MAINHAND, stack);
+        }
+    }
+
+    @Override
+    public boolean isMainHandInHotbar()
+    {
+        return this.mcEntity instanceof PlayerEntity;
     }
 
     @Override

@@ -9,9 +9,11 @@ import mchorse.bbs_mod.camera.controller.CameraController;
 import mchorse.bbs_mod.camera.controller.ICameraController;
 import mchorse.bbs_mod.camera.controller.PlayCameraController;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.PixelArt;
 import mchorse.bbs_mod.items.GunZoom;
 import mchorse.bbs_mod.utils.colors.Color;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.math.MatrixStack;
@@ -96,6 +98,15 @@ public class GameRendererMixin
     {
         BBSRendering.onWorldRenderBegin();
     }
+
+    /* TODO(1.21.11 render): pixel-art TEXT programs — 1.21.1 handed glyphs to its own shaders for the
+     * span where BBS's UI draws (so text survives a fractional ui_scale) by injecting into
+     * GameRenderer.getRenderTypeTextProgram / getRenderTypeTextIntensityProgram. Neither method exists
+     * on 1.21.11 — GameRenderer carries no get*Program at all (checked against the jar), programs are
+     * reached through RenderPipeline now. PixelArt itself and its drawing-UI gate came over with the
+     * merge; only these two hooks are dropped, so text falls back to vanilla's programs and the
+     * fractional scale keeps quantising (see the ui_scale note in the merge memo). Re-port by giving
+     * the text pipelines a BBS variant and selecting it while PixelArt.isDrawingUI(). */
 
     /**
      * These injections substitute an orthographic projection when the film

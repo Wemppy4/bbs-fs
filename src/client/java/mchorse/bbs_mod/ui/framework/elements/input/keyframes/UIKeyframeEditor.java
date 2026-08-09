@@ -105,6 +105,7 @@ public class UIKeyframeEditor extends UIElement
             if (this.target != null)
             {
                 this.target.resize();
+                this.editor.resize();
             }
         }
 

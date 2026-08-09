@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.framework;
 
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.PixelArt;
 import mchorse.bbs_mod.importers.IImportPathProvider;
 import mchorse.bbs_mod.importers.ImporterContext;
 import mchorse.bbs_mod.importers.Importers;
@@ -215,18 +216,28 @@ public class UIScreen extends Screen implements IFileDropListener
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta)
     {
-        super.render(context, mouseX, mouseY, delta);
+        /* Text is drawn with vanilla's programs, which are shared with the
+         * world's text, so the pixel art ones are only allowed for the span
+         * where BBS's UI is what's being drawn */
+        PixelArt.setDrawingUI(true);
 
-        /* Two-phase GUI (1.21.6+): vanilla only composites the GuiRenderState that belongs to the
-         * DrawContext it hands to render(). Draw the whole BBS UI into THIS live context, not the
-         * placeholder built in the constructor, or nothing reaches the screen. */
-        this.context.setContext(context);
+        try
+        {
+            /* Two-phase GUI (1.21.6+): vanilla only composites the GuiRenderState that belongs to the
+             * DrawContext it hands to render(). Draw the whole BBS UI into THIS live context, not the
+             * placeholder built in the constructor, or nothing reaches the screen. */
+            this.context.setContext(context);
 
-        RenderTickCounter tick = this.client.getRenderTickCounter();
+            RenderTickCounter tick = this.client.getRenderTickCounter();
 
-        this.menu.context.setTransition(tick instanceof RenderTickCounterAccessor accessor ? accessor.bbs$getTickDelta() : tick.getTickProgress(false));
-        this.menu.renderMenu(this.context, mouseX, mouseY);
-        this.menu.context.render.executeRunnables();
+            this.menu.context.setTransition(tick instanceof RenderTickCounterAccessor accessor ? accessor.bbs$getTickDelta() : tick.getTickProgress(false));
+            this.menu.renderMenu(this.context, mouseX, mouseY);
+            this.menu.context.render.executeRunnables();
+        }
+        finally
+        {
+            PixelArt.setDrawingUI(false);
+        }
     }
 
     @Override

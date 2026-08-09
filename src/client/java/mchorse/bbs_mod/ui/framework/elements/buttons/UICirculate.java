@@ -133,7 +133,7 @@ public class UICirculate extends UIClickable<UICirculate>
             color = Colors.mulRGB(color, 0.85F);
         }
 
-        context.batcher.bevelBox(this.area.x, this.area.y, this.area.ex(), this.area.ey(), color, true, false);
+        context.batcher.surfaceBox(this.area.x, this.area.y, this.area.ex(), this.area.ey(), color, true, false);
 
         FontRenderer font = context.batcher.getFont();
         String label = font.limitToWidth(this.label.get(), this.area.w - 4);

@@ -152,9 +152,17 @@ public class Gizmo
     private final Matrix4f bakedRotationMatrix = new Matrix4f();
     private DragStrategy bakedGesture;
 
+    /** The frame the handles were last placed in ({@link #reorientForSpace}), or
+     *  {@code null} when the placement was left untouched. Only the draw passes
+     *  read it, to flatten {@link TransformSpace#VIEW} onto the eye ray
+     *  ({@link #applyViewShear}); the drag math takes its frames from
+     *  {@link GizmoDrag} as before. */
+    private TransformSpace lastSpace;
+
     /* 1.21.11: the 1.21.1 ring/sphere VertexBuffer cache is gone — VertexBuffer was removed by the
      * GPU-pipeline rewrite, so the rings are rebuilt immediate-mode each frame through the gizmo
-     * RenderLayer instead (same geometry, same parameters). */
+     * RenderLayer instead (same geometry, same parameters). The lastScale/lastThickness fields that
+     * kept that cache honest went with it. */
 
     /** World-space radius the sphere is drawn at, expressed in
      *  the local coordinate frame {@link #lastRenderMatrix} describes
@@ -723,34 +731,86 @@ public class Gizmo
     {
         this.applyBakedRotation(stack);
 
+        float distanceScale = this.getAxesDistanceScale(stack);
+
+        stack.push();
+        this.applyViewShear(stack);
+        stack.scale(distanceScale, distanceScale, distanceScale);
+
         if (BBSSettings.gizmos.get())
         {
-            float distanceScale = this.getAxesDistanceScale(stack);
-
             /* Cache the sphere's effective world radius (in
              * {@link #lastRenderMatrix}'s coordinate frame) so
              * {@link #computeScreenRadius} can report the real on-screen
              * pixel size for hover/pick distance checks. */
             this.lastSphereLocalRadius = 0.22F * BBSSettings.axesScale.get() * distanceScale;
 
-            stack.push();
-            stack.scale(distanceScale, distanceScale, distanceScale);
             this.lastSphereMatrix.set(modelView(stack));
             this.hasLastSphereMatrix = true;
             this.drawOccludedGizmo(stack);
-            stack.pop();
         }
         else
         {
-            float distanceScale = this.getAxesDistanceScale(stack);
-
-            stack.push();
-            stack.scale(distanceScale, distanceScale, distanceScale);
             Draw.coolerAxes(stack, 0.25F, 0.008F);
-            stack.pop();
         }
 
+        stack.pop();
+
+        /* Deliberately outside the shear: the constraint guide is a world-space line
+         * showing the axis the drag actually slides along, and that axis comes from
+         * {@link GizmoDrag#frameBasis} — the unsheared frame. */
         this.drawInfiniteLine(stack);
+    }
+
+    /**
+     * Flatten the handles' third axis onto the eye ray while they are drawn in
+     * {@link TransformSpace#VIEW}, so a screen-space tool reads as one wherever it
+     * sits in the frame.
+     *
+     * <p>VIEW places the handles on the camera's own axes
+     * ({@link GizmoDrag#stackBasisForSpace}), which makes them PARALLEL to the screen
+     * but not FACING it: under perspective a gizmo away from the centre is seen a
+     * little from the side. Measured at a 70&deg; FOV, the Z bar — a dot dead centre —
+     * grows to about three quarters of a handle's length by the corner of the frame,
+     * and the billboarded view ring goes a quarter oval and drifts off the origin,
+     * while the axis rings beside it stay perfect circles. That mismatch is the whole
+     * "not quite straight on" look.
+     *
+     * <p>Replacing the third column with the unit ray from the gizmo back to the eye
+     * cancels exactly that, and nothing else: the Z bar collapses to a point at every
+     * screen position, everything drawn in the screen plane (the rings, the billboard,
+     * the plane quads) projects perfectly circular and concentric, and the X/Y bars
+     * keep the exact horizontal/vertical they already had, since their columns are not
+     * touched. At the centre the eye ray IS the camera's Z, so the frame is the
+     * identity again and nothing jumps as the gizmo crosses the middle. The column
+     * stays unit length, so {@link MatrixStackUtils#scaleBack} is unaffected, and the
+     * determinant stays positive (~0.82 at the corner), so depth order and winding hold.
+     *
+     * <p>Only the DRAWING frame is sheared, and both draw passes take it, so the pick
+     * stencil keeps matching the visual pixel for pixel. {@link #lastRenderMatrix} is
+     * captured before this runs, so the gizmo's world axes, the drag frames and the
+     * pick projections all keep the orthonormal camera basis they had.
+     */
+    private void applyViewShear(MatrixStack stack)
+    {
+        if (this.lastSpace != TransformSpace.VIEW)
+        {
+            return;
+        }
+
+        Matrix4f matrix = stack.peek().getPositionMatrix();
+        Vector3f toCamera = matrix.getTranslation(new Vector3f()).negate();
+
+        if (toCamera.lengthSquared() < 1.0E-8F)
+        {
+            return;
+        }
+
+        toCamera.normalize();
+
+        matrix.m20(toCamera.x);
+        matrix.m21(toCamera.y);
+        matrix.m22(toCamera.z);
     }
 
     /**
@@ -1523,6 +1583,9 @@ public class Gizmo
         float distanceScale = this.getAxesDistanceScale(stack);
 
         stack.push();
+        /* Same VIEW flattening as the visual pass, or the hitboxes would sit on the
+         * unsheared handles and picking would drift with the distance from centre. */
+        this.applyViewShear(stack);
         stack.scale(distanceScale, distanceScale, distanceScale);
         /* Same axisOffset as the visual pass (Gizmo#drawGizmo) so the pick hitbox
          * matches the drawn handles instead of overhanging them. */
@@ -1591,6 +1654,11 @@ public class Gizmo
      */
     public void reorientForSpace(MatrixStack stack, TransformSpace space, Matrix4f cameraView, Matrix3f globalAxes)
     {
+        /* Remembered for the draw passes ({@link #applyViewShear}). Without a camera
+         * nothing is reoriented, so the handles keep their placement frame and the
+         * remembered space must not claim otherwise. */
+        this.lastSpace = cameraView == null ? null : space;
+
         if (space == null || space == TransformSpace.LOCAL || space == TransformSpace.PARENT || cameraView == null)
         {
             return;

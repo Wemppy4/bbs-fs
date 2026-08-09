@@ -24,11 +24,39 @@ public class ActionManager
     private Map<ServerPlayerEntity, ActionRecorder> recorders = new HashMap<>();
     private Map<ServerWorld, DamageControl> dc = new HashMap<>();
 
+    /**
+     * Stopping, not just forgetting: playback borrows the first person player's equipment and
+     * only gives it back on stop, so dropping the players on the floor here would leave them
+     * dressed as the film - their own items gone with the server they left.
+     */
     public void reset()
     {
+        for (ActionPlayer player : this.players)
+        {
+            player.stop();
+        }
+
         this.players.clear();
         this.recorders.clear();
         this.dc.clear();
+    }
+
+    /** Give a leaving player their equipment back and drop any playback that was dressing them. */
+    public void stopFor(ServerPlayerEntity player)
+    {
+        this.players.removeIf((next) ->
+        {
+            if (next.isPlayedBy(player))
+            {
+                next.stop();
+
+                return true;
+            }
+
+            return false;
+        });
+
+        this.recorders.remove(player);
     }
 
     public void tick()

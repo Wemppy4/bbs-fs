@@ -88,6 +88,15 @@ public class UIReplaysEditor extends UIElement
 {
     private static final Map<String, Integer> COLORS = new HashMap<>();
     private static final Map<String, Icon> ICONS = new HashMap<>();
+
+    /* Item channel families - see setupItemColors() */
+    private static final int HOTBAR_FIRST = Colors.ORANGE;
+    private static final int HOTBAR_LAST = 0xe0245e;
+    private static final int OFF_HAND = 0xff3a74;
+    private static final int ARMOR_HEAD = 0x8fd0ff;
+    private static final int ARMOR_CHEST = 0x6fb4f0;
+    private static final int ARMOR_LEGS = 0x5698db;
+    private static final int ARMOR_FEET = 0x407cc0;
     private static String lastFilm = "";
     private static int lastReplay;
 
@@ -127,8 +136,8 @@ public class UIReplaysEditor extends UIElement
         PLAYER(Icons.PLAYER, L10n.lang("bbs.ui.film.replays.category.player"), L10n.lang("bbs.ui.film.replays.category.player.tooltip")),
         MODEL(Icons.BLOCK, L10n.lang("bbs.ui.film.replays.category.model"), L10n.lang("bbs.ui.film.replays.category.model.tooltip")),
         POSE(Icons.POSE, L10n.lang("bbs.ui.film.replays.category.pose"), L10n.lang("bbs.ui.film.replays.category.pose.tooltip")),
-        IK(Icons.LIMB, L10n.lang("bbs.ui.film.replays.category.ik"), L10n.lang("bbs.ui.film.replays.category.ik.tooltip")),
-        PHYSICS(Icons.DROP, L10n.lang("bbs.ui.film.replays.category.physics"), L10n.lang("bbs.ui.film.replays.category.physics.tooltip"));
+        IK(Icons.IK, L10n.lang("bbs.ui.film.replays.category.ik"), L10n.lang("bbs.ui.film.replays.category.ik.tooltip")),
+        PHYSICS(Icons.PHYSICS, L10n.lang("bbs.ui.film.replays.category.physics"), L10n.lang("bbs.ui.film.replays.category.physics.tooltip"));
 
         public final Icon icon;
         public final IKey label;
@@ -156,7 +165,9 @@ public class UIReplaysEditor extends UIElement
         putColors(Colors.YELLOW, "yaw", "lighting");
         putColors(Colors.CYAN, "pitch");
         putColors(Colors.MAGENTA, "bodyYaw", "actions", "settings");
-        putColors(Colors.ORANGE, "pose_overlay", "item_main_hand", "item_off_hand", "item_head", "item_chest", "item_legs", "item_feet", "user2", "user6");
+        putColors(Colors.ORANGE, "pose_overlay", "user2", "user6");
+
+        setupItemColors();
 
         COLORS.put("visible", Colors.WHITE & Colors.RGB);
         COLORS.put("pose", Colors.RED);
@@ -164,6 +175,37 @@ public class UIReplaysEditor extends UIElement
         COLORS.put("transform_overlay", 0xaaff00);
         COLORS.put("color", Colors.INACTIVE);
         COLORS.put("shape_keys", Colors.PINK);
+    }
+
+    /**
+     * Fourteen item rows sat in one shade of orange, which read as one long stripe. They are
+     * two things, so they get two families: the hands warm, the armour cool as metal.
+     *
+     * The hotbar drifts from orange to raspberry down its nine rows, and the off hand - which
+     * comes right after them - carries on where they end, a shade brighter. So the warm run
+     * reads as one thing with an order, while a glance still tells row from row. The armour
+     * cools downwards the same way, lightest at the helmet.
+     */
+    private static void setupItemColors()
+    {
+        int last = ReplayKeyframes.HOTBAR_SIZE - 1;
+
+        for (int i = 0; i <= last; i++)
+        {
+            COLORS.put(ReplayKeyframes.hotbarChannelId(i), Colors.lerp(HOTBAR_FIRST, HOTBAR_LAST, i / (float) last) & Colors.RGB);
+        }
+
+        /* Sits right below the hotbar in the list, so it picks the run up where it ends */
+        COLORS.put("item_off_hand", OFF_HAND);
+
+        COLORS.put("item_head", ARMOR_HEAD);
+        COLORS.put("item_chest", ARMOR_CHEST);
+        COLORS.put("item_legs", ARMOR_LEGS);
+        COLORS.put("item_feet", ARMOR_FEET);
+
+        /* Not an item but the pointer at one, so it stays out of both families. Without this it
+         * falls through to the default blue, which is now the armour's tone. */
+        COLORS.put("selected_slot", Colors.WHITE & Colors.RGB);
     }
 
     private static void putColors(int color, String... keys)
@@ -192,13 +234,22 @@ public class UIReplaysEditor extends UIElement
         ICONS.put("trigger_l", Icons.TRIGGER);
         ICONS.put("extra1_x", Icons.CURVES);
         ICONS.put("extra2_x", Icons.CURVES);
-        ICONS.put("item_main_hand", Icons.LIMB);
+        /* Only the first hotbar row is marked: the icon says "the hotbar starts here", and the
+         * eight rows under it are read as its continuation rather than eight repetitions. */
+        ICONS.put(ReplayKeyframes.hotbarChannelId(0), Icons.HOTBAR);
+
+        ICONS.put("item_off_hand", Icons.LIMB);
+        ICONS.put("item_head", Icons.ARMOR_HELMET);
+        ICONS.put("item_chest", Icons.ARMOR_CHESTPLATE);
+        ICONS.put("item_legs", Icons.ARMOR_LEGGINGS);
+        ICONS.put("item_feet", Icons.ARMOR_BOOTS);
+
         ICONS.put("user1", Icons.PARTICLE);
         ICONS.put("paused", Icons.TIME);
         ICONS.put("frequency", Icons.STOPWATCH);
         ICONS.put("count", Icons.BUCKET);
         ICONS.put("settings", Icons.GEAR);
-        ICONS.put("physics_targets", Icons.TIME);
+        ICONS.put("physics_targets", Icons.PHYSICS);
     }
 
     public static Icon getIcon(String key)
