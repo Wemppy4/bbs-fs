@@ -46,6 +46,15 @@ public class BBSShaders
     /* All BBS shaders used "add / srcalpha / 1-srcalpha" in their JSON, i.e. standard alpha blending. */
     private static final BlendFunction BLEND = BlendFunction.TRANSLUCENT;
 
+    /**
+     * Registered model pipelines by variant; each is a separate GLSL compile (different PASS_MODE define).
+     *
+     * <p>MUST stay above the pipeline fields below: static fields initialise in declaration order, and
+     * those fields call {@link #modelPipeline} — which reads this map. Declared after them it is still
+     * null at that point, and the whole class fails to initialise.
+     */
+    private static final java.util.Map<ModelVariant, RenderPipeline> modelPipelines = new java.util.HashMap<>();
+
     /* ---- model ----
      * VertexFormat: POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
      * Samplers: Sampler0 (albedo), Sampler1 (overlay), Sampler2 (lightmap)
@@ -108,8 +117,6 @@ public class BBSShaders
         }
     }
 
-    /** Registered model pipelines by variant; each is a separate GLSL compile (different PASS_MODE define). */
-    private static final java.util.Map<ModelVariant, RenderPipeline> modelPipelines = new java.util.HashMap<>();
 
     /* ---- multilink ----
      * VertexFormat: POSITION_TEXTURE_COLOR
