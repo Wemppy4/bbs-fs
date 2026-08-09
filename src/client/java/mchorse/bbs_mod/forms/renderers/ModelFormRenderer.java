@@ -409,9 +409,10 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         FormColorBlend.BlendMode blendMode = additive ? FormColorBlend.BlendMode.BRIGHTEN : FormColorBlend.BlendMode.MULTIPLY;
         FormColorBlend.blend(finalColor, formColor, blendMode);
 
-        /* TODO(1.21.11 render): cull/blend state and lightmap/overlay binding are now encoded in the
-         * RenderPipeline (model.culling toggled cull; blend was default-func enabled; lightmap+overlay
-         * were enabled here). Re-apply on the new pipeline foundation. */
+        /* The GL state this method used to set around the draw is encoded per-pipeline now: blend and
+         * the lightmap/overlay samplers by the model RenderLayer, and model.culling by the choice
+         * between the culled and non-culled layer variant, made where the draw happens
+         * (ModelInstance.render / BOBJModelVAO.render). */
 
         MatrixStack newStack = new MatrixStack();
 

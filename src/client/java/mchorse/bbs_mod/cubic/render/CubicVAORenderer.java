@@ -100,7 +100,7 @@ public class CubicVAORenderer extends CubicCubeRenderer
         //  overload; HEAD draws every material through the pipeline RenderLayer with no per-material texture bind).
         for (Map.Entry<String, ModelVAO> entry : groupVaos.entrySet())
         {
-            ModelVAORenderer.render(entry.getValue(), stack, r, g, b, a, light, this.overlay);
+            ModelVAORenderer.render(entry.getValue(), stack, r, g, b, a, light, this.overlay, this.model.isCulling());
         }
 
         return false;

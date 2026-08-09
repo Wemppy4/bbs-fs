@@ -169,8 +169,11 @@ public class BOBJModelVAO
      * matrices are baked into the vertices CPU-side (exactly like {@link mchorse.bbs_mod.cubic.render.CubicCubeRenderer#writeVertex}),
      * and the model pipeline (blend/depth/cull) + lightmap/overlay samplers are encoded by
      * {@link BBSShaders#getModelLayer()}. Replaces the removed ShaderProgram bind + raw-GL VAO draw.
+     *
+     * <p>{@code cull} carries the model's own culling flag ({@code ModelInstance.isCulling()}); on
+     * 1.21.1 it toggled the global GL cull around the draw, now it picks the layer variant.
      */
-    public void render(MatrixStack stack, float r, float g, float b, float a, StencilMap stencilMap, int light, int overlay)
+    public void render(MatrixStack stack, float r, float g, float b, float a, StencilMap stencilMap, int light, int overlay, boolean cull)
     {
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
 
@@ -235,7 +238,7 @@ public class BOBJModelVAO
             }
             else
             {
-                BBSShaders.getBoundModelLayer().draw(built);
+                (cull ? BBSShaders.getBoundCulledModelLayer() : BBSShaders.getBoundModelLayer()).draw(built);
             }
         }
     }

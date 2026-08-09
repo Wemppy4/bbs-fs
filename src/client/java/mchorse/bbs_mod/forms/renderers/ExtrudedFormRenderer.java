@@ -118,7 +118,11 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
              * (BBSShaders.getModelLayer()); the geometry is baked CPU-side and drawn immediately, the
              * same proven path cubic Models/Billboards use. The picker pipeline carried by `shader`
              * will be selected here once the picking foundation lands (see render3D TODO). */
-            ModelVAORenderer.render(data, matrices, color.r, color.g, color.b, color.a, light, overlay);
+            /* Culled, like the 1.21.1 draw: extrusion is closed geometry, nothing of it should ever be
+             * seen from the inside, and its back faces are pure overdraw (doubled alpha where the
+             * texture is translucent). ExtrudedFormRenderer never touched the global GL cull, so on
+             * 1.21.1 it drew with vanilla's culling on. */
+            ModelVAORenderer.render(data, matrices, color.r, color.g, color.b, color.a, light, overlay, true);
         }
     }
 }

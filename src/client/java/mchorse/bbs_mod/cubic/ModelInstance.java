@@ -543,7 +543,10 @@ public class ModelInstance implements IModelInstance
                     }
                     else
                     {
-                        BBSShaders.getBoundModelLayer().draw(built);
+                        /* model.culling picks the layer variant. On 1.21.1 it was a global GL toggle
+                         * (ModelFormRenderer disabled culling around the whole render when the model
+                         * asked for it and restored it afterwards); the pipeline encodes it now. */
+                        (this.isCulling() ? BBSShaders.getBoundCulledModelLayer() : BBSShaders.getBoundModelLayer()).draw(built);
                     }
                 }
             }
@@ -567,7 +570,7 @@ public class ModelInstance implements IModelInstance
                 for (BOBJModelVAO vao : vaos)
                 {
                     vao.updateMesh(stencilMap);
-                    vao.render(stack, color.r, color.g, color.b, color.a, stencilMap, light, overlay);
+                    vao.render(stack, color.r, color.g, color.b, color.a, stencilMap, light, overlay, this.isCulling());
                 }
 
                 stack.pop();

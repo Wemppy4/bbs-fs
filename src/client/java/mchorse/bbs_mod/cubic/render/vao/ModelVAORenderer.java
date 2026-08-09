@@ -29,8 +29,11 @@ public class ModelVAORenderer
      * built-in uniforms now live in the std140 UBOs (DynamicTransforms / Projection / Fog / Lighting)
      * that {@link BBSShaders#getModelLayer()} uploads per draw. The geometry is baked CPU-side into a
      * BufferBuilder (matching the cubic immediate path) and submitted through that layer.
+     *
+     * <p>{@code cull} carries the model's own culling flag ({@code ModelInstance.isCulling()}); on
+     * 1.21.1 it toggled the global GL cull around the draw, now it picks the layer variant.
      */
-    public static void render(ModelVAO modelVAO, MatrixStack stack, float r, float g, float b, float a, int light, int overlay)
+    public static void render(ModelVAO modelVAO, MatrixStack stack, float r, float g, float b, float a, int light, int overlay, boolean cull)
     {
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
 
@@ -40,7 +43,7 @@ public class ModelVAORenderer
 
         if (built != null)
         {
-            BBSShaders.getBoundModelLayer().draw(built);
+            (cull ? BBSShaders.getBoundCulledModelLayer() : BBSShaders.getBoundModelLayer()).draw(built);
         }
     }
 }
