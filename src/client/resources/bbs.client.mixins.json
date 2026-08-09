@@ -20,8 +20,6 @@
         "KeyboardInputMixin",
         "EntityRendererMixin",
         "EntityRenderStateMixin",
-        "HeldItemFeatureRendererMixin",
-        "PlayerHeldItemFeatureRendererMixin",
         "LivingEntityRendererMorphMixin",
         "LivingEntityRendererInvoker",
         "ClientPlayerEntityAccessor",

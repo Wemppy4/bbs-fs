@@ -64,16 +64,12 @@ public class ModelBlockSpecialRenderer implements SpecialModelRenderer<ModelBloc
     {
         if (key == null)
         {
-            FormRenderCapture.probeRenderCall("model_block", displayContext, false, false);
-
             return;
         }
 
         ModelBlockItemRenderer.Item item = key.item();
         ModelProperties properties = item.entity.getProperties();
         Form form = properties.getForm(displayContext);
-
-        FormRenderCapture.probeRenderCall("model_block", displayContext, true, form != null);
 
         if (form != null)
         {

@@ -61,8 +61,6 @@ public class GunSpecialRenderer implements SpecialModelRenderer<GunSpecialRender
     {
         if (key == null)
         {
-            FormRenderCapture.probeRenderCall("gun", displayContext, false, false);
-
             return;
         }
 
@@ -84,8 +82,6 @@ public class GunSpecialRenderer implements SpecialModelRenderer<GunSpecialRender
             form = editorMenu.getGunProperties().getZoomForm();
             transform = editorMenu.getGunProperties().zoomTransform;
         }
-
-        FormRenderCapture.probeRenderCall("gun", displayContext, true, form != null);
 
         if (form != null)
         {

@@ -59,11 +59,6 @@ public abstract class LivingEntityRendererMorphMixin
 
             if (MorphRenderer.collectPlayer(player, state.light, overlay, tickDelta))
             {
-                /* TEMPORARY (1.21.11 items diagnosis): a suppressed vanilla player render kills
-                 * every feature with it, including the held-item one — the prime suspect for
-                 * "third person never reaches the special renderers". */
-                mchorse.bbs_mod.forms.FormRenderCapture.probeStage("morph-suppress", "player=" + player.getName().getString());
-
                 info.cancel();
             }
         }
