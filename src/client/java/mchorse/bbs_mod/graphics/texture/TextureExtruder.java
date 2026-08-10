@@ -202,9 +202,8 @@ public class TextureExtruder
             float[] v = CollectionUtils.toArray(vertices);
             float[] n = CollectionUtils.toArray(normals);
             float[] u = CollectionUtils.toArray(uvs);
-            float[] t = BBSRendering.calculateTangents(v, n, u);
 
-            return new ModelVAO(new ModelVAOData(v, n, t, u));
+            return new ModelVAO(new ModelVAOData(v, n, u));
         }
 
         return null;

@@ -7,8 +7,6 @@ import org.joml.Matrix4fc;
 
 public class RecolorVertexConsumer implements VertexConsumer
 {
-    public static Color newColor;
-
     protected VertexConsumer consumer;
     protected Color color;
 

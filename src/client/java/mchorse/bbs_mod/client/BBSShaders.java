@@ -76,7 +76,12 @@ public class BBSShaders
      * The 1.21.1 per-instance NormalMat/IViewRotMat are gone: the pose normal matrix is now applied
      * CPU-side at buffer-build time (CubicCubeRenderer transforms each Normal before emitting it), so
      * the migrated bbs:core/model GLSL feeds the raw Normal straight into minecraft_mix_light.
+     *
+     * The field exists for its class-load side effect: it registers the variant every ordinary form
+     * draw asks for, so it is compiled with the rest of the pipeline set rather than mid-frame.
+     * Consumers reach it through {@link #getModelLayer}, which finds it memoized in modelPipelines.
      */
+    @SuppressWarnings("unused")
     private static final RenderPipeline MODEL = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, false), false);
 
     /* ---- model (culled) ----
@@ -88,7 +93,10 @@ public class BBSShaders
      * front face's ~1.0). On 1.21.1 these draws went through the global GL state, where vanilla
      * keeps culling enabled — only LabelFormRenderer and cubic models with !isCulling() switched it
      * off around their own draws, and the billboard's deferred command was flagged cull = true.
+     *
+     * Registered eagerly for the same reason as MODEL; reached via {@link #getBoundCulledModelLayer()}.
      */
+    @SuppressWarnings("unused")
     private static final RenderPipeline MODEL_CULLED = modelPipeline(new ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, true), false);
 
     /**
@@ -239,15 +247,15 @@ public class BBSShaders
     private static final RenderPipeline BILLBOARD = registerBillboard();
 
     /* Lazily-built render layers (one per pipeline). RenderLayer.of caches nothing itself, so we
-     * memoize here to keep a single instance the immediate buffer source can key on. */
+     * memoize here to keep a single instance the immediate buffer source can key on.
+     *
+     * Only the layers something actually draws through live here. The picker_preview / picker_models /
+     * picker_billboard_no_shading effects are dispatched by BBSPickerRenderer's manual render pass
+     * instead — a RenderLayer binds only the engine builtins and so can never carry the BBSPicker UBO
+     * those shaders read (see PICKER_UNIFORM). */
     private static RenderLayer billboardLayer;
-    private static RenderLayer multiLinkLayer;
-    private static RenderLayer subtitlesLayer;
-    private static RenderLayer pickerPreviewLayer;
     private static RenderLayer pickerBillboardLayer;
-    private static RenderLayer pickerBillboardNoShadingLayer;
     private static RenderLayer pickerParticlesLayer;
-    private static RenderLayer pickerModelsLayer;
     private static RenderLayer particlesLayer;
     private static RenderLayer particlesWorldLayer;
 
@@ -268,11 +276,6 @@ public class BBSShaders
      * Public API — pipeline accessors. Names kept stable with the 1.21.1 ShaderProgram getters;
      * return type changed ShaderProgram -> RenderPipeline (the faithful 1.21.5 equivalent).
      * ---------------------------------------------------------------------------------------- */
-
-    public static RenderPipeline getModel()
-    {
-        return MODEL;
-    }
 
     public static RenderPipeline getMultilinkProgram()
     {
@@ -426,36 +429,6 @@ public class BBSShaders
         return getModelLayer(ModelVariant.SINGLE, null);
     }
 
-    public static RenderLayer getMultilinkLayer()
-    {
-        if (multiLinkLayer == null)
-        {
-            multiLinkLayer = layer("multilink", MULTILINK, false);
-        }
-
-        return multiLinkLayer;
-    }
-
-    public static RenderLayer getSubtitlesLayer()
-    {
-        if (subtitlesLayer == null)
-        {
-            subtitlesLayer = layer("subtitles", SUBTITLES, false);
-        }
-
-        return subtitlesLayer;
-    }
-
-    public static RenderLayer getPickerPreviewLayer()
-    {
-        if (pickerPreviewLayer == null)
-        {
-            pickerPreviewLayer = layer("picker_preview", PICKER_PREVIEW, false);
-        }
-
-        return pickerPreviewLayer;
-    }
-
     public static RenderLayer getPickerBillboardLayer()
     {
         if (pickerBillboardLayer == null)
@@ -466,16 +439,6 @@ public class BBSShaders
         return pickerBillboardLayer;
     }
 
-    public static RenderLayer getPickerBillboardNoShadingLayer()
-    {
-        if (pickerBillboardNoShadingLayer == null)
-        {
-            pickerBillboardNoShadingLayer = layer("picker_billboard_no_shading", PICKER_BILLBOARD_NO_SHADING, true);
-        }
-
-        return pickerBillboardNoShadingLayer;
-    }
-
     public static RenderLayer getPickerParticlesLayer()
     {
         if (pickerParticlesLayer == null)
@@ -484,16 +447,6 @@ public class BBSShaders
         }
 
         return pickerParticlesLayer;
-    }
-
-    public static RenderLayer getPickerModelsLayer()
-    {
-        if (pickerModelsLayer == null)
-        {
-            pickerModelsLayer = layer("picker_models", PICKER_MODELS, true);
-        }
-
-        return pickerModelsLayer;
     }
 
     /**
@@ -541,7 +494,7 @@ public class BBSShaders
      * ---------------------------------------------------------------------------------------- */
 
     /**
-     * Build and register the model pipeline. Identical to {@link #register} but additionally declares
+     * Build and register the model pipeline. It declares
      * the four builtin std140 UBO blocks the migrated {@code bbs:core/model} GLSL imports
      * (light.glsl / fog.glsl / dynamictransforms.glsl / projection.glsl). Declared in the same order
      * the vanilla entity pipeline uses (DynamicTransforms, Projection, Fog, Lighting) so the engine
@@ -655,7 +608,7 @@ public class BBSShaders
     }
 
     /**
-     * Build and register the particles pipeline. Like {@link #registerModel} it declares the builtin
+     * Build and register the particles pipeline. Like {@link #modelPipeline} it declares the builtin
      * std140 UBOs the migrated {@code bbs:core/particles} GLSL imports (fog / dynamictransforms /
      * projection), but no Lighting block (particles are not directionally lit) and the
      * POSITION_TEXTURE_COLOR_LIGHT format the emitter builds. Sampler0 = albedo, Sampler2 = lightmap.
@@ -782,31 +735,6 @@ public class BBSShaders
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withUniform(PICKER_UNIFORM, UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0");
-
-        return RenderPipelines.register(builder.build());
-    }
-
-    /**
-     * Build and register a RenderPipeline for a BBS core shader. The vertex and fragment shader
-     * both resolve to the GLSL asset {@code bbs:core/<name>} (.vsh/.fsh).
-     */
-    private static RenderPipeline register(String name, VertexFormat format, String... samplers)
-    {
-        Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/" + name);
-
-        RenderPipeline.Builder builder = RenderPipeline.builder()
-            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/" + name))
-            .withVertexShader(shader)
-            .withFragmentShader(shader)
-            .withVertexFormat(format, VertexFormat.DrawMode.QUADS)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-            .withCull(false);
-
-        for (String sampler : samplers)
-        {
-            builder.withSampler(sampler);
-        }
 
         return RenderPipelines.register(builder.build());
     }

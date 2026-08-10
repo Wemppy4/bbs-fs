@@ -8,8 +8,6 @@ import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.mixin.LimbAnimatorAccessor;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.utils.pose.Pose;
-import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.network.OtherClientPlayerEntity;
@@ -37,10 +35,8 @@ import java.util.UUID;
 
 public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 {
+    /** Per entity class, its model's ModelParts by field name — resolved reflectively once in {@link #getBones}. */
     private static final Map<Class, Map<String, ModelPart>> parts = new HashMap<>();
-    private static final Map<ModelPart, Transform> cache = new HashMap<>();
-    private static Pose currentPose;
-    private static Pose currentPoseOverlay;
 
     public static final GameProfile WIDE = new GameProfile(UUID.fromString("b99a2400-28a8-4288-92dc-924beafbf756"), "McHorseYT");
     public static final GameProfile SLIM = new GameProfile(UUID.fromString("5477bd28-e672-4f87-a209-c03cf75f3606"), "osmiq");
@@ -54,26 +50,6 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
     public float prevHandSwing;
     private float prevYawHead;
     private float prevPitch;
-
-    public static Pose getCurrentPose()
-    {
-        return currentPose;
-    }
-
-    public static Pose getCurrentPoseOverlay()
-    {
-        return currentPoseOverlay;
-    }
-
-    public static Map<Class, Map<String, ModelPart>> getParts()
-    {
-        return parts;
-    }
-
-    public static Map<ModelPart, Transform> getCache()
-    {
-        return cache;
-    }
 
     public MobFormRenderer(MobForm form)
     {
@@ -305,8 +281,4 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
         }
     }
 
-    private static class BooleanHolder
-    {
-        public boolean bool;
-    }
 }

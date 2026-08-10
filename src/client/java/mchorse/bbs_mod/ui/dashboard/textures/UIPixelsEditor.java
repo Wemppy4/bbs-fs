@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.dashboard.textures;
 
-import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.ImageClipboard;
 import mchorse.bbs_mod.graphics.window.Window;
@@ -26,8 +25,6 @@ import mchorse.bbs_mod.utils.resources.Pixels;
 import mchorse.bbs_mod.utils.undo.IUndo;
 import mchorse.bbs_mod.utils.undo.UndoManager;
 import mchorse.bbs_mod.ui.dashboard.textures.data.TextureLayer;
-import net.minecraft.client.gl.GlUniform;
-import net.minecraft.client.gl.ShaderProgram;
 import org.joml.Vector2d;
 import org.joml.Vector2i;
 import org.lwjgl.opengl.GL11;

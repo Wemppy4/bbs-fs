@@ -58,10 +58,6 @@ import java.util.Set;
  */
 public final class ModelIKDebug
 {
-    private static final float[] WIRE = {0.90F, 0.92F, 0.95F};
-    private static final float[] EFFECTOR = {0.30F, 0.64F, 1.00F};
-    private static final float[] GOAL = {0.22F, 0.84F, 0.55F};
-    private static final float[] POLE = {1.00F, 0.55F, 0.15F};
 
     public static boolean enabled;
 
@@ -301,8 +297,12 @@ public final class ModelIKDebug
         stack.pop();
     }
 
-    /** Draws one pickable marker — the element's own shape and size — encoding the next stencil id, and claims it for {@code bone}. */
-    private static void pickMarker(BufferBuilder builder, MatrixStack stack, StencilMap stencilMap, Form form, ValueDebugElement element, Vector3f p, float unit, String bone)
+    /**
+     * Draws one pickable marker — the element's own shape and size — encoding the next stencil id, and claims
+     * it for {@code bone}. Shared with {@link mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug}, whose pick pass
+     * already flushes through {@link #flushPick}.
+     */
+    public static void pickMarker(BufferBuilder builder, MatrixStack stack, StencilMap stencilMap, Form form, ValueDebugElement element, Vector3f p, float unit, String bone)
     {
         int id = stencilMap.objectIndex;
         float[] col = {(id & 0xFF) / 255F, (id >> 8 & 0xFF) / 255F, (id >> 16 & 0xFF) / 255F};

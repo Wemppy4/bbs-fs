@@ -183,7 +183,7 @@ public final class ModelPhysicsDebug
 
             if (target != null)
             {
-                pickMarker(builder, stack, stencilMap, form, config.attach, target, segmentUnit(chain.restLengths()), chain.targetBone());
+                ModelIKDebug.pickMarker(builder, stack, stencilMap, form, config.attach, target, segmentUnit(chain.restLengths()), chain.targetBone());
             }
         }
 
@@ -191,17 +191,6 @@ public final class ModelPhysicsDebug
 
         stack.pop();
 
-    }
-
-    /** Draws one pickable marker — the element's own shape and size — encoding the next stencil id, and claims it for {@code bone}. */
-    private static void pickMarker(BufferBuilder builder, MatrixStack stack, StencilMap stencilMap, Form form, ValueDebugElement element, Vector3f p, float unit, String bone)
-    {
-        int id = stencilMap.objectIndex;
-        float[] col = {(id & 0xFF) / 255F, (id >> 8 & 0xFF) / 255F, (id >> 16 & 0xFF) / 255F};
-
-        DebugOverlay.marker(builder, stack, element.shape.get(), p, unit * element.size.get(), col, 1F);
-
-        stencilMap.addPicking(form, bone);
     }
 
     private static float segmentUnit(float[] lengths)

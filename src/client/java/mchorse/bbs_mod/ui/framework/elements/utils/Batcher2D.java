@@ -1,10 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.utils;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.GuiQuadMesh;
@@ -18,13 +14,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.ScreenRect;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.texture.TextureSetup;
 import net.minecraft.util.Identifier;
 import org.joml.Matrix3x2fc;
@@ -74,77 +64,11 @@ public class Batcher2D
     /** How far a lit edge is pulled towards white, see {@link #surfaceBox}. */
     private static final float HIGHLIGHT_STRENGTH = 0.15F;
 
-    private static final BlendFunction BLEND = BlendFunction.TRANSLUCENT;
-
-    /* BBS-owned 2D POSITION_COLOR pipelines (no depth test - GUI overlay), one per draw mode used
-     * by the batcher. Seeded from the vanilla GUI position-color snippet so the GUI projection /
-     * transform UBO is supplied. */
-    private static final RenderPipeline GUI_QUADS = RenderPipelines.register(
-        guiColorBuilder("gui_color_quads", VertexFormat.DrawMode.QUADS).build()
-    );
-
-    private static final RenderPipeline GUI_TRIANGLES = RenderPipelines.register(
-        guiColorBuilder("gui_color_triangles", VertexFormat.DrawMode.TRIANGLES).build()
-    );
-
-    private static final RenderPipeline GUI_TRIANGLE_FAN = RenderPipelines.register(
-        guiColorBuilder("gui_color_triangle_fan", VertexFormat.DrawMode.TRIANGLE_FAN).build()
-    );
-
-    private static RenderLayer guiQuadsLayer;
-    private static RenderLayer guiTrianglesLayer;
-    private static RenderLayer guiTriangleFanLayer;
 
     private static FontRenderer fontRenderer = new FontRenderer();
 
     private DrawContext context;
     private FontRenderer font;
-
-    private static RenderPipeline.Builder guiColorBuilder(String name, VertexFormat.DrawMode mode)
-    {
-        return RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(net.minecraft.util.Identifier.of(BBSMod.MOD_ID, "pipeline/" + name))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, mode)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withCull(false);
-    }
-
-    private static RenderLayer layer(RenderPipeline pipeline, String name, RenderLayer cached)
-    {
-        if (cached != null)
-        {
-            return cached;
-        }
-
-        return RenderLayer.of(BBSMod.MOD_ID + "_" + name, RenderSetup.builder(pipeline).translucent().build());
-    }
-
-    private static RenderLayer getQuadsLayer()
-    {
-        return guiQuadsLayer = layer(GUI_QUADS, "gui_color_quads", guiQuadsLayer);
-    }
-
-    private static RenderLayer getTrianglesLayer()
-    {
-        return guiTrianglesLayer = layer(GUI_TRIANGLES, "gui_color_triangles", guiTrianglesLayer);
-    }
-
-    private static RenderLayer getTriangleFanLayer()
-    {
-        return guiTriangleFanLayer = layer(GUI_TRIANGLE_FAN, "gui_color_triangle_fan", guiTriangleFanLayer);
-    }
-
-    /** Finish a buffer and submit it through the given layer (no-op on an empty buffer). */
-    private static void flush(BufferBuilder builder, RenderLayer renderLayer)
-    {
-        BuiltBuffer built = builder.endNullable();
-
-        if (built != null)
-        {
-            renderLayer.draw(built);
-        }
-    }
 
     public static FontRenderer getDefaultTextRenderer()
     {
@@ -675,16 +599,6 @@ public class Batcher2D
         this.context.drawTexture(pipeline, id,
             (int) x, (int) y, u1, v1, (int) w, (int) h,
             (int) (u2 - u1), (int) (v2 - v1), textureW, textureH, color);
-    }
-
-    private void fillTexturedBox(BufferBuilder builder, Matrix3x2fc matrix, int color, float x, float y, float w, float h, float u1, float v1, float u2, float v2, int textureW, int textureH)
-    {
-        builder.vertex(matrix, x, y + h).texture(u1 / (float) textureW, v2 / (float) textureH).color(color);
-        builder.vertex(matrix, x + w, y + h).texture(u2 / (float) textureW, v2 / (float) textureH).color(color);
-        builder.vertex(matrix, x + w, y).texture(u2 / (float) textureW, v1 / (float) textureH).color(color);
-        builder.vertex(matrix, x, y + h).texture(u1 / (float) textureW, v2 / (float) textureH).color(color);
-        builder.vertex(matrix, x + w, y).texture(u2 / (float) textureW, v1 / (float) textureH).color(color);
-        builder.vertex(matrix, x, y).texture(u1 / (float) textureW, v1 / (float) textureH).color(color);
     }
 
     /* Repeatable textured box */

@@ -1,16 +1,9 @@
 package mchorse.bbs_mod.forms;
 
-import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.BufferAllocator;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
-import org.lwjgl.opengl.GL11;
 
 import java.util.SequencedMap;
 import java.util.function.Consumer;
@@ -49,11 +42,6 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
     public void setSubstitute(Function<VertexConsumer, VertexConsumer> substitute)
     {
         this.substitute = substitute;
-
-        if (this.substitute == null)
-        {
-            RecolorVertexConsumer.newColor = null;
-        }
     }
 
     public void setUI(boolean ui)
@@ -93,13 +81,6 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
          * and the replay draw were removed by the GPU-pipeline rewrite, so the queue is disabled
          * on this branch (see FormTranslucentQueue) and every layer draws immediately. */
         super.draw(layer);
-    }
-
-    private static boolean isDeferrableTranslucent(RenderLayer layer)
-    {
-        String name = layer.toString();
-
-        return name.contains("translucent") && !name.contains("glint");
     }
 
     @Override

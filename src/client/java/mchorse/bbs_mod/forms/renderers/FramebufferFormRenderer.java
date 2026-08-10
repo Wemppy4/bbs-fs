@@ -4,8 +4,6 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
-import mchorse.bbs_mod.forms.entities.IEntity;
-import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.Renderbuffer;
@@ -14,19 +12,13 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
-import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Quad;
 import mchorse.bbs_mod.utils.colors.Color;
-import mchorse.bbs_mod.utils.joml.Vectors;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.LightmapTextureManager;
-import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
@@ -35,7 +27,6 @@ import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
-import java.util.function.Supplier;
 
 public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 {
@@ -45,7 +36,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
     /* Nested framebuffer forms must each render into their own framebuffer */
     private static int depth;
 
-    private IEntity entity = new StubEntity();
 
     public FramebufferFormRenderer(FramebufferForm form)
     {
@@ -170,16 +160,14 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         boolean shading = !context.isPicking();
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
-        /* TODO(1.21.11 render): GameRenderer.getRenderTypeEntityTranslucentProgram / getPositionTexColorProgram
-         * were removed (shaders now live in RenderPipeline/RenderLayer). Stubbed shader supplier; the
-         * framebuffer composite is a no-op until the new pipeline path is wired up. Was:
-         * shading ? entity-translucent program : position-tex-color program. */
-        Supplier<ShaderProgram> shader = () -> null;
-
-        this.renderModel(framebuffer.getMainTexture(), format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+        /* TODO(1.21.11 render): the composite still needs a pipeline. 1.21.1 picked one per pass —
+         * shading ? getRenderTypeEntityTranslucentProgram : getPositionTexColorProgram — and both
+         * accessors are gone. The equivalents here are BBSShaders.getBoundModelLayer() and
+         * getBoundBillboardLayer(); until renderQuad submits through one the composite draws nothing. */
+        this.renderModel(framebuffer.getMainTexture(), format, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
     }
 
-    private void renderModel(Texture texture, VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderModel(Texture texture, VertexFormat format, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
     {
         float w = texture.width;
         float h = texture.height;
@@ -209,10 +197,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         quad.p3.set(TLx, BRy, 0);
         quad.p4.set(BRx, BRy, 0);
 
-        this.renderQuad(format, texture, shader, matrices, overlay, light, overlayColor, transition, defer);
+        this.renderQuad(format, texture, matrices, overlay, light, overlayColor, transition, defer);
     }
 
-    private void renderQuad(VertexFormat format, Texture texture, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderQuad(VertexFormat format, Texture texture, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
     {
         Color color = Color.white();
         Matrix4f matrix = matrices.peek().getPositionMatrix();

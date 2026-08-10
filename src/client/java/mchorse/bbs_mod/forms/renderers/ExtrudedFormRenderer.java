@@ -7,7 +7,6 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
-import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.ExtrudedForm;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
@@ -20,11 +19,8 @@ import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 
-import java.util.function.Supplier;
 
 public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
 {
@@ -93,7 +89,7 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
 
         if (context.isPicking())
         {
-            this.setupTarget(context, null);
+            this.setupTarget(context);
 
             picker = BBSShaders.getPickerBillboardProgram();
         }

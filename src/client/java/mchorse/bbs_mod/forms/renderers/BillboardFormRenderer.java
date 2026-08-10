@@ -18,7 +18,6 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Quad;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
-import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -119,7 +118,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
              * the 1.21.1 getShader(...) call set the Target uniform. The no-shading picker keeps the
              * 1.21.1 POSITION_TEXTURE_LIGHT_COLOR layout — the visible unlit path dropped LIGHT when it
              * moved onto vanilla's position_tex_color, the picker shader still declares it. */
-            this.setupTarget(context, null);
+            this.setupTarget(context);
 
             VertexFormat pickFormat = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
             RenderPipeline picker = shading ? BBSShaders.getPickerBillboardProgram() : BBSShaders.getPickerBillboardNoShadingProgram();

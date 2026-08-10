@@ -22,7 +22,6 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
-import mchorse.bbs_mod.graphics.GuiQuadMesh;
 import net.minecraft.client.render.VertexConsumer;
 import org.joml.Matrix3x2fc;
 

@@ -19,7 +19,6 @@ import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.pose.Transform;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -32,7 +31,6 @@ import org.joml.Vector3f;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 
 public abstract class FormRenderer <T extends Form>
 {
@@ -275,24 +273,16 @@ public abstract class FormRenderer <T extends Form>
         return displacement;
     }
 
-    protected Supplier<ShaderProgram> getShader(FormRenderingContext context, Supplier<ShaderProgram> normal, Supplier<ShaderProgram> picking)
+    /**
+     * Record the active picking index for the picker draw that follows.
+     *
+     * <p>The loose {@code uniform int Target} the picker shaders used is the BBSPicker std140 UBO now,
+     * uploaded per picker draw by {@link BBSPickerRenderer} — so this is the faithful equivalent of the
+     * 1.21.1 {@code program.getUniform("Target").set(getPickingIndex())}, minus the program: picker
+     * programs are RenderPipelines, chosen at the draw itself.
+     */
+    protected void setupTarget(FormRenderingContext context)
     {
-        if (context.isPicking())
-        {
-            this.setupTarget(context, picking.get());
-
-            return picking;
-        }
-
-        return normal;
-    }
-
-    protected void setupTarget(FormRenderingContext context, ShaderProgram program)
-    {
-        /* 1.21.11 render: the loose `uniform int Target` the picker shaders used is now the BBSPicker
-         * std140 UBO, uploaded per picker draw by BBSPickerRenderer. Record the active picking index
-         * here — the faithful equivalent of the 1.21.1 program.getUniform("Target").set(getPickingIndex()).
-         * The legacy ShaderProgram param is unused (picker programs are RenderPipelines now). */
         BBSPickerRenderer.setTarget(context.getPickingIndex());
     }
 

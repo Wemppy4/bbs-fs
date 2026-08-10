@@ -8,7 +8,6 @@ import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.utils.clips.Clip;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 
 public class InteractBlockActionClip extends ActionClip

@@ -63,7 +63,7 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
          * the rest of the original getUIMatrix framing here (cell scale + 22.5 tilt + cursor yaw), then the same
          * recolor + command-queue item draw renderInUI/render3D use. No -0.5 block centering — items render
          * centred at the origin. */
-        Matrix4f uiMatrix = ModelFormRenderer.getUIPreviewMatrix(angle, y1, y2);
+        Matrix4f uiMatrix = getUIPreviewMatrix(angle, y1, y2);
 
         stack.push();
         MatrixStackUtils.multiply(stack, uiMatrix);

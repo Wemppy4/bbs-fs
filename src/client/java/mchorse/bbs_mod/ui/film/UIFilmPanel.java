@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.film;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
@@ -98,7 +97,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 {
     private static final int PREVIEW_MODE_EXPORT = 0;
     private static final int PREVIEW_MODE_CUSTOM = 1;
-    private static final int PREVIEW_MODE_AUTO = 2;
 
     private static final Logger LOGGER = LogUtils.getLogger();
 

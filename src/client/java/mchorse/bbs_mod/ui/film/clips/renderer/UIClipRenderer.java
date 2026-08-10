@@ -17,18 +17,6 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import mchorse.bbs_mod.BBSMod;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormats;
 import org.joml.Matrix3x2fc;
 import org.joml.Vector2f;
 
@@ -39,31 +27,6 @@ public class UIClipRenderer <T extends Clip> implements IUIClipRenderer<T>
     /* Temporary objects */
     private static Vector2f vector = new Vector2f();
     private static Vector2f previous = new Vector2f();
-
-    /* BBS-owned 2D POSITION_COLOR triangles pipeline/layer (GUI overlay, no depth, translucent),
-     * mirroring Batcher2D. 1.21.11: BufferRenderer.drawWithGlobalProgram() was removed; finished
-     * BufferBuilders are submitted through a RenderLayer wrapping a RenderPipeline. */
-    private static final RenderPipeline GUI_TRIANGLES = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(net.minecraft.util.Identifier.of(BBSMod.MOD_ID, "pipeline/clip_envelope_triangles"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
-            .withBlend(BlendFunction.TRANSLUCENT)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withCull(false)
-            .build()
-    );
-
-    private static RenderLayer guiTrianglesLayer;
-
-    private static RenderLayer getTrianglesLayer()
-    {
-        if (guiTrianglesLayer == null)
-        {
-            guiTrianglesLayer = RenderLayer.of(BBSMod.MOD_ID + "_clip_envelope_triangles", RenderSetup.builder(GUI_TRIANGLES).translucent().build());
-        }
-
-        return guiTrianglesLayer;
-    }
 
     @Override
     public void renderClip(UIContext context, UIClips clips, T clip, Area area, boolean selected, boolean current)

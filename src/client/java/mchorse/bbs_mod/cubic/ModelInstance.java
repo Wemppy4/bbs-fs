@@ -2,13 +2,11 @@ package mchorse.bbs_mod.cubic;
 
 import mchorse.bbs_mod.bobj.BOBJBone;
 import com.mojang.blaze3d.systems.RenderSystem;
-import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.cubic.data.animation.Animations;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
-import mchorse.bbs_mod.cubic.data.model.ModelMesh;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.View;
@@ -17,23 +15,16 @@ import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.render.CubicCubeRenderer;
 import mchorse.bbs_mod.cubic.render.CubicMatrixRenderer;
 import mchorse.bbs_mod.cubic.render.CubicRenderer;
-import mchorse.bbs_mod.cubic.render.CubicVAOBuilderRenderer;
-import mchorse.bbs_mod.cubic.render.CubicVAORenderer;
 import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
-import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
 import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
-import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
-import mchorse.bbs_mod.data.types.BaseType;
-import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
-import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
@@ -45,7 +36,6 @@ import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.RenderLayers;
@@ -53,24 +43,19 @@ import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class ModelInstance implements IModelInstance
 {
-    /** Identity NormalMat for the welded immediate draw — its normals are already CPU-transformed to world space. */
-    private static final Matrix3f WELD_NORMAL_MAT = new Matrix3f();
 
     public final String id;
     public IModel model;
@@ -96,13 +81,6 @@ public class ModelInstance implements IModelInstance
     /** Welds resolved against the model (groups/cubes/corners). Built lazily on first render, kept across frames. */
     private List<WeldBinding> weldBindings;
 
-    /** Whether the VAO bake skipped some groups (shape-keyed meshes) — those render immediate via the hybrid path. */
-    private boolean partialVaos;
-
-    /** Per group, the geometry split into one VAO per material name (empty key = default texture). */
-    private Map<ModelGroup, Map<String, ModelVAO>> vaos = new HashMap<>();
-
-    public transient Matrix4f lastBaseTransform;
     public transient Form form;
 
     public ModelInstance(String id, IModel model, Animations animations, Link texture)
@@ -130,11 +108,6 @@ public class ModelInstance implements IModelInstance
     public Animations getAnimations()
     {
         return this.animations;
-    }
-
-    public Map<ModelGroup, Map<String, ModelVAO>> getVaos()
-    {
-        return this.vaos;
     }
 
     /** Welds resolved against this model, built once. Empty when the model declares none or isn't cubic. */
@@ -283,71 +256,27 @@ public class ModelInstance implements IModelInstance
         return this.config.getFpOffhand();
     }
 
+    /**
+     * Only BOBJ needs setting up. A cubic Model draws through the immediate CubicCubeRenderer path — in
+     * previews via entityCutoutNoCull(adopted texture), in-world via the bbs:core/model layer — so there
+     * is no per-group geometry to bake and retain for it. (1.21.1 baked one VAO per group here and drew
+     * them through a raw-GL VAO path; that path is gone, and the bake with it.)
+     */
     public void setup()
     {
         if (this.model instanceof BOBJModel model)
         {
             MinecraftClient.getInstance().execute(model::setup);
         }
-
-        /* A welded or shape-keyed model still builds VAOs: only its welded bones and shape-keyed groups render
-         * on the immediate (CPU) path, the rest ride their VAOs on the GPU (see {@link #renderHybrid}). */
-        if (this.model instanceof Model model)
-        {
-            boolean bake = !this.config.onCpu.get();
-
-            this.partialVaos = bake && this.hasShapeKeyedGroups(model);
-
-            if (bake)
-            {
-                MinecraftClient.getInstance().execute(() ->
-                {
-                    CubicRenderer.processRenderModel(new CubicVAOBuilderRenderer(this.vaos), null, new MatrixStack(), model);
-                });
-            }
-        }
     }
 
-    /** Whether some group carries shape-keyed meshes — the VAO builder skips those, so the render is hybrid. */
-    private boolean hasShapeKeyedGroups(Model model)
-    {
-        for (ModelGroup group : model.getAllGroups())
-        {
-            for (ModelMesh mesh : group.meshes)
-            {
-                if (!mesh.data.isEmpty())
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    public boolean isVAORendered()
-    {
-        /* Cubic Models render through the IMMEDIATE CubicCubeRenderer path (no shader): in previews via
-         * entityCutoutNoCull(adopted texture), in-world via the bbs:core/model layer (BBSShaders.getModelLayer()),
-         * with the model texture bound globally. The VAO path (CubicVAORenderer -> ModelVAORenderer) now draws
-         * through that SAME model layer (CPU-baked geometry into a BufferBuilder), which is what revives BOBJModel
-         * — it has NO immediate path. Keep cubic on the immediate path (no per-group ModelVAO build/retain needed);
-         * only BOBJModel takes VAO. Was: !this.vaos.isEmpty() || BOBJModel, with a preview-only ACTIVE override. */
-        return this.model instanceof BOBJModel;
-    }
-
+    /**
+     * Release GPU resources held for this model. Nothing holds any today — cubic geometry is rebuilt into a
+     * BufferBuilder per draw and BOBJ frees its own — but the model lifecycle calls this on reload, so the
+     * hook stays for whatever the render path retains next.
+     */
     public void delete()
-    {
-        for (Map<String, ModelVAO> groupVaos : this.vaos.values())
-        {
-            for (ModelVAO value : groupVaos.values())
-            {
-                value.delete();
-            }
-        }
-
-        this.vaos.clear();
-    }
+    {}
 
     /* Rendering */
 
@@ -495,7 +424,7 @@ public class ModelInstance implements IModelInstance
         }
     }
 
-    public void render(MatrixStack stack, Supplier<ShaderProgram> program, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
+    public void render(MatrixStack stack, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
     {
         if (this.model instanceof Model model)
         {

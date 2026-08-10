@@ -49,6 +49,7 @@ ik_test/*
 # bbs port planning / status docs (not part of the mod)
 PORT_PLAN_*.md
 PORT_STATUS_*.md
+PORT_RENDER_AUDIT_*.md
 
 # ai session scratch notes
 memory/

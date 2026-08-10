@@ -33,8 +33,6 @@ import mchorse.bbs_mod.forms.renderers.VanillaParticleFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.TexturedRenderLayers;
-import net.minecraft.util.Util;
-import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.model.ModelBaker;
 import net.minecraft.client.util.BufferAllocator;
 

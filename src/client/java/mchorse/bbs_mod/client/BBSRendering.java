@@ -47,7 +47,6 @@ import net.minecraft.client.util.Window;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
-import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
@@ -111,7 +110,6 @@ public class BBSRendering
      * FabricLoader is up long before any of this.
      */
     private static boolean iris = FabricLoader.getInstance().isModLoaded("iris");
-    private static boolean sodium;
     private static boolean optifine;
 
     private static int width;
@@ -127,7 +125,6 @@ public class BBSRendering
     private static Framebuffer framebuffer;
     private static Framebuffer clientFramebuffer;
     private static Texture texture;
-    private static mchorse.bbs_mod.graphics.Framebuffer /* NECESSARY */ exportFramebuffer;
 
     /** Private read FBO used to snapshot our framebuffer's colour attachment into {@link #texture}. */
     private static int captureReadFramebuffer = -1;
@@ -276,7 +273,6 @@ public class BBSRendering
          *
          * Sodium still is: nothing in BBS asks it anything except the ortho frame's point-camera
          * culling relaxation, which is a nicety. */
-        sodium = false;
 
         LOGGER.info("[BBS shaders] Iris integration {}", iris ? "on" : "off (mod not present)");
         optifine = FabricLoader.getInstance().isModLoaded("optifabric");
@@ -1114,16 +1110,6 @@ public class BBSRendering
 
     public static void trackTexture(Texture texture)
     {}
-
-    public static float[] calculateTangents(float[] t, float[] v, float[] n, float[] u)
-    {
-        return t;
-    }
-
-    public static float[] calculateTangents(float[] v, float[] n, float[] u)
-    {
-        return v;
-    }
 
     public static List<String> getShadersSliderOptions()
     {

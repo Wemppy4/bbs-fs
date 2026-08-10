@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
 import mchorse.bbs_mod.cubic.ModelInstance;
@@ -50,10 +49,7 @@ import mchorse.bbs_mod.utils.joml.Vectors;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
-import mchorse.bbs_mod.graphics.texture.Texture;
-import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
@@ -71,7 +67,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITickable
 {
@@ -140,26 +135,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         uiMatrix.translate(x, y, 40);
         uiMatrix.scale(scale, -scale, scale);
         uiMatrix.rotateX(MathUtils.PI / 8);
-        uiMatrix.rotateY(angle);
-
-        return uiMatrix;
-    }
-
-    /**
-     * The cell-relative part of {@link #getUIMatrix} for the special-element FBO preview path, shared by every
-     * 3D form type's {@link #renderUIPreview}. The base {@code BbsFormGuiElementRenderer} already pre-translated
-     * the stack to the cell (centre, {@code 0.85*height} down) and applied {@code scale(f, f, -f)}, so only the
-     * cell scale + 22.5° forward tilt + cursor-driven yaw remain. The original {@link #getUIMatrix} used
-     * {@code scale(s, -s, s)}; the base's extra {@code -Z} means we flip Z here to net the same handedness.
-     */
-    public static Matrix4f getUIPreviewMatrix(float angle, int y1, int y2)
-    {
-        float cellScale = (y2 - y1) / 2.5F;
-
-        Matrix4f uiMatrix = new Matrix4f();
-
-        uiMatrix.scale(cellScale, -cellScale, -cellScale);
-        uiMatrix.rotateX(MathUtils.PI / 8F);
         uiMatrix.rotateY(angle);
 
         return uiMatrix;
@@ -378,28 +353,14 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         boolean additive = this.form.additiveColor.get();
 
-        this.renderModel(this.entity, this.getMainShader(model), stack, model,
+        this.renderModel(this.entity, stack, model,
             LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV,
             contextColor, formColor, additive, true, null, transition, null);
 
         stack.pop();
     }
 
-    /**
-     * TODO(1.21.11 render): the model shader path moved to RenderPipeline/RenderLayer.
-     * {@link GameRenderer}'s getXxxProgram() accessors were removed and {@link BBSShaders#getModel()}
-     * now returns a {@link com.mojang.blaze3d.pipeline.RenderPipeline}. {@link ModelInstance#render}
-     * still consumes a {@code Supplier<ShaderProgram>}, so until the model render path is rebuilt on the
-     * new pipeline this returns a null shader (rendering is a no-op). The old selection was:
-     * {@code ((isIrisShadersEnabled() && isRenderingWorld()) || !model.isVAORendered())} ->
-     * entity-translucent-cull program, else BBSShaders::getModel.
-     */
-    private Supplier<ShaderProgram> getMainShader(ModelInstance model)
-    {
-        return () -> null;
-    }
-
-    private void renderModel(IEntity target, Supplier<ShaderProgram> program, MatrixStack stack, ModelInstance model, int light, int overlay, Color contextColor, Color formColor, boolean additive, boolean ui, StencilMap stencilMap, float transition, MatrixStack world)
+    private void renderModel(IEntity target, MatrixStack stack, ModelInstance model, int light, int overlay, Color contextColor, Color formColor, boolean additive, boolean ui, StencilMap stencilMap, float transition, MatrixStack world)
     {
         this.ikAppliedThisRender = false;
         this.physicsAppliedThisRender = false;
@@ -456,7 +417,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         final boolean ignoreMaterials = model.materials.size() <= 1;
         final Link materialFallback = ignoreMaterials ? resolvedDefault : model.getTexture();
 
-        model.render(newStack, program, finalColor, light, overlay, stencilMap, this.form.shapeKeys.get(), (material) ->
+        model.render(newStack, finalColor, light, overlay, stencilMap, this.form.shapeKeys.get(), (material) ->
         {
             if (ignoreMaterials)
             {
@@ -570,7 +531,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
 
         this.physicsAppliedThisRender = true;
-        model.lastBaseTransform = baseTransform;
         model.form = this.form;
         ModelPhysicsRuntime.apply(target, model, transition, baseTransform);
     }
@@ -717,8 +677,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             BBSModClient.getTextures().bindTexture(texture);
 
-            Supplier<ShaderProgram> mainShader = this.getMainShader(model);
-
             /* TODO(1.21.11 render): depth-test/blend now pipeline-encoded. */
 
             boolean additive = this.form.additiveColor.get();
@@ -727,7 +685,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             try
             {
-                this.renderModel(this.entity, mainShader, matrices, model, light, OverlayTexture.DEFAULT_UV, contextColor, formColor, additive, false, null, 0F, null);
+                this.renderModel(this.entity, matrices, model, light, OverlayTexture.DEFAULT_UV, contextColor, formColor, additive, false, null, 0F, null);
             }
             finally
             {
@@ -785,14 +743,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 ModelPreviewRenderer.TEXTURE = AdoptedTexture.identifier(BBSModClient.getTextures().getTexture(texture));
             }
 
-            Supplier<ShaderProgram> mainShader = this.getMainShader(model);
-            /* getShader records the Target picking index (setupTarget -> BBSPickerRenderer.setTarget) when
-             * picking; ModelInstance.render then issues the picker_models draw itself. The legacy
-             * Supplier<ShaderProgram> is unused by that pipeline path (picker programs are RenderPipelines). */
-            Supplier<ShaderProgram> shader = this.getShader(context, mainShader, () -> null);
-
             if (context.isPicking())
             {
+                /* Record the Target picking index into the BBSPicker UBO; ModelInstance.render then issues
+                 * the picker_models draw itself. */
+                this.setupTarget(context);
+
                 /* picker_models samples Sampler0 for the alpha cutout. Bridge the bound (raw-GL) model texture
                  * into a vanilla GpuTextureView via AdoptedTexture so BBSPickerRenderer can bind it. */
                 Texture tex = BBSModClient.getTextures().getTexture(texture);
@@ -807,35 +763,14 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             }
 
             /* TODO(1.21.11 render): 1.21.1 degraded a translucent-texture model to the vanilla cutout
-             * program under Iris and suspended the deferred queue for that draw. Both the program swap
-             * (GameRenderer::getRenderTypeEntityCutoutProgram) and the queue are gone on this branch —
-             * the port keeps Iris/Sodium decoupled and draws single-pass — so the dance is dropped. */
-            boolean irisWorld = false;
-            boolean cutout = false;
-            boolean wasActive = false;
-
-            if (irisWorld)
-            {
-                /* Under Iris the model always draws right now, in the phase its program is meant
-                 * for. The end-of-frame replay runs after a deferred pack's shading composite —
-                 * Photon never shades it and the model vanishes (a 1% colour fade used to fall
-                 * into that path). Vanilla translucent entities don't sort either: vanilla-level
-                 * blending is the ceiling under shaders, the sorted queue stays a no-shader
-                 * feature. */
-                wasActive = FormTranslucentQueue.suspend();
-            }
-
-            try
-            {
-                this.renderModel(context.entity, shader, context.stack, model, context.light, context.overlay, contextColor, formColor, additive, false, context.stencilMap, context.getTransition(), context.world);
-            }
-            finally
-            {
-                if (irisWorld)
-                {
-                    FormTranslucentQueue.restore(wasActive);
-                }
-            }
+             * program under Iris and suspended the deferred queue for that draw, so the model drew in the
+             * phase its program was meant for rather than in an end-of-frame replay that a deferred pack
+             * has already composited past. Both the program swap
+             * (GameRenderer::getRenderTypeEntityCutoutProgram) and that queue interaction are gone on this
+             * branch — the world span now mirrors the vanilla entity pipeline instead — so the dance is
+             * dropped. Re-add via FormTranslucentQueue.suspend()/restore() if a deferred pack ever eats a
+             * translucent model again. */
+            this.renderModel(context.entity, context.stack, model, context.light, context.overlay, contextColor, formColor, additive, false, context.stencilMap, context.getTransition(), context.world);
         }
     }
 

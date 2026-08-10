@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.forms.editors.utils;
 
-import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.forms.FormUtilsClient;

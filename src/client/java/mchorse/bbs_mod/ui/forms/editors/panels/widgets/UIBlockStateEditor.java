@@ -16,7 +16,6 @@ import net.minecraft.block.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import java.util.function.Consumer;
 

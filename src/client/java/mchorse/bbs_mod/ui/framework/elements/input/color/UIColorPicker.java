@@ -1,10 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.input.color;
 
 import mchorse.bbs_mod.graphics.GuiQuadMesh;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -18,13 +14,6 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderSetup;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormats;
 import org.joml.Matrix3x2fc;
 import org.lwjgl.glfw.GLFW;
 
@@ -82,30 +71,6 @@ public class UIColorPicker extends UIElement
     private final Color hsv = new Color();
     private final Color tempColor = new Color();
     private final Color tempColor2 = new Color();
-
-    /* TODO(1.21.11 render): POSITION_COLOR TRIANGLES pipeline/layer mirrored from Batcher2D (its
-     * pipeline + layer are private). Used by the alpha-gradient preview quad. Verify at runtime
-     * that this picks up the current 2D GUI projection. */
-    private static final RenderPipeline ALPHA_TRIANGLES = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
-            .withLocation(net.minecraft.util.Identifier.of(BBSMod.MOD_ID, "pipeline/color_alpha_triangles"))
-            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
-            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-            .withCull(false)
-            .build()
-    );
-
-    private static RenderLayer alphaTrianglesLayer;
-
-    private static RenderLayer getAlphaTrianglesLayer()
-    {
-        if (alphaTrianglesLayer == null)
-        {
-            alphaTrianglesLayer = RenderLayer.of(BBSMod.MOD_ID + "_color_alpha_triangles", RenderSetup.builder(ALPHA_TRIANGLES).translucent().build());
-        }
-
-        return alphaTrianglesLayer;
-    }
 
     /**
      * The swatch: the colour at full opacity in one diagonal half and at its real alpha in the other, over
