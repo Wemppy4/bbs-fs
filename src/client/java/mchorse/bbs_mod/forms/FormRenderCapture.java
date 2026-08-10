@@ -15,6 +15,7 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.util.math.MatrixStack;
+import mchorse.bbs_mod.client.BBSRendering;
 import net.minecraft.item.ItemDisplayContext;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -164,6 +165,19 @@ public class FormRenderCapture
 
         Map<RenderLayer, List<Captured>> captured;
 
+        /* An item form held in the world is a world draw, so it opens the span too — otherwise it takes
+         * the shared pipeline, the pack has no program assigned to that, and the item renders ghosted
+         * the way the morph's arm did. The span has to be open HERE and not around the submit below,
+         * because the capture resolves its RenderLayer while the form renders; by submit time the layer
+         * is already chosen.
+         *
+         * Not for the GUI context, though: an inventory icon is drawn outside the world frame and into
+         * a target of its own. Handing it a world pipeline would give it a pack program whose setup
+         * binds the pack's G-buffer over that target — the same way the editor viewport's preview used
+         * to smear itself across the world. */
+        boolean worldDraw = displayContext != ItemDisplayContext.GUI;
+        boolean prevWorldForms = worldDraw && BBSRendering.beginWorldForms();
+
         try
         {
             FormUtilsClient.render(form, new FormRenderingContext()
@@ -172,6 +186,11 @@ public class FormRenderCapture
         }
         finally
         {
+            if (worldDraw)
+            {
+                BBSRendering.endWorldForms(prevWorldForms);
+            }
+
             matrices.pop();
 
             /* end() must run even when the form render throws an Error past FormUtilsClient's
