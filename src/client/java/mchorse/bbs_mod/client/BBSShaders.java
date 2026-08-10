@@ -590,17 +590,38 @@ public class BBSShaders
 
         if (world)
         {
-            /* The full entity vertex format, mapped the way vanilla's own entity pipelines map. The
-             * translucent pass goes to the pack's translucent entity program; everything else —
-             * including the immediate opaque half of a split — is solid geometry. */
-            BBSRendering.assignIrisPipeline(pipeline, variant.pass() == FormTranslucentQueue.PASS_TRANSLUCENT
-                ? BBSRendering.IrisProgramKind.ENTITY_TRANSLUCENT
-                : BBSRendering.IrisProgramKind.ENTITY);
+            /* The model pipeline IS a vanilla entity pipeline with BBS's shader in it — same vertex
+             * format, same blend, same depth rules — so a shaderpack should treat it as one, and the
+             * honest way to say that is to point at the vanilla pipeline it clones rather than to name a
+             * program family. Naming one is what gave forms the ENTITIES_ALPHA program, whose alpha test
+             * reads vertex alpha as a discard threshold and deleted every fully opaque form under a pack.
+             * Mirroring also brings the shadow-pass assignment (forms cast shadows again) and Iris's own
+             * per-phase choice (the hand renderer gets a hand program). See BBSRendering#mirrorIrisPipeline. */
+            BBSRendering.mirrorIrisPipeline(pipeline, modelPrototype(variant));
         }
 
         modelPipelines.put(key, pipeline);
 
         return pipeline;
+    }
+
+    /**
+     * The vanilla pipeline a model variant is the BBS-shaded twin of — what a shaderpack should mirror
+     * (see {@link BBSRendering#mirrorIrisPipeline}).
+     *
+     * <p>Cutout, not solid, is the right twin for the ordinary passes: BBS models sample textures with
+     * see-through texels and rely on them being dropped, which is exactly what vanilla's cutout entity
+     * pipelines mean. Cull follows the variant, since vanilla keeps a culled and an unculled cutout
+     * pipeline for the same reason BBS does.
+     */
+    private static RenderPipeline modelPrototype(ModelVariant variant)
+    {
+        if (variant.pass() == FormTranslucentQueue.PASS_TRANSLUCENT)
+        {
+            return RenderPipelines.ENTITY_TRANSLUCENT;
+        }
+
+        return variant.cull() ? RenderPipelines.ENTITY_CUTOUT : RenderPipelines.ENTITY_CUTOUT_NO_CULL;
     }
 
     /**

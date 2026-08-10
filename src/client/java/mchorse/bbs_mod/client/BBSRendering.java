@@ -967,6 +967,44 @@ public class BBSRendering
     }
 
     /**
+     * Make a shaderpack treat a BBS pipeline exactly as it treats {@code prototype}, a vanilla pipeline
+     * the BBS one is a re-shadered clone of. Silently does nothing without Iris.
+     *
+     * <p>Preferred over {@link #assignIrisPipeline} wherever a vanilla counterpart exists, and the
+     * reasons are worth keeping here because each one was a bug we shipped:
+     *
+     * <ul>
+     *   <li>Naming a program kind covers the main pass only — forms cast no shadow under a pack, because
+     *       Iris's shadow map is a separate assignment table that {@code assignPipeline} never writes.</li>
+     *   <li>Naming a kind freezes one program for the whole frame, so the same pipeline drawn by the
+     *       hand renderer asks for an entity program instead of a hand one.</li>
+     *   <li>Iris resolves a kind to the FIRST matching program in its enum, and for entities that is the
+     *       one whose alpha test treats vertex alpha as a discard THRESHOLD — which deleted every fully
+     *       opaque form under a pack while a 1% fade slipped through. See {@link IrisUtils#copyPipeline}.</li>
+     * </ul>
+     */
+    public static void mirrorIrisPipeline(com.mojang.blaze3d.pipeline.RenderPipeline pipeline, com.mojang.blaze3d.pipeline.RenderPipeline prototype)
+    {
+        if (!iris || pipeline == null || prototype == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IrisUtils.copyPipeline(prototype, pipeline);
+
+            LOGGER.info("[BBS shaders] {} mirrors {}", pipeline.getLocation(), prototype.getLocation());
+        }
+        catch (Throwable e)
+        {
+            /* Same reasoning as assignIrisPipeline: an Iris whose internals moved must not take the
+             * editor down — the geometry just draws with BBS's own shader. */
+            LOGGER.error("[BBS shaders] failed to mirror {} onto {}", prototype.getLocation(), pipeline.getLocation(), e);
+        }
+    }
+
+    /**
      * True while form draws are aimed at the world's own frame — the film's AFTER_ENTITIES pass and
      * the model block's vanilla pass. {@link BBSShaders} reads it (through {@link #isIrisWorldForms()})
      * to hand those draws the world variants of its pipelines, the ones assigned to a shaderpack's

@@ -5,6 +5,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.api.v0.IrisProgram;
+import net.irisshaders.iris.pipeline.IrisPipelines;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 
 /**
@@ -67,6 +68,37 @@ public class IrisUtils
     public static void assignPipeline(RenderPipeline pipeline, BBSRendering.IrisProgramKind kind)
     {
         IrisApi.getInstance().assignPipeline(pipeline, translate(kind));
+    }
+
+    /**
+     * Give {@code pipeline} the exact shaderpack treatment Iris already gives {@code prototype}, a
+     * vanilla pipeline — the strictly better alternative to naming a program kind, for three reasons
+     * read straight out of {@code IrisPipelines}:
+     *
+     * <ul>
+     *   <li><b>It covers the shadow pass.</b> {@code assignPipeline} writes only {@code coreShaderMap};
+     *       {@code coreShaderMapShadow} keeps its vanilla entries only, so an assigned pipeline resolves
+     *       to a null key while shadows render and the geometry casts none. {@code copyPipeline} copies
+     *       BOTH maps.</li>
+     *   <li><b>It keeps Iris's own dynamic choice.</b> The vanilla entries are functions, not constants:
+     *       the entity ones return a HAND_* key while the hand renderer is active and a BLOCK_ENTITY_*
+     *       key inside the block-entity phase. Copying carries that function over; naming a kind freezes
+     *       one key for every phase.</li>
+     *   <li><b>It sidesteps {@code ShaderKey.findBestMatch}.</b> That helper returns the FIRST enum
+     *       constant matching the program family, which for ENTITIES is {@code ENTITIES_ALPHA} — whose
+     *       alpha test is {@code VERTEX_ALPHA}, compiled as
+     *       {@code if (!(fragColor.a > iris_vertexColorAlpha)) discard;}. That reads the vertex alpha as
+     *       a THRESHOLD, so a fully opaque form (alpha == 1) discards every one of its fragments and
+     *       vanishes, while alpha == 0.99 lets the opaque texels through. That was the "forms disappear
+     *       under shaders, but show at 99% opacity" bug.</li>
+     * </ul>
+     *
+     * <p>Unlike {@code assignPipeline} this one does not throw when a pipeline is already known, so it
+     * is safe to call more than once for the same pipeline.
+     */
+    public static void copyPipeline(RenderPipeline prototype, RenderPipeline pipeline)
+    {
+        IrisPipelines.copyPipeline(prototype, pipeline);
     }
 
     /**
