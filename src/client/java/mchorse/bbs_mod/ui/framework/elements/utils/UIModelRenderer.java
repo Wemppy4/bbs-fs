@@ -303,6 +303,19 @@ public abstract class UIModelRenderer extends UIElement
 
         if (vw > 0 && vh > 0)
         {
+            /* Tell Iris the main target is unbound for this pass. It runs during the world phase (see
+             * UIScreen#renderInWorld), and the preview draws through a VANILLA entity RenderLayer —
+             * which is exactly the kind a shaderpack claims. Iris would swap in the pack's entity
+             * program, and the last thing that program does when it sets up is bind the pack's own
+             * G-buffer, overriding the outputColorTextureOverride the preview just installed. The
+             * viewport geometry then lands in the WORLD's buffers, carrying the preview's GUI
+             * projection with it: the panel shows nothing while a huge smeared copy of the model
+             * appears in the world. Iris gates the swap on this flag
+             * (shouldOverrideShaders = isRenderingWorld && isMainBound), so clearing it keeps the
+             * vanilla program — and the preview's own framebuffer. Same lever, same reason, as
+             * FramebufferFormRenderer. */
+            boolean worldFormsWere = BBSRendering.suspendWorldForms();
+
             ModelPreviewRenderer.ACTIVE = true;
             this.preview.begin(vw, vh, this.camera.projection);
 
@@ -339,6 +352,9 @@ public abstract class UIModelRenderer extends UIElement
                 this.preview.end();
                 ModelPreviewRenderer.ACTIVE = false;
                 ModelPreviewRenderer.TEXTURE = null;
+
+                /* After end(): the overrides are gone, so the main target really is the bound one again. */
+                BBSRendering.restoreWorldForms(worldFormsWere);
             }
 
             this.previewGlId = this.preview.getColorGlId();

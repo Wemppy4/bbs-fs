@@ -1037,10 +1037,16 @@ public class BBSRendering
     }
 
     /**
-     * Pause the world-forms span for a nested offscreen render (a framebuffer form drawing its
-     * children into its own target mid-frame): those draws must keep BBS's shared pipelines — a pack
-     * program would bind the pack's G-buffers underneath them and the pixels would leave the form's
-     * framebuffer entirely. Restore with {@link #restoreWorldForms(boolean)}.
+     * Pause the world-forms span for a nested offscreen render: those draws must keep BBS's shared
+     * pipelines — a pack program would bind the pack's G-buffers underneath them and the pixels would
+     * leave the target's framebuffer entirely. Restore with {@link #restoreWorldForms(boolean)}.
+     *
+     * <p>Two callers, both drawing into a target of their own during the world phase: a framebuffer
+     * form rendering its children ({@code FramebufferFormRenderer}), and an in-panel 3D viewport
+     * rendering into its preview texture ({@code UIModelRenderer#renderModelToTexture}). The viewport
+     * is the sharper case, because it draws through a VANILLA entity layer rather than a BBS pipeline:
+     * without this the pack claims that layer, binds its own G-buffer over the preview's, and the
+     * viewport's geometry ends up smeared across the world in the panel's projection.
      *
      * <p>This also tells Iris the main target is unbound for the span ({@link IrisUtils#setMainBound}):
      * inside the world render Iris otherwise disables colour/depth writes for any program that is not
