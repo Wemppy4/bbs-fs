@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.client.renderer;
 
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -16,12 +17,14 @@ import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
+import mchorse.bbs_mod.utils.interps.Lerps;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
@@ -47,7 +50,7 @@ public class MorphRenderer
     /**
      * Collect a player morph for deferred rendering. Returns true to suppress the vanilla render.
      */
-    public static boolean collectPlayer(AbstractClientPlayerEntity player, int light, int overlay, float tickDelta)
+    public static boolean collectPlayer(AbstractClientPlayerEntity player, MatrixStack matrices, int light, int overlay, float tickDelta)
     {
         if (hidePlayer)
         {
@@ -63,7 +66,7 @@ public class MorphRenderer
         {
             if (canRender())
             {
-                queue(morph.getForm(), morph.entity, light, overlay, tickDelta);
+                submit(morph.getForm(), morph.entity, matrices, light, overlay, tickDelta);
             }
 
             return true;
@@ -76,7 +79,7 @@ public class MorphRenderer
      * Collect a selector-owner (mob) morph for deferred rendering. Returns true to suppress the
      * vanilla render.
      */
-    public static boolean collectLivingEntity(LivingEntity livingEntity, int light, int overlay, float tickDelta)
+    public static boolean collectLivingEntity(LivingEntity livingEntity, MatrixStack matrices, int light, int overlay, float tickDelta)
     {
         if (!(livingEntity instanceof ISelectorOwnerProvider))
         {
@@ -91,12 +94,85 @@ public class MorphRenderer
 
         if (form != null)
         {
-            queue(form, owner.entity, light, overlay, tickDelta);
+            submit(form, owner.entity, matrices, light, overlay, tickDelta);
 
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Route one collected morph: straight to the shadow map during Iris's shadow pass, into the queue
+     * otherwise.
+     *
+     * <p>The two passes cannot share a path. Iris renders shadows itself, without going through
+     * {@code WorldRenderer.render}, so {@code WorldRenderEvents.AFTER_ENTITIES} — where {@link
+     * #renderQueued} drains — never fires there. Queueing a shadow-pass morph therefore did two wrong
+     * things at once, and they were the two reported bugs:
+     *
+     * <ul>
+     *   <li><b>No shadow.</b> The vanilla render was cancelled and the form was only drawn later, in the
+     *       main pass, so nothing at all reached the shadow map.</li>
+     *   <li><b>Own body visible in first person.</b> Iris's shadow pass submits the player
+     *       unconditionally ({@code ShadowRenderer.extractVisibleEntities}), while vanilla skips the
+     *       camera entity in first person. So the shadow pass was the only thing putting the player's
+     *       own morph into the queue — and the main pass then drew it in front of the camera. Not
+     *       queueing here is what removes the body; nothing else has to change.</li>
+     * </ul>
+     */
+    private static void submit(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta)
+    {
+        if (BBSRendering.isIrisShadowPass())
+        {
+            renderShadow(form, entity, matrices, light, overlay, tickDelta);
+        }
+        else
+        {
+            queue(form, entity, light, overlay, tickDelta);
+        }
+    }
+
+    /**
+     * Draw a morph form into the shadow map, from the entity-submission phase Iris's shadow pass runs.
+     *
+     * <p>Drawing immediately is correct here even though it is wrong in the main pass: Iris makes every
+     * render pass keep the bound framebuffer and viewport while shadows render
+     * ({@code MixinGlCommandEncoder}), so an immediate draw lands in the shadow map rather than in the
+     * screen target, and {@code FormTranslucentQueue} already refuses to defer during the shadow pass
+     * for the same reason.
+     *
+     * <p>The matrices arrive shadow-ready — the submission stack carries the shadow camera's model-view
+     * with the entity's position already translated in — so only the body rotation is missing, the one
+     * piece {@link BaseFilmController#getMatrixForRenderWithRotation} adds on top of position in the main
+     * path. The world-forms span matters as much as the draw: it hands the form the world pipeline
+     * variant, which is the one that carries a shadow-pass program assignment (see
+     * {@code BBSRendering#mirrorIrisPipeline}). Without the span the form would draw with BBS's own
+     * shader and never appear in the pack's shadow map.
+     *
+     * <p>A form that opts out of casting shadows is filtered further down, in {@code FormRenderer}.
+     */
+    private static void renderShadow(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta)
+    {
+        float bodyYaw = Lerps.lerp(entity.getPrevBodyYaw(), entity.getBodyYaw(), tickDelta);
+
+        matrices.push();
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
+
+        BBSRendering.beginWorldForms();
+
+        try
+        {
+            FormUtilsClient.render(form, new FormRenderingContext()
+                .set(FormRenderType.ENTITY, entity, matrices, light, overlay, tickDelta)
+                .camera(MinecraftClient.getInstance().gameRenderer.getCamera()));
+        }
+        finally
+        {
+            BBSRendering.endWorldForms();
+
+            matrices.pop();
+        }
     }
 
     private static void queue(Form form, IEntity entity, int light, int overlay, float tickDelta)

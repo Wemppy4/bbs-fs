@@ -57,7 +57,7 @@ public abstract class LivingEntityRendererMorphMixin
         {
             int overlay = LivingEntityRenderer.getOverlay(state, 0F);
 
-            if (MorphRenderer.collectPlayer(player, state.light, overlay, tickDelta))
+            if (MorphRenderer.collectPlayer(player, matrices, state.light, overlay, tickDelta))
             {
                 info.cancel();
             }
@@ -67,7 +67,7 @@ public abstract class LivingEntityRendererMorphMixin
             float counter = ((LivingEntityRendererInvoker) (Object) this).bbs$getAnimationCounter(state);
             int overlay = LivingEntityRenderer.getOverlay(state, counter);
 
-            if (MorphRenderer.collectLivingEntity(living, state.light, overlay, tickDelta))
+            if (MorphRenderer.collectLivingEntity(living, matrices, state.light, overlay, tickDelta))
             {
                 info.cancel();
             }
