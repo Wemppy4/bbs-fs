@@ -285,9 +285,20 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
                 /* A flat quad has no self-occlusion to preserve, so its deferred pass drops the depth
                  * write — that is what keeps two billboards from hiding each other once the sort has
                  * ordered them. Only the shaded path can defer: the unlit one draws through vanilla's
-                 * position_tex_color, which has no PASS_MODE split to make an opaque pass out of. */
+                 * position_tex_color, which has no PASS_MODE split to make an opaque pass out of.
+                 *
+                 * Under a shaderpack the depth write comes back, because the reason to drop it is gone
+                 * and the cost of dropping it is severe. Gone: the pack owns transparency there, so the
+                 * sorted deferred pass never runs (FormTranslucentQueue#needsSplit) and there is no sort
+                 * for the missing depth to protect. Severe: a deferred pack reconstructs its shading —
+                 * shadows above all — from the depth buffer, so a billboard absent from it is shaded as
+                 * whatever stands BEHIND it, and the shadow of that grass or wall is painted over the
+                 * billboard's face. Writing depth is also just what the vanilla cutout entity pipeline
+                 * this draw now mirrors does. */
+                boolean depthWrite = BBSRendering.isIrisWorldForms();
+
                 FormTranslucentQueue.submit(built,
-                    new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, false, true),
+                    new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, depthWrite, true),
                     texture, color.a, null,
                     new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(matrix.getTranslation(new Vector3f())));
             }
