@@ -138,7 +138,7 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
          * programs — the span makes BBSShaders hand it the world pipeline variants (see
          * BBSRendering#beginWorldForms). Block entities render in their own vanilla pass, so this
          * needs its own span; the one around the film's AFTER_ENTITIES drawing has already closed. */
-        BBSRendering.beginWorldForms();
+        boolean prevWorldForms = BBSRendering.beginWorldForms();
 
         try
         {
@@ -146,7 +146,7 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
         }
         finally
         {
-            BBSRendering.endWorldForms();
+            BBSRendering.endWorldForms(prevWorldForms);
         }
     }
 

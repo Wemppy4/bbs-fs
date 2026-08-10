@@ -516,7 +516,7 @@ public class BBSModClient implements ClientModInitializer
              * The span marks these draws as the world's own: under a shaderpack BBSShaders hands them
              * the world pipeline variants, the ones assigned to the pack's programs — the only draws
              * a pack composites into the frame instead of over. See BBSRendering#beginWorldForms. */
-            BBSRendering.beginWorldForms();
+            boolean prevWorldForms = BBSRendering.beginWorldForms();
 
             try
             {
@@ -524,7 +524,7 @@ public class BBSModClient implements ClientModInitializer
             }
             finally
             {
-                BBSRendering.endWorldForms();
+                BBSRendering.endWorldForms(prevWorldForms);
             }
 
             if (BBSSettings.chromaSkyEnabled.get())

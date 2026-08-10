@@ -159,7 +159,7 @@ public class MorphRenderer
         matrices.push();
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
 
-        BBSRendering.beginWorldForms();
+        boolean prevWorldForms = BBSRendering.beginWorldForms();
 
         try
         {
@@ -169,7 +169,7 @@ public class MorphRenderer
         }
         finally
         {
-            BBSRendering.endWorldForms();
+            BBSRendering.endWorldForms(prevWorldForms);
 
             matrices.pop();
         }

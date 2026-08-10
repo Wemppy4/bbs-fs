@@ -1014,7 +1014,13 @@ public class BBSRendering
     private static boolean worldForms;
 
     /**
-     * Open the span in which form draws belong to the world's frame; close with {@link #endWorldForms()}.
+     * Open the span in which form draws belong to the world's frame; close with
+     * {@link #endWorldForms(boolean)}, passing back what this returned.
+     *
+     * <p>Spans nest — a morph form drawn inside the world span can hold an item whose own form opens
+     * one of its own — so this returns the previous state instead of assuming there was none. Closing
+     * a nested span with a plain "off" would end the enclosing one early, and the rest of the world's
+     * forms would silently fall back to the shared pipelines.
      *
      * <p>This used to set Iris's {@code isMainBound} false for the span, the 1.21.1 lever against a
      * pack dropping BBS's draws — and a run proved that on 1.21.11 it is worse than useless. The write
@@ -1025,15 +1031,19 @@ public class BBSRendering
      * span — item forms, mob forms — lost the pack's programs too and died with everything else.
      * So the span now marks context only; the Iris flag is left alone.
      */
-    public static void beginWorldForms()
+    public static boolean beginWorldForms()
     {
+        boolean prev = worldForms;
+
         worldForms = true;
+
+        return prev;
     }
 
-    /** Closes {@link #beginWorldForms()}. */
-    public static void endWorldForms()
+    /** Closes {@link #beginWorldForms()}, restoring whatever span enclosed it. */
+    public static void endWorldForms(boolean prev)
     {
-        worldForms = false;
+        worldForms = prev;
     }
 
     /**
