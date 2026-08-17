@@ -33,7 +33,8 @@
         "FogRendererAccessor",
         "CameraInvoker",
         "ParticleManagerInvoker",
-        "ParticleMixin"
+        "ParticleMixin",
+        "ModelCommandRendererMixin"
     ],
     "injectors": {
         "defaultRequire": 1

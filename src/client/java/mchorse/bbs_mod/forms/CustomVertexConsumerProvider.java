@@ -14,6 +14,7 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
     private static Consumer<RenderLayer> runnables;
 
     private Function<VertexConsumer, VertexConsumer> substitute;
+    private Function<RenderLayer, RenderLayer> layerMapper;
     private boolean ui;
 
     public static void drawLayer(RenderLayer layer)
@@ -44,6 +45,16 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
         this.substitute = substitute;
     }
 
+    /**
+     * Remap the layer a draw lands on (null result = keep the original). The mob form's
+     * custom-texture feature routes its first body layer onto a layer carrying the form's own
+     * texture — the per-layer replacement for 1.21.1's global texture bind.
+     */
+    public void setLayerMapper(Function<RenderLayer, RenderLayer> layerMapper)
+    {
+        this.layerMapper = layerMapper;
+    }
+
     public void setUI(boolean ui)
     {
         this.ui = ui;
@@ -52,6 +63,16 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
     @Override
     public VertexConsumer getBuffer(RenderLayer renderLayer)
     {
+        if (this.layerMapper != null)
+        {
+            RenderLayer mapped = this.layerMapper.apply(renderLayer);
+
+            if (mapped != null)
+            {
+                renderLayer = mapped;
+            }
+        }
+
         VertexConsumer buffer = super.getBuffer(renderLayer);
 
         if (this.substitute != null)

@@ -1,19 +1,31 @@
 package mchorse.bbs_mod.particles.vanilla;
 
+import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
+import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.mixin.client.CameraInvoker;
 import mchorse.bbs_mod.mixin.client.ParticleManagerInvoker;
 import mchorse.bbs_mod.utils.MathUtils;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.BillboardParticle;
+import net.minecraft.client.particle.BillboardParticleSubmittable;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderSetup;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.particle.ParticleEffect;
 import org.joml.Vector3d;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A pocket of vanilla particles that lives inside a UI viewport.
@@ -133,8 +145,17 @@ public class VanillaParticleScene
     /**
      * Draw the scene through the preview's camera.
      *
-     * <p>Only the stand-in camera is placed here for now &mdash; see the TODO
-     * below for why nothing is drawn on this branch.
+     * <p>1.21.11 rewrote particle rendering wholesale: {@code Particle.buildGeometry} is gone and
+     * a billboard renders itself into a {@link BillboardParticleSubmittable}, which then submits
+     * itself to the frame's command queue as a layered custom. That vanilla tail is useless here —
+     * {@code LayeredCustomCommandRenderer} binds the CLIENT framebuffer directly (checked against
+     * the bytecode), which would punch the preview onto the screen instead of into the viewport's
+     * FBO. So only the head of the path is borrowed: each particle writes its quad into
+     * {@link PreviewSubmittable}, which re-routes the vertices straight into a BBS-side
+     * {@link RenderLayer} draw — the same immediate idiom every other UI-viewport draw uses.
+     *
+     * <p>Non-billboard particles (elder-guardian flash, item pickups — the old CUSTOM sheet) are
+     * skipped, exactly as they were on 1.21.1.
      */
     public void render(mchorse.bbs_mod.camera.Camera previewCamera, float transition)
     {
@@ -152,32 +173,84 @@ public class VanillaParticleScene
         );
         standIn.bbs$setRotation(MathUtils.toDeg(previewCamera.rotation.y), -MathUtils.toDeg(previewCamera.rotation.x));
 
-        /* TODO(1.21.11 render): the preview's particle pass is not drawn.
-         *
-         * On 1.21.1 this built the geometry by hand: Particle#buildGeometry(BufferBuilder, Camera,
-         * transition) per ParticleTextureSheet, with RenderSystem.setShader(getParticleProgram) +
-         * setShaderTexture + BufferRenderer.drawWithGlobalProgram, the global model-view swapped to
-         * the preview's view matrix, and the cull state saved through GlStateManager.CULL (a
-         * stand-in camera the user orbits freely winds billboards either way).
-         *
-         * 1.21.11 rewrote particle rendering wholesale: buildGeometry is gone, the sheets are
-         * SINGLE_QUADS/ITEM_PICKUP/ELDER_GUARDIANS/NO_RENDER, and drawing goes
-         * BillboardParticle#render(BillboardParticleSubmittable, Camera, tickDelta) ->
-         * Submittable#submit(OrderedRenderCommandQueue, CameraRenderState). A UI viewport has no
-         * command queue to submit into on this branch — the same missing foundation that keeps
-         * MobFormRenderer stubbed — so the preview is deferred until that lands.
-         *
-         * Everything else about the scene is live: particles are created, owned and ticked here,
-         * so wiring the draw is all that is left. Emission into the WORLD is unaffected. */
         rendering = true;
 
         try
         {
-            /* The draw goes here */
+            for (Particle particle : this.particles)
+            {
+                if (particle instanceof BillboardParticle billboard)
+                {
+                    try
+                    {
+                        billboard.render(this.submittable, this.camera, transition);
+                    }
+                    catch (Exception e)
+                    {
+                        particle.markDead();
+                    }
+                }
+            }
+
+            this.submittable.draw();
         }
         finally
         {
             rendering = false;
         }
     }
+
+    /**
+     * The vertex sink for the preview: takes the quads {@link BillboardParticle#render} pushes at
+     * it and draws them through BBS render layers instead of the world's layered-custom pass.
+     * One layer per {@link BillboardParticle.RenderType}, built from the render type's own
+     * pipeline and atlas, so the geometry looks exactly like the world's particles do.
+     */
+    private static class PreviewSubmittable extends BillboardParticleSubmittable
+    {
+        private final Map<BillboardParticle.RenderType, RenderLayer> layers = new HashMap<>();
+        private final Set<BillboardParticle.RenderType> used = new LinkedHashSet<>();
+
+        @Override
+        public void render(BillboardParticle.RenderType renderType, float x, float y, float z, float rotX, float rotY, float rotZ, float rotW, float size, float minU, float maxU, float minV, float maxV, int color, int light)
+        {
+            VertexConsumer consumer = FormUtilsClient.getProvider().getBuffer(this.layer(renderType));
+
+            this.used.add(renderType);
+            this.drawFace(consumer, x, y, z, rotX, rotY, rotZ, rotW, size, minU, maxU, minV, maxV, color, light);
+        }
+
+        public void draw()
+        {
+            CustomVertexConsumerProvider provider = FormUtilsClient.getProvider();
+
+            for (BillboardParticle.RenderType type : this.used)
+            {
+                provider.draw(this.layer(type));
+            }
+
+            this.used.clear();
+        }
+
+        private RenderLayer layer(BillboardParticle.RenderType type)
+        {
+            return this.layers.computeIfAbsent(type, (key) ->
+            {
+                RenderSetup.Builder setup = RenderSetup.builder(key.pipeline())
+                    .texture("Sampler0", key.textureAtlasLocation())
+                    .useLightmap();
+
+                if (key.translucent())
+                {
+                    setup.translucent();
+                }
+
+                String name = key.textureAtlasLocation().getPath().replace('/', '_') + (key.translucent() ? "_translucent" : "_opaque");
+
+                return RenderLayer.of(BBSMod.MOD_ID + "_preview_particles_" + name, setup.build());
+            });
+        }
+    }
+
+    private final PreviewSubmittable submittable = new PreviewSubmittable();
 }

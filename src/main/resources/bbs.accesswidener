@@ -22,6 +22,10 @@ accessWidener v2 named
 accessible field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
 mutable field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
 
+# Mob form (player variant): the cosmetic model-parts byte — 1.21.9 renamed PlayerEntity.PLAYER_MODEL_PARTS
+# to PlayerLikeEntity.PLAYER_MODE_CUSTOMIZATION_ID and made it protected.
+accessible field net/minecraft/entity/PlayerLikeEntity PLAYER_MODE_CUSTOMIZATION_ID Lnet/minecraft/entity/data/TrackedData;
+
 # Held-item replay in form renderers: the private item queue's custom commands (BBS special-model
 # geometry lands there via submitCustom) have no accessor — ItemFormRenderer.renderItem replays them.
 accessible field net/minecraft/client/render/command/CustomCommandRenderer$Commands customCommands Ljava/util/Map;
