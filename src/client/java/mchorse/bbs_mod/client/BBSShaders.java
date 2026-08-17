@@ -301,6 +301,18 @@ public class BBSShaders
         return SELECTION;
     }
 
+    /**
+     * The (non-world) particles pipeline itself — the vanilla-particle preview builds per-atlas
+     * layers on it. Crucially it is {@code withCull(false)}: the preview's stand-in camera is
+     * orbited freely, so a billboard's winding flips with the viewpoint, and the CULLED vanilla
+     * particle pipelines drop every quad that happens to wind backwards — the particles were
+     * perfectly present in the buffer and invisible on screen (probe-verified).
+     */
+    public static RenderPipeline getParticlesPipeline()
+    {
+        return PARTICLES;
+    }
+
     public static RenderPipeline getPickerPreviewProgram()
     {
         return PICKER_PREVIEW;

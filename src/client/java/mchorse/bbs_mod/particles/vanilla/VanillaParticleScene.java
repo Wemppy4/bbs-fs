@@ -2,6 +2,7 @@ package mchorse.bbs_mod.particles.vanilla;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.mixin.client.CameraInvoker;
@@ -281,14 +282,17 @@ public class VanillaParticleScene
         {
             return this.layers.computeIfAbsent(type, (key) ->
             {
-                RenderSetup.Builder setup = RenderSetup.builder(key.pipeline())
+                /* NOT key.pipeline(): the vanilla particle pipelines CULL, and the preview's
+                 * stand-in camera is orbited freely, so quads wind backwards half the time and
+                 * the GPU drops them — geometry present, screen empty (the 1.21.1 scene disabled
+                 * the global cull for exactly this; probe-verified again on 1.21.11). The BBS
+                 * particles pipeline is the migrated clone of the vanilla particle shader with
+                 * cull OFF, the same POSITION_TEXTURE_COLOR_LIGHT format and the same
+                 * Sampler0/Sampler2 pair — only the atlas differs per render type. */
+                RenderSetup.Builder setup = RenderSetup.builder(BBSShaders.getParticlesPipeline())
                     .texture("Sampler0", key.textureAtlasLocation())
-                    .useLightmap();
-
-                if (key.translucent())
-                {
-                    setup.translucent();
-                }
+                    .useLightmap()
+                    .translucent();
 
                 String name = key.textureAtlasLocation().getPath().replace('/', '_') + (key.translucent() ? "_translucent" : "_opaque");
 
