@@ -147,18 +147,29 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
              * the GUI phase, and this preview renders in the WORLD phase of the NEXT frame — a
              * one-frame-stale τ. The scene steps its particles on the fresh tick count, so around
              * every tick boundary the stale τ (~0.99 pre-wrap) threw the lerp nearly a full step
-             * forward and the next frame pulled it back — a 20 Hz tremble. The live counter is in
-             * phase with the tick count that drives updatePreview. */
-            float transition = MinecraftClient.getInstance().getRenderTickCounter().getTickProgress(false);
+             * forward and the next frame pulled it back — a 20 Hz tremble.
+             *
+             * Through the RAW tickProgress accessor, the same way UIScreen itself reads it:
+             * getTickProgress(false) came out CONSTANT WITHIN A TICK here (probe: the τ-keyed
+             * dedupe admitted exactly ~20 renders/sec), which both froze the lerp and starved the
+             * redraw — the field is the real per-frame interpolant. */
+            net.minecraft.client.render.RenderTickCounter counter = MinecraftClient.getInstance().getRenderTickCounter();
+            float transition = counter instanceof mchorse.bbs_mod.mixin.client.RenderTickCounterAccessor accessor
+                ? accessor.bbs$getTickDelta()
+                : counter.getTickProgress(false);
 
             /* Second gate: only under the preview FBO override. A render3D call without it would
              * put the quads into whatever framebuffer is current — black quads in the world. */
             boolean fboBound = com.mojang.blaze3d.systems.RenderSystem.outputColorTextureOverride != null;
 
-            if (fboBound && (context.modelRendererTick != this.lastSceneTick || transition != this.lastSceneTransition))
+            /* Frame dedupe by wall clock, decoupled from τ entirely: the editor's repeat renders
+             * of one frame land microseconds apart, real frames are 3ms+ apart even at 300 fps. */
+            long nano = System.nanoTime();
+            boolean newFrame = nano - this.lastSceneNanos > 2_000_000L;
+
+            if (fboBound && newFrame)
             {
-                this.lastSceneTick = context.modelRendererTick;
-                this.lastSceneTransition = transition;
+                this.lastSceneNanos = nano;
 
                 /* TEMPORARY probe (particles invisible in the editor preview): emitter state +
                  * whether the render runs under the preview FBO override. Remove with the fix. */
@@ -184,8 +195,7 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
     private static long lastProbe;
 
     /** Frame marker so the preview scene draws once per frame (see the render3D note). */
-    private long lastSceneTick = Long.MIN_VALUE;
-    private float lastSceneTransition = Float.NaN;
+    private long lastSceneNanos;
 
     private VanillaParticleScene getScene()
     {
