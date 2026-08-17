@@ -1823,8 +1823,24 @@ public class Gizmo
 
         Matrix4f matrix = stack.peek().getPositionMatrix();
         Vector3f translation = matrix.getTranslation(new Vector3f());
+        Matrix3f basis = new Matrix3f(GizmoDrag.stackBasisForSpace(space, cameraView, globalAxes));
 
-        matrix.set(new Matrix4f(GizmoDrag.stackBasisForSpace(space, cameraView, globalAxes)).setTranslation(translation));
+        /* The basis is the FINAL model-view orientation the handles should render with. In the
+         * form editor the stack itself carries the camera (global model-view identity), so it can
+         * be written straight in. The film's world pass keeps the camera rotation in the GLOBAL
+         * model-view and hands a camera-relative stack — writing the view-composed basis there
+         * gets the camera folded in a SECOND time at draw, so Global/World handles came out turned
+         * by the camera and the VIEW shear flattened onto a wrong ray ("2D, not facing the
+         * camera"). Pre-multiplying the global's inverse makes the composed result exactly the
+         * basis in both conventions: G * (G⁻¹ * basis) = basis; G = identity in the form editor. */
+        Matrix3f global = RenderSystem.getModelViewMatrix().get3x3(new Matrix3f());
+
+        if (Math.abs(global.determinant()) > 1.0E-8F)
+        {
+            global.invert().mul(basis, basis);
+        }
+
+        matrix.set(new Matrix4f(basis).setTranslation(translation));
     }
 
     /**

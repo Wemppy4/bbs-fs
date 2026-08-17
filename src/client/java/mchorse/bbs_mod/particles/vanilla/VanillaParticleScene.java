@@ -197,6 +197,8 @@ public class VanillaParticleScene
                     }
                     catch (Exception e)
                     {
+                        probeException = e;
+
                         particle.markDead();
                     }
                 }
@@ -210,7 +212,32 @@ public class VanillaParticleScene
 
             RenderSystem.getModelViewMatrix().set(previousModelView);
         }
+
+        /* TEMPORARY probe (particles invisible in the editor preview): once a second, the state of
+         * the whole chain — how many particles are alive, how many quads the submittable took, how
+         * many layer draws went out, and the last exception a particle render threw. Remove with
+         * the fix. */
+        long now = System.currentTimeMillis();
+
+        if (now - lastProbe > 1000L)
+        {
+            lastProbe = now;
+
+            org.slf4j.LoggerFactory.getLogger("bbs-particles-probe").info(
+                "PROBE scene: particles={} quads={} draws={} origin={} camPos={} mv={} ex={}",
+                this.particles.size(), this.submittable.probeQuads, this.submittable.probeDraws,
+                this.origin, this.camera.getCameraPos(), previewCamera.view.toString().replace("\n", " "),
+                probeException == null ? "none" : probeException.toString());
+
+            this.submittable.probeQuads = 0;
+            this.submittable.probeDraws = 0;
+            probeException = null;
+        }
     }
+
+    /** TEMPORARY probe state, see above. */
+    private static long lastProbe;
+    private static Exception probeException;
 
     /**
      * The vertex sink for the preview: takes the quads {@link BillboardParticle#render} pushes at
@@ -223,11 +250,16 @@ public class VanillaParticleScene
         private final Map<BillboardParticle.RenderType, RenderLayer> layers = new HashMap<>();
         private final Set<BillboardParticle.RenderType> used = new LinkedHashSet<>();
 
+        /** TEMPORARY probe counters, drained by the scene's once-a-second log. */
+        private int probeQuads;
+        private int probeDraws;
+
         @Override
         public void render(BillboardParticle.RenderType renderType, float x, float y, float z, float rotX, float rotY, float rotZ, float rotW, float size, float minU, float maxU, float minV, float maxV, int color, int light)
         {
             VertexConsumer consumer = FormUtilsClient.getProvider().getBuffer(this.layer(renderType));
 
+            this.probeQuads++;
             this.used.add(renderType);
             this.drawFace(consumer, x, y, z, rotX, rotY, rotZ, rotW, size, minU, maxU, minV, maxV, color, light);
         }
@@ -238,6 +270,7 @@ public class VanillaParticleScene
 
             for (BillboardParticle.RenderType type : this.used)
             {
+                this.probeDraws++;
                 provider.draw(this.layer(type));
             }
 

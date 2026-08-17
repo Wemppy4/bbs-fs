@@ -135,9 +135,27 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
             this.previewTicks = RENDER_GRACE_TICKS;
 
             this.updatePreview(context.modelRendererTick);
+
+            /* TEMPORARY probe (particles invisible in the editor preview): proves the preview
+             * branch runs at all and what the emitter state is. Remove with the fix. */
+            long now = System.currentTimeMillis();
+
+            if (now - lastProbe > 1000L)
+            {
+                lastProbe = now;
+
+                org.slf4j.LoggerFactory.getLogger("bbs-particles-probe").info(
+                    "PROBE form: tick={} pos={} world={} paused={} frequency={} count={}",
+                    context.modelRendererTick, this.pos, MinecraftClient.getInstance().world != null,
+                    this.form.paused.get(), this.form.frequency.get(), this.form.count.get());
+            }
+
             this.getScene().render(context.camera, context.getTransition());
         }
     }
+
+    /** TEMPORARY probe clock, see above. */
+    private static long lastProbe;
 
     private VanillaParticleScene getScene()
     {
