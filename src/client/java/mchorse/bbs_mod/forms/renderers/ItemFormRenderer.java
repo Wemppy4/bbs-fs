@@ -2,7 +2,9 @@ package mchorse.bbs_mod.forms.renderers;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.render.picker.PickingReplay;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
+import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.ItemForm;
@@ -95,21 +97,37 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
 
         if (context.isPicking())
         {
-            CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
-            {
-                /* TODO(1.21.11 render): RenderSystem.setShader and ShaderProgram-based setupTarget were
-                 * removed in 1.21.5. The picker_models pipeline must be bound via its RenderLayer and the
-                 * per-object Target uniform supplied through the pipeline's UBO/DynamicUniforms. */
-            });
+            /* Picking: capture the item's vanilla-layer geometry and replay it through the
+             * picker_models pipeline into the stencil — the global-shader swap 1.21.1 used has no
+             * 1.21.5+ equivalent, the capture+replay does the same job. */
+            this.setupTarget(context);
 
-            light = 0;
+            FormRenderCapture.begin();
+
+            Map<RenderLayer, List<FormRenderCapture.Captured>> captured;
+
+            try
+            {
+                World pickWorld = context.entity == null ? null : context.entity.getWorld();
+
+                renderItem(this.form.stack.get(), this.form.modelTransform.get(), context.stack, consumers, pickWorld, 0, context.overlay);
+                consumers.draw();
+            }
+            finally
+            {
+                captured = FormRenderCapture.end();
+            }
+
+            PickingReplay.draw(captured);
+
+            context.stack.pop();
+
+            return;
         }
-        else
-        {
-            /* TODO(1.21.11 render): RenderSystem.enableBlend() is gone; blend state now lives in each
-             * RenderLayer's RenderPipeline. */
-            CustomVertexConsumerProvider.hijackVertexFormat((l) -> {});
-        }
+
+        /* TODO(1.21.11 render): RenderSystem.enableBlend() is gone; blend state now lives in each
+         * RenderLayer's RenderPipeline. */
+        CustomVertexConsumerProvider.hijackVertexFormat((l) -> {});
 
         BlockFormRenderer.color.set(context.color);
         FormColorBlend.blend(BlockFormRenderer.color, this.form.color.get(), this.form.additiveColor.get());

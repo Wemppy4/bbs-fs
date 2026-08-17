@@ -2,7 +2,9 @@ package mchorse.bbs_mod.forms.renderers;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.render.picker.PickingReplay;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
+import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.BlockForm;
@@ -14,9 +16,13 @@ import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
+import java.util.List;
+import java.util.Map;
 
 public class BlockFormRenderer extends FormRenderer<BlockForm>
 {
@@ -86,22 +92,40 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
 
         if (context.isPicking())
         {
-            CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
-            {
-                /* TODO(1.21.11 render): RenderSystem.setShader and ShaderProgram-based setupTarget were
-                 * removed in 1.21.5. The picker_models pipeline must be bound via its RenderLayer and the
-                 * per-object Target uniform supplied through the pipeline's UBO/DynamicUniforms. Neutralized
-                 * here so the block still renders (vanilla pipeline); picking selection needs runtime wiring. */
-            });
+            /* Picking: capture the block's vanilla-layer geometry and replay it through the
+             * picker_models pipeline into the stencil (see PickingReplay — the 1.21.1 global-shader
+             * swap has no equivalent, the capture+replay does the same job). */
+            this.setupTarget(context);
 
-            light = 0;
+            FormRenderCapture.begin();
+
+            Map<RenderLayer, List<FormRenderCapture.Captured>> captured;
+
+            try
+            {
+                MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(this.form.blockState.get(), context.stack, consumers, 0, context.overlay);
+                consumers.draw();
+            }
+            finally
+            {
+                captured = FormRenderCapture.end();
+            }
+
+            PickingReplay.draw(captured);
+
+            context.stack.pop();
+
+            if (context.world != null)
+            {
+                context.world.pop();
+            }
+
+            return;
         }
-        else
-        {
-            /* TODO(1.21.11 render): RenderSystem.enableBlend() is gone; blend state now lives in each
-             * RenderLayer's RenderPipeline. No imperative blend toggle needed here. */
-            CustomVertexConsumerProvider.hijackVertexFormat((l) -> {});
-        }
+
+        /* TODO(1.21.11 render): RenderSystem.enableBlend() is gone; blend state now lives in each
+         * RenderLayer's RenderPipeline. No imperative blend toggle needed here. */
+        CustomVertexConsumerProvider.hijackVertexFormat((l) -> {});
 
         color.set(context.color);
         FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
