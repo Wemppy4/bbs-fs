@@ -26,4 +26,34 @@ public class ParticleMixin
             cir.setReturnValue(LightmapTextureManager.MAX_LIGHT_COORDINATE);
         }
     }
+
+    /** TEMPORARY probe clock (black world particles), see below. Remove with the fix. */
+    private static long bbs$lastDarkProbe;
+
+    /**
+     * TEMPORARY probe: black quads in the WORLD at particle spawn/despawn. If those are world
+     * particles sampling light INSIDE a solid block (the emitter spawning them a block too low
+     * would do it), this logs them the moment their brightness comes out black. Remove with the fix.
+     */
+    @Inject(method = "getBrightness", at = @At("RETURN"))
+    private void bbs$probeDarkParticle(float tint, CallbackInfoReturnable<Integer> cir)
+    {
+        if (VanillaParticleScene.isRendering() || cir.getReturnValue() != 0)
+        {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+
+        if (now - bbs$lastDarkProbe > 1000L)
+        {
+            bbs$lastDarkProbe = now;
+
+            Particle self = (Particle) (Object) this;
+
+            org.slf4j.LoggerFactory.getLogger("bbs-particles-probe").info(
+                "PROBE dark world particle: class={} box={}",
+                self.getClass().getSimpleName(), self.getBoundingBox());
+        }
+    }
 }

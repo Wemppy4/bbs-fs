@@ -218,6 +218,8 @@ public class VanillaParticleScene
          * the whole chain — how many particles are alive, how many quads the submittable took, how
          * many layer draws went out, and the last exception a particle render threw. Remove with
          * the fix. */
+        probeRenders++;
+
         long now = System.currentTimeMillis();
 
         if (now - lastProbe > 1000L)
@@ -225,19 +227,21 @@ public class VanillaParticleScene
             lastProbe = now;
 
             org.slf4j.LoggerFactory.getLogger("bbs-particles-probe").info(
-                "PROBE scene: particles={} quads={} draws={} origin={} camPos={} mv={} ex={}",
-                this.particles.size(), this.submittable.probeQuads, this.submittable.probeDraws,
-                this.origin, this.camera.getCameraPos(), previewCamera.view.toString().replace("\n", " "),
+                "PROBE scene: renders={} particles={} quads={} draws={} origin={} camPos={} ex={}",
+                probeRenders, this.particles.size(), this.submittable.probeQuads, this.submittable.probeDraws,
+                this.origin, this.camera.getCameraPos(),
                 probeException == null ? "none" : probeException.toString());
 
             this.submittable.probeQuads = 0;
             this.submittable.probeDraws = 0;
+            probeRenders = 0;
             probeException = null;
         }
     }
 
     /** TEMPORARY probe state, see above. */
     private static long lastProbe;
+    private static int probeRenders;
     private static Exception probeException;
 
     /**

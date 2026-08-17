@@ -142,7 +142,14 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
              * (the "slight shimmer") and any pass running OUTSIDE the preview FBO override would
              * drop its quads straight into the world framebuffer. The first call of a frame is
              * the visual FBO pass; the repeats are skipped. */
-            float transition = context.getTransition();
+
+            /* The LIVE tick progress, not context.getTransition(): the context's value is set in
+             * the GUI phase, and this preview renders in the WORLD phase of the NEXT frame — a
+             * one-frame-stale τ. The scene steps its particles on the fresh tick count, so around
+             * every tick boundary the stale τ (~0.99 pre-wrap) threw the lerp nearly a full step
+             * forward and the next frame pulled it back — a 20 Hz tremble. The live counter is in
+             * phase with the tick count that drives updatePreview. */
+            float transition = MinecraftClient.getInstance().getRenderTickCounter().getTickProgress(false);
 
             /* Second gate: only under the preview FBO override. A render3D call without it would
              * put the quads into whatever framebuffer is current — black quads in the world. */
