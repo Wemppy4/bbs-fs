@@ -14,6 +14,7 @@ import mchorse.bbs_mod.camera.controller.PlayCameraController;
 import mchorse.bbs_mod.client.renderer.MorphRenderer;
 import mchorse.bbs_mod.events.ModelBlockEntityUpdateCallback;
 import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
+import mchorse.bbs_mod.utils.sodium.SodiumUtils;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureFormat;
 import mchorse.bbs_mod.mixin.client.FogRendererAccessor;
@@ -110,6 +111,9 @@ public class BBSRendering
      * FabricLoader is up long before any of this.
      */
     private static boolean iris = FabricLoader.getInstance().isModLoaded("iris");
+
+    /** Same class-init timing (and reason) as {@link #iris}: a late false read fails silently. */
+    private static boolean sodium = FabricLoader.getInstance().isModLoaded("sodium");
     private static boolean optifine;
 
     private static int width;
@@ -513,12 +517,13 @@ public class BBSRendering
         if (orthoDistance > 0F)
         {
             /* Give back the culling disabled for this ortho frame (see setOrthoDistance);
-             * the orbit re-arms the flag next frame from Camera#update if ortho is still on.
-             *
-             * TODO(1.21.11 render): Sodium's point-camera culling was relaxed for the ortho frame
-             * through SodiumUtils, which the port dropped along with the rest of the shader-mod
-             * coupling (BBSRendering keeps sodium = false). Re-add when re-coupling. */
+             * the orbit re-arms the flag next frame from Camera#update if ortho is still on. */
             MinecraftClient.getInstance().chunkCullingEnabled = true;
+
+            if (sodium)
+            {
+                SodiumUtils.restorePointCameraCulling();
+            }
         }
 
         orthoDistance = -1F;
@@ -801,8 +806,10 @@ public class BBSRendering
              * own point-camera heuristics get the same treatment. */
             MinecraftClient.getInstance().chunkCullingEnabled = false;
 
-            /* TODO(1.21.11 render): see the matching note in the ortho teardown — Sodium's
-             * point-camera culling relaxation went with the decoupled SodiumUtils. */
+            if (sodium)
+            {
+                SodiumUtils.disablePointCameraCulling();
+            }
         }
     }
 
@@ -872,6 +879,11 @@ public class BBSRendering
         }
 
         return IrisUtils.isShaderPackEnabled();
+    }
+
+    public static boolean isSodiumLoaded()
+    {
+        return sodium;
     }
 
     /**
@@ -1209,6 +1221,13 @@ public class BBSRendering
 
     public static Function<VertexConsumer, VertexConsumer> getColorConsumer(Color color)
     {
+        if (sodium)
+        {
+            /* Sodium's intrinsic writers bypass the vanilla VertexConsumer chain; the Sodium-aware
+             * wrapper forwards them (see RecolorVertexSodiumConsumer). Class touch is gated. */
+            return (b) -> SodiumUtils.createVertexBuffer(b, color);
+        }
+
         return (b) -> new RecolorVertexConsumer(b, color);
     }
 }

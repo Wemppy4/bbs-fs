@@ -55,9 +55,10 @@ import java.util.function.Supplier;
  * callers that depended on a CUSTOM pipeline's per-draw uniforms (multilink, subtitle blur) still need
  * those uniforms re-wired - see the per-call-site TODOs.
  *
- * TODO(1.21.11 render): fine gradients (horizontal/4-corner), drop shadows and circular shadows are
- * approximated (solid fill) or skipped — the two-phase GUI has no native primitive for them. Restore
- * via custom GuiRenderState elements / shader pipelines later.
+ * Fine gradients (horizontal/4-corner) and the circular feathered shadows ride {@link GuiQuadMesh}
+ * (arbitrary per-vertex-coloured quads recorded into the deferred GUI); the rectangular drop shadow
+ * keeps its concentric-ring exterior halo — see the note in {@link #dropShadow} for why translucent
+ * geometry must stay outside the panel rect on the two-phase GUI.
  */
 public class Batcher2D
 {
@@ -361,14 +362,77 @@ public class Batcher2D
 
     public void dropCircleShadow(int x, int y, int radius, int segments, int opaque, int shadow)
     {
-        /* TODO(1.21.11 render): circular feathered shadow was a custom TRIANGLE_FAN mesh; no native
-         * two-phase-GUI primitive. Skipped for the prototype (purely decorative). */
+        /* The 1.21.1 TRIANGLE_FAN, re-cut into degenerate quads for the deferred GUI's hard-wired
+         * QUADS index buffer (the same treatment OrbitViewGizmo.fillCircle got). */
+        Matrix3x2fc matrix = this.matrix();
+        GuiQuadMesh mesh = new GuiQuadMesh();
+
+        for (int i = 0; i < segments; i++)
+        {
+            double a1 = i / (double) segments * Math.PI * 2 - Math.PI / 2;
+            double a2 = (i + 1) / (double) segments * Math.PI * 2 - Math.PI / 2;
+            float x1 = (float) (x - Math.cos(a1) * radius);
+            float y1 = (float) (y + Math.sin(a1) * radius);
+            float x2 = (float) (x - Math.cos(a2) * radius);
+            float y2 = (float) (y + Math.sin(a2) * radius);
+
+            mesh.vertex(matrix, x, y).color(opaque);
+            mesh.vertex(matrix, x1, y1).color(shadow);
+            mesh.vertex(matrix, x2, y2).color(shadow);
+            mesh.vertex(matrix, x2, y2).color(shadow);
+        }
+
+        this.drawQuadMesh(mesh);
     }
 
     public void dropCircleShadow(int x, int y, int radius, int offset, int segments, int opaque, int shadow)
     {
-        /* TODO(1.21.11 render): circular feathered shadow was a custom TRIANGLE_FAN/TRIANGLES mesh; no
-         * native two-phase-GUI primitive. Skipped for the prototype (purely decorative). */
+        if (offset >= radius)
+        {
+            this.dropCircleShadow(x, y, radius, segments, opaque, shadow);
+
+            return;
+        }
+
+        Matrix3x2fc matrix = this.matrix();
+        GuiQuadMesh mesh = new GuiQuadMesh();
+
+        /* Opaque base disc (fan -> degenerate quads), then the feathered ring as real quads. */
+        for (int i = 0; i < segments; i++)
+        {
+            double a1 = i / (double) segments * Math.PI * 2 - Math.PI / 2;
+            double a2 = (i + 1) / (double) segments * Math.PI * 2 - Math.PI / 2;
+            float ix1 = (float) (x - Math.cos(a1) * offset);
+            float iy1 = (float) (y + Math.sin(a1) * offset);
+            float ix2 = (float) (x - Math.cos(a2) * offset);
+            float iy2 = (float) (y + Math.sin(a2) * offset);
+
+            mesh.vertex(matrix, x, y).color(opaque);
+            mesh.vertex(matrix, ix1, iy1).color(opaque);
+            mesh.vertex(matrix, ix2, iy2).color(opaque);
+            mesh.vertex(matrix, ix2, iy2).color(opaque);
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            double a1 = i / (double) segments * Math.PI * 2 - Math.PI / 2;
+            double a2 = (i + 1) / (double) segments * Math.PI * 2 - Math.PI / 2;
+            float ix1 = (float) (x - Math.cos(a1) * offset);
+            float iy1 = (float) (y + Math.sin(a1) * offset);
+            float ix2 = (float) (x - Math.cos(a2) * offset);
+            float iy2 = (float) (y + Math.sin(a2) * offset);
+            float ox1 = (float) (x - Math.cos(a1) * radius);
+            float oy1 = (float) (y + Math.sin(a1) * radius);
+            float ox2 = (float) (x - Math.cos(a2) * radius);
+            float oy2 = (float) (y + Math.sin(a2) * radius);
+
+            mesh.vertex(matrix, ix1, iy1).color(opaque);
+            mesh.vertex(matrix, ox1, oy1).color(shadow);
+            mesh.vertex(matrix, ox2, oy2).color(shadow);
+            mesh.vertex(matrix, ix2, iy2).color(opaque);
+        }
+
+        this.drawQuadMesh(mesh);
     }
 
     /* Outline methods */
