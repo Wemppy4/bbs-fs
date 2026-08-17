@@ -894,22 +894,31 @@ public class Gizmo
             return;
         }
 
-        /* Local directions mapping to screen right and screen down. Unit vectors,
-         * so a step of {@code radius} along them lands on the ring.
+        /* Local directions that map EXACTLY onto the pixel axes, derived instead of guessed
+         * (the previous +Y/-Y/negation shuffle went wrong three times in a row):
          *
-         * The screen-down vector is +Y in view space, not -Y. 1.21.1 drew this pie in the panel's UI pass,
-         * under a GUI ortho built as ortho(0, w, h, 0) — which FLIPS Y — so view -Y read as screen down
-         * there, and ROTATE_SIGN in ViewRotateDrag was folded to match. On this branch the pie is drawn in
-         * the world phase (the UI pass needs setProjectionMatrix/viewport, both removed in 1.21.5), and the
-         * world projection does not flip: view +Y is screen down. Without this the pie came out mirrored,
-         * taking its start angle with it. */
-        Matrix3f inverse = basis.invert();
-        Vector3f right = inverse.transform(new Vector3f(1F, 0F, 0F)).normalize();
-        Vector3f down = inverse.transform(new Vector3f(0F, 1F, 0F)).normalize();
-
-        float startRad = this.currentTransform.getViewGrabScreenAngle();
+         *   - screenAngle() is atan2(dy_pixel, dx_pixel) with pixel Y DOWN;
+         *   - the projection maps view +Y to NDC +Y, and the NDC->pixel mapping flips
+         *     (see computeScreenCenter: out.y uses 1 - (ndcY*0.5+0.5)) — so pixel down = view -Y;
+         *   - a drawn point must therefore sit at view offset (cos, -sin) * Rv for its pixel
+         *     angle to equal its pie angle: basis*right = (Rv,0,0), basis*down = (0,-Rv,0),
+         *     i.e. right/down are inverse-transformed axes SCALED, not normalized.
+         *
+         * Rv (the view-space radius) uses cbrt|det| as the frame's uniform scale. Unlike
+         * normalizing the inverse-transformed vectors — which collapses toward a line when the
+         * basis is sheared (the VIEW-space transform mode shears it along the eye ray; that was
+         * the "pie goes flat at an angle" symptom) — the determinant survives shear, so the pie
+         * keeps the ring's size and stays a disc in every space. */
         float scale = BBSSettings.axesScale.get();
         float radius = 0.22F * scale * VIEW_RING_SCALE;
+        float uniformScale = (float) Math.cbrt(Math.abs(basis.determinant()));
+        float viewRadius = radius * uniformScale;
+
+        Matrix3f inverse = basis.invert();
+        Vector3f right = inverse.transform(new Vector3f(1F, 0F, 0F)).mul(viewRadius);
+        Vector3f down = inverse.transform(new Vector3f(0F, -1F, 0F)).mul(viewRadius);
+
+        float startRad = this.currentTransform.getViewGrabScreenAngle();
 
         int color = Colors.LIGHTEST_GRAY;
         float r = Colors.getR(color);
@@ -917,11 +926,10 @@ public class Gizmo
         float b = Colors.getB(color);
 
         /* Blend and no-cull are encoded by the gizmo pipeline the flush below submits to. */
-        /* The sweep direction is negated for the drawn pie. ViewRotateDrag already folds ROTATE_SIGN in
-         * so the value matches the APPLIED turn; on screen that winds the other way round, because the
-         * screen basis below is (right, down) — a y-down frame, where a positive angle runs clockwise. */
-        sweepRad = -sweepRad;
-
+        /* No sign fold: viewScreenSweepRad() is already the PIXEL-space sweep (ViewRotateDrag
+         * accumulates the screen delta and folds ROTATE_SIGN twice — once in, once out), and the
+         * basis above maps pie angles 1:1 onto pixel angles. Start edge sits under the grab
+         * cursor, leading edge under the live cursor. */
         int segments = Math.max(2, (int) (Math.abs(sweepRad) / (float) (2D * Math.PI) * 64F));
         float step = sweepRad / segments;
         Vector3f p1 = new Vector3f();
@@ -931,8 +939,8 @@ public class Gizmo
 
         for (int i = 0; i < segments; i++)
         {
-            this.pieRim(p1, right, down, startRad + step * i, radius);
-            this.pieRim(p2, right, down, startRad + step * (i + 1), radius);
+            this.pieRim(p1, right, down, startRad + step * i, 1F);
+            this.pieRim(p2, right, down, startRad + step * (i + 1), 1F);
 
             builder.vertex(mat, 0, 0, 0).color(r, g, b, 0.25F);
             builder.vertex(mat, p1.x, p1.y, p1.z).color(r, g, b, 0.25F);
@@ -941,11 +949,12 @@ public class Gizmo
 
         flush(builder);
 
-        /* Bright radial edges at the grab angle and the leading angle, like the axis pie. */
-        float thickness = 0.005F * scale;
+        /* Bright radial edges at the grab angle and the leading angle, like the axis pie.
+         * right/down already carry the radius, so radius/thickness are in ring units here. */
+        float thickness = 0.005F / 0.22F / VIEW_RING_SCALE;
         builder = begin();
-        this.pieEdge(builder, mat, right, down, startRad, radius, thickness, r, g, b);
-        this.pieEdge(builder, mat, right, down, startRad + sweepRad, radius, thickness, r, g, b);
+        this.pieEdge(builder, mat, right, down, startRad, 1F, thickness, r, g, b);
+        this.pieEdge(builder, mat, right, down, startRad + sweepRad, 1F, thickness, r, g, b);
         flush(builder);
     }
 
