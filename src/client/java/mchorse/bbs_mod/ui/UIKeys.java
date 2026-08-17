@@ -495,6 +495,7 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_MODEL_ACTIONS = L10n.lang("bbs.ui.forms.editors.model.actions");
     public static final IKey FORMS_EDITORS_MODEL_IK = L10n.lang("bbs.ui.forms.editors.model.ik");
     public static final IKey FORMS_EDITORS_MODEL_IK_BONES = L10n.lang("bbs.ui.forms.editors.model.ik.bones");
+    public static final IKey FORMS_EDITORS_MODEL_IK_BONES_TOOLTIP = L10n.lang("bbs.ui.forms.editors.model.ik.bones_tooltip");
     public static final IKey FORMS_EDITORS_MODEL_IK_DEBUG = L10n.lang("bbs.ui.forms.editors.model.ik.debug");
     public static final IKey FORMS_EDITORS_MODEL_IK_SETTINGS = L10n.lang("bbs.ui.forms.editors.model.ik.settings");
     public static final IKey FORMS_EDITORS_MODEL_IK_ENABLED = L10n.lang("bbs.ui.forms.editors.model.ik.enabled");

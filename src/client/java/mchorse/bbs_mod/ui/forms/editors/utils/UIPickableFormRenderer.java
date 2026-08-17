@@ -161,7 +161,7 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
         FormRenderingContext formContext = new FormRenderingContext()
             .set(FormRenderType.PREVIEW, this.target == null ? this.entity : this.target, this.createCameraStack(), LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV, context.getTransition())
             .camera(this.camera)
-            .modelRenderer();
+            .modelRenderer(context.getTick());
 
         if (this.renderForm == null || this.renderForm.get())
         {

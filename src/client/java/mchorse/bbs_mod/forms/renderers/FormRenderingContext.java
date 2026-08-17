@@ -23,6 +23,7 @@ public class FormRenderingContext
     public boolean ui;
     public int color;
     public boolean modelRenderer;
+    public long modelRendererTick;
 
     public FormRenderingContext()
     {}
@@ -94,9 +95,20 @@ public class FormRenderingContext
         return this;
     }
 
-    public FormRenderingContext modelRenderer()
+    /**
+     * Mark this as a {@link mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer}
+     * viewport and hand it that viewport's clock.
+     *
+     * <p>The tick is here because form ticking in an editor is opt-in
+     * ({@link mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer#updatable()})
+     * and off in the plain form editor. Anything that has to keep moving in a
+     * preview regardless &mdash; particles, say &mdash; cannot wait to be
+     * ticked and has to run off this instead.
+     */
+    public FormRenderingContext modelRenderer(long tick)
     {
         this.modelRenderer = true;
+        this.modelRendererTick = tick;
 
         return this;
     }

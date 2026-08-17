@@ -15,6 +15,15 @@ import java.util.Map;
  * keyed by bone. Data written before the joints existed was the flat chains
  * map itself (no wrapper); it is still read: a map WITHOUT a "chains" key is
  * taken as the legacy flat form, so old scenes and presets load unchanged.
+ *
+ * <p>That missing wrapper doubles as the version marker of the IK redesign:
+ * a flat map was authored on the OLD position-level solver, so its chains
+ * migrate with {@code classic} ON — a two-bone limb keeps solving the way it
+ * was posed and nothing an animator already tuned shifts under them. Chains
+ * of another shape carry the flag harmlessly: the analytic path takes only
+ * two directed bones and hands everything else to the core (the same core
+ * they would land on anyway, the old FABRIK/CCD branches being gone), and
+ * the panel marks that fallback right on the toggle.</p>
  */
 public final class ModelIKIO
 {
@@ -53,7 +62,13 @@ public final class ModelIKIO
             return null;
         }
 
-        MapType chainsMap = map.has(KEY_CHAINS, BaseType.TYPE_MAP) ? map.getMap(KEY_CHAINS) : map;
+        boolean wrapped = map.has(KEY_CHAINS, BaseType.TYPE_MAP);
+        MapType chainsMap = wrapped ? map.getMap(KEY_CHAINS) : map;
+
+        /* Pre-redesign data: the old solver is what these chains were posed
+         * against, so they come back with it on. */
+        boolean defaultClassic = wrapped ? ModelIKConfig.DEFAULT_CLASSIC : true;
+
         List<ModelIKConfig.Chain> chains = new ArrayList<>();
 
         for (String tip : new ArrayList<>(chainsMap.keys()))
@@ -80,7 +95,7 @@ public final class ModelIKIO
             boolean enabled = entry.getBool(KEY_ENABLED, DEFAULT_ENABLED);
             boolean tipRotation = entry.getBool(KEY_TIP_ROTATION, ModelIKConfig.DEFAULT_TIP_ROTATION);
             boolean stretch = entry.getBool(KEY_STRETCH, ModelIKConfig.DEFAULT_STRETCH);
-            boolean classic = entry.getBool(KEY_CLASSIC, ModelIKConfig.DEFAULT_CLASSIC);
+            boolean classic = entry.getBool(KEY_CLASSIC, defaultClassic);
 
             chains.add(new ModelIKConfig.Chain(tip, target, chainLength, pole, poleTarget, poleAngle, softness, weight, enabled, tipRotation, stretch, classic));
         }

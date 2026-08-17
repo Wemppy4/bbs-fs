@@ -1401,26 +1401,7 @@ public class UIReplaysEditor extends UIElement
             return;
         }
 
-        Replay replay = this.getReplay();
-
-        if (replay != null)
-        {
-            int tick = this.filmPanel.getCursor();
-            double x = replay.keyframes.x.interpolate(tick);
-            double y = replay.keyframes.y.interpolate(tick);
-            double z = replay.keyframes.z.interpolate(tick);
-            float yaw = replay.keyframes.yaw.interpolate(tick).floatValue();
-            float headYaw = replay.keyframes.headYaw.interpolate(tick).floatValue();
-            float bodyYaw = replay.keyframes.bodyYaw.interpolate(tick).floatValue();
-            float pitch = replay.keyframes.pitch.interpolate(tick).floatValue();
-            ClientPlayerEntity player = MinecraftClient.getInstance().player;
-
-            PlayerUtils.teleport(x, y, z, headYaw, pitch);
-            player.setYaw(yaw);
-            player.setHeadYaw(headYaw);
-            player.setBodyYaw(bodyYaw);
-            player.setPitch(pitch);
-        }
+        PlayerUtils.teleportToReplay(this.getReplay(), this.filmPanel.getCursor());
     }
 
     @Override

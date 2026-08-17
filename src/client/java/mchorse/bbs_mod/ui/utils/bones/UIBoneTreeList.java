@@ -6,8 +6,12 @@ import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
+import mchorse.bbs_mod.ui.framework.tooltips.ITooltip;
+import mchorse.bbs_mod.ui.framework.tooltips.LabelTooltip;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 
@@ -19,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -42,9 +47,22 @@ public class UIBoneTreeList extends UIStringList
 
     private static final int GUIDE_COLOR = Colors.A25 | 0xFFFFFF;
 
+    private static final int MARKER = 4;
+    private static final int MARKER_GAP = 2;
+
+    /** One role dot: {@code small} halves it, for a secondary shade of the same role. */
+    public record Marker(int color, boolean small)
+    {
+    }
+
     private final Map<String, Meta> metas = new HashMap<>();
 
     private Predicate<String> disabled;
+
+    private Function<String, Marker[]> markers;
+
+    /** Left edge of the dot column as the last drawn row placed it — the legend's gate. */
+    private int laneX = Integer.MAX_VALUE;
 
     /** Hosts that filter by refilling the list (instead of {@link #filter}) set this
      *  while a query is active, so matches render flat like built-in filtering does. */
@@ -69,6 +87,34 @@ public class UIBoneTreeList extends UIStringList
     public boolean isDisabled(String id)
     {
         return this.disabled != null && id != null && !id.isEmpty() && this.disabled.test(id);
+    }
+
+    /**
+     * Role dots drawn at the row's right edge — what a bone is to the host,
+     * readable without selecting it (which chain drives it, that it is somebody's
+     * controller). Slot {@code 0} is the rightmost one and every slot keeps its
+     * meaning across rows, so the eye reads a column, not a legend; a
+     * {@code null} entry leaves its slot empty. The label is trimmed to what the
+     * dots leave, so a long bone name never runs under them.
+     */
+    public UIBoneTreeList markers(Function<String, Marker[]> markers)
+    {
+        this.markers = markers;
+
+        return this;
+    }
+
+    /**
+     * Same, with a legend for what the dots mean. It shows only while the cursor
+     * is over the dot column: a bone list is hovered all the time, and a
+     * paragraph popping up on every row would be noise where the question is
+     * only ever asked at the dots.
+     */
+    public UIBoneTreeList markers(Function<String, Marker[]> markers, IKey legend)
+    {
+        this.tooltip(new MarkerLegend(legend));
+
+        return this.markers(markers);
     }
 
     public void flat(boolean flat)
@@ -347,13 +393,88 @@ public class UIBoneTreeList extends UIStringList
             ? (filtering ? this.elementToString(context, i, element) : element)
             : meta.treeLabel;
         int color = this.isDisabled(element) ? Colors.GRAY : (hover ? Colors.HIGHLIGHT : Colors.WHITE);
+        int textX = x + 4 + depth * INDENT;
+        int right = this.renderMarkers(context, element, x, y, h);
 
-        context.batcher.textShadow(label, x + 4 + depth * INDENT, y + (h - context.batcher.getFont().getHeight()) / 2, color);
+        if (right < x + this.area.w)
+        {
+            label = context.batcher.getFont().limitToWidth(label, right - textX - 2);
+        }
+
+        context.batcher.textShadow(label, textX, y + (h - context.batcher.getFont().getHeight()) / 2, color);
+    }
+
+    /**
+     * Draws the row's role dots from the right edge inwards (past the scrollbar
+     * lane) and returns the x the label must stop at.
+     */
+    private int renderMarkers(UIContext context, String element, int x, int y, int h)
+    {
+        int right = x + this.area.w - 3 - this.scroll.getScrollbarArea().w;
+
+        if (this.markers == null)
+        {
+            return x + this.area.w;
+        }
+
+        Marker[] markers = this.markers.apply(element);
+
+        if (markers == null || markers.length == 0)
+        {
+            return x + this.area.w;
+        }
+
+        this.laneX = right - markers.length * (MARKER + MARKER_GAP);
+
+        for (int slot = 0; slot < markers.length; slot++)
+        {
+            Marker marker = markers[slot];
+
+            if (marker == null)
+            {
+                continue;
+            }
+
+            int cell = right - (slot + 1) * (MARKER + MARKER_GAP) + MARKER_GAP;
+            int size = marker.small ? MARKER / 2 : MARKER;
+            int inset = (MARKER - size) / 2;
+            int top = y + (h - size) / 2;
+
+            context.batcher.box(cell + inset, top, cell + inset + size, top + size, marker.color);
+        }
+
+        return this.laneX;
     }
 
     private static int columnX(int x, int level)
     {
         return x + 4 + level * INDENT + 2;
+    }
+
+    /** The dot legend, gated on the cursor actually being in the dot column. */
+    private class MarkerLegend implements ITooltip
+    {
+        private final LabelTooltip label;
+
+        public MarkerLegend(IKey legend)
+        {
+            this.label = new LabelTooltip(legend, 200, Direction.LEFT);
+        }
+
+        @Override
+        public IKey getLabel()
+        {
+            return this.label.getLabel();
+        }
+
+        @Override
+        public void renderTooltip(UIContext context)
+        {
+            if (context.mouseX >= UIBoneTreeList.this.laneX)
+            {
+                this.label.renderTooltip(context);
+            }
+        }
     }
 
     private static class Node

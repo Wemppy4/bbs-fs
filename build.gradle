@@ -116,6 +116,10 @@ jar {
 publishing {
 	publications {
 		mavenJava(MavenPublication) {
+			/* The project's name has a space in it, and Maven coordinates can't, so the
+			 * artifact id is taken from the archives name instead of the default. */
+			artifactId = project.base.archivesName.get()
+
 			from components.java
 		}
 	}

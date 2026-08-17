@@ -562,7 +562,9 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
             if (index >= 0)
             {
-                BBSModClient.getFilms().startRecording(this.panel.getData(), index, this.panel.getCursor());
+                /* On the mark: started from the editor, at a cursor the editor chose,
+                 * so the take begins where the replay itself stands at that tick */
+                BBSModClient.getFilms().startRecording(this.panel.getData(), index, this.panel.getCursor(), true);
             }
 
             return;

@@ -30,7 +30,10 @@
         "GuiRendererMixin",
         "WorldRendererMixin",
         "SectionRenderStateMixin",
-        "FogRendererAccessor"
+        "FogRendererAccessor",
+        "CameraInvoker",
+        "ParticleManagerInvoker",
+        "ParticleMixin"
     ],
     "injectors": {
         "defaultRequire": 1
