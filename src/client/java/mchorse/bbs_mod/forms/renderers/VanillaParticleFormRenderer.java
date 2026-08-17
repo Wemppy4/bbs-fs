@@ -170,29 +170,10 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
             if (fboBound && newFrame)
             {
                 this.lastSceneNanos = nano;
-
-                /* TEMPORARY probe (particles invisible in the editor preview): emitter state +
-                 * whether the render runs under the preview FBO override. Remove with the fix. */
-                long now = System.currentTimeMillis();
-
-                if (now - lastProbe > 1000L)
-                {
-                    lastProbe = now;
-
-                    org.slf4j.LoggerFactory.getLogger("bbs-particles-probe").info(
-                        "PROBE form: tick={} pos={} world={} paused={} frequency={} count={} fboOverride={}",
-                        context.modelRendererTick, this.pos, MinecraftClient.getInstance().world != null,
-                        this.form.paused.get(), this.form.frequency.get(), this.form.count.get(),
-                        com.mojang.blaze3d.systems.RenderSystem.outputColorTextureOverride != null);
-                }
-
                 this.getScene().render(context.camera, transition);
             }
         }
     }
-
-    /** TEMPORARY probe clock, see above. */
-    private static long lastProbe;
 
     /** Frame marker so the preview scene draws once per frame (see the render3D note). */
     private long lastSceneNanos;
