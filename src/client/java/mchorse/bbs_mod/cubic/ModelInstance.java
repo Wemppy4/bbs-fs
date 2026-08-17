@@ -497,13 +497,21 @@ public class ModelInstance implements IModelInstance
 
                 model.getArmature().setupMatrices();
 
-                /* One draw per mesh (multi-VAO BOBJ from the 1.21.1 merge). */
-                // TODO(1.21.11 render merge): per-mesh BOBJ material-texture resolver — re-port against pipeline API
-                // (was: 1.21.1 resolved textureResolver.apply(vao.data.mesh.name) per mesh and bound it via
-                //  BBSModClient.getTextures().bindTexture(link) before drawing, and used the vao.render(shader, ...)
-                //  overload; HEAD draws every mesh through the pipeline RenderLayer with no per-mesh texture bind).
+                /* One draw per mesh; bind that mesh's resolved texture (mesh name = material) —
+                 * the draw takes its texture from getLastBound(), so the bind slots per-mesh
+                 * material textures back in exactly the way 1.21.1 did. */
                 for (BOBJModelVAO vao : vaos)
                 {
+                    if (textureResolver != null)
+                    {
+                        Link link = textureResolver.apply(vao.data.mesh.name);
+
+                        if (link != null)
+                        {
+                            BBSModClient.getTextures().bindTexture(link);
+                        }
+                    }
+
                     vao.updateMesh(stencilMap);
                     vao.render(stack, color.r, color.g, color.b, color.a, stencilMap, light, overlay, this.isCulling());
                 }

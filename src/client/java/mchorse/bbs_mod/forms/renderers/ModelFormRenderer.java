@@ -448,10 +448,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             ModelIKDebug.render(newStack, model.model, ikMap, "");
         }
 
-        /* TODO(1.21.11 render): teardown of lightmap/overlay/blend/cull was here; now pipeline-encoded. */
-        // TODO(1.21.11 render merge): in-form-editor ModelPhysicsDebug render — re-port against pipeline API
-        // (was: 1.21.1 called ModelPhysicsDebug.render(newStack, model.model, physicsMap, "") gated on
-        //  ModelPhysicsDebug.enabled + form.physics MapType, then manually tore down lightmap/overlay/blend/cull).
+        /* Same debug-layer path the IK overlay above already rides (the 1.21.1 lightmap/overlay/
+         * blend/cull teardown is pipeline-encoded now, nothing to tear down). */
+        if (stencilMap == null && !this.renderingArm && this.form != null && this.form.physics.get() instanceof MapType physicsMap)
+        {
+            ModelPhysicsDebug.render(newStack, model.model, physicsMap, target.getAge(), "");
+        }
 
         /* Render items */
         this.captureMatrices(model);

@@ -13,6 +13,7 @@ import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.film.Films;
+import mchorse.bbs_mod.graphics.GuiQuadMesh;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
@@ -43,7 +44,12 @@ import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Vectors;
+import mchorse.bbs_mod.utils.MathUtils;
+import net.minecraft.client.MinecraftClient;
+import org.joml.Matrix3x2fc;
+import org.joml.Matrix4f;
 import org.joml.Vector2i;
+import org.joml.Vector3f;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -485,11 +491,62 @@ public class UIFilmPreview extends UIElement
 
     private void renderCursor(UIContext context)
     {
-        /* TODO(1.21.11 render): STUBBED. This drew a 3D orientation crosshair gizmo (showing the camera's
-         * pitch/yaw) over the preview corner. It relied on:
-         *   - context.getMatrices().peek().getPositionMatrix() — GUI matrices are now 2D (Matrix3x2fStack), no peek()/Matrix4f;
-         *   - RenderSystem.applyModelViewMatrix() — removed (model-view is GPU/pipeline-owned now);
-         *   - RenderSystem.renderCrosshair(int) — removed.
-         * Re-implement against the new pipeline foundation (2D->3D matrix bridge + a crosshair draw). No draw is issued. */
+        /* The camera-orientation crosshair in the preview corner. 1.21.1 leaned on
+         * RenderSystem.renderCrosshair (removed): three axis lines under the camera's pitch/yaw.
+         * Rebuilt as recorded GUI quads (GuiQuadMesh, the orbit nav-sphere's own mechanism): the
+         * endpoints are the rotated axes projected orthographically, drawn far-to-near. */
+        net.minecraft.client.render.Camera mcCamera = MinecraftClient.getInstance().gameRenderer.getCamera();
+
+        float cx = this.area.x + 16;
+        float cy = this.area.ey() - 12;
+
+        /* The 1.21.1 modelview: rotX(-pitch) * rotY(yaw) * scale(-1,-1,-1), GUI y-down. */
+        Matrix4f m = new Matrix4f()
+            .rotateX(MathUtils.toRad(-mcCamera.getPitch()))
+            .rotateY(MathUtils.toRad(mcCamera.getYaw()))
+            .scale(-1F, -1F, -1F);
+
+        float[][] axes = {{10F, 0F, 0F}, {0F, 10F, 0F}, {0F, 0F, 10F}};
+        int[] colors = {0xFFFF3333, 0xFF33FF33, 0xFF3333FF};
+        Vector3f[] ends = new Vector3f[3];
+        Integer[] order = {0, 1, 2};
+
+        for (int i = 0; i < 3; i++)
+        {
+            ends[i] = m.transformDirection(new Vector3f(axes[i][0], axes[i][1], axes[i][2]));
+        }
+
+        /* Far-to-near, so the axis pointing at the viewer reads on top. */
+        java.util.Arrays.sort(order, (a, b) -> Float.compare(ends[a].z, ends[b].z));
+
+        Matrix3x2fc matrix = context.batcher.getContext().getMatrices();
+        GuiQuadMesh builder = new GuiQuadMesh();
+
+        for (int i : order)
+        {
+            float ex = ends[i].x;
+            float ey = ends[i].y;
+            float length = (float) Math.sqrt(ex * ex + ey * ey);
+
+            if (length < 0.001F)
+            {
+                continue;
+            }
+
+            /* A 1px-thick quad from the centre to the endpoint. */
+            float px = -ey / length * 0.5F;
+            float py = ex / length * 0.5F;
+            int color = colors[i];
+
+            builder.vertex(matrix, cx - px, cy - py).color(color);
+            builder.vertex(matrix, cx + px, cy + py).color(color);
+            builder.vertex(matrix, cx + ex + px, cy + ey + py).color(color);
+            builder.vertex(matrix, cx + ex - px, cy + ey - py).color(color);
+        }
+
+        if (!builder.isEmpty())
+        {
+            context.batcher.drawQuadMesh(builder);
+        }
     }
 }
