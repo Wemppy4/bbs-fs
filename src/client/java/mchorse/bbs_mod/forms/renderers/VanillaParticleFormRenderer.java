@@ -136,26 +136,49 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
 
             this.updatePreview(context.modelRendererTick);
 
-            /* TEMPORARY probe (particles invisible in the editor preview): proves the preview
-             * branch runs at all and what the emitter state is. Remove with the fix. */
-            long now = System.currentTimeMillis();
+            /* Once per frame, not once per render3D call: the editor renders the form several
+             * times a frame (probe measured ~3 — visual pass plus auxiliary passes), and a scene
+             * drawn repeatedly plants translucent quads on top of themselves: they self-z-fight
+             * (the "slight shimmer") and any pass running OUTSIDE the preview FBO override would
+             * drop its quads straight into the world framebuffer. The first call of a frame is
+             * the visual FBO pass; the repeats are skipped. */
+            float transition = context.getTransition();
 
-            if (now - lastProbe > 1000L)
+            /* Second gate: only under the preview FBO override. A render3D call without it would
+             * put the quads into whatever framebuffer is current — black quads in the world. */
+            boolean fboBound = com.mojang.blaze3d.systems.RenderSystem.outputColorTextureOverride != null;
+
+            if (fboBound && (context.modelRendererTick != this.lastSceneTick || transition != this.lastSceneTransition))
             {
-                lastProbe = now;
+                this.lastSceneTick = context.modelRendererTick;
+                this.lastSceneTransition = transition;
 
-                org.slf4j.LoggerFactory.getLogger("bbs-particles-probe").info(
-                    "PROBE form: tick={} pos={} world={} paused={} frequency={} count={}",
-                    context.modelRendererTick, this.pos, MinecraftClient.getInstance().world != null,
-                    this.form.paused.get(), this.form.frequency.get(), this.form.count.get());
+                /* TEMPORARY probe (particles invisible in the editor preview): emitter state +
+                 * whether the render runs under the preview FBO override. Remove with the fix. */
+                long now = System.currentTimeMillis();
+
+                if (now - lastProbe > 1000L)
+                {
+                    lastProbe = now;
+
+                    org.slf4j.LoggerFactory.getLogger("bbs-particles-probe").info(
+                        "PROBE form: tick={} pos={} world={} paused={} frequency={} count={} fboOverride={}",
+                        context.modelRendererTick, this.pos, MinecraftClient.getInstance().world != null,
+                        this.form.paused.get(), this.form.frequency.get(), this.form.count.get(),
+                        com.mojang.blaze3d.systems.RenderSystem.outputColorTextureOverride != null);
+                }
+
+                this.getScene().render(context.camera, transition);
             }
-
-            this.getScene().render(context.camera, context.getTransition());
         }
     }
 
     /** TEMPORARY probe clock, see above. */
     private static long lastProbe;
+
+    /** Frame marker so the preview scene draws once per frame (see the render3D note). */
+    private long lastSceneTick = Long.MIN_VALUE;
+    private float lastSceneTransition = Float.NaN;
 
     private VanillaParticleScene getScene()
     {
