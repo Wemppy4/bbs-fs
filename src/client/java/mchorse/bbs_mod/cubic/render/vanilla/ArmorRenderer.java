@@ -3,10 +3,19 @@ package mchorse.bbs_mod.cubic.render.vanilla;
 import com.google.common.collect.Maps;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
+import mchorse.bbs_mod.utils.colors.Color;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.TexturedRenderLayers;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.model.BakedModelManager;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.DyedColorComponent;
@@ -160,30 +169,29 @@ public class ArmorRenderer
 
     private void renderArmorParts(ModelPart part, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, RegistryKey<EquipmentAsset> assetId, boolean secondTextureLayer, float red, float green, float blue, String overlay)
     {
-        /* TODO(1.21.11 render): the old draw path was
-         *   VertexConsumer base = vertexConsumers.getBuffer(RenderLayer.getArmorCutoutNoCull(texture));
-         *   part.render(matrices, new RecolorVertexConsumer(base, new Color(r, g, b, 1F)), light, OverlayTexture.DEFAULT_UV);
-         * RenderLayer.getArmorCutoutNoCull was removed in the 1.21.4 equipment rewrite (RenderLayer now
-         * only exposes of(String, RenderSetup); equipment drawing goes through EquipmentRenderer +
-         * OrderedRenderCommandQueue). The texture id is derived below so the recolor draw can be rewired
-         * once a POSITION_TEX_COLOR_NORMAL equipment RenderLayer/pipeline is built for BBS. */
-        Identifier texture = this.getArmorTexture(assetId, secondTextureLayer, overlay);
+        /* The armor layer factories came back as static RenderLayers.armorCutoutNoCull (the 1.21.4
+         * rewrite moved them off RenderLayer, it didn't remove them). Same draw as 1.21.1: the layer
+         * carries the texture, the recolor consumer carries the dye. */
+        VertexConsumer base = vertexConsumers.getBuffer(RenderLayers.armorCutoutNoCull(this.getArmorTexture(assetId, secondTextureLayer, overlay)));
+        VertexConsumer vertexConsumer = new RecolorVertexConsumer(base, new Color(red, green, blue, 1F));
+
+        part.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV);
     }
 
     private void renderTrim(ModelPart part, RegistryKey<EquipmentAsset> assetId, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, ArmorTrim trim, boolean leggings)
     {
-        /* TODO(1.21.11 render): trims now resolve via trim.getTextureId(prefix, assetId) against the
-         * armor-trims atlas, but BakedModelManager.getAtlas(...) (used to fetch that atlas) was removed,
-         * and TexturedRenderLayers.getArmorTrims(boolean) needs the new equipment draw path. Sprite
-         * lookup + draw must be rewired through AtlasManager + EquipmentRenderer. */
-        Identifier trimTexture = trim.getTextureId(leggings ? "leggings" : "armor", assetId);
+        /* 1.21.4+: the trim texture id comes off the trim itself and the atlas lives in
+         * AtlasManager (BakedModelManager.getAtlas is gone). */
+        SpriteAtlasTexture atlas = MinecraftClient.getInstance().getAtlasManager().getAtlasTexture(TexturedRenderLayers.ARMOR_TRIMS_ATLAS_TEXTURE);
+        Sprite sprite = atlas.getSprite(trim.getTextureId(leggings ? "leggings" : "armor", assetId));
+        VertexConsumer vertexConsumer = sprite.getTextureSpecificVertexConsumer(vertexConsumers.getBuffer(TexturedRenderLayers.getArmorTrims(trim.pattern().value().decal())));
+
+        part.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV);
     }
 
     private void renderGlint(ModelPart part, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light)
     {
-        /* TODO(1.21.11 render): RenderLayer.getArmorEntityGlint() was removed in the 1.21.4 equipment
-         * rewrite. The enchantment-glint overlay is now applied by the equipment render command system;
-         * neutralized until the BBS equipment draw path is ported. */
+        part.render(matrices, vertexConsumers.getBuffer(RenderLayers.armorEntityGlint()), light, OverlayTexture.DEFAULT_UV);
     }
 
     private BipedEntityModel getModel(EquipmentSlot slot)

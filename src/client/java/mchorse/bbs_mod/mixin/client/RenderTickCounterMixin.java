@@ -41,14 +41,28 @@ public class RenderTickCounterMixin
 
             if (this.heldFrames == 0)
             {
-                // TODO(1.21.11 render merge): video frame-rate LIMITING — re-port against 1.21.11 RenderTickCounter.
-                // (was: when BBSSettings.videoLimitFrameRate was on, the recording was throttled to wall-clock by
-                //  holding the frame — BBSRendering.canRender=false, info.setReturnValue(0), return — until
-                //  frameInterval = 1000/getVideoFrameRate() ms had elapsed since lastFrameTime. It advanced the OLD
-                //  RenderTickCounter fields tickDelta/lastFrameDuration/prevTimeMillis, which no longer exist; the
-                //  1.21.11 Dynamic counter uses tickProgress/dynamicDeltaTicks/lastTimeMillis instead. The hold/skip
-                //  logic must be re-expressed against those shadowed fields. BBSSettings.videoLimitFrameRate +
-                //  BBSRendering.canRender still exist, and lastFrameTime is already a field on this mixin.)
+                /* When frame rate limiting is enabled, throttle the recording to the video
+                 * frame rate in real time, so a powerful machine doesn't render the recording
+                 * faster than wall-clock time. We hold the frame (without advancing the world)
+                 * until enough real time has passed to produce the next frame. Same logic as
+                 * 1.21.1; only the counter fields were renamed (tickDelta -> tickProgress,
+                 * lastFrameDuration -> dynamicDeltaTicks, prevTimeMillis -> lastTimeMillis). */
+                if (BBSSettings.videoLimitFrameRate.get())
+                {
+                    long frameInterval = (long) (1000F / BBSRendering.getVideoFrameRate());
+
+                    if (timeMillis - this.lastFrameTime < frameInterval)
+                    {
+                        BBSRendering.canRender = false;
+
+                        info.setReturnValue(0);
+
+                        return;
+                    }
+
+                    this.lastFrameTime = timeMillis;
+                }
+
                 this.dynamicDeltaTicks = 20F / (float) BBSRendering.getVideoFrameRate();
                 this.lastTimeMillis = timeMillis;
                 this.tickProgress += this.dynamicDeltaTicks;

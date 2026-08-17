@@ -527,14 +527,16 @@ public class BBSRendering
 
         if (BBSModClient.getCameraController().getCurrent() instanceof PlayCameraController controller)
         {
-            /* 1.21.11: DrawContext now takes (client, GuiRenderState, width, height); the Immediate-based
-             * constructor was removed. */
-            DrawContext drawContext = new DrawContext(mc, new GuiRenderState(), mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight());
-            Batcher2D batcher = new Batcher2D(drawContext);
+            /* Recorded into ImmediateGui's private state and flushed right here — a throwaway
+             * GuiRenderState nobody renders is how these subtitles used to vanish (two-phase GUI).
+             * Flushing now, mid-world-phase, also puts them into mc.framebuffer, which during an
+             * export is the export framebuffer: subtitles belong in the film. */
+            Batcher2D batcher = new Batcher2D(ImmediateGui.begin());
 
             /* 1.21.11: UISubtitleRenderer.renderSubtitles takes a 3D MatrixStack (context.getMatrices() is now a
              * 2D Matrix3x2fStack). The subtitle renderer manages its own transform stack, so feed a fresh one. */
             UISubtitleRenderer.renderSubtitles(new MatrixStack(), batcher, SubtitleClip.getSubtitles(controller.getContext()));
+            ImmediateGui.end();
         }
 
         if (!customSize)
@@ -648,9 +650,11 @@ public class BBSRendering
         //  and glBlitFramebuffer'd the native-resolution world framebuffer down into it with GL_LINEAR so the
         //  recording matched the requested video size; that Framebuffer.fbo/.id/.attach API path is dropped here).
 
-        renderRecordingOverlay();
-
         toggleFramebuffer(false);
+
+        /* AFTER the restore: mc.framebuffer points back at the screen, so the operator overlay
+         * shows up there and never lands in the exported file. */
+        renderRecordingOverlay();
 
         if (pendingExportResolutionAction != null)
         {
@@ -725,13 +729,10 @@ public class BBSRendering
             return;
         }
 
-        MinecraftClient mc = MinecraftClient.getInstance();
-        /* 1.21.11: DrawContext takes (client, GuiRenderState, width, height) and is flushed by the
-         * vanilla GUI pass rather than by an explicit draw(). */
-        DrawContext drawContext = new DrawContext(mc, new GuiRenderState(),
-            mc.getWindow().getScaledWidth(), mc.getWindow().getScaledHeight());
-
-        renderRecordingTimerOverlay(new Batcher2D(drawContext), label);
+        /* Recorded and flushed on the spot through ImmediateGui — a bare GuiRenderState that
+         * nobody renders (the old code here) never reaches the screen on the two-phase GUI. */
+        renderRecordingTimerOverlay(new Batcher2D(ImmediateGui.begin()), label);
+        ImmediateGui.end();
     }
 
     public static void renderRecordingTimerOverlay(Batcher2D batcher2D, String label)

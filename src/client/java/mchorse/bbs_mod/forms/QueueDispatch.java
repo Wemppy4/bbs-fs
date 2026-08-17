@@ -59,6 +59,12 @@ public class QueueDispatch
         return get().getQueue();
     }
 
+    /** The dispatcher itself — {@code ImmediateGui} builds its private GuiRenderer over it. */
+    public static RenderDispatcher dispatcher()
+    {
+        return get();
+    }
+
     /**
      * Render everything submitted since the last flush through the BBS provider. The caller still
      * owns the provider's {@code draw()} (this only replays commands into it), matching how the
