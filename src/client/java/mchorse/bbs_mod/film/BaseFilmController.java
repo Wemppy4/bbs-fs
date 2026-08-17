@@ -308,14 +308,12 @@ public abstract class BaseFilmController
 
             if (stencilMap == null)
             {
-                /* Draw the gizmo HERE, in the world phase. 1.21.1 only snapshotted the placement and drew the
-                 * visual later in the panel's UI pass (Gizmo#renderInterface), so its translucent parts would
-                 * composite through the UI pipeline. That pass needed RenderSystem.setProjectionMatrix +
-                 * viewport, both removed in 1.21.5, so on this branch it drew nothing at all. The world phase
-                 * already has the right projection and the camera is in this stack, which is exactly how the
-                 * form editor draws it — at the cost of the sweep pie and view ring blending against the world
-                 * rather than the UI. */
-                Gizmo.INSTANCE.render(stack);
+                /* Snapshot the placement only; the visual draws later in the panel's UI pass
+                 * (Gizmo#renderInterface — rebuilt on manual render passes), so its translucent
+                 * parts composite through the UI pipeline AND it survives a shaderpack: the pack's
+                 * end-of-world composite overwrites world-phase draws that don't go through its
+                 * programs, which is exactly what made the world-drawn gizmo ghost under Iris. */
+                Gizmo.INSTANCE.captureVisual(stack);
             }
             else
             {

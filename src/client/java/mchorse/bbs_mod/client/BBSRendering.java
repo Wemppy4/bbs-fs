@@ -557,7 +557,15 @@ public class BBSRendering
         {
             if (dashboard.getPanels().panel instanceof UIFilmPanel panel)
             {
-                UISubtitleRenderer.renderSubtitles(new MatrixStack(), currentMenu.context.batcher, SubtitleClip.getSubtitles(panel.getRunner().getContext()));
+                /* Same ImmediateGui flush as the playback branch above: the menu's context here
+                 * still points at the PREVIOUS frame's already-composited DrawContext, so recording
+                 * into it dropped the subtitles on the floor. Flushing immediately also lands them
+                 * in mc.framebuffer — the film preview/export framebuffer during this phase — so
+                 * they show in the panel preview and in the exported file, like on 1.21.1. */
+                Batcher2D batcher = new Batcher2D(ImmediateGui.begin());
+
+                UISubtitleRenderer.renderSubtitles(new MatrixStack(), batcher, SubtitleClip.getSubtitles(panel.getRunner().getContext()));
+                ImmediateGui.end();
             }
         }
 

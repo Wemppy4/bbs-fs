@@ -1,12 +1,22 @@
 package mchorse.bbs_mod.ui.utils;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.client.render.OffscreenTarget;
+import net.minecraft.client.gl.MappableRingBuffer;
+
+import java.util.OptionalInt;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
@@ -23,6 +33,7 @@ import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.MathUtils;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
@@ -119,6 +130,20 @@ public class Gizmo
     );
 
     private static RenderLayer gizmoLayer;
+
+    /* ---- Interface (UI) pass state ----
+     * While set, the gizmo is being drawn from renderInterface/renderStencilInterface: geometry is
+     * built from the CAPTURED full model-view (lastRenderMatrix seeds the stack), so the flushes must
+     * apply an IDENTITY model-view and the interface projection instead of the world pass' globals,
+     * and the visual flush routes into the off-screen interface target rather than the world layer. */
+    private static boolean interfacePass;
+    private static GpuTextureView interfaceTarget;
+    private static Matrix4f interfaceProjection;
+    private static boolean interfaceDrew;
+    private static MappableRingBuffer interfaceProjectionRing;
+
+    /** Off-screen colour the interface-pass visual renders into, blitted premultiplied over the viewport. */
+    private final OffscreenTarget interfaceBuffer = new OffscreenTarget("bbs_gizmo_interface");
 
     public final static Gizmo INSTANCE = new Gizmo();
 
@@ -218,9 +243,72 @@ public class Gizmo
     {
         BuiltBuffer built = builder.endNullable();
 
-        if (built != null)
+        if (built == null)
+        {
+            return;
+        }
+
+        if (interfacePass)
+        {
+            drawInterface(built);
+        }
+        else
         {
             getGizmoLayer().draw(built);
+        }
+    }
+
+    /**
+     * The interface-pass flush: a manual render pass into the off-screen interface target with the
+     * viewport's projection and an identity model-view (the captured full model-view is baked into
+     * the vertices). The first flush of the pass clears the target to transparent; the translucent
+     * blend against that produces premultiplied content, which the blit un-doubles (see
+     * {@code texturedBoxPremultiplied}). Modeled on {@link BBSPickerRenderer#drawColorId}.
+     */
+    private static void drawInterface(BuiltBuffer buffer)
+    {
+        GpuDevice device = RenderSystem.getDevice();
+        CommandEncoder encoder = device.createCommandEncoder();
+
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
+            .write(new Matrix4f(), new Vector4f(1F, 1F, 1F, 1F), new Vector3f(), new Matrix4f());
+
+        if (interfaceProjectionRing == null)
+        {
+            interfaceProjectionRing = new MappableRingBuffer(() -> "bbs:gizmo_interface_projection", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, 64);
+        }
+
+        interfaceProjectionRing.rotate();
+
+        GpuBuffer projection = interfaceProjectionRing.getBlocking();
+
+        try (GpuBuffer.MappedView view = encoder.mapBuffer(projection, false, true))
+        {
+            Std140Builder.intoBuffer(view.data()).putMat4f(interfaceProjection);
+        }
+
+        VertexFormat format = GIZMO_PIPELINE.getVertexFormat();
+        GpuBuffer vertexBuffer = format.uploadImmediateVertexBuffer(buffer.getBuffer());
+        RenderSystem.ShapeIndexBuffer sequential = RenderSystem.getSequentialBuffer(buffer.getDrawParameters().mode());
+        GpuBuffer indexBuffer = sequential.getIndexBuffer(buffer.getDrawParameters().indexCount());
+        VertexFormat.IndexType indexType = sequential.getIndexType();
+
+        try (RenderPass pass = encoder.createRenderPass(() -> "bbs:gizmo_interface",
+            interfaceTarget, interfaceDrew ? OptionalInt.empty() : OptionalInt.of(0x00000000)))
+        {
+            interfaceDrew = true;
+
+            pass.setPipeline(GIZMO_PIPELINE);
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("Projection", projection.slice(0L, 64));
+            pass.setUniform("DynamicTransforms", dynamicTransforms);
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.setIndexBuffer(indexBuffer, indexType);
+            pass.drawIndexed(0, 0, buffer.getDrawParameters().indexCount(), 1);
+        }
+        finally
+        {
+            buffer.close();
         }
     }
 
@@ -240,7 +328,9 @@ public class Gizmo
 
         if (built != null)
         {
-            BBSPickerRenderer.drawColorId(GIZMO_PIPELINE, built, RenderSystem.getModelViewMatrix());
+            /* In the interface pass the captured full model-view is baked into the vertices, so the
+             * pass applies identity; the world pass keeps handing the global through as before. */
+            BBSPickerRenderer.drawColorId(GIZMO_PIPELINE, built, interfacePass ? new Matrix4f() : RenderSystem.getModelViewMatrix());
         }
     }
 
@@ -711,16 +801,52 @@ public class Gizmo
      */
     public void renderInterface(UIContext context, Matrix4f projection, Area area)
     {
-        /* TODO(1.21.11 render): 1.21.1 moved the gizmo's visual and pick stencil out of the world
-         * pass into a UI pass drawn with an explicit projection + GL viewport, so their translucent
-         * parts composited through the UI pipeline instead of the world shaders. Both
-         * RenderSystem.setProjectionMatrix(matrix, VertexSorter) and RenderSystem.viewport() were
-         * removed by the 1.21.5+ GPU rewrite (a render pass now carries its own projection UBO and
-         * viewport), so this entry point is inert on the 1.21.11 branch. The gizmo still draws from
-         * the world/3D pass through {@link #render} / {@link #renderStencil} — which is how the port
-         * has always drawn it — so the form editor and model block keep their handles; only the film
-         * editor's deferred UI-pass gizmo is missing until the projection is threaded through the
-         * new pipeline. */
+        if (BBSRendering.isIrisShadowPass() || !this.hasLastRenderMatrix
+            || context == null || projection == null || area == null || area.w <= 0 || area.h <= 0)
+        {
+            return;
+        }
+
+        /* The 1.21.5 rewrite removed the global projection/viewport swap the 1.21.1 UI pass rode
+         * on, so the pass is rebuilt on manual render passes: the gizmo draws into an off-screen
+         * target sized to the viewport (its own "GL viewport"), each flush binding the viewport's
+         * projection, and the result is composited back through the RECORDED premultiplied blit —
+         * an immediate draw onto the main framebuffer would be overpainted by the deferred GUI
+         * (the film preview itself is a recorded element). Drawing from the UI pass rather than the
+         * world pass is also what keeps the gizmo visible under a shaderpack: the pack's composite
+         * overwrites world-phase draws that don't go through its programs, while manual passes at
+         * UI time run after it — the same reason the stencil picking survived shaders all along. */
+        MinecraftClient mc = MinecraftClient.getInstance();
+
+        this.setViewportScale(context.menu.height / (float) area.h);
+
+        double scaleFactor = mc.getWindow().getScaleFactor();
+        int tw = Math.max(1, (int) (area.w * scaleFactor));
+        int th = Math.max(1, (int) (area.h * scaleFactor));
+
+        interfaceTarget = this.interfaceBuffer.ensure(tw, th);
+        interfaceProjection = new Matrix4f(projection);
+        interfacePass = true;
+        interfaceDrew = false;
+
+        try
+        {
+            MatrixStack stack = new MatrixStack();
+
+            MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+            this.drawGizmo(stack);
+        }
+        finally
+        {
+            interfacePass = false;
+            interfaceTarget = null;
+        }
+
+        if (interfaceDrew)
+        {
+            context.batcher.texturedBoxPremultiplied(this.interfaceBuffer.getGlId(), Colors.WHITE,
+                area.x, area.y, area.w, area.h, 0, th, tw, 0, tw, th);
+        }
     }
 
     private void drawGizmo(MatrixStack stack)
@@ -887,7 +1013,12 @@ public class Gizmo
         }
 
         Matrix4f mat = stack.peek().getPositionMatrix();
-        Matrix3f basis = mat.get3x3(new Matrix3f());
+
+        /* The screen-plane derivation needs the FULL model-view: in the film editor the camera
+         * rotation lives in the global model-view (the stack's base is identity), so a basis from
+         * the stack alone put the pie in a world-space plane — "the pie doesn't face the camera".
+         * The vertices still bake only the stack (the layer/pass applies the rest). */
+        Matrix3f basis = modelView(stack).get3x3(new Matrix3f());
 
         if (Math.abs(basis.determinant()) < 1.0E-8F)
         {
@@ -1044,7 +1175,11 @@ public class Gizmo
      * again here. */
     private static Matrix4f modelView(MatrixStack stack)
     {
-        return new Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.peek().getPositionMatrix());
+        Matrix4f pose = new Matrix4f(stack.peek().getPositionMatrix());
+
+        /* In the interface pass the stack is seeded from the CAPTURED full model-view, and the
+         * global one holds whatever the UI left there — folding it in would double the camera. */
+        return interfacePass ? pose : new Matrix4f(RenderSystem.getModelViewMatrix()).mul(pose);
     }
 
     /**
@@ -1613,16 +1748,33 @@ public class Gizmo
      */
     public void renderStencilInterface(UIContext context, Matrix4f projection, Area area, StencilMap map)
     {
-        /* TODO(1.21.11 render): 1.21.1 moved the gizmo's visual and pick stencil out of the world
-         * pass into a UI pass drawn with an explicit projection + GL viewport, so their translucent
-         * parts composited through the UI pipeline instead of the world shaders. Both
-         * RenderSystem.setProjectionMatrix(matrix, VertexSorter) and RenderSystem.viewport() were
-         * removed by the 1.21.5+ GPU rewrite (a render pass now carries its own projection UBO and
-         * viewport), so this entry point is inert on the 1.21.11 branch. The gizmo still draws from
-         * the world/3D pass through {@link #render} / {@link #renderStencil} — which is how the port
-         * has always drawn it — so the form editor and model block keep their handles; only the film
-         * editor's deferred UI-pass gizmo is missing until the projection is threaded through the
-         * new pipeline. */
+        if (BBSRendering.isIrisShadowPass() || !this.hasLastRenderMatrix || !BBSSettings.gizmos.get()
+            || context == null || projection == null || area == null)
+        {
+            return;
+        }
+
+        /* The stencil counterpart of {@link #renderInterface}: identical stack (the captured full
+         * model-view) and projection, so the handle IDs land on exactly the pixels the visual draws.
+         * The caller has the picking framebuffer bound (BBSPickerRenderer.setRenderTarget), so the
+         * flushes only need the projection override + the interface-pass identity model-view. */
+        this.setViewportScale(context.menu.height / (float) area.h);
+
+        BBSPickerRenderer.setProjectionOverride(projection);
+        interfacePass = true;
+
+        try
+        {
+            MatrixStack stack = new MatrixStack();
+
+            MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+            this.drawStencilAxes(stack, map);
+        }
+        finally
+        {
+            interfacePass = false;
+            BBSPickerRenderer.setProjectionOverride(null);
+        }
     }
 
     private void captureRenderMatrix(MatrixStack stack)

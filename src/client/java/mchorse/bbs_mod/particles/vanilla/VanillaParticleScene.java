@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.particles.vanilla;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -17,6 +18,7 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.particle.ParticleEffect;
+import org.joml.Matrix4f;
 import org.joml.Vector3d;
 
 import java.util.ArrayList;
@@ -173,6 +175,14 @@ public class VanillaParticleScene
         );
         standIn.bbs$setRotation(MathUtils.toDeg(previewCamera.rotation.y), -MathUtils.toDeg(previewCamera.rotation.x));
 
+        /* The quads come out camera-relative in world axes (buildGeometry's contract survived the
+         * rewrite), so the VIEW transform must ride the global model-view the layer snapshots at
+         * draw — exactly the swap the 1.21.1 scene did around its sheets. Dropping it left the
+         * particles drawn under whatever matrix the UI had current: nowhere near the viewport. */
+        Matrix4f previousModelView = new Matrix4f(RenderSystem.getModelViewMatrix());
+
+        RenderSystem.getModelViewMatrix().set(previewCamera.view);
+
         rendering = true;
 
         try
@@ -197,6 +207,8 @@ public class VanillaParticleScene
         finally
         {
             rendering = false;
+
+            RenderSystem.getModelViewMatrix().set(previousModelView);
         }
     }
 

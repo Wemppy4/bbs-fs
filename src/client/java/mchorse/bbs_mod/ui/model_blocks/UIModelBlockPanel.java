@@ -426,9 +426,10 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             MatrixStackUtils.multiply(matrices, new Matrix4f().set(transform.createRotationMatrix()));
         }
 
-        /* TODO(1.21.11 render): RenderSystem.disable/enableDepthTest removed; depth state
-         * is now encoded by the RenderPipeline backing the gizmo render layer. */
-        Gizmo.INSTANCE.render(matrices);
+        /* Snapshot only — the visual draws in the UI pass (Gizmo#renderInterface via
+         * renderGizmo below), so its translucency composites right and a shaderpack's
+         * composite can't paint over it. */
+        Gizmo.INSTANCE.captureVisual(matrices);
 
         matrices.pop();
     }

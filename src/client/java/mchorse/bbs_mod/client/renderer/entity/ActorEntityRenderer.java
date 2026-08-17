@@ -40,12 +40,12 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
     {
         super(ctx);
 
-        /* 1.21.4+ equipment rewrite removed ArmorEntityModel + EntityModelLayers.PLAYER_INNER/OUTER_ARMOR.
-         * ArmorRenderer now takes BipedEntityModels; its draw bodies are neutralized TODO(1.21.11 render)
-         * stubs, so the models below are only structural placeholders to keep the field non-null. */
+        /* 1.21.4+ equipment rewrite: the inner/outer armor layers became per-slot equipment model
+         * layers (EntityModelLayers.PLAYER_EQUIPMENT: head/chest/legs/feet). The armor geometry
+         * MUST come from these — building the models off the PLAYER layer put the 64x32 armor
+         * texture onto player-model UVs, which is exactly the garbled full-body leather look. */
         armorRenderer = new ArmorRenderer(
-            new BipedEntityModel(ctx.getPart(EntityModelLayers.PLAYER)),
-            new BipedEntityModel(ctx.getPart(EntityModelLayers.PLAYER)),
+            EntityModelLayers.PLAYER_EQUIPMENT.map((layer) -> new BipedEntityModel(ctx.getPart(layer))),
             MinecraftClient.getInstance().getBakedModelManager()
         );
 

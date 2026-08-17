@@ -13,6 +13,7 @@ import net.minecraft.client.render.TexturedRenderLayers;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.client.render.entity.model.EquipmentModelData;
 import net.minecraft.client.render.model.BakedModelManager;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.texture.SpriteAtlasTexture;
@@ -65,17 +66,14 @@ import java.util.Map;
 public class ArmorRenderer
 {
     private static final Map<String, Identifier> ARMOR_TEXTURE_CACHE = Maps.newHashMap();
-    private final BipedEntityModel innerModel;
-    private final BipedEntityModel outerModel;
+
+    /** Per-slot armor models (1.21.4+: the inner/outer pair became head/chest/legs/feet layers). */
+    private final EquipmentModelData<BipedEntityModel> models;
     private final BakedModelManager bakery;
 
-    public ArmorRenderer(BipedEntityModel innerModel, BipedEntityModel outerModel, BakedModelManager bakery)
+    public ArmorRenderer(EquipmentModelData<BipedEntityModel> models, BakedModelManager bakery)
     {
-        this.innerModel = innerModel;
-        this.outerModel = outerModel;
-        /* TODO(1.21.11 render): BakedModelManager.getAtlas(ARMOR_TRIMS_ATLAS_TEXTURE) was removed (the
-         * trims atlas now lives in AtlasManager). The bakery is retained for when the trim sprite
-         * lookup is rewired through the new equipment-asset pipeline. */
+        this.models = models;
         this.bakery = bakery;
     }
 
@@ -196,7 +194,7 @@ public class ArmorRenderer
 
     private BipedEntityModel getModel(EquipmentSlot slot)
     {
-        return this.usesInnerModel(slot) ? this.innerModel : this.outerModel;
+        return this.models.getModelData(slot);
     }
 
     private boolean usesInnerModel(EquipmentSlot slot)
