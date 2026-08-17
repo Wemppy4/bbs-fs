@@ -157,6 +157,15 @@ public class BBSShaders
      */
     private static final RenderPipeline SUBTITLES = registerSubtitles();
 
+    /* ---- selection ----
+     * VertexFormat: POSITION_TEXTURE_COLOR
+     * Samplers: Sampler0 (the selection mask, R = selected)
+     * Builtin std140 UBOs: DynamicTransforms (ModelViewMat), Projection (ProjMat).
+     * Custom std140 UBO SelectionInfo: Phase(float), Scale(float) — marching-ants animation phase +
+     * screen pixels per document texel, formerly loose uniforms. Dispatched via ScreenQuadPass.
+     */
+    private static final RenderPipeline SELECTION = registerSelection();
+
     /**
      * The std140 UBO block name shared by every migrated picker shader. The block packs the two
      * BBS-custom uniforms the old loose {@code uniform int Target} / {@code uniform vec4 HighlightColor}
@@ -285,6 +294,11 @@ public class BBSShaders
     public static RenderPipeline getSubtitlesProgram()
     {
         return SUBTITLES;
+    }
+
+    public static RenderPipeline getSelectionProgram()
+    {
+        return SELECTION;
     }
 
     public static RenderPipeline getPickerPreviewProgram()
@@ -686,6 +700,30 @@ public class BBSShaders
      * through the deprecated Batcher2D.texturedBox bridge which ignores the pipeline, so the values are
      * not yet supplied. Wire the UBO when the subtitle blur is re-routed onto this layer.
      */
+    /**
+     * Build and register the selection (marching ants) pipeline. Blend off — the shader either
+     * discards or writes an opaque checker texel; no depth (a flat overlay into its own target).
+     */
+    private static RenderPipeline registerSelection()
+    {
+        Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/selection");
+
+        RenderPipeline.Builder builder = RenderPipeline.builder()
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/selection"))
+            .withVertexShader(shader)
+            .withFragmentShader(shader)
+            .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
+            .withoutBlend()
+            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            .withCull(false)
+            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+            .withUniform("SelectionInfo", UniformType.UNIFORM_BUFFER)
+            .withSampler("Sampler0");
+
+        return RenderPipelines.register(builder.build());
+    }
+
     private static RenderPipeline registerSubtitles()
     {
         Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/subtitles");

@@ -1,9 +1,16 @@
 package mchorse.bbs_mod.ui.framework.elements.input.multilink;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.OffscreenTarget;
+import mchorse.bbs_mod.client.render.ScreenQuadPass;
+import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
 import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.AbstractTexture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -186,9 +193,24 @@ public class UIMultiLinkEditor extends UICanvasEditor
         return this.picker.multiLink != null;
     }
 
+    /** Off-screen targets for the filtered (pixelate/erase) children — one per filtered child. */
+    private final java.util.List<OffscreenTarget> filterTargets = new java.util.ArrayList<>();
+
+    private OffscreenTarget filterTarget(int index)
+    {
+        while (this.filterTargets.size() <= index)
+        {
+            this.filterTargets.add(new OffscreenTarget("bbs_multilink_filter_" + this.filterTargets.size()));
+        }
+
+        return this.filterTargets.get(index);
+    }
+
     @Override
     protected void renderCanvasFrame(UIContext context)
     {
+        int filterIndex = 0;
+
         for (FilteredLink child : this.picker.multiLink.children)
         {
             Texture texture = context.render.getTextures().getTexture(child.path);
@@ -219,23 +241,47 @@ public class UIMultiLinkEditor extends UICanvasEditor
                     context.batcher.box(area.x, area.y, area.ex(), area.ey(), Colors.setA(Colors.RED, 0.25F));
                 }
 
-                /* TODO(1.21.11 render): the pixelate/erase "multilink" filter.
-                 * The bbs:core/multilink GLSL is now migrated to #version 330 std140 and its pipeline
-                 * (BBSShaders.getMultilinkProgram()/getMultilinkLayer()) declares the builtin
-                 * DynamicTransforms/Projection UBOs + the custom MultilinkInfo UBO (Filters/Size) + the
-                 * Sampler0/Sampler3 atlas samplers. What is STILL missing is the per-draw dispatch:
-                 * texturedBox(Supplier,...) routes through the AdoptedTexture -> GUI_TEXTURED bridge
-                 * (the Supplier/pipeline is IGNORED), so the pixelate/erase shader is NOT applied and the
-                 * MultilinkInfo UBO is never uploaded. Reviving it needs a custom two-phase-GUI draw: a
-                 * manual RenderPass binding getMultilinkProgram(), setUniform("MultilinkInfo", <Std140 slice
-                 * of Filters/Size>), the Sampler0 texture + Sampler3 erase-atlas, rendered into an off-screen
-                 * target composited via a SpecialGuiElementRenderer (cf. BbsFormGuiElementRenderer). Until
-                 * then the child draws unfiltered. Tracked as the separate "revive GUI custom shaders" work. */
-                final RenderPipeline finalProgram = needsMultLinkShader
-                    ? BBSShaders.getMultilinkProgram()
-                    : net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED;
+                if (needsMultLinkShader)
+                {
+                    /* The pixelate/erase filter carries a custom MultilinkInfo UBO the recorded GUI
+                     * path can't take, so the child renders through the migrated multilink pipeline
+                     * into its own off-screen target and the target is composited via the recorded
+                     * blit at this exact spot in the element order. One target per filtered child:
+                     * the composite happens at frame end, so a shared target would show every blit
+                     * whatever the LAST child left in it. */
+                    OffscreenTarget target = this.filterTarget(filterIndex++);
+                    GpuTextureView view = target.ensure(area.w, area.h);
 
-                context.batcher.texturedBox(() -> finalProgram, texture.id, child.color, area.x, area.y, area.w, area.h, 0, 0, texture.width, texture.height, texture.width, texture.height);
+                    AbstractTexture adopted = MinecraftClient.getInstance().getTextureManager()
+                        .getTexture(AdoptedTexture.identifier(texture));
+                    Texture atlas = context.render.getTextures().getTexture(Icons.ATLAS);
+                    AbstractTexture adoptedAtlas = MinecraftClient.getInstance().getTextureManager()
+                        .getTexture(AdoptedTexture.identifier(atlas));
+
+                    final int finalOw = ow;
+                    final int finalOh = oh;
+
+                    GpuBufferSlice info = ScreenQuadPass.writeUbo((builder) -> builder
+                        .putVec4(child.pixelate, child.erase ? 1F : 0F, 0F, 0F)
+                        .putVec2(finalOw, finalOh));
+
+                    boolean drawn = ScreenQuadPass.draw("bbs:multilink_filter", new ScreenQuadPass.Quad(BBSShaders.getMultilinkProgram(), view, area.w, area.h)
+                        .rect(0, 0, area.w, area.h)
+                        .uv(0F, 0F, 1F, 1F)
+                        .texture(adopted.getGlTextureView(), ScreenQuadPass.nearest())
+                        .texture3("Sampler3", adoptedAtlas.getGlTextureView(), ScreenQuadPass.nearest())
+                        .ubo("MultilinkInfo", info)
+                        .clear());
+
+                    if (drawn)
+                    {
+                        context.batcher.texturedBox(target.getGlId(), child.color, area.x, area.y, area.w, area.h, 0, area.h, area.w, 0, area.w, area.h);
+                    }
+                }
+                else
+                {
+                    context.batcher.texturedBox(texture.id, child.color, area.x, area.y, area.w, area.h, 0, 0, texture.width, texture.height, texture.width, texture.height);
+                }
             }
         }
     }

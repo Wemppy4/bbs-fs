@@ -1,47 +1,41 @@
 package mchorse.bbs_mod.ui.film;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.clips.misc.Subtitle;
-import mchorse.bbs_mod.client.BBSShaders;
-import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
-import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import mchorse.bbs_mod.utils.MatrixStackUtils;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL30;
+import org.joml.Matrix3x2fStack;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Supplier;
 
+/**
+ * Draws film subtitles over the frame.
+ *
+ * <p>Rebuilt for 1.21.11. The 1.21.1 renderer drew each subtitle into a private off-screen
+ * framebuffer and composited that texture through the {@code subtitles} blur shader with a full 3D
+ * transform. Both legs of that path died in the render rewrite: {@code Framebuffer.beginWrite} is
+ * gone (the batcher records into the two-phase GUI — the "offscreen" content was actually landing
+ * in the screen corner at framebuffer-local coordinates), and the recorded GUI path cannot carry
+ * the blur pipeline's custom UBO. So the subtitle now draws DIRECTLY at its screen position through
+ * the recorded GUI, applying the transform as the 2D affine the GUI stack supports (translate,
+ * scale, Z rotation — the components subtitles actually animate).
+ *
+ * <p>TODO(1.21.11 render): the blur (subtitle.shadow) is the one part not restored — it needs the
+ * whole subtitle as a texture, i.e. an off-screen text render, which on the two-phase GUI means a
+ * {@code SpecialGuiElementRenderer} (the BbsFormGuiElementRenderer mechanism). The migrated
+ * {@code bbs:core/subtitles} pipeline + SubtitlesInfo UBO + ScreenQuadPass dispatch are all ready
+ * for it. Until then the text draws sharp, with its vanilla shadow flag.
+ */
 public class UISubtitleRenderer
 {
-    private static Framebuffer getTextFramebuffer()
-    {
-        return BBSModClient.getFramebuffers().getFramebuffer(Link.bbs("camera_subtitles"), (f) ->
-        {
-            Texture texture = BBSModClient.getTextures().createTexture(Link.bbs("test"));
-
-            texture.setFilter(GL11.GL_NEAREST);
-            texture.setWrap(GL13.GL_CLAMP_TO_EDGE);
-
-            f.deleteTextures();
-            f.attach(texture, GL30.GL_COLOR_ATTACHMENT0);
-
-            f.unbind();
-        });
-    }
-
     public static void renderSubtitles(MatrixStack stack, Batcher2D batcher, List<Subtitle> subtitles)
     {
         if (subtitles.isEmpty())
@@ -49,25 +43,10 @@ public class UISubtitleRenderer
             return;
         }
 
-        RenderPipeline program = BBSShaders.getSubtitlesProgram();
-        Supplier<RenderPipeline> supplier = () -> program;
-
-        net.minecraft.client.gl.Framebuffer fb = MinecraftClient.getInstance().getFramebuffer();
-        int width = fb.textureWidth;
-        int height = fb.textureHeight;
-
-        /* TODO(1.21.11 render): projection matrix is GPU-owned now (RenderSystem.getProjectionMatrix/setProjectionMatrix(Matrix4f) removed).
-         * The subtitle compositing previously cached + swapped the projection; restore via the new pipeline foundation. */
-
-        width /= 2;
-        height /= 2;
-
-        Framebuffer framebuffer = getTextFramebuffer();
-        Texture texture = framebuffer.getMainTexture();
-        Matrix4f ortho = new Matrix4f().ortho(0, width, height, 0, -100, 100);
+        MinecraftClient mc = MinecraftClient.getInstance();
+        int width = mc.getWindow().getScaledWidth();
+        int height = mc.getWindow().getScaledHeight();
         FontRenderer font = Batcher2D.getDefaultTextRenderer();
-
-        /* TODO(1.21.11 render): depth/cull state now lives in the RenderPipeline/RenderLayer; removed RenderSystem.depthFunc(GL_ALWAYS)/disableCull() */
 
         for (Subtitle subtitle : subtitles)
         {
@@ -80,10 +59,9 @@ public class UISubtitleRenderer
 
             String label = StringUtils.processColoredText(subtitle.label);
             int w = 0;
-            int h = 0;
-            int x = (int) (width * subtitle.windowX + subtitle.x);
-            int y = (int) (height * subtitle.windowY + subtitle.y);
-            float scale = subtitle.size;
+            int h;
+            float x = width * subtitle.windowX + subtitle.x;
+            float y = height * subtitle.windowY + subtitle.y;
             int subColor = subtitle.color;
 
             List<String> strings = subtitle.maxWidth <= 10 ? Arrays.asList(label) : font.wrap(label, subtitle.maxWidth);
@@ -107,8 +85,14 @@ public class UISubtitleRenderer
                 if (imgTex != BBSModClient.getTextures().getError())
                 {
                     int base = subtitle.lineHeight > 0 ? subtitle.lineHeight : font.getHeight();
+
                     imgH = base * subtitle.imageScale;
-                    if (imgH <= 0) imgH = 0;
+
+                    if (imgH <= 0)
+                    {
+                        imgH = 0;
+                    }
+
                     if (imgTex.height > 0)
                     {
                         imgW = imgTex.width * (imgH / imgTex.height);
@@ -118,15 +102,30 @@ public class UISubtitleRenderer
 
             float contentW = w + (imgTex != null && imgH > 0 ? (gap + imgW) : 0);
             float contentH = Math.max(h, imgH);
+            float fw = contentW + 10;
+            float fh = contentH + 10;
 
-            int fw = (int) ((contentW + 10) * scale);
-            int fh = (int) ((contentH + 10) * scale);
+            /* The subtitle's animated pose. The GUI stack is a 2D affine, so the transform's
+             * translate.x/y, scale.x/y and rotate.z apply — the components subtitle animations
+             * actually drive. subtitle.size folds into the same scale. */
+            Transform transform = new Transform();
 
-            /* TODO(1.21.11 render): projection is GPU-owned; previously set an ortho projection for the offscreen
-             * subtitle framebuffer here via RenderSystem.setProjectionMatrix(Matrix4f). Restore via new foundation. */
+            transform.lerp(subtitle.transform, 1F - subtitle.factor);
 
-            framebuffer.resize(fw, fh);
-            framebuffer.applyClear();
+            Matrix3x2fStack matrices = batcher.getContext().getMatrices();
+
+            matrices.pushMatrix();
+            matrices.translate(x + transform.translate.x, y + transform.translate.y);
+
+            if (transform.rotate.z != 0)
+            {
+                matrices.rotate(MathUtils.toRad(transform.rotate.z));
+            }
+
+            matrices.scale(subtitle.size * transform.scale.x, subtitle.size * transform.scale.y);
+
+            /* Anchor: the content box hangs off the anchor point the way the 1.21.1 composite did. */
+            matrices.translate(-fw * subtitle.anchorX, -fh * subtitle.anchorY);
 
             float baseX = 5F;
             float baseY = 5F;
@@ -137,12 +136,8 @@ public class UISubtitleRenderer
             if (Colors.getA(subtitle.backgroundColor) > 0)
             {
                 float o = subtitle.backgroundOffset;
-                float bgX1 = baseX - o;
-                float bgY1 = yy - o;
-                float bgX2 = baseX + contentW + o - 1F;
-                float bgY2 = yy + h + o;
 
-                batcher.box(bgX1, bgY1, bgX2, bgY2, Colors.mulA(subtitle.backgroundColor, alpha));
+                batcher.box(baseX - o, yy - o, baseX + contentW + o - 1F, yy + h + o, Colors.mulA(subtitle.backgroundColor, alpha));
             }
 
             if (imgTex != null && imgH > 0)
@@ -150,7 +145,7 @@ public class UISubtitleRenderer
                 float imgX = subtitle.imageRight ? baseX + contentW - imgW : baseX;
                 float imgY = baseY + (contentH - imgH) / 2F;
 
-                batcher.texturedBox(imgTex, Colors.setA(Colors.WHITE, 1F), imgX, imgY, imgW, imgH, 0, 0, imgTex.width, imgTex.height, imgTex.width, imgTex.height);
+                batcher.texturedBox(imgTex, Colors.mulA(Colors.WHITE, alpha), imgX, imgY, imgW, imgH, 0, 0, imgTex.width, imgTex.height, imgTex.width, imgTex.height);
             }
 
             for (String string : strings)
@@ -158,44 +153,13 @@ public class UISubtitleRenderer
                 string = string.trim();
 
                 int xx = (int) (textLeft + (textAreaW - font.getWidth(string)) / 2F);
-                batcher.text(string, xx, (int) yy, Colors.setA(subColor, 1F), subtitle.textShadow);
+
+                batcher.text(string, xx, (int) yy, Colors.mulA(subColor, alpha), subtitle.textShadow);
 
                 yy += subtitle.lineHeight;
             }
 
-            /* Render the texture */
-            /* TODO(1.21.11 render): Framebuffer.beginWrite(boolean) removed; rebind MC main framebuffer as the
-             * draw target + restore the screen-ortho projection (was RenderSystem.setProjectionMatrix(ortho))
-             * via the new pipeline foundation before compositing the subtitle texture. */
-
-            Transform transform = new Transform();
-
-            transform.lerp(subtitle.transform, 1F - subtitle.factor);
-
-            stack.push();
-            stack.translate(x, y, 0);
-            MatrixStackUtils.applyTransform(stack, transform);
-
-            /* TODO(1.21.11 render): the subtitles blur shader's per-draw uniforms ("Blur" = subtitle.shadow/
-             * shadowOpaque, "TextureSize" = texture.width/height). The bbs:core/subtitles GLSL is now migrated to
-             * #version 330 std140 and its pipeline (BBSShaders.getSubtitlesProgram()/getSubtitlesLayer()) declares
-             * the builtin DynamicTransforms/Projection UBOs + the custom SubtitlesInfo UBO (Blur/TextureSize) +
-             * Sampler0. What is STILL missing is the per-draw dispatch: the texturedBox(Supplier,...) below routes
-             * through the AdoptedTexture -> GUI_TEXTURED bridge (the Supplier/pipeline is IGNORED), so the blur is
-             * NOT applied and SubtitlesInfo is never uploaded. Reviving it needs a manual RenderPass binding
-             * getSubtitlesProgram(), setUniform("SubtitlesInfo", <Std140 slice of Blur/TextureSize>) + Sampler0,
-             * applied as an off-screen full-screen-quad pass over the text FBO before compositing the result via
-             * the bridge (cf. BbsFormGuiElementRenderer's manual GPU path). Tracked as the separate "revive GUI
-             * custom shaders" work; until then the subtitle text composites without the blur. */
-
-            /* TODO(1.21.11 render): blend state now lives in the RenderPipeline/RenderLayer; removed
-             * RenderSystem.enableBlend()/blendFuncSeparate(...) */
-            batcher.texturedBox(supplier, texture.id, Colors.setA(Colors.WHITE, alpha), -fw * subtitle.anchorX, -fh * subtitle.anchorY, texture.width, texture.height, 0, 0, texture.width, texture.height, texture.width, texture.height);
-
-            stack.pop();
+            matrices.popMatrix();
         }
-
-        /* TODO(1.21.11 render): restore the cached projection + cull state via the new pipeline foundation
-         * (was RenderSystem.setProjectionMatrix(cache)/enableCull()). */
     }
 }

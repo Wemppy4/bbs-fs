@@ -1,7 +1,15 @@
 package mchorse.bbs_mod.ui.dashboard.textures;
 
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.OffscreenTarget;
+import mchorse.bbs_mod.client.render.ScreenQuadPass;
+import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.ImageClipboard;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.AbstractTexture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.Keys;
@@ -1012,11 +1020,53 @@ public class UIPixelsEditor extends UICanvasEditor
             this.selectionMaskDirty = false;
         }
 
-        /* TODO(1.21.11 render merge): marching-ants selection outline STUBBED. It drew the selection mask
-         * through the custom `selection` GLSL program (BBSShaders.getSelectionProgram) with animated
-         * Phase/Scale GlUniforms over a texturedBox. The 1.21.1 ShaderProgram/GlUniform path is gone
-         * (RenderPipeline + std140 UBO now); the selection logic still runs, only the on-screen outline is
-         * not drawn. Re-port against the pipeline (see the deferred "revive GUI custom shaders" work). */
+        if (this.selectionMaskTexture == null)
+        {
+            return;
+        }
+
+        /* Re-derive the document area right here: calculate() returns a shared Area instance that the
+         * layer loop in renderCanvasFrame overwrites with each layer's offset, so a document area
+         * computed earlier is stale by now. */
+        int x = -this.w / 2;
+        int y = -this.h / 2;
+        Area area = this.calculate(x, y, x + this.w, y + this.h);
+        int ax = area.x;
+        int ay = area.y;
+        int aw = area.w;
+        int ah = area.h;
+
+        if (aw <= 0 || ah <= 0)
+        {
+            return;
+        }
+
+        /* The two-phase GUI can't take a custom pipeline (nor its SelectionInfo UBO) on the recorded
+         * path, so the ants render into this editor's off-screen target with a manual pass and the
+         * target is composited back via the recorded blit — same pattern as the stencil highlight. */
+        GpuTextureView target = this.selectionTarget.ensure(aw, ah);
+
+        AbstractTexture mask = MinecraftClient.getInstance().getTextureManager()
+            .getTexture(AdoptedTexture.identifier(this.selectionMaskTexture));
+
+        GpuBufferSlice info = ScreenQuadPass.writeUbo((builder) -> builder
+            /* Only the parity matters for the ants: 0/1 avoids float precision loss. */
+            .putFloat((float) ((System.currentTimeMillis() / 150L) % 2L))
+            /* Screen pixels per document pixel — constant on-screen outline thickness at any zoom. */
+            .putFloat(aw / (float) this.selectionMaskTexture.width));
+
+        boolean drawn = ScreenQuadPass.draw("bbs:selection_ants", new ScreenQuadPass.Quad(BBSShaders.getSelectionProgram(), target, aw, ah)
+            .rect(0, 0, aw, ah)
+            .uv(0F, 0F, 1F, 1F)
+            .texture(mask.getGlTextureView(), ScreenQuadPass.nearest())
+            .ubo("SelectionInfo", info)
+            .clear());
+
+        if (drawn)
+        {
+            /* v1=h, v2=0: the blit V-flip every off-screen target blit in this codebase uses. */
+            context.batcher.texturedBox(this.selectionTarget.getGlId(), Colors.WHITE, ax, ay, aw, ah, 0, ah, aw, 0, aw, ah);
+        }
     }
 
     protected void wasChanged()
@@ -1784,6 +1834,9 @@ public class UIPixelsEditor extends UICanvasEditor
     /** GPU mask of the current selection (white = selected); the outline shader reads it. Rebuilt only
      * when the selection changes (or every frame during an active drag), not on every render. */
     private Texture selectionMaskTexture;
+
+    /** Off-screen target the marching-ants outline renders into (see renderSelection). */
+    private final OffscreenTarget selectionTarget = new OffscreenTarget("bbs_selection_ants");
     private Pixels selectionMaskPixels;
     private boolean selectionMaskDirty = true;
 

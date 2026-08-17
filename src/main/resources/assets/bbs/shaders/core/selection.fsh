@@ -1,13 +1,14 @@
-#version 150
+#version 330
 
 uniform sampler2D Sampler0;
 
-/* Animation phase for the marching-ants pattern; 0 or 1 (toggles each tick). */
-uniform float Phase;
-
-/* Screen (UI) pixels per document texel. Lets the outline keep a constant on-screen thickness and
- * dash size regardless of canvas size / zoom, instead of being one (possibly huge) document pixel. */
-uniform float Scale;
+/* The BBS-specific per-draw values the 1.21.1 shader took as loose uniforms: the marching-ants
+ * animation phase (0/1) and the screen pixels per document texel (constant on-screen thickness
+ * and dash size at any zoom). Uploaded per draw by the ScreenQuadPass dispatch. */
+layout(std140) uniform SelectionInfo {
+    float Phase;
+    float Scale;
+};
 
 in vec2 texCoord0;
 
