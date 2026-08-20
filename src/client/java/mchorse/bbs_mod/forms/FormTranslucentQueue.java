@@ -137,10 +137,17 @@ public class FormTranslucentQueue
      * uniform colour fade. The faded model keeps writing depth so it still self-occludes instead of
      * collapsing into an unordered translucent blob, and the transition out of alpha == 1 stays
      * continuous (no pop).
+     *
+     * <p>Never under a shaderpack — same rule (and reason) as {@link #needsSplit}, and the 1.21.1
+     * original was gated the same way ("Never true under Iris"): the pack owns transparency, so the
+     * draw goes out immediately with the pack's program. The port lost this gate, which made the
+     * draw PATH switch at the alpha == 1 boundary under a pack — an immediate draw at 100% against a
+     * deferred end-of-frame replay at 99.9%, a visible one-time shading jump for a change that
+     * should be invisible.
      */
     public static boolean needsWholeDefer(StencilMap stencilMap, float alpha)
     {
-        return alpha < 1F && isActive() && stencilMap == null;
+        return alpha < 1F && isActive() && stencilMap == null && !BBSRendering.isIrisWorldForms();
     }
 
     /**

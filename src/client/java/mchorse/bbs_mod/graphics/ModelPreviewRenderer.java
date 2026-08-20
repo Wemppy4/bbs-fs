@@ -30,8 +30,10 @@ import org.joml.Matrix4fStack;
  * per-model bone transforms are baked into the vertices by {@code CubicCubeRenderer}. Globals are saved/restored
  * around the draw so the surrounding 2D GUI is undisturbed.</p>
  *
- * <p>{@link #ACTIVE}/{@link #TEXTURE} form the gate that {@code ModelInstance.render} reads to route cubic
- * geometry into {@code RenderLayers.entityCutoutNoCull(TEXTURE)} instead of the (not-yet-ported) BBS model layer.
+ * <p>{@link #ACTIVE}/{@link #TEXTURE} form the gate that {@code ModelInstance.render} (and the BOBJ path) reads
+ * to route cubic geometry into the BBS model layer keyed on {@link #TEXTURE}, bypassing the world's deferred
+ * queue. It used to route into vanilla {@code entityCutoutNoCull} while the BBS layer was unported — CUTOUT's
+ * missing blend is what made a faded model read "lighter" instead of transparent in previews.
  * {@code ModelFormRenderer.render3D} sets {@link #TEXTURE} to the adopted model texture while {@link #ACTIVE}.</p>
  *
  * TODO(1.21.11 render): verify at runtime (same-frame compositing of the imperative draw, FBO V-orientation,

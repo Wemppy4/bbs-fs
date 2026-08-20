@@ -13,7 +13,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
@@ -231,12 +230,12 @@ public class BOBJModelVAO
             }
             else if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.TEXTURE != null)
             {
-                /* In-panel form/replay list preview: bind the adopted model texture and draw through a vanilla
-                 * entity cutout layer, mirroring the cubic immediate path in ModelInstance.render. This restores
-                 * the 1.21.1 per-mesh textureResolver bind (BBSModClient.getTextures().bindTexture before each
-                 * vao.render) which the immediate-VAO port dropped, so the texture shows on the idle/non-selected
-                 * preview path too (not only on hover/selected). */
-                RenderLayers.entityCutoutNoCull(ModelPreviewRenderer.TEXTURE).draw(built);
+                /* In-panel form/replay list preview, keyed on the adopted model texture (the branch is also what
+                 * restores the per-mesh texture for the idle preview path — the immediate-VAO port dropped the
+                 * textureResolver bind). Draws through the BBS model layer, not vanilla entityCutoutNoCull: CUTOUT
+                 * has no blending, so the form's colour alpha read as "lighter" instead of transparent and cliffed
+                 * into invisibility at the 0.1 discard — see the matching branch in ModelInstance.render. */
+                BBSShaders.getModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(cull), ModelPreviewRenderer.TEXTURE).draw(built);
             }
             else
             {

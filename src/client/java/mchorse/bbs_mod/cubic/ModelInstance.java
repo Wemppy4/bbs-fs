@@ -38,7 +38,6 @@ import net.minecraft.client.MinecraftClient;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
@@ -469,7 +468,15 @@ public class ModelInstance implements IModelInstance
                     }
                     else if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.TEXTURE != null)
                     {
-                        RenderLayers.entityCutoutNoCull(ModelPreviewRenderer.TEXTURE).draw(built);
+                        /* In-panel preview (form editor viewport, list thumbnails). This used to draw through
+                         * vanilla entityCutoutNoCull — a port stopgap from before the BBS model layer existed.
+                         * CUTOUT has no blending: a fragment either fully lands (writing its FULL colour, so a
+                         * faded model read as "lighter" over the premultiplied FBO blit instead of transparent)
+                         * or is discarded once final alpha drops under 0.1 (the "suddenly disappears" cliff at
+                         * the bottom of the alpha slider). The BBS model layer blends, so the form's colour
+                         * alpha fades the preview exactly like the world; same entity vertex format, and the
+                         * layer keyed on the SAME adopted texture the cutout branch used. */
+                        BBSShaders.getModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(this.isCulling()), ModelPreviewRenderer.TEXTURE).draw(built);
                     }
                     else
                     {
