@@ -48,6 +48,12 @@ public class UIModelPreviewPanel extends UIElement
         this.form.model.set(model);
     }
 
+    /** The model on show, so the picker can open at it. */
+    public String getModel()
+    {
+        return this.form.model.get();
+    }
+
     @Override
     public void render(UIContext context)
     {

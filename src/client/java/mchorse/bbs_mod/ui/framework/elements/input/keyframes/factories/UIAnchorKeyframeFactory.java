@@ -24,6 +24,7 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.pose.Transform;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -41,11 +42,23 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         UIFilmPanel panel = children.isEmpty() ? null : children.get(0);
         List<Replay> replays = panel != null ? panel.getData().replays.getList() : null;
 
+        /* The map is keyed by the replay's index in the film, and disabled replays
+         * get no entity, so its size isn't the range of keys: iterating up to it
+         * drops the last actor for every disabled one above it */
+        int count = replays == null ? 0 : replays.size();
+
+        for (Map.Entry<Integer, IEntity> entry : entities.entrySet())
+        {
+            count = Math.max(count, entry.getKey() + 1);
+        }
+
+        final int total = count;
+
         context.replaceContextMenu((menu) ->
         {
             menu.action(Icons.CLOSE, UIKeys.GENERAL_NONE, Colors.NEGATIVE, () -> callback.accept(-1));
 
-            for (int i = 0; i < entities.size(); i++)
+            for (int i = 0; i < total; i++)
             {
                 final int actor = i;
                 IEntity entity = entities.get(i);
@@ -55,7 +68,7 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
                     continue;
                 }
 
-                Replay replay = replays == null ? null : replays.get(i);
+                Replay replay = replays == null || i >= replays.size() ? null : replays.get(i);
                 Form form = entity.getForm();
                 String stringLabel = i + (replay != null ? " - " + replay.getName() : (form == null ? "" : " - " + form.getFormIdOrName()));
                 IKey label = IKey.constant(stringLabel);

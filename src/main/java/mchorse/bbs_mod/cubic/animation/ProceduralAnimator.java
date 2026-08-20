@@ -165,6 +165,7 @@ public class ProceduralAnimator implements IAnimator
             ModelGroup leftArm = null;
             ModelGroup rightArm = null;
             ModelGroup torso = null;
+            ModelGroup headGroup = null;
 
             for (ModelGroup group : model.getAllGroups())
             {
@@ -218,6 +219,7 @@ public class ProceduralAnimator implements IAnimator
                 }
                 else if (group.id.equals("head"))
                 {
+                    headGroup = group;
                     group.current.rotate.y = -yaw;
 
                     if (isRolling)
@@ -239,11 +241,6 @@ public class ProceduralAnimator implements IAnimator
                     group.current.rotate.z += MathUtils.toDeg(1F * (MathHelper.cos(-age * 0.09F) * 0.05F + 0.05F));
                     group.current.rotate.x += MathUtils.toDeg(1F * MathHelper.sin(-age * 0.067F) * 0.05F);
 
-                    if (!main.isEmpty())
-                    {
-                        group.current.rotate.x = group.current.rotate.x * 0.5F + 18F;
-                    }
-
                     rightArm = group;
                 }
                 else if (group.id.equals("left_arm"))
@@ -251,11 +248,6 @@ public class ProceduralAnimator implements IAnimator
                     group.current.rotate.x += MathUtils.toDeg(MathHelper.cos(limbPhase * 0.6662F + 3.1415927F) * 2.0F * limbSpeed * 0.5F / coefficient);
                     group.current.rotate.z += MathUtils.toDeg(-1F * (MathHelper.cos(-age * 0.09F) * 0.05F + 0.05F));
                     group.current.rotate.x += MathUtils.toDeg(-1F * MathHelper.sin(-age * 0.067F) * 0.05F);
-
-                    if (!offhand.isEmpty())
-                    {
-                        group.current.rotate.x = group.current.rotate.x * 0.5F + 18F;
-                    }
 
                     leftArm = group;
                 }
@@ -271,6 +263,26 @@ public class ProceduralAnimator implements IAnimator
                 {
                     group.current.rotate.x = MathUtils.toDeg(MathHelper.cos(limbPhase * 0.6662F) * 1.4F * limbSpeed / coefficient);
                 }
+            }
+
+            /* Vanilla poses the arms right here, after the base angles and before
+             * the swing: an item lowers the arm, a drawn bow / raised shield /
+             * charged crossbow take over both. Cubic bones are degrees and read
+             * x = -pitch, y = -yaw (the terms above are written that way). */
+            if (leftArm != null && rightArm != null)
+            {
+                ModelGroup head = headGroup;
+                ModelGroup rightGroup = rightArm;
+                ModelGroup leftGroup = leftArm;
+
+                VanillaArmPoses.apply(
+                    cubicArm(rightGroup), cubicArm(leftGroup),
+                    head == null ? MathUtils.toRad(pitch) : -MathUtils.toRad(head.current.rotate.x),
+                    head == null ? MathUtils.toRad(yaw) : -MathUtils.toRad(head.current.rotate.y),
+                    main, offhand,
+                    ItemUsePose.get(target, true), ItemUsePose.get(target, false),
+                    target.isSneaking(), handSwingProgress > 0F
+                );
             }
 
             if (handSwingProgress > 0F && torso != null && leftArm != null && rightArm != null)
@@ -310,6 +322,7 @@ public class ProceduralAnimator implements IAnimator
         {
             BOBJBone bobjLeftArm = null;
             BOBJBone bobjRightArm = null;
+            BOBJBone bobjHead = null;
 
             for (BOBJBone bone : model.getAllBOBJBones())
             {
@@ -361,6 +374,7 @@ public class ProceduralAnimator implements IAnimator
                 }
                 else if (bone.name.equals("head"))
                 {
+                    bobjHead = bone;
                     bone.transform.rotate.y = MathUtils.toRad(-yaw);
 
                     if (isRolling)
@@ -382,11 +396,6 @@ public class ProceduralAnimator implements IAnimator
                     bone.transform.rotate.z -= 1F * (MathHelper.cos(-age * 0.09F) * 0.05F + 0.05F);
                     bone.transform.rotate.x += 1F * MathHelper.sin(-age * 0.067F) * 0.05F;
 
-                    if (!main.isEmpty())
-                    {
-                        bone.transform.rotate.x = bone.transform.rotate.x * 0.5F + MathUtils.toRad(18F);
-                    }
-
                     bobjRightArm = bone;
                 }
                 else if (bone.name.equals("left_arm"))
@@ -394,11 +403,6 @@ public class ProceduralAnimator implements IAnimator
                     bone.transform.rotate.x += MathHelper.cos(limbPhase * 0.6662F + 3.1415927F) * 2.0F * limbSpeed * 0.5F / coefficient;
                     bone.transform.rotate.z -= -1F * (MathHelper.cos(-age * 0.09F) * 0.05F + 0.05F);
                     bone.transform.rotate.x += -1F * MathHelper.sin(-age * 0.067F) * 0.05F;
-
-                    if (!offhand.isEmpty())
-                    {
-                        bone.transform.rotate.x = bone.transform.rotate.x * 0.5F + MathUtils.toRad(18F);
-                    }
 
                     bobjLeftArm = bone;
                 }
@@ -410,6 +414,23 @@ public class ProceduralAnimator implements IAnimator
                 {
                     bone.transform.rotate.x = MathHelper.cos(limbPhase * 0.6662F) * 1.4F * limbSpeed / coefficient;
                 }
+            }
+
+            /* Same stage for BOBJ rigs: radians, and their arms read x = -pitch,
+             * y = +yaw (the swing block below writes them that way), while their
+             * head reads x = +pitch, y = -yaw. */
+            if (bobjLeftArm != null && bobjRightArm != null)
+            {
+                BOBJBone head = bobjHead;
+
+                VanillaArmPoses.apply(
+                    bobjArm(bobjRightArm), bobjArm(bobjLeftArm),
+                    head == null ? MathUtils.toRad(pitch) : head.transform.rotate.x,
+                    head == null ? MathUtils.toRad(yaw) : -head.transform.rotate.y,
+                    main, offhand,
+                    ItemUsePose.get(target, true), ItemUsePose.get(target, false),
+                    target.isSneaking(), handSwingProgress > 0F
+                );
             }
 
             if (handSwingProgress > 0F && bobjLeftArm != null && bobjRightArm != null)
@@ -448,6 +469,68 @@ public class ProceduralAnimator implements IAnimator
         {
             this.basePost.postApply(target, armature.getModel(), transition);
         }
+    }
+
+    /** A cubic arm bone spoken in vanilla: degrees flipped into radians, x = -pitch, y = -yaw. */
+    private static VanillaArmPoses.Arm cubicArm(ModelGroup group)
+    {
+        return new VanillaArmPoses.Arm()
+        {
+            @Override
+            public float pitch()
+            {
+                return -MathUtils.toRad(group.current.rotate.x);
+            }
+
+            @Override
+            public void pitch(float pitch)
+            {
+                group.current.rotate.x = -MathUtils.toDeg(pitch);
+            }
+
+            @Override
+            public float yaw()
+            {
+                return -MathUtils.toRad(group.current.rotate.y);
+            }
+
+            @Override
+            public void yaw(float yaw)
+            {
+                group.current.rotate.y = -MathUtils.toDeg(yaw);
+            }
+        };
+    }
+
+    /** A BOBJ arm bone spoken in vanilla: already radians, x = -pitch, y = +yaw. */
+    private static VanillaArmPoses.Arm bobjArm(BOBJBone bone)
+    {
+        return new VanillaArmPoses.Arm()
+        {
+            @Override
+            public float pitch()
+            {
+                return -bone.transform.rotate.x;
+            }
+
+            @Override
+            public void pitch(float pitch)
+            {
+                bone.transform.rotate.x = -pitch;
+            }
+
+            @Override
+            public float yaw()
+            {
+                return bone.transform.rotate.y;
+            }
+
+            @Override
+            public void yaw(float yaw)
+            {
+                bone.transform.rotate.y = yaw;
+            }
+        };
     }
 
     @Override

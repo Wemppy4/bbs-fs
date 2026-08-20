@@ -11,6 +11,8 @@
         "WindowMixin",
         "LanguageManagerMixin",
         "LivingEntityMixin",
+        "LivingEntityFilmUseMixin",
+        "ClientPlayerEntityFilmUseMixin",
         "LivingEntityUpdateMixin",
         "InGameHudMixin",
         "KeyboardMixin",

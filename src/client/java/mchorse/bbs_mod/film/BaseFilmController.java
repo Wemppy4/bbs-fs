@@ -6,12 +6,17 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.camera.data.Point;
+import mchorse.bbs_mod.client.renderer.ItemUseEffects;
+import mchorse.bbs_mod.client.renderer.LivePlayerItemUse;
 import mchorse.bbs_mod.client.renderer.ModelBlockEntityRenderer;
+import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
+import mchorse.bbs_mod.cubic.animation.ItemUsePose;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.film.replays.FormControlKeys;
 import mchorse.bbs_mod.film.replays.PerLimbService;
 import mchorse.bbs_mod.film.replays.Replay;
+import mchorse.bbs_mod.film.replays.ReplayItemUse;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
@@ -59,6 +64,7 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.MovementType;
 import net.minecraft.entity.player.PlayerEntity;
@@ -911,6 +917,13 @@ public abstract class BaseFilmController
                 this.updateEntityAndForm(entity, replayTicks);
                 this.applyReplay(replay, replayTicks, entity);
 
+                /* Vanilla's eating and drinking effects: the actor never ticks
+                 * an item use, so the crumbs and chewing come from the clip.
+                 * The take the real player acts is no exception - the film's use
+                 * is only answered while drawing, so vanilla's own tick spits
+                 * nothing for them either (see LivePlayerItemUse). */
+                ItemUseEffects.tick(replay, entity, replayTicks);
+
                 Map<String, Integer> actors = this.getActors();
 
                 if (actors != null)
@@ -1070,6 +1083,16 @@ public abstract class BaseFilmController
             replay.properties.applyProperties(form1, tick + delta);
             this.applyTargetOverrides(replay, form1, tick + delta, delta);
 
+            /* The item use of this take, published for everything that draws
+             * its body: the procedural animator poses the arms with it, and the
+             * model form renderer makes the vanilla item predicates fire on the
+             * held items (a drawn bow bends and shows its arrow) */
+            LivingEntity user = ItemUsePose.livingOf(entity);
+            ItemUsePose.Use use = ReplayItemUse.compute(replay, tick + delta, true, user);
+            ItemUsePose.Use offUse = ReplayItemUse.compute(replay, tick + delta, false, user);
+
+            ThirdPersonItemUse.set(ThirdPersonItemUse.keyOf(entity), use, offUse);
+
             Map<String, Integer> actors = this.getActors();
 
             if (actors != null)
@@ -1080,6 +1103,8 @@ public abstract class BaseFilmController
                 {
                     Entity anEntity = MinecraftClient.getInstance().world.getEntityById(entityId);
 
+                    ThirdPersonItemUse.set(anEntity, use, offUse);
+
                     if (anEntity instanceof ActorEntity actor)
                     {
                         Form form = actor.getForm();
@@ -1088,6 +1113,10 @@ public abstract class BaseFilmController
                     }
                     else if (anEntity instanceof PlayerEntity player)
                     {
+                        /* The first person hand is vanilla's, and it asks the
+                         * live player what it is using - the film has to say */
+                        LivePlayerItemUse.apply(player, use, offUse);
+
                         Morph morph = Morph.getMorph(player);
 
                         if (morph != null)
@@ -1467,14 +1496,71 @@ public abstract class BaseFilmController
 
     protected void renderEntity(WorldRenderContext context, Replay replay, IEntity entity)
     {
-        if (!replay.actor.get())
+        if (replay.actor.get())
         {
-            FilmControllerContext filmContext = getFilmControllerContext(context, replay, entity);
+            this.renderActorNameTag(context, replay, entity);
 
-            filmContext.transition = getTransition(entity, MinecraftClient.getInstance().getRenderTickCounter().getTickProgress(false));
-
-            renderEntity(filmContext);
+            return;
         }
+
+        FilmControllerContext filmContext = getFilmControllerContext(context, replay, entity);
+
+        filmContext.transition = getTransition(entity, MinecraftClient.getInstance().getRenderTickCounter().getTickProgress(false));
+
+        renderEntity(filmContext);
+    }
+
+    /**
+     * An actor replay is drawn by vanilla as a real entity, so the film controller renders nothing for
+     * it - and the name tag used to leave with the rest of the render. The tag belongs to the replay,
+     * not to the entity, so nothing else puts it up: draw it here, over the body vanilla is actually
+     * drawing (the networked actor, not the keyframed stub, so a moving actor keeps its tag on its
+     * head). No actor entity in the world means no body to label - see FrozenFilmController, which is
+     * deliberately blind to them.
+     */
+    protected void renderActorNameTag(WorldRenderContext context, Replay replay, IEntity entity)
+    {
+        Form form = entity.getForm();
+
+        /* Same conditions as the name tag of a regularly rendered replay: hidden along with the form
+         * (form.visible, animatable via keyframes) and absent in the relative mode. */
+        if (replay.nameTag.get().isEmpty() || replay.relative.get() || form == null || !form.visible.get())
+        {
+            return;
+        }
+
+        Map<String, Integer> actors = this.getActors();
+        Integer entityId = actors == null ? null : actors.get(replay.getId());
+        World world = MinecraftClient.getInstance().world;
+        Entity actor = entityId == null || world == null ? null : world.getEntityById(entityId);
+
+        if (actor == null)
+        {
+            return;
+        }
+
+        float transition = MinecraftClient.getInstance().getRenderTickCounter().getTickProgress(false);
+
+        /* Vanilla's own render position for this entity (see WorldRenderer#render), so the tag sits
+         * exactly above the body instead of above the keyframe the server sent it to. */
+        double x = Lerps.lerp(actor.lastRenderX, actor.getX(), transition);
+        double y = Lerps.lerp(actor.lastRenderY, actor.getY(), transition);
+        double z = Lerps.lerp(actor.lastRenderZ, actor.getZ(), transition);
+
+        BlockPos pos = BlockPos.ofFloored(x, y + 0.5D, z);
+        int sky = world.getLightLevel(LightType.SKY, pos);
+        int torch = world.getLightLevel(LightType.BLOCK, pos);
+        int light = LightmapTextureManager.pack(torch, sky);
+
+        Camera camera = MinecraftClient.getInstance().gameRenderer.getCamera();
+        MatrixStack stack = context.matrices();
+
+        stack.push();
+        stack.translate(x - camera.getCameraPos().x, y - camera.getCameraPos().y, z - camera.getCameraPos().z);
+
+        renderNameTag(entity, Text.literal(StringUtils.processColoredText(replay.nameTag.get())), stack, context.consumers(), light);
+
+        stack.pop();
     }
 
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
@@ -1487,7 +1573,13 @@ public abstract class BaseFilmController
     }
 
     public void shutdown()
-    {}
+    {
+        /* A live morphed player outlives the film - without this its bow would
+         * stay drawn forever after the playback stops */
+        ThirdPersonItemUse.clear();
+        ItemUseEffects.clear();
+        LivePlayerItemUse.clear();
+    }
 
     public static enum UpdateMode
     {

@@ -1319,6 +1319,7 @@ public class UIClips extends UIElement
         else
         {
             this.scrubbing = true;
+            this.delegate.stopPlaybackOnScrub();
             this.delegate.setCursor(this.fromGraphX(mouseX));
 
             return true;

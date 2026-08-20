@@ -5,6 +5,8 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
+import mchorse.bbs_mod.client.renderer.ItemPredicateDonor;
+import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
@@ -13,6 +15,7 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.Animator;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
+import mchorse.bbs_mod.cubic.animation.ItemUsePose;
 import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
@@ -28,6 +31,7 @@ import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -54,6 +58,7 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Hand;
@@ -589,6 +594,13 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return;
         }
 
+        /* The film's use state makes the vanilla item model predicates fire in
+         * the third person too: a drawn bow bends and shows its arrow, a shield
+         * blocks, a trident lifts. The donor must hold the very stack instance
+         * being rendered - the predicates compare by identity. */
+        ItemUsePose.Use use = ThirdPersonItemUse.get(target, slot == EquipmentSlot.MAINHAND);
+        LivingEntity holder = use == null ? liveHolder(target) : ItemPredicateDonor.get(itemStack, use);
+
         for (ArmorSlot armorSlot : items)
         {
             Matrix4f matrix = this.bones.get(armorSlot.group).matrix();
@@ -620,7 +632,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                  * vanilla item layers and BBS special-model custom commands into these consumers.
                  * (Left-handedness rides inside the display context now. The 1.21.1-era 0-size OAK_BUTTON
                  * Sodium workaround for BOBJ models is not restored — revisit if BOBJ held items misbehave.) */
-                ItemFormRenderer.renderItem(itemStack, mode, stack, consumers, target.getWorld(), light, overlay);
+                ItemFormRenderer.renderItem(itemStack, mode, stack, consumers, target.getWorld(), light, overlay, holder);
                 consumers.draw();
                 consumers.setSubstitute(null);
                 FormTranslucentQueue.setSortOrigin(null);
@@ -630,6 +642,17 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 stack.pop();
             }
         }
+    }
+
+    /**
+     * Outside of a film - a player morphed into a form, or the one being
+     * recorded - the entity holding the item is real and knows what it is doing,
+     * so vanilla's model predicates get it as is. The film's own actors never
+     * reach here: their state comes from the clips through the donor above.
+     */
+    private static LivingEntity liveHolder(IEntity target)
+    {
+        return target instanceof MCEntity mc && mc.getMcEntity() instanceof LivingEntity living ? living : null;
     }
 
     @Override
@@ -685,6 +708,10 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             this.renderingArm = true;
 
+            /* Vanilla's renderArm zeroes the arm's pitch: the first person arm
+             * is never bent by the use poses, they belong to the third person. */
+            ItemUsePose.setSuppressed(true);
+
             try
             {
                 this.renderModel(this.entity, matrices, model, light, OverlayTexture.DEFAULT_UV, contextColor, formColor, additive, false, null, 0F, null);
@@ -692,6 +719,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             finally
             {
                 this.renderingArm = false;
+                ItemUsePose.setSuppressed(false);
             }
 
             for (ModelGroup group : model.getModel().getAllGroups())

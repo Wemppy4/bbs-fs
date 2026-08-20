@@ -19,14 +19,18 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
-import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class UISettingsOverlayPanel extends UIOverlayPanel
 {
@@ -213,30 +217,67 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         this.refresh();
     }
 
-    public void swapVideoResolution()
+    public void addVideoPresets(ContextMenuManager menu)
     {
-        int width = BBSSettings.videoWidth.get();
-
-        BBSSettings.videoWidth.set(BBSSettings.videoHeight.get());
-        BBSSettings.videoHeight.set(width);
-
-        this.refresh();
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_720p, () -> this.applyVideoPreset(1280, 720));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1080P, () -> this.applyVideoPreset(1920, 1080));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_SHORTS_1080P, () -> this.applyVideoPreset(1080, 1920));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1440P, () -> this.applyVideoPreset(2560, 1440));
+        menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_4K, () -> this.applyVideoPreset(3840, 2160));
     }
 
     private void appendValues(ValueGroup category, boolean filtered)
     {
+        Set<BaseValue> drawn = new HashSet<>();
+
         for (BaseValue value : category.getAll())
         {
-            if (!this.isValueVisible(value) || (filtered && !this.matches(value)))
+            if (drawn.contains(value))
             {
                 continue;
             }
 
-            for (UIElement element : UIValueMap.create(value, this))
+            UISettingsLayout.IValueRow row = UISettingsLayout.getRow(value);
+            List<BaseValue> values = row == null ? Collections.singletonList(value) : row.getValues();
+
+            drawn.addAll(values);
+
+            if (!this.isVisible(values) || (filtered && !this.matches(values)))
+            {
+                continue;
+            }
+
+            for (UIElement element : row == null ? UIValueMap.create(value, this) : row.create(this))
             {
                 this.options.add(element);
             }
         }
+    }
+
+    private boolean isVisible(List<BaseValue> values)
+    {
+        for (BaseValue value : values)
+        {
+            if (this.isValueVisible(value))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean matches(List<BaseValue> values)
+    {
+        for (BaseValue value : values)
+        {
+            if (this.matches(value))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean hasMatch(ValueGroup category)
@@ -372,25 +413,12 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
 
             if (category.getId().equals("video"))
             {
-                UIIcon presets = new UIIcon(Icons.FILM, (b) -> b.getContext().replaceContextMenu((menu) ->
-                {
-                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_720p, () -> panel.applyVideoPreset(1280, 720));
-                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1080P, () -> panel.applyVideoPreset(1920, 1080));
-                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_SHORTS_1080P, () -> panel.applyVideoPreset(1080, 1920));
-                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_1440P, () -> panel.applyVideoPreset(2560, 1440));
-                    menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_4K, () -> panel.applyVideoPreset(3840, 2160));
-                }));
-                UIIcon swap = new UIIcon(Icons.REFRESH, (b) -> panel.swapVideoResolution());
+                UIIcon presets = new UIIcon(Icons.FILM, (b) -> b.getContext().replaceContextMenu(panel::addVideoPresets));
 
-                swap.tooltip(UIKeys.VIDEO_SETTINGS_SWAP);
-                swap.wh(16, 16);
                 presets.tooltip(UIKeys.GENERAL_PRESETS);
                 presets.wh(16, 16);
-
-                UIElement row = UI.row(swap, presets);
-
-                row.relative(this).x(1F, -4).y(0.5F, -1).wh(32, 16).anchor(1F, 0.5F);
-                this.add(row);
+                presets.relative(this).x(1F, -4).y(0.5F, -1).anchor(1F, 0.5F);
+                this.add(presets);
             }
         }
 

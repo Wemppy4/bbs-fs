@@ -38,6 +38,12 @@ public class BlockStateKeyframeFactory implements IKeyframeFactory<BlockState>
     }
 
     @Override
+    public boolean isStepped()
+    {
+        return true;
+    }
+
+    @Override
     public BlockState copy(BlockState value)
     {
         return value;

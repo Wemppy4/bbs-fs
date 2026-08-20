@@ -70,11 +70,15 @@ public class ValueBlockHitResult extends ValueGroup
         this.hitZ.set(this.hitZ.get() + z);
     }
 
+    public BlockPos getBlockPos()
+    {
+        return new BlockPos(this.x.get(), this.y.get(), this.z.get());
+    }
+
     public BlockHitResult getHitResult()
     {
-        BlockPos pos = new BlockPos(this.x.get(), this.y.get(), this.z.get());
         Vec3d vec = new Vec3d(this.hitX.get(), this.hitY.get(), this.hitZ.get());
 
-        return new BlockHitResult(vec, EnumUtils.getValue(this.direction.get(), Direction.values(), Direction.UP), pos, this.inside.get());
+        return new BlockHitResult(vec, EnumUtils.getValue(this.direction.get(), Direction.values(), Direction.UP), this.getBlockPos(), this.inside.get());
     }
 }

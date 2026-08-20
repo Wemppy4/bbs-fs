@@ -79,6 +79,7 @@ public class UIFilmKeyframes extends UIKeyframes
         {
             long offset = this.getClipOffset();
 
+            this.editor.stopPlaybackOnScrub();
             this.editor.setCursor(Math.max(0, (int) (Math.round(this.fromGraphX(context.mouseX)) + offset)));
         }
     }

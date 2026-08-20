@@ -102,6 +102,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     private RunnerCameraController runner;
     private boolean lastRunning;
+    private boolean restartPending;
+    private int lastRestartCursor = -1;
     private final Position position = new Position(0, 0, 0, 0, 0);
     private final Position lastPosition = new Position(0, 0, 0, 0, 0);
 
@@ -1319,6 +1321,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         return data;
     }
 
+    /**
+     * Runs for every panel the dashboard owns, not just the one being looked at - so nothing here may
+     * touch the world. Playback is started from {@link #appear()} instead: a film left open in this
+     * panel used to be replayed into the world the moment any BBS screen was opened, damage control
+     * and all, while the user was in the model editor.
+     */
     @Override
     public void open()
     {
@@ -1326,14 +1334,10 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         Recorder recorder = BBSModClient.getFilms().stopRecording();
 
-        if (recorder == null || recorder.hasNotStarted())
+        if (recorder != null && !recorder.hasNotStarted())
         {
-            this.notifyServer(ActionState.RESTART);
-
-            return;
+            this.applyRecordedKeyframes(recorder, this.data);
         }
-
-        this.applyRecordedKeyframes(recorder, this.data);
     }
 
     public void receiveActions(String filmId, int replayId, int tick, BaseType clips)
@@ -1456,6 +1460,10 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         cameraController.add(this.runner);
 
         this.getContext().menu.getRoot().add(this.secretPlay);
+
+        /* The server drives the film - actors, actions, damage control - only while the editor is the
+         * panel on screen, so this is where playback is picked up and disappear() is where it is let go. */
+        this.notifyServer(ActionState.RESTART);
     }
 
     @Override
@@ -1528,6 +1536,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         this.disableContext();
         this.secretPlay.removeFromParent();
+
+        this.notifyServer(ActionState.STOP);
     }
 
     private void disableContext()
@@ -1761,6 +1771,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         this.playerToCamera = BBSSettings.editorPlayerFollowsCamera.get();
         this.controller.update();
+        this.updateRestartOnSeek();
 
         if (this.playerToCamera && this.data != null && !this.controller.isControlling())
         {
@@ -2081,6 +2092,67 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.runner.ticks = Math.max(0, value);
 
         this.notifyServer(ActionState.SEEK);
+
+        if (BBSSettings.editorRestartOnSeek.get())
+        {
+            this.restartPending = true;
+        }
+    }
+
+    /**
+     * Restart the actions and recreate the actors, the same way {@link Keys#FILM_CONTROLLER_RESTART_ACTIONS}
+     * does it manually.
+     */
+    public void restartActions()
+    {
+        this.restartPending = false;
+
+        this.notifyServer(ActionState.RESTART);
+        this.controller.createEntities();
+    }
+
+    /**
+     * Automatic restart of the actions upon scrubbing the cursor (see the "restart on seek" setting).
+     * <p>
+     * Both restarting the actions on the server and recreating the actors are way too expensive to
+     * run them on every frame of a scrubbing drag, so the restart waits until the cursor stops
+     * moving for a tick and only then fires once.
+     */
+    private void updateRestartOnSeek()
+    {
+        int cursor = this.getCursor();
+        boolean settled = cursor == this.lastRestartCursor;
+
+        this.lastRestartCursor = cursor;
+
+        if (!this.restartPending || !settled)
+        {
+            return;
+        }
+
+        if (!BBSSettings.editorRestartOnSeek.get() || !this.canRestartOnSeek())
+        {
+            this.restartPending = false;
+
+            return;
+        }
+
+        this.restartActions();
+    }
+
+    /**
+     * Recreating the actors stops the recording and drops the character control, and both the
+     * playback and the video export move the cursor on their own, so an automatic restart must
+     * stay out of all of those.
+     */
+    private boolean canRestartOnSeek()
+    {
+        return this.data != null
+            && !this.isRunning()
+            && !this.controller.isRecording()
+            && !this.controller.isControlling()
+            && !this.recorder.isRecording()
+            && !this.recorder.isExporting();
     }
 
     public boolean isRunning()

@@ -37,19 +37,14 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.FFMpegUtils;
-import mchorse.bbs_mod.utils.OS;
 import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
 
-import java.io.File;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public class UIValueMap
 {
@@ -216,34 +211,6 @@ public class UIValueMap
             UITextbox textbox = UIValueFactory.stringUI(value, null);
 
             textbox.w(90);
-
-            if (value == BBSSettings.videoEncoderPath && OS.CURRENT == OS.WINDOWS)
-            {
-                textbox.context((menu) ->
-                {
-                    menu.action(Icons.SEARCH, UIKeys.GENERAL_FFMPEG_FIND, () ->
-                    {
-                        textbox.getContext().replaceContextMenu((submenu) ->
-                        {
-                            File[] files = File.listRoots();
-                            File file = files.length == 0 ? new File("C:\\") : files[0];
-                            Optional<Path> ffmpeg = FFMpegUtils.findFFMpeg(file.toPath());
-
-                            if (ffmpeg.isPresent())
-                            {
-                                Path path = ffmpeg.get();
-                                String pathString = path.toAbsolutePath().toString();
-
-                                submenu.action(Icons.VIDEO_CAMERA, IKey.constant(pathString), () ->
-                                {
-                                    textbox.setText(pathString);
-                                    value.set(pathString);
-                                });
-                            }
-                        });
-                    });
-                });
-            }
 
             return Arrays.asList(UIValueFactory.column(textbox, value));
         });

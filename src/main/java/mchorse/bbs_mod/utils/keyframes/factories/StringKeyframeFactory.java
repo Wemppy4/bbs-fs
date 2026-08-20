@@ -25,6 +25,12 @@ public class StringKeyframeFactory implements IKeyframeFactory<String>
     }
 
     @Override
+    public boolean isStepped()
+    {
+        return true;
+    }
+
+    @Override
     public String copy(String value)
     {
         return value;

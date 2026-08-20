@@ -19,9 +19,12 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.UUID;
 
 public class SuperFakePlayer extends ServerPlayerEntity
@@ -34,6 +37,60 @@ public class SuperFakePlayer extends ServerPlayerEntity
         Objects.requireNonNull(world, "World may not be null.");
 
         return FAKE_PLAYER_MAP.computeIfAbsent(new SuperFakePlayer.FakePlayerKey(world, PROFILE), key -> new SuperFakePlayer(key.world, key.profile));
+    }
+
+    /** The world's actor if it already has one - nothing is born just to be asked. */
+    @Nullable
+    public static SuperFakePlayer getIfPresent(ServerWorld world)
+    {
+        return world == null ? null : FAKE_PLAYER_MAP.get(new SuperFakePlayer.FakePlayerKey(world, PROFILE));
+    }
+
+    /**
+     * Container lids the film is holding open, and the ones the actions of the
+     * tick being applied have asked for (LUCKYWAY). A real player holds a lid
+     * up by holding its screen open; an actor has no screen, so what it holds
+     * is kept here and asserted anew every tick by {@link #flushLids()} - a lid
+     * nobody asks for any more comes down, whether the film ran past the clip,
+     * was scrubbed backwards or stopped altogether.
+     */
+    private final Set<BlockPos> openLids = new HashSet<>();
+    private final Set<BlockPos> wantedLids = new HashSet<>();
+
+    public void wantLidOpen(BlockPos pos)
+    {
+        if (ContainerLid.isLidded(this.getEntityWorld(), pos))
+        {
+            this.wantedLids.add(pos.toImmutable());
+        }
+    }
+
+    /** Raises the lids this tick asked for and lowers the ones it didn't. */
+    public void flushLids()
+    {
+        for (BlockPos pos : this.wantedLids)
+        {
+            if (this.openLids.add(pos))
+            {
+                ContainerLid.setOpen(this.getEntityWorld(), pos, true);
+            }
+        }
+
+        Iterator<BlockPos> it = this.openLids.iterator();
+
+        while (it.hasNext())
+        {
+            BlockPos pos = it.next();
+
+            if (!this.wantedLids.contains(pos))
+            {
+                ContainerLid.setOpen(this.getEntityWorld(), pos, false);
+
+                it.remove();
+            }
+        }
+
+        this.wantedLids.clear();
     }
 
     protected SuperFakePlayer(ServerWorld world, GameProfile profile)
@@ -121,6 +178,12 @@ public class SuperFakePlayer extends ServerPlayerEntity
     public void openEditSignScreen(SignBlockEntity sign, boolean front)
     {}
 
+    /**
+     * No window ever opens for an actor - the film draws its own, and a real
+     * one would drag a screen handler and an inventory into the shot. What the
+     * world loses along with it, the lid of a chest, is put back by
+     * {@link ContainerLid} instead.
+     */
     @Override
     public OptionalInt openHandledScreen(@Nullable NamedScreenHandlerFactory factory)
     {

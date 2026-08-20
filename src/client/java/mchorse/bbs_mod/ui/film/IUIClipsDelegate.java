@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
@@ -31,6 +32,19 @@ public interface IUIClipsDelegate extends ICursor
     public boolean isRunning();
 
     public void togglePlayback();
+
+    /**
+     * Stop the playback when the user scrubs the cursor on a timeline, if the
+     * corresponding setting is enabled. Called by timelines when a scrubbing
+     * gesture begins or continues.
+     */
+    public default void stopPlaybackOnScrub()
+    {
+        if (BBSSettings.editorStopPlaybackOnScrub.get() && this.isRunning())
+        {
+            this.togglePlayback();
+        }
+    }
 
     public boolean canUseKeybinds();
 

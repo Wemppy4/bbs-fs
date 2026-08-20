@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.cubic.render.vanilla;
 
-import com.google.common.collect.Maps;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
@@ -13,8 +12,9 @@ import net.minecraft.client.render.TexturedRenderLayers;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.client.render.entity.equipment.EquipmentModel;
+import net.minecraft.client.render.entity.equipment.EquipmentModelLoader;
 import net.minecraft.client.render.entity.model.EquipmentModelData;
-import net.minecraft.client.render.model.BakedModelManager;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.util.math.MatrixStack;
@@ -27,8 +27,9 @@ import net.minecraft.item.equipment.EquipmentAsset;
 import net.minecraft.item.equipment.trim.ArmorTrim;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
 
-import java.util.Map;
+import java.util.List;
 
 /**
  * Vanilla armor rendering onto BBS cubic-model bones.
@@ -50,31 +51,38 @@ import java.util.Map;
  *       {@code RenderLayer} now only exposes {@code of(String, RenderSetup)}. Entity/equipment drawing
  *       moved to {@code EquipmentRenderer} + the {@code OrderedRenderCommandQueue} command system, a
  *       different architecture from this per-{@link ArmorType}, per-{@link ModelPart} renderer.</li>
- *   <li>{@code BakedModelManager.getAtlas(Identifier)} was removed (atlases live in
- *       {@code AtlasManager}), so the armor-trims sprite atlas can no longer be fetched here.</li>
+ *   <li>{@code BakedModelManager.getAtlas(Identifier)} was removed — the armor-trims sprite atlas
+ *       comes from {@code AtlasManager} instead.</li>
  * </ul>
  *
- * <p>Faithfully reproducing per-bone armor + trim + glint on top of cubic bones now requires the new
- * {@code EquipmentRenderer}/{@code OrderedRenderCommandQueue} pipeline, which is a real redesign (it
- * renders a whole {@code Model<S>} through a command queue rather than individual {@code ModelPart}s).
- * That is out of scope for a build-only port, so the draw bodies below are neutralized with
- * {@code TODO(1.21.11 render)} while the public API ({@link #ArmorRenderer} constructor and
- * {@link #renderArmorSlot}) is kept stable so callers compile unchanged. Mechanical migrations that
- * still have clean equivalents (equippable-based detection, {@code ModelPart.pivotX -> originX},
- * texture-id derivation, bone selection) are done so the structure is ready to wire up at runtime.
+ * <p>Vanilla's own {@code EquipmentRenderer} cannot be reused: it renders a whole {@code Model<S>}
+ * through the command queue, while this one puts individual {@link ModelPart}s onto individual cubic
+ * bones. So the draw is BBS's, but everything it draws is read out of vanilla's data - which shapes
+ * an equipment asset has, and which texture each of them uses, come from the
+ * {@link EquipmentModelLoader} index rather than from a path built out of the asset id.
  */
 public class ArmorRenderer
 {
-    private static final Map<String, Identifier> ARMOR_TEXTURE_CACHE = Maps.newHashMap();
-
     /** Per-slot armor models (1.21.4+: the inner/outer pair became head/chest/legs/feet layers). */
     private final EquipmentModelData<BipedEntityModel> models;
-    private final BakedModelManager bakery;
+    private final ModelPart elytra;
+    private final ModelPart elytraLeftWing;
+    private final ModelPart elytraRightWing;
 
-    public ArmorRenderer(EquipmentModelData<BipedEntityModel> models, BakedModelManager bakery)
+    /**
+     * Vanilla's own {@code assets/<ns>/equipment/<asset>.json} index. It is what says WHICH shapes a
+     * piece of equipment has (a humanoid body, wings, a horse's barding) and which texture each of
+     * them draws with - guessing that from the asset id is what put a missing texture on the arms.
+     */
+    private final EquipmentModelLoader equipment;
+
+    public ArmorRenderer(EquipmentModelData<BipedEntityModel> models, ModelPart elytra, EquipmentModelLoader equipment)
     {
         this.models = models;
-        this.bakery = bakery;
+        this.elytra = elytra;
+        this.elytraLeftWing = elytra.getChild("left_wing");
+        this.elytraRightWing = elytra.getChild("right_wing");
+        this.equipment = equipment;
     }
 
     public void renderArmorSlot(MatrixStack matrices, VertexConsumerProvider vertexConsumers, IEntity entity, EquipmentSlot armorSlot, ArmorType type, int light)
@@ -97,8 +105,33 @@ public class ArmorRenderer
         }
 
         RegistryKey<EquipmentAsset> assetId = equippable.assetId().get();
+        EquipmentModel model = this.equipment.get(assetId);
+
+        if (!model.getLayers(EquipmentModel.LayerType.WINGS).isEmpty())
+        {
+            /* Wings hang off the torso alone. Both arms share EquipmentSlot.CHEST with it (see
+             * ArmorType), so without this an elytra was drawn three times - and the two arm draws
+             * went down the humanoid path below, which has no texture for it: that missing texture
+             * is what turned the body black. */
+            if (type == ArmorType.CHEST)
+            {
+                this.renderElytra(matrices, vertexConsumers, entity, itemStack, model, light);
+            }
+
+            return;
+        }
 
         boolean innerModel = this.usesInnerModel(armorSlot);
+        EquipmentModel.LayerType layerType = innerModel ? EquipmentModel.LayerType.HUMANOID_LEGGINGS : EquipmentModel.LayerType.HUMANOID;
+        List<EquipmentModel.Layer> layers = model.getLayers(layerType);
+
+        if (layers.isEmpty())
+        {
+            /* Worn, but not shaped like a body: a carved pumpkin, a mob head, a horse's barding on
+             * something that is not a horse. Vanilla draws nothing for those either. */
+            return;
+        }
+
         BipedEntityModel bipedModel = this.getModel(armorSlot);
         ModelPart part = this.getPart(bipedModel, type);
 
@@ -108,21 +141,11 @@ public class ArmorRenderer
         part.pitch = part.yaw = part.roll = 0F;
         part.xScale = part.yScale = part.zScale = 1F;
 
-        DyedColorComponent dyed = itemStack.get(DataComponentTypes.DYED_COLOR);
-
-        if (dyed != null)
+        /* One draw per declared layer, in order: leather is a grey mask plus an undyed overlay, and
+         * the dye (or the material's own default tint) belongs to the first of the two. */
+        for (EquipmentModel.Layer layer : layers)
         {
-            int color = dyed.rgb();
-            float r = (float) (color >> 16 & 255) / 255.0F;
-            float g = (float) (color >> 8 & 255) / 255.0F;
-            float b = (float) (color & 255) / 255.0F;
-
-            this.renderArmorParts(part, matrices, vertexConsumers, light, assetId, innerModel, r, g, b, null);
-            this.renderArmorParts(part, matrices, vertexConsumers, light, assetId, innerModel, 1F, 1F, 1F, "overlay");
-        }
-        else
-        {
-            this.renderArmorParts(part, matrices, vertexConsumers, light, assetId, innerModel, 1F, 1F, 1F, null);
+            this.renderArmorLayer(part, matrices, vertexConsumers, light, layer.getFullTextureId(layerType), this.tint(itemStack, layer));
         }
 
         ArmorTrim trim = itemStack.get(DataComponentTypes.TRIM);
@@ -136,6 +159,66 @@ public class ArmorRenderer
         {
             this.renderGlint(part, matrices, vertexConsumers, light);
         }
+    }
+
+    /* Vanilla elytra, verified against 1.20.4 bytecode: ElytraFeatureRenderer.render
+     * (translate 0,0,0.125; armor cutout layer; glint) + ElytraEntityModel.setAngles
+     * (non-player branch: standing / sneaking / fall flying wing angles). 1.21.11 keeps the
+     * same numbers, it only moved them onto the entity's own ElytraFlightController - which an
+     * actor driven by keyframes never ticks, so they are computed here as before. */
+    private void renderElytra(MatrixStack matrices, VertexConsumerProvider vertexConsumers, IEntity entity, ItemStack itemStack, EquipmentModel model, int light)
+    {
+        float pitch = 0.2617994F;
+        float roll = -0.2617994F;
+        float originY = 0F;
+        float yaw = 0F;
+
+        if (entity.isFallFlying())
+        {
+            float spread = 1F;
+            Vec3d velocity = entity.getVelocity();
+
+            if (velocity.y < 0D)
+            {
+                spread = 1F - (float) Math.pow(-velocity.normalize().y, 1.5D);
+            }
+
+            pitch = spread * 0.34906584F + (1F - spread) * pitch;
+            roll = spread * -1.5707964F + (1F - spread) * roll;
+        }
+        else if (entity.isSneaking())
+        {
+            pitch = 0.6981317F;
+            roll = -0.7853982F;
+            originY = 3F;
+            yaw = 0.08726646F;
+        }
+
+        this.elytraLeftWing.originY = originY;
+        this.elytraLeftWing.pitch = pitch;
+        this.elytraLeftWing.yaw = yaw;
+        this.elytraLeftWing.roll = roll;
+        this.elytraRightWing.originY = originY;
+        this.elytraRightWing.pitch = pitch;
+        this.elytraRightWing.yaw = -yaw;
+        this.elytraRightWing.roll = -roll;
+
+        matrices.push();
+        matrices.translate(0F, 0F, 0.125F);
+
+        /* The texture comes off the wings layer, not a hardcoded path. (Vanilla swaps in the wearer's
+         * own cape when the layer asks for it - an actor has none, so the default stands.) */
+        EquipmentModel.Layer wings = model.getLayers(EquipmentModel.LayerType.WINGS).get(0);
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.armorCutoutNoCull(wings.getFullTextureId(EquipmentModel.LayerType.WINGS)));
+
+        this.elytra.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV);
+
+        if (itemStack.hasGlint())
+        {
+            this.renderGlint(this.elytra, matrices, vertexConsumers, light);
+        }
+
+        matrices.pop();
     }
 
     private ModelPart getPart(BipedEntityModel bipedModel, ArmorType type)
@@ -165,15 +248,33 @@ public class ArmorRenderer
         return bipedModel.head;
     }
 
-    private void renderArmorParts(ModelPart part, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, RegistryKey<EquipmentAsset> assetId, boolean secondTextureLayer, float red, float green, float blue, String overlay)
+    private void renderArmorLayer(ModelPart part, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, Identifier texture, Color color)
     {
         /* The armor layer factories came back as static RenderLayers.armorCutoutNoCull (the 1.21.4
          * rewrite moved them off RenderLayer, it didn't remove them). Same draw as 1.21.1: the layer
          * carries the texture, the recolor consumer carries the dye. */
-        VertexConsumer base = vertexConsumers.getBuffer(RenderLayers.armorCutoutNoCull(this.getArmorTexture(assetId, secondTextureLayer, overlay)));
-        VertexConsumer vertexConsumer = new RecolorVertexConsumer(base, new Color(red, green, blue, 1F));
+        VertexConsumer base = vertexConsumers.getBuffer(RenderLayers.armorCutoutNoCull(texture));
+        VertexConsumer vertexConsumer = new RecolorVertexConsumer(base, color);
 
         part.render(matrices, vertexConsumer, light, OverlayTexture.DEFAULT_UV);
+    }
+
+    /**
+     * The colour one layer draws with. Only a layer that declares itself dyeable takes one: the dye
+     * on the stack when there is one, and the material's own default otherwise - a leather texture
+     * is a grey mask since 1.21.4, so an undyed piece drawn white would have come out grey.
+     */
+    private Color tint(ItemStack itemStack, EquipmentModel.Layer layer)
+    {
+        if (layer.dyeable().isEmpty())
+        {
+            return Color.white();
+        }
+
+        DyedColorComponent dyed = itemStack.get(DataComponentTypes.DYED_COLOR);
+        int rgb = dyed != null ? dyed.rgb() : layer.dyeable().get().colorWhenUndyed().orElse(0xFFFFFF);
+
+        return new Color((rgb >> 16 & 255) / 255F, (rgb >> 8 & 255) / 255F, (rgb & 255) / 255F, 1F);
     }
 
     private void renderTrim(ModelPart part, RegistryKey<EquipmentAsset> assetId, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, ArmorTrim trim, boolean leggings)
@@ -200,26 +301,5 @@ public class ArmorRenderer
     private boolean usesInnerModel(EquipmentSlot slot)
     {
         return slot == EquipmentSlot.LEGS;
-    }
-
-    private Identifier getArmorTexture(RegistryKey<EquipmentAsset> assetId, boolean secondLayer, String overlay)
-    {
-        /* 1.21.4+: armor textures live under textures/entity/equipment/<layer>/<asset>(.png), keyed by
-         * the equipment asset id rather than the old textures/models/armor/<material>_layer_N path. We
-         * build a best-effort id from the asset path so the draw can be wired up later; the exact layer
-         * folder is resolved by the equipment-model system at runtime. */
-        String assetName = assetId.getValue().getPath();
-        String layer = secondLayer ? "humanoid_leggings" : "humanoid";
-        String id = "textures/entity/equipment/" + layer + "/" + assetName + (overlay == null ? "" : "_" + overlay) + ".png";
-
-        Identifier found = ARMOR_TEXTURE_CACHE.get(id);
-
-        if (found == null)
-        {
-            found = Identifier.of("minecraft", id);
-            ARMOR_TEXTURE_CACHE.put(id, found);
-        }
-
-        return found;
     }
 }

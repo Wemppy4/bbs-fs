@@ -309,7 +309,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             data.poleAngle = v.floatValue();
             this.commitChanges();
         });
-        this.poleAngle.limit(-180D, 180D).increment(5D).values(1D, 0.5D, 5D);
+        this.poleAngle.angle180();
         this.poleAngle.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_POLE_ANGLE);
 
         this.softness = new UISliderTrackpad((v) ->
@@ -323,7 +323,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             data.softness = v.floatValue();
             this.commitChanges();
         });
-        this.softness.limit(0D, 1D).increment(0.05D).values(0.05D, 0.01D, 0.1D);
+        this.softness.normalized();
         this.softness.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_SOFTNESS);
 
         this.weight = new UISliderTrackpad((v) ->
@@ -337,7 +337,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             data.weight = v.floatValue();
             this.commitChanges();
         });
-        this.weight.limit(0D, 1D).increment(0.1D).values(0.1D, 0.05D, 0.2D);
+        this.weight.normalized();
         this.weight.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT);
 
         this.tipRotation = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_TIP_ROTATION, (b) ->
@@ -545,7 +545,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     {
         UISliderTrackpad pad = new UISliderTrackpad(this.jointCallback(setter));
 
-        pad.limit(-180D, 180D).increment(5D).values(1D, 0.5D, 5D);
+        pad.angle180();
         pad.tooltip(tooltip);
         pad.textbox.setColor(color);
 
@@ -556,7 +556,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     {
         UISliderTrackpad pad = new UISliderTrackpad(this.jointCallback(setter));
 
-        pad.limit(0D, 1D).increment(0.1D).values(0.1D, 0.05D, 0.2D);
+        pad.normalized();
         pad.tooltip(tooltip);
         pad.textbox.setColor(color);
 

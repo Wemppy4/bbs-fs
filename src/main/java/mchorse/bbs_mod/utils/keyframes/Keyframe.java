@@ -54,6 +54,13 @@ public class Keyframe <T> extends BaseValue
         super(id);
 
         this.factory = factory;
+
+        /* Values that jump rather than travel hold their frame by default, so
+         * the author doesn't switch every new keyframe to constant by hand */
+        if (factory != null && factory.isStepped())
+        {
+            this.interp.setInterp(Interpolations.CONST);
+        }
     }
 
     public IKeyframeFactory<T> getFactory()

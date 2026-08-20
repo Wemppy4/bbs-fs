@@ -66,7 +66,7 @@ public class MorphRenderer
         {
             if (canRender())
             {
-                submit(morph.getForm(), morph.entity, matrices, light, overlay, tickDelta);
+                submit(morph.getForm(), morph.entity, matrices, light, overlay, tickDelta, player.deathTime);
             }
 
             return true;
@@ -94,7 +94,7 @@ public class MorphRenderer
 
         if (form != null)
         {
-            submit(form, owner.entity, matrices, light, overlay, tickDelta);
+            submit(form, owner.entity, matrices, light, overlay, tickDelta, livingEntity.deathTime);
 
             return true;
         }
@@ -121,15 +121,15 @@ public class MorphRenderer
      *       queueing here is what removes the body; nothing else has to change.</li>
      * </ul>
      */
-    private static void submit(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta)
+    private static void submit(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta, int deathTime)
     {
         if (BBSRendering.isIrisShadowPass())
         {
-            renderShadow(form, entity, matrices, light, overlay, tickDelta);
+            renderShadow(form, entity, matrices, light, overlay, tickDelta, deathTime);
         }
         else
         {
-            queue(form, entity, light, overlay, tickDelta);
+            queue(form, entity, light, overlay, tickDelta, deathTime);
         }
     }
 
@@ -152,12 +152,16 @@ public class MorphRenderer
      *
      * <p>A form that opts out of casting shadows is filtered further down, in {@code FormRenderer}.
      */
-    private static void renderShadow(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta)
+    private static void renderShadow(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta, int deathTime)
     {
         float bodyYaw = Lerps.lerp(entity.getPrevBodyYaw(), entity.getBodyYaw(), tickDelta);
 
         matrices.push();
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-bodyYaw));
+
+        /* This render replaces LivingEntityRenderer's own transforms, so the fall of a dead body has to
+         * be repeated here - without it a morphed player never went down when they died. */
+        DeathPose.apply(matrices, deathTime, tickDelta);
 
         boolean prevWorldForms = BBSRendering.beginWorldForms();
 
@@ -175,7 +179,7 @@ public class MorphRenderer
         }
     }
 
-    private static void queue(Form form, IEntity entity, int light, int overlay, float tickDelta)
+    private static void queue(Form form, IEntity entity, int light, int overlay, float tickDelta, int deathTime)
     {
         /* One entry per entity per drain: the collect hooks fire from the entity submission phase,
          * which can run more than once before AFTER_ENTITIES drains the queue (an extra render pass —
@@ -189,6 +193,7 @@ public class MorphRenderer
                 queued.light = light;
                 queued.overlay = overlay;
                 queued.tickDelta = tickDelta;
+                queued.deathTime = deathTime;
 
                 return;
             }
@@ -201,6 +206,7 @@ public class MorphRenderer
         queued.light = light;
         queued.overlay = overlay;
         queued.tickDelta = tickDelta;
+        queued.deathTime = deathTime;
 
         QUEUE.add(queued);
     }
@@ -233,6 +239,10 @@ public class MorphRenderer
 
                 stack.push();
                 MatrixStackUtils.multiply(stack, target);
+
+                /* The target matrix carries position and body yaw, the way vanilla's setupTransforms
+                 * does - the fall of a dead body goes on top of it, as it does there. */
+                DeathPose.apply(stack, queued.deathTime, queued.tickDelta);
 
                 FormUtilsClient.render(queued.form, new FormRenderingContext()
                     .set(FormRenderType.ENTITY, queued.entity, stack, queued.light, queued.overlay, queued.tickDelta)
@@ -272,5 +282,6 @@ public class MorphRenderer
         public int light;
         public int overlay;
         public float tickDelta;
+        public int deathTime;
     }
 }

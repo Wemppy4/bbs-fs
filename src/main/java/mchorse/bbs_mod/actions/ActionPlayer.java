@@ -39,7 +39,6 @@ public class ActionPlayer
     public PlayerType type;
 
     public boolean syncing;
-    public boolean stopDamage = true;
     private boolean pendingResync;
 
     private ServerPlayerEntity serverPlayer;
@@ -370,6 +369,10 @@ public class ActionPlayer
 
             replay.applyActions(actor, fakePlayer, this.film, this.tick);
         }
+
+        /* Chests the clips of this tick still hold open go up, the rest come
+         * down - including when the film was scrubbed rather than played */
+        fakePlayer.flushLids();
     }
 
     public void syncData(DataPath key, BaseType data)
@@ -431,6 +434,14 @@ public class ActionPlayer
 
     public void stop()
     {
+        SuperFakePlayer fakePlayer = SuperFakePlayer.getIfPresent(this.world);
+
+        /* Nothing asks for a lid any more, so every one the film opened closes */
+        if (fakePlayer != null)
+        {
+            fakePlayer.flushLids();
+        }
+
         for (LivingEntity value : this.actors.values())
         {
             if (!value.isPlayer())
@@ -438,6 +449,12 @@ public class ActionPlayer
                 value.discard();
             }
         }
+
+        /* Every way a playback ends comes through here - the film reaching its end, the editor
+         * stopping it, the player disconnecting, the server shutting down - so this is the one
+         * place that has to let damage control go. Releasing a hold that was already released
+         * does nothing, which is what makes stopping twice harmless. */
+        BBSMod.getActions().stopDamage(this.world, this);
 
         /* Whether the equipment was borrowed, not whether it would be borrowed now: the film's
          * first person replay can be toggled off mid-playback, and then there would be nothing

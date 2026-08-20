@@ -3,6 +3,7 @@ package mchorse.bbs_mod.mixin;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.actions.ActionManager;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
@@ -36,6 +37,16 @@ public class WorldChunkMixin
 
         if (chunk.getWorld() instanceof ServerWorld world)
         {
+            ActionManager actions = BBSMod.getActions();
+
+            /* Asked before the block entity is looked up and serialized, not after: this runs on
+             * every block change on the server, and both were being paid for even with nothing
+             * being filmed and the feature turned off. */
+            if (actions == null || !actions.isTracking())
+            {
+                return;
+            }
+
             BlockEntity blockEntity = chunk.getBlockEntity(pos);
 
             if (blockEntity != null)
@@ -53,7 +64,12 @@ public class WorldChunkMixin
 
         if (previous != null && chunk.getWorld() instanceof ServerWorld)
         {
-            BBSMod.getActions().changedBlock(pos, previous, replaced.get());
+            ActionManager actions = BBSMod.getActions();
+
+            if (actions != null && actions.isTracking())
+            {
+                actions.changedBlock(pos, previous, replaced.get());
+            }
         }
     }
 }

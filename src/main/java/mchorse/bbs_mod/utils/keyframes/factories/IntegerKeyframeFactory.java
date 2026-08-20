@@ -29,6 +29,12 @@ public class IntegerKeyframeFactory implements IKeyframeFactory<Integer>
     }
 
     @Override
+    public boolean isStepped()
+    {
+        return true;
+    }
+
+    @Override
     public Integer copy(Integer value)
     {
         return value;

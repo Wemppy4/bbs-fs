@@ -37,6 +37,7 @@ import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gl.WindowFramebuffer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
@@ -908,6 +909,34 @@ public class BBSRendering
         }
 
         return IrisUtils.isShadowPass();
+    }
+
+    /**
+     * Hold the vertex layout Iris hands out steady while a render layer's buffer is uploaded
+     * outside of the immediate provider's own draw — the deferred translucent pass ends and
+     * uploads those buffers itself (see CustomVertexConsumerProvider#draw). Without it a form
+     * drawn where the level isn't rendering, like the form editor's viewport, gets its plain
+     * entity vertices read at Iris' extended stride and shreds into stretched triangles. Returns
+     * the previous state, to be handed back to {@link #endIrisBufferUpload(boolean)}.
+     */
+    public static boolean beginIrisBufferUpload(BufferBuilder builder)
+    {
+        if (!iris)
+        {
+            return false;
+        }
+
+        return IrisUtils.beginBufferUpload(builder);
+    }
+
+    public static void endIrisBufferUpload(boolean extended)
+    {
+        if (!iris)
+        {
+            return;
+        }
+
+        IrisUtils.endBufferUpload(extended);
     }
 
     /**

@@ -74,6 +74,9 @@ public class UIFilmPreview extends UIElement
     public UIIcon recordReplay;
     public UIIcon recordVideo;
 
+    /** Whether the icon bar is currently shown - see {@link #updateIconsVisibility(UIContext)} */
+    private boolean iconsVisible = true;
+
     public UIFilmPreview(UIFilmPanel filmPanel)
     {
         this.panel = filmPanel;
@@ -354,6 +357,25 @@ public class UIFilmPreview extends UIElement
         return super.subMouseScrolled(context);
     }
 
+    /**
+     * The icon bar can be set to stay out of the way until the mouse comes over the
+     * preview. A context menu opened from an icon takes the mouse out of the preview,
+     * so while any menu is up the bar keeps the visibility it had when it opened.
+     */
+    private void updateIconsVisibility(UIContext context)
+    {
+        if (!BBSSettings.editorPreviewIconsAutoHide.get())
+        {
+            this.iconsVisible = true;
+        }
+        else if (!context.hasContextMenu())
+        {
+            this.iconsVisible = this.area.isInside(context.mouseX, context.mouseY);
+        }
+
+        this.icons.setVisible(this.iconsVisible);
+    }
+
     @Override
     public void render(UIContext context)
     {
@@ -463,25 +485,30 @@ public class UIFilmPreview extends UIElement
             }
         }
 
-        Area a = this.icons.area;
+        this.updateIconsVisibility(context);
 
-        /* Render icon bar */
-        int barShade = BBSSettings.isLightTheme() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
-        context.batcher.gradientVBox(a.x, a.y, a.ex(), a.ey(), 0, barShade);
-
-        if (this.panel.isFlying()) UIDashboardPanels.renderHighlight(context.batcher, this.flight.area, Direction.BOTTOM);
-        if (this.panel.getController().isControlling()) UIDashboardPanels.renderHighlight(context.batcher, this.control.area, Direction.BOTTOM);
-        if (this.panel.getController().isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordReplay.area, Direction.BOTTOM);
-        if (this.panel.recorder.isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordVideo.area, Direction.BOTTOM);
-        if (this.panel.getController().getOnionSkin().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.onionSkin.area, Direction.BOTTOM);
-        if (this.panel.getController().getMotionPath().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.motionPath.area, Direction.BOTTOM);
-        if (this.panel.getController().isControlling())
+        if (this.iconsVisible)
         {
-            String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();
-            int w = context.batcher.getFont().getWidth(s);
-            int height = context.batcher.getFont().getHeight();
+            Area a = this.icons.area;
 
-            context.batcher.textCard(s, a.mx(w), a.y - height - 5);
+            /* Render icon bar */
+            int barShade = BBSSettings.isLightTheme() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
+            context.batcher.gradientVBox(a.x, a.y, a.ex(), a.ey(), 0, barShade);
+
+            if (this.panel.isFlying()) UIDashboardPanels.renderHighlight(context.batcher, this.flight.area, Direction.BOTTOM);
+            if (this.panel.getController().isControlling()) UIDashboardPanels.renderHighlight(context.batcher, this.control.area, Direction.BOTTOM);
+            if (this.panel.getController().isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordReplay.area, Direction.BOTTOM);
+            if (this.panel.recorder.isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordVideo.area, Direction.BOTTOM);
+            if (this.panel.getController().getOnionSkin().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.onionSkin.area, Direction.BOTTOM);
+            if (this.panel.getController().getMotionPath().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.motionPath.area, Direction.BOTTOM);
+            if (this.panel.getController().isControlling())
+            {
+                String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();
+                int w = context.batcher.getFont().getWidth(s);
+                int height = context.batcher.getFont().getHeight();
+
+                context.batcher.textCard(s, a.mx(w), a.y - height - 5);
+            }
         }
 
         context.batcher.clip(this.area, context);

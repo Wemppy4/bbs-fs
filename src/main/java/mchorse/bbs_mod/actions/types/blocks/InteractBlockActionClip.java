@@ -41,6 +41,21 @@ public class InteractBlockActionClip extends ActionClip
         player.getEntityWorld().getBlockState(result.getBlockPos()).onUse(player.getEntityWorld(), player, result);
     }
 
+    /**
+     * A container the interaction opened stays open for as long as the clip is
+     * long (LUCKYWAY) - the recorder grew it for exactly as long as the player
+     * kept the screen up. A clip of a single tick is a tap, a button or a door,
+     * and holds nothing open.
+     */
+    @Override
+    public void applyRange(LivingEntity actor, SuperFakePlayer player, Film film, Replay replay, int tick)
+    {
+        if (this.duration.get() > 1)
+        {
+            player.wantLidOpen(this.hit.getBlockPos());
+        }
+    }
+
     @Override
     protected Clip create()
     {

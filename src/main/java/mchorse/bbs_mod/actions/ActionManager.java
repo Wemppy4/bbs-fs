@@ -27,7 +27,9 @@ public class ActionManager
     /**
      * Stopping, not just forgetting: playback borrows the first person player's equipment and
      * only gives it back on stop, so dropping the players on the floor here would leave them
-     * dressed as the film - their own items gone with the server they left.
+     * dressed as the film - their own items gone with the server they left. Damage control is
+     * held the same way, and stopping is what makes the world it was keeping get put back
+     * rather than saved broken.
      */
     public void reset()
     {
@@ -36,9 +38,25 @@ public class ActionManager
             player.stop();
         }
 
+        for (ActionRecorder recorder : this.recorders.values())
+        {
+            this.stopDamage(recorder.getWorld(), recorder);
+        }
+
         this.players.clear();
         this.recorders.clear();
+
+        /* Whatever is left is held by hand (/bbs dc start). The server is going away, so this
+         * is the last chance to put those worlds back - forgetting them here is what used to
+         * save the damage into the world for good. */
+        List<DamageControl> remaining = new ArrayList<>(this.dc.values());
+
         this.dc.clear();
+
+        for (DamageControl control : remaining)
+        {
+            control.restore();
+        }
     }
 
     /** Give a leaving player their equipment back and drop any playback that was dressing them. */
@@ -56,7 +74,12 @@ public class ActionManager
             return false;
         });
 
-        this.recorders.remove(player);
+        ActionRecorder recorder = this.recorders.remove(player);
+
+        if (recorder != null)
+        {
+            this.stopDamage(recorder.getWorld(), recorder);
+        }
     }
 
     public void tick()
@@ -67,11 +90,6 @@ public class ActionManager
 
             if (tick)
             {
-                if (player.stopDamage)
-                {
-                    this.stopDamage(player.getWorld());
-                }
-
                 player.stop();
             }
 
@@ -127,7 +145,11 @@ public class ActionManager
             ActionPlayer player = new ActionPlayer(serverPlayer, world, film, tick, countdown, exception, type);
 
             this.players.add(player);
-            this.trackDamage(world);
+
+            /* The playback itself holds damage control, and lets go in ActionPlayer#stop - so
+             * every way a playback can end, including ones added later, puts the world back
+             * without having to remember to say so here. */
+            this.trackDamage(world, player);
 
             return player;
         }
@@ -145,7 +167,6 @@ public class ActionManager
 
             if (next.film.getId().equals(filmId))
             {
-                this.stopDamage(next.getWorld());
                 next.stop();
                 it.remove();
             }
@@ -156,11 +177,15 @@ public class ActionManager
 
     public void startRecording(Film film, ServerPlayerEntity entity, int tick, int countdown, int replayId)
     {
-        ActionPlayer play = this.play(entity, entity.getEntityWorld(), film, tick, countdown, replayId, PlayerType.RECORDING);
+        ActionRecorder recorder = new ActionRecorder(film, entity, tick, countdown);
 
-        play.stopDamage = false;
+        this.play(entity, entity.getEntityWorld(), film, tick, countdown, replayId, PlayerType.RECORDING);
 
-        this.recorders.put(entity, new ActionRecorder(film, entity, tick, countdown));
+        /* The recording outlives the playback that drives it - the film can reach its end while
+         * the take is still going - so the recorder holds damage control in its own right. */
+        this.trackDamage(recorder.getWorld(), recorder);
+
+        this.recorders.put(entity, recorder);
     }
 
     public void addAction(ServerPlayerEntity entity, Supplier<ActionClip> supplier)
@@ -182,43 +207,54 @@ public class ActionManager
     {
         ActionRecorder remove = this.recorders.remove(entity);
 
+        if (remove == null)
+        {
+            return null;
+        }
+
         this.stop(remove.getFilm().getId());
-        this.stopDamage(entity.getEntityWorld());
+        this.stopDamage(remove.getWorld(), remove);
 
         return remove;
     }
 
     /* Damage control */
 
-    public void trackDamage(ServerWorld world)
+    /** Whether anything is being kept intact right now - the cheap check the block hook needs. */
+    public boolean isTracking()
     {
-        DamageControl damageControl = this.dc.get(world);
-
-        if (damageControl == null)
-        {
-            this.dc.put(world, new DamageControl(world));
-        }
-        else
-        {
-            damageControl.nested += 1;
-        }
+        return !this.dc.isEmpty();
     }
 
+    /** Take a hold on the world's snapshot by hand, for /bbs dc start. */
+    public void trackDamage(ServerWorld world)
+    {
+        this.trackDamage(world, null);
+    }
+
+    public void trackDamage(ServerWorld world, Object owner)
+    {
+        this.dc.computeIfAbsent(world, DamageControl::new).acquire(owner);
+    }
+
+    /** Let go of a hold taken by hand, for /bbs dc stop. */
     public void stopDamage(ServerWorld world)
+    {
+        this.stopDamage(world, null);
+    }
+
+    public void stopDamage(ServerWorld world, Object owner)
     {
         DamageControl damageControl = this.dc.get(world);
 
-        if (damageControl != null)
+        if (damageControl != null && damageControl.release(owner))
         {
-            if (damageControl.nested > 0)
-            {
-                damageControl.nested -= 1;
-            }
-            else
-            {
-                damageControl.restore();
-                this.dc.remove(world);
-            }
+            /* Dropped before restoring, not after: putting a block back is itself a block
+             * change, and a door or a bed puts its other half back too - a snapshot still
+             * reachable from here would be written to while it's being walked. */
+            this.dc.remove(world);
+
+            damageControl.restore();
         }
     }
 

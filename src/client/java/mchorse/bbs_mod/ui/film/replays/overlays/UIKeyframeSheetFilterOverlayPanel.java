@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.replays.overlays;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -72,8 +73,12 @@ public class UIKeyframeSheetFilterOverlayPanel extends UIOverlayPanel
 
         for (String key : keys)
         {
-            int color = keyToColor != null && keyToColor.containsKey(key) ? keyToColor.get(key) : UIReplaysEditor.getColor(key);
-            UIToggle toggle = new UICoolToggle(key, IKey.constant(key), color, (b) ->
+            int color = keyToColor != null && keyToColor.containsKey(key)
+                ? keyToColor.get(key)
+                : BBSSettings.trackStyles.color(key, UIReplaysEditor.getColor(key));
+            /* Show the user's name for the track, so a renamed row is recognizable here too */
+            String label = BBSSettings.trackStyles.name(key, key);
+            UIToggle toggle = new UICoolToggle(key, IKey.constant(label), color, (b) ->
             {
                 if (disabled.contains(key))
                 {

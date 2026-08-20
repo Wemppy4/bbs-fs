@@ -274,7 +274,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
                 this.commitChanges();
             }
         });
-        this.stiffness.onlyNumbers().values(0.05D, 0.01D, 0.2D).increment(0.01D).limit(0D, 1D);
+        this.stiffness.normalized();
         this.stiffness.tooltip(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS);
 
         this.damping = new UISliderTrackpad((v) ->
@@ -292,7 +292,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
                 this.commitChanges();
             }
         });
-        this.damping.onlyNumbers().values(0.05D, 0.01D, 0.2D).increment(0.01D).limit(0D, 1D);
+        this.damping.normalized();
         this.damping.tooltip(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING);
 
         this.iterations = new UITrackpad((v) ->
@@ -344,7 +344,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
                 this.commitChanges();
             }
         });
-        this.radius.onlyNumbers().values(0.05D, 0.01D, 0.2D).increment(0.01D).limit(0D, 1D);
+        this.radius.normalized();
         this.radius.tooltip(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RADIUS);
 
         this.windStrength = new UISliderTrackpad((v) ->
@@ -401,7 +401,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             this.wind.turbulence = v.floatValue();
             this.commitChanges();
         });
-        this.windTurbulence.onlyNumbers().values(0.05D, 0.01D, 0.2D).increment(0.05D).limit(0D, 1D);
+        this.windTurbulence.normalized();
         this.windTurbulence.tooltip(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_TURBULENCE);
 
         this.windTurbulenceSpeed = new UISliderTrackpad((v) ->
@@ -1004,7 +1004,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
 
     private static UISliderTrackpad axisTrackpad(Consumer<Double> callback, int color, IKey tooltip)
     {
-        UISliderTrackpad t = new UISliderTrackpad(callback).degrees().onlyNumbers().limit(-180D, 180D);
+        UISliderTrackpad t = new UISliderTrackpad(callback).angle180();
         t.textbox.setColor(color);
         t.tooltip(tooltip);
         return t;

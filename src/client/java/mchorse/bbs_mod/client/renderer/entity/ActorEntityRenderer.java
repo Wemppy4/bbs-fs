@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.client.renderer.entity;
 
+import mchorse.bbs_mod.client.renderer.DeathPose;
 import mchorse.bbs_mod.cubic.render.vanilla.ArmorRenderer;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -46,7 +47,8 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
          * texture onto player-model UVs, which is exactly the garbled full-body leather look. */
         armorRenderer = new ArmorRenderer(
             EntityModelLayers.PLAYER_EQUIPMENT.map((layer) -> new BipedEntityModel(ctx.getPart(layer))),
-            MinecraftClient.getInstance().getBakedModelManager()
+            ctx.getPart(EntityModelLayers.ELYTRA),
+            ctx.getEquipmentModelLoader()
         );
 
         this.shadowRadius = 0.5F;
@@ -68,6 +70,11 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
 
         state.bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, entity.lastBodyYaw, entity.bodyYaw);
         state.deathTime = entity.deathTime > 0 ? entity.deathTime + tickDelta : 0F;
+
+        /* The red damage flash, exactly as LivingEntityRenderer derives it: a blow OR a death. The
+         * death half is what keeps the body red for the whole fall - this renderer extends
+         * EntityRenderer and fills the living state itself, so nothing else was setting it. */
+        state.hurt = entity.hurtTime > 0 || entity.deathTime > 0;
         state.pose = entity.getPose();
         state.invisible = entity.isInvisible();
     }
@@ -113,11 +120,6 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
             matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-state.bodyYaw));
         }
 
-        if (state.deathTime > 0)
-        {
-            float deathAngle = (state.deathTime - 1F) / 20F * 1.6F;
-
-            matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(Math.min(MathHelper.sqrt(deathAngle), 1F) * 90F));
-        }
+        DeathPose.apply(matrices, state.deathTime);
     }
 }

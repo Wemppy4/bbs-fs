@@ -25,6 +25,12 @@ public class BooleanKeyframeFactory implements IKeyframeFactory<Boolean>
     }
 
     @Override
+    public boolean isStepped()
+    {
+        return true;
+    }
+
+    @Override
     public Boolean copy(Boolean value)
     {
         return value;

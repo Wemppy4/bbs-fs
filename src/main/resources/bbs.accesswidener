@@ -29,3 +29,16 @@ accessible field net/minecraft/entity/PlayerLikeEntity PLAYER_MODE_CUSTOMIZATION
 # Held-item replay in form renderers: the private item queue's custom commands (BBS special-model
 # geometry lands there via submitCustom) have no accessor — ItemFormRenderer.renderItem replays them.
 accessible field net/minecraft/client/render/command/CustomCommandRenderer$Commands customCommands Ljava/util/Map;
+
+# The vanilla item model predicates (a bow bending, a shield blocking, a trident
+# lifting) ask an entity what it is using - a film has no such entity, so a
+# stand-in answers them from the clips
+accessible field net/minecraft/entity/LivingEntity activeItemStack Lnet/minecraft/item/ItemStack;
+accessible field net/minecraft/entity/LivingEntity itemUseTimeLeft I
+# ...and the "using an item" living flag those predicates demand: on the client
+# setCurrentHand never raises it (the isClient branch skips setLivingFlag), so
+# the stand-in raises it by hand
+accessible method net/minecraft/entity/LivingEntity setLivingFlag (IZ)V
+# A recorded riptide spins the body the same way: useRiptide() is the player's
+# own method, and an actor is not a player - it sets the two fields by hand
+accessible field net/minecraft/entity/LivingEntity riptideTicks I

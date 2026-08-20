@@ -88,6 +88,8 @@ public class WorldFilmController extends BaseFilmController
     @Override
     public void shutdown()
     {
+        super.shutdown();
+
         this.context.shutdown();
     }
 }

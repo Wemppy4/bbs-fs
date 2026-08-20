@@ -7,6 +7,9 @@ import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.api.v0.IrisProgram;
 import net.irisshaders.iris.pipeline.IrisPipelines;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
+import net.irisshaders.iris.vertices.ImmediateState;
+import net.irisshaders.iris.vertices.IrisExtendedBufferBuilder;
+import net.minecraft.client.render.BufferBuilder;
 
 /**
  * Everything BBS asks of Iris, in one class that is only ever touched when the Iris mod is actually
@@ -55,6 +58,40 @@ public class IrisUtils
         {
             pipeline.setIsMainBound(bound);
         }
+    }
+
+    /**
+     * Match the vertex layout of an upload to the buffer actually being uploaded.
+     *
+     * <p>Iris picks that layout twice. A buffer's own format is chosen when the render layer
+     * begins: it gains tangents and mid-texture coordinates while the level renders, and stays
+     * plain vanilla anywhere else (a form editor viewport, an item in a GUI). The vertex array's
+     * layout is chosen again inside {@link net.minecraft.client.render.VertexFormat#setupState()},
+     * and there Iris reads a flag instead — a plain entity format is set up with the
+     * <em>extended</em> stride whenever that flag is up. The two agree only because Iris drops the
+     * flag for the duration of the immediate provider's draw, the one place vanilla ever uploads
+     * a buffer of the second kind.</p>
+     *
+     * <p>So anything that ends and uploads such a buffer by itself has to keep the pair honest,
+     * or the vertex array reads 36 byte vertices at the extended stride and the geometry tears
+     * into a fan of stretched triangles. The buffer knows which of the two it is, so ask it
+     * rather than repeating Iris' reasoning about it.</p>
+     */
+    public static boolean beginBufferUpload(BufferBuilder builder)
+    {
+        boolean extended = ImmediateState.renderWithExtendedVertexFormat;
+
+        if (builder instanceof IrisExtendedBufferBuilder buffer && !buffer.iris$extending())
+        {
+            ImmediateState.renderWithExtendedVertexFormat = false;
+        }
+
+        return extended;
+    }
+
+    public static void endBufferUpload(boolean extended)
+    {
+        ImmediateState.renderWithExtendedVertexFormat = extended;
     }
 
     /**

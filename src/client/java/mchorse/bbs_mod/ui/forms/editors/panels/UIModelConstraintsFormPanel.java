@@ -130,7 +130,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 
     private static UISliderTrackpad axisTrackpad(Consumer<Double> c, int color, IKey tooltip)
     {
-        UISliderTrackpad t = new UISliderTrackpad(c).degrees().onlyNumbers().limit(-180D, 180D);
+        UISliderTrackpad t = new UISliderTrackpad(c).angle180();
         t.textbox.setColor(color);
         t.tooltip(tooltip);
         return t;

@@ -24,6 +24,7 @@ import net.minecraft.client.render.command.OrderedRenderCommandQueueImpl;
 import net.minecraft.client.render.item.ItemRenderState;
 import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
@@ -183,6 +184,17 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
      */
     public static void renderItem(ItemStack stack, ItemDisplayContext displayContext, MatrixStack matrices, CustomVertexConsumerProvider consumers, World world, int light, int overlay)
     {
+        renderItem(stack, displayContext, matrices, consumers, world, light, overlay, null);
+    }
+
+    /**
+     * The same, for an item held by a body: the holder answers vanilla's model predicates (a bow
+     * bends and shows its arrow, a shield blocks, a trident lifts). 1.21.4+ takes it as the
+     * {@link net.minecraft.util.HeldItemContext} of the resolve, which {@link LivingEntity}
+     * implements - the seed is vanilla's own from {@code ItemModelManager.updateForLivingEntity}.
+     */
+    public static void renderItem(ItemStack stack, ItemDisplayContext displayContext, MatrixStack matrices, CustomVertexConsumerProvider consumers, World world, int light, int overlay, LivingEntity holder)
+    {
         if (stack == null || stack.isEmpty())
         {
             return;
@@ -191,9 +203,9 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
         ItemModelManager modelManager = MinecraftClient.getInstance().getItemModelManager();
 
         /* Resolve the item into baked per-layer geometry (replaces 1.21.1's implicit model resolution inside
-         * the old renderItem). seed=0 matches the original; HeldItemContext is null (as updateForNonLivingEntity
-         * passes for free-standing items). */
-        modelManager.clearAndUpdate(renderState, stack, displayContext, world, null, 0);
+         * the old renderItem). Without a holder this is what updateForNonLivingEntity passes for a
+         * free-standing item: no HeldItemContext and seed 0. */
+        modelManager.clearAndUpdate(renderState, stack, displayContext, world, holder, holder == null ? 0 : holder.getId() + displayContext.ordinal());
 
         OrderedRenderCommandQueueImpl queue = new OrderedRenderCommandQueueImpl();
 

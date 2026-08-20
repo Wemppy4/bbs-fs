@@ -49,6 +49,12 @@ public class ItemStackKeyframeFactory implements IKeyframeFactory<ItemStack>
     }
 
     @Override
+    public boolean isStepped()
+    {
+        return true;
+    }
+
+    @Override
     public ItemStack copy(ItemStack value)
     {
         return value.copy();

@@ -1,11 +1,14 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
+import mchorse.bbs_mod.settings.values.ui.ValueTrackStyles;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
@@ -19,6 +22,23 @@ public class UIKeyframeSheet extends UIKeyframeElement
     /* Meta data */
     public final String id;
     private Icon icon;
+
+    /**
+     * The title and colour the track was built with. {@link #title} and {@link #color} carry what is
+     * actually drawn, which is these unless the user overrode them — see {@link #applyStyle()}.
+     */
+    public final IKey defaultTitle;
+    public final int defaultColor;
+
+    /**
+     * Single home of the track identity rule: what a track is called in the global filters and in the
+     * user's colour/name overrides. Bone tracks go by their {@code path/bone} title, everything else by
+     * the last segment of its channel id, so the same kind of track shares one key across forms and films.
+     *
+     * Derived from the defaults, never from the overridden title — otherwise renaming a bone track would
+     * move its own key out from under it.
+     */
+    private final String filterKey;
 
     public final KeyframeChannel channel;
     public final KeyframeSelection selection;
@@ -57,6 +77,31 @@ public class UIKeyframeSheet extends UIKeyframeElement
         this.selection = new KeyframeSelection(channel);
         this.property = property;
         this.isBoneTrack = isBoneTrack;
+
+        this.defaultTitle = title;
+        this.defaultColor = color;
+        this.filterKey = isBoneTrack ? title.get() : StringUtils.fileName(id);
+
+        this.applyStyle();
+    }
+
+    /** The key this track is identified by in the global filters and in the user's name/colour overrides. */
+    public String getFilterKey()
+    {
+        return this.filterKey;
+    }
+
+    /**
+     * Pull the user's global name and colour for this kind of track over the built-in ones. Called when the
+     * sheet is built and again whenever the overrides change, so an edit lands without rebuilding the timeline.
+     */
+    public void applyStyle()
+    {
+        ValueTrackStyles styles = BBSSettings.trackStyles;
+        String name = styles == null ? "" : styles.name(this.filterKey, "");
+
+        this.title = name.isEmpty() ? this.defaultTitle : IKey.constant(name);
+        this.color = styles == null ? this.defaultColor : styles.color(this.filterKey, this.defaultColor);
     }
 
     public UIKeyframeSheet icon(Icon icon)

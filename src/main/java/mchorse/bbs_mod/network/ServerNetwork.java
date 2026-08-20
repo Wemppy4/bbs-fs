@@ -404,10 +404,16 @@ public class ServerNetwork
             else
             {
                 ActionRecorder recorder = BBSMod.getActions().stopRecording(player);
-                Clips clips = recorder.composeClips();
 
-                /* Send recorded clips to the client */
-                sendRecordedActions(player, filmId, replayId, tick, clips);
+                /* Nothing was being recorded - a stop that arrived twice, or after the player
+                 * was dropped from the take on disconnect. */
+                if (recorder != null)
+                {
+                    Clips clips = recorder.composeClips();
+
+                    /* Send recorded clips to the client */
+                    sendRecordedActions(player, filmId, replayId, tick, clips);
+                }
             }
         });
     }

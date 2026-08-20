@@ -58,6 +58,8 @@ public abstract class ActionClip extends Clip
             return;
         }
 
+        this.applyRange(actor, player, film, replay, tick);
+
         int relaive = tick - this.tick.get();
         int frequency = this.frequency.get();
 
@@ -75,6 +77,16 @@ public abstract class ActionClip extends Clip
     }
 
     public void applyAction(LivingEntity actor, SuperFakePlayer player, Film film, Replay replay, int tick)
+    {}
+
+    /**
+     * Called for every tick the clip covers, where {@link #applyAction} happens
+     * once at its start (or on its frequency). Actions that occupy their whole
+     * range instead of happening at an instant - a chest held open - keep
+     * saying so here, so the state ends when the clip does however the film
+     * arrived at that tick.
+     */
+    public void applyRange(LivingEntity actor, SuperFakePlayer player, Film film, Replay replay, int tick)
     {}
 
     protected void applyPositionRotation(SuperFakePlayer player, Replay replay, int tick)

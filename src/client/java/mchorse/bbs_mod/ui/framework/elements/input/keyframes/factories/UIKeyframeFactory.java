@@ -13,12 +13,14 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.IUIKeyframeGraph;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
 import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -32,6 +34,15 @@ import java.util.Map;
 public abstract class UIKeyframeFactory <T> extends UIElement
 {
     private static final Map<IKeyframeFactory, IUIKeyframeFactoryFactory> FACTORIES = new HashMap<>();
+
+    /**
+     * Editors bound to one form property rather than to a value type, keyed the same way a track's
+     * colour and icon are - by the last segment of its channel id. A property whose value type says
+     * nothing about how it should be edited (a model is a string, but picking one is not typing)
+     * takes its editor from here, and everything else falls through to {@link #FACTORIES}.
+     */
+    private static final Map<String, IUIKeyframeFactoryFactory> PROPERTIES = new HashMap<>();
+
     private static final Map<IKeyframeFactory, Integer> SCROLLS = new HashMap<>();
 
     public UIScrollView scroll;
@@ -69,11 +80,18 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         register(KeyframeFactories.ACTIONS_CONFIG, UIActionsConfigKeyframeFactory::new);
         register(KeyframeFactories.SHAPE_KEYS, UIShapeKeysKeyframeFactory::new);
         register(KeyframeFactories.PARTICLE_SETTINGS, UIParticleSettingsKeyframeFactory::new);
+
+        registerProperty("model", UIModelKeyframeFactory::new);
     }
 
     public static <T> void register(IKeyframeFactory<T> clazz, IUIKeyframeFactoryFactory<T> factory)
     {
         FACTORIES.put(clazz, factory);
+    }
+
+    public static <T> void registerProperty(String property, IUIKeyframeFactoryFactory<T> factory)
+    {
+        PROPERTIES.put(property, factory);
     }
 
     public static void saveScroll(UIKeyframeFactory editor)
@@ -95,9 +113,31 @@ public abstract class UIKeyframeFactory <T> extends UIElement
 
     public static <T> UIKeyframeFactory createPanel(Keyframe<T> keyframe, UIKeyframes editor)
     {
-        IUIKeyframeFactoryFactory<T> factory = FACTORIES.get(keyframe.getFactory());
+        IUIKeyframeFactoryFactory<T> factory = getPropertyFactory(keyframe, editor);
+
+        if (factory == null)
+        {
+            factory = FACTORIES.get(keyframe.getFactory());
+        }
 
         return factory == null ? null : factory.create(keyframe, editor);
+    }
+
+    /**
+     * The editor registered for the track's property, if there is one. Bone tracks are left out: their
+     * channels end in a bone's name, which is model data and could land on a property's id by accident.
+     */
+    private static <T> IUIKeyframeFactoryFactory<T> getPropertyFactory(Keyframe<T> keyframe, UIKeyframes editor)
+    {
+        IUIKeyframeGraph graph = editor == null ? null : editor.getGraph();
+        UIKeyframeSheet sheet = graph == null ? null : graph.getSheet(keyframe);
+
+        if (sheet == null || sheet.property == null || sheet.isBoneTrack)
+        {
+            return null;
+        }
+
+        return PROPERTIES.get(StringUtils.fileName(sheet.channel.getId()));
     }
 
     public UIKeyframeFactory(Keyframe<T> keyframe, UIKeyframes editor)
