@@ -164,6 +164,28 @@ public class GameRendererMixin
     }
 
     /**
+     * Ortho projection, Sodium half. Vanilla itself never loads this argument (index 5 of
+     * WorldRenderer.render — the SAME Matrix4f object renderWorld just uploaded through
+     * RawProjectionMatrix.set), but Sodium 0.8's LevelRendererMixin captures it as the projection its
+     * chunk shaders draw with (sodium$setMatrices builds ChunkRenderMatrices from arguments 5 and 4;
+     * verified against sodium-mc1.21.11-0.8.7 bytecode). Our UBO substitution above returns a NEW
+     * matrix and leaves the original object perspective, so with Sodium installed the terrain stayed
+     * perspective while entities and BBS forms went ortho. Hand it a copy of the exact matrix the
+     * world upload got — a copy because Sodium keeps the reference for the rest of its frame.
+     * Sodium's occlusion culling is unaffected: it derives from the vanilla Frustum, which
+     * WorldRendererMixin#onSetupFrustumProjection already feeds the loose ortho.
+     */
+    @ModifyArg(
+        method = "renderWorld",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/WorldRenderer;render(Lnet/minecraft/client/util/memory/ObjectAllocator;Lnet/minecraft/client/render/RenderTickCounter;ZLnet/minecraft/client/render/Camera;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;Z)V"),
+        index = 5
+    )
+    private Matrix4f onRenderProjectionArg(Matrix4f projection)
+    {
+        return BBSRendering.isOrthoActive() ? new Matrix4f(BBSRendering.getWorldProjection()) : projection;
+    }
+
+    /**
      * Ortho projection, sorter half: the world upload pairs the UBO slice with a ProjectionType whose
      * VertexSorter orders translucent geometry — keep it consistent with the substituted matrix.
      * Ordinal 0 is the world upload; the later setProjectionMatrix in renderWorld (hand/HUD, built

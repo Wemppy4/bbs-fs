@@ -90,7 +90,8 @@ public class WorldRendererMixin
      * call site of {@code setupFrustum}; in 1.21.11 the method is private and called from inside
      * {@code WorldRenderer.render} (verified against the bytecode: the view matrix is argument 0,
      * the projection argument 1), so the hook moved here. The projection the world actually
-     * renders with is substituted separately in {@code GameRendererMixin#onRenderProjection}.
+     * renders with is substituted separately in {@code GameRendererMixin#onSetWorldProjection}
+     * (the UBO upload) and {@code GameRendererMixin#onRenderProjectionArg} (Sodium's chunk capture).
      */
     @ModifyArg(
         method = "render",

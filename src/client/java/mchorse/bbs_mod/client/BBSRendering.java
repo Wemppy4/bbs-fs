@@ -82,8 +82,9 @@ public class BBSRendering
 
     /**
      * The projection the world was last rendered with, captured per frame by
-     * {@code GameRendererMixin#onRenderProjection} (the same argument WorldRenderer.render receives, so
-     * it already carries the orthographic substitution when the orbit camera asks for one).
+     * {@code GameRendererMixin#onSetWorldProjection} — the matrix of the world's UBO upload, so it
+     * already carries the orthographic substitution when the orbit camera asks for one.
+     * {@code GameRendererMixin#onRenderProjectionArg} hands the same matrix to Sodium's chunk capture.
      *
      * <p>Needed because BBS picking runs in the GUI phase, where the engine's bound Projection UBO is the
      * interface's ortho — drawing world geometry against it puts every pixel somewhere other than where the
