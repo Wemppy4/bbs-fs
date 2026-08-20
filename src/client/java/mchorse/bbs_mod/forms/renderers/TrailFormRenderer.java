@@ -6,6 +6,8 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.TrailForm;
@@ -20,6 +22,8 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderSetup;
 import net.minecraft.client.render.Tessellator;
@@ -60,24 +64,18 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
             .build()
     );
 
-    /* POSITION_TEXTURE / QUADS, depth-tested (the trail strip path enabled depth test + blend).
-     * TODO(1.21.11 render): this is seeded from POSITION_TEX_COLOR_SNIPPET because there is no
-     * position-tex-only snippet exposed; the buffer below writes POSITION_TEXTURE (no color attr) and
-     * binds the trail texture globally (no sampler declared here). Verify at runtime: a dedicated
-     * textured position-tex pipeline (sampler + matching vertex format) is likely needed before the
-     * trail samples its texture correctly. */
-    private static final RenderPipeline TRAIL_PIPELINE = RenderPipelines.register(
-        RenderPipeline.builder(RenderPipelines.POSITION_TEX_COLOR_SNIPPET)
-            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/trail_strip"))
-            .withVertexFormat(VertexFormats.POSITION_TEXTURE, VertexFormat.DrawMode.QUADS)
-            .withBlend(BLEND)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-            .withCull(false)
-            .build()
-    );
+    /* The strip itself no longer owns a pipeline. Its old one was seeded from
+     * POSITION_TEX_COLOR_SNIPPET while the buffer wrote POSITION_TEXTURE — the shader's Color
+     * attribute was never fed, and a disabled GL attribute reads the current generic value
+     * ((0,0,0,1) by default, and whatever a driver last latched otherwise): the trail drew BLACK and
+     * shimmered with unrelated draws as the camera moved. It also declared no Sampler0, leaving the
+     * texture to the stale global binding, and withCull(false) kept BOTH of the strip's explicit
+     * front/back faces alive on equal depth. All three are the billboard's already-fixed diseases,
+     * so the strip now draws exactly like the billboard: the unlit textured billboard layer
+     * (vanilla position_tex_color, full brightness, cull on, texture in the layer's own Sampler0),
+     * and the culled model layer under a shaderpack — see render3D. */
 
     private static RenderLayer axesLayer;
-    private static RenderLayer trailLayer;
 
     private static RenderLayer getAxesLayer()
     {
@@ -88,17 +86,6 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
         }
 
         return axesLayer;
-    }
-
-    private static RenderLayer getTrailLayer()
-    {
-        if (trailLayer == null)
-        {
-            trailLayer = RenderLayer.of(BBSMod.MOD_ID + "_trail_strip",
-                RenderSetup.builder(TRAIL_PIPELINE).translucent().build());
-        }
-
-        return trailLayer;
     }
 
     /** Finish a buffer and submit it through the given layer (no-op on an empty buffer). */
@@ -157,8 +144,7 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
             float outlineOffset = 0.02F;
 
             axisOffset *= scale;
-            outlineOffset *= scale; int i = 10;
-
+            outlineOffset *= scale;
 
             BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
@@ -246,12 +232,32 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
             return;
         }
 
-        BBSModClient.getTextures().bindTexture(this.form.texture.get());
+        Texture texture = BBSModClient.getTextures().getTexture(this.form.texture.get());
+
+        /* Bind through the BBS texture manager BEFORE resolving a layer: both layers below are
+         * resolved from the last bound texture, so the strip's texture rides in the layer's own
+         * Sampler0 (the billboard's rule — a stale global binding is all a sampler-less layer had). */
+        BBSModClient.getTextures().bindTexture(texture);
+
+        /* Under a shaderpack only draws carrying the pack's programs survive the end-of-frame
+         * composite, so the strip follows the billboard: the full entity format through the culled
+         * world model layer. Everywhere else it keeps the 1.21.1 look — vanilla position_tex_color
+         * at full texture brightness, no directional light, no lightmap. Both layers cull, because
+         * the strip emits every segment TWICE (opposite winding, opposite normals) and expects the
+         * GPU to drop the side facing away — drawn without culling the back lands on equal depth,
+         * LEQUAL lets it through, and the two sides double-blend and shimmer with the viewpoint. */
+        boolean packed = BBSRendering.isIrisWorldForms();
+        VertexFormat format = packed ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_COLOR;
 
         stack.push();
 
         Trail last = null;
         Trail trail;
+
+        /* The form's camera-relative world position, taken before the stack top is repurposed below —
+         * it becomes the camera-space sort origin if the packed draw ends up deferred. */
+        Vector3f origin = stack.peek().getPositionMatrix().getTranslation(new Vector3f());
+
         /* The vertices below are in camera-relative world space; the GPU then applies
          * RenderSystem's global model-view, which since 1.21.1 already holds the camera view.
          * Build m so that (globalModelView * m) collapses to the pure camera view:
@@ -262,64 +268,85 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
         m.set(RenderSystem.getModelViewMatrix()).invert();
         m.mul(new Matrix4f(camInverse).invert());
 
-        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, format);
 
-        /* TODO(1.21.11 render): the texture was previously bound globally via
-         * BBSModClient.getTextures().bindTexture(...) and consumed by the position-tex shader. The
-         * BBS trail pipeline does not declare a sampler, so the trail texture is not yet sampled.
-         * Wire a textured pipeline (sampler + per-draw texture binding) when the picking/texture
-         * foundation lands. */
         for (it = trails.iterator(); it.hasNext(); last = trail)
         {
             trail = it.next();
 
             if (last != null && !last.stop && !trail.stop)
             {
-                double x1 = trail.top.x - baseX;
-                double x2 = trail.bottom.x - baseX;
-                double x3 = last.bottom.x - baseX;
-                double x4 = last.top.x - baseX;
+                float x1 = (float) (trail.top.x - baseX);
+                float x2 = (float) (trail.bottom.x - baseX);
+                float x3 = (float) (last.bottom.x - baseX);
+                float x4 = (float) (last.top.x - baseX);
 
-                double y1 = trail.top.y - baseY;
-                double y2 = trail.bottom.y - baseY;
-                double y3 = last.bottom.y - baseY;
-                double y4 = last.top.y - baseY;
+                float y1 = (float) (trail.top.y - baseY);
+                float y2 = (float) (trail.bottom.y - baseY);
+                float y3 = (float) (last.bottom.y - baseY);
+                float y4 = (float) (last.top.y - baseY);
 
-                double z1 = trail.top.z - baseZ;
-                double z2 = trail.bottom.z - baseZ;
-                double z3 = last.bottom.z - baseZ;
-                double z4 = last.top.z - baseZ;
+                float z1 = (float) (trail.top.z - baseZ);
+                float z2 = (float) (trail.bottom.z - baseZ);
+                float z3 = (float) (last.bottom.z - baseZ);
+                float z4 = (float) (last.top.z - baseZ);
+
+                float u1;
+                float u2;
 
                 if (loop)
                 {
-                    float u1 = trail.tick / length;
-                    float u2 = last.tick / length;
-
-                    builder.vertex(m, (float) x1, (float) y1, (float) z1).texture(u1, 0F);
-                    builder.vertex(m, (float) x2, (float) y2, (float) z2).texture(u1, 1F);
-                    builder.vertex(m, (float) x3, (float) y3, (float) z3).texture(u2, 1F);
-                    builder.vertex(m, (float) x4, (float) y4, (float) z4).texture(u2, 0F);
-                    /* Other side */
-                    builder.vertex(m, (float) x4, (float) y4, (float) z4).texture(u2, 0F);
-                    builder.vertex(m, (float) x3, (float) y3, (float) z3).texture(u2, 1F);
-                    builder.vertex(m, (float) x2, (float) y2, (float) z2).texture(u1, 1F);
-                    builder.vertex(m, (float) x1, (float) y1, (float) z1).texture(u1, 0F);
+                    u1 = trail.tick / length;
+                    u2 = last.tick / length;
                 }
                 else
                 {
-                    float u1 = (current - trail.tick) / length;
-                    float u2 = (current - last.tick) / length;
-
-                    builder.vertex(m, (float) x1, (float) y1, (float) z1).texture(u1, 0F);
-                    builder.vertex(m, (float) x2, (float) y2, (float) z2).texture(u1, 1F);
-                    builder.vertex(m, (float) x3, (float) y3, (float) z3).texture(u2, 1F);
-                    builder.vertex(m, (float) x4, (float) y4, (float) z4).texture(u2, 0F);
-                    /* Other side */
-                    builder.vertex(m, (float) x4, (float) y4, (float) z4).texture(u2, 0F);
-                    builder.vertex(m, (float) x3, (float) y3, (float) z3).texture(u2, 1F);
-                    builder.vertex(m, (float) x2, (float) y2, (float) z2).texture(u1, 1F);
-                    builder.vertex(m, (float) x1, (float) y1, (float) z1).texture(u1, 0F);
+                    u1 = (current - trail.tick) / length;
+                    u2 = (current - last.tick) / length;
                 }
+
+                /* World-space face normal of the segment (the model shader feeds raw normals into
+                 * its world-oriented light mix). Degenerate segments keep a harmless up vector. */
+                float ax = x2 - x1;
+                float ay = y2 - y1;
+                float az = z2 - z1;
+                float bx = x3 - x1;
+                float by = y3 - y1;
+                float bz = z3 - z1;
+                float nx = ay * bz - az * by;
+                float ny = az * bx - ax * bz;
+                float nz = ax * by - ay * bx;
+                float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+
+                if (len > 1.0E-6F)
+                {
+                    nx /= len;
+                    ny /= len;
+                    nz /= len;
+                }
+                else
+                {
+                    nx = nz = 0F;
+                    ny = 1F;
+                }
+
+                /* Front (two triangles of the 1-2-3-4 quad) */
+                this.fill(format, builder, m, x1, y1, z1, u1, 0F, nx, ny, nz);
+                this.fill(format, builder, m, x2, y2, z2, u1, 1F, nx, ny, nz);
+                this.fill(format, builder, m, x3, y3, z3, u2, 1F, nx, ny, nz);
+
+                this.fill(format, builder, m, x1, y1, z1, u1, 0F, nx, ny, nz);
+                this.fill(format, builder, m, x3, y3, z3, u2, 1F, nx, ny, nz);
+                this.fill(format, builder, m, x4, y4, z4, u2, 0F, nx, ny, nz);
+
+                /* Back (reversed winding, reversed normal; culling keeps the side facing the viewer) */
+                this.fill(format, builder, m, x4, y4, z4, u2, 0F, -nx, -ny, -nz);
+                this.fill(format, builder, m, x3, y3, z3, u2, 1F, -nx, -ny, -nz);
+                this.fill(format, builder, m, x2, y2, z2, u1, 1F, -nx, -ny, -nz);
+
+                this.fill(format, builder, m, x4, y4, z4, u2, 0F, -nx, -ny, -nz);
+                this.fill(format, builder, m, x2, y2, z2, u1, 1F, -nx, -ny, -nz);
+                this.fill(format, builder, m, x1, y1, z1, u1, 0F, -nx, -ny, -nz);
             }
             else
             {
@@ -327,12 +354,50 @@ public class TrailFormRenderer extends FormRenderer<TrailForm> implements ITicka
             }
         }
 
-        /* Was: setShader(getPositionTexProgram) + defaultBlendFunc + enableBlend +
-         * drawWithGlobalProgram + enableDepthTest. The trail pipeline now encodes the shader,
-         * translucent blend and depth test. */
-        flush(builder, getTrailLayer());
+        BuiltBuffer built = builder.endNullable();
+
+        if (built != null)
+        {
+            if (packed)
+            {
+                /* The submit resolves the culled world model layer from the bound texture and lets
+                 * the queue decide (under a pack that is a single immediate draw — the pack owns
+                 * transparency, see FormTranslucentQueue#needsSplit). */
+                FormTranslucentQueue.submit(built,
+                    new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, true),
+                    texture, 1F, null,
+                    new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(origin));
+            }
+            else
+            {
+                BBSShaders.getBoundBillboardLayer().draw(built);
+            }
+        }
 
         stack.pop();
+    }
+
+    /**
+     * One strip vertex in the active format: the unlit path is vanilla position_tex_color (exactly
+     * what the 1.21.1 trail drew with — full brightness, no colour property to apply), the packed
+     * path is the model format the shaderpack's entity program reads. Trail geometry is unlit by
+     * nature, so the packed path goes out at full lightmap brightness.
+     */
+    private void fill(VertexFormat format, BufferBuilder builder, Matrix4f m, float x, float y, float z, float u, float v, float nx, float ny, float nz)
+    {
+        if (format == VertexFormats.POSITION_TEXTURE_COLOR)
+        {
+            builder.vertex(m, x, y, z).texture(u, v).color(1F, 1F, 1F, 1F);
+
+            return;
+        }
+
+        builder.vertex(m, x, y, z)
+            .color(1F, 1F, 1F, 1F)
+            .texture(u, v)
+            .overlay(OverlayTexture.DEFAULT_UV)
+            .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+            .normal(nx, ny, nz);
     }
 
     @Override
