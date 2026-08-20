@@ -103,6 +103,22 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
     @Override
     public void render3D(FormRenderingContext context)
     {
+        /* The film editor's stencil pass re-renders the film with a stencilMap on every frame the
+         * mouse spends over the viewport. On 1.21.1 the picking branch here hijacked these draws
+         * onto the picker program aimed at the raw-bound stencil FBO; that hijack has no 1.21.5+
+         * equivalent yet, so a picking "draw" went through the ordinary vanilla text layer — whose
+         * RenderLayer.draw targets MAIN_TARGET, the visible frame (StencilFormFramebuffer redirects
+         * only BBSPickerRenderer draws). Combined with the old light = 0 it painted a lightmap-dark
+         * copy of the text OVER the real one whenever the viewport was hovered: "the label is dark,
+         * the colour applies badly". Until label picking moves onto BBSPickerRenderer (the same debt
+         * as block/item/mob forms), the picking pass must draw nothing at all: the stencil keeps its
+         * indices (updateStencilMap does not depend on what was drawn), and the label simply is not
+         * pixel-pickable — which it already was not. */
+        if (context.isPicking())
+        {
+            return;
+        }
+
         context.stack.push();
 
         if (this.form.billboard.get())
@@ -120,20 +136,10 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
         /* TODO(1.21.11 render): RenderSystem.disableCull/enableCull removed; cull is now per-pipeline
          * state. Text renders through the vanilla text RenderLayer which sets its own cull. */
 
-        if (context.isPicking())
-        {
-            /* TODO(1.21.11 render): picking via RenderSystem.setShader(getPickerModelsProgram) and
-             * setupTarget(ShaderProgram) is gone (ShaderProgram/GlUniform removed). The picker
-             * pipeline (BBSShaders.getPickerModelsLayer) must be applied through the new
-             * CustomVertexConsumerProvider layer override + a per-pass Target UBO uniform once the
-             * picking foundation lands. Neutralized so the label still renders normally. */
-            light = 0;
-        }
-
         /* The whole label (text + background) records as ONE deferred group: its parts rely on
          * each other's depth (glyphs over the background quad), so they replay together in
          * original order, while the group as a whole sorts against other translucent forms. */
-        boolean grouped = !context.isPicking() && FormTranslucentQueue.isActive();
+        boolean grouped = FormTranslucentQueue.isActive();
 
         if (grouped)
         {
