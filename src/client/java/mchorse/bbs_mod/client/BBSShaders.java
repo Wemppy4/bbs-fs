@@ -132,7 +132,10 @@ public class BBSShaders
 
         private String suffix()
         {
-            return (this.pass == FormTranslucentQueue.PASS_OPAQUE ? "_opaque" : this.pass == FormTranslucentQueue.PASS_TRANSLUCENT ? "_translucent" : "")
+            return (this.pass == FormTranslucentQueue.PASS_OPAQUE ? "_opaque"
+                : this.pass == FormTranslucentQueue.PASS_TRANSLUCENT ? "_translucent"
+                : this.pass == FormTranslucentQueue.PASS_TEX_OPAQUE ? "_tex_opaque"
+                : this.pass == FormTranslucentQueue.PASS_TEX_TRANSLUCENT ? "_tex_translucent" : "")
                 + (this.depthWrite ? "" : "_nodepth")
                 + (this.cull ? "_culled" : "");
         }

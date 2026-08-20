@@ -50,6 +50,12 @@ public class FormTranslucentQueue
     public static final int PASS_OPAQUE = 1;
     public static final int PASS_TRANSLUCENT = 2;
 
+    /* The alpha == 1 split's partition, made on the TEXTURE's alpha instead of the final one — the
+     * whole-defer pair for a uniformly faded model (see submit). At form alpha == 1 both partitions
+     * are identical, which is what makes the 100% boundary seamless. */
+    public static final int PASS_TEX_OPAQUE = 3;
+    public static final int PASS_TEX_TRANSLUCENT = 4;
+
     private static final List<DrawCommand> commands = new ArrayList<>();
     private static boolean active;
 
@@ -185,7 +191,30 @@ public class FormTranslucentQueue
         }
         else if (needsWholeDefer(stencilMap, alpha))
         {
-            add(new BufferCommand(BBSShaders.getBoundModelLayer(variant), FormRenderCapture.copy(built), origin));
+            /* A uniformly faded model must still layer internally the way the alpha == 1 split does:
+             * texture-opaque texels first (writing depth, so they are the blend base for the shading
+             * texels painted over them — a skin's second layer), texture-translucent ones after. One
+             * final-alpha pass in buffer order let an overlay's shading texels blend with whatever
+             * stood BEHIND the model and then depth-kill the body they were painted over — the
+             * model's shading visibly jumped (toward the backdrop's tone) the moment alpha left
+             * 100%. The pair partitions on the TEXTURE alpha, which at alpha == 1 is exactly the
+             * split's partition — crossing the boundary changes only when the halves draw, not what
+             * they blend with. Both replay the same captured bytes; equal origins keep them adjacent
+             * and ordered through the stable sort (and in insertion order inside a group). */
+            FormRenderCapture.Captured captured = FormRenderCapture.copy(built);
+
+            if (texture != null && !texture.hasTranslucency())
+            {
+                /* No shading texels to layer — the single blended pass is already exact,
+                 * and the translucent half of the pair would rasterise nothing. */
+                add(new BufferCommand(BBSShaders.getBoundModelLayer(variant), captured, origin));
+            }
+            else
+            {
+                add(new BufferCommand(BBSShaders.getBoundModelLayer(variant.withPass(PASS_TEX_OPAQUE)), captured, origin));
+                add(new BufferCommand(BBSShaders.getBoundModelLayer(variant.withPass(PASS_TEX_TRANSLUCENT)), captured, new Vector3f(origin)));
+            }
+
             built.close();
         }
         else
