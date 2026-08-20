@@ -46,6 +46,62 @@ import java.util.List;
  */
 public class FormTranslucentQueue
 {
+    /* ---------------------------------------------------------------------------------------------
+     * TEMPORARY(alpha-probe): the 100% -> 99.9% shading jump survived two disproven mechanisms
+     * (Iris gate, texture-alpha layering), so per the project rule the next step is instrumentation,
+     * not another guess. Once per ~2s, for one frame, every submit decision and every deferred
+     * replay logs the state a draw actually depends on: layer identity, vertex bytes CRC, the bound
+     * Lighting/Fog/Projection slices and the global model-view. Comparing the burst at 100% against
+     * the burst at 99.9% names the thing that differs. Remove together with the fix.
+     * ------------------------------------------------------------------------------------------- */
+    private static final org.slf4j.Logger PROBE = com.mojang.logging.LogUtils.getLogger();
+    private static boolean probeFrame;
+    private static long probeStamp;
+
+    private static String probeState()
+    {
+        com.mojang.blaze3d.buffers.GpuBufferSlice lights = com.mojang.blaze3d.systems.RenderSystem.getShaderLights();
+        com.mojang.blaze3d.buffers.GpuBufferSlice fog = com.mojang.blaze3d.systems.RenderSystem.getShaderFog();
+        com.mojang.blaze3d.buffers.GpuBufferSlice projection = com.mojang.blaze3d.systems.RenderSystem.getProjectionMatrixBuffer();
+        org.joml.Matrix4f mv = com.mojang.blaze3d.systems.RenderSystem.getModelViewMatrix();
+
+        return String.format("lights=%s fog=%s proj=%s mv=[%.3f %.3f %.3f | %.3f %.3f %.3f] worldForms=%s",
+            probeSlice(lights), probeSlice(fog), probeSlice(projection),
+            mv.m00(), mv.m11(), mv.m22(), mv.m30(), mv.m31(), mv.m32(),
+            BBSRendering.isIrisWorldForms());
+    }
+
+    private static String probeSlice(com.mojang.blaze3d.buffers.GpuBufferSlice slice)
+    {
+        if (slice == null)
+        {
+            return "null";
+        }
+
+        return slice.offset() + "+" + slice.length() + "@" + Integer.toHexString(System.identityHashCode(slice.buffer()));
+    }
+
+    private static String probeCrc(java.nio.ByteBuffer data)
+    {
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+
+        crc.update(data.duplicate());
+
+        return Integer.toHexString((int) crc.getValue());
+    }
+
+    private static String probeCrc(BuiltBuffer built)
+    {
+        java.nio.ByteBuffer data = built.getBuffer().duplicate();
+
+        data.limit(Math.min(data.limit(),
+            built.getDrawParameters().vertexCount() * built.getDrawParameters().format().getVertexSize()));
+
+        return probeCrc(data);
+    }
+
+    /* --------------------------------------------------------------------------------------------- */
+
     public static final int PASS_SINGLE = 0;
     public static final int PASS_OPAQUE = 1;
     public static final int PASS_TRANSLUCENT = 2;
@@ -173,6 +229,15 @@ public class FormTranslucentQueue
             return;
         }
 
+        /* TEMPORARY(alpha-probe) */
+        if (probeFrame)
+        {
+            PROBE.info("[BBS alpha-probe] submit alpha={} split={} defer={} variant={} tex={} transl={} verts={} crc={} | {}",
+                alpha, needsSplit(stencilMap, texture, alpha), needsWholeDefer(stencilMap, alpha), variant,
+                texture, texture != null && texture.hasTranslucency(),
+                built.getDrawParameters().vertexCount(), probeCrc(built), probeState());
+        }
+
         if (needsSplit(stencilMap, texture, alpha))
         {
             /* Opaque texels now (they write depth and occlude properly), see-through ones at flush.
@@ -186,7 +251,15 @@ public class FormTranslucentQueue
              * the texture occlude properly instead of waiting for the sort. On 1.21.1 this fell out of
              * the global depth mask being on during the immediate draw; the flag only ever applied to
              * the replay. */
-            BBSShaders.getBoundModelLayer(variant.withPass(PASS_OPAQUE).withDepthWrite(true)).draw(built);
+            RenderLayer opaque = BBSShaders.getBoundModelLayer(variant.withPass(PASS_OPAQUE).withDepthWrite(true));
+
+            /* TEMPORARY(alpha-probe) */
+            if (probeFrame)
+            {
+                PROBE.info("[BBS alpha-probe] split-opaque layer={}", opaque);
+            }
+
+            opaque.draw(built);
             add(new BufferCommand(deferred, captured, origin));
         }
         else if (needsWholeDefer(stencilMap, alpha))
@@ -219,7 +292,15 @@ public class FormTranslucentQueue
         }
         else
         {
-            BBSShaders.getBoundModelLayer(variant).draw(built);
+            RenderLayer layer = BBSShaders.getBoundModelLayer(variant);
+
+            /* TEMPORARY(alpha-probe) */
+            if (probeFrame)
+            {
+                PROBE.info("[BBS alpha-probe] immediate layer={}", layer);
+            }
+
+            layer.draw(built);
         }
     }
 
@@ -245,6 +326,16 @@ public class FormTranslucentQueue
         release();
 
         active = true;
+
+        /* TEMPORARY(alpha-probe): one logged frame every couple of seconds. */
+        long now = System.currentTimeMillis();
+
+        probeFrame = now - probeStamp > 2000;
+
+        if (probeFrame)
+        {
+            probeStamp = now;
+        }
     }
 
     /**
@@ -276,6 +367,12 @@ public class FormTranslucentQueue
     public static void flush()
     {
         active = false;
+
+        /* TEMPORARY(alpha-probe) */
+        if (probeFrame && !commands.isEmpty())
+        {
+            PROBE.info("[BBS alpha-probe] flush commands={} | {}", commands.size(), probeState());
+        }
 
         if (commands.isEmpty())
         {
@@ -343,6 +440,13 @@ public class FormTranslucentQueue
         @Override
         public void draw()
         {
+            /* TEMPORARY(alpha-probe) */
+            if (probeFrame)
+            {
+                PROBE.info("[BBS alpha-probe] replay layer={} verts={} crc={} | {}",
+                    this.layer, this.captured.params().vertexCount(), probeCrc(this.captured.data()), probeState());
+            }
+
             BufferBuilder builder = Tessellator.getInstance().begin(this.captured.params().mode(), this.captured.params().format());
 
             /* Same mode in and out, so emit() copies the vertices straight through; it is shared with
