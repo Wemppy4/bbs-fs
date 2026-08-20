@@ -54,6 +54,9 @@ public class ModelPreviewRenderer
 
     private final RawProjectionMatrix projection = new RawProjectionMatrix("bbs_model_preview");
 
+    /** The diffuse-light slice bound before {@link #begin} took over; {@link #end} restores it. */
+    private com.mojang.blaze3d.buffers.GpuBufferSlice previousLights;
+
     private GpuTexture color;
     private GpuTexture depth;
     private GpuTextureView colorView;
@@ -106,6 +109,15 @@ public class ModelPreviewRenderer
         stack.pushMatrix();
         stack.identity();
 
+        /* Snapshot the bound diffuse-light slice before taking it over. This bind used to LEAK: the
+         * dashboard's in-panel previews run inside the world phase (screen.renderInWorld) BEFORE the
+         * film's forms draw, so every immediate form draw of the frame shaded with the UI preview
+         * profile, while the deferred translucency replay ran after something rebound the world
+         * profile — a model's shading visibly jumped at the alpha == 1 boundary, because that is
+         * exactly where a draw moves from immediate to deferred. Restore-the-snapshot, not a "known
+         * good" value: the enclosing phase owns the choice, we only borrow the binding. */
+        this.previousLights = RenderSystem.getShaderLights();
+
         MinecraftClient.getInstance().gameRenderer.getDiffuseLighting().setShaderLights(DiffuseLighting.Type.ENTITY_IN_UI);
 
         RenderSystem.outputColorTextureOverride = this.colorView;
@@ -117,6 +129,13 @@ public class ModelPreviewRenderer
     {
         RenderSystem.outputColorTextureOverride = null;
         RenderSystem.outputDepthTextureOverride = null;
+
+        if (this.previousLights != null)
+        {
+            RenderSystem.setShaderLights(this.previousLights);
+
+            this.previousLights = null;
+        }
 
         RenderSystem.getModelViewStack().popMatrix();
         RenderSystem.restoreProjectionMatrix();

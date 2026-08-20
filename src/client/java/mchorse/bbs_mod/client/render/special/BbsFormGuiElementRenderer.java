@@ -122,7 +122,11 @@ public class BbsFormGuiElementRenderer extends SpecialGuiElementRenderer<BbsForm
     protected void render(BbsFormGuiElementRenderState state, MatrixStack matrices)
     {
         /* 1:1 with the original: bind the same two diffuse-light directions setupLevelDiffuseLighting used,
-         * NOT the vanilla ENTITY_IN_UI (inventory) preset which lights from below. */
+         * NOT the vanilla ENTITY_IN_UI (inventory) preset which lights from below. Snapshot + restore: the
+         * same leak class as ModelPreviewRenderer's — whatever draws after this cell in the prepare pass
+         * must not inherit the thumbnail profile. */
+        com.mojang.blaze3d.buffers.GpuBufferSlice previousLights = RenderSystem.getShaderLights();
+
         RenderSystem.setShaderLights(this.lights());
 
         boolean prevActive = ModelPreviewRenderer.ACTIVE;
@@ -146,6 +150,11 @@ public class BbsFormGuiElementRenderer extends SpecialGuiElementRenderer<BbsForm
         {
             ModelPreviewRenderer.TEXTURE = null;
             ModelPreviewRenderer.ACTIVE = prevActive;
+
+            if (previousLights != null)
+            {
+                RenderSystem.setShaderLights(previousLights);
+            }
         }
     }
 
