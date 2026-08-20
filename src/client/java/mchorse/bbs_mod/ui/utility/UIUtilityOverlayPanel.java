@@ -188,12 +188,12 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
     private void executeDefaultCommands()
     {
         List<String> commands = Arrays.asList(
-            "gamerule doDaylightCycle false",
-            "gamerule doWeatherCycle false",
-            "gamerule doWardenSpawning false",
-            "gamerule doMobSpawning false",
-            "gamerule doTraderSpawning false",
-            "gamerule randomTickSpeed 3"
+            "gamerule advance_time false",
+            "gamerule advance_weather false",
+            "gamerule spawn_wardens false",
+            "gamerule spawn_mobs false",
+            "gamerule spawn_wandering_traders false",
+            "gamerule random_tick_speed 3"
         );
 
         for (String command : commands)
