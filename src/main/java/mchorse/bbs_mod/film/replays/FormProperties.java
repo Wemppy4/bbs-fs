@@ -17,7 +17,9 @@ import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
@@ -77,7 +79,30 @@ public class FormProperties extends ValueGroup
             return this.registerChannel(key, KeyframeFactories.LINK);
         }
 
+        PerLimbService.MaterialPropPath materialProp = PerLimbService.parseMaterialPropPath(key);
+
+        if (materialProp != null)
+        {
+            return this.registerChannel(key, materialPropFactory(materialProp.property()));
+        }
+
         return null;
+    }
+
+    /** The keyframe factory of a per-material channel by its property name. */
+    public static IKeyframeFactory materialPropFactory(String property)
+    {
+        if (PerLimbService.MATERIAL_PROP_COLOR.equals(property) || PerLimbService.MATERIAL_PROP_OVERLAY.equals(property))
+        {
+            return KeyframeFactories.COLOR;
+        }
+
+        if (PerLimbService.MATERIAL_PROP_CULLING.equals(property))
+        {
+            return KeyframeFactories.INTEGER;
+        }
+
+        return KeyframeFactories.FLOAT;
     }
 
     public KeyframeChannel create(BaseValue property)
@@ -243,6 +268,20 @@ public class FormProperties extends ValueGroup
             return;
         }
 
+        PerLimbService.MaterialPropPath materialProp = PerLimbService.parseMaterialPropPath(value.getId());
+
+        if (materialProp != null)
+        {
+            Form targetForm = FormUtils.getForm(form, materialProp.formPath());
+
+            if (targetForm instanceof ModelForm modelForm)
+            {
+                this.applyMaterialProp(tick, modelForm, materialProp, value, blend);
+            }
+
+            return;
+        }
+
         BaseValueBasic property = FormUtils.getProperty(form, value.getId());
 
         if (property == null)
@@ -261,6 +300,112 @@ public class FormProperties extends ValueGroup
         {
             property.setRuntimeValue(null);
         }
+    }
+
+    /**
+     * A per-material appearance channel writes into the model form's transient override map for
+     * its property (the renderer layers those over the static material values), mirroring the
+     * texture channels' lifecycle: present segment &rarr; put, no segment at full blend &rarr; remove.
+     * Blending starts from the material's static value, so a partially blended state eases out of
+     * what the material actually shows.
+     */
+    private void applyMaterialProp(float tick, ModelForm modelForm, PerLimbService.MaterialPropPath path, KeyframeChannel value, float blend)
+    {
+        String material = path.material();
+        String property = path.property();
+        KeyframeSegment segment = value.find(tick);
+        FormMaterial staticMaterial = modelForm.materials.getMaterial(material);
+
+        if (PerLimbService.MATERIAL_PROP_COLOR.equals(property))
+        {
+            if (segment != null)
+            {
+                Color current = staticMaterial == null ? Color.white() : staticMaterial.color.get();
+
+                modelForm.materialColorOverrides.put(material, (Color) this.interpolateValue(value, current, segment, blend));
+            }
+            else if (blend >= 1F)
+            {
+                modelForm.materialColorOverrides.remove(material);
+            }
+        }
+        else if (PerLimbService.MATERIAL_PROP_OVERLAY.equals(property))
+        {
+            if (segment != null)
+            {
+                Color current = staticMaterial == null ? new Color(1F, 1F, 1F, 0F) : staticMaterial.overlayColor.get();
+
+                modelForm.materialOverlayOverrides.put(material, (Color) this.interpolateValue(value, current, segment, blend));
+            }
+            else if (blend >= 1F)
+            {
+                modelForm.materialOverlayOverrides.remove(material);
+            }
+        }
+        else if (PerLimbService.MATERIAL_PROP_LIGHTING.equals(property))
+        {
+            if (segment != null)
+            {
+                Float current = staticMaterial == null ? 1F : staticMaterial.lighting.get();
+
+                modelForm.materialLightingOverrides.put(material, ((Number) this.interpolateValue(value, current, segment, blend)).floatValue());
+            }
+            else if (blend >= 1F)
+            {
+                modelForm.materialLightingOverrides.remove(material);
+            }
+        }
+        else if (PerLimbService.MATERIAL_PROP_CULLING.equals(property))
+        {
+            if (segment != null)
+            {
+                Integer current = staticMaterial == null ? 0 : staticMaterial.culling.get();
+
+                modelForm.materialCullingOverrides.put(material, ((Number) this.interpolateValue(value, current, segment, blend)).intValue());
+            }
+            else if (blend >= 1F)
+            {
+                modelForm.materialCullingOverrides.remove(material);
+            }
+        }
+        else
+        {
+            /* The PBR sliders (smoothness/metallic/sss/pixel_emission/relief), all floats. */
+            if (segment != null)
+            {
+                Float current = staticMaterial == null ? 0F : this.pbrSlider(staticMaterial, property);
+                float interpolated = ((Number) this.interpolateValue(value, current, segment, blend)).floatValue();
+
+                modelForm.materialPbrOverrides.computeIfAbsent(material, (k) -> new HashMap<>()).put(property, interpolated);
+            }
+            else if (blend >= 1F)
+            {
+                Map<String, Float> sliders = modelForm.materialPbrOverrides.get(material);
+
+                if (sliders != null)
+                {
+                    sliders.remove(property);
+
+                    if (sliders.isEmpty())
+                    {
+                        modelForm.materialPbrOverrides.remove(material);
+                    }
+                }
+            }
+        }
+    }
+
+    private float pbrSlider(FormMaterial material, String property)
+    {
+        return switch (property)
+        {
+            case PerLimbService.MATERIAL_PROP_SMOOTHNESS -> material.smoothness.get();
+            case PerLimbService.MATERIAL_PROP_METALLIC -> material.metallic.get();
+            case PerLimbService.MATERIAL_PROP_SSS -> material.sss.get();
+            case PerLimbService.MATERIAL_PROP_PIXEL_EMISSION -> material.pixelEmission.get();
+            case PerLimbService.MATERIAL_PROP_RELIEF -> material.relief.get();
+            default -> 0F;
+        };
     }
 
     private Object interpolateValue(KeyframeChannel value, Object current, KeyframeSegment segment, float blend)

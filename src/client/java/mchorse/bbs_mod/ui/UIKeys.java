@@ -579,8 +579,36 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_RESET = L10n.lang("bbs.ui.forms.editors.model.constraints.context.reset");
     public static final IKey FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_SAVE = L10n.lang("bbs.ui.forms.editors.model.constraints.context.save");
     public static final IKey FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_NAME = L10n.lang("bbs.ui.forms.editors.model.constraints.context.name");
-    public static final IKey FORMS_EDITORS_ADDITIVE_COLOR = L10n.lang("bbs.ui.forms.editors.additive_color");
     public static final IKey FORMS_EDITORS_MODEL_POSE = L10n.lang("bbs.ui.forms.editors.model.pose");
+
+    /* Material tab */
+    public static final IKey FORMS_EDITORS_MATERIAL = L10n.lang("bbs.ui.forms.editors.material");
+    public static final IKey FORMS_EDITORS_MATERIAL_WHOLE_FORM = L10n.lang("bbs.ui.forms.editors.material.whole_form");
+    public static final IKey FORMS_EDITORS_MATERIAL_SECTION_COLOR = L10n.lang("bbs.ui.forms.editors.material.section_color");
+    public static final IKey FORMS_EDITORS_MATERIAL_SECTION_TEXTURE = L10n.lang("bbs.ui.forms.editors.material.section_texture");
+    public static final IKey FORMS_EDITORS_MATERIAL_SECTION_RENDER = L10n.lang("bbs.ui.forms.editors.material.section_render");
+    public static final IKey FORMS_EDITORS_MATERIAL_SECTION_PBR = L10n.lang("bbs.ui.forms.editors.material.section_pbr");
+    public static final IKey FORMS_EDITORS_MATERIAL_SECTION_PBR_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.section_pbr-tooltip");
+    public static final IKey FORMS_EDITORS_MATERIAL_COLOR = L10n.lang("bbs.ui.forms.editors.material.color");
+    public static final IKey FORMS_EDITORS_MATERIAL_OVERLAY = L10n.lang("bbs.ui.forms.editors.material.overlay");
+    public static final IKey FORMS_EDITORS_MATERIAL_OVERLAY_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.overlay-tooltip");
+    public static final IKey FORMS_EDITORS_MATERIAL_GLOW = L10n.lang("bbs.ui.forms.editors.material.glow");
+    public static final IKey FORMS_EDITORS_MATERIAL_GLOW_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.glow-tooltip");
+    public static final IKey FORMS_EDITORS_MATERIAL_LAYER = L10n.lang("bbs.ui.forms.editors.material.layer");
+    public static final IKey FORMS_EDITORS_MATERIAL_LAYER_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.layer-tooltip");
+    public static final IKey FORMS_EDITORS_MATERIAL_LAYER_AUTO = L10n.lang("bbs.ui.forms.editors.material.layer.auto");
+    public static final IKey FORMS_EDITORS_MATERIAL_LAYER_SOLID = L10n.lang("bbs.ui.forms.editors.material.layer.solid");
+    public static final IKey FORMS_EDITORS_MATERIAL_LAYER_CUTOUT = L10n.lang("bbs.ui.forms.editors.material.layer.cutout");
+    public static final IKey FORMS_EDITORS_MATERIAL_LAYER_TRANSLUCENT = L10n.lang("bbs.ui.forms.editors.material.layer.translucent");
+    public static final IKey FORMS_EDITORS_MATERIAL_CULLING = L10n.lang("bbs.ui.forms.editors.material.culling");
+    public static final IKey FORMS_EDITORS_MATERIAL_CULLING_MODEL = L10n.lang("bbs.ui.forms.editors.material.culling.model");
+    public static final IKey FORMS_EDITORS_MATERIAL_CULLING_ON = L10n.lang("bbs.ui.forms.editors.material.culling.on");
+    public static final IKey FORMS_EDITORS_MATERIAL_CULLING_OFF = L10n.lang("bbs.ui.forms.editors.material.culling.off");
+    public static final IKey FORMS_EDITORS_MATERIAL_SMOOTHNESS = L10n.lang("bbs.ui.forms.editors.material.smoothness");
+    public static final IKey FORMS_EDITORS_MATERIAL_METALLIC = L10n.lang("bbs.ui.forms.editors.material.metallic");
+    public static final IKey FORMS_EDITORS_MATERIAL_SSS = L10n.lang("bbs.ui.forms.editors.material.sss");
+    public static final IKey FORMS_EDITORS_MATERIAL_PIXEL_EMISSION = L10n.lang("bbs.ui.forms.editors.material.pixel_emission");
+    public static final IKey FORMS_EDITORS_MATERIAL_RELIEF = L10n.lang("bbs.ui.forms.editors.material.relief");
     public static final IKey FORMS_EDITORS_TRAIL_LENGTH = L10n.lang("bbs.ui.forms.editors.trail.length");
     public static final IKey FORMS_EDITORS_TRAIL_LOOP = L10n.lang("bbs.ui.forms.editors.trail.loop");
     public static final IKey FORMS_EDITORS_TRAIL_TITLE = L10n.lang("bbs.ui.forms.editors.trail.title");

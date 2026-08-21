@@ -5,6 +5,7 @@ import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.cubic.physics.PhysicsControl;
 import mchorse.bbs_mod.cubic.physics.WindControl;
+import mchorse.bbs_mod.forms.forms.utils.ValueMaterials;
 import mchorse.bbs_mod.forms.values.ValueActionsConfig;
 import mchorse.bbs_mod.forms.values.ValueShapeKeys;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
@@ -34,6 +35,7 @@ public class ModelForm extends Form
     public final ValuePose poseOverlay = new ValuePose("pose_overlay", new Pose());
     public final ValueActionsConfig actions = new ValueActionsConfig("actions", new ActionsConfig());
     public final ValueColor color = new ValueColor("color", Color.white());
+    public final ValueMaterials materials = new ValueMaterials("materials");
     public final ValueShapeKeys shapeKeys = new ValueShapeKeys("shape_keys", new ShapeKeys());
     public final ValueBoolean boneTracks = new ValueBoolean("bone_tracks", true);
     public final ValueData ik = new ValueData("ik");
@@ -49,6 +51,20 @@ public class ModelForm extends Form
      * material's default / the form's default texture".
      */
     public final transient Map<String, Link> materialTextureOverrides = new HashMap<>();
+
+    /**
+     * Runtime per-material appearance overrides driven by the material animation tracks
+     * (keyed by material name), same lifecycle as {@link #materialTextureOverrides}: set
+     * each frame by {@code FormProperties} during playback, read by the renderer over the
+     * static {@link #materials} values.
+     */
+    public final transient Map<String, Color> materialColorOverrides = new HashMap<>();
+    public final transient Map<String, Color> materialOverlayOverrides = new HashMap<>();
+    public final transient Map<String, Float> materialLightingOverrides = new HashMap<>();
+    public final transient Map<String, Integer> materialCullingOverrides = new HashMap<>();
+
+    /** PBR slider overrides (keyed by material name, then by the slider's property name). */
+    public final transient Map<String, Map<String, Float>> materialPbrOverrides = new HashMap<>();
 
     public final transient Map<String, Vector3f> ikTargetOverrides = new HashMap<>();
     public final transient Map<String, Vector3f> poleTargetOverrides = new HashMap<>();
@@ -82,6 +98,8 @@ public class ModelForm extends Form
 
         this.add(this.actions);
         this.add(this.color);
+        this.materials.invisible();
+        this.add(this.materials);
         this.add(this.shapeKeys);
         this.boneTracks.invisible();
         this.add(this.boneTracks);

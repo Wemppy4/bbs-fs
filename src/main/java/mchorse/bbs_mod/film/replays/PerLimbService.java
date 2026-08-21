@@ -6,14 +6,46 @@ public class PerLimbService
 {
     public static final String POSE_BONES = "pose.bones.";
     public static final String MATERIAL_TEXTURES = "texture.materials.";
+    public static final String MATERIAL_PROPS = "materials.";
     public static final String IK_TARGETS = "ik_targets";
     public static final String POLE_TARGETS = "pole_targets";
     public static final String PHYSICS_TARGETS = "physics_targets";
+
+    /**
+     * Channel-id stand-in for the whole-form material level, whose material name is empty in the
+     * data ({@code ModelForm.materials} keys it by ""). An empty segment would make the id
+     * unparseable ({@code materials..color}), so the channel spells it {@code *} — the same
+     * sentinel convention as {@code Form.DISABLED_ALL}.
+     */
+    public static final String MATERIAL_DEFAULT = "*";
+
+    /* Animatable per-material properties (the suffix of a MATERIAL_PROPS channel id). The material
+     * name itself may contain dots (OBJ's "Material.001"), so parsing strips a KNOWN suffix instead
+     * of splitting on the last dot. */
+    public static final String MATERIAL_PROP_COLOR = "color";
+    public static final String MATERIAL_PROP_OVERLAY = "color_overlay";
+    public static final String MATERIAL_PROP_LIGHTING = "lighting";
+    public static final String MATERIAL_PROP_CULLING = "culling";
+    public static final String MATERIAL_PROP_SMOOTHNESS = "smoothness";
+    public static final String MATERIAL_PROP_METALLIC = "metallic";
+    public static final String MATERIAL_PROP_SSS = "sss";
+    public static final String MATERIAL_PROP_PIXEL_EMISSION = "pixel_emission";
+    public static final String MATERIAL_PROP_RELIEF = "relief";
+
+    /** Every animatable material property, longest first so suffix stripping never bites a shorter one. */
+    public static final String[] MATERIAL_PROPS_ALL = {
+        MATERIAL_PROP_PIXEL_EMISSION, MATERIAL_PROP_OVERLAY, MATERIAL_PROP_SMOOTHNESS,
+        MATERIAL_PROP_LIGHTING, MATERIAL_PROP_METALLIC, MATERIAL_PROP_CULLING,
+        MATERIAL_PROP_RELIEF, MATERIAL_PROP_COLOR, MATERIAL_PROP_SSS
+    };
 
     public static record PoseBonePath(String formPath, String bone)
     {}
 
     public static record MaterialTexturePath(String formPath, String material)
+    {}
+
+    public static record MaterialPropPath(String formPath, String material, String property)
     {}
 
     public static record IKTargetPath(String formPath, String controller)
@@ -33,6 +65,71 @@ public class PerLimbService
     public static boolean isMaterialTextureChannel(String id)
     {
         return id != null && id.contains(MATERIAL_TEXTURES);
+    }
+
+    /**
+     * A per-material appearance channel ({@code <formPath>/materials.<material>.<prop>}).
+     * Guarded against the texture channels, whose {@code texture.materials.} prefix
+     * contains this one's.
+     */
+    public static boolean isMaterialPropChannel(String id)
+    {
+        return parseMaterialPropPath(id) != null;
+    }
+
+    public static MaterialPropPath parseMaterialPropPath(String id)
+    {
+        if (id == null || id.contains(MATERIAL_TEXTURES))
+        {
+            return null;
+        }
+
+        int index = id.indexOf(MATERIAL_PROPS);
+
+        if (index < 0)
+        {
+            return null;
+        }
+
+        String rest = id.substring(index + MATERIAL_PROPS.length());
+        String property = null;
+
+        for (String prop : MATERIAL_PROPS_ALL)
+        {
+            if (rest.endsWith("." + prop))
+            {
+                property = prop;
+                rest = rest.substring(0, rest.length() - prop.length() - 1);
+
+                break;
+            }
+        }
+
+        if (property == null || rest.isEmpty())
+        {
+            return null;
+        }
+
+        String formPath = id.substring(0, index);
+
+        if (formPath.endsWith(FormUtils.PATH_SEPARATOR))
+        {
+            formPath = formPath.substring(0, formPath.length() - 1);
+        }
+
+        return new MaterialPropPath(formPath, MATERIAL_DEFAULT.equals(rest) ? "" : rest, property);
+    }
+
+    public static String toMaterialPropKey(String formPath, String material, String property)
+    {
+        String key = MATERIAL_PROPS + (material == null || material.isEmpty() ? MATERIAL_DEFAULT : material) + "." + property;
+
+        if (formPath == null || formPath.isEmpty())
+        {
+            return key;
+        }
+
+        return formPath + FormUtils.PATH_SEPARATOR + key;
     }
 
     public static MaterialTexturePath parseMaterialTexturePath(String id)

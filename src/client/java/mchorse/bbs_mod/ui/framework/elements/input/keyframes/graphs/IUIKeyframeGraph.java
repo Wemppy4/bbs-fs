@@ -129,13 +129,16 @@ public interface IUIKeyframeGraph
                 value = segment.createInterpolated();
                 extra = segment.a;
             }
+            else if (sheet.seed != null)
+            {
+                /* Before the property: a sheet with both uses the seed to IMPROVE on the raw
+                 * property value (the color overlay seeds at full strength so a fresh keyframe
+                 * is visible; the property's default is fully transparent). */
+                value = sheet.seed.get();
+            }
             else if (property != null)
             {
                 value = sheet.channel.getFactory().copy(property.get());
-            }
-            else if (sheet.seed != null)
-            {
-                value = sheet.seed.get();
             }
             else
             {

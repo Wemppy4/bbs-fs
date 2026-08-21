@@ -17,12 +17,24 @@ import org.lwjgl.opengl.GL11;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class TextureManager implements IWatchDogListener
 {
     public final Map<Link, Texture> textures = new HashMap<>();
     public final Map<Link, AnimatedTexture> animatedTextures = new HashMap<>();
+
+    /**
+     * Variant copies of loaded textures (link &rarr; variant key &rarr; texture), used by the
+     * material PBR sliders: Iris caches PBR holders by the albedo's GL id, so a material with
+     * its own slider values needs its own GL texture. The variant key encodes the slider
+     * values — moving a slider lands on a NEW id, which is how edits invalidate Iris' cache.
+     * A few variants per link are kept; older ones are deleted.
+     */
+    private final Map<Link, LinkedHashMap<String, Texture>> variants = new HashMap<>();
+
     public AssetProvider provider;
 
     private Texture error;
@@ -150,6 +162,64 @@ public class TextureManager implements IWatchDogListener
         {
             animatedTexture.delete();
         }
+
+        this.deleteVariants(link);
+    }
+
+    private void deleteVariants(Link link)
+    {
+        LinkedHashMap<String, Texture> byKey = this.variants.remove(link);
+
+        if (byKey != null)
+        {
+            for (Texture variant : byKey.values())
+            {
+                variant.delete();
+            }
+        }
+    }
+
+    /**
+     * A separate GL copy of the texture under the given variant key, loaded from the same
+     * pixels. Returns the error texture when the source can't be read.
+     */
+    public Texture getVariant(Link link, String key)
+    {
+        LinkedHashMap<String, Texture> byKey = this.variants.computeIfAbsent(link, (l) -> new LinkedHashMap<>());
+        Texture texture = byKey.get(key);
+
+        if (texture == null)
+        {
+            try
+            {
+                Pixels pixels = this.getPixels(link);
+
+                texture = pixels == null ? this.getError() : Texture.textureFromPixels(pixels, GL11.GL_NEAREST);
+            }
+            catch (Exception e)
+            {
+                texture = this.getError();
+            }
+
+            byKey.put(key, texture);
+
+            /* Slider drags walk through many intermediate values; keep the tail short. */
+            Iterator<Texture> it = byKey.values().iterator();
+
+            while (byKey.size() > 4 && it.hasNext())
+            {
+                Texture old = it.next();
+
+                it.remove();
+
+                if (old != this.getError())
+                {
+                    old.delete();
+                }
+            }
+        }
+
+        return texture;
     }
 
     public Texture createTexture(Link link)
@@ -293,6 +363,15 @@ public class TextureManager implements IWatchDogListener
             animatedTexture.delete();
         }
 
+        for (LinkedHashMap<String, Texture> byKey : this.variants.values())
+        {
+            for (Texture variant : byKey.values())
+            {
+                variant.delete();
+            }
+        }
+
+        this.variants.clear();
         this.textures.clear();
         this.animatedTextures.clear();
         this.extruder.deleteAll();
@@ -336,6 +415,7 @@ public class TextureManager implements IWatchDogListener
             remove.delete();
         }
 
+        this.deleteVariants(link);
         this.extruder.delete(link);
     }
 }

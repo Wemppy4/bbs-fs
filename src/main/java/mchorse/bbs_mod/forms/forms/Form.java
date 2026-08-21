@@ -13,6 +13,7 @@ import mchorse.bbs_mod.forms.states.AnimationStates;
 import mchorse.bbs_mod.forms.states.StatePlayer;
 import mchorse.bbs_mod.forms.values.ValueAnchor;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
@@ -21,6 +22,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -38,6 +40,17 @@ public abstract class Form extends ValueGroup
     public final ValueStringKeys disabledTracks = new ValueStringKeys("disabled_tracks");
     public final ValueString trackName = new ValueString("track_name", "");
     public final ValueFloat lighting = new ValueFloat("lighting", 1F);
+
+    /** Color overlay (RGB = color, A = strength): mixes the rendered pixels toward the color, surviving shader packs. */
+    public final ValueColor overlayColor = new ValueColor("color_overlay", new Color(1F, 1F, 1F, 0F));
+
+    /** Explicit render layer ({@link #LAYER_AUTO} keeps the old heuristics — see the model renderer). */
+    public final ValueInt renderLayer = new ValueInt("render_layer", 0);
+
+    public static final int LAYER_AUTO = 0;
+    public static final int LAYER_SOLID = 1;
+    public static final int LAYER_CUTOUT = 2;
+    public static final int LAYER_TRANSLUCENT = 3;
     public final ValueString name = new ValueString("name", "");
     public final ValueTransform transform = new ValueTransform("transform", new Transform());
     public final ValueTransform transformOverlay = new ValueTransform("transform_overlay", new Transform());
@@ -81,10 +94,15 @@ public abstract class Form extends ValueGroup
         this.shaderShadow.invisible();
         this.additiveColor.invisible();
 
+        /* Not animated: a one-off authoring switch, like the hitbox or the hotkey. */
+        this.renderLayer.invisible();
+
         this.add(this.visible);
         this.add(this.disabledTracks);
         this.add(this.trackName);
         this.add(this.lighting);
+        this.add(this.overlayColor);
+        this.add(this.renderLayer);
         this.add(this.name);
         this.add(this.transform);
         this.add(this.transformOverlay);
@@ -371,6 +389,23 @@ public abstract class Form extends ValueGroup
             if (map.has("animatable") && !map.getBool("animatable", true))
             {
                 this.disabledTracks.get().add(DISABLED_ALL);
+            }
+
+            /* The "additive color" toggle was removed (its brighten math clipped to plain white
+             * under shader packs). Old scenes that used it convert to the color overlay: the tint
+             * becomes the overlay color at the tint's alpha, and the multiply tint resets to white.
+             * Not pixel-identical, but the closest the overlay can honestly do. */
+            if (this.additiveColor.get())
+            {
+                if (this.get("color") instanceof ValueColor colorValue)
+                {
+                    Color color = colorValue.get();
+
+                    this.overlayColor.set(new Color(color.r, color.g, color.b, color.a));
+                    colorValue.set(Color.white());
+                }
+
+                this.additiveColor.set(false);
             }
         }
     }

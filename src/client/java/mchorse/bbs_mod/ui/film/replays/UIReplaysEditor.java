@@ -63,6 +63,7 @@ import mchorse.bbs_mod.utils.RayTracing;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
@@ -189,6 +190,9 @@ public class UIReplaysEditor extends UIElement
         COLORS.put("physics_targets", Colors.MAGENTA);
         COLORS.put("transform_overlay", 0xaaff00);
         COLORS.put("color", Colors.INACTIVE);
+        COLORS.put("color_overlay", 0xc46aff);
+        COLORS.put("culling", 0x8899bb);
+        putColors(0xd9b23f, "smoothness", "metallic", "sss", "pixel_emission", "relief");
         COLORS.put("shape_keys", Colors.PINK);
         COLORS.put("model", MODEL_TRACK);
     }
@@ -264,7 +268,10 @@ public class UIReplaysEditor extends UIElement
         ICONS.put("texture", Icons.MATERIAL);
         ICONS.put("model", Icons.POSE);
         ICONS.put("color", Icons.BUCKET);
+        ICONS.put("color_overlay", Icons.COLOR);
         ICONS.put("lighting", Icons.LIGHT);
+        ICONS.put("culling", Icons.CONVERT);
+        putIcons(Icons.MATERIAL, "smoothness", "metallic", "sss", "pixel_emission", "relief");
         ICONS.put("actions", Icons.CONVERT);
         ICONS.put("shape_keys", Icons.HEART_ALT);
         ICONS.put("anchor", Icons.LINK);
@@ -971,6 +978,15 @@ public class UIReplaysEditor extends UIElement
 
                 UIKeyframeSheet sheet = new UIKeyframeSheet(getColor(key), false, property, formProperty);
 
+                if (StringUtils.fileName(key).equals("color_overlay"))
+                {
+                    /* A fresh overlay keyframe must visibly tint — the neutral value has zero
+                     * strength, and a keyframe that changes nothing reads as broken. */
+                    BaseValueBasic overlayProperty = formProperty;
+
+                    sheet.seed(() -> UIReplaysEditorUtils.opaqueOverlaySeed(overlayProperty.get() instanceof Color color ? color : null));
+                }
+
                 formSheets.add(sheet.icon(getIcon(key)));
             }
         }
@@ -1175,7 +1191,7 @@ public class UIReplaysEditor extends UIElement
         if (form instanceof ModelForm modelForm)
         {
             List<UIKeyframeSheet> materialSheets = new ArrayList<>();
-            UIReplaysEditorUtils.addMaterialTextureSheets(modelForm, this.replay.properties, materialSheets);
+            UIReplaysEditorUtils.addMaterialSheets(modelForm, this.replay.properties, materialSheets);
             orderedFormSheets.addAll(materialSheets);
 
             List<UIKeyframeSheet> boneSheets = new ArrayList<>();

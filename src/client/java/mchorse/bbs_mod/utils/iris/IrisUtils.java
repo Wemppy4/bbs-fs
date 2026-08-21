@@ -20,6 +20,7 @@ import net.irisshaders.iris.shaderpack.option.menu.OptionMenuLinkElement;
 import net.irisshaders.iris.shaderpack.option.menu.OptionMenuOptionElement;
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
 import net.irisshaders.iris.texture.TextureTracker;
+import net.irisshaders.iris.texture.pbr.PBRTextureManager;
 import net.irisshaders.iris.texture.pbr.loader.PBRTextureLoaderRegistry;
 import net.irisshaders.iris.uniforms.custom.cached.CachedUniform;
 import net.irisshaders.iris.uniforms.custom.cached.FloatCachedUniform;
@@ -42,6 +43,7 @@ import java.util.Set;
 public class IrisUtils
 {
     private static Set<Texture> textureSet = new HashSet<>();
+    private static Map<Integer, String> trackedPbrVariants = new HashMap<>();
     private static ShaderProperties properties;
 
     public static void setShaderProperties(ShaderProperties shaderProperties)
@@ -142,6 +144,34 @@ public class IrisUtils
     public static void setup()
     {
         PBRTextureLoaderRegistry.INSTANCE.register(IrisTextureWrapper.class, new IrisTextureWrapperLoader());
+        PBRTextureLoaderRegistry.INSTANCE.register(IrisPbrConstWrapper.class, new IrisPbrConstLoader());
+    }
+
+    /**
+     * Register a PBR-slider albedo variant with Iris' texture tracker, so the pack's
+     * normal/specular lookups for that albedo land in {@link IrisPbrConstLoader} with this
+     * slider snapshot. A CHANGED snapshot (a slider edit, or an animated slider track)
+     * re-tracks the wrapper and invalidates Iris' PBR holder for the id — the maps then
+     * regenerate lazily on the pack's next lookup, with no new albedo copy. That's what makes
+     * the sliders keyframable at a sane cost: per change it's a 1x1 specular re-bake (and a
+     * relief re-derive only when relief itself moved).
+     */
+    public static void trackPbrVariant(Texture variant, Link albedo, float smoothness, float metallic, float sss, float emission, float relief)
+    {
+        String snapshot = Math.round(smoothness * 255F) + ":" + Math.round(metallic * 255F)
+            + ":" + Math.round(sss * 255F) + ":" + Math.round(emission * 255F) + ":" + Math.round(relief * 255F);
+        String last = trackedPbrVariants.put(variant.id, snapshot);
+
+        if (!snapshot.equals(last))
+        {
+            TextureTracker.INSTANCE.trackTexture(variant.id, new IrisPbrConstWrapper(albedo, variant.id, smoothness, metallic, sss, emission, relief));
+
+            if (last != null)
+            {
+                PBRTextureManager.INSTANCE.onDeleteTexture(variant.id);
+                PBRTextureManager.notifyPBRTexturesChanged();
+            }
+        }
     }
 
     public static void trackTexture(Texture texture)

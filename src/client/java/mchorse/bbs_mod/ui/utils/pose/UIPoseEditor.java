@@ -44,7 +44,8 @@ public class UIPoseEditor extends UIElement
     public UIBoneList groups;
     public UISliderTrackpad fix;
     public UIColor color;
-    public UIToggle lighting;
+    public UIColor overlay;
+    public UISliderTrackpad lighting;
     public UIPropTransform transform;
 
     private String group = "";
@@ -86,13 +87,24 @@ public class UIPoseEditor extends UIElement
                 this.applyChildren((p) -> this.setColor(p, this.color.picker.color.getARGBColor()));
             });
         });
-        this.lighting = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_LIGHTING, (b) -> this.applyLightingToSelection(b.getValue()));
-        this.lighting.h(UIConstants.CONTROL_HEIGHT);
+        this.overlay = new UIColor((c) -> this.applyOverlayToSelection(c));
+        this.overlay.withAlpha();
+        this.overlay.tooltip(UIKeys.FORMS_EDITORS_MATERIAL_OVERLAY_TOOLTIP);
+        this.overlay.context((menu) ->
+        {
+            menu.action(Icons.DOWNLOAD, UIKeys.POSE_CONTEXT_APPLY, () ->
+            {
+                this.applyChildren((p) -> this.setOverlay(p, this.overlay.picker.color.getARGBColor()));
+            });
+        });
+        this.lighting = new UISliderTrackpad((v) -> this.applyLightingToSelection(v.floatValue()));
+        this.lighting.limit(0D, 1D);
+        this.lighting.tooltip(UIKeys.FORMS_EDITORS_MATERIAL_GLOW_TOOLTIP);
         this.lighting.context((menu) ->
         {
             menu.action(Icons.DOWNLOAD, UIKeys.POSE_CONTEXT_APPLY, () ->
             {
-                this.applyChildren((p) -> this.setLighting(p, this.lighting.getValue()));
+                this.applyChildren((p) -> this.setLighting(p, (float) this.lighting.getValue()));
             });
         });
         this.transform = this.createTransformEditor();
@@ -108,7 +120,9 @@ public class UIPoseEditor extends UIElement
         this.add(
             this.groups,
             UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.fix),
-            UI.labelRow(this.lighting, this.color),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_COLOR, this.color),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_OVERLAY, this.overlay),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_GLOW, this.lighting),
             this.transform
         );
     }
@@ -288,6 +302,8 @@ public class UIPoseEditor extends UIElement
 
         this.fix.setVisible(hasBones);
         this.color.setVisible(hasBones);
+        this.overlay.setVisible(hasBones);
+        this.lighting.setVisible(hasBones);
         this.transform.setVisible(hasBones);
 
         List<String> list = this.groups.list.getList();
@@ -424,7 +440,8 @@ public class UIPoseEditor extends UIElement
             PickedBone.set("");
             this.fix.setValue(0F);
             this.color.setColor(Colors.WHITE);
-            this.lighting.setValue(false);
+            this.overlay.setColor(0x00ffffff);
+            this.lighting.setValue(0F);
             this.transform.setTransform(null);
 
             return;
@@ -438,7 +455,8 @@ public class UIPoseEditor extends UIElement
 
         this.fix.setValue(poseTransform.fix);
         this.color.setColor(poseTransform.color.getARGBColor());
-        this.lighting.setValue(poseTransform.lighting == 0F);
+        this.overlay.setColor(poseTransform.overlay.getARGBColor());
+        this.lighting.setValue(poseTransform.lighting);
         this.transform.setTransform(poseTransform);
     }
 
@@ -603,7 +621,13 @@ public class UIPoseEditor extends UIElement
         this.color.setColor(argb);
     }
 
-    private void applyLightingToSelection(boolean value)
+    private void applyOverlayToSelection(int argb)
+    {
+        this.forEachSelectedPose((pt) -> this.setOverlay(pt, argb));
+        this.overlay.setColor(argb);
+    }
+
+    private void applyLightingToSelection(float value)
     {
         this.forEachSelectedPose((pt) -> this.setLighting(pt, value));
         this.lighting.setValue(value);
@@ -631,8 +655,13 @@ public class UIPoseEditor extends UIElement
         transform.color.set(value);
     }
 
-    protected void setLighting(PoseTransform poseTransform, boolean value)
+    protected void setOverlay(PoseTransform poseTransform, int value)
     {
-        poseTransform.lighting = value ? 0F : 1F;
+        poseTransform.overlay.set(value);
+    }
+
+    protected void setLighting(PoseTransform poseTransform, float value)
+    {
+        poseTransform.lighting = value;
     }
 }

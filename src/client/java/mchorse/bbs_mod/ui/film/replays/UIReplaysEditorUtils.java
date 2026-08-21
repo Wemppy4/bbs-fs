@@ -51,7 +51,12 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
+import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -613,11 +618,12 @@ public class UIReplaysEditorUtils
     }
 
     /**
-     * One texture track per model material (OBJ material name / BOBJ mesh name), enumerated from
-     * the loaded model. Each is a LINK channel layered over the material's static default at
-     * playback - mirrors the bone tracks. Lives in the Model category beside the main texture track.
+     * Every material track of the form: the whole-form PBR sliders (which every model has, even a
+     * single-material one), plus — for a real material set — one texture track and the appearance
+     * tracks per material. Each is layered over the material's static value at playback, mirroring
+     * the bone tracks, and lives in the Model category beside the main texture track.
      */
-    public static void addMaterialTextureSheets(ModelForm modelForm, FormProperties properties, List<UIKeyframeSheet> out)
+    public static void addMaterialSheets(ModelForm modelForm, FormProperties properties, List<UIKeyframeSheet> out)
     {
         ModelInstance model = ModelFormRenderer.getModel(modelForm);
 
@@ -626,14 +632,19 @@ public class UIReplaysEditorUtils
             return;
         }
 
+        String path = FormUtils.getPath(modelForm);
+
+        /* The whole-form material level (the "" key the material tab writes to when no material is
+         * selected) owns the PBR sliders of every model — including single-material ones, which
+         * have no per-material tracks at all. Its tracks exist regardless of the material count. */
+        addPbrSheets(modelForm, properties, out, path, "", modelForm.materials.getMaterial(""));
+
         /* A model with at most one material ignores the material system entirely (its single texture is
-         * driven by form.texture), so it exposes no per-material texture tracks - see the renderer. */
+         * driven by form.texture), so it exposes no per-material tracks - see the renderer. */
         if (model.materials.size() <= 1)
         {
             return;
         }
-
-        String path = FormUtils.getPath(modelForm);
 
         for (String material : model.materials)
         {
@@ -659,8 +670,94 @@ public class UIReplaysEditorUtils
             ValueLink property = new ValueLink(id, materialDefault);
 
             out.add(new UIKeyframeSheet(id, IKey.constant(title), Colors.BLUE, false, channel, property).icon(Icons.MATERIAL).form(modelForm));
+
+            addMaterialPropSheets(modelForm, properties, out, path, material);
         }
     }
+
+    /**
+     * The material's appearance tracks (color, color overlay, glow, culling and the PBR sliders)
+     * next to its texture track. Each is layered over the static material value at playback; the
+     * seed mirrors that value so a fresh keyframe starts at what the material currently shows —
+     * except the color overlay, which seeds at FULL strength so a fresh keyframe visibly tints
+     * (the neutral value has zero strength, and a keyframe that changes nothing reads as broken).
+     */
+    private static void addMaterialPropSheets(ModelForm modelForm, FormProperties properties, List<UIKeyframeSheet> out, String path, String material)
+    {
+        FormMaterial staticMaterial = modelForm.materials.getMaterial(material);
+        String prefix = path.isEmpty() ? material + "/" : path + "/" + material + "/";
+
+        String colorId = PerLimbService.toMaterialPropKey(path, material, PerLimbService.MATERIAL_PROP_COLOR);
+        KeyframeChannel colorChannel = properties.registerChannel(colorId, KeyframeFactories.COLOR);
+        ValueColor colorProperty = new ValueColor(colorId, staticMaterial == null ? Color.white() : staticMaterial.color.get().copy());
+
+        out.add(new UIKeyframeSheet(colorId, IKey.constant(prefix + "color"), UIReplaysEditor.getColor("color"), false, colorChannel, colorProperty).icon(Icons.BUCKET).form(modelForm));
+
+        String overlayId = PerLimbService.toMaterialPropKey(path, material, PerLimbService.MATERIAL_PROP_OVERLAY);
+        KeyframeChannel overlayChannel = properties.registerChannel(overlayId, KeyframeFactories.COLOR);
+        Color overlayDefault = staticMaterial == null ? new Color(1F, 1F, 1F, 0F) : staticMaterial.overlayColor.get().copy();
+        ValueColor overlayProperty = new ValueColor(overlayId, overlayDefault);
+        UIKeyframeSheet overlaySheet = new UIKeyframeSheet(overlayId, IKey.constant(prefix + "color_overlay"), UIReplaysEditor.getColor("color_overlay"), false, overlayChannel, overlayProperty);
+
+        out.add(overlaySheet.icon(Icons.COLOR).form(modelForm).seed(() -> opaqueOverlaySeed(overlayProperty.get())));
+
+        String lightingId = PerLimbService.toMaterialPropKey(path, material, PerLimbService.MATERIAL_PROP_LIGHTING);
+        KeyframeChannel lightingChannel = properties.registerChannel(lightingId, KeyframeFactories.FLOAT);
+        ValueFloat lightingProperty = new ValueFloat(lightingId, staticMaterial == null ? 1F : staticMaterial.lighting.get());
+
+        out.add(new UIKeyframeSheet(lightingId, IKey.constant(prefix + "lighting"), UIReplaysEditor.getColor("lighting"), false, lightingChannel, lightingProperty).icon(Icons.LIGHT).form(modelForm));
+
+        String cullingId = PerLimbService.toMaterialPropKey(path, material, PerLimbService.MATERIAL_PROP_CULLING);
+        KeyframeChannel cullingChannel = properties.registerChannel(cullingId, KeyframeFactories.INTEGER);
+        ValueInt cullingProperty = new ValueInt(cullingId, staticMaterial == null ? 0 : staticMaterial.culling.get());
+
+        out.add(new UIKeyframeSheet(cullingId, IKey.constant(prefix + "culling"), UIReplaysEditor.getColor("culling"), false, cullingChannel, cullingProperty).icon(Icons.CONVERT).form(modelForm));
+
+        addPbrSheets(modelForm, properties, out, path, material, staticMaterial);
+    }
+
+    /**
+     * The five PBR slider tracks of a material level. Used both per material and for the
+     * whole-form level (empty material name), which is where a single-material model's sliders
+     * live — hence its own method, outside the per-material loop.
+     */
+    private static void addPbrSheets(ModelForm modelForm, FormProperties properties, List<UIKeyframeSheet> out, String path, String material, FormMaterial staticMaterial)
+    {
+        String name = material.isEmpty() ? "material" : material;
+        String prefix = path.isEmpty() ? name + "/" : path + "/" + name + "/";
+
+        addPbrSheet(modelForm, properties, out, path, material, prefix, PerLimbService.MATERIAL_PROP_SMOOTHNESS, staticMaterial == null ? 0F : staticMaterial.smoothness.get());
+        addPbrSheet(modelForm, properties, out, path, material, prefix, PerLimbService.MATERIAL_PROP_METALLIC, staticMaterial == null ? 0F : staticMaterial.metallic.get());
+        addPbrSheet(modelForm, properties, out, path, material, prefix, PerLimbService.MATERIAL_PROP_SSS, staticMaterial == null ? 0F : staticMaterial.sss.get());
+        addPbrSheet(modelForm, properties, out, path, material, prefix, PerLimbService.MATERIAL_PROP_PIXEL_EMISSION, staticMaterial == null ? 0F : staticMaterial.pixelEmission.get());
+        addPbrSheet(modelForm, properties, out, path, material, prefix, PerLimbService.MATERIAL_PROP_RELIEF, staticMaterial == null ? 0F : staticMaterial.relief.get());
+    }
+
+    private static void addPbrSheet(ModelForm modelForm, FormProperties properties, List<UIKeyframeSheet> out, String path, String material, String prefix, String property, float staticValue)
+    {
+        String id = PerLimbService.toMaterialPropKey(path, material, property);
+        KeyframeChannel channel = properties.registerChannel(id, KeyframeFactories.FLOAT);
+        ValueFloat valueProperty = new ValueFloat(id, staticValue);
+
+        out.add(new UIKeyframeSheet(id, IKey.constant(prefix + property), UIReplaysEditor.getColor(property), false, channel, valueProperty).icon(Icons.MATERIAL).form(modelForm));
+    }
+
+    /**
+     * The color overlay's new-keyframe value: the current one when it's already visible, at full
+     * strength otherwise — a fresh keyframe must tint, not silently do nothing.
+     */
+    public static Color opaqueOverlaySeed(Color current)
+    {
+        Color seed = current == null ? new Color(1F, 1F, 1F, 1F) : current.copy();
+
+        if (seed.a <= 0F)
+        {
+            seed.a = 1F;
+        }
+
+        return seed;
+    }
+
 
     /** Collect every track a single form contributes to the timeline (its own properties plus model sub-tracks), used to populate the per-form track filter. */
     public static List<UIKeyframeSheet> collectFormTrackSheets(Form form)
@@ -696,7 +793,7 @@ public class UIReplaysEditorUtils
 
         if (form instanceof ModelForm modelForm)
         {
-            addMaterialTextureSheets(modelForm, properties, sheets);
+            addMaterialSheets(modelForm, properties, sheets);
             addPhysicsControlSheet(modelForm, properties, sheets);
             addWindControlSheet(modelForm, properties, sheets);
             addPhysicsTargetSheets(modelForm, properties, sheets);

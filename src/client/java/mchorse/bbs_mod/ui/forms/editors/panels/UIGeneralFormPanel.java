@@ -35,9 +35,6 @@ public class UIGeneralFormPanel extends UIFormPanel
     public UIToggle boneTracks;
     
     public UITextbox trackName;
-    public UIToggle lighting;
-    public UIToggle shaderShadow;
-    public UIToggle additiveColor;
     public UITrackpad uiScale;
     public UITextbox name;
     public UIPropTransform transform;
@@ -72,10 +69,6 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.boneTracks.tooltip(UIKeys.FORMS_EDITORS_GENERAL_BONE_TRACKS_TOOLTIP);
         this.trackName = new UITextbox(120, (t) -> this.form.trackName.set(t));
         this.trackName.tooltip(UIKeys.FORMS_EDITORS_GENERAL_TRACK_NAME_TOOLTIP);
-        this.lighting = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_LIGHTING, (b) -> this.form.lighting.set(b.getValue() ? 1F : 0F));
-        this.lighting.tooltip(UIKeys.FORMS_EDITORS_GENERAL_LIGHTING_TOOLTIP);
-        this.shaderShadow = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_SHADER_SHADOW, (b) -> this.form.shaderShadow.set(b.getValue()));
-        this.additiveColor = new UIToggle(UIKeys.FORMS_EDITORS_ADDITIVE_COLOR, (b) -> this.form.additiveColor.set(b.getValue()));
         this.uiScale = new UITrackpad((v) -> this.form.uiScale.set(v.floatValue()));
         this.uiScale.limit(0.01D, 100D);
         this.name = new UITextbox(120, (t) -> this.form.name.set(t));
@@ -105,7 +98,6 @@ public class UIGeneralFormPanel extends UIFormPanel
         display.fields.add(
             UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_DISPLAY, this.name),
             this.hotkey, this.visible,
-            this.lighting, this.shaderShadow, this.additiveColor,
             UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_UI_SCALE, this.uiScale)
         );
 
@@ -161,9 +153,6 @@ public class UIGeneralFormPanel extends UIFormPanel
             this.boneTracks.setVisible(false);
         }
         this.trackName.setText(form.trackName.get());
-        this.lighting.setValue(form.lighting.get() > 0F);
-        this.shaderShadow.setValue(form.shaderShadow.get());
-        this.additiveColor.setValue(form.additiveColor.get());
         this.uiScale.setValue(form.uiScale.get());
         this.name.setText(form.name.get());
         this.transform.setTransform(form.transform.get());

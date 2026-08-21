@@ -28,6 +28,8 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
+import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
@@ -47,6 +49,7 @@ import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix3f;
@@ -524,7 +527,9 @@ public class ModelInstance implements IModelInstance
         ShaderProgram drawShader = explicitWeld ? BBSShaders.getModel() : shader;
 
         CubicVAORenderer renderProcessor = new CubicVAORenderer(drawShader, this, light, overlay, stencilMap, keys, textureResolver);
+        Color cpuOverlay = this.getCpuOverlay(stencilMap, overlay);
 
+        renderProcessor.setCpuOverlayActive(cpuOverlay != null);
         renderProcessor.setColor(color.r, color.g, color.b, color.a);
         renderProcessor.setWelds(bindings);
         renderProcessor.setWeldedGroups(weldedGroups);
@@ -564,7 +569,14 @@ public class ModelInstance implements IModelInstance
                 }
             }
 
+            int previousOverlay = cpuOverlay != null ? FormOverlay.bind(cpuOverlay) : 0;
+
             this.drawImmediate(builder, drawShader, stack, explicitWeld ? WELD_NORMAL_MAT : null, stencilMap, defaultTextureObject, color.a);
+
+            if (cpuOverlay != null)
+            {
+                FormOverlay.unbind(previousOverlay);
+            }
         }
     }
 
@@ -632,6 +644,24 @@ public class ModelInstance implements IModelInstance
         }
     }
 
+    /**
+     * The form-level color overlay for the immediate (CPU) draw, or null when neutral, picking,
+     * or during a hurt flash (the flash wins). The CPU buffer batches all bones and materials in
+     * one draw, so only the FORM level applies there — per-material and per-bone overlays are a
+     * VAO-path feature.
+     */
+    private Color getCpuOverlay(StencilMap stencilMap, int overlay)
+    {
+        if (stencilMap != null || overlay != OverlayTexture.DEFAULT_UV)
+        {
+            return null;
+        }
+
+        Color combined = FormOverlay.combine(this.form instanceof ModelForm form ? form : null, null, null);
+
+        return combined == null ? null : combined.copy();
+    }
+
     /** Whether the immediate path will emit anything: a visible bending welded bone, or a visible bone with geometry but no VAO. */
     private boolean hasCpuGeometry(Model model, List<WeldBinding> bindings, Set<ModelGroup> weldedGroups)
     {
@@ -677,7 +707,9 @@ public class ModelInstance implements IModelInstance
             else
             {
                 CubicCubeRenderer renderProcessor = new CubicCubeRenderer(light, overlay, stencilMap, keys);
+                Color cpuOverlay = this.getCpuOverlay(stencilMap, overlay);
 
+                renderProcessor.setCpuOverlayActive(cpuOverlay != null);
                 renderProcessor.setColor(color.r, color.g, color.b, color.a);
                 RenderSystem.setShader(() -> shader);
 
@@ -685,7 +717,15 @@ public class ModelInstance implements IModelInstance
 
                 builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
                 CubicRenderer.processRenderModel(renderProcessor, builder, stack, model);
+
+                int previousOverlay = cpuOverlay != null ? FormOverlay.bind(cpuOverlay) : 0;
+
                 this.drawImmediate(builder, shader, stack, null, stencilMap, BBSModClient.getTextures().getLastBound(), color.a);
+
+                if (cpuOverlay != null)
+                {
+                    FormOverlay.unbind(previousOverlay);
+                }
             }
         }
         else if (this.model instanceof BOBJModel model)
@@ -700,6 +740,9 @@ public class ModelInstance implements IModelInstance
                 model.getArmature().setupMatrices();
 
                 /* One draw per mesh; bind that mesh's resolved texture (mesh name = material). */
+                ModelForm modelForm = this.form instanceof ModelForm form ? form : null;
+                boolean hurtFlash = overlay != OverlayTexture.DEFAULT_UV;
+
                 for (BOBJModelVAO vao : vaos)
                 {
                     Texture texture = null;
@@ -711,6 +754,7 @@ public class ModelInstance implements IModelInstance
                         if (link != null)
                         {
                             texture = BBSModClient.getTextures().getTexture(link);
+                            texture = FormPbr.resolveAlbedo(modelForm, vao.data.mesh.name, link, texture);
                             BBSModClient.getTextures().bindTexture(texture);
                         }
                     }
@@ -723,16 +767,25 @@ public class ModelInstance implements IModelInstance
 
                     vao.updateMesh(stencilMap);
 
+                    /* Form + material overlay per mesh; no bone level here — BOBJ vertices are
+                     * skinned across bones, so a per-bone overlay has no per-draw home. */
+                    Color overlayColor = stencilMap == null && !hurtFlash
+                        ? FormOverlay.combine(modelForm, vao.data.mesh.name, null)
+                        : null;
+                    int meshOverlay = overlayColor != null ? 0 : overlay;
+                    int previousOverlay = overlayColor != null ? FormOverlay.bind(overlayColor) : 0;
+
                     if (FormTranslucentQueue.needsSplit(shader, stencilMap, texture, color.a))
                     {
                         Matrix4f modelView = ModelVAORenderer.captureModelView(stack);
                         Matrix3f normalMat = new Matrix3f(stack.peek().getNormalMatrix());
 
                         FormTranslucentQueue.setPassMode(shader, FormTranslucentQueue.PASS_OPAQUE);
-                        vao.render(shader, modelView, normalMat, color.r, color.g, color.b, color.a, stencilMap, light, overlay);
+                        vao.render(shader, modelView, normalMat, color.r, color.g, color.b, color.a, stencilMap, light, meshOverlay);
                         FormTranslucentQueue.setPassMode(shader, FormTranslucentQueue.PASS_SINGLE);
 
-                        FormTranslucentQueue.add(new FormTranslucentQueue.BOBJCommand(vao, vao.snapshotArmature(), vao.getUploadCount(), texture, modelView, normalMat, color.r, color.g, color.b, color.a, light, overlay, this.isCulling()));
+                        FormTranslucentQueue.add(new FormTranslucentQueue.BOBJCommand(vao, vao.snapshotArmature(), vao.getUploadCount(), texture, modelView, normalMat, color.r, color.g, color.b, color.a, light, meshOverlay, this.isCulling())
+                            .overlayColor(overlayColor));
                     }
                     else if (FormTranslucentQueue.needsWholeDefer(shader, stencilMap, color.a))
                     {
@@ -741,11 +794,17 @@ public class ModelInstance implements IModelInstance
                         Matrix4f modelView = ModelVAORenderer.captureModelView(stack);
                         Matrix3f normalMat = new Matrix3f(stack.peek().getNormalMatrix());
 
-                        FormTranslucentQueue.add(new FormTranslucentQueue.BOBJCommand(vao, () -> shader, FormTranslucentQueue.PASS_SINGLE, true, vao.snapshotArmature(), vao.getUploadCount(), texture, modelView, normalMat, color.r, color.g, color.b, color.a, light, overlay, this.isCulling()));
+                        FormTranslucentQueue.add(new FormTranslucentQueue.BOBJCommand(vao, () -> shader, FormTranslucentQueue.PASS_SINGLE, true, vao.snapshotArmature(), vao.getUploadCount(), texture, modelView, normalMat, color.r, color.g, color.b, color.a, light, meshOverlay, this.isCulling())
+                            .overlayColor(overlayColor));
                     }
                     else
                     {
-                        vao.render(shader, stack, color.r, color.g, color.b, color.a, stencilMap, light, overlay);
+                        vao.render(shader, stack, color.r, color.g, color.b, color.a, stencilMap, light, meshOverlay);
+                    }
+
+                    if (overlayColor != null)
+                    {
+                        FormOverlay.unbind(previousOverlay);
                     }
                 }
 

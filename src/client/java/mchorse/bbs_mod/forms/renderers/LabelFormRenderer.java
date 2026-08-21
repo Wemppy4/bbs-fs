@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -155,7 +156,9 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
         Color shadowColor = this.form.shadowColor.get().copy();
         Color color = new Color().set(context.color, true);
 
-        FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
+        FormColorBlend.blend(color, this.form.color.get());
+        /* Text is a flat fill, so the CPU mix is exactly what the overlay texture would do. */
+        OverlayBlend.apply(color, this.form.overlayColor.get());
         shadowColor.mul(context.color);
 
         if (shadowColor.a > 0)
@@ -262,7 +265,8 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
 
         Color cColor = new Color().set(context.color, true);
 
-        FormColorBlend.blend(cColor, this.form.color.get(), this.form.additiveColor.get());
+        FormColorBlend.blend(cColor, this.form.color.get());
+        OverlayBlend.apply(cColor, this.form.overlayColor.get());
 
         int color = cColor.getARGBColor();
 
