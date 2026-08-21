@@ -820,7 +820,7 @@ public class Gizmo
 
         this.setViewportScale(context.menu.height / (float) area.h);
 
-        double scaleFactor = mc.getWindow().getScaleFactor();
+        double scaleFactor = BBSModClient.getGUIScale();
         int tw = Math.max(1, (int) (area.w * scaleFactor));
         int th = Math.max(1, (int) (area.h * scaleFactor));
 

@@ -1,6 +1,10 @@
 package mchorse.bbs_mod.client;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.ui.framework.UIScreen;
+import net.minecraft.client.MinecraftClient;
 
 /**
  * Switchboard for the pixel art seam smoothing.
@@ -11,6 +15,12 @@ import mchorse.bbs_mod.BBSSettings;
  * assets/bbs/shaders/include/bbs_pixelart.glsl) spread the seam between texels
  * over one screen pixel and collapse back into plain nearest sampling at an
  * integer scale.
+ *
+ * <p>1.21.11 note: the GUI is two-phase. BBS's own drawing only RECORDS elements, and vanilla
+ * composites them after {@code Screen.render} has returned — which is why the two questions below
+ * are asked at different moments and answered differently. Quads are chosen while recording (the
+ * batcher passes the pipeline itself); text is chosen while compositing, where nothing is left of
+ * "BBS is drawing" but the screen that is open.</p>
  */
 public class PixelArt
 {
@@ -36,20 +46,52 @@ public class PixelArt
         return drawingUI;
     }
 
-    /* TODO(1.21.11 render): the program picker. 1.21.1 answered "which program draws this text" with
-     * BBSShaders.getPixelArtText[Intensity]Program() and let GameRendererMixin hand it to
-     * GameRenderer.getRenderTypeText*Program. On 1.21.11 BBSShaders builds RenderPipelines rather than
-     * ShaderPrograms and GameRenderer has no get*Program left to inject into, so ui_scale keeps
-     * quantising to whole steps. Re-port as a pipeline variant chosen while {@link #isDrawingUI()}.
+    /**
+     * Pipeline for a textured UI quad, or null to leave the caller's own choice alone (smoothing off,
+     * or the shader failed to compile).
+     */
+    public static RenderPipeline getTexturedPipeline()
+    {
+        if (!drawingUI || !isEnabled())
+        {
+            return null;
+        }
+
+        return BBSShaders.getPixelArtProgram();
+    }
+
+    /**
+     * Same, but a texture the user asked to be filtered linearly or mipmapped (the toggles in the
+     * texture picker) keeps GL's own filtering — the smoothing reads texels of level 0 directly, which
+     * would both render those toggles meaningless and lean on a complete mipmap pyramid.
+     */
+    public static RenderPipeline getTexturedPipeline(Texture texture)
+    {
+        if (texture != null && (texture.isLinear() || texture.isMipmap()))
+        {
+            return null;
+        }
+
+        return getTexturedPipeline();
+    }
+
+    /**
+     * The smoothing counterpart of the GUI text pipeline a glyph is about to be drawn with, or null to
+     * leave vanilla's in charge.
      *
-     * The GLSL itself is NOT in this branch: assets/bbs/shaders/core/pixelart* and the
-     * shaders/include/bbs_pixelart.glsl they share came over with the merge and were taken back out,
-     * because vanilla's ShaderLoader eagerly resolves every shipped shader's imports at reload and
-     * `#moj_import <bbs_pixelart.glsl>` resolves in the MINECRAFT namespace (Identifier.of(name) with
-     * "shaders/include/" prefixed — checked against ShaderLoader$1.loadImport), so a BBS-namespace
-     * include NPEs the whole resource reload and leaves the game on a black screen. 1.21.1 got away
-     * with it through BBSShaders' own ProxyResourceFactory, which the port has no use for. Bring them
-     * back with `git checkout 1.21.1 -- src/main/resources/assets/bbs/shaders`, and give the include
-     * an explicit namespace (`<bbs:...>`, like every other BBS shader here already does) or make the
-     * import relative. */
+     * <p>Asked during the GUI composite, long after {@link #isDrawingUI()} has been put down, so the
+     * gate here is the screen that is open. That is not a weaker test than 1.21.1's: BBS overrides the
+     * window's scale factor for the whole frame a UIScreen is up, so every glyph composited in that
+     * frame — the HUD's included — is drawn at the same fractional scale and wants the same treatment.
+     * Text in the world never reaches this path at all; it is not part of the GUI state.</p>
+     */
+    public static RenderPipeline getTextPipeline(RenderPipeline vanilla)
+    {
+        if (!isEnabled() || !(MinecraftClient.getInstance().currentScreen instanceof UIScreen))
+        {
+            return null;
+        }
+
+        return BBSShaders.getPixelArtTextProgram(vanilla);
+    }
 }

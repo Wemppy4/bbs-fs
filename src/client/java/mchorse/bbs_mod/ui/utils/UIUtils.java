@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.utils;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.utils.OS;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -101,7 +102,7 @@ public class UIUtils
     public static int[] viewportArea(Area area)
     {
         MinecraftClient mc = MinecraftClient.getInstance();
-        float scale = (float) mc.getWindow().getScaleFactor();
+        float scale = BBSModClient.getGUIScale();
 
         int vx = Math.round(area.x * scale);
         int vy = Math.round(mc.getWindow().getFramebufferHeight() - (area.y + area.h) * scale);

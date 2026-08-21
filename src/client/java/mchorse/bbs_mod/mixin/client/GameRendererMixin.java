@@ -95,15 +95,6 @@ public class GameRendererMixin
         BBSRendering.onWorldRenderBegin();
     }
 
-    /* TODO(1.21.11 render): pixel-art TEXT programs — 1.21.1 handed glyphs to its own shaders for the
-     * span where BBS's UI draws (so text survives a fractional ui_scale) by injecting into
-     * GameRenderer.getRenderTypeTextProgram / getRenderTypeTextIntensityProgram. Neither method exists
-     * on 1.21.11 — GameRenderer carries no get*Program at all (checked against the jar), programs are
-     * reached through RenderPipeline now. PixelArt itself and its drawing-UI gate came over with the
-     * merge; these two hooks and the GLSL are not here, so text falls back to vanilla's programs and
-     * the fractional scale keeps quantising. Re-port by giving the text pipelines a BBS variant and
-     * selecting it while PixelArt.isDrawingUI() — the rest of the story is in PixelArt. */
-
     /**
      * These injections substitute an orthographic projection when the film
      * editor's orbit camera asks for one (see BBSRendering#getOrthoProjection).

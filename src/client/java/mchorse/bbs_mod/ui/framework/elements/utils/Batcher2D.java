@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.utils;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.PixelArt;
 import mchorse.bbs_mod.graphics.GuiQuadMesh;
 import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -78,12 +79,25 @@ public class Batcher2D
         return fontRenderer;
     }
 
-    /* TODO(1.21.11 render): pixel-art program for textured UI quads. 1.21.1 picked BBS's own program
-     * here (keeping the seam between texels at a fractional ui_scale) and fell back to
-     * GameRenderer.getPositionTexColorProgram, skipping it for textures the user asked to be linear or
-     * mipmapped. Both the selection point (RenderSystem.setShader) and the fallback getter are gone on
-     * 1.21.11 — the batcher composites through GUI pipelines / drawTexture instead — so the choice has
-     * to be re-expressed as a pipeline variant. See the matching note in GameRendererMixin. */
+    /**
+     * Pipeline for a textured UI quad: BBS's seam-smoothing variant of {@code GUI_TEXTURED} while the
+     * smoothing is on and the texture is one it may touch, vanilla's otherwise. The 1.21.1 selection
+     * point ({@code RenderSystem.setShader}) is gone; on the deferred GUI the pipeline travels with the
+     * recorded element instead, which is this argument.
+     */
+    private static RenderPipeline texturedPipeline(Texture texture)
+    {
+        RenderPipeline pipeline = PixelArt.getTexturedPipeline(texture);
+
+        return pipeline == null ? RenderPipelines.GUI_TEXTURED : pipeline;
+    }
+
+    private static RenderPipeline texturedPipeline()
+    {
+        RenderPipeline pipeline = PixelArt.getTexturedPipeline();
+
+        return pipeline == null ? RenderPipelines.GUI_TEXTURED : pipeline;
+    }
 
     public Batcher2D(DrawContext context)
     {
@@ -577,7 +591,7 @@ public class Batcher2D
         /* drawTexture(pipeline, id, x, y, u, v, width, height, regionW, regionH, texW, texH, color):
          * vanilla computes u1=u/texW, u2=(u+regionW)/texW, v1=v/texH, v2=(v+regionH)/texH, so the
          * region sizes are the sampled span in texels (signed - negative flips the axis). */
-        this.context.drawTexture(RenderPipelines.GUI_TEXTURED, id,
+        this.context.drawTexture(texturedPipeline(texture), id,
             (int) x, (int) y, u1, v1, (int) w, (int) h,
             (int) (u2 - u1), (int) (v2 - v1), textureW, textureH, color);
     }
@@ -634,7 +648,10 @@ public class Batcher2D
 
     private void drawAdoptedGlTexture(int glId, int color, float x, float y, float w, float h, float u1, float v1, float u2, float v2, int textureW, int textureH)
     {
-        this.drawAdoptedGlTexture(RenderPipelines.GUI_TEXTURED, glId, color, x, y, w, h, u1, v1, u2, v2, textureW, textureH);
+        /* Smoothed like any other UI texture (1.21.1 did the same): these are BBS's own off-screen
+         * targets, pixel art at whatever scale the panel gives them. The premultiplied overload keeps
+         * vanilla's pipeline — it exists for its blend function, which the smoothing variant is not. */
+        this.drawAdoptedGlTexture(texturedPipeline(), glId, color, x, y, w, h, u1, v1, u2, v2, textureW, textureH);
     }
 
     private void drawAdoptedGlTexture(RenderPipeline pipeline, int glId, int color, float x, float y, float w, float h, float u1, float v1, float u2, float v2, int textureW, int textureH)

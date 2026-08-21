@@ -4,8 +4,10 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
+import net.minecraft.client.gl.Defines;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gl.UniformType;
 import net.minecraft.client.render.RenderLayer;
@@ -258,6 +260,14 @@ public class BBSShaders
      * immediate draw and the re-emit in the buffer's native mode. */
     private static final RenderPipeline BILLBOARD = registerBillboard();
 
+    /* Pixel-art seam smoothing for BBS's own interface, see PixelArt. Each is vanilla's GUI pipeline
+     * with only its FRAGMENT shader swapped, so blend, depth, vertex format and uniform blocks stay
+     * exactly those of the draw it stands in for — the single difference is how the texture is
+     * sampled. Text keeps vanilla's vertex shader too (its varyings are what our fragment reads). */
+    private static final RenderPipeline PIXEL_ART = pixelArtPipeline(RenderPipelines.GUI_TEXTURED, "pixelart");
+    private static final RenderPipeline PIXEL_ART_TEXT = pixelArtPipeline(RenderPipelines.GUI_TEXT, "pixelart_text");
+    private static final RenderPipeline PIXEL_ART_TEXT_INTENSITY = pixelArtPipeline(RenderPipelines.GUI_TEXT_INTENSITY, "pixelart_text_intensity");
+
     /* Lazily-built render layers (one per pipeline). RenderLayer.of caches nothing itself, so we
      * memoize here to keep a single instance the immediate buffer source can key on.
      *
@@ -339,6 +349,28 @@ public class BBSShaders
     public static RenderPipeline getPickerModelsProgram()
     {
         return PICKER_MODELS;
+    }
+
+    /** Textured UI quads (icons, BBS textures, in-panel previews) with the seam smoothing. */
+    public static RenderPipeline getPixelArtProgram()
+    {
+        return PIXEL_ART;
+    }
+
+    /** The smoothing counterpart of a vanilla GUI text pipeline, or null if that is not one. */
+    public static RenderPipeline getPixelArtTextProgram(RenderPipeline vanilla)
+    {
+        if (vanilla == RenderPipelines.GUI_TEXT)
+        {
+            return PIXEL_ART_TEXT;
+        }
+
+        if (vanilla == RenderPipelines.GUI_TEXT_INTENSITY)
+        {
+            return PIXEL_ART_TEXT_INTENSITY;
+        }
+
+        return null;
     }
 
     /* ----------------------------------------------------------------------------------------
@@ -735,6 +767,60 @@ public class BBSShaders
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withUniform("SelectionInfo", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0");
+
+        return RenderPipelines.register(builder.build());
+    }
+
+    /**
+     * Vanilla's {@code prototype} with its fragment shader replaced by {@code bbs:core/<name>}.
+     *
+     * <p>Copied rather than rebuilt from scratch on purpose: these pipelines stand in for a vanilla
+     * draw mid-frame, so every other piece of state — blend function, depth test, write masks, vertex
+     * format, declared samplers and uniform blocks — has to be the one vanilla would have used. Naming
+     * them by hand means re-deriving that list from vanilla's private snippets and re-deriving it again
+     * every time they change; asking the prototype cannot drift.</p>
+     */
+    private static RenderPipeline pixelArtPipeline(RenderPipeline prototype, String name)
+    {
+        RenderPipeline.Builder builder = RenderPipeline.builder()
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/" + name))
+            .withVertexShader(prototype.getVertexShader())
+            .withFragmentShader(Identifier.of(BBSMod.MOD_ID, "core/" + name))
+            .withVertexFormat(prototype.getVertexFormat(), prototype.getVertexFormatMode())
+            .withDepthTestFunction(prototype.getDepthTestFunction())
+            .withPolygonMode(prototype.getPolygonMode())
+            .withCull(prototype.isCull())
+            .withColorLogic(prototype.getColorLogic())
+            .withColorWrite(prototype.isWriteColor(), prototype.isWriteAlpha())
+            .withDepthWrite(prototype.isWriteDepth())
+            .withDepthBias(prototype.getDepthBiasScaleFactor(), prototype.getDepthBiasConstant());
+
+        prototype.getBlendFunction().ifPresentOrElse(builder::withBlend, builder::withoutBlend);
+
+        for (String sampler : prototype.getSamplers())
+        {
+            builder.withSampler(sampler);
+        }
+
+        for (RenderPipeline.UniformDescription uniform : prototype.getUniforms())
+        {
+            builder.withUniform(uniform.name(), uniform.type());
+        }
+
+        Defines defines = prototype.getShaderDefines();
+
+        for (String flag : defines.flags())
+        {
+            builder.withShaderDefine(flag);
+        }
+
+        if (!defines.values().isEmpty())
+        {
+            /* The builder only takes int/float defines, so a valued one cannot be copied. None of the
+             * GUI prototypes has any; if vanilla ever adds one, the copy would compile a shader with a
+             * different meaning than the draw it replaces, and that must not pass silently. */
+            LogUtils.getLogger().warn("[BBS shaders] {} carries shader defines {} that {} cannot copy", prototype.getLocation(), defines.values(), name);
+        }
 
         return RenderPipelines.register(builder.build());
     }

@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Window.class)
@@ -38,13 +39,13 @@ public class WindowMixin
      * While BBS UI is open, its ui_scale setting replaces whatever scale vanilla derived from the
      * guiScale option.
      *
-     * <p>TODO(1.21.11 render): on 1.21.1 {@code Window.scaleFactor} and {@code setScaleFactor} were
-     * doubles, so the whole downstream chain (scaled size, mouse, GUI projection) carried fractional
-     * scales for free — that is what made ui_scale a float. 1.21.11 turned both back into {@code int},
-     * so a fractional scale can no longer ride this argument and is rounded to the nearest whole step
-     * here. The setting still works, just quantised; restoring true fractional scale on this branch
-     * means overriding {@code getScaledWidth}/{@code getScaledHeight} (and the mouse/GUI projection
-     * that read them) instead of the scale factor itself.
+     * <p>On 1.21.1 {@code Window.scaleFactor} was a double and one override was the whole story. Here
+     * it is an {@code int} again, so the fractional scale cannot ride this argument: the window is
+     * given the nearest whole step — which is only ever read as a resolution hint (the GUI item atlas
+     * re-renders when it changes) — and the fractional value is applied to the two things that decide
+     * how big a GUI pixel actually is, the scaled size below and, in {@code GuiRendererMixin}, the GUI
+     * projection and scissor. Anything else that maps GUI units to pixels must go through
+     * {@link BBSModClient#getGUIScale()} rather than read the window's rounded factor.</p>
      */
     @ModifyVariable(method = "setScaleFactor", at = @At("HEAD"), argsOnly = true)
     private int bbs$overrideScaleFactor(int scaleFactor)
@@ -53,14 +54,34 @@ public class WindowMixin
 
         if (custom > 0F)
         {
-            /* Same lower bound vanilla's calculateScaleFactor() enforces: keep at
-             * least ~320x240 GUI units on screen, so UI stays usable on small windows */
-            int max = Math.max(1, Math.min(this.framebufferWidth / 320, this.framebufferHeight / 240));
-
-            return Math.min(Math.max(Math.round(custom), 1), max);
+            return Math.max(1, Math.round(BBSModClient.clampGUIScale(custom, this.framebufferWidth, this.framebufferHeight)));
         }
 
         return scaleFactor;
+    }
+
+    /**
+     * The size of the GUI in its own units, recomputed against the FRACTIONAL scale.
+     *
+     * <p>Vanilla has just divided the framebuffer by the rounded factor. These two fields are what
+     * every screen lays itself out in and what the mouse position is converted through, so writing
+     * them here is what actually makes ui_scale 1.5 mean 1.5 — rounded up, exactly as vanilla rounds
+     * its own division, so the last partial GUI pixel still exists.</p>
+     */
+    @Inject(method = "setScaleFactor", at = @At("TAIL"))
+    private void bbs$fractionalScaledSize(int scaleFactor, CallbackInfo info)
+    {
+        float custom = BBSModClient.getCustomGUIScale();
+
+        if (custom <= 0F)
+        {
+            return;
+        }
+
+        float scale = BBSModClient.clampGUIScale(custom, this.framebufferWidth, this.framebufferHeight);
+
+        this.scaledWidth = (int) Math.ceil(this.framebufferWidth / scale);
+        this.scaledHeight = (int) Math.ceil(this.framebufferHeight / scale);
     }
 
     @Inject(method = "getWidth", at = @At("HEAD"), cancellable = true)
@@ -104,7 +125,10 @@ public class WindowMixin
     {
         if (BBSRendering.canReplaceFramebuffer())
         {
-            info.setReturnValue((int) (BBSRendering.getVideoWidth() / (double) this.scaleFactor * BBSModClient.getOriginalFramebufferScale()));
+            /* The same fractional scale the GUI projection uses (see bbs$fractionalScaledSize) — the
+             * window's rounded factor here would lay the interface out at one scale while it is drawn
+             * at another for every exported frame. */
+            info.setReturnValue((int) (BBSRendering.getVideoWidth() / (double) BBSModClient.getGUIScale() * BBSModClient.getOriginalFramebufferScale()));
         }
     }
 
@@ -113,7 +137,7 @@ public class WindowMixin
     {
         if (BBSRendering.canReplaceFramebuffer())
         {
-            info.setReturnValue((int) (BBSRendering.getVideoHeight() / (double) this.scaleFactor * BBSModClient.getOriginalFramebufferScale()));
+            info.setReturnValue((int) (BBSRendering.getVideoHeight() / (double) BBSModClient.getGUIScale() * BBSModClient.getOriginalFramebufferScale()));
         }
     }
 }

@@ -282,10 +282,35 @@ public class BBSModClient implements ClientModInitializer
      * The scale at which GUI is being rendered right now (GUI pixels to
      * framebuffer pixels). Unlike the ui_scale setting itself, this is always
      * the actual applied value, including the "0 = Minecraft's scale" mode.
+     *
+     * <p>Not {@code Window.getScaleFactor()}: 1.21.5 turned that back into an {@code int}, and BBS's
+     * scale is a float. The window keeps the rounded value for its own bookkeeping while the fractional
+     * one drives the scaled size, the GUI projection and the scissor (WindowMixin / GuiRendererMixin),
+     * so this is the number everything that maps GUI units to pixels has to ask for.</p>
      */
     public static float getGUIScale()
     {
-        return (float) MinecraftClient.getInstance().getWindow().getScaleFactor();
+        Window window = MinecraftClient.getInstance().getWindow();
+        float custom = getCustomGUIScale();
+
+        if (custom > 0F)
+        {
+            return clampGUIScale(custom, window.getFramebufferWidth(), window.getFramebufferHeight());
+        }
+
+        return window.getScaleFactor();
+    }
+
+    /**
+     * Keep a requested scale usable: at least half a framebuffer pixel per GUI pixel, and never so
+     * large that fewer than 320x240 GUI pixels are left on screen — the same lower bound vanilla's
+     * {@code calculateScaleFactor} enforces, just not rounded to a whole step.
+     */
+    public static float clampGUIScale(float scale, int framebufferWidth, int framebufferHeight)
+    {
+        float max = Math.max(1F, Math.min(framebufferWidth / 320F, framebufferHeight / 240F));
+
+        return Math.min(Math.max(scale, 0.5F), max);
     }
 
     public static float getOriginalFramebufferScale()
