@@ -1,15 +1,36 @@
 package mchorse.bbs_mod.utils.iris;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.utils.DataPath;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.api.v0.IrisProgram;
+import net.irisshaders.iris.gl.uniform.UniformUpdateFrequency;
 import net.irisshaders.iris.pipeline.IrisPipelines;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
+import net.irisshaders.iris.shaderpack.LanguageMap;
+import net.irisshaders.iris.shaderpack.ShaderPack;
+import net.irisshaders.iris.shaderpack.option.menu.OptionMenuContainer;
+import net.irisshaders.iris.shaderpack.option.menu.OptionMenuElement;
+import net.irisshaders.iris.shaderpack.option.menu.OptionMenuElementScreen;
+import net.irisshaders.iris.shaderpack.option.menu.OptionMenuLinkElement;
+import net.irisshaders.iris.shaderpack.option.menu.OptionMenuOptionElement;
+import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
+import net.irisshaders.iris.uniforms.custom.cached.CachedUniform;
+import net.irisshaders.iris.uniforms.custom.cached.FloatCachedUniform;
+import net.irisshaders.iris.uniforms.custom.cached.IntCachedUniform;
 import net.irisshaders.iris.vertices.ImmediateState;
 import net.irisshaders.iris.vertices.IrisExtendedBufferBuilder;
 import net.minecraft.client.render.BufferBuilder;
+import org.slf4j.Logger;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Everything BBS asks of Iris, in one class that is only ever touched when the Iris mod is actually
@@ -17,12 +38,166 @@ import net.minecraft.client.render.BufferBuilder;
  * caller has to go through {@link mchorse.bbs_mod.client.BBSRendering}, which gates on that flag —
  * class loading is lazy, so a gated call site never resolves these names on a plain install.
  *
- * <p>Deliberately thin. The 1.21.1 integration also carried PBR texture wrappers, custom shader
- * uniforms driven by BBS curves, and the shaderpack option menus mirrored inside BBS's own UI; those
- * lean on Iris internals the 1.21.5+ rewrite reshaped and stay decoupled for now.
+ * <p>Deliberately thin. The 1.21.1 integration also carried PBR texture wrappers, which lean on Iris
+ * internals the 1.21.5+ rewrite reshaped and stay decoupled for now. Shader curves — the pack's own
+ * {@code #define} options driven by a camera clip — are back; see {@link ShaderCurves}.
  */
 public class IrisUtils
 {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    /**
+     * The pack's properties, captured while {@code ShaderPack} builds itself.
+     *
+     * <p>There is no getter for them, and asking {@code Iris.getCurrentPack()} is too late: the GLSL
+     * sources are preprocessed inside that same constructor, and {@link ShaderCurves} has to know the
+     * pack's {@code sliders} list by then to decide which {@code #define} it may turn into a uniform.
+     * So {@code ShaderPackMixin} hands them over the moment the field is written.</p>
+     */
+    private static ShaderProperties properties;
+
+    private static boolean warnedNoProperties;
+
+    public static void setShaderProperties(ShaderProperties shaderProperties)
+    {
+        properties = shaderProperties;
+    }
+
+    /** Options the pack declares as sliders — the only {@code #define}s BBS offers as curves. */
+    public static List<String> getSliderProperties()
+    {
+        if (properties == null)
+        {
+            /* Not an error before a pack is loaded, but if it holds while sources are being
+             * preprocessed the hook missed and every curve silently disappears — say so once. */
+            if (!warnedNoProperties)
+            {
+                warnedNoProperties = true;
+
+                LOGGER.info("[BBS shaders] no shaderpack properties captured yet — curves have nothing to filter against");
+            }
+
+            return Collections.emptyList();
+        }
+
+        return properties.getSliderOptions();
+    }
+
+    /**
+     * The pack's own option translations, flattened to {@code option.<id>} to
+     * {@code "Screen > Sub > Name"}, so the curve picker can show a pack option under the name its own
+     * menu uses instead of the raw macro.
+     */
+    public static Map<String, String> getShadersLanguageMap(String language)
+    {
+        if (Iris.getCurrentPack().isEmpty())
+        {
+            return Collections.emptyMap();
+        }
+
+        Map<String, String> map = new HashMap<>();
+        ShaderPack shaderPack = Iris.getCurrentPack().get();
+        LanguageMap languageMap = shaderPack.getLanguageMap();
+
+        Map<String, String> target = languageMap.getTranslations(language);
+        Map<String, String> fallback = languageMap.getTranslations("en_us");
+        final String prefix = "option.";
+
+        Map<String, DataPath> pathMap = new HashMap<>();
+
+        collectPaths(pathMap, shaderPack.getMenuContainer(), shaderPack.getMenuContainer().mainScreen, Collections.emptyList());
+        fillInPaths(map, fallback, pathMap, prefix);
+        fillInPaths(map, target, pathMap, prefix);
+
+        return map;
+    }
+
+    private static void fillInPaths(Map<String, String> map, Map<String, String> language, Map<String, DataPath> pathMap, String prefix)
+    {
+        if (language == null)
+        {
+            return;
+        }
+
+        for (Map.Entry<String, String> entry : language.entrySet())
+        {
+            if (entry.getKey().startsWith(prefix))
+            {
+                String optionId = entry.getKey().substring(prefix.length());
+                DataPath path = pathMap.get(optionId);
+                String value = entry.getValue();
+
+                if (path != null)
+                {
+                    List<String> translations = new ArrayList<>();
+
+                    for (int i = 0, c = path.strings.size(); i < c; i++)
+                    {
+                        String string = path.strings.get(i);
+
+                        if (i == c - 1) translations.add(value);
+                        else translations.add(language.getOrDefault("screen." + string, string));
+                    }
+
+                    value = String.join(" > ", translations);
+                }
+
+                map.put(entry.getKey(), value);
+            }
+        }
+    }
+
+    private static void collectPaths(Map<String, DataPath> pathMap, OptionMenuContainer container, OptionMenuElementScreen mainScreen, List<String> prefix)
+    {
+        for (OptionMenuElement element : mainScreen.elements)
+        {
+            if (element instanceof OptionMenuOptionElement option)
+            {
+                ArrayList<String> strings = new ArrayList<>(prefix);
+
+                strings.add(option.optionId);
+                pathMap.put(option.optionId, new DataPath(strings));
+            }
+            else if (element instanceof OptionMenuLinkElement link)
+            {
+                OptionMenuElementScreen screen = container.subScreens.get(link.targetScreenId);
+
+                if (screen != null)
+                {
+                    ArrayList<String> strings = new ArrayList<>(prefix);
+
+                    strings.add(link.targetScreenId);
+                    collectPaths(pathMap, container, screen, strings);
+                }
+            }
+        }
+    }
+
+    /**
+     * Publish every parsed curve variable as a custom Iris uniform, appended to the pack's own
+     * {@code uniformOrder} right after it is built. {@link ShaderCurves} already rewrote each macro
+     * reference in the source into {@code bbs_<name>} and declared it as a uniform, so from Iris's side
+     * these are ordinary custom uniforms: it resolves a location per program and pushes them per frame.
+     *
+     * <p>{@code ShaderVariable.getValue()} consumes the value the curve clip left for this frame and
+     * falls back to the pack's own default afterwards, so a clip that stops writing releases the option
+     * instead of freezing it.</p>
+     */
+    public static void addUniforms(List<CachedUniform> list, Map<String, ShaderCurves.ShaderVariable> variableMap)
+    {
+        for (ShaderCurves.ShaderVariable value : variableMap.values())
+        {
+            if (value.integer)
+            {
+                list.add(new IntCachedUniform(value.uniformName, UniformUpdateFrequency.PER_FRAME, () -> (int) value.getValue()));
+            }
+            else
+            {
+                list.add(new FloatCachedUniform(value.uniformName, UniformUpdateFrequency.PER_FRAME, value::getValue));
+            }
+        }
+    }
+
     public static boolean isShaderPackEnabled()
     {
         return IrisApi.getInstance().isShaderPackInUse();

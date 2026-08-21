@@ -14,11 +14,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * NOTE(1.21.11 port): Iris coupling removed. This class keeps the vanilla GLSL-curve
- * data model (variableMap / ShaderVariable / constants) that UICurveClip and
- * CurveClientClip depend on. The Iris uniform-application path ({@code addUniforms}
- * with {@code CachedUniform}) was dropped during the shader-mod decoupling and must be
- * reintroduced when re-enabling Iris compatibility.
+ * Turns a shaderpack's own {@code #define} options into uniforms BBS can animate from a camera clip.
+ *
+ * <p>{@link #processSource(String)} runs on every GLSL source the pack hands the preprocessor
+ * ({@code JcppProcessorMixin}). For each slider option it finds it rewrites every reference to the macro
+ * into {@code bbs_<name>}, declares that as a uniform after {@code #version}, and strips the
+ * {@code const} off anything that folded the macro into a compile-time constant — a uniform cannot
+ * initialise one. Only options the pack lists under {@code sliders} are taken, and any macro used in a
+ * {@code #if} / {@code #elif} / another {@code #define} is dropped again: those decide which code exists
+ * at compile time, which no uniform can do afterwards.</p>
+ *
+ * <p>Everything parsed lands in {@link #variableMap}, from which {@code IrisUtils.addUniforms} publishes
+ * one Iris custom uniform per variable, {@code CurveClientClip} writes the value for the frame, and
+ * {@code UICurveClip} builds the picker. This class deliberately names no Iris type, so it also loads
+ * without the mod (the picker then simply has nothing but BBS's own keys to offer).</p>
  */
 public class ShaderCurves
 {

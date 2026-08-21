@@ -1162,14 +1162,30 @@ public class BBSRendering
     public static void trackTexture(Texture texture)
     {}
 
+    /**
+     * Options the loaded shaderpack declares as sliders. {@link mchorse.bbs_mod.utils.iris.ShaderCurves}
+     * exposes only these as curves: a slider is an option the pack itself says is continuous, so turning
+     * it into an animatable uniform cannot break a {@code #if} branch the way a toggle would.
+     */
     public static List<String> getShadersSliderOptions()
     {
-        return Collections.emptyList();
+        if (!iris)
+        {
+            return Collections.emptyList();
+        }
+
+        return IrisUtils.getSliderProperties();
     }
 
+    /** The pack's own names for its options, for the curve picker. Empty without a pack. */
     public static Map<String, String> getShadersLanguageMap(String language)
     {
-        return Collections.emptyMap();
+        if (!iris)
+        {
+            return Collections.emptyMap();
+        }
+
+        return IrisUtils.getShadersLanguageMap(language);
     }
 
     /* Curves */

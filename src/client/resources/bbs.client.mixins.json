@@ -36,7 +36,14 @@
         "CameraInvoker",
         "ParticleManagerInvoker",
         "ParticleMixin",
-        "ModelCommandRendererMixin"
+        "ModelCommandRendererMixin",
+        "iris.IrisMixin",
+        "iris.JcppProcessorMixin",
+        "iris.ShaderPackMixin",
+        "iris.CustomUniformsAccessor",
+        "iris.CustomUniformsBuilderMixin",
+        "iris.SliderElementWidgetMixin",
+        "iris.StringElementWidgetInvoker"
     ],
     "injectors": {
         "defaultRequire": 1
