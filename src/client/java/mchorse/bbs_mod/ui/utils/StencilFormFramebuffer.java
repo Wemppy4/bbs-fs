@@ -8,6 +8,7 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.Framebuffer;
+import mchorse.bbs_mod.graphics.PixelPackState;
 import mchorse.bbs_mod.graphics.Renderbuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
@@ -288,7 +289,7 @@ public class StencilFormFramebuffer
 
         this.bindReadFbo();
 
-        try (MemoryStack stack = MemoryStack.stackPush())
+        try (MemoryStack stack = MemoryStack.stackPush(); PixelPackState pack = PixelPackState.push())
         {
             FloatBuffer floats = stack.mallocFloat(4);
 
@@ -390,7 +391,15 @@ public class StencilFormFramebuffer
         floats.clear();
 
         this.bindReadFbo();
-        GL11.glReadPixels(x0, y0, w, h, GL11.GL_RGBA, GL11.GL_FLOAT, floats);
+
+        /* The pack state is ambient and vanilla leaves GL_PACK_ROW_LENGTH set behind it (see
+         * PixelPackState) — without pinning it here the driver writes rowLength pixels per row
+         * into a buffer sized for w of them and takes the process down with it. */
+        try (PixelPackState pack = PixelPackState.push())
+        {
+            GL11.glReadPixels(x0, y0, w, h, GL11.GL_RGBA, GL11.GL_FLOAT, floats);
+        }
+
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
 
         {

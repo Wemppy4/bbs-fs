@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.graphics.PixelPackState;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import com.mojang.blaze3d.opengl.GlStateManager;
@@ -380,26 +381,30 @@ public class VideoRecorder
             int pbo = this.pboIndex;
             int nextPbo = (this.pboIndex + 1) % this.pbos.length;
 
-            GL30.glPixelStorei(GL30.GL_PACK_ALIGNMENT, 1);
-            GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[pbo]);
-
-            int previousTexture = this.bindForReadBack();
-
-            GL30.glGetTexImage(GL30.GL_TEXTURE_2D, 0, GL30.GL_BGR, GL30.GL_UNSIGNED_BYTE, 0);
-
-            this.restoreAfterReadBack(previousTexture);
-
-            GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[nextPbo]);
-
-            ByteBuffer mappedBuffer = GL30.glMapBuffer(GL30.GL_PIXEL_PACK_BUFFER, GL30.GL_READ_ONLY);
-
-            if (mappedBuffer != null && this.counter != 0)
+            /* Pack state is ambient — a leftover GL_PACK_ROW_LENGTH strides the read-back rows
+             * past the end of the PBO (see PixelPackState). Our own pack buffer is bound after it. */
+            try (PixelPackState pack = PixelPackState.push(1))
             {
-                this.channel.write(mappedBuffer);
-            }
+                GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[pbo]);
 
-            GL30.glUnmapBuffer(GL30.GL_PIXEL_PACK_BUFFER);
-            GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
+                int previousTexture = this.bindForReadBack();
+
+                GL30.glGetTexImage(GL30.GL_TEXTURE_2D, 0, GL30.GL_BGR, GL30.GL_UNSIGNED_BYTE, 0);
+
+                this.restoreAfterReadBack(previousTexture);
+
+                GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[nextPbo]);
+
+                ByteBuffer mappedBuffer = GL30.glMapBuffer(GL30.GL_PIXEL_PACK_BUFFER, GL30.GL_READ_ONLY);
+
+                if (mappedBuffer != null && this.counter != 0)
+                {
+                    this.channel.write(mappedBuffer);
+                }
+
+                GL30.glUnmapBuffer(GL30.GL_PIXEL_PACK_BUFFER);
+                GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
+            }
 
             this.pboIndex = nextPbo;
         }
@@ -418,13 +423,14 @@ public class VideoRecorder
     {
         this.buffer.clear();
 
-        GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+        try (PixelPackState pack = PixelPackState.push(1))
+        {
+            int previousTexture = this.bindForReadBack();
 
-        int previousTexture = this.bindForReadBack();
+            GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGR, GL11.GL_UNSIGNED_BYTE, this.buffer);
 
-        GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGR, GL11.GL_UNSIGNED_BYTE, this.buffer);
-
-        this.restoreAfterReadBack(previousTexture);
+            this.restoreAfterReadBack(previousTexture);
+        }
 
         this.buffer.rewind();
 

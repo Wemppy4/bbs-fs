@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.utils;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
+import mchorse.bbs_mod.graphics.PixelPackState;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.utils.resources.Pixels;
@@ -56,7 +57,14 @@ public class ScreenshotRecorder
         FloatBuffer pixelData = BufferUtils.createFloatBuffer(width * height * 4);
 
         GlStateManager._bindTexture(texture);
-        GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, GL11.GL_FLOAT, pixelData);
+
+        /* Pinned pack state: a leftover GL_PACK_ROW_LENGTH would stride these rows past the end
+         * of the buffer (see PixelPackState). */
+        try (PixelPackState pack = PixelPackState.push())
+        {
+            GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, GL11.GL_FLOAT, pixelData);
+        }
+
         pixelData.rewind();
 
         this.saveScreenshot(pixelData, output, width, height);
@@ -69,7 +77,11 @@ public class ScreenshotRecorder
     {
         FloatBuffer pixelData = BufferUtils.createFloatBuffer(width * height * 4);
 
-        GL11.glReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_FLOAT, pixelData);
+        try (PixelPackState pack = PixelPackState.push())
+        {
+            GL11.glReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_FLOAT, pixelData);
+        }
+
         pixelData.rewind();
 
         this.saveScreenshot(pixelData, output, width, height);
