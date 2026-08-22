@@ -361,6 +361,17 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
 
         this.factory = factory;
 
+        if (factory == null)
+        {
+            /* A channel saved with a factory this build no longer has (bone_anchor, physics_data,
+             * spline_points... — types that outlived their feature). Reading its keyframes would ask
+             * the missing factory to parse their values, which threw and took the whole film's load
+             * down with it. Left empty instead, for the owner to drop. */
+            this.list.clear();
+
+            return;
+        }
+
         super.fromData(map.getList("keyframes"));
 
         this.sort();

@@ -2,7 +2,8 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
-import mchorse.bbs_mod.film.replays.PerLimbService;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
@@ -190,7 +191,7 @@ public class UIKeyframeEditor extends UIElement
 
                 if (id.startsWith("pose"))
                 {
-                    PerLimbService.PoseBonePath path = PerLimbService.parsePoseBonePath(sheet.id);
+                    TrackId path = TrackId.parse(sheet.id, TrackKind.BONE);
                     if (path != null)
                         bone = path.formPath().isEmpty() ? currentFirst : path.formPath() + "/" + currentFirst;
                     else
@@ -210,11 +211,11 @@ public class UIKeyframeEditor extends UIElement
             {
                 String id = StringUtils.fileName(sheet.id);
 
-                PerLimbService.PoseBonePath poseBonePath = PerLimbService.parsePoseBonePath(sheet.id);
+                TrackId poseBonePath = TrackId.parse(sheet.id, TrackKind.BONE);
 
                 if (poseBonePath != null)
                 {
-                    bone = poseBonePath.formPath().isEmpty() ? poseBonePath.bone() : poseBonePath.formPath() + "/" + poseBonePath.bone();
+                    bone = poseBonePath.subjectPath();
                     local = transform.transform.isLocal();
                 }
                 else if (id.startsWith("transform"))
@@ -232,11 +233,11 @@ public class UIKeyframeEditor extends UIElement
 
             if (sheet != null)
             {
-                PerLimbService.PoseBonePath poseBonePath = PerLimbService.parsePoseBonePath(sheet.id);
+                TrackId poseBonePath = TrackId.parse(sheet.id, TrackKind.BONE);
 
                 if (poseBonePath != null)
                 {
-                    bone = poseBonePath.formPath().isEmpty() ? poseBonePath.bone() : poseBonePath.formPath() + "/" + poseBonePath.bone();
+                    bone = poseBonePath.subjectPath();
                     local = poseTransform.transform.isLocal();
                 }
             }

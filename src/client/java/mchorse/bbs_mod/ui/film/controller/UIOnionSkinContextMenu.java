@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
@@ -59,8 +60,10 @@ public class UIOnionSkinContextMenu extends UIContextMenu
                     return;
                 }
 
-                for (String property : replay.properties.properties.keySet())
+                for (KeyframeChannel<?> channel : replay.properties.tracks.values())
                 {
+                    String property = channel.getId();
+
                     menu.action(Icons.FOLDER, IKey.constant(property), this.onionSkin.group.get().equals(property), () ->
                     {
                         this.onionSkin.group.set(property);

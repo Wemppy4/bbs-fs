@@ -448,7 +448,7 @@ public class MotionPath
         TreeSet<Float> ticks = new TreeSet<>();
         String boneName = bonePath.contains(".") ? bonePath.substring(bonePath.lastIndexOf('.') + 1) : bonePath;
 
-        for (KeyframeChannel<?> channel : replay.properties.properties.values())
+        for (KeyframeChannel<?> channel : replay.properties.tracks.values())
         {
             if (channel.getId() != null && channel.getId().contains(boneName))
             {
@@ -595,7 +595,7 @@ public class MotionPath
             last = Math.max(last, lastTick(channel));
         }
 
-        for (KeyframeChannel<?> channel : replay.properties.properties.values())
+        for (KeyframeChannel<?> channel : replay.properties.tracks.values())
         {
             first = Math.min(first, firstTick(channel));
             last = Math.max(last, lastTick(channel));
@@ -636,7 +636,7 @@ public class MotionPath
         signature(builder, replay.keyframes.y);
         signature(builder, replay.keyframes.z);
 
-        for (KeyframeChannel<?> channel : replay.properties.properties.values())
+        for (KeyframeChannel<?> channel : replay.properties.tracks.values())
         {
             builder.append('#').append(channel.getId());
             signature(builder, channel);

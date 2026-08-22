@@ -3,7 +3,7 @@ package mchorse.bbs_mod.forms.renderers.utils;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.forms.forms.ModelForm;
-import mchorse.bbs_mod.film.replays.PerLimbService;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
@@ -77,11 +77,11 @@ public class FormPbr
     {
         FormMaterial formMaterial = form.materials.getMaterial(material);
         float[] values = {
-            effective(form, material, formMaterial, PerLimbService.MATERIAL_PROP_SMOOTHNESS),
-            effective(form, material, formMaterial, PerLimbService.MATERIAL_PROP_METALLIC),
-            effective(form, material, formMaterial, PerLimbService.MATERIAL_PROP_SSS),
-            effective(form, material, formMaterial, PerLimbService.MATERIAL_PROP_PIXEL_EMISSION),
-            effective(form, material, formMaterial, PerLimbService.MATERIAL_PROP_RELIEF)
+            effective(form, material, formMaterial, TrackId.MATERIAL_PROP_SMOOTHNESS),
+            effective(form, material, formMaterial, TrackId.MATERIAL_PROP_METALLIC),
+            effective(form, material, formMaterial, TrackId.MATERIAL_PROP_SSS),
+            effective(form, material, formMaterial, TrackId.MATERIAL_PROP_PIXEL_EMISSION),
+            effective(form, material, formMaterial, TrackId.MATERIAL_PROP_RELIEF)
         };
 
         for (float value : values)
@@ -103,11 +103,11 @@ public class FormPbr
         {
             staticValue = switch (property)
             {
-                case PerLimbService.MATERIAL_PROP_SMOOTHNESS -> formMaterial.smoothness.get();
-                case PerLimbService.MATERIAL_PROP_METALLIC -> formMaterial.metallic.get();
-                case PerLimbService.MATERIAL_PROP_SSS -> formMaterial.sss.get();
-                case PerLimbService.MATERIAL_PROP_PIXEL_EMISSION -> formMaterial.pixelEmission.get();
-                case PerLimbService.MATERIAL_PROP_RELIEF -> formMaterial.relief.get();
+                case TrackId.MATERIAL_PROP_SMOOTHNESS -> formMaterial.smoothness.get();
+                case TrackId.MATERIAL_PROP_METALLIC -> formMaterial.metallic.get();
+                case TrackId.MATERIAL_PROP_SSS -> formMaterial.sss.get();
+                case TrackId.MATERIAL_PROP_PIXEL_EMISSION -> formMaterial.pixelEmission.get();
+                case TrackId.MATERIAL_PROP_RELIEF -> formMaterial.relief.get();
                 default -> 0F;
             };
         }

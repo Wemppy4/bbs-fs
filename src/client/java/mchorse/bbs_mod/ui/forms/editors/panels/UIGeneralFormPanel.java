@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
+import mchorse.bbs_mod.film.replays.tracks.TrackCatalog;
+import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -181,12 +183,10 @@ public class UIGeneralFormPanel extends UIFormPanel
         Set<String> keys = new LinkedHashSet<>();
         Map<String, Integer> keyToColor = new HashMap<>();
 
-        for (UIKeyframeSheet sheet : UIReplaysEditorUtils.collectFormTrackSheets(this.form))
+        for (TrackDescriptor track : TrackCatalog.of(this.form))
         {
-            String key = UIReplaysEditor.getSheetFilterKey(sheet);
-
-            keys.add(key);
-            keyToColor.put(key, sheet.color);
+            keys.add(track.filterKey());
+            keyToColor.put(track.filterKey(), track.color());
         }
 
         UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(disabled, keys, keyToColor);

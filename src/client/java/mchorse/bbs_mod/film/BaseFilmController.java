@@ -14,8 +14,12 @@ import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
 import mchorse.bbs_mod.cubic.animation.ItemUsePose;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.entity.ActorEntity;
-import mchorse.bbs_mod.film.replays.FormControlKeys;
-import mchorse.bbs_mod.film.replays.PerLimbService;
+import mchorse.bbs_mod.film.replays.tracks.AnchorResolver;
+import mchorse.bbs_mod.film.replays.tracks.TrackBehaviour;
+import mchorse.bbs_mod.film.replays.tracks.TrackBehaviours;
+import mchorse.bbs_mod.film.replays.tracks.TrackContext;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.ReplayItemUse;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
@@ -27,11 +31,6 @@ import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.BodyPart;
-import mchorse.bbs_mod.cubic.ik.IKControl;
-import mchorse.bbs_mod.cubic.ik.IKControls;
-import mchorse.bbs_mod.cubic.physics.PhysicsControl;
-import mchorse.bbs_mod.cubic.physics.PhysicsControls;
-import mchorse.bbs_mod.cubic.physics.WindControl;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.graphics.Draw;
@@ -89,6 +88,8 @@ public abstract class BaseFilmController
 
     public boolean paused;
     public int exception = -1;
+
+    private final AnchorResolver anchors = this::resolveAnchor;
 
     private static final Matrix4f IDENTITY = new Matrix4f();
     private static final Vector3f TEMP_VECTOR = new Vector3f();
@@ -286,7 +287,7 @@ public abstract class BaseFilmController
 
     private static void renderAxes(String bone, boolean local, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, Form form, IEntity entity, float transition, MatrixStack stack, FormFrameCache frame)
     {
-        String mapKey = bone != null && bone.contains(PerLimbService.POSE_BONES) ? bone.replace(PerLimbService.POSE_BONES, "") : bone;
+        String mapKey = boneMapKey(bone);
         Form root = FormUtils.getRoot(form);
         MatrixCache map = FormFrameCache.collect(frame, root, entity, transition);
         Matrix4f matrix = local ? map.get(mapKey).matrix() : map.get(mapKey).origin();
@@ -327,7 +328,7 @@ public abstract class BaseFilmController
      */
     private static void renderPreviewAxes(String bone, boolean local, Form form, IEntity entity, float transition, MatrixStack stack, FormFrameCache frame)
     {
-        String mapKey = bone != null && bone.contains(PerLimbService.POSE_BONES) ? bone.replace(PerLimbService.POSE_BONES, "") : bone;
+        String mapKey = boneMapKey(bone);
         Form root = FormUtils.getRoot(form);
         MatrixCache map = FormFrameCache.collect(frame, root, entity, transition);
         MatrixCacheEntry entry = map.get(mapKey);
@@ -650,9 +651,7 @@ public abstract class BaseFilmController
             return null;
         }
 
-        String mapKey = bonePath.contains(PerLimbService.POSE_BONES)
-            ? bonePath.replace(PerLimbService.POSE_BONES, "")
-            : bonePath;
+        String mapKey = boneMapKey(bonePath);
 
         MatrixCache map = FormUtilsClient.getRenderer(FormUtils.getRoot(entity.getForm())).collectMatrices(entity, transition);
 
@@ -713,9 +712,7 @@ public abstract class BaseFilmController
             target = defaultMatrix;
         }
 
-        String mapKey = bonePath.contains(PerLimbService.POSE_BONES)
-            ? bonePath.replace(PerLimbService.POSE_BONES, "")
-            : bonePath;
+        String mapKey = boneMapKey(bonePath);
 
         Form root = FormUtils.getRoot(form);
         MatrixCache map = FormFrameCache.collect(frame, root, entity, transition);
@@ -1059,8 +1056,8 @@ public abstract class BaseFilmController
 
             /* Apply property */
             Form form1 = entity.getForm();
-            replay.properties.applyProperties(form1, tick + delta);
-            this.applyTargetOverrides(replay, form1, tick + delta, delta);
+
+            this.applyTracks(replay, form1, tick + delta, delta);
 
             /* The item use of this take, published for everything that draws
              * its body: the procedural animator poses the arms with it, and the
@@ -1085,9 +1082,7 @@ public abstract class BaseFilmController
 
                     if (anEntity instanceof ActorEntity actor)
                     {
-                        Form form = actor.getForm();
-                        replay.properties.applyProperties(form, tick + delta);
-                        this.applyTargetOverrides(replay, form, tick + delta, delta);
+                        this.applyTracks(replay, actor.getForm(), tick + delta, delta);
                     }
                     else if (anEntity instanceof PlayerEntity player)
                     {
@@ -1099,9 +1094,7 @@ public abstract class BaseFilmController
 
                         if (morph != null)
                         {
-                            Form form = morph.getForm();
-                            replay.properties.applyProperties(form, tick + delta);
-                            this.applyTargetOverrides(replay, form, tick + delta, delta);
+                            this.applyTracks(replay, morph.getForm(), tick + delta, delta);
                         }
 
                         float yawHead = replay.keyframes.headYaw.interpolate(tick + delta).floatValue();
@@ -1122,321 +1115,54 @@ public abstract class BaseFilmController
         }
     }
 
-    public void update(Replay replay, Form root, float tick, float transition)
-    {
-        this.applyTargetOverrides(replay, root, tick, transition);
-    }
-
-    private void applyTargetOverrides(Replay replay, Form root, float tick, float transition)
+    /**
+     * Lay one record's tracks over a form for this frame: the per-frame overrides the track kinds
+     * leave behind are dropped first, so a track that was deleted (or whose keyframes ran out) stops
+     * driving the form, and then every track applies itself.
+     *
+     * <p>This used to be two passes written side by side — {@code FormProperties.applyProperties}
+     * for properties, bones and materials, and a second dispatcher here for the IK, pole, physics
+     * and wind tracks. Both walked the same map and matched the same ids; the kinds now say what
+     * they do themselves (see {@link TrackBehaviour}).</p>
+     */
+    protected void applyTracks(Replay replay, Form root, float tick, float transition)
     {
         if (replay == null || root == null)
         {
             return;
         }
 
-        this.clearTargetOverrides(root);
+        TrackBehaviours.clearOverrides(root);
 
-        if (replay.properties == null || replay.properties.properties == null || replay.properties.properties.isEmpty())
-        {
-            return;
-        }
-
-        for (KeyframeChannel<?> channel : replay.properties.properties.values())
-        {
-            if (channel == null)
-            {
-                continue;
-            }
-
-            String id = channel.getId();
-
-            if (id == null || id.isEmpty())
-            {
-                continue;
-            }
-
-            if (FormControlKeys.isIKControlChannel(id))
-            {
-                this.applyIKControls(root, FormControlKeys.parseIKControlFormPath(id), channel, tick);
-                continue;
-            }
-
-            if (FormControlKeys.isPhysicsControlChannel(id))
-            {
-                this.applyPhysicsControls(root, FormControlKeys.parsePhysicsControlFormPath(id), channel, tick);
-                continue;
-            }
-
-            if (FormControlKeys.isWindControlChannel(id))
-            {
-                this.applyWindControls(root, FormControlKeys.parseWindControlFormPath(id), channel, tick);
-                continue;
-            }
-
-            PerLimbService.IKTargetPath ikPath = PerLimbService.parseIKTargetPath(id);
-
-            if (ikPath != null)
-            {
-                this.applyOverride(root, ikPath.formPath(), ikPath.controller(), channel, tick, transition, TargetKind.IK);
-                continue;
-            }
-
-            PerLimbService.PoleTargetPath polePath = PerLimbService.parsePoleTargetPath(id);
-
-            if (polePath != null)
-            {
-                this.applyOverride(root, polePath.formPath(), polePath.controller(), channel, tick, transition, TargetKind.POLE);
-                continue;
-            }
-
-            PerLimbService.PhysicsTargetPath physicsPath = PerLimbService.parsePhysicsTargetPath(id);
-
-            if (physicsPath != null)
-            {
-                this.applyPhysicsTarget(root, physicsPath.formPath(), physicsPath.rootBone(), channel, tick, transition);
-            }
-        }
-    }
-
-    private void applyIKControls(Form root, String formPath, KeyframeChannel<?> channel, float tick)
-    {
-        Form form = formPath == null || formPath.isEmpty() ? root : FormUtils.getForm(root, formPath);
-
-        if (!(form instanceof ModelForm modelForm))
-        {
-            return;
-        }
-
-        KeyframeSegment<?> segment = channel.find(tick);
-
-        if (segment == null)
-        {
-            return;
-        }
-
-        Object value = segment.createInterpolated();
-
-        if (!(value instanceof IKControls controls))
-        {
-            return;
-        }
-
-        for (Map.Entry<String, IKControl> entry : controls.controls.entrySet())
-        {
-            modelForm.ikControlOverrides.computeIfAbsent(entry.getKey(), (k) -> new IKControl()).copy(entry.getValue());
-        }
-    }
-
-    private void applyPhysicsControls(Form root, String formPath, KeyframeChannel<?> channel, float tick)
-    {
-        Form form = formPath == null || formPath.isEmpty() ? root : FormUtils.getForm(root, formPath);
-
-        if (!(form instanceof ModelForm modelForm))
-        {
-            return;
-        }
-
-        KeyframeSegment<?> segment = channel.find(tick);
-
-        if (segment == null)
-        {
-            return;
-        }
-
-        Object value = segment.createInterpolated();
-
-        if (!(value instanceof PhysicsControls controls))
-        {
-            return;
-        }
-
-        for (Map.Entry<String, PhysicsControl> entry : controls.controls.entrySet())
-        {
-            modelForm.physicsControlOverrides.computeIfAbsent(entry.getKey(), (k) -> new PhysicsControl()).copy(entry.getValue());
-        }
-    }
-
-    private void applyWindControls(Form root, String formPath, KeyframeChannel<?> channel, float tick)
-    {
-        Form form = formPath == null || formPath.isEmpty() ? root : FormUtils.getForm(root, formPath);
-
-        if (!(form instanceof ModelForm modelForm))
-        {
-            return;
-        }
-
-        KeyframeSegment<?> segment = channel.find(tick);
-
-        if (segment == null)
-        {
-            return;
-        }
-
-        Object value = segment.createInterpolated();
-
-        if (!(value instanceof WindControl control))
-        {
-            return;
-        }
-
-        if (modelForm.windControlOverride == null)
-        {
-            modelForm.windControlOverride = new WindControl();
-        }
-
-        modelForm.windControlOverride.copy(control);
-    }
-
-    private enum TargetKind
-    {
-        IK, POLE
-    }
-
-    private void applyOverride(Form root, String formPath, String targetId, KeyframeChannel<?> channel, float tick, float transition, TargetKind kind)
-    {
-        Form form = formPath.isEmpty() ? root : FormUtils.getForm(root, formPath);
-
-        if (!(form instanceof ModelForm modelForm))
-        {
-            return;
-        }
-
-        KeyframeSegment<?> segment = channel.find(tick);
-
-        if (segment == null || !(segment.createInterpolated() instanceof Anchor anchor))
-        {
-            return;
-        }
-
-        Map<String, Vector3f> overrides = switch (kind)
-        {
-            case IK -> modelForm.ikTargetOverrides;
-            case POLE -> modelForm.poleTargetOverrides;
-        };
-        Map<String, Float> weights = switch (kind)
-        {
-            case IK -> modelForm.ikTargetWeights;
-            case POLE -> modelForm.poleTargetWeights;
-        };
-
-        /* Resolve the BOUND side at its full position with a 0..1 fade weight, mirroring
-         * applyPhysicsTarget: feeding the fading anchor straight to getTotalMatrix would
-         * lerp the position from world origin across a "None" key, yanking the pole/target
-         * to (0,0,0). The applier eases the override in/out from the config position by the
-         * weight instead, so a fade glides from where the bone already is. */
-        Anchor resolve;
-        float weight;
-
-        if (anchor.previous != null && anchor.isFadeIn())
-        {
-            resolve = anchor.copy();
-            weight = anchor.x;
-        }
-        else if (anchor.previous != null && anchor.isFadeOut())
-        {
-            resolve = anchor.previous;
-            weight = 1F - anchor.x;
-        }
-        else
-        {
-            resolve = anchor;
-            weight = 1F;
-        }
-
-        if (weight <= 0F || resolve.replay == Anchor.NO_ATTACHMENT || this.entities.get(resolve.replay) == null)
-        {
-            return;
-        }
-
-        Pair<Matrix4f, Float> matrix = getTotalMatrix(this.entities, resolve, IDENTITY, 0D, 0D, 0D, transition, 0, true);
-        Matrix4f resolved = matrix.a != null ? matrix.a : IDENTITY;
-        Vector3f position = resolved.getTranslation(TEMP_VECTOR);
-
-        overrides.computeIfAbsent(targetId, (k) -> new Vector3f()).set(position);
-        weights.put(targetId, weight);
+        replay.properties.apply(TrackContext.frame(root, transition, this.anchors), tick, 1F);
     }
 
     /**
-     * Physics target override with fade support. Unlike the IK/pole targets this also resolves a fade
-     * <em>weight</em>: when the binding crosses a no-target keyframe the shared anchor interpolation lerps the
-     * resolved matrix from world origin, which yanks the chain to (0,0,0). Instead we resolve the bound side at
-     * its full position and hand the physics solver a 0..1 weight so it can ease the chain in/out from its own
-     * tip (see {@link ModelPhysicsRuntime}).
+     * Resolving an anchor is the one thing a track cannot do on its own: it means composing the bone
+     * matrices of another record's live entity, which only the controller has.
      */
-    private void applyPhysicsTarget(Form root, String formPath, String rootBone, KeyframeChannel<?> channel, float tick, float transition)
+    private Vector3f resolveAnchor(Anchor anchor, float transition)
     {
-        Form form = formPath.isEmpty() ? root : FormUtils.getForm(root, formPath);
-
-        if (!(form instanceof ModelForm modelForm))
+        if (this.entities.get(anchor.replay) == null)
         {
-            return;
+            return null;
         }
 
-        KeyframeSegment<?> segment = channel.find(tick);
+        Pair<Matrix4f, Float> matrix = getTotalMatrix(this.entities, anchor, IDENTITY, 0D, 0D, 0D, transition, 0, true);
 
-        if (segment == null || !(segment.createInterpolated() instanceof Anchor anchor))
-        {
-            return;
-        }
-
-        /* Pick the bound side and how present it is. Fade in/out blends to/from "no target"; a straight switch
-         * between two real targets keeps the anchor's own lerp at full weight. */
-        Anchor resolve;
-        float weight;
-
-        if (anchor.previous != null && anchor.isFadeIn())
-        {
-            resolve = anchor.copy();
-            weight = anchor.x;
-        }
-        else if (anchor.previous != null && anchor.isFadeOut())
-        {
-            resolve = anchor.previous;
-            weight = 1F - anchor.x;
-        }
-        else
-        {
-            resolve = anchor;
-            weight = 1F;
-        }
-
-        if (weight <= 0F || resolve.replay == Anchor.NO_ATTACHMENT || this.entities.get(resolve.replay) == null)
-        {
-            return;
-        }
-
-        Pair<Matrix4f, Float> matrix = getTotalMatrix(this.entities, resolve, IDENTITY, 0D, 0D, 0D, transition, 0, true);
-        Matrix4f resolved = matrix.a != null ? matrix.a : IDENTITY;
-        Vector3f position = resolved.getTranslation(TEMP_VECTOR);
-
-        modelForm.physicsTargetOverrides.computeIfAbsent(rootBone, (k) -> new Vector3f()).set(position);
-        modelForm.physicsTargetWeights.put(rootBone, weight);
+        return (matrix.a != null ? matrix.a : IDENTITY).getTranslation(TEMP_VECTOR);
     }
 
-    private void clearTargetOverrides(Form form)
+    /**
+     * The matrix-cache key of a bone path: the {@code pose.bones.} namespace drops out, leaving the
+     * owning form's path and the bone ({@code 0/1/pose.bones.head} &rarr; {@code 0/1/head}), which is
+     * how {@link MatrixCache} keys its entries. A path that is not a bone track passes through.
+     */
+    private static String boneMapKey(String bonePath)
     {
-        if (form instanceof ModelForm modelForm)
-        {
-            modelForm.ikTargetOverrides.clear();
-            modelForm.poleTargetOverrides.clear();
-            modelForm.ikTargetWeights.clear();
-            modelForm.poleTargetWeights.clear();
-            modelForm.ikControlOverrides.clear();
-            modelForm.physicsTargetOverrides.clear();
-            modelForm.physicsTargetWeights.clear();
-            modelForm.physicsControlOverrides.clear();
-            modelForm.windControlOverride = null;
-        }
+        TrackId track = TrackId.parse(bonePath);
 
-        for (BodyPart part : form.parts.getAllTyped())
-        {
-            Form child = part.getForm();
-
-            if (child != null)
-            {
-                this.clearTargetOverrides(child);
-            }
-        }
+        return track != null && track.is(TrackKind.BONE) ? track.subjectPath() : bonePath;
     }
 
     protected float getTransition(IEntity entity, float transition)

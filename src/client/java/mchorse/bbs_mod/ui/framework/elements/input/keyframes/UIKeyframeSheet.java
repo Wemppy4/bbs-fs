@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -56,6 +58,22 @@ public class UIKeyframeSheet extends UIKeyframeElement
      */
     public Supplier<Object> seed;
 
+    /** The track this row draws, when it came from the catalog; null for the record's own curated channels. */
+    public final TrackDescriptor descriptor;
+
+    public UIKeyframeSheet(TrackDescriptor track)
+    {
+        this(track.key(), track.title(), track.color(), false, track.channel(), track.property(), track.kind() == TrackKind.BONE, track);
+
+        this.icon(track.icon());
+        this.form(track.owner());
+
+        if (track.seed() != null)
+        {
+            this.seed(track.seed());
+        }
+    }
+
     public UIKeyframeSheet(int color, boolean separator, KeyframeChannel channel, BaseValueBasic property)
     {
         this(channel.getId(), IKey.constant(property != null ? FormUtils.getForm(property).getTrackName(channel.getId()) : channel.getId()), color, separator, channel, property, false);
@@ -68,7 +86,14 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
     public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack)
     {
+        this(id, title, color, separator, channel, property, isBoneTrack, null);
+    }
+
+    public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack, TrackDescriptor descriptor)
+    {
         super(title, color);
+
+        this.descriptor = descriptor;
 
         this.id = id;
         this.separator = separator;
@@ -80,7 +105,7 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
         this.defaultTitle = title;
         this.defaultColor = color;
-        this.filterKey = isBoneTrack ? title.get() : StringUtils.fileName(id);
+        this.filterKey = descriptor != null ? descriptor.filterKey() : (isBoneTrack ? title.get() : StringUtils.fileName(id));
 
         this.applyStyle();
     }

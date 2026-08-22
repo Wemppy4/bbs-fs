@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
@@ -764,7 +765,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                         channel.insertSpace(this.getCursor(), d.intValue());
                     }
 
-                    for (KeyframeChannel channel : replay.properties.properties.values())
+                    for (KeyframeChannel channel : replay.properties.tracks.values())
                     {
                         channel.insertSpace(this.getCursor(), d.intValue());
                     }
@@ -1293,7 +1294,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                 }
             }
 
-            for (Map.Entry<String, KeyframeChannel> entry : replay.properties.properties.entrySet())
+            for (Map.Entry<TrackId, KeyframeChannel> entry : replay.properties.tracks.entrySet())
             {
                 KeyframeChannel channel = entry.getValue();
 
@@ -1312,8 +1313,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
                 if (!newChannel.isEmpty())
                 {
-                    copy.properties.properties.put(newChannel.getId(), newChannel);
-                    copy.properties.add(newChannel);
+                    copy.properties.put(entry.getKey(), newChannel);
                 }
             }
 
@@ -1377,7 +1377,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
                 if (form != null)
                 {
-                    for (Map.Entry<String, KeyframeChannel> entry : recorder.properties.properties.entrySet())
+                    for (Map.Entry<TrackId, KeyframeChannel> entry : recorder.properties.tracks.entrySet())
                     {
                         KeyframeChannel channel = rp.properties.getOrCreate(form, entry.getKey());
 

@@ -981,6 +981,13 @@ public class UIReplayList extends UIList<ReplayListEntry>
                         channel = replay.properties.getOrCreate(replay.form.get(), id);
                     }
 
+                    /* A track this replay's form has no room for — pasting player keyframes onto a
+                     * record whose form lost that body part, say. */
+                    if (channel == null)
+                    {
+                        continue;
+                    }
+
                     float min = Integer.MAX_VALUE;
 
                     for (Keyframe kf : pastedKeyframes.keyframes)

@@ -1,7 +1,13 @@
 package mchorse.bbs_mod.film.replays;
 
 import mchorse.bbs_mod.data.types.BaseType;
+import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.film.replays.tracks.TrackBehaviour;
+import mchorse.bbs_mod.film.replays.tracks.TrackBehaviours;
+import mchorse.bbs_mod.film.replays.tracks.TrackContext;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.settings.values.base.BaseKeyframeFactoryValue;
@@ -9,34 +15,40 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.utils.MathUtils;
-import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
-import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 import mchorse.bbs_mod.forms.forms.ModelForm;
-import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
-import mchorse.bbs_mod.resources.Link;
-import mchorse.bbs_mod.utils.colors.Color;
-import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Every track of one replay (or one animation state): a channel of keyframes per address.
+ *
+ * <p>The address is a {@link TrackId}, not a string — what a track animates is decided once, when
+ * the track is made or read, instead of being re-derived from its id by every piece of code that
+ * touches it.</p>
+ */
 public class FormProperties extends ValueGroup
 {
-    private static final String POSE_PROPERTY = "pose";
+    /** Id of the form property holding the whole pose — the track a form's bone tracks hang under. */
+    public static final String POSE_PROPERTY = "pose";
 
-    public final Map<String, KeyframeChannel> properties = new HashMap<>();
+    /**
+     * Saved-data key of the track list. Its presence is what tells the new format from the old one,
+     * which was a map of channel id to channel.
+     */
+    private static final String TRACKS = "tracks";
+
+    public final Map<TrackId, KeyframeChannel> tracks = new LinkedHashMap<>();
 
     public FormProperties(String id)
     {
@@ -45,7 +57,7 @@ public class FormProperties extends ValueGroup
 
     public void shift(float tick)
     {
-        for (KeyframeChannel<?> value : this.properties.values())
+        for (KeyframeChannel<?> value : this.tracks.values())
         {
             for (Keyframe<?> keyframe : value.getKeyframes())
             {
@@ -54,94 +66,125 @@ public class FormProperties extends ValueGroup
         }
     }
 
-    public KeyframeChannel getOrCreate(Form form, String key)
-    {
-        BaseValue value = this.get(key);
-        BaseValue property = FormUtils.getProperty(form, key);
+    /* Access */
 
-        if (value instanceof KeyframeChannel channel)
+    public KeyframeChannel get(TrackId track)
+    {
+        return track == null ? null : this.tracks.get(track);
+    }
+
+    public boolean has(TrackId track)
+    {
+        return track != null && this.tracks.containsKey(track);
+    }
+
+    /**
+     * The track at this address, made if it isn't there yet.
+     *
+     * @param root  form the addresses are relative to; only a {@link TrackKind#PROPERTY} track needs
+     *              it, since a plain property keys whatever its own value keys
+     */
+    public KeyframeChannel getOrCreate(Form root, TrackId track)
+    {
+        if (track == null)
+        {
+            return null;
+        }
+
+        KeyframeChannel channel = this.tracks.get(track);
+
+        if (channel != null)
         {
             return channel;
         }
 
-        if (property != null)
+        if (track.is(TrackKind.PROPERTY))
         {
-            return this.create(property);
+            BaseValue property = FormUtils.getProperty(root, track.toKey());
+
+            return property == null ? null : this.create(property);
         }
 
-        if (PerLimbService.isPoseBoneChannel(key))
-        {
-            return this.registerChannel(key, KeyframeFactories.POSE_TRANSFORM);
-        }
-
-        if (PerLimbService.isMaterialTextureChannel(key))
-        {
-            return this.registerChannel(key, KeyframeFactories.LINK);
-        }
-
-        PerLimbService.MaterialPropPath materialProp = PerLimbService.parseMaterialPropPath(key);
-
-        if (materialProp != null)
-        {
-            return this.registerChannel(key, materialPropFactory(materialProp.property()));
-        }
-
-        return null;
+        return this.register(track, TrackBehaviours.factory(track));
     }
 
-    /** The keyframe factory of a per-material channel by its property name. */
-    public static IKeyframeFactory materialPropFactory(String property)
+    /** Every kind but {@link TrackKind#PROPERTY}, whose factory has to be looked up on the form. */
+    public KeyframeChannel getOrCreate(TrackId track)
     {
-        if (PerLimbService.MATERIAL_PROP_COLOR.equals(property) || PerLimbService.MATERIAL_PROP_OVERLAY.equals(property))
-        {
-            return KeyframeFactories.COLOR;
-        }
-
-        if (PerLimbService.MATERIAL_PROP_CULLING.equals(property))
-        {
-            return KeyframeFactories.INTEGER;
-        }
-
-        return KeyframeFactories.FLOAT;
+        return this.getOrCreate(null, track);
     }
 
+    public KeyframeChannel getOrCreate(Form root, String key)
+    {
+        return this.getOrCreate(root, TrackId.parse(key));
+    }
+
+    /** Make the track of a form property, keyed by the path the property sits at. */
     public KeyframeChannel create(BaseValue property)
     {
         if (property.isVisible() && property instanceof BaseKeyframeFactoryValue<?> keyframeFactoryValue)
         {
-            String key = FormUtils.getPropertyPath(property);
-            IKeyframeFactory factory = keyframeFactoryValue.getFactory();
+            TrackId track = TrackId.parse(FormUtils.getPropertyPath(property));
 
-            if (factory == KeyframeFactories.TRANSFORM && PerLimbService.isPoseBoneChannel(key))
+            if (track == null)
             {
-                factory = KeyframeFactories.POSE_TRANSFORM;
+                return null;
             }
 
-            KeyframeChannel channel = new KeyframeChannel(key, factory);
-
-            this.properties.put(key, channel);
-            this.add(channel);
-
-            return channel;
+            return this.register(track, keyframeFactoryValue.getFactory());
         }
 
         return null;
     }
 
-    public KeyframeChannel registerChannel(String key, IKeyframeFactory factory)
+    public KeyframeChannel register(TrackId track, IKeyframeFactory factory)
     {
-        KeyframeChannel channel = this.properties.get(key);
+        if (track == null || factory == null)
+        {
+            return null;
+        }
+
+        KeyframeChannel channel = this.tracks.get(track);
 
         if (channel == null)
         {
-            channel = new KeyframeChannel(key, factory);
+            channel = new KeyframeChannel(track.toKey(), factory);
 
-            this.properties.put(key, channel);
-            this.add(channel);
+            this.put(track, channel);
         }
 
         return channel;
     }
+
+    /** Take a channel as this track, replacing whatever stood there. */
+    public void put(TrackId track, KeyframeChannel channel)
+    {
+        if (track == null || channel == null)
+        {
+            return;
+        }
+
+        KeyframeChannel previous = this.tracks.put(track, channel);
+
+        if (previous != null)
+        {
+            this.remove(previous);
+        }
+
+        this.add(channel);
+    }
+
+    public void remove(TrackId track)
+    {
+        KeyframeChannel channel = this.tracks.remove(track);
+
+        if (channel != null)
+        {
+            this.remove(channel);
+        }
+    }
+
+    /* Playback */
 
     public void applyProperties(Form form, float tick)
     {
@@ -150,289 +193,73 @@ public class FormProperties extends ValueGroup
 
     public void applyProperties(Form form, float tick, float blend)
     {
-        if (form == null)
+        this.apply(TrackContext.of(form), tick, blend);
+    }
+
+    /**
+     * Lay every track over the form at the given tick.
+     *
+     * <p>Bone tracks go last, and behind a reset: a form whose pose is driven by bone tracks alone
+     * gets its runtime pose dropped first, so the bones layer over the form's own pose rather than
+     * over last frame's result. A form that also has a whole-pose track keeps it — that track writes
+     * the runtime pose the bones add onto.</p>
+     */
+    public void apply(TrackContext context, float tick, float blend)
+    {
+        if (context.root() == null)
         {
             return;
         }
 
         float clampedBlend = MathUtils.clamp(blend, 0F, 1F);
-        List<KeyframeChannel> poseBoneChannels = new ArrayList<>();
+        Map<TrackId, KeyframeChannel> boneTracks = new LinkedHashMap<>();
 
-        for (KeyframeChannel value : this.properties.values())
+        for (Map.Entry<TrackId, KeyframeChannel> entry : this.tracks.entrySet())
         {
-            if (!PerLimbService.isPoseBoneChannel(value.getId()))
+            if (entry.getKey().is(TrackKind.BONE))
             {
-                this.applyProperty(tick, form, value, clampedBlend);
+                boneTracks.put(entry.getKey(), entry.getValue());
             }
             else
             {
-                poseBoneChannels.add(value);
+                apply(context, entry.getKey(), entry.getValue(), tick, clampedBlend);
             }
         }
 
         Set<String> processedForms = new HashSet<>();
 
-        for (KeyframeChannel value : poseBoneChannels)
+        for (TrackId track : boneTracks.keySet())
         {
-            PerLimbService.PoseBonePath poseBonePath = PerLimbService.parsePoseBonePath(value.getId());
+            String formPath = track.formPath();
 
-            if (poseBonePath != null)
+            if (!processedForms.add(formPath))
             {
-                String formPath = poseBonePath.formPath();
+                continue;
+            }
 
-                if (!processedForms.contains(formPath))
-                {
-                    processedForms.add(formPath);
-
-                    String poseKey = this.toPosePropertyKey(formPath);
-
-                    if (!this.properties.containsKey(poseKey))
-                    {
-                        Form targetForm = FormUtils.getForm(form, formPath);
-
-                        if (targetForm instanceof ModelForm modelForm)
-                        {
-                            modelForm.pose.setRuntimeValue(null);
-                        }
-                    }
-                }
+            if (!this.has(TrackId.property(formPath, POSE_PROPERTY)) && FormUtils.getForm(context.root(), formPath) instanceof ModelForm modelForm)
+            {
+                modelForm.pose.setRuntimeValue(null);
             }
         }
 
-        for (KeyframeChannel value : poseBoneChannels)
+        for (Map.Entry<TrackId, KeyframeChannel> entry : boneTracks.entrySet())
         {
-            this.applyProperty(tick, form, value, clampedBlend);
+            apply(context, entry.getKey(), entry.getValue(), tick, clampedBlend);
         }
     }
 
-    private void applyProperty(float tick, Form form, KeyframeChannel value, float blend)
+    private static void apply(TrackContext context, TrackId track, KeyframeChannel channel, float tick, float blend)
     {
-        PerLimbService.PoseBonePath poseBonePath = PerLimbService.parsePoseBonePath(value.getId());
+        TrackBehaviour behaviour = TrackBehaviours.of(track);
 
-        if (poseBonePath != null)
+        if (behaviour != null)
         {
-            String formPath = poseBonePath.formPath();
-            String bone = poseBonePath.bone();
-            Form targetForm = FormUtils.getForm(form, formPath);
-
-            if (targetForm instanceof ModelForm modelForm)
-            {
-                KeyframeSegment segment = value.find(tick);
-
-                if (segment != null)
-                {
-                    /* Copy on write */
-                    if (modelForm.pose.getRuntimeValue() == null)
-                    {
-                        modelForm.pose.setRuntimeValue(modelForm.pose.getOriginalValue().copy());
-                    }
-
-                    PoseTransform transform = modelForm.pose.get().get(bone);
-                    boolean isNew = transform == null;
-
-                    if (isNew)
-                    {
-                        transform = new PoseTransform();
-                        modelForm.pose.get().transforms.put(bone, transform);
-                    }
-
-                    Transform interpolated = (Transform) this.interpolateValue(value, new PoseTransform(), segment, blend);
-
-                    transform.add(interpolated);
-                }
-            }
-
-            return;
-        }
-
-        PerLimbService.MaterialTexturePath materialPath = PerLimbService.parseMaterialTexturePath(value.getId());
-
-        if (materialPath != null)
-        {
-            Form targetForm = FormUtils.getForm(form, materialPath.formPath());
-
-            if (targetForm instanceof ModelForm modelForm)
-            {
-                KeyframeSegment segment = value.find(tick);
-
-                if (segment != null)
-                {
-                    modelForm.materialTextureOverrides.put(materialPath.material(), (Link) segment.createInterpolated());
-                }
-                else if (blend >= 1F)
-                {
-                    modelForm.materialTextureOverrides.remove(materialPath.material());
-                }
-            }
-
-            return;
-        }
-
-        PerLimbService.MaterialPropPath materialProp = PerLimbService.parseMaterialPropPath(value.getId());
-
-        if (materialProp != null)
-        {
-            Form targetForm = FormUtils.getForm(form, materialProp.formPath());
-
-            if (targetForm instanceof ModelForm modelForm)
-            {
-                this.applyMaterialProp(tick, modelForm, materialProp, value, blend);
-            }
-
-            return;
-        }
-
-        BaseValueBasic property = FormUtils.getProperty(form, value.getId());
-
-        if (property == null)
-        {
-            return;
-        }
-
-        KeyframeSegment segment = value.find(tick);
-
-        if (segment != null)
-        {
-            Object interpolated = this.interpolateValue(value, property.get(), segment, blend);
-            property.setRuntimeValue(interpolated);
-        }
-        else if (blend >= 1F)
-        {
-            property.setRuntimeValue(null);
+            behaviour.apply(context, track, channel, tick, blend);
         }
     }
 
-    /**
-     * A per-material appearance channel writes into the model form's transient override map for
-     * its property (the renderer layers those over the static material values), mirroring the
-     * texture channels' lifecycle: present segment &rarr; put, no segment at full blend &rarr; remove.
-     * Blending starts from the material's static value, so a partially blended state eases out of
-     * what the material actually shows.
-     */
-    private void applyMaterialProp(float tick, ModelForm modelForm, PerLimbService.MaterialPropPath path, KeyframeChannel value, float blend)
-    {
-        String material = path.material();
-        String property = path.property();
-        KeyframeSegment segment = value.find(tick);
-        FormMaterial staticMaterial = modelForm.materials.getMaterial(material);
-
-        if (PerLimbService.MATERIAL_PROP_COLOR.equals(property))
-        {
-            if (segment != null)
-            {
-                Color current = staticMaterial == null ? Color.white() : staticMaterial.color.get();
-
-                modelForm.materialColorOverrides.put(material, (Color) this.interpolateValue(value, current, segment, blend));
-            }
-            else if (blend >= 1F)
-            {
-                modelForm.materialColorOverrides.remove(material);
-            }
-        }
-        else if (PerLimbService.MATERIAL_PROP_OVERLAY.equals(property))
-        {
-            if (segment != null)
-            {
-                Color current = staticMaterial == null ? new Color(1F, 1F, 1F, 0F) : staticMaterial.overlayColor.get();
-
-                modelForm.materialOverlayOverrides.put(material, (Color) this.interpolateValue(value, current, segment, blend));
-            }
-            else if (blend >= 1F)
-            {
-                modelForm.materialOverlayOverrides.remove(material);
-            }
-        }
-        else if (PerLimbService.MATERIAL_PROP_LIGHTING.equals(property))
-        {
-            if (segment != null)
-            {
-                Float current = staticMaterial == null ? 1F : staticMaterial.lighting.get();
-
-                modelForm.materialLightingOverrides.put(material, ((Number) this.interpolateValue(value, current, segment, blend)).floatValue());
-            }
-            else if (blend >= 1F)
-            {
-                modelForm.materialLightingOverrides.remove(material);
-            }
-        }
-        else if (PerLimbService.MATERIAL_PROP_CULLING.equals(property))
-        {
-            if (segment != null)
-            {
-                Integer current = staticMaterial == null ? 0 : staticMaterial.culling.get();
-
-                modelForm.materialCullingOverrides.put(material, ((Number) this.interpolateValue(value, current, segment, blend)).intValue());
-            }
-            else if (blend >= 1F)
-            {
-                modelForm.materialCullingOverrides.remove(material);
-            }
-        }
-        else
-        {
-            /* The PBR sliders (smoothness/metallic/sss/pixel_emission/relief), all floats. */
-            if (segment != null)
-            {
-                Float current = staticMaterial == null ? 0F : this.pbrSlider(staticMaterial, property);
-                float interpolated = ((Number) this.interpolateValue(value, current, segment, blend)).floatValue();
-
-                modelForm.materialPbrOverrides.computeIfAbsent(material, (k) -> new HashMap<>()).put(property, interpolated);
-            }
-            else if (blend >= 1F)
-            {
-                Map<String, Float> sliders = modelForm.materialPbrOverrides.get(material);
-
-                if (sliders != null)
-                {
-                    sliders.remove(property);
-
-                    if (sliders.isEmpty())
-                    {
-                        modelForm.materialPbrOverrides.remove(material);
-                    }
-                }
-            }
-        }
-    }
-
-    private float pbrSlider(FormMaterial material, String property)
-    {
-        return switch (property)
-        {
-            case PerLimbService.MATERIAL_PROP_SMOOTHNESS -> material.smoothness.get();
-            case PerLimbService.MATERIAL_PROP_METALLIC -> material.metallic.get();
-            case PerLimbService.MATERIAL_PROP_SSS -> material.sss.get();
-            case PerLimbService.MATERIAL_PROP_PIXEL_EMISSION -> material.pixelEmission.get();
-            case PerLimbService.MATERIAL_PROP_RELIEF -> material.relief.get();
-            default -> 0F;
-        };
-    }
-
-    private Object interpolateValue(KeyframeChannel value, Object current, KeyframeSegment segment, float blend)
-    {
-        if (blend < 1F)
-        {
-            IKeyframeFactory factory = value.getFactory();
-            Object v = factory.copy(current);
-            Object a = factory.copy(segment.createInterpolated());
-            Object interpolated = factory.interpolate(v, v, a, a, Interpolations.LINEAR, blend);
-
-            return factory.copy(interpolated);
-        }
-
-        return segment.createInterpolated();
-    }
-
-    private String toPosePropertyKey(String formPath)
-    {
-        if (formPath == null || formPath.isEmpty())
-        {
-            return POSE_PROPERTY;
-        }
-
-        return formPath + FormUtils.PATH_SEPARATOR + POSE_PROPERTY;
-    }
-
+    /** Let go of every track, so the form shows what it shows on its own again. */
     public void resetProperties(Form form)
     {
         if (form == null)
@@ -440,36 +267,24 @@ public class FormProperties extends ValueGroup
             return;
         }
 
-        for (KeyframeChannel value : this.properties.values())
+        for (TrackId track : this.tracks.keySet())
         {
-            BaseValueBasic property = FormUtils.getProperty(form, value.getId());
+            TrackBehaviour behaviour = TrackBehaviours.of(track);
 
-            /* Skip, don't abort: a channel whose path no longer resolves on this form (a removed body part,
-             * a state authored against another form, or a pose-bone/material channel, which is not a plain
-             * property at all) used to end the whole reset, leaving every property after it stuck at its
-             * runtime value — i.e. the state never turned off. Which properties survived depended on the
-             * HashMap iteration order, so it was never stable behaviour to begin with.
-             *
-             * Note the pose-bone and per-material channels still aren't undone here: applyProperty writes
-             * those into the model form's pose/material runtime values, and only the plain-property branch
-             * has a counterpart below. Left alone deliberately — undoing them changes how a state with bone
-             * channels releases, which wants a look in-game first. */
-            if (property == null)
+            if (behaviour != null)
             {
-                continue;
+                behaviour.reset(form, track);
             }
-
-            property.setRuntimeValue(null);
         }
     }
 
     public void cleanUp()
     {
-        Iterator<KeyframeChannel> it = this.properties.values().iterator();
+        Iterator<Map.Entry<TrackId, KeyframeChannel>> it = this.tracks.entrySet().iterator();
 
         while (it.hasNext())
         {
-            KeyframeChannel next = it.next();
+            KeyframeChannel next = it.next().getValue();
 
             if (next.isEmpty())
             {
@@ -479,13 +294,58 @@ public class FormProperties extends ValueGroup
         }
     }
 
+    /* Serialisation */
+
+    @Override
+    public BaseType toData()
+    {
+        ListType list = new ListType();
+
+        for (Map.Entry<TrackId, KeyframeChannel> entry : this.tracks.entrySet())
+        {
+            KeyframeChannel channel = entry.getValue();
+
+            if (channel.isEmpty())
+            {
+                continue;
+            }
+
+            TrackId track = entry.getKey();
+            MapType data = new MapType();
+
+            data.putString("kind", track.kind().key);
+
+            if (!track.formPath().isEmpty())
+            {
+                data.putString("form", track.formPath());
+            }
+
+            if (!track.subject().isEmpty())
+            {
+                data.putString("subject", track.subject());
+            }
+
+            if (!track.property().isEmpty())
+            {
+                data.putString("prop", track.property());
+            }
+
+            data.put("channel", channel.toData());
+            list.add(data);
+        }
+
+        MapType map = new MapType();
+
+        map.put(TRACKS, list);
+
+        return map;
+    }
+
     @Override
     public void fromData(BaseType data)
     {
-        super.fromData(data);
-
         this.removeAll();
-        this.properties.clear();
+        this.tracks.clear();
 
         if (!data.isMap())
         {
@@ -494,6 +354,53 @@ public class FormProperties extends ValueGroup
 
         MapType map = data.asMap();
 
+        if (map.has(TRACKS) && map.get(TRACKS).isList())
+        {
+            this.readTracks(map.getList(TRACKS));
+        }
+        else
+        {
+            this.readLegacy(map);
+        }
+    }
+
+    private void readTracks(ListType list)
+    {
+        for (int i = 0; i < list.size(); i++)
+        {
+            if (!list.get(i).isMap())
+            {
+                continue;
+            }
+
+            MapType data = list.get(i).asMap();
+            TrackKind kind = TrackKind.byKey(data.getString("kind"));
+
+            if (kind == null)
+            {
+                continue;
+            }
+
+            TrackId track = new TrackId(kind, data.getString("form"), data.getString("subject"), data.getString("prop"));
+            KeyframeChannel channel = new KeyframeChannel(track.toKey(), null);
+
+            channel.fromData(data.getMap("channel"));
+
+            /* The factory is written next to the keyframes; a channel saved with one this build no
+             * longer knows can't be read at all, and is dropped rather than kept half-alive. */
+            if (channel.getFactory() != null)
+            {
+                this.put(track, channel);
+            }
+        }
+    }
+
+    /**
+     * Read the pre-track format, where the map key was the channel id and the kind of track had to be
+     * parsed back out of it. Kept for every film saved before the kind became part of the data.
+     */
+    private void readLegacy(MapType map)
+    {
         for (String key : map.keys())
         {
             MapType mapType = map.getMap(key);
@@ -503,32 +410,39 @@ public class FormProperties extends ValueGroup
                 continue;
             }
 
-            KeyframeChannel property = new KeyframeChannel(key, null);
+            TrackId track = TrackId.parse(key);
 
-            property.fromData(mapType);
+            if (track == null)
+            {
+                continue;
+            }
+
+            KeyframeChannel channel = new KeyframeChannel(key, null);
+
+            channel.fromData(mapType);
 
             /* Patch 1.1.1 changes to lighting property */
-            if (key.endsWith("lighting") && property.getFactory() == KeyframeFactories.BOOLEAN)
+            if (key.endsWith("lighting") && channel.getFactory() == KeyframeFactories.BOOLEAN)
             {
-                KeyframeChannel newProperty = new KeyframeChannel(key, KeyframeFactories.FLOAT);
+                KeyframeChannel newChannel = new KeyframeChannel(key, KeyframeFactories.FLOAT);
 
-                for (Object keyframe : property.getKeyframes())
+                for (Object keyframe : channel.getKeyframes())
                 {
                     Keyframe kf = (Keyframe) keyframe;
                     Boolean v = (Boolean) kf.getValue();
 
-                    newProperty.insert(kf.getTick(), v ? 1F : 0F);
+                    newChannel.insert(kf.getTick(), v ? 1F : 0F);
                 }
 
-                property = newProperty;
+                channel = newChannel;
             }
 
-            /* Convert transform to pose_transform for pose bone channels */
-            if (property.getFactory() == KeyframeFactories.TRANSFORM && PerLimbService.isPoseBoneChannel(key))
+            /* Convert transform to pose_transform for bone tracks */
+            if (channel.getFactory() == KeyframeFactories.TRANSFORM && track.is(TrackKind.BONE))
             {
                 KeyframeChannel newChannel = new KeyframeChannel(key, KeyframeFactories.POSE_TRANSFORM);
 
-                for (Object o : property.getKeyframes())
+                for (Object o : channel.getKeyframes())
                 {
                     Keyframe kf = (Keyframe) o;
                     Object value = kf.getValue();
@@ -546,25 +460,14 @@ public class FormProperties extends ValueGroup
                 }
 
                 newChannel.sort();
-                property = newChannel;
+
+                channel = newChannel;
             }
 
-            if (property.getFactory() != null)
+            if (channel.getFactory() != null)
             {
-                this.properties.put(key, property);
-                this.add(property);
+                this.put(track, channel);
             }
         }
-    }
-
-    @Override
-    protected boolean canPersist(BaseValue value)
-    {
-        if (value instanceof KeyframeChannel<?> channel)
-        {
-            return !channel.isEmpty();
-        }
-
-        return super.canPersist(value);
     }
 }
