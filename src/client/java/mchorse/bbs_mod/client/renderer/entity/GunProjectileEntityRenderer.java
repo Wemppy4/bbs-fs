@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.client.renderer.entity;
 
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
@@ -68,11 +69,23 @@ public class GunProjectileEntityRenderer extends EntityRenderer<GunProjectileEnt
         MatrixStackUtils.applyTransform(matrices, properties.projectileTransform);
 
         /* TODO(1.21.11 render): depth state is now pipeline-encoded; RenderSystem.enableDepthTest was removed. */
-        FormUtilsClient.render(projectile.getForm(), new FormRenderingContext()
-            .set(FormRenderType.ENTITY, projectile.getFormEntity(), matrices, state.light, OverlayTexture.DEFAULT_UV, state.tickDelta)
-            .camera(MinecraftClient.getInstance().gameRenderer.getCamera()));
 
-        matrices.pop();
+        /* World draw, so it needs the world-forms span — same rule (and same ghosting under a
+         * shaderpack without it) as the actor next door. */
+        boolean prevWorldForms = BBSRendering.beginWorldForms();
+
+        try
+        {
+            FormUtilsClient.render(projectile.getForm(), new FormRenderingContext()
+                .set(FormRenderType.ENTITY, projectile.getFormEntity(), matrices, state.light, OverlayTexture.DEFAULT_UV, state.tickDelta)
+                .camera(MinecraftClient.getInstance().gameRenderer.getCamera()));
+        }
+        finally
+        {
+            BBSRendering.endWorldForms(prevWorldForms);
+
+            matrices.pop();
+        }
     }
 
     /**

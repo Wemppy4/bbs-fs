@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.client.renderer.entity;
 
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.renderer.DeathPose;
 import mchorse.bbs_mod.cubic.render.vanilla.ArmorRenderer;
 import mchorse.bbs_mod.entity.ActorEntity;
@@ -101,11 +102,27 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
          * RenderSystem.enableBlend/enableDepthTest toggles were removed. */
         Form form = entity.getForm();
 
-        FormUtilsClient.render(form, new FormRenderingContext()
-            .set(FormRenderType.ENTITY, entity.getFormEntity(), matrices, state.light, overlay, this.renderedTickDelta)
-            .camera(MinecraftClient.getInstance().gameRenderer.getCamera()));
+        /* An actor standing in the world is a world draw, so it goes inside the world-forms span —
+         * the same rule the morph's first-person arm and a held model item already follow. Outside it
+         * the draw takes the shared {@code bbs:pipeline/model}, which carries no shaderpack program
+         * assignment ("Missing program bbs:pipeline/model in override list" in the log), so under a
+         * pack the actor came out ghosted while every replay the film editor draws itself — those go
+         * through the span — stayed solid. That asymmetry was the whole bug report: the actor turns
+         * see-through the moment shaders are on. */
+        boolean prevWorldForms = BBSRendering.beginWorldForms();
 
-        matrices.pop();
+        try
+        {
+            FormUtilsClient.render(form, new FormRenderingContext()
+                .set(FormRenderType.ENTITY, entity.getFormEntity(), matrices, state.light, overlay, this.renderedTickDelta)
+                .camera(MinecraftClient.getInstance().gameRenderer.getCamera()));
+        }
+        finally
+        {
+            BBSRendering.endWorldForms(prevWorldForms);
+
+            matrices.pop();
+        }
     }
 
     protected boolean isVisible(LivingEntityRenderState state)
