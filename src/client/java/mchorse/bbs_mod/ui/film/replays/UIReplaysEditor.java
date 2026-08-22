@@ -1174,14 +1174,19 @@ public class UIReplaysEditor extends UIElement
     {
         String path = FormUtils.getPath(form);
         String poseId = path.isEmpty() ? "pose" : path + FormUtils.PATH_SEPARATOR + "pose";
+        String textureId = path.isEmpty() ? "texture" : path + FormUtils.PATH_SEPARATOR + "texture";
         UIKeyframeSheet poseSheet = null;
+        UIKeyframeSheet textureSheet = null;
 
         for (UIKeyframeSheet sheet : formSheets)
         {
             if (poseId.equals(sheet.id) && sheet.channel.getFactory() == KeyframeFactories.POSE)
             {
                 poseSheet = sheet;
-                break;
+            }
+            else if (textureId.equals(sheet.id))
+            {
+                textureSheet = sheet;
             }
         }
 
@@ -1190,9 +1195,30 @@ public class UIReplaysEditor extends UIElement
 
         if (form instanceof ModelForm modelForm)
         {
+            /* Material tracks fold under the texture track, the same way bones fold under the pose:
+             * a model with a handful of materials contributes dozens of them, and unfolded they bury
+             * the form's own properties under sliders nobody is animating right now. */
             List<UIKeyframeSheet> materialSheets = new ArrayList<>();
-            UIReplaysEditorUtils.addMaterialSheets(modelForm, this.replay.properties, materialSheets);
-            orderedFormSheets.addAll(materialSheets);
+            Map<String, Integer> materialDepthBySheetId = new HashMap<>();
+
+            UIReplaysEditorUtils.addMaterialSheets(modelForm, this.replay.properties, materialSheets, materialDepthBySheetId);
+
+            if (textureSheet != null && !materialSheets.isEmpty())
+            {
+                for (UIKeyframeSheet materialSheet : materialSheets)
+                {
+                    Integer depth = materialDepthBySheetId.get(materialSheet.id);
+
+                    poseTabDepths.put(materialSheet, depth == null ? 0 : depth);
+                }
+
+                poseTabs.put(textureSheet, materialSheets);
+                orderedFormSheets.addAll(orderedFormSheets.indexOf(textureSheet) + 1, materialSheets);
+            }
+            else
+            {
+                orderedFormSheets.addAll(materialSheets);
+            }
 
             List<UIKeyframeSheet> boneSheets = new ArrayList<>();
             Map<String, Integer> depthBySheetId = new HashMap<>();
