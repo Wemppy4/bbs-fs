@@ -616,6 +616,24 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         this.toggleMousePointer(!transformRecording && this.controlled != null);
+
+        /* No countdown means the take starts now. Without this nothing ever started it: the countdown
+         * branch below is what calls togglePlayback, and it only runs while the counter is still above
+         * zero — with the setting at 0 the very first tick fell straight through to "the film is not
+         * running, so the take is over" and stopped the recording before a single frame was written. */
+        this.startPlayback();
+    }
+
+    /**
+     * Begin playback for a take, unless the film is already running (the editor can be playing when a
+     * recording starts). Never a blind {@code togglePlayback} — that would stop it instead.
+     */
+    private void startPlayback()
+    {
+        if (this.recordingCountdown <= 0 && !this.panel.getRunner().isRunning())
+        {
+            this.panel.togglePlayback();
+        }
     }
 
     public void stopRecording()
@@ -1185,10 +1203,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
             {
                 this.recordingCountdown -= 1;
 
-                if (this.recordingCountdown <= 0)
-                {
-                    this.panel.togglePlayback();
-                }
+                this.startPlayback();
             }
 
             if (this.recordingCountdown <= 0)
