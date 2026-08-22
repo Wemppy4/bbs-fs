@@ -38,6 +38,7 @@
         "ParticleMixin",
         "ModelCommandRendererMixin",
         "GlyphGuiElementRenderStateMixin",
+        "EntityGuiElementRendererMixin",
         "iris.IrisMixin",
         "iris.JcppProcessorMixin",
         "iris.ShaderPackMixin",

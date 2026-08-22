@@ -3,6 +3,7 @@ package mchorse.bbs_mod.mixin.client;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.renderer.MorphRenderer;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
@@ -33,6 +34,11 @@ public class WorldRendererMixin
     public void onRenderWorldStart(CallbackInfo info)
     {
         FormTranslucentQueue.begin();
+
+        /* The GUI entity span is closed on RETURN of that draw, which a throw inside it would skip —
+         * and a stuck flag would make every world morph draw in the build phase, i.e. vanish. The world
+         * is the one place that can state the truth unconditionally: we are not in the GUI here. */
+        MorphRenderer.setGuiPass(false);
     }
 
     @Inject(method = "render", at = @At("RETURN"))

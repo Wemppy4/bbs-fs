@@ -2,6 +2,7 @@ package mchorse.bbs_mod.client.renderer;
 
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -22,6 +23,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.RotationAxis;
@@ -48,9 +50,28 @@ public class MorphRenderer
     private static final List<Queued> QUEUE = new ArrayList<>();
 
     /**
+     * Set while vanilla draws an entity INTO THE GUI — the inventory's little player window and
+     * everything else built on {@code EntityGuiElementRenderer}.
+     *
+     * <p>That draw reaches the same {@code LivingEntityRenderer.render} the world does, so a morph is
+     * collected there too — but the queue is drained from {@code WorldRenderEvents.AFTER_ENTITIES},
+     * which does not fire for the GUI. The entry therefore sat in the queue with the vanilla render
+     * already cancelled: the inventory window came out empty, and the stale entry was then drawn by the
+     * next world frame, which in first person is the one place the player is not submitted at all — so
+     * the morph appeared in front of the camera as well.</p>
+     */
+    private static boolean guiPass;
+
+    /** See {@link #guiPass}. Set by {@code EntityGuiElementRendererMixin} around that one draw. */
+    public static void setGuiPass(boolean pass)
+    {
+        guiPass = pass;
+    }
+
+    /**
      * Collect a player morph for deferred rendering. Returns true to suppress the vanilla render.
      */
-    public static boolean collectPlayer(AbstractClientPlayerEntity player, MatrixStack matrices, int light, int overlay, float tickDelta)
+    public static boolean collectPlayer(AbstractClientPlayerEntity player, MatrixStack matrices, int light, int overlay, float tickDelta, LivingEntityRenderState state)
     {
         if (hidePlayer)
         {
@@ -66,7 +87,7 @@ public class MorphRenderer
         {
             if (canRender())
             {
-                submit(morph.getForm(), morph.entity, matrices, light, overlay, tickDelta, player.deathTime);
+                submit(morph.getForm(), morph.entity, matrices, light, overlay, tickDelta, player.deathTime, state);
             }
 
             return true;
@@ -79,7 +100,7 @@ public class MorphRenderer
      * Collect a selector-owner (mob) morph for deferred rendering. Returns true to suppress the
      * vanilla render.
      */
-    public static boolean collectLivingEntity(LivingEntity livingEntity, MatrixStack matrices, int light, int overlay, float tickDelta)
+    public static boolean collectLivingEntity(LivingEntity livingEntity, MatrixStack matrices, int light, int overlay, float tickDelta, LivingEntityRenderState state)
     {
         if (!(livingEntity instanceof ISelectorOwnerProvider))
         {
@@ -94,7 +115,7 @@ public class MorphRenderer
 
         if (form != null)
         {
-            submit(form, owner.entity, matrices, light, overlay, tickDelta, livingEntity.deathTime);
+            submit(form, owner.entity, matrices, light, overlay, tickDelta, livingEntity.deathTime, state);
 
             return true;
         }
@@ -121,15 +142,96 @@ public class MorphRenderer
      *       queueing here is what removes the body; nothing else has to change.</li>
      * </ul>
      */
-    private static void submit(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta, int deathTime)
+    private static void submit(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta, int deathTime, LivingEntityRenderState state)
     {
         if (BBSRendering.isIrisShadowPass())
         {
             renderShadow(form, entity, matrices, light, overlay, tickDelta, deathTime);
         }
+        else if (guiPass)
+        {
+            renderGui(form, entity, matrices, light, overlay, tickDelta, deathTime, state);
+        }
         else
         {
             queue(form, entity, light, overlay, tickDelta, deathTime);
+        }
+    }
+
+    /**
+     * Draw a morph into the GUI, where the entity preview is being rendered.
+     *
+     * <p>Immediate, like the shadow pass and unlike the main pass: the special-element renderer has
+     * already pointed the output at its own off-screen target and set the preview's projection, and it
+     * flushes what we draw as soon as this call returns — there is no later point to defer to. The
+     * translucent queue is suspended for the span for the same reason (its flush belongs to the world).</p>
+     *
+     * <p>The preview's rotations live in the render state, not on the entity: 1.21.5 stopped writing
+     * them onto the entity for the duration of the draw (which is exactly what 1.21.1's
+     * {@code drawEntity} did, and why the morph simply worked there). BBS's form rendering reads the
+     * entity, so we do that write ourselves — and put the real values back — instead of letting a
+     * preview show the body yaw and head tracking of the world.</p>
+     */
+    private static void renderGui(Form form, IEntity entity, MatrixStack matrices, int light, int overlay, float tickDelta, int deathTime, LivingEntityRenderState state)
+    {
+        float yaw = entity.getYaw();
+        float prevYaw = entity.getPrevYaw();
+        float headYaw = entity.getHeadYaw();
+        float prevHeadYaw = entity.getPrevHeadYaw();
+        float bodyYaw = entity.getBodyYaw();
+        float prevBodyYaw = entity.getPrevBodyYaw();
+        float pitch = entity.getPitch();
+        float prevPitch = entity.getPrevPitch();
+
+        float previewBodyYaw = state == null ? Lerps.lerp(prevBodyYaw, bodyYaw, tickDelta) : state.bodyYaw;
+
+        if (state != null)
+        {
+            float previewHeadYaw = state.bodyYaw + state.relativeHeadYaw;
+
+            /* No interpolation to do in a preview — prev and current are the same pose. */
+            entity.setBodyYaw(state.bodyYaw);
+            entity.setPrevBodyYaw(state.bodyYaw);
+            entity.setYaw(previewHeadYaw);
+            entity.setPrevYaw(previewHeadYaw);
+            entity.setHeadYaw(previewHeadYaw);
+            entity.setPrevHeadYaw(previewHeadYaw);
+            entity.setPitch(state.pitch);
+            entity.setPrevPitch(state.pitch);
+        }
+
+        boolean wasActive = FormTranslucentQueue.suspend();
+
+        matrices.push();
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-previewBodyYaw));
+
+        /* This render replaces LivingEntityRenderer's own transforms, so the fall of a dead body has to
+         * be repeated here — the same reason as in renderShadow. */
+        DeathPose.apply(matrices, deathTime, tickDelta);
+
+        try
+        {
+            FormUtilsClient.render(form, new FormRenderingContext()
+                .set(FormRenderType.ENTITY, entity, matrices, light, overlay, tickDelta)
+                .camera(MinecraftClient.getInstance().gameRenderer.getCamera()));
+        }
+        finally
+        {
+            matrices.pop();
+
+            FormTranslucentQueue.restore(wasActive);
+
+            if (state != null)
+            {
+                entity.setBodyYaw(bodyYaw);
+                entity.setPrevBodyYaw(prevBodyYaw);
+                entity.setYaw(yaw);
+                entity.setPrevYaw(prevYaw);
+                entity.setHeadYaw(headYaw);
+                entity.setPrevHeadYaw(prevHeadYaw);
+                entity.setPitch(pitch);
+                entity.setPrevPitch(prevPitch);
+            }
         }
     }
 
