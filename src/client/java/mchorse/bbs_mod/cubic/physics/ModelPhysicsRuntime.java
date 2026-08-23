@@ -2,7 +2,7 @@ package mchorse.bbs_mod.cubic.physics;
 
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.cubic.constraints.ModelConstraintsConfig;
+import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
 import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
@@ -99,7 +99,7 @@ public final class ModelPhysicsRuntime
             return;
         }
 
-        Map<String, ModelConstraintsConfig.BoneConstraint> constraints = ModelConstraintsRuntime.getBones(instance);
+        Map<String, BoneConstraint> constraints = ModelConstraintsRuntime.getBones(instance);
 
         Map<String, InstanceState> byForm = STATES.computeIfAbsent(entity, (e) -> new HashMap<>());
         InstanceState state = byForm.computeIfAbsent(FormUtils.getPath(form), (k) -> new InstanceState());
@@ -146,7 +146,7 @@ public final class ModelPhysicsRuntime
         return new ModelPhysicsConfig.Wind(wind.strength(), dir.x, dir.y, dir.z, wind.turbulence(), wind.turbulenceSpeed(), wind.turbulenceScale(), false);
     }
 
-    private static void applyCompiled(World world, int age, float transition, IModel model, ModelInstance instance, List<ModelPhysicsCache.CompiledChain> compiledChains, ModelPhysicsConfig.Wind wind, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, InstanceState state, Matrix4f baseTransform)
+    private static void applyCompiled(World world, int age, float transition, IModel model, ModelInstance instance, List<ModelPhysicsCache.CompiledChain> compiledChains, ModelPhysicsConfig.Wind wind, Map<String, BoneConstraint> constraints, InstanceState state, Matrix4f baseTransform)
     {
         Set<String> wanted = new HashSet<>();
         Set<String> chainIds = new HashSet<>();
@@ -184,7 +184,7 @@ public final class ModelPhysicsRuntime
         }
     }
 
-    private static void applyChain(World world, int age, float transition, IModel model, ModelInstance instance, ModelPhysicsCache.CompiledChain chain, ModelPhysicsConfig.Wind wind, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Map<String, PivotFrame> frames, InstanceState instanceState)
+    private static void applyChain(World world, int age, float transition, IModel model, ModelInstance instance, ModelPhysicsCache.CompiledChain chain, ModelPhysicsConfig.Wind wind, Map<String, BoneConstraint> constraints, Map<String, PivotFrame> frames, InstanceState instanceState)
     {
         List<String> ids = chain.chainRootToEnd();
         int pivotCount = ids.size();

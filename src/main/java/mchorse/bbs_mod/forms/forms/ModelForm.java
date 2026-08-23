@@ -2,9 +2,13 @@ package mchorse.bbs_mod.forms.forms;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
+import mchorse.bbs_mod.cubic.constraints.BoneConstraintsIO;
 import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.cubic.physics.PhysicsControl;
 import mchorse.bbs_mod.cubic.physics.WindControl;
+import mchorse.bbs_mod.data.types.BaseType;
+import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.forms.forms.utils.ValueBones;
 import mchorse.bbs_mod.forms.forms.utils.ValueMaterials;
 import mchorse.bbs_mod.forms.values.ValueActionsConfig;
 import mchorse.bbs_mod.forms.values.ValueShapeKeys;
@@ -40,7 +44,7 @@ public class ModelForm extends Form
     public final ValueBoolean boneTracks = new ValueBoolean("bone_tracks", true);
     public final ValueData ik = new ValueData("ik");
     public final ValueData physics = new ValueData("physics");
-    public final ValueData constraints = new ValueData("constraints");
+    public final ValueBones bones = new ValueBones("bones");
 
     public final List<ValuePose> additionalOverlays = new ArrayList<>();
 
@@ -106,10 +110,23 @@ public class ModelForm extends Form
 
         this.ik.invisible();
         this.physics.invisible();
-        this.constraints.invisible();
+        this.bones.invisible();
         this.add(this.ik);
         this.add(this.physics);
-        this.add(this.constraints);
+        this.add(this.bones);
+    }
+
+    @Override
+    public void fromData(BaseType data)
+    {
+        super.fromData(data);
+
+        /* Forms saved before the bones group kept the constraints as an opaque blob
+         * in the exchange format; unpack it into the per-bone properties. */
+        if (data instanceof MapType map && map.has("constraints", BaseType.TYPE_MAP))
+        {
+            BoneConstraintsIO.read(map.getMap("constraints"), this.bones, false);
+        }
     }
 
     @Override

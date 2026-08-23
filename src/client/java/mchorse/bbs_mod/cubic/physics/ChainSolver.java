@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.cubic.physics;
 
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.cubic.constraints.ModelConstraintsConfig;
+import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import net.minecraft.util.math.BlockPos;
@@ -204,7 +204,7 @@ final class ChainSolver
         }
     }
 
-    static void step(World world, int age, float transition, IModel model, List<String> ids, ModelPhysicsCache.CompiledChain chain, float gravityMul, float dampingValue, float stiffnessValue, ModelPhysicsConfig.Wind wind, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Vector3f anchorPosition, Quaternionf anchorRotation, Quaternionf parentRotation, Vector3f targetPosition, List<PivotFrame> chainFrames, ChainState state)
+    static void step(World world, int age, float transition, IModel model, List<String> ids, ModelPhysicsCache.CompiledChain chain, float gravityMul, float dampingValue, float stiffnessValue, ModelPhysicsConfig.Wind wind, Map<String, BoneConstraint> constraints, Vector3f anchorPosition, Quaternionf anchorRotation, Quaternionf parentRotation, Vector3f targetPosition, List<PivotFrame> chainFrames, ChainState state)
     {
         Vector3f newAnchor = anchorPosition;
         Quaternionf newAnchorRotation = anchorRotation;
@@ -663,7 +663,7 @@ final class ChainSolver
      * along the clamped direction. Only enabled constraints clamp; every bone still advances the parent
      * frame so the next bone is measured in the right space.
      */
-    private static void applyAngleConstraints(PhysicsRig rig, List<String> ids, Vector3f[] pos, float[] lengths, Map<String, ModelConstraintsConfig.BoneConstraint> constraints, Quaternionf rootParentRotation)
+    private static void applyAngleConstraints(PhysicsRig rig, List<String> ids, Vector3f[] pos, float[] lengths, Map<String, BoneConstraint> constraints, Quaternionf rootParentRotation)
     {
         int boneCount = ids.size();
 
@@ -678,7 +678,7 @@ final class ChainSolver
         {
             String boneId = ids.get(i);
             String childId = i + 1 < boneCount ? ids.get(i + 1) : null;
-            ModelConstraintsConfig.BoneConstraint c = boneId == null ? null : constraints.get(boneId);
+            BoneConstraint c = boneId == null ? null : constraints.get(boneId);
 
             Vector3f restDirLocal = rig.restDirectionLocal(boneId, childId);
 
@@ -711,16 +711,16 @@ final class ChainSolver
             Quaternionf localRot = Matrices.fromToMirroredX(restDirLocal, desiredDirLocal);
             Quaternionf applied = localRot;
 
-            if (c != null && c.enabled())
+            if (c != null && c.enabled)
             {
                 Vector3f eulerDeg = Matrices.toEulerZYXDegrees(localRot);
 
-                float minX = c.minX();
-                float minY = c.minY();
-                float minZ = c.minZ();
-                float maxX = c.maxX();
-                float maxY = c.maxY();
-                float maxZ = c.maxZ();
+                float minX = c.minX;
+                float minY = c.minY;
+                float minZ = c.minZ;
+                float maxX = c.maxX;
+                float maxY = c.maxY;
+                float maxZ = c.maxZ;
 
                 if (minX > maxX)
                 {

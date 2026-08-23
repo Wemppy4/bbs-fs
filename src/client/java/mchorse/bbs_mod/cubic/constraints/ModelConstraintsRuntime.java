@@ -5,8 +5,9 @@ import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import org.joml.Vector3f;
@@ -14,24 +15,11 @@ import org.joml.Vector3f;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 public final class ModelConstraintsRuntime
 {
-    private static final WeakHashMap<MapType, Map<String, ModelConstraintsConfig.BoneConstraint>> EMBEDDED = new WeakHashMap<>();
-
     private ModelConstraintsRuntime()
     {
-    }
-
-    public static void clearCache()
-    {
-        EMBEDDED.clear();
-    }
-
-    public static void invalidate(String modelId)
-    {
-        EMBEDDED.clear();
     }
 
     public static void apply(ModelInstance instance)
@@ -41,9 +29,9 @@ public final class ModelConstraintsRuntime
             return;
         }
 
-        Map<String, ModelConstraintsConfig.BoneConstraint> bones = getBones(instance);
+        Map<String, BoneConstraint> bones = getBones(instance);
 
-        if (bones == null || bones.isEmpty())
+        if (bones.isEmpty())
         {
             return;
         }
@@ -58,28 +46,38 @@ public final class ModelConstraintsRuntime
         }
     }
 
-    public static Map<String, ModelConstraintsConfig.BoneConstraint> getBones(ModelInstance instance)
+    /**
+     * The form's enabled constraints by bone name, read fresh from the bone properties each
+     * frame (a track's runtime override on the property is picked up for free that way).
+     */
+    public static Map<String, BoneConstraint> getBones(ModelInstance instance)
     {
-        if (instance != null && instance.form instanceof ModelForm form && form.constraints.get() instanceof MapType map)
+        if (!(instance != null && instance.form instanceof ModelForm form))
         {
-            Map<String, ModelConstraintsConfig.BoneConstraint> cached = EMBEDDED.get(map);
-
-            if (cached != null)
-            {
-                return cached;
-            }
-
-            ModelConstraintsConfig config = ModelConstraintsIO.fromData(map);
-            Map<String, ModelConstraintsConfig.BoneConstraint> bones = config == null || config.bones() == null
-                ? Collections.emptyMap()
-                : Collections.unmodifiableMap(new HashMap<>(config.bones()));
-
-            EMBEDDED.put(map, bones);
-
-            return bones;
+            return Collections.emptyMap();
         }
 
-        return Collections.emptyMap();
+        Map<String, BoneConstraint> bones = null;
+
+        for (BaseValue value : form.bones.getAll())
+        {
+            if (value instanceof FormBone bone)
+            {
+                BoneConstraint constraint = bone.constraints.get();
+
+                if (constraint.enabled)
+                {
+                    if (bones == null)
+                    {
+                        bones = new HashMap<>();
+                    }
+
+                    bones.put(bone.getId(), constraint);
+                }
+            }
+        }
+
+        return bones == null ? Collections.emptyMap() : bones;
     }
 
     /**
@@ -91,7 +89,7 @@ public final class ModelConstraintsRuntime
      * null {@code orient}, visually destroying the solve on a constrained chain bone). Works on
      * quaternion-mode bones too — the clamp reads the evaluated rotation, never a stale euler.
      */
-    private static void applyToModel(Model model, Map<String, ModelConstraintsConfig.BoneConstraint> bones)
+    private static void applyToModel(Model model, Map<String, BoneConstraint> bones)
     {
         for (ModelGroup group : model.getAllGroups())
         {
@@ -100,9 +98,9 @@ public final class ModelConstraintsRuntime
                 continue;
             }
 
-            ModelConstraintsConfig.BoneConstraint c = bones.get(group.id);
+            BoneConstraint c = bones.get(group.id);
 
-            if (c == null || !c.enabled())
+            if (c == null || !c.enabled)
             {
                 continue;
             }
@@ -115,8 +113,8 @@ public final class ModelConstraintsRuntime
         }
     }
 
-    /** See {@link #applyToModel}; BOBJ channels are radians, the config limits are degrees. */
-    private static void applyToBobj(BOBJModel model, Map<String, ModelConstraintsConfig.BoneConstraint> bones)
+    /** See {@link #applyToModel}; BOBJ channels are radians, the constraint limits are degrees. */
+    private static void applyToBobj(BOBJModel model, Map<String, BoneConstraint> bones)
     {
         for (BOBJBone bone : model.getArmature().orderedBones)
         {
@@ -125,9 +123,9 @@ public final class ModelConstraintsRuntime
                 continue;
             }
 
-            ModelConstraintsConfig.BoneConstraint c = bones.get(bone.name);
+            BoneConstraint c = bones.get(bone.name);
 
-            if (c == null || !c.enabled())
+            if (c == null || !c.enabled)
             {
                 continue;
             }
@@ -141,11 +139,11 @@ public final class ModelConstraintsRuntime
     }
 
     /** Clamps euler angles to the constraint's limits, {@code scale} converting the degree limits to the angles' unit. */
-    private static void clamp(Vector3f euler, ModelConstraintsConfig.BoneConstraint c, float scale)
+    private static void clamp(Vector3f euler, BoneConstraint c, float scale)
     {
-        euler.x = clampAxis(euler.x, c.minX() * scale, c.maxX() * scale);
-        euler.y = clampAxis(euler.y, c.minY() * scale, c.maxY() * scale);
-        euler.z = clampAxis(euler.z, c.minZ() * scale, c.maxZ() * scale);
+        euler.x = clampAxis(euler.x, c.minX * scale, c.maxX * scale);
+        euler.y = clampAxis(euler.y, c.minY * scale, c.maxY * scale);
+        euler.z = clampAxis(euler.z, c.minZ * scale, c.maxZ * scale);
     }
 
     private static float clampAxis(float value, float min, float max)
