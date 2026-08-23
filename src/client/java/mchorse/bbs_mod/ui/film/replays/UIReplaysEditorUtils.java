@@ -178,7 +178,7 @@ public class UIReplaysEditorUtils
      * their parent row. The catalog decides what exists and where it sits; this only builds widgets,
      * which is why both timelines — a record's and an animation state's — go through it.
      */
-    public static void buildSheets(List<TrackDescriptor> catalog, List<UIKeyframeSheet> sheets, Map<UIKeyframeSheet, List<UIKeyframeSheet>> tabs, Map<UIKeyframeSheet, Integer> depths)
+    public static void buildSheets(List<TrackDescriptor> catalog, List<UIKeyframeSheet> sheets)
     {
         Map<TrackId, UIKeyframeSheet> rows = new HashMap<>();
 
@@ -192,12 +192,28 @@ public class UIReplaysEditorUtils
 
         for (TrackDescriptor track : catalog)
         {
-            UIKeyframeSheet parent = track.parent() == null ? null : rows.get(track.parent());
-
-            if (parent != null)
+            if (track.parent() != null)
             {
-                tabs.computeIfAbsent(parent, (k) -> new ArrayList<>()).add(rows.get(track.id()));
-                depths.put(rows.get(track.id()), track.depth());
+                rows.get(track.id()).setParent(rows.get(track.parent()));
+            }
+        }
+    }
+
+    /**
+     * Cut loose the rows whose parent this timeline is not showing — a tab or a filter can drop a
+     * parent while keeping its children, and a child left pointing at a row that is not there would
+     * be folded away with no way to unfold it.
+     */
+    public static void detachMissingParents(List<UIKeyframeSheet> sheets)
+    {
+        Set<UIKeyframeSheet> present = new HashSet<>(sheets);
+
+        for (UIKeyframeSheet sheet : sheets)
+        {
+            if (sheet.parent != null && !present.contains(sheet.parent))
+            {
+                sheet.parent.children.remove(sheet);
+                sheet.parent = null;
             }
         }
     }

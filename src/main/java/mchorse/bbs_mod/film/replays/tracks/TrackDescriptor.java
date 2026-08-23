@@ -30,9 +30,10 @@ import java.util.function.Supplier;
  *                 builds by hand.
  * @param seed     value a brand-new keyframe starts at, when it must not simply be the empty value.
  *                 Null means the empty value (or the property's) is right.
- * @param parent   track this one folds under — a bone under its form's pose track, a material's
- *                 properties under its texture track. Null for a track that stands on its own.
- * @param depth    how many steps in from its parent the track is drawn
+ * @param parent   track this one folds under — a bone under the bone it hangs off, a material's
+ *                 properties under that material's texture track. Null for a track that stands on
+ *                 its own. How far in a track is drawn follows from this chain, so there is nothing
+ *                 to keep in step with it.
  */
 public record TrackDescriptor(
     TrackId id,
@@ -43,24 +44,23 @@ public record TrackDescriptor(
     int color,
     BaseValueBasic property,
     Supplier<Object> seed,
-    TrackId parent,
-    int depth
+    TrackId parent
 )
 {
     public TrackDescriptor(TrackId id, KeyframeChannel channel, Form owner, IKey title, Icon icon, int color, BaseValueBasic property)
     {
-        this(id, channel, owner, title, icon, color, property, null, null, 0);
+        this(id, channel, owner, title, icon, color, property, null, null);
     }
 
     public TrackDescriptor seed(Supplier<Object> seed)
     {
-        return new TrackDescriptor(this.id, this.channel, this.owner, this.title, this.icon, this.color, this.property, seed, this.parent, this.depth);
+        return new TrackDescriptor(this.id, this.channel, this.owner, this.title, this.icon, this.color, this.property, seed, this.parent);
     }
 
-    /** Fold this track under another one, drawn {@code depth} steps in from it. */
-    public TrackDescriptor under(TrackId parent, int depth)
+    /** Fold this track under another one. */
+    public TrackDescriptor under(TrackId parent)
     {
-        return new TrackDescriptor(this.id, this.channel, this.owner, this.title, this.icon, this.color, this.property, this.seed, parent, depth);
+        return new TrackDescriptor(this.id, this.channel, this.owner, this.title, this.icon, this.color, this.property, this.seed, parent);
     }
 
     /**

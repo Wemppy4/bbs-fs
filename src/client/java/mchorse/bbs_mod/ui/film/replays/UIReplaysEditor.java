@@ -124,14 +124,11 @@ public class UIReplaysEditor extends UIElement
     private boolean propertiesVisible = true;
     private Set<String> keys = new LinkedHashSet<>();
     /**
-     * Which pose tracks the user left unfolded, per replay. Every rebuild of the timeline throws the
-     * dope sheet away - switching category, toggling "all tracks", changing the track filter - so the
-     * unfolded state is taken off the old sheet before it goes (see {@link #savePoseTabState()}) and
-     * handed to the one built in its place.
+     * Which rows the user left unfolded, per record. Every rebuild of the timeline throws the dope
+     * sheet away — switching category, toggling "all tracks", changing the track filter — so this set
+     * is handed to each new sheet, which folds in it directly rather than keeping a copy.
      */
-    private final Map<String, Set<String>> expandedPoseTabsByReplay = new HashMap<>();
-    /** The replay the standing keyframe editor was built for - whose state {@link #savePoseTabState()} saves. */
-    private String keyframeEditorReplayId;
+    private final Map<String, Set<String>> expandedTracksByReplay = new HashMap<>();
 
     public enum ReplayCategory
     {
@@ -444,11 +441,7 @@ public class UIReplaysEditor extends UIElement
 
     public void setFilm(Film film)
     {
-        this.savePoseTabState();
-        this.expandedPoseTabsByReplay.clear();
-        /* The map was just emptied for the new film - forget which replay the standing editor belongs
-         * to as well, or the rebuild below would put the old film's state straight back into it. */
-        this.keyframeEditorReplayId = null;
+        this.expandedTracksByReplay.clear();
         this.film = film;
         this.filmPanel.getController().orbit.reset();
 
@@ -492,8 +485,6 @@ public class UIReplaysEditor extends UIElement
 
         try
         {
-            this.savePoseTabState();
-
             this.replay = replay;
 
             if (orbit == OrbitReaction.RESET)
@@ -536,14 +527,10 @@ public class UIReplaysEditor extends UIElement
     {
         UIKeyframes lastEditor = this.keyframeEditor != null ? this.keyframeEditor.view : null;
 
-        /* The sheet about to be dropped is the only place the unfolded pose tracks are kept. */
-        this.savePoseTabState();
-
         if (this.keyframeEditor != null)
         {
             this.keyframeEditor.removeFromParent();
             this.keyframeEditor = null;
-            this.keyframeEditorReplayId = null;
         }
 
         if (this.replay == null)
@@ -557,11 +544,9 @@ public class UIReplaysEditor extends UIElement
         this.updateTab(ReplayCategory.PHYSICS, catalog);
 
         List<UIKeyframeSheet> sheets = new ArrayList<>();
-        Map<UIKeyframeSheet, List<UIKeyframeSheet>> poseTabs = new HashMap<>();
-        Map<UIKeyframeSheet, Integer> poseTabDepths = new HashMap<>();
 
         this.collectCuratedSheets(sheets);
-        UIReplaysEditorUtils.buildSheets(catalog, sheets, poseTabs, poseTabDepths);
+        UIReplaysEditorUtils.buildSheets(catalog, sheets);
 
         this.keys.clear();
 
@@ -608,11 +593,7 @@ public class UIReplaysEditor extends UIElement
          */
         boolean filteredOutEverything = hadTracks && sheets.isEmpty();
 
-        /* Tabs only filter the gathered sheets, so drop pose-tab entries whose pose sheet the active tab filtered out. */
-        Set<UIKeyframeSheet> kept = new LinkedHashSet<>(sheets);
-        poseTabs.keySet().retainAll(kept);
-        poseTabDepths.keySet().retainAll(kept);
-
+        UIReplaysEditorUtils.detachMissingParents(sheets);
         UIReplaysEditorUtils.markFormSeparators(sheets);
 
         if (!sheets.isEmpty() || filteredOutEverything)
@@ -728,12 +709,7 @@ public class UIReplaysEditor extends UIElement
                 this.keyframeEditor.view.addSheet(sheet);
             }
 
-            Set<String> expandedPoseIds = this.expandedPoseTabsByReplay.getOrDefault(
-                this.replay == null ? "" : this.replay.getId(),
-                Collections.emptySet()
-            );
-            this.keyframeEditor.view.getDopeSheet().configurePoseTabs(poseTabs, poseTabDepths, expandedPoseIds);
-            this.keyframeEditorReplayId = this.replay == null ? null : this.replay.getId();
+            this.keyframeEditor.view.getDopeSheet().setExpanded(this.getExpandedTracks());
 
             this.add(this.keyframeEditor);
             /* Category bar + actions toggle on top so they overlay the track names column. */
@@ -810,41 +786,20 @@ public class UIReplaysEditor extends UIElement
     }
 
     /**
-     * Pose tracks the user has unfolded to their per-limb tracks right now. Empty while there is no
-     * timeline standing - nothing is unfolded then either.
+     * Rows the user has unfolded in this record's timeline. Handed to the dope sheet as-is, so folding
+     * a row there lands here directly — there is nothing to read back out when the timeline is rebuilt,
+     * which is what the old save-and-restore step existed for (and it had to know which tracks the
+     * current category could even answer for).
      */
-    public Set<String> getExpandedPoseTabIds()
+    public Set<String> getExpandedTracks()
     {
-        if (this.keyframeEditor == null)
-        {
-            return Collections.emptySet();
-        }
-
-        return this.keyframeEditor.view.getDopeSheet().getExpandedPoseTabIds();
+        return this.expandedTracksByReplay.computeIfAbsent(this.replay == null ? "" : this.replay.getId(), (k) -> new HashSet<>());
     }
 
-    /**
-     * Keyed by the replay the editor was <em>built</em> for, not the one selected now: the replay is
-     * swapped before the timeline is rebuilt, so asking for the current one here would file the old
-     * sheet's unfolded tracks under the new replay.
-     */
-    private void savePoseTabState()
+    /** Pose tracks unfolded right now — what {@code insertFrame} keys by, per limb or as a whole pose. */
+    public Set<String> getExpandedPoseTabIds()
     {
-        if (this.keyframeEditorReplayId == null || this.keyframeEditor == null)
-        {
-            return;
-        }
-
-        UIKeyframeDopeSheet dopeSheet = this.keyframeEditor.view.getDopeSheet();
-        Set<String> saved = new HashSet<>(this.expandedPoseTabsByReplay.getOrDefault(this.keyframeEditorReplayId, Collections.emptySet()));
-
-        /* Only the pose tracks this timeline was actually showing get their answer taken from it. A
-         * category without pose tracks knows nothing about them - overwriting with what it reports
-         * (nothing unfolded) is what used to fold everything shut on the way through another tab. */
-        saved.removeAll(dopeSheet.getPoseTabIds());
-        saved.addAll(dopeSheet.getExpandedPoseTabIds());
-
-        this.expandedPoseTabsByReplay.put(this.keyframeEditorReplayId, saved);
+        return this.getExpandedTracks();
     }
 
     public void setTimelineVisible(boolean visible)

@@ -985,10 +985,6 @@ public class UIKeyframes extends UIElement
         }
     }
 
-    public void addElement(UIKeyframeElement element)
-    {
-        this.dopeSheet.addElement(element);
-    }
 
     public void pickKeyframe(Keyframe keyframe)
     {

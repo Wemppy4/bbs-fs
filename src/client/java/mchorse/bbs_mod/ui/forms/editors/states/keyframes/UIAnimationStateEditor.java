@@ -66,8 +66,8 @@ public class UIAnimationStateEditor extends UIElement
     private AnimationState state;
     private Set<String> keys = new LinkedHashSet<>();
 
-    /** Track rows the user has unfolded right now, kept across rebuilds of the timeline. */
-    private Set<String> expandedTabs = new HashSet<>();
+    /** Track rows the user has unfolded right now; handed to the dope sheet, which folds them in place. */
+    private final Set<String> expandedTabs = new HashSet<>();
 
     public UIAnimationStateEditor(UIFormEditor editor)
     {
@@ -126,7 +126,6 @@ public class UIAnimationStateEditor extends UIElement
 
         if (this.keyframeEditor != null)
         {
-            this.expandedTabs = this.keyframeEditor.view.getDopeSheet().getExpandedPoseTabIds();
             lastEditor = this.keyframeEditor.view;
 
             this.keyframeEditor.removeFromParent();
@@ -141,8 +140,6 @@ public class UIAnimationStateEditor extends UIElement
         }
 
         List<UIKeyframeSheet> sheets = new ArrayList<>();
-        Map<UIKeyframeSheet, List<UIKeyframeSheet>> tabs = new HashMap<>();
-        Map<UIKeyframeSheet, Integer> depths = new HashMap<>();
 
         /* A state lays a form's own values over it; the solver tracks only mean anything inside a
          * film, where something clears them again every frame. */
@@ -156,7 +153,7 @@ public class UIAnimationStateEditor extends UIElement
             }
         }
 
-        UIReplaysEditorUtils.buildSheets(catalog, sheets, tabs, depths);
+        UIReplaysEditorUtils.buildSheets(catalog, sheets);
 
         this.keys.clear();
 
@@ -194,6 +191,7 @@ public class UIAnimationStateEditor extends UIElement
             return false;
         });
 
+        UIReplaysEditorUtils.detachMissingParents(sheets);
         UIReplaysEditorUtils.markFormSeparators(sheets);
 
         /*
@@ -266,10 +264,7 @@ public class UIAnimationStateEditor extends UIElement
 
             /* The tracks that fold under another one fold here too: a model form contributes dozens of
              * bone and material rows, and unfolded they bury the form's own properties. */
-            tabs.keySet().retainAll(sheets);
-            depths.keySet().retainAll(sheets);
-
-            this.keyframeEditor.view.getDopeSheet().configurePoseTabs(tabs, depths, this.expandedTabs);
+            this.keyframeEditor.view.getDopeSheet().setExpanded(this.expandedTabs);
 
             this.addAfter(this.editArea, this.keyframeEditor);
         }

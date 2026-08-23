@@ -109,16 +109,26 @@ public class TrackCatalog
 
         for (TrackDescriptor track : tracks)
         {
-            if (track.parent() != null && present.contains(track.parent()))
+            /* Roots only — everything else is reached from its parent, however deep it sits. A bone
+             * hangs off a bone that hangs off a bone, so anything that only took direct children
+             * would drop the whole skeleton below the first joint. */
+            if (track.parent() == null || !present.contains(track.parent()))
             {
-                continue;
+                append(track, children, out);
             }
-
-            out.add(track);
-            out.addAll(children.getOrDefault(track.id(), List.of()));
         }
 
         return out;
+    }
+
+    private static void append(TrackDescriptor track, Map<TrackId, List<TrackDescriptor>> children, List<TrackDescriptor> out)
+    {
+        out.add(track);
+
+        for (TrackDescriptor child : children.getOrDefault(track.id(), List.of()))
+        {
+            append(child, children, out);
+        }
     }
 
     private static void collect(Form root, Form form, String path, FormProperties properties, List<TrackDescriptor> out)
@@ -216,6 +226,7 @@ public class TrackCatalog
         IModel iModel = model.model;
         TrackId pose = TrackId.property(path, FormProperties.POSE_PROPERTY);
         Map<String, Integer> parentToColor = new HashMap<>();
+        Set<String> shown = new HashSet<>();
         int[] hue = {0};
 
         for (String bone : iModel.getGroupKeysInHierarchyOrder())
@@ -225,6 +236,8 @@ public class TrackCatalog
                 continue;
             }
 
+            shown.add(bone);
+
             String parent = iModel.getParentGroupKey(bone);
             int color = parentToColor.computeIfAbsent(parent, (p) ->
                 Colors.HSVtoRGB((hue[0]++ % BONE_TRACK_HUE_COUNT) / (float) BONE_TRACK_HUE_COUNT, 0.7F, 0.7F).getRGBColor());
@@ -232,24 +245,39 @@ public class TrackCatalog
             TrackId id = TrackId.bone(path, bone);
             String title = path.isEmpty() ? bone : path + FormUtils.PATH_SEPARATOR + bone;
 
+            /* A bone hangs off the bone it hangs off in the model, so folding an arm folds the whole
+             * arm. The root of the skeleton hangs off the form's pose track, which is the thing all
+             * of them are contributions to. */
+            String ancestor = nearestShown(iModel, shown, parent);
+
+            /* No icon: a skeleton is most of the rows in the timeline, and the same limb icon on every
+             * one of them is a column of noise. Their colour already groups them by parent. */
             out.add(new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(title),
-                Icons.LIMB, color, new ValueTransform(id.toKey(), new PoseTransform()))
-                .under(pose, boneDepth(iModel, bone)));
+                null, color, new ValueTransform(id.toKey(), new PoseTransform()))
+                .under(ancestor == null ? pose : TrackId.bone(path, ancestor)));
         }
     }
 
-    private static int boneDepth(IModel model, String bone)
+    /**
+     * The closest bone above this one that the timeline is actually showing. A hidden bone is not a
+     * row, so its children would have nothing to hang off; they attach to its nearest shown ancestor
+     * instead of falling out of the tree.
+     */
+    private static String nearestShown(IModel model, Set<String> shown, String bone)
     {
-        int depth = 0;
-        String current = model.getParentGroupKey(bone);
+        String current = bone;
 
         while (current != null && !current.isEmpty())
         {
-            depth++;
+            if (shown.contains(current))
+            {
+                return current;
+            }
+
             current = model.getParentGroupKey(current);
         }
 
-        return depth;
+        return null;
     }
 
     /* Materials */
@@ -272,7 +300,7 @@ public class TrackCatalog
         /* The whole-form material level (the "" key the material tab writes to when no material is
          * selected) owns the PBR sliders of every model — including single-material ones, which have
          * no per-material tracks at all. */
-        pbr(modelForm, path, "", modelForm.materials.getMaterial(""), texture, 0, properties, out);
+        pbr(modelForm, path, "", modelForm.materials.getMaterial(""), texture, properties, out);
 
         /* A model with at most one material ignores the material system entirely (its single texture
          * is driven by form.texture), so it exposes no per-material tracks — see the renderer. */
@@ -302,9 +330,11 @@ public class TrackCatalog
 
             out.add(new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(materialTitle(path, material)),
                 Icons.MATERIAL, Colors.BLUE, new ValueLink(id.toKey(), fallback))
-                .under(texture, 0));
+                .under(texture));
 
-            materialProps(modelForm, path, material, texture, properties, out);
+            /* A material's own properties fold under that material, not under the form's texture:
+             * one material's sliders have nothing to do with the next material's. */
+            materialProps(modelForm, path, material, id, properties, out);
         }
     }
 
@@ -340,14 +370,14 @@ public class TrackCatalog
         out.add(prop(modelForm, culling, parent, materialTitle(path, prefix + TrackId.MATERIAL_PROP_CULLING), Icons.CONVERT,
             new ValueInt(culling.toKey(), staticMaterial == null ? 0 : staticMaterial.culling.get()), properties));
 
-        pbr(modelForm, path, material, staticMaterial, parent, 1, properties, out);
+        pbr(modelForm, path, material, staticMaterial, parent, properties, out);
     }
 
     /**
      * The five PBR slider tracks of a material level — used both per material and for the whole-form
      * level (empty material name), which is where a single-material model's sliders live.
      */
-    private static void pbr(ModelForm modelForm, String path, String material, FormMaterial staticMaterial, TrackId parent, int depth, FormProperties properties, List<TrackDescriptor> out)
+    private static void pbr(ModelForm modelForm, String path, String material, FormMaterial staticMaterial, TrackId parent, FormProperties properties, List<TrackDescriptor> out)
     {
         /* The whole-form level names nothing: its sliders read as the form's own, which is what they
          * are. A material's sliders keep the material name in front of them. */
@@ -361,14 +391,14 @@ public class TrackCatalog
             float value = staticMaterial == null ? 0F : pbrSlider(staticMaterial, slider);
 
             out.add(prop(modelForm, id, parent, materialTitle(path, prefix + slider), Icons.MATERIAL,
-                new ValueFloat(id.toKey(), value), properties).under(parent, depth));
+                new ValueFloat(id.toKey(), value), properties));
         }
     }
 
     private static TrackDescriptor prop(ModelForm modelForm, TrackId id, TrackId parent, String title, mchorse.bbs_mod.ui.utils.icons.Icon icon, BaseValueBasic value, FormProperties properties)
     {
         return new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(title),
-            icon, TrackStyle.color(id.property()), value).under(parent, 1);
+            icon, TrackStyle.color(id.property()), value).under(parent);
     }
 
     /**

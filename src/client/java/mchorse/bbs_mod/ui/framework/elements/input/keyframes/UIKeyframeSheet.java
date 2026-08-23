@@ -19,8 +19,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class UIKeyframeSheet extends UIKeyframeElement
+public class UIKeyframeSheet
 {
+    /** What the name column draws, and the colour of the row's keyframes and its left edge. */
+    public IKey title;
+    public int color;
+
+    /** Whether a line is drawn above this row — set where the timeline moves from one form to the next. */
+    public boolean separator;
+
     /* Meta data */
     public final String id;
     private Icon icon;
@@ -61,6 +68,14 @@ public class UIKeyframeSheet extends UIKeyframeElement
     /** The track this row draws, when it came from the catalog; null for the record's own curated channels. */
     public final TrackDescriptor descriptor;
 
+    /**
+     * The row this one folds under, and the rows that fold under it. A bone hangs off its parent bone,
+     * a material's properties off that material — so folding an arm folds the whole arm, and folding
+     * a material takes its sliders with it.
+     */
+    public UIKeyframeSheet parent;
+    public final List<UIKeyframeSheet> children = new ArrayList<>();
+
     public UIKeyframeSheet(TrackDescriptor track)
     {
         this(track.key(), track.title(), track.color(), false, track.channel(), track.property(), track.kind() == TrackKind.BONE, track);
@@ -91,8 +106,8 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
     public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack, TrackDescriptor descriptor)
     {
-        super(title, color);
-
+        this.title = title;
+        this.color = color;
         this.descriptor = descriptor;
 
         this.id = id;
@@ -127,6 +142,30 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
         this.title = name.isEmpty() ? this.defaultTitle : IKey.constant(name);
         this.color = styles == null ? this.defaultColor : styles.color(this.filterKey, this.defaultColor);
+    }
+
+    /** Hang this row under another one. */
+    public void setParent(UIKeyframeSheet parent)
+    {
+        this.parent = parent;
+
+        if (parent != null)
+        {
+            parent.children.add(this);
+        }
+    }
+
+    /** How many rows up the tree this one sits, which is what the name column indents by. */
+    public int getDepth()
+    {
+        int depth = 0;
+
+        for (UIKeyframeSheet sheet = this.parent; sheet != null; sheet = sheet.parent)
+        {
+            depth += 1;
+        }
+
+        return depth;
     }
 
     public UIKeyframeSheet icon(Icon icon)
