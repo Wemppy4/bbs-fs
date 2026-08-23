@@ -65,7 +65,7 @@ public class UIKeyframeSheet
      */
     public Supplier<Object> seed;
 
-    /** The track this row draws, when it came from the catalog; null for the record's own curated channels. */
+    /** The track this row draws, when it came from the catalog; null for the replay's own curated channels. */
     public final TrackDescriptor descriptor;
 
     /**

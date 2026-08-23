@@ -176,7 +176,7 @@ public class UIReplaysEditorUtils
     /**
      * Turn a form's catalog into timeline rows, hanging the tracks that fold under another one off
      * their parent row. The catalog decides what exists and where it sits; this only builds widgets,
-     * which is why both timelines — a record's and an animation state's — go through it.
+     * which is why both timelines — a replay's and an animation state's — go through it.
      */
     public static void buildSheets(List<TrackDescriptor> catalog, List<UIKeyframeSheet> sheets)
     {

@@ -1116,7 +1116,7 @@ public abstract class BaseFilmController
     }
 
     /**
-     * Lay one record's tracks over a form for this frame: the per-frame overrides the track kinds
+     * Lay one replay's tracks over a form for this frame: the per-frame overrides the track kinds
      * leave behind are dropped first, so a track that was deleted (or whose keyframes ran out) stops
      * driving the form, and then every track applies itself.
      *
@@ -1139,7 +1139,7 @@ public abstract class BaseFilmController
 
     /**
      * Resolving an anchor is the one thing a track cannot do on its own: it means composing the bone
-     * matrices of another record's live entity, which only the controller has.
+     * matrices of another replay's live entity, which only the controller has.
      */
     private Vector3f resolveAnchor(Anchor anchor, float transition)
     {

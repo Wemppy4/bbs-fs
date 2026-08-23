@@ -158,7 +158,7 @@ public class TrackCatalog
         }
     }
 
-    /** The record's channel for this track, made if absent; null when asked without a record. */
+    /** The replay's channel for this track, made if absent; null when asked without a replay. */
     private static KeyframeChannel channel(FormProperties properties, TrackId id)
     {
         return properties == null ? null : properties.getOrCreate(id);
@@ -177,7 +177,7 @@ public class TrackCatalog
 
             String name = value.getId();
 
-            /* The root form's own anchor is animatable (it is what parents a record to another one);
+            /* The root form's own anchor is animatable (it is what parents a replay to another one);
              * a body part's anchor is what glues it to its parent, and animating that is meaningless. */
             if (ANCHOR.equals(name) && !path.isEmpty())
             {
@@ -185,7 +185,7 @@ public class TrackCatalog
             }
 
             /* Only a property that can hold keyframes is a track — the rest of a form's values are
-             * static settings. Asked of the value itself, so it holds with or without a record. */
+             * static settings. Asked of the value itself, so it holds with or without a replay. */
             if (!(value instanceof BaseKeyframeFactoryValue))
             {
                 continue;

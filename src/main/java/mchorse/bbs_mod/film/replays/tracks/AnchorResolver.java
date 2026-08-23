@@ -4,7 +4,7 @@ import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import org.joml.Vector3f;
 
 /**
- * Turns an anchor (a bone of some other record) into a world position.
+ * Turns an anchor (a bone of some other replay) into a world position.
  *
  * <p>The only thing the solver target tracks need that lives outside the data: resolving one means
  * walking the film's live entities and composing their bone matrices, which is the renderer's job.

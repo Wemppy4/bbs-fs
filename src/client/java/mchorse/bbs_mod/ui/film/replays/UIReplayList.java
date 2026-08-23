@@ -982,7 +982,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
                     }
 
                     /* A track this replay's form has no room for — pasting player keyframes onto a
-                     * record whose form lost that body part, say. */
+                     * replay whose form lost that body part, say. */
                     if (channel == null)
                     {
                         continue;

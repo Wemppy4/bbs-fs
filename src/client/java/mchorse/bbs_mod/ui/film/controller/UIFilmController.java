@@ -457,7 +457,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         if (this.panel.replayEditor.isVisible())
         {
-            this.panel.replayEditor.pickRecordCategory();
+            this.panel.replayEditor.pickReplayCategory();
         }
 
         boolean replacePlayer = ClientNetwork.isIsBBSModOnServer();
@@ -1075,7 +1075,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
             return;
         }
 
-        /* The record's own tracks */
+        /* The replay's own tracks */
         if (Window.isCtrlPressed())
         {
             this.toggleMousePointer(false);

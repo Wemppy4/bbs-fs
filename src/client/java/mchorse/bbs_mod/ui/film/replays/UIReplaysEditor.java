@@ -101,7 +101,7 @@ public class UIReplaysEditor extends UIElement
 
     public UIElement iconBar;
     public Map<ReplayCategory, UIIcon> tabButtons = new HashMap<>();
-    private ReplayCategory category = ReplayCategory.RECORD;
+    private ReplayCategory category = ReplayCategory.REPLAY;
 
     /* Keyframes */
     public UIKeyframeEditor keyframeEditor;
@@ -124,7 +124,7 @@ public class UIReplaysEditor extends UIElement
     private boolean propertiesVisible = true;
     private Set<String> keys = new LinkedHashSet<>();
     /**
-     * Which rows the user left unfolded, per record. Every rebuild of the timeline throws the dope
+     * Which rows the user left unfolded, per replay. Every rebuild of the timeline throws the dope
      * sheet away — switching category, toggling "all tracks", changing the track filter — so this set
      * is handed to each new sheet, which folds in it directly rather than keeping a copy.
      */
@@ -132,7 +132,7 @@ public class UIReplaysEditor extends UIElement
 
     public enum ReplayCategory
     {
-        RECORD(Icons.PLAYER, L10n.lang("bbs.ui.film.replays.category.record"), L10n.lang("bbs.ui.film.replays.category.record.tooltip")),
+        REPLAY(Icons.PLAYER, L10n.lang("bbs.ui.film.replays.category.replay"), L10n.lang("bbs.ui.film.replays.category.replay.tooltip")),
         FORM(Icons.BLOCK, L10n.lang("bbs.ui.film.replays.category.form"), L10n.lang("bbs.ui.film.replays.category.form.tooltip")),
         POSE(Icons.POSE, L10n.lang("bbs.ui.film.replays.category.pose"), L10n.lang("bbs.ui.film.replays.category.pose.tooltip")),
         IK(Icons.IK, L10n.lang("bbs.ui.film.replays.category.ik"), L10n.lang("bbs.ui.film.replays.category.ik.tooltip")),
@@ -185,8 +185,8 @@ public class UIReplaysEditor extends UIElement
     }
 
     /**
-     * @param owned whether the track belongs to a form at all — a record's own curated channels
-     *              (position, hotbar, sticks) do not, and they are the Record tab
+     * @param owned whether the track belongs to a form at all — a replay's own curated channels
+     *              (position, hotbar, sticks) do not, and they are the Replay tab
      */
     public static ReplayCategory categoryOf(TrackId track, boolean owned)
     {
@@ -218,7 +218,7 @@ public class UIReplaysEditor extends UIElement
          * or one of the form's own properties. */
         if (!owned)
         {
-            return ReplayCategory.RECORD;
+            return ReplayCategory.REPLAY;
         }
 
         return FormUtils.isPoseProperty(StringUtils.fileName(id)) ? ReplayCategory.POSE : ReplayCategory.FORM;
@@ -366,7 +366,7 @@ public class UIReplaysEditor extends UIElement
         this.actionsToggle.tooltip(UIKeys.FILM_REPLAY_ACTIONS_TIMELINE, Direction.RIGHT);
         this.layoutBottomToggles();
 
-        this.setCategory(ReplayCategory.RECORD);
+        this.setCategory(ReplayCategory.REPLAY);
 
         this.keys().register(Keys.REPLAYS_TAB_1, () -> this.setCategoryByPosition(0))
             .category(UIKeys.FILM_REPLAY_TITLE);
@@ -401,7 +401,7 @@ public class UIReplaysEditor extends UIElement
 
     /**
      * Select the category sitting at the given visual position in the tab bar. The IK and physics tabs are only
-     * present when the record has IK / physics, so a fixed key-to-category mapping would point past the gap; the
+     * present when the replay has IK / physics, so a fixed key-to-category mapping would point past the gap; the
      * number keys instead follow the tabs as the user sees them, top to bottom.
      */
     private void setCategoryByPosition(int index)
@@ -431,11 +431,11 @@ public class UIReplaysEditor extends UIElement
         return this.category;
     }
 
-    public void pickRecordCategory()
+    public void pickReplayCategory()
     {
-        if (this.category != ReplayCategory.RECORD)
+        if (this.category != ReplayCategory.REPLAY)
         {
-            this.setCategory(ReplayCategory.RECORD);
+            this.setCategory(ReplayCategory.REPLAY);
         }
     }
 
@@ -737,8 +737,8 @@ public class UIReplaysEditor extends UIElement
     }
 
     /**
-     * Show a category's tab only while the record actually has tracks of that kind, and bounce the
-     * active category back to Model when it does not. Asked of the catalog, so "does this record have
+     * Show a category's tab only while the replay actually has tracks of that kind, and bounce the
+     * active category back to Model when it does not. Asked of the catalog, so "does this replay have
      * IK" is the same question as "which tracks land in the IK tab" — it used to be a separate walk
      * of the form tree per category, with its own idea of the answer.
      */
@@ -786,7 +786,7 @@ public class UIReplaysEditor extends UIElement
     }
 
     /**
-     * Rows the user has unfolded in this record's timeline. Handed to the dope sheet as-is, so folding
+     * Rows the user has unfolded in this replay's timeline. Handed to the dope sheet as-is, so folding
      * a row there lands here directly — there is nothing to read back out when the timeline is rebuilt,
      * which is what the old save-and-restore step existed for (and it had to know which tracks the
      * current category could even answer for).

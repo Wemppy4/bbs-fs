@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * {@code FormProperties} just to ask), each knowing a slightly different subset.</p>
  *
  * @param id       address of the track
- * @param channel  its keyframes, taken from the record's tracks (made on the spot if absent)
+ * @param channel  its keyframes, taken from the replay's tracks (made on the spot if absent)
  * @param owner    form the track belongs to
  * @param title    what a timeline calls it
  * @param icon     icon a timeline draws next to it

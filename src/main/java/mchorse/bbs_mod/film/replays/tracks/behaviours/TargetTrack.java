@@ -18,7 +18,7 @@ import java.util.Map;
 
 /**
  * Where a solver chain is pulled to: the IK target, its pole, or a physics chain's tip. The keyframe
- * value is an anchor — some bone of some record — and the track hands the solver that bone's world
+ * value is an anchor — some bone of some replay — and the track hands the solver that bone's world
  * position plus how present the binding is.
  *
  * <p>The weight is what a plain anchor interpolation cannot express. Crossing a keyframe that binds
