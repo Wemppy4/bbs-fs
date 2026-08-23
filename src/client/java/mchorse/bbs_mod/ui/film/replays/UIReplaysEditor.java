@@ -101,7 +101,7 @@ public class UIReplaysEditor extends UIElement
 
     public UIElement iconBar;
     public Map<ReplayCategory, UIIcon> tabButtons = new HashMap<>();
-    private ReplayCategory category = ReplayCategory.PLAYER;
+    private ReplayCategory category = ReplayCategory.RECORD;
 
     /* Keyframes */
     public UIKeyframeEditor keyframeEditor;
@@ -132,8 +132,8 @@ public class UIReplaysEditor extends UIElement
 
     public enum ReplayCategory
     {
-        PLAYER(Icons.PLAYER, L10n.lang("bbs.ui.film.replays.category.player"), L10n.lang("bbs.ui.film.replays.category.player.tooltip")),
-        MODEL(Icons.BLOCK, L10n.lang("bbs.ui.film.replays.category.model"), L10n.lang("bbs.ui.film.replays.category.model.tooltip")),
+        RECORD(Icons.PLAYER, L10n.lang("bbs.ui.film.replays.category.record"), L10n.lang("bbs.ui.film.replays.category.record.tooltip")),
+        FORM(Icons.BLOCK, L10n.lang("bbs.ui.film.replays.category.form"), L10n.lang("bbs.ui.film.replays.category.form.tooltip")),
         POSE(Icons.POSE, L10n.lang("bbs.ui.film.replays.category.pose"), L10n.lang("bbs.ui.film.replays.category.pose.tooltip")),
         IK(Icons.IK, L10n.lang("bbs.ui.film.replays.category.ik"), L10n.lang("bbs.ui.film.replays.category.ik.tooltip")),
         PHYSICS(Icons.PHYSICS, L10n.lang("bbs.ui.film.replays.category.physics"), L10n.lang("bbs.ui.film.replays.category.physics.tooltip"));
@@ -186,7 +186,7 @@ public class UIReplaysEditor extends UIElement
 
     /**
      * @param owned whether the track belongs to a form at all — a record's own curated channels
-     *              (position, hotbar, sticks) do not, and they are the Player tab
+     *              (position, hotbar, sticks) do not, and they are the Record tab
      */
     public static ReplayCategory categoryOf(TrackId track, boolean owned)
     {
@@ -208,7 +208,7 @@ public class UIReplaysEditor extends UIElement
                 case BONE:
                     return ReplayCategory.POSE;
                 case MATERIAL_TEXTURE, MATERIAL_PROP:
-                    return ReplayCategory.MODEL;
+                    return ReplayCategory.FORM;
                 default:
                     break;
             }
@@ -218,10 +218,10 @@ public class UIReplaysEditor extends UIElement
          * or one of the form's own properties. */
         if (!owned)
         {
-            return ReplayCategory.PLAYER;
+            return ReplayCategory.RECORD;
         }
 
-        return FormUtils.isPoseProperty(StringUtils.fileName(id)) ? ReplayCategory.POSE : ReplayCategory.MODEL;
+        return FormUtils.isPoseProperty(StringUtils.fileName(id)) ? ReplayCategory.POSE : ReplayCategory.FORM;
     }
 
     public static void renderRuler(UIContext context, UIKeyframes keyframes, UIClipsPanel clipsPanel, Clips camera, int clipOffset)
@@ -366,7 +366,7 @@ public class UIReplaysEditor extends UIElement
         this.actionsToggle.tooltip(UIKeys.FILM_REPLAY_ACTIONS_TIMELINE, Direction.RIGHT);
         this.layoutBottomToggles();
 
-        this.setCategory(ReplayCategory.PLAYER);
+        this.setCategory(ReplayCategory.RECORD);
 
         this.keys().register(Keys.REPLAYS_TAB_1, () -> this.setCategoryByPosition(0))
             .category(UIKeys.FILM_REPLAY_TITLE);
@@ -431,11 +431,11 @@ public class UIReplaysEditor extends UIElement
         return this.category;
     }
 
-    public void pickPlayerCategory()
+    public void pickRecordCategory()
     {
-        if (this.category != ReplayCategory.PLAYER)
+        if (this.category != ReplayCategory.RECORD)
         {
-            this.setCategory(ReplayCategory.PLAYER);
+            this.setCategory(ReplayCategory.RECORD);
         }
     }
 
@@ -781,7 +781,7 @@ public class UIReplaysEditor extends UIElement
 
         if (!has && this.category == category)
         {
-            this.category = ReplayCategory.MODEL;
+            this.category = ReplayCategory.FORM;
         }
     }
 

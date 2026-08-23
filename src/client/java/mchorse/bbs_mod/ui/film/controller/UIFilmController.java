@@ -457,7 +457,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         if (this.panel.replayEditor.isVisible())
         {
-            this.panel.replayEditor.pickPlayerCategory();
+            this.panel.replayEditor.pickRecordCategory();
         }
 
         boolean replacePlayer = ClientNetwork.isIsBBSModOnServer();
@@ -1064,7 +1064,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         UIReplaysEditor.ReplayCategory category = this.panel.replayEditor.getCategory();
 
-        if (category == UIReplaysEditor.ReplayCategory.MODEL)
+        if (category == UIReplaysEditor.ReplayCategory.FORM)
         {
             return;
         }
@@ -1075,7 +1075,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
             return;
         }
 
-        /* PLAYER */
+        /* The record's own tracks */
         if (Window.isCtrlPressed())
         {
             this.toggleMousePointer(false);
