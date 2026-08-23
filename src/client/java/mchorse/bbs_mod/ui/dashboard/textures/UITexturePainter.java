@@ -10,6 +10,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
+import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelActionBar;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
 import mchorse.bbs_mod.ui.dashboard.textures.layers.UILayersPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPicker;
@@ -48,18 +49,20 @@ import java.util.function.Consumer;
 /**
  * Texture editing chrome for a single {@link UITextureEditor}.
  *
- * <p>Layout mirrors the mod's film editor (see
- * {@link mchorse.bbs_mod.ui.dashboard.panels.UISidebarDashboardPanel} and
- * {@link mchorse.bbs_mod.ui.film.UIFilmPanel}):</p>
+ * <p>Layout:</p>
  * <pre>
- *   ┌─────────────────────────────────────────┐
- *   │ options ║ canvas                │ ico │
- *   │  (left) ║                       │ 20  │
- *   └─────────────────────────────────┴─────┘
+ *   ┌─────┬───────────────────────────────────┐
+ *   │ too │ options ║ canvas         │ preview │
+ *   │ 20  │         ║                │         │
+ *   └─────┴───────────────────────────────────┘
  * </pre>
- * The 20px icon strip on the right combines action icons (save/resize/extract) and
- * tool icons (brush/eraser/fill/eyedropper) separated by a small gap, styled via
- * {@link mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels#renderHighlight} with {@link mchorse.bbs_mod.utils.Direction#RIGHT}.
+ * The 20px strip on the left is a tool palette (brush/eraser/fill/eyedropper), highlighted via
+ * {@link mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels#renderHighlight} with {@link mchorse.bbs_mod.utils.Direction#LEFT}.
+ * It shares the chrome surface with the options column beside it, so the two read as one column
+ * of controls down the left edge.
+ * The painter's actions — save, resize, extract frames, model preview — do not live here: the
+ * owner hands them to its {@link mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelTopBar} through
+ * {@link #installActions}, so they sit beside the tabs like every other panel's actions.
  * The left options column is a {@link UIScrollView} with a draggable splitter whose
  * width is persisted per panel class.
  *
@@ -74,8 +77,7 @@ public class UITexturePainter extends UIElement
     /** Persisted fractional width of the tool options column, keyed by panel class. */
     private static final Map<Class, Float> widths = new HashMap<>();
 
-    private static final int ICON_BAR_W = 20;
-    private static final int TOOL_SEPARATOR_GAP = 9;
+    private static final int TOOL_BAR_W = 20;
     private static final float DEFAULT_OPTIONS_WIDTH = 0.2F;
     private static final int MIN_OPTIONS_WIDTH = 140;
     private static final int MAX_BRUSH_SIZE = 1024;
@@ -108,7 +110,8 @@ public class UITexturePainter extends UIElement
      */
     private TexturePaintTool toolBeforeSecondaryEraser;
 
-    private UIScrollView iconBar;
+    private UIScrollView toolBar;
+    private UIPanelActionBar actionBar;
     private UIElement editorHost;
     private UIScrollView options;
     private UIDraggable optionsDraggable;
@@ -149,7 +152,8 @@ public class UITexturePainter extends UIElement
         this.content = new UIElement();
         this.content.relative(this).w(1F).h(1F);
 
-        this.buildIconBar();
+        this.buildActions();
+        this.buildToolBar();
         this.buildOptions();
         this.buildModelPreviewHost();
         this.buildEditorHost();
@@ -158,7 +162,7 @@ public class UITexturePainter extends UIElement
          * is open editorHost.wTo(modelPreviewHost.area), so the canvas width is computed from the
          * preview's area, which has to be up to date by the time editorHost resizes. */
         this.content.add(new UIRenderable(this::renderPanelBackground),
-            this.iconBar, this.optionsHost, this.modelPreviewHost, this.editorHost, this.optionsDraggable, this.modelPreviewDraggable);
+            this.toolBar, this.optionsHost, this.modelPreviewHost, this.editorHost, this.optionsDraggable, this.modelPreviewDraggable);
         this.add(this.content);
 
         this.refreshToolUi();
@@ -173,28 +177,64 @@ public class UITexturePainter extends UIElement
         return this;
     }
 
-    private void buildIconBar()
+    /**
+     * The painter's actions. They are built here but live in the owner's top bar — see
+     * {@link #installActions}.
+     */
+    private void buildActions()
     {
-        this.iconBar = new UIScrollView();
-        this.iconBar.scroll.cancelScrolling().noScrollbar();
-        this.iconBar.scroll.scrollSpeed = 5;
-        this.iconBar.relative(this.content).x(1F).w(ICON_BAR_W).h(1F).anchorX(1F)
-            .column(0).scroll().vertical();
-        this.iconBar.preRender(this::renderActiveToolHighlight);
-
         this.saveIcon = new UIIcon(() ->
         {
             UITextureEditor ed = this.getCurrentEditor();
 
             return ed != null && ed.isDirty() ? Icons.SAVE : Icons.SAVED;
         }, (b) -> this.withEditor(UITextureEditor::saveCurrentTexture));
-        this.saveIcon.tooltip(UIKeys.GENERAL_SAVE, Direction.LEFT);
+        this.saveIcon.tooltip(UIKeys.GENERAL_SAVE);
         this.saveIcon.context((menu) -> menu.action(Icons.SAVED, UIKeys.TEXTURES_SAVE_AS, () -> this.withEditor(UITextureEditor::openSaveOverlay)));
 
         this.resizeIcon = new UIIcon(Icons.FULLSCREEN, (b) -> this.withEditor(UITextureEditor::openResizeOverlay));
-        this.resizeIcon.tooltip(UIKeys.TEXTURES_RESIZE, Direction.LEFT);
+        this.resizeIcon.tooltip(UIKeys.TEXTURES_RESIZE);
         this.extractIcon = new UIIcon(Icons.UPLOAD, (b) -> this.withEditor(UITextureEditor::openExtractOverlay));
-        this.extractIcon.tooltip(UIKeys.TEXTURES_EXTRACT_FRAMES_TITLE, Direction.LEFT);
+        this.extractIcon.tooltip(UIKeys.TEXTURES_EXTRACT_FRAMES_TITLE);
+        this.modelPreviewIcon = new UIIcon(Icons.POSE, (b) -> this.toggleModelPreview());
+        this.modelPreviewIcon.tooltip(UIKeys.TEXTURES_PREVIEW_MODEL);
+    }
+
+    /**
+     * Hand the painter's actions to the panel's top bar. The owner shows and hides them with
+     * {@link #setActionsVisible(boolean)} as it switches between the browser and an open texture.
+     */
+    public void installActions(UIPanelActionBar bar)
+    {
+        this.actionBar = bar;
+
+        bar.action(this.resizeIcon)
+            .action(this.extractIcon)
+            .action(this.modelPreviewIcon, this.modelPreviewHost::isVisible)
+            .common(this.saveIcon);
+    }
+
+    public void setActionsVisible(boolean visible)
+    {
+        this.saveIcon.setVisible(visible);
+        this.resizeIcon.setVisible(visible);
+        this.extractIcon.setVisible(visible);
+        this.modelPreviewIcon.setVisible(visible);
+
+        if (this.actionBar != null)
+        {
+            this.actionBar.sync();
+        }
+    }
+
+    private void buildToolBar()
+    {
+        this.toolBar = new UIScrollView();
+        this.toolBar.scroll.cancelScrolling().noScrollbar();
+        this.toolBar.scroll.scrollSpeed = 5;
+        this.toolBar.relative(this.content).x(0F).w(TOOL_BAR_W).h(1F)
+            .column(0).scroll().vertical();
+        this.toolBar.preRender(this::renderActiveToolHighlight);
 
         this.toolIconBrush = this.createToolIcon(Icons.BRUSH, UIKeys.TEXTURES_TOOLS_BRUSH, TexturePaintTool.BRUSH);
         this.toolIconEraser = this.createToolIcon(Icons.ERASER, UIKeys.TEXTURES_TOOLS_ERASER, TexturePaintTool.ERASER);
@@ -202,14 +242,22 @@ public class UITexturePainter extends UIElement
         this.toolIconFill = this.createToolIcon(Icons.BUCKET, UIKeys.TEXTURES_TOOLS_FILL, TexturePaintTool.FILL);
         this.toolIconPipette = this.createToolIcon(Icons.EYEDROPPER, UIKeys.TEXTURES_TOOLS_EYEDROPPER, TexturePaintTool.PIPETTE);
         this.toolIconSelection = this.createToolIcon(Icons.OUTLINE, UIKeys.TEXTURES_TOOLS_SELECTION, TexturePaintTool.SELECTION);
-        this.modelPreviewIcon = new UIIcon(Icons.POSE, (b) -> this.openModelPreview());
-        this.modelPreviewIcon.tooltip(UIKeys.TEXTURES_PREVIEW_MODEL, Direction.LEFT);
 
-        this.iconBar.add(this.saveIcon, this.resizeIcon, this.extractIcon,
-            this.toolIconBrush.marginTop(TOOL_SEPARATOR_GAP),
-            this.toolIconEraser, this.toolIconMove, this.toolIconFill, this.toolIconPipette,
-            this.toolIconSelection,
-            this.modelPreviewIcon.marginTop(TOOL_SEPARATOR_GAP));
+        this.toolBar.add(this.toolIconBrush, this.toolIconEraser, this.toolIconMove,
+            this.toolIconFill, this.toolIconPipette, this.toolIconSelection);
+    }
+
+    /** The bar button flips the preview: open it when closed, close it when open. */
+    private void toggleModelPreview()
+    {
+        if (this.modelPreviewHost.isVisible())
+        {
+            this.closeModelPreview();
+        }
+        else
+        {
+            this.openModelPreview();
+        }
     }
 
     private UIIcon createToolIcon(Icon icon, IKey tooltip, TexturePaintTool tool)
@@ -218,7 +266,7 @@ public class UITexturePainter extends UIElement
 
         if (tooltip != null)
         {
-            button.tooltip(tooltip, Direction.LEFT);
+            button.tooltip(tooltip, Direction.RIGHT);
         }
 
         return button;
@@ -227,7 +275,7 @@ public class UITexturePainter extends UIElement
     private void buildOptions()
     {
         this.optionsHost = new UIElement();
-        this.optionsHost.relative(this.content).x(0F)
+        this.optionsHost.relative(this.content).x(TOOL_BAR_W)
             .w(widths.getOrDefault(this.getClass(), DEFAULT_OPTIONS_WIDTH))
             .minW(MIN_OPTIONS_WIDTH).h(1F);
 
@@ -302,7 +350,7 @@ public class UITexturePainter extends UIElement
     private void buildModelPreviewHost()
     {
         this.modelPreviewHost = new UIElement();
-        this.modelPreviewHost.relative(this.content).x(1F, -ICON_BAR_W).h(1F).w(0).anchorX(1F);
+        this.modelPreviewHost.relative(this.content).x(1F).h(1F).w(0).anchorX(1F);
         this.modelPreviewHost.setVisible(false);
 
         this.modelPreviewPanel = new UIModelPreviewPanel(this);
@@ -310,7 +358,7 @@ public class UITexturePainter extends UIElement
 
         this.modelPreviewDraggable = new UIDraggable((context) ->
         {
-            float f = (this.iconBar.area.x - context.mouseX) / (float) this.content.area.w;
+            float f = (this.content.area.ex() - context.mouseX) / (float) this.content.area.w;
             float w = MathUtils.clamp(f, 0.1F, 0.8F);
 
             this.modelPreviewHost.w(w);
@@ -326,7 +374,7 @@ public class UITexturePainter extends UIElement
     {
         this.editorHost = new UIElement();
         this.editorHost.relative(this.optionsHost).x(1F, UIConstants.MARGIN).h(1F)
-            .wTo(this.iconBar.area, 0F, -UIConstants.MARGIN);
+            .wTo(this.content.area, 1F);
     }
 
     private void registerShortcuts()
@@ -346,11 +394,12 @@ public class UITexturePainter extends UIElement
     private void renderPanelBackground(UIContext context)
     {
         /* The base surface is the canvas backdrop spanning the whole editor; the chrome
-         * surface tints the tool/layer columns and the icon bar to group the editing
-         * controls, matching the surfaces used across the dashboard (see UIFilmPanel). A
-         * soft fade still spills off the icon bar onto the canvas, anchoring it visually. */
+         * surface tints the tool strip and the options column so the two read as one column
+         * of controls down the left edge, matching the surfaces used across the dashboard
+         * (see UIFilmPanel). */
         this.content.area.render(context.batcher, BBSSettings.baseSurface());
 
+        this.renderChromeSurface(context, this.toolBar.area);
         this.renderChromeSurface(context, this.optionsHost.area);
     }
 
@@ -365,7 +414,7 @@ public class UITexturePainter extends UIElement
 
         if (active != null)
         {
-            UIDashboardPanels.renderHighlight(context.batcher, active.area, Direction.RIGHT);
+            UIDashboardPanels.renderHighlight(context.batcher, active.area, Direction.LEFT);
         }
     }
 
@@ -407,7 +456,7 @@ public class UITexturePainter extends UIElement
         this.modelPreviewHost.setVisible(false);
         this.modelPreviewDraggable.setVisible(false);
 
-        this.editorHost.wTo(this.iconBar.area, 0F, -UIConstants.MARGIN);
+        this.editorHost.wTo(this.content.area, 1F);
         this.content.resize();
     }
 

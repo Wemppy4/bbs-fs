@@ -37,11 +37,8 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
 import mchorse.bbs_mod.ui.dashboard.utils.IUIOrbitKeysHandler;
 import mchorse.bbs_mod.ui.film.audio.UIAudioRecorder;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
@@ -57,7 +54,6 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -65,7 +61,6 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.PlayerUtils;
 import mchorse.bbs_mod.utils.Timer;
@@ -165,12 +160,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private static final String PANEL_EDIT_AREA_ID = "editArea";
     private static final String PANEL_REPLAYS_LIST_ID = "replaysList";
     private static final String PANEL_REPLAY_PROPS_ID = "replayProps";
-    private static final int FILM_TOP_BAR_BUTTON_SIZE = UIDataTabs.TABS_HEIGHT_PX;
-    private static final int FILM_TOP_BAR_SEPARATOR_WIDTH = 8;
-    private static final int FILM_TOP_BAR_ACTIONS_WIDTH = FILM_TOP_BAR_BUTTON_SIZE * 3 + FILM_TOP_BAR_SEPARATOR_WIDTH;
     private UIElement selectedMainEditorPanel;
-    private UIElement topBarActions;
-    private UIElement topBarSeparator;
 
     /**
      * Initialize the camera editor with a camera profile.
@@ -178,7 +168,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     public UIFilmPanel(UIDashboard dashboard)
     {
         super(dashboard);
-        this.enableTabs();
         this.playerToCamera = BBSSettings.editorPlayerFollowsCamera.get();
 
         this.runner = new RunnerCameraController(this, (playing) ->
@@ -210,11 +199,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         this.selectedMainEditorPanel = this.cameraEditor;
 
-        /* Film panel keeps common CRUD actions inside film settings menu instead of the sidebar. */
-        this.iconBar.remove(this.openOverlay);
-        this.iconBar.remove(this.saveIcon);
+        /* Film panel keeps common CRUD actions inside the film menu instead of the action bar. */
+        this.actions().dismiss(this.saveIcon);
 
-        /* Icon bar buttons */
         this.openFilmMenu = new UIIcon(Icons.MORE, (b) ->
         {
             this.getContext().replaceContextMenu(this::fillFilmContextMenu);
@@ -226,16 +213,14 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             .supplier(this::getFilmLayoutPresetData)
             .consumer(this::applyFilmLayoutFromPreset);
 
-        this.openFilmMenu.wh(FILM_TOP_BAR_BUTTON_SIZE, FILM_TOP_BAR_BUTTON_SIZE).tooltip(UIKeys.FILM_OPTIONS, Direction.BOTTOM);
-        this.openCameraEditor.wh(FILM_TOP_BAR_BUTTON_SIZE, FILM_TOP_BAR_BUTTON_SIZE).tooltip(UIKeys.FILM_OPEN_CAMERA_EDITOR, Direction.BOTTOM);
-        this.openReplayEditor.wh(FILM_TOP_BAR_BUTTON_SIZE, FILM_TOP_BAR_BUTTON_SIZE).tooltip(UIKeys.FILM_OPEN_REPLAY_EDITOR, Direction.BOTTOM);
+        this.openFilmMenu.tooltip(UIKeys.FILM_OPTIONS);
+        this.openCameraEditor.tooltip(UIKeys.FILM_OPEN_CAMERA_EDITOR);
+        this.openReplayEditor.tooltip(UIKeys.FILM_OPEN_REPLAY_EDITOR);
 
-        this.topBarActions = new UIElement();
-        this.topBarActions.relative(this.tabBar).x(1F, -FILM_TOP_BAR_ACTIONS_WIDTH).w(FILM_TOP_BAR_ACTIONS_WIDTH).h(UIDataTabs.TABS_HEIGHT_PX).row(0).resize();
-        this.topBarSeparator = new UIElement();
-        this.topBarSeparator.wh(FILM_TOP_BAR_SEPARATOR_WIDTH, UIDataTabs.TABS_HEIGHT_PX);
-        this.topBarActions.add(new UIRenderable(this::renderTopBarActions), this.openCameraEditor, this.openReplayEditor, this.topBarSeparator, this.openFilmMenu);
-        this.tabBar.add(this.topBarActions);
+        this.actions()
+            .action(this.openCameraEditor, this.cameraEditor::isVisible)
+            .action(this.openReplayEditor, this.replayEditor::isVisible)
+            .menu(this.openFilmMenu);
 
         /* Setup elements */
 
@@ -374,8 +359,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         BBSSettings.editorPreviewCustomHeight.postCallback(refreshPreviewOnVideoResolution);
         BBSSettings.editorPreviewResolutionScale.postCallback(refreshPreviewOnVideoResolution);
 
-        this.selectionPanel.relative(this).y(UIDataTabs.TABS_HEIGHT_PX).wTo(this.iconBar.area).h(1F, -UIDataTabs.TABS_HEIGHT_PX);
-        this.add(this.selectionPanel);
+        this.add(this.layoutUnderTopBar(this.selectionPanel));
     }
 
     private boolean isCursorOverTimeline(UIContext context)
@@ -405,27 +389,15 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     }
 
     @Override
-    protected int getSidebarWidthPx()
-    {
-        return 0;
-    }
-
-    @Override
-    protected int getTabsRightInsetPx()
-    {
-        return FILM_TOP_BAR_ACTIONS_WIDTH;
-    }
-
-    @Override
     public IKey getNewTabLabel()
     {
         return UIKeys.FILM_TABS_NEW_TAB;
     }
 
     @Override
-    public Icon getTabIcon(DataTab tab)
+    public Icon getTabIcon(String id)
     {
-        return tab != null && tab.dataId == null ? Icons.SEARCH : Icons.FILM;
+        return id == null ? Icons.SEARCH : Icons.FILM;
     }
 
     public void renameFilmId(String from, String to)
@@ -517,9 +489,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     private boolean hasFilmInCurrentTab()
     {
-        DataTab tab = this.getCurrentDataTab();
-
-        return tab != null && tab.dataId != null;
+        return this.tabs.getCurrentId() != null;
     }
 
     private void updateMainEditorVisibility(boolean hasFilm)
@@ -1810,58 +1780,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.updateLogic(context);
     }
 
-    @Override
-    protected void renderBackground(UIContext context)
-    {
-        super.renderBackground(context);
-    }
-
-    private void renderTopBarActions(UIContext context)
-    {
-        if (this.topBarActions == null || !this.topBarActions.isVisible())
-        {
-            return;
-        }
-
-        this.renderTopBarButton(context, this.openCameraEditor, this.cameraEditor.isVisible());
-        this.renderTopBarButton(context, this.openReplayEditor, this.replayEditor.isVisible());
-        this.renderTopBarSeparator(context);
-        this.renderTopBarButton(context, this.openFilmMenu, false);
-    }
-
-    private void renderTopBarButton(UIContext context, UIIcon button, boolean active)
-    {
-        if (button == null || !button.isVisible())
-        {
-            return;
-        }
-
-        Area area = button.area;
-        boolean hover = area.isInside(context.mouseX, context.mouseY);
-
-        if (active)
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, area, Direction.BOTTOM);
-        }
-        else if (hover)
-        {
-            context.batcher.box(area.x, area.y, area.ex(), area.ey(), BBSSettings.color(BBSSettings.raisedSurface(), Colors.A25));
-        }
-    }
-
-    private void renderTopBarSeparator(UIContext context)
-    {
-        if (this.topBarSeparator == null || !this.topBarSeparator.isVisible())
-        {
-            return;
-        }
-
-        Area area = this.topBarSeparator.area;
-        int x = area.mx();
-
-        context.batcher.box(x, area.y + 3, x + 1, area.ey() - 3, BBSSettings.dividerColor());
-    }
-
     /**
      * Draw everything on the screen
      */
@@ -1922,11 +1840,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         if (this.editor.isVisible())
         {
             this.preview.area.render(context.batcher, Colors.A75);
-        }
-
-        if (this.getData() == null)
-        {
-            this.openOverlay.area.copy(this.openFilmMenu.area);
         }
 
         BBSSettings.lightInputs = true;

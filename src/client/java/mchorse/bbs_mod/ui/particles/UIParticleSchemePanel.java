@@ -17,8 +17,6 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -48,9 +46,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.presets.PresetManager;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.IOUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -83,7 +79,6 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     public UIParticleSchemePanel(UIDashboard dashboard)
     {
         super(dashboard);
-        this.enableTabs();
 
         this.renderer = new UIParticleSchemeRenderer();
 
@@ -113,8 +108,8 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         this.editor.add(this.dock);
 
         this.selectionPanel = new UIParticleSelectionPanel(this);
-        this.selectionPanel.relative(this).y(UIDataTabs.TABS_HEIGHT_PX).wTo(this.iconBar.area).h(1F, -UIDataTabs.TABS_HEIGHT_PX);
-        this.add(this.selectionPanel);
+
+        this.add(this.layoutUnderTopBar(this.selectionPanel));
 
         this.overlay.namesList.setFileIcon(Icons.PARTICLE);
 
@@ -122,9 +117,7 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         {
             this.renderer.setScheme(this.data);
         });
-        restart.tooltip(UIKeys.SNOWSTORM_RESTART_EMITTER, Direction.LEFT);
-
-        this.iconBar.add(restart);
+        restart.tooltip(UIKeys.SNOWSTORM_RESTART_EMITTER);
 
         this.layoutPresetsController = new UICopyPasteController(PresetManager.PARTICLE_LAYOUTS, "_CopyParticleLayout")
             .supplier(this::getLayoutPresetData)
@@ -136,17 +129,19 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
 
             this.layoutPresetsController.openPresets(context, context.mouseX, context.mouseY);
         });
-        presets.tooltip(UIKeys.FILM_LAYOUT_PRESETS, Direction.LEFT);
+        presets.tooltip(UIKeys.FILM_LAYOUT_PRESETS);
 
         UIIcon lock = new UIIcon(() -> this.dock.isLocked() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.toggleLayoutLock());
-        lock.tooltip(() -> (this.dock.isLocked() ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK).get(), Direction.LEFT);
+        lock.tooltip(() -> (this.dock.isLocked() ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK).get());
 
         UIIcon resetLayout = new UIIcon(Icons.REFRESH, (b) -> this.dock.resetLayout());
-        resetLayout.tooltip(UIKeys.FILM_LAYOUT_RESET, Direction.LEFT);
+        resetLayout.tooltip(UIKeys.FILM_LAYOUT_RESET);
 
-        this.iconBar.add(presets);
-        this.iconBar.add(lock);
-        this.iconBar.add(resetLayout);
+        this.actions()
+            .action(restart)
+            .action(presets)
+            .action(lock, this.dock::isLocked)
+            .action(resetLayout);
 
         /* Ctrl+Tab / Ctrl+Shift+Tab cycle the tabs of the dock stack under the cursor (like the film editor). */
         this.keys().register(Keys.FILM_CONTROLLER_NEXT_DOCK_TAB, () ->
@@ -226,9 +221,9 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     }
 
     @Override
-    public Icon getTabIcon(DataTab tab)
+    public Icon getTabIcon(String id)
     {
-        return tab != null && tab.dataId == null ? Icons.SEARCH : Icons.PARTICLE;
+        return id == null ? Icons.SEARCH : Icons.PARTICLE;
     }
 
     public void dirty()
@@ -424,18 +419,6 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         if (this.dock != null)
         {
             this.dock.refreshVisibility();
-        }
-    }
-
-    @Override
-    protected void renderBackground(UIContext context)
-    {
-        if (this.iconBar.isVisible())
-        {
-            int bg = this.selectionPanel != null && this.selectionPanel.isVisible() ? Colors.A100 : Colors.A50;
-
-            this.iconBar.area.render(context.batcher, bg);
-            context.batcher.gradientHBox(this.iconBar.area.x - 6, this.iconBar.area.y, this.iconBar.area.x, this.iconBar.area.ey(), 0, 0x29000000);
         }
     }
 

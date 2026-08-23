@@ -14,6 +14,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.resources.packs.URLSourcePack;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelTopBar;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.IUITabs;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
 import mchorse.bbs_mod.ui.dashboard.textures.UITextureEditor;
@@ -78,6 +79,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
     public UIFilteredLinkList multiList;
     public UIMultiLinkEditor editor;
 
+    public UIPanelTopBar topBar;
     public UIDataTabs tabs;
     public UIElement browseContent;
     public UITexturePainter painter;
@@ -306,15 +308,19 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         this.buttons.add(this.add, this.remove, this.edit);
         this.browseContent.add(this.multi, this.multiList, this.right, this.editor, this.buttons, this.options);
 
-        this.tabs = new UIDataTabs(this);
-        this.tabs.relative(this).w(1F).h(UIDataTabs.TABS_HEIGHT_PX);
-        this.browseContent.relative(this.tabs).y(1F).w(1F).hTo(this.area, 1F);
-
         this.painter = new UITexturePainter(this::onTextureSaved).onRename(this::onTextureRenamed);
-        this.painter.relative(this.tabs).y(1F).w(1F).hTo(this.area, 1F);
+
+        this.topBar = new UIPanelTopBar();
+        this.topBar.relative(this).w(1F).h(UIPanelTopBar.HEIGHT);
+        this.tabs = this.topBar.enableTabs(this);
+        this.painter.installActions(this.topBar.actions);
+        this.painter.setActionsVisible(false);
+
+        this.browseContent.relative(this.topBar).y(1F).w(1F).hTo(this.area, 1F);
+        this.painter.relative(this.topBar).y(1F).w(1F).hTo(this.area, 1F);
         this.painter.setVisible(false);
 
-        this.add(this.tabs, this.browseContent, this.painter);
+        this.add(this.topBar, this.browseContent, this.painter);
 
         this.callback = callback;
 
@@ -567,6 +573,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
         this.painter.setEditor(editor);
         this.painter.setVisible(!browse);
+        this.painter.setActionsVisible(!browse);
         this.browseContent.setVisible(browse);
 
         this.tabs.sync();

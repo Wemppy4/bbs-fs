@@ -9,7 +9,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
-public abstract class UICRUDDashboardPanel extends UISidebarDashboardPanel
+public abstract class UICRUDDashboardPanel extends UIEditorDashboardPanel
 {
     public UIIcon openOverlay;
 
@@ -25,7 +25,7 @@ public abstract class UICRUDDashboardPanel extends UISidebarDashboardPanel
             UIOverlay.addOverlay(this.getContext(), this.overlay, 200, 0.9F);
         });
 
-        this.iconBar.prepend(this.openOverlay);
+        this.actions().menu(this.openOverlay);
 
         this.keys().register(Keys.OPEN_DATA_MANAGER, this::openDataManager);
     }

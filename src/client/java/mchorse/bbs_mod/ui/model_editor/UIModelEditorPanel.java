@@ -32,8 +32,6 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
@@ -187,7 +185,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         super(dashboard);
 
-        this.enableTabs();
 
         this.general = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
 
@@ -234,19 +231,19 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.createSections();
 
-        this.openOverlay.tooltip(UIKeys.FORMS_EDITOR_MODEL_PICK_MODEL, Direction.LEFT);
+        this.openOverlay.tooltip(UIKeys.FORMS_EDITOR_MODEL_PICK_MODEL);
 
         this.folderIcon = new UIIcon(Icons.FOLDER, (b) -> this.openModelFolder());
-        this.folderIcon.tooltip(UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_FOLDER, Direction.LEFT);
-        this.iconBar.add(this.folderIcon);
+        this.folderIcon.tooltip(UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_FOLDER);
 
         this.historyIcon = new UIIcon(Icons.UNDO, (b) -> this.openHistory());
-        this.historyIcon.tooltip(UIKeys.MODEL_EDITOR_OPEN_HISTORY, Direction.LEFT);
-        this.iconBar.add(this.historyIcon);
+        this.historyIcon.tooltip(UIKeys.MODEL_EDITOR_OPEN_HISTORY);
+
+        this.actions().action(this.folderIcon).action(this.historyIcon);
 
         this.selectionPanel = new UIModelSelectionScreen(this);
-        this.selectionPanel.relative(this).y(UIDataTabs.TABS_HEIGHT_PX).wTo(this.iconBar.area).h(1F, -UIDataTabs.TABS_HEIGHT_PX);
-        this.add(this.selectionPanel);
+
+        this.add(this.layoutUnderTopBar(this.selectionPanel));
 
         this.add(new UIModelEditorUndoKeys(this).full(this));
 
@@ -313,9 +310,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     }
 
     @Override
-    public Icon getTabIcon(DataTab tab)
+    public Icon getTabIcon(String id)
     {
-        return tab != null && tab.dataId == null ? Icons.SEARCH : Icons.POSE;
+        return id == null ? Icons.SEARCH : Icons.POSE;
     }
 
     @Override
