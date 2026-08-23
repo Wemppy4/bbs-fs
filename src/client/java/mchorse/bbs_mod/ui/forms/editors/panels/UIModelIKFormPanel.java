@@ -13,7 +13,6 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIDebugOverlayContextMenu;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -509,7 +508,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
                 if (data != null && getter.test(data))
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.BOTTOM);
+                    context.batcher.highlight(this.area, Direction.BOTTOM);
                 }
 
                 super.renderSkin(context);

@@ -36,7 +36,6 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.overlays.UIAnimationToPoseOverlayPanel;
@@ -339,14 +338,6 @@ public class UIReplaysEditor extends UIElement
             Area area = this.iconBar.area;
 
             context.batcher.box(area.x, area.y, area.ex(), area.ey(), BBSSettings.chromeSurface());
-
-            /* Highlight the active category on the left edge (the actions toggle when in actions mode). */
-            UIIcon activeIcon = this.actionsMode ? this.actionsToggle : (this.allMode ? this.allToggle : this.tabButtons.get(this.category));
-
-            if (activeIcon != null && activeIcon.getParent() != null)
-            {
-                UIDashboardPanels.renderHighlight(context.batcher, activeIcon.area, Direction.LEFT);
-            }
         }));
 
         for (ReplayCategory category : ReplayCategory.values())
@@ -354,6 +345,7 @@ public class UIReplaysEditor extends UIElement
             UIIcon button = new UIIcon(category.icon, b -> this.setCategory(category));
 
             button.tooltip(category.tooltip, Direction.RIGHT);
+            button.highlight(() -> !this.actionsMode && !this.allMode && this.category == category, Direction.LEFT);
             this.iconBar.add(button);
             this.tabButtons.put(category, button);
         }
@@ -361,9 +353,11 @@ public class UIReplaysEditor extends UIElement
         /* «All tracks» + actions toggles, pinned to the bottom of the category bar. */
         this.allToggle = new UIIcon(Icons.LIST, b -> this.setAllTracks());
         this.allToggle.tooltip(UIKeys.FILM_REPLAY_ALL_TRACKS, Direction.RIGHT);
+        this.allToggle.highlight(() -> !this.actionsMode && this.allMode, Direction.LEFT);
 
         this.actionsToggle = new UIIcon(Icons.ACTION, b -> this.toggleActionsMode());
         this.actionsToggle.tooltip(UIKeys.FILM_REPLAY_ACTIONS_TIMELINE, Direction.RIGHT);
+        this.actionsToggle.highlight(() -> this.actionsMode, Direction.LEFT);
         this.layoutBottomToggles();
 
         this.setCategory(ReplayCategory.REPLAY);

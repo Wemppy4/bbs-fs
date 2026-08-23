@@ -41,7 +41,6 @@ import mchorse.bbs_mod.ui.forms.editors.forms.UIParticleForm;
 import mchorse.bbs_mod.ui.forms.editors.forms.UITrailForm;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIVanillaParticleForm;
 import mchorse.bbs_mod.ui.forms.editors.states.UIAnimationStatesOverlayPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.forms.editors.states.keyframes.UIAnimationStateEditor;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -238,7 +237,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
             {
                 if (UIFormEditor.this.bodyPartGizmo)
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area);
+                    context.batcher.highlight(this.area, Direction.BOTTOM);
                 }
 
                 super.renderSkin(context);
@@ -329,7 +328,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
             {
                 if (UIFormEditor.this.statesEditor.isVisible())
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.LEFT);
+                    context.batcher.highlight(this.area, Direction.LEFT);
                 }
 
                 super.renderSkin(context);

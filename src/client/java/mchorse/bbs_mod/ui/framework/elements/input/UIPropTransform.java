@@ -9,7 +9,6 @@ import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
@@ -147,6 +146,7 @@ public class UIPropTransform extends UITransform
          * uniform-scale icon next to it: an oversized box on this one alone made it
          * bulge out of the set and pushed its row taller than the others. */
         this.iconR.callback = (b) -> this.toggleRotationMode();
+        this.iconR.highlight(() -> this.transform != null && this.transform.rotationMode == Transform.RotationMode.QUATERNION, Direction.LEFT);
         this.iconR.tooltip(UIKeys.TRANSFORMS_ROTATION_MODE_TOOLTIP);
         this.iconR.setEnabled(true);
 
@@ -1620,13 +1620,6 @@ public class UIPropTransform extends UITransform
         if (this.editing && !this.numeric.isActive() && this.checker.isTime())
         {
             this.updateDrag(context);
-        }
-
-        /* Quaternion mode lights up the rotation-row icon with the standard toggle
-         * highlight, as a gradient down the icon's left edge. */
-        if (this.transform != null && this.transform.rotationMode == Transform.RotationMode.QUATERNION)
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.iconR.area, Direction.LEFT);
         }
 
         super.render(context);

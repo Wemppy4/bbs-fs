@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.utils.bones;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
@@ -51,7 +50,7 @@ public class UIBonePicker extends UIElement
             {
                 if (UIBonePicker.this.picking)
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.BOTTOM);
+                    context.batcher.highlight(this.area, Direction.BOTTOM);
                 }
 
                 super.renderSkin(context);

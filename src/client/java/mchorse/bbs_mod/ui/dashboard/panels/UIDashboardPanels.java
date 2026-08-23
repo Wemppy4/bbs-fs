@@ -7,13 +7,11 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.events.UIEvent;
-import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,59 +25,6 @@ public class UIDashboardPanels extends UIElement
     public UIElement pinned;
     public UIScrollView panelButtons;
 
-    /**
-     * @deprecated Kept for backward compatibility. Use {@link #renderHighlight(Batcher2D, Area, Direction)}
-     * with {@link Direction#BOTTOM}.
-     */
-    @Deprecated
-    public static void renderHighlight(Batcher2D batcher, Area area)
-    {
-        renderHighlight(batcher, area, Direction.BOTTOM);
-    }
-
-    /**
-     * @deprecated Kept for backward compatibility. Use {@link #renderHighlight(Batcher2D, Area, Direction)}
-     * with {@link Direction#RIGHT}.
-     */
-    @Deprecated
-    public static void renderHighlightHorizontal(Batcher2D batcher, Area area)
-    {
-        renderHighlight(batcher, area, Direction.RIGHT);
-    }
-
-    /**
-     * Render a selection highlight on one edge of the area: a solid color bar on the {@code direction}
-     * side, fading into a gradient towards the opposite edge.
-     */
-    public static void renderHighlight(Batcher2D batcher, Area area, Direction direction)
-    {
-        int color = BBSSettings.primaryColor.get();
-        int bar = Colors.A100 | color;
-        int near = Colors.A75 | color;
-        int far = color;
-        int t = 2;
-
-        switch (direction)
-        {
-            case TOP:
-                batcher.box(area.x, area.y, area.ex(), area.y + t, bar);
-                batcher.gradientVBox(area.x, area.y + t, area.ex(), area.ey(), near, far);
-                break;
-            case BOTTOM:
-                batcher.box(area.x, area.ey() - t, area.ex(), area.ey(), bar);
-                batcher.gradientVBox(area.x, area.y, area.ex(), area.ey() - t, far, near);
-                break;
-            case LEFT:
-                batcher.box(area.x, area.y, area.x + t, area.ey(), bar);
-                batcher.gradientHBox(area.x + t, area.y, area.ex(), area.ey(), near, far);
-                break;
-            case RIGHT:
-                batcher.box(area.ex() - t, area.y, area.ex(), area.ey(), bar);
-                batcher.gradientHBox(area.x, area.y, area.ex() - t, area.ey(), far, near);
-                break;
-        }
-    }
-
     public UIDashboardPanels()
     {
         this.taskBar = new UIElement();
@@ -90,16 +35,6 @@ public class UIDashboardPanels extends UIElement
         this.panelButtons.relative(this.pinned).x(1F, 5).h(20).wTo(this.taskBar.area, 1F).column(0).scroll();
         this.panelButtons.scroll.cancelScrolling().noScrollbar();
         this.panelButtons.scroll.scrollSpeed = 5;
-        this.panelButtons.preRender((context) ->
-        {
-            for (int i = 0, c = this.panels.size(); i < c; i++)
-            {
-                if (this.panel == this.panels.get(i))
-                {
-                    renderHighlight(context.batcher, ((UIIcon) this.panelButtons.getChildren().get(i)).area, Direction.BOTTOM);
-                }
-            }
-        });
 
         this.taskBar.add(new UIRenderable(this::renderBackground), this.pinned, this.panelButtons);
         this.add(this.taskBar);
@@ -173,6 +108,7 @@ public class UIDashboardPanels extends UIElement
         UIIcon button = new UIIcon(icon, (b) -> this.setPanel(panel));
 
         button.tooltip(tooltip, Direction.TOP);
+        button.highlight(() -> this.panel == panel, Direction.BOTTOM);
 
         this.panels.add(panel);
         this.panelButtons.add(button);

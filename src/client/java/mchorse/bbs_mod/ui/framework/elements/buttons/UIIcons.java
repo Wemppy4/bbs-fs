@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.framework.elements.buttons;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.tooltips.ITooltip;
 import mchorse.bbs_mod.ui.framework.tooltips.LabelTooltip;
@@ -126,7 +125,7 @@ public class UIIcons extends UIClickable<UIIcons>
             if (active)
             {
                 Area.SHARED.set(x1, this.area.y, x2 - x1, this.area.h);
-                UIDashboardPanels.renderHighlight(context.batcher, Area.SHARED, Direction.BOTTOM);
+                context.batcher.highlight(Area.SHARED, Direction.BOTTOM);
             }
             else if (cellHover)
             {

@@ -5,7 +5,6 @@ import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -38,6 +37,7 @@ public class UIOnionSkinContextMenu extends UIContextMenu
         this.onionSkin = onionSkin;
 
         this.enable = new UIIcon(Icons.VISIBLE, (b) -> this.onionSkin.enabled.set(!this.onionSkin.enabled.get()));
+        this.enable.highlight(this.onionSkin.enabled::get, Direction.BOTTOM);
         this.enable.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE);
         this.preFrames = new UITrackpad((v) -> this.onionSkin.preFrames.set(v.intValue()));
         this.preFrames.limit(0, 10, true).setValue(this.onionSkin.preFrames.get());
@@ -48,6 +48,7 @@ public class UIOnionSkinContextMenu extends UIContextMenu
         this.postColor = new UIColor((c) -> this.onionSkin.postColor.set(c));
         this.postColor.withAlpha().setColor(this.onionSkin.postColor.get());
         this.all = new UIIcon(Icons.POSE, (b) -> this.onionSkin.all.set(!this.onionSkin.all.get()));
+        this.all.highlight(this.onionSkin.all::get, Direction.BOTTOM);
         this.all.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_ALL_DESCRIPTION);
         this.group = new UIIcon(Icons.MORE, (b) ->
         {
@@ -99,21 +100,5 @@ public class UIOnionSkinContextMenu extends UIContextMenu
         this.xy(context.mouseX(), context.mouseY())
             .wh(this.column.area.w, this.column.area.h)
             .bounds(context.menu.overlay, 5);
-    }
-
-    @Override
-    protected void renderBackground(UIContext context)
-    {
-        super.renderBackground(context);
-
-        if (this.onionSkin.enabled.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.enable.area, Direction.BOTTOM);
-        }
-
-        if (this.onionSkin.all.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.all.area, Direction.BOTTOM);
-        }
     }
 }

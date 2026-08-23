@@ -234,7 +234,6 @@ public class UITexturePainter extends UIElement
         this.toolBar.scroll.scrollSpeed = 5;
         this.toolBar.relative(this.content).x(0F).w(TOOL_BAR_W).h(1F)
             .column(0).scroll().vertical();
-        this.toolBar.preRender(this::renderActiveToolHighlight);
 
         this.toolIconBrush = this.createToolIcon(Icons.BRUSH, UIKeys.TEXTURES_TOOLS_BRUSH, TexturePaintTool.BRUSH);
         this.toolIconEraser = this.createToolIcon(Icons.ERASER, UIKeys.TEXTURES_TOOLS_ERASER, TexturePaintTool.ERASER);
@@ -263,6 +262,8 @@ public class UITexturePainter extends UIElement
     private UIIcon createToolIcon(Icon icon, IKey tooltip, TexturePaintTool tool)
     {
         UIIcon button = new UIIcon(icon, (b) -> this.userSelectTool(tool));
+
+        button.highlight(() -> this.activeTool == tool, Direction.LEFT);
 
         if (tooltip != null)
         {
@@ -406,29 +407,6 @@ public class UITexturePainter extends UIElement
     private void renderChromeSurface(UIContext context, Area area)
     {
         area.render(context.batcher, BBSSettings.chromeSurface());
-    }
-
-    private void renderActiveToolHighlight(UIContext context)
-    {
-        UIIcon active = this.getActiveToolIcon();
-
-        if (active != null)
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, active.area, Direction.LEFT);
-        }
-    }
-
-    private UIIcon getActiveToolIcon()
-    {
-        return switch (this.activeTool)
-        {
-            case BRUSH -> this.toolIconBrush;
-            case ERASER -> this.toolIconEraser;
-            case MOVE -> this.toolIconMove;
-            case FILL -> this.toolIconFill;
-            case PIPETTE -> this.toolIconPipette;
-            case SELECTION -> this.toolIconSelection;
-        };
     }
 
     public void openModelPreview()

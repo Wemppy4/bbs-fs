@@ -19,7 +19,6 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.controller.UIMotionPathContextMenu;
 import mchorse.bbs_mod.ui.film.controller.UIOnionSkinContextMenu;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
@@ -86,8 +85,10 @@ public class UIFilmPreview extends UIElement
 
         /* Preview buttons */
         this.onionSkin = new UIIcon(Icons.ONION_SKIN, (b) -> this.openOnionSkin());
+        this.onionSkin.highlight(() -> this.panel.getController().getOnionSkin().enabled.get(), Direction.BOTTOM);
         this.onionSkin.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE);
         this.motionPath = new UIIcon(Icons.CURVES, (b) -> this.openMotionPath());
+        this.motionPath.highlight(() -> this.panel.getController().getMotionPath().enabled.get(), Direction.BOTTOM);
         this.motionPath.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE);
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
         this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE);
@@ -146,8 +147,10 @@ public class UIFilmPreview extends UIElement
             }
         });
         this.flight = new UIIcon(Icons.PLANE, (b) -> this.panel.toggleFlight());
+        this.flight.highlight(this.panel::isFlying, Direction.BOTTOM);
         this.flight.tooltip(UIKeys.CAMERA_EDITOR_KEYS_MODES_FLIGHT);
         this.control = new UIIcon(Icons.POSE, (b) -> this.panel.getController().toggleControl());
+        this.control.highlight(() -> this.panel.getController().isControlling(), Direction.BOTTOM);
         this.control.tooltip(UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_CONTROL);
         this.perspective = new UIIcon(this.panel.getController()::getOrbitModeIcon, (b) -> this.panel.getController().toggleOrbitMode());
         this.perspective.tooltip(UIKeys.FILM_CONTROLLER_KEYS_CHANGE_CAMERA_MODE);
@@ -163,6 +166,7 @@ public class UIFilmPreview extends UIElement
             }
         });
         this.recordReplay = new UIIcon(Icons.SPHERE, (b) -> this.panel.getController().pickRecording());
+        this.recordReplay.highlight(() -> this.panel.getController().isRecording(), Direction.BOTTOM);
         this.recordReplay.tooltip(UIKeys.FILM_REPLAY_RECORD);
         this.recordReplay.context((menu) ->
         {
@@ -485,12 +489,6 @@ public class UIFilmPreview extends UIElement
             int barShade = BBSSettings.isLightTheme() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
             context.batcher.gradientVBox(a.x, a.y, a.ex(), a.ey(), 0, barShade);
 
-            if (this.panel.isFlying()) UIDashboardPanels.renderHighlight(context.batcher, this.flight.area, Direction.BOTTOM);
-            if (this.panel.getController().isControlling()) UIDashboardPanels.renderHighlight(context.batcher, this.control.area, Direction.BOTTOM);
-            if (this.panel.getController().isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordReplay.area, Direction.BOTTOM);
-            if (this.panel.recorder.isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordVideo.area, Direction.BOTTOM);
-            if (this.panel.getController().getOnionSkin().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.onionSkin.area, Direction.BOTTOM);
-            if (this.panel.getController().getMotionPath().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.motionPath.area, Direction.BOTTOM);
             if (this.panel.getController().isControlling())
             {
                 String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();

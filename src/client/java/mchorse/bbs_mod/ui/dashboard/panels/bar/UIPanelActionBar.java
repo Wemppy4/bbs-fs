@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.dashboard.panels.bar;
 
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -37,11 +36,11 @@ public class UIPanelActionBar extends UIElement
      */
     private static final Direction EDGE = Direction.BOTTOM;
 
-    private final List<Action> actions = new ArrayList<>();
-    private final List<Action> common = new ArrayList<>();
+    private final List<UIIcon> actions = new ArrayList<>();
+    private final List<UIIcon> common = new ArrayList<>();
     private final UIElement separator = new UIElement();
 
-    private Action menu;
+    private UIIcon menu;
     private int contentWidth;
 
     public UIPanelActionBar()
@@ -95,17 +94,17 @@ public class UIPanelActionBar extends UIElement
     /** The button that opens this panel's menu, or null. */
     public UIIcon getMenuButton()
     {
-        return this.menu == null ? null : this.menu.icon;
+        return this.menu;
     }
 
     /** Drop a button this panel does not want (the film saves from its own menu, not from the bar). */
     public void dismiss(UIIcon icon)
     {
-        boolean removed = this.actions.removeIf((action) -> action.icon == icon);
+        boolean removed = this.actions.remove(icon);
 
-        removed |= this.common.removeIf((action) -> action.icon == icon);
+        removed |= this.common.remove(icon);
 
-        if (this.menu != null && this.menu.icon == icon)
+        if (this.menu == icon)
         {
             this.menu = null;
             removed = true;
@@ -117,16 +116,21 @@ public class UIPanelActionBar extends UIElement
         }
     }
 
-    private Action adopt(UIIcon icon, BooleanSupplier active)
+    private UIIcon adopt(UIIcon icon, BooleanSupplier active)
     {
         icon.wh(BUTTON_SIZE, BUTTON_SIZE);
+
+        if (active != null)
+        {
+            icon.highlight(active, EDGE);
+        }
 
         if (icon.tooltip instanceof LabelTooltip label)
         {
             label.direction = EDGE;
         }
 
-        return new Action(icon, active);
+        return icon;
     }
 
     /**
@@ -150,7 +154,7 @@ public class UIPanelActionBar extends UIElement
 
         if (this.isVisible(this.menu))
         {
-            this.add(this.menu.icon);
+            this.add(this.menu);
 
             width += BUTTON_SIZE;
         }
@@ -159,13 +163,13 @@ public class UIPanelActionBar extends UIElement
         this.setVisible(width > 0);
     }
 
-    private int addSlot(List<Action> slot, int width)
+    private int addSlot(List<UIIcon> slot, int width)
     {
-        for (Action action : slot)
+        for (UIIcon icon : slot)
         {
-            if (action.icon.isVisible())
+            if (icon.isVisible())
             {
-                this.add(action.icon);
+                this.add(icon);
 
                 width += BUTTON_SIZE;
             }
@@ -174,11 +178,11 @@ public class UIPanelActionBar extends UIElement
         return width;
     }
 
-    private boolean hasVisible(List<Action> slot)
+    private boolean hasVisible(List<UIIcon> slot)
     {
-        for (Action action : slot)
+        for (UIIcon icon : slot)
         {
-            if (action.icon.isVisible())
+            if (icon.isVisible())
             {
                 return true;
             }
@@ -187,9 +191,9 @@ public class UIPanelActionBar extends UIElement
         return false;
     }
 
-    private boolean isVisible(Action action)
+    private boolean isVisible(UIIcon icon)
     {
-        return action != null && action.icon.isVisible();
+        return icon != null && icon.isVisible();
     }
 
     /** Width this bar needs, so the tab strip beside it knows where to stop. */
@@ -201,12 +205,12 @@ public class UIPanelActionBar extends UIElement
     @Override
     public void render(UIContext context)
     {
-        this.renderStates(context, this.actions);
-        this.renderStates(context, this.common);
+        this.renderHover(context, this.actions);
+        this.renderHover(context, this.common);
 
         if (this.menu != null)
         {
-            this.renderState(context, this.menu);
+            this.renderHover(context, this.menu);
         }
 
         if (this.separator.getParent() == this)
@@ -220,33 +224,22 @@ public class UIPanelActionBar extends UIElement
         super.render(context);
     }
 
-    private void renderStates(UIContext context, List<Action> slot)
+    private void renderHover(UIContext context, List<UIIcon> slot)
     {
-        for (Action action : slot)
+        for (UIIcon icon : slot)
         {
-            this.renderState(context, action);
+            this.renderHover(context, icon);
         }
     }
 
-    private void renderState(UIContext context, Action action)
+    /** The icons paint their own highlight; the bar only shades the one under the cursor. */
+    private void renderHover(UIContext context, UIIcon icon)
     {
-        if (!action.icon.isVisible())
-        {
-            return;
-        }
+        Area area = icon.area;
 
-        Area area = action.icon.area;
-
-        if (action.active != null && action.active.getAsBoolean())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, area, EDGE);
-        }
-        else if (area.isInside(context.mouseX, context.mouseY))
+        if (icon.isVisible() && !icon.isHighlighted() && area.isInside(context.mouseX, context.mouseY))
         {
             context.batcher.box(area.x, area.y, area.ex(), area.ey(), BBSSettings.color(BBSSettings.raisedSurface(), Colors.A25));
         }
     }
-
-    private record Action(UIIcon icon, BooleanSupplier active)
-    {}
 }

@@ -13,7 +13,6 @@ import mchorse.bbs_mod.items.GunProperties;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCamera;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
@@ -474,7 +473,7 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
 
         if (icon != null)
         {
-            UIDashboardPanels.renderHighlight(context.batcher, icon.area, Direction.TOP);
+            context.batcher.highlight(icon.area, Direction.TOP);
         }
     }
 }

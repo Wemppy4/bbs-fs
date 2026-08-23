@@ -9,6 +9,7 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
@@ -257,6 +258,40 @@ public class Batcher2D
     }
 
     /* Gradients */
+
+    /**
+     * Draw a selection highlight over an area: a solid bar of the primary color along the
+     * {@code edge}, fading into a gradient towards the opposite side. This is what marks the
+     * chosen tab, mode or tool everywhere in the UI.
+     */
+    public void highlight(Area area, Direction edge)
+    {
+        int color = BBSSettings.primaryColor.get();
+        int bar = Colors.A100 | color;
+        int near = Colors.A75 | color;
+        int far = color;
+        int t = 2;
+
+        switch (edge)
+        {
+            case TOP:
+                this.box(area.x, area.y, area.ex(), area.y + t, bar);
+                this.gradientVBox(area.x, area.y + t, area.ex(), area.ey(), near, far);
+                break;
+            case BOTTOM:
+                this.box(area.x, area.ey() - t, area.ex(), area.ey(), bar);
+                this.gradientVBox(area.x, area.y, area.ex(), area.ey() - t, far, near);
+                break;
+            case LEFT:
+                this.box(area.x, area.y, area.x + t, area.ey(), bar);
+                this.gradientHBox(area.x + t, area.y, area.ex(), area.ey(), near, far);
+                break;
+            case RIGHT:
+                this.box(area.ex() - t, area.y, area.ex(), area.ey(), bar);
+                this.gradientHBox(area.x, area.y, area.ex() - t, area.ey(), far, near);
+                break;
+        }
+    }
 
     public void gradientHBox(float x1, float y1, float x2, float y2, int leftColor, int rightColor)
     {
