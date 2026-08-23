@@ -143,7 +143,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     /** How tall this row is drawn. Bone rows are shorter than the rest — see {@link #BONE_TRACK_SCALE}. */
     public int getTrackHeight(UIKeyframeSheet sheet)
     {
-        if (sheet != null && sheet.descriptor != null && sheet.descriptor.kind() == TrackKind.BONE)
+        if (sheet != null && sheet.descriptor != null && (sheet.descriptor.kind() == TrackKind.BONE || sheet.descriptor.kind() == TrackKind.BONE_CONSTRAINT))
         {
             return Math.max(6, (int) (this.trackHeight * BONE_TRACK_SCALE));
         }

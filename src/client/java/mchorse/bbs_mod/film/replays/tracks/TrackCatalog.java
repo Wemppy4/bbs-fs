@@ -14,7 +14,9 @@ import mchorse.bbs_mod.cubic.physics.PhysicsControls;
 import mchorse.bbs_mod.cubic.physics.WindControl;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.replays.FormProperties;
+import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
@@ -25,6 +27,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.base.BaseKeyframeFactoryValue;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
+import mchorse.bbs_mod.settings.values.core.ValueBoneConstraint;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
@@ -255,7 +258,37 @@ public class TrackCatalog
             out.add(new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(title),
                 null, color, new ValueTransform(id.toKey(), new PoseTransform()))
                 .under(ancestor == null ? pose : TrackId.bone(path, ancestor)));
+
+            boneConstraint(modelForm, path, bone, id, color, properties, out);
         }
+    }
+
+    /**
+     * The bone's rotation-limits track, folding under the bone's own row. Listed like the solver
+     * tracks are — only where it is set up: a bone whose constraint is enabled statically, or whose
+     * replay already holds the track. Every bone CAN be limited, but a row per bone would double
+     * the skeleton, which is already most of the timeline.
+     */
+    private static void boneConstraint(ModelForm modelForm, String path, String bone, TrackId boneTrack, int color, FormProperties properties, List<TrackDescriptor> out)
+    {
+        FormBone formBone = modelForm.bones.getBone(bone);
+        boolean enabled = formBone != null && formBone.constraints.get().enabled;
+        TrackId id = TrackId.boneConstraint(path, bone);
+
+        if (!enabled && (properties == null || !properties.has(id)))
+        {
+            return;
+        }
+
+        String title = (path.isEmpty() ? bone : path + FormUtils.PATH_SEPARATOR + bone) + FormUtils.PATH_SEPARATOR + "constraints";
+        BaseValueBasic property = formBone != null
+            ? formBone.constraints
+            : new ValueBoneConstraint(id.toKey(), new BoneConstraint());
+
+        out.add(new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(title),
+            Icons.LOCKED, color, property)
+            .seed(() -> formBone != null ? formBone.constraints.get().copy() : new BoneConstraint())
+            .under(boneTrack));
     }
 
     /**

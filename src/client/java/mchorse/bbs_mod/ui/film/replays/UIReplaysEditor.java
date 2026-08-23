@@ -204,7 +204,7 @@ public class UIReplaysEditor extends UIElement
                     return ReplayCategory.IK;
                 case PHYSICS_CONTROLS, PHYSICS_TARGET, WIND_CONTROLS:
                     return ReplayCategory.PHYSICS;
-                case BONE:
+                case BONE, BONE_CONSTRAINT:
                     return ReplayCategory.POSE;
                 case MATERIAL_TEXTURE, MATERIAL_PROP:
                     return ReplayCategory.FORM;
