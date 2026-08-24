@@ -46,7 +46,6 @@ public class Recorder extends WorldFilmController
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public ReplayKeyframes keyframes = new ReplayKeyframes("keyframes");
-    public FormProperties properties = new FormProperties("properties");
 
     /**
      * Mobs captured within {@link Film#mobRecordingRadius} when recording started.

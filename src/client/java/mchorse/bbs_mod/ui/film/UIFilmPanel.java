@@ -22,7 +22,6 @@ import mchorse.bbs_mod.film.FrozenFilmController;
 import mchorse.bbs_mod.film.Recorder;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
-import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.L10n;
@@ -400,46 +399,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         return id == null ? Icons.SEARCH : Icons.FILM;
     }
 
-    public void renameFilmId(String from, String to)
-    {
-        if (from == null || to == null || from.equals(to))
-        {
-            return;
-        }
-
-        if (this.data != null && from.equals(this.data.getId()))
-        {
-            this.data.setId(to);
-        }
-
-        this.onDataRenamed(from, to);
-    }
-
-    public void renameFilmFolder(String fromPath, String name)
-    {
-        if (fromPath == null || name == null || name.trim().isEmpty())
-        {
-            return;
-        }
-
-        String oldPrefix = fromPath + "/";
-        int slash = fromPath.lastIndexOf('/');
-        String parentPath = slash >= 0 ? fromPath.substring(0, slash + 1) : "";
-        String newPrefix = parentPath + name + "/";
-
-        if (this.data != null)
-        {
-            String id = this.data.getId();
-
-            if (id != null && id.startsWith(oldPrefix))
-            {
-                this.data.setId(newPrefix + id.substring(oldPrefix.length()));
-            }
-        }
-
-        this.onDataFolderRenamed(fromPath, name);
-    }
-
     public void deleteFilmIds(Set<String> ids)
     {
         if (ids == null || ids.isEmpty())
@@ -450,24 +409,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         for (String id : ids)
         {
             this.onDataRemoved(id);
-        }
-
-        this.updateTabVisibility();
-    }
-
-    public void deleteFilmFolders(Set<String> folderPaths)
-    {
-        if (folderPaths == null || folderPaths.isEmpty())
-        {
-            return;
-        }
-
-        for (String folder : folderPaths)
-        {
-            if (folder != null && !folder.isEmpty())
-            {
-                this.onDataFolderRemoved(folder);
-            }
         }
 
         this.updateTabVisibility();
@@ -1189,11 +1130,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
     }
 
-    public void dupeCurrentFilmTo(String name)
-    {
-        this.dupeData(name);
-    }
-
     public void dupeFilmTo(String sourceId, String name)
     {
         if (name == null || name.trim().isEmpty())
@@ -1343,20 +1279,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             {
                 rp.keyframes.copyOver(recorder.keyframes, 0);
 
-                Form form = rp.form.get();
-
-                if (form != null)
-                {
-                    for (Map.Entry<TrackId, KeyframeChannel> entry : recorder.properties.tracks.entrySet())
-                    {
-                        KeyframeChannel channel = rp.properties.getOrCreate(form, entry.getKey());
-
-                        if (channel != null && entry.getValue() != null)
-                        {
-                            channel.copyOver(entry.getValue(), 0);
-                        }
-                    }
-                }
 
                 f.hp.set(recorder.hp);
                 f.hunger.set(recorder.hunger);

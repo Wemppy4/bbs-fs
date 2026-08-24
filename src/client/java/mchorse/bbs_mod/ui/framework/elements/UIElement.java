@@ -123,8 +123,6 @@ public class UIElement implements IUIElement, IUndoElement
     /**
      * Custom data that can be stored within this UI element
      */
-    private Map<String, Object> customData;
-
     public EventManager getEvents()
     {
         return this.events;
@@ -427,21 +425,6 @@ public class UIElement implements IUIElement, IUndoElement
     }
 
     /* Custom data */
-
-    public Object getCustomValue(String key)
-    {
-        return this.customData == null ? null : this.customData.get(key);
-    }
-
-    public void setCustomValue(String key, Object value)
-    {
-        if (this.customData == null)
-        {
-            this.customData = new HashMap<>();
-        }
-
-        this.customData.put(key, value);
-    }
 
     /* Setters */
 
