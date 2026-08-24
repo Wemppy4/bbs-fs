@@ -45,6 +45,7 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.UIFilmUndoHandler;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.layout.ILayoutSource;
@@ -345,7 +346,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         };
 
         this.add(element);
-        this.add(new UIFilmPanelUndoKeys(this).full(this));
+        this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         IValueListener refreshPreviewOnVideoResolution = (v, f) ->
         {

@@ -22,6 +22,7 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
@@ -43,7 +44,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
      */
     private static final Map<String, IUIKeyframeFactoryFactory> PROPERTIES = new HashMap<>();
 
-    private static final Map<IKeyframeFactory, Integer> SCROLLS = new HashMap<>();
+    private static final ScrollMemory<IKeyframeFactory> SCROLLS = new ScrollMemory<>();
 
     public UIScrollView scroll;
     public UITrackpad tick;
@@ -98,17 +99,13 @@ public abstract class UIKeyframeFactory <T> extends UIElement
     {
         if (editor != null)
         {
-            SCROLLS.put(editor.keyframe.getFactory(), (int) editor.scroll.scroll.getScroll());
+            SCROLLS.save(editor.keyframe.getFactory(), editor.scroll);
         }
     }
 
-    /**
-     * Restore the scroll saved for this keyframe factory. Must be called after the panel
-     * was laid out, otherwise the scroll gets clamped to 0 against an empty area.
-     */
     public void restoreScroll()
     {
-        this.scroll.scroll.setScroll(SCROLLS.getOrDefault(this.keyframe.getFactory(), 0));
+        SCROLLS.restore(this.keyframe.getFactory(), this.scroll);
     }
 
     public static <T> UIKeyframeFactory createPanel(Keyframe<T> keyframe, UIKeyframes editor)

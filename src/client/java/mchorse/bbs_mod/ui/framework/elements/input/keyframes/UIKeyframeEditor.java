@@ -9,6 +9,7 @@ import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelinePanel;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIPoseKeyframeFactory;
@@ -24,16 +25,12 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class UIKeyframeEditor extends UIElement
+public class UIKeyframeEditor extends UITimelinePanel
 {
     public static final int[] COLORS = {Colors.RED, Colors.GREEN, Colors.BLUE, Colors.CYAN, Colors.MAGENTA, Colors.YELLOW, Colors.LIGHTEST_GRAY & 0xffffff, Colors.DEEP_PINK};
 
     public UIKeyframes view;
     public UIKeyframeFactory editor;
-
-    private UIElement target;
-    private boolean timelineVisible = true;
-    private boolean propertiesVisible = true;
 
     public UIKeyframeEditor(Function<Consumer<Keyframe>, UIKeyframes> factory)
     {
@@ -49,20 +46,16 @@ public class UIKeyframeEditor extends UIElement
         this.add(this.view.full(this).w(1F, -140));
     }
 
-    /**
-     * The parameters panel is parented to {@link #target}, not to this editor, so nothing would take
-     * it down when this editor is dropped &mdash; it would stay in the edit area, clickable, and the
-     * next editor would stack its own panel on top of it.
-     */
     @Override
-    public void removeFromParent()
+    protected UIElement getPropertiesPanel()
     {
-        super.removeFromParent();
+        return this.editor;
+    }
 
-        if (this.editor != null)
-        {
-            this.editor.removeFromParent();
-        }
+    @Override
+    protected UIElement getTimeline()
+    {
+        return this.view;
     }
 
     public UIKeyframeEditor target(UIElement target)
@@ -88,18 +81,7 @@ public class UIKeyframeEditor extends UIElement
         {
             this.editor = UIKeyframeFactory.createPanel(keyframe, this.view);
 
-            if (this.target != null)
-            {
-                this.editor.relative(this.target).x(0).y(0).w(1F).h(1F);
-            }
-            else
-            {
-                this.editor.relative(this).x(1F, -140).w(140).h(1F);
-            }
-
-            /* The panel lives in whichever element it is laid out over, so it stays visible when
-             * the timeline is hidden behind another dock tab. */
-            (this.target == null ? this : this.target).add(this.editor);
+            this.attachPropertiesPanel(this.editor, 140);
             this.editor.setVisible(this.propertiesVisible);
             this.resize();
 
@@ -115,22 +97,6 @@ public class UIKeyframeEditor extends UIElement
         if (this.editor != null)
         {
             this.editor.restoreScroll();
-        }
-    }
-
-    public void setTimelineVisible(boolean visible)
-    {
-        this.timelineVisible = visible;
-        this.view.setVisible(visible);
-    }
-
-    public void setPropertiesVisible(boolean visible)
-    {
-        this.propertiesVisible = visible;
-
-        if (this.editor != null)
-        {
-            this.editor.setVisible(visible);
         }
     }
 

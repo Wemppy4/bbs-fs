@@ -49,6 +49,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -245,7 +246,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.add(this.layoutUnderTopBar(this.selectionPanel));
 
-        this.add(new UIModelEditorUndoKeys(this).full(this));
+        this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         this.registerKeybinds();
 
