@@ -53,7 +53,7 @@ public class UIMotionPathContextMenu extends UIContextMenu
 
         this.enable = new UIIcon(() -> this.motionPath.enabled.get() ? Icons.VISIBLE : Icons.INVISIBLE, (b) -> this.motionPath.enabled.toggle());
         this.enable.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE);
-        this.pin = new UIIcon(() -> this.panel.getController().isMotionPathPinned() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.togglePin());
+        this.pin = new UIIcon(() -> this.panel.getController().motionPathPin.isPinned() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.togglePin());
         this.pin.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_PIN);
         this.gradient = new UIIcon(Icons.GRAPH, (b) -> this.motionPath.gradient.toggle());
         this.gradient.highlight(this.motionPath.gradient::get, Direction.BOTTOM);
@@ -113,7 +113,7 @@ public class UIMotionPathContextMenu extends UIContextMenu
 
     private void togglePin()
     {
-        this.panel.getController().toggleMotionPathPin();
+        this.panel.getController().motionPathPin.toggle();
     }
 
     @Override
