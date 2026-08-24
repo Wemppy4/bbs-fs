@@ -225,7 +225,10 @@ public abstract class BaseFilmController
 
             if (replay != null)
             {
-                ticks = replay.getTick(ticks);
+                /* Replay-local, like in updateEntities: a looping replay wraps the film tick to its own
+                 * window, and writing that back into the loop variable handed the wrapped tick to every
+                 * replay after it — which then wrapped an already wrapped tick. */
+                int replayTicks = replay.getTick(ticks);
 
                 Map<String, Integer> actors = this.getActors();
 
@@ -239,11 +242,11 @@ public abstract class BaseFilmController
 
                         if (anEntity instanceof PlayerEntity player)
                         {
-                            double x = replay.keyframes.x.interpolate(ticks);
-                            double y = replay.keyframes.y.interpolate(ticks);
-                            double z = replay.keyframes.z.interpolate(ticks);
-                            boolean sneaking = replay.keyframes.sneaking.interpolate(ticks) > 0;
-                            boolean grounded = replay.keyframes.grounded.interpolate(ticks) > 0;
+                            double x = replay.keyframes.x.interpolate(replayTicks);
+                            double y = replay.keyframes.y.interpolate(replayTicks);
+                            double z = replay.keyframes.z.interpolate(replayTicks);
+                            boolean sneaking = replay.keyframes.sneaking.interpolate(replayTicks) > 0;
+                            boolean grounded = replay.keyframes.grounded.interpolate(replayTicks) > 0;
 
                             Vec3d pos = player.getPos();
 
@@ -260,7 +263,7 @@ public abstract class BaseFilmController
                             /* The player's own tick overwrites this from the input every tick, but
                              * baseTick (which spawns the sprinting particles) runs before it, so a
                              * value written at the end of the world tick is the one vanilla sees. */
-                            player.setSprinting(replay.keyframes.sprinting.interpolate(ticks) > 0);
+                            player.setSprinting(replay.keyframes.sprinting.interpolate(replayTicks) > 0);
 
                             /* First person teleports the player from keyframes instead of walking it, so vanilla's
                              * stride distance (the view-bobbing amplitude) is computed from a zero velocity and stays
@@ -284,7 +287,7 @@ public abstract class BaseFilmController
                                 playerEntity.input.sneaking = sneaking;
                             }
 
-                            player.fallDistance = replay.keyframes.fall.interpolate(ticks).floatValue();
+                            player.fallDistance = replay.keyframes.fall.interpolate(replayTicks).floatValue();
                         }
                     }
                 }

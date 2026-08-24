@@ -71,18 +71,14 @@ public class FilmEntityRenderer
             Lerps.lerp(entity.getPrevZ(), entity.getZ(), transition)
         );
 
-        double cx = camera.getPos().x;
-        double cy = camera.getPos().y;
-        double cz = camera.getPos().z;
-
         boolean relative = context.replay != null && context.relative;
+        Vector3d origin = relative
+            ? context.replay.getRelativeOrigin()
+            : new Vector3d(camera.getPos().x, camera.getPos().y, camera.getPos().z);
 
-        if (relative)
-        {
-            cx = context.replay.keyframes.x.interpolate(0F) + context.replay.relativeOffset.get().x;
-            cy = context.replay.keyframes.y.interpolate(0F) + context.replay.relativeOffset.get().y;
-            cz = context.replay.keyframes.z.interpolate(0F) + context.replay.relativeOffset.get().z;
-        }
+        double cx = origin.x;
+        double cy = origin.y;
+        double cz = origin.z;
 
         Matrix4f target = null;
         Matrix4f defaultMatrix = FilmMatrices.getMatrixForRenderWithRotation(entity, cx, cy, cz, transition);

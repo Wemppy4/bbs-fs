@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.actions.SuperFakePlayer;
 import mchorse.bbs_mod.actions.types.ActionClip;
 import mchorse.bbs_mod.camera.data.Point;
+import org.joml.Vector3d;
 import mchorse.bbs_mod.camera.values.ValuePoint;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -77,6 +78,24 @@ public class Replay extends ValueGroup
         this.add(this.axesPreview);
         this.add(this.axesPreviewBone);
     }
+
+    /**
+     * Where this replay's own frame sits when it is {@link #relative}: its first keyframe plus the
+     * authored offset. A relative replay is built around a fixed origin instead of around wherever
+     * the camera happens to be, so every consumer that places it has to ask the same question — the
+     * renderer, the bone matrices and the motion path all did it with their own copy of this sum.
+     */
+    public Vector3d getRelativeOrigin()
+    {
+        Point offset = this.relativeOffset.get();
+
+        return new Vector3d(
+            this.keyframes.x.interpolate(0F) + offset.x,
+            this.keyframes.y.interpolate(0F) + offset.y,
+            this.keyframes.z.interpolate(0F) + offset.z
+        );
+    }
+
 
     /**
      * Normalizes a user-supplied category: trim, single segment (no {@code /}), empty = root.

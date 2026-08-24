@@ -388,11 +388,7 @@ public class FilmMatrices
         return track != null && track.is(TrackKind.BONE) ? track.subjectPath() : bonePath;
     }
 
-    /**
-     * Where the replay's own frame sits: the camera's position normally, and the replay's first
-     * keyframe plus its offset in relative mode — a relative replay is authored around a fixed
-     * origin rather than around wherever the camera happens to be.
-     */
+    /** Where the replay's own frame sits: the camera normally, its own origin in relative mode. */
     private static Vector3d replayOrigin(Replay replay, boolean relative, double cameraX, double cameraY, double cameraZ)
     {
         if (!relative || replay == null)
@@ -400,10 +396,6 @@ public class FilmMatrices
             return new Vector3d(cameraX, cameraY, cameraZ);
         }
 
-        return new Vector3d(
-            replay.keyframes.x.interpolate(0F) + replay.relativeOffset.get().x,
-            replay.keyframes.y.interpolate(0F) + replay.relativeOffset.get().y,
-            replay.keyframes.z.interpolate(0F) + replay.relativeOffset.get().z
-        );
+        return replay.getRelativeOrigin();
     }
 }
