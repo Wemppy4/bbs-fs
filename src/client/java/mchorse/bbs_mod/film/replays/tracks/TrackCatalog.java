@@ -6,6 +6,8 @@ import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.replays.FormProperties;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
+import mchorse.bbs_mod.cubic.ik.IKControls;
+import mchorse.bbs_mod.cubic.physics.PhysicsControls;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.forms.forms.BodyPart;
@@ -477,28 +479,16 @@ public class TrackCatalog
 
         List<String> controllers = ModelIKRuntime.getControllers(model);
 
-        /* One `ik` track per chain, addressed by the chain's tip bone: the keyframe value is the
-         * bone's own `ik` property (weight, softness, pole angle, enabled) — the same value the
-         * form stores statically, seeded from it. */
-        for (BaseValue value : modelForm.bones.getAll())
+        if (!controllers.isEmpty())
         {
-            if (!(value instanceof FormBone bone))
-            {
-                continue;
-            }
-
-            TrackId id = TrackId.boneIK(path, bone.getId());
-
-            if (!bone.hasChain() && (properties == null || !properties.has(id)))
-            {
-                continue;
-            }
-
-            String title = (path.isEmpty() ? "ik" : path + "/ik") + FormUtils.PATH_SEPARATOR + bone.getId();
+            /* One controls track per form: a single track whose value holds the per-chain scalars
+             * (weight, softness, pole, enabled), driving the bones' own `ik` properties at playback.
+             * It has no form property behind it, so the chains are listed from the form itself. */
+            TrackId id = TrackId.ikControls(path);
 
             out.add(new TrackDescriptor(id, channel(properties, id), modelForm,
-                IKey.constant(title), Icons.IK, Colors.YELLOW, bone.ik)
-                .seed(() -> bone.ik.get().copy()));
+                IKey.constant(path.isEmpty() ? "ik" : path + "/ik"), Icons.IK, Colors.YELLOW, null)
+                .seed(() -> ikControls(modelForm)));
         }
 
         for (String controller : controllers)
@@ -526,34 +516,79 @@ public class TrackCatalog
 
     private static void physics(ModelForm modelForm, String path, FormProperties properties, List<TrackDescriptor> out)
     {
-        /* One `physics` track per chain, addressed by the chain's root bone: the keyframe value is
-         * the bone's own `physics` property (weight, gravity, damping, stiffness, enabled), seeded
-         * from it. The wind is the form's own `wind` property, listed with the plain properties. */
+        boolean hasChains = false;
+
         for (BaseValue value : modelForm.bones.getAll())
         {
-            if (!(value instanceof FormBone bone))
+            if (value instanceof FormBone bone && bone.hasPhysicsChain())
+            {
+                hasChains = true;
+
+                break;
+            }
+        }
+
+        if (!hasChains)
+        {
+            return;
+        }
+
+        TrackId controls = TrackId.physicsControls(path);
+
+        out.add(new TrackDescriptor(controls, channel(properties, controls), modelForm,
+            IKey.constant(path.isEmpty() ? "physics" : path + "/physics"), Icons.PHYSICS, Colors.GREEN, null)
+            .seed(() -> physicsControls(modelForm)));
+
+        /* The wind is global to the form, so — unlike the physics controls — it is not keyed by chain. */
+        TrackId wind = TrackId.windControls(path);
+
+        out.add(new TrackDescriptor(wind, channel(properties, wind), modelForm,
+            IKey.constant(path.isEmpty() ? "wind" : path + "/wind"), Icons.ARROW_RIGHT, Colors.CYAN, null)
+            .seed(() -> modelForm.wind.get().copy()));
+
+        for (BaseValue value : modelForm.bones.getAll())
+        {
+            if (!(value instanceof FormBone bone) || !bone.hasPhysicsChain())
             {
                 continue;
             }
 
-            TrackId id = TrackId.bonePhysics(path, bone.getId());
+            TrackId id = TrackId.physicsTarget(path, bone.getId());
 
-            if (bone.hasPhysicsChain() || (properties != null && properties.has(id)))
+            out.add(target(modelForm, id, properties, path.isEmpty() ? "physics/" + bone.getId() : path + "/physics/" + bone.getId(), Colors.MAGENTA));
+        }
+    }
+
+    /** A fully populated IK-controls value seeded from the bones' own `ik` properties, so a fresh keyframe matches what the editor shows instead of an empty container that drifts to defaults. */
+    private static IKControls ikControls(ModelForm modelForm)
+    {
+        IKControls controls = new IKControls();
+
+        for (BaseValue value : modelForm.bones.getAll())
+        {
+            if (value instanceof FormBone bone && bone.hasChain() && bone.ik.getOriginalValue().enabled)
             {
-                String title = (path.isEmpty() ? "physics" : path + "/physics") + FormUtils.PATH_SEPARATOR + bone.getId();
-
-                out.add(new TrackDescriptor(id, channel(properties, id), modelForm,
-                    IKey.constant(title), Icons.PHYSICS, Colors.GREEN, bone.physics)
-                    .seed(() -> bone.physics.get().copy()));
-            }
-
-            if (bone.hasPhysicsChain())
-            {
-                TrackId targetId = TrackId.physicsTarget(path, bone.getId());
-
-                out.add(target(modelForm, targetId, properties, path.isEmpty() ? "physics/target/" + bone.getId() : path + "/physics/target/" + bone.getId(), Colors.MAGENTA));
+                controls.get(bone.getId()).copy(bone.ik.getOriginalValue());
             }
         }
+
+        return controls;
+    }
+
+    /** A physics-controls value seeded from the bones' own `physics` properties, one entry per chain root. */
+    private static PhysicsControls physicsControls(ModelForm modelForm)
+    {
+        PhysicsControls controls = new PhysicsControls();
+
+        for (BaseValue value : modelForm.bones.getAll())
+        {
+            if (value instanceof FormBone bone && bone.hasPhysicsChain())
+            {
+                controls.get(bone.getId()).copy(bone.physics.getOriginalValue());
+            }
+        }
+
+        return controls;
     }
 
     private static TrackDescriptor target(ModelForm modelForm, TrackId id, FormProperties properties, String title, int color)

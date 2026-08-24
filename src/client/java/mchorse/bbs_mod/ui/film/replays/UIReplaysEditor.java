@@ -200,9 +200,9 @@ public class UIReplaysEditor extends UIElement
         {
             switch (kind)
             {
-                case IK_CONTROLS, BONE_IK, IK_TARGET, POLE_TARGET:
+                case IK_CONTROLS, IK_TARGET, POLE_TARGET:
                     return ReplayCategory.IK;
-                case PHYSICS_CONTROLS, BONE_PHYSICS, PHYSICS_TARGET, WIND_CONTROLS:
+                case PHYSICS_CONTROLS, PHYSICS_TARGET, WIND_CONTROLS:
                     return ReplayCategory.PHYSICS;
                 case BONE, BONE_CONSTRAINT:
                     return ReplayCategory.POSE;
@@ -220,12 +220,6 @@ public class UIReplaysEditor extends UIElement
             return ReplayCategory.REPLAY;
         }
 
-        /* The wind is a plain form property now, but it configures the physics solve — it stays on
-         * the tab the wind track always lived on. */
-        if ("wind".equals(StringUtils.fileName(id)))
-        {
-            return ReplayCategory.PHYSICS;
-        }
 
         return FormUtils.isPoseProperty(StringUtils.fileName(id)) ? ReplayCategory.POSE : ReplayCategory.FORM;
     }

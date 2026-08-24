@@ -1,9 +1,5 @@
 package mchorse.bbs_mod.film.replays;
 
-import mchorse.bbs_mod.cubic.ik.IKControl;
-import mchorse.bbs_mod.cubic.ik.IKControls;
-import mchorse.bbs_mod.cubic.physics.PhysicsControl;
-import mchorse.bbs_mod.cubic.physics.PhysicsControls;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
@@ -31,7 +27,6 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -264,119 +259,6 @@ public class FormProperties extends ValueGroup
         }
     }
 
-    /**
-     * Routes a freshly read channel: the legacy whole-form kinds convert to what replaced them,
-     * everything else lands as-is.
-     */
-    private void putConverted(TrackId track, KeyframeChannel<?> channel)
-    {
-        if (track.is(TrackKind.IK_CONTROLS))
-        {
-            this.explodeIKControls(track, channel);
-        }
-        else if (track.is(TrackKind.PHYSICS_CONTROLS))
-        {
-            this.explodePhysicsControls(track, channel);
-        }
-        else if (track.is(TrackKind.WIND_CONTROLS))
-        {
-            /* The wind became the form's own `wind` property; the keyframe value type is the same
-             * (WindControl, same factory), so the channel carries over whole under the new address. */
-            this.put(TrackId.property(track.formPath(), "wind"), channel);
-        }
-        else
-        {
-            this.put(track, channel);
-        }
-    }
-
-    /**
-     * A whole-form {@code physics_controls} channel from an older save: one track whose keyframe
-     * held every chain's scalars in a map, keyed by the chain's root bone. Explodes into per-bone
-     * {@link TrackKind#BONE_PHYSICS} tracks the same way {@link #explodeIKControls} does.
-     */
-    private void explodePhysicsControls(TrackId track, KeyframeChannel<?> channel)
-    {
-        Set<String> roots = new LinkedHashSet<>();
-
-        for (Object o : channel.getKeyframes())
-        {
-            if (((Keyframe<?>) o).getValue() instanceof PhysicsControls controls)
-            {
-                roots.addAll(controls.controls.keySet());
-            }
-        }
-
-        for (String root : roots)
-        {
-            if (root == null || root.isEmpty())
-            {
-                continue;
-            }
-
-            TrackId id = TrackId.bonePhysics(track.formPath(), root);
-            KeyframeChannel<PhysicsControl> exploded = new KeyframeChannel<>(id.toKey(), KeyframeFactories.BONE_PHYSICS);
-
-            for (Object o : channel.getKeyframes())
-            {
-                Keyframe<?> keyframe = (Keyframe<?>) o;
-                PhysicsControl value = keyframe.getValue() instanceof PhysicsControls controls ? controls.controls.get(root) : null;
-                Keyframe<PhysicsControl> copy = new Keyframe<>(keyframe.getId(), KeyframeFactories.BONE_PHYSICS, keyframe.getTick(), value == null ? new PhysicsControl() : value.copy());
-
-                copy.getInterpolation().copy(keyframe.getInterpolation());
-                copy.setDuration(keyframe.getDuration());
-                exploded.add(copy);
-            }
-
-            exploded.sort();
-            this.put(id, exploded);
-        }
-    }
-
-    /**
-     * A whole-form {@code ik_controls} channel from an older save: one track whose keyframe held
-     * every chain's scalars in a map. Explodes into per-bone {@link TrackKind#BONE_IK} tracks —
-     * same ticks, same interpolation, each bone taking its own entry (a keyframe without an entry
-     * for the bone contributes the neutral scalars, exactly what the old union interpolation did).
-     */
-    private void explodeIKControls(TrackId track, KeyframeChannel<?> channel)
-    {
-        Set<String> tips = new LinkedHashSet<>();
-
-        for (Object o : channel.getKeyframes())
-        {
-            if (((Keyframe<?>) o).getValue() instanceof IKControls controls)
-            {
-                tips.addAll(controls.controls.keySet());
-            }
-        }
-
-        for (String tip : tips)
-        {
-            if (tip == null || tip.isEmpty())
-            {
-                continue;
-            }
-
-            TrackId id = TrackId.boneIK(track.formPath(), tip);
-            KeyframeChannel<IKControl> exploded = new KeyframeChannel<>(id.toKey(), KeyframeFactories.BONE_IK);
-
-            for (Object o : channel.getKeyframes())
-            {
-                Keyframe<?> keyframe = (Keyframe<?>) o;
-                IKControl value = keyframe.getValue() instanceof IKControls controls ? controls.controls.get(tip) : null;
-                Keyframe<IKControl> copy = new Keyframe<>(keyframe.getId(), KeyframeFactories.BONE_IK, keyframe.getTick(), value == null ? new IKControl() : value.copy());
-
-                copy.getInterpolation().copy(keyframe.getInterpolation());
-                copy.setDuration(keyframe.getDuration());
-                exploded.add(copy);
-            }
-
-            exploded.sort();
-            this.put(id, exploded);
-        }
-    }
-
     /** Let go of every track, so the form shows what it shows on its own again. */
     public void resetProperties(Form form)
     {
@@ -511,7 +393,7 @@ public class FormProperties extends ValueGroup
                 continue;
             }
 
-            this.putConverted(track, channel);
+            this.put(track, channel);
         }
     }
 
@@ -589,7 +471,7 @@ public class FormProperties extends ValueGroup
                 continue;
             }
 
-            this.putConverted(track, channel);
+            this.put(track, channel);
         }
     }
 }

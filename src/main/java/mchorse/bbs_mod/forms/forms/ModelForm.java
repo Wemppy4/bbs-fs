@@ -107,6 +107,7 @@ public class ModelForm extends Form
 
         this.bones.invisible();
         this.add(this.bones);
+        this.wind.invisible();
         this.add(this.wind);
     }
 

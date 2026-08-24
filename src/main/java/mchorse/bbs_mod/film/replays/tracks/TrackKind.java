@@ -23,12 +23,6 @@ public enum TrackKind
     /** One bone's rotation limits — the bone's "constraints" property, folding under the bone's pose track. */
     BONE_CONSTRAINT("bone_constraint"),
 
-    /** One bone's IK scalars — the bone's "ik" property (weight, softness, pole angle, enabled). */
-    BONE_IK("bone_ik"),
-
-    /** One bone's physics scalars — the bone's "physics" property (weight, gravity, damping, stiffness). */
-    BONE_PHYSICS("bone_physics"),
-
     /** The texture override of one material of a model form. */
     MATERIAL_TEXTURE("material_texture"),
 
@@ -44,18 +38,18 @@ public enum TrackKind
     /** The world-space target of one physics chain, addressed by its root bone. */
     PHYSICS_TARGET("physics_target"),
 
-    /** Legacy: the per-chain IK scalars of a whole form in one track. Never created anymore — a
-     * loaded one explodes into per-bone {@link #BONE_IK} tracks; the kind exists only so old data
-     * is recognised. */
+    /** The per-chain IK scalars of a whole form (weight, softness, pole, enabled) — one track per
+     * form, its keyframe holding every chain keyed by its tip bone. At playback it drives the
+     * per-bone {@code ik} properties for the frame. */
     IK_CONTROLS("ik_controls"),
 
-    /** Legacy: the per-chain physics scalars of a whole form in one track. Never created anymore —
-     * a loaded one explodes into per-bone {@link #BONE_PHYSICS} tracks; the kind exists only so
-     * old data is recognised. */
+    /** The per-chain physics scalars of a whole form (weight, gravity, damping, stiffness) — one
+     * track per form, its keyframe holding every chain keyed by its root bone. At playback it
+     * drives the per-bone {@code physics} properties for the frame. */
     PHYSICS_CONTROLS("physics_controls"),
 
-    /** Legacy: the global wind as its own kind. Never created anymore — a loaded one becomes the
-     * plain property track of the form's {@code wind} property (same value type, same keyframes). */
+    /** The global wind of a whole form's physics — one track per form, not keyed by a chain. At
+     * playback it drives the form's {@code wind} property for the frame. */
     WIND_CONTROLS("wind_controls");
 
     /** Stable name of the kind in saved data. Never derive it from {@link #name()} — renaming the constant would break films. */
@@ -86,7 +80,7 @@ public enum TrackKind
      */
     public boolean isSolver()
     {
-        return this != PROPERTY && this != BONE && this != BONE_CONSTRAINT && this != BONE_IK && this != BONE_PHYSICS && this != MATERIAL_TEXTURE && this != MATERIAL_PROP;
+        return this != PROPERTY && this != BONE && this != BONE_CONSTRAINT && this != MATERIAL_TEXTURE && this != MATERIAL_PROP;
     }
 
     /** Whether this kind addresses a whole form rather than something inside it, so it has no subject. */

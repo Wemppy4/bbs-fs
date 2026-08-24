@@ -1,8 +1,7 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
 import mchorse.bbs_mod.film.replays.tracks.behaviours.BoneConstraintTrack;
-import mchorse.bbs_mod.film.replays.tracks.behaviours.BoneIKTrack;
-import mchorse.bbs_mod.film.replays.tracks.behaviours.BonePhysicsTrack;
+import mchorse.bbs_mod.film.replays.tracks.behaviours.ControlsTrack;
 import mchorse.bbs_mod.film.replays.tracks.behaviours.BoneTrack;
 import mchorse.bbs_mod.film.replays.tracks.behaviours.MaterialPropTrack;
 import mchorse.bbs_mod.film.replays.tracks.behaviours.MaterialTextureTrack;
@@ -26,11 +25,12 @@ public class TrackBehaviours
         REGISTRY.put(TrackKind.PROPERTY, new PropertyTrack());
         REGISTRY.put(TrackKind.BONE, new BoneTrack());
         REGISTRY.put(TrackKind.BONE_CONSTRAINT, new BoneConstraintTrack());
-        REGISTRY.put(TrackKind.BONE_IK, new BoneIKTrack());
-        REGISTRY.put(TrackKind.BONE_PHYSICS, new BonePhysicsTrack());
         REGISTRY.put(TrackKind.MATERIAL_TEXTURE, new MaterialTextureTrack());
         REGISTRY.put(TrackKind.MATERIAL_PROP, new MaterialPropTrack());
         REGISTRY.put(TrackKind.IK_TARGET, new TargetTrack(TrackKind.IK_TARGET));
+        REGISTRY.put(TrackKind.IK_CONTROLS, new ControlsTrack(TrackKind.IK_CONTROLS));
+        REGISTRY.put(TrackKind.PHYSICS_CONTROLS, new ControlsTrack(TrackKind.PHYSICS_CONTROLS));
+        REGISTRY.put(TrackKind.WIND_CONTROLS, new ControlsTrack(TrackKind.WIND_CONTROLS));
         REGISTRY.put(TrackKind.POLE_TARGET, new TargetTrack(TrackKind.POLE_TARGET));
         REGISTRY.put(TrackKind.PHYSICS_TARGET, new TargetTrack(TrackKind.PHYSICS_TARGET));
     }
