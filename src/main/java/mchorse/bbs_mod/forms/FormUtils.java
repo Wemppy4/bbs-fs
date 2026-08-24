@@ -28,8 +28,6 @@ public class FormUtils
 {
     public static final String PATH_SEPARATOR = "/";
 
-    private static final List<String> path = new ArrayList<>();
-
     public static boolean isPoseProperty(String name)
     {
         return name.startsWith("transform")
@@ -216,6 +214,7 @@ public class FormUtils
         return form;
     }
 
+    /** The form address: body part indices from the root down, {@code ""} for a root form. */
     public static String getPath(Form form)
     {
         if (form.getParent() == null)
@@ -223,43 +222,33 @@ public class FormUtils
             return "";
         }
 
-        path.clear();
-
-        while (form != null)
-        {
-            Form parent = form.getParentForm();
-
-            if (parent != null)
-            {
-                int i = 0;
-
-                for (BodyPart part : parent.parts.getAllTyped())
-                {
-                    if (part.getForm() == form)
-                    {
-                        path.add(String.valueOf(i));
-                    }
-
-                    i += 1;
-                }
-            }
-
-            form = parent;
-        }
-
-        Collections.reverse(path);
-
-        return String.join(PATH_SEPARATOR, path);
+        return buildPath(form, null);
     }
 
     /* Form properties utils */
 
+    /** The property address: its owner form path with the property id as the last segment. */
     public static String getPropertyPath(BaseValue property)
     {
-        path.clear();
-        path.add(property.getId());
+        return buildPath(getForm(property), property.getId());
+    }
 
-        Form form = getForm(property);
+    /**
+     * Walks up the body part tree collecting the index each form sits at in its parent, and
+     * joins them root-first. The leaf, when given, is the segment the address ends on (a
+     * property id) - the walk itself is the same either way.
+     *
+     * <p>The list is local on purpose: this used to share one static buffer between both
+     * callers, which only held because no walk ever happened inside another one.
+     */
+    private static String buildPath(Form form, String leaf)
+    {
+        List<String> path = new ArrayList<>();
+
+        if (leaf != null)
+        {
+            path.add(leaf);
+        }
 
         while (form != null)
         {
