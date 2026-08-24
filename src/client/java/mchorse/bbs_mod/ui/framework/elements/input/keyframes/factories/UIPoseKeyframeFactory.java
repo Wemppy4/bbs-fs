@@ -164,6 +164,16 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             ((UIPoseTransforms) this.transform).setKeyframe(this);
         }
 
+        /**
+         * This editor is shown in a popup, which is not under the film editor in the widget tree —
+         * the timeline that spawned it is, so the bone selection is looked up from there.
+         */
+        @Override
+        protected UIElement selectionAnchor()
+        {
+            return this.editor;
+        }
+
         private String getGroup(PoseTransform transform)
         {
             return CollectionUtils.getKey(this.getPose().transforms, transform);

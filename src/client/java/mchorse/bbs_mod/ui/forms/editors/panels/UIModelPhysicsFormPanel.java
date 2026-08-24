@@ -21,7 +21,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.utils.PickedBone;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
@@ -82,7 +81,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         {
             this.selectedBone = l.isEmpty() ? "" : l.get(0);
 
-            PickedBone.set(this.selectedBone);
+            this.boneSelection().set(this.selectedBone);
             this.updateFields();
         });
         this.bones.background();
@@ -300,7 +299,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             /* The bone the animator is working on, when this model has it —
              * the panel is rebuilt on many editor actions, and falling back to
              * the first bone every time would keep yanking them to the root. */
-            if (!this.pickBoneInList(PickedBone.get()) && !this.availableBones.isEmpty())
+            if (!this.pickBoneInList(this.boneSelection().get()) && !this.availableBones.isEmpty())
             {
                 this.selectBone(this.availableBones.get(0));
             }
@@ -352,7 +351,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         }
 
         this.selectBone(bone);
-        PickedBone.set(bone);
+        this.boneSelection().set(bone);
 
         return true;
     }

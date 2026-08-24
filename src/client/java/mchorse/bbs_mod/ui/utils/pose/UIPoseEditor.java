@@ -13,7 +13,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIDeltaPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
-import mchorse.bbs_mod.ui.utils.PickedBone;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.resizers.AutomaticResizer;
@@ -291,6 +292,32 @@ public class UIPoseEditor extends UIElement
         this.groups.filter(reset);
     }
 
+    private final BoneSelection detachedSelection = new BoneSelection();
+
+    /**
+     * The bone the animator is working on, owned by the editor this widget is shown in. Resolved
+     * through the widget tree on every use rather than captured once: the panels that ask are
+     * rebuilt constantly, and a captured host would outlive the tree it came from.
+     *
+     * <p>Falls back to a selection of its own when there is no host above — a detached widget then
+     * simply remembers its own bone instead of writing into a value shared by the whole mod.</p>
+     */
+    protected BoneSelection boneSelection()
+    {
+        IBoneSelectionHost host = this.selectionAnchor().getAncestor(IBoneSelectionHost.class);
+
+        return host == null ? this.detachedSelection : host.getBoneSelection();
+    }
+
+    /**
+     * Where to start looking for the host. This widget itself, unless a subclass is shown outside
+     * of its editor's tree — the keyframe popup is, so it anchors on the timeline instead.
+     */
+    protected UIElement selectionAnchor()
+    {
+        return this;
+    }
+
     /**
      * Runs after each filter pass (see {@link UIBoneList#filter}): toggle the dependent editors by
      * whether any bones exist, then re-select a bone &mdash; the first on a reset, otherwise the
@@ -307,7 +334,7 @@ public class UIPoseEditor extends UIElement
         this.transform.setVisible(hasBones);
 
         List<String> list = this.groups.list.getList();
-        int i = Math.max(reset ? 0 : list.indexOf(PickedBone.get()), 0);
+        int i = Math.max(reset ? 0 : list.indexOf(this.boneSelection().get()), 0);
 
         this.groups.list.setCurrentScroll(CollectionUtils.getSafe(list, i));
         this.pickBones(this.groups.list.getCurrent());
@@ -331,7 +358,7 @@ public class UIPoseEditor extends UIElement
      */
     public void selectBone(String bone, boolean additive)
     {
-        PickedBone.set(bone);
+        this.boneSelection().set(bone);
 
         if (additive)
         {
@@ -437,7 +464,7 @@ public class UIPoseEditor extends UIElement
     {
         if (bones == null || bones.isEmpty())
         {
-            PickedBone.set("");
+            this.boneSelection().set("");
             this.fix.setValue(0F);
             this.color.setColor(Colors.WHITE);
             this.overlay.setColor(0x00ffffff);
@@ -449,7 +476,7 @@ public class UIPoseEditor extends UIElement
 
         String primary = bones.get(0);
 
-        PickedBone.set(primary);
+        this.boneSelection().set(primary);
 
         PoseTransform poseTransform = this.pose.getOrCreate(primary);
 

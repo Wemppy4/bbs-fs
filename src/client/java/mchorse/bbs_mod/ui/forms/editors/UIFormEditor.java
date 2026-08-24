@@ -53,6 +53,8 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
@@ -80,8 +82,10 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class UIFormEditor extends UIElement implements IUIFormList, ICursor
+public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBoneSelectionHost
 {
+    private final BoneSelection boneSelection = new BoneSelection();
+
     private static Map<Class, Supplier<UIForm>> panels = new HashMap<>();
 
     private static float treeWidth = 0.1F;
@@ -601,6 +605,13 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
 
         if (Window.isShiftPressed()) UIReplaysEditorUtils.offerHierarchy(this.getContext(), pair.a, pair.b, (bone) -> this.pickFormBone(pair.a, bone));
         else this.pickFormBone(pair.a, pair.b);
+    }
+
+
+    @Override
+    public BoneSelection getBoneSelection()
+    {
+        return this.boneSelection;
     }
 
     private void pickFormBone(Form form, String bone)

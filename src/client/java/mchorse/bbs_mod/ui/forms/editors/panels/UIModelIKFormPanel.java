@@ -26,7 +26,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.utils.PickedBone;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
@@ -102,7 +101,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         {
             this.selectedBone = l.isEmpty() ? "" : l.get(0);
 
-            PickedBone.set(this.selectedBone);
+            this.boneSelection().set(this.selectedBone);
             this.updateLabels();
         });
         this.bones.background();
@@ -429,7 +428,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             /* Land on the bone the animator is working on — the panel is rebuilt
              * on many editor actions, and the bone they came from another tab
              * with is the one they mean here too. */
-            this.pickBoneInList(PickedBone.get());
+            this.pickBoneInList(this.boneSelection().get());
         }
 
         this.updateLabels();
@@ -483,7 +482,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
         this.selectedBone = bone;
 
-        PickedBone.set(bone);
+        this.boneSelection().set(bone);
         this.bones.setCurrentScroll(bone);
         this.updateLabels();
 

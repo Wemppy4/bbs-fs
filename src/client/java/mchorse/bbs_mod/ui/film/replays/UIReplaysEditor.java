@@ -50,6 +50,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
@@ -88,8 +90,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class UIReplaysEditor extends UIElement
+public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 {
+    private final BoneSelection boneSelection = new BoneSelection();
+
     private static String lastFilm = "";
     private static int lastReplay;
 
@@ -916,6 +920,13 @@ public class UIReplaysEditor extends UIElement
      * shared pick logic — otherwise the click finds no pose sheet in the current graph
      * and silently does nothing, forcing a manual tab switch.
      */
+
+    @Override
+    public BoneSelection getBoneSelection()
+    {
+        return this.boneSelection;
+    }
+
     private void pickFormBone(Form form, String bone, boolean insert)
     {
         if (form instanceof ModelForm && bone != null && !bone.isEmpty())

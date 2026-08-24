@@ -16,7 +16,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.utils.PickedBone;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -58,7 +57,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         {
             this.selectedBone = l.isEmpty() ? "" : l.get(0);
 
-            PickedBone.set(this.selectedBone);
+            this.boneSelection().set(this.selectedBone);
             this.updateFields();
         });
         this.bones.background();
@@ -149,7 +148,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 
         /* Same as the other bone-list panels: keep the animator on the bone
          * they are working on across a rebuild instead of resetting to the root. */
-        if (this.pickBoneInList(PickedBone.get()))
+        if (this.pickBoneInList(this.boneSelection().get()))
         {
             /* Already selected and filled in. */
         }
@@ -174,7 +173,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         }
 
         this.selectBone(bone);
-        PickedBone.set(bone);
+        this.boneSelection().set(bone);
 
         return true;
     }

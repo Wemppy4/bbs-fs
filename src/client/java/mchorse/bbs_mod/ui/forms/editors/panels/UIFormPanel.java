@@ -3,6 +3,8 @@ package mchorse.bbs_mod.ui.forms.editors.panels;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -108,6 +110,23 @@ public abstract class UIFormPanel <T extends Form> extends UIElement
     public boolean pickBoneInList(String bone)
     {
         return false;
+    }
+
+    private final BoneSelection detachedSelection = new BoneSelection();
+
+    /**
+     * The bone the animator is working on, owned by the editor this panel is shown in. Resolved
+     * through the widget tree on every use: these panels are rebuilt whenever a body part is
+     * clicked, so nothing they hold themselves survives.
+     *
+     * <p>A panel's own {@code selectedBone} field is what it currently displays, derived from
+     * this and written back into it — not a second source of truth.</p>
+     */
+    protected BoneSelection boneSelection()
+    {
+        IBoneSelectionHost host = this.getAncestor(IBoneSelectionHost.class);
+
+        return host == null ? this.detachedSelection : host.getBoneSelection();
     }
 
     /**

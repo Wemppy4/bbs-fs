@@ -171,6 +171,28 @@ public class UIElement implements IUIElement, IUndoElement
         return null;
     }
 
+    /**
+     * The nearest ancestor of the given type. Unlike {@link #getParent(Class)}, which matches the
+     * exact class, this accepts subclasses and interfaces — so an element can ask for a role
+     * ("whoever owns the bone selection") instead of naming a widget class.
+     */
+    public <T> T getAncestor(Class<T> clazz)
+    {
+        UIElement element = this.getParent();
+
+        while (element != null)
+        {
+            if (clazz.isInstance(element))
+            {
+                return (T) element;
+            }
+
+            element = element.getParent();
+        }
+
+        return null;
+    }
+
     public boolean hasParent()
     {
         return this.parent != null;
