@@ -495,31 +495,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
         return out;
     }
 
-    /**
-     * Replay index in currently visible replay rows (folder rows ignored).
-     */
-    private int getVisibleReplayIndex(Replay replay)
-    {
-        int index = 0;
-
-        for (ReplayListEntry e : this.list)
-        {
-            if (!e.isReplay())
-            {
-                continue;
-            }
-
-            if (e.replay == replay)
-            {
-                return index;
-            }
-
-            index += 1;
-        }
-
-        return -1;
-    }
-
     public void refreshReplayList()
     {
         Film film = this.panel.getData();
@@ -930,8 +905,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
     private void pasteToReplays(MapType data)
     {
-        UIReplaysEditor replayEditor = this.panel.replayEditor;
-        List<Replay> selectedReplays = replayEditor.replaysList.replays.getSelectedReplays();
+        List<Replay> selectedReplays = this.getSelectedReplays();
 
         if (data == null)
         {
@@ -1276,34 +1250,38 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         private List<ReplayBatchProcessor.VisibleReplay> collectVisibleReplays()
         {
+            /* The stagger is ordered by the film's own replay list, not by visible rows: a
+             * selected replay whose folder is collapsed has no row, and indexing by rows used
+             * to silently drop it from the batch (and shift everyone else's offset). */
             List<Replay> selected = UIReplayList.this.getSelectedReplaysInViewOrder();
-            List<Replay> visible = new ArrayList<>();
+            List<Replay> all = UIReplayList.this.panel.getData().replays.getList();
             int min = Integer.MAX_VALUE;
 
             for (Replay replay : selected)
             {
-                int visibleI = UIReplayList.this.getVisibleReplayIndex(replay);
+                int index = all.indexOf(replay);
 
-                if (visibleI < 0)
+                if (index >= 0)
                 {
-                    continue;
+                    min = Math.min(min, index);
                 }
-
-                min = Math.min(min, visibleI);
-                visible.add(replay);
             }
 
-            if (min == Integer.MAX_VALUE || visible.isEmpty())
+            if (min == Integer.MAX_VALUE)
             {
                 return new ArrayList<>();
             }
 
             List<ReplayBatchProcessor.VisibleReplay> out = new ArrayList<>();
 
-            for (Replay replay : visible)
+            for (Replay replay : selected)
             {
-                int visibleI = UIReplayList.this.getVisibleReplayIndex(replay);
-                out.add(new ReplayBatchProcessor.VisibleReplay(replay, visibleI, visibleI - min));
+                int index = all.indexOf(replay);
+
+                if (index >= 0)
+                {
+                    out.add(new ReplayBatchProcessor.VisibleReplay(replay, index, index - min));
+                }
             }
 
             return out;
@@ -1796,16 +1774,18 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 Film film = this.panel.getData();
                 List<Replay> selected = this.getSelectedReplaysInViewOrder();
 
+                /* i/o are ordered by the film's own replay list, not by visible rows — a selected
+                 * replay in a collapsed folder has no row and used to silently drop out. */
+                List<Replay> all = film.replays.getList();
+
                 for (Replay replay : selected)
                 {
-                    int visibleI = this.getVisibleReplayIndex(replay);
+                    int index = all.indexOf(replay);
 
-                    if (visibleI < 0)
+                    if (index >= 0)
                     {
-                        continue;
+                        min = Math.min(min, index);
                     }
-
-                    min = Math.min(min, visibleI);
                 }
 
                 if (min == Integer.MAX_VALUE)
@@ -1815,15 +1795,15 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
                 for (Replay replay : selected)
                 {
-                    int visibleI = this.getVisibleReplayIndex(replay);
+                    int index = all.indexOf(replay);
 
-                    if (visibleI < 0)
+                    if (index < 0)
                     {
                         continue;
                     }
 
-                    builder.variables.get("i").set(visibleI);
-                    builder.variables.get("o").set(visibleI - min);
+                    builder.variables.get("i").set(index);
+                    builder.variables.get("o").set(index - min);
 
                     float tickv = parse == null ? 0F : (float) parse.doubleValue();
 

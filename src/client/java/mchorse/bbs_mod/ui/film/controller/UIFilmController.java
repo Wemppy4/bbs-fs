@@ -360,15 +360,18 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     public int getPovMode()
     {
-        return this.pov % 6;
+        return this.pov;
     }
 
     public void setPov(int pov)
     {
-        this.pov = pov;
-        this.orbit.enabled = this.getPovMode() > 1;
+        /* Shift-cycling down from 0 (or a setting saved by an older build) may hand a value
+         * outside 0..5; floorMod wraps it instead of letting -1 leak into the settings and
+         * unlight every checkmark in the mode menu. */
+        this.pov = Math.floorMod(pov, 6);
+        this.orbit.enabled = this.pov > 1;
 
-        BBSSettings.editorCameraMode.set(this.getPovMode());
+        BBSSettings.editorCameraMode.set(this.pov);
     }
 
     private int getMouseMode()
@@ -1064,14 +1067,17 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         UIReplaysEditor.ReplayCategory category = this.panel.replayEditor.getCategory();
 
-        if (category == UIReplaysEditor.ReplayCategory.FORM)
-        {
-            return;
-        }
-
         if (category == UIReplaysEditor.ReplayCategory.POSE)
         {
             UIReplaysEditorUtils.insertPoseKeyframesAtTick(replay, this.getTick(), this.panel.replayEditor.getExpandedPoseTabIds());
+            return;
+        }
+
+        /* Only the Replay tab keys the player's own channels; every other tab (Form, IK,
+         * Physics...) has no take on "insert frame" and must not silently write position and
+         * rotation keys the animator never asked for. */
+        if (category != UIReplaysEditor.ReplayCategory.REPLAY)
+        {
             return;
         }
 

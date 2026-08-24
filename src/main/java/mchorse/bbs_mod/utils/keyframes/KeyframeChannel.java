@@ -280,7 +280,10 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
 
     public void sort()
     {
-        this.list.sort((a, b) -> (int) (a.getTick() - b.getTick()));
+        /* Fractional ticks: an (int) cast of the difference reads anything under 1 as "equal",
+         * which can leave the channel unsorted after a Shift-drag — and findSegment binary-searches
+         * over it. */
+        this.list.sort((a, b) -> Float.compare(a.getTick(), b.getTick()));
 
         this.sync();
     }

@@ -106,6 +106,16 @@ public class ColumnResizer extends AutomaticResizer
     @Override
     public void apply(Area area, IResizer resizer, ChildResizer child)
     {
+        /* A child hidden with setVisible(false) must not keep its slot — it used to leave a
+         * blank row (the "Tracks" section of a non-model form showed a 20px hole where the
+         * bone-tracks toggle would be). */
+        if (!child.element.isVisible())
+        {
+            area.set(this.parent.area.x, this.parent.area.y, 0, 0);
+
+            return;
+        }
+
         Margin margin = child.element.margin;
         int w = resizer == null ? this.width : resizer.getW();
         int h = resizer == null ? this.height : resizer.getH();
@@ -173,6 +183,11 @@ public class ColumnResizer extends AutomaticResizer
 
             for (ChildResizer child : this.getResizers())
             {
+                if (!child.element.isVisible())
+                {
+                    continue;
+                }
+
                 int h = child.resizer == null ? 0 : child.resizer.getH();
 
                 y += (h == 0 ? this.height : h) + this.margin + child.element.margin.vertical();
