@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.cubic.constraints;
 
+import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.model.Model;
@@ -36,14 +38,7 @@ public final class ModelConstraintsRuntime
             return;
         }
 
-        if (instance.model instanceof Model model)
-        {
-            applyToModel(model, bones);
-        }
-        else if (instance.model instanceof BOBJModel bobj)
-        {
-            applyToBobj(bobj, bones);
-        }
+        applyToBones(instance.model, bones);
     }
 
     /**
@@ -89,52 +84,33 @@ public final class ModelConstraintsRuntime
      * null {@code orient}, visually destroying the solve on a constrained chain bone). Works on
      * quaternion-mode bones too — the clamp reads the evaluated rotation, never a stale euler.
      */
-    private static void applyToModel(Model model, Map<String, BoneConstraint> bones)
+    /**
+     * Clamps every constrained bone of the rig. The limits are authored in DEGREES whatever the
+     * skeleton stores its channels in, which is what {@link RigBone#fromDegrees()} is for; the
+     * decomposition goes against the bone's own channels so a clamp lands on angles the animator
+     * would recognise.
+     */
+    private static void applyToBones(IModel model, Map<String, BoneConstraint> bones)
     {
-        for (ModelGroup group : model.getAllGroups())
-        {
-            if (group == null)
-            {
-                continue;
-            }
-
-            BoneConstraint c = bones.get(group.id);
-
-            if (c == null || !c.enabled)
-            {
-                continue;
-            }
-
-            Vector3f euler = Matrices.toCompatibleEulerZYXDegrees(group.evaluatedRotation(), group.current.rotate, new Vector3f());
-
-            clamp(euler, c, 1F);
-
-            group.orient = Matrices.toLocalRotationZYXDegrees(euler);
-        }
-    }
-
-    /** See {@link #applyToModel}; BOBJ channels are radians, the constraint limits are degrees. */
-    private static void applyToBobj(BOBJModel model, Map<String, BoneConstraint> bones)
-    {
-        for (BOBJBone bone : model.getArmature().orderedBones)
+        for (RigBone bone : model.getRigBones())
         {
             if (bone == null)
             {
                 continue;
             }
 
-            BoneConstraint c = bones.get(bone.name);
+            BoneConstraint c = bones.get(bone.getBoneName());
 
             if (c == null || !c.enabled)
             {
                 continue;
             }
 
-            Vector3f euler = Matrices.toCompatibleEulerZYXRadians(bone.evaluatedRotation(), bone.transform.rotate, new Vector3f());
+            Vector3f euler = bone.toCompatibleEuler(new Vector3f());
 
-            clamp(euler, c, MathUtils.PI / 180F);
+            clamp(euler, c, bone.fromDegrees());
 
-            bone.orient = Matrices.toLocalRotationZYXRadians(euler);
+            bone.setOrient(bone.orientFromEuler(euler));
         }
     }
 

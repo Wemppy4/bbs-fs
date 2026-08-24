@@ -4,6 +4,7 @@ import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.cubic.CubicModelAnimator;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.MolangHelper;
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.cubic.data.animation.Animation;
 import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.ListType;
@@ -86,6 +87,18 @@ public class Model implements IMapSerializable, IModel
     public List<ModelGroup> getOrderedGroups()
     {
         return this.orderedGroups;
+    }
+
+    @Override
+    public Collection<? extends RigBone> getRigBones()
+    {
+        return this.orderedGroups;
+    }
+
+    @Override
+    public RigBone getBone(String name)
+    {
+        return this.getGroup(name);
     }
 
     public ModelGroup getGroup(String id)

@@ -27,6 +27,29 @@ public interface IModel
 
     public Collection<String> getAllChildrenKeys(String key);
 
+    /**
+     * The bone that name addresses, or null when this model has no such bone. The one lookup
+     * every poser needs: what used to be "is this a cubic model or a BOBJ one, and which of the
+     * two bone maps do I reach into" is now this call plus {@link RigBone}.
+     */
+    public RigBone getBone(String name);
+
+    /**
+     * Every bone of the skeleton, in the order it is evaluated (parents before children). The
+     * counterpart of {@link #getBone} for stages that sweep the whole rig — limits, physics,
+     * debug overlays — and the reason they no longer need one loop per model flavour.
+     */
+    /**
+     * Whether the skeleton is authored facing the other way, so anything drawn in model space
+     * over it — the IK and physics overlays — has to turn 180° about Y to line up. True for BOBJ.
+     */
+    public default boolean isFacingFlipped()
+    {
+        return false;
+    }
+
+    public Collection<? extends RigBone> getRigBones();
+
     public Collection<ModelGroup> getAllGroups();
 
     public Collection<BOBJBone> getAllBOBJBones();

@@ -353,19 +353,9 @@ public class ModelInstance implements IModelInstance
 
     public void fillStencilMap(StencilMap stencilMap, ModelForm form)
     {
-        if (this.model instanceof Model model)
+        for (RigBone bone : this.model.getRigBones())
         {
-            for (ModelGroup group : model.getOrderedGroups())
-            {
-                stencilMap.addPicking(form, this.getPickingBone(group.id));
-            }
-        }
-        else if (this.model instanceof BOBJModel model)
-        {
-            for (BOBJBone orderedBone : model.getArmature().orderedBones)
-            {
-                stencilMap.addPicking(form, this.getPickingBone(orderedBone.name));
-            }
+            stencilMap.addPicking(form, this.getPickingBone(bone.getBoneName()));
         }
     }
 

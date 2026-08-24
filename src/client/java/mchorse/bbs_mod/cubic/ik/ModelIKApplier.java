@@ -2,6 +2,7 @@ package mchorse.bbs_mod.cubic.ik;
 
 import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.ik.solver.IKJoint;
@@ -621,100 +622,44 @@ final class ModelIKApplier
      */
     private static Vector3f sourceAngles(IModel model, String id, Vector3f dest)
     {
-        if (model instanceof Model cubic)
+        RigBone bone = model.getBone(id);
+
+        if (bone == null)
         {
-            ModelGroup bone = cubic.getGroup(id);
-
-            if (bone == null)
-            {
-                return null;
-            }
-
-            float toRad = (float) (Math.PI / 180.0);
-            Vector3f channels = dest.set(bone.current.rotate).mul(toRad);
-
-            if (bone.orient == null && bone.current.rotationMode != Transform.RotationMode.QUATERNION)
-            {
-                return channels;
-            }
-
-            return Matrices.toCompatibleEulerZYXRadians(bone.evaluatedRotation(), new Vector3f(channels), dest);
+            return null;
         }
 
-        if (model instanceof BOBJModel bobj)
+        Vector3f channels = bone.getChannelRotation(dest);
+
+        if (bone.getOrient() == null && bone.getBoneTransform().rotationMode != Transform.RotationMode.QUATERNION)
         {
-            BOBJBone bone = bobj.getArmature().bones.get(id);
-
-            if (bone == null)
-            {
-                return null;
-            }
-
-            Vector3f channels = dest.set(bone.transform.rotate);
-
-            if (bone.orient == null && bone.transform.rotationMode != Transform.RotationMode.QUATERNION)
-            {
-                return channels;
-            }
-
-            return Matrices.toCompatibleEulerZYXRadians(bone.evaluatedRotation(), new Vector3f(channels), dest);
+            return channels;
         }
 
-        return null;
+        return Matrices.toCompatibleEulerZYXRadians(bone.evaluatedRotation(), new Vector3f(channels), dest);
     }
 
     /** The bone's evaluated FK local rotation (fresh instance); {@code null} when it does not exist. */
     private static Quaternionf evaluatedRotation(IModel model, String id)
     {
-        if (model instanceof Model cubic)
-        {
-            ModelGroup bone = cubic.getGroup(id);
+        RigBone bone = model.getBone(id);
 
-            return bone == null ? null : bone.evaluatedRotation();
-        }
-
-        if (model instanceof BOBJModel bobj)
-        {
-            BOBJBone bone = bobj.getArmature().bones.get(id);
-
-            return bone == null ? null : bone.evaluatedRotation();
-        }
-
-        return null;
+        return bone == null ? null : bone.evaluatedRotation();
     }
 
     /** Writes the solved local rotation to the bone's {@code orient}; false when it does not exist. */
     private static boolean writeOrient(IModel model, String id, Quaternionf orient)
     {
-        if (model instanceof Model cubic)
+        RigBone bone = model.getBone(id);
+
+        if (bone == null)
         {
-            ModelGroup bone = cubic.getGroup(id);
-
-            if (bone == null)
-            {
-                return false;
-            }
-
-            bone.orient = orient;
-
-            return true;
+            return false;
         }
 
-        if (model instanceof BOBJModel bobj)
-        {
-            BOBJBone bone = bobj.getArmature().bones.get(id);
+        bone.setOrient(orient);
 
-            if (bone == null)
-            {
-                return false;
-            }
-
-            bone.orient = orient;
-
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
     /** Copies the config's per-bone freedom onto a solver joint; limits are authored in degrees. */
@@ -921,21 +866,9 @@ final class ModelIKApplier
             return null;
         }
 
-        if (model instanceof Model cubic)
-        {
-            ModelGroup bone = cubic.getGroup(id);
+        RigBone bone = model.getBone(id);
 
-            return bone == null ? null : bone.initial.translate;
-        }
-
-        if (model instanceof BOBJModel bobj)
-        {
-            BOBJBone bone = bobj.getArmature().bones.get(id);
-
-            return bone == null ? null : bone.boneMat.getTranslation(new Vector3f());
-        }
-
-        return null;
+        return bone == null ? null : bone.getRestTranslation();
     }
 
     /**
@@ -1227,35 +1160,34 @@ final class ModelIKApplier
      */
     private static void writeStretchOffset(IModel model, String bone, PivotFrame frame, Quaternionf parentFrame, Vector3f share, Vector3f cumulative)
     {
-        if (model instanceof BOBJModel bobj)
-        {
-            BOBJBone bobjBone = bobj.getArmature().bones.get(bone);
+        RigBone target = model.getBone(bone);
 
-            if (bobjBone != null)
-            {
-                bobjBone.offset = new Vector3f(cumulative);
-            }
+        if (target == null)
+        {
+            return;
+        }
+
+        if (target.usesWorldStretchOffset())
+        {
+            target.setOffset(new Vector3f(cumulative));
 
             return;
         }
 
-        if (model instanceof Model cubic && parentFrame != null)
+        if (parentFrame == null)
         {
-            ModelGroup group = cubic.getGroup(bone);
-
-            if (group != null)
-            {
-                Vector3f local = new Quaternionf(parentFrame).conjugate().transform(new Vector3f(share));
-                Vector3f scale = frame == null ? null : frame.scale();
-
-                if (scale != null)
-                {
-                    local.set(divide(local.x, scale.x), divide(local.y, scale.y), divide(local.z, scale.z));
-                }
-
-                group.offset = local;
-            }
+            return;
         }
+
+        Vector3f local = new Quaternionf(parentFrame).conjugate().transform(new Vector3f(share));
+        Vector3f scale = frame == null ? null : frame.scale();
+
+        if (scale != null)
+        {
+            local.set(divide(local.x, scale.x), divide(local.y, scale.y), divide(local.z, scale.z));
+        }
+
+        target.setOffset(local);
     }
 
     private static float divide(float value, float by)

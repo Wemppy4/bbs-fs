@@ -96,7 +96,7 @@ final class ChainSolver
             return;
         }
 
-        Vector3f tipDir = lengths != null && lengths.length >= pivotCount ? PhysicsRig.tipRestDirectionLocal(model, ids) : null;
+        Vector3f tipDir = lengths != null && lengths.length >= pivotCount ? tipRestDirection(model, ids) : null;
 
         if (tipDir == null || tipDir.lengthSquared() < EPS * EPS)
         {
@@ -795,5 +795,13 @@ final class ChainSolver
         }
 
         return v > 1F ? 1F : v;
+    }
+
+    /** The chain tip's rest direction, asked of whichever rig this model is. */
+    private static Vector3f tipRestDirection(IModel model, List<String> ids)
+    {
+        PhysicsRig rig = PhysicsRig.of(model);
+
+        return rig == null ? null : rig.tipRestDirectionLocal(ids);
     }
 }

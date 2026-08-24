@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.cubic.data.model;
 
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -14,7 +15,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ModelGroup implements IMapSerializable
+public class ModelGroup implements IMapSerializable, RigBone
 {
     public final String id;
     public Model owner;
@@ -77,6 +78,8 @@ public class ModelGroup implements IMapSerializable
      * bases, twist references, clamp inputs all start from this, so stages stack instead of overwriting
      * each other. Returns a fresh instance safe to mutate.
      */
+    @Override
+
     public Quaternionf evaluatedRotation()
     {
         if (this.orient != null)
@@ -99,6 +102,64 @@ public class ModelGroup implements IMapSerializable
      * layer multiplies its delta as a quaternion, so stacked layers compose without the euler-pole flip.
      * Call this AFTER the layer has applied its additive euler readback to {@code current.rotate}.
      */
+    @Override
+    public String getBoneName()
+    {
+        return this.id;
+    }
+
+    @Override
+    public RigBone getParentBone()
+    {
+        return this.parent;
+    }
+
+    /** The cubic group's editable transform is {@code current}. */
+    @Override
+    public Transform getBoneTransform()
+    {
+        return this.current;
+    }
+
+    /** A cubic group rests where its bind transform puts it. */
+    @Override
+    public Vector3f getRestTranslation()
+    {
+        return this.initial.translate;
+    }
+
+    /** Cubic channels are degrees. */
+    @Override
+    public boolean isRotationInDegrees()
+    {
+        return true;
+    }
+
+    @Override
+    public Quaternionf getOrient()
+    {
+        return this.orient;
+    }
+
+    @Override
+    public void setOrient(Quaternionf orient)
+    {
+        this.orient = orient;
+    }
+
+    @Override
+    public Vector3f getOffset()
+    {
+        return this.offset;
+    }
+
+    @Override
+    public void setOffset(Vector3f offset)
+    {
+        this.offset = offset;
+    }
+
+    @Override
     public void composeOrient(Quaternionf delta)
     {
         if (this.orient == null)

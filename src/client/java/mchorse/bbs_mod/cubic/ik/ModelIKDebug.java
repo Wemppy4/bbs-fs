@@ -84,7 +84,7 @@ public final class ModelIKDebug
 
         stack.push();
 
-        if (model instanceof BOBJModel)
+        if (model.isFacingFlipped())
         {
             stack.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
         }
@@ -158,7 +158,7 @@ public final class ModelIKDebug
 
         stack.push();
 
-        if (model instanceof BOBJModel)
+        if (model.isFacingFlipped())
         {
             stack.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
         }
