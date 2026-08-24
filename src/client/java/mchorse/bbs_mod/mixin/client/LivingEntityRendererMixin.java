@@ -32,7 +32,7 @@ public abstract class LivingEntityRendererMixin
 
             for (Map.Entry<String, PoseTransform> transformEntry : poseOverlay.transforms.entrySet())
             {
-                PoseTransform poseTransform = pose.get(transformEntry.getKey());
+                PoseTransform poseTransform = pose.getOrCreate(transformEntry.getKey());
                 PoseTransform value = transformEntry.getValue();
 
                 if (value.fix != 0)

@@ -102,7 +102,7 @@ public class Model implements IMapSerializable, IModel
 
         for (String key : this.getAllGroupKeys())
         {
-            PoseTransform poseTransform = pose.get(key);
+            PoseTransform poseTransform = pose.getOrCreate(key);
             ModelGroup group = this.getGroup(key);
 
             poseTransform.copy(group.current);

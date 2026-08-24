@@ -111,7 +111,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 
         public static void apply(UIKeyframes editor, Keyframe keyframe, String group, Consumer<PoseTransform> consumer)
         {
-            apply(editor, keyframe, (pose) -> consumer.accept(pose.get(group)));
+            apply(editor, keyframe, (pose) -> consumer.accept(pose.getOrCreate(group)));
         }
 
         /**
@@ -128,7 +128,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             {
                 for (String bone : boneNames)
                 {
-                    consumer.accept(pose.get(bone));
+                    consumer.accept(pose.getOrCreate(bone));
                 }
             });
         }
@@ -149,7 +149,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             {
                 for (String bone : boneNames)
                 {
-                    consumer.accept(bone, pose.get(bone));
+                    consumer.accept(bone, pose.getOrCreate(bone));
                 }
             });
         }
@@ -271,7 +271,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
                 return null;
             }
 
-            return recorded.getValue().get(bone);
+            return recorded.getValue().getOrCreate(bone);
         }
 
         public static void applyRecording(UIKeyframes editor, Keyframe keyframe, int tick, List<String> bones, Consumer<PoseTransform> consumer)
@@ -288,7 +288,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 
                 for (String bone : bones)
                 {
-                    consumer.accept(pose.get(bone));
+                    consumer.accept(pose.getOrCreate(bone));
                 }
 
                 recorded.postNotify();
@@ -309,7 +309,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 
                 for (String bone : bones)
                 {
-                    consumer.accept(bone, pose.get(bone));
+                    consumer.accept(bone, pose.getOrCreate(bone));
                 }
 
                 recorded.postNotify();

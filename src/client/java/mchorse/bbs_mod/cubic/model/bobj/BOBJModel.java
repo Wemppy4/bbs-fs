@@ -112,7 +112,7 @@ public class BOBJModel implements IModel
 
         for (String key : this.getAllGroupKeys())
         {
-            PoseTransform poseTransform = pose.get(key);
+            PoseTransform poseTransform = pose.getOrCreate(key);
             BOBJBone group = this.armature.bones.get(key);
 
             poseTransform.copy(group.transform);

@@ -1076,8 +1076,11 @@ public class UIReplaysEditorUtils
                     continue;
                 }
 
+                /* Every bone of the model, not just the posed ones: a bone the pose is silent
+                 * about still gets a rest keyframe on its track, but reading must not grow the
+                 * pose being laid out. */
                 PoseTransform transform = pose.get(bone);
-                PoseTransform copy = (PoseTransform) transform.copy();
+                PoseTransform copy = transform == null ? new PoseTransform() : (PoseTransform) transform.copy();
                 int index = limbChannel.insert(tick, copy);
                 Keyframe<PoseTransform> limbKf = limbChannel.get(index);
 

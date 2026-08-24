@@ -54,7 +54,7 @@ final class ModelIKApplier
      * exactly the drag being complained about and stays small enough to read
      * whole. Same discipline as the drag log.
      */
-    private static final boolean LOG_IK = true;
+    private static final boolean LOG_IK = false;
 
     /** How many INTERESTING solves the log keeps before it stops writing. */
     private static final int LOG_FRAMES = 200;

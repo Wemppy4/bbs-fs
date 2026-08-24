@@ -47,14 +47,7 @@ public class BoneTrack implements TrackBehaviour
             modelForm.pose.setRuntimeValue(modelForm.pose.getOriginalValue().copy());
         }
 
-        PoseTransform transform = modelForm.pose.get().get(track.subject());
-
-        if (transform == null)
-        {
-            transform = new PoseTransform();
-
-            modelForm.pose.get().transforms.put(track.subject(), transform);
-        }
+        PoseTransform transform = modelForm.pose.get().getOrCreate(track.subject());
 
         transform.add((Transform) TrackBlend.value(channel, new PoseTransform(), segment, blend));
     }

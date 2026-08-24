@@ -92,9 +92,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     private ActionsConfig lastConfigs;
     private IAnimator animator;
     private ModelInstance lastModel;
-    private boolean ikAppliedThisRender;
-    private boolean physicsAppliedThisRender;
-    private boolean constraintsAppliedThisRender;
     private boolean renderingArm;
 
     private IEntity entity = new StubEntity();
@@ -189,7 +186,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     {
         for (Map.Entry<String, PoseTransform> entry : pose.transforms.entrySet())
         {
-            PoseTransform poseTransform = targetPose.get(entry.getKey());
+            PoseTransform poseTransform = targetPose.getOrCreate(entry.getKey());
             PoseTransform value = entry.getValue();
 
             if (!Operation.equals(value.fix, 0))
@@ -217,7 +214,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
      * The channels phase of the bone pipeline (rest &rarr; actions &rarr; pose): resets every bone
      * to its bind pose, applies the animator's actions, then the form's pose stack. After this the
      * channels are the FK truth; the constraint stages (IK &rarr; physics &rarr; limits) run on top
-     * of it separately (render: the apply*Once trio; matrix capture: its explicit IK solve) and
+     * of it separately (render: the apply* trio; matrix capture: its explicit IK solve) and
      * write only evaluated orientations, never the channels.
      */
     private void evaluateChannels(IEntity entity, ModelInstance model, float transition)
@@ -327,10 +324,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
     private void renderModel(IEntity target, Supplier<ShaderProgram> program, MatrixStack stack, ModelInstance model, int light, int overlay, Color contextColor, Color formColor, boolean ui, StencilMap stencilMap, float transition, MatrixStack world)
     {
-        this.ikAppliedThisRender = false;
-        this.physicsAppliedThisRender = false;
-        this.constraintsAppliedThisRender = false;
-
         Color finalColor = contextColor.copy();
         FormColorBlend.blend(finalColor, formColor);
 
@@ -364,9 +357,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
          * honest answer, so they run model-local, as they do in the UI. */
         Matrix4f baseTransform = ui || world == null ? null : new Matrix4f(world.peek().getPositionMatrix());
 
-        this.applyIKOnce(model, baseTransform);
-        this.applyPhysicsOnce(target, model, transition, baseTransform);
-        this.applyConstraintsOnce(model);
+        this.applyIK(model, baseTransform);
+        this.applyPhysics(target, model, transition, baseTransform);
+        this.applyConstraints(model);
 
         /* Default texture for materials without their own: the form's texture override, else the
          * model's default. Per-material textures (folder defaults now, animation tracks later)
@@ -448,14 +441,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
     }
 
-    private void applyIKOnce(ModelInstance model, Matrix4f baseTransform)
+    private void applyIK(ModelInstance model, Matrix4f baseTransform)
     {
-        if (this.ikAppliedThisRender)
-        {
-            return;
-        }
-
-        this.ikAppliedThisRender = true;
         model.form = this.form;
 
         boolean hasOverrides = baseTransform != null && this.form != null
@@ -503,27 +490,15 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         return local;
     }
 
-    private void applyPhysicsOnce(IEntity target, ModelInstance model, float transition, Matrix4f baseTransform)
+    private void applyPhysics(IEntity target, ModelInstance model, float transition, Matrix4f baseTransform)
     {
-        if (this.physicsAppliedThisRender)
-        {
-            return;
-        }
-
-        this.physicsAppliedThisRender = true;
         model.lastBaseTransform = baseTransform;
         model.form = this.form;
         ModelPhysicsRuntime.apply(target, model, transition, baseTransform);
     }
 
-    private void applyConstraintsOnce(ModelInstance model)
+    private void applyConstraints(ModelInstance model)
     {
-        if (this.constraintsAppliedThisRender)
-        {
-            return;
-        }
-
-        this.constraintsAppliedThisRender = true;
         ModelConstraintsRuntime.apply(model);
     }
 

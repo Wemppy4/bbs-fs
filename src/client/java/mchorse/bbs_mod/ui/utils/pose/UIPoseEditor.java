@@ -207,7 +207,7 @@ public class UIPoseEditor extends UIElement
 
             for (String key : keys)
             {
-                consumer.accept(this.pose.get(key));
+                consumer.accept(this.pose.getOrCreate(key));
             }
         }
     }
@@ -401,7 +401,7 @@ public class UIPoseEditor extends UIElement
         {
             for (Map.Entry<String, BoneEdit> target : UIPoseEditor.this.resolveBoneEdits(this.isMirrorEdit(), this.isAlternateInvert()).entrySet())
             {
-                UIPoseEditor.this.applyToBone(target.getValue(), UIPoseEditor.this.pose.get(target.getKey()), consumer);
+                UIPoseEditor.this.applyToBone(target.getValue(), UIPoseEditor.this.pose.getOrCreate(target.getKey()), consumer);
             }
         }
 
@@ -451,7 +451,7 @@ public class UIPoseEditor extends UIElement
 
         PickedBone.set(primary);
 
-        PoseTransform poseTransform = this.pose.get(primary);
+        PoseTransform poseTransform = this.pose.getOrCreate(primary);
 
         this.fix.setValue(poseTransform.fix);
         this.color.setColor(poseTransform.color.getARGBColor());
@@ -468,7 +468,7 @@ public class UIPoseEditor extends UIElement
          * then throw ConcurrentModificationException. Same guard as flipPose/pastePose. */
         for (String bone : new ArrayList<>(this.groups.list.getCurrent()))
         {
-            consumer.accept(this.pose.get(bone));
+            consumer.accept(this.pose.getOrCreate(bone));
         }
     }
 
