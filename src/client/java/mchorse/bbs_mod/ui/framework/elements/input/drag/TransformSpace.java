@@ -1,5 +1,12 @@
 package mchorse.bbs_mod.ui.framework.elements.input.drag;
 
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.MathUtils;
+
 import java.util.List;
 
 /**
@@ -27,7 +34,7 @@ import java.util.List;
 public enum TransformSpace
 {
     /** The bone's own axes — the gizmo and constrained edits follow the pose. */
-    LOCAL(true),
+    LOCAL(true, Icons.SPACE_LOCAL, UIKeys.TRANSFORMS_SPACE_LOCAL),
 
     /** The scene's flat axes — a constrained edit runs along fixed X/Y/Z that
      *  never follow the pose. In a film those are the edited replay's OWN axes:
@@ -35,20 +42,20 @@ public enum TransformSpace
      *  ({@code BaseFilmController.getReplayWorldAxes}), so X stays the actor's
      *  left/right however the actor was placed on the map. Hosts with no replay
      *  to face (form editor, model blocks) keep the plain world axes. */
-    GLOBAL(true),
+    GLOBAL(true, Icons.SPACE_GLOBAL, UIKeys.TRANSFORMS_SPACE_GLOBAL),
 
     /** The camera's right/up/forward — a constrained edit runs in screen space.
      *  The handles are additionally drawn facing the eye rather than merely
      *  parallel to the screen, so an off-centre gizmo reads dead flat instead of
      *  slightly turned away (see {@code Gizmo.applyViewShear}); the edit frame
      *  itself is the plain camera basis. */
-    VIEW(true),
+    VIEW(true, Icons.SPACE_VIEW, UIKeys.TRANSFORMS_SPACE_VIEW),
 
     /** The parent's frame — the frame the bone's own channels compose in.
      *  Rotation here deliberately bumps the driven channel directly (the
      *  pre-spaces gizmo behaviour): exact single-parameter turns with native
      *  &gt;360° winding, Blender's gimbal-style workflow. */
-    PARENT(true),
+    PARENT(true, Icons.SPACE_PARENT, UIKeys.TRANSFORMS_SPACE_PARENT),
 
     /** The map's own axes, indifferent to what the edited thing sits inside —
      *  north stays north however the replay is turned or the model block is
@@ -57,14 +64,22 @@ public enum TransformSpace
      *  GLOBAL to work along the actor, WORLD to line something up with the
      *  scene. Declared LAST on purpose — {@code BBSSettings.transformSpace}
      *  persists the ordinal, so a new constant may only be appended. */
-    WORLD(true);
+    WORLD(true, Icons.GLOBE, UIKeys.TRANSFORMS_SPACE_WORLD);
 
     /** Whether the frame math is wired up; unimplemented spaces are shown but not selectable. */
     public final boolean implemented;
 
-    TransformSpace(boolean implemented)
+    /** How the frame shows up in a picker. WORLD borrows the globe: no dedicated space_*
+     *  sprite exists for it, and a globe reads as "the map itself" better than a new flat glyph. */
+    public final Icon icon;
+
+    public final IKey label;
+
+    TransformSpace(boolean implemented, Icon icon, IKey label)
     {
         this.implemented = implemented;
+        this.icon = icon;
+        this.label = label;
     }
 
     /**
@@ -81,5 +96,32 @@ public enum TransformSpace
     public boolean isLocal()
     {
         return this == LOCAL;
+    }
+
+    /**
+     * The frame remembered from the last session, guarded against an out-of-range or
+     * not-yet-implemented stored value (then falls back to the default: PARENT, or LOCAL when
+     * the {@code default_local} toggle is on).
+     *
+     * <p>The choice is GLOBAL to the mod, not per-editor: picking a frame in one transform
+     * editor is the frame every other one opens in.
+     */
+    public static TransformSpace load()
+    {
+        TransformSpace[] values = values();
+        TransformSpace space = values[MathUtils.clamp(BBSSettings.transformSpace.get(), 0, values.length - 1)];
+
+        if (!space.implemented)
+        {
+            return BBSSettings.defaultLocalTransform.get() ? LOCAL : PARENT;
+        }
+
+        return space;
+    }
+
+    /** Remembers this frame as the one every transform editor opens in. */
+    public void remember()
+    {
+        BBSSettings.transformSpace.set(this.ordinal());
     }
 }

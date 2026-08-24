@@ -74,6 +74,7 @@ import mchorse.bbs_mod.ui.utils.GizmoInteraction;
 import mchorse.bbs_mod.ui.utils.GizmoViewport;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
@@ -915,6 +916,23 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return this.getOrbitModeIcon(this.getPovMode());
     }
 
+    /** The camera modes in the order the picker lists them. */
+    private static final List<Integer> CAMERA_MODES = List.of(
+        CAMERA_MODE_CAMERA, CAMERA_MODE_FREE, CAMERA_MODE_ORBIT,
+        CAMERA_MODE_FIRST_PERSON, CAMERA_MODE_THIRD_PERSON_BACK, CAMERA_MODE_THIRD_PERSON_FRONT
+    );
+
+    public static IKey getOrbitModeLabel(int povMode)
+    {
+        if (povMode == UIFilmController.CAMERA_MODE_FREE) return UIKeys.FILM_REPLAY_ORBIT_FREE;
+        else if (povMode == UIFilmController.CAMERA_MODE_ORBIT) return UIKeys.FILM_REPLAY_ORBIT_ORBIT;
+        else if (povMode == UIFilmController.CAMERA_MODE_FIRST_PERSON) return UIKeys.FILM_REPLAY_ORBIT_FIRST_PERSON;
+        else if (povMode == UIFilmController.CAMERA_MODE_THIRD_PERSON_BACK) return UIKeys.FILM_REPLAY_ORBIT_THIRD_PERSON_BACK;
+        else if (povMode == UIFilmController.CAMERA_MODE_THIRD_PERSON_FRONT) return UIKeys.FILM_REPLAY_ORBIT_THIRD_PERSON_FRONT;
+
+        return UIKeys.FILM_REPLAY_ORBIT_CAMERA;
+    }
+
     public Icon getOrbitModeIcon(int povMode)
     {
         if (povMode == UIFilmController.CAMERA_MODE_FREE) return Icons.REFRESH;
@@ -950,17 +968,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
             return;
         }
 
-        this.getContext().replaceContextMenu((menu) ->
-        {
-            menu.autoKeys();
-
-            menu.action(this.getOrbitModeIcon(0), UIKeys.FILM_REPLAY_ORBIT_CAMERA, this.pov == CAMERA_MODE_CAMERA, () -> this.setPov(0));
-            menu.action(this.getOrbitModeIcon(1), UIKeys.FILM_REPLAY_ORBIT_FREE, this.pov == CAMERA_MODE_FREE, () -> this.setPov(1));
-            menu.action(this.getOrbitModeIcon(2), UIKeys.FILM_REPLAY_ORBIT_ORBIT, this.pov == CAMERA_MODE_ORBIT, () -> this.setPov(2));
-            menu.action(this.getOrbitModeIcon(3), UIKeys.FILM_REPLAY_ORBIT_FIRST_PERSON, this.pov == CAMERA_MODE_FIRST_PERSON, () -> this.setPov(3));
-            menu.action(this.getOrbitModeIcon(4), UIKeys.FILM_REPLAY_ORBIT_THIRD_PERSON_BACK, this.pov == CAMERA_MODE_THIRD_PERSON_BACK, () -> this.setPov(4));
-            menu.action(this.getOrbitModeIcon(5), UIKeys.FILM_REPLAY_ORBIT_THIRD_PERSON_FRONT, this.pov == CAMERA_MODE_THIRD_PERSON_FRONT, () -> this.setPov(5));
-        });
+        UIChoiceMenu.of(CAMERA_MODES)
+            .current(this.getPovMode())
+            .icon(this::getOrbitModeIcon)
+            .label(UIFilmController::getOrbitModeLabel)
+            .open(this.getContext(), this::setPov);
     }
 
     public void toggleReplayMenu()
