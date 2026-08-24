@@ -8,11 +8,13 @@ import mchorse.bbs_mod.graphics.PixelPackState;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryUtil;
+import org.slf4j.Logger;
 import sun.misc.Unsafe;
 
 import java.io.File;
@@ -31,6 +33,8 @@ import java.util.concurrent.TimeUnit;
 
 public class VideoRecorder
 {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private static final Link RENDER_COMPLETE_SOUND = Link.assets("sounds/render_complete.ogg");
 
     private Process process;
@@ -64,6 +68,9 @@ public class VideoRecorder
     private int[] pbos;
     private int pboIndex;
 
+    /** One-shot report of a read-back that would not fit, so a broken export says why once. */
+    private boolean reportedOversizedFrame;
+
     /**
      * Start recording the video using ffmpeg
      */
@@ -75,11 +82,23 @@ public class VideoRecorder
         }
 
         this.counter = 0;
+        this.reportedOversizedFrame = false;
         this.textureId = textureId;
         this.textureWidth = width;
         this.textureHeight = height;
 
         int size = width * height * 3;
+
+        /* The read-back has no size argument (glGetTexImage downloads the whole level), so this buffer
+         * being exactly width * height * 3 is the ONLY thing standing between a resolution change and a
+         * write past its end. A recording that never reached stopRecording leaves the previous one here,
+         * so a stale size has to be dropped rather than reused. */
+        if (this.buffer != null && this.buffer.capacity() != size)
+        {
+            MemoryUtil.memFree(this.buffer);
+
+            this.buffer = null;
+        }
 
         if (this.buffer == null)
         {
@@ -370,6 +389,40 @@ public class VideoRecorder
     }
 
     /**
+     * Whether the frame the bound texture holds fits the destination this recorder sized.
+     *
+     * <p>{@code glGetTexImage} takes no destination size: it writes the whole of level 0, whatever that
+     * turns out to be, and a destination smaller than that is not an error the driver reports — it is a
+     * write past the end of our memory, and the process dies inside the driver. That is precisely how every
+     * HiDPI export used to crash, when the snapshot was sized from the physical framebuffer while this
+     * buffer was sized from the export resolution (fixed in {@code BBSRendering#blitIntoSnapshot}).</p>
+     *
+     * <p>The two sizes now agree by construction on all three export paths, so this is a backstop, not a
+     * branch we expect to take: if they ever disagree again, lose the frame and name the reason once
+     * instead of taking the game down with it. Must be called with the captured texture bound.</p>
+     */
+    private boolean frameFitsDestination()
+    {
+        int levelWidth = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_WIDTH);
+        int levelHeight = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_HEIGHT);
+
+        if (levelWidth == this.textureWidth && levelHeight == this.textureHeight)
+        {
+            return true;
+        }
+
+        if (!this.reportedOversizedFrame)
+        {
+            this.reportedOversizedFrame = true;
+
+            LOGGER.error("[BBS video] captured frame is {}x{} but the recording is {}x{} — dropping frames instead of overrunning the read-back buffer",
+                levelWidth, levelHeight, this.textureWidth, this.textureHeight);
+        }
+
+        return false;
+    }
+
+    /**
      * Asynchronous read-back path (Windows/Linux): {@code glGetTexImage} into a ping-pong
      * pair of pixel pack buffers, mapping the previously filled buffer to overlap GPU
      * read-back with the CPU-side write to ffmpeg.
@@ -388,10 +441,23 @@ public class VideoRecorder
                 GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[pbo]);
 
                 int previousTexture = this.bindForReadBack();
+                boolean fits = this.frameFitsDestination();
 
-                GL30.glGetTexImage(GL30.GL_TEXTURE_2D, 0, GL30.GL_BGR, GL30.GL_UNSIGNED_BYTE, 0);
+                if (fits)
+                {
+                    GL30.glGetTexImage(GL30.GL_TEXTURE_2D, 0, GL30.GL_BGR, GL30.GL_UNSIGNED_BYTE, 0);
+                }
 
                 this.restoreAfterReadBack(previousTexture);
+
+                if (!fits)
+                {
+                    /* Nothing was read, so there is nothing to hand over: leave the ping-pong where it is
+                     * rather than shipping whatever the buffers still hold from an earlier frame. */
+                    GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
+
+                    return;
+                }
 
                 GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[nextPbo]);
 
@@ -426,6 +492,13 @@ public class VideoRecorder
         try (PixelPackState pack = PixelPackState.push(1))
         {
             int previousTexture = this.bindForReadBack();
+
+            if (!this.frameFitsDestination())
+            {
+                this.restoreAfterReadBack(previousTexture);
+
+                return;
+            }
 
             GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGR, GL11.GL_UNSIGNED_BYTE, this.buffer);
 

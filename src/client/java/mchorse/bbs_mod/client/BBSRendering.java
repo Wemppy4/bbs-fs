@@ -51,12 +51,15 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -134,6 +137,9 @@ public class BBSRendering
 
     /** Private read FBO used to snapshot our framebuffer's colour attachment into {@link #texture}. */
     private static int captureReadFramebuffer = -1;
+
+    /** Private draw FBO the snapshot {@link #texture} is attached to for that blit. */
+    private static int captureDrawFramebuffer = -1;
 
     /** Set while a world recording is holding its snapshot back until the interface has been drawn. */
     private static boolean deferredCapture;
@@ -616,6 +622,91 @@ public class BBSRendering
         captureAndRestore();
     }
 
+    /**
+     * Copy the world that just rendered into {@link #framebuffer} into the BBS snapshot {@link #texture} — the
+     * one the film preview draws and {@link mchorse.bbs_mod.utils.VideoRecorder} reads back — rescaling it from
+     * the framebuffer's physical size down to the export size.
+     *
+     * <p>A blit, not a {@code glCopyTexSubImage2D}: copying cannot rescale, and rescaling is the whole point
+     * (see the caller). It also buys back the supersampling the HiDPI export had on 1.21.1 — the world is
+     * rendered at native resolution and filtered down into the file.</p>
+     *
+     * <p>1.21.11: {@code Framebuffer.beginWrite()} was removed, so neither end of the blit is bound for us. Both
+     * get a private FBO here — the framebuffer's colour attachment as the read source, the snapshot texture as
+     * the draw target. The bindings are saved and restored; the modern pipeline rebinds its render-pass targets
+     * afterwards, so this stays isolated. The snapshot being RGB8 (see {@link #getTexture()}) drops the
+     * framebuffer's non-opaque sky alpha along the way, which is what keeps the preview opaque.</p>
+     *
+     * <p>Unlike a copy, a blit is clipped by the scissor box and filtered through the colour write mask, and at
+     * this point in the frame both belong to whoever drew last. They are neutralised around the blit and put back
+     * through {@link GlStateManager} so its cache stays truthful (touching that state behind it desyncs the cache
+     * — the same trap {@link mchorse.bbs_mod.graphics.texture.Texture#bind()} documents).</p>
+     */
+    private static void blitIntoSnapshot(Texture texture, int w, int h)
+    {
+        int sourceWidth = framebuffer.textureWidth;
+        int sourceHeight = framebuffer.textureHeight;
+
+        if (captureReadFramebuffer == -1)
+        {
+            captureReadFramebuffer = GL30.glGenFramebuffers();
+            captureDrawFramebuffer = GL30.glGenFramebuffers();
+        }
+
+        int previousRead = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int previousDraw = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+        int sourceId = ((GlTexture) framebuffer.getColorAttachment()).getGlId();
+
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, captureReadFramebuffer);
+        GL30.glFramebufferTexture2D(GL30.GL_READ_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, sourceId, 0);
+        GL30.glReadBuffer(GL30.GL_COLOR_ATTACHMENT0);
+
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, captureDrawFramebuffer);
+        GL30.glFramebufferTexture2D(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, texture.id, 0);
+        GL11.glDrawBuffer(GL30.GL_COLOR_ATTACHMENT0);
+
+        boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        boolean[] mask = readColorMask();
+
+        if (scissor)
+        {
+            GlStateManager._disableScissorTest();
+        }
+
+        GlStateManager._colorMask(true, true, true, true);
+
+        /* GL_LINEAR only where it actually resamples: at 1:1 — every display that is not HiDPI — a nearest
+         * blit is the same copy the snapshot has always been. */
+        GlStateManager._glBlitFrameBuffer(
+            0, 0, sourceWidth, sourceHeight,
+            0, 0, w, h,
+            GL11.GL_COLOR_BUFFER_BIT,
+            sourceWidth == w && sourceHeight == h ? GL11.GL_NEAREST : GL11.GL_LINEAR
+        );
+
+        GlStateManager._colorMask(mask[0], mask[1], mask[2], mask[3]);
+
+        if (scissor)
+        {
+            GlStateManager._enableScissorTest();
+        }
+
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, previousRead);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, previousDraw);
+    }
+
+    private static boolean[] readColorMask()
+    {
+        try (MemoryStack stack = MemoryStack.stackPush())
+        {
+            ByteBuffer mask = stack.malloc(4);
+
+            GL11.glGetBooleanv(GL11.GL_COLOR_WRITEMASK, mask);
+
+            return new boolean[] {mask.get(0) != 0, mask.get(1) != 0, mask.get(2) != 0, mask.get(3) != 0};
+        }
+    }
+
     private static void captureAndRestore()
     {
         /* Snapshot only when we actually redirected the world into our framebuffer this frame (film panel
@@ -623,18 +714,18 @@ public class BBSRendering
          * worth copying and the snapshot would just waste a per-frame GPU copy. */
         if (customSize)
         {
+            /* The snapshot IS the recording, so it is sized in video pixels — not in the physical pixels the
+             * world was just rendered at. On a HiDPI display those are not the same number: WindowMixin reports
+             * the framebuffer size as getVideoWidth() * getOriginalFramebufferScale(), so on a Retina Mac
+             * (scale 2) the framebuffer is twice the export size in each axis. Sizing the snapshot from
+             * framebuffer.textureWidth therefore handed VideoRecorder a texture four times the buffer it had
+             * allocated (getVideoWidth() * getVideoHeight() * 3), and glGetTexImage — which downloads the whole
+             * level, there is no size to pass it — wrote straight past the end of it. Every export on a Mac
+             * died there, inside the driver's pixel-store loop (SIGBUS). */
             Texture texture = getTexture();
-            int w = framebuffer.textureWidth;
-            int h = framebuffer.textureHeight;
+            int w = getVideoWidth();
+            int h = getVideoHeight();
 
-            /* Snapshot the world that just rendered into our reassigned WindowFramebuffer into the BBS texture
-             * that the film preview blits and the VideoRecorder reads back.
-             *
-             * 1.21.11: Framebuffer.beginWrite() was removed, so glCopyTexSubImage2D no longer has our framebuffer
-             * bound as the GL read target (it would copy garbage). Bind the colour attachment to our own read FBO
-             * first, then glCopyTexSubImage2D into the (RGB8) snapshot — this also drops the framebuffer's
-             * non-opaque sky alpha so the preview stays opaque (see getTexture). The read-FBO binding is
-             * saved/restored; the modern pipeline rebinds render-pass targets afterwards so it stays isolated. */
             if (texture.width != w || texture.height != h)
             {
                 texture.bind();
@@ -642,28 +733,8 @@ public class BBSRendering
                 texture.unbind();
             }
 
-            if (captureReadFramebuffer == -1)
-            {
-                captureReadFramebuffer = GL30.glGenFramebuffers();
-            }
-
-            int previousRead = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
-            int sourceId = ((GlTexture) framebuffer.getColorAttachment()).getGlId();
-
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, captureReadFramebuffer);
-            GL30.glFramebufferTexture2D(GL30.GL_READ_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, sourceId, 0);
-            GL30.glReadBuffer(GL30.GL_COLOR_ATTACHMENT0);
-
-            texture.bind();
-            GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, w, h);
-            texture.unbind();
-
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, previousRead);
+            blitIntoSnapshot(texture, w, h);
         }
-        // TODO(1.21.11 render merge): HiDPI export-downscale supersampling — re-port against pipeline API
-        // (was: 1.21.1 created an export mchorse.bbs_mod.graphics.Framebuffer sized to getVideoWidth()/getVideoHeight()
-        //  and glBlitFramebuffer'd the native-resolution world framebuffer down into it with GL_LINEAR so the
-        //  recording matched the requested video size; that Framebuffer.fbo/.id/.attach API path is dropped here).
 
         toggleFramebuffer(false);
 
