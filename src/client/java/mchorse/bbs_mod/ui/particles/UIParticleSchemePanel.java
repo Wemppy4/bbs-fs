@@ -198,6 +198,17 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         this.addSection(this.appearanceView, new UIParticleSchemeCollisionSection(this));
 
         this.fill(null);
+
+        this.onAppear(this.textEditor::updateHighlighter);
+        this.onClose(this::clearParticles);
+    }
+
+    private void clearParticles()
+    {
+        if (this.renderer.emitter != null)
+        {
+            this.renderer.emitter.particles.clear();
+        }
     }
 
     public void editMoLang(String id, Consumer<String> callback, MolangExpression expression)
@@ -388,26 +399,9 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     }
 
     @Override
-    public void appear()
-    {
-        super.appear();
-
-        this.textEditor.updateHighlighter();
-    }
-
-    @Override
     protected boolean shouldAutoOpenListOnFirstResize()
     {
         return false;
-    }
-
-    @Override
-    public void close()
-    {
-        if (this.renderer.emitter != null)
-        {
-            this.renderer.emitter.particles.clear();
-        }
     }
 
     @Override

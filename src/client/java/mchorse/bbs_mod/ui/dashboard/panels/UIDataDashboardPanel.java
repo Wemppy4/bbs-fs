@@ -47,6 +47,19 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
             this.save();
         }).active(() -> this.data != null);
         this.add(savePlease);
+
+        this.onOpen(this::startPeriodicSave);
+        this.onClose(this::save);
+    }
+
+    private void startPeriodicSave()
+    {
+        int seconds = BBSSettings.editorPeriodicSave.get();
+
+        if (seconds > 0)
+        {
+            this.savingTimer.mark(seconds * 1000L);
+        }
     }
 
     /* Tabs — the panel says what an id means, UITabList does the bookkeeping */
@@ -248,27 +261,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     public void forceSave()
     {
         this.getType().getRepository().save(this.data.getId(), this.data.toData().asMap());
-    }
-
-    @Override
-    public void open()
-    {
-        super.open();
-
-        int seconds = BBSSettings.editorPeriodicSave.get();
-
-        if (seconds > 0)
-        {
-            this.savingTimer.mark(seconds * 1000L);
-        }
-    }
-
-    @Override
-    public void close()
-    {
-        super.close();
-
-        this.save();
     }
 
     @Override

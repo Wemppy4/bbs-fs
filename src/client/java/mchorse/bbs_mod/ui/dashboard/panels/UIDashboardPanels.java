@@ -21,6 +21,13 @@ public class UIDashboardPanels extends UIElement
     public List<UIDashboardPanel> panels = new ArrayList<>();
     public UIDashboardPanel panel;
 
+    /**
+     * Whether {@link #panel} has been told it is on screen. "Current panel" and "panel on screen"
+     * are not the same thing: the current panel survives the screen closing, so this is what keeps
+     * appear/disappear paired instead of firing a stray disappear on the way back in.
+     */
+    private boolean shown;
+
     public UIElement taskBar;
     public UIElement pinned;
     public UIScrollView panelButtons;
@@ -68,6 +75,10 @@ public class UIDashboardPanels extends UIElement
 
     public void close()
     {
+        /* Leaving the screen means leaving the panel too, and in that order: the editor on screen
+         * takes its world effects down in disappear(), so close() no longer has to repeat them. */
+        this.hideCurrentPanel();
+
         for (UIDashboardPanel panel : this.panels)
         {
             panel.close();
@@ -80,7 +91,7 @@ public class UIDashboardPanels extends UIElement
 
         if (this.panel != null)
         {
-            this.panel.disappear();
+            this.hideCurrentPanel();
             this.panel.removeFromParent();
         }
 
@@ -93,8 +104,18 @@ public class UIDashboardPanels extends UIElement
             this.setPanelPlacement(panel);
 
             this.prepend(this.panel);
+            this.shown = true;
             this.panel.appear();
             this.panel.resize();
+        }
+    }
+
+    private void hideCurrentPanel()
+    {
+        if (this.panel != null && this.shown)
+        {
+            this.shown = false;
+            this.panel.disappear();
         }
     }
 

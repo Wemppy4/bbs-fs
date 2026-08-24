@@ -251,6 +251,17 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.registerKeybinds();
 
         this.fill(null);
+
+        this.onAppear(this::refreshSelectionScreen);
+    }
+
+    /** No model open → the selection screen is up; refresh its list each time the panel is shown. */
+    private void refreshSelectionScreen()
+    {
+        if (this.selectionPanel != null && this.selectionPanel.isVisible())
+        {
+            this.requestNames();
+        }
     }
 
     private void layoutPanes()
@@ -538,18 +549,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             {
                 entries.add(new String[] {entry.getKey(), entry.getValue()});
             }
-        }
-    }
-
-    @Override
-    public void appear()
-    {
-        super.appear();
-
-        /* No model open → the selection screen is up; refresh its list each time the panel is shown. */
-        if (this.selectionPanel != null && this.selectionPanel.isVisible())
-        {
-            this.requestNames();
         }
     }
 

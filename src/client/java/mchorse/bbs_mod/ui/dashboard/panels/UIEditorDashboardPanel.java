@@ -48,6 +48,20 @@ public abstract class UIEditorDashboardPanel extends UIDashboardPanel implements
         this.add(this.topBar, this.editor);
 
         this.keys().register(Keys.OPEN_NEW_TAB, this.tabs::addTab);
+
+        this.onOpen(() -> this.update = true);
+        this.onAppear(this::requestNamesWhenStale);
+    }
+
+    /** The name list is refreshed once per screen, when this panel is actually looked at. */
+    private void requestNamesWhenStale()
+    {
+        if (this.update)
+        {
+            this.update = false;
+
+            this.requestNames();
+        }
     }
 
     /** The buttons of this panel's top bar. */
@@ -79,27 +93,6 @@ public abstract class UIEditorDashboardPanel extends UIDashboardPanel implements
     public Icon getTabIcon(String id)
     {
         return id == null ? Icons.SEARCH : Icons.FOLDER;
-    }
-
-    @Override
-    public void open()
-    {
-        super.open();
-
-        this.update = true;
-    }
-
-    @Override
-    public void appear()
-    {
-        super.appear();
-
-        if (this.update)
-        {
-            this.update = false;
-
-            this.requestNames();
-        }
     }
 
     public abstract void requestNames();

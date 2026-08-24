@@ -192,6 +192,59 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         this.keys().register(Keys.MODEL_BLOCKS_TELEPORT, this::teleport);
 
         this.add(this.scrollView);
+
+        this.onOpen(this::refreshBlocks);
+        this.onAppear(this::enterEditing);
+        this.onDisappear(this::leaveEditing);
+        this.onClose(this::saveTouchedBlocks);
+    }
+
+    private void refreshBlocks()
+    {
+        this.updateList();
+
+        if (this.modelBlock != null && this.modelBlock.isRemoved())
+        {
+            this.fill(null, true);
+        }
+    }
+
+    private void enterEditing()
+    {
+        this.getContext().menu.main.add(this.keyDude);
+        this.dashboard.orbitKeysUI.setEnabled(() -> this.getChildren(UIFormPalette.class).isEmpty());
+
+        if (this.cameraController != null)
+        {
+            BBSModClient.getCameraController().add(this.cameraController);
+        }
+    }
+
+    private void leaveEditing()
+    {
+        this.keyDude.removeFromParent();
+        this.dashboard.orbitKeysUI.setEnabled(null);
+        this.gizmo.stop();
+
+        /* Detached from the global controller, but the field is kept: coming back to this panel
+         * hands the same controller over again in enterEditing(). Dropping it (see
+         * removeCameraController) is for leaving the screen for good. */
+        if (this.cameraController != null)
+        {
+            BBSModClient.getCameraController().remove(this.cameraController);
+        }
+    }
+
+    private void saveTouchedBlocks()
+    {
+        this.removeCameraController();
+
+        for (ModelBlockEntity entity : this.toSave)
+        {
+            this.save(entity);
+        }
+
+        this.toSave.clear();
     }
 
     private void teleport()
@@ -209,35 +262,6 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
     public boolean supportsRollFOVControl()
     {
         return false;
-    }
-
-    @Override
-    public void appear()
-    {
-        super.appear();
-
-        this.getContext().menu.main.add(this.keyDude);
-        this.dashboard.orbitKeysUI.setEnabled(() -> this.getChildren(UIFormPalette.class).isEmpty());
-
-        if (this.cameraController != null)
-        {
-            BBSModClient.getCameraController().add(this.cameraController);
-        }
-    }
-
-    @Override
-    public void disappear()
-    {
-        super.disappear();
-
-        this.keyDude.removeFromParent();
-        this.dashboard.orbitKeysUI.setEnabled(null);
-        this.gizmo.stop();
-
-        if (this.cameraController != null)
-        {
-            BBSModClient.getCameraController().remove(this.cameraController);
-        }
     }
 
     public ModelBlockEntity getModelBlock()
@@ -495,35 +519,6 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
     public boolean canPause()
     {
         return false;
-    }
-
-    @Override
-    public void open()
-    {
-        super.open();
-
-        this.updateList();
-
-        if (this.modelBlock != null && this.modelBlock.isRemoved())
-        {
-            this.fill(null, true);
-        }
-    }
-
-    @Override
-    public void close()
-    {
-        super.close();
-
-        this.gizmo.stop();
-        this.removeCameraController();
-
-        for (ModelBlockEntity entity : this.toSave)
-        {
-            this.save(entity);
-        }
-
-        this.toSave.clear();
     }
 
     private void updateList()

@@ -360,6 +360,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         BBSSettings.editorPreviewResolutionScale.postCallback(refreshPreviewOnVideoResolution);
 
         this.add(this.layoutUnderTopBar(this.selectionPanel));
+
+        this.onOpen(this::pickUpRecording);
+        this.onAppear(this::enterEditing);
+        this.onDisappear(this::leaveEditing);
+        this.onClose(this::leaveScreen);
     }
 
     private boolean isCursorOverTimeline(UIContext context)
@@ -1232,15 +1237,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     /**
      * Runs for every panel the dashboard owns, not just the one being looked at - so nothing here may
-     * touch the world. Playback is started from {@link #appear()} instead: a film left open in this
-     * panel used to be replayed into the world the moment any BBS screen was opened, damage control
-     * and all, while the user was in the model editor.
+     * touch the world. Playback is started from {@link #enterEditing()} instead: a film left open in
+     * this panel used to be replayed into the world the moment any BBS screen was opened, damage
+     * control and all, while the user was in the model editor.
      */
-    @Override
-    public void open()
+    private void pickUpRecording()
     {
-        super.open();
-
         Recorder recorder = BBSModClient.getFilms().stopRecording();
 
         if (recorder != null && !recorder.hasNotStarted())
@@ -1320,12 +1322,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.controller.createEntities();
     }
 
-    @Override
-    public void appear()
+    private void enterEditing()
     {
-        super.appear();
-
-        /* appear() also fires while the dashboard is being lazily constructed (the
+        /* This also fires while the dashboard is being lazily constructed (the
          * teleport/record keybinds create it on first use), at which point there's no
          * context and the editor isn't actually shown. Running the side effects below
          * there leaks editor state into the plain world — most importantly it adds the
@@ -1361,29 +1360,20 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.notifyServer(ActionState.RESTART);
     }
 
-    @Override
-    public void close()
+    /**
+     * Leaving the screen. The world effects are not undone here: an editor that was on screen has
+     * already been through {@link #leaveEditing()} by the time this runs (see
+     * {@code UIDashboardPanels.close}), and one that was not never put them up.
+     */
+    private void leaveScreen()
     {
         if (this.queueExporter != null)
         {
             this.queueExporter.cancel();
         }
 
-        super.close();
-
-        BBSRendering.setCustomSize(false);
-        MorphRenderer.hidePlayer = false;
-
-        CameraController cameraController = this.getCameraController();
-
         this.cameraEditor.embedView(null);
-        this.setFlight(false);
-        cameraController.remove(this.runner);
-
-        this.disableContext();
         this.replayEditor.close();
-
-        this.notifyServer(ActionState.STOP);
 
         this.freezeFrame();
     }
@@ -1392,10 +1382,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
      * Opt-in: instead of vanishing with the editor, the tick that was on screen stays in the world,
      * handed over to a controller that keeps rendering it (see {@link FrozenFilmController}).
      *
-     * <p>Only when the film editor is the panel being looked at &mdash; {@link #close()} runs for
-     * every panel the dashboard owns, so a film nobody had open must not pop into the world on the
-     * way out of, say, the model editor. For the same reason a frame frozen on an earlier exit is
-     * left alone there: it is taken down when the editor genuinely comes back (see {@link #appear()}).
+     * <p>Only when the film editor is the panel being looked at &mdash; {@link #leaveScreen()} runs
+     * for every panel the dashboard owns, so a film nobody had open must not pop into the world on
+     * the way out of, say, the model editor. For the same reason a frame frozen on an earlier exit
+     * is left alone there: it is taken down when the editor genuinely comes back (see
+     * {@link #enterEditing()}).
      */
     private void freezeFrame()
     {
@@ -1418,11 +1409,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
     }
 
-    @Override
-    public void disappear()
+    private void leaveEditing()
     {
-        super.disappear();
-
         BBSRendering.setCustomSize(false);
         MorphRenderer.hidePlayer = false;
 

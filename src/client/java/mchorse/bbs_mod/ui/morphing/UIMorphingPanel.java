@@ -60,24 +60,13 @@ public class UIMorphingPanel extends UIDashboardPanel
         this.add(this.palette);
 
         this.controller = new ImmersiveMorphingCameraController(() -> this.palette.editor.isEditing() ? this.palette.editor.renderer : null);
+
+        this.onAppear(this::enterMorphing);
+        this.onDisappear(this::leaveMorphing);
     }
 
-    private void setForm(Form form)
+    private void enterMorphing()
     {
-        ClientNetwork.sendPlayerForm(form);
-    }
-
-    @Override
-    public boolean needsBackground()
-    {
-        return !this.palette.editor.isEditing();
-    }
-
-    @Override
-    public void appear()
-    {
-        super.appear();
-
         this.palette.list.forms.scroll.scrollSpeed = 40;
 
         Morph morph = ((IMorphProvider) MinecraftClient.getInstance().player).getMorph();
@@ -94,20 +83,21 @@ public class UIMorphingPanel extends UIDashboardPanel
         }
     }
 
-    @Override
-    public void disappear()
+    private void leaveMorphing()
     {
-        super.disappear();
-
         BBSModClient.getCameraController().remove(this.controller);
         MinecraftClient.getInstance().options.setPerspective(Perspective.FIRST_PERSON);
     }
 
-    @Override
-    public void close()
+    private void setForm(Form form)
     {
-        super.close();
-
-        BBSModClient.getCameraController().remove(this.controller);
+        ClientNetwork.sendPlayerForm(form);
     }
+
+    @Override
+    public boolean needsBackground()
+    {
+        return !this.palette.editor.isEditing();
+    }
+
 }
