@@ -146,11 +146,12 @@ public class TrackCatalog
             physics(modelForm, path, properties, out);
         }
 
-        List<BodyPart> parts = form.parts.getAllTyped();
-
-        for (int i = 0; i < parts.size(); i++)
+        /* By the part's stable id, never by its position: the address a track is stored under is
+         * built the same way (see FormUtils.getPath), so listing by index would offer tracks whose
+         * paths resolve to nothing. */
+        for (BodyPart part : form.parts.getAllTyped())
         {
-            collect(root, parts.get(i).getForm(), StringUtils.combinePaths(path, String.valueOf(i)), properties, out);
+            collect(root, part.getForm(), StringUtils.combinePaths(path, part.getId()), properties, out);
         }
     }
 
