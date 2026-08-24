@@ -2,6 +2,7 @@ package mchorse.bbs_mod.forms;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
@@ -172,7 +173,11 @@ public class FormTranslucentQueue
     {
         release();
 
-        active = true;
+        /* Switched off, the queue never opens a scope: isActive() stays false, so no draw splits or
+         * defers and add() falls through to drawing right away. That is the same single-pass path
+         * forms already take under a shaderpack — every pixel is drawn, just in entity order with
+         * depth writes, the way it was before this mechanism existed. */
+        active = BBSSettings.translucencyQueue.get();
     }
 
     /**
@@ -205,6 +210,15 @@ public class FormTranslucentQueue
         if (commands.isEmpty())
         {
             return;
+        }
+
+        /* With Fabulous! graphics, vanilla's pre-translucent bookkeeping (clear() and
+         * copyDepthFrom() on its transparency framebuffers) leaves FBO 0 — the window itself —
+         * bound at our flush point, and the end-of-frame blit of the main framebuffer would
+         * overwrite everything drawn there. */
+        if (MinecraftClient.isFabulousGraphicsOrBetter())
+        {
+            MinecraftClient.getInstance().getFramebuffer().beginWrite(false);
         }
 
         commands.sort((a, b) -> Float.compare(b.distanceSq, a.distanceSq));
@@ -290,6 +304,19 @@ public class FormTranslucentQueue
         sortOrigin = null;
     }
 
+    /**
+     * Camera-space normal of a quad built in a model matrix's z=0 plane: the cross product of
+     * the transformed basis vectors — exact under any affine transform (including non-uniform
+     * scale), unlike rotating (0,0,1). Unnormalized; the sort key math divides it out.
+     */
+    public static Vector3f quadPlaneNormal(Matrix4f modelView, Matrix4f modelMatrix)
+    {
+        Matrix4f full = new Matrix4f(modelView).mul(modelMatrix);
+
+        return new Vector3f(full.m00(), full.m01(), full.m02())
+            .cross(full.m10(), full.m11(), full.m12());
+    }
+
     public static abstract class DrawCommand
     {
         public final float distanceSq;
@@ -299,7 +326,36 @@ public class FormTranslucentQueue
         /** The origin must be camera-space (a captured model-view translation) — it's the sort key. */
         protected DrawCommand(Vector3f cameraSpaceOrigin, boolean cull, boolean depthWrite)
         {
-            this.distanceSq = cameraSpaceOrigin.lengthSquared();
+            this(cameraSpaceOrigin, null, cull, depthWrite);
+        }
+
+        /**
+         * A flat single-quad command sorts by the camera's distance to the quad's <em>plane</em>,
+         * not to its centre: a large backdrop's centre swings nearer or further than nearby forms
+         * as the camera orbits, flipping the paint order mid-flight, while the plane distance
+         * holds steady until the camera actually crosses the plane (and for two parallel quads
+         * it is the exact painter's order from any angle). Solid geometry passes a null normal
+         * and keeps sorting by its origin.
+         */
+        protected DrawCommand(Vector3f cameraSpaceOrigin, Vector3f cameraSpacePlaneNormal, boolean cull, boolean depthWrite)
+        {
+            float sortKey = cameraSpaceOrigin.lengthSquared();
+
+            if (cameraSpacePlaneNormal != null)
+            {
+                float normalLengthSq = cameraSpacePlaneNormal.lengthSquared();
+
+                /* Squared plane distance: (n·o)²/|n|². A degenerate normal (zero-scaled quad)
+                 * falls back to the origin distance. */
+                if (normalLengthSq > 1e-12F)
+                {
+                    float dot = cameraSpacePlaneNormal.dot(cameraSpaceOrigin);
+
+                    sortKey = dot * dot / normalLengthSq;
+                }
+            }
+
+            this.distanceSq = sortKey;
             this.cull = cull;
             this.depthWrite = depthWrite;
         }
@@ -565,16 +621,18 @@ public class FormTranslucentQueue
         /**
          * The flat-form replay: a single quad (billboard, framebuffer screen, a label's parts)
          * deferred without depth writes, so it never occludes what draws behind it. Solid
-         * geometry must not use this — see the explicit constructor below.
+         * geometry must not use this — see the explicit constructor below. The plane normal
+         * (see {@link #quadPlaneNormal}) switches the sort key to the quad-plane distance;
+         * null keeps the origin distance (a group's child, whose key is never consulted).
          */
-        public VertexBufferCommand(VertexBuffer buffer, Supplier<ShaderProgram> shader, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, boolean cull, Runnable preDraw, Runnable postDraw)
+        public VertexBufferCommand(VertexBuffer buffer, Supplier<ShaderProgram> shader, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, Vector3f cameraSpacePlaneNormal, boolean cull, Runnable preDraw, Runnable postDraw)
         {
-            this(buffer, shader, PASS_TRANSLUCENT, false, texture, modelView, normalMat, cameraSpaceOrigin, cull, preDraw, postDraw);
+            this(buffer, shader, PASS_TRANSLUCENT, false, texture, modelView, normalMat, cameraSpaceOrigin, cameraSpacePlaneNormal, cull, preDraw, postDraw);
         }
 
-        public VertexBufferCommand(VertexBuffer buffer, Supplier<ShaderProgram> shader, int passMode, boolean depthWrite, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, boolean cull, Runnable preDraw, Runnable postDraw)
+        public VertexBufferCommand(VertexBuffer buffer, Supplier<ShaderProgram> shader, int passMode, boolean depthWrite, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, Vector3f cameraSpacePlaneNormal, boolean cull, Runnable preDraw, Runnable postDraw)
         {
-            super(cameraSpaceOrigin, cull, depthWrite);
+            super(cameraSpaceOrigin, cameraSpacePlaneNormal, cull, depthWrite);
 
             this.buffer = buffer;
             this.shader = shader;

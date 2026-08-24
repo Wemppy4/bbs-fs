@@ -339,7 +339,7 @@ public class LabelFormRenderer extends FormRenderer<LabelForm>
             FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(
                 buffer, GameRenderer::getPositionColorProgram, null,
                 new Matrix4f(RenderSystem.getModelViewMatrix()),
-                null, new Vector3f(FormTranslucentQueue.getSortOrigin()), false, null, null
+                null, new Vector3f(FormTranslucentQueue.getSortOrigin()), null, false, null, null
             ));
         }
         else

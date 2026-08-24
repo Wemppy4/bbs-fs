@@ -205,6 +205,10 @@ public class UIClips extends UIElement
 
             if (this.copyPasteController.paste(context.mouseX, context.mouseY)) UIUtils.playClick();
         }).category(KEYS_CATEGORY).active(canUseKeybinds);
+        /* .inside() is load-bearing: the action opens the presets popup AT the mouse, so it only
+         * makes sense over this timeline. Without it the bind fired anywhere and, since this
+         * subtree is walked before the parameters dock, it swallowed Ctrl+Shift+V from the
+         * transform panel, where that combo is the flipped paste (see UITransform#getVector). */
         this.keys().register(Keys.PRESETS, () ->
         {
             UIContext context = this.getContext();
@@ -214,7 +218,7 @@ public class UIClips extends UIElement
                 this.copyPasteController.openPresets(context, context.mouseX, context.mouseY);
                 UIUtils.playClick();
             }
-        }).category(KEYS_CATEGORY).active(canUseKeybinds);
+        }).inside().category(KEYS_CATEGORY).active(canUseKeybinds);
         this.keys().register(Keys.CLIP_CUT, this::cut).category(KEYS_CATEGORY).active(canUseKeybinds);
         this.keys().register(Keys.CLIP_SHIFT, this::shiftToCursor).category(KEYS_CATEGORY).active(canUseKeybinds);
         this.keys().register(Keys.CLIP_DURATION, this::shiftDurationToCursor).category(KEYS_CATEGORY).active(canUseKeybindsSelected);

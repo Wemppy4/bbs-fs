@@ -635,12 +635,12 @@ public class ModelInstance implements IModelInstance
         {
             /* Depth stays on: this is solid geometry, so its semi-transparent texels must occlude
              * the ones behind them inside the same model — see the split constructors' note. */
-            FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(buffer, () -> shader, FormTranslucentQueue.PASS_TRANSLUCENT, true, texture, modelView, normalMat, origin, this.isCulling(), null, null));
+            FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(buffer, () -> shader, FormTranslucentQueue.PASS_TRANSLUCENT, true, texture, modelView, normalMat, origin, null, this.isCulling(), null, null));
         }
         else
         {
             /* Uniform colour fade: defer the whole mesh with depth on so it self-occludes. */
-            FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(buffer, () -> shader, FormTranslucentQueue.PASS_SINGLE, true, texture, modelView, normalMat, origin, this.isCulling(), null, null));
+            FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(buffer, () -> shader, FormTranslucentQueue.PASS_SINGLE, true, texture, modelView, normalMat, origin, null, this.isCulling(), null, null));
         }
     }
 

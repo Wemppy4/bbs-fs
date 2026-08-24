@@ -292,9 +292,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
             Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
             Vector3f origin = modelView.transformPosition(matrix.getTranslation(new Vector3f()));
+            Vector3f planeNormal = FormTranslucentQueue.quadPlaneNormal(modelView, matrix);
 
             FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(
-                buffer, () -> finalShader, texture, modelView, null, origin, true, null, null
+                buffer, () -> finalShader, texture, modelView, null, origin, planeNormal, true, null, null
             ));
         }
         else

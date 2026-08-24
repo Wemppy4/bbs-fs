@@ -218,6 +218,10 @@ public class UIKeyframes extends UIElement
 
             if (this.copyPasteController.paste(context.mouseX, context.mouseY)) UIUtils.playClick();
         }).inside().category(category).active(canModify);
+        /* .inside() is load-bearing: the action opens the presets popup AT the mouse, so it only
+         * makes sense over this timeline. Without it the bind fired anywhere and, since this
+         * subtree is walked before the parameters dock, it swallowed Ctrl+Shift+V from the
+         * transform panel, where that combo is the flipped paste (see UITransform#getVector). */
         this.keys().register(Keys.PRESETS, () ->
         {
             UIContext context = this.getContext();
@@ -227,7 +231,7 @@ public class UIKeyframes extends UIElement
                 this.copyPasteController.openPresets(context, context.mouseX, context.mouseY);
                 UIUtils.playClick();
             }
-        }).category(category).active(canModify);
+        }).inside().category(category).active(canModify);
         this.keys().register(Keys.DELETE, () -> this.currentGraph.removeSelected()).inside().category(category).active(canModify);
         this.keys().register(Keys.KEYFRAMES_SELECT_LEFT, () ->
         {
