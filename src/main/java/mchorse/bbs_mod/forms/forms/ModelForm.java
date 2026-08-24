@@ -4,7 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraintsIO;
 import mchorse.bbs_mod.cubic.ik.BoneIKIO;
-import mchorse.bbs_mod.cubic.physics.PhysicsControl;
+import mchorse.bbs_mod.cubic.physics.BonePhysicsIO;
 import mchorse.bbs_mod.cubic.physics.WindControl;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
@@ -15,11 +15,11 @@ import mchorse.bbs_mod.forms.values.ValueShapeKeys;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
-import mchorse.bbs_mod.settings.values.core.ValueData;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueLinks;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.core.ValueString;
+import mchorse.bbs_mod.settings.values.core.ValueWindControl;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Pose;
@@ -42,8 +42,10 @@ public class ModelForm extends Form
     public final ValueMaterials materials = new ValueMaterials("materials");
     public final ValueShapeKeys shapeKeys = new ValueShapeKeys("shape_keys", new ShapeKeys());
     public final ValueBoolean boneTracks = new ValueBoolean("bone_tracks", true);
-    public final ValueData physics = new ValueData("physics");
     public final ValueBones bones = new ValueBones("bones");
+
+    /** The global wind of the form's physics — one compound animatable property, not bound to a bone. */
+    public final ValueWindControl wind = new ValueWindControl("wind", new WindControl());
 
     public final List<ValuePose> additionalOverlays = new ArrayList<>();
 
@@ -75,9 +77,6 @@ public class ModelForm extends Form
     public final transient Map<String, Float> poleTargetWeights = new HashMap<>();
     public final transient Map<String, Vector3f> physicsTargetOverrides = new HashMap<>();
     public final transient Map<String, Float> physicsTargetWeights = new HashMap<>();
-    public final transient Map<String, PhysicsControl> physicsControlOverrides = new HashMap<>();
-    /* The global wind override layered by the wind track at playback; null when the track has no keyframe. */
-    public transient WindControl windControlOverride;
 
     public ModelForm()
     {
@@ -106,10 +105,9 @@ public class ModelForm extends Form
         this.boneTracks.invisible();
         this.add(this.boneTracks);
 
-        this.physics.invisible();
         this.bones.invisible();
-        this.add(this.physics);
         this.add(this.bones);
+        this.add(this.wind);
     }
 
     @Override
@@ -129,6 +127,11 @@ public class ModelForm extends Form
             if (map.has("ik", BaseType.TYPE_MAP))
             {
                 BoneIKIO.read(map.getMap("ik"), this.bones, false);
+            }
+
+            if (map.has("physics", BaseType.TYPE_MAP))
+            {
+                BonePhysicsIO.read(map.getMap("physics"), this.bones, this.wind, false);
             }
         }
     }

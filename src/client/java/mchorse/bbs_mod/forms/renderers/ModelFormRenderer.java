@@ -419,9 +419,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             ModelIKDebug.render(newStack, model.model, this.form, "");
         }
 
-        if (stencilMap == null && !this.renderingArm && this.form != null && this.form.physics.get() instanceof MapType physicsMap)
+        if (stencilMap == null && !this.renderingArm && this.form != null)
         {
-            ModelPhysicsDebug.render(newStack, model.model, physicsMap, target.getAge(), "");
+            ModelPhysicsDebug.render(newStack, model.model, this.form, target.getAge(), "");
         }
 
         gameRenderer.getLightmapTextureManager().disable();
@@ -839,9 +839,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             ModelIKDebug.renderStencil(context.stack, model.model, this.form, context.stencilMap, this.form);
         }
 
-        if (this.form != null && this.form.physics.get() instanceof MapType physicsMap)
+        if (this.form != null)
         {
-            ModelPhysicsDebug.renderStencil(context.stack, model.model, physicsMap, context.stencilMap, this.form);
+            ModelPhysicsDebug.renderStencil(context.stack, model.model, this.form, context.stencilMap, this.form);
         }
     }
 

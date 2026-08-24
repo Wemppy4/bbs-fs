@@ -3,11 +3,6 @@ package mchorse.bbs_mod.film.replays.tracks;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
-import mchorse.bbs_mod.cubic.physics.ModelPhysicsConfig;
-import mchorse.bbs_mod.cubic.physics.ModelPhysicsIO;
-import mchorse.bbs_mod.cubic.physics.PhysicsControl;
-import mchorse.bbs_mod.cubic.physics.PhysicsControls;
-import mchorse.bbs_mod.cubic.physics.WindControl;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.replays.FormProperties;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
@@ -531,89 +526,34 @@ public class TrackCatalog
 
     private static void physics(ModelForm modelForm, String path, FormProperties properties, List<TrackDescriptor> out)
     {
-        ModelPhysicsConfig physics = physicsConfig(modelForm);
-
-        if (physics == null || physics.bones() == null || physics.bones().isEmpty())
+        /* One `physics` track per chain, addressed by the chain's root bone: the keyframe value is
+         * the bone's own `physics` property (weight, gravity, damping, stiffness, enabled), seeded
+         * from it. The wind is the form's own `wind` property, listed with the plain properties. */
+        for (BaseValue value : modelForm.bones.getAll())
         {
-            return;
-        }
-
-        TrackId controls = TrackId.physicsControls(path);
-
-        out.add(new TrackDescriptor(controls, properties.getOrCreate(controls), modelForm,
-            IKey.constant(path.isEmpty() ? "physics" : path + "/physics"), Icons.PHYSICS, Colors.GREEN, null)
-            .seed(() -> physicsControls(modelForm)));
-
-        /* The wind is global to the form, so — unlike the physics controls — it is not keyed by chain. */
-        TrackId wind = TrackId.windControls(path);
-
-        out.add(new TrackDescriptor(wind, properties.getOrCreate(wind), modelForm,
-            IKey.constant(path.isEmpty() ? "wind" : path + "/wind"), Icons.ARROW_RIGHT, Colors.CYAN, null)
-            .seed(() -> windControl(modelForm)));
-
-        for (String rootBone : physics.bones().keySet())
-        {
-            TrackId id = TrackId.physicsTarget(path, rootBone);
-
-            out.add(target(modelForm, id, properties, path.isEmpty() ? "physics/" + rootBone : path + "/physics/" + rootBone, Colors.MAGENTA));
-        }
-    }
-
-    private static ModelPhysicsConfig physicsConfig(ModelForm modelForm)
-    {
-        return modelForm.physics.get() instanceof MapType map ? ModelPhysicsIO.fromData(map) : null;
-    }
-
-    /** A physics-controls value seeded from the form's physics config, one entry per chain root. */
-    private static PhysicsControls physicsControls(ModelForm modelForm)
-    {
-        PhysicsControls controls = new PhysicsControls();
-        ModelPhysicsConfig config = physicsConfig(modelForm);
-
-        if (config != null && config.bones() != null)
-        {
-            for (Map.Entry<String, ModelPhysicsConfig.Bone> entry : config.bones().entrySet())
+            if (!(value instanceof FormBone bone))
             {
-                ModelPhysicsConfig.Bone bone = entry.getValue();
+                continue;
+            }
 
-                if (bone == null)
-                {
-                    continue;
-                }
+            TrackId id = TrackId.bonePhysics(path, bone.getId());
 
-                PhysicsControl control = controls.get(entry.getKey());
+            if (bone.hasPhysicsChain() || (properties != null && properties.has(id)))
+            {
+                String title = (path.isEmpty() ? "physics" : path + "/physics") + FormUtils.PATH_SEPARATOR + bone.getId();
 
-                control.weight = bone.weight();
-                control.gravity = bone.gravity();
-                control.damping = bone.damping();
-                control.stiffness = bone.stiffness();
+                out.add(new TrackDescriptor(id, channel(properties, id), modelForm,
+                    IKey.constant(title), Icons.PHYSICS, Colors.GREEN, bone.physics)
+                    .seed(() -> bone.physics.get().copy()));
+            }
+
+            if (bone.hasPhysicsChain())
+            {
+                TrackId targetId = TrackId.physicsTarget(path, bone.getId());
+
+                out.add(target(modelForm, targetId, properties, path.isEmpty() ? "physics/target/" + bone.getId() : path + "/physics/target/" + bone.getId(), Colors.MAGENTA));
             }
         }
-
-        return controls;
-    }
-
-    /** A wind value seeded from the form's configured wind, so a fresh keyframe matches it instead of drifting to defaults. */
-    private static WindControl windControl(ModelForm modelForm)
-    {
-        WindControl control = new WindControl();
-        ModelPhysicsConfig config = physicsConfig(modelForm);
-
-        if (config != null)
-        {
-            ModelPhysicsConfig.Wind wind = config.wind();
-
-            control.strength = wind.strength();
-            control.x = wind.x();
-            control.y = wind.y();
-            control.z = wind.z();
-            control.turbulence = wind.turbulence();
-            control.turbulenceSpeed = wind.turbulenceSpeed();
-            control.turbulenceScale = wind.turbulenceScale();
-            control.local = wind.local();
-        }
-
-        return control;
     }
 
     private static TrackDescriptor target(ModelForm modelForm, TrackId id, FormProperties properties, String title, int color)

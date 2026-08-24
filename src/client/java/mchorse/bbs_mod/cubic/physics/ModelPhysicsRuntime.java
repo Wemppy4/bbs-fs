@@ -11,6 +11,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import net.minecraft.world.World;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -59,7 +60,6 @@ public final class ModelPhysicsRuntime
 
     public static void clearCache()
     {
-        ModelPhysicsCache.clear();
         STATES.clear();
     }
 
@@ -88,11 +88,7 @@ public final class ModelPhysicsRuntime
             return;
         }
 
-        ModelPhysicsCache.Compiled compiled = null;
-        if (form.physics.get() instanceof MapType map)
-        {
-            compiled = ModelPhysicsCache.getFromData(model, map);
-        }
+        ModelPhysicsCache.Compiled compiled = ModelPhysicsCache.compile(model, form);
 
         if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
         {
@@ -110,16 +106,10 @@ public final class ModelPhysicsRuntime
             state.modelId = instance.id;
         }
 
-        /* The wind track (if keyframed) replaces the configured wind wholesale at playback, mirroring how the
-         * physics track layers over the per-chain config. */
-        ModelPhysicsConfig.Wind wind = compiled.wind();
-
-        if (form.windControlOverride != null)
-        {
-            WindControl override = form.windControlOverride;
-
-            wind = new ModelPhysicsConfig.Wind(override.strength, override.x, override.y, override.z, override.turbulence, override.turbulenceSpeed, override.turbulenceScale, override.local);
-        }
+        /* The wind is the form's own `wind` property now: its static value, or the wind track
+         * driving it (the property's runtime value) — one read, nothing to layer. */
+        WindControl liveWind = form.wind.get();
+        ModelPhysicsConfig.Wind wind = new ModelPhysicsConfig.Wind(liveWind.strength, liveWind.x, liveWind.y, liveWind.z, liveWind.turbulence, liveWind.turbulenceSpeed, liveWind.turbulenceScale, liveWind.local);
 
         wind = resolveWindDirection(wind, baseTransform);
 
@@ -195,30 +185,35 @@ public final class ModelPhysicsRuntime
             return;
         }
 
-        /* The film physics track layers a per-chain control over the config, keyed by the chain's
-         * root bone, replacing its dynamic scalars wholesale (mirrors the IK track). */
-        PhysicsControl control = null;
+        /* The chain's animatable scalars, read live from the root bone's `physics` property:
+         * the form's static setting, or the film's track when one drives the bone. */
+        PhysicsControl control = PhysicsControl.DEFAULT;
 
-        if (instance != null && instance.form instanceof ModelForm modelForm && !modelForm.physicsControlOverrides.isEmpty())
+        if (instance != null && instance.form instanceof ModelForm modelForm)
         {
-            control = modelForm.physicsControlOverrides.get(ids.get(0));
+            FormBone bone = modelForm.bones.getBone(ids.get(0));
+
+            if (bone != null)
+            {
+                control = bone.physics.get();
+            }
         }
 
-        if (control != null && !control.enabled)
+        if (!control.enabled)
         {
             return;
         }
 
-        float weight = control != null ? control.weight : chain.weight();
+        float weight = control.weight;
 
         if (weight <= 0F)
         {
             return;
         }
 
-        float gravity = control != null ? control.gravity : chain.gravity();
-        float damping = control != null ? control.damping : chain.damping();
-        float stiffness = control != null ? control.stiffness : chain.stiffness();
+        float gravity = control.gravity;
+        float damping = control.damping;
+        float stiffness = control.stiffness;
 
         ChainState state = instanceState.chains.computeIfAbsent(chain.id(), (k) -> new ChainState());
 

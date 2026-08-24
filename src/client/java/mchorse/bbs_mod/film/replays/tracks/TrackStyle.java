@@ -64,6 +64,7 @@ public class TrackStyle
         COLORS.put("culling", 0x8899bb);
         putColors(0xd9b23f, "smoothness", "metallic", "sss", "pixel_emission", "relief");
         COLORS.put("shape_keys", Colors.PINK);
+        COLORS.put("wind", Colors.CYAN);
         COLORS.put("model", MODEL_TRACK);
     }
 
@@ -147,6 +148,7 @@ public class TrackStyle
         ICONS.put("anchor", Icons.LINK);
         ICONS.put("billboard", Icons.CAMERA);
         ICONS.put("shading", Icons.SUN);
+        ICONS.put("wind", Icons.ARROW_RIGHT);
         ICONS.put("crop", Icons.FULLSCREEN);
         ICONS.put("block_state", Icons.BLOCK);
         ICONS.put("item_stack", Icons.SHARD);

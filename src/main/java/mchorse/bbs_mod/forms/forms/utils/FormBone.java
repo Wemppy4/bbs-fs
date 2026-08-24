@@ -3,12 +3,15 @@ package mchorse.bbs_mod.forms.forms.utils;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
 import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.cubic.ik.JointDoF;
+import mchorse.bbs_mod.cubic.physics.PhysicsControl;
 import mchorse.bbs_mod.settings.values.core.ValueBoneConstraint;
 import mchorse.bbs_mod.settings.values.core.ValueBoneIK;
+import mchorse.bbs_mod.settings.values.core.ValueBonePhysics;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueJointDoF;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 
 /**
@@ -40,6 +43,20 @@ public class FormBone extends ValueGroup
     /** The bone's joint freedom for any IK chain that solves through it (locks, limits, stiffness). */
     public final ValueJointDoF joint = new ValueJointDoF("joint", new JointDoF());
 
+    /* The physics chain this bone is the root of ({@code physicsEnd} names the chain's last bone
+     * down the hierarchy). The addresses and the simulation's configuration are static; the
+     * animatable scalars (weight, gravity, damping, stiffness, enabled) live in {@link #physics}. */
+    public final ValueString physicsEnd = new ValueString("physics_end", "");
+    public final ValueString physicsTargetBone = new ValueString("physics_target_bone", "");
+    public final ValueInt physicsIterations = new ValueInt("physics_iterations", 4);
+    public final ValueBoolean physicsCollisions = new ValueBoolean("physics_collisions", false);
+    public final ValueFloat physicsRadius = new ValueFloat("physics_radius", 0.1F);
+    public final ValueBoolean physicsRelativeGravity = new ValueBoolean("physics_relative_gravity", false);
+    public final ValueFloat physicsGravityRotateX = new ValueFloat("physics_gravity_rotate_x", 0F);
+    public final ValueFloat physicsGravityRotateY = new ValueFloat("physics_gravity_rotate_y", 0F);
+    public final ValueFloat physicsGravityRotateZ = new ValueFloat("physics_gravity_rotate_z", 0F);
+    public final ValueBonePhysics physics = new ValueBonePhysics("physics", new PhysicsControl());
+
     public FormBone(String id)
     {
         super(id);
@@ -53,6 +70,16 @@ public class FormBone extends ValueGroup
         this.ikClassic.invisible();
         this.ik.invisible();
         this.joint.invisible();
+        this.physicsEnd.invisible();
+        this.physicsTargetBone.invisible();
+        this.physicsIterations.invisible();
+        this.physicsCollisions.invisible();
+        this.physicsRadius.invisible();
+        this.physicsRelativeGravity.invisible();
+        this.physicsGravityRotateX.invisible();
+        this.physicsGravityRotateY.invisible();
+        this.physicsGravityRotateZ.invisible();
+        this.physics.invisible();
 
         this.add(this.constraints);
         this.add(this.ikTarget);
@@ -63,6 +90,22 @@ public class FormBone extends ValueGroup
         this.add(this.ikClassic);
         this.add(this.ik);
         this.add(this.joint);
+        this.add(this.physicsEnd);
+        this.add(this.physicsTargetBone);
+        this.add(this.physicsIterations);
+        this.add(this.physicsCollisions);
+        this.add(this.physicsRadius);
+        this.add(this.physicsRelativeGravity);
+        this.add(this.physicsGravityRotateX);
+        this.add(this.physicsGravityRotateY);
+        this.add(this.physicsGravityRotateZ);
+        this.add(this.physics);
+    }
+
+    /** Whether this bone is the root of a configured physics chain. */
+    public boolean hasPhysicsChain()
+    {
+        return !this.physicsEnd.get().isEmpty();
     }
 
     /** Whether this bone is the tip of a configured IK chain. */
@@ -82,6 +125,16 @@ public class FormBone extends ValueGroup
             && !this.ikStretch.get()
             && !this.ikClassic.get()
             && this.ik.get().isDefault()
-            && this.joint.get().isFree();
+            && this.joint.get().isFree()
+            && !this.hasPhysicsChain()
+            && this.physicsTargetBone.get().isEmpty()
+            && this.physicsIterations.get() == 4
+            && !this.physicsCollisions.get()
+            && this.physicsRadius.get() == 0.1F
+            && !this.physicsRelativeGravity.get()
+            && this.physicsGravityRotateX.get() == 0F
+            && this.physicsGravityRotateY.get() == 0F
+            && this.physicsGravityRotateZ.get() == 0F
+            && this.physics.get().isDefault();
     }
 }
