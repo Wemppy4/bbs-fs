@@ -1,7 +1,5 @@
 package mchorse.bbs_mod.film.replays.tracks.behaviours;
 
-import mchorse.bbs_mod.cubic.ik.IKControl;
-import mchorse.bbs_mod.cubic.ik.IKControls;
 import mchorse.bbs_mod.cubic.physics.PhysicsControl;
 import mchorse.bbs_mod.cubic.physics.PhysicsControls;
 import mchorse.bbs_mod.cubic.physics.WindControl;
@@ -39,12 +37,7 @@ public class ControlsTrack implements TrackBehaviour
     @Override
     public IKeyframeFactory factory(TrackId track)
     {
-        return switch (this.kind)
-        {
-            case IK_CONTROLS -> KeyframeFactories.IK;
-            case PHYSICS_CONTROLS -> KeyframeFactories.PHYSICS;
-            default -> KeyframeFactories.WIND;
-        };
+        return this.kind == TrackKind.PHYSICS_CONTROLS ? KeyframeFactories.PHYSICS : KeyframeFactories.WIND;
     }
 
     @Override
@@ -70,14 +63,7 @@ public class ControlsTrack implements TrackBehaviour
 
         Object value = segment.createInterpolated();
 
-        if (value instanceof IKControls controls)
-        {
-            for (Map.Entry<String, IKControl> entry : controls.controls.entrySet())
-            {
-                modelForm.ikControlOverrides.computeIfAbsent(entry.getKey(), (k) -> new IKControl()).copy(entry.getValue());
-            }
-        }
-        else if (value instanceof PhysicsControls controls)
+        if (value instanceof PhysicsControls controls)
         {
             for (Map.Entry<String, PhysicsControl> entry : controls.controls.entrySet())
             {
@@ -98,11 +84,13 @@ public class ControlsTrack implements TrackBehaviour
     @Override
     public void clear(ModelForm form)
     {
-        switch (this.kind)
+        if (this.kind == TrackKind.PHYSICS_CONTROLS)
         {
-            case IK_CONTROLS -> form.ikControlOverrides.clear();
-            case PHYSICS_CONTROLS -> form.physicsControlOverrides.clear();
-            default -> form.windControlOverride = null;
+            form.physicsControlOverrides.clear();
+        }
+        else
+        {
+            form.windControlOverride = null;
         }
     }
 }

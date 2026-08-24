@@ -33,6 +33,7 @@ public class KeyframeFactories
     public static final ShapeKeysKeyframeFactory SHAPE_KEYS = new ShapeKeysKeyframeFactory();
     public static final ParticleSettingsKeyframeFactory PARTICLE_SETTINGS = new ParticleSettingsKeyframeFactory();
     public static final BoneConstraintKeyframeFactory BONE_CONSTRAINT = new BoneConstraintKeyframeFactory();
+    public static final BoneIKKeyframeFactory BONE_IK = new BoneIKKeyframeFactory();
 
     public static boolean isNumeric(IKeyframeFactory factory)
     {
@@ -69,5 +70,6 @@ public class KeyframeFactories
         FACTORIES.put("shape_keys", SHAPE_KEYS);
         FACTORIES.put("particle_settings", PARTICLE_SETTINGS);
         FACTORIES.put("bone_constraint", BONE_CONSTRAINT);
+        FACTORIES.put("bone_ik", BONE_IK);
     }
 }

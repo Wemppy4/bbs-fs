@@ -414,9 +414,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return model.getMaterialTexture(material, materialFallback);
         });
 
-        if (stencilMap == null && !this.renderingArm && this.form != null && this.form.ik.get() instanceof MapType ikMap)
+        if (stencilMap == null && !this.renderingArm && this.form != null)
         {
-            ModelIKDebug.render(newStack, model.model, ikMap, "");
+            ModelIKDebug.render(newStack, model.model, this.form, "");
         }
 
         if (stencilMap == null && !this.renderingArm && this.form != null && this.form.physics.get() instanceof MapType physicsMap)
@@ -834,9 +834,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         model.fillStencilMap(context.stencilMap, this.form);
 
-        if (this.form != null && this.form.ik.get() instanceof MapType ikMap)
+        if (this.form != null)
         {
-            ModelIKDebug.renderStencil(context.stack, model.model, ikMap, context.stencilMap, this.form);
+            ModelIKDebug.renderStencil(context.stack, model.model, this.form, context.stencilMap, this.form);
         }
 
         if (this.form != null && this.form.physics.get() instanceof MapType physicsMap)

@@ -2,10 +2,6 @@ package mchorse.bbs_mod.film.replays.tracks;
 
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.cubic.ik.IKControl;
-import mchorse.bbs_mod.cubic.ik.IKControls;
-import mchorse.bbs_mod.cubic.ik.ModelIKConfig;
-import mchorse.bbs_mod.cubic.ik.ModelIKIO;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsConfig;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsIO;
@@ -486,16 +482,28 @@ public class TrackCatalog
 
         List<String> controllers = ModelIKRuntime.getControllers(model);
 
-        if (!controllers.isEmpty())
+        /* One `ik` track per chain, addressed by the chain's tip bone: the keyframe value is the
+         * bone's own `ik` property (weight, softness, pole angle, enabled) — the same value the
+         * form stores statically, seeded from it. */
+        for (BaseValue value : modelForm.bones.getAll())
         {
-            /* One controls track per form: a single track whose value holds the per-chain scalars
-             * (weight, softness, pole, enabled), layered over the form's IK config at playback. It has
-             * no form property behind it, so the editor lists the chains from the form itself. */
-            TrackId id = TrackId.ikControls(path);
+            if (!(value instanceof FormBone bone))
+            {
+                continue;
+            }
+
+            TrackId id = TrackId.boneIK(path, bone.getId());
+
+            if (!bone.hasChain() && (properties == null || !properties.has(id)))
+            {
+                continue;
+            }
+
+            String title = (path.isEmpty() ? "ik" : path + "/ik") + FormUtils.PATH_SEPARATOR + bone.getId();
 
             out.add(new TrackDescriptor(id, channel(properties, id), modelForm,
-                IKey.constant(path.isEmpty() ? "ik" : path + "/ik"), Icons.IK, Colors.YELLOW, null)
-                .seed(() -> ikControls(modelForm)));
+                IKey.constant(title), Icons.IK, Colors.YELLOW, bone.ik)
+                .seed(() -> bone.ik.get().copy()));
         }
 
         for (String controller : controllers)
@@ -517,38 +525,6 @@ public class TrackCatalog
                 out.add(target(modelForm, id, properties, path.isEmpty() ? "pole/" + controller : path + "/pole/" + controller, Colors.ORANGE));
             }
         }
-    }
-
-    /** A fully populated IK-controls value seeded from the form's IK config, so a fresh keyframe matches what the editor shows instead of an empty container that drifts to defaults. */
-    private static IKControls ikControls(ModelForm modelForm)
-    {
-        IKControls controls = new IKControls();
-
-        if (modelForm.ik.get() instanceof MapType map)
-        {
-            ModelIKConfig config = ModelIKIO.fromData(map);
-
-            if (config != null && config.chains() != null)
-            {
-                for (ModelIKConfig.Chain chain : config.chains())
-                {
-                    if (chain == null || !chain.enabled() || chain.tip() == null || chain.tip().isEmpty())
-                    {
-                        continue;
-                    }
-
-                    IKControl control = controls.get(chain.tip());
-
-                    control.weight = chain.weight();
-                    control.softness = chain.softness();
-                    control.poleAngle = chain.poleAngle();
-                    control.pole = chain.pole();
-                    control.enabled = chain.enabled();
-                }
-            }
-        }
-
-        return controls;
     }
 
     /* Physics */

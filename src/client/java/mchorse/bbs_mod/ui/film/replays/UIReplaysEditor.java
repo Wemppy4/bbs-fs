@@ -200,7 +200,7 @@ public class UIReplaysEditor extends UIElement
         {
             switch (kind)
             {
-                case IK_CONTROLS, IK_TARGET, POLE_TARGET:
+                case IK_CONTROLS, BONE_IK, IK_TARGET, POLE_TARGET:
                     return ReplayCategory.IK;
                 case PHYSICS_CONTROLS, PHYSICS_TARGET, WIND_CONTROLS:
                     return ReplayCategory.PHYSICS;

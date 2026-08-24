@@ -138,7 +138,7 @@ final class ModelIKApplier
     {
     }
 
-    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, ModelIKConfig.JointDoF> jointDoF, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> targetWeights, Map<String, Float> poleWeights, Map<String, IKControl> controlOverrides)
+    public static void apply(IModel model, List<ModelIKCache.CompiledChain> chains, Map<String, JointDoF> jointDoF, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> targetWeights, Map<String, Float> poleWeights, Map<String, IKControl> controls)
     {
         if (model == null || chains == null || chains.isEmpty())
         {
@@ -181,7 +181,7 @@ final class ModelIKApplier
             if (group.size() == 1 && group.get(0).classic())
             {
                 ModelIKCache.CompiledChain chain = group.get(0);
-                ResolvedChain r = resolveChain(model, chain, frames, controllerTargets, poleTargets, targetWeights, poleWeights, controlOverrides);
+                ResolvedChain r = resolveChain(model, chain, frames, controllerTargets, poleTargets, targetWeights, poleWeights, controls);
 
                 if (r == null)
                 {
@@ -194,7 +194,7 @@ final class ModelIKApplier
                 }
             }
 
-            applyGroup(model, group, frames, jointDoF, controllerTargets, poleTargets, targetWeights, poleWeights, controlOverrides);
+            applyGroup(model, group, frames, jointDoF, controllerTargets, poleTargets, targetWeights, poleWeights, controls);
         }
 
         if (LOG_IK && logging && LOG.length() > 0)
@@ -331,23 +331,28 @@ final class ModelIKApplier
      * {@code null} when the chain is off this frame (disabled, weightless, or
      * its target frame is missing).
      */
-    private static ResolvedChain resolveChain(IModel model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> targetWeights, Map<String, Float> poleWeights, Map<String, IKControl> controlOverrides)
+    private static ResolvedChain resolveChain(IModel model, ModelIKCache.CompiledChain chain, Map<String, PivotFrame> frames, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> targetWeights, Map<String, Float> poleWeights, Map<String, IKControl> controls)
     {
-        /* The film's `ik` track may override the chain's static config scalars.
-         * IK weight is independent of pose `fix` — freezing a bone pins it to rest
-         * (changing the FK pose IK reads from) but no longer gates IK weight, which
-         * comes only from the config and the `ik` track. */
-        IKControl control = controlOverrides == null ? null : controlOverrides.get(chain.tip());
+        /* The chain's animatable scalars, read live from the bone's `ik` property by the runtime:
+         * the form's static setting, or the film's `ik` track when one drives the bone. IK weight
+         * is independent of pose `fix` — freezing a bone pins it to rest (changing the FK pose IK
+         * reads from) but never gates IK weight. */
+        IKControl control = controls == null ? null : controls.get(chain.tip());
 
-        if (control != null && !control.enabled)
+        if (control == null)
+        {
+            control = IKControl.DEFAULT;
+        }
+
+        if (!control.enabled)
         {
             return null;
         }
 
-        boolean pole = control != null ? control.pole : chain.pole();
-        float softness = control != null ? control.softness : chain.softness();
-        float weight = control != null ? control.weight : chain.weight();
-        float poleAngle = (float) Math.toRadians(control != null ? control.poleAngle : chain.poleAngle());
+        boolean pole = control.pole;
+        float softness = control.softness;
+        float weight = control.weight;
+        float poleAngle = (float) Math.toRadians(control.poleAngle);
 
         if (weight <= 0F)
         {
@@ -417,13 +422,13 @@ final class ModelIKApplier
      * contract), and the solved angles START from them, so the twist the
      * animator posed survives into the solve by construction.
      */
-    private static void applyGroup(IModel model, List<ModelIKCache.CompiledChain> group, Map<String, PivotFrame> frames, Map<String, ModelIKConfig.JointDoF> jointDoF, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> targetWeights, Map<String, Float> poleWeights, Map<String, IKControl> controlOverrides)
+    private static void applyGroup(IModel model, List<ModelIKCache.CompiledChain> group, Map<String, PivotFrame> frames, Map<String, JointDoF> jointDoF, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets, Map<String, Float> targetWeights, Map<String, Float> poleWeights, Map<String, IKControl> controls)
     {
         List<ResolvedChain> resolved = new ArrayList<>(group.size());
 
         for (ModelIKCache.CompiledChain chain : group)
         {
-            ResolvedChain r = resolveChain(model, chain, frames, controllerTargets, poleTargets, targetWeights, poleWeights, controlOverrides);
+            ResolvedChain r = resolveChain(model, chain, frames, controllerTargets, poleTargets, targetWeights, poleWeights, controls);
 
             if (r != null)
             {
@@ -481,7 +486,7 @@ final class ModelIKApplier
             joint.angles.set(joint.startAngles);
             tree.parentIndex[i] = nearestAncestor(model, nodes.get(i), nodeIndex);
 
-            ModelIKConfig.JointDoF dof = jointDoF == null ? null : jointDoF.get(nodes.get(i));
+            JointDoF dof = jointDoF == null ? null : jointDoF.get(nodes.get(i));
 
             if (dof != null)
             {
@@ -713,29 +718,29 @@ final class ModelIKApplier
     }
 
     /** Copies the config's per-bone freedom onto a solver joint; limits are authored in degrees. */
-    private static void applyDoF(IKJoint joint, ModelIKConfig.JointDoF dof)
+    private static void applyDoF(IKJoint joint, JointDoF dof)
     {
         float toRad = (float) (Math.PI / 180.0);
 
-        joint.locked[0] = dof.lockX();
-        joint.locked[1] = dof.lockY();
-        joint.locked[2] = dof.lockZ();
+        joint.locked[0] = dof.lockX;
+        joint.locked[1] = dof.lockY;
+        joint.locked[2] = dof.lockZ;
 
-        joint.limited[0] = dof.limitX();
-        joint.limited[1] = dof.limitY();
-        joint.limited[2] = dof.limitZ();
+        joint.limited[0] = dof.limitX;
+        joint.limited[1] = dof.limitY;
+        joint.limited[2] = dof.limitZ;
 
-        joint.limitMin[0] = dof.minX() * toRad;
-        joint.limitMin[1] = dof.minY() * toRad;
-        joint.limitMin[2] = dof.minZ() * toRad;
+        joint.limitMin[0] = dof.minX * toRad;
+        joint.limitMin[1] = dof.minY * toRad;
+        joint.limitMin[2] = dof.minZ * toRad;
 
-        joint.limitMax[0] = dof.maxX() * toRad;
-        joint.limitMax[1] = dof.maxY() * toRad;
-        joint.limitMax[2] = dof.maxZ() * toRad;
+        joint.limitMax[0] = dof.maxX * toRad;
+        joint.limitMax[1] = dof.maxY * toRad;
+        joint.limitMax[2] = dof.maxZ * toRad;
 
-        joint.stiffness[0] = dof.stiffnessX();
-        joint.stiffness[1] = dof.stiffnessY();
-        joint.stiffness[2] = dof.stiffnessZ();
+        joint.stiffness[0] = dof.stiffnessX;
+        joint.stiffness[1] = dof.stiffnessY;
+        joint.stiffness[2] = dof.stiffnessZ;
     }
 
     /**

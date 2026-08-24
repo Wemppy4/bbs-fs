@@ -3,7 +3,7 @@ package mchorse.bbs_mod.forms.forms;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraintsIO;
-import mchorse.bbs_mod.cubic.ik.IKControl;
+import mchorse.bbs_mod.cubic.ik.BoneIKIO;
 import mchorse.bbs_mod.cubic.physics.PhysicsControl;
 import mchorse.bbs_mod.cubic.physics.WindControl;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -42,7 +42,6 @@ public class ModelForm extends Form
     public final ValueMaterials materials = new ValueMaterials("materials");
     public final ValueShapeKeys shapeKeys = new ValueShapeKeys("shape_keys", new ShapeKeys());
     public final ValueBoolean boneTracks = new ValueBoolean("bone_tracks", true);
-    public final ValueData ik = new ValueData("ik");
     public final ValueData physics = new ValueData("physics");
     public final ValueBones bones = new ValueBones("bones");
 
@@ -74,7 +73,6 @@ public class ModelForm extends Form
     public final transient Map<String, Vector3f> poleTargetOverrides = new HashMap<>();
     public final transient Map<String, Float> ikTargetWeights = new HashMap<>();
     public final transient Map<String, Float> poleTargetWeights = new HashMap<>();
-    public final transient Map<String, IKControl> ikControlOverrides = new HashMap<>();
     public final transient Map<String, Vector3f> physicsTargetOverrides = new HashMap<>();
     public final transient Map<String, Float> physicsTargetWeights = new HashMap<>();
     public final transient Map<String, PhysicsControl> physicsControlOverrides = new HashMap<>();
@@ -108,10 +106,8 @@ public class ModelForm extends Form
         this.boneTracks.invisible();
         this.add(this.boneTracks);
 
-        this.ik.invisible();
         this.physics.invisible();
         this.bones.invisible();
-        this.add(this.ik);
         this.add(this.physics);
         this.add(this.bones);
     }
@@ -121,11 +117,19 @@ public class ModelForm extends Form
     {
         super.fromData(data);
 
-        /* Forms saved before the bones group kept the constraints as an opaque blob
-         * in the exchange format; unpack it into the per-bone properties. */
-        if (data instanceof MapType map && map.has("constraints", BaseType.TYPE_MAP))
+        /* Forms saved before the bones group kept the constraints and the IK setup as opaque
+         * blobs in the exchange formats; unpack them into the per-bone properties. */
+        if (data instanceof MapType map)
         {
-            BoneConstraintsIO.read(map.getMap("constraints"), this.bones, false);
+            if (map.has("constraints", BaseType.TYPE_MAP))
+            {
+                BoneConstraintsIO.read(map.getMap("constraints"), this.bones, false);
+            }
+
+            if (map.has("ik", BaseType.TYPE_MAP))
+            {
+                BoneIKIO.read(map.getMap("ik"), this.bones, false);
+            }
         }
     }
 

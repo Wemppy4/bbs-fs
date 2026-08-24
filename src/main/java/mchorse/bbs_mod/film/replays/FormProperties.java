@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.film.replays;
 
+import mchorse.bbs_mod.cubic.ik.IKControl;
+import mchorse.bbs_mod.cubic.ik.IKControls;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
@@ -27,6 +29,7 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -259,6 +262,50 @@ public class FormProperties extends ValueGroup
         }
     }
 
+    /**
+     * A whole-form {@code ik_controls} channel from an older save: one track whose keyframe held
+     * every chain's scalars in a map. Explodes into per-bone {@link TrackKind#BONE_IK} tracks —
+     * same ticks, same interpolation, each bone taking its own entry (a keyframe without an entry
+     * for the bone contributes the neutral scalars, exactly what the old union interpolation did).
+     */
+    private void explodeIKControls(TrackId track, KeyframeChannel<?> channel)
+    {
+        Set<String> tips = new LinkedHashSet<>();
+
+        for (Object o : channel.getKeyframes())
+        {
+            if (((Keyframe<?>) o).getValue() instanceof IKControls controls)
+            {
+                tips.addAll(controls.controls.keySet());
+            }
+        }
+
+        for (String tip : tips)
+        {
+            if (tip == null || tip.isEmpty())
+            {
+                continue;
+            }
+
+            TrackId id = TrackId.boneIK(track.formPath(), tip);
+            KeyframeChannel<IKControl> exploded = new KeyframeChannel<>(id.toKey(), KeyframeFactories.BONE_IK);
+
+            for (Object o : channel.getKeyframes())
+            {
+                Keyframe<?> keyframe = (Keyframe<?>) o;
+                IKControl value = keyframe.getValue() instanceof IKControls controls ? controls.controls.get(tip) : null;
+                Keyframe<IKControl> copy = new Keyframe<>(keyframe.getId(), KeyframeFactories.BONE_IK, keyframe.getTick(), value == null ? new IKControl() : value.copy());
+
+                copy.getInterpolation().copy(keyframe.getInterpolation());
+                copy.setDuration(keyframe.getDuration());
+                exploded.add(copy);
+            }
+
+            exploded.sort();
+            this.put(id, exploded);
+        }
+    }
+
     /** Let go of every track, so the form shows what it shows on its own again. */
     public void resetProperties(Form form)
     {
@@ -388,7 +435,16 @@ public class FormProperties extends ValueGroup
 
             /* The factory is written next to the keyframes; a channel saved with one this build no
              * longer knows can't be read at all, and is dropped rather than kept half-alive. */
-            if (channel.getFactory() != null)
+            if (channel.getFactory() == null)
+            {
+                continue;
+            }
+
+            if (kind == TrackKind.IK_CONTROLS)
+            {
+                this.explodeIKControls(track, channel);
+            }
+            else
             {
                 this.put(track, channel);
             }
@@ -464,7 +520,16 @@ public class FormProperties extends ValueGroup
                 channel = newChannel;
             }
 
-            if (channel.getFactory() != null)
+            if (channel.getFactory() == null)
+            {
+                continue;
+            }
+
+            if (track.is(TrackKind.IK_CONTROLS))
+            {
+                this.explodeIKControls(track, channel);
+            }
+            else
             {
                 this.put(track, channel);
             }

@@ -29,6 +29,7 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
      * spell them this way. */
     public static final String BONE_PREFIX = "pose.bones.";
     public static final String CONSTRAINT_PREFIX = "constraints.bones.";
+    public static final String IK_BONE_PREFIX = "ik.bones.";
     public static final String MATERIAL_TEXTURE_PREFIX = "texture.materials.";
     public static final String MATERIAL_PROP_PREFIX = "materials.";
     public static final String IK_TARGETS = "ik_targets";
@@ -84,6 +85,11 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
     public static TrackId boneConstraint(String formPath, String bone)
     {
         return new TrackId(TrackKind.BONE_CONSTRAINT, formPath, bone, "");
+    }
+
+    public static TrackId boneIK(String formPath, String bone)
+    {
+        return new TrackId(TrackKind.BONE_IK, formPath, bone, "");
     }
 
     public static TrackId materialTexture(String formPath, String material)
@@ -159,6 +165,7 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
             case PROPERTY -> this.subject;
             case BONE -> BONE_PREFIX + this.subject;
             case BONE_CONSTRAINT -> CONSTRAINT_PREFIX + this.subject;
+            case BONE_IK -> IK_BONE_PREFIX + this.subject;
             case MATERIAL_TEXTURE -> MATERIAL_TEXTURE_PREFIX + this.subject;
             case MATERIAL_PROP -> MATERIAL_PROP_PREFIX + (this.subject.isEmpty() ? MATERIAL_DEFAULT : this.subject) + "." + this.property;
             case IK_TARGET -> IK_TARGETS + FormUtils.PATH_SEPARATOR + this.subject;
@@ -214,6 +221,11 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
         if (rest.startsWith(CONSTRAINT_PREFIX))
         {
             return boneConstraint(formPath, rest.substring(CONSTRAINT_PREFIX.length()));
+        }
+
+        if (rest.startsWith(IK_BONE_PREFIX))
+        {
+            return boneIK(formPath, rest.substring(IK_BONE_PREFIX.length()));
         }
 
         /* Before the plain material prefix, whose string it contains. */
