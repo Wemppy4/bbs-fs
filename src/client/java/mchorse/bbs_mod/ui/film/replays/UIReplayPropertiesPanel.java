@@ -121,7 +121,7 @@ public class UIReplayPropertiesPanel extends UIElement
 
             if (replay != null && filmPanel.getData() != null)
             {
-                UIAnchorKeyframeFactory.displayAttachments(filmPanel, filmPanel.getData().replays.getList().indexOf(replay), replay.axesPreviewBone.get(), (s) ->
+                UIAnchorKeyframeFactory.displayAttachments(filmPanel, replay.getId(), replay.axesPreviewBone.get(), (s) ->
                 {
                     this.edit((r) -> r.axesPreviewBone.set(s));
                 });

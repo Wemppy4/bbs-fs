@@ -1,8 +1,7 @@
 package mchorse.bbs_mod.film;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import io.netty.util.collection.IntObjectHashMap;
-import io.netty.util.collection.IntObjectMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import mchorse.bbs_mod.client.renderer.ItemUseEffects;
@@ -51,7 +50,8 @@ public abstract class BaseFilmController
 {
     public final Film film;
 
-    public final IntObjectMap<IEntity> entities = new IntObjectHashMap<>();
+    /** The film's entities keyed by their replay's stable id, in replay-list order. */
+    public final Map<String, IEntity> entities = new LinkedHashMap<>();
 
     public boolean paused;
     public int exception = -1;
@@ -68,7 +68,7 @@ public abstract class BaseFilmController
         this.film = film;
     }
 
-    public IntObjectMap<IEntity> getEntities()
+    public Map<String, IEntity> getEntities()
     {
         return this.entities;
     }
@@ -108,7 +108,7 @@ public abstract class BaseFilmController
                 entity.setPrevPitch(entity.getPitch());
                 entity.setPrevBodyYaw(entity.getBodyYaw());
 
-                this.entities.put(i, entity);
+                this.entities.put(replay.getId(), entity);
             }
 
             i += 1;
@@ -131,14 +131,14 @@ public abstract class BaseFilmController
 
     protected void updateEntities(int ticks)
     {
-        for (Map.Entry<Integer, IEntity> entry : this.entities.entrySet())
-        {
-            int i = entry.getKey();
-            IEntity entity = entry.getValue();
-            List<Replay> replays = this.film.replays.getList();
-            Replay replay = CollectionUtils.getSafe(replays, i);
+        List<Replay> replays = this.film.replays.getList();
 
-            if (!this.canUpdate(i, replay, entity, UpdateMode.UPDATE))
+        for (int i = 0; i < replays.size(); i++)
+        {
+            Replay replay = replays.get(i);
+            IEntity entity = this.entities.get(replay.getId());
+
+            if (entity == null || !this.canUpdate(i, replay, entity, UpdateMode.UPDATE))
             {
                 continue;
             }
@@ -199,14 +199,14 @@ public abstract class BaseFilmController
     {
         int ticks = this.getTick();
 
-        for (Map.Entry<Integer, IEntity> entry : this.entities.entrySet())
-        {
-            int i = entry.getKey();
-            IEntity entity = entry.getValue();
-            List<Replay> replays = this.film.replays.getList();
-            Replay replay = CollectionUtils.getSafe(replays, i);
+        List<Replay> replays = this.film.replays.getList();
 
-            if (!this.canUpdate(i, replay, entity, UpdateMode.UPDATE))
+        for (int i = 0; i < replays.size(); i++)
+        {
+            Replay replay = replays.get(i);
+            IEntity entity = this.entities.get(replay.getId());
+
+            if (entity == null || !this.canUpdate(i, replay, entity, UpdateMode.UPDATE))
             {
                 continue;
             }
@@ -298,13 +298,14 @@ public abstract class BaseFilmController
 
     public void startRenderFrame(float transition)
     {
-        for (Map.Entry<Integer, IEntity> entry : this.entities.entrySet())
-        {
-            int i = entry.getKey();
-            IEntity entity = entry.getValue();
-            Replay replay = this.film.replays.getList().get(i);
+        List<Replay> replays = this.film.replays.getList();
 
-            if (!this.canUpdate(i, replay, entity, UpdateMode.PROPERTIES))
+        for (int i = 0; i < replays.size(); i++)
+        {
+            Replay replay = replays.get(i);
+            IEntity entity = this.entities.get(replay.getId());
+
+            if (entity == null || !this.canUpdate(i, replay, entity, UpdateMode.PROPERTIES))
             {
                 continue;
             }
@@ -435,13 +436,14 @@ public abstract class BaseFilmController
     {
         RenderSystem.enableDepthTest();
 
-        for (Map.Entry<Integer, IEntity> entry : this.entities.entrySet())
-        {
-            int i = entry.getKey();
-            IEntity entity = entry.getValue();
-            Replay replay = this.film.replays.getList().get(i);
+        List<Replay> replays = this.film.replays.getList();
 
-            if (!this.canUpdate(i, replay, entity, UpdateMode.RENDER))
+        for (int i = 0; i < replays.size(); i++)
+        {
+            Replay replay = replays.get(i);
+            IEntity entity = this.entities.get(replay.getId());
+
+            if (entity == null || !this.canUpdate(i, replay, entity, UpdateMode.RENDER))
             {
                 continue;
             }

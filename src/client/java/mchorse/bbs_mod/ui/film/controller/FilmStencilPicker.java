@@ -226,22 +226,25 @@ public class FilmStencilPicker
             int selectedReplayIndex = this.controller.getCurrentReplayIndex();
             Pair<String, Boolean> bone = this.controller.getBone();
 
-            for (Map.Entry<Integer, IEntity> entry : this.controller.getEntities().entrySet())
+            /* Walked by list position, not by the entity map: the stencil object index IS the
+             * replay's position in the film, which is what the pick reads back. */
+            for (int i = 0; i < replays.size(); i++)
             {
-                Replay replay = CollectionUtils.getSafe(replays, entry.getKey());
+                Replay replay = replays.get(i);
+                IEntity replayEntity = this.controller.getEntities().get(replay.getId());
 
-                if (replay == null)
+                if (replayEntity == null)
                 {
                     continue;
                 }
 
                 FilmControllerContext filmContext = FilmControllerContext.instance
-                    .setup(this.controller.getEntities(), entry.getValue(), replay, renderContext)
+                    .setup(this.controller.getEntities(), replayEntity, replay, renderContext)
                     .transition(isPlaying ? renderContext.tickDelta() : 0)
                     .stencil(this.stencilMap)
                     .relative(replay.relative.get());
 
-                if (entry.getKey() == selectedReplayIndex)
+                if (i == selectedReplayIndex)
                 {
                     this.stencilMap.objectIndex = replays.size() + REPLAY_STENCIL_OFFSET;
                     this.stencilMap.setIncrement(true);
@@ -253,7 +256,7 @@ public class FilmStencilPicker
                 }
                 else
                 {
-                    this.stencilMap.objectIndex = entry.getKey() + REPLAY_STENCIL_OFFSET;
+                    this.stencilMap.objectIndex = i + REPLAY_STENCIL_OFFSET;
                     this.stencilMap.setIncrement(false);
                 }
 

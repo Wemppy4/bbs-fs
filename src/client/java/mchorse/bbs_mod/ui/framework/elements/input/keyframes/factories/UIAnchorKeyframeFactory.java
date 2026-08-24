@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
-import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -36,51 +35,42 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
     private UIToggle scale;
     public UIPropTransform transform;
 
-    public static void displayActors(UIContext context, IntObjectMap<IEntity> entities, int value, Consumer<Integer> callback)
+    /**
+     * Pick a replay by its stable id. The rows still show the replay's list position — that is
+     * how the animator counts actors — but what the choice hands back (and what the data stores)
+     * is the id, so the reference survives reordering.
+     */
+    public static void displayActors(UIContext context, Map<String, IEntity> entities, String value, Consumer<String> callback)
     {
         List<UIFilmPanel> children = context.menu.main.getChildren(UIFilmPanel.class);
         UIFilmPanel panel = children.isEmpty() ? null : children.get(0);
-        List<Replay> replays = panel != null ? panel.getData().replays.getList() : null;
-
-        /* The map is keyed by the replay's index in the film, and disabled replays
-         * get no entity, so its size isn't the range of keys: iterating up to it
-         * drops the last actor for every disabled one above it */
-        int count = replays == null ? 0 : replays.size();
-
-        for (Map.Entry<Integer, IEntity> entry : entities.entrySet())
-        {
-            count = Math.max(count, entry.getKey() + 1);
-        }
-
-        final int total = count;
+        List<Replay> replays = panel != null ? panel.getData().replays.getList() : List.of();
 
         context.replaceContextMenu((menu) ->
         {
-            menu.action(Icons.CLOSE, UIKeys.GENERAL_NONE, Colors.NEGATIVE, () -> callback.accept(-1));
+            menu.action(Icons.CLOSE, UIKeys.GENERAL_NONE, Colors.NEGATIVE, () -> callback.accept(Anchor.NO_ATTACHMENT));
 
-            for (int i = 0; i < total; i++)
+            for (int i = 0; i < replays.size(); i++)
             {
-                final int actor = i;
-                IEntity entity = entities.get(i);
+                Replay replay = replays.get(i);
+                String actor = replay.getId();
+                IEntity entity = entities.get(actor);
 
                 if (entity == null)
                 {
                     continue;
                 }
 
-                Replay replay = replays == null || i >= replays.size() ? null : replays.get(i);
-                Form form = entity.getForm();
-                String stringLabel = i + (replay != null ? " - " + replay.getName() : (form == null ? "" : " - " + form.getFormIdOrName()));
-                IKey label = IKey.constant(stringLabel);
+                IKey label = IKey.constant(i + " - " + replay.getName());
 
-                menu.action(Icons.CLOSE, label, actor == value, () -> callback.accept(actor));
+                menu.action(Icons.CLOSE, label, actor.equals(value), () -> callback.accept(actor));
             }
         });
     }
 
-    public static void displayAttachments(UIFilmPanel panel, int index, String value, Consumer<String> consumer)
+    public static void displayAttachments(UIFilmPanel panel, String replayId, String value, Consumer<String> consumer)
     {
-        IEntity entity = panel.getController().getEntities().get(index);
+        IEntity entity = panel.getController().getEntities().get(replayId);
 
         if (entity == null || entity.getForm() == null)
         {
@@ -130,7 +120,7 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         displayActors(this.getContext(), panel.getController().getEntities(), this.keyframe.getValue().replay, this::setActor);
     }
 
-    private void setActor(int actor)
+    private void setActor(String actor)
     {
         BaseValue.edit(this.keyframe, (value) -> value.getValue().replay = actor);
     }

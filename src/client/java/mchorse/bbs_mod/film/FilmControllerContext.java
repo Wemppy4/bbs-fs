@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.film;
 
-import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
@@ -12,11 +11,14 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
 
+import java.util.Map;
+
 public class FilmControllerContext
 {
     public final static FilmControllerContext instance = new FilmControllerContext();
 
-    public IntObjectMap<IEntity> entities;
+    /** The film's entities keyed by their replay's stable id, in replay-list order. */
+    public Map<String, IEntity> entities;
     public IEntity entity;
     public Replay replay;
     public Camera camera;
@@ -66,7 +68,7 @@ public class FilmControllerContext
         this.relative = false;
     }
 
-    public FilmControllerContext setup(IntObjectMap<IEntity> entities, IEntity entity, Replay replay, WorldRenderContext context)
+    public FilmControllerContext setup(Map<String, IEntity> entities, IEntity entity, Replay replay, WorldRenderContext context)
     {
         this.reset();
 
@@ -81,7 +83,7 @@ public class FilmControllerContext
         return this;
     }
 
-    public FilmControllerContext setup(IntObjectMap<IEntity> entities, IEntity entity, Replay replay, Camera camera, MatrixStack stack, VertexConsumerProvider consumers, float transition)
+    public FilmControllerContext setup(Map<String, IEntity> entities, IEntity entity, Replay replay, Camera camera, MatrixStack stack, VertexConsumerProvider consumers, float transition)
     {
         this.reset();
 

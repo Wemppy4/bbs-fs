@@ -268,18 +268,14 @@ public class UIBoneTreeList extends UIStringList
             }
         }
 
-        int i = 0;
-
         for (BodyPart part : form.parts.getAllTyped())
         {
             Form child = part.getForm();
 
             if (child != null)
             {
-                children.addAll(formNodes(child, StringUtils.combinePaths(path, String.valueOf(i)), keys));
+                children.addAll(formNodes(child, StringUtils.combinePaths(path, part.getId()), keys));
             }
-
-            i += 1;
         }
 
         if (!keys.contains(path))

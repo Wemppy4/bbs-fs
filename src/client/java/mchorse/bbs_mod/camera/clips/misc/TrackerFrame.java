@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.camera.clips.misc;
 
-import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.camera.data.Angle;
 import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.camera.data.Position;
@@ -16,6 +15,8 @@ import org.joml.Matrix3d;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
+
+import java.util.Map;
 
 /**
  * The frame of reference of a tracked bone: everything {@link TrackerClientClip}
@@ -66,7 +67,7 @@ public class TrackerFrame
      * @param cx camera position X the resulting matrices are relative to
      * @return {@code null} when the entity has no form, or the form has no such group
      */
-    public static TrackerFrame resolve(IntObjectMap<IEntity> entities, IEntity entity, String group, double cx, double cy, double cz, float transition)
+    public static TrackerFrame resolve(Map<String, IEntity> entities, IEntity entity, String group, double cx, double cy, double cz, float transition)
     {
         Form form = entity == null ? null : entity.getForm();
 

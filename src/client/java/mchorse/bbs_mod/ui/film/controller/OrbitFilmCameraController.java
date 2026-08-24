@@ -480,16 +480,7 @@ public class OrbitFilmCameraController implements ICameraController
 
     private IEntity resolveEntity(Replay replay)
     {
-        Film film = this.controller.panel.getData();
-
-        if (film == null)
-        {
-            return null;
-        }
-
-        int index = film.replays.getList().indexOf(replay);
-
-        return index < 0 ? null : this.controller.getEntities().get(index);
+        return this.controller.getEntities().get(replay.getId());
     }
 
     private Vector3f toWorld(Vector3f pivot)

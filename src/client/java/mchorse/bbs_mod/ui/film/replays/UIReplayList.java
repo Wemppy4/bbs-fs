@@ -6,7 +6,6 @@ import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.clips.CameraClipContext;
-import mchorse.bbs_mod.camera.clips.modifiers.EntityClip;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -21,7 +20,6 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.AnchorForm;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.math.IExpression;
@@ -860,30 +858,10 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         data.preNotify(IValueListener.FLAG_UNMERGEABLE);
 
+        /* Reordering is just reordering now: anchors and camera selectors hold the replay's
+         * stable id, so the hand-written index remapping that used to chase them is gone. */
         replays.remove(value);
         replays.add(globalTo, value);
-        replays.sync();
-
-        for (Replay replay : replays.getList())
-        {
-            if (replay.properties.get("anchor") instanceof KeyframeChannel<?> channel && channel.getFactory() == KeyframeFactories.ANCHOR)
-            {
-                KeyframeChannel<Anchor> keyframeChannel = (KeyframeChannel<Anchor>) channel;
-
-                for (Keyframe<Anchor> keyframe : keyframeChannel.getKeyframes())
-                {
-                    keyframe.getValue().replay = MathUtils.remapIndex(keyframe.getValue().replay, globalFrom, globalTo);
-                }
-            }
-        }
-
-        for (Clip clip : data.camera.get())
-        {
-            if (clip instanceof EntityClip entityClip)
-            {
-                entityClip.selector.set(MathUtils.remapIndex(entityClip.selector.get(), globalFrom, globalTo));
-            }
-        }
 
         data.postNotify(IValueListener.FLAG_UNMERGEABLE);
 

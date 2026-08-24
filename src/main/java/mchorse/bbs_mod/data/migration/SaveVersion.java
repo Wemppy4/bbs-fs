@@ -28,8 +28,10 @@ public class SaveVersion
      * document kind it belongs to.
      *
      * <p>1 — versioning itself; the shape of the data is unchanged from the versionless files.
+     * <p>2 — stable ids: replays and body parts carry an {@code "id"}; track keys, anchors and
+     * camera selectors address them by it instead of by list position ({@link FilmStableIds}).
      */
-    public static final int CURRENT = 1;
+    public static final int CURRENT = 2;
 
     /** Documents written before versioning existed: they carry no {@link #KEY} at all. */
     public static final int LEGACY = 0;

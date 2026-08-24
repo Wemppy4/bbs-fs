@@ -13,8 +13,6 @@ import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import io.netty.util.collection.IntObjectHashMap;
-import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
@@ -301,9 +299,9 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     public IEntity getCurrentEntity()
     {
-        int idx = this.getCurrentReplayIndex();
+        Replay replay = this.getReplay();
 
-        return idx < 0 ? null : this.getEntities().get(idx);
+        return replay == null ? null : this.getEntities().get(replay.getId());
     }
 
     public int getPovMode()
@@ -356,15 +354,15 @@ public class UIFilmController extends UIElement implements GizmoViewport
         this.editorController = new FilmEditorController(this.panel.getData(), this);
         this.editorController.createEntities();
 
-        IntObjectMap<IEntity> entities = this.panel.getRunner().getContext().entities;
+        Map<String, IEntity> entities = this.panel.getRunner().getContext().entities;
 
         entities.clear();
         entities.putAll(this.editorController.getEntities());
     }
 
-    public IntObjectMap<IEntity> getEntities()
+    public Map<String, IEntity> getEntities()
     {
-        return this.editorController == null ? new IntObjectHashMap<>() : this.editorController.getEntities();
+        return this.editorController == null ? Collections.emptyMap() : this.editorController.getEntities();
     }
 
     public Map<String, Integer> getActors()
@@ -399,7 +397,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         boolean replacePlayer = ClientNetwork.isIsBBSModOnServer();
-        IntObjectMap<IEntity> entities = this.getEntities();
+        Map<String, IEntity> entities = this.getEntities();
 
         if (this.controlled != null)
         {

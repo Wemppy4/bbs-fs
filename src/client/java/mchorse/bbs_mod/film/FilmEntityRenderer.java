@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.film;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.client.BBSRendering;
@@ -39,6 +38,7 @@ import net.minecraft.world.LightType;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
+import java.util.Map;
 
 /**
  * Drawing one replay's actor into the world: its form, the gizmo axes when it is the one being
@@ -52,7 +52,7 @@ public class FilmEntityRenderer
 {
     public static void renderEntity(FilmControllerContext context)
     {
-        IntObjectMap<IEntity> entities = context.entities;
+        Map<String, IEntity> entities = context.entities;
         IEntity entity = context.entity;
         Camera camera = context.camera;
         MatrixStack stack = context.stack;
@@ -328,7 +328,7 @@ public class FilmEntityRenderer
      * works in (GLOBAL/VIEW would otherwise stay on the attachment's axes while
      * the drag ran in world/screen axes).
      */
-    private static void renderAnchorGizmo(IntObjectMap<IEntity> entities, IEntity entity, Matrix4f full, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, boolean local, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, MatrixStack stack, FormFrameCache frame)
+    private static void renderAnchorGizmo(Map<String, IEntity> entities, IEntity entity, Matrix4f full, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, boolean local, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, MatrixStack stack, FormFrameCache frame)
     {
         Form form = entity.getForm();
 

@@ -300,8 +300,6 @@ public abstract class FormRenderer <T extends Form>
 
         matrices.put(prefix, mm, oo);
 
-        int i = 0;
-
         for (BodyPart part : this.form.parts.getAllTyped())
         {
             Form form = part.getForm();
@@ -311,12 +309,10 @@ public abstract class FormRenderer <T extends Form>
                 stack.push();
                 MatrixStackUtils.applyTransform(stack, part.transform.get());
 
-                FormUtilsClient.getRenderer(form).collectMatrices(entity, stack, matrices, StringUtils.combinePaths(prefix, String.valueOf(i)), transition);
+                FormUtilsClient.getRenderer(form).collectMatrices(entity, stack, matrices, StringUtils.combinePaths(prefix, part.getId()), transition);
 
                 stack.pop();
             }
-
-            i += 1;
         }
 
         stack.pop();

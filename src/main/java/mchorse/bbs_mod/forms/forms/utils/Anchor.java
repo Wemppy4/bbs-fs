@@ -6,9 +6,13 @@ import mchorse.bbs_mod.utils.pose.Transform;
 
 public class Anchor implements IMapSerializable
 {
-    public static final int NO_ATTACHMENT = -1;
+    public static final String NO_ATTACHMENT = "";
 
-    public int replay = NO_ATTACHMENT;
+    /**
+     * Stable id of the replay this anchor hangs off ({@link #NO_ATTACHMENT} = none). An id, not a
+     * list index: the target must survive replays being reordered or removed around it.
+     */
+    public String replay = NO_ATTACHMENT;
     public String attachment = "";
     public boolean translate = false;
     public boolean scale = false;
@@ -21,7 +25,7 @@ public class Anchor implements IMapSerializable
     public Anchor()
     {}
 
-    public Anchor(int replay, String attachment, boolean translate, boolean scale)
+    public Anchor(String replay, String attachment, boolean translate, boolean scale)
     {
         this.replay = replay;
         this.attachment = attachment;
@@ -29,20 +33,25 @@ public class Anchor implements IMapSerializable
         this.scale = scale;
     }
 
+    public boolean hasTarget()
+    {
+        return !this.replay.isEmpty();
+    }
+
     public boolean isFadeIn()
     {
-        return this.previous != null && this.replay != Anchor.NO_ATTACHMENT && this.previous.replay == Anchor.NO_ATTACHMENT;
+        return this.previous != null && this.hasTarget() && !this.previous.hasTarget();
     }
 
     public boolean isFadeOut()
     {
-        return this.previous != null && this.replay == Anchor.NO_ATTACHMENT && this.previous.replay != Anchor.NO_ATTACHMENT;
+        return this.previous != null && !this.hasTarget() && this.previous.hasTarget();
     }
 
     public boolean hasSameTarget(Anchor anchor)
     {
         return anchor != null
-            && this.replay == anchor.replay
+            && this.replay.equals(anchor.replay)
             && this.attachment.equals(anchor.attachment)
             && this.translate == anchor.translate
             && this.scale == anchor.scale;
@@ -77,7 +86,7 @@ public class Anchor implements IMapSerializable
     @Override
     public void fromData(MapType data)
     {
-        this.replay = data.getInt("actor");
+        this.replay = data.getString("actor");
         this.attachment = data.getString("attachment");
         this.translate = data.getBool("translate", false);
         this.scale = data.getBool("scale", false);
@@ -95,7 +104,7 @@ public class Anchor implements IMapSerializable
     @Override
     public void toData(MapType data)
     {
-        data.putInt("actor", this.replay);
+        data.putString("actor", this.replay);
         data.putString("attachment", this.attachment);
         data.putBool("translate", this.translate);
         data.putBool("scale", this.scale);

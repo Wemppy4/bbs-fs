@@ -13,6 +13,7 @@ import mchorse.bbs_mod.forms.states.AnimationStates;
 import mchorse.bbs_mod.forms.states.StatePlayer;
 import mchorse.bbs_mod.forms.values.ValueAnchor;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.settings.values.core.StableIds;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueString;
@@ -324,8 +325,10 @@ public abstract class Form extends ValueGroup
 
             int slash = property.lastIndexOf('/');
             String last = slash == -1 ? property : property.substring(slash + 1);
+            /* An address segment (a body part's stable id, or a legacy index) is not a name. */
+            boolean address = StableIds.isStableId(last) || StringUtils.isInteger(last);
 
-            return s + (StringUtils.isInteger(last) ? "" : "/" + last);
+            return s + (address ? "" : "/" + last);
         }
 
         return property;

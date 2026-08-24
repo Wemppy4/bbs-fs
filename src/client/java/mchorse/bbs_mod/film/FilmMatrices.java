@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.film;
 
-import io.netty.util.collection.IntObjectMap;
+import java.util.Map;
 import java.util.Objects;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
@@ -36,12 +36,12 @@ import org.joml.Vector3f;
  */
 public class FilmMatrices
 {
-    public static Pair<Matrix4f, Float> getTotalMatrix(IntObjectMap<IEntity> entities, Anchor value, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, int i)
+    public static Pair<Matrix4f, Float> getTotalMatrix(Map<String, IEntity> entities, Anchor value, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, int i)
     {
         return getTotalMatrix(entities, value, defaultMatrix, cx, cy, cz, transition, i, false);
     }
 
-    public static Pair<Matrix4f, Float> getTotalMatrix(IntObjectMap<IEntity> entities, Anchor value, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, int i, boolean fullMatrix)
+    public static Pair<Matrix4f, Float> getTotalMatrix(Map<String, IEntity> entities, Anchor value, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, int i, boolean fullMatrix)
     {
         return getTotalMatrix(entities, value, defaultMatrix, cx, cy, cz, transition, i, fullMatrix, null);
     }
@@ -53,7 +53,7 @@ public class FilmMatrices
      * would otherwise pay for it twice. Pass {@code null} to evaluate fresh, which is what a caller that has
      * not established such a span must do; see {@link FormFrameCache}.
      */
-    public static Pair<Matrix4f, Float> getTotalMatrix(IntObjectMap<IEntity> entities, Anchor value, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, int i, boolean fullMatrix, FormFrameCache frame)
+    public static Pair<Matrix4f, Float> getTotalMatrix(Map<String, IEntity> entities, Anchor value, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, int i, boolean fullMatrix, FormFrameCache frame)
     {
         /* Stupid recursion stop, I don't think anyone would need more than that */
         if (i > 5)
@@ -106,17 +106,17 @@ public class FilmMatrices
         return matrix.mul(anchor.transform.createMatrix());
     }
 
-    public static Matrix4f getEntityMatrix(IntObjectMap<IEntity> entities, double cameraX, double cameraY, double cameraZ, Anchor anchor, Matrix4f defaultMatrix, float transition, int i)
+    public static Matrix4f getEntityMatrix(Map<String, IEntity> entities, double cameraX, double cameraY, double cameraZ, Anchor anchor, Matrix4f defaultMatrix, float transition, int i)
     {
         return getEntityMatrix(entities, cameraX, cameraY, cameraZ, anchor, defaultMatrix, transition, i, false);
     }
 
-    public static Matrix4f getEntityMatrix(IntObjectMap<IEntity> entities, double cameraX, double cameraY, double cameraZ, Anchor anchor, Matrix4f defaultMatrix, float transition, int i, boolean fullMatrix)
+    public static Matrix4f getEntityMatrix(Map<String, IEntity> entities, double cameraX, double cameraY, double cameraZ, Anchor anchor, Matrix4f defaultMatrix, float transition, int i, boolean fullMatrix)
     {
         return getEntityMatrix(entities, cameraX, cameraY, cameraZ, anchor, defaultMatrix, transition, i, fullMatrix, null);
     }
 
-    public static Matrix4f getEntityMatrix(IntObjectMap<IEntity> entities, double cameraX, double cameraY, double cameraZ, Anchor anchor, Matrix4f defaultMatrix, float transition, int i, boolean fullMatrix, FormFrameCache frame)
+    public static Matrix4f getEntityMatrix(Map<String, IEntity> entities, double cameraX, double cameraY, double cameraZ, Anchor anchor, Matrix4f defaultMatrix, float transition, int i, boolean fullMatrix, FormFrameCache frame)
     {
         IEntity entity = entities.get(anchor.replay);
 
@@ -238,7 +238,7 @@ public class FilmMatrices
      *                      GLOBAL gizmo mode in {@link #renderAxes})
      */
     public static Matrix4f getGizmoBoneCompositeMatrix(
-        IntObjectMap<IEntity> entities,
+        Map<String, IEntity> entities,
         IEntity entity,
         Replay replay,
         double cameraX,
@@ -281,7 +281,7 @@ public class FilmMatrices
      * needs the full matrix, so it goes through this variant instead.
      */
     public static Matrix4f getBoneCompositeMatrix(
-        IntObjectMap<IEntity> entities,
+        Map<String, IEntity> entities,
         IEntity entity,
         Replay replay,
         double cameraX,
@@ -347,7 +347,7 @@ public class FilmMatrices
      * with no bone multiply since the anchor moves the whole form).
      */
     public static Matrix4f getGizmoAnchorCompositeMatrix(
-        IntObjectMap<IEntity> entities,
+        Map<String, IEntity> entities,
         IEntity entity,
         Replay replay,
         double cameraX,
