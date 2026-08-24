@@ -452,7 +452,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         context.batcher.flush();
         this.gizmoStencil.apply();
 
-        Gizmo.INSTANCE.renderStencilInterface(context, this.gizmoProjection, this.getGizmoArea(), this.gizmoStencilMap);
+        Gizmo.INSTANCE.renderStencilInterface(context, this.gizmoProjection, this.getGizmoArea());
 
         this.gizmoStencil.pick((int) mc.mouse.getX(), (int) (h - mc.mouse.getY()), Math.round(BBSSettings.gizmoHoverTolerance.get() * BBSModClient.getGUIScale()), Gizmo.STENCIL_MAX);
         this.gizmoStencil.unbind(this.gizmoStencilMap);

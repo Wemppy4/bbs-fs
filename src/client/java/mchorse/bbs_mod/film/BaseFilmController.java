@@ -311,7 +311,7 @@ public abstract class BaseFilmController
             }
             else
             {
-                Gizmo.INSTANCE.renderStencil(stack, stencilMap);
+                Gizmo.INSTANCE.renderStencil(stack);
             }
 
             RenderSystem.enableDepthTest();
@@ -412,7 +412,7 @@ public abstract class BaseFilmController
         }
         else
         {
-            Gizmo.INSTANCE.renderStencil(stack, stencilMap);
+            Gizmo.INSTANCE.renderStencil(stack);
         }
 
         RenderSystem.enableDepthTest();
