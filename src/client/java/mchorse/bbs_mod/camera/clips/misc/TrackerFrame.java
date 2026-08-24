@@ -5,6 +5,7 @@ import mchorse.bbs_mod.camera.data.Angle;
 import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -81,8 +82,8 @@ public class TrackerFrame
             return null;
         }
 
-        Matrix4f formTransform = BaseFilmController.getMatrixForRenderWithRotation(entity, cx, cy, cz, transition);
-        Pair<Matrix4f, Float> totalMatrix = BaseFilmController.getTotalMatrix(entities, form.anchor.get(), formTransform, cx, cy, cz, transition, 0);
+        Matrix4f formTransform = FilmMatrices.getMatrixForRenderWithRotation(entity, cx, cy, cz, transition);
+        Pair<Matrix4f, Float> totalMatrix = FilmMatrices.getTotalMatrix(entities, form.anchor.get(), formTransform, cx, cy, cz, transition, 0);
 
         if (totalMatrix.a != null)
         {

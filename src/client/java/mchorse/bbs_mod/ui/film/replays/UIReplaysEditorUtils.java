@@ -4,6 +4,7 @@ import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Gizmo;
@@ -487,7 +488,7 @@ public class UIReplaysEditorUtils
          * frame for every track (it doesn't depend on the bone or the sampled
          * matrices below). The drawn handles get the same axes in
          * BaseFilmController#renderAxes; the two must not drift apart. */
-        drag.setGlobalAxes(BaseFilmController.getReplayWorldAxes(entity, transition));
+        drag.setGlobalAxes(FilmMatrices.getReplayWorldAxes(entity, transition));
 
         if (transform == null || transform.getTransform() == null)
         {
@@ -528,7 +529,7 @@ public class UIReplaysEditorUtils
                 replay.properties.applyProperties(form, tick);
             }
 
-            Matrix4f m = BaseFilmController.getGizmoBoneCompositeMatrix(
+            Matrix4f m = FilmMatrices.getGizmoBoneCompositeMatrix(
                 panel.getController().getEntities(),
                 entity,
                 replay,
@@ -596,7 +597,7 @@ public class UIReplaysEditorUtils
             return null;
         }
 
-        Vector3f evaluated = BaseFilmController.getGizmoBoneEvaluatedRotation(entity, transition, bonePath);
+        Vector3f evaluated = FilmMatrices.getGizmoBoneEvaluatedRotation(entity, transition, bonePath);
 
         return FormUtils.additivePoseRotationBase(valuePose, StringUtils.fileName(bonePath), evaluated);
     }
@@ -630,7 +631,7 @@ public class UIReplaysEditorUtils
                 replay.properties.applyProperties(form, tick);
             }
 
-            Matrix4f m = BaseFilmController.getGizmoAnchorCompositeMatrix(
+            Matrix4f m = FilmMatrices.getGizmoAnchorCompositeMatrix(
                 panel.getController().getEntities(),
                 entity,
                 replay,

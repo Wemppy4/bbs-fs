@@ -6,6 +6,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.FilmControllerContext;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -256,7 +257,7 @@ public class FilmStencilPicker
                     this.stencilMap.setIncrement(false);
                 }
 
-                BaseFilmController.renderEntity(filmContext);
+                FilmEntityRenderer.renderEntity(filmContext);
             }
         }
         else
@@ -266,7 +267,7 @@ public class FilmStencilPicker
 
             this.stencilMap.setIncrement(true);
 
-            BaseFilmController.renderEntity(FilmControllerContext.instance
+            FilmEntityRenderer.renderEntity(FilmControllerContext.instance
                 .setup(this.controller.getEntities(), entity, replay, renderContext)
                 .transition(isPlaying ? renderContext.tickDelta() : 0)
                 .stencil(this.stencilMap)
