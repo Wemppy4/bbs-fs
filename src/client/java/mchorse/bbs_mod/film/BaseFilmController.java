@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.film;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +69,17 @@ public abstract class BaseFilmController
         this.film = film;
     }
 
+    /**
+     * The film's replays, or nothing at all when no film is open — the editor keeps its controller
+     * around while the panel shows no film (see {@link #createEntities()}, which returns early for
+     * the same reason). These loops used to walk the entity map, which is simply empty then; walking
+     * the replay list instead means the absent film has to be answered for here.
+     */
+    private List<Replay> replays()
+    {
+        return this.film == null ? Collections.emptyList() : this.film.replays.getList();
+    }
+
     public Map<String, IEntity> getEntities()
     {
         return this.entities;
@@ -131,7 +143,7 @@ public abstract class BaseFilmController
 
     protected void updateEntities(int ticks)
     {
-        List<Replay> replays = this.film.replays.getList();
+        List<Replay> replays = this.replays();
 
         for (int i = 0; i < replays.size(); i++)
         {
@@ -199,7 +211,7 @@ public abstract class BaseFilmController
     {
         int ticks = this.getTick();
 
-        List<Replay> replays = this.film.replays.getList();
+        List<Replay> replays = this.replays();
 
         for (int i = 0; i < replays.size(); i++)
         {
@@ -298,7 +310,7 @@ public abstract class BaseFilmController
 
     public void startRenderFrame(float transition)
     {
-        List<Replay> replays = this.film.replays.getList();
+        List<Replay> replays = this.replays();
 
         for (int i = 0; i < replays.size(); i++)
         {
@@ -436,7 +448,7 @@ public abstract class BaseFilmController
     {
         RenderSystem.enableDepthTest();
 
-        List<Replay> replays = this.film.replays.getList();
+        List<Replay> replays = this.replays();
 
         for (int i = 0; i < replays.size(); i++)
         {
