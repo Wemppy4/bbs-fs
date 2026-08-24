@@ -22,21 +22,23 @@ import net.minecraft.entity.EntityPose;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
-public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntityRenderState>
+public class ActorEntityRenderer extends EntityRenderer<ActorEntity, ActorEntityRenderer.ActorRenderState>
 {
     public static ArmorRenderer armorRenderer;
 
     /**
      * The form + vanilla-entity context cannot be carried on a vanilla render state, so the actual
-     * BBS form rendering still reads off the live {@link ActorEntity}. We stash it here during
-     * {@link #updateRenderState} so {@link #render} can route it through the form pipeline.
-     *
-     * TODO(1.21.11 render): the 1.21.2 render-state split assumes all per-frame data lives on the
-     * state object; carrying the live entity here is a build-only bridge until the form pipeline is
-     * adapted to the render-state model.
+     * BBS form rendering still reads off the live {@link ActorEntity}. It rides on the state the
+     * frame is drawn from and never on the renderer: 1.21.11 fills the render states of every entity
+     * first (WorldRenderer#fillEntityRenderStates) and draws them only afterwards
+     * (WorldRenderer#pushEntityRenders), so a field on the renderer holds whichever actor was
+     * extracted last - and every actor of the film gets drawn with that one's form and pose.
      */
-    private ActorEntity renderedEntity;
-    private float renderedTickDelta;
+    public static class ActorRenderState extends LivingEntityRenderState
+    {
+        public ActorEntity entity;
+        public float tickDelta;
+    }
 
     public ActorEntityRenderer(EntityRendererFactory.Context ctx)
     {
@@ -56,18 +58,18 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
     }
 
     @Override
-    public LivingEntityRenderState createRenderState()
+    public ActorRenderState createRenderState()
     {
-        return new LivingEntityRenderState();
+        return new ActorRenderState();
     }
 
     @Override
-    public void updateRenderState(ActorEntity entity, LivingEntityRenderState state, float tickDelta)
+    public void updateRenderState(ActorEntity entity, ActorRenderState state, float tickDelta)
     {
         super.updateRenderState(entity, state, tickDelta);
 
-        this.renderedEntity = entity;
-        this.renderedTickDelta = tickDelta;
+        state.entity = entity;
+        state.tickDelta = tickDelta;
 
         state.bodyYaw = MathHelper.lerpAngleDegrees(tickDelta, entity.lastBodyYaw, entity.bodyYaw);
         state.deathTime = entity.deathTime > 0 ? entity.deathTime + tickDelta : 0F;
@@ -81,11 +83,11 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
     }
 
     @Override
-    public void render(LivingEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState)
+    public void render(ActorRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState)
     {
         super.render(state, matrices, queue, cameraState);
 
-        ActorEntity entity = this.renderedEntity;
+        ActorEntity entity = state.entity;
 
         if (entity == null || !this.isVisible(state))
         {
@@ -114,7 +116,7 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, LivingEntit
         try
         {
             FormUtilsClient.render(form, new FormRenderingContext()
-                .set(FormRenderType.ENTITY, entity.getFormEntity(), matrices, state.light, overlay, this.renderedTickDelta)
+                .set(FormRenderType.ENTITY, entity.getFormEntity(), matrices, state.light, overlay, state.tickDelta)
                 .camera(MinecraftClient.getInstance().gameRenderer.getCamera()));
         }
         finally
