@@ -25,6 +25,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.Marquee;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
@@ -90,7 +91,7 @@ public class UIClips extends UIElement
     private int selectingLoop = -1;
 
     /* Selection */
-    private boolean selecting;
+    private final Marquee marquee = new Marquee();
     private List<Integer> selection = new ArrayList<>();
 
     /* Embedded view */
@@ -1305,7 +1306,7 @@ public class UIClips extends UIElement
 
         if (shift && !this.hasEmbeddedView())
         {
-            this.selecting = true;
+            this.marquee.press(mouseX, mouseY);
 
             this.setMouse(mouseX, mouseY);
 
@@ -1488,14 +1489,14 @@ public class UIClips extends UIElement
 
         this.vertical.mouseReleased(context);
 
-        if (this.selecting)
+        if (this.marquee.isPressed())
         {
             this.pickLastSelectedClip();
         }
 
         this.grabMode = 0;
         this.grabbing = false;
-        this.selecting = false;
+        this.marquee.reset();
         this.scrubbing = false;
         this.scrolling = false;
         this.selectingLoop = -1;
@@ -1558,12 +1559,10 @@ public class UIClips extends UIElement
         {
             this.loopMax = MathUtils.clamp(this.fromGraphX(mouseX), this.loopMin, Integer.MAX_VALUE);
         }
-        else if (this.selecting)
+        else if (this.marquee.isPressed())
         {
-            Area selection = new Area();
-
-            selection.setPoints(this.lastX, this.lastY, mouseX, mouseY);
-            this.captureSelection(selection);
+            this.marquee.update(mouseX, mouseY);
+            this.captureSelection(this.marquee.getArea());
         }
         else if (this.grabbing)
         {
@@ -1935,7 +1934,7 @@ public class UIClips extends UIElement
 
             renderer.renderClip(context, this, clip, clipArea, selected, this.delegate.getClip() == clip);
 
-            if (!selected && !this.grabbing && !this.selecting && clipArea.isInside(context))
+            if (!selected && !this.grabbing && !this.marquee.isPressed() && clipArea.isInside(context))
             {
                 context.batcher.outline(clipArea.x, clipArea.y, clipArea.ex(), clipArea.ey(), Colors.WHITE);
             }
@@ -2048,10 +2047,7 @@ public class UIClips extends UIElement
      */
     private void renderSelection(UIContext context)
     {
-        if (this.selecting)
-        {
-            context.batcher.normalizedBox(this.lastX, this.lastY, context.mouseX, context.mouseY, BBSSettings.accentOverlay(Colors.A25));
-        }
+        this.marquee.render(context, 0, 0);
     }
 
     /**

@@ -33,6 +33,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UITrackSty
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.Marquee;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
@@ -56,7 +57,7 @@ public class UIKeyframes extends UIElement
 {
     /* Editing states */
 
-    private boolean selecting;
+    private final Marquee marquee = new Marquee();
     private boolean navigating;
     private int dragging = -1;
     private Pair<Keyframe, KeyframeType> draggingData;
@@ -959,7 +960,7 @@ public class UIKeyframes extends UIElement
 
     public boolean isSelecting()
     {
-        return this.selecting;
+        return this.marquee.isPressed();
     }
 
     public boolean isNavigating()
@@ -970,7 +971,7 @@ public class UIKeyframes extends UIElement
     /** Whether the user is in the middle of any mouse interaction (dragging, selecting, navigating, scaling or stacking). */
     public boolean isInteracting()
     {
-        return this.dragging >= 0 || this.selecting || this.navigating || this.scaling || this.stacking;
+        return this.dragging >= 0 || this.marquee.isPressed() || this.navigating || this.scaling || this.stacking;
     }
 
     /* Sheet management */
@@ -1064,11 +1065,13 @@ public class UIKeyframes extends UIElement
         }
     }
 
+    /** The band being stretched, with a little slack so a keyframe grazed by its edge counts. */
     public Area getGrabbingArea(UIContext context)
     {
         Area area = new Area();
 
-        area.setPoints(this.originalX, this.originalY, context.mouseX, context.mouseY, 3);
+        area.copy(this.marquee.getArea());
+        area.offset(3);
 
         return area;
     }
@@ -1200,7 +1203,7 @@ public class UIKeyframes extends UIElement
 
         if (shift && found == null)
         {
-            this.selecting = true;
+            this.marquee.press(context.mouseX, context.mouseY);
         }
 
         if (found != null)
@@ -1218,13 +1221,13 @@ public class UIKeyframes extends UIElement
 
             this.pickKeyframe(found);
         }
-        else if (!this.selecting)
+        else if (!this.marquee.isPressed())
         {
             this.currentGraph.clearSelection();
             this.pickKeyframe(null);
         }
 
-        if (!this.selecting)
+        if (!this.marquee.isPressed())
         {
             this.dragging = 0;
             this.draggingData = pair;
@@ -1249,8 +1252,9 @@ public class UIKeyframes extends UIElement
     {
         this.currentGraph.mouseReleased(context);
 
-        if (this.selecting)
+        if (this.marquee.isPressed())
         {
+            this.marquee.update(context.mouseX, context.mouseY);
             this.currentGraph.selectInArea(this.getGrabbingArea(context));
         }
 
@@ -1261,7 +1265,7 @@ public class UIKeyframes extends UIElement
         }
 
         this.navigating = false;
-        this.selecting = false;
+        this.marquee.reset();
         this.dragging = -1;
 
         return super.subMouseReleased(context);
@@ -1332,9 +1336,10 @@ public class UIKeyframes extends UIElement
         this.renderBackground(context);
         this.currentGraph.render(context);
 
-        if (this.selecting)
+        if (this.marquee.isPressed())
         {
-            context.batcher.normalizedBox(this.originalX, this.originalY, context.mouseX, context.mouseY, BBSSettings.accentOverlay(Colors.A25));
+            this.marquee.update(context.mouseX, context.mouseY);
+            this.marquee.render(context, 0, 0);
         }
 
         this.currentGraph.postRender(context);
