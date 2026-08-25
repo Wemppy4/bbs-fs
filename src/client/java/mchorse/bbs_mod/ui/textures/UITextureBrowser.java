@@ -7,6 +7,7 @@ import mchorse.bbs_mod.data.DataToString;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -19,6 +20,9 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
+import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.Marquee;
+import mchorse.bbs_mod.ui.utils.UIFileDialogs;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
@@ -85,6 +89,14 @@ public class UITextureBrowser extends UIElement
 
     public final TextureSelection selection = new TextureSelection();
     public final TextureDrag drag = new TextureDrag();
+    public final Marquee marquee = new Marquee();
+
+    /* The entry a Shift-press landed on: a band that goes nowhere extends the pick to it */
+    private TextureEntry marqueeEntry;
+
+    /* Files taken by Ctrl+C / Ctrl+X, put down by Ctrl+V */
+    private final List<Link> clipboard = new ArrayList<>();
+    private boolean cut;
 
     private Link path = new Link("", "");
     private final List<TextureEntry> entries = new ArrayList<>();
@@ -586,6 +598,123 @@ public class UITextureBrowser extends UIElement
         this.selection.clear();
     }
 
+    /** Shift went down over the grid: arm a band from here, in the grid's content coordinates. */
+    public void pressMarquee(TextureEntry entry, int x, int y)
+    {
+        this.marqueeEntry = entry;
+        this.marquee.press(x, y);
+    }
+
+    private void selectAll()
+    {
+        for (TextureEntry entry : this.entries)
+        {
+            this.selection.add(entry.link());
+        }
+    }
+
+    /* Clipboard */
+
+    /** What Ctrl+C / Ctrl+X take: the pick, or the current texture when nothing is picked. */
+    private List<Link> subjects()
+    {
+        if (!this.selection.isEmpty())
+        {
+            return new ArrayList<>(this.selection.getLinks());
+        }
+
+        Link current = this.getCurrent();
+
+        return current == null || !TextureFiles.canModify(current) ? Collections.emptyList() : Collections.singletonList(current);
+    }
+
+    private void copyToClipboard(boolean cut)
+    {
+        List<Link> subjects = this.subjects();
+
+        if (subjects.isEmpty())
+        {
+            return;
+        }
+
+        this.clipboard.clear();
+        this.clipboard.addAll(subjects);
+        this.cut = cut;
+    }
+
+    /** Put the clipboard down in the folder on show: copies, or moves after a cut (once). */
+    private boolean paste()
+    {
+        if (this.clipboard.isEmpty() || !TextureFiles.isFolder(this.path) || this.isSearching())
+        {
+            return false;
+        }
+
+        Link current = this.getCurrent();
+
+        for (Link link : this.clipboard)
+        {
+            if (this.cut)
+            {
+                Link moved = TextureFiles.move(link, this.path);
+
+                if (moved != null)
+                {
+                    this.undos.addLast(new Move(link, moved));
+                    this.redos.clear();
+
+                    if (link.equals(current))
+                    {
+                        this.picker.selectCurrent(moved);
+                    }
+                }
+            }
+            else
+            {
+                TextureFiles.copyInto(link, this.path);
+            }
+        }
+
+        if (this.cut)
+        {
+            this.clipboard.clear();
+            this.cut = false;
+        }
+
+        this.refresh();
+        this.tree.refresh();
+
+        return true;
+    }
+
+    private void promptImport()
+    {
+        File into = TextureFiles.file(this.path);
+
+        if (into == null || !into.isDirectory())
+        {
+            return;
+        }
+
+        UIFileDialogs.pickFile(UIKeys.TEXTURES_BROWSER_IMPORT_TITLE, into, new String[] {"*.png"}, UIKeys.TEXTURES_BROWSER_IMPORT_FILTER, (file) ->
+        {
+            if (file == null || !file.isFile())
+            {
+                return;
+            }
+
+            try
+            {
+                java.nio.file.Files.copy(file.toPath(), new File(into, file.getName()).toPath());
+                BBSResources.markAssetsChanged();
+            }
+            catch (java.io.IOException e)
+            {
+                e.printStackTrace();
+            }
+        });
+    }
+
     public void setContextEntry(TextureEntry entry)
     {
         this.contextEntry = entry;
@@ -654,6 +783,24 @@ public class UITextureBrowser extends UIElement
 
     public void release()
     {
+        if (this.marquee.isPressed())
+        {
+            if (this.marquee.isActive())
+            {
+                for (TextureEntry entry : this.grid.getEntriesIn(this.marquee.getArea()))
+                {
+                    this.selection.add(entry.link());
+                }
+            }
+            else if (this.marqueeEntry != null)
+            {
+                this.selection.range(this.marqueeEntry.link(), this.entries);
+            }
+
+            this.marquee.reset();
+            this.marqueeEntry = null;
+        }
+
         if (this.drag.isActive())
         {
             this.drop();
@@ -670,14 +817,14 @@ public class UITextureBrowser extends UIElement
     private void drop()
     {
         Link target = this.drag.getTarget();
+        boolean copy = Window.isCtrlPressed();
 
-        if (!this.drag.accepts(target))
+        if (!this.drag.accepts(target, copy))
         {
             return;
         }
 
         Link current = this.getCurrent();
-        boolean copy = Window.isCtrlPressed();
 
         for (Link link : this.drag.getLinks())
         {
@@ -859,7 +1006,13 @@ public class UITextureBrowser extends UIElement
 
         if (TextureFiles.isFolder(this.path))
         {
+            if (!this.clipboard.isEmpty())
+            {
+                menu.action(Icons.PASTE, UIKeys.GENERAL_PASTE, this::paste);
+            }
+
             menu.action(Icons.ADD, UIKeys.TEXTURES_BROWSER_NEW_FOLDER, this::promptNewFolder);
+            menu.action(Icons.UPLOAD, UIKeys.TEXTURES_BROWSER_IMPORT, this::promptImport);
             menu.action(Icons.FOLDER, UIKeys.TEXTURE_OPEN_FOLDER, this::openFolder);
         }
 
@@ -873,7 +1026,58 @@ public class UITextureBrowser extends UIElement
 
     public boolean handleKey(UIContext context)
     {
-        if (context.isPressed(GLFW.GLFW_KEY_ENTER))
+        if (context.isPressed(Keys.COPY))
+        {
+            this.copyToClipboard(false);
+
+            return !this.clipboard.isEmpty();
+        }
+        else if (context.isPressed(Keys.CUT))
+        {
+            this.copyToClipboard(true);
+
+            return !this.clipboard.isEmpty();
+        }
+        else if (context.isPressed(Keys.PASTE))
+        {
+            /* With nothing taken, Ctrl+V falls through to the picker, which downloads a URL from the clipboard */
+            return this.paste();
+        }
+        else if (context.isPressed(Keys.DELETE))
+        {
+            this.confirmDelete(this.subjects());
+
+            return true;
+        }
+        else if (context.isPressed(GLFW.GLFW_KEY_A) && Window.isCtrlPressed())
+        {
+            this.selectAll();
+
+            return true;
+        }
+        else if (context.isPressed(GLFW.GLFW_KEY_D) && Window.isCtrlPressed())
+        {
+            for (Link link : this.subjects())
+            {
+                TextureFiles.duplicate(link);
+            }
+
+            this.refresh();
+
+            return true;
+        }
+        else if (context.isPressed(GLFW.GLFW_KEY_F2))
+        {
+            List<Link> subjects = this.subjects();
+
+            if (subjects.size() == 1)
+            {
+                this.promptRename(subjects.get(0));
+            }
+
+            return true;
+        }
+        else if (context.isPressed(GLFW.GLFW_KEY_ENTER))
         {
             TextureEntry entry = this.getCurrentEntry();
 
@@ -1003,11 +1207,12 @@ public class UITextureBrowser extends UIElement
             this.hidePathEditor();
         }
 
-        if ((this.drag.isPressed() || this.pendingFolder != null) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
+        if ((this.drag.isPressed() || this.pendingFolder != null || this.marquee.isPressed()) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
         {
             this.release();
         }
 
+        this.marquee.update(this.grid.contentX(context), this.grid.contentY(context));
         this.drag.update(context.mouseX, context.mouseY);
         this.drag.clearTarget();
         this.hoveredAction = null;
@@ -1051,7 +1256,8 @@ public class UITextureBrowser extends UIElement
         Batcher2D batcher = context.batcher;
         int primary = BBSSettings.primaryColor.get();
         List<Link> links = this.drag.getLinks();
-        boolean landing = this.drag.accepts(this.drag.getTarget());
+        boolean copy = Window.isCtrlPressed();
+        boolean landing = this.drag.accepts(this.drag.getTarget(), copy);
         int size = Math.min(this.grid.getCellSize(), 48);
         int x = context.mouseX + 10;
         int y = context.mouseY + 10;
@@ -1078,9 +1284,9 @@ public class UITextureBrowser extends UIElement
             batcher.textCard(String.valueOf(links.size()), x + size - 4, y - 4, Colors.WHITE, Colors.A100 | primary, 3);
         }
 
-        if (landing && Window.isCtrlPressed())
+        if (copy)
         {
-            batcher.textCard(UIKeys.TEXTURES_BROWSER_COPYING.get(), x, y + size + 8, Colors.WHITE, Colors.A100 | primary, 3);
+            batcher.textCard(UIKeys.TEXTURES_BROWSER_COPYING.get(), x, y + size + 8, Colors.WHITE, landing ? Colors.A100 | primary : Colors.A75, 3);
         }
     }
 }

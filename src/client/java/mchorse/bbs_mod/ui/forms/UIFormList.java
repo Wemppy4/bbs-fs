@@ -24,6 +24,8 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.Marquee;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
@@ -72,6 +74,13 @@ public class UIFormList extends UIElement
 
     public final FormSelection selection = new FormSelection();
     public final FormDrag drag = new FormDrag();
+
+    /** Shift + drag band, in the scroll view's content coordinates. */
+    public final Marquee marquee = new Marquee();
+
+    /* Where a Shift-press landed: a band that goes nowhere extends the pick to that form */
+    private UIFormCategory marqueeCategory;
+    private Form marqueeForm;
 
     private UIFormCategory recent;
     private List<UIFormCategory> categories = new ArrayList<>();
@@ -508,15 +517,48 @@ public class UIFormList extends UIElement
 
     /* Pointer, reported by categories */
 
+    /** Shift went down in a category: arm a band from the cursor, in the scroll view's content space. */
+    public void pressMarquee(UIFormCategory category, Form form, UIContext context)
+    {
+        this.marqueeCategory = category;
+        this.marqueeForm = form;
+        this.marquee.press(context.mouseX - this.forms.area.x, context.mouseY - this.forms.area.y);
+    }
+
+    private void releaseMarquee()
+    {
+        if (this.marquee.isActive())
+        {
+            Area band = this.marquee.getArea();
+            Area local = new Area();
+
+            for (UIFormCategory category : this.categories)
+            {
+                local.copy(band);
+                local.x -= category.area.x - this.forms.area.x;
+                local.y -= category.area.y - this.forms.area.y;
+
+                for (Form form : category.getFormsIn(local))
+                {
+                    this.selection.add(form, category.category);
+                }
+            }
+        }
+        else if (this.marqueeForm != null && this.marqueeCategory != null)
+        {
+            this.selection.range(this.marqueeForm, this.marqueeCategory.category, this.marqueeCategory.getForms());
+        }
+
+        this.marquee.reset();
+        this.marqueeCategory = null;
+        this.marqueeForm = null;
+    }
+
     public void pressForm(UIFormCategory category, Form form, List<Form> order, UIContext context)
     {
         if (Window.isCtrlPressed())
         {
             this.selection.toggle(form, category.category);
-        }
-        else if (Window.isShiftPressed())
-        {
-            this.selection.range(form, category.category, order);
         }
         else
         {
@@ -618,6 +660,11 @@ public class UIFormList extends UIElement
     /** The button went up: finish the drag if one is on, and forget whatever was pressed. */
     private void release()
     {
+        if (this.marquee.isPressed())
+        {
+            this.releaseMarquee();
+        }
+
         if (this.drag.isActive())
         {
             this.drop();
@@ -814,11 +861,12 @@ public class UIFormList extends UIElement
 
         /* A release swallowed by another element (a button, an overlay) must not leave a
          * drag hanging on the cursor */
-        if ((this.drag.isPressed() || this.pressedHeader != null) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
+        if ((this.drag.isPressed() || this.pressedHeader != null || this.marquee.isPressed()) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
         {
             this.release();
         }
 
+        this.marquee.update(context.mouseX - this.forms.area.x, context.mouseY - this.forms.area.y + (int) this.forms.scroll.getScroll());
         this.drag.update(context.mouseX, context.mouseY);
         this.drag.clearTarget();
         this.hoveredAction = null;
@@ -838,6 +886,13 @@ public class UIFormList extends UIElement
             this.scrollToSelectedForm();
 
             this.pendingScrollToSelected = false;
+        }
+
+        if (this.marquee.isActive())
+        {
+            context.batcher.clip(this.forms.area, context);
+            this.marquee.render(context, this.forms.area.x, this.forms.area.y - (int) this.forms.scroll.getScroll());
+            context.batcher.unclip(context);
         }
 
         if (this.hoveredAction != null && !this.drag.isActive())

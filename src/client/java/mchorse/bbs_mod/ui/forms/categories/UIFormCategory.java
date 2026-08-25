@@ -33,6 +33,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -353,6 +354,34 @@ public class UIFormCategory extends UIElement
         this.category.visible.set(!this.category.visible.get());
     }
 
+    /** The forms whose cells overlap an area given relative to this category's top-left. */
+    public List<Form> getFormsIn(Area area)
+    {
+        List<Form> hit = new ArrayList<>();
+
+        if (!this.category.visible.get() || this.isHiddenBySearch())
+        {
+            return hit;
+        }
+
+        List<Form> forms = this.getForms();
+        int w = this.layout.getCellWidth();
+        int h = this.layout.getCellHeight();
+
+        for (int i = 0; i < forms.size(); i++)
+        {
+            int x = this.layout.getX(i);
+            int y = this.layout.getY(i);
+
+            if (x < area.ex() && x + w > area.x && y < area.ey() && y + h > area.y)
+            {
+                hit.add(forms.get(i));
+            }
+        }
+
+        return hit;
+    }
+
     /* Input */
 
     @Override
@@ -401,6 +430,14 @@ public class UIFormCategory extends UIElement
         if (button != 0)
         {
             return false;
+        }
+
+        if (Window.isShiftPressed())
+        {
+            /* Shift + drag stretches a band across the categories; a Shift-click that goes nowhere extends the pick */
+            this.list.pressMarquee(this, form, context);
+
+            return true;
         }
 
         if (form == null)

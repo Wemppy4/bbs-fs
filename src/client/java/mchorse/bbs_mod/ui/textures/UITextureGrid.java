@@ -54,6 +54,39 @@ public class UITextureGrid extends UIScrollView
         return BBSSettings.textureCellSize.get();
     }
 
+    /** The cells whose rectangles overlap an area in content coordinates. */
+    public List<TextureEntry> getEntriesIn(mchorse.bbs_mod.ui.utils.Area area)
+    {
+        List<TextureEntry> entries = this.browser.getEntries();
+        List<TextureEntry> hit = new java.util.ArrayList<>();
+        int w = this.layout.getCellWidth();
+        int h = this.layout.getCellHeight();
+
+        for (int i = 0; i < entries.size(); i++)
+        {
+            int x = this.layout.getX(i);
+            int y = this.layout.getY(i);
+
+            if (x < area.ex() && x + w > area.x && y < area.ey() && y + h > area.y)
+            {
+                hit.add(entries.get(i));
+            }
+        }
+
+        return hit;
+    }
+
+    /** Cursor position in content coordinates (the grid's own space, scroll included). */
+    public int contentY(UIContext context)
+    {
+        return context.mouseY - this.area.y + (int) this.scroll.getScroll();
+    }
+
+    public int contentX(UIContext context)
+    {
+        return context.mouseX - this.area.x;
+    }
+
     /** Lay the entries out for the current width and size, and tell the scroll how tall that is. */
     public void relayout()
     {
@@ -146,6 +179,14 @@ public class UITextureGrid extends UIScrollView
             return false;
         }
 
+        if (Window.isShiftPressed())
+        {
+            /* Shift + drag stretches a band; a Shift-click that goes nowhere still extends the pick */
+            this.browser.pressMarquee(entry, x, y);
+
+            return true;
+        }
+
         if (entry == null)
         {
             this.browser.clickEmpty();
@@ -190,6 +231,7 @@ public class UITextureGrid extends UIScrollView
 
         context.batcher.clip(this.area, context);
         this.renderCells(context);
+        this.browser.marquee.render(context, this.area.x, this.area.y - (int) this.scroll.getScroll());
         context.batcher.unclip(context);
 
         this.scroll.renderScrollbar(context.batcher);
@@ -224,23 +266,30 @@ public class UITextureGrid extends UIScrollView
             this.hoverIndex = -1;
         }
 
+        if (drag.isActive())
+        {
+            /* While dragging, a hovered folder is where the drop goes; anywhere else on the
+             * grid it's the folder on show — where Ctrl makes a copy beside the originals */
+            TextureEntry entry = this.hoverIndex == -1 ? null : entries.get(this.hoverIndex);
+
+            if (entry != null && entry.folder() && !drag.isDragging(entry.link()))
+            {
+                drag.setTarget(entry.link());
+            }
+            else if (inside && !this.browser.isSearching())
+            {
+                drag.setTarget(this.browser.getPath());
+            }
+
+            return;
+        }
+
         if (this.hoverIndex == -1)
         {
             return;
         }
 
         TextureEntry entry = entries.get(this.hoverIndex);
-
-        if (drag.isActive())
-        {
-            /* While dragging, a hovered folder is where the drop goes */
-            if (entry.folder() && !drag.isDragging(entry.link()))
-            {
-                drag.setTarget(entry.link());
-            }
-
-            return;
-        }
 
         CellAction[] actions = this.browser.getActions(entry);
 

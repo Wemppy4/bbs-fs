@@ -92,8 +92,12 @@ public class TextureDrag
         return this.active && folder != null && folder.equals(this.target);
     }
 
-    /** Whether dropping into {@code folder} would do anything: it's on disk and isn't the source itself. */
-    public boolean accepts(Link folder)
+    /**
+     * Whether dropping into {@code folder} would do anything: it's on disk and, for a move,
+     * isn't where the files already are. A copy is fine into their own folder — that's how a
+     * duplicate is made by hand.
+     */
+    public boolean accepts(Link folder, boolean copy)
     {
         if (folder == null || !TextureFiles.isFolder(folder))
         {
@@ -102,7 +106,12 @@ public class TextureDrag
 
         for (Link link : this.links)
         {
-            if (!TextureEntry.folderLink(link.parent()).equals(TextureEntry.folderLink(folder)) && !link.equals(folder))
+            if (link.equals(folder) || TextureEntry.folderLink(link).equals(TextureEntry.folderLink(folder)))
+            {
+                continue;
+            }
+
+            if (copy || !TextureEntry.folderLink(link.parent()).equals(TextureEntry.folderLink(folder)))
             {
                 return true;
             }
