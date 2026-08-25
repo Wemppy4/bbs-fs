@@ -26,6 +26,8 @@ import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.cells.CellAction;
+import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
 import mchorse.bbs_mod.utils.Direction;
@@ -86,7 +88,7 @@ public class UIFormList extends UIElement
     private long lastClickTime;
 
     /* The quick action under the cursor this frame, and where its label goes */
-    private FormCellAction hoveredAction;
+    private CellAction hoveredAction;
     private int hoveredActionX;
     private int hoveredActionY;
 
@@ -562,7 +564,7 @@ public class UIFormList extends UIElement
         this.selection.clear();
     }
 
-    public void runAction(UIFormCategory category, Form form, FormCellAction action)
+    public void runAction(UIFormCategory category, Form form, CellAction action)
     {
         boolean group = this.selection.isGroup() && this.selection.contains(form);
 
@@ -601,7 +603,7 @@ public class UIFormList extends UIElement
         }
     }
 
-    public void setHoveredAction(FormCellAction action, int x, int y)
+    public void setHoveredAction(CellAction action, int x, int y)
     {
         this.hoveredAction = action;
         this.hoveredActionX = x;
@@ -840,7 +842,7 @@ public class UIFormList extends UIElement
 
         if (this.hoveredAction != null && !this.drag.isActive())
         {
-            FormCellRenderer.renderActionLabel(context, this.hoveredAction, this.hoveredActionX, this.hoveredActionY);
+            CellActionBar.renderLabel(context, this.hoveredAction, this.hoveredActionX, this.hoveredActionY);
         }
 
         if (this.drag.isActive())
@@ -914,7 +916,7 @@ public class UIFormList extends UIElement
 
         List<Form> forms = this.drag.getForms();
         int size = Math.min(this.getCellSize(), 48);
-        int h = FormGridLayout.heightFor(size);
+        int h = FormGridLayout.cellHeightFor(size);
         int stack = Math.min(3, forms.size());
 
         for (int i = stack - 1; i >= 0; i--)

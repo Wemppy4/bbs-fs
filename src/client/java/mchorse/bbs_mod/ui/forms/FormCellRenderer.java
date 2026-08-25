@@ -6,31 +6,24 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.utils.cells.CellAction;
+import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
  * How a single form cell looks. The cell is a picture of the form first; everything else —
- * hover, selection, the name, the type icon, the quick action bar — is laid over it and
- * appears only when it earns the space.
+ * hover, selection, the name, the quick action bar — is laid over it and appears only when it
+ * earns the space.
  *
  * <p>Which overlays fit depends on {@link #NAME_THRESHOLD the cell size}: a 40px cell is a
- * bare thumbnail, an 80px cell can carry its name, and from
- * {@link #BAR_THRESHOLD} up a hovered cell shows its actions along the top edge.</p>
- *
- * <p>Icons follow the rest of BBS: their own size, white, lighter under the cursor, over a
- * gradient rather than a box — the strip along the top of the model block editor.</p>
+ * bare thumbnail, an 80px cell can carry its name, and from {@link CellActionBar#THRESHOLD}
+ * up a hovered cell shows its actions along the top edge.</p>
  */
 public class FormCellRenderer
 {
     /** Cell width from which a name strip is drawn along the bottom edge. */
     public static final int NAME_THRESHOLD = 80;
-
-    /** Cell width from which the hovered cell shows its quick action bar. */
-    public static final int BAR_THRESHOLD = 60;
-
-    public static final int BAR_HEIGHT = 20;
-    public static final int BAR_BUTTON = 20;
 
     /** Height of the name strip along the bottom of a cell. */
     public static final int NAME_HEIGHT = 14;
@@ -61,49 +54,12 @@ public class FormCellRenderer
         }
     }
 
-    /**
-     * A translucent overlay that darkens on the light theme and lightens on the dark one —
-     * the way hover reads on any ground without being tied to a surface tone.
-     */
-    public static int ink(int alpha)
-    {
-        return alpha | (BBSSettings.isLightTheme() ? 0 : 0xffffff);
-    }
-
     public static boolean hasName(int cellWidth)
     {
         return cellWidth >= NAME_THRESHOLD;
     }
 
-    public static boolean hasBar(int cellWidth)
-    {
-        return cellWidth >= BAR_THRESHOLD;
-    }
-
-    /** Left edge of the first action button — the bar is right-aligned along the cell's top. */
-    public static int getBarX(int cellX, int cellWidth, int actions)
-    {
-        return cellX + cellWidth - actions * BAR_BUTTON;
-    }
-
-    /**
-     * Which quick action is under a point of a cell, or -1. Only meaningful for a hovered cell
-     * of a size that {@link #hasBar shows a bar}.
-     */
-    public static int getAction(int cellX, int cellY, int cellWidth, int actions, int x, int y)
-    {
-        if (y < cellY || y >= cellY + BAR_HEIGHT)
-        {
-            return -1;
-        }
-
-        int bx = getBarX(cellX, cellWidth, actions);
-        int index = (x - bx) / BAR_BUTTON;
-
-        return x >= bx && index >= 0 && index < actions ? index : -1;
-    }
-
-    public static void render(UIContext context, Form form, int x, int y, int w, int h, State state, FormCellAction[] actions)
+    public static void render(UIContext context, Form form, int x, int y, int w, int h, State state, CellAction[] actions)
     {
         Batcher2D batcher = context.batcher;
         int primary = BBSSettings.primaryColor.get();
@@ -116,7 +72,7 @@ public class FormCellRenderer
         }
         else if (state.hover)
         {
-            batcher.box(x, y, x + w, y + h, ink(Colors.A12));
+            batcher.box(x, y, x + w, y + h, CellActionBar.ink(Colors.A12));
         }
 
         FormUtilsClient.renderPreview(form, context, x, y, x + w, y + h);
@@ -126,16 +82,16 @@ public class FormCellRenderer
             batcher.box(x, y, x + w, y + h, BBSSettings.color(BBSSettings.baseSurface(), Colors.A75));
         }
 
-        boolean bar = state.hover && !state.dragged && hasBar(w) && actions.length > 0;
+        boolean bar = state.hover && !state.dragged && CellActionBar.fits(w) && actions.length > 0;
 
         if (hasName(w))
         {
-            renderName(context, form, x, y, w, h, state);
+            renderName(context, form.getDisplayName(), x, y, w, h, state.hover || state.selected);
         }
 
         if (bar)
         {
-            renderBar(context, x, y, w, state, actions);
+            CellActionBar.render(context, x, y, w, actions, state.hoveredAction);
         }
         else
         {
@@ -155,16 +111,16 @@ public class FormCellRenderer
         context.batcher.unclip(context);
     }
 
-    /** The display name along the bottom, on a gradient so it reads over any picture. */
-    private static void renderName(UIContext context, Form form, int x, int y, int w, int h, State state)
+    /** A caption along the bottom of a cell, on a gradient so it reads over any picture. */
+    public static void renderName(UIContext context, String label, int x, int y, int w, int h, boolean bright)
     {
         Batcher2D batcher = context.batcher;
         FontRenderer font = batcher.getFont();
-        String label = font.limitToWidth(form.getDisplayName(), w - 6);
-        int color = state.hover || state.selected ? Colors.WHITE : Colors.LIGHTEST_GRAY;
+
+        label = font.limitToWidth(label, w - 6);
 
         batcher.gradientVBox(x, y + h - NAME_HEIGHT - 8, x + w, y + h, 0, Colors.A75);
-        batcher.textShadow(label, x + (w - font.getWidth(label)) / 2, y + h - NAME_HEIGHT + (NAME_HEIGHT - font.getHeight()) / 2 + 1, color);
+        batcher.textShadow(label, x + (w - font.getWidth(label)) / 2, y + h - NAME_HEIGHT + (NAME_HEIGHT - font.getHeight()) / 2 + 1, bright ? Colors.WHITE : Colors.LIGHTEST_GRAY);
     }
 
     private static void renderHotkey(UIContext context, Form form, int x, int y, int w)
@@ -180,37 +136,5 @@ public class FormCellRenderer
         String key = font.limitToWidth(KeyCodes.getName(keybind), w - 8);
 
         context.batcher.textCard(key, x + w - font.getWidth(key) - 4, y + 4, Colors.WHITE, Colors.A50, 2);
-    }
-
-    /** The quick actions, right-aligned along the top edge, over the same gradient the model block editor's strip uses. */
-    private static void renderBar(UIContext context, int x, int y, int w, State state, FormCellAction[] actions)
-    {
-        Batcher2D batcher = context.batcher;
-        int bx = getBarX(x, w, actions.length);
-
-        batcher.gradientVBox(x, y, x + w, y + BAR_HEIGHT, Colors.A75, 0);
-
-        for (int i = 0; i < actions.length; i++)
-        {
-            int ax = bx + i * BAR_BUTTON;
-            int color = state.hoveredAction == i ? Colors.LIGHTEST_GRAY : Colors.WHITE;
-
-            batcher.icon(actions[i].icon, color, ax + BAR_BUTTON / 2, y + BAR_HEIGHT / 2, 0.5F, 0.5F);
-        }
-    }
-
-    /**
-     * The tooltip of the hovered quick action — drawn by the list after everything else so it
-     * isn't clipped by the cell or covered by neighbours.
-     */
-    public static void renderActionLabel(UIContext context, FormCellAction action, int x, int y)
-    {
-        String label = action.label.get();
-        FontRenderer font = context.batcher.getFont();
-        int w = font.getWidth(label) + 6;
-
-        x = Math.max(2, Math.min(x - w / 2, context.menu.width - w - 2));
-
-        context.batcher.textCard(label, x + 3, y + 3, Colors.WHITE, Colors.A75, 3);
     }
 }

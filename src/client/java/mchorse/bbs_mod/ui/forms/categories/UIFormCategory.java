@@ -18,7 +18,8 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.forms.FormCellAction;
+import mchorse.bbs_mod.ui.utils.cells.CellAction;
+import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.forms.FormCellRenderer;
 import mchorse.bbs_mod.ui.forms.FormDrag;
 import mchorse.bbs_mod.ui.forms.FormGridLayout;
@@ -409,11 +410,11 @@ public class UIFormCategory extends UIElement
             return true;
         }
 
-        FormCellAction[] actions = FormCellAction.of(this.category);
+        CellAction[] actions = CellAction.of(this.category.canModify(null));
 
-        if (FormCellRenderer.hasBar(this.layout.getCellWidth()) && index == this.hoverIndex)
+        if (CellActionBar.fits(this.layout.getCellWidth()) && index == this.hoverIndex)
         {
-            int action = FormCellRenderer.getAction(this.layout.getX(index), this.layout.getY(index), this.layout.getCellWidth(), actions.length, x, y);
+            int action = CellActionBar.getAction(this.layout.getX(index), this.layout.getY(index), this.layout.getCellWidth(), actions.length, x, y);
 
             if (action != -1)
             {
@@ -525,18 +526,18 @@ public class UIFormCategory extends UIElement
         this.hoverIndex = inside && this.category.visible.get() ? this.layout.getIndex(x, y) : -1;
         this.hoverAction = -1;
 
-        if (this.hoverIndex != -1 && FormCellRenderer.hasBar(this.layout.getCellWidth()))
+        if (this.hoverIndex != -1 && CellActionBar.fits(this.layout.getCellWidth()))
         {
-            int actions = FormCellAction.of(this.category).length;
+            int actions = CellAction.of(this.category.canModify(null)).length;
 
-            this.hoverAction = FormCellRenderer.getAction(this.layout.getX(this.hoverIndex), this.layout.getY(this.hoverIndex), this.layout.getCellWidth(), actions, x, y);
+            this.hoverAction = CellActionBar.getAction(this.layout.getX(this.hoverIndex), this.layout.getY(this.hoverIndex), this.layout.getCellWidth(), actions, x, y);
 
             if (this.hoverAction != -1)
             {
-                int ax = FormCellRenderer.getBarX(this.layout.getX(this.hoverIndex), this.layout.getCellWidth(), actions) + this.hoverAction * FormCellRenderer.BAR_BUTTON + FormCellRenderer.BAR_BUTTON / 2;
-                int ay = this.layout.getY(this.hoverIndex) + FormCellRenderer.BAR_HEIGHT;
+                int ax = CellActionBar.getX(this.layout.getX(this.hoverIndex), this.layout.getCellWidth(), actions) + this.hoverAction * CellActionBar.BUTTON + CellActionBar.BUTTON / 2;
+                int ay = this.layout.getY(this.hoverIndex) + CellActionBar.HEIGHT;
 
-                this.list.setHoveredAction(FormCellAction.of(this.category)[this.hoverAction], context.globalX(this.area.x + ax), context.globalY(this.area.y + ay));
+                this.list.setHoveredAction(CellAction.of(this.category.canModify(null))[this.hoverAction], context.globalX(this.area.x + ax), context.globalY(this.area.y + ay));
             }
         }
     }
@@ -588,7 +589,7 @@ public class UIFormCategory extends UIElement
 
         if (this.hoverHeader)
         {
-            batcher.box(x, y, ex, ey, FormCellRenderer.ink(Colors.A6));
+            batcher.box(x, y, ex, ey, CellActionBar.ink(Colors.A6));
         }
 
         int textColor = dragged ? Colors.GRAY : Colors.WHITE;
@@ -625,7 +626,7 @@ public class UIFormCategory extends UIElement
     private void renderCells(UIContext context)
     {
         List<Form> forms = this.getForms();
-        FormCellAction[] actions = FormCellAction.of(this.category);
+        CellAction[] actions = CellAction.of(this.category.canModify(null));
         int cellW = this.layout.getCellWidth();
         int cellH = this.layout.getCellHeight();
 
