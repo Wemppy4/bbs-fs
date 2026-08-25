@@ -540,6 +540,12 @@ public class UITextureBrowser extends UIElement
     /** Show a texture as the chosen one: enter its folder when needed, and bring it into view. */
     public void setCurrent(Link link, boolean scroll)
     {
+        /* A multiskin ("multi:…") isn't a file anywhere: nothing to enter, nothing to show */
+        if (link != null && !BBSMod.getProvider().getSourceKeys().contains(link.source))
+        {
+            return;
+        }
+
         if (link != null && !this.isSearching())
         {
             Link parent = TextureEntry.folderLink(link.parent());

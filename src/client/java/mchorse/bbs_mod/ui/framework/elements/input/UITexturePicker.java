@@ -847,10 +847,16 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
         if (notify)
         {
-            if (show && this.callback != null)
+            if (show)
             {
-                this.multiLink.recalculateId();
-                this.callback.accept(skin);
+                /* The multiskin itself is only ever handed to the callback: it isn't a file,
+                 * so it can't be the current texture the browser shows (in the dashboard
+                 * manager, with no callback, it used to become one and led into a "multi:" folder) */
+                if (this.callback != null)
+                {
+                    this.multiLink.recalculateId();
+                    this.callback.accept(skin);
+                }
             }
             else
             {
