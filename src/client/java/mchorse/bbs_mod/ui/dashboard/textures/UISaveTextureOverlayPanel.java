@@ -106,6 +106,14 @@ public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolder
         return TextureEntry.folderLink(folder).equals(this.folder);
     }
 
+    /** A pinned texture here means "save over this one": its folder and its name are taken. */
+    @Override
+    public void openPinned(Link link)
+    {
+        this.navigate(TextureEntry.folderLink(link.parent()));
+        this.name.setText(StringUtils.fileName(link.path));
+    }
+
     private void refreshFiles()
     {
         List<String> names = new ArrayList<>();

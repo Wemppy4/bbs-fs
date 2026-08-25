@@ -70,6 +70,15 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     private static final int MIN_SIDE = 100;
     private static final int MAX_SIDE = 400;
 
+    /**
+     * The four sets of quick actions a texture cell can show — the shared ones with the pin
+     * button in front, kept whole rather than built per cell per frame.
+     */
+    private static final CellAction[] PIN_MODIFIABLE = CellAction.with(CellAction.PIN, CellAction.of(true));
+    private static final CellAction[] UNPIN_MODIFIABLE = CellAction.with(CellAction.UNPIN, CellAction.of(true));
+    private static final CellAction[] PIN_READ_ONLY = CellAction.with(CellAction.PIN, CellAction.of(false));
+    private static final CellAction[] UNPIN_READ_ONLY = CellAction.with(CellAction.UNPIN, CellAction.of(false));
+
     /* Side panel widths, dragged by the user and kept for the session like the form editor's tree */
     private static int leftWidth = 140;
     private static int infoWidth = 150;
@@ -364,6 +373,20 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     public boolean isCurrentFolder(Link folder)
     {
         return !this.isSearching() && TextureEntry.folderLink(folder).equals(this.path);
+    }
+
+    @Override
+    public boolean isCurrentTexture(Link link)
+    {
+        return link.equals(this.getCurrent());
+    }
+
+    /** A pinned texture was clicked in the tree: it becomes the chosen one, folder and all. */
+    @Override
+    public void openPinned(Link link)
+    {
+        this.picker.selectCurrent(link);
+        this.setCurrent(link, true);
     }
 
     public Link getCurrent()
@@ -921,7 +944,14 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             return CellAction.none();
         }
 
-        return CellAction.of(TextureFiles.canModify(entry.link()));
+        boolean pinned = TexturePins.isPinned(entry.link());
+
+        if (TextureFiles.canModify(entry.link()))
+        {
+            return pinned ? UNPIN_MODIFIABLE : PIN_MODIFIABLE;
+        }
+
+        return pinned ? UNPIN_READ_ONLY : PIN_READ_ONLY;
     }
 
     public void runAction(TextureEntry entry, CellAction action)
@@ -931,6 +961,9 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             case EDIT -> this.openInEditor(entry.link());
             case DUPLICATE -> this.duplicate(this.group(entry.link()));
             case REMOVE -> this.confirmDelete(this.group(entry.link()));
+            /* The button says what it does to the cell it sits on, so it acts on that one
+             * alone — a group goes through the context menu, where the label counts them */
+            case PIN, UNPIN -> this.togglePins(Collections.singletonList(entry.link()));
         }
     }
 
@@ -955,6 +988,13 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     private List<Link> group(Link link)
     {
         return this.selection.isGroup() && this.selection.contains(link) ? new ArrayList<>(this.selection.getLinks()) : Collections.singletonList(link);
+    }
+
+    /** Put the links in or take them out of the pins, and let the tree show what changed. */
+    private void togglePins(List<Link> links)
+    {
+        TexturePins.toggle(links);
+        this.tree.refresh();
     }
 
     public void openInEditor(Link link)
@@ -1182,6 +1222,17 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             }
         }
 
+        if (TexturePins.canPin(link))
+        {
+            List<Link> links = this.group(link);
+            boolean pinned = TexturePins.arePinned(links);
+            IKey label = group
+                ? (pinned ? UIKeys.TEXTURES_BROWSER_UNPIN_SELECTED : UIKeys.TEXTURES_BROWSER_PIN_SELECTED).format(String.valueOf(links.size()))
+                : (pinned ? UIKeys.TEXTURES_BROWSER_UNPIN : UIKeys.TEXTURES_BROWSER_PIN);
+
+            menu.action(Icons.BOOKMARK, label, () -> this.togglePins(links));
+        }
+
         if (modifiable && !group)
         {
             menu.action(Icons.EDIT, UIKeys.GENERAL_RENAME, () -> this.promptRename(link));
@@ -1204,6 +1255,11 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             if (!this.clipboard.isEmpty())
             {
                 menu.action(Icons.PASTE, UIKeys.GENERAL_PASTE, this::paste);
+            }
+
+            if (entry == null && TexturePins.canPin(this.path))
+            {
+                menu.action(Icons.BOOKMARK, TexturePins.isPinned(this.path) ? UIKeys.TEXTURES_BROWSER_UNPIN : UIKeys.TEXTURES_BROWSER_PIN_FOLDER, () -> this.togglePins(Collections.singletonList(this.path)));
             }
 
             menu.action(Icons.ADD, UIKeys.TEXTURES_BROWSER_NEW_FOLDER, this::promptNewFolder);

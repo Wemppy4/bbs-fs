@@ -1201,6 +1201,12 @@ public class UIKeys
     public static final IKey TEXTURES_BROWSER_NEW_FOLDER_DESCRIPTION = L10n.lang("bbs.ui.textures.browser.new_folder-description");
     public static final IKey TEXTURES_BROWSER_NEW_FOLDER_TITLE = L10n.lang("bbs.ui.textures.browser.new_folder-title");
     public static final IKey TEXTURES_BROWSER_NO_RESULTS = L10n.lang("bbs.ui.textures.browser.no_results");
+    public static final IKey TEXTURES_BROWSER_PIN = L10n.lang("bbs.ui.textures.browser.pin");
+    public static final IKey TEXTURES_BROWSER_PIN_DOWN = L10n.lang("bbs.ui.textures.browser.pin_down");
+    public static final IKey TEXTURES_BROWSER_PINNED = L10n.lang("bbs.ui.textures.browser.pinned");
+    public static final IKey TEXTURES_BROWSER_PIN_FOLDER = L10n.lang("bbs.ui.textures.browser.pin_folder");
+    public static final IKey TEXTURES_BROWSER_PIN_SELECTED = L10n.lang("bbs.ui.textures.browser.pin_selected");
+    public static final IKey TEXTURES_BROWSER_PIN_UP = L10n.lang("bbs.ui.textures.browser.pin_up");
     public static final IKey TEXTURES_BROWSER_RENAME_DESCRIPTION = L10n.lang("bbs.ui.textures.browser.rename-description");
     public static final IKey TEXTURES_BROWSER_RENAME_TITLE = L10n.lang("bbs.ui.textures.browser.rename-title");
     public static final IKey TEXTURES_BROWSER_SEARCH = L10n.lang("bbs.ui.textures.browser.search");
@@ -1218,6 +1224,8 @@ public class UIKeys
     public static final IKey TEXTURES_BROWSER_SORT_NAME = L10n.lang("bbs.ui.textures.browser.sort.name");
     public static final IKey TEXTURES_BROWSER_SORT_SIZE = L10n.lang("bbs.ui.textures.browser.sort.size");
     public static final IKey TEXTURES_BROWSER_TREE = L10n.lang("bbs.ui.textures.browser.tree");
+    public static final IKey TEXTURES_BROWSER_UNPIN = L10n.lang("bbs.ui.textures.browser.unpin");
+    public static final IKey TEXTURES_BROWSER_UNPIN_SELECTED = L10n.lang("bbs.ui.textures.browser.unpin_selected");
     public static final IKey TEXTURES_COPY = L10n.lang("bbs.ui.textures.copy");
     public static final IKey TEXTURES_COPY_IMAGE = L10n.lang("bbs.ui.textures.copy_image");
     public static final IKey TEXTURES_PASTE_IMAGE = L10n.lang("bbs.ui.textures.paste_image");

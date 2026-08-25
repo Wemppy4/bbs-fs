@@ -564,7 +564,7 @@ public class UIFormCategory extends UIElement
 
             if (this.hoverAction != -1)
             {
-                int ax = CellActionBar.getX(this.layout.getX(this.hoverIndex), this.layout.getCellWidth(), actions) + this.hoverAction * CellActionBar.BUTTON + CellActionBar.BUTTON / 2;
+                int ax = CellActionBar.getActionX(this.layout.getX(this.hoverIndex), this.layout.getCellWidth(), actions, this.hoverAction);
                 int ay = this.layout.getY(this.hoverIndex) + CellActionBar.HEIGHT;
 
                 this.list.setHoveredAction(CellAction.of(this.category.canModify(null))[this.hoverAction], context.globalX(this.area.x + ax), context.globalY(this.area.y + ay));

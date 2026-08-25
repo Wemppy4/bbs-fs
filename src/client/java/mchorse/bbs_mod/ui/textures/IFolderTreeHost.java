@@ -13,6 +13,18 @@ public interface IFolderTreeHost
 
     public boolean isCurrentFolder(Link folder);
 
+    /** Whether a pinned texture is the one on show, so the tree can mark its row. */
+    public default boolean isCurrentTexture(Link link)
+    {
+        return false;
+    }
+
+    /** A pinned texture was clicked. Entering its folder is the least a host can do with it. */
+    public default void openPinned(Link link)
+    {
+        this.navigate(TextureEntry.folderLink(link.parent()));
+    }
+
     /** The drag in progress, or null for a host without one (a save dialog). */
     public default TextureDrag getDrag()
     {

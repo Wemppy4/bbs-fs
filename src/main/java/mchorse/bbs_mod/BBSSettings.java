@@ -4,6 +4,7 @@ import java.util.HashSet;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
+import mchorse.bbs_mod.settings.values.core.ValueLinkList;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
@@ -53,6 +54,7 @@ public class BBSSettings {
 	public static ValueInt formCellSize;
 	public static ValueInt textureCellSize;
 	public static ValueString textureSort;
+	public static ValueLinkList texturePins;
 	public static ValueFloat axesScale;
 	public static ValueFloat axesThickness;
 	public static ValueBoolean axesKeepScreenSize;
@@ -577,6 +579,9 @@ public class BBSSettings {
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
 		textureSort = builder.getString("texture_sort", "name");
+		texturePins = new ValueLinkList("texture_pins");
+		texturePins.invisible();
+		builder.register(texturePins);
 		/* Kept by the browsers themselves (Ctrl+wheel, the sort menu); nothing to tune in the settings screen */
 		formCellSize.invisible();
 		textureCellSize.invisible();

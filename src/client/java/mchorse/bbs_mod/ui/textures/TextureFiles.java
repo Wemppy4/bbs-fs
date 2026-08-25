@@ -84,7 +84,7 @@ public class TextureFiles
             return null;
         }
 
-        return done(target, link);
+        return moved(link, done(target, link));
     }
 
     public static Link duplicate(Link link)
@@ -154,7 +154,7 @@ public class TextureFiles
             return null;
         }
 
-        return done(target, link);
+        return moved(link, done(target, link));
     }
 
     /**
@@ -279,6 +279,7 @@ public class TextureFiles
         }
 
         BBSResources.markAssetsChanged();
+        TexturePins.follow(link, null);
 
         return true;
     }
@@ -331,6 +332,18 @@ public class TextureFiles
         {
             Files.move(sidecar.toPath(), sidecar(to).toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    /**
+     * A file just changed place or name: the pins on it (and on whatever is inside, when it's
+     * a folder) go along. Every move a browser makes — a drag, a paste of a cut, an undo of
+     * either — passes through here, which is why the pins are kept here rather than there.
+     */
+    private static Link moved(Link from, Link to)
+    {
+        TexturePins.follow(from, to);
+
+        return to;
     }
 
     private static Link done(File target, Link fallback)

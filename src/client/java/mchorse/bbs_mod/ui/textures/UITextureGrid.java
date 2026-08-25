@@ -297,7 +297,7 @@ public class UITextureGrid extends UIScrollView
 
             if (this.hoverAction != -1)
             {
-                int ax = this.area.x + CellActionBar.getX(cx, this.layout.getCellWidth(), actions.length) + this.hoverAction * CellActionBar.BUTTON + CellActionBar.BUTTON / 2;
+                int ax = this.area.x + CellActionBar.getActionX(cx, this.layout.getCellWidth(), actions.length, this.hoverAction);
                 int ay = this.area.y + cy - (int) this.scroll.getScroll() + CellActionBar.HEIGHT;
 
                 this.browser.setHoveredAction(actions[this.hoverAction], ax, ay);

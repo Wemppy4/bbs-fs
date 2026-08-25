@@ -46,15 +46,32 @@ public class TextureCellRenderer
             CellActionBar.render(context, x, y, w, actions, state.hoveredAction);
         }
 
-        /* Built into the mod: a lock in the corner says it can be copied out but not changed */
-        if (isReadOnly(entry))
-        {
-            context.batcher.icon(Icons.GEAR, Colors.LIGHTER_GRAY, x + 2, y + 2);
-        }
+        renderMarks(context, entry, x, y);
 
         CellPainter.frames(context, x, y, w, h, state);
 
         context.batcher.unclip(context);
+    }
+
+    /**
+     * The corner marks, in a row from the left: a bookmark for what's pinned, a gear for what
+     * is built into the mod (it can be copied out, but not changed in place). Both say
+     * something about the cell that holds true whether or not the cursor is on it.
+     */
+    private static void renderMarks(UIContext context, TextureEntry entry, int x, int y)
+    {
+        int mx = x + 2;
+
+        if (TexturePins.isPinned(entry.link()))
+        {
+            context.batcher.icon(Icons.BOOKMARK, Colors.LIGHTER_GRAY, mx, y + 2);
+            mx += 18;
+        }
+
+        if (isReadOnly(entry))
+        {
+            context.batcher.icon(Icons.GEAR, Colors.LIGHTER_GRAY, mx, y + 2);
+        }
     }
 
     /** Whether an entry lives inside the mod rather than on disk — nothing there can be changed in place. */

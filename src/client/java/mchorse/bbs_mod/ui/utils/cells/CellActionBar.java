@@ -35,16 +35,35 @@ public class CellActionBar
         return cellWidth >= THRESHOLD;
     }
 
-    /** Left edge of the first button — the bar is right-aligned along the cell's top. */
+    /**
+     * How many of the actions a cell this wide can show. The bar is right-aligned, so what
+     * doesn't fit is dropped from the left — editing, the one action every cell has, is the
+     * last to go. Everything below takes the FULL count and works this out itself, so an
+     * index handed out here is an index into the whole array.
+     */
+    public static int visible(int cellWidth, int actions)
+    {
+        return fits(cellWidth) ? Math.min(actions, cellWidth / BUTTON) : 0;
+    }
+
+    /** Left edge of the first button shown — the bar is right-aligned along the cell's top. */
     public static int getX(int cellX, int cellWidth, int actions)
     {
-        return cellX + cellWidth - actions * BUTTON;
+        return cellX + cellWidth - visible(cellWidth, actions) * BUTTON;
+    }
+
+    /** The centre of one action's button, for putting its label under it. */
+    public static int getActionX(int cellX, int cellWidth, int actions, int index)
+    {
+        return getX(cellX, cellWidth, actions) + (index - actions + visible(cellWidth, actions)) * BUTTON + BUTTON / 2;
     }
 
     /** Which action is under a point of a cell, or -1. */
     public static int getAction(int cellX, int cellY, int cellWidth, int actions, int x, int y)
     {
-        if (actions == 0 || y < cellY || y >= cellY + HEIGHT)
+        int count = visible(cellWidth, actions);
+
+        if (count == 0 || y < cellY || y >= cellY + HEIGHT)
         {
             return -1;
         }
@@ -52,22 +71,24 @@ public class CellActionBar
         int bx = getX(cellX, cellWidth, actions);
         int index = (x - bx) / BUTTON;
 
-        return x >= bx && index >= 0 && index < actions ? index : -1;
+        return x >= bx && index >= 0 && index < count ? actions - count + index : -1;
     }
 
     public static void render(UIContext context, int x, int y, int w, CellAction[] actions, int hovered)
     {
         Batcher2D batcher = context.batcher;
+        int count = visible(w, actions.length);
+        int first = actions.length - count;
         int bx = getX(x, w, actions.length);
 
         batcher.gradientVBox(x, y, x + w, y + HEIGHT, Colors.A75, 0);
 
-        for (int i = 0; i < actions.length; i++)
+        for (int i = 0; i < count; i++)
         {
             int ax = bx + i * BUTTON;
-            int color = hovered == i ? Colors.LIGHTEST_GRAY : Colors.WHITE;
+            int color = hovered == first + i ? Colors.LIGHTEST_GRAY : Colors.WHITE;
 
-            batcher.icon(actions[i].icon, color, ax + BUTTON / 2, y + HEIGHT / 2, 0.5F, 0.5F);
+            batcher.icon(actions[first + i].icon, color, ax + BUTTON / 2, y + HEIGHT / 2, 0.5F, 0.5F);
         }
     }
 

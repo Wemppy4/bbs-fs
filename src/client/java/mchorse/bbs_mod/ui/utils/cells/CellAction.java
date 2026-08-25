@@ -13,7 +13,10 @@ public enum CellAction
 {
     EDIT(Icons.EDIT, UIKeys.GENERAL_EDIT),
     DUPLICATE(Icons.DUPE, UIKeys.FORMS_CATEGORIES_CONTEXT_DUPLICATE_FORM),
-    REMOVE(Icons.REMOVE, UIKeys.GENERAL_REMOVE);
+    REMOVE(Icons.REMOVE, UIKeys.GENERAL_REMOVE),
+    /* The two faces of one button: what it says is what pressing it does to this cell */
+    PIN(Icons.BOOKMARK, UIKeys.TEXTURES_BROWSER_PIN),
+    UNPIN(Icons.BOOKMARK, UIKeys.TEXTURES_BROWSER_UNPIN);
 
     /** Editing is the one action every cell has, so it keeps the same place — last — everywhere. */
     private static final CellAction[] MODIFIABLE = {DUPLICATE, REMOVE, EDIT};
@@ -41,5 +44,19 @@ public enum CellAction
     public static CellAction[] none()
     {
         return NONE;
+    }
+
+    /**
+     * The same actions with one more in front. Editing keeps the last place — the bar is
+     * right-aligned, and a cell too narrow for everything drops buttons from the left.
+     */
+    public static CellAction[] with(CellAction first, CellAction[] actions)
+    {
+        CellAction[] result = new CellAction[actions.length + 1];
+
+        result[0] = first;
+        System.arraycopy(actions, 0, result, 1, actions.length);
+
+        return result;
     }
 }
