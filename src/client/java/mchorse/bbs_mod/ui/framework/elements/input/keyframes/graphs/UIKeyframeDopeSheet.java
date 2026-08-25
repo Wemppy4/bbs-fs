@@ -113,8 +113,6 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     {
         this.trackHeight = MathUtils.clamp(height, 8D, 100D);
         this.updateScrollSize();
-
-        this.dopeSheet.clamp();
     }
 
     private void updateScrollSize()
@@ -138,6 +136,12 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
 
         this.dopeSheet.scrollSize = y + TOP_MARGIN;
+
+        /* The content just changed height, so where the view sits may no longer exist — folding the
+         * sections away while scrolled to the bottom used to leave the timeline parked below every
+         * row that was left. Every caller changes the height, so this belongs here and not in each
+         * of them. */
+        this.dopeSheet.clamp();
     }
 
     /** How tall this row is drawn. Bone rows are shorter than the rest — see {@link #BONE_TRACK_SCALE}. */
@@ -578,14 +582,19 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
             if (context.mouseY >= y && context.mouseY < y + height)
             {
-                if (this.hasChildren(sheet) && this.isFoldToggleHit(context, sheet, y, labelWidth))
+                /* A click on a row's name means "key this here" — except on a section, which takes
+                 * no keyframes at all. There the whole row answers like its arrow does. */
+                if (this.hasChildren(sheet) && (sheet.header || this.isFoldToggleHit(context, sheet, y, labelWidth)))
                 {
                     this.toggleFold(sheet, Window.isShiftPressed());
 
                     return true;
                 }
 
-                this.addKeyframeManually(sheet, this.keyframes.getTick(), null);
+                if (!sheet.header)
+                {
+                    this.addKeyframeManually(sheet, this.keyframes.getTick(), null);
+                }
 
                 return true;
             }
@@ -596,11 +605,6 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         return false;
     }
 
-    /**
-     * Fold or unfold a row. With shift the whole branch below it goes too — a skeleton is nested as
-     * deep as the model is, and opening a hand one joint at a time is not what anyone means by
-     * "show me the fingers".
-     */
     /**
      * Fold or unfold every body part section. Only the sections: a bone folds by hand, one branch at
      * a time, which is how a skeleton is worked through — "unfold everything" there would bury the
@@ -619,6 +623,11 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         this.updateScrollSize();
     }
 
+    /**
+     * Fold or unfold a row. With shift the whole branch below it goes too — a skeleton is nested as
+     * deep as the model is, and opening a hand one joint at a time is not what anyone means by
+     * "show me the fingers".
+     */
     private void toggleFold(UIKeyframeSheet sheet, boolean branch)
     {
         boolean unfold = !this.isUnfolded(sheet);
