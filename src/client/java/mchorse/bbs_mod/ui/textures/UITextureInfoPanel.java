@@ -201,7 +201,7 @@ public class UITextureInfoPanel extends UIElement
 
             if (!TextureFiles.canModify(this.link))
             {
-                context.batcher.icon(Icons.LOCKED, Colors.LIGHTER_GRAY, x, y - 4);
+                context.batcher.icon(Icons.GEAR, Colors.LIGHTER_GRAY, x, y - 4);
                 context.batcher.text(UIKeys.TEXTURES_BROWSER_INFO_READ_ONLY.get(), x + 18, y, Colors.LIGHTER_GRAY);
                 y += 12;
             }

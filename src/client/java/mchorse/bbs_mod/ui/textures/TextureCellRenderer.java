@@ -49,7 +49,7 @@ public class TextureCellRenderer
         /* Built into the mod: a lock in the corner says it can be copied out but not changed */
         if (isReadOnly(entry))
         {
-            context.batcher.icon(Icons.LOCKED, Colors.LIGHTER_GRAY, x + 2, y + 2);
+            context.batcher.icon(Icons.GEAR, Colors.LIGHTER_GRAY, x + 2, y + 2);
         }
 
         CellPainter.frames(context, x, y, w, h, state);

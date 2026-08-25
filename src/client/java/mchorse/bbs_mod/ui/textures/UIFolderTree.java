@@ -265,7 +265,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
 
         if (readOnly)
         {
-            context.batcher.icon(Icons.LOCKED, Colors.LIGHTER_GRAY, this.area.ex() - 20, my - 8);
+            context.batcher.icon(Icons.GEAR, Colors.LIGHTER_GRAY, this.area.ex() - 20, my - 8);
         }
     }
 }
