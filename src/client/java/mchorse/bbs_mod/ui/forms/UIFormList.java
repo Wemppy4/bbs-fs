@@ -49,6 +49,7 @@ import java.util.Set;
 public class UIFormList extends UIElement
 {
     public static final int ZOOM_STEP = 8;
+    public static final int BAR_HEIGHT = 20;
     private static final long DOUBLE_CLICK = 300;
     private static final int AUTO_SCROLL_EDGE = 24;
     private static final int AUTO_SCROLL_SPEED = 6;
@@ -99,8 +100,9 @@ public class UIFormList extends UIElement
         this.edit.tooltip(UIKeys.FORMS_LIST_EDIT, Direction.TOP);
         this.close = new UIIcon(Icons.CLOSE, this::close);
 
-        this.forms.full(this);
-        this.bar.relative(this).x(10).y(1F, -30).w(1F, -20).h(20).row().height(20);
+        /* The bar sits along the top, as dark as the category headers, and the list scrolls under it */
+        this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT).row(0).height(BAR_HEIGHT);
+        this.forms.relative(this).xy(0, BAR_HEIGHT).w(1F).h(1F, -BAR_HEIGHT);
         this.close.w(20);
 
         this.categoryFilter = new UIIcon(Icons.FILTER, this::openMorphCategoryFilter);
@@ -182,7 +184,7 @@ public class UIFormList extends UIElement
 
         if (!this.categories.isEmpty())
         {
-            this.categories.get(this.categories.size() - 1).marginBottom(40);
+            this.categories.get(this.categories.size() - 1).marginBottom(20);
         }
 
         this.resize();
@@ -802,6 +804,8 @@ public class UIFormList extends UIElement
         this.hoveredAction = null;
         this.autoScroll(context);
 
+        context.batcher.box(this.bar.area.x, this.bar.area.y, this.bar.area.ex(), this.bar.area.ey(), BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50));
+
         DiffuseLighting.enableGuiDepthLighting();
 
         super.render(context);
@@ -828,7 +832,7 @@ public class UIFormList extends UIElement
         }
     }
 
-    /** Name and id of the chosen form, in one line above the search — the id lives nowhere else. */
+    /** Name and id of the chosen form, in one line in the bottom corner — the id lives nowhere else. */
     private void renderStatus(UIContext context)
     {
         Form selected = this.getSelected();
@@ -841,8 +845,8 @@ public class UIFormList extends UIElement
         FontRenderer font = context.batcher.getFont();
         String name = selected.getDisplayName();
         String id = selected.getFormId();
-        int x = this.search.area.x;
-        int y = this.search.area.y - 18;
+        int x = this.area.x + 6;
+        int y = this.area.ey() - 20;
         int w = font.getWidth(name) + 8 + font.getWidth(id) + 8;
 
         context.batcher.box(x, y, x + w, y + 16, Colors.A50);

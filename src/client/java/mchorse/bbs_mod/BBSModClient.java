@@ -590,6 +590,8 @@ public class BBSModClient implements ClientModInitializer
             LivePlayerItemUse.endFrame();
 
             BBSRendering.startTick();
+
+            getFormCategories().getUserForms().flush();
         });
 
         ClientTickEvents.END_WORLD_TICK.register((client) ->

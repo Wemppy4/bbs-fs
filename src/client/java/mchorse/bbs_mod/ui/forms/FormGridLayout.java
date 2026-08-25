@@ -10,7 +10,7 @@ package mchorse.bbs_mod.ui.forms;
  */
 public class FormGridLayout
 {
-    public static final int HEADER = 22;
+    public static final int HEADER = 20;
 
     /** Range of the cell width the user can zoom through. */
     public static final int MIN_CELL = 40;

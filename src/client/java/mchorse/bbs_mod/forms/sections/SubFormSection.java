@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.sections;
 
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.forms.FormCategories;
 import mchorse.bbs_mod.forms.categories.FormCategory;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -14,6 +15,9 @@ import java.util.Map;
 
 public abstract class SubFormSection extends FormSection
 {
+    /** The icon every category of this section wears in a form list. */
+    protected abstract Icon getIcon();
+
     protected Map<String, FormCategory> categories = new LinkedHashMap<>();
 
     public SubFormSection(FormCategories parent)
@@ -27,7 +31,7 @@ public abstract class SubFormSection extends FormSection
 
     protected FormCategory createCategory(IKey uiKey, String id)
     {
-        return new FormCategory(uiKey, this.parent.preferences.visible(id));
+        return new FormCategory(uiKey, this.parent.preferences.visible(id)).icon(this.getIcon());
     }
 
     protected abstract boolean isEqual(Form form, String key);

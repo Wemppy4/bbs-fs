@@ -8,6 +8,8 @@ import mchorse.bbs_mod.forms.forms.ParticleForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.watchdog.WatchDogEvent;
 
 import java.nio.file.Path;
@@ -18,6 +20,12 @@ public class ParticleFormSection extends SubFormSection
     public ParticleFormSection(FormCategories parent)
     {
         super(parent);
+    }
+
+    @Override
+    protected Icon getIcon()
+    {
+        return Icons.PARTICLE;
     }
 
     @Override

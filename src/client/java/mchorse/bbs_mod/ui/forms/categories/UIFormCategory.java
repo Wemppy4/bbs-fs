@@ -26,6 +26,8 @@ import mchorse.bbs_mod.ui.forms.FormSelection;
 import mchorse.bbs_mod.ui.forms.UIFormList;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
@@ -224,7 +226,7 @@ public class UIFormCategory extends UIElement
             }
         }
 
-        menu.action(Icons.LIST, UIKeys.FORMS_CATEGORIES_SORT, () -> this.getContext().replaceContextMenu(this::buildSortMenu));
+        menu.action(Icons.LIST, UIKeys.FORMS_CATEGORIES_SORT, () -> this.openSortMenu(this.getContext()));
     }
 
     private void buildGroupContextMenu(ContextMenuManager menu, UserFormSection userForms)
@@ -260,16 +262,14 @@ public class UIFormCategory extends UIElement
         }
     }
 
-    private void buildSortMenu(ContextMenuManager menu)
+    private void openSortMenu(UIContext context)
     {
         FormCategories formCategories = BBSModClient.getFormCategories();
 
-        for (FormSort sort : FormSort.values())
-        {
-            boolean current = this.category.getSort() == sort;
-
-            menu.action(current ? Icons.CHECKMARK : Icons.NONE, sort.label, () -> formCategories.setSort(this.category, sort));
-        }
+        UIChoiceMenu.of(FormSort.values())
+            .current(this.category.getSort())
+            .label((sort) -> sort.label)
+            .open(context, (sort) -> formCategories.setSort(this.category, sort));
     }
 
     /* Content */
@@ -376,7 +376,7 @@ public class UIFormCategory extends UIElement
 
             if (this.isSortButton(x))
             {
-                context.replaceContextMenu(this::buildSortMenu);
+                this.openSortMenu(context);
             }
             else
             {
@@ -591,15 +591,17 @@ public class UIFormCategory extends UIElement
         }
 
         int textColor = dragged ? Colors.GRAY : Colors.WHITE;
+        int my = y + FormGridLayout.HEADER / 2;
 
-        batcher.icon(expanded ? Icons.MOVE_DOWN : Icons.MOVE_RIGHT, this.hoverHeader ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + 14, y + FormGridLayout.HEADER / 2, 0.5F, 0.5F);
+        batcher.icon(this.category.icon, this.hoverHeader ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + 12, my, 0.5F, 0.5F);
+        UISection.renderArrow(context, x + 27, my, expanded);
 
         String title = this.category.getProcessedTitle();
         String count = String.valueOf(this.category.getForms().size());
         int textY = y + (FormGridLayout.HEADER - font.getHeight()) / 2 + 1;
 
-        batcher.textShadow(title, x + 26, textY, textColor);
-        batcher.text(count, x + 26 + font.getWidth(title) + 6, textY, Colors.GRAY);
+        batcher.textShadow(title, x + 36, textY, textColor);
+        batcher.text(count, x + 36 + font.getWidth(title) + 6, textY, Colors.GRAY);
 
         this.renderSortButton(context, ex - SORT_BUTTON - 2, y);
     }

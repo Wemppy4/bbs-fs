@@ -11,6 +11,8 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.ui.forms.UIFormList;
 import mchorse.bbs_mod.ui.forms.categories.UIFormCategory;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 
@@ -22,6 +24,9 @@ public class FormCategory implements IMapSerializable
 {
     public IKey title;
     public final ValueBoolean visible;
+
+    /** The icon the category wears in a form list, before its name. */
+    public Icon icon = Icons.FOLDER;
 
     private final List<Form> forms = new ArrayList<>();
     private FormSort sort = FormSort.MANUAL;
@@ -36,6 +41,13 @@ public class FormCategory implements IMapSerializable
     {
         this.title = title;
         this.visible = visible;
+    }
+
+    public FormCategory icon(Icon icon)
+    {
+        this.icon = icon;
+
+        return this;
     }
 
     public String getProcessedTitle()

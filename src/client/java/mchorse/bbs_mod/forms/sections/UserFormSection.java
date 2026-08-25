@@ -8,17 +8,37 @@ import mchorse.bbs_mod.forms.categories.FormCategory;
 import mchorse.bbs_mod.forms.categories.RecentFormCategory;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.utils.watchdog.WatchDogEvent;
+import mchorse.bbs_mod.utils.IOUtils;
 
 import java.io.File;
-import java.nio.file.Path;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class UserFormSection extends FormSection
 {
     public List<UserFormCategory> categories = new ArrayList<>();
+
+    /**
+     * Categories changed since the last {@link #flush()}. Every edit used to serialise and
+     * write its whole category on the spot, so dropping a handful of forms froze the game
+     * for as many full writes; now edits only mark, and the tick writes each dirty category
+     * once, off the render thread.
+     */
+    private final Set<UserFormCategory> dirty = new LinkedHashSet<>();
+    private final ExecutorService writer = Executors.newSingleThreadExecutor((runnable) ->
+    {
+        Thread thread = new Thread(runnable, "BBS user form categories writer");
+
+        thread.setDaemon(true);
+
+        return thread;
+    });
 
     public static File getUserCategoriesFile(int index)
     {
@@ -85,39 +105,61 @@ public class UserFormSection extends FormSection
         return categoryList;
     }
 
+    /** Mark every category for saving. Written on the next {@link #flush()}. */
     public void writeUserCategories()
     {
-        for (int i = 0; i < this.categories.size(); i++)
-        {
-            this.writeUserCategory(i, this.categories.get(i));
-        }
+        this.dirty.addAll(this.categories);
     }
 
+    /** Mark a category for saving. Written on the next {@link #flush()}. */
     public void writeUserCategories(UserFormCategory formCategory)
     {
-        int index = this.categories.indexOf(formCategory);
-
         if (formCategory != null)
         {
-            this.writeUserCategory(index, formCategory);
+            this.dirty.add(formCategory);
         }
     }
 
-    private void writeUserCategory(int index, FormCategory category)
+    /**
+     * Save what changed. Serialising happens here, on the game thread, where the forms are
+     * safe to read; only the disk write goes to the writer thread.
+     */
+    public void flush()
     {
-        File file = getUserCategoriesFile(index);
-
-        file.getParentFile().mkdirs();
-
-        try
+        if (this.dirty.isEmpty())
         {
-            DataToString.write(file, category.toData(), true);
+            return;
         }
-        catch (Exception e)
+
+        for (UserFormCategory category : this.dirty)
         {
-            System.err.println("Failed to save user category: " + file.getAbsolutePath());
-            e.printStackTrace();
+            int index = this.categories.indexOf(category);
+
+            if (index == -1)
+            {
+                continue;
+            }
+
+            File file = getUserCategoriesFile(index);
+            String text = DataToString.toString(category.toData(), true);
+
+            this.writer.submit(() ->
+            {
+                file.getParentFile().mkdirs();
+
+                try
+                {
+                    IOUtils.writeText(file, text);
+                }
+                catch (IOException e)
+                {
+                    System.err.println("Failed to save user category: " + file.getAbsolutePath());
+                    e.printStackTrace();
+                }
+            });
         }
+
+        this.dirty.clear();
     }
 
     public void addUserCategory(UserFormCategory category)
@@ -176,6 +218,7 @@ public class UserFormSection extends FormSection
         }
 
         this.categories.remove(category);
+        this.dirty.remove(category);
         this.parent.markDirty();
         this.parent.preferences.remove(category.visible.getId());
 
