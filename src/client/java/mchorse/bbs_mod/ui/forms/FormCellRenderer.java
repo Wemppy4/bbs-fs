@@ -187,7 +187,7 @@ public class FormCellRenderer
         int ground = BBSSettings.isLightTheme() ? 0xffffff : 0;
 
         context.batcher.box(bx, by, bx + BADGE, by + BADGE, Colors.A50 | ground);
-        context.batcher.iconArea(form.getIcon(), Colors.LIGHTEST_GRAY, bx + 1, by + 1, BADGE - 2, BADGE - 2);
+        context.batcher.scaledIcon(form.getIcon(), Colors.LIGHTEST_GRAY, bx + 1, by + 1, BADGE - 2);
     }
 
     private static void renderHotkey(UIContext context, Form form, int x, int y, int w)
@@ -240,7 +240,7 @@ public class FormCellRenderer
         int primary = BBSSettings.primaryColor.get();
 
         context.batcher.box(x, y, x + BADGE, y + BADGE, Colors.A100 | primary);
-        context.batcher.iconArea(Icons.CHECKMARK, Colors.WHITE, x + 1, y + 1, BADGE - 2, BADGE - 2);
+        context.batcher.scaledIcon(Icons.CHECKMARK, Colors.WHITE, x + 1, y + 1, BADGE - 2);
     }
 
     /**
