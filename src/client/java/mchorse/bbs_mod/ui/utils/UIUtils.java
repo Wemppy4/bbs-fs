@@ -116,6 +116,12 @@ public class UIUtils
         return new int[] {vx, vy, vw, vh};
     }
 
+    /* 1.21.1's currentViewport()/restoreViewport() pair did not come across: it existed to save the
+     * UI's viewport around a pass that bound another framebuffer RAW, and there is no such pass on
+     * this branch any more — every off-screen pass here is a render pass that carries its own
+     * viewport. RenderSystem.viewport() is gone too, so the pair could not be expressed even if a
+     * caller wanted it. */
+
     public static void playClick()
     {
         playClick(1F);

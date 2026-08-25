@@ -20,6 +20,7 @@ import mchorse.bbs_mod.ui.utils.GizmoInteraction;
 import mchorse.bbs_mod.ui.utils.GizmoViewport;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
+import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -206,6 +207,9 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
 
             this.stencil.resize(vpw, vph);
 
+            /* No viewport to remember here (unlike 1.21.1, which bound the pick framebuffer raw):
+             * the picker draws through a 1.21.11 render pass onto BBSPickerRenderer's target, which
+             * owns its own viewport and leaves the UI's alone. */
             this.stencilMap.setup();
             this.stencil.apply();
 

@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.BBSShaders.ModelVariant;
@@ -248,7 +249,11 @@ public class FormTranslucentQueue
     {
         release();
 
-        active = true;
+        /* Switched off, the queue never opens a scope: isActive() stays false, so no draw splits or
+         * defers and add() falls through to drawing right away. That is the same single-pass path
+         * forms already take under a shaderpack — every pixel is drawn, just in entity order with
+         * depth writes, the way it was before this mechanism existed. */
+        active = BBSSettings.translucencyQueue.get();
     }
 
     /**
@@ -286,6 +291,13 @@ public class FormTranslucentQueue
             return;
         }
 
+        /* TODO(1.21.11 render): 1.21.1 rebinds the main framebuffer here under Fabulous! graphics —
+         * vanilla's pre-translucent bookkeeping (clear() and copyDepthFrom() on its transparency
+         * framebuffers) leaves FBO 0, the window itself, bound at our flush point, and the
+         * end-of-frame blit of the main framebuffer then overwrites everything drawn there.
+         * Framebuffer.beginWrite(boolean) is gone, so the rebind has no expression on this branch
+         * yet (the same debt as UIFilmController / UIModelBlockPanel). */
+
         commands.sort((a, b) -> Float.compare(b.distanceSq, a.distanceSq));
 
         for (DrawCommand command : commands)
@@ -312,6 +324,14 @@ public class FormTranslucentQueue
         group = null;
         sortOrigin = null;
     }
+
+    /* TODO(1.21.11 render): 1.21.1 sorts a FLAT single-quad command (billboard, framebuffer screen,
+     * label part) by the camera's distance to the quad's PLANE rather than to its centre — a large
+     * backdrop's centre swings nearer and further than nearby forms as the camera orbits, flipping
+     * the paint order mid-flight. It carried a second DrawCommand constructor taking the quad's
+     * camera-space plane normal (cross product of the transformed basis vectors) and a sort key of
+     * (n·o)²/|n|². Not ported: submit()/BufferCommand here take an origin only, so a flat form on
+     * this branch still sorts by its centre. */
 
     public static abstract class DrawCommand
     {

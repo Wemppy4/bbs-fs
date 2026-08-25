@@ -16,12 +16,25 @@ import org.lwjgl.opengl.GL11;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class TextureManager implements IWatchDogListener
 {
     public final Map<Link, Texture> textures = new HashMap<>();
     public final Map<Link, AnimatedTexture> animatedTextures = new HashMap<>();
+
+    /**
+     * Links whose asset couldn't be read. The error texture stands in for them, but it must NEVER
+     * be stored as their value: it is ONE shared texture, while everything inside {@link #textures}
+     * and {@link #animatedTextures} is owned there and deleted with its link. Storing the stand-in
+     * among them let a single link's deletion (Iris closing a PBR wrapper, the watchdog seeing a
+     * file change, the reload button) kill it for every other missing texture at once — and a
+     * deleted texture keeps id -1, which the shader binds on every draw that follows.
+     */
+    private final Set<Link> failed = new HashSet<>();
+
     public AssetProvider provider;
 
     private Texture error;
@@ -41,6 +54,12 @@ public class TextureManager implements IWatchDogListener
 
     public Texture getError()
     {
+        if (this.error != null && !this.error.isValid())
+        {
+            /* Somebody deleted the stand-in — rebuild it instead of handing out a dead GL id. */
+            this.error = null;
+        }
+
         if (this.error == null)
         {
             try
@@ -140,6 +159,8 @@ public class TextureManager implements IWatchDogListener
 
     public void delete(Link link)
     {
+        this.failed.remove(link);
+
         Texture texture = this.textures.remove(link);
 
         if (texture != null)
@@ -164,12 +185,13 @@ public class TextureManager implements IWatchDogListener
     {
         Texture texture = this.textures.get(link);
 
-        if (texture == null || texture == this.getError())
+        if (texture == null)
         {
             texture = new Texture();
             texture.setFilter(filter);
 
             this.textures.put(link, texture);
+            this.failed.remove(link);
         }
 
         return texture;
@@ -219,6 +241,12 @@ public class TextureManager implements IWatchDogListener
 
         if (texture == null)
         {
+            if (this.failed.contains(link))
+            {
+                /* Asked before and the asset wasn't there — don't re-read the file every frame. */
+                return this.getError();
+            }
+
             try
             {
                 Pixels pixels = this.getPixels(link);
@@ -251,7 +279,7 @@ public class TextureManager implements IWatchDogListener
                 }
                 else
                 {
-                    this.textures.put(link, this.getError());
+                    this.failed.add(link);
 
                     return this.getError();
                 }
@@ -263,9 +291,9 @@ public class TextureManager implements IWatchDogListener
                     e.printStackTrace();
                 }
 
-                texture = this.getError();
+                this.failed.add(link);
 
-                this.textures.put(link, texture);
+                return this.getError();
             }
         }
 
@@ -278,7 +306,7 @@ public class TextureManager implements IWatchDogListener
         {
             Texture texture = this.animatedTextures.get(link).getTexture(this.tick);
 
-            return texture == null ? this.error : texture;
+            return texture == null ? this.getError() : texture;
         }
 
         return this.textures.get(link);
@@ -298,6 +326,7 @@ public class TextureManager implements IWatchDogListener
 
         this.textures.clear();
         this.animatedTextures.clear();
+        this.failed.clear();
         this.extruder.deleteAll();
     }
 
@@ -324,6 +353,8 @@ public class TextureManager implements IWatchDogListener
         {
             link = new Link(link.source, StringUtils.removeExtension(link.path));
         }
+
+        this.failed.remove(link);
 
         Texture texture = this.textures.remove(link);
 

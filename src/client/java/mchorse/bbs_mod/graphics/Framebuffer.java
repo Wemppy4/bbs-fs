@@ -96,6 +96,15 @@ public class Framebuffer
     {
         Texture texture = this.getMainTexture();
 
+        /* TODO(1.21.11 render): 1.21.1 routes this through RenderSystem.viewport and NEVER raw
+         * GL11.glViewport — both Minecraft and Sodium keep their own record of the viewport, and
+         * Sodium 0.8+ skips a glViewport call whose arguments match its record
+         * (GlStateManagerMixin#skipRedundantViewport, @WrapWithCondition on GlStateManager._viewport).
+         * A raw call sets the GPU without updating either record, so the next legitimate restore back
+         * to the previous viewport looks redundant to Sodium and is swallowed — leaving the whole UI
+         * drawn into this framebuffer's viewport. RenderSystem.viewport() no longer exists here (a
+         * RenderPass carries its own viewport), so the raw call stands until this framebuffer path is
+         * rebuilt on render passes. */
         GL11.glViewport(0, 0, texture.width, texture.height);
         this.bind();
     }

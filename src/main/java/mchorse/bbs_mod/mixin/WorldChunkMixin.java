@@ -37,12 +37,10 @@ public class WorldChunkMixin
 
         if (chunk.getWorld() instanceof ServerWorld world)
         {
-            ActionManager actions = BBSMod.getActions();
-
-            /* Asked before the block entity is looked up and serialized, not after: this runs on
-             * every block change on the server, and both were being paid for even with nothing
-             * being filmed and the feature turned off. */
-            if (actions == null || !actions.isTracking())
+            /* Asked before the block entity is looked up, not after: this runs on every block
+             * change on the server, and looking it up and serializing it to NBT was being paid
+             * for even with nothing being filmed and the feature turned off. */
+            if (!isTracking())
             {
                 return;
             }
@@ -62,14 +60,16 @@ public class WorldChunkMixin
         BlockState previous = info.getReturnValue();
         WorldChunk chunk = (WorldChunk) (Object) this;
 
-        if (previous != null && chunk.getWorld() instanceof ServerWorld)
+        if (previous != null && isTracking() && chunk.getWorld() instanceof ServerWorld)
         {
-            ActionManager actions = BBSMod.getActions();
-
-            if (actions != null && actions.isTracking())
-            {
-                actions.changedBlock(pos, previous, replaced.get());
-            }
+            BBSMod.getActions().changedBlock(pos, previous, replaced.get());
         }
+    }
+
+    private static boolean isTracking()
+    {
+        ActionManager actions = BBSMod.getActions();
+
+        return actions != null && actions.isTracking();
     }
 }

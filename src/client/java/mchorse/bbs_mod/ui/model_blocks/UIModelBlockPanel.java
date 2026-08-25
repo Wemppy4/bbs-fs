@@ -500,7 +500,10 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         this.gizmoStencil.unbind(this.gizmoStencilMap);
 
         /* TODO(1.21.11 render): Framebuffer.beginWrite(boolean) removed; rebinding the main
-         * framebuffer for writing now goes through the GpuTexture/command-queue API. */
+         * framebuffer for writing now goes through the GpuTexture/command-queue API.
+         * The 1.21.1 viewport restore that went with it has no counterpart here: the pick
+         * pass draws through BBSPickerRenderer's render target, which never took the UI's
+         * viewport away in the first place. */
     }
 
     private void addCameraController(UIFormPalette palette)

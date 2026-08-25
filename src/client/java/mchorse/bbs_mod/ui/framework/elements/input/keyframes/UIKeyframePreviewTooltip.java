@@ -113,6 +113,11 @@ public class UIKeyframePreviewTooltip implements ITooltip
 
     private Pair<Keyframe, KeyframeType> findKeyframe(UIContext context)
     {
+        if (!BBSSettings.keyframePreview.get())
+        {
+            return null;
+        }
+
         /* No preview while dragging/selecting/etc., or in the Ctrl (remove/create)
          * and Alt (duplicate/column select) modifier modes */
         if (this.keyframes.isInteracting() || Window.isCtrlPressed() || Window.isAltPressed())

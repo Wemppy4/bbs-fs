@@ -153,6 +153,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
+
+        /* TODO(1.21.11 render): 1.21.1 routes this through RenderSystem, not raw GL30.glViewport —
+         * see Framebuffer#apply for why (Sodium 0.8+ swallows a later restore it thinks redundant).
+         * RenderSystem.viewport() is gone here, so the raw call stands for now. */
         GL30.glViewport(0, 0, width, height);
 
         /* TODO(1.21.11 render): restore shader lights + projection + model-view stack here (see above). */

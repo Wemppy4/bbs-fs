@@ -421,6 +421,29 @@ public abstract class UINumericInput <T extends UINumericInput<T>> extends UIBas
         }
     }
 
+    /**
+     * Set the value from one of this field's own gestures — an arrow key, the
+     * scroll wheel, the negate shortcut — any of which can happen while the
+     * field is being typed into.
+     *
+     * While the field is focused, the text box is what spells the value out,
+     * and {@link #setValue(double)} deliberately refuses to respell a focused
+     * box (an update coming from the outside must not eat what is half typed).
+     * These gestures are not such an outside update — they are this field's own
+     * edit — so they respell the box themselves, otherwise the number visibly
+     * stops moving until the field is left.
+     */
+    protected void applyValue(double value)
+    {
+        this.setValueAndNotify(value);
+
+        if (this.textbox.isFocused())
+        {
+            this.updateTextField();
+            this.textbox.moveCursorToEnd();
+        }
+    }
+
     protected void updateTextField()
     {
         if (Window.isAltPressed())
@@ -506,13 +529,13 @@ public abstract class UINumericInput <T extends UINumericInput<T>> extends UIBas
         {
             if (context.isHeld(GLFW.GLFW_KEY_UP))
             {
-                this.setValueAndNotify(this.value + this.getValueModifier());
+                this.applyValue(this.value + this.getValueModifier());
 
                 return true;
             }
             else if (context.isHeld(GLFW.GLFW_KEY_DOWN))
             {
-                this.setValueAndNotify(this.value - this.getValueModifier());
+                this.applyValue(this.value - this.getValueModifier());
 
                 return true;
             }

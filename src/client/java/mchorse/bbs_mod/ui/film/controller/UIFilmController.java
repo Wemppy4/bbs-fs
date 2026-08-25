@@ -1688,6 +1688,10 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         this.ensureStencilFramebuffer();
 
+        /* No viewport to remember here (unlike 1.21.1, which bound the pick framebuffer raw):
+         * the picker draws through a render pass onto BBSPickerRenderer's target, which owns
+         * its own viewport and leaves the UI's alone. */
+
         /* Match the visual gizmo's on-screen size compensation (see
          * Gizmo#setViewportScale) so the pick handles line up with what is drawn. */
         Gizmo.INSTANCE.setViewportScale(context.menu.height / (float) viewport.h);
