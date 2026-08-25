@@ -191,7 +191,7 @@ public class UIAnimationStateEditor extends UIElement
             return false;
         });
 
-        UIReplaysEditorUtils.detachMissingParents(sheets);
+        UIReplaysEditorUtils.pruneTree(sheets);
 
         /*
          * Filtering every track off used to drop the timeline itself, and the track filter lives in its

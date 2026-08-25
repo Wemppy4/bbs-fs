@@ -197,17 +197,20 @@ public class UIReplaysEditorUtils
     }
 
     /**
-     * Cut loose the rows whose parent this timeline is not showing — a tab or a filter can drop a
-     * parent while keeping its children, and a child left pointing at a row that is not there would
-     * be folded away with no way to unfold it.
+     * Make the tree of rows agree with the list of them, after a tab or a filter has taken rows out.
+     * A row that left is still listed among its parent's children and still points back at its
+     * parent, so {@link UIKeyframeSheet#children} would answer for a timeline other than this one:
+     * a section would fold rows that are not there, and the summary it draws would count keyframes
+     * this timeline is not showing.
+     *
+     * <p>Three things follow from a row leaving, and each can cause the next, so they settle
+     * together rather than in a fixed order: its parent forgets it; a header left with nothing under
+     * it names nothing and leaves as well (which is what the loop is for — a part holding only parts
+     * empties one level at a time); and a row whose parent left is cut loose instead of dropped,
+     * because a row pointing at a parent that is not there would be folded away with no arrow left
+     * to unfold it.</p>
      */
-    /**
-     * Drop the rows that only name something once nothing of theirs is left — a body part whose
-     * every track was filtered away has nothing to head, and an empty header lies about there being
-     * something folded under it. Repeats until nothing changes, so a part holding only parts goes
-     * too.
-     */
-    public static void dropEmptyHeaders(List<UIKeyframeSheet> sheets)
+    public static void pruneTree(List<UIKeyframeSheet> sheets)
     {
         boolean removed = true;
 
@@ -215,35 +218,20 @@ public class UIReplaysEditorUtils
         {
             Set<UIKeyframeSheet> present = new HashSet<>(sheets);
 
-            removed = sheets.removeIf((sheet) ->
+            for (UIKeyframeSheet sheet : sheets)
             {
-                if (!sheet.header)
-                {
-                    return false;
-                }
+                sheet.children.removeIf((child) -> !present.contains(child));
+            }
 
-                for (UIKeyframeSheet child : sheet.children)
-                {
-                    if (present.contains(child))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            });
+            removed = sheets.removeIf((sheet) -> sheet.header && sheet.children.isEmpty());
         }
-    }
 
-    public static void detachMissingParents(List<UIKeyframeSheet> sheets)
-    {
         Set<UIKeyframeSheet> present = new HashSet<>(sheets);
 
         for (UIKeyframeSheet sheet : sheets)
         {
             if (sheet.parent != null && !present.contains(sheet.parent))
             {
-                sheet.parent.children.remove(sheet);
                 sheet.parent = null;
             }
         }

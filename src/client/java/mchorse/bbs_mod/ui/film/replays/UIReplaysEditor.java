@@ -644,8 +644,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
          */
         boolean filteredOutEverything = hadTracks && sheets.isEmpty();
 
-        UIReplaysEditorUtils.dropEmptyHeaders(sheets);
-        UIReplaysEditorUtils.detachMissingParents(sheets);
+        UIReplaysEditorUtils.pruneTree(sheets);
 
         if (!sheets.isEmpty() || filteredOutEverything)
         {
