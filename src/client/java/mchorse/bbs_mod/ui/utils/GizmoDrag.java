@@ -135,18 +135,25 @@ public class GizmoDrag
 
     public GizmoDrag setup(Camera camera, Area viewport, double gx, double gy, double gz)
     {
-        /* Mouse rays are cast through the lens the HANDLES were drawn with, not the
-         * scene camera's, or the drag would slide along an axis pointing somewhere
-         * else than the bar the user grabbed — the two part ways exactly where the
-         * lens earns its keep, at the edge of a wide frame. The lens is a swing of
-         * the camera about the eye, so cameraOrigin is untouched by it, and an
-         * inactive lens hands back the camera's own pair. */
-        GizmoLens lens = new GizmoLens();
-
-        Gizmo.INSTANCE.fillLens(camera.projection, lens);
-
-        this.projection.set(lens.projection);
-        this.view.set(new Matrix4f(lens.viewDelta).mul(camera.view));
+        /* The SCENE camera, deliberately — never {@link GizmoLens}, even though the
+         * handles are drawn through it. A drag solves for where the edited thing ends
+         * up, and the edited thing is drawn by the camera: solve it through the lens
+         * and the model crawls, because the lens's narrow frustum is also a zoom, so
+         * it reads a cursor move as a much smaller world step. Measured on an off-centre
+         * gizmo: a 100px drag moved the model 63px at a 50 degree FOV, 42px at 70,
+         * 21px at 110 — the lens scale, exactly.
+         *
+         * It is also what keeps VIEW honest. The camera's own right/up carry no depth,
+         * so a step along them slides the model dead straight across the screen; the
+         * lens's right is tilted off the camera by the angle it swung, and the same
+         * step drifts 8px sideways at a 110 degree FOV. The drawn VIEW handles read
+         * square either way, so the two agree on screen where it counts.
+         *
+         * What DOES go through the lens is the pick stencil — "which handle is under
+         * the cursor" is a question about the picture. "Where does it end up" is a
+         * question about the world. */
+        this.projection.set(camera.projection);
+        this.view.set(camera.view);
         this.cameraOrigin.set(camera.position);
 
         this.viewportX = viewport.x;
@@ -338,9 +345,9 @@ public class GizmoDrag
      * The camera's world-space right/up/forward as the columns of an orthonormal
      * basis &mdash; the single source of the screen frame. {@link #view} is the
      * rotation-only world&rarr;camera map, so its inverse takes the camera's own
-     * axes back into world space. With a {@link GizmoLens} that map is the LENS's
-     * camera, which is what makes this agree with the drawn VIEW handles at the
-     * edge of a wide frame instead of lagging the swing. This is {@link #frameBasis}'s VIEW frame, and
+     * axes back into world space. This is the SCENE camera's, not {@link GizmoLens}'s
+     * (see {@link #setup}): its right/up carry no depth, so a step along them slides
+     * the model dead straight across the screen, which is what VIEW promises. This is {@link #frameBasis}'s VIEW frame, and
      * the inherently screen-relative gestures (the screen translate, the sphere's
      * trackball/arcball tumble) read their right/up axes from here instead of
      * re-inverting the view matrix themselves. Returns {@code null} when the view
@@ -366,11 +373,13 @@ public class GizmoDrag
      * {@link TransformSpace#WORLD} the view rotation itself
      * ({@code view · identity}) and {@link TransformSpace#VIEW} the identity
      * ({@code view · view⁻¹}) &mdash; which {@link Gizmo#reorientForSpace}
-     * then turns by the inverse of {@link GizmoLens}'s view swing, so the handles come
-     * out square to the screen once the draw passes swing them back. Without a lens the
-     * draw passes instead lay that third column on the eye ray, so the handles face the
-     * screen rather than merely paralleling it. The frame returned here, and everything
-     * the drags read from it, stays orthonormal.
+     * then turns by the inverse of {@link GizmoLens}'s view swing, so the DRAWN handles
+     * come out square to the screen once the draw passes swing them back. Without a lens
+     * the draw passes instead lay that third column on the eye ray, so the handles face
+     * the screen rather than merely paralleling it. Either way this is the drawn frame
+     * only; the drag's VIEW frame stays the camera's ({@link #cameraBasis}), and both
+     * read square on screen. The frame returned here, and everything the drags read from
+     * it, stays orthonormal.
      * {@code globalAxes} is the drawn twin of {@link #globalWorldAxes} and must
      * come from the same source the drag's does &mdash; {@code null} means the
      * plain world axes. {@link TransformSpace#LOCAL} and

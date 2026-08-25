@@ -299,7 +299,10 @@ public class Gizmo
         return this.currentTransform != null && this.currentTransform.isEditing() && this.currentTransform.isSphereRotate();
     }
 
-    /** World-space radius the rotate sphere was last drawn at ({@code 0} until rendered). */
+    /** World-space radius of the rotate sphere as the CAMERA sizes it ({@code 0} until
+     *  rendered) — what a camera-space ray has to hit to grab the ball the user sees.
+     *  {@link GizmoLens} shrinks the drawn sphere by its own zoom on top of this; only
+     *  the screen helpers, which project through the lens, put that back. */
     public float getSphereWorldRadius()
     {
         return this.hasLastRenderMatrix ? this.lastSphereLocalRadius : 0F;
@@ -315,31 +318,11 @@ public class Gizmo
      * put it there), so the hover centre is unchanged; the sphere's radius is not,
      * which is exactly why the pick disc has to be measured through the lens too.
      */
-    private Matrix4f lensMvp(Matrix4f cameraProjection)
+    private Matrix4f lensMvp(Matrix4f cameraProjection, GizmoLens lens)
     {
-        GizmoLens lens = new GizmoLens();
-
         lens.set(cameraProjection, this.lastRenderMatrix);
 
         return new Matrix4f(lens.projection).mul(lens.viewDelta).mul(this.lastRenderMatrix);
-    }
-
-    /**
-     * The lens the gizmo was last drawn through, for the callers that own a camera
-     * rather than a matrix stack ({@link GizmoDrag#setup}, which has to cast its
-     * mouse rays through the very frustum the handles were drawn in). Returns
-     * whether it came out active; the fields are the identity swap when it did not.
-     */
-    public boolean fillLens(Matrix4f cameraProjection, GizmoLens out)
-    {
-        if (!this.hasLastRenderMatrix)
-        {
-            out.set(cameraProjection, new Matrix4f());
-
-            return false;
-        }
-
-        return out.set(cameraProjection, this.lastRenderMatrix);
     }
 
     /**
@@ -361,7 +344,7 @@ public class Gizmo
             return false;
         }
 
-        Matrix4f mvp = this.lensMvp(projection);
+        Matrix4f mvp = this.lensMvp(projection, new GizmoLens());
         Vector4f clip = mvp.transform(new Vector4f(0F, 0F, 0F, 1F));
 
         if (clip.w <= 0F)
@@ -406,8 +389,11 @@ public class Gizmo
             return 0F;
         }
 
-        Matrix4f mvp = this.lensMvp(projection);
-        float r = this.lastSphereLocalRadius;
+        GizmoLens lens = new GizmoLens();
+        Matrix4f mvp = this.lensMvp(projection, lens);
+        /* The stored radius is the camera-sized one; the drawn sphere is that shrunk
+         * by the lens, so put the shrink back before projecting through it. */
+        float r = this.lastSphereLocalRadius * lens.scale;
         float[] xs = {r, 0F, 0F};
         float[] ys = {0F, r, 0F};
         float[] zs = {0F, 0F, r};
@@ -737,11 +723,10 @@ public class Gizmo
         /* Read before the lens goes in: the distance scale takes the SCENE's angle
          * (that is what it compensates), and the lens then rescales by the ratio of
          * the two, which keeps the on-screen size put in both settings modes. */
-        float distanceScale = this.getAxesDistanceScale(stack);
+        float cameraScale = this.getAxesDistanceScale(stack);
         GizmoLens lens = new GizmoLens();
         LensSwap swap = this.applyLens(stack, lens);
-
-        distanceScale *= lens.scale;
+        float distanceScale = cameraScale * lens.scale;
 
         stack.push();
         this.applyViewShear(stack, lens);
@@ -749,11 +734,16 @@ public class Gizmo
 
         if (BBSSettings.gizmos.get())
         {
-            /* Cache the sphere's effective world radius (in
-             * {@link #lastRenderMatrix}'s coordinate frame) so
-             * {@link #computeScreenRadius} can report the real on-screen
-             * pixel size for hover/pick distance checks. */
-            this.lastSphereLocalRadius = 0.22F * BBSSettings.axesScale.get() * distanceScale;
+            /* Cache the sphere's world radius (in {@link #lastRenderMatrix}'s
+             * coordinate frame) so {@link #computeScreenRadius} can report the real
+             * on-screen pixel size for hover/pick distance checks.
+             *
+             * Stored WITHOUT the lens's shrink, i.e. the radius the sphere would have
+             * had under the camera. The trackball drag intersects it with a camera ray
+             * ({@code ArcballDrag}), which would otherwise grab a ball a fifth of the
+             * drawn one at a wide FOV; the screen helpers put the lens back on when
+             * they project it. */
+            this.lastSphereLocalRadius = 0.22F * BBSSettings.axesScale.get() * cameraScale;
 
             this.lastSphereMatrix.set(stack.peek().getPositionMatrix());
             this.hasLastSphereMatrix = true;
@@ -769,7 +759,7 @@ public class Gizmo
         /* Deliberately outside the shear: the constraint guide is a world-space line
          * showing the axis the drag actually slides along, and that axis comes from
          * {@link GizmoDrag#frameBasis} — the unsheared frame. */
-        this.drawInfiniteLine(stack);
+        this.drawInfiniteLine(stack, lens.scale);
 
         this.restoreLens(swap);
     }
@@ -940,7 +930,13 @@ public class Gizmo
         return BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov) * this.viewportScale;
     }
 
-    private void drawInfiniteLine(MatrixStack stack)
+    /**
+     * @param lensScale what {@link GizmoLens} shrinks geometry by. The guide is sized
+     *        in world units and is drawn OUTSIDE the gizmo's distance scale, so unlike
+     *        the handles nothing else compensates the lens's zoom for it — at a 110
+     *        degree FOV that made the line 5.3x thicker on screen than it used to be.
+     */
+    private void drawInfiniteLine(MatrixStack stack, float lensScale)
     {
         int debugIndex = this.index;
 
@@ -957,8 +953,8 @@ public class Gizmo
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
-        float size = 10000F;
-        float t = 0.005F;
+        float size = 10000F * lensScale;
+        float t = 0.005F * lensScale;
 
         if (debugIndex == STENCIL_X || debugIndex == STENCIL_XZ || debugIndex == STENCIL_XY)
         {
