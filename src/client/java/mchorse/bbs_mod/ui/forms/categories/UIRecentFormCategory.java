@@ -28,19 +28,26 @@ public class UIRecentFormCategory extends UIFormCategory
             catch (Exception e)
             {}
 
-            if (this.selected != null)
+            Form form = this.getContextForm();
+
+            if (form != null)
             {
                 menu.action(Icons.TRASH, UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_ALL_FORM, Colors.RED, () ->
                 {
-                    this.category.getDirectForms().clear();
+                    this.category.clearForms();
                     this.select(null, false);
+                    this.list.reconcile();
                 });
 
-                menu.action(Icons.REMOVE, UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM, Colors.RED, () ->
+                /* With several picked, the group menu already offers their removal */
+                if (!this.isGroupContext())
                 {
-                    this.category.removeForm(this.selected);
-                    this.select(null, false);
-                });
+                    menu.action(Icons.REMOVE, UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM, Colors.RED, () ->
+                    {
+                        this.category.removeForm(form);
+                        this.list.reconcile();
+                    });
+                }
             }
         });
     }
