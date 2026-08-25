@@ -15,7 +15,7 @@ import mchorse.bbs_mod.utils.colors.Colors;
  * appears only when it earns the space.
  *
  * <p>Which overlays fit depends on {@link #NAME_THRESHOLD the cell size}: a 40px cell is a
- * thumbnail with the type icon in its corner, an 80px cell can carry its name, and from
+ * bare thumbnail, an 80px cell can carry its name, and from
  * {@link #BAR_THRESHOLD} up a hovered cell shows its actions along the top edge.</p>
  *
  * <p>Icons follow the rest of BBS: their own size, white, lighter under the cursor, over a
@@ -34,8 +34,6 @@ public class FormCellRenderer
 
     /** Height of the name strip along the bottom of a cell. */
     public static final int NAME_HEIGHT = 14;
-
-    private static final int ICON = 16;
 
     /** Everything about one cell that decides its overlays. Reused by the caller across cells. */
     public static class State
@@ -133,10 +131,6 @@ public class FormCellRenderer
         if (hasName(w))
         {
             renderName(context, form, x, y, w, h, state);
-        }
-        else
-        {
-            batcher.icon(form.getIcon(), x + w - ICON - 2, y + h - ICON - 2);
         }
 
         if (bar)

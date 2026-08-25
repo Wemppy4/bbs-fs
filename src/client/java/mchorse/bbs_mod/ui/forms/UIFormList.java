@@ -104,7 +104,7 @@ public class UIFormList extends UIElement
 
         /* The bar sits along the top, as dark as the category headers, with a status line
          * about the chosen form under it; the list scrolls under both */
-        this.bar.relative(this).xy(2, (BAR_HEIGHT - 20) / 2).w(1F, -4).h(20).row(0).height(20);
+        this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT).row(0).height(BAR_HEIGHT);
         this.forms.relative(this).xy(0, BAR_HEIGHT + STATUS_HEIGHT).w(1F).h(1F, -BAR_HEIGHT - STATUS_HEIGHT);
         this.close.w(20);
 
@@ -835,8 +835,8 @@ public class UIFormList extends UIElement
     }
 
     /**
-     * The line under the bar: the chosen form — its type icon, name, id, the category it's
-     * in and its hotkey — or, with several picked, how many.
+     * The line under the bar: the chosen form — its type icon, name, id and hotkey — or,
+     * with several picked, how many.
      */
     private void renderStatus(UIContext context)
     {
@@ -846,7 +846,7 @@ public class UIFormList extends UIElement
         int textY = y + (STATUS_HEIGHT - font.getHeight()) / 2 + 1;
         int x = this.area.x + 4;
 
-        batcher.box(this.area.x, y, this.area.ex(), y + STATUS_HEIGHT, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A25));
+        batcher.box(this.area.x, y, this.area.ex(), y + STATUS_HEIGHT, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50));
 
         Form selected = this.getSelected();
 
@@ -874,17 +874,6 @@ public class UIFormList extends UIElement
 
         batcher.text(id, x, textY, Colors.GRAY);
         x += font.getWidth(id) + 8;
-
-        FormCategory category = this.categoryOf(selected);
-
-        if (category != null)
-        {
-            String title = category.getProcessedTitle();
-
-            batcher.icon(category.icon, Colors.LIGHTER_GRAY, x, y + STATUS_HEIGHT / 2, 0F, 0.5F);
-            batcher.text(title, x + 18, textY, Colors.LIGHTER_GRAY);
-            x += 18 + font.getWidth(title) + 8;
-        }
 
         if (selected.hotkey.get() > 0)
         {
