@@ -547,12 +547,23 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             this.fillData();
         }
 
-        this.editor.setVisible(modelBlock != null);
+        this.setEditorVisible(modelBlock != null);
 
         if (select)
         {
             this.modelBlocks.setCurrentScroll(modelBlock);
         }
+    }
+
+    private void setEditorVisible(boolean visible)
+    {
+        if (this.editor.isVisible() == visible)
+        {
+            return;
+        }
+
+        this.editor.setVisible(visible);
+        this.scrollView.resize();
     }
 
     private void fillData()
