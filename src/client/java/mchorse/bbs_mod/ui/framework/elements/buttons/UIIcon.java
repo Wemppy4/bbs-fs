@@ -144,28 +144,25 @@ public class UIIcon extends UIClickable<UIIcon>
             context.batcher.highlight(this.area, this.highlightEdge);
         }
 
-        this.renderIcon(context, this.getStateColor());
-    }
-
-    /** The colour the icon is drawn in for the button's current state. */
-    protected int getStateColor()
-    {
-        if (!this.isEnabled())
+        Icon icon = this.getIcon();
+        int color;
+        
+        if (this.isEnabled())
         {
-            return this.disabledColor;
+            if (this.active)
+            {
+                color = this.activeColor;
+            }
+            else
+            {
+                color = this.hover ? this.hoverColor : this.iconColor;
+            }
+        }
+        else
+        {
+            color = this.disabledColor;
         }
 
-        if (this.active)
-        {
-            return this.activeColor;
-        }
-
-        return this.hover ? this.hoverColor : this.iconColor;
-    }
-
-    /** Draws what this button shows. A button whose sign is more than one icon overrides this. */
-    protected void renderIcon(UIContext context, int color)
-    {
-        context.batcher.icon(this.getIcon(), color, this.area.mx(), this.area.my(), 0.5F, 0.5F);
+        context.batcher.icon(icon, color, this.area.mx(), this.area.my(), 0.5F, 0.5F);
     }
 }

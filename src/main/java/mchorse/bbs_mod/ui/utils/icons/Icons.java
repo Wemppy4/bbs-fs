@@ -23,6 +23,8 @@ public class Icons
     public static final Icon FILTER = register(new Icon(ATLAS, "filter", 128, 0));
     public static final Icon MOVE_UP = register(new Icon(ATLAS, "move_up", 144, 0, 16, 8));
     public static final Icon MOVE_DOWN = register(new Icon(ATLAS, "move_down", 144, 8, 16, 8));
+    public static final Icon COLLAPSE_ALL = register(new Icon(ATLAS, "collapse_all", 16, 176));
+    public static final Icon EXPAND_ALL = register(new Icon(ATLAS, "expand_all", 32, 176));
     public static final Icon LOCKED = register(new Icon(ATLAS, "locked", 160, 0));
     public static final Icon UNLOCKED = register(new Icon(ATLAS, "unlocked", 176, 0));
     public static final Icon LAYOUT = register(new Icon(ATLAS, "layout", 240, 144));

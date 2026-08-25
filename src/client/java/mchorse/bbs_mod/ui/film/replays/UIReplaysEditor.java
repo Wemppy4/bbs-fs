@@ -44,7 +44,6 @@ import mchorse.bbs_mod.ui.film.utils.keyframes.UIFilmKeyframes;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIStackedIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -368,12 +367,10 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         }
 
         /* Folding and the actions timeline, pinned to the bottom of the bar. */
-        /* Arrows meeting in the middle: bring the sections together. */
-        this.collapseAll = new UIStackedIcon(Icons.MOVE_DOWN, Icons.MOVE_UP, b -> this.setAllFolded(false));
+        this.collapseAll = new UIIcon(Icons.COLLAPSE_ALL, b -> this.setAllFolded(false));
         this.collapseAll.tooltip(UIKeys.FILM_REPLAY_COLLAPSE_ALL, Direction.RIGHT);
 
-        /* And pushing apart: open them up. */
-        this.expandAll = new UIStackedIcon(Icons.MOVE_UP, Icons.MOVE_DOWN, b -> this.setAllFolded(true));
+        this.expandAll = new UIIcon(Icons.EXPAND_ALL, b -> this.setAllFolded(true));
         this.expandAll.tooltip(UIKeys.FILM_REPLAY_EXPAND_ALL, Direction.RIGHT);
 
         this.actionsToggle = new UIIcon(Icons.ACTION, b -> this.toggleActionsMode());
