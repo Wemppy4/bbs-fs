@@ -140,7 +140,11 @@ public class UIKeyframes extends UIElement
             menu.custom(new UIPresetContextMenu(this.copyPasteController, mouseX, mouseY)
                 .labels(UIKeys.KEYFRAMES_CONTEXT_COPY, UIKeys.KEYFRAMES_CONTEXT_PASTE));
 
-            UIKeyframeSheet hovered = this.currentGraph.getSheet(mouseY);
+            /* Both entries below act on a track. A body part's section is a heading: there is no
+             * curve to edit, and its colour is the interface's own while its name comes from the
+             * part — so restyling it would half do nothing and half write a per-part entry into a
+             * table keyed by kind of track. */
+            UIKeyframeSheet hovered = this.currentGraph.getTrackSheet(mouseY);
 
             if (!this.single)
             {
@@ -832,11 +836,16 @@ public class UIKeyframes extends UIElement
 
         if (keyframes.size() == 1)
         {
-            UIKeyframeSheet current = this.currentGraph.getSheet(mouseY);
+            UIKeyframeSheet current = this.currentGraph.getTrackSheet(mouseY);
 
             if (current == null)
             {
-                current =  sheets.get(0);
+                current = this.currentGraph.getFirstTrackSheet();
+            }
+
+            if (current == null)
+            {
+                return;
             }
 
             this.pasteKeyframesTo(current, keyframes.get(keyframes.keySet().iterator().next()), offset);

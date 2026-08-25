@@ -463,22 +463,11 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         return null;
     }
 
-    /**
-     * The row under the cursor that a keyframe could actually go into. A body part's section is a
-     * heading — it takes no keyframes, so it must not be offered one (nor the ghost preview of one).
-     */
-    private UIKeyframeSheet getInsertableSheet(int mouseY)
-    {
-        UIKeyframeSheet sheet = this.getSheet(mouseY);
-
-        return sheet != null && sheet.header ? null : sheet;
-    }
-
     @Override
     public boolean addKeyframe(int mouseX, int mouseY)
     {
         float tick = (float) this.keyframes.fromGraphX(mouseX);
-        UIKeyframeSheet sheet = this.getInsertableSheet(mouseY);
+        UIKeyframeSheet sheet = this.getTrackSheet(mouseY);
 
         if (!Window.isShiftPressed())
         {
@@ -908,7 +897,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
         else if (Window.isCtrlPressed())
         {
-            UIKeyframeSheet sheet = this.getInsertableSheet(context.mouseY);
+            UIKeyframeSheet sheet = this.getTrackSheet(context.mouseY);
 
             if (sheet != null)
             {
@@ -937,7 +926,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             if (sheets.size() == 1)
             {
                 UIKeyframeSheet current = sheets.get(0);
-                UIKeyframeSheet hovered = this.getInsertableSheet(context.mouseY);
+                UIKeyframeSheet hovered = this.getTrackSheet(context.mouseY);
 
                 if (hovered == null || current.channel.getFactory() != hovered.channel.getFactory())
                 {
@@ -1279,7 +1268,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     /**
      * A section names a body part and animates nothing of its own, so its row shows what folds under
      * it: a filled square wherever anything inside has a keyframe. It is a picture and nothing more —
-     * the row still takes no keyframes ({@link #getInsertableSheet(int)}) and still hands its clicks
+     * the row still takes no keyframes ({@link IUIKeyframeGraph#getTrackSheet(int)}) and still hands its clicks
      * to the fold arrow.
      *
      * <p>Drawn whether the section is folded or not. Making the summary appear only while folded
