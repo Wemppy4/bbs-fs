@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.ui.framework.elements.IFocusedUIElement;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.IViewport;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -156,16 +157,61 @@ public abstract class UIBaseMenu
 
         if (this.root.isEnabled())
         {
+            IFocusedUIElement focused = this.context.activeElement;
+
             this.context.pushViewport(this.viewport);
 
             IUIElement element = this.root.mouseClicked(this.context);
 
             this.context.popViewport();
 
+            this.unfocusClickedAway(focused, element, mouseButton);
+
             result = element != null;
         }
 
         return result;
+    }
+
+    /**
+     * A left click that landed on anything but the focused element takes the
+     * focus away from it.
+     *
+     * The elements can't decide this on their own: the click stops at the first
+     * element that takes it, so a focused field never even hears about a click
+     * that landed on a neighbour — clicking empty space in the timeline used to
+     * leave a trackpad in text editing forever. Hence the check here, over the
+     * whole dispatch, where every click ends up.
+     *
+     * Compared by element rather than by coordinates on purpose: an element
+     * inside a scroll view is laid out in the content's coordinates, so its
+     * area can't be tested against the screen mouse from out here. And a click
+     * that moved the focus itself is left alone — that new focus is the point
+     * of the click, not something to undo.
+     *
+     * Only the left button: the other two are gestures a field answers itself
+     * (middle click negates a trackpad's value), and a right click is on its
+     * way to a context menu, which has no business submitting a half typed
+     * number behind it.
+     */
+    private void unfocusClickedAway(IFocusedUIElement focused, IUIElement element, int mouseButton)
+    {
+        if (focused == null || mouseButton != 0)
+        {
+            return;
+        }
+
+        if (this.context.activeElement != focused || element == focused)
+        {
+            return;
+        }
+
+        if (element instanceof UIElement && ((UIElement) focused).isDescendant((UIElement) element))
+        {
+            return;
+        }
+
+        this.context.unfocus();
     }
 
     public boolean mouseScrolled(int x, int y, double h, double v)

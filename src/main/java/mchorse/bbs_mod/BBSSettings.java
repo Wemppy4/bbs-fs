@@ -766,7 +766,7 @@ public class BBSSettings {
 		builder.category("misc", Icons.MORE);
 		damageControl = builder.getBoolean("damage_control", true);
 		shaderCurvesEnabled = builder.getBoolean("shader_curves", true);
-		translucencyQueue = builder.getBoolean("translucency_queue", true);
+		translucencyQueue = builder.getBoolean("translucency_queue", false);
 		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
 		entitySelectorsPropertyWhitelist = builder.getString("entity_selectors_whitelist", "CustomName,Name");
 	}
