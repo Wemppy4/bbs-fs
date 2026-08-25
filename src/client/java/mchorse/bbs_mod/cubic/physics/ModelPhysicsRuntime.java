@@ -43,6 +43,20 @@ public final class ModelPhysicsRuntime
          * form swapping its model has to drop the sim built on the old skeleton instead of reusing it.
          */
         public String modelId;
+
+        public InstanceState copy()
+        {
+            InstanceState copy = new InstanceState();
+
+            copy.modelId = this.modelId;
+
+            for (Map.Entry<String, ChainState> entry : this.chains.entrySet())
+            {
+                copy.chains.put(entry.getKey(), entry.getValue().copy());
+            }
+
+            return copy;
+        }
     }
 
     /**
@@ -54,6 +68,12 @@ public final class ModelPhysicsRuntime
      */
     private static final WeakHashMap<IEntity, Map<String, InstanceState>> STATES = new WeakHashMap<>();
 
+    /**
+     * The simulation as it stood when the running authoring gesture began, or {@code null} when no
+     * gesture is armed. See {@link #checkpoint()}.
+     */
+    private static WeakHashMap<IEntity, Map<String, InstanceState>> CHECKPOINT;
+
     private ModelPhysicsRuntime()
     {
     }
@@ -61,10 +81,80 @@ public final class ModelPhysicsRuntime
     public static void clearCache()
     {
         STATES.clear();
+        CHECKPOINT = null;
+    }
+
+    /**
+     * Snapshots the whole simulation so a rejected authoring gesture can put it back.
+     *
+     * <p>A transform gesture writes the edited pose live, frame by frame, and the sim follows it —
+     * spinning a bone really does swing its chains and really does build up their velocity. Rejecting
+     * the gesture teleports the pose back in a single frame, and without this the chain stays where the
+     * drag flung it: the length constraints then yank it home over one tick and Verlet reads that yank
+     * as a huge velocity, so the whole accumulated drag comes back out as one lash. Rejecting is meant
+     * to mean "nothing happened", and that has to include the simulation the gesture drove.
+     *
+     * <p>Scoped globally rather than to the edited form because the gesture layer has no form identity
+     * — and it costs nothing, since a chain that did not simulate during the gesture is restored to the
+     * state it is already in (an editor with the film paused never advances an actor's age at all).
+     */
+    public static void checkpoint()
+    {
+        WeakHashMap<IEntity, Map<String, InstanceState>> snapshot = new WeakHashMap<>();
+
+        for (Map.Entry<IEntity, Map<String, InstanceState>> entry : STATES.entrySet())
+        {
+            Map<String, InstanceState> byForm = entry.getValue();
+
+            if (byForm == null)
+            {
+                continue;
+            }
+
+            Map<String, InstanceState> copy = new HashMap<>();
+
+            for (Map.Entry<String, InstanceState> formEntry : byForm.entrySet())
+            {
+                copy.put(formEntry.getKey(), formEntry.getValue().copy());
+            }
+
+            snapshot.put(entry.getKey(), copy);
+        }
+
+        CHECKPOINT = snapshot;
+    }
+
+    /** Forgets the armed checkpoint — the gesture was accepted, or ended without one. */
+    public static void dropCheckpoint()
+    {
+        CHECKPOINT = null;
+    }
+
+    /**
+     * Puts the simulation back to the armed {@link #checkpoint()} and forgets it. Chains that only
+     * appeared during the gesture are dropped, so they re-seed at the pose on their next frame.
+     */
+    public static void rewindToCheckpoint()
+    {
+        WeakHashMap<IEntity, Map<String, InstanceState>> snapshot = CHECKPOINT;
+
+        CHECKPOINT = null;
+
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        STATES.clear();
+        STATES.putAll(snapshot);
     }
 
     public static void invalidate(String modelId)
     {
+        /* The skeleton the checkpoint was taken against is gone, so putting it back would resurrect a
+         * sim built on it. Cheap to drop: a rewind then simply leaves the chains to re-seed. */
+        CHECKPOINT = null;
+
         for (Map<String, InstanceState> byForm : STATES.values())
         {
             if (byForm != null)

@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.framework.elements.input;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
+import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
@@ -921,6 +922,13 @@ public class UIPropTransform extends UITransform
         {
             this.restore();
         }
+        else
+        {
+            /* Arm the physics rewind for this gesture. Only on a fresh one: re-entering while editing
+             * (switching the op mid-drag) rewinds the transform to the SAME start snapshot, so the sim
+             * the gesture must be able to return to is still the one captured back then. */
+            ModelPhysicsRuntime.checkpoint();
+        }
 
         this.editing = true;
         this.axis = axis;
@@ -1023,6 +1031,7 @@ public class UIPropTransform extends UITransform
     private void disable()
     {
         ModelIKRuntime.logGesture(false);
+        ModelPhysicsRuntime.dropCheckpoint();
 
         this.editing = false;
         this.axis2 = null;
@@ -1061,6 +1070,11 @@ public class UIPropTransform extends UITransform
          * per-channel path, which fans the primary's values onto the whole
          * selection — the bones come back crooked instead of where they were. */
         this.restore();
+
+        /* The pose is back where it started, so the simulation it drove goes back too — otherwise the
+         * chains stay where the drag flung them and lash home over a single tick. */
+        ModelPhysicsRuntime.rewindToCheckpoint();
+
         this.disable();
         this.setTransform(this.transform);
     }
