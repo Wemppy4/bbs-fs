@@ -910,8 +910,12 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         /* Draw the background (browser tab only; the painter draws its own) */
         if (this.currentTab == 0)
         {
-            /* The same ground the form palette stands on, so the two browsers read as one family */
-            this.browseContent.area.render(context.batcher, BBSSettings.baseSurface());
+            /* In the dashboard the panel stands on the dashboard's own background; a pop-up
+             * paints the same "background" colour from the settings under itself */
+            if (this.canBeClosed)
+            {
+                this.browseContent.area.render(context.batcher, BBSSettings.backgroundColor.get());
+            }
 
             if (this.editor.isVisible())
             {

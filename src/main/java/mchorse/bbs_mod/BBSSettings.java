@@ -577,6 +577,10 @@ public class BBSSettings {
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
 		textureSort = builder.getString("texture_sort", "name");
+		/* Kept by the browsers themselves (Ctrl+wheel, the sort menu); nothing to tune in the settings screen */
+		formCellSize.invisible();
+		textureCellSize.invisible();
+		textureSort.invisible();
 		uniformScale = builder.getBoolean("uniform_scale", false);
 		clickSound = builder.getBoolean("click_sound", false);
 		favoriteColors = new ValueColors("favorite_colors");

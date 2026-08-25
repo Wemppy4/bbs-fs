@@ -18,6 +18,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
@@ -70,9 +71,7 @@ public class UITextureBrowser extends UIElement
     public UITextbox search;
     public UIIcon sort;
     public UIIcon everywhere;
-    public UIIcon newFolder;
-    public UIIcon folder;
-    public UIIcon pixelEdit;
+    public UIIcon newTexture;
 
     /** The path typed by hand — shown in place of the breadcrumbs while editing. */
     public UITextbox text;
@@ -92,9 +91,13 @@ public class UITextureBrowser extends UIElement
     private String query = "";
     private boolean searchEverywhere;
 
-    /* Folders visited, most recent last, for the back button */
-    private final Deque<Link> history = new ArrayDeque<>();
-    private boolean goingBack;
+    /** A move that Ctrl+Z reverses: where a file was, where it went. */
+    private record Move(Link from, Link to)
+    {}
+
+    /* Moves done and undone, most recent last */
+    private final Deque<Move> undos = new ArrayDeque<>();
+    private final Deque<Move> redos = new ArrayDeque<>();
 
     private int seenVersion = -1;
     private TextureEntry contextEntry;
@@ -115,7 +118,7 @@ public class UITextureBrowser extends UIElement
         this.picker = picker;
 
         this.bar = new UIElement();
-        this.back = new UIIcon(Icons.ARROW_LEFT, (b) -> this.back());
+        this.back = new UIIcon(Icons.ARROW_LEFT, (b) -> this.up());
         this.back.tooltip(UIKeys.TEXTURES_BROWSER_BACK, Direction.BOTTOM);
         this.treeToggle = new UIIcon(Icons.TREE, (b) ->
         {
@@ -146,12 +149,8 @@ public class UITextureBrowser extends UIElement
         });
         this.everywhere.tooltip(UIKeys.TEXTURES_BROWSER_EVERYWHERE, Direction.BOTTOM);
         this.everywhere.highlight(() -> this.searchEverywhere, Direction.BOTTOM);
-        this.newFolder = new UIIcon(Icons.ADD, (b) -> this.promptNewFolder());
-        this.newFolder.tooltip(UIKeys.TEXTURES_BROWSER_NEW_FOLDER, Direction.BOTTOM);
-        this.folder = new UIIcon(Icons.FOLDER, (b) -> this.openFolder());
-        this.folder.tooltip(UIKeys.TEXTURE_OPEN_FOLDER, Direction.BOTTOM);
-        this.pixelEdit = new UIIcon(Icons.EDIT, (b) -> this.openInEditor(this.getCurrent()));
-        this.pixelEdit.tooltip(UIKeys.GENERAL_EDIT, Direction.BOTTOM);
+        this.newTexture = new UIIcon(Icons.MATERIAL, (b) -> this.promptNewTexture());
+        this.newTexture.tooltip(UIKeys.TEXTURES_BROWSER_NEW_TEXTURE, Direction.BOTTOM);
 
         this.text = new UITextbox(1000, this::onPathTyped);
         this.text.delayedInput();
@@ -186,8 +185,9 @@ public class UITextureBrowser extends UIElement
         infoHandle.relative(this.info).x(0).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT).row(0).height(BAR_HEIGHT);
-        this.addToBar(this.back, this.treeToggle, this.multiToggle, this.search, this.sort, this.everywhere, this.newFolder, this.folder, this.pixelEdit, picker.close);
+        this.addToBar(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.newTexture, picker.close);
         this.add(this.bar, this.crumbs, this.text, this.left, this.grid, this.info, picker.editor, leftHandle, infoHandle);
+        this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         this.layout();
         this.setMultiskin(false);
@@ -303,14 +303,7 @@ public class UITextureBrowser extends UIElement
 
     public void navigate(Link folder)
     {
-        Link target = folder == null ? new Link("", "") : TextureEntry.folderLink(folder);
-
-        if (!this.goingBack && !target.equals(this.path))
-        {
-            this.history.push(this.path);
-        }
-
-        this.path = target;
+        this.path = folder == null ? new Link("", "") : TextureEntry.folderLink(folder);
         this.selection.clear();
         this.hidePathEditor();
         this.refresh();
@@ -320,16 +313,56 @@ public class UITextureBrowser extends UIElement
         this.info.set(this.path.source.isEmpty() ? null : this.path);
     }
 
-    private void back()
+    /** One step up the breadcrumbs — the ".." of the old file list. */
+    private void up()
     {
-        if (this.history.isEmpty())
+        if (this.path.source.isEmpty())
         {
             return;
         }
 
-        this.goingBack = true;
-        this.navigate(this.history.pop());
-        this.goingBack = false;
+        this.navigate(this.path.path.isEmpty() ? new Link("", "") : this.path.parent());
+    }
+
+    /* Undo of moves */
+
+    private void undo()
+    {
+        Move move = this.undos.pollLast();
+
+        if (move != null && this.reverse(move) != null)
+        {
+            this.redos.addLast(move);
+        }
+    }
+
+    private void redo()
+    {
+        Move move = this.redos.pollLast();
+
+        if (move != null && this.reverse(new Move(move.to(), move.from())) != null)
+        {
+            this.undos.addLast(move);
+        }
+    }
+
+    /** Put a moved file back where it was; null when the file isn't there any more. */
+    private Link reverse(Move move)
+    {
+        Link back = TextureFiles.move(move.to(), TextureEntry.folderLink(move.from().parent()));
+
+        if (back != null)
+        {
+            if (move.to().equals(this.getCurrent()))
+            {
+                this.picker.selectCurrent(back);
+            }
+
+            this.refresh();
+            this.tree.refresh();
+        }
+
+        return back;
     }
 
     /** Relist the folder (or rerun the search) from the disk as it is now. */
@@ -339,8 +372,7 @@ public class UITextureBrowser extends UIElement
         this.entries.addAll(this.isSearching() ? this.searchEntries() : this.folderEntries());
         this.selection.retain(this.entries);
         this.grid.relayout();
-        this.folder.setEnabled(TextureFiles.isFolder(this.path));
-        this.newFolder.setEnabled(TextureFiles.isFolder(this.path));
+        this.newTexture.setEnabled(TextureFiles.isFolder(this.path));
         this.seenVersion = BBSResources.getAssetsVersion();
     }
 
@@ -645,12 +677,28 @@ public class UITextureBrowser extends UIElement
         }
 
         Link current = this.getCurrent();
+        boolean copy = Window.isCtrlPressed();
 
         for (Link link : this.drag.getLinks())
         {
+            if (copy)
+            {
+                TextureFiles.copyInto(link, target);
+
+                continue;
+            }
+
             Link moved = TextureFiles.move(link, target);
 
-            if (moved != null && link.equals(current))
+            if (moved == null)
+            {
+                continue;
+            }
+
+            this.undos.addLast(new Move(link, moved));
+            this.redos.clear();
+
+            if (link.equals(current))
             {
                 this.picker.selectCurrent(moved);
             }
@@ -659,6 +707,26 @@ public class UITextureBrowser extends UIElement
         this.selection.clear();
         this.refresh();
         this.tree.refresh();
+    }
+
+    private void promptNewTexture()
+    {
+        if (!TextureFiles.isFolder(this.path))
+        {
+            return;
+        }
+
+        UIOverlay.addOverlay(this.getContext(), new UINewTextureOverlayPanel((name, width, height) ->
+        {
+            Link created = TextureFiles.create(this.path, name, width, height);
+
+            if (created != null)
+            {
+                this.refresh();
+                this.picker.selectCurrent(created);
+                this.picker.openTexture(created);
+            }
+        }));
     }
 
     /* File operations */
@@ -846,7 +914,7 @@ public class UITextureBrowser extends UIElement
         }
         else if (context.isPressed(GLFW.GLFW_KEY_BACKSPACE))
         {
-            this.back();
+            this.up();
 
             return true;
         }
@@ -943,7 +1011,7 @@ public class UITextureBrowser extends UIElement
         this.drag.update(context.mouseX, context.mouseY);
         this.drag.clearTarget();
         this.hoveredAction = null;
-        this.back.setEnabled(!this.history.isEmpty());
+        this.back.setEnabled(!this.path.source.isEmpty());
 
         int strip = BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50);
 
@@ -1008,6 +1076,11 @@ public class UITextureBrowser extends UIElement
         if (links.size() > 1)
         {
             batcher.textCard(String.valueOf(links.size()), x + size - 4, y - 4, Colors.WHITE, Colors.A100 | primary, 3);
+        }
+
+        if (landing && Window.isCtrlPressed())
+        {
+            batcher.textCard(UIKeys.TEXTURES_BROWSER_COPYING.get(), x, y + size + 8, Colors.WHITE, Colors.A100 | primary, 3);
         }
     }
 }

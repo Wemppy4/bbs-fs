@@ -3,7 +3,9 @@ package mchorse.bbs_mod.ui.textures;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSResources;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.utils.PNGEncoder;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.resources.Pixels;
 
 import java.io.File;
 import java.io.IOException;
@@ -143,6 +145,82 @@ public class TextureFiles
         }
 
         return done(target, link);
+    }
+
+    /** Copy a file into {@code folder}, keeping its name (or a {@code _copy} one when that's taken). */
+    public static Link copyInto(Link link, Link folder)
+    {
+        File file = file(link);
+        File into = file(folder);
+
+        if (file == null || into == null || !file.isFile() || !into.isDirectory())
+        {
+            return null;
+        }
+
+        File target = new File(into, file.getName());
+
+        if (target.exists())
+        {
+            target = uniqueCopy(target);
+        }
+
+        try
+        {
+            Files.copy(file.toPath(), target.toPath());
+
+            File sidecar = sidecar(file);
+
+            if (sidecar.exists())
+            {
+                Files.copy(sidecar.toPath(), sidecar(target).toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+
+            return null;
+        }
+
+        return done(target, link);
+    }
+
+    /** Write a blank, transparent PNG of the given size; null when the name is taken or the folder isn't on disk. */
+    public static Link create(Link folder, String name, int width, int height)
+    {
+        File into = file(folder);
+
+        if (into == null || !into.isDirectory() || name.isEmpty())
+        {
+            return null;
+        }
+
+        File target = new File(into, name.endsWith(".png") ? name : name + ".png");
+
+        if (target.exists())
+        {
+            return null;
+        }
+
+        Pixels pixels = Pixels.fromSize(Math.max(1, width), Math.max(1, height));
+
+        try
+        {
+            PNGEncoder.writeToFile(pixels, target);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+
+            return null;
+        }
+        finally
+        {
+            pixels.delete();
+        }
+
+        return done(target, folder);
     }
 
     public static boolean delete(Link link)

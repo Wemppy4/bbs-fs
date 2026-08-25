@@ -1193,6 +1193,11 @@ public class UIKeys
     public static final IKey TEXTURES_BROWSER_RENAME_TITLE = L10n.lang("bbs.ui.textures.browser.rename-title");
     public static final IKey TEXTURES_BROWSER_SEARCH = L10n.lang("bbs.ui.textures.browser.search");
     public static final IKey TEXTURES_BROWSER_BACK = L10n.lang("bbs.ui.textures.browser.back");
+    public static final IKey TEXTURES_BROWSER_COPYING = L10n.lang("bbs.ui.textures.browser.copying");
+    public static final IKey TEXTURES_BROWSER_NEW_TEXTURE = L10n.lang("bbs.ui.textures.browser.new_texture");
+    public static final IKey TEXTURES_BROWSER_NEW_TEXTURE_DESCRIPTION = L10n.lang("bbs.ui.textures.browser.new_texture-description");
+    public static final IKey TEXTURES_BROWSER_NEW_TEXTURE_NAME = L10n.lang("bbs.ui.textures.browser.new_texture.name");
+    public static final IKey TEXTURES_BROWSER_NEW_TEXTURE_TITLE = L10n.lang("bbs.ui.textures.browser.new_texture-title");
     public static final IKey TEXTURES_BROWSER_SORT = L10n.lang("bbs.ui.textures.browser.sort");
     public static final IKey TEXTURES_BROWSER_SORT_DATE = L10n.lang("bbs.ui.textures.browser.sort.date");
     public static final IKey TEXTURES_BROWSER_SORT_NAME = L10n.lang("bbs.ui.textures.browser.sort.name");
