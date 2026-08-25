@@ -140,6 +140,26 @@ public class UIFormPalette extends UIElement implements IUIFormList
         }
     }
 
+    /**
+     * In the morphing panel there is nothing to close — the palette is the panel — so a
+     * double-click goes straight into editing the form instead.
+     */
+    @Override
+    public void confirm()
+    {
+        if (this.immersive)
+        {
+            if (!this.editor.isEditing())
+            {
+                this.toggleEditor();
+            }
+        }
+        else
+        {
+            this.exit();
+        }
+    }
+
     @Override
     public void toggleEditor()
     {

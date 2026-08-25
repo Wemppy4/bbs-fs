@@ -24,6 +24,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
@@ -48,6 +49,7 @@ import java.util.Set;
 public class UIFormList extends UIElement
 {
     public static final int ZOOM_STEP = 8;
+    private static final long DOUBLE_CLICK = 300;
     private static final int AUTO_SCROLL_EDGE = 24;
     private static final int AUTO_SCROLL_SPEED = 6;
 
@@ -60,6 +62,8 @@ public class UIFormList extends UIElement
     public UIIcon edit;
     public UIIcon close;
     public UIIcon categoryFilter;
+    public UIIcon collapseAll;
+    public UIIcon expandAll;
 
     public final FormSelection selection = new FormSelection();
     public final FormDrag drag = new FormDrag();
@@ -73,6 +77,10 @@ public class UIFormList extends UIElement
 
     /** A header pressed but not yet released: a release without a drag collapses it. */
     private UIFormCategory pressedHeader;
+
+    /* The last plain click, to tell a double-click */
+    private Form lastClicked;
+    private long lastClickTime;
 
     /* The quick action under the cursor this frame, and where its label goes */
     private FormCellAction hoveredAction;
@@ -98,7 +106,13 @@ public class UIFormList extends UIElement
         this.categoryFilter = new UIIcon(Icons.FILTER, this::openMorphCategoryFilter);
         this.categoryFilter.tooltip(UIKeys.MORPHING_FILTER_CATEGORIES, Direction.TOP);
         this.categoryFilter.w(20);
-        this.bar.add(this.categoryFilter, this.search, this.edit, this.close);
+        this.collapseAll = new UIIcon(Icons.COLLAPSE_ALL, (b) -> this.setAllExpanded(false));
+        this.collapseAll.tooltip(UIKeys.FORMS_LIST_COLLAPSE_ALL, Direction.TOP);
+        this.collapseAll.w(20);
+        this.expandAll = new UIIcon(Icons.EXPAND_ALL, (b) -> this.setAllExpanded(true));
+        this.expandAll.tooltip(UIKeys.FORMS_LIST_EXPAND_ALL, Direction.TOP);
+        this.expandAll.w(20);
+        this.bar.add(this.categoryFilter, this.collapseAll, this.expandAll, this.search, this.edit, this.close);
 
         this.add(this.forms, this.bar);
 
@@ -252,47 +266,62 @@ public class UIFormList extends UIElement
             return;
         }
 
-        int mouseY = context.mouseY - this.forms.area.y;
-        int contentY = mouseY + (int) this.forms.scroll.getScroll();
-        UIFormCategory anchor = null;
-        int row = -1;
-        float offset = 0;
+        ScrollZoomAnchor.keep(this.forms.scroll, context.mouseY - this.forms.area.y, this::rowAt, this::rowPlacement, () ->
+        {
+            BBSSettings.formCellSize.set(size);
+            this.afterSearchLayout();
+        });
+    }
 
+    /** A row of cells, or a category's header (row -1) — what the zoom keeps under the cursor. */
+    private record Row(UIFormCategory category, int row)
+    {}
+
+    private Row rowAt(int contentY)
+    {
         for (UIFormCategory category : this.categories)
         {
             int top = category.area.y - this.forms.area.y;
 
-            if (contentY >= top && contentY < top + category.area.h)
+            if (contentY < top || contentY >= top + category.area.h)
             {
-                FormGridLayout layout = category.getLayout();
-                int y = contentY - top;
-
-                anchor = category;
-
-                if (y >= layout.getRowY(0) && layout.getRows() > 0)
-                {
-                    row = Math.min(layout.getRows() - 1, (y - layout.getRowY(0)) / (layout.getCellHeight() + FormGridLayout.GAP));
-                    offset = (y - layout.getRowY(row)) / (float) layout.getCellHeight();
-                }
-                else
-                {
-                    offset = y;
-                }
-
-                break;
+                continue;
             }
+
+            FormGridLayout layout = category.getLayout();
+            int y = contentY - top;
+
+            if (y >= layout.getRowY(0) && layout.getRows() > 0)
+            {
+                return new Row(category, Math.min(layout.getRows() - 1, (y - layout.getRowY(0)) / (layout.getCellHeight() + FormGridLayout.GAP)));
+            }
+
+            return new Row(category, -1);
         }
 
-        BBSSettings.formCellSize.set(size);
-        this.afterSearchLayout();
+        return null;
+    }
 
-        if (anchor != null)
+    private ScrollZoomAnchor.Placement rowPlacement(Row row)
+    {
+        FormGridLayout layout = row.category().getLayout();
+        int top = row.category().area.y - this.forms.area.y;
+
+        if (row.row() < 0)
         {
-            FormGridLayout layout = anchor.getLayout();
-            int top = anchor.area.y - this.forms.area.y;
-            int y = row >= 0 ? top + layout.getRowY(row) + (int) (offset * layout.getCellHeight()) : top + (int) offset;
+            return new ScrollZoomAnchor.Placement(top, FormGridLayout.HEADER);
+        }
 
-            this.forms.scroll.setScroll(y - mouseY);
+        return new ScrollZoomAnchor.Placement(top + layout.getRowY(row.row()), layout.getCellHeight());
+    }
+
+    /* Collapsing */
+
+    private void setAllExpanded(boolean expanded)
+    {
+        for (UIFormCategory category : this.categories)
+        {
+            category.category.visible.set(expanded);
         }
     }
 
@@ -469,6 +498,12 @@ public class UIFormList extends UIElement
         }
         else
         {
+            long now = System.currentTimeMillis();
+            boolean twice = this.lastClicked == form && now - this.lastClickTime < DOUBLE_CLICK;
+
+            this.lastClicked = form;
+            this.lastClickTime = now;
+
             /* A plain click on one of several picked forms keeps the group, so it can be
              * dragged as a whole; anywhere else it starts a new one */
             if (!this.selection.contains(form) || !this.selection.isGroup())
@@ -477,6 +512,14 @@ public class UIFormList extends UIElement
             }
 
             category.select(form, true);
+
+            if (twice)
+            {
+                this.lastClicked = null;
+                this.palette.confirm();
+
+                return;
+            }
         }
 
         List<Form> payload = this.selection.contains(form) ? new ArrayList<>(this.selection.getForms()) : Collections.singletonList(form);

@@ -1034,6 +1034,8 @@
 	"bbs.ui.forms.editors.vanilla_particle.vertical": "Vertical",
 	"bbs.ui.forms.list.context.focus": "Focus search",
 	"bbs.ui.forms.list.edit": "Edit",
+	"bbs.ui.forms.list.collapse_all": "Collapse all categories",
+	"bbs.ui.forms.list.expand_all": "Expand all categories",
 	"bbs.ui.forms.list.search": "Search...",
 	"bbs.ui.generic_keyframes.anchor.pick_actor": "Pick actor...",
 	"bbs.ui.generic_keyframes.anchor.pick_attachment": "Pick attachment...",

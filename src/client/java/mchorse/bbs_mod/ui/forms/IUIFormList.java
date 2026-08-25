@@ -9,4 +9,10 @@ public interface IUIFormList
     public void toggleEditor();
 
     public void accept(Form form);
+
+    /** A form was double-clicked: the user is done choosing. By default the palette closes. */
+    public default void confirm()
+    {
+        this.exit();
+    }
 }

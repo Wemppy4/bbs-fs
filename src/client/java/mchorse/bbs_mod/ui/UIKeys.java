@@ -667,7 +667,9 @@ public class UIKeys
     public static final IKey FORMS_EDITOR_TOGGLE_TREE = L10n.lang("bbs.ui.forms.editor.toggle_tree");
     public static final IKey FORMS_EDITOR_USE_TARGET = L10n.lang("bbs.ui.forms.editor.use_target");
     public static final IKey FORMS_LIST_CONTEXT_FOCUS = L10n.lang("bbs.ui.forms.list.context.focus");
+    public static final IKey FORMS_LIST_COLLAPSE_ALL = L10n.lang("bbs.ui.forms.list.collapse_all");
     public static final IKey FORMS_LIST_EDIT = L10n.lang("bbs.ui.forms.list.edit");
+    public static final IKey FORMS_LIST_EXPAND_ALL = L10n.lang("bbs.ui.forms.list.expand_all");
     public static final IKey FORMS_LIST_SEARCH = L10n.lang("bbs.ui.forms.list.search");
     public static final IKey FORMS_SHARED_NOTIFICATION = L10n.lang("bbs.ui.forms.categories.shared-notification");
     public static final IKey GENERAL_ADD = L10n.lang("bbs.ui.add");

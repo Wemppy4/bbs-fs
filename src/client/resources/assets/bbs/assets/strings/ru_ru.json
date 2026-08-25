@@ -1030,6 +1030,8 @@
 	"bbs.ui.forms.editors.vanilla_particle.vertical": "Вертикальный",
 	"bbs.ui.forms.list.context.focus": "Сфокусировать поле поиска",
 	"bbs.ui.forms.list.edit": "Редактировать",
+	"bbs.ui.forms.list.collapse_all": "Свернуть все категории",
+	"bbs.ui.forms.list.expand_all": "Развернуть все категории",
 	"bbs.ui.forms.list.search": "Поиск...",
 	"bbs.ui.generic_keyframes.anchor.pick_actor": "Выбрать актёра...",
 	"bbs.ui.generic_keyframes.anchor.pick_attachment": "Выбрать кость...",

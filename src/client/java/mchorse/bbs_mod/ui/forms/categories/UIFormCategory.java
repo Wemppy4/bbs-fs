@@ -583,26 +583,20 @@ public class UIFormCategory extends UIElement
 
         /* The band is chrome, like the bars around a panel, and stays readable over the
          * world when the palette has no background of its own */
-        batcher.box(x, y, ex, ey, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A90));
+        batcher.box(x, y, ex, ey, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50));
 
         if (this.hoverHeader)
         {
             batcher.box(x, y, ex, ey, FormCellRenderer.ink(Colors.A6));
         }
 
-        batcher.box(x, ey - 1, ex, ey, BBSSettings.dividerColor());
-
         int textColor = dragged ? Colors.GRAY : Colors.WHITE;
 
-        batcher.icon(expanded ? Icons.MOVE_DOWN : Icons.MOVE_RIGHT, this.hoverHeader ? Colors.WHITE : Colors.LIGHTER_GRAY, x + 14, y + FormGridLayout.HEADER / 2, 0.5F, 0.5F);
+        batcher.icon(expanded ? Icons.MOVE_DOWN : Icons.MOVE_RIGHT, this.hoverHeader ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + 14, y + FormGridLayout.HEADER / 2, 0.5F, 0.5F);
 
         String title = this.category.getProcessedTitle();
         String count = String.valueOf(this.category.getForms().size());
         int textY = y + (FormGridLayout.HEADER - font.getHeight()) / 2 + 1;
-        int right = ex - SORT_BUTTON - 4;
-        int titleW = Math.max(0, Math.min(font.getWidth(title), right - (x + 26) - font.getWidth(count) - 6));
-
-        title = font.limitToWidth(title, titleW);
 
         batcher.textShadow(title, x + 26, textY, textColor);
         batcher.text(count, x + 26 + font.getWidth(title) + 6, textY, Colors.GRAY);
@@ -620,12 +614,7 @@ public class UIFormCategory extends UIElement
             return;
         }
 
-        if (this.hoverSort)
-        {
-            context.batcher.box(x, y, x + SORT_BUTTON, y + FormGridLayout.HEADER - 1, FormCellRenderer.ink(Colors.A12));
-        }
-
-        int color = sorted ? BBSSettings.primaryColor.get() | Colors.A100 : (this.hoverSort ? Colors.WHITE : Colors.LIGHTER_GRAY);
+        int color = sorted ? BBSSettings.primaryColor.get() | Colors.A100 : (this.hoverSort ? Colors.LIGHTEST_GRAY : Colors.WHITE);
 
         context.batcher.icon(Icons.LIST, color, x + SORT_BUTTON / 2, y + FormGridLayout.HEADER / 2, 0.5F, 0.5F);
     }

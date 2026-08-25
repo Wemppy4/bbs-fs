@@ -16,7 +16,8 @@ public enum FormCellAction
     DUPLICATE(Icons.DUPE, UIKeys.FORMS_CATEGORIES_CONTEXT_DUPLICATE_FORM, false),
     REMOVE(Icons.REMOVE, UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM, true);
 
-    private static final FormCellAction[] MODIFIABLE = {EDIT, DUPLICATE, REMOVE};
+    /** Editing is the one action every category has, so it keeps the same place — last — everywhere. */
+    private static final FormCellAction[] MODIFIABLE = {DUPLICATE, REMOVE, EDIT};
     private static final FormCellAction[] READ_ONLY = {EDIT};
 
     public final Icon icon;
