@@ -135,8 +135,18 @@ public class GizmoDrag
 
     public GizmoDrag setup(Camera camera, Area viewport, double gx, double gy, double gz)
     {
-        this.projection.set(camera.projection);
-        this.view.set(camera.view);
+        /* Mouse rays are cast through the lens the HANDLES were drawn with, not the
+         * scene camera's, or the drag would slide along an axis pointing somewhere
+         * else than the bar the user grabbed — the two part ways exactly where the
+         * lens earns its keep, at the edge of a wide frame. The lens is a swing of
+         * the camera about the eye, so cameraOrigin is untouched by it, and an
+         * inactive lens hands back the camera's own pair. */
+        GizmoLens lens = new GizmoLens();
+
+        Gizmo.INSTANCE.fillLens(camera.projection, lens);
+
+        this.projection.set(lens.projection);
+        this.view.set(new Matrix4f(lens.viewDelta).mul(camera.view));
         this.cameraOrigin.set(camera.position);
 
         this.viewportX = viewport.x;
@@ -328,7 +338,9 @@ public class GizmoDrag
      * The camera's world-space right/up/forward as the columns of an orthonormal
      * basis &mdash; the single source of the screen frame. {@link #view} is the
      * rotation-only world&rarr;camera map, so its inverse takes the camera's own
-     * axes back into world space. This is {@link #frameBasis}'s VIEW frame, and
+     * axes back into world space. With a {@link GizmoLens} that map is the LENS's
+     * camera, which is what makes this agree with the drawn VIEW handles at the
+     * edge of a wide frame instead of lagging the swing. This is {@link #frameBasis}'s VIEW frame, and
      * the inherently screen-relative gestures (the screen translate, the sphere's
      * trackball/arcball tumble) read their right/up axes from here instead of
      * re-inverting the view matrix themselves. Returns {@code null} when the view
@@ -353,9 +365,11 @@ public class GizmoDrag
      * spelled out: {@link TransformSpace#GLOBAL} is {@code view · globalAxes},
      * {@link TransformSpace#WORLD} the view rotation itself
      * ({@code view · identity}) and {@link TransformSpace#VIEW} the identity
-     * ({@code view · view⁻¹}) &mdash; whose third column the draw passes then lay
-     * on the eye ray so the handles face the screen instead of merely paralleling
-     * it ({@link Gizmo#applyViewShear}); the frame returned here, and everything
+     * ({@code view · view⁻¹}) &mdash; which {@link Gizmo#reorientForSpace}
+     * then turns by the inverse of {@link GizmoLens}'s view swing, so the handles come
+     * out square to the screen once the draw passes swing them back. Without a lens the
+     * draw passes instead lay that third column on the eye ray, so the handles face the
+     * screen rather than merely paralleling it. The frame returned here, and everything
      * the drags read from it, stays orthonormal.
      * {@code globalAxes} is the drawn twin of {@link #globalWorldAxes} and must
      * come from the same source the drag's does &mdash; {@code null} means the
