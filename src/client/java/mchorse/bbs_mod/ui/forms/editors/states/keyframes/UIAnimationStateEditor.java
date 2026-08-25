@@ -192,7 +192,6 @@ public class UIAnimationStateEditor extends UIElement
         });
 
         UIReplaysEditorUtils.detachMissingParents(sheets);
-        UIReplaysEditorUtils.markFormSeparators(sheets);
 
         /*
          * Filtering every track off used to drop the timeline itself, and the track filter lives in its

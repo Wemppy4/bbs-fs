@@ -77,6 +77,12 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
         return new TrackId(TrackKind.PROPERTY, formPath, name, "");
     }
 
+    /** The row a body part's tracks fold under. Its key is the part's address — it names no value. */
+    public static TrackId bodyPart(String formPath)
+    {
+        return new TrackId(TrackKind.BODY_PART, formPath, "", "");
+    }
+
     public static TrackId bone(String formPath, String bone)
     {
         return new TrackId(TrackKind.BONE, formPath, bone, "");
@@ -155,6 +161,12 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
     /** The saved id of this track — the exact string the old per-namespace {@code to*Key} helpers produced. */
     public String toKey()
     {
+        /* The row of a body part IS its address: there is no value under it to name. */
+        if (this.kind == TrackKind.BODY_PART)
+        {
+            return this.formPath;
+        }
+
         return prefix(this.formPath, switch (this.kind)
         {
             case PROPERTY -> this.subject;
@@ -166,6 +178,7 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
             case POLE_TARGET -> POLE_TARGETS + FormUtils.PATH_SEPARATOR + this.subject;
             case PHYSICS_TARGET -> PHYSICS_TARGETS + FormUtils.PATH_SEPARATOR + this.subject;
             case IK_CONTROLS, PHYSICS_CONTROLS, WIND_CONTROLS -> this.kind.key;
+            case BODY_PART -> throw new IllegalStateException("handled above");
         });
     }
 
@@ -178,6 +191,7 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
         return switch (this.kind)
         {
             case PROPERTY -> this.subject;
+            case BODY_PART -> "";
             case BONE -> this.subject;
             case BONE_CONSTRAINT -> this.subject + FormUtils.PATH_SEPARATOR + "constraints";
             case MATERIAL_TEXTURE -> this.subject;

@@ -139,7 +139,7 @@ public class UICurveClip extends UIClip<CurveClip>
     {
         int sheetColor = channel.getId().hashCode() & Colors.RGB;
 
-        this.keyframes.view.addSheet(new UIKeyframeSheet(channel.getId(), IKey.constant(channel.getId()), sheetColor, false, channel, null));
+        this.keyframes.view.addSheet(new UIKeyframeSheet(channel.getId(), IKey.constant(channel.getId()), sheetColor, channel, null));
     }
 
     @Override

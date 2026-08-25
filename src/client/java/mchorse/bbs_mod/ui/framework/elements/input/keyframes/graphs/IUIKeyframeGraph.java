@@ -118,6 +118,13 @@ public interface IUIKeyframeGraph
 
     public default Keyframe addKeyframe(UIKeyframeSheet sheet, float tick, Object value)
     {
+        if (sheet.header)
+        {
+            /* A header names a body part; there is no value to key. Its channel belongs to no
+             * replay, so a keyframe placed here would vanish on save without a word. */
+            return null;
+        }
+
         KeyframeSegment segment = sheet.channel.find(tick);
         Keyframe extra = null;
         BaseValueBasic property = sheet.property;

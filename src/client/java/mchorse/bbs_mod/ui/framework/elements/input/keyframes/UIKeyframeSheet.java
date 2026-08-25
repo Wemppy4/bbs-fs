@@ -25,8 +25,12 @@ public class UIKeyframeSheet
     public IKey title;
     public int color;
 
-    /** Whether a line is drawn above this row — set where the timeline moves from one form to the next. */
-    public boolean separator;
+    /**
+     * A row that names something rather than animating it — a body part, whose form's tracks fold
+     * under it. It carries a channel because a row is drawn from one, but nothing may ever be
+     * written into it: that channel belongs to no replay and would be dropped on save.
+     */
+    public boolean header;
 
     /* Meta data */
     public final String id;
@@ -78,9 +82,10 @@ public class UIKeyframeSheet
 
     public UIKeyframeSheet(TrackDescriptor track)
     {
-        this(track.key(), track.title(), track.color(), false, track.channel(), track.property(), track.kind() == TrackKind.BONE, track);
+        this(track.key(), track.title(), track.color(), track.channel(), track.property(), track.kind() == TrackKind.BONE, track);
 
         this.icon(track.icon());
+        this.header = track.kind() == TrackKind.BODY_PART;
         this.form(track.owner());
 
         if (track.seed() != null)
@@ -89,29 +94,28 @@ public class UIKeyframeSheet
         }
     }
 
-    public UIKeyframeSheet(int color, boolean separator, KeyframeChannel channel, BaseValueBasic property)
+    public UIKeyframeSheet(int color, KeyframeChannel channel, BaseValueBasic property)
     {
-        this(channel.getId(), IKey.constant(property != null ? FormUtils.getForm(property).getTrackName(channel.getId()) : channel.getId()), color, separator, channel, property, false);
+        this(channel.getId(), IKey.constant(property != null ? FormUtils.getForm(property).getTrackName(channel.getId()) : channel.getId()), color, channel, property, false);
     }
 
-    public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property)
+    public UIKeyframeSheet(String id, IKey title, int color, KeyframeChannel channel, BaseValueBasic property)
     {
-        this(id, title, color, separator, channel, property, false);
+        this(id, title, color, channel, property, false);
     }
 
-    public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack)
+    public UIKeyframeSheet(String id, IKey title, int color, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack)
     {
-        this(id, title, color, separator, channel, property, isBoneTrack, null);
+        this(id, title, color, channel, property, isBoneTrack, null);
     }
 
-    public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack, TrackDescriptor descriptor)
+    public UIKeyframeSheet(String id, IKey title, int color, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack, TrackDescriptor descriptor)
     {
         this.title = title;
         this.color = color;
         this.descriptor = descriptor;
 
         this.id = id;
-        this.separator = separator;
 
         this.channel = channel;
         this.selection = new KeyframeSelection(channel);

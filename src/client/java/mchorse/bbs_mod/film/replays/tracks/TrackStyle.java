@@ -1,5 +1,16 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
+import mchorse.bbs_mod.forms.forms.BillboardForm;
+import mchorse.bbs_mod.forms.forms.BlockForm;
+import mchorse.bbs_mod.forms.forms.ExtrudedForm;
+import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.ItemForm;
+import mchorse.bbs_mod.forms.forms.LabelForm;
+import mchorse.bbs_mod.forms.forms.MobForm;
+import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.ParticleForm;
+import mchorse.bbs_mod.forms.forms.TrailForm;
+import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -56,6 +67,8 @@ public class TrackStyle
         setupItemColors();
 
         COLORS.put("visible", Colors.WHITE & Colors.RGB);
+        /* A body part's row names what is under it, so it stays quiet next to the tracks it holds. */
+        COLORS.put(TrackKind.BODY_PART.key, Colors.INACTIVE & Colors.RGB);
         COLORS.put("pose", Colors.RED);
         COLORS.put("physics_targets", Colors.MAGENTA);
         COLORS.put("transform_overlay", 0xaaff00);
@@ -96,6 +109,26 @@ public class TrackStyle
         /* Not an item but the pointer at one, so it stays out of both families. Without this it
          * falls through to the default blue, which is now the armour's tone. */
         COLORS.put("selected_slot", Colors.WHITE & Colors.RGB);
+    }
+
+
+    /**
+     * The icon a body part's row wears: what kind of form it is, so the timeline says "a model", "an
+     * item", "a block" without spending the name on it. Falls back to the generic limb.
+     */
+    public static Icon formIcon(Form form)
+    {
+        if (form instanceof ModelForm) return Icons.LIMB;
+        if (form instanceof ItemForm) return Icons.SHARD;
+        if (form instanceof BlockForm) return Icons.BLOCK;
+        if (form instanceof LabelForm) return Icons.FONT;
+        if (form instanceof BillboardForm) return Icons.IMAGE;
+        if (form instanceof ExtrudedForm) return Icons.SHAPES;
+        if (form instanceof ParticleForm || form instanceof VanillaParticleForm) return Icons.PARTICLE;
+        if (form instanceof MobForm) return Icons.CHICKEN;
+        if (form instanceof TrailForm) return Icons.LINE;
+
+        return Icons.LIMB;
     }
 
     private static void putColors(int color, String... keys)

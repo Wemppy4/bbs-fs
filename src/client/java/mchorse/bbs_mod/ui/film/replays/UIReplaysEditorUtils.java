@@ -215,28 +215,6 @@ public class UIReplaysEditorUtils
         }
     }
 
-    /**
-     * Draw a line wherever the timeline moves from one form to the next. The owning form is asked of
-     * the row itself, so the tracks that carry their form directly (bones, materials, solvers) group
-     * with the rest of their form instead of reading as ownerless.
-     */
-    public static void markFormSeparators(List<UIKeyframeSheet> sheets)
-    {
-        Form last = null;
-
-        for (UIKeyframeSheet sheet : sheets)
-        {
-            Form form = UIReplaysEditor.getSheetForm(sheet);
-
-            if (!Objects.equals(last, form))
-            {
-                sheet.separator = true;
-            }
-
-            last = form;
-        }
-    }
-
     public static <T> Keyframe<T> ensureKeyframe(UIKeyframeSheet sheet, float tick)
     {
         if (sheet == null)

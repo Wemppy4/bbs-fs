@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
+import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
@@ -151,20 +152,70 @@ public class TrackCatalog
          * paths resolve to nothing. */
         for (BodyPart part : form.parts.getAllTyped())
         {
-            collect(root, part.getForm(), StringUtils.combinePaths(path, part.getId()), properties, out);
+            collectBodyPart(root, part, StringUtils.combinePaths(path, part.getId()), properties, out);
         }
     }
 
-    /**
-     * A track's title: what the form is called, then what the track is. Deliberately NOT built from
-     * the form path — that is an address of stable ids, unreadable by design (and before them, a
-     * list position that moved when parts were reordered).
-     */
-    private static String titled(Form form, String rest)
-    {
-        String label = form == null ? "" : form.getTrackLabel();
 
-        return label.isEmpty() ? rest : label + FormUtils.PATH_SEPARATOR + rest;
+    /**
+     * A body part's tracks, gathered under a row of their own.
+     *
+     * <p>The part gets one row carrying its name and the icon of what kind of form it is, and
+     * everything the form offers folds under it. That is what says whose a track is — the tracks
+     * themselves are named plainly ("pose", "color"), because the alternative is repeating the
+     * part's name at the head of every row it owns, and nesting parts made those names grow without
+     * bound.</p>
+     *
+     * <p>The row is a header: it holds no value, and its channel exists only because a row is drawn
+     * from one. Nothing is ever written into it (see {@code UIKeyframeSheet.header}).</p>
+     */
+    private static void collectBodyPart(Form root, BodyPart part, String path, FormProperties properties, List<TrackDescriptor> out)
+    {
+        Form form = part.getForm();
+
+        if (form == null)
+        {
+            return;
+        }
+
+        List<TrackDescriptor> tracks = new ArrayList<>();
+
+        collect(root, form, path, properties, tracks);
+
+        if (tracks.isEmpty())
+        {
+            /* A part whose form animates nothing gets no row: an empty header is a lie about there
+             * being something inside. */
+            return;
+        }
+
+        TrackId node = TrackId.bodyPart(path);
+
+        out.add(new TrackDescriptor(node, headerChannel(node), form, IKey.constant(bodyPartName(form)),
+            TrackStyle.formIcon(form), TrackStyle.color(TrackKind.BODY_PART.key), null));
+
+        for (TrackDescriptor track : tracks)
+        {
+            /* Only what stood on its own joins the part's row; a bone already hangs off its bone. */
+            out.add(track.parent() == null ? track.under(node) : track);
+        }
+    }
+
+    /** What a body part's row is called: the animator's own track name, else the form's name. */
+    private static String bodyPartName(Form form)
+    {
+        String custom = form.getTrackName("");
+
+        return custom.isEmpty() ? form.getDisplayName() : custom;
+    }
+
+    /**
+     * The channel a header row is drawn from. Deliberately NOT taken from the replay's properties:
+     * a header names no value, so it must not create a track in the film that would then be saved.
+     */
+    private static KeyframeChannel headerChannel(TrackId id)
+    {
+        return new KeyframeChannel(id.toKey(), KeyframeFactories.FLOAT);
     }
 
     /** The replay's channel for this track, made if absent; null when asked without a replay. */
@@ -252,7 +303,7 @@ public class TrackCatalog
                 Colors.HSVtoRGB((hue[0]++ % BONE_TRACK_HUE_COUNT) / (float) BONE_TRACK_HUE_COUNT, 0.7F, 0.7F).getRGBColor());
 
             TrackId id = TrackId.bone(path, bone);
-            String title = titled(modelForm, bone);
+            String title = bone;
 
             /* A bone hangs off the bone it hangs off in the model, so folding an arm folds the whole
              * arm. The root of the skeleton hangs off the form's pose track, which is the thing all
@@ -286,7 +337,7 @@ public class TrackCatalog
             return;
         }
 
-        String title = titled(modelForm, bone + FormUtils.PATH_SEPARATOR + "constraints");
+        String title = bone + FormUtils.PATH_SEPARATOR + "constraints";
         BaseValueBasic property = formBone != null
             ? formBone.constraints
             : new ValueBoneConstraint(id.toKey(), new BoneConstraint());
@@ -367,7 +418,7 @@ public class TrackCatalog
                 fallback = model.getMaterialTexture(material, model.getTexture());
             }
 
-            out.add(new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(materialTitle(modelForm, material)),
+            out.add(new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(material),
                 Icons.MATERIAL, Colors.BLUE, new ValueLink(id.toKey(), fallback))
                 .under(texture));
 
@@ -390,23 +441,23 @@ public class TrackCatalog
 
         TrackId color = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_COLOR);
 
-        out.add(prop(modelForm, color, parent, materialTitle(modelForm, prefix + TrackId.MATERIAL_PROP_COLOR), Icons.BUCKET,
+        out.add(prop(modelForm, color, parent, prefix + TrackId.MATERIAL_PROP_COLOR, Icons.BUCKET,
             new ValueColor(color.toKey(), staticMaterial == null ? Color.white() : staticMaterial.color.get().copy()), properties));
 
         TrackId overlay = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_OVERLAY);
         ValueColor overlayValue = new ValueColor(overlay.toKey(), staticMaterial == null ? new Color(1F, 1F, 1F, 0F) : staticMaterial.overlayColor.get().copy());
 
-        out.add(prop(modelForm, overlay, parent, materialTitle(modelForm, prefix + TrackId.MATERIAL_PROP_OVERLAY), Icons.COLOR, overlayValue, properties)
+        out.add(prop(modelForm, overlay, parent, prefix + TrackId.MATERIAL_PROP_OVERLAY, Icons.COLOR, overlayValue, properties)
             .seed(() -> opaqueOverlaySeed(overlayValue.get())));
 
         TrackId lighting = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_LIGHTING);
 
-        out.add(prop(modelForm, lighting, parent, materialTitle(modelForm, prefix + TrackId.MATERIAL_PROP_LIGHTING), Icons.LIGHT,
+        out.add(prop(modelForm, lighting, parent, prefix + TrackId.MATERIAL_PROP_LIGHTING, Icons.LIGHT,
             new ValueFloat(lighting.toKey(), staticMaterial == null ? 1F : staticMaterial.lighting.get()), properties));
 
         TrackId culling = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_CULLING);
 
-        out.add(prop(modelForm, culling, parent, materialTitle(modelForm, prefix + TrackId.MATERIAL_PROP_CULLING), Icons.CONVERT,
+        out.add(prop(modelForm, culling, parent, prefix + TrackId.MATERIAL_PROP_CULLING, Icons.CONVERT,
             new ValueInt(culling.toKey(), staticMaterial == null ? 0 : staticMaterial.culling.get()), properties));
 
         pbr(modelForm, path, material, staticMaterial, parent, properties, out);
@@ -429,7 +480,7 @@ public class TrackCatalog
             TrackId id = TrackId.materialProp(path, material, slider);
             float value = staticMaterial == null ? 0F : pbrSlider(staticMaterial, slider);
 
-            out.add(prop(modelForm, id, parent, materialTitle(modelForm, prefix + slider), Icons.MATERIAL,
+            out.add(prop(modelForm, id, parent, prefix + slider, Icons.MATERIAL,
                 new ValueFloat(id.toKey(), value), properties));
         }
     }
@@ -438,16 +489,6 @@ public class TrackCatalog
     {
         return new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(title),
             icon, TrackStyle.color(id.property()), value).under(parent);
-    }
-
-    /**
-     * Title of a material track. The form path stays (a body part's tracks must say whose they are,
-     * exactly like the bone tracks), everything above the material itself goes — the texture track
-     * these fold under already carries it.
-     */
-    private static String materialTitle(Form form, String name)
-    {
-        return titled(form, name);
     }
 
     private static float pbrSlider(FormMaterial material, String property)
@@ -500,7 +541,7 @@ public class TrackCatalog
             TrackId id = TrackId.ikControls(path);
 
             out.add(new TrackDescriptor(id, channel(properties, id), modelForm,
-                IKey.constant(titled(modelForm, "ik")), Icons.IK, Colors.YELLOW, null)
+                IKey.constant("ik"), Icons.IK, Colors.YELLOW, null)
                 .seed(() -> ikControls(modelForm)));
         }
 
@@ -510,7 +551,7 @@ public class TrackCatalog
             {
                 TrackId id = TrackId.ikTarget(path, controller);
 
-                out.add(target(modelForm, id, properties, titled(modelForm, "ik/" + controller), Colors.CYAN));
+                out.add(target(modelForm, id, properties, "ik/" + controller, Colors.CYAN));
             }
         }
 
@@ -520,7 +561,7 @@ public class TrackCatalog
             {
                 TrackId id = TrackId.poleTarget(path, controller);
 
-                out.add(target(modelForm, id, properties, titled(modelForm, "pole/" + controller), Colors.ORANGE));
+                out.add(target(modelForm, id, properties, "pole/" + controller, Colors.ORANGE));
             }
         }
     }
@@ -549,14 +590,14 @@ public class TrackCatalog
         TrackId controls = TrackId.physicsControls(path);
 
         out.add(new TrackDescriptor(controls, channel(properties, controls), modelForm,
-            IKey.constant(titled(modelForm, "physics")), Icons.PHYSICS, Colors.GREEN, null)
+            IKey.constant("physics"), Icons.PHYSICS, Colors.GREEN, null)
             .seed(() -> physicsControls(modelForm)));
 
         /* The wind is global to the form, so — unlike the physics controls — it is not keyed by chain. */
         TrackId wind = TrackId.windControls(path);
 
         out.add(new TrackDescriptor(wind, channel(properties, wind), modelForm,
-            IKey.constant(titled(modelForm, "wind")), Icons.ARROW_RIGHT, Colors.CYAN, null)
+            IKey.constant("wind"), Icons.ARROW_RIGHT, Colors.CYAN, null)
             .seed(() -> modelForm.wind.get().copy()));
 
         for (BaseValue value : modelForm.bones.getAll())
@@ -568,7 +609,7 @@ public class TrackCatalog
 
             TrackId id = TrackId.physicsTarget(path, bone.getId());
 
-            out.add(target(modelForm, id, properties, titled(modelForm, "physics/" + bone.getId()), Colors.MAGENTA));
+            out.add(target(modelForm, id, properties, "physics/" + bone.getId(), Colors.MAGENTA));
         }
     }
 

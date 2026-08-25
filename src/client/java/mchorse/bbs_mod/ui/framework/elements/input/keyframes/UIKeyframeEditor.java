@@ -103,7 +103,7 @@ public class UIKeyframeEditor extends UITimelinePanel
     public void setChannel(KeyframeChannel channel, int color)
     {
         this.view.removeAllSheets();
-        this.view.addSheet(new UIKeyframeSheet(color, false, channel, null));
+        this.view.addSheet(new UIKeyframeSheet(color, channel, null));
 
         this.pickKeyframe(null);
     }
@@ -116,7 +116,7 @@ public class UIKeyframeEditor extends UITimelinePanel
         {
             KeyframeChannel channel = clip.channels[i];
 
-            this.view.addSheet(new UIKeyframeSheet(COLORS[i], false, channel, null));
+            this.view.addSheet(new UIKeyframeSheet(COLORS[i], channel, null));
         }
 
         this.pickKeyframe(null);

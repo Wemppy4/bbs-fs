@@ -34,7 +34,7 @@ public class UIDebugPanel extends UIDashboardPanel
         for (int i = 0; i < 20; i++)
         {
             KeyframeChannel<Double> channel = new KeyframeChannel<>("baboy", KeyframeFactories.DOUBLE);
-            UIKeyframeSheet sheet = new UIKeyframeSheet("baboy_" + i, IKey.raw("Baboy " + i), Colors.HSVtoRGB((float) Math.random(), 1F, 1F).getRGBColor(), false, channel, null);
+            UIKeyframeSheet sheet = new UIKeyframeSheet("baboy_" + i, IKey.raw("Baboy " + i), Colors.HSVtoRGB((float) Math.random(), 1F, 1F).getRGBColor(), channel, null);
 
             channel.insert(0L, 0D);
             channel.insert(20L + (long) (Math.random() * 18 - 9), 0D);

@@ -593,7 +593,6 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         boolean filteredOutEverything = hadTracks && sheets.isEmpty();
 
         UIReplaysEditorUtils.detachMissingParents(sheets);
-        UIReplaysEditorUtils.markFormSeparators(sheets);
 
         if (!sheets.isEmpty() || filteredOutEverything)
         {
@@ -731,7 +730,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
             BaseValue value = this.replay.keyframes.get(key);
             KeyframeChannel channel = (KeyframeChannel) value;
 
-            sheets.add(new UIKeyframeSheet(getColor(key), false, channel, null).icon(getIcon(key)));
+            sheets.add(new UIKeyframeSheet(getColor(key), channel, null).icon(getIcon(key)));
         }
     }
 
