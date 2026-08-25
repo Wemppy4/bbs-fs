@@ -51,10 +51,16 @@ public enum TransformSpace
      *  itself is the plain camera basis. */
     VIEW(true, Icons.SPACE_VIEW, UIKeys.TRANSFORMS_SPACE_VIEW),
 
-    /** The parent's frame — the frame the bone's own channels compose in.
-     *  Rotation here deliberately bumps the driven channel directly (the
-     *  pre-spaces gizmo behaviour): exact single-parameter turns with native
-     *  &gt;360° winding, Blender's gimbal-style workflow. */
+    /** The parent's frame — the frame the bone's own channels compose in, and
+     *  the frame the parent bone is drawn in (the gizmo is placed on the cache's
+     *  origin flavour, which IS the parent bone's own rendered frame). A ring
+     *  turns the bone about that parent axis like any other space, so a single
+     *  ring generally moves more than one euler channel: those channels are a
+     *  nested stack, and only its outermost one is a plain parent axis. Bumping
+     *  the driven channel instead — the pre-spaces behaviour this used to keep
+     *  — is Blender's GIMBAL orientation, a different frame that only coincides
+     *  with the parent's for that one channel; it survives as the euler pole
+     *  fallback in {@code RingRotateDrag}. */
     PARENT(true, Icons.SPACE_PARENT, UIKeys.TRANSFORMS_SPACE_PARENT),
 
     /** The map's own axes, indifferent to what the edited thing sits inside —

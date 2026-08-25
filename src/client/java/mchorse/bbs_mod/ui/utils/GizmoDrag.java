@@ -303,13 +303,13 @@ public class GizmoDrag
      * (the bone's frame before its own rotation, i.e. the parent frame), so the
      * drawn arrows already are the parent axes.
      *
-     * <p>Rotation rings in LOCAL/GLOBAL/VIEW both DRAW and TURN about these
-     * axes: a ring gesture composes a delta rotation about the drawn axis
-     * (mapped into the bone's parent frame via
+     * <p>Rotation rings in EVERY space both DRAW and TURN about these axes: a
+     * ring gesture composes a delta rotation about the drawn axis (mapped into
+     * the bone's parent frame via
      * {@link mchorse.bbs_mod.ui.framework.elements.input.drag.RotationDragMath#parentInverse}),
-     * so the bone always follows the ring the user grabbed. PARENT rings
-     * instead bump the driven channel directly — the deliberate pre-spaces
-     * behaviour (see {@link TransformSpace#PARENT}). The MEASURED
+     * so the bone always follows the ring the user grabbed — PARENT included,
+     * where that is a genuine turn about the parent bone's axis rather than a
+     * bump of the like-named channel (see {@link TransformSpace#PARENT}). The MEASURED
      * {@link #rotateAxes} (the renderer's response to the euler channels, which
      * folds in the cubic {@code Ry(180°)} post-flip AND the euler stack's gimbal
      * skew) is deliberately NOT a gesture basis anymore &mdash; a LOCAL ring
