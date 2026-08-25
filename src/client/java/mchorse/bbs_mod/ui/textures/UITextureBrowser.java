@@ -6,6 +6,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.data.DataToString;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -419,12 +420,23 @@ public class UITextureBrowser extends UIElement
         this.redos.clear();
     }
 
-    /** A copy just made (or null when it failed) goes on the undo stack. */
-    private void copied(Link source, Link created)
+    /** A copy just made (or null when it failed) goes on the undo stack; tells whether it was made. */
+    private boolean copied(Link source, Link created)
     {
         if (created != null)
         {
             this.record(new CopyChange(source, created));
+        }
+
+        return created != null;
+    }
+
+    /** Say what just happened at the bottom of the screen — "Copied: 3" — unless nothing did. */
+    private void notify(IKey what, int count)
+    {
+        if (count > 0 && this.getContext() != null)
+        {
+            this.getContext().notifyInfo(what.format(String.valueOf(count)));
         }
     }
 
@@ -762,6 +774,8 @@ public class UITextureBrowser extends UIElement
         this.clipboard.clear();
         this.clipboard.addAll(subjects);
         this.cut = cut;
+
+        this.notify(cut ? UIKeys.TEXTURES_BROWSER_NOTIFY_CUT : UIKeys.TEXTURES_BROWSER_NOTIFY_COPIED, subjects.size());
     }
 
     /** Put the clipboard down in the folder on show: copies, or moves after a cut (once). */
@@ -773,6 +787,7 @@ public class UITextureBrowser extends UIElement
         }
 
         Link current = this.getCurrent();
+        int pasted = 0;
 
         for (Link link : this.clipboard)
         {
@@ -784,6 +799,7 @@ public class UITextureBrowser extends UIElement
                 if (moved != null)
                 {
                     this.record(new MoveChange(link, moved));
+                    pasted += 1;
 
                     if (link.equals(current))
                     {
@@ -791,9 +807,9 @@ public class UITextureBrowser extends UIElement
                     }
                 }
             }
-            else
+            else if (this.copied(link, TextureFiles.copyInto(link, this.path)))
             {
-                this.copied(link, TextureFiles.copyInto(link, this.path));
+                pasted += 1;
             }
         }
 
@@ -803,6 +819,7 @@ public class UITextureBrowser extends UIElement
             this.cut = false;
         }
 
+        this.notify(UIKeys.TEXTURES_BROWSER_NOTIFY_PASTED, pasted);
         this.refresh();
         this.tree.refresh();
 
@@ -864,17 +881,26 @@ public class UITextureBrowser extends UIElement
         switch (action)
         {
             case EDIT -> this.openInEditor(entry.link());
-            case DUPLICATE ->
-            {
-                for (Link link : this.group(entry.link()))
-                {
-                    this.copied(link, TextureFiles.duplicate(link));
-                }
-
-                this.refresh();
-            }
+            case DUPLICATE -> this.duplicate(this.group(entry.link()));
             case REMOVE -> this.confirmDelete(this.group(entry.link()));
         }
+    }
+
+    /** Make a {@code _copy} of each beside the original — those that live on disk. */
+    private void duplicate(List<Link> links)
+    {
+        int made = 0;
+
+        for (Link link : links)
+        {
+            if (this.copied(link, TextureFiles.duplicate(link)))
+            {
+                made += 1;
+            }
+        }
+
+        this.notify(UIKeys.TEXTURES_BROWSER_NOTIFY_DUPLICATED, made);
+        this.refresh();
     }
 
     /** The links an action on {@code link} touches: the whole pick when it's one of several picked. */
@@ -947,12 +973,17 @@ public class UITextureBrowser extends UIElement
         }
 
         Link current = this.getCurrent();
+        int copies = 0;
+        int moves = 0;
 
         for (Link link : this.drag.getLinks())
         {
             if (copy || !TextureFiles.canModify(link))
             {
-                this.copied(link, TextureFiles.copyInto(link, target));
+                if (this.copied(link, TextureFiles.copyInto(link, target)))
+                {
+                    copies += 1;
+                }
 
                 continue;
             }
@@ -965,6 +996,7 @@ public class UITextureBrowser extends UIElement
             }
 
             this.record(new MoveChange(link, moved));
+            moves += 1;
 
             if (link.equals(current))
             {
@@ -972,6 +1004,8 @@ public class UITextureBrowser extends UIElement
             }
         }
 
+        this.notify(UIKeys.TEXTURES_BROWSER_NOTIFY_COPIED, copies);
+        this.notify(UIKeys.TEXTURES_BROWSER_NOTIFY_MOVED, moves);
         this.selection.clear();
         this.refresh();
         this.tree.refresh();
@@ -1110,11 +1144,7 @@ public class UITextureBrowser extends UIElement
 
             if (!entry.folder())
             {
-                menu.action(Icons.DUPE, UIKeys.FORMS_CATEGORIES_CONTEXT_DUPLICATE_FORM, () ->
-                {
-                    this.copied(link, TextureFiles.duplicate(link));
-                    this.refresh();
-                });
+                menu.action(Icons.DUPE, UIKeys.FORMS_CATEGORIES_CONTEXT_DUPLICATE_FORM, () -> this.duplicate(Collections.singletonList(link)));
             }
         }
 
@@ -1178,12 +1208,7 @@ public class UITextureBrowser extends UIElement
         }
         else if (context.isPressed(GLFW.GLFW_KEY_D) && Window.isCtrlPressed())
         {
-            for (Link link : this.subjects())
-            {
-                this.copied(link, TextureFiles.duplicate(link));
-            }
-
-            this.refresh();
+            this.duplicate(this.subjects());
 
             return true;
         }
