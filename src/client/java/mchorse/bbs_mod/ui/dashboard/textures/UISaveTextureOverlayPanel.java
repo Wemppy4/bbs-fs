@@ -38,7 +38,8 @@ import java.util.function.Predicate;
 public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolderTreeHost
 {
     private static final int TREE_WIDTH = 170;
-    private static final int PREVIEW = 40;
+    private static final int PREVIEW = 32;
+    private static final int PAD = 10;
 
     public UIFolderTree tree;
     public UIStringList files;
@@ -70,13 +71,15 @@ public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolder
 
         this.right = new UIElement();
 
-        this.tree.relative(this.content).xy(0, 0).w(TREE_WIDTH).h(1F);
-        this.right.relative(this.content).x(TREE_WIDTH + 10).y(0).w(1F, -TREE_WIDTH - 10).h(1F);
+        /* Tree down the left, the rest in a column to its right, both inset from the edges */
+        this.tree.relative(this.content).xy(PAD, PAD).w(TREE_WIDTH).h(1F, -PAD * 2);
+        this.right.relative(this.content).x(TREE_WIDTH + PAD * 2).y(PAD).w(1F, -TREE_WIDTH - PAD * 3).h(1F, -PAD * 2);
 
-        /* Top: the folder's textures; bottom: the name and the save button beside the thumbnail */
-        this.files.relative(this.right).xy(0, 20).w(1F).h(1F, -20 - 30 - PREVIEW - 10);
+        /* Where it goes (20), the folder's textures (the rest), the name (20), then the
+         * thumbnail row with the save button — each part 5 apart */
+        this.files.relative(this.right).xy(0, 20).w(1F).h(1F, -20 - 5 - 20 - 5 - PREVIEW);
         this.name.relative(this.right).x(0).y(1F, -PREVIEW - 5).w(1F).h(20).anchorY(1F);
-        this.save.relative(this.right).x(1F).y(1F).w(100).h(20).anchor(1F, 1F);
+        this.save.relative(this.right).x(1F).y(1F, -(PREVIEW - 20) / 2).w(100).h(20).anchor(1F, 1F);
 
         this.right.add(this.files, this.name, this.save);
         this.content.add(this.tree, this.right);

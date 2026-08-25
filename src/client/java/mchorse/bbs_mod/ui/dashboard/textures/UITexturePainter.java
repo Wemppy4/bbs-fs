@@ -189,9 +189,19 @@ public class UITexturePainter extends UIElement
             UITextureEditor ed = this.getCurrentEditor();
 
             return ed != null && ed.isDirty() ? Icons.SAVE : Icons.SAVED;
-        }, (b) -> this.withEditor(UITextureEditor::saveCurrentTexture));
-        this.saveIcon.tooltip(UIKeys.GENERAL_SAVE);
-        this.saveIcon.context((menu) -> menu.action(Icons.SAVED, UIKeys.TEXTURES_SAVE_AS, () -> this.withEditor(UITextureEditor::openSaveOverlay)));
+        }, (b) ->
+        {
+            /* The button asks where to save; Shift skips the asking and writes in place, like Ctrl+S */
+            if (Window.isShiftPressed())
+            {
+                this.withEditor(UITextureEditor::saveCurrentTexture);
+            }
+            else
+            {
+                this.withEditor(UITextureEditor::openSaveOverlay);
+            }
+        });
+        this.saveIcon.tooltip(UIKeys.TEXTURES_SAVE_TOOLTIP);
 
         this.resizeIcon = new UIIcon(Icons.FULLSCREEN, (b) -> this.withEditor(UITextureEditor::openResizeOverlay));
         this.resizeIcon.tooltip(UIKeys.TEXTURES_RESIZE);

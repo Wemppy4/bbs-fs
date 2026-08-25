@@ -13,6 +13,7 @@
 	"bbs.config.appearance.morphing_focus_search-comment": "When enabled, the form search field is focused automatically when you open the morphing menu",
 	"bbs.ui.textures.browser.search": "Search...",
 	"bbs.ui.textures.save_dialog.name": "File name...",
+	"bbs.ui.textures.save_tooltip": "Save as... (Shift — save in place, same as Ctrl+S)",
 	"bbs.ui.textures.save_dialog.overwrite": "%s already exists. Overwrite it?",
 	"bbs.ui.textures.save_dialog.pick_folder": "Pick a folder in your assets",
 	"bbs.ui.textures.browser.everywhere": "Search in all folders, not only the current one",
