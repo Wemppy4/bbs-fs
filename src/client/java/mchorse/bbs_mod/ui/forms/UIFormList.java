@@ -50,7 +50,7 @@ import java.util.Set;
 public class UIFormList extends UIElement
 {
     public static final int ZOOM_STEP = 8;
-    public static final int BAR_HEIGHT = 24;
+    public static final int BAR_HEIGHT = 20;
     public static final int STATUS_HEIGHT = 16;
     private static final long DOUBLE_CLICK = 300;
     private static final int AUTO_SCROLL_EDGE = 24;
