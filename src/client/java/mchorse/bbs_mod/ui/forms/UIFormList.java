@@ -84,6 +84,9 @@ public class UIFormList extends UIElement
     private UIFormCategory marqueeCategory;
     private Form marqueeForm;
 
+    /* What was picked before the band started; the band adds to it */
+    private final List<Form> marqueeBase = new ArrayList<>();
+
     private UIFormCategory recent;
     private List<UIFormCategory> categories = new ArrayList<>();
 
@@ -507,29 +510,50 @@ public class UIFormList extends UIElement
     {
         this.marqueeCategory = category;
         this.marqueeForm = form;
+        this.marqueeBase.clear();
+        this.marqueeBase.addAll(this.selection.getForms());
         this.marquee.press(context.mouseX - this.forms.area.x, context.mouseY - this.forms.area.y);
+    }
+
+    /**
+     * While the band is stretched, the pick follows it live — what was picked before the
+     * press stays, every form the band covers, in any category, joins.
+     */
+    private void applyMarquee()
+    {
+        if (!this.marquee.isActive())
+        {
+            return;
+        }
+
+        this.selection.clear();
+
+        for (Form form : this.marqueeBase)
+        {
+            this.selection.add(form, this.categoryOf(form));
+        }
+
+        Area band = this.marquee.getArea();
+        Area local = new Area();
+
+        for (UIFormCategory category : this.categories)
+        {
+            local.copy(band);
+            local.x -= category.area.x - this.forms.area.x;
+            local.y -= category.area.y - this.forms.area.y;
+
+            for (Form form : category.getFormsIn(local))
+            {
+                this.selection.add(form, category.category);
+            }
+        }
     }
 
     private void releaseMarquee()
     {
-        if (this.marquee.isActive())
-        {
-            Area band = this.marquee.getArea();
-            Area local = new Area();
-
-            for (UIFormCategory category : this.categories)
-            {
-                local.copy(band);
-                local.x -= category.area.x - this.forms.area.x;
-                local.y -= category.area.y - this.forms.area.y;
-
-                for (Form form : category.getFormsIn(local))
-                {
-                    this.selection.add(form, category.category);
-                }
-            }
-        }
-        else if (this.marqueeForm != null && this.marqueeCategory != null)
+        /* An active band has already applied itself while stretching; a press that went
+         * nowhere is a Shift-click, which extends the pick to that form */
+        if (!this.marquee.isActive() && this.marqueeForm != null && this.marqueeCategory != null)
         {
             this.selection.range(this.marqueeForm, this.marqueeCategory.category, this.marqueeCategory.getForms());
         }
@@ -537,6 +561,7 @@ public class UIFormList extends UIElement
         this.marquee.reset();
         this.marqueeCategory = null;
         this.marqueeForm = null;
+        this.marqueeBase.clear();
     }
 
     public void pressForm(UIFormCategory category, Form form, List<Form> order, UIContext context)
@@ -847,6 +872,7 @@ public class UIFormList extends UIElement
         }
 
         this.marquee.update(context.mouseX - this.forms.area.x, context.mouseY - this.forms.area.y + (int) this.forms.scroll.getScroll());
+        this.applyMarquee();
         this.drag.update(context.mouseX, context.mouseY);
         this.drag.clearTarget();
         this.hoveredAction = null;

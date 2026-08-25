@@ -102,6 +102,9 @@ public class UITextureBrowser extends UIElement
     /* The entry a Shift-press landed on: a band that goes nowhere extends the pick to it */
     private TextureEntry marqueeEntry;
 
+    /* What was picked before the band started; the band adds to it */
+    private final List<Link> marqueeBase = new ArrayList<>();
+
     /* Files taken by Ctrl+C / Ctrl+X, put down by Ctrl+V; shown on the status line until then */
     private final List<Link> clipboard = new ArrayList<>();
     private boolean cut;
@@ -705,7 +708,33 @@ public class UITextureBrowser extends UIElement
     public void pressMarquee(TextureEntry entry, int x, int y)
     {
         this.marqueeEntry = entry;
+        this.marqueeBase.clear();
+        this.marqueeBase.addAll(this.selection.getLinks());
         this.marquee.press(x, y);
+    }
+
+    /**
+     * While the band is stretched, the pick follows it live — what was picked before the
+     * press stays, everything the band covers joins — so the user sees the result as they go.
+     */
+    private void applyMarquee()
+    {
+        if (!this.marquee.isActive())
+        {
+            return;
+        }
+
+        this.selection.clear();
+
+        for (Link link : this.marqueeBase)
+        {
+            this.selection.add(link);
+        }
+
+        for (TextureEntry entry : this.grid.getEntriesIn(this.marquee.getArea()))
+        {
+            this.selection.add(entry.link());
+        }
     }
 
     private void selectAll()
@@ -946,20 +975,16 @@ public class UITextureBrowser extends UIElement
     {
         if (this.marquee.isPressed())
         {
-            if (this.marquee.isActive())
-            {
-                for (TextureEntry entry : this.grid.getEntriesIn(this.marquee.getArea()))
-                {
-                    this.selection.add(entry.link());
-                }
-            }
-            else if (this.marqueeEntry != null)
+            /* An active band has already applied itself while stretching; a press that went
+             * nowhere is a Shift-click, which extends the pick to that entry */
+            if (!this.marquee.isActive() && this.marqueeEntry != null)
             {
                 this.selection.range(this.marqueeEntry.link(), this.entries);
             }
 
             this.marquee.reset();
             this.marqueeEntry = null;
+            this.marqueeBase.clear();
         }
 
         if (this.drag.isActive())
@@ -1372,6 +1397,7 @@ public class UITextureBrowser extends UIElement
         }
 
         this.marquee.update(this.grid.contentX(context), this.grid.contentY(context));
+        this.applyMarquee();
         this.drag.update(context.mouseX, context.mouseY);
         this.drag.clearTarget();
         this.hoveredAction = null;
