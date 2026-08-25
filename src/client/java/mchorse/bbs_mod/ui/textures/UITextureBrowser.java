@@ -706,7 +706,48 @@ public class UITextureBrowser extends UIElement
 
         Link current = this.getCurrent();
 
-        return current == null || !TextureFiles.canModify(current) ? Collections.emptyList() : Collections.singletonList(current);
+        return current == null || current.path.endsWith("/") ? Collections.emptyList() : Collections.singletonList(current);
+    }
+
+    /** The subjects that live on disk — the ones a rename, a move or a deletion can touch. */
+    private List<Link> modifiableSubjects()
+    {
+        List<Link> subjects = this.subjects();
+        List<Link> modifiable = new ArrayList<>();
+
+        for (Link link : subjects)
+        {
+            if (TextureFiles.canModify(link))
+            {
+                modifiable.add(link);
+            }
+        }
+
+        if (modifiable.isEmpty() && !subjects.isEmpty())
+        {
+            this.getContext().notifyError(UIKeys.TEXTURES_BROWSER_READ_ONLY);
+        }
+
+        return modifiable;
+    }
+
+    /** Whether the drag in progress copies rather than moves: Ctrl is held, or the files can't be moved anyway. */
+    private boolean isCopyDrag()
+    {
+        if (Window.isCtrlPressed())
+        {
+            return true;
+        }
+
+        for (Link link : this.drag.getLinks())
+        {
+            if (TextureFiles.canModify(link))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void copyToClipboard(boolean cut)
@@ -735,7 +776,8 @@ public class UITextureBrowser extends UIElement
 
         for (Link link : this.clipboard)
         {
-            if (this.cut)
+            /* A cut of something read-only can only ever be a copy */
+            if (this.cut && TextureFiles.canModify(link))
             {
                 Link moved = TextureFiles.move(link, this.path);
 
@@ -897,7 +939,7 @@ public class UITextureBrowser extends UIElement
     private void drop()
     {
         Link target = this.drag.getTarget();
-        boolean copy = Window.isCtrlPressed();
+        boolean copy = this.isCopyDrag();
 
         if (!this.drag.accepts(target, copy))
         {
@@ -908,7 +950,7 @@ public class UITextureBrowser extends UIElement
 
         for (Link link : this.drag.getLinks())
         {
-            if (copy)
+            if (copy || !TextureFiles.canModify(link))
             {
                 this.copied(link, TextureFiles.copyInto(link, target));
 
@@ -1124,7 +1166,7 @@ public class UITextureBrowser extends UIElement
         }
         else if (context.isPressed(Keys.DELETE))
         {
-            this.confirmDelete(this.subjects());
+            this.confirmDelete(this.modifiableSubjects());
 
             return true;
         }
@@ -1147,7 +1189,7 @@ public class UITextureBrowser extends UIElement
         }
         else if (context.isPressed(GLFW.GLFW_KEY_F2))
         {
-            List<Link> subjects = this.subjects();
+            List<Link> subjects = this.modifiableSubjects();
 
             if (subjects.size() == 1)
             {
@@ -1333,7 +1375,7 @@ public class UITextureBrowser extends UIElement
     private void renderGhost(UIContext context)
     {
         List<Link> links = this.drag.getLinks();
-        boolean copy = Window.isCtrlPressed();
+        boolean copy = this.isCopyDrag();
         boolean landing = this.drag.accepts(this.drag.getTarget(), copy);
         int size = Math.min(this.grid.getCellSize(), 48);
         TextureEntry front = TextureEntry.of(links.get(0));

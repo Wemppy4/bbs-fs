@@ -132,6 +132,12 @@ public class UIBreadcrumbs extends UIElement
             x += w + GAP;
         }
 
+        /* A read-only place (the mod's own textures) wears a lock at the end of the strip */
+        if (TextureFiles.isReadOnly(this.browser.getPath()))
+        {
+            context.batcher.icon(Icons.LOCKED, Colors.LIGHTER_GRAY, this.area.ex() - 20, this.area.my() - 8);
+        }
+
         if (this.hovered != -1)
         {
             context.requestCursor(GLFW.GLFW_HAND_CURSOR);

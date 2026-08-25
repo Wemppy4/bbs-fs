@@ -39,6 +39,8 @@
 	"bbs.ui.textures.browser.info.empty": "Выберите текстуру",
 	"bbs.ui.textures.browser.info.files": "Текстур: %s",
 	"bbs.ui.textures.browser.info.animated": "Анимированная (.mcmeta)",
+	"bbs.ui.textures.browser.info.read_only": "Встроенная, только чтение",
+	"bbs.ui.textures.browser.read_only": "Эта текстура встроена в мод. Скопируйте её в свои ассеты, чтобы изменить.",
 	"bbs.config.appearance.hsv_color_picker": "HSV пипетка",
 	"bbs.config.appearance.hsv_color_picker-comment": "Позволяет поменять цветовую модель цветовой пипетки на HSV вместо RGB, которая является более интуитивной",
 	"bbs.config.appearance.language": "Язык",

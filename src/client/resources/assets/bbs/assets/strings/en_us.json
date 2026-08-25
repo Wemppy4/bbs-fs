@@ -39,6 +39,8 @@
 	"bbs.ui.textures.browser.info.empty": "Pick a texture",
 	"bbs.ui.textures.browser.info.files": "%s textures",
 	"bbs.ui.textures.browser.info.animated": "Animated (.mcmeta)",
+	"bbs.ui.textures.browser.info.read_only": "Built-in, read-only",
+	"bbs.ui.textures.browser.read_only": "This texture is built into the mod. Copy it into your assets to change it.",
 	"bbs.config.appearance.hsv_color_picker": "HSV picker",
 	"bbs.config.appearance.hsv_color_picker-comment": "When enabled, this option switches all color pickers to use HSV color model instead of RGB, which is more intuitive",
 	"bbs.config.appearance.language": "Language",

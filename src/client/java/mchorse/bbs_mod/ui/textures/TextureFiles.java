@@ -9,6 +9,7 @@ import mchorse.bbs_mod.utils.resources.Pixels;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
@@ -31,12 +32,21 @@ public class TextureFiles
         return link == null ? null : BBSMod.getProvider().getFile(link);
     }
 
-    /** Whether a link is something on disk the user may rename, move, copy or delete. */
+    /**
+     * Whether a link is something on disk the user may rename, move or delete. What isn't —
+     * a texture inside the mod's jar — is read-only: it can still be copied out.
+     */
     public static boolean canModify(Link link)
     {
         File file = file(link);
 
         return file != null && file.exists();
+    }
+
+    /** Whether a folder (or a source root) is read-only: nothing in it can be changed, only copied out. */
+    public static boolean isReadOnly(Link folder)
+    {
+        return folder != null && !folder.source.isEmpty() && !isFolder(folder);
     }
 
     public static boolean isFolder(Link link)
@@ -147,18 +157,21 @@ public class TextureFiles
         return done(target, link);
     }
 
-    /** Copy a file into {@code folder}, keeping its name (or a {@code _copy} one when that's taken). */
+    /**
+     * Copy a texture into {@code folder}, keeping its name (or a {@code _copy} one when that's
+     * taken). The source may be read-only — a texture inside the mod's own jar, say: it's
+     * read as a stream, so anything the provider can open can be copied out onto the disk.
+     */
     public static Link copyInto(Link link, Link folder)
     {
-        File file = file(link);
         File into = file(folder);
 
-        if (file == null || into == null || !file.isFile() || !into.isDirectory())
+        if (link == null || link.path.endsWith("/") || into == null || !into.isDirectory())
         {
             return null;
         }
 
-        File target = new File(into, file.getName());
+        File target = new File(into, StringUtils.fileName(link.path));
 
         if (target.exists())
         {
@@ -167,14 +180,8 @@ public class TextureFiles
 
         try
         {
-            Files.copy(file.toPath(), target.toPath());
-
-            File sidecar = sidecar(file);
-
-            if (sidecar.exists())
-            {
-                Files.copy(sidecar.toPath(), sidecar(target).toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
+            copyAsset(link, target);
+            copyAsset(new Link(link.source, link.path + ".mcmeta"), sidecar(target));
         }
         catch (IOException e)
         {
@@ -184,6 +191,17 @@ public class TextureFiles
         }
 
         return done(target, link);
+    }
+
+    /** Write an asset to a file; a missing asset (no sidecar, for one) is simply skipped. */
+    private static void copyAsset(Link link, File target) throws IOException
+    {
+        try (InputStream stream = BBSMod.getProvider().getAsset(link))
+        {
+            Files.copy(stream, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        catch (java.io.FileNotFoundException | java.util.NoSuchElementException e)
+        {}
     }
 
     /** Write a blank, transparent PNG of the given size; null when the name is taken or the folder isn't on disk. */

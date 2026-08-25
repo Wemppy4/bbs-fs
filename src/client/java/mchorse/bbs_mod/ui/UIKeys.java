@@ -1185,6 +1185,8 @@ public class UIKeys
     public static final IKey TEXTURES_BROWSER_INFO_ANIMATED = L10n.lang("bbs.ui.textures.browser.info.animated");
     public static final IKey TEXTURES_BROWSER_INFO_EMPTY = L10n.lang("bbs.ui.textures.browser.info.empty");
     public static final IKey TEXTURES_BROWSER_INFO_FILES = L10n.lang("bbs.ui.textures.browser.info.files");
+    public static final IKey TEXTURES_BROWSER_INFO_READ_ONLY = L10n.lang("bbs.ui.textures.browser.info.read_only");
+    public static final IKey TEXTURES_BROWSER_READ_ONLY = L10n.lang("bbs.ui.textures.browser.read_only");
     public static final IKey TEXTURES_BROWSER_NEW_FOLDER = L10n.lang("bbs.ui.textures.browser.new_folder");
     public static final IKey TEXTURES_BROWSER_NEW_FOLDER_DESCRIPTION = L10n.lang("bbs.ui.textures.browser.new_folder-description");
     public static final IKey TEXTURES_BROWSER_NEW_FOLDER_TITLE = L10n.lang("bbs.ui.textures.browser.new_folder-title");
