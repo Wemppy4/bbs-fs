@@ -20,6 +20,7 @@ import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
+import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.forms.FormCellRenderer;
 import mchorse.bbs_mod.ui.forms.FormDrag;
 import mchorse.bbs_mod.ui.forms.FormGridLayout;
@@ -74,7 +75,7 @@ public class UIFormCategory extends UIElement
     private Form contextForm;
 
     private final FormGridLayout layout = new FormGridLayout();
-    private final FormCellRenderer.State state = new FormCellRenderer.State();
+    private final CellState state = new CellState();
 
     private int last;
     private String search = "";
@@ -365,18 +366,10 @@ public class UIFormCategory extends UIElement
         }
 
         List<Form> forms = this.getForms();
-        int w = this.layout.getCellWidth();
-        int h = this.layout.getCellHeight();
 
-        for (int i = 0; i < forms.size(); i++)
+        for (int index : this.layout.getIndicesIn(area))
         {
-            int x = this.layout.getX(i);
-            int y = this.layout.getY(i);
-
-            if (x < area.ex() && x + w > area.x && y < area.ey() && y + h > area.y)
-            {
-                hit.add(forms.get(i));
-            }
+            hit.add(forms.get(index));
         }
 
         return hit;

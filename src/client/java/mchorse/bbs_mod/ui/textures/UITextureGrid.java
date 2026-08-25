@@ -8,14 +8,17 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.GridLayout;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
+import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,7 +34,7 @@ public class UITextureGrid extends UIScrollView
 
     private final UITextureBrowser browser;
     private final GridLayout layout = new GridLayout(0, 6, 3, 6, 6, 1F);
-    private final TextureCellRenderer.State state = new TextureCellRenderer.State();
+    private final CellState state = new CellState();
 
     private int hoverIndex = -1;
     private int hoverAction = -1;
@@ -55,22 +58,14 @@ public class UITextureGrid extends UIScrollView
     }
 
     /** The cells whose rectangles overlap an area in content coordinates. */
-    public List<TextureEntry> getEntriesIn(mchorse.bbs_mod.ui.utils.Area area)
+    public List<TextureEntry> getEntriesIn(Area area)
     {
         List<TextureEntry> entries = this.browser.getEntries();
-        List<TextureEntry> hit = new java.util.ArrayList<>();
-        int w = this.layout.getCellWidth();
-        int h = this.layout.getCellHeight();
+        List<TextureEntry> hit = new ArrayList<>();
 
-        for (int i = 0; i < entries.size(); i++)
+        for (int index : this.layout.getIndicesIn(area))
         {
-            int x = this.layout.getX(i);
-            int y = this.layout.getY(i);
-
-            if (x < area.ex() && x + w > area.x && y < area.ey() && y + h > area.y)
-            {
-                hit.add(entries.get(i));
-            }
+            hit.add(entries.get(index));
         }
 
         return hit;

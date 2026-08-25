@@ -25,7 +25,10 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.utils.Marquee;
+import mchorse.bbs_mod.ui.utils.UIStrip;
+import mchorse.bbs_mod.ui.utils.cells.DragGhost;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
@@ -56,7 +59,6 @@ public class UIFormList extends UIElement
     public static final int ZOOM_STEP = 8;
     public static final int BAR_HEIGHT = 20;
     public static final int STATUS_HEIGHT = 16;
-    private static final long DOUBLE_CLICK = 300;
     private static final int AUTO_SCROLL_EDGE = 24;
     private static final int AUTO_SCROLL_SPEED = 6;
 
@@ -64,7 +66,7 @@ public class UIFormList extends UIElement
 
     public UIScrollView forms;
 
-    public UIElement bar;
+    public UIStrip bar;
     public UITextbox search;
     public UIIcon edit;
     public UIIcon close;
@@ -92,9 +94,7 @@ public class UIFormList extends UIElement
     /** A header pressed but not yet released: a release without a drag collapses it. */
     private UIFormCategory pressedHeader;
 
-    /* The last plain click, to tell a double-click */
-    private Form lastClicked;
-    private long lastClickTime;
+    private final DoubleClick<Form> doubleClick = new DoubleClick<>(true);
 
     /* The quick action under the cursor this frame, and where its label goes */
     private CellAction hoveredAction;
@@ -107,7 +107,7 @@ public class UIFormList extends UIElement
 
         this.forms = UI.scrollView(0, 0);
         this.forms.scroll.cancelScrolling();
-        this.bar = new UIElement();
+        this.bar = new UIStrip(BAR_HEIGHT);
         this.search = new UITextbox(100, this::onSearchQuery).placeholder(UIKeys.FORMS_LIST_SEARCH);
         this.edit = new UIIcon(Icons.EDIT, this::edit);
         this.edit.tooltip(UIKeys.FORMS_LIST_EDIT, Direction.TOP);
@@ -115,7 +115,7 @@ public class UIFormList extends UIElement
 
         /* The bar sits along the top, as dark as the category headers, with a status line
          * about the chosen form under it; the list scrolls under both */
-        this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT).row(0).height(BAR_HEIGHT);
+        this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT);
         this.forms.relative(this).xy(0, BAR_HEIGHT + STATUS_HEIGHT).w(1F).h(1F, -BAR_HEIGHT - STATUS_HEIGHT);
         this.close.w(20);
 
@@ -128,7 +128,7 @@ public class UIFormList extends UIElement
         this.expandAll = new UIIcon(Icons.EXPAND_ALL, (b) -> this.setAllExpanded(true));
         this.expandAll.tooltip(UIKeys.FORMS_LIST_EXPAND_ALL, Direction.TOP);
         this.expandAll.w(20);
-        this.addToBar(this.categoryFilter, this.collapseAll, this.expandAll, this.search, this.edit, this.close);
+        this.bar.add(this.categoryFilter, this.collapseAll, this.expandAll, this.search, this.edit, this.close);
 
         this.add(this.forms, this.bar);
 
@@ -136,21 +136,6 @@ public class UIFormList extends UIElement
 
         this.markContainer();
         this.setupForms(BBSModClient.getFormCategories());
-    }
-
-    /**
-     * Put controls on the top bar. The row lays out its children but leaves the height of
-     * those that size themselves (icons, the search box) alone, so it is set here — the bar
-     * is one strip and everything on it fills it.
-     */
-    public void addToBar(UIElement... elements)
-    {
-        for (UIElement element : elements)
-        {
-            element.h(BAR_HEIGHT);
-        }
-
-        this.bar.add(elements);
     }
 
     private void openMorphCategoryFilter(UIIcon b)
@@ -562,11 +547,7 @@ public class UIFormList extends UIElement
         }
         else
         {
-            long now = System.currentTimeMillis();
-            boolean twice = this.lastClicked == form && now - this.lastClickTime < DOUBLE_CLICK;
-
-            this.lastClicked = form;
-            this.lastClickTime = now;
+            boolean twice = this.doubleClick.hit(form);
 
             /* A plain click on one of several picked forms keeps the group, so it can be
              * dragged as a whole; anywhere else it starts a new one */
@@ -579,7 +560,6 @@ public class UIFormList extends UIElement
 
             if (twice)
             {
-                this.lastClicked = null;
                 this.palette.confirm();
 
                 return;
@@ -972,26 +952,11 @@ public class UIFormList extends UIElement
         List<Form> forms = this.drag.getForms();
         int size = Math.min(this.getCellSize(), 48);
         int h = FormGridLayout.cellHeightFor(size);
-        int stack = Math.min(3, forms.size());
 
-        for (int i = stack - 1; i >= 0; i--)
+        DragGhost.render(context, context.mouseX, context.mouseY, size, h, forms.size(), landing, (ctx, gx, gy, gw, gh) ->
         {
-            int ox = x + i * 4;
-            int oy = y + i * 4;
-
-            batcher.box(ox, oy, ox + size, oy + h, BBSSettings.color(BBSSettings.raisedSurface(), landing ? Colors.A100 : Colors.A50));
-            batcher.outline(ox, oy, ox + size, oy + h, landing ? Colors.A100 | primary : BBSSettings.dividerColor(), 1);
-
-            if (i == 0)
-            {
-                FormUtilsClient.renderPreview(forms.get(0), context, ox, oy, ox + size, oy + h);
-            }
-        }
-
-        if (forms.size() > 1)
-        {
-            batcher.textCard(String.valueOf(forms.size()), x + size - 4, y - 4, Colors.WHITE, Colors.A100 | primary, 3);
-        }
+            FormUtilsClient.renderPreview(forms.get(0), ctx, gx, gy, gx + gw, gy + gh);
+        });
 
         if (landing && this.isCopyDrop())
         {

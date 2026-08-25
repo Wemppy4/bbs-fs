@@ -23,7 +23,10 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Marquee;
 import mchorse.bbs_mod.ui.utils.UIFileDialogs;
+import mchorse.bbs_mod.ui.utils.UIStrip;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.cells.CellState;
+import mchorse.bbs_mod.ui.utils.cells.DragGhost;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -68,7 +71,7 @@ public class UITextureBrowser extends UIElement
 
     public final UITexturePicker picker;
 
-    public UIElement bar;
+    public UIStrip bar;
     public UIIcon back;
     public UIIcon treeToggle;
     public UIIcon multiToggle;
@@ -212,7 +215,7 @@ public class UITextureBrowser extends UIElement
     {
         this.picker = picker;
 
-        this.bar = new UIElement();
+        this.bar = new UIStrip(BAR_HEIGHT);
         this.back = new UIIcon(Icons.ARROW_LEFT, (b) -> this.up());
         this.back.tooltip(UIKeys.TEXTURES_BROWSER_BACK, Direction.BOTTOM);
         this.treeToggle = new UIIcon(Icons.TREE, (b) ->
@@ -279,8 +282,8 @@ public class UITextureBrowser extends UIElement
         leftHandle.relative(this.left).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
         infoHandle.relative(this.info).x(0).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
-        this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT).row(0).height(BAR_HEIGHT);
-        this.addToBar(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.newTexture, picker.close);
+        this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT);
+        this.bar.add(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.newTexture, picker.close);
         this.add(this.bar, this.crumbs, this.text, this.left, this.grid, this.info, picker.editor, leftHandle, infoHandle);
         this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
@@ -290,17 +293,6 @@ public class UITextureBrowser extends UIElement
         this.markContainer();
 
         this.navigate(new Link("", ""));
-    }
-
-    /** Put controls on the top strip; the row leaves self-sized children alone, so their height is set here. */
-    public void addToBar(UIElement... elements)
-    {
-        for (UIElement element : elements)
-        {
-            element.h(BAR_HEIGHT);
-        }
-
-        this.bar.add(elements);
     }
 
     /** Place the parts for the current side panel widths: the info column reaches up beside the breadcrumbs. */
@@ -1340,40 +1332,21 @@ public class UITextureBrowser extends UIElement
     /** What's being carried, beside the cursor: a stack of the textures and their count. */
     private void renderGhost(UIContext context)
     {
-        Batcher2D batcher = context.batcher;
-        int primary = BBSSettings.primaryColor.get();
         List<Link> links = this.drag.getLinks();
         boolean copy = Window.isCtrlPressed();
         boolean landing = this.drag.accepts(this.drag.getTarget(), copy);
         int size = Math.min(this.grid.getCellSize(), 48);
-        int x = context.mouseX + 10;
-        int y = context.mouseY + 10;
-        int stack = Math.min(3, links.size());
+        TextureEntry front = TextureEntry.of(links.get(0));
+        CellState plain = new CellState();
 
-        for (int i = stack - 1; i >= 0; i--)
+        DragGhost.render(context, context.mouseX, context.mouseY, size, size, links.size(), landing, (ctx, x, y, w, h) ->
         {
-            int ox = x + i * 4;
-            int oy = y + i * 4;
-
-            batcher.box(ox, oy, ox + size, oy + size, BBSSettings.color(BBSSettings.raisedSurface(), landing ? Colors.A100 : Colors.A50));
-            batcher.outline(ox, oy, ox + size, oy + size, landing ? Colors.A100 | primary : BBSSettings.dividerColor(), 1);
-
-            if (i == 0)
-            {
-                TextureEntry entry = TextureEntry.of(links.get(0));
-
-                TextureCellRenderer.render(context, entry, ox, oy, size, size, new TextureCellRenderer.State(), CellAction.none());
-            }
-        }
-
-        if (links.size() > 1)
-        {
-            batcher.textCard(String.valueOf(links.size()), x + size - 4, y - 4, Colors.WHITE, Colors.A100 | primary, 3);
-        }
+            TextureCellRenderer.render(ctx, front, x, y, w, h, plain, CellAction.none());
+        });
 
         if (copy)
         {
-            batcher.textCard(UIKeys.TEXTURES_BROWSER_COPYING.get(), x, y + size + 8, Colors.WHITE, landing ? Colors.A100 | primary : Colors.A75, 3);
+            DragGhost.label(context, UIKeys.TEXTURES_BROWSER_COPYING.get(), context.mouseX, context.mouseY, size, landing);
         }
     }
 }

@@ -189,6 +189,25 @@ public class GridLayout
         return Math.min(this.count, column + row * this.perRow);
     }
 
+    /** Indices of the cells whose rectangles overlap an area given in the grid's own coordinates. */
+    public java.util.List<Integer> getIndicesIn(Area area)
+    {
+        java.util.List<Integer> hit = new java.util.ArrayList<>();
+
+        for (int i = 0; i < this.count; i++)
+        {
+            int x = this.getX(i);
+            int y = this.getY(i);
+
+            if (x < area.ex() && x + this.cell > area.x && y < area.ey() && y + this.cellHeight > area.y)
+            {
+                hit.add(i);
+            }
+        }
+
+        return hit;
+    }
+
     private int getColumn(int x)
     {
         x -= this.margin;

@@ -15,6 +15,7 @@ import mchorse.bbs_mod.resources.packs.URLSourcePack;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.textures.TextureEntry;
+import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.textures.UITextureBrowser;
 import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelTopBar;
 import mchorse.bbs_mod.ui.dashboard.panels.tabs.IUITabs;
@@ -94,8 +95,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
     private String initialModelPreview;
 
-    private Link lastClickedFile;
-    private long lastClickTime;
+    private final DoubleClick<Link> doubleClick = new DoubleClick<>(false);
 
     private boolean canBeClosed = true;
 
@@ -384,11 +384,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
      */
     public void onFileClicked(Link link)
     {
-        long now = System.currentTimeMillis();
-        boolean doubleClick = link != null && link.equals(this.lastClickedFile) && now - this.lastClickTime < 300;
-
-        this.lastClickedFile = link;
-        this.lastClickTime = now;
+        boolean doubleClick = this.doubleClick.hit(link);
 
         this.selectCurrent(link);
 

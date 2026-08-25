@@ -6,65 +6,35 @@ import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
  * A rubber-band selection: the rectangle stretched from where the button went down to where
- * the cursor is. Armed by a press, it becomes {@link #isActive() active} once the cursor has
- * moved a few pixels — a press that goes nowhere stays an ordinary click for the host to
- * handle on release.
- *
- * <p>The corners are kept in whatever space the host presses in (content coordinates of a
- * scrolled view, usually), so the host asks {@link #getArea()} in the same space.</p>
+ * the cursor is. The corners are kept in whatever space the host presses in (content
+ * coordinates of a scrolled view, usually), so the host asks {@link #getArea()} in the same
+ * space.
  */
-public class Marquee
+public class Marquee extends DragGesture
 {
-    public static final int THRESHOLD = 4;
-
     private final Area area = new Area();
-    private boolean pressed;
-    private boolean active;
-    private int startX;
-    private int startY;
     private int endX;
     private int endY;
 
+    @Override
     public void press(int x, int y)
     {
-        this.pressed = true;
-        this.active = false;
-        this.startX = this.endX = x;
-        this.startY = this.endY = y;
-    }
-
-    public void reset()
-    {
-        this.pressed = false;
-        this.active = false;
-    }
-
-    public boolean isPressed()
-    {
-        return this.pressed;
-    }
-
-    public boolean isActive()
-    {
-        return this.active;
-    }
-
-    public boolean update(int x, int y)
-    {
-        if (!this.pressed)
-        {
-            return false;
-        }
+        super.press(x, y);
 
         this.endX = x;
         this.endY = y;
+    }
 
-        if (!this.active)
+    @Override
+    public boolean update(int x, int y)
+    {
+        if (this.isPressed())
         {
-            this.active = Math.abs(x - this.startX) >= THRESHOLD || Math.abs(y - this.startY) >= THRESHOLD;
+            this.endX = x;
+            this.endY = y;
         }
 
-        return this.active;
+        return super.update(x, y);
     }
 
     /** The rectangle as it stands, normalised so width and height are never negative. */
@@ -83,7 +53,7 @@ public class Marquee
     /** Draw the band; {@code offsetX/Y} carry it from the host's space to the screen. */
     public void render(UIContext context, int offsetX, int offsetY)
     {
-        if (!this.active)
+        if (!this.isActive())
         {
             return;
         }

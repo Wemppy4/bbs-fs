@@ -55,7 +55,7 @@ public class UIMorphingPanel extends UIDashboardPanel
         });
         this.fromMob.tooltip(UIKeys.MORPHING_FROM_MOB, Direction.TOP);
 
-        this.palette.list.addToBar(this.fromMob, this.demorph);
+        this.palette.list.bar.add(this.fromMob, this.demorph);
 
         this.add(this.palette);
 
