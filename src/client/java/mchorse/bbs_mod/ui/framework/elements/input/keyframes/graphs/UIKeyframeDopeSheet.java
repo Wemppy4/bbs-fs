@@ -156,13 +156,27 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     {
         for (UIKeyframeSheet parent = sheet.parent; parent != null; parent = parent.parent)
         {
-            if (!this.expanded.contains(parent.id))
+            if (!this.isUnfolded(parent))
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Whether a row shows what folds under it.
+     *
+     * <p>The set holds what the user has changed from the default, and the default is not the same
+     * for both kinds of row: a bone starts folded (a skeleton would bury the timeline), while a body
+     * part starts open (it is a heading — hiding its contents by default would hide the tracks the
+     * animator came for). So for a header the set means "folded" and for everything else it means
+     * "unfolded", and either way it holds only rows touched by hand.</p>
+     */
+    private boolean isUnfolded(UIKeyframeSheet sheet)
+    {
+        return this.expanded.contains(sheet.id) != sheet.header;
     }
 
     private int getSheetIndent(UIKeyframeSheet sheet)
@@ -586,7 +600,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
      */
     private void toggleFold(UIKeyframeSheet sheet, boolean branch)
     {
-        boolean unfold = !this.expanded.contains(sheet.id);
+        boolean unfold = !this.isUnfolded(sheet);
 
         this.setFolded(sheet, unfold, branch);
         this.updateScrollSize();
@@ -594,14 +608,18 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     private void setFolded(UIKeyframeSheet sheet, boolean unfold, boolean branch)
     {
-        if (unfold)
+        /* The set records the departure from this row's own default — see isUnfolded. */
+        if (unfold != sheet.header)
         {
             this.expanded.add(sheet.id);
         }
         else
         {
             this.expanded.remove(sheet.id);
+        }
 
+        if (!unfold)
+        {
             /* Rows that just went out of sight must not keep keyframes selected — a selection nobody
              * can see still answers to every edit. */
             sheet.selection.clear();
@@ -1017,7 +1035,9 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         int my = y + height / 2;
         int lx = area.x;
 
-        if (hover)
+        /* A header wears the hover lighting permanently: it is a heading, and reading as "always
+         * about to be clicked" is exactly how it separates itself from the tracks it holds. */
+        if (hover || sheet.header)
         {
             context.batcher.gradientHBox(lx, y, lx + w, y + height, Colors.setA(sheet.color, 0.2F), Colors.setA(sheet.color, 0.04F));
         }
@@ -1039,7 +1059,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         {
             textRight -= LABEL_ARROW_SIZE;
 
-            this.renderFoldArrow(context, this.getArrowX(lx, w, hasIcon) + LABEL_ARROW_SIZE / 2F, my, this.expanded.contains(sheet.id));
+            this.renderFoldArrow(context, this.getArrowX(lx, w, hasIcon) + LABEL_ARROW_SIZE / 2F, my, this.isUnfolded(sheet));
         }
 
         String title = font.limitToWidth(sheet.title.get(), Math.max(0, textRight - textX));

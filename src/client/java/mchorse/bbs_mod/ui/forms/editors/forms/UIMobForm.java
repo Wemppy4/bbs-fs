@@ -13,7 +13,7 @@ public class UIMobForm extends UIForm<MobForm>
 
         this.defaultPanel = new UIMobFormPanel(this);
 
-        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_MOB_TITLE, Icons.MORPH);
+        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_MOB_TITLE, MobForm.ICON);
         this.registerDefaultPanels();
     }
 }

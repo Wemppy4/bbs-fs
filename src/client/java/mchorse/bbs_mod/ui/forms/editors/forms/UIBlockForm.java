@@ -13,7 +13,7 @@ public class UIBlockForm extends UIForm<BlockForm>
 
         this.defaultPanel = new UIBlockFormPanel(this);
 
-        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_BLOCK_TITLE, Icons.BLOCK);
+        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_BLOCK_TITLE, BlockForm.ICON);
         this.registerDefaultPanels();
     }
 }

@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
@@ -192,7 +193,7 @@ public class TrackCatalog
         TrackId node = TrackId.bodyPart(path);
 
         out.add(new TrackDescriptor(node, headerChannel(node), form, IKey.constant(bodyPartName(form)),
-            TrackStyle.formIcon(form), TrackStyle.color(TrackKind.BODY_PART.key), null));
+            form.getIcon(), BBSSettings.primaryColor.get(), null));
 
         for (TrackDescriptor track : tracks)
         {
@@ -260,7 +261,7 @@ public class TrackCatalog
             }
 
             BaseValueBasic property = FormUtils.getProperty(root, id.toKey());
-            TrackDescriptor track = new TrackDescriptor(id, channel, form, IKey.constant(form.getTrackName(id.toKey())),
+            TrackDescriptor track = new TrackDescriptor(id, channel, form, IKey.constant(id.label()),
                 TrackStyle.icon(name), TrackStyle.color(name), property);
 
             if (TrackId.MATERIAL_PROP_OVERLAY.equals(name))

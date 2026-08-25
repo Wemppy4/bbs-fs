@@ -551,18 +551,29 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 
         for (UIKeyframeSheet sheet : sheets)
         {
-            this.keys.add(getSheetFilterKey(sheet));
+            /* Headers name body parts, not tracks — the filter menu has nothing to offer for them. */
+            if (!sheet.header)
+            {
+                this.keys.add(getSheetFilterKey(sheet));
+            }
         }
 
         Set<String> disabled = BBSSettings.disabledSheets.get();
 
-        sheets.removeIf((v) -> !this.allMode && categoryOf(v) != this.category);
+        /* A body part's row belongs to no category — it says whose the tracks under it are, whatever
+         * they animate. It leaves with its last child instead (see dropEmptyHeaders). */
+        sheets.removeIf((v) -> !v.header && !this.allMode && categoryOf(v) != this.category);
 
         /* The tab isn't empty by itself - so if the filter empties it, the timeline has to stay (see below). */
         boolean hadTracks = !sheets.isEmpty();
 
         sheets.removeIf((v) ->
         {
+            if (v.header)
+            {
+                return false;
+            }
+
             String filterKey = getSheetFilterKey(v);
 
             for (String s : disabled)
@@ -592,6 +603,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
          */
         boolean filteredOutEverything = hadTracks && sheets.isEmpty();
 
+        UIReplaysEditorUtils.dropEmptyHeaders(sheets);
         UIReplaysEditorUtils.detachMissingParents(sheets);
 
         if (!sheets.isEmpty() || filteredOutEverything)

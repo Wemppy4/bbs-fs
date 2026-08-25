@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraintsIO;
@@ -32,6 +34,9 @@ import java.util.Map;
 
 public class ModelForm extends Form
 {
+    /** Also what its main tab in the form editor wears — see {@link Form#getIcon()}. */
+    public static final Icon ICON = Icons.POSE;
+
     public final ValueLink texture = new ValueLink("texture", null);
     public final ValueLinks materialTextures = new ValueLinks("material_textures");
     public final ValueString model = new ValueString("model", "");
@@ -142,4 +147,11 @@ public class ModelForm extends Form
     {
         return this.model.get();
     }
+
+    @Override
+    public Icon getIcon()
+    {
+        return ICON;
+    }
+
 }

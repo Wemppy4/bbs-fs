@@ -17,7 +17,7 @@ public class UITrailForm extends UIForm<TrailForm>
         this.trailFormPanel = new UITrailFormPanel(this);
         this.defaultPanel = this.trailFormPanel;
 
-        this.registerPanel(this.trailFormPanel, UIKeys.FORMS_EDITORS_TRAIL_TITLE, Icons.PLAY);
+        this.registerPanel(this.trailFormPanel, UIKeys.FORMS_EDITORS_TRAIL_TITLE, TrailForm.ICON);
         this.registerDefaultPanels();
     }
 }

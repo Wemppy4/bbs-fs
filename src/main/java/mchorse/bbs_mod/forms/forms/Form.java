@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
@@ -295,6 +297,16 @@ public abstract class Form extends ValueGroup
         String name = this.name.get();
 
         return name.isEmpty() ? this.getFormId() : name;
+    }
+
+    /**
+     * The icon this kind of form wears — the one on its main tab in the form editor, and the one a
+     * timeline draws on the row of a body part holding it. Declared here so the two agree by
+     * construction instead of by two lists kept in step by hand.
+     */
+    public Icon getIcon()
+    {
+        return Icons.GEAR;
     }
 
     public final String getDisplayName()

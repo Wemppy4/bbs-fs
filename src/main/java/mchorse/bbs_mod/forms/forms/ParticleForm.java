@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
@@ -7,6 +9,9 @@ import mchorse.bbs_mod.settings.values.core.ValueString;
 
 public class ParticleForm extends Form
 {
+    /** Also what its main tab in the form editor wears — see {@link Form#getIcon()}. */
+    public static final Icon ICON = Icons.MATERIAL;
+
     public final ValueString effect = new ValueString("effect", null);
     public final ValueBoolean paused = new ValueBoolean("paused", false);
     public final ValueLink texture = new ValueLink("texture", null);
@@ -43,4 +48,11 @@ public class ParticleForm extends Form
 
         return effect == null || effect.isEmpty() ? "none" : effect.toString();
     }
+
+    @Override
+    public Icon getIcon()
+    {
+        return ICON;
+    }
+
 }

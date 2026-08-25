@@ -201,6 +201,40 @@ public class UIReplaysEditorUtils
      * parent while keeping its children, and a child left pointing at a row that is not there would
      * be folded away with no way to unfold it.
      */
+    /**
+     * Drop the rows that only name something once nothing of theirs is left — a body part whose
+     * every track was filtered away has nothing to head, and an empty header lies about there being
+     * something folded under it. Repeats until nothing changes, so a part holding only parts goes
+     * too.
+     */
+    public static void dropEmptyHeaders(List<UIKeyframeSheet> sheets)
+    {
+        boolean removed = true;
+
+        while (removed)
+        {
+            Set<UIKeyframeSheet> present = new HashSet<>(sheets);
+
+            removed = sheets.removeIf((sheet) ->
+            {
+                if (!sheet.header)
+                {
+                    return false;
+                }
+
+                for (UIKeyframeSheet child : sheet.children)
+                {
+                    if (present.contains(child))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+    }
+
     public static void detachMissingParents(List<UIKeyframeSheet> sheets)
     {
         Set<UIKeyframeSheet> present = new HashSet<>(sheets);

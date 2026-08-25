@@ -13,7 +13,7 @@ public class UILabelForm extends UIForm<LabelForm>
 
         this.defaultPanel = new UILabelFormPanel(this);
 
-        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_LABEL_TITLE, Icons.FONT);
+        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_LABEL_TITLE, LabelForm.ICON);
         this.registerDefaultPanels();
     }
 }
