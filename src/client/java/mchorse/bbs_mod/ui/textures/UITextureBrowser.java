@@ -1197,29 +1197,33 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         UIOverlay.addOverlay(this.getContext(), panel);
     }
 
+    /**
+     * The menu comes in two halves: what the click landed on, then where the browser stands.
+     * Inside each half the order is always the same — open it, mark it, make another of it,
+     * rename it, hand it to the system, and destroy it last, well away from the rest.
+     */
     private void buildContextMenu(ContextMenuManager menu)
     {
-        TextureEntry entry = this.contextEntry;
-        Link link = entry == null ? null : entry.link();
-        boolean group = link != null && this.selection.isGroup() && this.selection.contains(link);
-        boolean modifiable = link != null && TextureFiles.canModify(link);
+        this.buildEntryActions(menu, this.contextEntry);
+        this.buildFolderActions(menu, this.contextEntry);
+    }
 
-        if (entry != null && !entry.folder())
+    /** What can be done to the entry pressed; nothing at all when the press was on empty space. */
+    private void buildEntryActions(ContextMenuManager menu, TextureEntry entry)
+    {
+        if (entry == null)
+        {
+            return;
+        }
+
+        Link link = entry.link();
+        boolean texture = !entry.folder();
+        boolean group = this.selection.isGroup() && this.selection.contains(link);
+        boolean modifiable = TextureFiles.canModify(link);
+
+        if (texture)
         {
             menu.action(Icons.EDIT, UIKeys.GENERAL_EDIT, () -> this.openInEditor(link));
-            menu.action(Icons.COPY, UIKeys.TEXTURES_COPY, () -> Window.setClipboard(link.toString()));
-
-            File file = TextureFiles.file(link);
-
-            if (file != null && file.isFile())
-            {
-                menu.action(Icons.ADD, UIKeys.TEXTURES_CREATE_MCMETA, () ->
-                {
-                    MapType data = DataToString.mapFromString("{\"animation\":{\"frametime\":2}}");
-
-                    DataToString.writeSilently(new File(file.getAbsolutePath() + ".mcmeta"), data, true);
-                });
-            }
         }
 
         if (TexturePins.canPin(link))
@@ -1235,11 +1239,28 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
 
         if (modifiable && !group)
         {
-            menu.action(Icons.EDIT, UIKeys.GENERAL_RENAME, () -> this.promptRename(link));
-
-            if (!entry.folder())
+            if (texture)
             {
                 menu.action(Icons.DUPE, UIKeys.FORMS_CATEGORIES_CONTEXT_DUPLICATE_FORM, () -> this.duplicate(Collections.singletonList(link)));
+            }
+
+            menu.action(Icons.EDIT, UIKeys.GENERAL_RENAME, () -> this.promptRename(link));
+        }
+
+        if (texture)
+        {
+            menu.action(Icons.COPY, UIKeys.TEXTURES_COPY, () -> Window.setClipboard(link.toString()));
+
+            File file = TextureFiles.file(link);
+
+            if (file != null && file.isFile())
+            {
+                menu.action(Icons.FILE, UIKeys.TEXTURES_CREATE_MCMETA, () ->
+                {
+                    MapType data = DataToString.mapFromString("{\"animation\":{\"frametime\":2}}");
+
+                    DataToString.writeSilently(new File(file.getAbsolutePath() + ".mcmeta"), data, true);
+                });
             }
         }
 
@@ -1249,17 +1270,23 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
 
             menu.action(Icons.REMOVE, group ? UIKeys.TEXTURES_BROWSER_DELETE_SELECTED.format(String.valueOf(links.size())) : UIKeys.GENERAL_REMOVE, Colors.RED, () -> this.confirmDelete(links));
         }
+    }
 
+    /** What can be done where the browser stands, pressed on something or not. */
+    private void buildFolderActions(ContextMenuManager menu, TextureEntry entry)
+    {
         if (TextureFiles.isFolder(this.path))
         {
-            if (!this.clipboard.isEmpty())
-            {
-                menu.action(Icons.PASTE, UIKeys.GENERAL_PASTE, this::paste);
-            }
-
+            /* Pressed on a cell, the pin entry above is about that cell — this one would only
+             * ask which of the two is meant */
             if (entry == null && TexturePins.canPin(this.path))
             {
                 menu.action(Icons.BOOKMARK, TexturePins.isPinned(this.path) ? UIKeys.TEXTURES_BROWSER_UNPIN : UIKeys.TEXTURES_BROWSER_PIN_FOLDER, () -> this.togglePins(Collections.singletonList(this.path)));
+            }
+
+            if (!this.clipboard.isEmpty())
+            {
+                menu.action(Icons.PASTE, UIKeys.GENERAL_PASTE, this::paste);
             }
 
             menu.action(Icons.ADD, UIKeys.TEXTURES_BROWSER_NEW_FOLDER, this::promptNewFolder);
