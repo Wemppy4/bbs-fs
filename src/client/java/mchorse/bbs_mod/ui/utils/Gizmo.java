@@ -724,6 +724,11 @@ public class Gizmo
          * (that is what it compensates), and the lens then rescales by the ratio of
          * the two, which keeps the on-screen size put in both settings modes. */
         float cameraScale = this.getAxesDistanceScale(stack);
+
+        /* The lens rewrites this entry's model-view in place; keep the camera's
+         * copy underneath it for the constraint guide, which is drawn without it. */
+        stack.push();
+
         GizmoLens lens = new GizmoLens();
         LensSwap swap = this.applyLens(stack, lens);
         float distanceScale = cameraScale * lens.scale;
@@ -756,12 +761,18 @@ public class Gizmo
 
         stack.pop();
 
-        /* Deliberately outside the shear: the constraint guide is a world-space line
-         * showing the axis the drag actually slides along, and that axis comes from
-         * {@link GizmoDrag#frameBasis} — the unsheared frame. */
-        this.drawInfiniteLine(stack, lens.scale);
-
         this.restoreLens(swap);
+        stack.pop();
+
+        /* Deliberately outside the shear AND outside the lens: the constraint guide is
+         * a world-space line showing the axis the drag actually slides along, and that
+         * axis comes from {@link GizmoDrag#frameBasis} — the unsheared camera frame the
+         * drag itself solves in. The lens is exact only at the gizmo's origin; a line
+         * 10000 blocks long runs off to a different vanishing point through it, and
+         * since the lens is rebuilt from the gizmo's position every frame, the guide
+         * swung as the drag moved the gizmo. Drawn by the camera it is pinned to the
+         * axis the model really slides along. */
+        this.drawInfiniteLine(stack);
     }
 
     /**
@@ -930,13 +941,9 @@ public class Gizmo
         return BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov) * this.viewportScale;
     }
 
-    /**
-     * @param lensScale what {@link GizmoLens} shrinks geometry by. The guide is sized
-     *        in world units and is drawn OUTSIDE the gizmo's distance scale, so unlike
-     *        the handles nothing else compensates the lens's zoom for it — at a 110
-     *        degree FOV that made the line 5.3x thicker on screen than it used to be.
-     */
-    private void drawInfiniteLine(MatrixStack stack, float lensScale)
+    /** The constraint guide: a world-space line along the dragged axis, drawn by the
+     *  scene camera (see {@link #drawGizmo}) and outside the gizmo's distance scale. */
+    private void drawInfiniteLine(MatrixStack stack)
     {
         int debugIndex = this.index;
 
@@ -953,8 +960,8 @@ public class Gizmo
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
-        float size = 10000F * lensScale;
-        float t = 0.005F * lensScale;
+        float size = 10000F;
+        float t = 0.005F;
 
         if (debugIndex == STENCIL_X || debugIndex == STENCIL_XZ || debugIndex == STENCIL_XY)
         {

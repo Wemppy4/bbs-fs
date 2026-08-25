@@ -59,11 +59,10 @@ public class UIBonePicker extends UIElement
         /* UIIcon defaults to 20x20 which is taller than the control row — that
          * padded the whole picker out; the glyph is 16x16, so match it exactly. */
         this.eyedropper.wh(16, 16);
-        this.eyedropper.setVisible(false);
 
         this.h(UIConstants.CONTROL_HEIGHT);
         this.row(UIConstants.MARGIN).preferred(0);
-        this.add(this.button, this.eyedropper);
+        this.add(this.button);
     }
 
     /** How to fill the popup when the button is clicked; an empty fill means "nothing to pick" and no popup opens. */
@@ -74,11 +73,26 @@ public class UIBonePicker extends UIElement
         return this;
     }
 
-    /** Eyedropper backend; the icon only appears once a viewport is provided. */
+    /**
+     * Eyedropper backend; the icon only appears once a viewport is provided. It is
+     * added to / removed from the row rather than hidden: the row lays out hidden
+     * children too, so a merely invisible icon would still cost the button its
+     * 16px + margin at the right edge.
+     */
     public UIBonePicker viewport(Viewport viewport)
     {
         this.viewport = viewport;
-        this.eyedropper.setVisible(viewport != null);
+
+        boolean shown = this.eyedropper.getParent() != null;
+
+        if (viewport != null && !shown)
+        {
+            this.add(this.eyedropper);
+        }
+        else if (viewport == null && shown)
+        {
+            this.eyedropper.removeFromParent();
+        }
 
         return this;
     }
