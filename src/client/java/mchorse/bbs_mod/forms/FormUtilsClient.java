@@ -160,6 +160,17 @@ public class FormUtilsClient
         }
     }
 
+    /** The form's picture alone; see {@link FormRenderer#renderPreview}. */
+    public static void renderPreview(Form form, UIContext context, int x1, int y1, int x2, int y2)
+    {
+        FormRenderer renderer = getRenderer(form);
+
+        if (renderer != null)
+        {
+            renderer.renderPreview(context, x1, y1, x2, y2);
+        }
+    }
+
     public static void render(Form form, FormRenderingContext context)
     {
         FormRenderer renderer = getRenderer(form);

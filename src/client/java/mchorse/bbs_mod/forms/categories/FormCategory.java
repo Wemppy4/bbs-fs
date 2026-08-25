@@ -4,6 +4,7 @@ import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.forms.FormSort;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -23,6 +24,13 @@ public class FormCategory implements IMapSerializable
     public final ValueBoolean visible;
 
     private final List<Form> forms = new ArrayList<>();
+    private FormSort sort = FormSort.MANUAL;
+
+    /**
+     * Bumped on every change to {@link #forms} or {@link #sort}, so a view over them (sorted,
+     * searched) can tell when it's stale without comparing lists.
+     */
+    private int modCount;
 
     public FormCategory(IKey title, ValueBoolean visible)
     {
@@ -35,9 +43,26 @@ public class FormCategory implements IMapSerializable
         return StringUtils.processColoredText(this.title.get());
     }
 
+    /** Whether the user may add, remove and rearrange forms here. */
     public boolean canModify(Form form)
     {
         return false;
+    }
+
+    public FormSort getSort()
+    {
+        return this.sort;
+    }
+
+    public void setSort(FormSort sort)
+    {
+        this.sort = sort == null ? FormSort.MANUAL : sort;
+        this.modCount += 1;
+    }
+
+    public int getModCount()
+    {
+        return this.modCount;
     }
 
     public List<Form> getForms()
@@ -52,9 +77,15 @@ public class FormCategory implements IMapSerializable
 
     public void addForm(Form form)
     {
+        this.insertForm(this.forms.size(), form);
+    }
+
+    public void insertForm(int index, Form form)
+    {
         if (form != null)
         {
-            this.forms.add(form);
+            this.forms.add(Math.max(0, Math.min(index, this.forms.size())), form);
+            this.modCount += 1;
         }
     }
 
@@ -63,12 +94,46 @@ public class FormCategory implements IMapSerializable
         if (form != null && CollectionUtils.inRange(this.forms, index))
         {
             this.forms.set(index, form);
+            this.modCount += 1;
         }
+    }
+
+    /**
+     * Move a form to a new index, {@code to} being a position in the list as it is now
+     * (the way an insertion caret between forms reads).
+     */
+    public void moveForm(Form form, int to)
+    {
+        int from = this.forms.indexOf(form);
+
+        if (from == -1)
+        {
+            return;
+        }
+
+        this.forms.remove(from);
+
+        if (to > from)
+        {
+            to -= 1;
+        }
+
+        this.forms.add(Math.max(0, Math.min(to, this.forms.size())), form);
+        this.modCount += 1;
     }
 
     public void removeForm(Form form)
     {
-        this.forms.remove(form);
+        if (this.forms.remove(form))
+        {
+            this.modCount += 1;
+        }
+    }
+
+    public void clearForms()
+    {
+        this.forms.clear();
+        this.modCount += 1;
     }
 
     public UIFormCategory createUI(UIFormList list)
@@ -101,6 +166,8 @@ public class FormCategory implements IMapSerializable
                 }
             }
         }
+
+        this.modCount += 1;
     }
 
     @Override

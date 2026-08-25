@@ -77,6 +77,15 @@ public abstract class FormRenderer <T extends Form>
         }
     }
 
+    /**
+     * The form alone, without the name and hotkey cards {@link #renderUI} lays over it — for a
+     * host that draws its own captions around the picture.
+     */
+    public final void renderPreview(UIContext context, int x1, int y1, int x2, int y2)
+    {
+        this.renderInUI(context, x1, y1, x2, y2);
+    }
+
     protected abstract void renderInUI(UIContext context, int x1, int y1, int x2, int y2);
 
     public boolean renderArm(MatrixStack matrices, int light, AbstractClientPlayerEntity player, Hand hand)

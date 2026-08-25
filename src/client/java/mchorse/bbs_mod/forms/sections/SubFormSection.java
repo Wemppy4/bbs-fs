@@ -27,7 +27,7 @@ public abstract class SubFormSection extends FormSection
 
     protected FormCategory createCategory(IKey uiKey, String id)
     {
-        return new FormCategory(uiKey, this.parent.visibility.get(id));
+        return new FormCategory(uiKey, this.parent.preferences.visible(id));
     }
 
     protected abstract boolean isEqual(Form form, String key);

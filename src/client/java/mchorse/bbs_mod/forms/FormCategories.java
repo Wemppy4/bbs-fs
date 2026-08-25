@@ -16,7 +16,7 @@ import java.util.List;
 
 public class FormCategories implements IWatchDogListener
 {
-    public final VisibilityManager visibility = new VisibilityManager();
+    public final CategoryPreferences preferences = new CategoryPreferences();
 
     private List<FormSection> sections = new ArrayList<>();
     private RecentFormSection recentForms = new RecentFormSection(this);
@@ -41,7 +41,14 @@ public class FormCategories implements IWatchDogListener
         }
 
         this.markDirty();
-        this.visibility.read();
+        this.preferences.read();
+
+        /* User categories only learn their real id while loading, so their
+         * preferences can be handed out only once every section is in */
+        for (FormCategory category : this.getAllCategories())
+        {
+            category.setSort(this.preferences.sort(category.visible.getId()));
+        }
     }
 
     public long getLastUpdate()
@@ -52,6 +59,12 @@ public class FormCategories implements IWatchDogListener
     public void markDirty()
     {
         this.lastUpdate = System.currentTimeMillis();
+    }
+
+    public void setSort(FormCategory category, FormSort sort)
+    {
+        category.setSort(sort);
+        this.preferences.setSort(category.visible.getId(), sort);
     }
 
     public RecentFormSection getRecentForms()

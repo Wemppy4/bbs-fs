@@ -59,7 +59,7 @@ public class ModelFormSection extends SubFormSection
     @Override
     protected FormCategory createCategory(IKey uiKey, String id)
     {
-        return new ModelFormCategory(uiKey, this.parent.visibility.get("models_" + id));
+        return new ModelFormCategory(uiKey, this.parent.preferences.visible("models_" + id));
     }
 
     @Override

@@ -55,7 +55,7 @@ public class UserFormSection extends FormSection
                 break;
             }
 
-            UserFormCategory category = new UserFormCategory(IKey.EMPTY, this.parent.visibility.get(UUID.randomUUID().toString()), this);
+            UserFormCategory category = new UserFormCategory(IKey.EMPTY, this.parent.preferences.visible(UUID.randomUUID().toString()), this);
 
             try
             {
@@ -141,6 +141,31 @@ public class UserFormSection extends FormSection
         this.writeUserCategories();
     }
 
+    /**
+     * Put a category at a new index, {@code to} being a position in the list as it is now.
+     * Files are named by index, so the whole set is rewritten.
+     */
+    public void moveUserCategory(UserFormCategory category, int to)
+    {
+        int from = this.categories.indexOf(category);
+
+        if (from == -1)
+        {
+            return;
+        }
+
+        this.categories.remove(from);
+
+        if (to > from)
+        {
+            to -= 1;
+        }
+
+        this.categories.add(Math.max(0, Math.min(to, this.categories.size())), category);
+        this.parent.markDirty();
+        this.writeUserCategories();
+    }
+
     public void removeUserCategory(UserFormCategory category)
     {
         File lastFile = getUserCategoriesFile(this.categories.size() - 1);
@@ -152,7 +177,7 @@ public class UserFormSection extends FormSection
 
         this.categories.remove(category);
         this.parent.markDirty();
-        this.parent.visibility.remove(category.visible.getId());
+        this.parent.preferences.remove(category.visible.getId());
 
         this.writeUserCategories();
     }
