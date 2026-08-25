@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
+import mchorse.bbs_mod.settings.values.core.StableIds;
 import mchorse.bbs_mod.forms.FormUtils;
 
 /**
@@ -168,6 +169,26 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
         });
     }
 
+    /**
+     * What this track is called, with no address in it — the readable half of {@link #toKey()},
+     * which leads with a chain of stable ids nobody can read.
+     */
+    public String label()
+    {
+        return switch (this.kind)
+        {
+            case PROPERTY -> this.subject;
+            case BONE -> this.subject;
+            case BONE_CONSTRAINT -> this.subject + FormUtils.PATH_SEPARATOR + "constraints";
+            case MATERIAL_TEXTURE -> this.subject;
+            case MATERIAL_PROP -> (this.subject.isEmpty() ? MATERIAL_DEFAULT : this.subject) + "." + this.property;
+            case IK_TARGET -> "ik" + FormUtils.PATH_SEPARATOR + this.subject;
+            case POLE_TARGET -> "pole" + FormUtils.PATH_SEPARATOR + this.subject;
+            case PHYSICS_TARGET -> "physics" + FormUtils.PATH_SEPARATOR + this.subject;
+            case IK_CONTROLS, PHYSICS_CONTROLS, WIND_CONTROLS -> this.kind.key;
+        };
+    }
+
     @Override
     public String toString()
     {
@@ -280,7 +301,7 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
         {
             int separator = id.indexOf(FormUtils.PATH_SEPARATOR, length);
 
-            if (separator < 0 || separator == length || !isIndex(id, length, separator))
+            if (separator < 0 || separator == length || !isAddress(id, length, separator))
             {
                 return length;
             }
@@ -289,11 +310,23 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
         }
     }
 
-    private static boolean isIndex(String id, int from, int to)
+    /**
+     * Whether a segment addresses a body part: a stable id, or the list position such an address
+     * used to be. Both are accepted because a track key is not versioned — a film converted on load
+     * carries ids, but a key built by hand or read from an older clipboard can still be an index.
+     */
+    private static boolean isAddress(String id, int from, int to)
     {
-        for (int i = from; i < to; i++)
+        String segment = id.substring(from, to);
+
+        if (StableIds.isStableId(segment))
         {
-            if (!Character.isDigit(id.charAt(i)))
+            return true;
+        }
+
+        for (int i = 0; i < segment.length(); i++)
+        {
+            if (!Character.isDigit(segment.charAt(i)))
             {
                 return false;
             }

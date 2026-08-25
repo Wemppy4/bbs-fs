@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -28,6 +29,7 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -312,26 +314,85 @@ public abstract class Form extends ValueGroup
         return this.getFormId();
     }
 
+    /**
+     * What a timeline calls a track of this form: the animator's own track name when they set one,
+     * otherwise the form's name followed by the property.
+     *
+     * <p>Never the raw address. A track's address is a chain of body part ids, and an id is a
+     * random eight characters — readable as data, meaningless as a label. (It was the part's list
+     * position before stable ids, which read no better and moved when parts were reordered.)</p>
+     *
+     * <p>Empty {@code property} asks for the form's label alone, and answers with the custom name
+     * or nothing — the callers that show a form itself have their own fallback.</p>
+     */
     public String getTrackName(String property)
     {
-        String s = this.trackName.get();
+        String custom = this.trackName.get();
 
-        if (!s.isEmpty())
+        if (property.isEmpty())
         {
-            if (property.isEmpty())
-            {
-                return s;
-            }
-
-            int slash = property.lastIndexOf('/');
-            String last = slash == -1 ? property : property.substring(slash + 1);
-            /* An address segment (a body part's stable id, or a legacy index) is not a name. */
-            boolean address = StableIds.isStableId(last) || StringUtils.isInteger(last);
-
-            return s + (address ? "" : "/" + last);
+            return custom;
         }
 
-        return property;
+        TrackId track = TrackId.parse(property);
+        String last;
+
+        if (track == null)
+        {
+            int slash = property.lastIndexOf('/');
+
+            last = slash == -1 ? property : property.substring(slash + 1);
+        }
+        else
+        {
+            /* Asked of the address itself: a bone track reads "head", not "pose.bones.head". */
+            last = track.label();
+        }
+
+        /* An address segment (a body part's stable id, or a legacy index) is not a name. */
+        boolean address = StableIds.isStableId(last) || StringUtils.isInteger(last);
+        String leaf = address ? "" : last;
+        String owner = this.getTrackLabel();
+
+        if (owner.isEmpty())
+        {
+            return leaf;
+        }
+
+        return leaf.isEmpty() ? owner : owner + "/" + leaf;
+    }
+
+    /**
+     * What a timeline calls this form when it prefixes one of its tracks: the animator's own track
+     * name when set, otherwise the names of the forms it hangs under as a body part, root-first.
+     * Empty for a root form, whose tracks stand for the replay itself and need no prefix.
+     *
+     * <p>This is the label side of a track's identity; the address side is
+     * {@link mchorse.bbs_mod.forms.FormUtils#getPath}. They must not be confused: the address is
+     * built from random stable ids and is unreadable by design.</p>
+     */
+    public String getTrackLabel()
+    {
+        String custom = this.trackName.get();
+
+        if (!custom.isEmpty())
+        {
+            return custom;
+        }
+
+        List<String> names = new ArrayList<>();
+        Form form = this;
+
+        while (form.getParentForm() != null)
+        {
+            names.add(form.getDisplayName());
+
+            form = form.getParentForm();
+        }
+
+        Collections.reverse(names);
+
+        return String.join("/", names);
     }
 
     /* Update */
