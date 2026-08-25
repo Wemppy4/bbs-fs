@@ -117,7 +117,7 @@ public class UIFormList extends UIElement
         this.expandAll = new UIIcon(Icons.EXPAND_ALL, (b) -> this.setAllExpanded(true));
         this.expandAll.tooltip(UIKeys.FORMS_LIST_EXPAND_ALL, Direction.TOP);
         this.expandAll.w(20);
-        this.bar.add(this.categoryFilter, this.collapseAll, this.expandAll, this.search, this.edit, this.close);
+        this.addToBar(this.categoryFilter, this.collapseAll, this.expandAll, this.search, this.edit, this.close);
 
         this.add(this.forms, this.bar);
 
@@ -125,6 +125,21 @@ public class UIFormList extends UIElement
 
         this.markContainer();
         this.setupForms(BBSModClient.getFormCategories());
+    }
+
+    /**
+     * Put controls on the top bar. The row lays out its children but leaves the height of
+     * those that size themselves (icons, the search box) alone, so it is set here — the bar
+     * is one strip and everything on it fills it.
+     */
+    public void addToBar(UIElement... elements)
+    {
+        for (UIElement element : elements)
+        {
+            element.h(BAR_HEIGHT);
+        }
+
+        this.bar.add(elements);
     }
 
     private void openMorphCategoryFilter(UIIcon b)
