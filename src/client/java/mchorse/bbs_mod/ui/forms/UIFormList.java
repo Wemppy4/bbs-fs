@@ -27,6 +27,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -49,7 +50,8 @@ import java.util.Set;
 public class UIFormList extends UIElement
 {
     public static final int ZOOM_STEP = 8;
-    public static final int BAR_HEIGHT = 20;
+    public static final int BAR_HEIGHT = 24;
+    public static final int STATUS_HEIGHT = 16;
     private static final long DOUBLE_CLICK = 300;
     private static final int AUTO_SCROLL_EDGE = 24;
     private static final int AUTO_SCROLL_SPEED = 6;
@@ -100,9 +102,10 @@ public class UIFormList extends UIElement
         this.edit.tooltip(UIKeys.FORMS_LIST_EDIT, Direction.TOP);
         this.close = new UIIcon(Icons.CLOSE, this::close);
 
-        /* The bar sits along the top, as dark as the category headers, and the list scrolls under it */
-        this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT).row(0).height(BAR_HEIGHT);
-        this.forms.relative(this).xy(0, BAR_HEIGHT).w(1F).h(1F, -BAR_HEIGHT);
+        /* The bar sits along the top, as dark as the category headers, with a status line
+         * about the chosen form under it; the list scrolls under both */
+        this.bar.relative(this).xy(2, (BAR_HEIGHT - 20) / 2).w(1F, -4).h(20).row(0).height(20);
+        this.forms.relative(this).xy(0, BAR_HEIGHT + STATUS_HEIGHT).w(1F).h(1F, -BAR_HEIGHT - STATUS_HEIGHT);
         this.close.w(20);
 
         this.categoryFilter = new UIIcon(Icons.FILTER, this::openMorphCategoryFilter);
@@ -804,7 +807,8 @@ public class UIFormList extends UIElement
         this.hoveredAction = null;
         this.autoScroll(context);
 
-        context.batcher.box(this.bar.area.x, this.bar.area.y, this.bar.area.ex(), this.bar.area.ey(), BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50));
+        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.y + BAR_HEIGHT, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50));
+        this.renderStatus(context);
 
         DiffuseLighting.enableGuiDepthLighting();
 
@@ -819,8 +823,6 @@ public class UIFormList extends UIElement
             this.pendingScrollToSelected = false;
         }
 
-        this.renderStatus(context);
-
         if (this.hoveredAction != null && !this.drag.isActive())
         {
             FormCellRenderer.renderActionLabel(context, this.hoveredAction, this.hoveredActionX, this.hoveredActionY);
@@ -832,26 +834,62 @@ public class UIFormList extends UIElement
         }
     }
 
-    /** Name and id of the chosen form, in one line in the bottom corner — the id lives nowhere else. */
+    /**
+     * The line under the bar: the chosen form — its type icon, name, id, the category it's
+     * in and its hotkey — or, with several picked, how many.
+     */
     private void renderStatus(UIContext context)
     {
+        Batcher2D batcher = context.batcher;
+        FontRenderer font = batcher.getFont();
+        int y = this.area.y + BAR_HEIGHT;
+        int textY = y + (STATUS_HEIGHT - font.getHeight()) / 2 + 1;
+        int x = this.area.x + 4;
+
+        batcher.box(this.area.x, y, this.area.ex(), y + STATUS_HEIGHT, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A25));
+
         Form selected = this.getSelected();
+
+        if (this.selection.isGroup())
+        {
+            batcher.textShadow(UIKeys.FORMS_LIST_STATUS_SELECTED.format(String.valueOf(this.selection.size())).get(), x, textY, Colors.LIGHTEST_GRAY);
+
+            return;
+        }
 
         if (selected == null)
         {
             return;
         }
 
-        FontRenderer font = context.batcher.getFont();
-        String name = selected.getDisplayName();
-        String id = selected.getFormId();
-        int x = this.area.x + 6;
-        int y = this.area.ey() - 20;
-        int w = font.getWidth(name) + 8 + font.getWidth(id) + 8;
+        batcher.icon(selected.getIcon(), x, y + STATUS_HEIGHT / 2, 0F, 0.5F);
+        x += 20;
 
-        context.batcher.box(x, y, x + w, y + 16, Colors.A50);
-        context.batcher.textShadow(name, x + 4, y + 4);
-        context.batcher.textShadow(id, x + 4 + font.getWidth(name) + 8, y + 4, Colors.LIGHTER_GRAY);
+        String name = selected.getDisplayName();
+
+        batcher.textShadow(name, x, textY);
+        x += font.getWidth(name) + 8;
+
+        String id = selected.getFormId();
+
+        batcher.text(id, x, textY, Colors.GRAY);
+        x += font.getWidth(id) + 8;
+
+        FormCategory category = this.categoryOf(selected);
+
+        if (category != null)
+        {
+            String title = category.getProcessedTitle();
+
+            batcher.icon(category.icon, Colors.LIGHTER_GRAY, x, y + STATUS_HEIGHT / 2, 0F, 0.5F);
+            batcher.text(title, x + 18, textY, Colors.LIGHTER_GRAY);
+            x += 18 + font.getWidth(title) + 8;
+        }
+
+        if (selected.hotkey.get() > 0)
+        {
+            batcher.textCard(KeyCodes.getName(selected.hotkey.get()), x + 2, textY, Colors.WHITE, Colors.A50, 2);
+        }
     }
 
     /** What's being carried, drawn beside the cursor: a small stack of the forms, or the category's name. */

@@ -268,6 +268,7 @@ public class UIFormCategory extends UIElement
 
         UIChoiceMenu.of(FormSort.values())
             .current(this.category.getSort())
+            .icon((sort) -> sort.icon)
             .label((sort) -> sort.label)
             .open(context, (sort) -> formCategories.setSort(this.category, sort));
     }
@@ -594,14 +595,14 @@ public class UIFormCategory extends UIElement
         int my = y + FormGridLayout.HEADER / 2;
 
         batcher.icon(this.category.icon, this.hoverHeader ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + 12, my, 0.5F, 0.5F);
-        UISection.renderArrow(context, x + 27, my, expanded);
+        UISection.renderArrow(context, x + 23, my, expanded);
 
         String title = this.category.getProcessedTitle();
         String count = String.valueOf(this.category.getForms().size());
         int textY = y + (FormGridLayout.HEADER - font.getHeight()) / 2 + 1;
 
-        batcher.textShadow(title, x + 36, textY, textColor);
-        batcher.text(count, x + 36 + font.getWidth(title) + 6, textY, Colors.GRAY);
+        batcher.textShadow(title, x + 32, textY, textColor);
+        batcher.text(count, x + 32 + font.getWidth(title) + 6, textY, Colors.GRAY);
 
         this.renderSortButton(context, ex - SORT_BUTTON - 2, y);
     }

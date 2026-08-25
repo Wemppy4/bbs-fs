@@ -1037,6 +1037,7 @@
 	"bbs.ui.forms.list.collapse_all": "Collapse all categories",
 	"bbs.ui.forms.list.expand_all": "Expand all categories",
 	"bbs.ui.forms.list.search": "Search...",
+	"bbs.ui.forms.list.status.selected": "%s forms selected",
 	"bbs.ui.generic_keyframes.anchor.pick_actor": "Pick actor...",
 	"bbs.ui.generic_keyframes.anchor.pick_attachment": "Pick attachment...",
 	"bbs.ui.generic_keyframes.boolean.true": "True",
