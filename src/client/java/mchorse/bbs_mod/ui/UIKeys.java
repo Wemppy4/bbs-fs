@@ -1186,6 +1186,11 @@ public class UIKeys
     public static final IKey TEXTURES_BROWSER_INFO_EMPTY = L10n.lang("bbs.ui.textures.browser.info.empty");
     public static final IKey TEXTURES_BROWSER_INFO_FILES = L10n.lang("bbs.ui.textures.browser.info.files");
     public static final IKey TEXTURES_BROWSER_INFO_READ_ONLY = L10n.lang("bbs.ui.textures.browser.info.read_only");
+    public static final IKey TEXTURES_BROWSER_CLIPBOARD_CLEAR = L10n.lang("bbs.ui.textures.browser.clipboard.clear");
+    public static final IKey TEXTURES_BROWSER_STATUS_COPIED = L10n.lang("bbs.ui.textures.browser.status.copied");
+    public static final IKey TEXTURES_BROWSER_STATUS_CUT = L10n.lang("bbs.ui.textures.browser.status.cut");
+    public static final IKey TEXTURES_BROWSER_STATUS_FILES = L10n.lang("bbs.ui.textures.browser.status.files");
+    public static final IKey TEXTURES_BROWSER_STATUS_SELECTED = L10n.lang("bbs.ui.textures.browser.status.selected");
     public static final IKey TEXTURES_BROWSER_NOTIFY_COPIED = L10n.lang("bbs.ui.textures.browser.notify.copied");
     public static final IKey TEXTURES_BROWSER_NOTIFY_CUT = L10n.lang("bbs.ui.textures.browser.notify.cut");
     public static final IKey TEXTURES_BROWSER_NOTIFY_DUPLICATED = L10n.lang("bbs.ui.textures.browser.notify.duplicated");

@@ -19,6 +19,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
+import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -62,6 +63,9 @@ import java.util.List;
 public class UITextureBrowser extends UIElement
 {
     public static final int BAR_HEIGHT = 20;
+
+    /** The status line along the bottom: what's in the folder, what's picked, what's on the clipboard. */
+    public static final int STATUS_HEIGHT = 16;
     private static final int SEARCH_CAP = 400;
     private static final int MIN_SIDE = 100;
     private static final int MAX_SIDE = 400;
@@ -98,9 +102,10 @@ public class UITextureBrowser extends UIElement
     /* The entry a Shift-press landed on: a band that goes nowhere extends the pick to it */
     private TextureEntry marqueeEntry;
 
-    /* Files taken by Ctrl+C / Ctrl+X, put down by Ctrl+V */
+    /* Files taken by Ctrl+C / Ctrl+X, put down by Ctrl+V; shown on the status line until then */
     private final List<Link> clipboard = new ArrayList<>();
     private boolean cut;
+    public UIIcon clearClipboard;
 
     private Link path = new Link("", "");
     private final List<TextureEntry> entries = new ArrayList<>();
@@ -255,6 +260,10 @@ public class UITextureBrowser extends UIElement
         this.text.delayedInput();
         this.text.setVisible(false);
 
+        this.clearClipboard = new UIIcon(Icons.CLOSE, (b) -> this.setClipboard(Collections.emptyList(), false));
+        this.clearClipboard.tooltip(UIKeys.TEXTURES_BROWSER_CLIPBOARD_CLEAR, Direction.TOP);
+        this.clearClipboard.setVisible(false);
+
         this.crumbs = new UIBreadcrumbs(this);
         this.left = new UIElement();
         this.tree = new UIFolderTree(this);
@@ -285,7 +294,7 @@ public class UITextureBrowser extends UIElement
 
         this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT);
         this.bar.add(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.newTexture, picker.close);
-        this.add(this.bar, this.crumbs, this.text, this.left, this.grid, this.info, picker.editor, leftHandle, infoHandle);
+        this.add(this.bar, this.crumbs, this.text, this.left, this.grid, this.info, picker.editor, leftHandle, infoHandle, this.clearClipboard);
         this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         this.layout();
@@ -303,10 +312,11 @@ public class UITextureBrowser extends UIElement
 
         this.crumbs.relative(this).xy(0, BAR_HEIGHT).w(1F, -infoWidth).h(BAR_HEIGHT);
         this.text.relative(this).xy(0, BAR_HEIGHT).w(1F, -infoWidth).h(BAR_HEIGHT);
-        this.info.relative(this).x(1F, -infoWidth).y(BAR_HEIGHT).w(infoWidth).h(1F, -BAR_HEIGHT);
-        this.left.relative(this).xy(0, top).w(leftWidth).h(1F, -top);
-        this.grid.relative(this).xy(leftWidth, top).w(1F, -leftWidth - infoWidth).h(1F, -top);
-        this.picker.editor.relative(this).xy(leftWidth, BAR_HEIGHT).w(1F, -leftWidth).h(1F, -BAR_HEIGHT);
+        this.info.relative(this).x(1F, -infoWidth).y(BAR_HEIGHT).w(infoWidth).h(1F, -BAR_HEIGHT - STATUS_HEIGHT);
+        this.left.relative(this).xy(0, top).w(leftWidth).h(1F, -top - STATUS_HEIGHT);
+        this.grid.relative(this).xy(leftWidth, top).w(1F, -leftWidth - infoWidth).h(1F, -top - STATUS_HEIGHT);
+        this.picker.editor.relative(this).xy(leftWidth, BAR_HEIGHT).w(1F, -leftWidth).h(1F, -BAR_HEIGHT - STATUS_HEIGHT);
+        this.clearClipboard.relative(this).x(1F, -STATUS_HEIGHT).y(1F, -STATUS_HEIGHT).wh(STATUS_HEIGHT, STATUS_HEIGHT);
 
         if (this.area.w > 0)
         {
@@ -771,11 +781,15 @@ public class UITextureBrowser extends UIElement
             return;
         }
 
-        this.clipboard.clear();
-        this.clipboard.addAll(subjects);
-        this.cut = cut;
+        this.setClipboard(subjects, cut);
+    }
 
-        this.notify(cut ? UIKeys.TEXTURES_BROWSER_NOTIFY_CUT : UIKeys.TEXTURES_BROWSER_NOTIFY_COPIED, subjects.size());
+    private void setClipboard(List<Link> links, boolean cut)
+    {
+        this.clipboard.clear();
+        this.clipboard.addAll(links);
+        this.cut = cut && !links.isEmpty();
+        this.clearClipboard.setVisible(!links.isEmpty());
     }
 
     /** Put the clipboard down in the folder on show: copies, or moves after a cut (once). */
@@ -815,8 +829,7 @@ public class UITextureBrowser extends UIElement
 
         if (this.cut)
         {
-            this.clipboard.clear();
-            this.cut = false;
+            this.setClipboard(Collections.emptyList(), false);
         }
 
         this.notify(UIKeys.TEXTURES_BROWSER_NOTIFY_PASTED, pasted);
@@ -1374,6 +1387,7 @@ public class UITextureBrowser extends UIElement
         }
 
         context.batcher.box(this.left.area.x, this.left.area.y, this.left.area.ex(), this.left.area.ey(), strip);
+        this.renderStatus(context, strip);
 
         super.render(context);
 
@@ -1393,6 +1407,50 @@ public class UITextureBrowser extends UIElement
         if (this.drag.isActive())
         {
             this.renderGhost(context);
+        }
+    }
+
+    /**
+     * The line along the bottom. Left: how many textures the folder holds and how many are
+     * picked. Right: what's on the clipboard — it stays there until pasted or cleared, so the
+     * user always knows something is waiting to be put down.
+     */
+    private void renderStatus(UIContext context, int strip)
+    {
+        Batcher2D batcher = context.batcher;
+        FontRenderer font = batcher.getFont();
+        int y = this.area.ey() - STATUS_HEIGHT;
+        int textY = y + (STATUS_HEIGHT - font.getHeight()) / 2 + 1;
+        int x = this.area.x + 6;
+
+        batcher.box(this.area.x, y, this.area.ex(), this.area.ey(), strip);
+
+        int files = 0;
+
+        for (TextureEntry entry : this.entries)
+        {
+            if (!entry.folder())
+            {
+                files += 1;
+            }
+        }
+
+        String count = UIKeys.TEXTURES_BROWSER_STATUS_FILES.format(String.valueOf(files)).get();
+
+        batcher.text(count, x, textY, Colors.GRAY);
+        x += font.getWidth(count) + 12;
+
+        if (!this.selection.isEmpty())
+        {
+            batcher.text(UIKeys.TEXTURES_BROWSER_STATUS_SELECTED.format(String.valueOf(this.selection.size())).get(), x, textY, Colors.LIGHTER_GRAY);
+        }
+
+        if (!this.clipboard.isEmpty())
+        {
+            IKey key = this.cut ? UIKeys.TEXTURES_BROWSER_STATUS_CUT : UIKeys.TEXTURES_BROWSER_STATUS_COPIED;
+            String label = key.format(String.valueOf(this.clipboard.size())).get();
+
+            batcher.textShadow(label, this.area.ex() - STATUS_HEIGHT - 6 - font.getWidth(label), textY, Colors.WHITE);
         }
     }
 
