@@ -46,9 +46,21 @@ public class TextureCellRenderer
             CellActionBar.render(context, x, y, w, actions, state.hoveredAction);
         }
 
+        /* Built into the mod: a lock in the corner says it can be copied out but not changed */
+        if (isReadOnly(entry))
+        {
+            context.batcher.icon(Icons.LOCKED, Colors.LIGHTER_GRAY, x + 2, y + 2);
+        }
+
         CellPainter.frames(context, x, y, w, h, state);
 
         context.batcher.unclip(context);
+    }
+
+    /** Whether an entry lives inside the mod rather than on disk — nothing there can be changed in place. */
+    public static boolean isReadOnly(TextureEntry entry)
+    {
+        return entry.folder() ? TextureFiles.isReadOnly(entry.link()) : !TextureFiles.canModify(entry.link());
     }
 
     private static void renderFolder(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state)

@@ -257,8 +257,15 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
 
         context.batcher.icon(Icons.FOLDER, hover ? Colors.LIGHTEST_GRAY : Colors.WHITE, ix + 12, my - 8);
 
-        String name = font.limitToWidth(this.nameOf(node), this.area.ex() - (ix + 32) - 4);
+        boolean readOnly = TextureFiles.isReadOnly(node.link());
+        int right = this.area.ex() - 4 - (readOnly ? 18 : 0);
+        String name = font.limitToWidth(this.nameOf(node), right - (ix + 32));
 
         context.batcher.textShadow(name, ix + 32, y + (ROW - font.getHeight()) / 2 + 1, hover ? Colors.LIGHTEST_GRAY : Colors.WHITE);
+
+        if (readOnly)
+        {
+            context.batcher.icon(Icons.LOCKED, Colors.LIGHTER_GRAY, this.area.ex() - 20, my - 8);
+        }
     }
 }
