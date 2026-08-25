@@ -440,11 +440,22 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         return null;
     }
 
+    /**
+     * The row under the cursor that a keyframe could actually go into. A body part's section is a
+     * heading — it takes no keyframes, so it must not be offered one (nor the ghost preview of one).
+     */
+    private UIKeyframeSheet getInsertableSheet(int mouseY)
+    {
+        UIKeyframeSheet sheet = this.getSheet(mouseY);
+
+        return sheet != null && sheet.header ? null : sheet;
+    }
+
     @Override
     public boolean addKeyframe(int mouseX, int mouseY)
     {
         float tick = (float) this.keyframes.fromGraphX(mouseX);
-        UIKeyframeSheet sheet = this.getSheet(mouseY);
+        UIKeyframeSheet sheet = this.getInsertableSheet(mouseY);
 
         if (!Window.isShiftPressed())
         {
@@ -591,15 +602,15 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
      * "show me the fingers".
      */
     /**
-     * Fold or unfold every row that has anything under it — the body part sections and the bones
-     * alike. One pass over the rows: {@link #setFolded} without the branch flag touches only the row
-     * it is given, and every row is given.
+     * Fold or unfold every body part section. Only the sections: a bone folds by hand, one branch at
+     * a time, which is how a skeleton is worked through — "unfold everything" there would bury the
+     * timeline in rows nobody asked for.
      */
     public void setAllFolded(boolean unfold)
     {
         for (UIKeyframeSheet sheet : this.sheets)
         {
-            if (this.hasChildren(sheet))
+            if (sheet.header && this.hasChildren(sheet))
             {
                 this.setFolded(sheet, unfold, false);
             }
@@ -869,7 +880,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
         else if (Window.isCtrlPressed())
         {
-            UIKeyframeSheet sheet = this.getSheet(context.mouseY);
+            UIKeyframeSheet sheet = this.getInsertableSheet(context.mouseY);
 
             if (sheet != null)
             {
@@ -898,7 +909,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             if (sheets.size() == 1)
             {
                 UIKeyframeSheet current = sheets.get(0);
-                UIKeyframeSheet hovered = this.getSheet(context.mouseY);
+                UIKeyframeSheet hovered = this.getInsertableSheet(context.mouseY);
 
                 if (hovered == null || current.channel.getFactory() != hovered.channel.getFactory())
                 {

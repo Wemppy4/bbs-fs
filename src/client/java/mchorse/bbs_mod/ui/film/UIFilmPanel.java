@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.film;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
@@ -79,7 +78,6 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
 import org.joml.Vector3d;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -95,8 +93,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private static final int PREVIEW_MODE_EXPORT = 0;
     private static final int PREVIEW_MODE_CUSTOM = 1;
     private static final int PREVIEW_MODE_AUTO = 2;
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     private RunnerCameraController runner;
     private boolean lastRunning;
@@ -921,8 +917,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         if (h % 2 != 0) h++;
 
         boolean applied = w != BBSRendering.getVideoWidth() || h != BBSRendering.getVideoHeight();
-        LOGGER.info("[BBS film] applyPreviewSizeToBBS mode={} cameraEditor={} -> w={} h={} applied={}",
-            previewMode, this.cameraEditor.isVisible(), w, h, applied);
 
         if (applied)
         {

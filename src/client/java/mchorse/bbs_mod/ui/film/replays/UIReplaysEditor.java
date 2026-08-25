@@ -367,10 +367,10 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         }
 
         /* Folding and the actions timeline, pinned to the bottom of the bar. */
-        this.collapseAll = new UIIcon(Icons.MINIMIZE, b -> this.setAllFolded(false));
+        this.collapseAll = new UIIcon(Icons.MOVE_UP, b -> this.setAllFolded(false));
         this.collapseAll.tooltip(UIKeys.FILM_REPLAY_COLLAPSE_ALL, Direction.RIGHT);
 
-        this.expandAll = new UIIcon(Icons.MAXIMIZE, b -> this.setAllFolded(true));
+        this.expandAll = new UIIcon(Icons.MOVE_DOWN, b -> this.setAllFolded(true));
         this.expandAll.tooltip(UIKeys.FILM_REPLAY_EXPAND_ALL, Direction.RIGHT);
 
         this.actionsToggle = new UIIcon(Icons.ACTION, b -> this.toggleActionsMode());
