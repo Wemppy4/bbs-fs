@@ -165,18 +165,10 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         return true;
     }
 
-    /**
-     * Whether a row shows what folds under it.
-     *
-     * <p>The set holds what the user has changed from the default, and the default is not the same
-     * for both kinds of row: a bone starts folded (a skeleton would bury the timeline), while a body
-     * part starts open (it is a heading — hiding its contents by default would hide the tracks the
-     * animator came for). So for a header the set means "folded" and for everything else it means
-     * "unfolded", and either way it holds only rows touched by hand.</p>
-     */
+    /** Whether a row shows what folds under it. Every row starts folded. */
     private boolean isUnfolded(UIKeyframeSheet sheet)
     {
-        return this.expanded.contains(sheet.id) != sheet.header;
+        return this.expanded.contains(sheet.id);
     }
 
     private int getSheetIndent(UIKeyframeSheet sheet)
@@ -598,6 +590,24 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
      * deep as the model is, and opening a hand one joint at a time is not what anyone means by
      * "show me the fingers".
      */
+    /**
+     * Fold or unfold every row that has anything under it — the body part sections and the bones
+     * alike. One pass over the rows: {@link #setFolded} without the branch flag touches only the row
+     * it is given, and every row is given.
+     */
+    public void setAllFolded(boolean unfold)
+    {
+        for (UIKeyframeSheet sheet : this.sheets)
+        {
+            if (this.hasChildren(sheet))
+            {
+                this.setFolded(sheet, unfold, false);
+            }
+        }
+
+        this.updateScrollSize();
+    }
+
     private void toggleFold(UIKeyframeSheet sheet, boolean branch)
     {
         boolean unfold = !this.isUnfolded(sheet);
@@ -608,8 +618,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     private void setFolded(UIKeyframeSheet sheet, boolean unfold, boolean branch)
     {
-        /* The set records the departure from this row's own default — see isUnfolded. */
-        if (unfold != sheet.header)
+        if (unfold)
         {
             this.expanded.add(sheet.id);
         }
@@ -1037,12 +1046,14 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
         /* A header wears the hover lighting permanently: it is a heading, and reading as "always
          * about to be clicked" is exactly how it separates itself from the tracks it holds. */
+        int rowColor = sheet.getRowColor();
+
         if (hover || sheet.header)
         {
-            context.batcher.gradientHBox(lx, y, lx + w, y + height, Colors.setA(sheet.color, 0.2F), Colors.setA(sheet.color, 0.04F));
+            context.batcher.gradientHBox(lx, y, lx + w, y + height, Colors.setA(rowColor, 0.2F), Colors.setA(rowColor, 0.04F));
         }
 
-        context.batcher.box(lx, y, lx + 2, y + height, sheet.color | Colors.A100);
+        context.batcher.box(lx, y, lx + 2, y + height, rowColor | Colors.A100);
 
         /* A row that has children keeps its own icon and gets a fold arrow next to it. */
         Icon icon = sheet.getIcon();

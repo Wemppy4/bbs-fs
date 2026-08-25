@@ -115,6 +115,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
     private boolean actionsMode;
     /* «All tracks» view: shows every category's tracks at once, bypassing the category filter. */
     private UIIcon allToggle;
+    private UIIcon collapseAll;
+    private UIIcon expandAll;
     private boolean allMode;
 
     /* Clips */
@@ -345,6 +347,15 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
             context.batcher.box(area.x, area.y, area.ex(), area.ey(), BBSSettings.chromeSurface());
         }));
 
+        /* «All tracks» heads the bar: it is not one of the categories but what you see instead of
+         * them, so it sits above the rule that separates the two. */
+        this.allToggle = new UIIcon(Icons.LIST, b -> this.setAllTracks());
+        this.allToggle.tooltip(UIKeys.FILM_REPLAY_ALL_TRACKS, Direction.RIGHT);
+        this.allToggle.highlight(() -> !this.actionsMode && this.allMode, Direction.LEFT);
+
+        this.iconBar.add(this.allToggle);
+        this.iconBar.add(this.buildCategorySeparator());
+
         for (ReplayCategory category : ReplayCategory.values())
         {
             UIIcon button = new UIIcon(category.icon, b -> this.setCategory(category));
@@ -355,17 +366,21 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
             this.tabButtons.put(category, button);
         }
 
-        /* «All tracks» + actions toggles, pinned to the bottom of the category bar. */
-        this.allToggle = new UIIcon(Icons.LIST, b -> this.setAllTracks());
-        this.allToggle.tooltip(UIKeys.FILM_REPLAY_ALL_TRACKS, Direction.RIGHT);
-        this.allToggle.highlight(() -> !this.actionsMode && this.allMode, Direction.LEFT);
+        /* Folding and the actions timeline, pinned to the bottom of the bar. */
+        this.collapseAll = new UIIcon(Icons.MINIMIZE, b -> this.setAllFolded(false));
+        this.collapseAll.tooltip(UIKeys.FILM_REPLAY_COLLAPSE_ALL, Direction.RIGHT);
+
+        this.expandAll = new UIIcon(Icons.MAXIMIZE, b -> this.setAllFolded(true));
+        this.expandAll.tooltip(UIKeys.FILM_REPLAY_EXPAND_ALL, Direction.RIGHT);
 
         this.actionsToggle = new UIIcon(Icons.ACTION, b -> this.toggleActionsMode());
         this.actionsToggle.tooltip(UIKeys.FILM_REPLAY_ACTIONS_TIMELINE, Direction.RIGHT);
         this.actionsToggle.highlight(() -> this.actionsMode, Direction.LEFT);
         this.layoutBottomToggles();
 
-        this.setCategory(ReplayCategory.REPLAY);
+        /* Everything at once is the view to open on: a category is a way to narrow down, and
+         * narrowing before the animator has seen what there is hides tracks they came for. */
+        this.setAllTracks();
 
         this.keys().register(Keys.REPLAYS_TAB_1, () -> this.setCategoryByPosition(0))
             .category(UIKeys.FILM_REPLAY_TITLE);
@@ -378,8 +393,34 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         this.keys().register(Keys.REPLAYS_TAB_5, () -> this.setCategoryByPosition(4))
             .category(UIKeys.FILM_REPLAY_TITLE);
 
-        this.add(this.iconBar, this.allToggle, this.actionsToggle);
+        this.add(this.iconBar, this.collapseAll, this.expandAll, this.actionsToggle);
         this.markContainer();
+    }
+
+    /** A rule between "all tracks" and the categories: they are different questions, not siblings. */
+    private UIElement buildCategorySeparator()
+    {
+        UIElement separator = new UIElement();
+
+        separator.h(7);
+        separator.add(new UIRenderable((context) ->
+        {
+            Area area = separator.area;
+            int y = area.my();
+
+            context.batcher.box(area.x + 4, y, area.ex() - 4, y + 1, BBSSettings.dividerColor());
+        }));
+
+        return separator;
+    }
+
+    /** Fold or unfold every section and bone of the timeline at once. */
+    private void setAllFolded(boolean unfold)
+    {
+        if (this.keyframeEditor != null)
+        {
+            this.keyframeEditor.view.getDopeSheet().setAllFolded(unfold);
+        }
     }
 
     private void setCategory(ReplayCategory c)
@@ -885,17 +926,15 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
             this.iconBar.removeFromParent();
         }
 
-        if (this.allToggle.getParent() != null)
+        for (UIIcon pinned : new UIIcon[] {this.collapseAll, this.expandAll, this.actionsToggle})
         {
-            this.allToggle.removeFromParent();
+            if (pinned.getParent() != null)
+            {
+                pinned.removeFromParent();
+            }
         }
 
-        if (this.actionsToggle.getParent() != null)
-        {
-            this.actionsToggle.removeFromParent();
-        }
-
-        this.add(this.iconBar, this.allToggle, this.actionsToggle);
+        this.add(this.iconBar, this.collapseAll, this.expandAll, this.actionsToggle);
     }
 
     /**
@@ -904,7 +943,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
      */
     private void layoutBottomToggles()
     {
-        this.allToggle.relative(this).x(0).y(1F, -40).wh(CATEGORY_BAR_WIDTH, 20);
+        this.collapseAll.relative(this).x(0).y(1F, -60).wh(CATEGORY_BAR_WIDTH, 20);
+        this.expandAll.relative(this).x(0).y(1F, -40).wh(CATEGORY_BAR_WIDTH, 20);
         this.actionsToggle.relative(this).x(0).y(1F, -20).wh(CATEGORY_BAR_WIDTH, 20);
     }
 

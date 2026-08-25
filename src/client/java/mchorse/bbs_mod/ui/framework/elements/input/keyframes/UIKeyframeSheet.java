@@ -172,6 +172,16 @@ public class UIKeyframeSheet
         return depth;
     }
 
+    /**
+     * The colour this row is drawn in. A header takes the interface's primary colour and takes it
+     * <em>now</em>, not when the timeline was built: the colour is a live setting, and a value
+     * copied into the row at build time would sit there stale until something rebuilt the tracks.
+     */
+    public int getRowColor()
+    {
+        return this.header ? BBSSettings.primaryColor.get() : this.color;
+    }
+
     public UIKeyframeSheet icon(Icon icon)
     {
         this.icon = icon;

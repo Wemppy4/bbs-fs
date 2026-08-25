@@ -1741,6 +1741,8 @@
 	"bbs.ui.film.replays.category.physics.tooltip": "Треки физики (настройки цепочек, цели)",
 	"bbs.ui.film.replays.actions_timeline": "Таймлайн действий",
 	"bbs.ui.film.replays.all_tracks": "Все треки",
+	"bbs.ui.film.replays.collapse_all": "Свернуть все секции",
+	"bbs.ui.film.replays.expand_all": "Развернуть все секции",
 	"keybinds.config.title": "UI клавиши",
 	"keybinds.config.transformations.title": "Трансформации",
 	"keybinds.config.transformations.tooltip": "Клавиши, которые доступны при редактировании позы в редакторе фильмов и в редакторе позы ключевого кадра",
