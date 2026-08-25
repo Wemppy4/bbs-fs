@@ -475,11 +475,11 @@ public class UISliderTrackpad extends UINumericInput<UISliderTrackpad>
         {
             if (context.mouseWheel > 0)
             {
-                this.applyValue(this.value + this.getValueModifier());
+                this.setValueFromGesture(this.value + this.getValueModifier());
             }
             else
             {
-                this.applyValue(this.value - this.getValueModifier());
+                this.setValueFromGesture(this.value - this.getValueModifier());
             }
 
             return true;

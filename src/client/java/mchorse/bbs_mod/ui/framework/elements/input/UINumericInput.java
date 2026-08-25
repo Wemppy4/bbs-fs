@@ -432,8 +432,13 @@ public abstract class UINumericInput <T extends UINumericInput<T>> extends UIBas
      * These gestures are not such an outside update — they are this field's own
      * edit — so they respell the box themselves, otherwise the number visibly
      * stops moving until the field is left.
+     *
+     * Not named {@code applyValue}: {@link UISliderTrackpad} already has a method
+     * by that name for its drag, and a base-class twin would be silently
+     * overridden by it — the arrow keys on a slider would then stop respelling
+     * the box, which is the very bug this exists to fix.
      */
-    protected void applyValue(double value)
+    protected void setValueFromGesture(double value)
     {
         this.setValueAndNotify(value);
 
@@ -529,13 +534,13 @@ public abstract class UINumericInput <T extends UINumericInput<T>> extends UIBas
         {
             if (context.isHeld(GLFW.GLFW_KEY_UP))
             {
-                this.applyValue(this.value + this.getValueModifier());
+                this.setValueFromGesture(this.value + this.getValueModifier());
 
                 return true;
             }
             else if (context.isHeld(GLFW.GLFW_KEY_DOWN))
             {
-                this.applyValue(this.value - this.getValueModifier());
+                this.setValueFromGesture(this.value - this.getValueModifier());
 
                 return true;
             }
