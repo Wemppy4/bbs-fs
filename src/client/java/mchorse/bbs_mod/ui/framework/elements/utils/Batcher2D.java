@@ -436,6 +436,26 @@ public class Batcher2D
         this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, icon.w, icon.h, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
     }
 
+    /**
+     * An icon scaled to a square of {@code size}, for the few places where an icon stands in
+     * for a picture and grows with its cell (a folder in a texture grid). Buttons never come
+     * through here — their icons keep their own size.
+     */
+    public void scaledIcon(Icon icon, int color, float x, float y, float size)
+    {
+        if (icon.texture == null)
+        {
+            return;
+        }
+
+        if (BBSSettings.isLightTheme())
+        {
+            color = darkenWhite(color);
+        }
+
+        this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, size, size, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
+    }
+
     public void iconArea(Icon icon, float x, float y, float w, float h)
     {
         this.iconArea(icon, Colors.WHITE, x, y, w, h);

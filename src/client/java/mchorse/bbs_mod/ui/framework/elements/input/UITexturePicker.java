@@ -73,7 +73,6 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
     public UIIcon close;
     public UITextureBrowser browser;
 
-    public UIButton multi;
     public UIFilteredLinkList multiList;
     public UIMultiLinkEditor editor;
 
@@ -183,14 +182,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
         this.browseContent = new UIElement();
         this.close = new UIIcon(Icons.CLOSE, (b) -> this.close());
-        this.browser = new UITextureBrowser(this);
-        this.browser.grid.context((menu) ->
-        {
-            menu.custom(new UIPresetContextMenu(this.copyPasteController)
-                .labels(UIKeys.TEXTURE_EDITOR_CONTEXT_COPY, UIKeys.TEXTURE_EDITOR_CONTEXT_PASTE));
-        });
-
-        this.multi = new UIButton(UIKeys.TEXTURE_MULTISKIN, (b) -> this.toggleMulti());
+        /* The multiskin column and its editor are built first: the browser places them in its side panel */
         this.multiList = new UIFilteredLinkList((list) -> this.setFilteredLink(list.get(0)));
         this.multiList.sorting();
 
@@ -202,19 +194,20 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         this.remove = new UIIcon(Icons.REMOVE, (b) -> this.removeMulti());
         this.edit = new UIIcon(Icons.EDIT, (b) -> this.toggleEditor());
 
-        this.browser.full(this.browseContent);
-
-        this.multi.relative(this.browseContent).set(10, 10, 100, 20);
-        this.multiList.relative(this.browseContent).set(10, 35, 100, 0).hTo(this.buttons.getFlex());
-        this.editor.relative(this.browseContent).set(120, 0, 0, 0).w(1F, -120).h(1F);
-
-        this.buttons.relative(this.browseContent).y(1F, -20).wTo(this.browser.area).h(20);
         this.add.relative(this.buttons).set(0, 0, 20, 20);
         this.remove.relative(this.add).set(20, 0, 20, 20);
         this.edit.relative(this.buttons).wh(20, 20).x(1F, -20);
-
         this.buttons.add(this.add, this.remove, this.edit);
-        this.browseContent.add(this.multi, this.multiList, this.browser, this.editor, this.buttons);
+
+        this.browser = new UITextureBrowser(this);
+        this.browser.grid.context((menu) ->
+        {
+            menu.custom(new UIPresetContextMenu(this.copyPasteController)
+                .labels(UIKeys.TEXTURE_EDITOR_CONTEXT_COPY, UIKeys.TEXTURE_EDITOR_CONTEXT_PASTE));
+        });
+        this.browser.full(this.browseContent);
+
+        this.browseContent.add(this.browser);
 
         this.painter = new UITexturePainter(this::onTextureSaved).onRename(this::onTextureRenamed);
 
@@ -749,7 +742,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
     private void toggleEditor()
     {
         this.editor.toggleVisible();
-        this.browser.setVisible(!this.editor.isVisible());
+        this.browser.setEditing(this.editor.isVisible());
 
         if (this.editor.isVisible())
         {
@@ -805,7 +798,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         this.browser.setCurrent(link, false);
     }
 
-    protected void toggleMulti()
+    public void toggleMulti()
     {
         if (this.multiLink != null)
         {
@@ -853,13 +846,11 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
                 this.multiList.setIndex(0);
             }
 
-            this.browser.x(120).w(1F, -120);
         }
         else
         {
             this.multiLink = null;
 
-            this.browser.x(0).w(1F);
             this.displayCurrent(skin, scroll);
         }
 
@@ -876,8 +867,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
             }
         }
 
-        this.multiList.setVisible(show);
-        this.buttons.setVisible(show);
+        this.browser.setMultiskin(show);
 
         this.resize();
     }
@@ -929,14 +919,8 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         /* Draw the background (browser tab only; the painter draws its own) */
         if (this.currentTab == 0)
         {
-            context.batcher.gradientVBox(this.browseContent.area.x, this.browseContent.area.y, this.browseContent.area.ex(), this.browseContent.area.ey(), Colors.A50, Colors.A100);
-
-            if (this.multiList.isVisible())
-            {
-                context.batcher.box(this.browseContent.area.x, this.browseContent.area.y, this.browseContent.area.x + 120, this.browseContent.area.ey(), 0xff181818);
-                context.batcher.box(this.browseContent.area.x, this.browseContent.area.y, this.browseContent.area.x + 120, this.browseContent.area.y + 30, Colors.A25);
-                context.batcher.gradientVBox(this.browseContent.area.x, this.browseContent.area.ey() - 20, this.buttons.area.ex(), this.browseContent.area.ey(), 0, Colors.A50);
-            }
+            /* The same ground the form palette stands on, so the two browsers read as one family */
+            this.browseContent.area.render(context.batcher, BBSSettings.baseSurface());
 
             if (this.editor.isVisible())
             {

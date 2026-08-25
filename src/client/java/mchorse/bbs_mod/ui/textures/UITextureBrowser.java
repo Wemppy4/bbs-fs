@@ -17,13 +17,15 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.NaturalOrderComparator;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -31,14 +33,17 @@ import mchorse.bbs_mod.utils.resources.LinkUtils;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 
 /**
  * The browsing half of a {@link UITexturePicker}: a strip of search and actions along the
- * top, the path as breadcrumbs under it, the folder tree down the left, the grid of the
- * folder in the middle and the chosen texture's facts on the right.
+ * top, the path as breadcrumbs under it, a side panel down the left (the folder tree, or the
+ * multiskin's list of skins), the grid of the folder in the middle and the chosen texture's
+ * facts on the right.
  *
  * <p>It owns everything that spans those parts — the folder on show, the listing, the
  * search, the multi-selection, a drag, the file operations — and leaves to the picker what a
@@ -48,15 +53,23 @@ import java.util.List;
 public class UITextureBrowser extends UIElement
 {
     public static final int BAR_HEIGHT = 20;
-    public static final int TREE_WIDTH = 140;
     private static final int SEARCH_CAP = 400;
+    private static final int MIN_SIDE = 100;
+    private static final int MAX_SIDE = 400;
+
+    /* Side panel widths, dragged by the user and kept for the session like the form editor's tree */
+    private static int leftWidth = 140;
+    private static int infoWidth = 150;
 
     public final UITexturePicker picker;
 
     public UIElement bar;
-    public UITextbox search;
-    public UIIcon everywhere;
+    public UIIcon back;
     public UIIcon treeToggle;
+    public UIIcon multiToggle;
+    public UITextbox search;
+    public UIIcon sort;
+    public UIIcon everywhere;
     public UIIcon newFolder;
     public UIIcon folder;
     public UIIcon pixelEdit;
@@ -64,6 +77,9 @@ public class UITextureBrowser extends UIElement
     /** The path typed by hand — shown in place of the breadcrumbs while editing. */
     public UITextbox text;
     public UIBreadcrumbs crumbs;
+
+    /** The side panel: the folder tree, or the picker's multiskin list while a multiskin is edited. */
+    public UIElement left;
     public UIFolderTree tree;
     public UITextureGrid grid;
     public UITextureInfoPanel info;
@@ -75,7 +91,10 @@ public class UITextureBrowser extends UIElement
     private final List<TextureEntry> entries = new ArrayList<>();
     private String query = "";
     private boolean searchEverywhere;
-    private boolean treeVisible = true;
+
+    /* Folders visited, most recent last, for the back button */
+    private final Deque<Link> history = new ArrayDeque<>();
+    private boolean goingBack;
 
     private int seenVersion = -1;
     private TextureEntry contextEntry;
@@ -96,7 +115,30 @@ public class UITextureBrowser extends UIElement
         this.picker = picker;
 
         this.bar = new UIElement();
+        this.back = new UIIcon(Icons.ARROW_LEFT, (b) -> this.back());
+        this.back.tooltip(UIKeys.TEXTURES_BROWSER_BACK, Direction.BOTTOM);
+        this.treeToggle = new UIIcon(Icons.TREE, (b) ->
+        {
+            if (picker.multiLink != null)
+            {
+                picker.toggleMulti();
+            }
+        });
+        this.treeToggle.tooltip(UIKeys.TEXTURES_BROWSER_TREE, Direction.BOTTOM);
+        this.treeToggle.highlight(() -> picker.multiLink == null, Direction.BOTTOM);
+        this.multiToggle = new UIIcon(Icons.GALLERY, (b) ->
+        {
+            if (picker.multiLink == null)
+            {
+                picker.toggleMulti();
+            }
+        });
+        this.multiToggle.tooltip(UIKeys.TEXTURE_MULTISKIN, Direction.BOTTOM);
+        this.multiToggle.highlight(() -> picker.multiLink != null, Direction.BOTTOM);
         this.search = new UITextbox(100, this::onSearch).placeholder(UIKeys.TEXTURES_BROWSER_SEARCH);
+        this.sort = new UIIcon(Icons.LIST, (b) -> this.openSortMenu());
+        this.sort.tooltip(UIKeys.TEXTURES_BROWSER_SORT, Direction.BOTTOM);
+        this.sort.highlight(() -> this.getSort() != TextureSort.NAME, Direction.BOTTOM);
         this.everywhere = new UIIcon(Icons.GLOBE, (b) ->
         {
             this.searchEverywhere = !this.searchEverywhere;
@@ -104,9 +146,6 @@ public class UITextureBrowser extends UIElement
         });
         this.everywhere.tooltip(UIKeys.TEXTURES_BROWSER_EVERYWHERE, Direction.BOTTOM);
         this.everywhere.highlight(() -> this.searchEverywhere, Direction.BOTTOM);
-        this.treeToggle = new UIIcon(Icons.TREE, (b) -> this.setTreeVisible(!this.treeVisible));
-        this.treeToggle.tooltip(UIKeys.TEXTURES_BROWSER_TREE, Direction.BOTTOM);
-        this.treeToggle.highlight(() -> this.treeVisible, Direction.BOTTOM);
         this.newFolder = new UIIcon(Icons.ADD, (b) -> this.promptNewFolder());
         this.newFolder.tooltip(UIKeys.TEXTURES_BROWSER_NEW_FOLDER, Direction.BOTTOM);
         this.folder = new UIIcon(Icons.FOLDER, (b) -> this.openFolder());
@@ -119,20 +158,39 @@ public class UITextureBrowser extends UIElement
         this.text.setVisible(false);
 
         this.crumbs = new UIBreadcrumbs(this);
+        this.left = new UIElement();
         this.tree = new UIFolderTree(this);
         this.grid = new UITextureGrid(this);
         this.info = new UITextureInfoPanel(this);
 
+        /* The multiskin column is the picker's; it only lives in the side panel here */
+        picker.multiList.relative(this.left).xy(0, 0).w(1F).h(1F, -20);
+        picker.buttons.relative(this.left).y(1F, -20).w(1F).h(20);
+        this.tree.relative(this.left).xy(0, 0).w(1F).h(1F);
+        this.left.add(this.tree, picker.multiList, picker.buttons);
+
+        UIDraggable leftHandle = new UIDraggable((context) ->
+        {
+            leftWidth = MathUtils.clamp(context.mouseX - this.area.x, MIN_SIDE, Math.min(MAX_SIDE, this.area.w - infoWidth - MIN_SIDE));
+            this.layout();
+        });
+        UIDraggable infoHandle = new UIDraggable((context) ->
+        {
+            infoWidth = MathUtils.clamp(this.area.ex() - context.mouseX, MIN_SIDE, Math.min(MAX_SIDE, this.area.w - leftWidth - MIN_SIDE));
+            this.layout();
+        });
+
+        leftHandle.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
+        infoHandle.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
+        leftHandle.relative(this.left).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        infoHandle.relative(this.info).x(0).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+
         this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT).row(0).height(BAR_HEIGHT);
-        this.crumbs.relative(this).xy(0, BAR_HEIGHT).w(1F).h(BAR_HEIGHT);
-        this.text.relative(this).xy(0, BAR_HEIGHT).w(1F).h(BAR_HEIGHT);
-        this.tree.relative(this).xy(0, BAR_HEIGHT * 2).w(TREE_WIDTH).h(1F, -BAR_HEIGHT * 2);
-        this.info.relative(this).x(1F, -UITextureInfoPanel.WIDTH).y(BAR_HEIGHT * 2).w(UITextureInfoPanel.WIDTH).h(1F, -BAR_HEIGHT * 2);
+        this.addToBar(this.back, this.treeToggle, this.multiToggle, this.search, this.sort, this.everywhere, this.newFolder, this.folder, this.pixelEdit, picker.close);
+        this.add(this.bar, this.crumbs, this.text, this.left, this.grid, this.info, picker.editor, leftHandle, infoHandle);
 
-        this.addToBar(this.treeToggle, this.search, this.everywhere, this.newFolder, this.folder, this.pixelEdit, picker.close);
-        this.add(this.bar, this.crumbs, this.text, this.tree, this.grid, this.info);
-
-        this.setTreeVisible(true);
+        this.layout();
+        this.setMultiskin(false);
         this.grid.context(this::buildContextMenu);
         this.markContainer();
 
@@ -150,19 +208,39 @@ public class UITextureBrowser extends UIElement
         this.bar.add(elements);
     }
 
-    private void setTreeVisible(boolean visible)
+    /** Place the parts for the current side panel widths: the info column reaches up beside the breadcrumbs. */
+    private void layout()
     {
-        this.treeVisible = visible;
-        this.tree.setVisible(visible);
+        int top = BAR_HEIGHT * 2;
 
-        int left = visible ? TREE_WIDTH : 0;
-
-        this.grid.relative(this).xy(left, BAR_HEIGHT * 2).w(1F, -left - UITextureInfoPanel.WIDTH).h(1F, -BAR_HEIGHT * 2);
+        this.crumbs.relative(this).xy(0, BAR_HEIGHT).w(1F, -infoWidth).h(BAR_HEIGHT);
+        this.text.relative(this).xy(0, BAR_HEIGHT).w(1F, -infoWidth).h(BAR_HEIGHT);
+        this.info.relative(this).x(1F, -infoWidth).y(BAR_HEIGHT).w(infoWidth).h(1F, -BAR_HEIGHT);
+        this.left.relative(this).xy(0, top).w(leftWidth).h(1F, -top);
+        this.grid.relative(this).xy(leftWidth, top).w(1F, -leftWidth - infoWidth).h(1F, -top);
+        this.picker.editor.relative(this).xy(leftWidth, BAR_HEIGHT).w(1F, -leftWidth).h(1F, -BAR_HEIGHT);
 
         if (this.area.w > 0)
         {
             this.resize();
         }
+    }
+
+    /** Which the side panel shows: the multiskin's skins while one is edited, the folder tree otherwise. */
+    public void setMultiskin(boolean multiskin)
+    {
+        this.tree.setVisible(!multiskin);
+        this.picker.multiList.setVisible(multiskin);
+        this.picker.buttons.setVisible(multiskin);
+    }
+
+    /** The multiskin editor takes the place of the grid, the breadcrumbs and the info column. */
+    public void setEditing(boolean editing)
+    {
+        this.crumbs.setVisible(!editing);
+        this.text.setVisible(false);
+        this.grid.setVisible(!editing);
+        this.info.setVisible(!editing);
     }
 
     /* Listing */
@@ -190,6 +268,11 @@ public class UITextureBrowser extends UIElement
     public Link getCurrent()
     {
         return this.picker.current;
+    }
+
+    public TextureSort getSort()
+    {
+        return TextureSort.byId(BBSSettings.textureSort.get());
     }
 
     /** The entry the keyboard acts on: the current texture, or the first entry. */
@@ -220,7 +303,14 @@ public class UITextureBrowser extends UIElement
 
     public void navigate(Link folder)
     {
-        this.path = folder == null ? new Link("", "") : TextureEntry.folderLink(folder);
+        Link target = folder == null ? new Link("", "") : TextureEntry.folderLink(folder);
+
+        if (!this.goingBack && !target.equals(this.path))
+        {
+            this.history.push(this.path);
+        }
+
+        this.path = target;
         this.selection.clear();
         this.hidePathEditor();
         this.refresh();
@@ -228,6 +318,18 @@ public class UITextureBrowser extends UIElement
         this.tree.reveal(this.path);
         this.grid.scroll.setScroll(0);
         this.info.set(this.path.source.isEmpty() ? null : this.path);
+    }
+
+    private void back()
+    {
+        if (this.history.isEmpty())
+        {
+            return;
+        }
+
+        this.goingBack = true;
+        this.navigate(this.history.pop());
+        this.goingBack = false;
     }
 
     /** Relist the folder (or rerun the search) from the disk as it is now. */
@@ -264,7 +366,7 @@ public class UITextureBrowser extends UIElement
             }
         }
 
-        sort(list);
+        list.sort(this.getSort()::compare);
 
         return list;
     }
@@ -304,7 +406,7 @@ public class UITextureBrowser extends UIElement
 
                     if (list.size() >= SEARCH_CAP)
                     {
-                        sort(list);
+                        list.sort(this.getSort()::compare);
 
                         return list;
                     }
@@ -312,22 +414,9 @@ public class UITextureBrowser extends UIElement
             }
         }
 
-        sort(list);
+        list.sort(this.getSort()::compare);
 
         return list;
-    }
-
-    private static void sort(List<TextureEntry> list)
-    {
-        list.sort((a, b) ->
-        {
-            if (a.folder() != b.folder())
-            {
-                return a.folder() ? -1 : 1;
-            }
-
-            return NaturalOrderComparator.compare(true, a.caption(), b.caption());
-        });
     }
 
     private void onSearch(String query)
@@ -336,6 +425,19 @@ public class UITextureBrowser extends UIElement
         this.selection.clear();
         this.refresh();
         this.grid.scroll.setScroll(0);
+    }
+
+    private void openSortMenu()
+    {
+        UIChoiceMenu.of(TextureSort.values())
+            .current(this.getSort())
+            .icon((sort) -> sort.icon)
+            .label((sort) -> sort.label)
+            .open(this.getContext(), (sort) ->
+            {
+                BBSSettings.textureSort.set(sort.id);
+                this.refresh();
+            });
     }
 
     /* Path by hand */
@@ -353,7 +455,7 @@ public class UITextureBrowser extends UIElement
     private void hidePathEditor()
     {
         this.text.setVisible(false);
-        this.crumbs.setVisible(true);
+        this.crumbs.setVisible(this.grid.isVisible());
     }
 
     private void onPathTyped(String typed)
@@ -742,6 +844,12 @@ public class UITextureBrowser extends UIElement
         {
             return this.moveCurrent(1, false);
         }
+        else if (context.isPressed(GLFW.GLFW_KEY_BACKSPACE))
+        {
+            this.back();
+
+            return true;
+        }
 
         return false;
     }
@@ -821,29 +929,32 @@ public class UITextureBrowser extends UIElement
             this.tree.refresh();
         }
 
-        if ((this.drag.isPressed() || this.pendingFolder != null) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
-        {
-            this.release();
-        }
-
         /* The typed path gives way to the breadcrumbs as soon as it loses focus (Escape, a click elsewhere) */
         if (this.text.isVisible() && !this.text.isFocused())
         {
             this.hidePathEditor();
         }
 
+        if ((this.drag.isPressed() || this.pendingFolder != null) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
+        {
+            this.release();
+        }
+
         this.drag.update(context.mouseX, context.mouseY);
         this.drag.clearTarget();
         this.hoveredAction = null;
+        this.back.setEnabled(!this.history.isEmpty());
 
         int strip = BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50);
 
-        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.y + BAR_HEIGHT * 2, strip);
+        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.y + BAR_HEIGHT, strip);
 
-        if (this.treeVisible)
+        if (this.crumbs.isVisible() || this.text.isVisible())
         {
-            context.batcher.box(this.tree.area.x, this.tree.area.y, this.tree.area.ex(), this.tree.area.ey(), strip);
+            context.batcher.box(this.crumbs.area.x, this.crumbs.area.y, this.crumbs.area.ex(), this.crumbs.area.ey(), strip);
         }
+
+        context.batcher.box(this.left.area.x, this.left.area.y, this.left.area.ex(), this.left.area.ey(), strip);
 
         super.render(context);
 

@@ -93,10 +93,12 @@ public class TextureCellRenderer
 
     private static void renderFolder(UIContext context, TextureEntry entry, int x, int y, int w, int h, State state)
     {
-        /* The icon sits in the space above the name strip */
-        int cy = y + (h - FormCellRenderer.NAME_HEIGHT) / 2;
+        /* The icon grows with the cell and sits in the space above the name strip */
+        int room = h - FormCellRenderer.NAME_HEIGHT;
+        int size = Math.max(16, Math.min(w / 2, room - 8));
+        int cy = y + room / 2;
 
-        context.batcher.icon(Icons.FOLDER, state.hover ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + w / 2, cy, 0.5F, 0.5F);
+        context.batcher.scaledIcon(Icons.FOLDER, state.hover ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + (w - size) / 2, cy - size / 2, size);
         FormCellRenderer.renderName(context, entry.caption(), x, y, w, h, state.hover || state.selected);
     }
 
