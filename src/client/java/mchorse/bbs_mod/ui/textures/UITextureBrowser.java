@@ -103,13 +103,96 @@ public class UITextureBrowser extends UIElement
     private String query = "";
     private boolean searchEverywhere;
 
-    /** A move that Ctrl+Z reverses: where a file was, where it went. */
-    private record Move(Link from, Link to)
-    {}
+    /**
+     * A file operation Ctrl+Z reverses. Only what the browser itself produced is reversible:
+     * a move goes back, a copy is deleted (the original never moved). Deletions and renames
+     * of the user's own files stay out — undoing those would mean guessing.
+     */
+    private interface Change
+    {
+        /** Whether the file is still where this change left it, and got put back. */
+        public boolean undo(UITextureBrowser browser);
 
-    /* Moves done and undone, most recent last */
-    private final Deque<Move> undos = new ArrayDeque<>();
-    private final Deque<Move> redos = new ArrayDeque<>();
+        public boolean redo(UITextureBrowser browser);
+    }
+
+    private static class MoveChange implements Change
+    {
+        private final Link from;
+        private Link to;
+
+        public MoveChange(Link from, Link to)
+        {
+            this.from = from;
+            this.to = to;
+        }
+
+        @Override
+        public boolean undo(UITextureBrowser browser)
+        {
+            Link back = TextureFiles.move(this.to, TextureEntry.folderLink(this.from.parent()));
+
+            if (back != null && this.to.equals(browser.getCurrent()))
+            {
+                browser.picker.selectCurrent(back);
+            }
+
+            return back != null;
+        }
+
+        @Override
+        public boolean redo(UITextureBrowser browser)
+        {
+            Link moved = TextureFiles.move(this.from, TextureEntry.folderLink(this.to.parent()));
+
+            if (moved != null)
+            {
+                this.to = moved;
+            }
+
+            return moved != null;
+        }
+    }
+
+    private static class CopyChange implements Change
+    {
+        private final Link source;
+        private Link created;
+
+        public CopyChange(Link source, Link created)
+        {
+            this.source = source;
+            this.created = created;
+        }
+
+        @Override
+        public boolean undo(UITextureBrowser browser)
+        {
+            if (this.created.equals(browser.getCurrent()))
+            {
+                browser.picker.selectCurrent(this.source);
+            }
+
+            return TextureFiles.delete(this.created);
+        }
+
+        @Override
+        public boolean redo(UITextureBrowser browser)
+        {
+            Link again = TextureFiles.copyInto(this.source, TextureEntry.folderLink(this.created.parent()));
+
+            if (again != null)
+            {
+                this.created = again;
+            }
+
+            return again != null;
+        }
+    }
+
+    /* Changes done and undone, most recent last */
+    private final Deque<Change> undos = new ArrayDeque<>();
+    private final Deque<Change> redos = new ArrayDeque<>();
 
     private int seenVersion = -1;
     private TextureEntry contextEntry;
@@ -338,43 +421,43 @@ public class UITextureBrowser extends UIElement
 
     /* Undo of moves */
 
+    private void record(Change change)
+    {
+        this.undos.addLast(change);
+        this.redos.clear();
+    }
+
+    /** A copy just made (or null when it failed) goes on the undo stack. */
+    private void copied(Link source, Link created)
+    {
+        if (created != null)
+        {
+            this.record(new CopyChange(source, created));
+        }
+    }
+
     private void undo()
     {
-        Move move = this.undos.pollLast();
+        Change change = this.undos.pollLast();
 
-        if (move != null && this.reverse(move) != null)
+        if (change != null && change.undo(this))
         {
-            this.redos.addLast(move);
+            this.redos.addLast(change);
+            this.refresh();
+            this.tree.refresh();
         }
     }
 
     private void redo()
     {
-        Move move = this.redos.pollLast();
+        Change change = this.redos.pollLast();
 
-        if (move != null && this.reverse(new Move(move.to(), move.from())) != null)
+        if (change != null && change.redo(this))
         {
-            this.undos.addLast(move);
-        }
-    }
-
-    /** Put a moved file back where it was; null when the file isn't there any more. */
-    private Link reverse(Move move)
-    {
-        Link back = TextureFiles.move(move.to(), TextureEntry.folderLink(move.from().parent()));
-
-        if (back != null)
-        {
-            if (move.to().equals(this.getCurrent()))
-            {
-                this.picker.selectCurrent(back);
-            }
-
+            this.undos.addLast(change);
             this.refresh();
             this.tree.refresh();
         }
-
-        return back;
     }
 
     /** Relist the folder (or rerun the search) from the disk as it is now. */
@@ -666,8 +749,7 @@ public class UITextureBrowser extends UIElement
 
                 if (moved != null)
                 {
-                    this.undos.addLast(new Move(link, moved));
-                    this.redos.clear();
+                    this.record(new MoveChange(link, moved));
 
                     if (link.equals(current))
                     {
@@ -677,7 +759,7 @@ public class UITextureBrowser extends UIElement
             }
             else
             {
-                TextureFiles.copyInto(link, this.path);
+                this.copied(link, TextureFiles.copyInto(link, this.path));
             }
         }
 
@@ -752,7 +834,7 @@ public class UITextureBrowser extends UIElement
             {
                 for (Link link : this.group(entry.link()))
                 {
-                    TextureFiles.duplicate(link);
+                    this.copied(link, TextureFiles.duplicate(link));
                 }
 
                 this.refresh();
@@ -836,7 +918,7 @@ public class UITextureBrowser extends UIElement
         {
             if (copy)
             {
-                TextureFiles.copyInto(link, target);
+                this.copied(link, TextureFiles.copyInto(link, target));
 
                 continue;
             }
@@ -848,8 +930,7 @@ public class UITextureBrowser extends UIElement
                 continue;
             }
 
-            this.undos.addLast(new Move(link, moved));
-            this.redos.clear();
+            this.record(new MoveChange(link, moved));
 
             if (link.equals(current))
             {
@@ -997,7 +1078,7 @@ public class UITextureBrowser extends UIElement
             {
                 menu.action(Icons.DUPE, UIKeys.FORMS_CATEGORIES_CONTEXT_DUPLICATE_FORM, () ->
                 {
-                    TextureFiles.duplicate(link);
+                    this.copied(link, TextureFiles.duplicate(link));
                     this.refresh();
                 });
             }
@@ -1065,7 +1146,7 @@ public class UITextureBrowser extends UIElement
         {
             for (Link link : this.subjects())
             {
-                TextureFiles.duplicate(link);
+                this.copied(link, TextureFiles.duplicate(link));
             }
 
             this.refresh();
