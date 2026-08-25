@@ -17,16 +17,16 @@ public class CellPainter
     /** Height of the caption strip along the bottom of a cell. */
     public static final int CAPTION_HEIGHT = 14;
 
-    /** Under the picture: the accent for a chosen cell, a quiet lift under the cursor. */
+    /**
+     * Under the picture: the accent for a chosen cell, and nothing at all under the cursor.
+     * Hovering is said with the frame instead — a wash over the ground shifted every picture's
+     * colours with it, and in a grid of pictures that reads as the picture changing.
+     */
     public static void ground(UIContext context, int x, int y, int w, int h, CellState state)
     {
         if (state.isLit())
         {
             context.batcher.box(x, y, x + w, y + h, Colors.A25 | BBSSettings.primaryColor.get());
-        }
-        else if (state.hover)
-        {
-            context.batcher.box(x, y, x + w, y + h, CellActionBar.ink(Colors.A12));
         }
     }
 
@@ -39,12 +39,16 @@ public class CellPainter
         }
     }
 
-    /** Frames go last so nothing paints over them: solid for the chosen cell, lighter for a pick. */
+    /**
+     * Frames go last so nothing paints over them. Solid for the cell that's chosen or under
+     * the cursor, lighter for one of a pick — the cursor reads as strongly as the choice
+     * does, since that's the whole of what says where it is.
+     */
     public static void frames(UIContext context, int x, int y, int w, int h, CellState state)
     {
         int primary = BBSSettings.primaryColor.get();
 
-        if (state.isLit())
+        if (state.isLit() || state.hover)
         {
             context.batcher.outline(x, y, x + w, y + h, Colors.A100 | primary, 1);
         }
