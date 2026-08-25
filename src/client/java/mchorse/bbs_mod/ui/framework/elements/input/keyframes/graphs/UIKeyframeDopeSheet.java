@@ -60,6 +60,16 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     private static final int LABEL_ICON_SIZE = 16;
     private static final int LABEL_TEXT_ICON_GAP = 3;
 
+    /**
+     * What a section's summary is drawn with: a keyframe square, left solid. A real keyframe is this
+     * same square with the background punched back out of it, so a filled one reads as "there is a
+     * keyframe here, but not on this row".
+     */
+    private static final IKeyframeShapeRenderer SUMMARY_MARK = KeyframeShapeRenderers.SHAPES.get(KeyframeShape.SQUARE);
+
+    /** Half-size of a summary square, matching the footprint of the keyframes it stands for. */
+    private static final int SUMMARY_MARK_SIZE = 3;
+
     private UIKeyframes keyframes;
 
     /** Every row, parents before their children — the order the catalog handed them over in. */
@@ -83,6 +93,15 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     private Scroll dopeSheet;
     private double trackHeight;
+
+    /**
+     * One slot per pixel column of the graph, stamped with the number of the summary currently being
+     * drawn. A section folds a whole skeleton under it, so its rows pile hundreds of keyframes onto
+     * the same handful of pixels; stamping columns draws each of them once and caps the work at the
+     * width of the view instead of the size of the film.
+     */
+    private int[] summaryColumns = new int[0];
+    private int summaryStamp;
 
     public static IKeyframeShapeRenderer renderShape(Keyframe frame, UIContext context, BufferBuilder builder, Matrix4f matrix, int x, int y, int offset, int c)
     {
@@ -1250,9 +1269,66 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             shapeResult.renderKeyframeBackground(context, builder, matrix, mx, my, 2, mc);
         }
 
+        this.renderSummary(context, builder, matrix, area, sheet, y);
+
         RenderSystem.enableBlend();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         BufferRenderer.drawWithGlobalProgram(builder.end());
+    }
+
+    /**
+     * A section names a body part and animates nothing of its own, so its row shows what folds under
+     * it: a filled square wherever anything inside has a keyframe. It is a picture and nothing more —
+     * the row still takes no keyframes ({@link #getInsertableSheet(int)}) and still hands its clicks
+     * to the fold arrow.
+     *
+     * <p>Drawn whether the section is folded or not. Making the summary appear only while folded
+     * would tie what the timeline shows to how the timeline happens to be arranged, and a section is
+     * the sum of its part either way.</p>
+     */
+    private void renderSummary(UIContext context, BufferBuilder builder, Matrix4f matrix, Area area, UIKeyframeSheet sheet, int y)
+    {
+        if (!sheet.header || sheet.children.isEmpty())
+        {
+            return;
+        }
+
+        if (this.summaryColumns.length != area.w)
+        {
+            this.summaryColumns = new int[Math.max(area.w, 0)];
+            this.summaryStamp = 0;
+        }
+
+        this.summaryStamp += 1;
+
+        this.renderSummaryMarks(context, builder, matrix, area, sheet, y + this.getTrackHeight(sheet) / 2, sheet.getRowColor() | Colors.A100);
+    }
+
+    /** Walk everything folded under the section, at any depth, and mark each keyframe's column once. */
+    @SuppressWarnings("rawtypes")
+    private void renderSummaryMarks(UIContext context, BufferBuilder builder, Matrix4f matrix, Area area, UIKeyframeSheet sheet, int my, int color)
+    {
+        for (UIKeyframeSheet child : sheet.children)
+        {
+            List keyframes = child.channel.getKeyframes();
+
+            for (int j = 0; j < keyframes.size(); j++)
+            {
+                int x = this.keyframes.toGraphX(((Keyframe) keyframes.get(j)).getTick());
+                int column = x - area.x;
+
+                if (column < 0 || column >= this.summaryColumns.length || this.summaryColumns[column] == this.summaryStamp)
+                {
+                    continue;
+                }
+
+                this.summaryColumns[column] = this.summaryStamp;
+
+                SUMMARY_MARK.renderKeyframe(context, builder, matrix, x, my, SUMMARY_MARK_SIZE, color);
+            }
+
+            this.renderSummaryMarks(context, builder, matrix, area, child, my, color);
+        }
     }
 
     private void renderSheetKeyframeShapes(UIContext context, BufferBuilder builder, Matrix4f matrix, Area area, UIKeyframeSheet sheet, int y)
@@ -1316,6 +1392,10 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
             shapeResult.renderKeyframeBackground(context, builder, matrix, mx, my, 2, mc);
         }
+
+        /* Same as the keyframes above: the topmost pass exists so the out-of-range shading does not
+         * bury what the row is showing, and a summary mark is no different. */
+        this.renderSummary(context, builder, matrix, area, sheet, y);
     }
 
     private void renderSheetsTopmostKeyframes(UIContext context, BufferBuilder builder, Matrix4f matrix, Area area, int y)
