@@ -62,16 +62,24 @@ public class UITextureEditor extends UIPixelsEditor
      */
     public void openSaveOverlay()
     {
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
-            UIKeys.GENERAL_EXPORT,
-            UIKeys.TEXTURES_SAVE,
-            this::saveTextureAs
-        );
+        if (this.getTexture() == null)
+        {
+            return;
+        }
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        UISaveTextureOverlayPanel panel = new UISaveTextureOverlayPanel(this, (link) ->
+        {
+            File file = this.saveTo(link);
 
-        panel.text.setText(this.getTexture().toString());
-        panel.text.textbox.selectFilename();
+            if (file != null)
+            {
+                this.getContext().notifySuccess(UIKeys.TEXTURES_SAVE_NOTIFICATION.format(file.getName()));
+            }
+
+            return file != null;
+        });
+
+        UIOverlay.addOverlay(this.getContext(), panel, 480, 320);
     }
 
     /** Called from UITexturePainter resize icon. Opens the resize overlay. */
@@ -281,31 +289,16 @@ public class UITextureEditor extends UIPixelsEditor
         }
     }
 
-    private void saveTextureAs(String path)
-    {
-        File file = this.writeTexture(Link.create(path));
-
-        if (file == null)
-        {
-            return;
-        }
-
-        UIMessageFolderOverlayPanel panel = new UIMessageFolderOverlayPanel(
-            UIKeys.TEXTURES_EXPORT_OVERLAY_TITLE,
-            UIKeys.TEXTURES_EXPORT_OVERLAY_SUCCESS.format(file.getName()),
-            file.getParentFile()
-        );
-
-        panel.folder.tooltip(UIKeys.TEXTURES_EXPORT_OVERLAY_OPEN_FOLDER, Direction.LEFT);
-
-        UIOverlay.addOverlay(this.getContext(), panel);
-    }
-
     /**
      * Validates {@code link}, flattens the layers and writes them to a PNG on disk, clearing the
      * dirty flag and firing the rename/save callbacks. Returns the written file on success, or
      * {@code null} after notifying the user about a wrong path or an I/O failure.
      */
+    public File saveTo(Link link)
+    {
+        return this.writeTexture(link);
+    }
+
     private File writeTexture(Link link)
     {
         if (!Link.isAssets(link) || !link.path.endsWith(".png"))

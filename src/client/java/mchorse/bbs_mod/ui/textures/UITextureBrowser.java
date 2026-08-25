@@ -60,7 +60,7 @@ import java.util.List;
  * choice means (its callback, the multiskin, the editor tabs). The grid and the tree paint and
  * hit-test their own rows and call back here with what was pressed.</p>
  */
-public class UITextureBrowser extends UIElement
+public class UITextureBrowser extends UIElement implements IFolderTreeHost
 {
     public static final int BAR_HEIGHT = 20;
 
@@ -369,6 +369,12 @@ public class UITextureBrowser extends UIElement
     public Link getCurrent()
     {
         return this.picker.current;
+    }
+
+    @Override
+    public TextureDrag getDrag()
+    {
+        return this.drag;
     }
 
     public TextureSort getSort()

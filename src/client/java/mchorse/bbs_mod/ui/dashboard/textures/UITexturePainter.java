@@ -29,6 +29,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
@@ -390,6 +391,18 @@ public class UITexturePainter extends UIElement
         this.keys().register(Keys.PIXEL_TOOL_SELECTION, () -> this.userSelectTool(TexturePaintTool.SELECTION)).inside().category(category);
         this.keys().register(Keys.PIXEL_BRUSH_DEC, () -> this.adjustBrushSize(-1)).inside().category(category);
         this.keys().register(Keys.PIXEL_BRUSH_INC, () -> this.adjustBrushSize(1)).inside().category(category);
+
+        /* Ctrl+S lives on its own element so it outranks the other keybinds, the way the data
+         * panels do it — the painter isn't one of those, so nothing registered it before */
+        UIElement savePlease = new UIElement().noCulling();
+
+        savePlease.keys().register(Keys.SAVE, () ->
+        {
+            UIUtils.playClick();
+            this.withEditor(UITextureEditor::saveCurrentTexture);
+        }).active(() -> this.editor != null && this.isVisible()).category(category);
+
+        this.add(savePlease);
     }
 
     private void renderPanelBackground(UIContext context)

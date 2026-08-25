@@ -35,13 +35,13 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     public record Node(Link link, int depth, boolean branch, boolean expanded)
     {}
 
-    private final UITextureBrowser browser;
+    private final IFolderTreeHost browser;
     private final Set<Link> expanded = new HashSet<>();
 
     /** Whether a folder has folders inside — asked once per listing, not per frame. */
     private final Map<Link, Boolean> branches = new HashMap<>();
 
-    public UIFolderTree(UITextureBrowser browser)
+    public UIFolderTree(IFolderTreeHost browser)
     {
         super(null);
 
@@ -221,11 +221,11 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     @Override
     public void renderListElement(UIContext context, Node node, int i, int x, int y, boolean hover, boolean selected)
     {
-        TextureDrag drag = this.browser.drag;
+        TextureDrag drag = this.browser.getDrag();
         boolean current = this.browser.isCurrentFolder(node.link());
         boolean target = false;
 
-        if (hover && drag.isActive() && !drag.isDragging(node.link()))
+        if (hover && drag != null && drag.isActive() && !drag.isDragging(node.link()))
         {
             drag.setTarget(node.link());
             target = true;
