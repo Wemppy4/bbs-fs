@@ -8,7 +8,9 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.IModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.GlUniform;
@@ -358,6 +360,30 @@ public class FormTranslucentQueue
             this.depthWrite = depthWrite;
         }
 
+        /** The color overlay captured at enqueue time (see {@link mchorse.bbs_mod.forms.renderers.utils.FormOverlay}); null = none. */
+        private Color overlayColor;
+
+        public DrawCommand overlayColor(Color overlay)
+        {
+            this.overlayColor = overlay == null ? null : overlay.copy();
+
+            return this;
+        }
+
+        /** Re-bind the captured overlay for the replayed draw; the enqueue-time binding is long gone at flush. */
+        protected int bindOverlay()
+        {
+            return this.overlayColor != null ? FormOverlay.bind(this.overlayColor) : 0;
+        }
+
+        protected void unbindOverlay(int previous)
+        {
+            if (this.overlayColor != null)
+            {
+                FormOverlay.unbind(previous);
+            }
+        }
+
         public abstract void draw();
 
         public void release()
@@ -416,9 +442,12 @@ public class FormTranslucentQueue
                 BBSModClient.getTextures().bindTexture(this.texture);
             }
 
+            int previousOverlay = this.bindOverlay();
+
             setPassMode(shader, this.passMode);
             ModelVAORenderer.render(shader, this.vao, this.modelView, this.normalMat, this.r, this.g, this.b, this.a, this.light, this.overlay);
             setPassMode(shader, PASS_SINGLE);
+            this.unbindOverlay(previousOverlay);
         }
     }
 
@@ -482,9 +511,12 @@ public class FormTranslucentQueue
                 this.vao.updateMesh(null, this.armatureSnapshot);
             }
 
+            int previousOverlay = this.bindOverlay();
+
             setPassMode(shader, this.passMode);
             this.vao.render(shader, this.modelView, this.normalMat, this.r, this.g, this.b, this.a, null, this.light, this.overlay);
             setPassMode(shader, PASS_SINGLE);
+            this.unbindOverlay(previousOverlay);
         }
     }
 
@@ -637,6 +669,8 @@ public class FormTranslucentQueue
                 }
             }
 
+            int previousOverlay = this.bindOverlay();
+
             setPassMode(program, this.passMode);
 
             this.buffer.bind();
@@ -644,6 +678,7 @@ public class FormTranslucentQueue
             VertexBuffer.unbind();
 
             setPassMode(program, PASS_SINGLE);
+            this.unbindOverlay(previousOverlay);
 
             if (this.postDraw != null)
             {

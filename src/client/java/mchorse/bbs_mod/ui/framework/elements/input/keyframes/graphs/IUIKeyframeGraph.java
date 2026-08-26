@@ -114,10 +114,48 @@ public interface IUIKeyframeGraph
 
     public UIKeyframeSheet getSheet(int mouseY);
 
+    /**
+     * The row under the cursor that is a <em>track</em> — something holding a value that can be
+     * keyed, pasted into, curve-edited and restyled. A body part's section is a heading, not a track:
+     * it names a part, holds no value, and its channel belongs to no replay, so anything written
+     * into it would be dropped on save without a word.
+     *
+     * <p>Every operation that acts on a track resolves its target through this and not through
+     * {@link #getSheet(int)}, which answers the plainer question of which row the cursor is over —
+     * that one is still what hit-testing and folding need.</p>
+     */
+    public default UIKeyframeSheet getTrackSheet(int mouseY)
+    {
+        UIKeyframeSheet sheet = this.getSheet(mouseY);
+
+        return sheet != null && sheet.header ? null : sheet;
+    }
+
+    /** The first row that is a track, for operations that must land somewhere when the cursor is over nothing. */
+    public default UIKeyframeSheet getFirstTrackSheet()
+    {
+        for (UIKeyframeSheet sheet : this.getSheets())
+        {
+            if (!sheet.header)
+            {
+                return sheet;
+            }
+        }
+
+        return null;
+    }
+
     public boolean addKeyframe(int mouseX, int mouseY);
 
     public default Keyframe addKeyframe(UIKeyframeSheet sheet, float tick, Object value)
     {
+        if (sheet.header)
+        {
+            /* A header names a body part; there is no value to key. Its channel belongs to no
+             * replay, so a keyframe placed here would vanish on save without a word. */
+            return null;
+        }
+
         KeyframeSegment segment = sheet.channel.find(tick);
         Keyframe extra = null;
         BaseValueBasic property = sheet.property;
@@ -129,13 +167,16 @@ public interface IUIKeyframeGraph
                 value = segment.createInterpolated();
                 extra = segment.a;
             }
+            else if (sheet.seed != null)
+            {
+                /* Before the property: a sheet with both uses the seed to IMPROVE on the raw
+                 * property value (the color overlay seeds at full strength so a fresh keyframe
+                 * is visible; the property's default is fully transparent). */
+                value = sheet.seed.get();
+            }
             else if (property != null)
             {
                 value = sheet.channel.getFactory().copy(property.get());
-            }
-            else if (sheet.seed != null)
-            {
-                value = sheet.seed.get();
             }
             else
             {

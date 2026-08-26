@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
@@ -8,6 +10,9 @@ import mchorse.bbs_mod.utils.pose.Pose;
 
 public class MobForm extends Form
 {
+    /** Also what its main tab in the form editor wears — see {@link Form#getIcon()}. */
+    public static final Icon ICON = Icons.MORPH;
+
     public final ValueString mobID = new ValueString("mobId", "minecraft:chicken");
     public final ValueString mobNBT = new ValueString("mobNbt", "");
 
@@ -39,4 +44,11 @@ public class MobForm extends Form
     {
         return this.mobID.get().equals("minecraft:player");
     }
+
+    @Override
+    public Icon getIcon()
+    {
+        return ICON;
+    }
+
 }

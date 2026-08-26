@@ -1,12 +1,15 @@
 package mchorse.bbs_mod.cubic.constraints;
 
+import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import org.joml.Vector3f;
@@ -14,24 +17,11 @@ import org.joml.Vector3f;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 public final class ModelConstraintsRuntime
 {
-    private static final WeakHashMap<MapType, Map<String, ModelConstraintsConfig.BoneConstraint>> EMBEDDED = new WeakHashMap<>();
-
     private ModelConstraintsRuntime()
     {
-    }
-
-    public static void clearCache()
-    {
-        EMBEDDED.clear();
-    }
-
-    public static void invalidate(String modelId)
-    {
-        EMBEDDED.clear();
     }
 
     public static void apply(ModelInstance instance)
@@ -41,45 +31,48 @@ public final class ModelConstraintsRuntime
             return;
         }
 
-        Map<String, ModelConstraintsConfig.BoneConstraint> bones = getBones(instance);
+        Map<String, BoneConstraint> bones = getBones(instance);
 
-        if (bones == null || bones.isEmpty())
+        if (bones.isEmpty())
         {
             return;
         }
 
-        if (instance.model instanceof Model model)
-        {
-            applyToModel(model, bones);
-        }
-        else if (instance.model instanceof BOBJModel bobj)
-        {
-            applyToBobj(bobj, bones);
-        }
+        applyToBones(instance.model, bones);
     }
 
-    public static Map<String, ModelConstraintsConfig.BoneConstraint> getBones(ModelInstance instance)
+    /**
+     * The form's enabled constraints by bone name, read fresh from the bone properties each
+     * frame (a track's runtime override on the property is picked up for free that way).
+     */
+    public static Map<String, BoneConstraint> getBones(ModelInstance instance)
     {
-        if (instance != null && instance.form instanceof ModelForm form && form.constraints.get() instanceof MapType map)
+        if (!(instance != null && instance.form instanceof ModelForm form))
         {
-            Map<String, ModelConstraintsConfig.BoneConstraint> cached = EMBEDDED.get(map);
-
-            if (cached != null)
-            {
-                return cached;
-            }
-
-            ModelConstraintsConfig config = ModelConstraintsIO.fromData(map);
-            Map<String, ModelConstraintsConfig.BoneConstraint> bones = config == null || config.bones() == null
-                ? Collections.emptyMap()
-                : Collections.unmodifiableMap(new HashMap<>(config.bones()));
-
-            EMBEDDED.put(map, bones);
-
-            return bones;
+            return Collections.emptyMap();
         }
 
-        return Collections.emptyMap();
+        Map<String, BoneConstraint> bones = null;
+
+        for (BaseValue value : form.bones.getAll())
+        {
+            if (value instanceof FormBone bone)
+            {
+                BoneConstraint constraint = bone.constraints.get();
+
+                if (constraint.enabled)
+                {
+                    if (bones == null)
+                    {
+                        bones = new HashMap<>();
+                    }
+
+                    bones.put(bone.getId(), constraint);
+                }
+            }
+        }
+
+        return bones == null ? Collections.emptyMap() : bones;
     }
 
     /**
@@ -91,61 +84,42 @@ public final class ModelConstraintsRuntime
      * null {@code orient}, visually destroying the solve on a constrained chain bone). Works on
      * quaternion-mode bones too — the clamp reads the evaluated rotation, never a stale euler.
      */
-    private static void applyToModel(Model model, Map<String, ModelConstraintsConfig.BoneConstraint> bones)
+    /**
+     * Clamps every constrained bone of the rig. The limits are authored in DEGREES whatever the
+     * skeleton stores its channels in, which is what {@link RigBone#fromDegrees()} is for; the
+     * decomposition goes against the bone's own channels so a clamp lands on angles the animator
+     * would recognise.
+     */
+    private static void applyToBones(IModel model, Map<String, BoneConstraint> bones)
     {
-        for (ModelGroup group : model.getAllGroups())
-        {
-            if (group == null)
-            {
-                continue;
-            }
-
-            ModelConstraintsConfig.BoneConstraint c = bones.get(group.id);
-
-            if (c == null || !c.enabled())
-            {
-                continue;
-            }
-
-            Vector3f euler = Matrices.toCompatibleEulerZYXDegrees(group.evaluatedRotation(), group.current.rotate, new Vector3f());
-
-            clamp(euler, c, 1F);
-
-            group.orient = Matrices.toLocalRotationZYXDegrees(euler);
-        }
-    }
-
-    /** See {@link #applyToModel}; BOBJ channels are radians, the config limits are degrees. */
-    private static void applyToBobj(BOBJModel model, Map<String, ModelConstraintsConfig.BoneConstraint> bones)
-    {
-        for (BOBJBone bone : model.getArmature().orderedBones)
+        for (RigBone bone : model.getRigBones())
         {
             if (bone == null)
             {
                 continue;
             }
 
-            ModelConstraintsConfig.BoneConstraint c = bones.get(bone.name);
+            BoneConstraint c = bones.get(bone.getBoneName());
 
-            if (c == null || !c.enabled())
+            if (c == null || !c.enabled)
             {
                 continue;
             }
 
-            Vector3f euler = Matrices.toCompatibleEulerZYXRadians(bone.evaluatedRotation(), bone.transform.rotate, new Vector3f());
+            Vector3f euler = bone.toCompatibleEuler(new Vector3f());
 
-            clamp(euler, c, MathUtils.PI / 180F);
+            clamp(euler, c, bone.fromDegrees());
 
-            bone.orient = Matrices.toLocalRotationZYXRadians(euler);
+            bone.setOrient(bone.orientFromEuler(euler));
         }
     }
 
     /** Clamps euler angles to the constraint's limits, {@code scale} converting the degree limits to the angles' unit. */
-    private static void clamp(Vector3f euler, ModelConstraintsConfig.BoneConstraint c, float scale)
+    private static void clamp(Vector3f euler, BoneConstraint c, float scale)
     {
-        euler.x = clampAxis(euler.x, c.minX() * scale, c.maxX() * scale);
-        euler.y = clampAxis(euler.y, c.minY() * scale, c.maxY() * scale);
-        euler.z = clampAxis(euler.z, c.minZ() * scale, c.maxZ() * scale);
+        euler.x = clampAxis(euler.x, c.minX * scale, c.maxX * scale);
+        euler.y = clampAxis(euler.y, c.minY * scale, c.maxY * scale);
+        euler.z = clampAxis(euler.z, c.minZ * scale, c.maxZ * scale);
     }
 
     private static float clampAxis(float value, float min, float max)

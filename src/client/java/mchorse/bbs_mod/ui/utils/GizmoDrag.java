@@ -135,6 +135,23 @@ public class GizmoDrag
 
     public GizmoDrag setup(Camera camera, Area viewport, double gx, double gy, double gz)
     {
+        /* The SCENE camera, deliberately — never {@link GizmoLens}, even though the
+         * handles are drawn through it. A drag solves for where the edited thing ends
+         * up, and the edited thing is drawn by the camera: solve it through the lens
+         * and the model crawls, because the lens's narrow frustum is also a zoom, so
+         * it reads a cursor move as a much smaller world step. Measured on an off-centre
+         * gizmo: a 100px drag moved the model 63px at a 50 degree FOV, 42px at 70,
+         * 21px at 110 — the lens scale, exactly.
+         *
+         * It is also what keeps VIEW honest. The camera's own right/up carry no depth,
+         * so a step along them slides the model dead straight across the screen; the
+         * lens's right is tilted off the camera by the angle it swung, and the same
+         * step drifts 8px sideways at a 110 degree FOV. The drawn VIEW handles read
+         * square either way, so the two agree on screen where it counts.
+         *
+         * What DOES go through the lens is the pick stencil — "which handle is under
+         * the cursor" is a question about the picture. "Where does it end up" is a
+         * question about the world. */
         this.projection.set(camera.projection);
         this.view.set(camera.view);
         this.cameraOrigin.set(camera.position);
@@ -286,13 +303,13 @@ public class GizmoDrag
      * (the bone's frame before its own rotation, i.e. the parent frame), so the
      * drawn arrows already are the parent axes.
      *
-     * <p>Rotation rings in LOCAL/GLOBAL/VIEW both DRAW and TURN about these
-     * axes: a ring gesture composes a delta rotation about the drawn axis
-     * (mapped into the bone's parent frame via
+     * <p>Rotation rings in EVERY space both DRAW and TURN about these axes: a
+     * ring gesture composes a delta rotation about the drawn axis (mapped into
+     * the bone's parent frame via
      * {@link mchorse.bbs_mod.ui.framework.elements.input.drag.RotationDragMath#parentInverse}),
-     * so the bone always follows the ring the user grabbed. PARENT rings
-     * instead bump the driven channel directly — the deliberate pre-spaces
-     * behaviour (see {@link TransformSpace#PARENT}). The MEASURED
+     * so the bone always follows the ring the user grabbed — PARENT included,
+     * where that is a genuine turn about the parent bone's axis rather than a
+     * bump of the like-named channel (see {@link TransformSpace#PARENT}). The MEASURED
      * {@link #rotateAxes} (the renderer's response to the euler channels, which
      * folds in the cubic {@code Ry(180°)} post-flip AND the euler stack's gimbal
      * skew) is deliberately NOT a gesture basis anymore &mdash; a LOCAL ring
@@ -328,7 +345,9 @@ public class GizmoDrag
      * The camera's world-space right/up/forward as the columns of an orthonormal
      * basis &mdash; the single source of the screen frame. {@link #view} is the
      * rotation-only world&rarr;camera map, so its inverse takes the camera's own
-     * axes back into world space. This is {@link #frameBasis}'s VIEW frame, and
+     * axes back into world space. This is the SCENE camera's, not {@link GizmoLens}'s
+     * (see {@link #setup}): its right/up carry no depth, so a step along them slides
+     * the model dead straight across the screen, which is what VIEW promises. This is {@link #frameBasis}'s VIEW frame, and
      * the inherently screen-relative gestures (the screen translate, the sphere's
      * trackball/arcball tumble) read their right/up axes from here instead of
      * re-inverting the view matrix themselves. Returns {@code null} when the view
@@ -353,10 +372,14 @@ public class GizmoDrag
      * spelled out: {@link TransformSpace#GLOBAL} is {@code view · globalAxes},
      * {@link TransformSpace#WORLD} the view rotation itself
      * ({@code view · identity}) and {@link TransformSpace#VIEW} the identity
-     * ({@code view · view⁻¹}) &mdash; whose third column the draw passes then lay
-     * on the eye ray so the handles face the screen instead of merely paralleling
-     * it ({@link Gizmo#applyViewShear}); the frame returned here, and everything
-     * the drags read from it, stays orthonormal.
+     * ({@code view · view⁻¹}) &mdash; which {@link Gizmo#reorientForSpace}
+     * then turns by the inverse of {@link GizmoLens}'s view swing, so the DRAWN handles
+     * come out square to the screen once the draw passes swing them back. Without a lens
+     * the draw passes instead lay that third column on the eye ray, so the handles face
+     * the screen rather than merely paralleling it. Either way this is the drawn frame
+     * only; the drag's VIEW frame stays the camera's ({@link #cameraBasis}), and both
+     * read square on screen. The frame returned here, and everything the drags read from
+     * it, stays orthonormal.
      * {@code globalAxes} is the drawn twin of {@link #globalWorldAxes} and must
      * come from the same source the drag's does &mdash; {@code null} means the
      * plain world axes. {@link TransformSpace#LOCAL} and

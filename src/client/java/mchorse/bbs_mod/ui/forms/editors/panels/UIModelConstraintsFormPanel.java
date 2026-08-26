@@ -2,10 +2,11 @@ package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.cubic.constraints.ModelConstraintsConfig;
-import mchorse.bbs_mod.cubic.constraints.ModelConstraintsIO;
+import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
+import mchorse.bbs_mod.cubic.constraints.BoneConstraintsIO;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -14,9 +15,7 @@ import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.utils.PickedBone;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -26,16 +25,11 @@ import mchorse.bbs_mod.utils.pose.ModelConstraintsManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 
 public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 {
-    private static final float DEFAULT_MIN = -180F;
-    private static final float DEFAULT_MAX = 180F;
-
     public UIBoneTreeList bones;
     public UISearchList<String> bonesSearch;
 
@@ -50,10 +44,8 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 
     private List<String> availableBones = Collections.emptyList();
     private String selectedBone = "";
-    private final Map<String, ModelConstraintsConfig.BoneConstraint> data = new HashMap<>();
     private ModelInstance modelInstance;
     private String presetGroup = "";
-    private boolean syncingUI;
 
     public UIModelConstraintsFormPanel(UIForm editor)
     {
@@ -65,7 +57,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         {
             this.selectedBone = l.isEmpty() ? "" : l.get(0);
 
-            PickedBone.set(this.selectedBone);
+            this.boneSelection().set(this.selectedBone);
             this.updateFields();
         });
         this.bones.background();
@@ -82,30 +74,16 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
 
         this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_ENABLED, (b) ->
         {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            if (b.getValue())
-            {
-                this.data.put(this.selectedBone, this.readFromFields(true));
-            }
-            else
-            {
-                this.data.remove(this.selectedBone);
-            }
-
+            this.editConstraint((c) -> c.enabled = b.getValue());
             this.updateFieldsEnabled();
-            this.commitChanges();
         });
 
-        this.minX = axisTrackpad((v) -> this.onFieldChanged(), Colors.RED, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_X));
-        this.minY = axisTrackpad((v) -> this.onFieldChanged(), Colors.GREEN, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_Y));
-        this.minZ = axisTrackpad((v) -> this.onFieldChanged(), Colors.BLUE, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_Z));
-        this.maxX = axisTrackpad((v) -> this.onFieldChanged(), Colors.RED, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_X));
-        this.maxY = axisTrackpad((v) -> this.onFieldChanged(), Colors.GREEN, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_Y));
-        this.maxZ = axisTrackpad((v) -> this.onFieldChanged(), Colors.BLUE, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_Z));
+        this.minX = axisTrackpad((v) -> this.editConstraint((c) -> c.minX = v.floatValue()), Colors.RED, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_X));
+        this.minY = axisTrackpad((v) -> this.editConstraint((c) -> c.minY = v.floatValue()), Colors.GREEN, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_Y));
+        this.minZ = axisTrackpad((v) -> this.editConstraint((c) -> c.minZ = v.floatValue()), Colors.BLUE, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_Z));
+        this.maxX = axisTrackpad((v) -> this.editConstraint((c) -> c.maxX = v.floatValue()), Colors.RED, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_X));
+        this.maxY = axisTrackpad((v) -> this.editConstraint((c) -> c.maxY = v.floatValue()), Colors.GREEN, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_Y));
+        this.maxZ = axisTrackpad((v) -> this.editConstraint((c) -> c.maxZ = v.floatValue()), Colors.BLUE, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_Z));
         this.applyToChildren = new UIButton(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_APPLY_TO_CHILDREN, (b) -> this.applySelectedToChildren());
 
         UISection params = this.section(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_SETTINGS, "constraints.settings", true);
@@ -145,7 +123,6 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.modelInstance = model;
         this.presetGroup = this.resolvePresetGroup(form, model);
 
-        this.data.clear();
         this.selectedBone = "";
 
         if (model == null || model.model == null)
@@ -153,8 +130,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
             this.availableBones = Collections.emptyList();
             this.bones.clear();
             this.setElementsEnabled(false);
-            this.setDefaults();
-            this.enabled.setValue(false);
+            this.updateFields();
             this.options.resize();
             return;
         }
@@ -170,20 +146,9 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.bones.filter(this.bonesSearch.search.getText());
         this.setElementsEnabled(true);
 
-        ModelConstraintsConfig config = null;
-        if (this.form != null && this.form.constraints.get() instanceof MapType map)
-        {
-            config = ModelConstraintsIO.fromData(map);
-        }
-
-        if (config != null && config.bones() != null)
-        {
-            this.load(config);
-        }
-
         /* Same as the other bone-list panels: keep the animator on the bone
          * they are working on across a rebuild instead of resetting to the root. */
-        if (this.pickBoneInList(PickedBone.get()))
+        if (this.pickBoneInList(this.boneSelection().get()))
         {
             /* Already selected and filled in. */
         }
@@ -193,8 +158,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         }
         else
         {
-            this.setDefaults();
-            this.enabled.setValue(false);
+            this.updateFields();
         }
 
         this.options.resize();
@@ -209,7 +173,7 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         }
 
         this.selectBone(bone);
-        PickedBone.set(bone);
+        this.boneSelection().set(bone);
 
         return true;
     }
@@ -226,44 +190,48 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.updateFields();
     }
 
-    private void updateFields()
+    /** The selected bone's constraint as stored, or the neutral default when never touched. */
+    private BoneConstraint currentConstraint()
     {
-        if (this.selectedBone.isEmpty())
+        if (this.form != null && !this.selectedBone.isEmpty())
         {
-            this.syncingUI = true;
-            this.enabled.setValue(false);
-            this.setDefaults();
-            this.syncingUI = false;
-            this.updateFieldsEnabled();
+            FormBone bone = this.form.bones.getBone(this.selectedBone);
+
+            if (bone != null)
+            {
+                return bone.constraints.get();
+            }
+        }
+
+        return BoneConstraint.DEFAULT;
+    }
+
+    /** Edits the selected bone's constraint as a value change (one undo entry, one notification). */
+    private void editConstraint(Consumer<BoneConstraint> edit)
+    {
+        if (this.form == null || this.selectedBone.isEmpty())
+        {
             return;
         }
 
-        ModelConstraintsConfig.BoneConstraint c = this.data.get(this.selectedBone);
+        FormBone bone = this.form.bones.getOrCreate(this.selectedBone);
+        BoneConstraint constraint = bone.constraints.get().copy();
 
-        this.syncingUI = true;
+        edit.accept(constraint);
+        bone.constraints.set(constraint);
+    }
 
-        try
-        {
-            if (c == null || !c.enabled())
-            {
-                this.enabled.setValue(false);
-                this.setDefaults();
-            }
-            else
-            {
-                this.enabled.setValue(true);
-                this.minX.setValue(c.minX());
-                this.minY.setValue(c.minY());
-                this.minZ.setValue(c.minZ());
-                this.maxX.setValue(c.maxX());
-                this.maxY.setValue(c.maxY());
-                this.maxZ.setValue(c.maxZ());
-            }
-        }
-        finally
-        {
-            this.syncingUI = false;
-        }
+    private void updateFields()
+    {
+        BoneConstraint c = this.currentConstraint();
+
+        this.enabled.setValue(c.enabled);
+        this.minX.setValue(c.minX);
+        this.minY.setValue(c.minY);
+        this.minZ.setValue(c.minZ);
+        this.maxX.setValue(c.maxX);
+        this.maxY.setValue(c.maxY);
+        this.maxZ.setValue(c.maxZ);
 
         this.updateFieldsEnabled();
     }
@@ -283,43 +251,9 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.maxZ.setEnabled(active);
     }
 
-    private void setDefaults()
-    {
-        this.minX.setValue(DEFAULT_MIN);
-        this.minY.setValue(DEFAULT_MIN);
-        this.minZ.setValue(DEFAULT_MIN);
-        this.maxX.setValue(DEFAULT_MAX);
-        this.maxY.setValue(DEFAULT_MAX);
-        this.maxZ.setValue(DEFAULT_MAX);
-    }
-
-    private void onFieldChanged()
-    {
-        if (this.syncingUI || !this.enabled.getValue() || this.selectedBone.isEmpty())
-        {
-            return;
-        }
-
-        this.data.put(this.selectedBone, this.readFromFields(true));
-        this.commitChanges();
-    }
-
-    private ModelConstraintsConfig.BoneConstraint readFromFields(boolean enabled)
-    {
-        return new ModelConstraintsConfig.BoneConstraint(
-            enabled,
-            (float) this.minX.getValue(),
-            (float) this.minY.getValue(),
-            (float) this.minZ.getValue(),
-            (float) this.maxX.getValue(),
-            (float) this.maxY.getValue(),
-            (float) this.maxZ.getValue()
-        );
-    }
-
     private void applySelectedToChildren()
     {
-        if (this.syncingUI || this.selectedBone.isEmpty() || !this.enabled.getValue())
+        if (this.form == null || this.selectedBone.isEmpty() || !this.enabled.getValue())
         {
             return;
         }
@@ -331,14 +265,12 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
             return;
         }
 
-        ModelConstraintsConfig.BoneConstraint constraint = this.readFromFields(true);
+        BoneConstraint constraint = this.currentConstraint();
 
         for (String child : descendants)
         {
-            this.data.put(child, constraint);
+            this.form.bones.getOrCreate(child).constraints.set(constraint.copy());
         }
-
-        this.commitChanges();
     }
 
     private List<String> getDescendantBones(String bone)
@@ -360,17 +292,6 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         return descendants;
     }
 
-    private void commitChanges()
-    {
-        if (this.form == null)
-        {
-            return;
-        }
-
-        MapType map = this.toPresetData();
-        this.form.constraints.set(map.isEmpty() ? null : map);
-    }
-
     private void setElementsEnabled(boolean enabled)
     {
         this.bonesSearch.setEnabled(enabled);
@@ -386,87 +307,21 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.updateFieldsEnabled();
     }
 
-    private void load(ModelConstraintsConfig config)
-    {
-        this.data.clear();
-
-        if (config == null || config.bones() == null)
-        {
-            return;
-        }
-
-        for (Map.Entry<String, ModelConstraintsConfig.BoneConstraint> entry : config.bones().entrySet())
-        {
-            String bone = entry.getKey();
-            ModelConstraintsConfig.BoneConstraint constraint = entry.getValue();
-
-            if (bone == null || bone.isEmpty() || constraint == null || !constraint.enabled())
-            {
-                continue;
-            }
-
-            if (!this.availableBones.isEmpty() && !this.availableBones.contains(bone))
-            {
-                continue;
-            }
-
-            this.data.put(bone, constraint);
-        }
-    }
-
     private MapType toPresetData()
     {
-        Map<String, ModelConstraintsConfig.BoneConstraint> out = new HashMap<>();
-
-        for (Map.Entry<String, ModelConstraintsConfig.BoneConstraint> entry : this.data.entrySet())
-        {
-            String bone = entry.getKey();
-            ModelConstraintsConfig.BoneConstraint constraint = entry.getValue();
-
-            if (bone == null || bone.isEmpty() || constraint == null || !constraint.enabled())
-            {
-                continue;
-            }
-
-            if (!this.availableBones.isEmpty() && !this.availableBones.contains(bone))
-            {
-                continue;
-            }
-
-            out.put(bone, constraint);
-        }
-
-        if (out.isEmpty())
-        {
-            return new MapType();
-        }
-
-        return ModelConstraintsIO.toData(new ModelConstraintsConfig(out));
+        return this.form == null ? new MapType() : BoneConstraintsIO.write(this.form.bones);
     }
 
     private void applyPresetData(MapType map)
     {
-        String current = this.selectedBone;
-
-        this.load(ModelConstraintsIO.fromData(map));
-
-        if (current == null || current.isEmpty() || !this.availableBones.contains(current))
+        if (this.form == null)
         {
-            current = this.availableBones.isEmpty() ? "" : this.availableBones.get(0);
+            return;
         }
 
-        if (current.isEmpty())
-        {
-            this.selectedBone = "";
-            this.bones.deselect();
-            this.updateFields();
-        }
-        else
-        {
-            this.selectBone(current);
-        }
+        BoneConstraintsIO.read(map, this.form.bones, true);
 
-        this.commitChanges();
+        this.updateFields();
     }
 
     private String resolvePresetGroup(ModelForm form, ModelInstance model)

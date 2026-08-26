@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film.replays;
 
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -65,7 +66,7 @@ public class FilmBoneWorldProvider implements IWorldTransformProvider
             replay.properties.applyProperties(form, tick);
         }
 
-        Matrix4f matrix = BaseFilmController.getBoneCompositeMatrix(
+        Matrix4f matrix = FilmMatrices.getBoneCompositeMatrix(
             this.panel.getController().getEntities(), entity, replay, 0D, 0D, 0D, transition, bone, true
         );
 

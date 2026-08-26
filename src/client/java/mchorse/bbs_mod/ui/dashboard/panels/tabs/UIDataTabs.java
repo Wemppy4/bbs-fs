@@ -26,7 +26,6 @@ public class UIDataTabs extends UIElement
     public final UIScrollView scroll;
     public final UIIcon add;
     private final ArrayList<UIDataTabElement> tabs = new ArrayList<>();
-    private int rightInsetPx;
 
     public UIDataTabs(IUITabs host)
     {
@@ -35,23 +34,12 @@ public class UIDataTabs extends UIElement
         this.scroll.scroll.scrollSpeed = 20;
         this.scroll.column(TABS_GAP).scroll();
         this.scroll.scroll.noScrollbar();
-        this.updateScrollBounds();
+        this.scroll.relative(this).x(TABS_GAP).w(1F, -TABS_GAP * 2).h(TABS_HEIGHT_PX);
 
         this.add = new UIIcon(Icons.ADD, (b) -> host.addTab());
         this.add.wh(TABS_HEIGHT_PX, TABS_HEIGHT_PX);
 
         this.add(new UIRenderable(this::renderBackground), this.scroll);
-    }
-
-    public void setRightInsetPx(int rightInsetPx)
-    {
-        this.rightInsetPx = Math.max(0, rightInsetPx);
-        this.updateScrollBounds();
-    }
-
-    private void updateScrollBounds()
-    {
-        this.scroll.relative(this).x(TABS_GAP).w(1F, -TABS_GAP * 2 - this.rightInsetPx).h(TABS_HEIGHT_PX);
     }
 
     public void sync()

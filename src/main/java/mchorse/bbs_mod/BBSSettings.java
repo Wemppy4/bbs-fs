@@ -4,6 +4,8 @@ import java.util.HashSet;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
+import mchorse.bbs_mod.settings.values.core.ValueLinkList;
+import mchorse.bbs_mod.settings.values.core.ValueRecentData;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
@@ -11,6 +13,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.settings.values.ui.ValueEditorLayout;
 import mchorse.bbs_mod.settings.values.ui.ValueIKDebug;
+import mchorse.bbs_mod.settings.values.ui.ValueKeyframeStyle;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
@@ -21,9 +24,10 @@ import mchorse.bbs_mod.settings.values.ui.ValueTrackStyles;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.colors.Oklab;
 import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Interpolations;
-import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
+import mchorse.bbs_mod.utils.keyframes.KeyframeStyle;
 
 public class BBSSettings {
 
@@ -43,13 +47,17 @@ public class BBSSettings {
 	public static ValueBoolean enableTrackpadScrolling;
 	public static ValueFloat userIntefaceScale;
 	public static ValueBoolean pixelArtSmoothing;
-	public static ValueInt theme;
 	public static ValueFloat fov;
 	public static ValueBoolean hsvColorPicker;
 	public static ValueBoolean forceQwerty;
 	public static ValueBoolean freezeModels;
 	public static ValueBoolean listModelPreview;
 	public static ValueBoolean morphingFocusSearch;
+	public static ValueInt formCellSize;
+	public static ValueInt textureCellSize;
+	public static ValueString textureSort;
+	public static ValueLinkList texturePins;
+	public static ValueRecentData recentData;
 	public static ValueFloat axesScale;
 	public static ValueFloat axesThickness;
 	public static ValueBoolean axesKeepScreenSize;
@@ -155,7 +163,7 @@ public class BBSSettings {
 	public static ValueBoolean editorMinutesBackup;
 	public static ValueBoolean editorResizablePanels;
 	public static ValueInt editorTrackWidth;
-	public static ValueInt keyframeDefaultShape;
+	public static ValueKeyframeStyle keyframeDefaultStyle;
 	public static ValueString keyframeDefaultInterpolation;
 	public static ValueBoolean keyframePreview;
 	public static ValueInt editorPreviewSizeMode;
@@ -180,11 +188,11 @@ public class BBSSettings {
 
 	public static ValueBoolean damageControl;
 
-	public static ValueFloat backgroundBrightness;
+	public static ValueInt secondaryColor;
+	public static ValueFloat overlayBackgroundOpacity;
 	public static ValueBoolean interfaceShadows;
 	public static ValueBoolean interfaceHighlights;
-	public static ValueFloat overlayBackgroundOpacity;
-	public static ValueBoolean overlayGradientBorder;
+	public static ValueBoolean interfaceGlow;
 
 	public static ValueBoolean shaderCurvesEnabled;
 	public static ValueBoolean translucencyQueue;
@@ -201,44 +209,55 @@ public class BBSSettings {
 	public static ValueString cdnUrl;
 	public static ValueString cdnToken;
 
-	private static final int LIGHT_THEME = 0;
-	private static final int DARK_THEME = 1;
-	private static final int DEFAULT_THEME = DARK_THEME;
-	private static final float DEFAULT_BACKGROUND_BRIGHTNESS = 1F;
-	private static final float MIN_BACKGROUND_BRIGHTNESS = 0.5F;
-	private static final float MAX_BACKGROUND_BRIGHTNESS = 1.5F;
-	private static final float IDENTITY_BRIGHTNESS = 1F;
-	private static final float BRIGHTNESS_EPSILON = 0.001F;
 	private static final int DEFAULT_PRIMARY_COLOR = 0xff3242;
 	private static final float DEFAULT_OVERLAY_BACKGROUND_OPACITY = 0.5F;
+
 	/**
 	 * Tonal map of the interface's surfaces, four levels deep: deep sits under
 	 * the content (fields, timeline wells), chrome frames everything, base is
-	 * the working area, raised floats above it (panels, popups, buttons).
+	 * the working area, raised floats above it (panels, popups, buttons), and
+	 * the divider line sits a step above all of them.
 	 *
-	 * The levels are a neutral ladder — no tint at all, lightness stepping
-	 * evenly by 0.022 in OKLab (the perceptual scale, so the steps read as
-	 * equal rather than merely measure as equal). Both themes use the same
-	 * step, which makes them mirror images of each other.
+	 * All five fall out of a single colour — the secondary colour the user
+	 * picks — by stepping its lightness in Oklab and carrying its tint through
+	 * untouched. Oklab is what makes one colour enough: a step there reads as
+	 * the same step in depth whatever the tint, so the ladder stays as legible
+	 * in a blue interface as in a grey one, and picking a background is one
+	 * decision rather than a pile of them.
 	 *
-	 * Both where the dark ramp sits and how soft it is come off a screenshot
-	 * of Essential's interface. Their dominant grey (#181818, three quarters
-	 * of their window) and the greys they layer over it (#1d1d1d cards,
-	 * #222222 frame) are these very values, and the step matches the distance
-	 * they keep between a card and its background. A small step is the whole
-	 * point: depth should be felt rather than announced, and a dark interface
-	 * that stays dark is easier to sit in front of for hours.
+	 * How far apart the levels sit came off a screenshot of Essential's
+	 * interface, whose dominant grey and the greys layered over it stand one
+	 * step apart — {@link #DEFAULT_SECONDARY_COLOR} reproduces that ramp
+	 * exactly (#131313, #181818, #1d1d1d, #222222, divider #2a2a2a). The step
+	 * is deliberately small: depth should be felt rather than announced, and a
+	 * dark interface that stays dark is easier to sit in front of for hours.
 	 */
-	private static final int LIGHT_DEEP_SURFACE = 0xffe4e4e4;
-	private static final int DARK_DEEP_SURFACE = 0xff131313;
-	private static final int LIGHT_CHROME_SURFACE = 0xffebebeb;
-	private static final int DARK_CHROME_SURFACE = 0xff181818;
-	private static final int LIGHT_BASE_SURFACE = 0xfff3f3f3;
-	private static final int DARK_BASE_SURFACE = 0xff1d1d1d;
-	private static final int LIGHT_RAISED_SURFACE = 0xfffafafa;
-	private static final int DARK_RAISED_SURFACE = 0xff222222;
-	private static final int LIGHT_DIVIDER_COLOR = 0xffd9d9d9;
-	private static final int DARK_DIVIDER_COLOR = 0xff2a2a2a;
+	private static final int DEFAULT_SECONDARY_COLOR = 0x1d1d1d;
+	private static final float SURFACE_STEP = 0.022F;
+	private static final float DIVIDER_STEP = 0.054F;
+
+	private static final int SURFACE_DEEP = 0;
+	private static final int SURFACE_CHROME = 1;
+	private static final int SURFACE_BASE = 2;
+	private static final int SURFACE_RAISED = 3;
+	private static final int SURFACE_DIVIDER = 4;
+
+	private static final float[] SURFACE_OFFSETS = {-SURFACE_STEP * 2F, -SURFACE_STEP, 0F, SURFACE_STEP, DIVIDER_STEP};
+
+	/**
+	 * The lightness past which the surfaces are bright enough that white icons
+	 * and text would vanish into them. It is read off the secondary colour
+	 * rather than chosen: pick a light one and the interface turns light by
+	 * itself, which is why there is no theme switch any more.
+	 */
+	private static final float LIGHT_SURFACE_LIGHTNESS = 0.5F;
+
+	private static final Oklab SURFACE_OKLAB = new Oklab();
+	private static final int[] SURFACES = new int[SURFACE_OFFSETS.length];
+
+	/** The colour {@link #SURFACES} was derived from; -1 is no colour, so the first read builds. */
+	private static int surfaceSource = -1;
+	private static boolean lightSurfaces;
 
 	public static int primaryColor()
 	{
@@ -250,90 +269,77 @@ public class BBSSettings {
 		return withAlpha(primaryColor.get(), alpha);
 	}
 
-	public static boolean isLightTheme()
-	{
-		return theme != null && theme.get() == LIGHT_THEME;
-	}
-
 	private static int withAlpha(int color, int alpha)
 	{
 		return (color & Colors.RGB) | alpha;
 	}
 
-	private static int getThemeColor(int lightColor, int darkColor)
+	/**
+	 * Rebuild the ladder, but only when the secondary colour actually moved —
+	 * surfaces are asked for many times a frame, and the conversion is a
+	 * handful of cube roots.
+	 */
+	private static void buildSurfaces()
 	{
-		return isLightTheme() ? lightColor : darkColor;
-	}
+		int color = secondaryColor == null ? DEFAULT_SECONDARY_COLOR : secondaryColor.get() & Colors.RGB;
 
-	private static float getBackgroundBrightnessFactor()
-	{
-		return backgroundBrightness == null ? DEFAULT_BACKGROUND_BRIGHTNESS : backgroundBrightness.get();
-	}
-
-	private static int applyBackgroundBrightness(int color)
-	{
-		float brightness = MathUtils.clamp(getBackgroundBrightnessFactor(), MIN_BACKGROUND_BRIGHTNESS, MAX_BACKGROUND_BRIGHTNESS);
-
-		if (Math.abs(brightness - IDENTITY_BRIGHTNESS) < BRIGHTNESS_EPSILON)
+		if (color == surfaceSource)
 		{
-			return color;
+			return;
 		}
 
-		int a = color & 0xff000000;
-		int r = (color >> 16) & 0xff;
-		int g = (color >> 8) & 0xff;
-		int b = color & 0xff;
+		SURFACE_OKLAB.set(color);
 
-		if (brightness < 1F)
+		for (int i = 0; i < SURFACES.length; i++)
 		{
-			r = Math.round(r * brightness);
-			g = Math.round(g * brightness);
-			b = Math.round(b * brightness);
-		}
-		else
-		{
-			float factor = brightness - 1F;
-
-			r += Math.round((255 - r) * factor);
-			g += Math.round((255 - g) * factor);
-			b += Math.round((255 - b) * factor);
+			SURFACES[i] = SURFACE_OKLAB.toRGB(SURFACE_OKLAB.l + SURFACE_OFFSETS[i]);
 		}
 
-		r = MathUtils.clamp(r, 0, 255);
-		g = MathUtils.clamp(g, 0, 255);
-		b = MathUtils.clamp(b, 0, 255);
-
-		return a | (r << 16) | (g << 8) | b;
+		lightSurfaces = SURFACE_OKLAB.l > LIGHT_SURFACE_LIGHTNESS;
+		surfaceSource = color;
 	}
 
-	private static int getThemeSurface(int lightColor, int darkColor)
+	private static int surface(int level)
 	{
-		return applyBackgroundBrightness(getThemeColor(lightColor, darkColor));
+		buildSurfaces();
+
+		return SURFACES[level];
+	}
+
+	/**
+	 * Whether the interface currently sits on light surfaces, in which case
+	 * white icons and text have to be flipped to dark to stay readable.
+	 */
+	public static boolean lightSurfaces()
+	{
+		buildSurfaces();
+
+		return lightSurfaces;
 	}
 
 	public static int chromeSurface()
 	{
-		return getThemeSurface(LIGHT_CHROME_SURFACE, DARK_CHROME_SURFACE);
+		return surface(SURFACE_CHROME);
 	}
 
 	public static int baseSurface()
 	{
-		return getThemeSurface(LIGHT_BASE_SURFACE, DARK_BASE_SURFACE);
+		return surface(SURFACE_BASE);
 	}
 
 	public static int raisedSurface()
 	{
-		return getThemeSurface(LIGHT_RAISED_SURFACE, DARK_RAISED_SURFACE);
+		return surface(SURFACE_RAISED);
 	}
 
 	public static int deepSurface()
 	{
-		return getThemeSurface(LIGHT_DEEP_SURFACE, DARK_DEEP_SURFACE);
+		return surface(SURFACE_DEEP);
 	}
 
 	public static int dividerColor()
 	{
-		return getThemeColor(LIGHT_DIVIDER_COLOR, DARK_DIVIDER_COLOR);
+		return surface(SURFACE_DIVIDER);
 	}
 
 	public static int color(int color, int alpha)
@@ -377,9 +383,15 @@ public class BBSSettings {
 		return Colors.a(MathUtils.clamp(opacity, 0F, 1F));
 	}
 
-	public static boolean hasOverlayGradientBorder()
+	/**
+	 * Whether the interface draws its soft glows at all. Every one of them goes
+	 * through {@code Batcher2D.dropShadow}, so this is read there rather than
+	 * at each caller — the toggle covers panels, context menus, tooltips,
+	 * notifications and anything added later without them knowing about it.
+	 */
+	public static boolean hasInterfaceGlow()
 	{
-		return overlayGradientBorder == null || overlayGradientBorder.get();
+		return interfaceGlow == null || interfaceGlow.get();
 	}
 
 	public static int getDefaultDuration()
@@ -417,21 +429,13 @@ public class BBSSettings {
 	}
 
 	/**
-	 * Returns the user-configured default shape for newly created keyframes. Falls back to
-	 * {@link KeyframeShape#SQUARE} before settings are registered or if the stored ordinal
-	 * is out of range (e.g. after the enum shrinks in a future version).
+	 * A fresh copy of the style newly created keyframes are drawn with. It is a copy because the
+	 * keyframe owns what it gets: editing one keyframe's style must not reach back into the setting
+	 * every other keyframe was born from.
 	 */
-	public static KeyframeShape getDefaultKeyframeShape()
+	public static KeyframeStyle getDefaultKeyframeStyle()
 	{
-		if (keyframeDefaultShape == null)
-		{
-			return KeyframeShape.SQUARE;
-		}
-
-		int index = keyframeDefaultShape.get();
-		KeyframeShape[] values = KeyframeShape.values();
-
-		return index >= 0 && index < values.length ? values[index] : KeyframeShape.SQUARE;
+		return keyframeDefaultStyle == null ? new KeyframeStyle() : keyframeDefaultStyle.get().copy();
 	}
 
 	/**
@@ -467,7 +471,6 @@ public class BBSSettings {
 
 		/* Colors and timeline looks moved out of the general appearance category */
 		migrated |= migrateLegacyCategory(root, "appearance", "personalization", "primary_color", "track_width", "keyframe_default_shape");
-		migrated |= migrateLegacyValue(root, "appearance", "tooltip_style", "personalization", "theme");
 
 		/* The camera editor category got split into the parts it was made of */
 		migrated |= migrateLegacyCategory(root, "editor", "camera",
@@ -486,6 +489,9 @@ public class BBSSettings {
 		/* Debug overlays briefly had a category of their own, which had nothing to
 		 * show since they are edited from the IK and physics panels */
 		migrated |= migrateLegacyCategory(root, "debug", "viewport", "ik_debug", "physics_debug");
+
+		/* The panel glow became a glow toggle for the whole interface */
+		migrated |= migrateLegacyValue(root, "personalization", "overlay_gradient_border", "personalization", "interface_glow");
 
 		/* Timeline looks and clip naming joined the categories they belong to */
 		migrated |= migrateLegacyCategory(root, "personalization", "timeline", "track_width", "keyframe_default_shape");
@@ -571,6 +577,19 @@ public class BBSSettings {
 		freezeModels = builder.getBoolean("freeze_models", false);
 		listModelPreview = builder.getBoolean("list_model_preview", true);
 		morphingFocusSearch = builder.getBoolean("morphing_focus_search", false);
+		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
+		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
+		textureSort = builder.getString("texture_sort", "name");
+		texturePins = new ValueLinkList("texture_pins");
+		texturePins.invisible();
+		builder.register(texturePins);
+		recentData = new ValueRecentData("recent_data");
+		recentData.invisible();
+		builder.register(recentData);
+		/* Kept by the browsers themselves (Ctrl+wheel, the sort menu); nothing to tune in the settings screen */
+		formCellSize.invisible();
+		textureCellSize.invisible();
+		textureSort.invisible();
 		uniformScale = builder.getBoolean("uniform_scale", false);
 		clickSound = builder.getBoolean("click_sound", false);
 		favoriteColors = new ValueColors("favorite_colors");
@@ -586,14 +605,13 @@ public class BBSSettings {
 		builder.register(disabledMorphFormCategories);
 
 		builder.category("personalization", Icons.COLOR);
-		backgroundBrightness = builder.getFloat("background_brightness", DEFAULT_BACKGROUND_BRIGHTNESS, MIN_BACKGROUND_BRIGHTNESS, MAX_BACKGROUND_BRIGHTNESS).slider();
+		primaryColor = builder.getInt("primary_color", DEFAULT_PRIMARY_COLOR).color();
+		secondaryColor = builder.getInt("secondary_color", DEFAULT_SECONDARY_COLOR).color();
+		stencilHighlightColor = builder.getInt("stencil_highlight_color", 0x2EFFFFFF).colorAlpha();
+		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
 		interfaceShadows = builder.getBoolean("interface_shadows", true);
 		interfaceHighlights = builder.getBoolean("interface_highlights", false);
-		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
-		overlayGradientBorder = builder.getBoolean("overlay_gradient_border", true);
-		primaryColor = builder.getInt("primary_color", DEFAULT_PRIMARY_COLOR).color();
-		stencilHighlightColor = builder.getInt("stencil_highlight_color", 0x2EFFFFFF).colorAlpha();
-		theme = builder.getInt("theme", DEFAULT_THEME);
+		interfaceGlow = builder.getBoolean("interface_glow", false);
 
 		builder.category("scrollbars", Icons.VERTICAL);
 		scrollbarWidth = builder.getInt("width", 4, 2, 10).slider();
@@ -692,7 +710,7 @@ public class BBSSettings {
 		editorSeconds = builder.getBoolean("seconds", false);
 		editorTimelineGrid = builder.getBoolean("timeline_grid", false);
 		keyframeDefaultInterpolation = builder.getString("keyframe_default_interpolation", Interpolations.LINEAR.getKey());
-		keyframeDefaultShape = builder.getInt("keyframe_default_shape", 0, 0, KeyframeShape.values().length - 1);
+		builder.register(keyframeDefaultStyle = new ValueKeyframeStyle("keyframe_default_style"));
 		keyframePreview = builder.getBoolean("keyframe_preview", true);
 		editorTrackWidth = builder.getInt("track_width", 2, 1, 10).slider();
 		editorSnapToMarkers = builder.getBoolean("snap_to_markers", false);

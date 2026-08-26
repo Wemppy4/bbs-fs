@@ -123,8 +123,6 @@ public class UIElement implements IUIElement, IUndoElement
     /**
      * Custom data that can be stored within this UI element
      */
-    private Map<String, Object> customData;
-
     public EventManager getEvents()
     {
         return this.events;
@@ -163,6 +161,28 @@ public class UIElement implements IUIElement, IUndoElement
         while (element != null)
         {
             if (element.getClass() == clazz)
+            {
+                return (T) element;
+            }
+
+            element = element.getParent();
+        }
+
+        return null;
+    }
+
+    /**
+     * The nearest ancestor of the given type. Unlike {@link #getParent(Class)}, which matches the
+     * exact class, this accepts subclasses and interfaces — so an element can ask for a role
+     * ("whoever owns the bone selection") instead of naming a widget class.
+     */
+    public <T> T getAncestor(Class<T> clazz)
+    {
+        UIElement element = this.getParent();
+
+        while (element != null)
+        {
+            if (clazz.isInstance(element))
             {
                 return (T) element;
             }
@@ -427,21 +447,6 @@ public class UIElement implements IUIElement, IUndoElement
     }
 
     /* Custom data */
-
-    public Object getCustomValue(String key)
-    {
-        return this.customData == null ? null : this.customData.get(key);
-    }
-
-    public void setCustomValue(String key, Object value)
-    {
-        if (this.customData == null)
-        {
-            this.customData = new HashMap<>();
-        }
-
-        this.customData.put(key, value);
-    }
 
     /* Setters */
 

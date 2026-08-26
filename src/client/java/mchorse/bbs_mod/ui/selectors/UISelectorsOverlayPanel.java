@@ -18,7 +18,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.util.Identifier;
@@ -108,26 +108,23 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
 
         this.selectors.context((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.SELECTORS_CONTEXT_ADD, () ->
+            menu.icon(MenuVerb.ADD, () ->
             {
                 EntitySelector element = new EntitySelector();
 
                 this.selectors.add(element);
                 this.setSelector(element, true);
                 BBSModClient.getSelectors().update();
-            });
+            }).label(UIKeys.SELECTORS_CONTEXT_ADD);
 
-            if (this.current != null)
+            menu.icon(MenuVerb.REMOVE, () ->
             {
-                menu.action(Icons.REMOVE, UIKeys.SELECTORS_CONTEXT_REMOVE, () ->
-                {
-                    List<EntitySelector> list = this.selectors.getList();
+                List<EntitySelector> list = this.selectors.getList();
 
-                    list.remove(this.current);
-                    this.setSelector(list.isEmpty() ? null : list.get(0), true);
-                    BBSModClient.getSelectors().update();
-                });
-            }
+                list.remove(this.current);
+                this.setSelector(list.isEmpty() ? null : list.get(0), true);
+                BBSModClient.getSelectors().update();
+            }).label(UIKeys.SELECTORS_CONTEXT_REMOVE).enabled(this.current != null);
         });
 
         this.column = UI.column(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,

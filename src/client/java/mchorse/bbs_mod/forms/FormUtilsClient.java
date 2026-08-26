@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms;
 
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import mchorse.bbs_mod.forms.forms.AnchorForm;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
@@ -37,16 +38,29 @@ import net.minecraft.client.render.TexturedRenderLayers;
 import net.minecraft.client.render.chunk.BlockBufferBuilderStorage;
 import net.minecraft.client.render.model.ModelLoader;
 import net.minecraft.util.Util;
+import org.slf4j.Logger;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.Stack;
 
 public class FormUtilsClient
 {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    /**
+     * Render failures already reported, keyed by form class, exception class and throw
+     * site. Rendering runs every frame, so an unguarded log buries the game in one
+     * repeating stack trace — which is why this used to be a silent catch, and why
+     * thousands of lines of IK, physics and material code could fail invisibly.
+     */
+    private static final Set<String> reportedRenderFailures = new HashSet<>();
+
     private static Map<Class, IFormRendererFactory> map = new HashMap<>();
     private static CustomVertexConsumerProvider customVertexConsumerProvider;
     private static Stack<Form> currentForm = new Stack<>();
@@ -158,6 +172,17 @@ public class FormUtilsClient
         }
     }
 
+    /** The form's picture alone; see {@link FormRenderer#renderPreview}. */
+    public static void renderPreview(Form form, UIContext context, int x1, int y1, int x2, int y2)
+    {
+        FormRenderer renderer = getRenderer(form);
+
+        if (renderer != null)
+        {
+            renderer.renderPreview(context, x1, y1, x2, y2);
+        }
+    }
+
     public static void render(Form form, FormRenderingContext context)
     {
         FormRenderer renderer = getRenderer(form);
@@ -171,9 +196,27 @@ public class FormUtilsClient
                 renderer.render(context);
             }
             catch (Exception e)
-            {}
+            {
+                reportRenderFailure(form, e);
+            }
 
             currentForm.pop();
+        }
+    }
+
+    /**
+     * Reports the first occurrence of each distinct render failure and drops the repeats.
+     * The frame is still let through: a form that throws must not take the rest of the
+     * scene with it, which is what the swallow was for.
+     */
+    private static void reportRenderFailure(Form form, Exception e)
+    {
+        StackTraceElement[] trace = e.getStackTrace();
+        String key = form.getClass().getName() + "|" + e.getClass().getName() + "|" + (trace.length == 0 ? "" : trace[0].toString());
+
+        if (reportedRenderFailures.add(key))
+        {
+            LOGGER.error("[BBS form] {} failed to render - further repeats of this failure are silenced.", form.getClass().getSimpleName(), e);
         }
     }
 

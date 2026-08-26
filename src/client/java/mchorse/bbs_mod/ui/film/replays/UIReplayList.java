@@ -6,7 +6,6 @@ import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.clips.CameraClipContext;
-import mchorse.bbs_mod.camera.clips.modifiers.EntityClip;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -21,7 +20,6 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.AnchorForm;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.math.IExpression;
@@ -34,7 +32,6 @@ import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
-import mchorse.bbs_mod.ui.film.replays.overlays.UIReplaysOverlayPanel;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -58,10 +55,10 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -142,7 +139,8 @@ public class UIReplayList extends UIList<ReplayListEntry>
             .supplier(() -> this.hasReplaySelection() ? this.replaysToData() : null)
             .consumer((data, mouseX, mouseY) -> this.pasteReplay(data))
             .canCopy(this::hasReplaySelection)
-            .canPaste(() -> this.panel != null && this.panel.getData() != null);
+            .canPaste(() -> this.panel != null && this.panel.getData() != null)
+            .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE);
 
         this.multi().sorting();
         this.context((menu) ->
@@ -150,10 +148,10 @@ public class UIReplayList extends UIList<ReplayListEntry>
             Film film = this.panel.getData();
             UIContext context = this.getContext();
 
-            menu.custom(new UIPresetContextMenu(this.presetController, context.mouseX, context.mouseY)
-                .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE));
+            this.presetController.install(menu, context, context.mouseX, context.mouseY);
 
-            menu.action(Icons.ADD, UIKeys.SCENE_REPLAYS_CONTEXT_ADD, this::addReplay);
+            menu.icon(MenuVerb.ADD, this::addReplay).label(UIKeys.SCENE_REPLAYS_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removeReplay).label(UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE).enabled(this.hasReplaySelection());
 
             if (film != null)
             {
@@ -224,7 +222,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
                         UIOverlay.addOverlay(this.getContext(), numberPanel);
                     }
                 });
-                menu.action(Icons.REMOVE, UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE, this::removeReplay);
             }
         });
 
@@ -494,47 +491,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
 
         return out;
-    }
-
-    /**
-     * Replay index in currently visible replay rows (folder rows ignored).
-     */
-    private int getVisibleReplayIndex(Replay replay)
-    {
-        int index = 0;
-
-        for (ReplayListEntry e : this.list)
-        {
-            if (!e.isReplay())
-            {
-                continue;
-            }
-
-            if (e.replay == replay)
-            {
-                return index;
-            }
-
-            index += 1;
-        }
-
-        return -1;
-    }
-
-    /**
-     * Global index of the first selected replay in {@link Film#replays}, or {@code -1}.
-     */
-    public int getGlobalReplayIndex()
-    {
-        Replay r = this.getSelectedReplayFirst();
-        Film film = this.panel.getData();
-
-        if (r == null || film == null)
-        {
-            return -1;
-        }
-
-        return film.replays.getList().indexOf(r);
     }
 
     public void refreshReplayList()
@@ -902,30 +858,10 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         data.preNotify(IValueListener.FLAG_UNMERGEABLE);
 
+        /* Reordering is just reordering now: anchors and camera selectors hold the replay's
+         * stable id, so the hand-written index remapping that used to chase them is gone. */
         replays.remove(value);
         replays.add(globalTo, value);
-        replays.sync();
-
-        for (Replay replay : replays.getList())
-        {
-            if (replay.properties.get("anchor") instanceof KeyframeChannel<?> channel && channel.getFactory() == KeyframeFactories.ANCHOR)
-            {
-                KeyframeChannel<Anchor> keyframeChannel = (KeyframeChannel<Anchor>) channel;
-
-                for (Keyframe<Anchor> keyframe : keyframeChannel.getKeyframes())
-                {
-                    keyframe.getValue().replay = MathUtils.remapIndex(keyframe.getValue().replay, globalFrom, globalTo);
-                }
-            }
-        }
-
-        for (Clip clip : data.camera.get())
-        {
-            if (clip instanceof EntityClip entityClip)
-            {
-                entityClip.selector.set(MathUtils.remapIndex(entityClip.selector.get(), globalFrom, globalTo));
-            }
-        }
 
         data.postNotify(IValueListener.FLAG_UNMERGEABLE);
 
@@ -947,8 +883,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
     private void pasteToReplays(MapType data)
     {
-        UIReplaysEditor replayEditor = this.panel.replayEditor;
-        List<Replay> selectedReplays = replayEditor.replaysList.replays.getSelectedReplays();
+        List<Replay> selectedReplays = this.getSelectedReplays();
 
         if (data == null)
         {
@@ -979,6 +914,13 @@ public class UIReplayList extends UIList<ReplayListEntry>
                     if (channel == null || channel.getFactory() != pastedKeyframes.factory)
                     {
                         channel = replay.properties.getOrCreate(replay.form.get(), id);
+                    }
+
+                    /* A track this replay's form has no room for — pasting player keyframes onto a
+                     * replay whose form lost that body part, say. */
+                    if (channel == null)
+                    {
+                        continue;
                     }
 
                     float min = Integer.MAX_VALUE;
@@ -1286,34 +1228,38 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         private List<ReplayBatchProcessor.VisibleReplay> collectVisibleReplays()
         {
+            /* The stagger is ordered by the film's own replay list, not by visible rows: a
+             * selected replay whose folder is collapsed has no row, and indexing by rows used
+             * to silently drop it from the batch (and shift everyone else's offset). */
             List<Replay> selected = UIReplayList.this.getSelectedReplaysInViewOrder();
-            List<Replay> visible = new ArrayList<>();
+            List<Replay> all = UIReplayList.this.panel.getData().replays.getList();
             int min = Integer.MAX_VALUE;
 
             for (Replay replay : selected)
             {
-                int visibleI = UIReplayList.this.getVisibleReplayIndex(replay);
+                int index = all.indexOf(replay);
 
-                if (visibleI < 0)
+                if (index >= 0)
                 {
-                    continue;
+                    min = Math.min(min, index);
                 }
-
-                min = Math.min(min, visibleI);
-                visible.add(replay);
             }
 
-            if (min == Integer.MAX_VALUE || visible.isEmpty())
+            if (min == Integer.MAX_VALUE)
             {
                 return new ArrayList<>();
             }
 
             List<ReplayBatchProcessor.VisibleReplay> out = new ArrayList<>();
 
-            for (Replay replay : visible)
+            for (Replay replay : selected)
             {
-                int visibleI = UIReplayList.this.getVisibleReplayIndex(replay);
-                out.add(new ReplayBatchProcessor.VisibleReplay(replay, visibleI, visibleI - min));
+                int index = all.indexOf(replay);
+
+                if (index >= 0)
+                {
+                    out.add(new ReplayBatchProcessor.VisibleReplay(replay, index, index - min));
+                }
             }
 
             return out;
@@ -1806,16 +1752,18 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 Film film = this.panel.getData();
                 List<Replay> selected = this.getSelectedReplaysInViewOrder();
 
+                /* i/o are ordered by the film's own replay list, not by visible rows — a selected
+                 * replay in a collapsed folder has no row and used to silently drop out. */
+                List<Replay> all = film.replays.getList();
+
                 for (Replay replay : selected)
                 {
-                    int visibleI = this.getVisibleReplayIndex(replay);
+                    int index = all.indexOf(replay);
 
-                    if (visibleI < 0)
+                    if (index >= 0)
                     {
-                        continue;
+                        min = Math.min(min, index);
                     }
-
-                    min = Math.min(min, visibleI);
                 }
 
                 if (min == Integer.MAX_VALUE)
@@ -1825,15 +1773,15 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
                 for (Replay replay : selected)
                 {
-                    int visibleI = this.getVisibleReplayIndex(replay);
+                    int index = all.indexOf(replay);
 
-                    if (visibleI < 0)
+                    if (index < 0)
                     {
                         continue;
                     }
 
-                    builder.variables.get("i").set(visibleI);
-                    builder.variables.get("o").set(visibleI - min);
+                    builder.variables.get("i").set(index);
+                    builder.variables.get("o").set(index - min);
 
                     float tickv = parse == null ? 0F : (float) parse.doubleValue();
 

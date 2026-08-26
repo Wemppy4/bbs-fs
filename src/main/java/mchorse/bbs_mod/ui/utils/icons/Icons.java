@@ -23,6 +23,9 @@ public class Icons
     public static final Icon FILTER = register(new Icon(ATLAS, "filter", 128, 0));
     public static final Icon MOVE_UP = register(new Icon(ATLAS, "move_up", 144, 0, 16, 8));
     public static final Icon MOVE_DOWN = register(new Icon(ATLAS, "move_down", 144, 8, 16, 8));
+    /* The drawn cells: arrows meeting in the middle sit at x=32, arrows pushing apart at x=16. */
+    public static final Icon COLLAPSE_ALL = register(new Icon(ATLAS, "collapse_all", 32, 176));
+    public static final Icon EXPAND_ALL = register(new Icon(ATLAS, "expand_all", 16, 176));
     public static final Icon LOCKED = register(new Icon(ATLAS, "locked", 160, 0));
     public static final Icon UNLOCKED = register(new Icon(ATLAS, "unlocked", 176, 0));
     public static final Icon LAYOUT = register(new Icon(ATLAS, "layout", 240, 144));
@@ -197,6 +200,7 @@ public class Icons
     public static final Icon PHYSICS = register(new Icon(ATLAS, "physics", 240, 160));
 
     public static final Icon HOTBAR = register(new Icon(ATLAS, "hotbar", 0, 176));
+    public static final Icon DISCORD = register(new Icon(ATLAS, "discord", 48, 176));
 
     public static final Icon INTERP_LINEAR = register(new Icon(ATLAS, "interp_linear", 0, 192));
     public static final Icon INTERP_CONST = register(new Icon(ATLAS, "interp_const", 16, 192));

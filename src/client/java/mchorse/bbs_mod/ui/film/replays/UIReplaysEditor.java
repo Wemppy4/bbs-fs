@@ -15,8 +15,11 @@ import mchorse.bbs_mod.cubic.physics.ModelPhysicsIO;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
-import mchorse.bbs_mod.film.replays.FormControlKeys;
-import mchorse.bbs_mod.film.replays.PerLimbService;
+import mchorse.bbs_mod.film.replays.tracks.TrackCatalog;
+import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackStyle;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
@@ -33,7 +36,6 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.overlays.UIAnimationToPoseOverlayPanel;
@@ -48,9 +50,12 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
@@ -63,6 +68,7 @@ import mchorse.bbs_mod.utils.RayTracing;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
@@ -85,25 +91,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class UIReplaysEditor extends UIElement
+public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 {
-    private static final Map<String, Integer> COLORS = new HashMap<>();
-    private static final Map<String, Icon> ICONS = new HashMap<>();
+    private final BoneSelection boneSelection = new BoneSelection();
 
-    /**
-     * The model track swaps out the whole thing being animated, so it doesn't belong to any of the
-     * families below - it gets a violet of its own, clear of the axes, the items and the armour.
-     */
-    private static final int MODEL_TRACK = 0x9d6cff;
-
-    /* Item channel families - see setupItemColors() */
-    private static final int HOTBAR_FIRST = Colors.ORANGE;
-    private static final int HOTBAR_LAST = 0xe0245e;
-    private static final int OFF_HAND = 0xff3a74;
-    private static final int ARMOR_HEAD = 0x8fd0ff;
-    private static final int ARMOR_CHEST = 0x6fb4f0;
-    private static final int ARMOR_LEGS = 0x5698db;
-    private static final int ARMOR_FEET = 0x407cc0;
     private static String lastFilm = "";
     private static int lastReplay;
 
@@ -114,7 +105,7 @@ public class UIReplaysEditor extends UIElement
 
     public UIElement iconBar;
     public Map<ReplayCategory, UIIcon> tabButtons = new HashMap<>();
-    private ReplayCategory category = ReplayCategory.PLAYER;
+    private ReplayCategory category = ReplayCategory.REPLAY;
 
     /* Keyframes */
     public UIKeyframeEditor keyframeEditor;
@@ -125,6 +116,8 @@ public class UIReplaysEditor extends UIElement
     private boolean actionsMode;
     /* «All tracks» view: shows every category's tracks at once, bypassing the category filter. */
     private UIIcon allToggle;
+    private UIIcon collapseAll;
+    private UIIcon expandAll;
     private boolean allMode;
 
     /* Clips */
@@ -137,19 +130,16 @@ public class UIReplaysEditor extends UIElement
     private boolean propertiesVisible = true;
     private Set<String> keys = new LinkedHashSet<>();
     /**
-     * Which pose tracks the user left unfolded, per replay. Every rebuild of the timeline throws the
-     * dope sheet away - switching category, toggling "all tracks", changing the track filter - so the
-     * unfolded state is taken off the old sheet before it goes (see {@link #savePoseTabState()}) and
-     * handed to the one built in its place.
+     * Which rows the user left unfolded, per replay. Every rebuild of the timeline throws the dope
+     * sheet away — switching category, toggling "all tracks", changing the track filter — so this set
+     * is handed to each new sheet, which folds in it directly rather than keeping a copy.
      */
-    private final Map<String, Set<String>> expandedPoseTabsByReplay = new HashMap<>();
-    /** The replay the standing keyframe editor was built for - whose state {@link #savePoseTabState()} saves. */
-    private String keyframeEditorReplayId;
+    private final Map<String, Set<String>> expandedTracksByReplay = new HashMap<>();
 
     public enum ReplayCategory
     {
-        PLAYER(Icons.PLAYER, L10n.lang("bbs.ui.film.replays.category.player"), L10n.lang("bbs.ui.film.replays.category.player.tooltip")),
-        MODEL(Icons.BLOCK, L10n.lang("bbs.ui.film.replays.category.model"), L10n.lang("bbs.ui.film.replays.category.model.tooltip")),
+        REPLAY(Icons.PLAYER, L10n.lang("bbs.ui.film.replays.category.replay"), L10n.lang("bbs.ui.film.replays.category.replay.tooltip")),
+        FORM(Icons.BLOCK, L10n.lang("bbs.ui.film.replays.category.form"), L10n.lang("bbs.ui.film.replays.category.form.tooltip")),
         POSE(Icons.POSE, L10n.lang("bbs.ui.film.replays.category.pose"), L10n.lang("bbs.ui.film.replays.category.pose.tooltip")),
         IK(Icons.IK, L10n.lang("bbs.ui.film.replays.category.ik"), L10n.lang("bbs.ui.film.replays.category.ik.tooltip")),
         PHYSICS(Icons.PHYSICS, L10n.lang("bbs.ui.film.replays.category.physics"), L10n.lang("bbs.ui.film.replays.category.physics.tooltip"));
@@ -166,188 +156,15 @@ public class UIReplaysEditor extends UIElement
         }
     }
 
-    static
-    {
-        setupColors();
-        setupIcons();
-    }
-
-    private static void setupColors()
-    {
-        putColors(Colors.RED, "x", "vX", "stick_lx", "stick_rx", "extra1_x", "extra2_x", "user1", "user5", "frequency", "offset_x");
-        putColors(Colors.GREEN, "y", "vY", "stick_ly", "stick_ry", "trigger_l", "trigger_r", "extra1_y", "extra2_y", "user3", "count", "offset_y", "transform");
-        putColors(Colors.BLUE, "z", "vZ", "user4", "offset_z");
-        putColors(Colors.YELLOW, "yaw", "lighting");
-        putColors(Colors.CYAN, "pitch");
-        putColors(Colors.MAGENTA, "bodyYaw", "actions", "settings");
-        putColors(Colors.ORANGE, "pose_overlay", "user2", "user6");
-
-        setupItemColors();
-
-        COLORS.put("visible", Colors.WHITE & Colors.RGB);
-        COLORS.put("pose", Colors.RED);
-        COLORS.put("physics_targets", Colors.MAGENTA);
-        COLORS.put("transform_overlay", 0xaaff00);
-        COLORS.put("color", Colors.INACTIVE);
-        COLORS.put("shape_keys", Colors.PINK);
-        COLORS.put("model", MODEL_TRACK);
-    }
-
-    /**
-     * Fourteen item rows sat in one shade of orange, which read as one long stripe. They are
-     * two things, so they get two families: the hands warm, the armour cool as metal.
-     *
-     * The hotbar drifts from orange to raspberry down its nine rows, and the off hand - which
-     * comes right after them - carries on where they end, a shade brighter. So the warm run
-     * reads as one thing with an order, while a glance still tells row from row. The armour
-     * cools downwards the same way, lightest at the helmet.
-     */
-    private static void setupItemColors()
-    {
-        int last = ReplayKeyframes.HOTBAR_SIZE - 1;
-
-        for (int i = 0; i <= last; i++)
-        {
-            COLORS.put(ReplayKeyframes.hotbarChannelId(i), Colors.lerp(HOTBAR_FIRST, HOTBAR_LAST, i / (float) last) & Colors.RGB);
-        }
-
-        /* Sits right below the hotbar in the list, so it picks the run up where it ends */
-        COLORS.put("item_off_hand", OFF_HAND);
-
-        COLORS.put("item_head", ARMOR_HEAD);
-        COLORS.put("item_chest", ARMOR_CHEST);
-        COLORS.put("item_legs", ARMOR_LEGS);
-        COLORS.put("item_feet", ARMOR_FEET);
-
-        /* Not an item but the pointer at one, so it stays out of both families. Without this it
-         * falls through to the default blue, which is now the armour's tone. */
-        COLORS.put("selected_slot", Colors.WHITE & Colors.RGB);
-    }
-
-    private static void putColors(int color, String... keys)
-    {
-        for (String key : keys) COLORS.put(key, color);
-    }
-
-    private static void putIcons(Icon icon, String... keys)
-    {
-        for (String key : keys) ICONS.put(key, icon);
-    }
-
-    /**
-     * Every track carries an icon: an empty slot in the icon column reads as "this row is a lesser
-     * kind of thing" when it only ever meant "nobody got around to it". Rows that belong together
-     * wear the same icon on purpose - the nine hotbar slots, the six particle user values, the label's
-     * shadow - so the column groups the timeline at a glance instead of naming each row twice.
-     */
-    private static void setupIcons()
-    {
-        /* Axes. Anything that is one component of a vector wears its axis' letter. */
-        putIcons(Icons.X, "x", "vX", "offsetX", "offset_x", "anchorX");
-        putIcons(Icons.Y, "y", "vY", "offsetY", "offset_y", "anchorY");
-        putIcons(Icons.Z, "z", "vZ", "offset_z");
-
-        /* Rotations, by the plane they turn in */
-        /* Two pairs, each pair alike: the actor's own yaw and pitch, then the head's and the body's. */
-        putIcons(Icons.VERTICAL, "yaw", "pitch", "scattering_pitch");
-        putIcons(Icons.HORIZONTAL, "headYaw", "bodyYaw", "scattering_yaw", "max");
-        ICONS.put("rotation", Icons.ORBIT);
-
-        /* Movement and state of the actor */
-        ICONS.put("sneaking", Icons.ARROW_DOWN);
-        ICONS.put("grounded", Icons.SLAB);
-        ICONS.put("damage", Icons.SKULL);
-        putIcons(Icons.ARROW_RIGHT, "sprinting", "velocity");
-
-        /* The form itself */
-        ICONS.put("visible", Icons.VISIBLE);
-        ICONS.put("texture", Icons.MATERIAL);
-        ICONS.put("model", Icons.POSE);
-        ICONS.put("color", Icons.BUCKET);
-        ICONS.put("lighting", Icons.LIGHT);
-        ICONS.put("actions", Icons.CONVERT);
-        ICONS.put("shape_keys", Icons.HEART_ALT);
-        ICONS.put("anchor", Icons.LINK);
-        ICONS.put("billboard", Icons.CAMERA);
-        ICONS.put("shading", Icons.SUN);
-        ICONS.put("crop", Icons.FULLSCREEN);
-        ICONS.put("block_state", Icons.BLOCK);
-        ICONS.put("item_stack", Icons.SHARD);
-        ICONS.put("modelTransform", Icons.SPACE_LOCAL);
-        ICONS.put("scale", Icons.SCALE);
-        ICONS.put("mobId", Icons.CHICKEN);
-        ICONS.put("mobNbt", Icons.CODE);
-        ICONS.put("length", Icons.LINE);
-        ICONS.put("loop", Icons.REFRESH);
-
-        /* Pose and transform, and their overlays - see getIcon(), which folds the numbered
-         * overlays onto the thing they overlay: an overlay is that thing, layered. */
-        ICONS.put("pose", Icons.POSE);
-        ICONS.put("transform", Icons.ALL_DIRECTIONS);
-
-        /* The label */
-        ICONS.put("text", Icons.FONT);
-        ICONS.put("anchorLines", Icons.LIST);
-        putIcons(Icons.FADING, "shadowX", "shadowY");
-        ICONS.put("shadowColor", Icons.COLOR);
-        ICONS.put("background", Icons.SQUARE);
-        ICONS.put("offset", Icons.OUTLINE);
-
-        /* The controller. Both axes of a stick, and both triggers, share their side's icon. */
-        putIcons(Icons.LEFT_STICK, "stick_lx", "stick_ly");
-        putIcons(Icons.RIGHT_STICK, "stick_rx", "stick_ry");
-        putIcons(Icons.TRIGGER, "trigger_l", "trigger_r");
-        putIcons(Icons.CURVES, "extra1_x", "extra1_y", "extra2_x", "extra2_y");
-
-        setupItemIcons();
-
-        /* Particles */
-        putIcons(Icons.PARTICLE, "user1", "user2", "user3", "user4", "user5", "user6");
-        ICONS.put("paused", Icons.TIME);
-        ICONS.put("frequency", Icons.STOPWATCH);
-        ICONS.put("count", Icons.BUCKET);
-        ICONS.put("settings", Icons.GEAR);
-        ICONS.put("physics_targets", Icons.PHYSICS);
-    }
-
-    private static void setupItemIcons()
-    {
-        /* The whole hotbar wears one icon: nine rows of the same thing, which is what they are.
-         * The row's number is in its name, and its shade already walks down the run. */
-        for (int i = 0; i < ReplayKeyframes.HOTBAR_SIZE; i++)
-        {
-            ICONS.put(ReplayKeyframes.hotbarChannelId(i), Icons.HOTBAR);
-        }
-
-        ICONS.put("item_off_hand", Icons.LIMB);
-        ICONS.put("item_head", Icons.ARMOR_HELMET);
-        ICONS.put("item_chest", Icons.ARMOR_CHESTPLATE);
-        ICONS.put("item_legs", Icons.ARMOR_LEGGINGS);
-        ICONS.put("item_feet", Icons.ARMOR_BOOTS);
-
-        /* Not an item but the pointer at one */
-        ICONS.put("selected_slot", Icons.POINTER);
-    }
 
     public static Icon getIcon(String key)
     {
-        String topLevel = StringUtils.fileName(key);
-
-        if (topLevel.startsWith("pose_overlay")) return ICONS.get("pose");
-        if (topLevel.startsWith("transform_overlay")) return ICONS.get("transform");
-
-        return ICONS.getOrDefault(topLevel, Icons.NONE);
+        return TrackStyle.icon(key);
     }
 
     public static int getColor(String key)
     {
-        String topLevel = StringUtils.fileName(key);
-
-        if (topLevel.startsWith("pose_overlay")) return COLORS.get("pose_overlay");
-        if (topLevel.startsWith("transform_overlay")) return COLORS.get("transform_overlay");
-        if (COLORS.containsKey(topLevel)) return COLORS.get(topLevel);
-
-        return Colors.BLUE;
+        return TrackStyle.color(key);
     }
 
     /** The key a sheet is identified by in track filters (global and per-form) and in name/colour overrides. */
@@ -370,34 +187,48 @@ public class UIReplaysEditor extends UIElement
     /** Single home of the category rule: tabs only filter now, so collectors always gather and this decides where a sheet lands. */
     public static ReplayCategory categoryOf(UIKeyframeSheet sheet)
     {
-        String id = sheet.id;
+        return categoryOf(sheet.id, sheet.property != null || sheet.form != null);
+    }
 
-        if (FormControlKeys.isIKControlChannel(id) || PerLimbService.isIKTargetChannel(id) || PerLimbService.isPoleTargetChannel(id))
+    /**
+     * @param owned whether the track belongs to a form at all — a replay's own curated channels
+     *              (position, hotbar, sticks) do not, and they are the Replay tab
+     */
+    public static ReplayCategory categoryOf(TrackId track, boolean owned)
+    {
+        return categoryOf(track == null ? null : track.toKey(), owned);
+    }
+
+    private static ReplayCategory categoryOf(String id, boolean owned)
+    {
+        TrackKind kind = TrackId.kindOf(id);
+
+        if (kind != null)
         {
-            return ReplayCategory.IK;
+            switch (kind)
+            {
+                case IK_CONTROLS, IK_TARGET, POLE_TARGET:
+                    return ReplayCategory.IK;
+                case PHYSICS_CONTROLS, PHYSICS_TARGET, WIND_CONTROLS:
+                    return ReplayCategory.PHYSICS;
+                case BONE, BONE_CONSTRAINT:
+                    return ReplayCategory.POSE;
+                case MATERIAL_TEXTURE, MATERIAL_PROP:
+                    return ReplayCategory.FORM;
+                default:
+                    break;
+            }
         }
 
-        if (FormControlKeys.isPhysicsControlChannel(id) || PerLimbService.isPhysicsTargetChannel(id) || FormControlKeys.isWindControlChannel(id))
+        /* What is left is a plain property track — a curated replay channel (which belongs to no form)
+         * or one of the form's own properties. */
+        if (!owned)
         {
-            return ReplayCategory.PHYSICS;
+            return ReplayCategory.REPLAY;
         }
 
-        if (PerLimbService.isPoseBoneChannel(id))
-        {
-            return ReplayCategory.POSE;
-        }
 
-        if (PerLimbService.isMaterialTextureChannel(id))
-        {
-            return ReplayCategory.MODEL;
-        }
-
-        if (sheet.property == null && sheet.form == null)
-        {
-            return ReplayCategory.PLAYER;
-        }
-
-        return FormUtils.isPoseProperty(StringUtils.fileName(id)) ? ReplayCategory.POSE : ReplayCategory.MODEL;
+        return FormUtils.isPoseProperty(StringUtils.fileName(id)) ? ReplayCategory.POSE : ReplayCategory.FORM;
     }
 
     public static void renderRuler(UIContext context, UIKeyframes keyframes, UIClipsPanel clipsPanel, Clips camera, int clipOffset)
@@ -515,34 +346,42 @@ public class UIReplaysEditor extends UIElement
             Area area = this.iconBar.area;
 
             context.batcher.box(area.x, area.y, area.ex(), area.ey(), BBSSettings.chromeSurface());
-
-            /* Highlight the active category on the left edge (the actions toggle when in actions mode). */
-            UIIcon activeIcon = this.actionsMode ? this.actionsToggle : (this.allMode ? this.allToggle : this.tabButtons.get(this.category));
-
-            if (activeIcon != null && activeIcon.getParent() != null)
-            {
-                UIDashboardPanels.renderHighlight(context.batcher, activeIcon.area, Direction.LEFT);
-            }
         }));
+
+        /* «All tracks» heads the bar: it is not one of the categories but what you see instead of
+         * them, so it sits above the rule that separates the two. */
+        this.allToggle = new UIIcon(Icons.LIST, b -> this.setAllTracks());
+        this.allToggle.tooltip(UIKeys.FILM_REPLAY_ALL_TRACKS, Direction.RIGHT);
+        this.allToggle.highlight(() -> !this.actionsMode && this.allMode, Direction.LEFT);
+
+        this.iconBar.add(this.allToggle);
+        this.iconBar.add(this.buildCategorySeparator());
 
         for (ReplayCategory category : ReplayCategory.values())
         {
             UIIcon button = new UIIcon(category.icon, b -> this.setCategory(category));
 
             button.tooltip(category.tooltip, Direction.RIGHT);
+            button.highlight(() -> !this.actionsMode && !this.allMode && this.category == category, Direction.LEFT);
             this.iconBar.add(button);
             this.tabButtons.put(category, button);
         }
 
-        /* «All tracks» + actions toggles, pinned to the bottom of the category bar. */
-        this.allToggle = new UIIcon(Icons.LIST, b -> this.setAllTracks());
-        this.allToggle.tooltip(UIKeys.FILM_REPLAY_ALL_TRACKS, Direction.RIGHT);
+        /* Folding and the actions timeline, pinned to the bottom of the bar. */
+        this.collapseAll = new UIIcon(Icons.COLLAPSE_ALL, b -> this.setAllFolded(false));
+        this.collapseAll.tooltip(UIKeys.FILM_REPLAY_COLLAPSE_ALL, Direction.RIGHT);
+
+        this.expandAll = new UIIcon(Icons.EXPAND_ALL, b -> this.setAllFolded(true));
+        this.expandAll.tooltip(UIKeys.FILM_REPLAY_EXPAND_ALL, Direction.RIGHT);
 
         this.actionsToggle = new UIIcon(Icons.ACTION, b -> this.toggleActionsMode());
         this.actionsToggle.tooltip(UIKeys.FILM_REPLAY_ACTIONS_TIMELINE, Direction.RIGHT);
+        this.actionsToggle.highlight(() -> this.actionsMode, Direction.LEFT);
         this.layoutBottomToggles();
 
-        this.setCategory(ReplayCategory.PLAYER);
+        /* Everything at once is the view to open on: a category is a way to narrow down, and
+         * narrowing before the animator has seen what there is hides tracks they came for. */
+        this.setAllTracks();
 
         this.keys().register(Keys.REPLAYS_TAB_1, () -> this.setCategoryByPosition(0))
             .category(UIKeys.FILM_REPLAY_TITLE);
@@ -555,8 +394,34 @@ public class UIReplaysEditor extends UIElement
         this.keys().register(Keys.REPLAYS_TAB_5, () -> this.setCategoryByPosition(4))
             .category(UIKeys.FILM_REPLAY_TITLE);
 
-        this.add(this.iconBar, this.allToggle, this.actionsToggle);
+        this.add(this.iconBar, this.collapseAll, this.expandAll, this.actionsToggle);
         this.markContainer();
+    }
+
+    /** A rule between "all tracks" and the categories: they are different questions, not siblings. */
+    private UIElement buildCategorySeparator()
+    {
+        UIElement separator = new UIElement();
+
+        separator.h(7);
+        separator.add(new UIRenderable((context) ->
+        {
+            Area area = separator.area;
+            int y = area.my();
+
+            context.batcher.box(area.x + 4, y, area.ex() - 4, y + 1, BBSSettings.dividerColor());
+        }));
+
+        return separator;
+    }
+
+    /** Fold or unfold every section and bone of the timeline at once. */
+    private void setAllFolded(boolean unfold)
+    {
+        if (this.keyframeEditor != null)
+        {
+            this.keyframeEditor.view.getDopeSheet().setAllFolded(unfold);
+        }
     }
 
     private void setCategory(ReplayCategory c)
@@ -577,7 +442,7 @@ public class UIReplaysEditor extends UIElement
 
     /**
      * Select the category sitting at the given visual position in the tab bar. The IK and physics tabs are only
-     * present when the record has IK / physics, so a fixed key-to-category mapping would point past the gap; the
+     * present when the replay has IK / physics, so a fixed key-to-category mapping would point past the gap; the
      * number keys instead follow the tabs as the user sees them, top to bottom.
      */
     private void setCategoryByPosition(int index)
@@ -607,21 +472,17 @@ public class UIReplaysEditor extends UIElement
         return this.category;
     }
 
-    public void pickPlayerCategory()
+    public void pickReplayCategory()
     {
-        if (this.category != ReplayCategory.PLAYER)
+        if (this.category != ReplayCategory.REPLAY)
         {
-            this.setCategory(ReplayCategory.PLAYER);
+            this.setCategory(ReplayCategory.REPLAY);
         }
     }
 
     public void setFilm(Film film)
     {
-        this.savePoseTabState();
-        this.expandedPoseTabsByReplay.clear();
-        /* The map was just emptied for the new film - forget which replay the standing editor belongs
-         * to as well, or the rebuild below would put the old film's state straight back into it. */
-        this.keyframeEditorReplayId = null;
+        this.expandedTracksByReplay.clear();
         this.film = film;
         this.filmPanel.getController().orbit.reset();
 
@@ -665,8 +526,6 @@ public class UIReplaysEditor extends UIElement
 
         try
         {
-            this.savePoseTabState();
-
             this.replay = replay;
 
             if (orbit == OrbitReaction.RESET)
@@ -709,14 +568,10 @@ public class UIReplaysEditor extends UIElement
     {
         UIKeyframes lastEditor = this.keyframeEditor != null ? this.keyframeEditor.view : null;
 
-        /* The sheet about to be dropped is the only place the unfolded pose tracks are kept. */
-        this.savePoseTabState();
-
         if (this.keyframeEditor != null)
         {
             this.keyframeEditor.removeFromParent();
             this.keyframeEditor = null;
-            this.keyframeEditorReplayId = null;
         }
 
         if (this.replay == null)
@@ -724,34 +579,43 @@ public class UIReplaysEditor extends UIElement
             return;
         }
 
-        this.updateIKTab();
-        this.updatePhysicsTab();
+        List<TrackDescriptor> catalog = TrackCatalog.ordered(TrackCatalog.of(this.replay.form.get(), this.replay.properties));
+
+        this.updateTab(ReplayCategory.IK, catalog);
+        this.updateTab(ReplayCategory.PHYSICS, catalog);
 
         List<UIKeyframeSheet> sheets = new ArrayList<>();
-        Map<UIKeyframeSheet, List<UIKeyframeSheet>> poseTabs = new HashMap<>();
-        Map<UIKeyframeSheet, Integer> poseTabDepths = new HashMap<>();
 
         this.collectCuratedSheets(sheets);
-        this.collectFormPropertySheets(sheets, poseTabs, poseTabDepths);
-        this.collectIKSheets(sheets);
-        this.collectPhysicsSheets(sheets);
+        UIReplaysEditorUtils.buildSheets(catalog, sheets);
 
         this.keys.clear();
 
         for (UIKeyframeSheet sheet : sheets)
         {
-            this.keys.add(getSheetFilterKey(sheet));
+            /* Headers name body parts, not tracks — the filter menu has nothing to offer for them. */
+            if (!sheet.header)
+            {
+                this.keys.add(getSheetFilterKey(sheet));
+            }
         }
 
         Set<String> disabled = BBSSettings.disabledSheets.get();
 
-        sheets.removeIf((v) -> !this.allMode && categoryOf(v) != this.category);
+        /* A body part's row belongs to no category — it says whose the tracks under it are, whatever
+         * they animate. It leaves with its last child instead (see dropEmptyHeaders). */
+        sheets.removeIf((v) -> !v.header && !this.allMode && categoryOf(v) != this.category);
 
         /* The tab isn't empty by itself - so if the filter empties it, the timeline has to stay (see below). */
         boolean hadTracks = !sheets.isEmpty();
 
         sheets.removeIf((v) ->
         {
+            if (v.header)
+            {
+                return false;
+            }
+
             String filterKey = getSheetFilterKey(v);
 
             for (String s : disabled)
@@ -781,24 +645,7 @@ public class UIReplaysEditor extends UIElement
          */
         boolean filteredOutEverything = hadTracks && sheets.isEmpty();
 
-        /* Tabs only filter the gathered sheets, so drop pose-tab entries whose pose sheet the active tab filtered out. */
-        Set<UIKeyframeSheet> kept = new LinkedHashSet<>(sheets);
-        poseTabs.keySet().retainAll(kept);
-        poseTabDepths.keySet().retainAll(kept);
-
-        Form lastForm = null;
-
-        for (UIKeyframeSheet sheet : sheets)
-        {
-            Form form = sheet.property == null ? null : FormUtils.getForm(sheet.property);
-
-            if (!Objects.equals(lastForm, form))
-            {
-                sheet.separator = true;
-            }
-
-            lastForm = form;
-        }
+        UIReplaysEditorUtils.pruneTree(sheets);
 
         if (!sheets.isEmpty() || filteredOutEverything)
         {
@@ -913,12 +760,7 @@ public class UIReplaysEditor extends UIElement
                 this.keyframeEditor.view.addSheet(sheet);
             }
 
-            Set<String> expandedPoseIds = this.expandedPoseTabsByReplay.getOrDefault(
-                this.replay == null ? "" : this.replay.getId(),
-                Collections.emptySet()
-            );
-            this.keyframeEditor.view.getDopeSheet().configurePoseTabs(poseTabs, poseTabDepths, expandedPoseIds);
-            this.keyframeEditorReplayId = this.replay == null ? null : this.replay.getId();
+            this.keyframeEditor.view.getDopeSheet().setExpanded(this.getExpandedTracks());
 
             this.add(this.keyframeEditor);
             /* Category bar + actions toggle on top so they overlay the track names column. */
@@ -941,313 +783,74 @@ public class UIReplaysEditor extends UIElement
             BaseValue value = this.replay.keyframes.get(key);
             KeyframeChannel channel = (KeyframeChannel) value;
 
-            sheets.add(new UIKeyframeSheet(getColor(key), false, channel, null).icon(getIcon(key)));
+            sheets.add(new UIKeyframeSheet(getColor(key), channel, null).icon(getIcon(key)));
         }
     }
 
-    private void collectFormPropertySheets(List<UIKeyframeSheet> sheets, Map<UIKeyframeSheet, List<UIKeyframeSheet>> poseTabs, Map<UIKeyframeSheet, Integer> poseTabDepths)
+    /**
+     * Show a category's tab only while the replay actually has tracks of that kind, and bounce the
+     * active category back to Model when it does not. Asked of the catalog, so "does this replay have
+     * IK" is the same question as "which tracks land in the IK tab" — it used to be a separate walk
+     * of the form tree per category, with its own idea of the answer.
+     */
+    private void updateTab(ReplayCategory category, List<TrackDescriptor> catalog)
     {
-        Form lastForm = null;
-        List<UIKeyframeSheet> formSheets = new ArrayList<>();
-
-        for (String key : FormUtils.collectPropertyPaths(this.replay.form.get()))
-        {
-            KeyframeChannel property = this.replay.properties.getOrCreate(this.replay.form.get(), key);
-
-            if (property != null)
-            {
-                BaseValueBasic formProperty = FormUtils.getProperty(this.replay.form.get(), key);
-                Form form = formProperty.getParent() instanceof Form ? (Form) formProperty.getParent() : null;
-
-                if (form != lastForm)
-                {
-                    if (lastForm != null)
-                    {
-                        this.flushForm(sheets, formSheets, lastForm, poseTabs, poseTabDepths);
-                    }
-
-                    lastForm = form;
-                }
-
-                UIKeyframeSheet sheet = new UIKeyframeSheet(getColor(key), false, property, formProperty);
-
-                formSheets.add(sheet.icon(getIcon(key)));
-            }
-        }
-
-        if (lastForm != null)
-        {
-            this.flushForm(sheets, formSheets, lastForm, poseTabs, poseTabDepths);
-        }
-    }
-
-    /** IK tracks live in their own category; they are not form properties, so collect them by walking the form tree. */
-    private void collectIKSheets(List<UIKeyframeSheet> sheets)
-    {
-        this.collectIKSheets(sheets, this.replay.form.get());
-    }
-
-    private void collectIKSheets(List<UIKeyframeSheet> sheets, Form form)
-    {
-        if (form == null)
-        {
-            return;
-        }
-
-        if (form instanceof ModelForm modelForm)
-        {
-            UIReplaysEditorUtils.addIKControlSheet(modelForm, this.replay.properties, sheets);
-            UIReplaysEditorUtils.addIKTargetSheets(modelForm, this.replay.properties, sheets);
-            UIReplaysEditorUtils.addPoleTargetSheets(modelForm, this.replay.properties, sheets);
-        }
-
-        for (BodyPart part : form.parts.getAllTyped())
-        {
-            this.collectIKSheets(sheets, part.getForm());
-        }
-    }
-
-    /** Physics tracks live in their own category; like IK they are not form properties, so collect them by walking the form tree. */
-    private void collectPhysicsSheets(List<UIKeyframeSheet> sheets)
-    {
-        this.collectPhysicsSheets(sheets, this.replay.form.get());
-    }
-
-    private void collectPhysicsSheets(List<UIKeyframeSheet> sheets, Form form)
-    {
-        if (form == null)
-        {
-            return;
-        }
-
-        if (form instanceof ModelForm modelForm)
-        {
-            UIReplaysEditorUtils.addPhysicsControlSheet(modelForm, this.replay.properties, sheets);
-            UIReplaysEditorUtils.addWindControlSheet(modelForm, this.replay.properties, sheets);
-            UIReplaysEditorUtils.addPhysicsTargetSheets(modelForm, this.replay.properties, sheets);
-        }
-
-        for (BodyPart part : form.parts.getAllTyped())
-        {
-            this.collectPhysicsSheets(sheets, part.getForm());
-        }
-    }
-
-    /** Show the IK tab only when the record actually has IK; bounce an active IK category back to Model when it does not. */
-    private void updateIKTab()
-    {
-        UIIcon button = this.tabButtons.get(ReplayCategory.IK);
+        UIIcon button = this.tabButtons.get(category);
 
         if (button == null)
         {
             return;
         }
 
-        boolean hasIK = this.formHasIK(this.replay.form.get());
-        boolean present = button.getParent() != null;
+        boolean has = false;
 
-        if (hasIK && !present)
+        for (TrackDescriptor track : catalog)
         {
-            this.iconBar.add(button);
-            this.iconBar.resize();
-        }
-        else if (!hasIK && present)
-        {
-            button.removeFromParent();
-            this.iconBar.resize();
-        }
-
-        if (!hasIK && this.category == ReplayCategory.IK)
-        {
-            this.category = ReplayCategory.MODEL;
-        }
-    }
-
-    private boolean formHasIK(Form form)
-    {
-        if (form == null)
-        {
-            return false;
-        }
-
-        if (form instanceof ModelForm modelForm)
-        {
-            ModelInstance model = ModelFormRenderer.getModel(modelForm);
-
-            if (model != null)
+            if (categoryOf(track.id(), track.owner() != null) == category)
             {
-                model.form = modelForm;
+                has = true;
 
-                if (!ModelIKRuntime.getControllers(model).isEmpty())
-                {
-                    return true;
-                }
-            }
-        }
-
-        for (BodyPart part : form.parts.getAllTyped())
-        {
-            if (this.formHasIK(part.getForm()))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /** Show the Physics tab only when the record actually has physics chains; bounce an active Physics category back to Model when it does not. */
-    private void updatePhysicsTab()
-    {
-        UIIcon button = this.tabButtons.get(ReplayCategory.PHYSICS);
-
-        if (button == null)
-        {
-            return;
-        }
-
-        boolean hasPhysics = this.formHasPhysics(this.replay.form.get());
-        boolean present = button.getParent() != null;
-
-        if (hasPhysics && !present)
-        {
-            this.iconBar.add(button);
-            this.iconBar.resize();
-        }
-        else if (!hasPhysics && present)
-        {
-            button.removeFromParent();
-            this.iconBar.resize();
-        }
-
-        if (!hasPhysics && this.category == ReplayCategory.PHYSICS)
-        {
-            this.category = ReplayCategory.MODEL;
-        }
-    }
-
-    private boolean formHasPhysics(Form form)
-    {
-        if (form == null)
-        {
-            return false;
-        }
-
-        if (form instanceof ModelForm modelForm && modelForm.physics.get() instanceof MapType map)
-        {
-            ModelPhysicsConfig config = ModelPhysicsIO.fromData(map);
-
-            if (config != null && config.bones() != null && !config.bones().isEmpty())
-            {
-                return true;
-            }
-        }
-
-        for (BodyPart part : form.parts.getAllTyped())
-        {
-            if (this.formHasPhysics(part.getForm()))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void flushForm(List<UIKeyframeSheet> sheets, List<UIKeyframeSheet> formSheets, Form form, Map<UIKeyframeSheet, List<UIKeyframeSheet>> poseTabs, Map<UIKeyframeSheet, Integer> poseTabDepths)
-    {
-        String path = FormUtils.getPath(form);
-        String poseId = path.isEmpty() ? "pose" : path + FormUtils.PATH_SEPARATOR + "pose";
-        UIKeyframeSheet poseSheet = null;
-
-        for (UIKeyframeSheet sheet : formSheets)
-        {
-            if (poseId.equals(sheet.id) && sheet.channel.getFactory() == KeyframeFactories.POSE)
-            {
-                poseSheet = sheet;
                 break;
             }
         }
 
-        List<UIKeyframeSheet> orderedFormSheets = new ArrayList<>(formSheets);
-        formSheets.clear();
+        boolean present = button.getParent() != null;
 
-        if (form instanceof ModelForm modelForm)
+        if (has != present)
         {
-            List<UIKeyframeSheet> materialSheets = new ArrayList<>();
-            UIReplaysEditorUtils.addMaterialTextureSheets(modelForm, this.replay.properties, materialSheets);
-            orderedFormSheets.addAll(materialSheets);
-
-            List<UIKeyframeSheet> boneSheets = new ArrayList<>();
-            Map<String, Integer> depthBySheetId = new HashMap<>();
-            UIReplaysEditorUtils.addBoneTrackSheets(modelForm, this.replay.properties, boneSheets, depthBySheetId);
-
-            for (UIKeyframeSheet boneSheet : boneSheets)
+            if (has)
             {
-                Integer depth = depthBySheetId.get(boneSheet.id);
-                poseTabDepths.put(boneSheet, depth == null ? 0 : depth);
-            }
-
-            if (poseSheet != null && !boneSheets.isEmpty())
-            {
-                poseTabs.put(poseSheet, boneSheets);
-
-                int poseIndex = orderedFormSheets.indexOf(poseSheet);
-
-                if (poseIndex >= 0)
-                {
-                    orderedFormSheets.addAll(poseIndex + 1, boneSheets);
-                }
-                else
-                {
-                    orderedFormSheets.addAll(boneSheets);
-                }
+                this.iconBar.add(button);
             }
             else
             {
-                orderedFormSheets.addAll(boneSheets);
+                button.removeFromParent();
             }
+
+            this.iconBar.resize();
         }
 
-        sheets.addAll(orderedFormSheets);
+        if (!has && this.category == category)
+        {
+            this.category = ReplayCategory.FORM;
+        }
     }
 
     /**
-     * Pose tracks the user has unfolded to their per-limb tracks right now. Empty while there is no
-     * timeline standing - nothing is unfolded then either.
+     * Rows the user has unfolded in this replay's timeline. Handed to the dope sheet as-is, so folding
+     * a row there lands here directly — there is nothing to read back out when the timeline is rebuilt,
+     * which is what the old save-and-restore step existed for (and it had to know which tracks the
+     * current category could even answer for).
      */
+    public Set<String> getExpandedTracks()
+    {
+        return this.expandedTracksByReplay.computeIfAbsent(this.replay == null ? "" : this.replay.getId(), (k) -> new HashSet<>());
+    }
+
+    /** Pose tracks unfolded right now — what {@code insertFrame} keys by, per limb or as a whole pose. */
     public Set<String> getExpandedPoseTabIds()
     {
-        if (this.keyframeEditor == null)
-        {
-            return Collections.emptySet();
-        }
-
-        return this.keyframeEditor.view.getDopeSheet().getExpandedPoseTabIds();
-    }
-
-    /**
-     * Keyed by the replay the editor was <em>built</em> for, not the one selected now: the replay is
-     * swapped before the timeline is rebuilt, so asking for the current one here would file the old
-     * sheet's unfolded tracks under the new replay.
-     */
-    private void savePoseTabState()
-    {
-        if (this.keyframeEditorReplayId == null || this.keyframeEditor == null)
-        {
-            return;
-        }
-
-        UIKeyframeDopeSheet dopeSheet = this.keyframeEditor.view.getDopeSheet();
-        Set<String> saved = new HashSet<>(this.expandedPoseTabsByReplay.getOrDefault(this.keyframeEditorReplayId, Collections.emptySet()));
-
-        /* Only the pose tracks this timeline was actually showing get their answer taken from it. A
-         * category without pose tracks knows nothing about them - overwriting with what it reports
-         * (nothing unfolded) is what used to fold everything shut on the way through another tab. */
-        saved.removeAll(dopeSheet.getPoseTabIds());
-        saved.addAll(dopeSheet.getExpandedPoseTabIds());
-
-        this.expandedPoseTabsByReplay.put(this.keyframeEditorReplayId, saved);
+        return this.getExpandedTracks();
     }
 
     public void setTimelineVisible(boolean visible)
@@ -1323,17 +926,15 @@ public class UIReplaysEditor extends UIElement
             this.iconBar.removeFromParent();
         }
 
-        if (this.allToggle.getParent() != null)
+        for (UIIcon pinned : new UIIcon[] {this.collapseAll, this.expandAll, this.actionsToggle})
         {
-            this.allToggle.removeFromParent();
+            if (pinned.getParent() != null)
+            {
+                pinned.removeFromParent();
+            }
         }
 
-        if (this.actionsToggle.getParent() != null)
-        {
-            this.actionsToggle.removeFromParent();
-        }
-
-        this.add(this.iconBar, this.allToggle, this.actionsToggle);
+        this.add(this.iconBar, this.collapseAll, this.expandAll, this.actionsToggle);
     }
 
     /**
@@ -1342,7 +943,8 @@ public class UIReplaysEditor extends UIElement
      */
     private void layoutBottomToggles()
     {
-        this.allToggle.relative(this).x(0).y(1F, -40).wh(CATEGORY_BAR_WIDTH, 20);
+        this.collapseAll.relative(this).x(0).y(1F, -60).wh(CATEGORY_BAR_WIDTH, 20);
+        this.expandAll.relative(this).x(0).y(1F, -40).wh(CATEGORY_BAR_WIDTH, 20);
         this.actionsToggle.relative(this).x(0).y(1F, -20).wh(CATEGORY_BAR_WIDTH, 20);
     }
 
@@ -1369,6 +971,13 @@ public class UIReplaysEditor extends UIElement
      * shared pick logic — otherwise the click finds no pose sheet in the current graph
      * and silently does nothing, forcing a manual tab switch.
      */
+
+    @Override
+    public BoneSelection getBoneSelection()
+    {
+        return this.boneSelection;
+    }
+
     private void pickFormBone(Form form, String bone, boolean insert)
     {
         if (form instanceof ModelForm && bone != null && !bone.isEmpty())
@@ -1477,7 +1086,7 @@ public class UIReplaysEditor extends UIElement
                     float pitch = 0F;
                     float yaw = MathUtils.toDeg(camera.rotation.y);
 
-                    menu.action(Icons.ADD, UIKeys.FILM_REPLAY_CONTEXT_ADD, () -> this.replaysList.replays.addReplay(finalVec, pitch, yaw));
+                    menu.icon(MenuVerb.ADD, () -> this.replaysList.replays.addReplay(finalVec, pitch, yaw)).label(UIKeys.FILM_REPLAY_CONTEXT_ADD);
                     menu.action(Icons.POINTER, UIKeys.FILM_REPLAY_CONTEXT_MOVE_HERE, () -> this.moveReplay(finalVec.x, finalVec.y, finalVec.z));
                 });
 

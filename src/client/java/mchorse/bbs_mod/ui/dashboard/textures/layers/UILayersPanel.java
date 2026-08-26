@@ -13,6 +13,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -90,7 +91,8 @@ public class UILayersPanel extends UIElement
 
         this.getContext().replaceContextMenu((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.TEXTURES_LAYERS_ADD_EMPTY, this::addLayer);
+            menu.icon(MenuVerb.ADD, this::addLayer).label(UIKeys.TEXTURES_LAYERS_ADD_EMPTY);
+
             menu.action(Icons.IMAGE, UIKeys.TEXTURES_LAYERS_ADD_IMAGE, this::addImageLayer);
 
             if (ImageClipboard.hasImage())

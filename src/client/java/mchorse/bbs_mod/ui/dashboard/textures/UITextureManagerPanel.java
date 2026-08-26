@@ -76,6 +76,8 @@ public class UITextureManagerPanel extends UIDashboardPanel
         this.picker.fill(null);
 
         this.add(this.picker);
+
+        this.onAppear(this.picker::syncToSharedTabs);
     }
 
     public Link getLink()
@@ -83,9 +85,4 @@ public class UITextureManagerPanel extends UIDashboardPanel
         return this.picker.current;
     }
 
-    @Override
-    public void appear()
-    {
-        this.picker.syncToSharedTabs();
-    }
 }

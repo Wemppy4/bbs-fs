@@ -146,7 +146,7 @@ public class UISection extends UIElement
         Area header = title.area;
         FontRenderer font = context.batcher.getFont();
 
-        this.renderArrow(context, header.ex() - ARROW_SIZE / 2F, header.my());
+        renderArrow(context, header.ex() - ARROW_SIZE / 2F, header.my(), this.expanded);
 
         String label = font.limitToWidth(title.label.get(), header.w - ARROW_SIZE - 2);
 
@@ -156,13 +156,13 @@ public class UISection extends UIElement
     /**
      * Draw {@link Icons#ARROW_SMALL} centred at {@code cx}/{@code cy}, rotated for the open state.
      */
-    private void renderArrow(UIContext context, float cx, float cy)
+    public static void renderArrow(UIContext context, float cx, float cy, boolean expanded)
     {
         MatrixStack matrices = context.batcher.getContext().getMatrices();
 
         matrices.push();
         matrices.translate(cx, cy, 0F);
-        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(this.expanded ? 90F : 0F), 0F, 0F, 0F);
+        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(expanded ? 90F : 0F), 0F, 0F, 0F);
         context.batcher.icon(Icons.ARROW_SMALL, Colors.WHITE, 0, 0, 0.5F, 0.5F);
         matrices.pop();
     }

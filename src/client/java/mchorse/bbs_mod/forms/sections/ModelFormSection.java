@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.sections;
 
+import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.cubic.model.ModelManager;
@@ -20,6 +22,12 @@ import java.util.Objects;
 
 public class ModelFormSection extends SubFormSection
 {
+    @Override
+    protected Icon getIcon()
+    {
+        return Icons.POSE;
+    }
+
     public ModelFormSection(FormCategories parent)
     {
         super(parent);
@@ -59,7 +67,7 @@ public class ModelFormSection extends SubFormSection
     @Override
     protected FormCategory createCategory(IKey uiKey, String id)
     {
-        return new ModelFormCategory(uiKey, this.parent.visibility.get("models_" + id));
+        return new ModelFormCategory(uiKey, this.parent.preferences.visible("models_" + id));
     }
 
     @Override

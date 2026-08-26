@@ -17,7 +17,7 @@ public class UIBillboardForm extends UIForm<BillboardForm>
         this.billboardFormPanel = new UIBillboardFormPanel(this);
         this.defaultPanel = this.billboardFormPanel;
 
-        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_BILLBOARD_TITLE, Icons.MATERIAL);
+        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_BILLBOARD_TITLE, BillboardForm.ICON);
         this.registerDefaultPanels();
 
         this.defaultPanel.keys().register(Keys.FORMS_PICK_TEXTURE, () ->

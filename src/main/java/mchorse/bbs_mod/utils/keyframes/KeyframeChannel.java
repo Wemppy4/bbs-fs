@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.utils.keyframes;
 
+import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
@@ -8,6 +9,7 @@ import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
+import org.slf4j.Logger;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,6 +22,8 @@ import java.util.List;
  */
 public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
 {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private IKeyframeFactory<T> factory;
 
     public KeyframeChannel(String id, IKeyframeFactory<T> factory)
@@ -280,7 +284,10 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
 
     public void sort()
     {
-        this.list.sort((a, b) -> (int) (a.getTick() - b.getTick()));
+        /* Fractional ticks: an (int) cast of the difference reads anything under 1 as "equal",
+         * which can leave the channel unsorted after a Shift-drag — and findSegment binary-searches
+         * over it. */
+        this.list.sort((a, b) -> Float.compare(a.getTick(), b.getTick()));
 
         this.sync();
     }
@@ -341,9 +348,18 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
     public BaseType toData()
     {
         MapType data = new MapType();
+        String type = CollectionUtils.getKey(KeyframeFactories.FACTORIES, this.factory);
+
+        if (type == null)
+        {
+            /* A factory outside the registry has no name to write, so the channel goes out with a
+             * null type and cannot be read back — the lookup on load finds nothing. There is no
+             * value to substitute here, but it must not happen quietly. */
+            LOGGER.error("Keyframe channel \"" + this.getId() + "\" holds a factory that isn't registered (" + this.factory + "); it is being saved with no value type and won't read back!");
+        }
 
         data.put("keyframes", super.toData());
-        data.putString("type", CollectionUtils.getKey(KeyframeFactories.FACTORIES, this.factory));
+        data.putString("type", type);
 
         return data;
     }
@@ -357,9 +373,33 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
         }
 
         MapType map = data.asMap();
-        IKeyframeFactory<T> factory = KeyframeFactories.FACTORIES.get(map.getString("type"));
+        String type = map.getString("type");
+        IKeyframeFactory<T> factory = KeyframeFactories.FACTORIES.get(type);
+
+        if (factory == null)
+        {
+            /* An unknown value type used to be assigned regardless, which left the channel holding
+             * a null factory: reading the first keyframe then threw, and wherever that throw was
+             * swallowed the whole channel disappeared without a trace. Keep the factory the channel
+             * was constructed with, say so out loud, and leave the keyframes unread — they are
+             * written in a shape this build has no way to interpret. */
+            LOGGER.error("Keyframe channel \"" + this.getId() + "\" has unknown value type \"" + type + "\"; its keyframes are left out.");
+
+            return;
+        }
 
         this.factory = factory;
+
+        if (factory == null)
+        {
+            /* A channel saved with a factory this build no longer has (bone_anchor, physics_data,
+             * spline_points... — types that outlived their feature). Reading its keyframes would ask
+             * the missing factory to parse their values, which threw and took the whole film's load
+             * down with it. Left empty instead, for the owner to drop. */
+            this.list.clear();
+
+            return;
+        }
 
         super.fromData(map.getList("keyframes"));
 

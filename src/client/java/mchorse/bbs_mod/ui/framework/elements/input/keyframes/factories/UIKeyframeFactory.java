@@ -9,22 +9,18 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragStartEvent;
-import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.IUIKeyframeGraph;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
 import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.StringUtils;
-import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
-import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
@@ -43,15 +39,12 @@ public abstract class UIKeyframeFactory <T> extends UIElement
      */
     private static final Map<String, IUIKeyframeFactoryFactory> PROPERTIES = new HashMap<>();
 
-    private static final Map<IKeyframeFactory, Integer> SCROLLS = new HashMap<>();
+    private static final ScrollMemory<IKeyframeFactory> SCROLLS = new ScrollMemory<>();
 
     public UIScrollView scroll;
     public UITrackpad tick;
     public UITrackpad duration;
     public UIIcon interp;
-
-    public UIIcon shape;
-    public UIColor color;
 
     protected Keyframe<T> keyframe;
     protected UIKeyframes editor;
@@ -67,9 +60,9 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         register(KeyframeFactories.LINK, UILinkKeyframeFactory::new);
         register(KeyframeFactories.POSE, UIPoseKeyframeFactory::new);
         register(KeyframeFactories.IK, UIIKKeyframeFactory::new);
-        register(KeyframeFactories.PHYSICS, UIPhysicsKeyframeFactory::new);
         register(KeyframeFactories.WIND, UIWindKeyframeFactory::new);
         register(KeyframeFactories.POSE_TRANSFORM, UIPoseTransformKeyframeFactory::new);
+        register(KeyframeFactories.BONE_CONSTRAINT, UIBoneConstraintKeyframeFactory::new);
         register(KeyframeFactories.STRING, UIStringKeyframeFactory::new);
         register(KeyframeFactories.TRANSFORM, UITransformKeyframeFactory::new);
         register(KeyframeFactories.VECTOR3F, UIVector3fKeyframeFactory::new);
@@ -98,17 +91,13 @@ public abstract class UIKeyframeFactory <T> extends UIElement
     {
         if (editor != null)
         {
-            SCROLLS.put(editor.keyframe.getFactory(), (int) editor.scroll.scroll.getScroll());
+            SCROLLS.save(editor.keyframe.getFactory(), editor.scroll);
         }
     }
 
-    /**
-     * Restore the scroll saved for this keyframe factory. Must be called after the panel
-     * was laid out, otherwise the scroll gets clamped to 0 against an empty area.
-     */
     public void restoreScroll()
     {
-        this.scroll.scroll.setScroll(SCROLLS.getOrDefault(this.keyframe.getFactory(), 0));
+        SCROLLS.restore(this.keyframe.getFactory(), this.scroll);
     }
 
     public static <T> UIKeyframeFactory createPanel(Keyframe<T> keyframe, UIKeyframes editor)
@@ -166,58 +155,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         this.interp.tooltip(new InterpolationTooltip(0F, 0.5F, () -> this.keyframe.getInterpolation()));
         this.interp.keys().register(Keys.KEYFRAMES_INTERP, this.interp::clickItself).category(UIKeys.KEYFRAMES_KEYS_CATEGORY);
 
-        this.color = new UIColor((c) ->
-        {
-            for (UIKeyframeSheet sheet : this.editor.getGraph().getSheets())
-            {
-                for (Keyframe kf : sheet.selection.getSelected()) kf.setColor(new Color().set(c));
-            }
-        });
-        this.color.setColor(keyframe.getColor() == null ? 0 : keyframe.getColor().getRGBColor());
-        this.color.tooltip(UIKeys.KEYFRAMES_CHANGE_COLOR);
-        this.color.context((menu) ->
-        {
-            menu.action(Icons.COLOR, UIKeys.KEYFRAMES_RESET_COLOR, () ->
-            {
-                for (UIKeyframeSheet sheet : this.editor.getGraph().getSheets())
-                {
-                    for (Keyframe kf : sheet.selection.getSelected()) kf.setColor(null);
-                }
-
-                this.color.setColor(0);
-            });
-        });
-
-        this.shape = new UIIcon(Icons.SHAPES, (b) ->
-        {
-            KeyframeShape currentShape = keyframe.getShape() == null ? KeyframeShape.SQUARE : keyframe.getShape();
-
-            this.getContext().replaceContextMenu((menu) ->
-            {
-                for (KeyframeShape shape : KeyframeShape.values())
-                {
-                    IKeyframeShapeRenderer shapeRenderer = KeyframeShapeRenderers.SHAPES.get(shape);
-
-                    menu.action(shapeRenderer.getIcon(), shapeRenderer.getLabel(), shape == currentShape, () ->
-                    {
-                        for (UIKeyframeSheet sheet : this.editor.getGraph().getSheets())
-                        {
-                            for (Keyframe kf : sheet.selection.getSelected())
-                            {
-                                kf.setShape(shape);
-                            }
-                        }
-                    });
-                }
-            });
-        });
-        this.shape.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-        this.shape.tooltip(UIKeys.KEYFRAMES_CHANGE_SHAPE);
-
-        this.scroll.add(UI.column(0, 0, 0,
-            UI.row(UIConstants.MARGIN, 0, 0, this.interp, this.tick, this.duration),
-            UI.row(UIConstants.MARGIN, 0, 0, this.shape, this.color).marginTop(UIConstants.SECTION_GAP)
-        ));
+        this.scroll.add(UI.row(UIConstants.MARGIN, 0, 0, this.interp, this.tick, this.duration));
 
         this.add(this.scroll);
 

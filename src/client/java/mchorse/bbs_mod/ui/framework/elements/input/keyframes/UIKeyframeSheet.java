@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -17,8 +19,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class UIKeyframeSheet extends UIKeyframeElement
+public class UIKeyframeSheet
 {
+    /** What the name column draws, and the colour of the row's keyframes and its left edge. */
+    public IKey title;
+    public int color;
+
+    /**
+     * A row that names something rather than animating it — a body part, whose form's tracks fold
+     * under it. It carries a channel because a row is drawn from one, but nothing may ever be
+     * written into it: that channel belongs to no replay and would be dropped on save.
+     */
+    public boolean header;
+
     /* Meta data */
     public final String id;
     private Icon icon;
@@ -56,22 +69,53 @@ public class UIKeyframeSheet extends UIKeyframeElement
      */
     public Supplier<Object> seed;
 
-    public UIKeyframeSheet(int color, boolean separator, KeyframeChannel channel, BaseValueBasic property)
+    /** The track this row draws, when it came from the catalog; null for the replay's own curated channels. */
+    public final TrackDescriptor descriptor;
+
+    /**
+     * The row this one folds under, and the rows that fold under it. A bone hangs off its parent bone,
+     * a material's properties off that material — so folding an arm folds the whole arm, and folding
+     * a material takes its sliders with it.
+     */
+    public UIKeyframeSheet parent;
+    public final List<UIKeyframeSheet> children = new ArrayList<>();
+
+    public UIKeyframeSheet(TrackDescriptor track)
     {
-        this(channel.getId(), IKey.constant(property != null ? FormUtils.getForm(property).getTrackName(channel.getId()) : channel.getId()), color, separator, channel, property, false);
+        this(track.key(), track.title(), track.color(), track.channel(), track.property(), track.kind() == TrackKind.BONE, track);
+
+        this.icon(track.icon());
+        this.header = track.kind() == TrackKind.BODY_PART;
+        this.form(track.owner());
+
+        if (track.seed() != null)
+        {
+            this.seed(track.seed());
+        }
     }
 
-    public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property)
+    public UIKeyframeSheet(int color, KeyframeChannel channel, BaseValueBasic property)
     {
-        this(id, title, color, separator, channel, property, false);
+        this(channel.getId(), IKey.constant(property != null ? FormUtils.getForm(property).getTrackName(channel.getId()) : channel.getId()), color, channel, property, false);
     }
 
-    public UIKeyframeSheet(String id, IKey title, int color, boolean separator, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack)
+    public UIKeyframeSheet(String id, IKey title, int color, KeyframeChannel channel, BaseValueBasic property)
     {
-        super(title, color);
+        this(id, title, color, channel, property, false);
+    }
+
+    public UIKeyframeSheet(String id, IKey title, int color, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack)
+    {
+        this(id, title, color, channel, property, isBoneTrack, null);
+    }
+
+    public UIKeyframeSheet(String id, IKey title, int color, KeyframeChannel channel, BaseValueBasic property, boolean isBoneTrack, TrackDescriptor descriptor)
+    {
+        this.title = title;
+        this.color = color;
+        this.descriptor = descriptor;
 
         this.id = id;
-        this.separator = separator;
 
         this.channel = channel;
         this.selection = new KeyframeSelection(channel);
@@ -80,7 +124,7 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
         this.defaultTitle = title;
         this.defaultColor = color;
-        this.filterKey = isBoneTrack ? title.get() : StringUtils.fileName(id);
+        this.filterKey = descriptor != null ? descriptor.filterKey() : (isBoneTrack ? title.get() : StringUtils.fileName(id));
 
         this.applyStyle();
     }
@@ -102,6 +146,40 @@ public class UIKeyframeSheet extends UIKeyframeElement
 
         this.title = name.isEmpty() ? this.defaultTitle : IKey.constant(name);
         this.color = styles == null ? this.defaultColor : styles.color(this.filterKey, this.defaultColor);
+    }
+
+    /** Hang this row under another one. */
+    public void setParent(UIKeyframeSheet parent)
+    {
+        this.parent = parent;
+
+        if (parent != null)
+        {
+            parent.children.add(this);
+        }
+    }
+
+    /** How many rows up the tree this one sits, which is what the name column indents by. */
+    public int getDepth()
+    {
+        int depth = 0;
+
+        for (UIKeyframeSheet sheet = this.parent; sheet != null; sheet = sheet.parent)
+        {
+            depth += 1;
+        }
+
+        return depth;
+    }
+
+    /**
+     * The colour this row is drawn in. A header takes the interface's primary colour and takes it
+     * <em>now</em>, not when the timeline was built: the colour is a live setting, and a value
+     * copied into the row at build time would sit there stale until something rebuilt the tracks.
+     */
+    public int getRowColor()
+    {
+        return this.header ? BBSSettings.primaryColor.get() : this.color;
     }
 
     public UIKeyframeSheet icon(Icon icon)

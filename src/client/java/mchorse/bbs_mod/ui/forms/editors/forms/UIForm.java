@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIGeneralFormPanel;
+import mchorse.bbs_mod.ui.forms.editors.panels.UIMaterialFormPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIPanelBase;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
@@ -117,6 +118,8 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     protected void registerDefaultPanels()
     {
+        this.registerPanel(new UIMaterialFormPanel(this), UIKeys.FORMS_EDITORS_MATERIAL, Icons.MATERIAL);
+
         UIGeneralFormPanel panel = new UIGeneralFormPanel(this);
 
         this.registerPanel(panel, UIKeys.FORMS_EDITORS_GENERAL, Icons.GEAR);

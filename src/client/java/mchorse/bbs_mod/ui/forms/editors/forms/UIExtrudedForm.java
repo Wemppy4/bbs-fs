@@ -17,7 +17,7 @@ public class UIExtrudedForm extends UIForm<ExtrudedForm>
         this.extrudedFormPanel = new UIExtrudedFormPanel(this);
         this.defaultPanel = this.extrudedFormPanel;
 
-        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_EXTRUDED_TITLE, Icons.MATERIAL);
+        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_EXTRUDED_TITLE, ExtrudedForm.ICON);
         this.registerDefaultPanels();
 
         this.defaultPanel.keys().register(Keys.FORMS_PICK_TEXTURE, () ->

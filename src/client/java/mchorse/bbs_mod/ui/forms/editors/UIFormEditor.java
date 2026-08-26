@@ -43,7 +43,6 @@ import mchorse.bbs_mod.ui.forms.editors.forms.UIStructureForm;
 import mchorse.bbs_mod.ui.forms.editors.forms.UITrailForm;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIVanillaParticleForm;
 import mchorse.bbs_mod.ui.forms.editors.states.UIAnimationStatesOverlayPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.forms.editors.states.keyframes.UIAnimationStateEditor;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -52,9 +51,12 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
@@ -62,9 +64,9 @@ import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Direction;
@@ -82,8 +84,10 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class UIFormEditor extends UIElement implements IUIFormList, ICursor
+public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBoneSelectionHost
 {
+    private final BoneSelection boneSelection = new BoneSelection();
+
     private static Map<Class, Supplier<UIForm>> panels = new HashMap<>();
 
     private static float treeWidth = 0.1F;
@@ -192,7 +196,8 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
                 UIForms.FormEntry current = this.formsList.getCurrentFirst();
 
                 return current != null && current.getForm() != null;
-            });
+            })
+            .labels(UIKeys.FORMS_EDITOR_CONTEXT_COPY, UIKeys.FORMS_EDITOR_CONTEXT_PASTE);
 
         this.forms = new UIElement();
         this.forms.relative(this).x(20).w(treeWidth).minW(140).h(1F);
@@ -241,7 +246,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
             {
                 if (UIFormEditor.this.bodyPartGizmo)
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area);
+                    context.batcher.highlight(this.area, Direction.BOTTOM);
                 }
 
                 super.renderSkin(context);
@@ -332,7 +337,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
             {
                 if (UIFormEditor.this.statesEditor.isVisible())
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.LEFT);
+                    context.batcher.highlight(this.area, Direction.LEFT);
                 }
 
                 super.renderSkin(context);
@@ -372,7 +377,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
         this.formEditor.add(this.forms);
         this.statesEditor.add(backgroundStates, this.openStates, this.plause, this.shiftDuration, this.statesKeyframes);
         this.add(this.renderer, this.formEditor, this.statesEditor, this.icons);
-        this.add(new UIFormEditorUndoKeys(this).full(this));
+        this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         this.keys().register(Keys.FORMS_OPEN_STATES_EDITOR, () ->
         {
@@ -606,6 +611,13 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
         else this.pickFormBone(pair.a, pair.b);
     }
 
+
+    @Override
+    public BoneSelection getBoneSelection()
+    {
+        return this.boneSelection;
+    }
+
     private void pickFormBone(Form form, String bone)
     {
         /* Captured before pickForm rebuilds the editor, so the bone can be routed back to the tab
@@ -659,18 +671,13 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor
             return;
         }
 
-        menu.custom(new UIPresetContextMenu(this.copyPasteController)
-            .labels(UIKeys.FORMS_EDITOR_CONTEXT_COPY, UIKeys.FORMS_EDITOR_CONTEXT_PASTE));
+        this.copyPasteController.install(menu, this.getContext());
 
-        if (current.getForm() != null)
-        {
-            menu.action(Icons.ADD, UIKeys.FORMS_EDITOR_CONTEXT_ADD, () -> this.addBodyPart(new BodyPart("")));
-        }
+        menu.icon(MenuVerb.ADD, () -> this.addBodyPart(new BodyPart(""))).label(UIKeys.FORMS_EDITOR_CONTEXT_ADD).enabled(current.getForm() != null);
+        menu.icon(MenuVerb.REMOVE, this::removeBodyPart).label(UIKeys.FORMS_EDITOR_CONTEXT_REMOVE).enabled(current.part != null);
 
         if (current.part != null)
         {
-            menu.action(Icons.REMOVE, UIKeys.FORMS_EDITOR_CONTEXT_REMOVE, this::removeBodyPart);
-
             List<BodyPart> all = current.part.getManager().getAllTyped();
 
             if (all.size() > 1)

@@ -6,7 +6,6 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -48,7 +47,6 @@ public class UIInterpolationContextMenu extends UIContextMenu
 
     private Runnable callback;
     private Interpolation interpolation;
-    private Map<IInterp, UIIcon> icons = new HashMap<>();
 
     static
     {
@@ -167,8 +165,8 @@ public class UIInterpolationContextMenu extends UIContextMenu
             });
 
             icon.tooltip(InterpolationUtils.getName(value));
+            icon.highlight(() -> this.interpolation.getInterp() == value, Direction.BOTTOM);
             this.grid.add(icon);
-            this.icons.put(value, icon);
             this.setupKeybind(value, icon);
         }
 
@@ -232,17 +230,11 @@ public class UIInterpolationContextMenu extends UIContextMenu
         super.renderBackground(context);
 
         int color = BBSSettings.primaryColor.get();
-        IInterp interp = this.interpolation.getInterp();
-        UIIcon icon = this.icons.get(interp);
         Color fg = new Color().set(color);
 
         fg.a = 0.5F;
 
         InterpolationRenderer.renderInterpolationGraph(this.interpolation, context, fg, Colors.WHITE, this.area.x + PADDING, this.area.y + PADDING, this.area.w - PADDING * 2, GRAPH_HEIGHT, 20, 15);
 
-        if (icon != null)
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, icon.area, Direction.BOTTOM);
-        }
     }
 }

@@ -19,6 +19,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -60,22 +61,19 @@ public class UIAudioEditor extends UIElement
                 return;
             }
 
-            menu.action(Icons.ADD, UIKeys.AUDIO_CONTEXT_ADD, () ->
+            menu.icon(MenuVerb.ADD, () ->
             {
                 ColorCode code = this.createNewCode();
 
                 this.colorCodes.add(code);
                 this.setCurrent(code);
-            });
+            }).label(UIKeys.AUDIO_CONTEXT_ADD);
 
-            if (this.current != null)
+            menu.icon(MenuVerb.REMOVE, () ->
             {
-                menu.action(Icons.REMOVE, UIKeys.AUDIO_CONTEXT_REMOVE, () ->
-                {
-                    this.colorCodes.remove(this.current);
-                    this.setCurrent(null);
-                });
-            }
+                this.colorCodes.remove(this.current);
+                this.setCurrent(null);
+            }).label(UIKeys.AUDIO_CONTEXT_REMOVE).enabled(this.current != null);
         });
 
         this.add(this.color);

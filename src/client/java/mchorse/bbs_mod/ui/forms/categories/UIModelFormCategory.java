@@ -27,14 +27,13 @@ public class UIModelFormCategory extends UIFormCategory
 
         this.context((menu) ->
         {
-            if (this.selected == null)
+            if (!(this.getContextForm() instanceof ModelForm modelForm) || this.isGroupContext())
             {
                 return;
             }
 
             menu.action(Icons.UPLOAD, UIKeys.FORMS_CATEGORIES_CONTEXT_EXPORT_MODEL, () ->
             {
-                ModelForm modelForm = (ModelForm) this.selected;
                 ModelInstance model = ModelFormRenderer.getModel(modelForm);
 
                 if (model != null)

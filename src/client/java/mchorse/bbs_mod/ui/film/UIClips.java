@@ -25,14 +25,16 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.Marquee;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
+import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.clips.Clip;
@@ -89,7 +91,7 @@ public class UIClips extends UIElement
     private int selectingLoop = -1;
 
     /* Selection */
-    private boolean selecting;
+    private final Marquee marquee = new Marquee();
     private List<Integer> selection = new ArrayList<>();
 
     /* Embedded view */
@@ -146,7 +148,8 @@ public class UIClips extends UIElement
         this.copyPasteController = new UICopyPasteController(PresetManager.CLIPS, "_CopyClips")
             .supplier(this::copyClips)
             .consumer(this::pasteClips)
-            .canCopy(() -> this.delegate.getClip() != null);
+            .canCopy(() -> this.delegate.getClip() != null)
+            .labels(UIKeys.CAMERA_TIMELINE_CONTEXT_COPY, UIKeys.CAMERA_TIMELINE_CONTEXT_PASTE);
 
         this.delegate = delegate;
         this.factory = factory;
@@ -161,15 +164,15 @@ public class UIClips extends UIElement
             int mouseY = context.mouseY;
             boolean hasSelected = this.delegate.getClip() != null;
 
-            menu.custom(new UIPresetContextMenu(this.copyPasteController, mouseX, mouseY)
-                .labels(UIKeys.CAMERA_TIMELINE_CONTEXT_COPY, UIKeys.CAMERA_TIMELINE_CONTEXT_PASTE));
+            this.copyPasteController.install(menu, context, mouseX, mouseY);
 
             if (this.fromLayerY(mouseY) < 0)
             {
                 return;
             }
 
-            menu.action(Icons.ADD, UIKeys.CAMERA_TIMELINE_CONTEXT_ADD, () -> this.showAdds(mouseX, mouseY));
+            menu.icon(MenuVerb.ADD, () -> this.showAdds(mouseX, mouseY)).label(UIKeys.CAMERA_TIMELINE_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removeSelected).label(UIKeys.CAMERA_TIMELINE_CONTEXT_REMOVE_CLIPS).enabled(hasSelected);
 
             if (hasSelected)
             {
@@ -180,11 +183,6 @@ public class UIClips extends UIElement
             }
 
             menu.action(Icons.EXCHANGE, UIKeys.CAMERA_TIMELINE_CONTEXT_REORGANIZE, () -> this.clips.sortLayers());
-
-            if (hasSelected)
-            {
-                menu.action(Icons.REMOVE, UIKeys.CAMERA_TIMELINE_CONTEXT_REMOVE_CLIPS, Colors.NEGATIVE, this::removeSelected);
-            }
         });
 
         Supplier<Boolean> canUseKeybinds = () -> this.delegate.canUseKeybinds() && !this.hasEmbeddedView();
@@ -373,15 +371,11 @@ public class UIClips extends UIElement
 
         context.replaceContextMenu((add) ->
         {
-            add.autoKeys(UIKeys.CAMERA_TIMELINE_KEYS_CLIPS);
-
-            for (Link type : this.factory.getKeys())
-            {
-                IKey typeKey = UIKeys.CAMERA_TIMELINE_CONTEXT_ADD_CLIP_TYPE.format(UIKeys.C_CLIP.get(type));
-                ClipFactoryData data = this.factory.getData(type);
-
-                add.action(data.icon, typeKey, data.color, () -> this.addClip(type, preview.x, preview.y, preview.z));
-            }
+            UIChoiceMenu.of(this.factory.getKeys())
+                .icon((type) -> this.factory.getData(type).icon)
+                .label((type) -> UIKeys.C_CLIP.get(type))
+                .color((type) -> this.factory.getData(type).color)
+                .build(add, UIKeys.CAMERA_TIMELINE_KEYS_CLIPS, (type) -> this.addClip(type, preview.x, preview.y, preview.z));
 
             add.onClose((m) -> this.addPreview = null);
         });
@@ -1308,7 +1302,7 @@ public class UIClips extends UIElement
 
         if (shift && !this.hasEmbeddedView())
         {
-            this.selecting = true;
+            this.marquee.press(mouseX, mouseY);
 
             this.setMouse(mouseX, mouseY);
 
@@ -1491,14 +1485,14 @@ public class UIClips extends UIElement
 
         this.vertical.mouseReleased(context);
 
-        if (this.selecting)
+        if (this.marquee.isPressed())
         {
             this.pickLastSelectedClip();
         }
 
         this.grabMode = 0;
         this.grabbing = false;
-        this.selecting = false;
+        this.marquee.reset();
         this.scrubbing = false;
         this.scrolling = false;
         this.selectingLoop = -1;
@@ -1561,12 +1555,10 @@ public class UIClips extends UIElement
         {
             this.loopMax = MathUtils.clamp(this.fromGraphX(mouseX), this.loopMin, Integer.MAX_VALUE);
         }
-        else if (this.selecting)
+        else if (this.marquee.isPressed())
         {
-            Area selection = new Area();
-
-            selection.setPoints(this.lastX, this.lastY, mouseX, mouseY);
-            this.captureSelection(selection);
+            this.marquee.update(mouseX, mouseY);
+            this.captureSelection(this.marquee.getArea());
         }
         else if (this.grabbing)
         {
@@ -1938,7 +1930,7 @@ public class UIClips extends UIElement
 
             renderer.renderClip(context, this, clip, clipArea, selected, this.delegate.getClip() == clip);
 
-            if (!selected && !this.grabbing && !this.selecting && clipArea.isInside(context))
+            if (!selected && !this.grabbing && !this.marquee.isPressed() && clipArea.isInside(context))
             {
                 context.batcher.outline(clipArea.x, clipArea.y, clipArea.ex(), clipArea.ey(), Colors.WHITE);
             }
@@ -2051,10 +2043,7 @@ public class UIClips extends UIElement
      */
     private void renderSelection(UIContext context)
     {
-        if (this.selecting)
-        {
-            context.batcher.normalizedBox(this.lastX, this.lastY, context.mouseX, context.mouseY, BBSSettings.accentOverlay(Colors.A25));
-        }
+        this.marquee.render(context, 0, 0);
     }
 
     /**

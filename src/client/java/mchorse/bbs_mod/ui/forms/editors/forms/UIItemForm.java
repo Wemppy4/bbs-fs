@@ -13,7 +13,7 @@ public class UIItemForm extends UIForm<ItemForm>
 
         this.defaultPanel = new UIItemFormPanel(this);
 
-        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_ITEM_TITLE, Icons.LINE);
+        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_ITEM_TITLE, ItemForm.ICON);
         this.registerDefaultPanels();
     }
 }

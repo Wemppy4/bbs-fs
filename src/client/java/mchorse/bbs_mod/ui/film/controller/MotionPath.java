@@ -1,11 +1,11 @@
 package mchorse.bbs_mod.ui.film.controller;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import io.netty.util.collection.IntObjectMap;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionConfig;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -35,6 +35,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.TreeSet;
 
 /**
@@ -364,7 +365,7 @@ public class MotionPath
             return null;
         }
 
-        IntObjectMap<IEntity> entities = controller.getEntities();
+        Map<String, IEntity> entities = controller.getEntities();
 
         /* Recompute only when the animation data actually changes (a content signature including
          * keyframe values). The previous per-frame "resample and compare" check was both the
@@ -418,7 +419,7 @@ public class MotionPath
         return true;
     }
 
-    private static BoneTrajectory computeBoneTrajectory(IntObjectMap<IEntity> entities, Replay replay, String bonePath)
+    private static BoneTrajectory computeBoneTrajectory(Map<String, IEntity> entities, Replay replay, String bonePath)
     {
         float[] range = range(replay);
 
@@ -448,7 +449,7 @@ public class MotionPath
         TreeSet<Float> ticks = new TreeSet<>();
         String boneName = bonePath.contains(".") ? bonePath.substring(bonePath.lastIndexOf('.') + 1) : bonePath;
 
-        for (KeyframeChannel<?> channel : replay.properties.properties.values())
+        for (KeyframeChannel<?> channel : replay.properties.tracks.values())
         {
             if (channel.getId() != null && channel.getId().contains(boneName))
             {
@@ -460,7 +461,7 @@ public class MotionPath
     }
 
     /** Pose the scratch entity at {@code tick} and read the bone's world position (camera at origin). */
-    private static boolean sampleBoneWorld(IntObjectMap<IEntity> entities, Replay replay, String bonePath, int tick, Vector3d out)
+    private static boolean sampleBoneWorld(Map<String, IEntity> entities, Replay replay, String bonePath, int tick, Vector3d out)
     {
         StubEntity entity = scratchEntity;
 
@@ -469,7 +470,7 @@ public class MotionPath
         entity.getForm().update(entity);
         replay.properties.applyProperties(entity.getForm(), tick);
 
-        Matrix4f matrix = BaseFilmController.getBoneCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F, bonePath, false);
+        Matrix4f matrix = FilmMatrices.getBoneCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F, bonePath, false);
 
         if (matrix == null)
         {
@@ -595,7 +596,7 @@ public class MotionPath
             last = Math.max(last, lastTick(channel));
         }
 
-        for (KeyframeChannel<?> channel : replay.properties.properties.values())
+        for (KeyframeChannel<?> channel : replay.properties.tracks.values())
         {
             first = Math.min(first, firstTick(channel));
             last = Math.max(last, lastTick(channel));
@@ -636,7 +637,7 @@ public class MotionPath
         signature(builder, replay.keyframes.y);
         signature(builder, replay.keyframes.z);
 
-        for (KeyframeChannel<?> channel : replay.properties.properties.values())
+        for (KeyframeChannel<?> channel : replay.properties.tracks.values())
         {
             builder.append('#').append(channel.getId());
             signature(builder, channel);

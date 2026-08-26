@@ -7,6 +7,8 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
+import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -176,7 +178,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         Matrix3f normal = matrices.peek().getNormalMatrix();
 
-        FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
+        FormColorBlend.blend(color, this.form.color.get());
 
         if (this.form.billboard.get())
         {
@@ -198,6 +200,20 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
 
         gameRenderer.getLightmapTextureManager().enable();
         gameRenderer.getOverlayTexture().setupOverlayColor();
+
+        /* The color overlay rides the overlay-texture channel, so it needs the shaded format
+         * (the no-shading format has no overlay UV) and steps aside for a hurt flash. Picker
+         * programs don't sample unit 1, so this is inert while picking. */
+        Color formOverlay = this.form.overlayColor.get();
+        boolean overlayActive = format == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
+            && overlay == OverlayTexture.DEFAULT_UV
+            && OverlayBlend.isActive(formOverlay);
+        int previousOverlayTexture = overlayActive ? FormOverlay.bind(formOverlay) : 0;
+
+        if (overlayActive)
+        {
+            overlay = 0;
+        }
 
         ShaderProgram finalShader = shader.get();
 
@@ -258,7 +274,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
                     texture.setFilterMipmap(linear, mipmap);
                 },
                 () -> texture.setFilterMipmap(false, false)
-            ));
+            ).overlayColor(overlayActive ? formOverlay : null));
         }
         else
         {
@@ -266,6 +282,11 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         }
 
         texture.setFilterMipmap(false, false);
+
+        if (overlayActive)
+        {
+            FormOverlay.unbind(previousOverlayTexture);
+        }
 
         gameRenderer.getLightmapTextureManager().disable();
         gameRenderer.getOverlayTexture().teardownOverlayColor();

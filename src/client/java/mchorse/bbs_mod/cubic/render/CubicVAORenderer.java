@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.cubic.render;
 
 import mchorse.bbs_mod.BBSModClient;
+import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
@@ -8,15 +9,22 @@ import mchorse.bbs_mod.cubic.render.vao.ModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
+import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
+import mchorse.bbs_mod.forms.renderers.utils.FormMaterialLevels;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
+import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.MathUtils;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
@@ -75,36 +83,47 @@ public class CubicVAORenderer extends CubicCubeRenderer
             return false;
         }
 
-        float r = this.r * group.color.r;
-        float g = this.g * group.color.g;
-        float b = this.b * group.color.b;
-        float a = this.a * group.color.a;
-        int light = this.light;
+        float groupR = this.r * group.color.r;
+        float groupG = this.g * group.color.g;
+        float groupB = this.b * group.color.b;
+        float groupA = this.a * group.color.a;
+        int groupLight = this.light;
 
         if (this.stencilMap != null)
         {
-            light = this.stencilMap.increment ? group.index : 0;
+            groupLight = this.stencilMap.increment ? group.index : 0;
         }
         else
         {
-            int u = (int) Lerps.lerp(light & '\uffff', LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, MathUtils.clamp(group.lighting, 0F, 1F));
-            int v = light >> 16 & '\uffff';
+            int u = (int) Lerps.lerp(groupLight & '\uffff', LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, MathUtils.clamp(group.lighting, 0F, 1F));
+            int v = groupLight >> 16 & '\uffff';
 
-            light = u | v << 16;
+            groupLight = u | v << 16;
         }
+
+        /* The material level of the material tab: color/glow/overlay/culling per material of this
+         * bone's draws, layered between the form level (already in this.r/g/b/a and this.light) and
+         * the bone level (group.color/lighting/overlay above). Picking keeps everything neutral
+         * (light carries stencil ids there), and a hurt flash in the overlay UV wins over the color
+         * overlay by design. */
+        ModelForm modelForm = this.model.form instanceof ModelForm form ? form : null;
+        boolean plain = this.stencilMap == null;
+        boolean hurtFlash = this.overlay != OverlayTexture.DEFAULT_UV;
 
         /* One draw per material; bind that material's resolved texture before each. */
         for (Map.Entry<String, ModelVAO> entry : groupVaos.entrySet())
         {
+            String material = entry.getKey();
             Texture texture = null;
 
             if (this.textureResolver != null)
             {
-                Link link = this.textureResolver.apply(entry.getKey());
+                Link link = this.textureResolver.apply(material);
 
                 if (link != null)
                 {
                     texture = BBSModClient.getTextures().getTexture(link);
+                    texture = FormPbr.resolveAlbedo(modelForm, material, link, texture);
                     BBSModClient.getTextures().bindTexture(texture);
                 }
             }
@@ -115,16 +134,68 @@ public class CubicVAORenderer extends CubicCubeRenderer
                 texture = BBSModClient.getTextures().getLastBound();
             }
 
+            float r = groupR;
+            float g = groupG;
+            float b = groupB;
+            float a = groupA;
+            int light = groupLight;
+            Color overlayColor = null;
+            int culling = FormMaterial.CULLING_MODEL;
+
+            if (plain)
+            {
+                if (modelForm != null)
+                {
+                    Color materialColor = FormMaterialLevels.materialColor(modelForm, material);
+
+                    if (materialColor != null)
+                    {
+                        r *= materialColor.r;
+                        g *= materialColor.g;
+                        b *= materialColor.b;
+                        a *= materialColor.a;
+                    }
+
+                    float glow = FormMaterialLevels.materialGlow(modelForm, material);
+
+                    if (glow > 0F)
+                    {
+                        int u = (int) Lerps.lerp(light & '\uffff', LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, glow);
+
+                        light = u | (light >> 16 & '\uffff') << 16;
+                    }
+
+                    culling = FormMaterialLevels.materialCulling(modelForm, material);
+                }
+
+                if (!hurtFlash)
+                {
+                    overlayColor = FormOverlay.combine(modelForm, material, group);
+                }
+            }
+
+            int overlay = overlayColor != null ? 0 : this.overlay;
+            int previousOverlayTexture = overlayColor != null ? FormOverlay.bind(overlayColor) : 0;
+            boolean modelCulling = this.model.isCulling();
+            boolean cullOverride = culling != FormMaterial.CULLING_MODEL && (culling == FormMaterial.CULLING_ON) != modelCulling;
+
+            if (cullOverride)
+            {
+                if (culling == FormMaterial.CULLING_ON) RenderSystem.enableCull();
+                else RenderSystem.disableCull();
+            }
+
             if (FormTranslucentQueue.needsSplit(this.program, this.stencilMap, texture, a))
             {
                 Matrix4f modelView = ModelVAORenderer.captureModelView(stack);
                 Matrix3f normalMat = new Matrix3f(stack.peek().getNormalMatrix());
 
                 FormTranslucentQueue.setPassMode(this.program, FormTranslucentQueue.PASS_OPAQUE);
-                ModelVAORenderer.render(this.program, entry.getValue(), modelView, normalMat, r, g, b, a, light, this.overlay);
+                ModelVAORenderer.render(this.program, entry.getValue(), modelView, normalMat, r, g, b, a, light, overlay);
                 FormTranslucentQueue.setPassMode(this.program, FormTranslucentQueue.PASS_SINGLE);
 
-                FormTranslucentQueue.add(new FormTranslucentQueue.ModelVAOCommand(entry.getValue(), texture, modelView, normalMat, r, g, b, a, light, this.overlay, this.model.isCulling()));
+                FormTranslucentQueue.add(new FormTranslucentQueue.ModelVAOCommand(entry.getValue(), texture, modelView, normalMat, r, g, b, a, light, overlay, this.model.isCulling())
+                    .overlayColor(overlayColor));
             }
             else if (FormTranslucentQueue.needsWholeDefer(this.program, this.stencilMap, a))
             {
@@ -134,11 +205,23 @@ public class CubicVAORenderer extends CubicCubeRenderer
                 Matrix3f normalMat = new Matrix3f(stack.peek().getNormalMatrix());
                 ShaderProgram program = this.program;
 
-                FormTranslucentQueue.add(new FormTranslucentQueue.ModelVAOCommand(entry.getValue(), () -> program, FormTranslucentQueue.PASS_SINGLE, true, texture, modelView, normalMat, r, g, b, a, light, this.overlay, this.model.isCulling()));
+                FormTranslucentQueue.add(new FormTranslucentQueue.ModelVAOCommand(entry.getValue(), () -> program, FormTranslucentQueue.PASS_SINGLE, true, texture, modelView, normalMat, r, g, b, a, light, overlay, this.model.isCulling())
+                    .overlayColor(overlayColor));
             }
             else
             {
-                ModelVAORenderer.render(this.program, entry.getValue(), stack, r, g, b, a, light, this.overlay);
+                ModelVAORenderer.render(this.program, entry.getValue(), stack, r, g, b, a, light, overlay);
+            }
+
+            if (cullOverride)
+            {
+                if (culling == FormMaterial.CULLING_ON) RenderSystem.disableCull();
+                else RenderSystem.enableCull();
+            }
+
+            if (overlayColor != null)
+            {
+                FormOverlay.unbind(previousOverlayTexture);
             }
         }
 

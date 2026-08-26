@@ -4,6 +4,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.utils.interps.AutoBezier;
 import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Lerps;
@@ -14,6 +15,8 @@ public class PoseTransform extends Transform
 
     public float fix;
     public final Color color = new Color().set(Colors.WHITE);
+    /* Color overlay for the bone (RGB = color, A = strength); neutral at zero strength. */
+    public final Color overlay = new Color(1F, 1F, 1F, 0F);
     public float lighting;
 
     @Override
@@ -23,6 +26,7 @@ public class PoseTransform extends Transform
 
         this.fix = 0F;
         this.color.set(Colors.WHITE);
+        this.overlay.set(1F, 1F, 1F, 0F);
         this.lighting = 0F;
     }
 
@@ -37,6 +41,11 @@ public class PoseTransform extends Transform
             this.color.g = Lerps.lerp(this.color.g, pose.color.g, a);
             this.color.b = Lerps.lerp(this.color.b, pose.color.b, a);
             this.color.a = Lerps.lerp(this.color.a, pose.color.a, a);
+
+            this.overlay.r = Lerps.lerp(this.overlay.r, pose.overlay.r, a);
+            this.overlay.g = Lerps.lerp(this.overlay.g, pose.overlay.g, a);
+            this.overlay.b = Lerps.lerp(this.overlay.b, pose.overlay.b, a);
+            this.overlay.a = Lerps.lerp(this.overlay.a, pose.overlay.a, a);
 
             this.lighting = Lerps.lerp(this.lighting, pose.lighting, a);
         }
@@ -64,6 +73,13 @@ public class PoseTransform extends Transform
                 (float) MathUtils.clamp(interp.interpolate(IInterp.context.set(preA1.color.a, a1.color.a, b1.color.a, postB1.color.a, x)), 0F, 1F)
             );
 
+            this.overlay.set(
+                (float) MathUtils.clamp(interp.interpolate(IInterp.context.set(preA1.overlay.r, a1.overlay.r, b1.overlay.r, postB1.overlay.r, x)), 0F, 1F),
+                (float) MathUtils.clamp(interp.interpolate(IInterp.context.set(preA1.overlay.g, a1.overlay.g, b1.overlay.g, postB1.overlay.g, x)), 0F, 1F),
+                (float) MathUtils.clamp(interp.interpolate(IInterp.context.set(preA1.overlay.b, a1.overlay.b, b1.overlay.b, postB1.overlay.b, x)), 0F, 1F),
+                (float) MathUtils.clamp(interp.interpolate(IInterp.context.set(preA1.overlay.a, a1.overlay.a, b1.overlay.a, postB1.overlay.a, x)), 0F, 1F)
+            );
+
             this.lighting = (float) interp.interpolate(IInterp.context.set(preA1.lighting, a1.lighting, b1.lighting, postB1.lighting, x));
         }
     }
@@ -88,6 +104,13 @@ public class PoseTransform extends Transform
                 (float) MathUtils.clamp(AutoBezier.get(preA1.color.a, a1.color.a, b1.color.a, postB1.color.a, pt, at, bt, qt, clamped, x), 0F, 1F)
             );
 
+            this.overlay.set(
+                (float) MathUtils.clamp(AutoBezier.get(preA1.overlay.r, a1.overlay.r, b1.overlay.r, postB1.overlay.r, pt, at, bt, qt, clamped, x), 0F, 1F),
+                (float) MathUtils.clamp(AutoBezier.get(preA1.overlay.g, a1.overlay.g, b1.overlay.g, postB1.overlay.g, pt, at, bt, qt, clamped, x), 0F, 1F),
+                (float) MathUtils.clamp(AutoBezier.get(preA1.overlay.b, a1.overlay.b, b1.overlay.b, postB1.overlay.b, pt, at, bt, qt, clamped, x), 0F, 1F),
+                (float) MathUtils.clamp(AutoBezier.get(preA1.overlay.a, a1.overlay.a, b1.overlay.a, postB1.overlay.a, pt, at, bt, qt, clamped, x), 0F, 1F)
+            );
+
             this.lighting = (float) AutoBezier.get(preA1.lighting, a1.lighting, b1.lighting, postB1.lighting, pt, at, bt, qt, clamped, x);
         }
     }
@@ -101,6 +124,7 @@ public class PoseTransform extends Transform
         {
             result = result && this.fix == poseTransform.fix;
             result = result && this.color.equals(poseTransform.color);
+            result = result && this.overlay.equals(poseTransform.overlay);
             result = result && this.lighting == poseTransform.lighting;
         }
 
@@ -124,6 +148,7 @@ public class PoseTransform extends Transform
         {
             this.fix = poseTransform.fix;
             this.color.copy(poseTransform.color);
+            this.overlay.copy(poseTransform.overlay);
             this.lighting = poseTransform.lighting;
         }
 
@@ -139,6 +164,7 @@ public class PoseTransform extends Transform
         {
             this.fix += pose.fix;
             this.color.mul(pose.color);
+            OverlayBlend.stack(this.overlay, pose.overlay);
             this.lighting += pose.lighting;
         }
     }
@@ -150,6 +176,7 @@ public class PoseTransform extends Transform
 
         data.putFloat("fix", this.fix);
         data.putInt("color", this.color.getARGBColor());
+        data.putInt("overlay", this.overlay.getARGBColor());
         data.putFloat("lighting", this.lighting);
     }
 
@@ -160,6 +187,7 @@ public class PoseTransform extends Transform
 
         this.fix = data.getFloat("fix");
         this.color.set(data.getInt("color", Colors.WHITE));
+        this.overlay.set(data.getInt("overlay", 0x00ffffff));
         this.lighting = data.getFloat("lighting");
     }
 

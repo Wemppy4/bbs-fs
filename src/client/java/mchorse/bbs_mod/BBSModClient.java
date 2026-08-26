@@ -435,11 +435,6 @@ public class BBSModClient implements ClientModInitializer
             }
         });
 
-        BBSSettings.theme.modes(
-            UIKeys.ENGINE_THEME_LIGHT,
-            UIKeys.ENGINE_THEME_DARK
-        );
-
         BBSSettings.keystrokeMode.modes(
             UIKeys.ENGINE_KEYSTROKES_POSITION_AUTO,
             UIKeys.ENGINE_KEYSTROKES_POSITION_BOTTOM_LEFT,
@@ -592,6 +587,8 @@ public class BBSModClient implements ClientModInitializer
             LivePlayerItemUse.endFrame();
 
             BBSRendering.startTick();
+
+            getFormCategories().getUserForms().flush();
         });
 
         ClientTickEvents.END_WORLD_TICK.register((client) ->

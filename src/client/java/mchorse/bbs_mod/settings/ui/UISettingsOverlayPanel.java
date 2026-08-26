@@ -9,7 +9,6 @@ import mchorse.bbs_mod.settings.value.ValueKeyCombo;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -379,7 +378,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
 
             if (this.panel.isCurrent(this.category))
             {
-                UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.LEFT);
+                context.batcher.highlight(this.area, Direction.LEFT);
             }
             else if (this.hover)
             {

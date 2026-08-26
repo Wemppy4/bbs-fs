@@ -15,6 +15,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.camera.controller.ICameraController;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -479,16 +480,7 @@ public class OrbitFilmCameraController implements ICameraController
 
     private IEntity resolveEntity(Replay replay)
     {
-        Film film = this.controller.panel.getData();
-
-        if (film == null)
-        {
-            return null;
-        }
-
-        int index = film.replays.getList().indexOf(replay);
-
-        return index < 0 ? null : this.controller.getEntities().get(index);
+        return this.controller.getEntities().get(replay.getId());
     }
 
     private Vector3f toWorld(Vector3f pivot)
@@ -587,8 +579,8 @@ public class OrbitFilmCameraController implements ICameraController
             if (anchor != null)
             {
                 Anchor v = form.anchor.get();
-                Matrix4f defaultMatrix = BaseFilmController.getMatrixForRenderWithRotation(entity, x, y, z, transition);
-                Pair<Matrix4f, Float> totalMatrix = BaseFilmController.getTotalMatrix(this.controller.getEntities(), v, defaultMatrix, x, y, z, transition, 0, false, frame);
+                Matrix4f defaultMatrix = FilmMatrices.getMatrixForRenderWithRotation(entity, x, y, z, transition);
+                Pair<Matrix4f, Float> totalMatrix = FilmMatrices.getTotalMatrix(this.controller.getEntities(), v, defaultMatrix, x, y, z, transition, 0, false, frame);
 
                 if (totalMatrix.a != null)
                 {

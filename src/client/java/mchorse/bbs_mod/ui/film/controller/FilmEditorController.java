@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film.controller;
 
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmControllerContext;
 import mchorse.bbs_mod.film.replays.Replay;
@@ -211,7 +212,7 @@ public class FilmEditorController extends BaseFilmController
             Form form = entity.getForm();
             replay.properties.applyProperties(form, tick);
 
-            BaseFilmController.renderEntity(FilmControllerContext.instance
+            FilmEntityRenderer.renderEntity(FilmControllerContext.instance
                 .setup(this.getEntities(), entity, replay, context)
                 .color(Colors.setA(color, alpha))
                 .transition(0F));

@@ -31,6 +31,15 @@ interface PhysicsRig
      */
     Vector3f restDirectionLocal(String boneId, String childId);
 
+    /**
+     * Local rest direction of the last bone's virtual tip — the point the solver simulates one
+     * segment past the chain end. This deliberately follows the rotation appliers' convention
+     * (last bone points away from its parent), which differs from {@link #restDirectionLocal}'s
+     * fallback order, so the solved tip and the reconstructed pose target agree at rest. Returns
+     * null when the bone is missing.
+     */
+    Vector3f tipRestDirectionLocal(List<String> ids);
+
     static PhysicsRig of(IModel model)
     {
         if (model instanceof Model cubic)
@@ -41,50 +50,6 @@ interface PhysicsRig
         if (model instanceof BOBJModel bobj)
         {
             return new BobjRig(bobj);
-        }
-
-        return null;
-    }
-
-    /**
-     * Local rest direction of the last bone's virtual tip — the point the solver simulates one segment
-     * past the chain end. This deliberately follows the rotation appliers' convention (last bone points
-     * away from its parent), which differs from {@link #restDirectionLocal}'s fallback order, so the
-     * solved tip and the reconstructed pose target agree at rest. Returns null when the bone is missing.
-     */
-    static Vector3f tipRestDirectionLocal(IModel model, List<String> ids)
-    {
-        String last = ids.get(ids.size() - 1);
-
-        if (model instanceof Model cubic)
-        {
-            ModelGroup bone = cubic.getGroup(last);
-
-            if (bone == null)
-            {
-                return null;
-            }
-
-            if (ids.size() >= 2)
-            {
-                ModelGroup parent = cubic.getGroup(ids.get(ids.size() - 2));
-
-                return parent == null ? null : new Vector3f(bone.initial.translate).sub(parent.initial.translate).mul(1F / 16F);
-            }
-
-            if (bone.children != null && !bone.children.isEmpty())
-            {
-                return new Vector3f(bone.children.get(0).initial.translate).sub(bone.initial.translate).mul(1F / 16F);
-            }
-
-            return new Vector3f(0F, -1F, 0F);
-        }
-
-        if (model instanceof BOBJModel bobj)
-        {
-            BOBJBone bone = bobj.getArmature().bones.get(last);
-
-            return bone == null ? null : ModelRotationBlender.getBobjRestDirection(bobj, bone, null, ids, ids.size() - 1);
         }
 
         return null;
@@ -163,6 +128,32 @@ interface PhysicsRig
                 ModelGroup firstChild = bone.children.get(0);
 
                 return new Vector3f(firstChild.initial.translate).sub(bone.initial.translate).mul(1.0F / 16.0F);
+            }
+
+            return new Vector3f(0F, -1F, 0F);
+        }
+
+        @Override
+        public Vector3f tipRestDirectionLocal(List<String> ids)
+        {
+            String last = ids.get(ids.size() - 1);
+            ModelGroup bone = this.model.getGroup(last);
+
+            if (bone == null)
+            {
+                return null;
+            }
+
+            if (ids.size() >= 2)
+            {
+                ModelGroup parent = this.model.getGroup(ids.get(ids.size() - 2));
+
+                return parent == null ? null : new Vector3f(bone.initial.translate).sub(parent.initial.translate).mul(1F / 16F);
+            }
+
+            if (bone.children != null && !bone.children.isEmpty())
+            {
+                return new Vector3f(bone.children.get(0).initial.translate).sub(bone.initial.translate).mul(1F / 16F);
             }
 
             return new Vector3f(0F, -1F, 0F);
@@ -262,6 +253,14 @@ interface PhysicsRig
             }
 
             return new Vector3f(0F, -1F, 0F);
+        }
+
+        @Override
+        public Vector3f tipRestDirectionLocal(List<String> ids)
+        {
+            BOBJBone bone = this.model.getArmature().bones.get(ids.get(ids.size() - 1));
+
+            return bone == null ? null : ModelRotationBlender.getBobjRestDirection(this.model, bone, null, ids, ids.size() - 1);
         }
     }
 }

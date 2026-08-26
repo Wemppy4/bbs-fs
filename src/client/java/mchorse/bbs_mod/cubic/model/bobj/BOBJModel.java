@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.cubic.model.bobj;
 
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.bobj.BOBJArmature;
 import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.bobj.BOBJLoader;
@@ -112,7 +113,7 @@ public class BOBJModel implements IModel
 
         for (String key : this.getAllGroupKeys())
         {
-            PoseTransform poseTransform = pose.get(key);
+            PoseTransform poseTransform = pose.getOrCreate(key);
             BOBJBone group = this.armature.bones.get(key);
 
             poseTransform.copy(group.transform);
@@ -238,6 +239,25 @@ public class BOBJModel implements IModel
     public Collection<ModelGroup> getAllGroups()
     {
         return Collections.emptyList();
+    }
+
+    /** BOBJ armatures are authored facing the other way. */
+    @Override
+    public boolean isFacingFlipped()
+    {
+        return true;
+    }
+
+    @Override
+    public Collection<? extends RigBone> getRigBones()
+    {
+        return this.getArmature().orderedBones;
+    }
+
+    @Override
+    public RigBone getBone(String name)
+    {
+        return this.getArmature().bones.get(name);
     }
 
     @Override

@@ -15,6 +15,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIUserFormCategory extends UIFormCategory
@@ -54,13 +55,19 @@ public class UIUserFormCategory extends UIFormCategory
             catch (Exception e)
             {}
 
-            if (this.selected != null)
+            Form form = this.getContextForm();
+
+            if (form != null)
             {
-                menu.action(Icons.REMOVE, UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM, () ->
+                /* With several picked, the group menu already offers their removal */
+                if (!this.isGroupContext())
                 {
-                    this.category.removeForm(this.selected);
-                    this.select(null, false);
-                });
+                    menu.icon(MenuVerb.REMOVE, () ->
+                    {
+                        this.category.removeForm(form);
+                        this.list.reconcile();
+                    }).label(UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM);
+                }
             }
             else
             {

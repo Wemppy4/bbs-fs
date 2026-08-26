@@ -2,7 +2,8 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.replays.FormProperties;
-import mchorse.bbs_mod.film.replays.PerLimbService;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -250,10 +251,10 @@ public class UIKeyframePreviewTooltip implements ITooltip
         }
 
         FontRenderer font = context.batcher.getFont();
-        PerLimbService.PoseBonePath path = keyframe.getFactory() == KeyframeFactories.POSE_TRANSFORM
-            ? PerLimbService.parsePoseBonePath(sheet.id)
+        TrackId path = keyframe.getFactory() == KeyframeFactories.POSE_TRANSFORM
+            ? TrackId.parse(sheet.id, TrackKind.BONE)
             : null;
-        String label = path == null ? null : path.bone();
+        String label = path == null ? null : path.subject();
 
         int w = FORM_SIZE;
         int h = FORM_SIZE;
@@ -350,7 +351,7 @@ public class UIKeyframePreviewTooltip implements ITooltip
 
         /* Bone track: the keyframe's transform stacks onto the base pose's bone,
          * matching FormProperties.applyProperty */
-        PerLimbService.PoseBonePath path = PerLimbService.parsePoseBonePath(sheet.id);
+        TrackId path = TrackId.parse(sheet.id, TrackKind.BONE);
 
         if (path == null || !(copy instanceof ModelForm modelForm) || !(value instanceof Transform boneValue))
         {
@@ -358,12 +359,12 @@ public class UIKeyframePreviewTooltip implements ITooltip
         }
 
         Pose pose = modelForm.pose.get();
-        PoseTransform transform = pose.transforms.get(path.bone());
+        PoseTransform transform = pose.transforms.get(path.subject());
 
         if (transform == null)
         {
             transform = new PoseTransform();
-            pose.transforms.put(path.bone(), transform);
+            pose.transforms.put(path.subject(), transform);
         }
 
         transform.add(boneValue);

@@ -111,7 +111,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 
         public static void apply(UIKeyframes editor, Keyframe keyframe, String group, Consumer<PoseTransform> consumer)
         {
-            apply(editor, keyframe, (pose) -> consumer.accept(pose.get(group)));
+            apply(editor, keyframe, (pose) -> consumer.accept(pose.getOrCreate(group)));
         }
 
         /**
@@ -128,7 +128,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             {
                 for (String bone : boneNames)
                 {
-                    consumer.accept(pose.get(bone));
+                    consumer.accept(pose.getOrCreate(bone));
                 }
             });
         }
@@ -149,7 +149,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             {
                 for (String bone : boneNames)
                 {
-                    consumer.accept(bone, pose.get(bone));
+                    consumer.accept(bone, pose.getOrCreate(bone));
                 }
             });
         }
@@ -162,6 +162,16 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             this.keyframe = keyframe;
 
             ((UIPoseTransforms) this.transform).setKeyframe(this);
+        }
+
+        /**
+         * This editor is shown in a popup, which is not under the film editor in the widget tree —
+         * the timeline that spawned it is, so the bone selection is looked up from there.
+         */
+        @Override
+        protected UIElement selectionAnchor()
+        {
+            return this.editor;
         }
 
         private String getGroup(PoseTransform transform)
@@ -214,9 +224,15 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
 
         @Override
-        protected void setLighting(PoseTransform poseTransform, boolean value)
+        protected void setLighting(PoseTransform poseTransform, float value)
         {
-            apply(this.editor, this.keyframe, this.getGroup(poseTransform), (poseT) -> poseT.lighting = value ? 0F : 1F);
+            apply(this.editor, this.keyframe, this.getGroup(poseTransform), (poseT) -> poseT.lighting = value);
+        }
+
+        @Override
+        protected void setOverlay(PoseTransform poseTransform, int value)
+        {
+            apply(this.editor, this.keyframe, this.getGroup(poseTransform), (poseT) -> poseT.overlay.set(value));
         }
     }
 
@@ -265,7 +281,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
                 return null;
             }
 
-            return recorded.getValue().get(bone);
+            return recorded.getValue().getOrCreate(bone);
         }
 
         public static void applyRecording(UIKeyframes editor, Keyframe keyframe, int tick, List<String> bones, Consumer<PoseTransform> consumer)
@@ -282,7 +298,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 
                 for (String bone : bones)
                 {
-                    consumer.accept(pose.get(bone));
+                    consumer.accept(pose.getOrCreate(bone));
                 }
 
                 recorded.postNotify();
@@ -303,7 +319,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 
                 for (String bone : bones)
                 {
-                    consumer.accept(bone, pose.get(bone));
+                    consumer.accept(bone, pose.getOrCreate(bone));
                 }
 
                 recorded.postNotify();

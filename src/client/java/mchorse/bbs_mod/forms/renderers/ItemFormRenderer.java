@@ -44,7 +44,7 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
         matrices.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
 
         Color set = Color.white();
-        FormColorBlend.blend(set, this.form.color.get(), this.form.additiveColor.get());
+        FormColorBlend.blend(set, this.form.color.get());
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(set));
         consumers.setUI(true);
@@ -80,7 +80,7 @@ public class ItemFormRenderer extends FormRenderer<ItemForm>
         }
 
         BlockFormRenderer.color.set(context.color);
-        FormColorBlend.blend(BlockFormRenderer.color, this.form.color.get(), this.form.additiveColor.get());
+        FormColorBlend.blend(BlockFormRenderer.color, this.form.color.get());
 
         /* Publishing the form's camera-space origin opts its translucent layers into the
          * deferred sorted pass (see CustomVertexConsumerProvider#draw(RenderLayer)). */

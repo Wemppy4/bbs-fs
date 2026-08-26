@@ -1,9 +1,9 @@
 package mchorse.bbs_mod.forms.forms;
 
 import mchorse.bbs_mod.forms.entities.IEntity;
-import mchorse.bbs_mod.settings.values.core.ValueList;
+import mchorse.bbs_mod.settings.values.core.ValueStableList;
 
-public class BodyPartManager extends ValueList<BodyPart>
+public class BodyPartManager extends ValueStableList<BodyPart>
 {
     public BodyPartManager(String id)
     {
@@ -19,19 +19,13 @@ public class BodyPartManager extends ValueList<BodyPart>
     {
         this.preNotify();
         this.add(part);
-        this.sync();
         this.postNotify();
     }
 
     public void removeBodyPart(BodyPart part)
     {
         this.preNotify();
-
-        if (this.list.remove(part))
-        {
-            this.sync();
-        }
-
+        this.list.remove(part);
         this.postNotify();
     }
 
@@ -44,7 +38,6 @@ public class BodyPartManager extends ValueList<BodyPart>
             this.list.add(index, part);
         }
 
-        this.sync();
         this.postNotify();
     }
 

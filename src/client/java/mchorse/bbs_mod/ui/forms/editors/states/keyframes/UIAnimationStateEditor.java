@@ -2,7 +2,8 @@ package mchorse.bbs_mod.ui.forms.editors.states.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.film.replays.PerLimbService;
+import mchorse.bbs_mod.film.replays.tracks.TrackCatalog;
+import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -49,6 +50,9 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -61,6 +65,9 @@ public class UIAnimationStateEditor extends UIElement
 
     private AnimationState state;
     private Set<String> keys = new LinkedHashSet<>();
+
+    /** Track rows the user has unfolded right now; handed to the dope sheet, which folds them in place. */
+    private final Set<String> expandedTabs = new HashSet<>();
 
     public UIAnimationStateEditor(UIFormEditor editor)
     {
@@ -134,39 +141,19 @@ public class UIAnimationStateEditor extends UIElement
 
         List<UIKeyframeSheet> sheets = new ArrayList<>();
 
-        /* Form properties */
-        Form lastForm = null;
-        List<UIKeyframeSheet> formSheets = new ArrayList<>();
+        /* A state lays a form's own values over it; the solver tracks only mean anything inside a
+         * film, where something clears them again every frame. */
+        List<TrackDescriptor> catalog = new ArrayList<>();
 
-        for (String key : FormUtils.collectPropertyPaths(this.editor.form))
+        for (TrackDescriptor track : TrackCatalog.ordered(TrackCatalog.of(this.editor.form, this.state.properties)))
         {
-            KeyframeChannel property = this.state.properties.getOrCreate(this.editor.form, key);
-
-            if (property != null)
+            if (!track.kind().isSolver())
             {
-                BaseValueBasic formProperty = FormUtils.getProperty(this.editor.form, key);
-                Form form = formProperty.getParent() instanceof Form f ? f : null;
-
-                if (form != lastForm)
-                {
-                    if (lastForm != null)
-                    {
-                        this.flushForm(sheets, formSheets, lastForm);
-                    }
-
-                    lastForm = form;
-                }
-
-                UIKeyframeSheet sheet = new UIKeyframeSheet(UIReplaysEditor.getColor(key), false, property, formProperty);
-
-                formSheets.add(sheet.icon(UIReplaysEditor.getIcon(key)));
+                catalog.add(track);
             }
         }
 
-        if (lastForm != null)
-        {
-            this.flushForm(sheets, formSheets, lastForm);
-        }
+        UIReplaysEditorUtils.buildSheets(catalog, sheets);
 
         this.keys.clear();
 
@@ -204,19 +191,7 @@ public class UIAnimationStateEditor extends UIElement
             return false;
         });
 
-        lastForm = null;
-
-        for (UIKeyframeSheet sheet : sheets)
-        {
-            Form form = sheet.property == null ? null : FormUtils.getForm(sheet.property);
-
-            if (!Objects.equals(lastForm, form))
-            {
-                sheet.separator = true;
-            }
-
-            lastForm = form;
-        }
+        UIReplaysEditorUtils.pruneTree(sheets);
 
         /*
          * Filtering every track off used to drop the timeline itself, and the track filter lives in its
@@ -286,6 +261,10 @@ public class UIAnimationStateEditor extends UIElement
                 this.keyframeEditor.view.addSheet(sheet);
             }
 
+            /* The tracks that fold under another one fold here too: a model form contributes dozens of
+             * bone and material rows, and unfolded they bury the form's own properties. */
+            this.keyframeEditor.view.getDopeSheet().setExpanded(this.expandedTabs);
+
             this.addAfter(this.editArea, this.keyframeEditor);
         }
 
@@ -294,17 +273,6 @@ public class UIAnimationStateEditor extends UIElement
         if (this.keyframeEditor != null && lastEditor == null)
         {
             this.keyframeEditor.view.resetView();
-        }
-    }
-
-    private void flushForm(List<UIKeyframeSheet> sheets, List<UIKeyframeSheet> formSheets, Form form)
-    {
-        sheets.addAll(formSheets);
-        formSheets.clear();
-
-        if (form instanceof ModelForm modelForm)
-        {
-            UIReplaysEditorUtils.addBoneTrackSheets(modelForm, this.state.properties, sheets);
         }
     }
 

@@ -2,10 +2,9 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
 import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.cubic.ik.IKControls;
-import mchorse.bbs_mod.cubic.ik.ModelIKConfig;
-import mchorse.bbs_mod.cubic.ik.ModelIKIO;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
@@ -89,15 +88,14 @@ public class UIIKKeyframeFactory extends UIKeyframeFactory<IKControls>
     private void fillChains()
     {
         List<String> tips = new ArrayList<>();
-        ModelIKConfig config = this.config();
 
-        if (config != null && config.chains() != null)
+        if (this.form != null)
         {
-            for (ModelIKConfig.Chain chain : config.chains())
+            for (BaseValue value : this.form.bones.getAll())
             {
-                if (chain != null && chain.enabled() && chain.tip() != null && !chain.tip().isEmpty())
+                if (value instanceof FormBone bone && bone.hasChain() && bone.ik.getOriginalValue().enabled)
                 {
-                    tips.add(chain.tip());
+                    tips.add(bone.getId());
                 }
             }
         }
@@ -189,36 +187,8 @@ public class UIIKKeyframeFactory extends UIKeyframeFactory<IKControls>
 
     private IKControl configControl(String tip)
     {
-        IKControl control = new IKControl();
-        ModelIKConfig config = this.config();
+        FormBone bone = this.form == null ? null : this.form.bones.getBone(tip);
 
-        if (config != null && config.chains() != null)
-        {
-            for (ModelIKConfig.Chain chain : config.chains())
-            {
-                if (chain != null && tip.equals(chain.tip()))
-                {
-                    control.weight = chain.weight();
-                    control.softness = chain.softness();
-                    control.poleAngle = chain.poleAngle();
-                    control.pole = chain.pole();
-                    control.enabled = chain.enabled();
-
-                    break;
-                }
-            }
-        }
-
-        return control;
-    }
-
-    private ModelIKConfig config()
-    {
-        if (this.form != null && this.form.ik.get() instanceof MapType map)
-        {
-            return ModelIKIO.fromData(map);
-        }
-
-        return null;
+        return bone == null ? new IKControl() : bone.ik.getOriginalValue().copy();
     }
 }

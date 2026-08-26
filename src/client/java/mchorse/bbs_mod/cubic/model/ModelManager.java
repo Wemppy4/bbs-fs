@@ -4,8 +4,6 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.MolangHelper;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
-import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
-import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.cubic.model.loaders.BOBJModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.CubicModelLoader;
@@ -191,9 +189,7 @@ public class ModelManager implements IWatchDogListener
         }
 
         this.models.clear();
-        ModelIKRuntime.clearCache();
         ModelPhysicsRuntime.clearCache();
-        ModelConstraintsRuntime.clearCache();
         PoseManager.INSTANCE.clear();
         ShapeKeysManager.INSTANCE.clear();
         this.setupLoaders();

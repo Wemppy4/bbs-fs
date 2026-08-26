@@ -1,11 +1,10 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
-import mchorse.bbs_mod.cubic.physics.ModelPhysicsConfig;
-import mchorse.bbs_mod.cubic.physics.ModelPhysicsIO;
 import mchorse.bbs_mod.cubic.physics.PhysicsControl;
 import mchorse.bbs_mod.cubic.physics.PhysicsControls;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
@@ -92,14 +91,19 @@ public class UIPhysicsKeyframeFactory extends UIKeyframeFactory<PhysicsControls>
     private void fillChains()
     {
         List<String> roots = new ArrayList<>();
-        ModelPhysicsConfig config = this.config();
 
-        if (config != null && config.bones() != null)
+        if (this.form != null)
         {
-            roots.addAll(config.bones().keySet());
-            Collections.sort(roots);
+            for (BaseValue value : this.form.bones.getAll())
+            {
+                if (value instanceof FormBone bone && bone.hasPhysicsChain())
+                {
+                    roots.add(bone.getId());
+                }
+            }
         }
 
+        Collections.sort(roots);
         this.chains.setList(roots);
 
         if (!roots.isEmpty())
@@ -187,32 +191,8 @@ public class UIPhysicsKeyframeFactory extends UIKeyframeFactory<PhysicsControls>
 
     private PhysicsControl configControl(String root)
     {
-        PhysicsControl control = new PhysicsControl();
-        ModelPhysicsConfig config = this.config();
+        FormBone bone = this.form == null ? null : this.form.bones.getBone(root);
 
-        if (config != null && config.bones() != null)
-        {
-            ModelPhysicsConfig.Bone bone = config.bones().get(root);
-
-            if (bone != null)
-            {
-                control.weight = bone.weight();
-                control.gravity = bone.gravity();
-                control.damping = bone.damping();
-                control.stiffness = bone.stiffness();
-            }
-        }
-
-        return control;
-    }
-
-    private ModelPhysicsConfig config()
-    {
-        if (this.form != null && this.form.physics.get() instanceof MapType map)
-        {
-            return ModelPhysicsIO.fromData(map);
-        }
-
-        return null;
+        return bone == null ? new PhysicsControl() : bone.physics.getOriginalValue().copy();
     }
 }

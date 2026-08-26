@@ -6,6 +6,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
@@ -69,17 +70,17 @@ public class UIDataOverlayPanel <T extends ValueGroup> extends UICRUDOverlayPane
 
     private void paste(MapType data)
     {
-        this.addNewData(data);
+        this.addNewData(this.getContext(), data);
     }
 
     /* CRUD */
 
     @Override
-    protected void addNewData(String name, MapType mapType)
+    protected void addNewData(UIContext context, String name, MapType mapType)
     {
         if (name.trim().isEmpty())
         {
-            this.getContext().notifyError(UIKeys.PANELS_MODALS_EMPTY);
+            context.notifyError(UIKeys.PANELS_MODALS_EMPTY);
 
             return;
         }

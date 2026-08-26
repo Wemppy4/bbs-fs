@@ -14,12 +14,10 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 
 import java.util.Arrays;
@@ -72,7 +70,8 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
 
                 return map;
             })
-            .canCopy(() -> !this.list.isDeselected());
+            .canCopy(() -> !this.list.isDeselected())
+            .labels(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_COPY, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_PASTE);
 
         this.states = states;
         this.callback = consumer;
@@ -80,14 +79,10 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         this.list = new UIAnimationStateList((l) -> this.pickItem(l.get(0), false));
         this.list.context((menu) ->
         {
-            menu.custom(new UIPresetContextMenu(this.copyPasteController)
-                .labels(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_COPY, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_PASTE));
-            menu.action(Icons.ADD, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_ADD, this::addState);
+            this.copyPasteController.install(menu, this.getContext());
 
-            if (!this.list.getList().isEmpty())
-            {
-                menu.action(Icons.REMOVE, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_REMOVE, Colors.NEGATIVE, this::removeState);
-            }
+            menu.icon(MenuVerb.ADD, this::addState).label(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removeState).label(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_REMOVE).enabled(!this.list.getList().isEmpty());
         });
         this.list.background();
 

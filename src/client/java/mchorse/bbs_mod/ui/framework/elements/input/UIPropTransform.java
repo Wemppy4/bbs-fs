@@ -2,17 +2,15 @@ package mchorse.bbs_mod.ui.framework.elements.input;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
+import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
-import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.DragContext;
@@ -20,6 +18,9 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.DragStrategy;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.DragStrategyFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformNumericInput;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIChoiceButton;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.FineCursor;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.HotkeyTarget;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
@@ -27,7 +28,6 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
-import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.Direction;
@@ -42,8 +42,6 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -75,10 +73,11 @@ public class UIPropTransform extends UITransform
 
     /** The reference frame the gizmo and constrained edits operate in. Replaces
      *  the old local/global boolean; {@code space == LOCAL} is the former {@code local}. */
-    private TransformSpace space;
+
 
     /** Dropdown trigger for {@link #space}; shows the active frame's icon and name. */
-    private UISpaceButton spaceButton;
+    /** The frame every edit is expressed in, and the dropdown that picks it. */
+    private UIChoiceButton<TransformSpace> spacePicker;
 
     /* Quaternion rotation pads (w, x, y, z), shown in place of the euler x/y/z pads
      * while the edited bone is in QUATERNION mode. Editing any of them rebuilds a
@@ -110,18 +109,13 @@ public class UIPropTransform extends UITransform
      * advancing at {@link DragStrategy#FINE_DRAG_FACTOR} speed while Shift is
      * held, so every ray gesture slows uniformly without per-mode code. The
      * lag is the accumulated offset between the two. */
-    private float fineOffsetX;
-    private float fineOffsetY;
-    private int fineLastX;
-    private int fineLastY;
-    private boolean fineHasLast;
+    private final FineCursor fineCursor = new FineCursor();
 
     private UITransformHandler handler;
 
     public UIPropTransform()
     {
         this.handler = new UITransformHandler(this);
-        this.space = loadSpace();
 
         this.buildQuaternionFields();
 
@@ -147,19 +141,22 @@ public class UIPropTransform extends UITransform
          * uniform-scale icon next to it: an oversized box on this one alone made it
          * bulge out of the set and pushed its row taller than the others. */
         this.iconR.callback = (b) -> this.toggleRotationMode();
+        this.iconR.highlight(() -> this.transform != null && this.transform.rotationMode == Transform.RotationMode.QUATERNION, Direction.LEFT);
         this.iconR.tooltip(UIKeys.TRANSFORMS_ROTATION_MODE_TOOLTIP);
         this.iconR.setEnabled(true);
 
         /* The space picker is a dropdown on its own row above T/S/R (it replaced the
          * old click-to-cycle on the translate-row icon, which is decorative again). */
-        this.spaceButton = new UISpaceButton();
-        this.spaceButton.tooltip(UIKeys.TRANSFORMS_SPACE_TOOLTIP);
-        this.prepend(UI.labelRow(UIKeys.TRANSFORMS_SPACE_TITLE, this.spaceButton));
+        this.spacePicker = new UIChoiceButton<>(TransformSpace.DISPLAY_ORDER, (space) -> space.icon, (space) -> space.label)
+            .unavailable((space) -> space.implemented, (space) -> UIKeys.TRANSFORMS_SPACE_WIP.format(space.label))
+            .callback(TransformSpace::remember)
+            .setValue(TransformSpace.load());
+        this.spacePicker.tooltip(UIKeys.TRANSFORMS_SPACE_TOOLTIP);
+        this.prepend(UI.labelRow(UIKeys.TRANSFORMS_SPACE_TITLE, this.spacePicker));
         /* Four uniform rows: the space picker above translate / scale / rotate.
          * (Was 3×CONTROL_HEIGHT + 20 — the 20 being the rotate row, which its
          * oversized toggle icon pushed past the others.) */
         this.h(4 * UIConstants.CONTROL_HEIGHT);
-        this.updateSpaceLabel();
 
         /* Each finished value-field drag closes the current undo block, so dragging a
          * field several times in a row undoes one drag at a time (see endGesture). */
@@ -274,13 +271,13 @@ public class UIPropTransform extends UITransform
 
     public boolean isLocal()
     {
-        return this.space == TransformSpace.LOCAL;
+        return this.spacePicker.getValue().isLocal();
     }
 
     /** The reference frame the gizmo and constrained edits operate in. */
     public TransformSpace getSpace()
     {
-        return this.space;
+        return this.spacePicker.getValue();
     }
 
     @Override
@@ -318,123 +315,6 @@ public class UIPropTransform extends UITransform
     public boolean isAlternateInvert()
     {
         return BBSSettings.poseAlternateInvert.get();
-    }
-
-    /** The space remembered from the last session, guarded against an out-of-range
-     *  or not-yet-implemented stored value (then falls back to the default: PARENT,
-     *  or LOCAL when the {@code default_local} toggle is on). */
-    private static TransformSpace loadSpace()
-    {
-        TransformSpace[] values = TransformSpace.values();
-        TransformSpace space = values[MathUtils.clamp(BBSSettings.transformSpace.get(), 0, values.length - 1)];
-
-        if (!space.implemented)
-        {
-            return BBSSettings.defaultLocalTransform.get() ? TransformSpace.LOCAL : TransformSpace.PARENT;
-        }
-
-        return space;
-    }
-
-    /** Switch to a specific frame (dropdown pick / hotkey) and remember it globally. */
-    private void selectSpace(TransformSpace space)
-    {
-        if (space == null || !space.implemented)
-        {
-            return;
-        }
-
-        this.space = space;
-        BBSSettings.transformSpace.set(space.ordinal());
-        this.updateSpaceLabel();
-    }
-
-    /**
-     * Open the clip-style space list: each implemented frame with its icon and
-     * colour (a not-yet-implemented frame would show greyed out and inert), in
-     * the picker's own order ({@link TransformSpace#DISPLAY_ORDER}, PARENT
-     * first). The list is auto-keyed, so the hotkey that opens it at the cursor
-     * turns picking a frame into a two-stroke gesture (open, then press the
-     * frame's number).
-     */
-    private void openSpaceMenu()
-    {
-        UIContext context = this.getContext();
-
-        if (context == null)
-        {
-            return;
-        }
-
-        context.replaceContextMenu((menu) ->
-        {
-            menu.autoKeys();
-
-            for (TransformSpace space : TransformSpace.DISPLAY_ORDER)
-            {
-                if (space.implemented)
-                {
-                    menu.action(this.spaceIcon(space), this.spaceLabel(space), this.spaceColor(space), () -> this.selectSpace(space));
-                }
-                else
-                {
-                    menu.action(this.spaceIcon(space), UIKeys.TRANSFORMS_SPACE_WIP.format(this.spaceLabel(space)), Colors.GRAY & Colors.RGB, () -> {});
-                }
-            }
-        });
-    }
-
-    /** Refresh the space picker's label to the active frame. The translate pads
-     *  read and write {@code transform.translate} directly in every frame now,
-     *  like the scale and rotate pads (the former LOCAL relative-nudge fields are
-     *  gone; the gizmo still drags along the local axes). */
-    private void updateSpaceLabel()
-    {
-        if (this.spaceButton != null)
-        {
-            this.spaceButton.label = this.spaceLabel(this.space);
-        }
-    }
-
-    /** The dedicated icon for a space (used on the dropdown trigger and in its list). */
-    private Icon spaceIcon(TransformSpace space)
-    {
-        switch (space)
-        {
-            case GLOBAL: return Icons.SPACE_GLOBAL;
-            /* The globe: no dedicated space_* sprite exists for WORLD, and a
-             * globe reads as "the map itself" better than a new flat glyph. */
-            case WORLD: return Icons.GLOBE;
-            case VIEW: return Icons.SPACE_VIEW;
-            case PARENT: return Icons.SPACE_PARENT;
-            default: return Icons.SPACE_LOCAL;
-        }
-    }
-
-    /** The accent colour a space is tagged with in the picker. RGB only (no alpha):
-     *  the colourful menu action builds its own bar + gradient from it. */
-    private int spaceColor(TransformSpace space)
-    {
-        switch (space)
-        {
-            case GLOBAL: return 0x4C8DFF;
-            case WORLD: return 0x2FBFD9;
-            case VIEW: return 0x43C67A;
-            case PARENT: return 0xB27BE0;
-            default: return 0xF0A63C;
-        }
-    }
-
-    private IKey spaceLabel(TransformSpace space)
-    {
-        switch (space)
-        {
-            case GLOBAL: return UIKeys.TRANSFORMS_SPACE_GLOBAL;
-            case WORLD: return UIKeys.TRANSFORMS_SPACE_WORLD;
-            case VIEW: return UIKeys.TRANSFORMS_SPACE_VIEW;
-            case PARENT: return UIKeys.TRANSFORMS_SPACE_PARENT;
-            default: return UIKeys.TRANSFORMS_SPACE_LOCAL;
-        }
     }
 
     private Vector3f calculateLocalVector(double factor, Axis axis)
@@ -476,7 +356,7 @@ public class UIPropTransform extends UITransform
         this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.setEditingAxis(Axis.X)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.setEditingAxis(Axis.Y)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.setEditingAxis(Axis.Z)).active(active).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_SPACE_MENU, this::openSpaceMenu).active(enabled).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_SPACE_MENU, this.spacePicker::open).active(enabled).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_ROTATION_MODE, this::toggleRotationMode).active(enabled).category(category);
 
         return this;
@@ -867,34 +747,7 @@ public class UIPropTransform extends UITransform
 
     private HotkeyTarget nextHotkeyTarget(TransformOp op, boolean ray)
     {
-        ValueOrder order = op == TransformOp.TRANSLATE ? BBSSettings.translateHotkeyOrder : (op == TransformOp.SCALE ? BBSSettings.scaleHotkeyOrder : BBSSettings.rotateHotkeyOrder);
-        List<HotkeyTarget> steps = new ArrayList<>();
-
-        for (String token : order.get())
-        {
-            HotkeyTarget target = HotkeyTarget.byToken(token);
-
-            if (target == null || (target.needsRay && !ray))
-            {
-                continue;
-            }
-
-            if (target == HotkeyTarget.SPHERE && !BBSSettings.rotate3dSphere.get())
-            {
-                continue;
-            }
-
-            steps.add(target);
-        }
-
-        if (steps.isEmpty())
-        {
-            return HotkeyTarget.X;
-        }
-
-        int index = steps.indexOf(this.currentHotkeyTarget(op));
-
-        return steps.get((index + 1) % steps.size());
+        return HotkeyTarget.next(op, ray, this.currentHotkeyTarget(op));
     }
 
     /**
@@ -1069,6 +922,13 @@ public class UIPropTransform extends UITransform
         {
             this.restore();
         }
+        else
+        {
+            /* Arm the physics rewind for this gesture. Only on a fresh one: re-entering while editing
+             * (switching the op mid-drag) rewinds the transform to the SAME start snapshot, so the sim
+             * the gesture must be able to return to is still the one captured back then. */
+            ModelPhysicsRuntime.checkpoint();
+        }
 
         this.editing = true;
         this.axis = axis;
@@ -1171,13 +1031,14 @@ public class UIPropTransform extends UITransform
     private void disable()
     {
         ModelIKRuntime.logGesture(false);
+        ModelPhysicsRuntime.dropCheckpoint();
 
         this.editing = false;
         this.axis2 = null;
         this.hotkeyMode = false;
         this.strategy = null;
         this.drag = null;
-        this.fineHasLast = false;
+        this.fineCursor.forget();
         this.numeric.clear();
         Gizmo.INSTANCE.clearTrackedTransform(this);
 
@@ -1209,6 +1070,11 @@ public class UIPropTransform extends UITransform
          * per-channel path, which fans the primary's values onto the whole
          * selection — the bones come back crooked instead of where they were. */
         this.restore();
+
+        /* The pose is back where it started, so the simulation it drove goes back too — otherwise the
+         * chains stay where the drag flung them and lash home over a single tick. */
+        ModelPhysicsRuntime.rewindToCheckpoint();
+
         this.disable();
         this.setTransform(this.transform);
     }
@@ -1298,7 +1164,7 @@ public class UIPropTransform extends UITransform
 
         /* The cursor was free to roam while typing; re-anchor the precision
          * tracking here so the resumed drag doesn't inherit a stale lag. */
-        this.resetFineCursor(context.mouseX, context.mouseY);
+        this.fineCursor.reset(context.mouseX, context.mouseY);
 
         if (this.strategy != null)
         {
@@ -1467,7 +1333,7 @@ public class UIPropTransform extends UITransform
             return null;
         }
 
-        return this.spaceLabel(this.space).get();
+        return this.spacePicker.getValue().label.get();
     }
 
     /** The live vector of the edited channel, for the cursor's value card. */
@@ -1496,53 +1362,6 @@ public class UIPropTransform extends UITransform
     }
 
     /**
-     * Maintain the virtual cursor for the current frame. While Shift is held it
-     * advances at {@link DragStrategy#FINE_DRAG_FACTOR} of the real cursor — the
-     * rest of the motion piles into the lag offset; released, it tracks the
-     * cursor 1:1 again with no jump. Ray gestures read {@link #fineX}/{@link #fineY}
-     * so they all slow uniformly without any per-mode code.
-     */
-    private void updateFineCursor(int mouseX, int mouseY)
-    {
-        if (!this.fineHasLast)
-        {
-            this.resetFineCursor(mouseX, mouseY);
-
-            return;
-        }
-
-        if (Window.isShiftPressed())
-        {
-            float keep = 1F - DragStrategy.FINE_DRAG_FACTOR;
-
-            this.fineOffsetX += (mouseX - this.fineLastX) * keep;
-            this.fineOffsetY += (mouseY - this.fineLastY) * keep;
-        }
-
-        this.fineLastX = mouseX;
-        this.fineLastY = mouseY;
-    }
-
-    private void resetFineCursor(int mouseX, int mouseY)
-    {
-        this.fineOffsetX = 0F;
-        this.fineOffsetY = 0F;
-        this.fineLastX = mouseX;
-        this.fineLastY = mouseY;
-        this.fineHasLast = true;
-    }
-
-    private int fineX(int mouseX)
-    {
-        return Math.round(mouseX - this.fineOffsetX);
-    }
-
-    private int fineY(int mouseY)
-    {
-        return Math.round(mouseY - this.fineOffsetY);
-    }
-
-    /**
      * Advance the live gesture: wrap the cursor at the window edges (re-anchoring
      * the strategy at the teleported position) and feed the strategy the cursor —
      * virtual (Shift-slowed) for ray gestures, raw for the additive fallback,
@@ -1566,7 +1385,7 @@ public class UIPropTransform extends UITransform
         int border = 5;
         int borderPadding = border + 1;
 
-        this.updateFineCursor(context.mouseX, context.mouseY);
+        this.fineCursor.update(context.mouseX, context.mouseY);
 
         if (rawX <= border || rawX >= w - border)
         {
@@ -1587,7 +1406,7 @@ public class UIPropTransform extends UITransform
 
             /* The wrap re-anchors the drag at the teleported position, so the
              * virtual cursor resets there too — no lag carries across the seam. */
-            this.resetFineCursor(wrapX, context.mouseY);
+            this.fineCursor.reset(wrapX, context.mouseY);
 
             if (this.strategy != null)
             {
@@ -1601,7 +1420,7 @@ public class UIPropTransform extends UITransform
         {
             if (this.strategy.usesFineCursor())
             {
-                this.strategy.update(this.fineX(context.mouseX), this.fineY(context.mouseY));
+                this.strategy.update(this.fineCursor.x(context.mouseX), this.fineCursor.y(context.mouseY));
             }
             else
             {
@@ -1620,13 +1439,6 @@ public class UIPropTransform extends UITransform
         if (this.editing && !this.numeric.isActive() && this.checker.isTime())
         {
             this.updateDrag(context);
-        }
-
-        /* Quaternion mode lights up the rotation-row icon with the standard toggle
-         * highlight, as a gradient down the icon's left edge. */
-        if (this.transform != null && this.transform.rotationMode == Transform.RotationMode.QUATERNION)
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.iconR.area, Direction.LEFT);
         }
 
         super.render(context);
@@ -1727,47 +1539,6 @@ public class UIPropTransform extends UITransform
     }
 
     /**
-     * A step of a transform hotkey's walk. Tokens match the entries of the
-     * translate/scale/rotate hotkey order settings.
-     */
-    public enum HotkeyTarget
-    {
-        VIEW("view", null, true),
-        SPHERE("sphere", null, true),
-        SCREEN("screen", null, true),
-        /** Scale's non-axis step: one lever drives all three axes (Blender's plain S). */
-        ALL("all", null, false),
-        X("x", Axis.X, false),
-        Y("y", Axis.Y, false),
-        Z("z", Axis.Z, false);
-
-        public final String token;
-        public final Axis axis;
-        /** Whether the step is driven by the 3D ray and so needs a rendered gizmo. */
-        public final boolean needsRay;
-
-        HotkeyTarget(String token, Axis axis, boolean needsRay)
-        {
-            this.token = token;
-            this.axis = axis;
-            this.needsRay = needsRay;
-        }
-
-        public static HotkeyTarget byToken(String token)
-        {
-            for (HotkeyTarget target : values())
-            {
-                if (target.token.equals(token))
-                {
-                    return target;
-                }
-            }
-
-            return null;
-        }
-    }
-
-    /**
      * Bridge the active {@link DragStrategy} works through: it exposes the
      * edit session's state and funnels every write back through the editor's
      * virtual {@code setT/setS/setR/setR2}, so the delta editors keep fanning
@@ -1814,7 +1585,7 @@ public class UIPropTransform extends UITransform
         @Override
         public TransformSpace space()
         {
-            return UIPropTransform.this.space;
+            return UIPropTransform.this.spacePicker.getValue();
         }
 
         @Override
@@ -1887,33 +1658,6 @@ public class UIPropTransform extends UITransform
         public void writeRotationQuat(Quaternionf quat)
         {
             UIPropTransform.this.setRQuat(quat);
-        }
-    }
-
-    /**
-     * Dropdown trigger for the transform space: a normal button whose label is the
-     * active frame's name (kept current by {@link #updateSpaceLabel}), with that frame's
-     * coloured icon drawn on the left. Clicking opens the clip-style space list.
-     */
-    private class UISpaceButton extends UIButton
-    {
-        public UISpaceButton()
-        {
-            super(UIKeys.TRANSFORMS_SPACE_LOCAL, (b) -> UIPropTransform.this.openSpaceMenu());
-        }
-
-        @Override
-        protected void renderSkin(UIContext context)
-        {
-            super.renderSkin(context);
-
-            /* The frame's icon, left-aligned and left in the default white — the colour
-             * cue lives in the dropdown list, not on the trigger. */
-            context.batcher.icon(
-                UIPropTransform.this.spaceIcon(UIPropTransform.this.space),
-                Colors.WHITE,
-                this.area.x + 4, this.area.my(), 0F, 0.5F
-            );
         }
     }
 

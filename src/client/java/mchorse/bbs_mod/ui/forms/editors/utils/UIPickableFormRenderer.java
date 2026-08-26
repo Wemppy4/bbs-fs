@@ -216,7 +216,7 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
              * the F8 axes toggle is untouched here on purpose. */
             if (!UIBaseMenu.isHideGizmoHeld())
             {
-                Gizmo.INSTANCE.renderStencil(context.batcher.getContext().getMatrices(), this.stencilMap);
+                Gizmo.INSTANCE.renderStencil(context.batcher.getContext().getMatrices());
             }
 
             stack.pop();

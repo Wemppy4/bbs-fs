@@ -61,10 +61,18 @@ public class UIModelPoseEditor extends UIPoseEditor
     }
 
     @Override
-    protected void setLighting(PoseTransform transform, boolean value)
+    protected void setLighting(PoseTransform transform, float value)
     {
         this.valuePose.preNotify(IValueListener.FLAG_UNMERGEABLE);
         super.setLighting(transform, value);
         this.valuePose.postNotify(IValueListener.FLAG_UNMERGEABLE);
+    }
+
+    @Override
+    protected void setOverlay(PoseTransform transform, int value)
+    {
+        this.valuePose.preNotify();
+        super.setOverlay(transform, value);
+        this.valuePose.postNotify();
     }
 }

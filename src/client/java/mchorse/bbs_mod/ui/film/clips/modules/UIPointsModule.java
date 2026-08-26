@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -39,8 +40,8 @@ public class UIPointsModule extends UIAbstractModule
 
         this.context((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_ADD, this::addPoint);
-            menu.action(Icons.REMOVE, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_REMOVE, this::removePoint);
+            menu.icon(MenuVerb.ADD, this::addPoint).label(UIKeys.CAMERA_PANELS_POINTS_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removePoint).label(UIKeys.CAMERA_PANELS_POINTS_CONTEXT_REMOVE);
             menu.action(Icons.SHIFT_BACKWARD, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_MOVE_BACK, this::moveBack);
             menu.action(Icons.SHIFT_FORWARD, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_MOVE_FORWARD, this::moveForward);
         });

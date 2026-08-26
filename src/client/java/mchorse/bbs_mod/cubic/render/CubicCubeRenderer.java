@@ -50,6 +50,10 @@ public class CubicCubeRenderer implements ICubicRenderer
     protected int overlay;
     protected StencilMap stencilMap;
 
+    /* The form-level color overlay texture is bound for the CPU draw (see ModelInstance), so
+     * vertices must point at its single texel instead of the vanilla overlay UV. */
+    protected boolean cpuOverlayActive;
+
     /* Temporary variables to avoid allocating and GC vectors */
     protected Vector3f normal = new Vector3f();
     protected Vector4f vertex = new Vector4f();
@@ -162,6 +166,11 @@ public class CubicCubeRenderer implements ICubicRenderer
         this.overlay = overlay;
         this.stencilMap = stencilMap;
         this.shapeKeys = shapeKeys;
+    }
+
+    public void setCpuOverlayActive(boolean active)
+    {
+        this.cpuOverlayActive = active;
     }
 
     public void setColor(float r, float g, float b, float a)
@@ -449,7 +458,7 @@ public class CubicCubeRenderer implements ICubicRenderer
         builder.vertex(x, y, z)
             .color(this.r * group.color.r, this.g * group.color.g, this.b * group.color.b, this.a * group.color.a)
             .texture(u, v)
-            .overlay(this.overlay);
+            .overlay(this.cpuOverlayActive ? 0 : this.overlay);
 
         if (this.stencilMap != null)
         {

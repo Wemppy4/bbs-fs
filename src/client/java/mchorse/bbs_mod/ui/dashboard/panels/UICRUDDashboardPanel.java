@@ -9,7 +9,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
-public abstract class UICRUDDashboardPanel extends UISidebarDashboardPanel
+public abstract class UICRUDDashboardPanel extends UIEditorDashboardPanel
 {
     public UIIcon openOverlay;
 
@@ -20,29 +20,31 @@ public abstract class UICRUDDashboardPanel extends UISidebarDashboardPanel
         super(dashboard);
 
         this.overlay = this.createOverlayPanel();
-        this.openOverlay = new UIIcon(Icons.MORE, (b) ->
-        {
-            UIOverlay.addOverlay(this.getContext(), this.overlay, 200, 0.9F);
-        });
+        this.openOverlay = new UIIcon(Icons.MORE, (b) -> this.openDataManager());
 
-        this.iconBar.prepend(this.openOverlay);
+        this.actions().menu(this.openOverlay);
 
         this.keys().register(Keys.OPEN_DATA_MANAGER, this::openDataManager);
     }
 
-    protected void openDataManager()
+    /**
+     * Put the data manager on screen. Opens the overlay directly rather than through the menu
+     * button: a panel with a menu of its own (the film editor) takes that button off the bar, and
+     * a button that is not on screen cannot be clicked.
+     */
+    public void openDataManager()
     {
         UIContext context = this.getContext();
 
         if (context != null)
         {
-            this.openOverlay.clickItself(context);
+            UIOverlay.addOverlay(context, this.overlay, 200, 0.9F);
         }
     }
 
     protected abstract UICRUDOverlayPanel createOverlayPanel();
 
-    protected abstract IKey getTitle();
+    public abstract IKey getTitle();
 
     public abstract void pickData(String id);
 }

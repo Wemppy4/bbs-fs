@@ -18,6 +18,8 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,12 +29,21 @@ public class TextureManager implements IWatchDogListener
     public final Map<Link, AnimatedTexture> animatedTextures = new HashMap<>();
 
     /**
+     * Variant copies of loaded textures (link &rarr; variant key &rarr; texture), used by the
+     * material PBR sliders: Iris caches PBR holders by the albedo's GL id, so a material with
+     * its own slider values needs its own GL texture. The variant key encodes the slider
+     * values — moving a slider lands on a NEW id, which is how edits invalidate Iris' cache.
+     * A few variants per link are kept; older ones are deleted.
+     */
+    private final Map<Link, LinkedHashMap<String, Texture>> variants = new HashMap<>();
+
+    /**
      * Links whose asset couldn't be read. The error texture stands in for them, but it must NEVER
-     * be stored as their value: it is ONE shared texture, while everything inside {@link #textures}
-     * and {@link #animatedTextures} is owned there and deleted with its link. Storing the stand-in
-     * among them let a single link's deletion (Iris closing a PBR wrapper, the watchdog seeing a
-     * file change, the reload button) kill it for every other missing texture at once — and a
-     * deleted texture keeps id -1, which the shader binds on every draw that follows.
+     * be stored as their value: it is ONE shared texture, while everything inside {@link #textures},
+     * {@link #animatedTextures} and {@link #variants} is owned there and deleted with its link.
+     * Storing the stand-in among them let a single link's deletion (Iris closing a PBR wrapper, the
+     * watchdog seeing a file change, the reload button) kill it for every other missing texture at
+     * once — and a deleted texture keeps id -1, which the shader binds on every draw that follows.
      */
     private final Set<Link> failed = new HashSet<>();
 
@@ -171,6 +182,74 @@ public class TextureManager implements IWatchDogListener
         {
             animatedTexture.delete();
         }
+
+        this.deleteVariants(link);
+    }
+
+    private void deleteVariants(Link link)
+    {
+        LinkedHashMap<String, Texture> byKey = this.variants.remove(link);
+
+        if (byKey != null)
+        {
+            for (Texture variant : byKey.values())
+            {
+                variant.delete();
+            }
+        }
+    }
+
+    /**
+     * A separate GL copy of the texture under the given variant key, loaded from the same
+     * pixels. Returns the error texture when the source can't be read.
+     */
+    public Texture getVariant(Link link, String key)
+    {
+        if (this.failed.contains(link))
+        {
+            return this.getError();
+        }
+
+        LinkedHashMap<String, Texture> byKey = this.variants.computeIfAbsent(link, (l) -> new LinkedHashMap<>());
+        Texture texture = byKey.get(key);
+
+        if (texture == null)
+        {
+            Pixels pixels;
+
+            try
+            {
+                pixels = this.getPixels(link);
+            }
+            catch (Exception e)
+            {
+                pixels = null;
+            }
+
+            if (pixels == null)
+            {
+                this.failed.add(link);
+
+                return this.getError();
+            }
+
+            texture = Texture.textureFromPixels(pixels, GL11.GL_NEAREST);
+
+            byKey.put(key, texture);
+
+            /* Slider drags walk through many intermediate values; keep the tail short. */
+            Iterator<Texture> it = byKey.values().iterator();
+
+            while (byKey.size() > 4 && it.hasNext())
+            {
+                Texture old = it.next();
+
+                it.remove();
+                old.delete();
+            }
+        }
+
+        return texture;
     }
 
     public Texture createTexture(Link link)
@@ -321,6 +400,15 @@ public class TextureManager implements IWatchDogListener
             animatedTexture.delete();
         }
 
+        for (LinkedHashMap<String, Texture> byKey : this.variants.values())
+        {
+            for (Texture variant : byKey.values())
+            {
+                variant.delete();
+            }
+        }
+
+        this.variants.clear();
         this.textures.clear();
         this.animatedTextures.clear();
         this.failed.clear();
@@ -367,6 +455,7 @@ public class TextureManager implements IWatchDogListener
             remove.delete();
         }
 
+        this.deleteVariants(link);
         this.extruder.delete(link);
     }
 }

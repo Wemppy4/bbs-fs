@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
@@ -9,6 +11,9 @@ import mchorse.bbs_mod.utils.colors.Color;
 
 public class LabelForm extends Form
 {
+    /** Also what its main tab in the form editor wears — see {@link Form#getIcon()}. */
+    public static final Icon ICON = Icons.FONT;
+
     public final ValueString text = new ValueString("text", "Hello, World!");
     public final ValueBoolean billboard = new ValueBoolean("billboard", false);
     public final ValueColor color = new ValueColor("color", Color.white());
@@ -50,4 +55,11 @@ public class LabelForm extends Form
     {
         return this.text.get();
     }
+
+    @Override
+    public Icon getIcon()
+    {
+        return ICON;
+    }
+
 }

@@ -5,7 +5,6 @@ import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
-import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
@@ -29,8 +28,8 @@ public class Keyframe <T> extends BaseValue
     public List<Float> rx_m;
     public List<Float> ry_m;
 
-    private KeyframeShape shape = BBSSettings.getDefaultKeyframeShape();
-    private Color color;
+    /** How this keyframe is drawn. Fresh keyframes start from whatever the settings say. */
+    private final KeyframeStyle style = BBSSettings.getDefaultKeyframeStyle();
 
     /**
      * Forced duration that would be used instead of the difference
@@ -230,27 +229,20 @@ public class Keyframe <T> extends BaseValue
         return this.interp;
     }
 
-    public KeyframeShape getShape()
+    /**
+     * The style this keyframe is drawn with. Read it freely; to change it, hand a modified copy to
+     * {@link #setStyle(KeyframeStyle)} - editing this one in place skips the change notification
+     * and the edit goes unrecorded.
+     */
+    public KeyframeStyle getStyle()
     {
-        return this.shape;
+        return this.style;
     }
 
-    public void setShape(KeyframeShape shape)
+    public void setStyle(KeyframeStyle style)
     {
         this.preNotify();
-        this.shape = shape;
-        this.postNotify();
-    }
-
-    public Color getColor()
-    {
-        return this.color;
-    }
-
-    public void setColor(Color color)
-    {
-        this.preNotify();
-        this.color = color;
+        this.style.copy(style);
         this.postNotify();
     }
 
@@ -260,8 +252,7 @@ public class Keyframe <T> extends BaseValue
         this.duration = keyframe.duration;
         this.value = this.factory.copy(keyframe.value);
         this.interp.copy(keyframe.interp);
-        this.shape = keyframe.shape;
-        this.color = keyframe.color;
+        this.style.copy(keyframe.style);
 
         this.lx = keyframe.lx;
         this.ly = keyframe.ly;
@@ -315,8 +306,7 @@ public class Keyframe <T> extends BaseValue
         if (this.ly != 0F) data.putFloat("ly", this.ly);
         if (this.rx != 5F) data.putFloat("rx", this.rx);
         if (this.ry != 0F) data.putFloat("ry", this.ry);
-        if (this.color != null) data.putInt("color", this.color.getRGBColor());
-        if (this.shape != KeyframeShape.SQUARE) data.putString("shape", this.shape.toString().toUpperCase());
+        this.style.toData(data);
 
         if (this.lx_m != null)
         {
@@ -349,8 +339,7 @@ public class Keyframe <T> extends BaseValue
 
         MapType map = data.asMap();
 
-        this.shape = KeyframeShape.SQUARE;
-        this.color = null;
+        this.style.fromData(map);
 
         if (map.has("tick")) this.tick = map.getFloat("tick");
         if (map.has("duration")) this.duration = map.getFloat("duration");
@@ -360,8 +349,6 @@ public class Keyframe <T> extends BaseValue
         if (map.has("ly")) this.ly = map.getFloat("ly");
         if (map.has("rx")) this.rx = map.getFloat("rx");
         if (map.has("ry")) this.ry = map.getFloat("ry");
-        if (map.has("shape")) this.shape = KeyframeShape.fromString(map.getString("shape"));
-        if (map.has("color")) this.color = Color.rgb(map.getInt("color"));
 
         if (map.has("lx_m"))
         {
@@ -385,8 +372,7 @@ public class Keyframe <T> extends BaseValue
     public void copyOverExtra(Keyframe<?> a)
     {
         this.getInterpolation().copy(a.getInterpolation());
-        this.setShape(a.getShape());
-        this.setColor(a.getColor() != null ? a.getColor().copy() : null);
+        this.setStyle(a.getStyle());
         this.setDuration(a.getDuration());
 
         this.lx = a.lx;
