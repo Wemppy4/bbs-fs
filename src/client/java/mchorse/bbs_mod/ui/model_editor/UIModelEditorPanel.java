@@ -31,6 +31,7 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
+import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingScreen;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
@@ -159,7 +160,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     private boolean bulkFill;
 
     /** Landing screen shown when the current tab has no model open. */
-    private UIModelSelectionScreen selectionPanel;
+    private UILandingScreen<ModelConfig> landing;
 
     /** A small morph-style model thumbnail pinned to the top-right of the orbit viewport. */
     private UIElement miniPreview;
@@ -242,9 +243,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.actions().action(this.folderIcon).action(this.historyIcon);
 
-        this.selectionPanel = new UIModelSelectionScreen(this);
+        this.landing = new UILandingScreen<>(this);
 
-        this.add(this.layoutUnderTopBar(this.selectionPanel));
+        this.add(this.layoutUnderTopBar(this.landing));
 
         this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
@@ -252,13 +253,13 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.fill(null);
 
-        this.onAppear(this::refreshSelectionScreen);
+        this.onAppear(this::refreshLanding);
     }
 
-    /** No model open → the selection screen is up; refresh its list each time the panel is shown. */
-    private void refreshSelectionScreen()
+    /** No model open → the landing screen is up; refresh its list each time the panel is shown. */
+    private void refreshLanding()
     {
-        if (this.selectionPanel != null && this.selectionPanel.isVisible())
+        if (this.landing != null && this.landing.isVisible())
         {
             this.requestNames();
         }
@@ -328,15 +329,15 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     }
 
     @Override
-    protected IKey getTitle()
+    public IKey getTitle()
     {
         return UIKeys.MODEL_EDITOR_TITLE;
     }
 
     @Override
-    protected boolean shouldAutoOpenListOnFirstResize()
+    public IKey getListLabel()
     {
-        return false;
+        return UIKeys.MODEL_EDITOR_LANDING_LIST;
     }
 
     @Override
@@ -440,9 +441,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.fillSections(data);
 
-        if (this.selectionPanel != null)
+        if (this.landing != null)
         {
-            this.selectionPanel.setVisible(data == null);
+            this.landing.setVisible(data == null);
         }
 
         if (this.folderIcon != null)
@@ -533,9 +534,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         super.fillNames(names);
 
-        if (this.selectionPanel != null)
+        if (this.landing != null)
         {
-            this.selectionPanel.fillNames(names);
+            this.landing.fillNames(names);
         }
     }
 

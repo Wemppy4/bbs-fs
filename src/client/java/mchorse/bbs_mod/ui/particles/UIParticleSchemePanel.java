@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
+import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingScreen;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -69,7 +70,7 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     public UIScrollView particleView;
     public UIScrollView appearanceView;
     public UIDockLayout dock;
-    public UIParticleSelectionPanel selectionPanel;
+    public UILandingScreen<ParticleScheme> landing;
 
     public List<UIParticleSchemeSection> sections = new ArrayList<>();
 
@@ -107,9 +108,9 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         this.dock.mount();
         this.editor.add(this.dock);
 
-        this.selectionPanel = new UIParticleSelectionPanel(this);
+        this.landing = new UILandingScreen<>(this);
 
-        this.add(this.layoutUnderTopBar(this.selectionPanel));
+        this.add(this.layoutUnderTopBar(this.landing));
 
         this.overlay.namesList.setFileIcon(Icons.PARTICLE);
 
@@ -220,9 +221,21 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     }
 
     @Override
-    protected IKey getTitle()
+    public IKey getTitle()
     {
         return UIKeys.SNOWSTORM_TITLE;
+    }
+
+    @Override
+    public IKey getCreateLabel()
+    {
+        return UIKeys.SNOWSTORM_LANDING_NEW;
+    }
+
+    @Override
+    public IKey getListLabel()
+    {
+        return UIKeys.SNOWSTORM_LANDING_LIST;
     }
 
     @Override
@@ -339,7 +352,7 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     {
         this.editMoLang(null, null, null);
 
-        this.selectionPanel.setVisible(data == null);
+        this.landing.setVisible(data == null);
 
         if (this.data != null)
         {
@@ -369,9 +382,9 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     {
         super.fillNames(names);
 
-        if (this.selectionPanel != null)
+        if (this.landing != null)
         {
-            this.selectionPanel.fillNames(names);
+            this.landing.fillNames(names);
         }
     }
 
@@ -396,12 +409,6 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         }
         catch (Exception e)
         {}
-    }
-
-    @Override
-    protected boolean shouldAutoOpenListOnFirstResize()
-    {
-        return false;
     }
 
     @Override

@@ -36,6 +36,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
+import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingScreen;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.dashboard.utils.IUIOrbitKeysHandler;
 import mchorse.bbs_mod.ui.film.audio.UIAudioRecorder;
@@ -101,7 +102,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private final Position position = new Position(0, 0, 0, 0, 0);
     private final Position lastPosition = new Position(0, 0, 0, 0, 0);
 
-    public UIFilmSelectionPanel selectionPanel;
+    public UILandingScreen<Film> landing;
 
     public UIElement main;
     public UIElement editArea;
@@ -287,7 +288,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             }
         }).active(active).category(editor);
 
-        this.selectionPanel = new UIFilmSelectionPanel(this);
+        this.landing = new UILandingScreen<>(this);
 
         /* Dockable layout, shared with the particle editor. */
         this.dock = new UIDockLayout();
@@ -355,7 +356,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         BBSSettings.editorPreviewCustomHeight.postCallback(refreshPreviewOnVideoResolution);
         BBSSettings.editorPreviewResolutionScale.postCallback(refreshPreviewOnVideoResolution);
 
-        this.add(this.layoutUnderTopBar(this.selectionPanel));
+        this.add(this.layoutUnderTopBar(this.landing));
 
         this.onOpen(this::pickUpRecording);
         this.onAppear(this::enterEditing);
@@ -427,7 +428,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         boolean hasFilm = this.hasFilmInCurrentTab();
 
         this.updateMainEditorVisibility(hasFilm);
-        this.selectionPanel.setVisible(!hasFilm);
+        this.landing.setVisible(!hasFilm);
     }
 
     private boolean hasFilmInCurrentTab()
@@ -606,7 +607,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     private void fillFilmContextMenu(ContextMenuManager menu)
     {
-        menu.action(Icons.FILM, UIKeys.FILM_TITLE, this::openFilmListOverlay);
+        menu.action(Icons.FILM, UIKeys.FILM_TITLE, this::openDataManager);
 
         if (this.data == null)
         {
@@ -751,22 +752,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         return new Vector3d();
     }
 
-    private void openFilmListOverlay()
-    {
-        UIOverlay.addOverlay(this.getContext(), this.overlay, 200, 0.9F);
-    }
-
     private void openLayoutPresetsMenu()
     {
         UIContext context = this.getContext();
 
         this.layoutPresetsController.openPresets(context, context.mouseX, context.mouseY);
-    }
-
-    @Override
-    protected boolean shouldAutoOpenListOnFirstResize()
-    {
-        return false;
     }
 
     @Override
@@ -1130,46 +1120,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
     }
 
-    public void dupeFilmTo(String sourceId, String name)
-    {
-        if (name == null || name.trim().isEmpty())
-        {
-            return;
-        }
-
-        Film current = this.getData();
-
-        if (current != null && (sourceId == null || sourceId.equals(current.getId())))
-        {
-            this.dupeData(name);
-
-            return;
-        }
-
-        if (sourceId == null || sourceId.trim().isEmpty() || this.overlay.namesList.hasInHierarchy(name))
-        {
-            return;
-        }
-
-        this.save();
-
-        this.getType().getRepository().load(sourceId, (loaded) ->
-        {
-            Film source = (Film) loaded;
-
-            if (source == null)
-            {
-                return;
-            }
-
-            Film duplicated = this.createDuplicateFilm(name, source);
-
-            this.fill(duplicated);
-            this.save();
-            this.requestNames();
-        });
-    }
-
     private Film createDuplicateFilm(String name, Film source)
     {
         Film data = new Film();
@@ -1453,6 +1403,18 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     }
 
     @Override
+    public IKey getCreateLabel()
+    {
+        return UIKeys.FILM_LANDING_NEW;
+    }
+
+    @Override
+    public IKey getListLabel()
+    {
+        return UIKeys.FILM_LANDING_LIST;
+    }
+
+    @Override
     public void fillDefaultData(Film data)
     {
         super.fillDefaultData(data);
@@ -1544,9 +1506,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     {
         super.fillNames(names);
 
-        if (this.selectionPanel != null)
+        if (this.landing != null)
         {
-            this.selectionPanel.fillNames(names);
+            this.landing.fillNames(names);
         }
     }
 

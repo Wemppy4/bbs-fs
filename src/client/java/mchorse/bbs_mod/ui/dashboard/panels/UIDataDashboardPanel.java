@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.dashboard.panels;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.ui.ContentType;
 import mchorse.bbs_mod.ui.Keys;
@@ -25,8 +26,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
 
     protected T data;
 
-    private boolean openedBefore;
-
     private Timer savingTimer = new Timer(0);
 
     public UIDataDashboardPanel(UIDashboard dashboard)
@@ -41,7 +40,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
          * the keybinds are processed afterwards. */
         UIElement savePlease = new UIElement().noCulling();
 
-        savePlease.keys().register(Keys.SAVE, () -> 
+        savePlease.keys().register(Keys.SAVE, () ->
         {
             UIUtils.playClick();
             this.save();
@@ -89,7 +88,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         this.save();
     }
 
-    /* Renames and removals done in the data manager, mirrored onto the open tabs */
+    /* Renames and removals done in the data manager, mirrored onto the open tabs and the recent list */
 
     public void onDataRenamed(String from, String to)
     {
@@ -99,6 +98,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.renameId(from, to);
+        BBSSettings.recentData.rename(this.getType().getId(), from, to);
     }
 
     public void onDataFolderRenamed(String fromPath, String name)
@@ -109,6 +109,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.renameFolder(fromPath, name);
+        BBSSettings.recentData.renameFolder(this.getType().getId(), fromPath, name);
     }
 
     public void onDataRemoved(String id)
@@ -119,6 +120,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.forgetId(id);
+        BBSSettings.recentData.forget(this.getType().getId(), id);
 
         if (this.data != null && id.equals(this.data.getId()))
         {
@@ -134,6 +136,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.forgetFolder(path);
+        BBSSettings.recentData.forgetFolder(this.getType().getId(), path);
 
         String id = this.data == null ? null : this.data.getId();
         String prefix = path.endsWith("/") ? path : path + "/";
@@ -154,16 +157,22 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
      */
     public abstract ContentType getType();
 
+    /** Label of the landing screen's entry that creates a new document. */
+    public IKey getCreateLabel()
+    {
+        return UIKeys.GENERAL_ADD;
+    }
+
+    /** Label of the landing screen's entry that opens the data manager. */
+    public IKey getListLabel()
+    {
+        return UIKeys.PANELS_KEYS_OPEN_DATA_MANAGER;
+    }
+
     @Override
     protected UICRUDOverlayPanel createOverlayPanel()
     {
         return new UIDataOverlayPanel<>(this.getTitle(), this, this::pickData);
-    }
-
-    @Override
-    protected void openDataManager()
-    {
-        super.openDataManager();
     }
 
     @Override
@@ -196,6 +205,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         if (data != null && data.getId() != null)
         {
             this.overlay.namesList.setCurrentFile(data.getId());
+            BBSSettings.recentData.touch(this.getType().getId(), data.getId());
         }
 
         this.savingTimer.mark(BBSSettings.editorPeriodicSave.get() * 1000L);
@@ -223,25 +233,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         {
             this.overlay.namesList.setCurrentFile(value);
         }
-    }
-
-    @Override
-    public void resize()
-    {
-        super.resize();
-
-        if (!this.openedBefore && this.getContext() != null && this.shouldAutoOpenListOnFirstResize())
-        {
-            this.openDataManager();
-
-            this.openedBefore = true;
-        }
-    }
-
-    /** If false, the list overlay is not auto-opened when the panel is first shown. Default true. */
-    protected boolean shouldAutoOpenListOnFirstResize()
-    {
-        return true;
     }
 
     @Override

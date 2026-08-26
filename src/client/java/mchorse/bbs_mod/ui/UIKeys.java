@@ -319,6 +319,8 @@ public class UIKeys
     public static final IKey FILM_OPEN_HISTORY = L10n.lang("bbs.ui.film.open_history");
     public static final IKey FILM_OPTIONS = L10n.lang("bbs.ui.film.options");
     public static final IKey FILM_TABS_NEW_TAB = L10n.lang("bbs.ui.film.tabs.new_tab");
+    public static final IKey FILM_LANDING_NEW = L10n.lang("bbs.ui.film.landing.new");
+    public static final IKey FILM_LANDING_LIST = L10n.lang("bbs.ui.film.landing.list");
     public static final IKey FILM_OPEN_REPLAY_EDITOR = L10n.lang("bbs.ui.film.open_replay_editor");
     public static final IKey FILM_RECORDING = L10n.lang("bbs.ui.film.recording");
     public static final IKey FILM_RENDER_AUDIO = L10n.lang("bbs.ui.film.render_audio");
@@ -848,6 +850,7 @@ public class UIKeys
     public static final IKey MODEL_BLOCKS_TITLE = L10n.lang("bbs.ui.model_blocks.title");
     public static final IKey MODEL_BLOCKS_TRANSFORM_DEFAULT = L10n.lang("bbs.ui.model_blocks.transform.default");
     public static final IKey MODEL_EDITOR_TITLE = L10n.lang("bbs.ui.model_editor.title");
+    public static final IKey MODEL_EDITOR_LANDING_LIST = L10n.lang("bbs.ui.model_editor.landing.list");
     public static final IKey MODEL_EDITOR_PROCEDURAL = L10n.lang("bbs.ui.model_editor.procedural");
     public static final IKey MODEL_EDITOR_CULLING = L10n.lang("bbs.ui.model_editor.culling");
     public static final IKey MODEL_EDITOR_ON_CPU = L10n.lang("bbs.ui.model_editor.on_cpu");
@@ -938,6 +941,18 @@ public class UIKeys
     public static final IKey PANELS_KEYS_OPEN_DATA_MANAGER = L10n.lang("bbs.ui.panels.keys.open_data_list");
     public static final IKey PANELS_KEYS_OPEN_NEW_TAB = L10n.lang("bbs.ui.panels.keys.open_new_tab");
     public static final IKey PANELS_KEYS_TOGGLE_CHALKBOARD = L10n.lang("bbs.ui.panels.keys.toggle_chalkboard");
+    public static final IKey PANELS_LANDING_RECENT = L10n.lang("bbs.ui.panels.landing.recent");
+    public static final IKey PANELS_LANDING_RECENT_EMPTY = L10n.lang("bbs.ui.panels.landing.recent_empty");
+    public static final IKey PANELS_LANDING_OPEN = L10n.lang("bbs.ui.panels.landing.open");
+    public static final IKey PANELS_LANDING_SHOW_IN_MANAGER = L10n.lang("bbs.ui.panels.landing.show_in_manager");
+    public static final IKey PANELS_LANDING_FORGET = L10n.lang("bbs.ui.panels.landing.forget");
+    public static final IKey PANELS_LANDING_TIME_NOW = L10n.lang("bbs.ui.panels.landing.time.now");
+    public static final IKey PANELS_LANDING_TIME_MINUTES = L10n.lang("bbs.ui.panels.landing.time.minutes");
+    public static final IKey PANELS_LANDING_TIME_HOURS = L10n.lang("bbs.ui.panels.landing.time.hours");
+    public static final IKey PANELS_LANDING_TIME_YESTERDAY = L10n.lang("bbs.ui.panels.landing.time.yesterday");
+    public static final IKey PANELS_LANDING_TIME_DAYS = L10n.lang("bbs.ui.panels.landing.time.days");
+    public static final IKey PANELS_LANDING_TIME_WEEKS = L10n.lang("bbs.ui.panels.landing.time.weeks");
+    public static final IKey PANELS_LANDING_TIME_MONTHS = L10n.lang("bbs.ui.panels.landing.time.months");
     public static final IKey PANELS_TABS_NEW_TAB = L10n.lang("bbs.ui.panels.tabs.new_tab");
     public static final IKey PANELS_TABS_CONTEXT_CLOSE_OTHERS = L10n.lang("bbs.ui.panels.tabs.context.close_others");
     public static final IKey PANELS_TABS_CONTEXT_CLOSE_LEFT = L10n.lang("bbs.ui.panels.tabs.context.close_left");
@@ -1177,6 +1192,10 @@ public class UIKeys
     public static final IKey SNOWSTORM_SPACE_TITLE = L10n.lang("bbs.ui.snowstorm.space.title");
     public static final IKey SNOWSTORM_SPACE_VELOCITY = L10n.lang("bbs.ui.snowstorm.space.velocity");
     public static final IKey SNOWSTORM_TITLE = L10n.lang("bbs.ui.snowstorm.title");
+    public static final IKey SNOWSTORM_LANDING_NEW = L10n.lang("bbs.ui.snowstorm.landing.new");
+    public static final IKey SNOWSTORM_LANDING_LIST = L10n.lang("bbs.ui.snowstorm.landing.list");
+    public static final IKey SUPPORTERS_TUTORIALS = L10n.lang("bbs.ui.supporters.tutorials");
+    public static final IKey SUPPORTERS_WIKI = L10n.lang("bbs.ui.supporters.wiki");
     public static final IKey TEXTURES_BROWSER_DELETE_DESCRIPTION = L10n.lang("bbs.ui.textures.browser.delete-description");
     public static final IKey TEXTURES_BROWSER_DELETE_SELECTED = L10n.lang("bbs.ui.textures.browser.delete_selected");
     public static final IKey TEXTURES_BROWSER_DELETE_TITLE = L10n.lang("bbs.ui.textures.browser.delete-title");

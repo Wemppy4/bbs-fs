@@ -10,8 +10,8 @@ import java.util.function.Consumer;
 
 /**
  * The model editor's data manager. Models are assets living in the assets folder, so this is a pure
- * picker: same folder browser as everywhere else, minus create/duplicate/rename/remove — the same
- * trim {@link UIModelSelectionScreen} makes to the landing screen.
+ * picker: same folder browser as everywhere else, minus create/duplicate/rename/remove — and the
+ * landing screen drops its "new" entry for the same reason.
  */
 public class UIModelOverlayPanel extends UIDataOverlayPanel<ModelConfig>
 {
@@ -19,12 +19,12 @@ public class UIModelOverlayPanel extends UIDataOverlayPanel<ModelConfig>
     {
         super(title, panel, callback);
 
-        /* Same file icon the landing screen uses, so a model reads as a model in both lists. */
+        /* Same icon the tabs and the landing screen use, so a model reads as a model everywhere. */
         this.namesList.setFileIcon(Icons.POSE);
     }
 
     @Override
-    protected boolean showActionButtons()
+    public boolean showActionButtons()
     {
         return false;
     }

@@ -5,6 +5,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueLinkList;
+import mchorse.bbs_mod.settings.values.core.ValueRecentData;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
@@ -55,6 +56,7 @@ public class BBSSettings {
 	public static ValueInt textureCellSize;
 	public static ValueString textureSort;
 	public static ValueLinkList texturePins;
+	public static ValueRecentData recentData;
 	public static ValueFloat axesScale;
 	public static ValueFloat axesThickness;
 	public static ValueBoolean axesKeepScreenSize;
@@ -588,6 +590,9 @@ public class BBSSettings {
 		texturePins = new ValueLinkList("texture_pins");
 		texturePins.invisible();
 		builder.register(texturePins);
+		recentData = new ValueRecentData("recent_data");
+		recentData.invisible();
+		builder.register(recentData);
 		/* Kept by the browsers themselves (Ctrl+wheel, the sort menu); nothing to tune in the settings screen */
 		formCellSize.invisible();
 		textureCellSize.invisible();
@@ -613,7 +618,7 @@ public class BBSSettings {
 		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
 		interfaceShadows = builder.getBoolean("interface_shadows", true);
 		interfaceHighlights = builder.getBoolean("interface_highlights", false);
-		interfaceGlow = builder.getBoolean("interface_glow", true);
+		interfaceGlow = builder.getBoolean("interface_glow", false);
 
 		builder.category("scrollbars", Icons.VERTICAL);
 		scrollbarWidth = builder.getInt("width", 4, 2, 10).slider();
