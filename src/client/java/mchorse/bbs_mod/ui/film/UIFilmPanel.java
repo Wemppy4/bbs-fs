@@ -45,6 +45,7 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.UIFilmUndoHandler;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -82,7 +83,6 @@ import org.joml.Vector3d;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -146,8 +146,10 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private boolean newFilm;
     private double timelineXMin = Double.NaN;
     private double timelineXMax = Double.NaN;
-    /** Vertical timeline scroll per film, so switching film tabs restores where each one was left. */
-    private final Map<String, FilmTimelineScroll> timelineScrollByFilm = new HashMap<>();
+    /* Vertical timeline scrolls per film id, so switching film tabs restores where each one was left */
+    private final ScrollMemory<String> cameraScrolls = new ScrollMemory<>();
+    private final ScrollMemory<String> actionScrolls = new ScrollMemory<>();
+    private final ScrollMemory<String> replayScrolls = new ScrollMemory<>();
 
     private FilmQueueExporter queueExporter;
 
@@ -1014,14 +1016,14 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             return;
         }
 
-        FilmTimelineScroll scroll = this.timelineScrollByFilm.computeIfAbsent(this.data.getId(), (id) -> new FilmTimelineScroll());
+        String id = this.data.getId();
 
-        scroll.camera = this.cameraEditor.clips.vertical.getScroll();
-        scroll.action = this.actionEditor.clips.vertical.getScroll();
+        this.cameraScrolls.save(id, this.cameraEditor.clips.vertical.getScroll());
+        this.actionScrolls.save(id, this.actionEditor.clips.vertical.getScroll());
 
         if (this.replayEditor.keyframeEditor != null)
         {
-            scroll.replay = this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().getScroll();
+            this.replayScrolls.save(id, this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().getScroll());
         }
     }
 
@@ -1032,19 +1034,21 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             return;
         }
 
-        FilmTimelineScroll scroll = this.timelineScrollByFilm.get(this.data.getId());
+        String id = this.data.getId();
 
-        if (scroll == null)
+        if (this.cameraScrolls.has(id))
         {
-            return;
+            this.restoreClipsScroll(this.cameraEditor.clips, this.cameraScrolls.get(id));
         }
 
-        this.restoreClipsScroll(this.cameraEditor.clips, scroll.camera);
-        this.restoreClipsScroll(this.actionEditor.clips, scroll.action);
-
-        if (this.replayEditor.keyframeEditor != null)
+        if (this.actionScrolls.has(id))
         {
-            this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().setScroll(scroll.replay);
+            this.restoreClipsScroll(this.actionEditor.clips, this.actionScrolls.get(id));
+        }
+
+        if (this.replayScrolls.has(id) && this.replayEditor.keyframeEditor != null)
+        {
+            this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().setScroll(this.replayScrolls.get(id));
         }
     }
 
@@ -1058,13 +1062,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         /* Scroll size depends on the freshly loaded clips, so recompute it before clamping the restored scroll. */
         clips.updateScrollSize();
         clips.vertical.setScroll(scroll);
-    }
-
-    private static class FilmTimelineScroll
-    {
-        public double camera;
-        public double action;
-        public double replay;
     }
 
     public UIFilmController getController()

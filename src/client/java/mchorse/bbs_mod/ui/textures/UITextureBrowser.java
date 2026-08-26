@@ -20,7 +20,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Marquee;
@@ -36,7 +36,6 @@ import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -80,9 +79,9 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     private static final CellAction[] PIN_READ_ONLY = CellAction.with(CellAction.PIN, CellAction.of(false));
     private static final CellAction[] UNPIN_READ_ONLY = CellAction.with(CellAction.UNPIN, CellAction.of(false));
 
-    /* Side panel widths, dragged by the user and kept for the session like the form editor's tree */
-    private static int leftWidth = 140;
-    private static int infoWidth = 150;
+    /* Side panel widths, dragged by the user; each is capped by what the other leaves of the row */
+    private final UISplitter leftHandle = UISplitter.pixels("texture_browser.left", 140, MIN_SIDE, MAX_SIDE);
+    private final UISplitter infoHandle = UISplitter.pixels("texture_browser.info", 150, MIN_SIDE, MAX_SIDE);
 
     public final UITexturePicker picker;
 
@@ -289,25 +288,17 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.tree.relative(this.left).xy(0, 0).w(1F).h(1F);
         this.left.add(this.tree, picker.multiList, picker.buttons);
 
-        UIDraggable leftHandle = new UIDraggable((context) ->
-        {
-            leftWidth = MathUtils.clamp(context.mouseX - this.area.x, MIN_SIDE, Math.min(MAX_SIDE, this.area.w - infoWidth - MIN_SIDE));
-            this.layout();
-        });
-        UIDraggable infoHandle = new UIDraggable((context) ->
-        {
-            infoWidth = MathUtils.clamp(this.area.ex() - context.mouseX, MIN_SIDE, Math.min(MAX_SIDE, this.area.w - leftWidth - MIN_SIDE));
-            this.layout();
-        });
+        this.leftHandle.measure(this).onChange(this::layout)
+            .range(MIN_SIDE, () -> (float) Math.min(MAX_SIDE, this.area.w - this.infoHandle.getPixels() - MIN_SIDE));
+        this.infoHandle.measure(this).fromEnd().onChange(this::layout)
+            .range(MIN_SIDE, () -> (float) Math.min(MAX_SIDE, this.area.w - this.leftHandle.getPixels() - MIN_SIDE));
 
-        leftHandle.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
-        infoHandle.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
-        leftHandle.relative(this.left).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
-        infoHandle.relative(this.info).x(0).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        this.leftHandle.relative(this.left).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        this.infoHandle.relative(this.info).x(0).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT);
         this.bar.add(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.newTexture, picker.close);
-        this.add(this.bar, this.crumbs, this.text, this.left, this.grid, this.info, picker.editor, leftHandle, infoHandle, this.clearClipboard);
+        this.add(this.bar, this.crumbs, this.text, this.left, this.grid, this.info, picker.editor, this.leftHandle, this.infoHandle, this.clearClipboard);
         this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         this.layout();
@@ -322,6 +313,8 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     private void layout()
     {
         int top = BAR_HEIGHT * 2;
+        int leftWidth = this.leftHandle.getPixels();
+        int infoWidth = this.infoHandle.getPixels();
 
         this.crumbs.relative(this).xy(0, BAR_HEIGHT).w(1F, -infoWidth).h(BAR_HEIGHT);
         this.text.relative(this).xy(0, BAR_HEIGHT).w(1F, -infoWidth).h(BAR_HEIGHT);

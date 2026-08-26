@@ -356,6 +356,8 @@ public class UIElement implements IUIElement, IUndoElement
             {
                 this.resizer.add(this, child);
             }
+
+            this.invalidateLayout();
         }
     }
 
@@ -378,6 +380,7 @@ public class UIElement implements IUIElement, IUndoElement
         }
 
         this.children.clear();
+        this.invalidateLayout();
     }
 
     public void removeFromParent()
@@ -404,6 +407,23 @@ public class UIElement implements IUIElement, IUndoElement
 
             element.onRemove(element.parent);
             element.parent = null;
+
+            this.invalidateLayout();
+        }
+    }
+
+    /**
+     * Mark this element's layout stale: it gets resized once before the next frame (see
+     * {@link UIContext#flushLayout()}). Nothing happens while detached — attaching to a
+     * tree resizes anyway.
+     */
+    public void invalidateLayout()
+    {
+        UIContext context = this.getContext();
+
+        if (context != null)
+        {
+            context.invalidateLayout(this);
         }
     }
 
@@ -1016,12 +1036,23 @@ public class UIElement implements IUIElement, IUndoElement
 
     public void setVisible(boolean visible)
     {
+        if (this.visible == visible)
+        {
+            return;
+        }
+
         this.visible = visible;
+
+        /* Layout resizers skip hidden children, so the parent's layout is what changed */
+        if (this.parent != null)
+        {
+            this.parent.invalidateLayout();
+        }
     }
 
     public void toggleVisible()
     {
-        this.visible = !this.visible;
+        this.setVisible(!this.visible);
     }
 
     /**

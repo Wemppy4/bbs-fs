@@ -32,7 +32,7 @@ public class UIDataTabs extends UIElement
         this.host = host;
         this.scroll = new UIScrollView(ScrollDirection.HORIZONTAL);
         this.scroll.scroll.scrollSpeed = 20;
-        this.scroll.column(TABS_GAP).scroll();
+        this.scroll.row(TABS_GAP).scroll();
         this.scroll.scroll.noScrollbar();
         this.scroll.relative(this).x(TABS_GAP).w(1F, -TABS_GAP * 2).h(TABS_HEIGHT_PX);
 

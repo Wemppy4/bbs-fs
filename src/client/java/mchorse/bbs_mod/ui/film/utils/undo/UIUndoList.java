@@ -3,6 +3,8 @@ package mchorse.bbs_mod.ui.film.utils.undo;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
+import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.tooltips.TooltipPlacement;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.StringUtils;
@@ -64,8 +66,12 @@ public class UIUndoList <T> extends UIList<IUndo<T>>
         if (safe != null)
         {
             String label = this.elementToString(context, index, safe);
+            FontRenderer font = context.batcher.getFont();
 
-            context.batcher.textCard(label, context.mouseX + 5, context.mouseY + 5);
+            /* The card is the text plus its 3px padding on each side */
+            Area card = TooltipPlacement.nearMouse(context, font.getWidth(label) + 6, font.getHeight() + 6, 2, true, 0, Area.SHARED);
+
+            context.batcher.textCard(label, card.x + 3, card.y + 3);
         }
     }
 }

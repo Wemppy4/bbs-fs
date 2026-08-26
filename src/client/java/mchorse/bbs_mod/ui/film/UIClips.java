@@ -1154,8 +1154,7 @@ public class UIClips extends UIElement
 
             this.prepend(this.embedded);
             this.add(this.embeddedClose);
-            this.embedded.resize();
-            this.embeddedClose.resize();
+            this.resize();
         }
     }
 

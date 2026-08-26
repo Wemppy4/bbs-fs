@@ -13,27 +13,30 @@ import mchorse.bbs_mod.utils.interps.IInterp;
 
 public class InterpolationRenderer
 {
+    public static final int PREVIEW_WIDTH = 140;
+    public static final int PREVIEW_HEIGHT = 130;
+
     private static Color color = new Color();
 
-    public static void renderInterpolationPreview(IInterp interp, UIContext context, int x, int y, float anchorX, float anchorY, int duration)
+    /**
+     * Render the interpolation preview card in an already placed
+     * {@link #PREVIEW_WIDTH}×{@link #PREVIEW_HEIGHT} area.
+     */
+    public static void renderInterpolationPreview(IInterp interp, UIContext context, Area area, int duration)
     {
         if (interp == null)
         {
             return;
         }
 
-        int w = 140;
-        int h = 130;
+        int x = area.x;
+        int y = area.y;
+        int w = area.w;
+        int h = area.h;
 
         TooltipStyle style = TooltipStyle.get();
 
-        y = MathUtils.clamp(y, 0, context.menu.height - h);
-
-        x = MathUtils.clamp(x - (int) (w * anchorX), 0, context.menu.width - w);
-        y = MathUtils.clamp(y - (int) (h * anchorY), 0, context.menu.height - h);
-
-        Area.SHARED.set(x, y, w, h);
-        style.renderBackground(context, Area.SHARED);
+        style.renderBackground(context, area);
 
         Color fg = color.set(style.getForegroundColor(), false);
         int fontColor = style.getTextColor();

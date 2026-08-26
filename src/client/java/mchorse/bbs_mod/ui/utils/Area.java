@@ -57,16 +57,6 @@ public class Area implements IResizer
         this.h = h;
     }
 
-    public int getIndex(int x, int y, int size)
-    {
-        return MathUtils.gridIndex(x - this.x, y - this.y, size, this.w);
-    }
-
-    public int getRows(int count, int size)
-    {
-        return MathUtils.gridRows(count, size, this.w);
-    }
-
     public boolean isInside(UIContext context)
     {
         return this.isInside(context.mouseX, context.mouseY);

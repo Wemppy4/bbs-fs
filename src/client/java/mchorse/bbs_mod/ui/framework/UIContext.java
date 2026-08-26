@@ -23,7 +23,9 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class UIContext implements IViewportStack
@@ -64,6 +66,14 @@ public class UIContext implements IViewportStack
     private int cursorShape = GLFW.GLFW_ARROW_CURSOR;
 
     public UIViewportStack viewportStack = new UIViewportStack();
+
+    /**
+     * Elements whose layout went stale since the last frame (children added/removed, visibility
+     * flipped). They get resized once, before the next render, instead of every mutation
+     * paying for its own resize() pass.
+     */
+    private final Set<UIElement> pendingLayout = new LinkedHashSet<>();
+    private boolean flushingLayout;
 
     public UIContext(UIBaseMenu menu)
     {
@@ -136,6 +146,62 @@ public class UIContext implements IViewportStack
         this.viewportStack.reset();
         this.resetTooltip();
         this.resetCursor();
+    }
+
+    public void invalidateLayout(UIElement element)
+    {
+        this.pendingLayout.add(element);
+    }
+
+    /**
+     * Resize everything queued by {@link #invalidateLayout(UIElement)}. Called once per frame
+     * before rendering. An element whose ancestor is also queued is covered by that ancestor's
+     * pass; anything invalidated while flushing lands in the fresh set and waits for the next
+     * frame, so a resize() that invalidates can't spin this loop.
+     */
+    public void flushLayout()
+    {
+        if (this.pendingLayout.isEmpty() || this.flushingLayout)
+        {
+            return;
+        }
+
+        Set<UIElement> pending = new LinkedHashSet<>(this.pendingLayout);
+
+        this.pendingLayout.clear();
+        this.flushingLayout = true;
+
+        try
+        {
+            this.pushViewport(this.menu.viewport);
+
+            for (UIElement element : pending)
+            {
+                if (element.getRoot() != null && !this.hasPendingAncestor(element, pending))
+                {
+                    element.resize();
+                }
+            }
+
+            this.popViewport();
+        }
+        finally
+        {
+            this.flushingLayout = false;
+        }
+    }
+
+    private boolean hasPendingAncestor(UIElement element, Set<UIElement> pending)
+    {
+        for (UIElement parent = element.getParent(); parent != null; parent = parent.getParent())
+        {
+            if (pending.contains(parent))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void resetTooltip()

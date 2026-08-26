@@ -37,6 +37,10 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 {
     public UIPoseFactoryEditor poseEditor;
 
+    /* Which arrangement the fields are in (null until the first layout), so a resize
+     * that stays on the same side of the threshold doesn't rebuild the subtree */
+    private Boolean wide;
+
     public UIPoseKeyframeFactory(Keyframe<Pose> keyframe, UIKeyframes editor)
     {
         super(keyframe, editor);
@@ -69,9 +73,22 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
     @Override
     public void resize()
     {
+        boolean wide = this.getFlex().getW() > 240;
+
+        if (this.wide == null || this.wide != wide)
+        {
+            this.wide = wide;
+            this.rebuild(wide);
+        }
+
+        super.resize();
+    }
+
+    private void rebuild(boolean wide)
+    {
         this.poseEditor.removeAll();
 
-        if (this.getFlex().getW() > 240)
+        if (wide)
         {
             this.poseEditor.add(UI.row(
                 UI.column(UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.poseEditor.fix), UI.row(this.poseEditor.color, this.poseEditor.lighting), this.poseEditor.transform),
@@ -88,8 +105,6 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         {
             child.noCulling();
         }
-
-        super.resize();
     }
 
     public static class UIPoseFactoryEditor extends UIPoseEditor

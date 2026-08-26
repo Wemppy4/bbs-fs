@@ -9,12 +9,10 @@ import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
-import mchorse.bbs_mod.utils.MathUtils;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,8 +21,6 @@ import java.util.function.Consumer;
 public abstract class UIFormPanel <T extends Form> extends UIElement
 {
     private static final float DEFAULT_OPTIONS_WIDTH = 0.2F;
-
-    private static Map<Class, Float> widths = new HashMap<>();
 
     /**
      * Fold state per section id, for the session. Panels are rebuilt from
@@ -38,26 +34,23 @@ public abstract class UIFormPanel <T extends Form> extends UIElement
     protected T form;
 
     public UIScrollView options;
-    public UIDraggable draggable;
+    public UISplitter draggable;
 
     public UIFormPanel(UIForm editor)
     {
         this.editor = editor;
 
-        this.options = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
-        this.options.scroll.cancelScrolling();
-        this.options.relative(this).x(1F).w(widths.getOrDefault(this.getClass(), this.getDefaultOptionsWidth())).minW(120).h(1F).anchorX(1F);
-
-        this.draggable = new UIDraggable((context) ->
+        /* The share is of the editor around this panel (it sits 20px short of it), keyed per panel class. */
+        this.draggable = UISplitter.fraction("form_panel." + this.getClass().getSimpleName(), this.getDefaultOptionsWidth(), 0F, 0.5F);
+        this.draggable.measure(this, this::getParent).fromEnd().onChange(() ->
         {
-            float f = (this.options.area.ex() - context.mouseX) / (float) this.getParent().area.w;
-            float w = MathUtils.clamp(f, 0, 0.5F);
-
-            this.options.w(w).resize();
-            widths.put(this.getClass(), w);
+            this.options.w(this.draggable.getValue()).resize();
             this.draggable.resize();
         });
-        this.draggable.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
+
+        this.options = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
+        this.options.scroll.cancelScrolling();
+        this.options.relative(this).x(1F).w(this.draggable.getValue()).minW(120).h(1F).anchorX(1F);
 
         this.draggable.relative(this.options).x(0F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
@@ -66,8 +59,8 @@ public abstract class UIFormPanel <T extends Form> extends UIElement
 
     /**
      * The options column's default share of the panel width, used until the
-     * user drags the divider (their choice then wins for the session). Panels
-     * with denser controls (the IK panel's per-axis rows) override this.
+     * user drags the divider (their choice is then remembered per panel class).
+     * Panels with denser controls (the IK panel's per-axis rows) override this.
      */
     protected float getDefaultOptionsWidth()
     {

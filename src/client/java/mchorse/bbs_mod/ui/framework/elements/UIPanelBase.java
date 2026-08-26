@@ -81,26 +81,45 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         this.resize();
     }
 
+    /**
+     * The bar is a 20px strip on the {@link #direction} side; LEFT/RIGHT run it down the side,
+     * BOTTOM/RIGHT put it at the far edge. Everything below derives from these two facts.
+     */
+    private boolean isSideBar()
+    {
+        return this.direction.isHorizontal();
+    }
+
+    private boolean isFarBar()
+    {
+        return this.direction == Direction.BOTTOM || this.direction == Direction.RIGHT;
+    }
+
     private void setButtonsPlacement()
     {
-        this.buttons.scroll.direction = this.direction.factorX == 0 ? ScrollDirection.HORIZONTAL : ScrollDirection.VERTICAL;
-        this.buttons.resetFlex();
+        boolean side = this.isSideBar();
+        boolean far = this.isFarBar();
 
-        if (this.direction == Direction.TOP)
+        this.buttons.scroll.direction = side ? ScrollDirection.VERTICAL : ScrollDirection.HORIZONTAL;
+        this.buttons.resetFlex().relative(this);
+
+        if (side)
         {
-            this.buttons.relative(this).w(1F).h(20).column(0).scroll();
-        }
-        else if (this.direction == Direction.LEFT)
-        {
-            this.buttons.relative(this).w(20).h(1F).column(0).scroll().vertical();
-        }
-        else if (this.direction == Direction.BOTTOM)
-        {
-            this.buttons.relative(this).y(1F, -20).w(1F).h(20).column(0).scroll();
+            this.buttons.w(20).h(1F).column(0).scroll().vertical();
+
+            if (far)
+            {
+                this.buttons.x(1F, -20);
+            }
         }
         else
         {
-            this.buttons.relative(this).x(1F, -20).w(20).h(1F).column(0).scroll().vertical();
+            this.buttons.w(1F).h(20).row(0).scroll();
+
+            if (far)
+            {
+                this.buttons.y(1F, -20);
+            }
         }
     }
 
@@ -116,21 +135,22 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         flex.w.reset();
         flex.h.reset();
 
-        if (this.direction == Direction.TOP)
+        boolean side = this.isSideBar();
+        boolean far = this.isFarBar();
+
+        /* The panel takes what the bar leaves; a near bar also pushes it off the origin */
+        panel.relative(this).w(1F, side ? -20 : 0).h(1F, side ? 0 : -20);
+
+        if (!far)
         {
-            panel.relative(this).y(20).w(1F).h(1F, -20);
-        }
-        else if (this.direction == Direction.LEFT)
-        {
-            panel.relative(this).x(20).w(1F, -20).h(1F);
-        }
-        else if (this.direction == Direction.RIGHT)
-        {
-            panel.relative(this).w(1F, -20).h(1F);
-        }
-        else
-        {
-            panel.relative(this).w(1F).h(1F, -20);
+            if (side)
+            {
+                panel.x(20);
+            }
+            else
+            {
+                panel.y(20);
+            }
         }
     }
 
@@ -183,22 +203,12 @@ public class UIPanelBase <T extends UIElement> extends UIElement
 
     protected void renderOverlay(UIContext context)
     {
-        if (this.direction == Direction.TOP)
-        {
-            this.renderBackground(context, this.area.x, this.area.y, this.area.w, 20);
-        }
-        else if (this.direction == Direction.BOTTOM)
-        {
-            this.renderBackground(context, this.area.x, this.area.ey() - 20, this.area.w, 20);
-        }
-        else if (this.direction == Direction.LEFT)
-        {
-            this.renderBackground(context, this.area.x, this.area.y, 20, this.area.h);
-        }
-        else
-        {
-            this.renderBackground(context, this.area.ex() - 20, this.area.y, 20, this.area.h);
-        }
+        boolean side = this.isSideBar();
+        boolean far = this.isFarBar();
+        int x = side && far ? this.area.ex() - 20 : this.area.x;
+        int y = !side && far ? this.area.ey() - 20 : this.area.y;
+
+        this.renderBackground(context, x, y, side ? 20 : this.area.w, side ? this.area.h : 20);
     }
 
     protected void renderBackground(UIContext context, int x, int y, int w, int h)

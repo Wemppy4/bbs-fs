@@ -51,7 +51,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -62,13 +62,11 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseManager;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import org.joml.Vector3f;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -94,13 +92,12 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 {
     public UIScrollView general;
     public UIFormRenderer renderer;
-    public UIDraggable splitter;
+    public UISplitter splitter;
 
     private final ModelForm form = new ModelForm();
 
     /** The model id whose instance we're waiting on; models load asynchronously, so the fill is deferred. */
     private String pendingId;
-    private int splitWidth = 200;
 
     /** Cube faces in enum order; the face picker adds its icons in this order so the index maps straight back. */
     private static final CubeFace[] FACES = CubeFace.values();
@@ -193,12 +190,13 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.renderer = new UIFormRenderer();
         this.renderer.form = this.form;
 
-        this.splitter = new UIDraggable((context) ->
+        /* Both panes keep at least 160px; the top of the range follows the editor's width. */
+        this.splitter = new UISplitter("model_editor.split", false, 200);
+        this.splitter.measure(this.editor).range(160, () -> (float) (this.editor.area.w - 160)).onChange(() ->
         {
-            this.splitWidth = MathUtils.clamp(context.mouseX - this.editor.area.x, 160, this.editor.area.w - 160);
             this.layoutPanes();
             this.resize();
-        }).cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
+        });
 
         this.layoutPanes();
 
@@ -267,9 +265,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void layoutPanes()
     {
-        this.general.relative(this.editor).x(0).y(0).w(this.splitWidth).h(1F);
-        this.renderer.relative(this.editor).x(this.splitWidth).y(0).w(1F, -this.splitWidth).h(1F);
-        this.splitter.relative(this.editor).x(this.splitWidth).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        int splitWidth = this.splitter.getPixels();
+
+        this.general.relative(this.editor).x(0).y(0).w(splitWidth).h(1F);
+        this.renderer.relative(this.editor).x(splitWidth).y(0).w(1F, -splitWidth).h(1F);
+        this.splitter.relative(this.editor).x(splitWidth).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
     }
 
     private void registerKeybinds()

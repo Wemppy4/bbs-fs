@@ -10,6 +10,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.GridLayout;
+import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
@@ -222,6 +223,14 @@ public class UITextureGrid extends UIScrollView
     public void render(UIContext context)
     {
         this.scroll.drag(context);
+
+        /* Carrying textures or stretching the band past the edge scrolls the grid
+         * along, so a drop target or the band's end can be out of sight at first */
+        if (this.browser.drag.isActive() || this.browser.marquee.isActive())
+        {
+            this.scroll.autoScrollAt(context.mouseX, context.mouseY, Scroll.AUTO_SCROLL_EDGE, Scroll.AUTO_SCROLL_SPEED);
+        }
+
         this.updateHover(context);
 
         context.batcher.clip(this.area, context);

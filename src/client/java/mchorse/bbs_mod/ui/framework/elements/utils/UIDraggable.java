@@ -33,6 +33,17 @@ public class UIDraggable extends UIElement
         this.callback = callback;
     }
 
+    /**
+     * Late binding of the drag callback, for subclasses that can't reference themselves in the
+     * {@code super(...)} argument (Java forbids {@code this} there) yet own the drag logic.
+     */
+    protected UIDraggable callback(Consumer<UIContext> callback)
+    {
+        this.callback = callback;
+
+        return this;
+    }
+
     public UIDraggable hoverOnly()
     {
         this.hover = true;

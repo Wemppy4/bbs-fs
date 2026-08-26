@@ -24,8 +24,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -38,12 +38,9 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.resources.Pixels;
 import org.joml.Vector2i;
-import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -64,8 +61,8 @@ import java.util.function.Consumer;
  * The painter's actions — save, resize, extract frames, model preview — do not live here: the
  * owner hands them to its {@link mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelTopBar} through
  * {@link #installActions}, so they sit beside the tabs like every other panel's actions.
- * The left options column is a {@link UIScrollView} with a draggable splitter whose
- * width is persisted per panel class.
+ * The left options column is a {@link UIScrollView} with a {@link UISplitter} whose
+ * width is remembered in the settings.
  *
  * <p>This painter does not own tabs: its owner (the texture picker) creates editors via
  * {@link #openEditor(Link)} and shows one at a time with {@link #setEditor(UITextureEditor)}.</p>
@@ -75,11 +72,9 @@ public class UITexturePainter extends UIElement
     /** Editor currently hosted in the canvas, or null when nothing is shown. */
     private UITextureEditor editor;
 
-    /** Persisted fractional width of the tool options column, keyed by panel class. */
-    private static final Map<Class, Float> widths = new HashMap<>();
-
     private static final int TOOL_BAR_W = 20;
     private static final float DEFAULT_OPTIONS_WIDTH = 0.2F;
+    private static final float DEFAULT_PREVIEW_WIDTH = 0.3F;
     private static final int MIN_OPTIONS_WIDTH = 140;
     private static final int MAX_BRUSH_SIZE = 1024;
 
@@ -115,7 +110,7 @@ public class UITexturePainter extends UIElement
     private UIPanelActionBar actionBar;
     private UIElement editorHost;
     private UIScrollView options;
-    private UIDraggable optionsDraggable;
+    private UISplitter optionsDraggable;
 
     private UIElement optionsHost;
     private UILayersPanel layersPanel;
@@ -129,7 +124,7 @@ public class UITexturePainter extends UIElement
     private UIIcon modelPreviewIcon;
 
     private UIElement modelPreviewHost;
-    private UIDraggable modelPreviewDraggable;
+    private UISplitter modelPreviewDraggable;
     private UIModelPreviewPanel modelPreviewPanel;
 
     private UIElement brushSizeRow;
@@ -287,8 +282,17 @@ public class UITexturePainter extends UIElement
     private void buildOptions()
     {
         this.optionsHost = new UIElement();
+
+        this.optionsDraggable = UISplitter.fraction("texture_painter.options", DEFAULT_OPTIONS_WIDTH, 0F, 0.5F);
+        this.optionsDraggable.measure(this.optionsHost, this.content).onChange(() ->
+        {
+            this.optionsHost.w(this.optionsDraggable.getValue());
+            this.content.resize();
+            this.optionsDraggable.resize();
+        });
+
         this.optionsHost.relative(this.content).x(TOOL_BAR_W)
-            .w(widths.getOrDefault(this.getClass(), DEFAULT_OPTIONS_WIDTH))
+            .w(this.optionsDraggable.getValue())
             .minW(MIN_OPTIONS_WIDTH).h(1F);
 
         this.options = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
@@ -300,17 +304,6 @@ public class UITexturePainter extends UIElement
 
         this.optionsHost.add(this.options, this.layersPanel);
 
-        this.optionsDraggable = new UIDraggable((context) ->
-        {
-            float f = (context.mouseX - this.optionsHost.area.x) / (float) this.content.area.w;
-            float w = MathUtils.clamp(f, 0F, 0.5F);
-
-            this.optionsHost.w(w);
-            widths.put(this.getClass(), w);
-            this.content.resize();
-            this.optionsDraggable.resize();
-        });
-        this.optionsDraggable.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
         this.optionsDraggable.relative(this.optionsHost).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.primary = new UIColor((c) -> {}).noLabel().withAlpha();
@@ -368,16 +361,13 @@ public class UITexturePainter extends UIElement
         this.modelPreviewPanel = new UIModelPreviewPanel(this);
         this.modelPreviewPanel.relative(this.modelPreviewHost).w(1F).h(1F);
 
-        this.modelPreviewDraggable = new UIDraggable((context) ->
+        this.modelPreviewDraggable = UISplitter.fraction("texture_painter.preview", DEFAULT_PREVIEW_WIDTH, 0.1F, 0.8F);
+        this.modelPreviewDraggable.measure(this.content).fromEnd().onChange(() ->
         {
-            float f = (this.content.area.ex() - context.mouseX) / (float) this.content.area.w;
-            float w = MathUtils.clamp(f, 0.1F, 0.8F);
-
-            this.modelPreviewHost.w(w);
+            this.modelPreviewHost.w(this.modelPreviewDraggable.getValue());
             this.content.resize();
             this.modelPreviewDraggable.resize();
         });
-        this.modelPreviewDraggable.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
         this.modelPreviewDraggable.relative(this.modelPreviewHost).x(0F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
         this.modelPreviewDraggable.setVisible(false);
     }
@@ -441,7 +431,8 @@ public class UITexturePainter extends UIElement
     {
         this.modelPreviewPanel.setModel(model);
         this.modelPreviewHost.add(this.modelPreviewPanel);
-        this.modelPreviewHost.w(0.3F);
+        /* The host is collapsed to 0 while closed; reopen at the width the user last dragged it to. */
+        this.modelPreviewHost.w(this.modelPreviewDraggable.getValue());
         this.modelPreviewHost.setVisible(true);
         this.modelPreviewDraggable.setVisible(true);
 

@@ -637,6 +637,13 @@ public abstract class UIList <T> extends UIElement
     {
         this.scroll.drag(context);
 
+        /* A row carried to the edge of the list scrolls it, so it can be dropped
+         * next to a row that's out of sight */
+        if (this.isDragging())
+        {
+            this.scroll.autoScrollAt(context.mouseX, context.mouseY, Scroll.AUTO_SCROLL_EDGE, Scroll.AUTO_SCROLL_SPEED);
+        }
+
         if (Colors.getA(this.background) > 0)
         {
             this.area.render(context.batcher, this.background);

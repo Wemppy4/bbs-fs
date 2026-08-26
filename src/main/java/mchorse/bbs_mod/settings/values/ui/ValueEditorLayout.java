@@ -43,6 +43,13 @@ public class ValueEditorLayout extends BaseValue
     private float stateEditorSizeV = 0.25F;
     private int keyframeLabelWidth = 120;
 
+    /**
+     * Sidebar splitter positions keyed by splitter id (see {@code UISplitter}). The unit is the
+     * splitter's own &mdash; a fraction of its parent or pixels &mdash; so this stores floats and
+     * leaves the meaning, and the clamping, to the owner.
+     */
+    private final Map<String, Float> splitSizes = new LinkedHashMap<>();
+
     public ValueEditorLayout(String id)
     {
         super(id);
@@ -177,6 +184,20 @@ public class ValueEditorLayout extends BaseValue
         BaseValue.edit(this, (v) -> this.keyframeLabelWidth = MathUtils.clamp(keyframeLabelWidth, 40, 400));
     }
 
+    /* Splitter sizes */
+
+    public float getSplitSize(String key, float defaultValue)
+    {
+        Float size = this.splitSizes.get(key);
+
+        return size == null ? defaultValue : size;
+    }
+
+    public void setSplitSize(String key, float value)
+    {
+        BaseValue.edit(this, (v) -> this.splitSizes.put(key, value));
+    }
+
     /* Serialization */
 
     @Override
@@ -239,6 +260,18 @@ public class ValueEditorLayout extends BaseValue
         data.putFloat("state_editor_size_v", this.stateEditorSizeV);
         data.putInt("keyframe_label_width", this.keyframeLabelWidth);
 
+        MapType splits = new MapType();
+
+        for (Map.Entry<String, Float> entry : this.splitSizes.entrySet())
+        {
+            splits.putFloat(entry.getKey(), entry.getValue());
+        }
+
+        if (!splits.isEmpty())
+        {
+            data.put("splits", splits);
+        }
+
         return data;
     }
 
@@ -249,6 +282,7 @@ public class ValueEditorLayout extends BaseValue
         this.bound.clear();
         this.hiddenByLayout.clear();
         this.unlockedDocks.clear();
+        this.splitSizes.clear();
 
         if (!data.isMap())
         {
@@ -315,6 +349,18 @@ public class ValueEditorLayout extends BaseValue
         this.stateEditorSizeH = map.getFloat("state_editor_size_h", 0.7F);
         this.stateEditorSizeV = map.getFloat("state_editor_size_v", 0.25F);
         this.keyframeLabelWidth = map.getInt("keyframe_label_width", 120);
+
+        MapType splits = map.getMap("splits");
+
+        for (String key : splits.keys())
+        {
+            BaseType size = splits.get(key);
+
+            if (BaseType.isNumeric(size))
+            {
+                this.splitSizes.put(key, size.asNumeric().floatValue());
+            }
+        }
     }
 
     /** Reads the pre-{@link #VERSION} shape: one field per editor, plus the ratios that came before. */

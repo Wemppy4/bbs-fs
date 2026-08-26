@@ -51,8 +51,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
 import mchorse.bbs_mod.ui.utils.BoneSelection;
 import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.Gizmo;
@@ -74,7 +74,6 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.List;
@@ -88,7 +87,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
     private static Map<Class, Supplier<UIForm>> panels = new HashMap<>();
 
-    private static float treeWidth = 0.1F;
     private static boolean TOGGLED = true;
 
     /* Palette for picking a form for body parts */
@@ -197,7 +195,12 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             .labels(UIKeys.FORMS_EDITOR_CONTEXT_COPY, UIKeys.FORMS_EDITOR_CONTEXT_PASTE);
 
         this.forms = new UIElement();
-        this.forms.relative(this).x(20).w(treeWidth).minW(140).h(1F);
+
+        /* The tree's share is of the whole editor, measured from the tree's own left edge (20px in). */
+        UISplitter draggable = UISplitter.fraction("form_editor.tree", 0.1F, 0F, 0.5F);
+        draggable.measure(this.forms, this).onChange(() -> this.forms.w(draggable.getValue()).resize());
+
+        this.forms.relative(this).x(20).w(draggable.getValue()).minW(140).h(1F);
 
         this.formsList = new UIForms((l) ->
         {
@@ -356,17 +359,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         {
             context.batcher.box(this.area.x, this.area.y, this.area.x + 20, this.area.ey(), BBSSettings.chromeSurface());
         });
-
-        UIDraggable draggable = new UIDraggable((context) ->
-        {
-            int diff = context.mouseX - this.forms.area.x;
-            float f = diff / (float) this.area.w;
-
-            treeWidth = MathUtils.clamp(f, 0F, 0.5F);
-
-            this.forms.w(treeWidth).resize();
-        });
-        draggable.cursors(GLFW.GLFW_HRESIZE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
 
         draggable.relative(this.forms).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 

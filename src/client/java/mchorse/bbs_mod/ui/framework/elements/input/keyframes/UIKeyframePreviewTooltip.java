@@ -18,6 +18,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UINumericInput;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.KeyframeType;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.tooltips.ITooltip;
+import mchorse.bbs_mod.ui.framework.tooltips.TooltipPlacement;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -139,18 +140,13 @@ public class UIKeyframePreviewTooltip implements ITooltip
     /* Layout */
 
     /**
-     * Compute the preview window's area near the cursor (clamped to the screen)
-     * and render a semi-transparent backdrop for it.
+     * Compute the preview window's area near the cursor (above and to the right of
+     * it, flipped/clamped to stay on screen) and render a semi-transparent backdrop
+     * for it.
      */
     private Area start(UIContext context, int w, int h)
     {
-        int x = context.mouseX + CURSOR_OFFSET;
-        int y = context.mouseY - h - CURSOR_OFFSET;
-
-        x = MathUtils.clamp(x, 6, context.menu.width - w - 6);
-        y = MathUtils.clamp(y, 6, context.menu.height - h - 6);
-
-        AREA.set(x, y, w, h);
+        TooltipPlacement.nearMouse(context, w, h, CURSOR_OFFSET, false, 6, AREA);
 
         AREA.offset(3);
 

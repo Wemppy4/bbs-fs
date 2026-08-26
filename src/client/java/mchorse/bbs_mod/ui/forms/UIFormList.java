@@ -27,6 +27,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.utils.Marquee;
+import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.UIStrip;
 import mchorse.bbs_mod.ui.utils.cells.DragGhost;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
@@ -59,8 +60,6 @@ public class UIFormList extends UIElement
     public static final int ZOOM_STEP = 8;
     public static final int BAR_HEIGHT = 20;
     public static final int STATUS_HEIGHT = 16;
-    private static final int AUTO_SCROLL_EDGE = 24;
-    private static final int AUTO_SCROLL_SPEED = 6;
 
     public IUIFormList palette;
 
@@ -242,7 +241,6 @@ public class UIFormList extends UIElement
             category.refreshLayoutForSearch(columnW);
         }
 
-        this.forms.resize();
         this.resize();
     }
 
@@ -825,18 +823,9 @@ public class UIFormList extends UIElement
 
     private void autoScroll(UIContext context)
     {
-        if (!this.drag.isActive() || !this.forms.area.isInside(context))
+        if (this.drag.isActive())
         {
-            return;
-        }
-
-        if (context.mouseY < this.forms.area.y + AUTO_SCROLL_EDGE)
-        {
-            this.forms.scroll.scrollBy(-AUTO_SCROLL_SPEED);
-        }
-        else if (context.mouseY > this.forms.area.ey() - AUTO_SCROLL_EDGE)
-        {
-            this.forms.scroll.scrollBy(AUTO_SCROLL_SPEED);
+            this.forms.scroll.autoScrollAt(context.mouseX, context.mouseY, Scroll.AUTO_SCROLL_EDGE, Scroll.AUTO_SCROLL_SPEED);
         }
     }
 

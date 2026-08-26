@@ -320,6 +320,8 @@ public abstract class UIBaseMenu
 
         this.preRenderMenu(context);
 
+        this.context.flushLayout();
+
         if (this.root.isVisible())
         {
             this.context.reset();

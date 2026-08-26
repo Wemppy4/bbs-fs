@@ -2,18 +2,28 @@ package mchorse.bbs_mod.ui.utils.resizers.layout;
 
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.Scroll;
+import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.resizers.AutomaticResizer;
 import mchorse.bbs_mod.ui.utils.resizers.ChildResizer;
 import mchorse.bbs_mod.ui.utils.resizers.IResizer;
-
-import java.util.List;
 
 public class RowResizer extends AutomaticResizer
 {
     private int i;
     private int x;
     private int w;
+
+    /**
+     * Visible children without an explicit width, i.e. the ones that share the leftover
+     */
     private int count;
+
+    /**
+     * Visible children in this pass. Counted once in {@link #apply(Area)}: rebuilding the
+     * child list per child made a row of N elements cost N² lookups
+     */
+    private int visible;
 
     /**
      * Preferred element to use in the row for the width adjustments caused by
@@ -36,6 +46,11 @@ public class RowResizer extends AutomaticResizer
      */
     private boolean reverse;
 
+    /**
+     * Scroll mode, this will automatically calculate the scroll area
+     */
+    private boolean scroll;
+
     public static RowResizer apply(UIElement element, int margin)
     {
         RowResizer resizer = new RowResizer(element, margin);
@@ -52,7 +67,7 @@ public class RowResizer extends AutomaticResizer
 
     public RowResizer preferred(int index)
     {
-        this.preferred = i;
+        this.preferred = index;
 
         return this;
     }
@@ -78,22 +93,38 @@ public class RowResizer extends AutomaticResizer
         return this;
     }
 
+    public RowResizer scroll()
+    {
+        this.scroll = true;
+
+        return this;
+    }
+
     @Override
     public void apply(Area area)
     {
-        List<ChildResizer> resizers = this.getResizers();
-
         this.i = this.x = this.w = 0;
-        this.count = resizers.size();
+        this.visible = 0;
+        this.count = 0;
 
-        for (ChildResizer resizer : resizers)
+        for (ChildResizer resizer : this.getResizers())
         {
+            if (!resizer.element.isVisible())
+            {
+                continue;
+            }
+
             int w = Math.max(resizer.resizer == null ? 0 : resizer.resizer.getW(), 0);
+
+            this.visible ++;
 
             if (w > 0)
             {
                 this.w += w;
-                this.count --;
+            }
+            else
+            {
+                this.count ++;
             }
         }
     }
@@ -101,8 +132,15 @@ public class RowResizer extends AutomaticResizer
     @Override
     public void apply(Area area, IResizer resizer, ChildResizer child)
     {
-        List<ChildResizer> resizers = this.getResizers();
-        int c = resizers.size();
+        /* Same as in the column: a hidden child keeps no slot in the row */
+        if (!child.element.isVisible())
+        {
+            area.set(this.parent.area.x, this.parent.area.y, 0, 0);
+
+            return;
+        }
+
+        int c = this.visible;
         int original = this.parent.area.w - this.padding * 2 - this.margin * (c - 1);
         int w = this.count > 0 ? (original - this.w) / this.count : 0;
         int x = this.parent.area.x + this.padding + this.x + child.element.margin.left;
@@ -127,7 +165,9 @@ public class RowResizer extends AutomaticResizer
         /* Readjust the middle element width to balance out int imprecision */
         int preferred = this.preferred == -1 ? c / 2 : this.preferred;
 
-        if (this.i == preferred && !this.resize && this.width <= 0)
+        /* Only when something actually shared the leftover; a row of fixed-width icons in a
+         * wider strip must not have its middle icon stretched to fill the gap */
+        if (this.i == preferred && this.count > 0 && !this.resize && this.width <= 0)
         {
             int diff = original - this.w - w * this.count;
 
@@ -150,15 +190,38 @@ public class RowResizer extends AutomaticResizer
     }
 
     @Override
+    public void postApply(Area area)
+    {
+        if (this.scroll && this.parent.area.scroll != null)
+        {
+            Scroll scroll = this.parent.area.scroll;
+
+            if (scroll.direction == ScrollDirection.HORIZONTAL)
+            {
+                scroll.scrollSize = this.x - this.margin + this.padding * 2;
+            }
+
+            scroll.clamp();
+        }
+    }
+
+    @Override
     public int getW()
     {
         if (this.resize)
         {
-            List<ChildResizer> resizers = this.getResizers();
-            int w = resizers.isEmpty() ? 0 : -this.margin;
+            int w = 0;
+            boolean any = false;
 
-            for (ChildResizer resizer : resizers)
+            for (ChildResizer resizer : this.getResizers())
             {
+                if (!resizer.element.isVisible())
+                {
+                    continue;
+                }
+
+                any = true;
+
                 int cw = resizer.resizer == null ? 0 : resizer.resizer.getW();
 
                 if (cw == 0 && this.width > 0)
@@ -169,7 +232,7 @@ public class RowResizer extends AutomaticResizer
                 w += Math.max(cw, 0) + this.margin + resizer.element.margin.horizontal();
             }
 
-            return w + this.padding * 2;
+            return (any ? w - this.margin : 0) + this.padding * 2;
         }
 
         return 0;
@@ -178,11 +241,15 @@ public class RowResizer extends AutomaticResizer
     @Override
     public int getH()
     {
-        List<ChildResizer> resizers = this.getResizers();
         int h = 0;
 
-        for (ChildResizer child : resizers)
+        for (ChildResizer child : this.getResizers())
         {
+            if (!child.element.isVisible())
+            {
+                continue;
+            }
+
             h = Math.max(h, child.resizer == null ? 0 : child.resizer.getH() + child.element.margin.vertical());
         }
 
