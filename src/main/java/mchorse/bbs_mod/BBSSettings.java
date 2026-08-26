@@ -186,10 +186,10 @@ public class BBSSettings {
 	public static ValueBoolean damageControl;
 
 	public static ValueInt secondaryColor;
+	public static ValueFloat overlayBackgroundOpacity;
 	public static ValueBoolean interfaceShadows;
 	public static ValueBoolean interfaceHighlights;
-	public static ValueFloat overlayBackgroundOpacity;
-	public static ValueBoolean overlayGradientBorder;
+	public static ValueBoolean interfaceGlow;
 
 	public static ValueBoolean shaderCurvesEnabled;
 	public static ValueBoolean translucencyQueue;
@@ -380,9 +380,15 @@ public class BBSSettings {
 		return Colors.a(MathUtils.clamp(opacity, 0F, 1F));
 	}
 
-	public static boolean hasOverlayGradientBorder()
+	/**
+	 * Whether the interface draws its soft glows at all. Every one of them goes
+	 * through {@code Batcher2D.dropShadow}, so this is read there rather than
+	 * at each caller — the toggle covers panels, context menus, tooltips,
+	 * notifications and anything added later without them knowing about it.
+	 */
+	public static boolean hasInterfaceGlow()
 	{
-		return overlayGradientBorder == null || overlayGradientBorder.get();
+		return interfaceGlow == null || interfaceGlow.get();
 	}
 
 	public static int getDefaultDuration()
@@ -488,6 +494,9 @@ public class BBSSettings {
 		/* Debug overlays briefly had a category of their own, which had nothing to
 		 * show since they are edited from the IK and physics panels */
 		migrated |= migrateLegacyCategory(root, "debug", "viewport", "ik_debug", "physics_debug");
+
+		/* The panel glow became a glow toggle for the whole interface */
+		migrated |= migrateLegacyValue(root, "personalization", "overlay_gradient_border", "personalization", "interface_glow");
 
 		/* Timeline looks and clip naming joined the categories they belong to */
 		migrated |= migrateLegacyCategory(root, "personalization", "timeline", "track_width", "keyframe_default_shape");
@@ -598,13 +607,13 @@ public class BBSSettings {
 		builder.register(disabledMorphFormCategories);
 
 		builder.category("personalization", Icons.COLOR);
-		interfaceShadows = builder.getBoolean("interface_shadows", true);
-		interfaceHighlights = builder.getBoolean("interface_highlights", false);
-		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
-		overlayGradientBorder = builder.getBoolean("overlay_gradient_border", true);
 		primaryColor = builder.getInt("primary_color", DEFAULT_PRIMARY_COLOR).color();
 		secondaryColor = builder.getInt("secondary_color", DEFAULT_SECONDARY_COLOR).color();
 		stencilHighlightColor = builder.getInt("stencil_highlight_color", 0x2EFFFFFF).colorAlpha();
+		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
+		interfaceShadows = builder.getBoolean("interface_shadows", true);
+		interfaceHighlights = builder.getBoolean("interface_highlights", false);
+		interfaceGlow = builder.getBoolean("interface_glow", true);
 
 		builder.category("scrollbars", Icons.VERTICAL);
 		scrollbarWidth = builder.getInt("width", 4, 2, 10).slider();

@@ -210,8 +210,20 @@ public class Batcher2D
         }
     }
 
+    /**
+     * A soft glow radiating out of a rectangle, with the rectangle itself filled
+     * by the opaque colour. Every glow in the interface comes through here, so
+     * the one toggle that turns them off is read here rather than at each
+     * caller: every caller paints its own background over this rectangle right
+     * after, which is what makes skipping the whole thing safe.
+     */
     public void dropShadow(int left, int top, int right, int bottom, int offset, int opaque, int shadow)
     {
+        if (!BBSSettings.hasInterfaceGlow())
+        {
+            return;
+        }
+
         left -= offset;
         top -= offset;
         right += offset;
