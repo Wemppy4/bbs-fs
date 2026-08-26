@@ -110,6 +110,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundEvent;
@@ -525,9 +526,23 @@ public class BBSMod implements ModInitializer
     private void registerEvents()
     {
         /* The server's registries, for the vanilla codecs BBS serializes data with — an enchanted
-         * item can be neither written nor read without them (see GameRegistries). Registered on
-         * both sides; the client's own source is added by BBSModClient. */
-        GameRegistries.addSource(() -> server == null ? null : server.getRegistryManager());
+         * item can be neither written nor read without them, and only with the set that owns it
+         * (see GameRegistries). Registered on both sides; the client adds its own in BBSModClient,
+         * ahead of this one, and the thread decides between them. */
+        GameRegistries.addSource(new GameRegistries.Source()
+        {
+            @Override
+            public RegistryWrapper.WrapperLookup lookup()
+            {
+                return server == null ? null : server.getRegistryManager();
+            }
+
+            @Override
+            public boolean isOwnThread()
+            {
+                return server != null && server.isOnThread();
+            }
+        });
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) ->
         {
