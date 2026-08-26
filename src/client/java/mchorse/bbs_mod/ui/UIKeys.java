@@ -179,7 +179,6 @@ public class UIKeys
     public static final IKey CAMERA_TIMELINE_CONTEXT_ADD = L10n.lang("bbs.ui.camera.timeline.context.add");
     public static final IKey CAMERA_TIMELINE_CONTEXT_ADD_AT_CURSOR = L10n.lang("bbs.ui.camera.timeline.context.add_at_cursor");
     public static final IKey CAMERA_TIMELINE_CONTEXT_ADD_AT_TICK = L10n.lang("bbs.ui.camera.timeline.context.add_at_tick");
-    public static final IKey CAMERA_TIMELINE_CONTEXT_ADD_CLIP_TYPE = L10n.lang("bbs.ui.camera.timeline.context.add_clip_type");
     public static final IKey CAMERA_TIMELINE_CONTEXT_ADD_ON_TOP = L10n.lang("bbs.ui.camera.timeline.context.add_on_top");
     public static final IKey CAMERA_TIMELINE_CONTEXT_CONVERT = L10n.lang("bbs.ui.camera.timeline.context.convert");
     public static final IKey CAMERA_TIMELINE_CONTEXT_CONVERT_TO = L10n.lang("bbs.ui.camera.timeline.context.convert_to");

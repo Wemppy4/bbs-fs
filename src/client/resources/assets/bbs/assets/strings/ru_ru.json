@@ -576,7 +576,6 @@
 	"bbs.ui.camera.timeline.context.add": "Добавить...",
 	"bbs.ui.camera.timeline.context.add_at_cursor": "Добавить клип на курсоре...",
 	"bbs.ui.camera.timeline.context.add_at_tick": "Добавить клип на конкретном тике...",
-	"bbs.ui.camera.timeline.context.add_clip_type": "Добавить %s",
 	"bbs.ui.camera.timeline.context.add_on_top": "Добавить клип над выбранным...",
 	"bbs.ui.camera.timeline.context.convert": "Конвертировать клип...",
 	"bbs.ui.camera.timeline.context.convert_to": "Конвертировать в %s",

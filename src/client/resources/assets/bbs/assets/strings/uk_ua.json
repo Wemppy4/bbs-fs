@@ -341,7 +341,6 @@
     "bbs.ui.camera.timeline.context.add": "Додати...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "Додати кліп на курсорі...",
     "bbs.ui.camera.timeline.context.add_at_tick": "Додати кліп на конкретному тикі...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "Додати %s",
     "bbs.ui.camera.timeline.context.add_on_top": "Додати кліп над обраним...",
     "bbs.ui.camera.timeline.context.convert": "Конвертувати кліп...",
     "bbs.ui.camera.timeline.context.convert_to": "Конвертувати у %s",

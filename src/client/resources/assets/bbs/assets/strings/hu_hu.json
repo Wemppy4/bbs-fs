@@ -339,7 +339,6 @@
     "bbs.ui.camera.timeline.context.add": "Hozzáadás...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "Klip hozzáadása a kurzorhoz...",
     "bbs.ui.camera.timeline.context.add_at_tick": "Klip hozzáadása az aktuális tick-hez...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "Hozzáadás %s",
     "bbs.ui.camera.timeline.context.add_on_top": "Klip hozzáadása a kijelöltre...",
     "bbs.ui.camera.timeline.context.convert": "Klip konvertálás...",
     "bbs.ui.camera.timeline.context.convert_to": "Konvertálás ebbe %s",

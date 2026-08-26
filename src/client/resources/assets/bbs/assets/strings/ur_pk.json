@@ -355,7 +355,6 @@
     "bbs.ui.camera.timeline.context.add": "شامل کریں...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "کرسر پر کلپ شامل کریں...",
     "bbs.ui.camera.timeline.context.add_at_tick": "موجودہ ٹِک پر کلپ شامل کریں...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "%s شامل کریں",
     "bbs.ui.camera.timeline.context.add_on_top": "منتخب کے اوپر کلپ شامل کریں...",
     "bbs.ui.camera.timeline.context.convert": "کلپ تبدیل کریں...",
     "bbs.ui.camera.timeline.context.convert_to": "%s میں تبدیل کریں",

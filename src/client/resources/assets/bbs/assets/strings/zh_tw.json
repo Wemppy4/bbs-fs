@@ -355,7 +355,6 @@
     "bbs.ui.camera.timeline.context.add": "添加...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "在光標處添加剪輯...",
     "bbs.ui.camera.timeline.context.add_at_tick": "在當前刻處添加剪輯...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "添加 %s",
     "bbs.ui.camera.timeline.context.add_on_top": "在選定剪輯上方添加剪輯...",
     "bbs.ui.camera.timeline.context.convert": "轉換剪輯...",
     "bbs.ui.camera.timeline.context.convert_to": "轉換為 %s",

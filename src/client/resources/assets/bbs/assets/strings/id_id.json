@@ -262,7 +262,6 @@
     "bbs.ui.camera.timeline.context.add": "Tambah...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "Tambahkan klip di kursor...",
     "bbs.ui.camera.timeline.context.add_at_tick": "Tambahkan klip di tick saat ini...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "Tambahkan %s",
     "bbs.ui.camera.timeline.context.add_on_top": "Tambahkan klip di atas yang dipilih...",
     "bbs.ui.camera.timeline.context.convert": "Konversi klip...",
     "bbs.ui.camera.timeline.context.convert_to": "Konversi ke %s",

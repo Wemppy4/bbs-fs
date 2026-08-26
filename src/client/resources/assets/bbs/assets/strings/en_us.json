@@ -579,7 +579,6 @@
 	"bbs.ui.camera.timeline.context.add": "Add...",
 	"bbs.ui.camera.timeline.context.add_at_cursor": "Add clip at cursor...",
 	"bbs.ui.camera.timeline.context.add_at_tick": "Add clip at current tick...",
-	"bbs.ui.camera.timeline.context.add_clip_type": "Add %s",
 	"bbs.ui.camera.timeline.context.add_on_top": "Add clip on top of selected...",
 	"bbs.ui.camera.timeline.context.convert": "Convert clip...",
 	"bbs.ui.camera.timeline.context.convert_to": "Convert to %s",

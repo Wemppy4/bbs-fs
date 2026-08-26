@@ -342,7 +342,6 @@
     "bbs.ui.camera.timeline.context.add": "Thêm...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "Thêm clip tại con trỏ...",
     "bbs.ui.camera.timeline.context.add_at_tick": "Thêm clip tại tick hiện tại...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "Thêm %s",
     "bbs.ui.camera.timeline.context.add_on_top": "Thêm clip lên trên clip đã chọn...",
     "bbs.ui.camera.timeline.context.convert": "Chuyển đổi clip...",
     "bbs.ui.camera.timeline.context.convert_to": "Chuyển đổi thành %s",

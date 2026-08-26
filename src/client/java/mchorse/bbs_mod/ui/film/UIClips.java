@@ -373,7 +373,7 @@ public class UIClips extends UIElement
         {
             UIChoiceMenu.of(this.factory.getKeys())
                 .icon((type) -> this.factory.getData(type).icon)
-                .label((type) -> UIKeys.CAMERA_TIMELINE_CONTEXT_ADD_CLIP_TYPE.format(UIKeys.C_CLIP.get(type)))
+                .label((type) -> UIKeys.C_CLIP.get(type))
                 .color((type) -> this.factory.getData(type).color)
                 .build(add, UIKeys.CAMERA_TIMELINE_KEYS_CLIPS, (type) -> this.addClip(type, preview.x, preview.y, preview.z));
 

@@ -319,7 +319,6 @@
     "bbs.ui.camera.timeline.context.add": "추가...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "커서에 클립 추가...",
     "bbs.ui.camera.timeline.context.add_at_tick": "현재 틱에 클립 추가...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "%s 추가",
     "bbs.ui.camera.timeline.context.add_on_top": "선택한 클립 위에 클립 추가...",
     "bbs.ui.camera.timeline.context.convert": "클립 변환...",
     "bbs.ui.camera.timeline.context.convert_to": "%s로 변환",

@@ -344,7 +344,6 @@
     "bbs.ui.camera.timeline.context.add": "เพิ่ม...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "เพิ่มคลิปที่ตำแหน่งเคอร์เซอร์...",
     "bbs.ui.camera.timeline.context.add_at_tick": "เพิ่มคลิปที่ติ๊กปัจจุบัน...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "เพื่ม %s",
     "bbs.ui.camera.timeline.context.add_on_top": "เพิ่มคลิปทับบนคลิปที่เลือก...",
     "bbs.ui.camera.timeline.context.convert": "แปลงคลิป...",
     "bbs.ui.camera.timeline.context.convert_to": "แปลงเป็น %s",

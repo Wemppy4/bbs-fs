@@ -333,7 +333,6 @@
     "bbs.ui.camera.timeline.context.add": "Dodaj...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "Dodaj klip do kursora...",
     "bbs.ui.camera.timeline.context.add_at_tick": "Dodaj klip w bieżącym ticku...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "Dodaj %s",
     "bbs.ui.camera.timeline.context.add_on_top": "Dodaj klip na wierzchu wybranego...",
     "bbs.ui.camera.timeline.context.convert": "Konwertuj klip...",
     "bbs.ui.camera.timeline.context.convert_to": "Konwertuj do %s",

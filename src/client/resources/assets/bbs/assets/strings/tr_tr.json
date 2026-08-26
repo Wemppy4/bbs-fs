@@ -320,7 +320,6 @@
     "bbs.ui.camera.timeline.context.add": "Ekle...",
     "bbs.ui.camera.timeline.context.add_at_cursor": "İmlece klip ekle...",
     "bbs.ui.camera.timeline.context.add_at_tick": "Şu anki tick'e klip ekle...",
-    "bbs.ui.camera.timeline.context.add_clip_type": "%s ekle",
     "bbs.ui.camera.timeline.context.add_on_top": "Seçili olanın üstüne klip ekle...",
     "bbs.ui.camera.timeline.context.convert": "Klibi dönüştür...",
     "bbs.ui.camera.timeline.context.convert_to": "%s'e dönüştür",
