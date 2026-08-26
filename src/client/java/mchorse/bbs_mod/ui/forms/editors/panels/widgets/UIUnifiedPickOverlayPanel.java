@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors.panels.widgets;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.data.GameRegistries;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -31,7 +32,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
@@ -272,7 +272,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
             try
             {
                 NbtCompound nbt = StringNbtReader.readCompound(v.toString());
-                ItemStack parsed = ItemStack.CODEC.parse(NbtOps.INSTANCE, nbt).result().orElse(ItemStack.EMPTY);
+                ItemStack parsed = ItemStack.CODEC.parse(GameRegistries.nbtOps(), nbt).result().orElse(ItemStack.EMPTY);
 
                 this.acceptItem(parsed);
 
@@ -427,7 +427,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
 
     private void updateItemNbt()
     {
-        this.itemNbt.setText(ItemStack.CODEC.encodeStart(NbtOps.INSTANCE, this.itemStack).result().map(Object::toString).orElse("{}"));
+        this.itemNbt.setText(ItemStack.CODEC.encodeStart(GameRegistries.nbtOps(), this.itemStack).result().map(Object::toString).orElse("{}"));
     }
 
     private void fillBlockProperties(BlockState state)

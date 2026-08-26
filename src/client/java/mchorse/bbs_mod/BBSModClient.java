@@ -75,7 +75,9 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.data.GameRegistries;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Tessellator;
@@ -407,6 +409,17 @@ public class BBSModClient implements ClientModInitializer
     @Override
     public void onInitializeClient()
     {
+        /* The registries of whatever server we're playing on, for the vanilla codecs BBS
+         * serializes data with (see GameRegistries). Taken from the play connection rather than
+         * from an integrated server: on a remote server those are the only correct ones, and in
+         * single player they are the same object anyway. */
+        GameRegistries.addSource(() ->
+        {
+            ClientPlayNetworkHandler handler = MinecraftClient.getInstance().getNetworkHandler();
+
+            return handler == null ? null : handler.getRegistryManager();
+        });
+
         /* The client half of the addons, picked up before anything client side is posted. Their
          * common half is registered by BBSMod, from the "bbs-addon" entrypoint. */
         FabricLoader.getInstance()

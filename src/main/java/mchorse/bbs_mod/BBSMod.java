@@ -93,6 +93,7 @@ import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityT
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import mchorse.bbs_mod.data.DataStorageUtils;
+import mchorse.bbs_mod.data.GameRegistries;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.entity.BlockEntityType;
@@ -109,6 +110,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
@@ -237,6 +239,9 @@ public class BBSMod implements ModInitializer
     }
 
     private static File worldFolder;
+
+    /** The running server, kept only so {@link GameRegistries} can reach its registries. */
+    private static MinecraftServer server;
 
     private static RegistryKey<Block> blockKey(String path)
     {
@@ -519,6 +524,11 @@ public class BBSMod implements ModInitializer
 
     private void registerEvents()
     {
+        /* The server's registries, for the vanilla codecs BBS serializes data with — an enchanted
+         * item can be neither written nor read without them (see GameRegistries). Registered on
+         * both sides; the client's own source is added by BBSModClient. */
+        GameRegistries.addSource(() -> server == null ? null : server.getRegistryManager());
+
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) ->
         {
             if (entity instanceof ServerPlayerEntity player)
@@ -529,7 +539,11 @@ public class BBSMod implements ModInitializer
             }
         });
 
-        ServerLifecycleEvents.SERVER_STARTED.register((event) -> worldFolder = event.getSavePath(WorldSavePath.ROOT).toFile());
+        ServerLifecycleEvents.SERVER_STARTED.register((event) ->
+        {
+            worldFolder = event.getSavePath(WorldSavePath.ROOT).toFile();
+            server = event;
+        });
         ServerPlayConnectionEvents.JOIN.register((a, b, c) -> ServerNetwork.sendHandshake(c, b));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> actions.stopFor(handler.getPlayer()));
 
@@ -550,10 +564,15 @@ public class BBSMod implements ModInitializer
             runnables.clear();
         });
 
-        ServerLifecycleEvents.SERVER_STOPPED.register((server) ->
+        ServerLifecycleEvents.SERVER_STOPPED.register((stopped) ->
         {
             actions.reset();
             ServerNetwork.reset();
+
+            if (BBSMod.server == stopped)
+            {
+                BBSMod.server = null;
+            }
         });
 
         EntityTrackingEvents.START_TRACKING.register((trackedEntity, player) ->
