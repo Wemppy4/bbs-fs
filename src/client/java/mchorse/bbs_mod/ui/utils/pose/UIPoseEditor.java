@@ -19,6 +19,8 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.resizers.AutomaticResizer;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.context.MenuIcon;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -62,10 +64,8 @@ public class UIPoseEditor extends UIElement
         this.groups.list.context(() ->
         {
             UIDataContextMenu menu = new UIDataContextMenu(PoseManager.INSTANCE, this.group, () -> this.pose.toData(), this::pastePose);
-            UIIcon flip = new UIIcon(Icons.CONVERT, (b) -> this.flipPose());
 
-            flip.tooltip(UIKeys.POSE_CONTEXT_FLIP_POSE);
-            menu.row.addBefore(menu.save, flip);
+            menu.bar.register(new MenuIcon(Icons.CONVERT, UIKeys.POSE_CONTEXT_FLIP_POSE, MenuVerb.Slot.COMMON, this::flipPose).keepOpen());
 
             return menu;
         });

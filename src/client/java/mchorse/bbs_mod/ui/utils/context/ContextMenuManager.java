@@ -123,12 +123,16 @@ public class ContextMenuManager
             contextMenu.bar.register(icon);
         }
 
+        boolean keyed = this.autoKeys;
+
         for (int i = 0; i < this.actions.size(); i++)
         {
             ContextAction action = this.actions.get(i);
 
             if (action.keys != null)
             {
+                keyed = true;
+
                 Keybind register = contextMenu.keys().register(new KeyCombo(action.label, action.keys), () ->
                 {
                     if (action.runnable != null)
@@ -136,7 +140,7 @@ public class ContextMenuManager
                         action.runnable.run();
                     }
 
-                    contextMenu.removeFromParent();
+                    contextMenu.dismiss();
                 });
 
                 if (action.keyCategory != null)
@@ -172,10 +176,12 @@ public class ContextMenuManager
                         action.runnable.run();
                     }
 
-                    contextMenu.removeFromParent();
+                    contextMenu.dismiss();
                 }).category(this.category);
             }
         }
+
+        contextMenu.canFocusFilter(!keyed);
 
         return contextMenu.isEmpty() ? null : contextMenu;
     }

@@ -191,7 +191,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         this.buttons.add(this.add, this.remove, this.edit);
 
         this.browser = new UITextureBrowser(this);
-        this.browser.grid.context((menu) -> this.copyPasteController.install(menu, this.getContext()));
+        this.browser.grid.context((menu) -> this.copyPasteController.installClipboard(menu, 0, 0));
         this.browser.full(this.browseContent);
 
         this.browseContent.add(this.browser);

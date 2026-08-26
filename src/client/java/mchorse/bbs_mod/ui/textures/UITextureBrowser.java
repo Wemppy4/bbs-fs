@@ -1290,8 +1290,9 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
                 menu.action(Icons.PASTE, UIKeys.GENERAL_PASTE, this::paste);
             }
 
-            menu.icon(MenuVerb.ADD, this::promptNewFolder).label(UIKeys.TEXTURES_BROWSER_NEW_FOLDER);
+            menu.icon(MenuVerb.ADD, this::promptNewTexture).label(UIKeys.TEXTURES_BROWSER_NEW_TEXTURE);
 
+            menu.action(Icons.ADD, UIKeys.TEXTURES_BROWSER_NEW_FOLDER, this::promptNewFolder);
             menu.action(Icons.UPLOAD, UIKeys.TEXTURES_BROWSER_IMPORT, this::promptImport);
             menu.action(Icons.FOLDER, UIKeys.TEXTURE_OPEN_FOLDER, this::openFolder);
         }

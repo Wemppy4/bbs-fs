@@ -106,7 +106,7 @@ public class UIBonePickerContextMenu extends UIContextMenu
             this.callback.accept(id);
         }
 
-        this.removeFromParent();
+        this.dismiss();
     }
 
     @Override

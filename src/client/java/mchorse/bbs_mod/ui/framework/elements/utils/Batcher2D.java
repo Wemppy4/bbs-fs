@@ -278,7 +278,15 @@ public class Batcher2D
      */
     public void highlight(Area area, Direction edge)
     {
-        int color = BBSSettings.primaryColor.get();
+        this.highlight(area, edge, BBSSettings.primaryColor.get());
+    }
+
+    /**
+     * The same mark in a colour of its own — what a destructive button wears, so that "this one
+     * is not like the others" is said the same way as "this one is the active one".
+     */
+    public void highlight(Area area, Direction edge, int color)
+    {
         int bar = Colors.A100 | color;
         int near = Colors.A75 | color;
         int far = color;

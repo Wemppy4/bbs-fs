@@ -150,9 +150,19 @@ public class UICopyPasteController
      */
     public void install(ContextMenuManager menu, UIContext context, int mouseX, int mouseY)
     {
+        this.installClipboard(menu, mouseX, mouseY);
+
+        menu.icon(MenuVerb.PRESETS, () -> this.openPresets(context, mouseX, mouseY)).enabled(this.canPreviewPresets());
+    }
+
+    /**
+     * Copy and paste alone, for menus that hold no presets — the texture browser copies files,
+     * and a saved file is a file, not a preset.
+     */
+    public void installClipboard(ContextMenuManager menu, int mouseX, int mouseY)
+    {
         menu.icon(MenuVerb.COPY, this::copy).label(this.copyLabel).enabled(this.canCopy());
         menu.icon(MenuVerb.PASTE, () -> this.paste(mouseX, mouseY)).label(this.pasteLabel).enabled(this.canPaste());
-        menu.icon(MenuVerb.PRESETS, () -> this.openPresets(context, mouseX, mouseY)).enabled(this.canPreviewPresets());
     }
 
     public static interface IPaste

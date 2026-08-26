@@ -21,4 +21,11 @@ public class UIActionList extends UIList<ContextAction>
 
         element.render(context, context.batcher.getFont(), x, y, this.area.w, h, hover, selected);
     }
+
+    /** What the filter matches against: the row reads as its label, not as an object. */
+    @Override
+    protected String elementToString(UIContext context, int i, ContextAction element)
+    {
+        return element.label.get();
+    }
 }

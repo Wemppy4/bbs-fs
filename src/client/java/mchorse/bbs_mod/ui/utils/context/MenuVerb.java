@@ -18,20 +18,24 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
  * <p>Adding comes first because a context menu opens with its top left corner exactly under
  * the cursor: the plus lands under the mouse, one click away with no travel. Removal sits right
  * beside it, the way add and remove pair up everywhere else in BBS; what tells it apart is its
- * colour, not its distance.</p>
+ * colour, not its distance. The step back, when there is one, comes before both — it is the way
+ * out of where you are, not something you do here.</p>
  */
 public enum MenuVerb
 {
+    BACK(Icons.ARROW_LEFT, UIKeys.GENERAL_BACK, Slot.NAVIGATE),
     ADD(Icons.ADD, UIKeys.GENERAL_ADD, Slot.CREATE),
     REMOVE(Icons.REMOVE, UIKeys.GENERAL_REMOVE, Slot.DESTROY),
     COPY(Icons.COPY, UIKeys.GENERAL_COPY, Slot.CLIPBOARD),
     PASTE(Icons.PASTE, UIKeys.GENERAL_PASTE, Slot.CLIPBOARD),
+    RESET(Icons.REFRESH, UIKeys.GENERAL_RESET, Slot.COMMON),
+    SAVE(Icons.SAVED, UIKeys.GENERAL_SAVE, Slot.COMMON),
     PRESETS(Icons.MORE, UIKeys.GENERAL_PRESETS, Slot.COMMON);
 
     /** The zones of the bar, laid out left to right in this order. */
     public enum Slot
     {
-        CREATE, DESTROY, CLIPBOARD, COMMON;
+        NAVIGATE, CREATE, DESTROY, CLIPBOARD, COMMON;
 
         /** Whether what sits here undoes work, and so is marked in the destructive colour. */
         public boolean isDestructive()

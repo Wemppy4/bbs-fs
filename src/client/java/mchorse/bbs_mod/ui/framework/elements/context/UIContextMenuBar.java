@@ -3,9 +3,9 @@ package mchorse.bbs_mod.ui.framework.elements.context;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.context.MenuIcon;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
@@ -72,7 +72,7 @@ public class UIContextMenuBar extends UIElement
         this.dividing = dividing;
 
         this.removeAll();
-        this.icons.sort(Comparator.comparingInt((icon) -> icon.verb.slot.ordinal()));
+        this.icons.sort(Comparator.comparingInt((icon) -> icon.slot.ordinal()));
 
         this.buttons.clear();
 
@@ -92,10 +92,14 @@ public class UIContextMenuBar extends UIElement
 
     private UIIcon createButton(MenuIcon icon)
     {
-        UIIcon button = new UIIcon(icon.verb.icon, (b) ->
+        UIIcon button = new UIIcon(icon.icon, (b) ->
         {
             icon.runnable.run();
-            this.close.run();
+
+            if (!icon.keepOpen)
+            {
+                this.close.run();
+            }
         });
 
         button.tooltip(icon.label);
@@ -118,10 +122,9 @@ public class UIContextMenuBar extends UIElement
     }
 
     /**
-     * Mark the destructive buttons the way a destructive row of the list is marked — an edge of
-     * colour fading out across the button. It is the same paint as
-     * {@link mchorse.bbs_mod.ui.utils.context.ColorfulContextAction ColorfulContextAction}, which happens to be exactly
-     * one button wide, so the two read as the same thing said in two places.
+     * Mark the destructive buttons with the same underline that marks an active one, in the
+     * destructive colour — the bar hangs off the top edge of the menu, so its marks read along
+     * the bottom, exactly as they do on a panel's top bar.
      */
     private void renderDestructive(UIContext context)
     {
@@ -129,15 +132,12 @@ public class UIContextMenuBar extends UIElement
         {
             UIIcon button = this.buttons.get(i);
 
-            if (!this.icons.get(i).verb.slot.isDestructive() || !button.isEnabled())
+            if (!this.icons.get(i).slot.isDestructive() || !button.isEnabled())
             {
                 continue;
             }
 
-            Area area = button.area;
-
-            context.batcher.box(area.x, area.y, area.x + 2, area.ey(), Colors.A100 | Colors.NEGATIVE);
-            context.batcher.gradientHBox(area.x + 2, area.y, area.ex(), area.ey(), Colors.A25 | Colors.NEGATIVE, Colors.NEGATIVE);
+            context.batcher.highlight(button.area, Direction.BOTTOM, Colors.NEGATIVE);
         }
     }
 }

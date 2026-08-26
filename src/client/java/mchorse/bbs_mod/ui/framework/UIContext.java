@@ -22,6 +22,7 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -37,6 +38,9 @@ public class UIContext implements IViewportStack
     public final UINotifications notifications;
     public IFocusedUIElement activeElement;
     public UIContextMenu contextMenu;
+
+    /** The menus {@link #contextMenu} was opened over, innermost last — see {@link #backContextMenu()}. */
+    private final List<UIContextMenu> menuStack = new ArrayList<>();
 
     /* Mouse states */
     public int mouseX;
@@ -436,6 +440,11 @@ public class UIContext implements IViewportStack
         this.replaceContextMenu(manager.create());
     }
 
+    /**
+     * Open a menu in place of the one currently shown. The old one is parked rather than thrown
+     * away — invisible, and so out of the way of the mouse and the keyboard too — so that a step
+     * back can bring it up again exactly as it was, at the position it was opened at.
+     */
     public void replaceContextMenu(UIContextMenu menu)
     {
         if (menu == null)
@@ -443,9 +452,10 @@ public class UIContext implements IViewportStack
             return;
         }
 
-        if (this.contextMenu != null)
+        if (this.hasContextMenu())
         {
-            this.contextMenu.removeFromParent();
+            this.menuStack.add(this.contextMenu);
+            this.contextMenu.setVisible(false);
         }
 
         menu.setMouse(this);
@@ -453,6 +463,67 @@ public class UIContext implements IViewportStack
 
         this.contextMenu = menu;
         this.menu.overlay.add(menu);
+    }
+
+    /** Whether the menu on screen was opened over another one, which a step back would return to. */
+    public boolean canGoBack()
+    {
+        return !this.menuStack.isEmpty();
+    }
+
+    /** Drop the menu on screen and bring back the one it was opened over. */
+    public void backContextMenu()
+    {
+        if (this.menuStack.isEmpty())
+        {
+            return;
+        }
+
+        UIContextMenu current = this.contextMenu;
+        UIContextMenu previous = this.menuStack.remove(this.menuStack.size() - 1);
+
+        /* Point at the previous one first: the removal below must not read as the whole chain
+         * being dismissed, which is what takes the parked menus down with it. */
+        this.contextMenu = previous;
+        previous.setVisible(true);
+
+        if (current != null)
+        {
+            current.removeFromParent();
+        }
+    }
+
+    /**
+     * A menu left the screen. Unless a step back has already moved on from it, everything it was
+     * opened over goes with it — parked menus have no way of their own to be closed.
+     */
+    public void dismissContextMenu(UIContextMenu removed)
+    {
+        if (removed != this.contextMenu)
+        {
+            /* A parked menu taken down on its own is no longer somewhere to return to, and
+             * neither is anything opened over it. */
+            int index = this.menuStack.indexOf(removed);
+
+            if (index >= 0)
+            {
+                this.menuStack.subList(index, this.menuStack.size()).clear();
+            }
+
+            return;
+        }
+
+        /* Off the list first: the removals below come back through here */
+        List<UIContextMenu> parked = new ArrayList<>(this.menuStack);
+
+        this.menuStack.clear();
+        this.contextMenu = null;
+
+        for (UIContextMenu menu : parked)
+        {
+            menu.setVisible(true);
+            menu.removeFromParent();
+        }
     }
 
     public void closeContextMenu()
