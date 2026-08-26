@@ -168,6 +168,32 @@ public class Batcher2D
         this.context.draw();
     }
 
+    /**
+     * A rectangle cut along its top-left to bottom-right diagonal, a color to each half.
+     * A color with an alpha channel is shown this way — its opaque half beside its real one,
+     * both over a checkboard — so how transparent it is reads at a glance.
+     */
+    public void splitBox(float x1, float y1, float x2, float y2, int topLeft, int bottomRight)
+    {
+        Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+
+        builder.vertex(matrix4f, x1, y1, 0F).color(topLeft).next();
+        builder.vertex(matrix4f, x1, y2, 0F).color(topLeft).next();
+        builder.vertex(matrix4f, x2, y1, 0F).color(topLeft).next();
+        builder.vertex(matrix4f, x2, y1, 0F).color(bottomRight).next();
+        builder.vertex(matrix4f, x1, y2, 0F).color(bottomRight).next();
+        builder.vertex(matrix4f, x2, y2, 0F).color(bottomRight).next();
+
+        RenderSystem.enableBlend();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+
+        this.context.draw();
+    }
+
     public void fillRect(BufferBuilder builder, Matrix4f matrix4f, float x, float y, float w, float h, int color1, int color2, int color3, int color4)
     {
         /* c1 ---- c2

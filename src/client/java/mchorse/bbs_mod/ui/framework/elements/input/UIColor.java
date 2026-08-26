@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.input;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.input.color.UIColorPicker;
+import mchorse.bbs_mod.ui.framework.elements.input.color.UIColorPresets;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.Direction;
@@ -28,8 +29,8 @@ public class UIColor extends UIElement
     {
         super();
 
+        /* The picker sizes itself around its own contents the first time it lays out */
         this.picker = new UIColorPicker(callback);
-        this.picker.wh(200, 85);
 
         this.direction(Direction.BOTTOM).h(UIConstants.CONTROL_HEIGHT);
     }
@@ -80,13 +81,10 @@ public class UIColor extends UIElement
         {
             if (!this.picker.hasParent())
             {
-                int x = context.globalX(this.area.x(this.direction.anchorX) + 2 * this.direction.factorX);
-                int y = context.globalY(this.area.y(this.direction.anchorY) + 2 * this.direction.factorY);
-
-                UIElement target = this.target == null ? context.menu.overlay : this.target;
+                UIElement target = this.popupTarget(context);
 
                 target.add(this.picker);
-                this.picker.setup(x, y);
+                this.picker.setup(this.popupX(context), this.popupY(context));
                 this.picker.bounds(context.menu.main, 2);
                 this.picker.resize();
             }
@@ -98,7 +96,47 @@ public class UIColor extends UIElement
             return true;
         }
 
+        /* The presets are the quick way past the picker, so they hang off the other button */
+        if (this.area.isInside(context) && context.mouseButton == 1)
+        {
+            this.openPresets(context);
+
+            return true;
+        }
+
         return super.subMouseClicked(context);
+    }
+
+    /* Where a popup of this swatch goes: beside it, on the side {@link #direction} points at */
+
+    private UIElement popupTarget(UIContext context)
+    {
+        return this.target == null ? context.menu.overlay : this.target;
+    }
+
+    private int popupX(UIContext context)
+    {
+        return context.globalX(this.area.x(this.direction.anchorX) + 2 * this.direction.factorX);
+    }
+
+    private int popupY(UIContext context)
+    {
+        return context.globalY(this.area.y(this.direction.anchorY) + 2 * this.direction.factorY);
+    }
+
+    private void openPresets(UIContext context)
+    {
+        UIColorPresets presets = new UIColorPresets(this.picker::applyOpaqueColor);
+        UIElement target = this.popupTarget(context);
+
+        /* One popup of this swatch at a time */
+        this.picker.removeFromParent();
+
+        presets.anchor(1 - this.direction.anchorX, 1 - this.direction.anchorY);
+        target.add(presets);
+        presets.setup(this.popupX(context), this.popupY(context));
+        presets.bounds(context.menu.main, 2);
+        presets.resize();
     }
 
     @Override
