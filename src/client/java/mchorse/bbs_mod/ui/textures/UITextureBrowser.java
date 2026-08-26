@@ -32,6 +32,7 @@ import mchorse.bbs_mod.ui.utils.cells.DragGhost;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
@@ -1268,7 +1269,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         {
             List<Link> links = this.group(link);
 
-            menu.action(Icons.REMOVE, group ? UIKeys.TEXTURES_BROWSER_DELETE_SELECTED.format(String.valueOf(links.size())) : UIKeys.GENERAL_REMOVE, Colors.RED, () -> this.confirmDelete(links));
+            menu.icon(MenuVerb.REMOVE, () -> this.confirmDelete(links)).label(group ? UIKeys.TEXTURES_BROWSER_DELETE_SELECTED.format(String.valueOf(links.size())) : UIKeys.GENERAL_REMOVE);
         }
     }
 
@@ -1289,7 +1290,8 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
                 menu.action(Icons.PASTE, UIKeys.GENERAL_PASTE, this::paste);
             }
 
-            menu.action(Icons.ADD, UIKeys.TEXTURES_BROWSER_NEW_FOLDER, this::promptNewFolder);
+            menu.icon(MenuVerb.ADD, this::promptNewFolder).label(UIKeys.TEXTURES_BROWSER_NEW_FOLDER);
+
             menu.action(Icons.UPLOAD, UIKeys.TEXTURES_BROWSER_IMPORT, this::promptImport);
             menu.action(Icons.FOLDER, UIKeys.TEXTURE_OPEN_FOLDER, this::openFolder);
         }

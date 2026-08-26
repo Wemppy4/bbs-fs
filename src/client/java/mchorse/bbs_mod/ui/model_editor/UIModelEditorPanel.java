@@ -56,10 +56,10 @@ import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -894,7 +894,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         entry.context((menu) ->
         {
             menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_ITEM_DUPLICATE, () -> this.duplicateItem(list, slot));
-            menu.action(Icons.REMOVE, UIKeys.MODEL_EDITOR_ITEM_REMOVE, () -> this.removeItem(list, slot));
+            menu.icon(MenuVerb.REMOVE, () -> this.removeItem(list, slot)).label(UIKeys.MODEL_EDITOR_ITEM_REMOVE);
         });
 
         return entry;
@@ -1123,7 +1123,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         row.context((menu) ->
         {
             menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_MAP_DUPLICATE, () -> this.duplicateMap(value, entries, pair));
-            menu.action(Icons.REMOVE, UIKeys.MODEL_EDITOR_MAP_REMOVE, () -> this.removeMap(value, entries, pair));
+            menu.icon(MenuVerb.REMOVE, () -> this.removeMap(value, entries, pair)).label(UIKeys.MODEL_EDITOR_MAP_REMOVE);
         });
 
         return row;
@@ -1571,8 +1571,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         UIContext context = this.getContext();
 
-        menu.custom(new UIPresetContextMenu(this.welds.controller, context.mouseX, context.mouseY)
-            .labels(UIKeys.GENERAL_COPY, UIKeys.GENERAL_PASTE));
+        this.welds.controller.install(menu, context, context.mouseX, context.mouseY);
 
         if (duplicate != null)
         {
@@ -1581,7 +1580,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         if (remove != null)
         {
-            menu.action(Icons.REMOVE, UIKeys.MODEL_EDITOR_WELD_REMOVE, remove);
+            menu.icon(MenuVerb.REMOVE, remove).label(UIKeys.MODEL_EDITOR_WELD_REMOVE);
         }
     }
 

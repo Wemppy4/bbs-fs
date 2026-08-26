@@ -29,6 +29,7 @@ import mchorse.bbs_mod.ui.forms.UIFormList;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
@@ -158,7 +159,7 @@ public class UIFormCategory extends UIElement
             });
         }
 
-        menu.action(Icons.ADD, UIKeys.FORMS_CATEGORIES_CONTEXT_ADD_CATEGORY, () ->
+        menu.icon(MenuVerb.ADD, () ->
         {
             UIOverlay.addOverlay(this.getContext(), new UIPromptOverlayPanel(
                 UIKeys.FORMS_CATEGORIES_ADD_CATEGORY_TITLE,
@@ -169,7 +170,7 @@ public class UIFormCategory extends UIElement
                     list.setupForms(formCategories);
                 }
             ));
-        });
+        }).label(UIKeys.FORMS_CATEGORIES_CONTEXT_ADD_CATEGORY);
 
         if (form != null)
         {
@@ -248,7 +249,7 @@ public class UIFormCategory extends UIElement
                 this.getContext().replaceContextMenu((m) -> this.addCategoryTargets(m, userForms, UIKeys.FORMS_CATEGORIES_CONTEXT_MOVE_TO, (to) -> this.list.copySelectionTo(to, true)));
             });
 
-            menu.action(Icons.REMOVE, UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_SELECTED.format(count), Colors.RED, this.list::removeSelection);
+            menu.icon(MenuVerb.REMOVE, this.list::removeSelection).label(UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_SELECTED.format(count));
         }
     }
 

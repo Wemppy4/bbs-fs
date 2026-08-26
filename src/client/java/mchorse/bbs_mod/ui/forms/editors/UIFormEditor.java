@@ -62,9 +62,9 @@ import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Direction;
@@ -193,7 +193,8 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
                 UIForms.FormEntry current = this.formsList.getCurrentFirst();
 
                 return current != null && current.getForm() != null;
-            });
+            })
+            .labels(UIKeys.FORMS_EDITOR_CONTEXT_COPY, UIKeys.FORMS_EDITOR_CONTEXT_PASTE);
 
         this.forms = new UIElement();
         this.forms.relative(this).x(20).w(treeWidth).minW(140).h(1F);
@@ -667,18 +668,13 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             return;
         }
 
-        menu.custom(new UIPresetContextMenu(this.copyPasteController)
-            .labels(UIKeys.FORMS_EDITOR_CONTEXT_COPY, UIKeys.FORMS_EDITOR_CONTEXT_PASTE));
+        this.copyPasteController.install(menu, this.getContext());
 
-        if (current.getForm() != null)
-        {
-            menu.action(Icons.ADD, UIKeys.FORMS_EDITOR_CONTEXT_ADD, () -> this.addBodyPart(new BodyPart("")));
-        }
+        menu.icon(MenuVerb.ADD, () -> this.addBodyPart(new BodyPart(""))).label(UIKeys.FORMS_EDITOR_CONTEXT_ADD).enabled(current.getForm() != null);
+        menu.icon(MenuVerb.REMOVE, this::removeBodyPart).label(UIKeys.FORMS_EDITOR_CONTEXT_REMOVE).enabled(current.part != null);
 
         if (current.part != null)
         {
-            menu.action(Icons.REMOVE, UIKeys.FORMS_EDITOR_CONTEXT_REMOVE, this::removeBodyPart);
-
             List<BodyPart> all = current.part.getManager().getAllTyped();
 
             if (all.size() > 1)

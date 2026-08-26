@@ -5,8 +5,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 
 /**
  * General purpose overlay list editor of generic data
@@ -25,12 +24,8 @@ public abstract class UIEditorOverlayPanel <T> extends UIOverlayPanel
         this.list = this.createList();
         this.list.context((menu) ->
         {
-            menu.action(Icons.ADD, this.getAddLabel(), this::addItem);
-
-            if (!this.list.getList().isEmpty())
-            {
-                menu.action(Icons.REMOVE, this.getRemoveLabel(), Colors.NEGATIVE, this::removeItem);
-            }
+            menu.icon(MenuVerb.ADD, this::addItem).label(this.getAddLabel());
+            menu.icon(MenuVerb.REMOVE, this::removeItem).label(this.getRemoveLabel()).enabled(!this.list.getList().isEmpty());
         });
 
         this.editor = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);

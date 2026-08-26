@@ -31,10 +31,10 @@ import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.clips.Clip;
@@ -148,7 +148,8 @@ public class UIClips extends UIElement
         this.copyPasteController = new UICopyPasteController(PresetManager.CLIPS, "_CopyClips")
             .supplier(this::copyClips)
             .consumer(this::pasteClips)
-            .canCopy(() -> this.delegate.getClip() != null);
+            .canCopy(() -> this.delegate.getClip() != null)
+            .labels(UIKeys.CAMERA_TIMELINE_CONTEXT_COPY, UIKeys.CAMERA_TIMELINE_CONTEXT_PASTE);
 
         this.delegate = delegate;
         this.factory = factory;
@@ -163,15 +164,15 @@ public class UIClips extends UIElement
             int mouseY = context.mouseY;
             boolean hasSelected = this.delegate.getClip() != null;
 
-            menu.custom(new UIPresetContextMenu(this.copyPasteController, mouseX, mouseY)
-                .labels(UIKeys.CAMERA_TIMELINE_CONTEXT_COPY, UIKeys.CAMERA_TIMELINE_CONTEXT_PASTE));
+            this.copyPasteController.install(menu, context, mouseX, mouseY);
 
             if (this.fromLayerY(mouseY) < 0)
             {
                 return;
             }
 
-            menu.action(Icons.ADD, UIKeys.CAMERA_TIMELINE_CONTEXT_ADD, () -> this.showAdds(mouseX, mouseY));
+            menu.icon(MenuVerb.ADD, () -> this.showAdds(mouseX, mouseY)).label(UIKeys.CAMERA_TIMELINE_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removeSelected).label(UIKeys.CAMERA_TIMELINE_CONTEXT_REMOVE_CLIPS).enabled(hasSelected);
 
             if (hasSelected)
             {
@@ -182,11 +183,6 @@ public class UIClips extends UIElement
             }
 
             menu.action(Icons.EXCHANGE, UIKeys.CAMERA_TIMELINE_CONTEXT_REORGANIZE, () -> this.clips.sortLayers());
-
-            if (hasSelected)
-            {
-                menu.action(Icons.REMOVE, UIKeys.CAMERA_TIMELINE_CONTEXT_REMOVE_CLIPS, Colors.NEGATIVE, this::removeSelected);
-            }
         });
 
         Supplier<Boolean> canUseKeybinds = () -> this.delegate.canUseKeybinds() && !this.hasEmbeddedView();

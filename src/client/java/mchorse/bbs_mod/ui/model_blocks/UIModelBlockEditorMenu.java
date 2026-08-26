@@ -33,7 +33,6 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -124,13 +123,10 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
                     this.saveSection();
                     this.createUI();
                     this.main.resize();
-                });
+                })
+                .labels(UIKeys.GUN_CONTEXT_COPY, UIKeys.GUN_CONTEXT_PASTE);
 
-            this.main.context((menu) ->
-            {
-                menu.custom(new UIPresetContextMenu(this.copyPasteController)
-                    .labels(UIKeys.GUN_CONTEXT_COPY, UIKeys.GUN_CONTEXT_PASTE));
-            });
+            this.main.context((menu) -> this.copyPasteController.install(menu, this.context));
         }
 
         this.createUI();

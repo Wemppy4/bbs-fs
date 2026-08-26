@@ -38,9 +38,9 @@ import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
@@ -128,7 +128,8 @@ public class UIKeyframes extends UIElement
 
                 this.pasteKeyframes(parseKeyframes(data), (float) offset, mouseY);
             })
-            .canCopy(() -> this.currentGraph.getSelected() != null);
+            .canCopy(() -> this.currentGraph.getSelected() != null)
+            .labels(UIKeys.KEYFRAMES_CONTEXT_COPY, UIKeys.KEYFRAMES_CONTEXT_PASTE);
 
         /* Context menu items */
         this.context((menu) ->
@@ -138,8 +139,9 @@ public class UIKeyframes extends UIElement
             int mouseY = context.mouseY;
             boolean hasSelected = this.currentGraph.getSelected() != null;
 
-            menu.custom(new UIPresetContextMenu(this.copyPasteController, mouseX, mouseY)
-                .labels(UIKeys.KEYFRAMES_CONTEXT_COPY, UIKeys.KEYFRAMES_CONTEXT_PASTE));
+            this.copyPasteController.install(menu, context, mouseX, mouseY);
+
+            menu.icon(MenuVerb.REMOVE, () -> this.currentGraph.removeSelected()).label(UIKeys.KEYFRAMES_CONTEXT_REMOVE).enabled(hasSelected);
 
             /* Both entries below act on a track. A body part's section is a heading: there is no
              * curve to edit, and its colour is the interface's own while its name comes from the
@@ -200,7 +202,6 @@ public class UIKeyframes extends UIElement
                         sheet.channel.postNotify();
                     }
                 });
-                menu.action(Icons.REMOVE, UIKeys.KEYFRAMES_CONTEXT_REMOVE, () -> this.currentGraph.removeSelected());
             }
         });
 

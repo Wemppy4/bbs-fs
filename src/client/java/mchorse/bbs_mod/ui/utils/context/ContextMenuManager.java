@@ -19,6 +19,7 @@ import java.util.function.Consumer;
 public class ContextMenuManager
 {
     public List<ContextAction> actions = new ArrayList<>();
+    public List<MenuIcon> icons = new ArrayList<>();
     public Consumer<UIRemovedEvent> onClose;
     public boolean autoKeys;
     public UISimpleContextMenu menu;
@@ -95,6 +96,19 @@ public class ContextMenuManager
         return action;
     }
 
+    /**
+     * Put a verb into the menu's icon bar instead of its list. Where it lands comes from the
+     * verb's slot, not from when this was called — see {@link MenuVerb}.
+     */
+    public MenuIcon icon(MenuVerb verb, Runnable runnable)
+    {
+        MenuIcon icon = new MenuIcon(verb, runnable);
+
+        this.icons.add(icon);
+
+        return icon;
+    }
+
     public UISimpleContextMenu create()
     {
         UISimpleContextMenu contextMenu = this.menu == null ? new UISimpleContextMenu() : this.menu;
@@ -103,6 +117,11 @@ public class ContextMenuManager
 
         contextMenu.actions.add(this.actions);
         contextMenu.getEvents().register(UIRemovedEvent.class, this.onClose);
+
+        for (MenuIcon icon : this.icons)
+        {
+            contextMenu.bar.register(icon);
+        }
 
         for (int i = 0; i < this.actions.size(); i++)
         {

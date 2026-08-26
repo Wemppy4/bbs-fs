@@ -23,6 +23,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
@@ -114,29 +115,25 @@ public class UISelectionScreen<T extends ValueGroup> extends UIElement
         {
             if (this.showActionButtons())
             {
+                MapType clipboard = null;
+
                 try
                 {
-                    MapType data = Window.getClipboardMap("_ContentType_" + this.panel.getType().getId());
-
-                    if (data != null)
-                    {
-                        menu.action(Icons.PASTE, UIKeys.PANELS_CONTEXT_PASTE, () -> this.paste(data));
-                    }
+                    clipboard = Window.getClipboardMap("_ContentType_" + this.panel.getType().getId());
                 }
                 catch (Exception e)
                 {}
 
-                menu.action(Icons.ADD, UIKeys.GENERAL_ADD, this::addData);
-                menu.action(Icons.FOLDER, UIKeys.PANELS_MODALS_ADD_FOLDER_TITLE, this::addNewFolder);
+                MapType data = clipboard;
 
+                menu.icon(MenuVerb.ADD, this::addData);
+                menu.icon(MenuVerb.COPY, this::copy).label(UIKeys.PANELS_CONTEXT_COPY).enabled(this.canCopySelected());
+                menu.icon(MenuVerb.PASTE, () -> this.paste(data)).label(UIKeys.PANELS_CONTEXT_PASTE).enabled(data != null);
+                menu.icon(MenuVerb.REMOVE, this::removeSelected);
+
+                menu.action(Icons.FOLDER, UIKeys.PANELS_MODALS_ADD_FOLDER_TITLE, this::addNewFolder);
                 menu.action(Icons.EDIT, UIKeys.GENERAL_RENAME, this::renameSelected);
                 menu.action(Icons.DUPE, UIKeys.GENERAL_DUPE, this::dupeSelected);
-                menu.action(Icons.REMOVE, UIKeys.GENERAL_REMOVE, this::removeSelected);
-
-                if (this.canCopySelected())
-                {
-                    menu.action(Icons.COPY, UIKeys.PANELS_CONTEXT_COPY, this::copy);
-                }
             }
 
             File folder = this.panel.getType().getRepository().getFolder();

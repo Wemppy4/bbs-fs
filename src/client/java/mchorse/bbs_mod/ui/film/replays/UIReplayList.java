@@ -55,10 +55,10 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -139,7 +139,8 @@ public class UIReplayList extends UIList<ReplayListEntry>
             .supplier(() -> this.hasReplaySelection() ? this.replaysToData() : null)
             .consumer((data, mouseX, mouseY) -> this.pasteReplay(data))
             .canCopy(this::hasReplaySelection)
-            .canPaste(() -> this.panel != null && this.panel.getData() != null);
+            .canPaste(() -> this.panel != null && this.panel.getData() != null)
+            .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE);
 
         this.multi().sorting();
         this.context((menu) ->
@@ -147,10 +148,10 @@ public class UIReplayList extends UIList<ReplayListEntry>
             Film film = this.panel.getData();
             UIContext context = this.getContext();
 
-            menu.custom(new UIPresetContextMenu(this.presetController, context.mouseX, context.mouseY)
-                .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE));
+            this.presetController.install(menu, context, context.mouseX, context.mouseY);
 
-            menu.action(Icons.ADD, UIKeys.SCENE_REPLAYS_CONTEXT_ADD, this::addReplay);
+            menu.icon(MenuVerb.ADD, this::addReplay).label(UIKeys.SCENE_REPLAYS_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removeReplay).label(UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE).enabled(this.hasReplaySelection());
 
             if (film != null)
             {
@@ -221,7 +222,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
                         UIOverlay.addOverlay(this.getContext(), numberPanel);
                     }
                 });
-                menu.action(Icons.REMOVE, UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE, this::removeReplay);
             }
         });
 
