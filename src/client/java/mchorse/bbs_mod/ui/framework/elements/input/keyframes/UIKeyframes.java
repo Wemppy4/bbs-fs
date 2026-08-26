@@ -29,6 +29,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.KeyframeType
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeGraph;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIVector3KeyframeGraph;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStyleOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UITrackStyleOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
@@ -170,6 +171,11 @@ public class UIKeyframes extends UIElement
                 ));
             }
 
+            if (hasSelected)
+            {
+                menu.action(Icons.SHAPES, UIKeys.KEYFRAMES_CONTEXT_KEYFRAME_STYLE, this::editKeyframeStyle);
+            }
+
             menu.action(Icons.SEARCH, UIKeys.KEYFRAMES_CONTEXT_ADJUST_VALUES, () -> this.adjustValues());
             menu.action(Icons.ARROW_LEFT, UIKeys.KEYFRAMES_KEYS_SELECT_LEFT, () -> this.selectAfter(mouseX, mouseY, -1));
             menu.action(Icons.ARROW_RIGHT, UIKeys.KEYFRAMES_KEYS_SELECT_RIGHT, () -> this.selectAfter(mouseX, mouseY, 1));
@@ -271,6 +277,32 @@ public class UIKeyframes extends UIElement
         this.single = true;
 
         return this;
+    }
+
+    /**
+     * Restyle every selected keyframe at once, starting from the style of the first of them. The
+     * panel edits one style and this writes it to all of them, so a mixed selection ends up uniform
+     * - which is what "restyle these" means and what the old per-field controls did too.
+     */
+    private void editKeyframeStyle()
+    {
+        Keyframe selected = this.currentGraph.getSelected();
+
+        if (selected == null)
+        {
+            return;
+        }
+
+        UIOverlay.addOverlay(this.getContext(), new UIKeyframeStyleOverlayPanel(selected.getStyle(), (style) ->
+        {
+            for (UIKeyframeSheet sheet : this.getGraph().getSheets())
+            {
+                for (Keyframe keyframe : sheet.selection.getSelected())
+                {
+                    keyframe.setStyle(style);
+                }
+            }
+        }), 220, 200);
     }
 
     private void adjustValues()

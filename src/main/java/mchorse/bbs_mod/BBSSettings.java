@@ -13,6 +13,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.settings.values.ui.ValueEditorLayout;
 import mchorse.bbs_mod.settings.values.ui.ValueIKDebug;
+import mchorse.bbs_mod.settings.values.ui.ValueKeyframeStyle;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
@@ -26,7 +27,7 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.colors.Oklab;
 import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Interpolations;
-import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
+import mchorse.bbs_mod.utils.keyframes.KeyframeStyle;
 
 public class BBSSettings {
 
@@ -162,7 +163,7 @@ public class BBSSettings {
 	public static ValueBoolean editorMinutesBackup;
 	public static ValueBoolean editorResizablePanels;
 	public static ValueInt editorTrackWidth;
-	public static ValueInt keyframeDefaultShape;
+	public static ValueKeyframeStyle keyframeDefaultStyle;
 	public static ValueString keyframeDefaultInterpolation;
 	public static ValueBoolean keyframePreview;
 	public static ValueInt editorPreviewSizeMode;
@@ -428,21 +429,13 @@ public class BBSSettings {
 	}
 
 	/**
-	 * Returns the user-configured default shape for newly created keyframes. Falls back to
-	 * {@link KeyframeShape#SQUARE} before settings are registered or if the stored ordinal
-	 * is out of range (e.g. after the enum shrinks in a future version).
+	 * A fresh copy of the style newly created keyframes are drawn with. It is a copy because the
+	 * keyframe owns what it gets: editing one keyframe's style must not reach back into the setting
+	 * every other keyframe was born from.
 	 */
-	public static KeyframeShape getDefaultKeyframeShape()
+	public static KeyframeStyle getDefaultKeyframeStyle()
 	{
-		if (keyframeDefaultShape == null)
-		{
-			return KeyframeShape.SQUARE;
-		}
-
-		int index = keyframeDefaultShape.get();
-		KeyframeShape[] values = KeyframeShape.values();
-
-		return index >= 0 && index < values.length ? values[index] : KeyframeShape.SQUARE;
+		return keyframeDefaultStyle == null ? new KeyframeStyle() : keyframeDefaultStyle.get().copy();
 	}
 
 	/**
@@ -717,7 +710,7 @@ public class BBSSettings {
 		editorSeconds = builder.getBoolean("seconds", false);
 		editorTimelineGrid = builder.getBoolean("timeline_grid", false);
 		keyframeDefaultInterpolation = builder.getString("keyframe_default_interpolation", Interpolations.LINEAR.getKey());
-		keyframeDefaultShape = builder.getInt("keyframe_default_shape", 0, 0, KeyframeShape.values().length - 1);
+		builder.register(keyframeDefaultStyle = new ValueKeyframeStyle("keyframe_default_style"));
 		keyframePreview = builder.getBoolean("keyframe_preview", true);
 		editorTrackWidth = builder.getInt("track_width", 2, 1, 10).slider();
 		editorSnapToMarkers = builder.getBoolean("snap_to_markers", false);

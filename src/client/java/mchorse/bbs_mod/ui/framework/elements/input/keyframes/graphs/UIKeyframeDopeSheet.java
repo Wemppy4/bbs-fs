@@ -22,6 +22,7 @@ import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
@@ -105,12 +106,36 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     public static IKeyframeShapeRenderer renderShape(Keyframe frame, UIContext context, BufferBuilder builder, Matrix4f matrix, int x, int y, int offset, int c)
     {
-        KeyframeShape keyframeShape = frame.getShape();
+        KeyframeShape keyframeShape = frame.getStyle().getShape();
         IKeyframeShapeRenderer shape = KeyframeShapeRenderers.SHAPES.get(keyframeShape);
 
         shape.renderKeyframe(context, builder, matrix, x, y, offset, c);
 
         return shape;
+    }
+
+    /** What a keyframe is coloured by when nothing is happening to it: its own colour, or its track's. */
+    public static int keyframeColor(Keyframe frame, UIKeyframeSheet sheet)
+    {
+        Color color = frame.getStyle().getColor();
+
+        return color != null ? color.getRGBColor() | Colors.A100 : sheet.color;
+    }
+
+    /**
+     * A keyframe is drawn twice - a wide shape in its colour, then a narrower one on top - so what
+     * that second pass is painted with decides whether the keyframe reads as a solid blob or as a
+     * ring: repeating the colour fills it, black leaves a core. Selection outranks both, because
+     * seeing what is selected matters more than seeing how it is styled.
+     */
+    public static int keyframeCoreColor(Keyframe frame, UIKeyframeSheet sheet, boolean selected)
+    {
+        if (selected)
+        {
+            return Colors.ACTIVE | Colors.A100;
+        }
+
+        return (frame.getStyle().isFilled() ? keyframeColor(frame, sheet) : 0) | Colors.A100;
     }
 
     public UIKeyframeDopeSheet(UIKeyframes keyframes)
@@ -1233,7 +1258,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
                 isPointHover = isPointHover || this.keyframes.getGrabbingArea(context).isInside(x1, my);
             }
 
-            int kc = frame.getColor() != null ? frame.getColor().getRGBColor() | Colors.A100 : sheet.color;
+            int kc = keyframeColor(frame, sheet);
             int c = (sheet.selection.has(j) || isPointHover ? Colors.WHITE : kc) | Colors.A100;
 
             if (toRemove)
@@ -1250,9 +1275,8 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         for (int j = 0; j < keyframes.size(); j++)
         {
             Keyframe frame = (Keyframe) keyframes.get(j);
-            int c = sheet.selection.has(j) ? Colors.ACTIVE : 0;
             int mx = this.keyframes.toGraphX(frame.getTick());
-            int mc = c | Colors.A100;
+            int mc = keyframeCoreColor(frame, sheet, sheet.selection.has(j));
             IKeyframeShapeRenderer shapeResult = renderShape(frame, context, builder, matrix, mx, my, 2, mc);
 
             shapeResult.renderKeyframeBackground(context, builder, matrix, mx, my, 2, mc);
@@ -1358,7 +1382,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
                 isPointHover = isPointHover || this.keyframes.getGrabbingArea(context).isInside(x1, my);
             }
 
-            int kc = frame.getColor() != null ? frame.getColor().getRGBColor() | Colors.A100 : sheet.color;
+            int kc = keyframeColor(frame, sheet);
             int c = (sheet.selection.has(j) || isPointHover ? Colors.WHITE : kc) | Colors.A100;
 
             if (toRemove)
@@ -1374,9 +1398,8 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         for (int j = 0; j < keyframes.size(); j++)
         {
             Keyframe frame = (Keyframe) keyframes.get(j);
-            int c = sheet.selection.has(j) ? Colors.ACTIVE : 0;
             int mx = this.keyframes.toGraphX(frame.getTick());
-            int mc = c | Colors.A100;
+            int mc = keyframeCoreColor(frame, sheet, sheet.selection.has(j));
             IKeyframeShapeRenderer shapeResult = renderShape(frame, context, builder, matrix, mx, my, 2, mc);
 
             shapeResult.renderKeyframeBackground(context, builder, matrix, mx, my, 2, mc);

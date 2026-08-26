@@ -11,6 +11,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueDouble;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.settings.values.ui.ValueKeyframeStyle;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -25,11 +26,10 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIOrder;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UINumericInput;
 import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStyleOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UILabelOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
@@ -37,7 +37,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
 
 import java.util.Arrays;
 import java.util.function.Consumer;
@@ -107,33 +106,6 @@ public class UIValueMap
                 color.w(90);
 
                 return Arrays.asList(UIValueFactory.column(color, value));
-            }
-            else if (value == BBSSettings.keyframeDefaultShape)
-            {
-                UIIcon button = new UIIcon(() ->
-                {
-                    IKeyframeShapeRenderer r = KeyframeShapeRenderers.SHAPES.get(shapeAt(value.get()));
-
-                    return r != null ? r.getIcon() : Icons.SHAPES;
-                }, (b) -> b.getContext().replaceContextMenu((menu) ->
-                {
-                    KeyframeShape current = shapeAt(value.get());
-
-                    for (KeyframeShape shape : KeyframeShape.values())
-                    {
-                        IKeyframeShapeRenderer renderer = KeyframeShapeRenderers.SHAPES.get(shape);
-
-                        if (renderer == null)
-                        {
-                            continue;
-                        }
-
-                        menu.action(renderer.getIcon(), renderer.getLabel(), shape == current, () -> value.set(shape.ordinal()));
-                    }
-                }));
-                button.tooltip(shapeButtonLabel(value.get()));
-
-                return Arrays.asList(UIValueFactory.column(button, value));
             }
             else if (value.getSubtype() == ValueInt.Subtype.MODES)
             {
@@ -220,6 +192,20 @@ public class UIValueMap
             return Arrays.asList(UIValueFactory.column(new UIOrder(value), value));
         });
 
+        /* The very panel that restyles a keyframe, pointed at the style new keyframes are born with */
+        register(ValueKeyframeStyle.class, (value, ui) ->
+        {
+            UIButton button = new UIButton(UIKeys.CONFIG_KEYFRAME_STYLE_EDIT, (b) -> UIOverlay.addOverlay(
+                ui.getContext(),
+                new UIKeyframeStyleOverlayPanel(value.get(), (style) -> value.set(style.copy())),
+                220, 200
+            ));
+
+            button.w(90);
+
+            return Arrays.asList(UIValueFactory.column(button, value));
+        });
+
         register(ValueKeyCombo.class, (value, ui) ->
         {
             UILabel label = UI.label(value.get().label, 0).labelAnchor(0, 0.5F);
@@ -231,20 +217,6 @@ public class UIValueMap
             return Arrays.asList(UI.row(label, keybind).tooltip(value.get().label));
         });
 
-    }
-
-    private static KeyframeShape shapeAt(int ordinal)
-    {
-        KeyframeShape[] values = KeyframeShape.values();
-
-        return ordinal >= 0 && ordinal < values.length ? values[ordinal] : KeyframeShape.SQUARE;
-    }
-
-    private static IKey shapeButtonLabel(int ordinal)
-    {
-        IKeyframeShapeRenderer renderer = KeyframeShapeRenderers.SHAPES.get(shapeAt(ordinal));
-
-        return renderer != null ? renderer.getLabel() : UIKeys.KEYFRAMES_SHAPES_SQUARE;
     }
 
     public static <T extends BaseValue> void register(Class<T> clazz, IUIValueFactory<T> factory)
