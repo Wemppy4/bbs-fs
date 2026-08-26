@@ -90,6 +90,8 @@ public class UIPanelBase <T extends UIElement> extends UIElement
 
         this.buttons.resetFlex().relative(this);
         this.buttons.direction(side ? ScrollDirection.VERTICAL : ScrollDirection.HORIZONTAL);
+        /* The mark sits on the side facing the panel, the same way the tooltips point away from it. */
+        this.buttons.activeEdge(this.direction.opposite());
 
         if (side)
         {

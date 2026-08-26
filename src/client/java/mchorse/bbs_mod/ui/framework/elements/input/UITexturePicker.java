@@ -36,8 +36,8 @@ import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.StringUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import mchorse.bbs_mod.utils.resources.FilteredLink;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
@@ -184,6 +184,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         this.add = new UIIcon(Icons.ADD, (b) -> this.addMulti());
         this.remove = new UIIcon(Icons.REMOVE, (b) -> this.removeMulti());
         this.edit = new UIIcon(Icons.EDIT, (b) -> this.toggleEditor());
+        this.edit.highlight(this.editor::isVisible, Direction.BOTTOM);
 
         this.add.relative(this.buttons).set(0, 0, 20, 20);
         this.remove.relative(this.add).set(20, 0, 20, 20);
@@ -913,11 +914,6 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
             if (this.canBeClosed)
             {
                 this.browseContent.area.render(context.batcher, BBSSettings.backgroundColor.get());
-            }
-
-            if (this.editor.isVisible())
-            {
-                this.edit.area.render(context.batcher, Colors.A50 | BBSSettings.primaryColor.get());
             }
         }
 

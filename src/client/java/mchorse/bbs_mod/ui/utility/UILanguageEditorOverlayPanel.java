@@ -23,11 +23,11 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UITextareaOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.IOUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.lwjgl.glfw.GLFW;
@@ -94,6 +94,7 @@ public class UILanguageEditorOverlayPanel extends UIOverlayPanel
 
         this.missing = new UIIcon(Icons.SEARCH, (b) -> this.viewOnlyMissing());
         this.missing.tooltip(UIKeys.LANGUAGE_EDITOR_MISSING);
+        this.missing.highlight(() -> this.viewMissing, Direction.BOTTOM);
         this.search = new UITextbox(this::search);
         this.search.placeholder(UIKeys.GENERAL_SEARCH);
         this.keysView = UI.scrollView(10, 6);
@@ -103,7 +104,7 @@ public class UILanguageEditorOverlayPanel extends UIOverlayPanel
         this.keysView.relative(this.content).y(20).w(1F).h(1F, -20);
 
         this.icons.add(this.save, this.folder, this.changeReference, this.paste, this.copy);
-        this.content.add(this.search, new UIRenderable(this::renderMissingBackground), this.missing, this.keysView);
+        this.content.add(this.search, this.missing, this.keysView);
         this.add(this.completion);
 
         this.buildEditor();
@@ -345,14 +346,6 @@ public class UILanguageEditorOverlayPanel extends UIOverlayPanel
         }
 
         this.keysView.resize();
-    }
-
-    private void renderMissingBackground(UIContext context)
-    {
-        if (this.viewMissing)
-        {
-            this.missing.area.render(context.batcher, Colors.A50 | BBSSettings.primaryColor.get(), 1);
-        }
     }
 
     @Override

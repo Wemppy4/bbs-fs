@@ -33,7 +33,7 @@ public class UITabStrip extends UIScrollView
 
     private IntSupplier active = () -> -1;
     private IntSupplier activeColor = () -> Colors.A75 | BBSSettings.primaryColor.get();
-    private Direction activeEdge;
+    private Direction activeEdge = Direction.BOTTOM;
     private IntSupplier hoverColor;
     private IntSupplier background;
     private IntFunction<IKey> hoverLabels;
@@ -76,15 +76,20 @@ public class UITabStrip extends UIScrollView
         return this;
     }
 
-    /** Fill behind the active tab (default: the primary colour at A75). */
+    /**
+     * Fill behind the active tab instead of marking it with the highlight bar — asking for a
+     * fill is what turns the bar off, so a tab that wants to melt into the content below it
+     * (a document tab) says so once, and every other strip keeps the mark the rest of the UI uses.
+     */
     public UITabStrip activeColor(IntSupplier color)
     {
         this.activeColor = color;
+        this.activeEdge = null;
 
         return this;
     }
 
-    /** Mark the active tab with the highlight bar along {@code edge} instead of a fill. */
+    /** Move the highlight bar to {@code edge} — the side of the tab that faces the content. */
     public UITabStrip activeEdge(Direction edge)
     {
         this.activeEdge = edge;

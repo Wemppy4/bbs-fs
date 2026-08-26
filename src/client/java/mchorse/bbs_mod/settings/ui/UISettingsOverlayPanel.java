@@ -77,6 +77,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
             UIIcon icon = new UIIcon(settings.icon, (b) -> this.selectConfig(settings.getId(), b));
 
             icon.tooltip(L10n.lang(UIValueFactory.getTitleKey(settings)), Direction.LEFT);
+            icon.highlight(() -> this.currentModule == icon, Direction.LEFT);
             this.icons.add(icon);
             this.moduleButtons.put(settings.getId(), icon);
 
@@ -338,11 +339,6 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
 
         context.batcher.box(x, y, x + SIDE_WIDTH, ey, BBSSettings.chromeSurface());
         context.batcher.box(x + SIDE_WIDTH, y, x + SIDE_WIDTH + 1, ey, BBSSettings.dividerColor());
-
-        if (this.currentModule != null)
-        {
-            this.currentModule.area.render(context.batcher, BBSSettings.primaryColor(Colors.A100));
-        }
     }
 
     /**
