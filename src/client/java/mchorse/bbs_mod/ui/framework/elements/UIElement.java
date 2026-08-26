@@ -16,6 +16,7 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeybindManager;
+import mchorse.bbs_mod.ui.utils.resizers.ChildResizer;
 import mchorse.bbs_mod.ui.utils.resizers.Flex;
 import mchorse.bbs_mod.ui.utils.resizers.IResizer;
 import mchorse.bbs_mod.ui.utils.resizers.Margin;
@@ -421,10 +422,23 @@ public class UIElement implements IUIElement, IUndoElement
     {
         UIContext context = this.getContext();
 
-        if (context != null)
+        if (context == null)
         {
-            context.invalidateLayout(this);
+            return;
         }
+
+        UIElement target = this;
+
+        /* An element placed by its parent's row/column/grid can't be laid out alone: that
+         * pass owns the running cursor, and resizing one child reads it where the last full
+         * pass left it, throwing the child to the end of the row. Climb to the first element
+         * that owns its own placement. */
+        while (target.resizer instanceof ChildResizer && target.parent != null)
+        {
+            target = target.parent;
+        }
+
+        context.invalidateLayout(target);
     }
 
     protected void onAdd(UIElement parent)

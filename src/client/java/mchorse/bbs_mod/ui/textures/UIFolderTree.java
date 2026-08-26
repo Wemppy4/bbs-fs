@@ -7,7 +7,8 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
+import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -19,10 +20,8 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * The folders of every source as a tree down the side of a texture browser, for jumping
@@ -83,7 +82,9 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     }
 
     private final IFolderTreeHost browser;
-    private final Set<Link> expanded = new HashSet<>();
+
+    /* Which folders are unfolded; it outlives every relisting of the tree */
+    private final FoldState<Link> folds = new FoldState<>();
 
     /** Whether a folder has folders inside — asked once per listing, not per frame. */
     private final Map<Link, Boolean> branches = new HashMap<>();
@@ -120,15 +121,17 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     {
         if (path != null && !path.source.isEmpty())
         {
+            List<Link> above = new ArrayList<>();
             Link folder = TextureEntry.folderLink(path);
 
             while (!folder.path.isEmpty())
             {
                 folder = TextureEntry.folderLink(folder.parent());
-                this.expanded.add(folder);
+                above.add(folder);
             }
 
-            this.expanded.add(new Link(path.source, ""));
+            above.add(new Link(path.source, ""));
+            this.folds.expandAll(above);
         }
 
         this.rebuild();
@@ -167,7 +170,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     private void addBranch(Link folder, int depth)
     {
         boolean branch = this.isBranch(folder);
-        boolean open = branch && this.expanded.contains(folder);
+        boolean open = branch && this.folds.isExpanded(folder);
 
         this.add(Node.folder(folder, depth, branch, open));
 
@@ -210,13 +213,24 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         });
     }
 
-    private void toggle(Node node)
-    {
-        if (!this.expanded.remove(node.link()))
-        {
-            this.expanded.add(node.link());
-        }
+    /* Tree convention: only folders of the tree fold; pins and the title are flat rows */
 
+    @Override
+    protected int indent(Node node)
+    {
+        return node.depth() * INDENT;
+    }
+
+    @Override
+    protected Boolean branch(Node node)
+    {
+        return node.branch() ? node.expanded() : null;
+    }
+
+    @Override
+    protected void toggle(Node node)
+    {
+        this.folds.toggle(node.link());
         this.rebuild();
     }
 
@@ -296,30 +310,23 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     @Override
     public boolean subMouseClicked(UIContext context)
     {
-        if (!this.area.isInside(context))
+        if (context.mouseButton == 1 && this.area.isInside(context))
         {
-            return false;
-        }
+            int index = this.scroll.getIndex(context.mouseX, context.mouseY);
 
-        if (this.scroll.mouseClicked(context))
-        {
-            return true;
-        }
-
-        int index = this.scroll.getIndex(context.mouseX, context.mouseY);
-        Node node = this.exists(index) ? this.getList().get(index) : null;
-
-        if (context.mouseButton == 1)
-        {
-            this.contextNode = node;
+            this.contextNode = this.exists(index) ? this.getList().get(index) : null;
 
             return false;
         }
 
-        if (node == null || context.mouseButton != 0)
-        {
-            return false;
-        }
+        return super.subMouseClicked(context);
+    }
+
+    /** A row is entered, not picked: the browser goes there, and the tree keeps no pick of its own. */
+    @Override
+    protected boolean pressItem(int index, UIContext context)
+    {
+        Node node = this.getList().get(index);
 
         if (node.header())
         {
@@ -334,21 +341,18 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
             return true;
         }
 
-        int arrowX = this.area.x + 4 + node.depth() * INDENT;
-
-        if (node.branch() && context.mouseX < arrowX + 12)
+        if (this.pressArrow(index, context))
         {
-            this.toggle(node);
+            return true;
         }
-        else
-        {
-            this.browser.navigate(node.link());
 
-            if (node.branch() && !node.expanded())
-            {
-                this.expanded.add(node.link());
-                this.rebuild();
-            }
+        this.cursor = index;
+        this.browser.navigate(node.link());
+
+        if (node.branch() && !node.expanded())
+        {
+            this.folds.set(node.link(), true);
+            this.rebuild();
         }
 
         return true;
@@ -374,11 +378,12 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
             return;
         }
 
-        TextureDrag drag = this.browser.getDrag();
+        ItemDrag<TextureEntry> drag = this.browser.getDrag();
         boolean current = node.folder() ? this.browser.isCurrentFolder(node.link()) : this.browser.isCurrentTexture(node.link());
         boolean target = false;
 
-        if (hover && node.folder() && drag != null && drag.isActive() && !drag.isDragging(node.link()))
+        /* A folder can't receive itself; the carried entries are matched by link since the tree has no entries */
+        if (hover && node.folder() && drag != null && drag.isActive() && drag.getItems().stream().noneMatch((entry) -> entry.link().equals(node.link())))
         {
             drag.setTarget(node.link());
             target = true;
@@ -406,15 +411,12 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     protected void renderElementPart(UIContext context, Node node, int i, int x, int y, boolean hover, boolean selected)
     {
         FontRenderer font = context.batcher.getFont();
-        int ix = x + 4 + node.depth() * INDENT;
+        int ix = x + this.rowContentX(node);
         int my = y + ROW / 2;
         boolean missing = node.pin() && this.isMissing(node);
         int color = missing ? Colors.GRAY : (hover ? Colors.LIGHTEST_GRAY : Colors.WHITE);
 
-        if (node.branch())
-        {
-            UISection.renderArrow(context, ix + 6, my, node.expanded());
-        }
+        this.renderArrow(context, node, x, y);
 
         if (node.folder())
         {

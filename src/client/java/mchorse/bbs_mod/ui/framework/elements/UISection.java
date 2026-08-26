@@ -7,11 +7,13 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -24,6 +26,10 @@ public class UISection extends UIElement
 {
     private static final int HEADER_HEIGHT = 10;
     private static final int ARROW_SIZE = 8;
+    /** Icon column of a header that has one: 16px icon plus the gap to the title. */
+    private static final int ICON_WIDTH = 20;
+
+    private static final Area HEADER = new Area();
 
     public UILabel title;
     public UIElement fields;
@@ -74,6 +80,18 @@ public class UISection extends UIElement
         this.callback = callback;
 
         return this;
+    }
+
+    /**
+     * Keep the fold in the owner's map across rebuilds: open as last left there
+     * ({@code defaultExpanded} on first sight) and write every toggle back under
+     * {@code key}. The map lives with the owner, so nothing here is static.
+     */
+    public UISection remember(Map<String, Boolean> folds, String key, boolean defaultExpanded)
+    {
+        this.setExpanded(folds.getOrDefault(key, defaultExpanded));
+
+        return this.onToggle((section) -> folds.put(key, section.isExpanded()));
     }
 
     public boolean isExpanded()
@@ -144,13 +162,40 @@ public class UISection extends UIElement
     private void renderHeader(UIContext context, UILabel title)
     {
         Area header = title.area;
+
+        /* The 10px header has always set its text one row below true centre; an area one pixel
+         * taller reproduces that through the shared centring without moving anything. */
+        HEADER.set(header.x, header.y, header.w, header.h + 1);
+        renderHeader(context, HEADER, title.label, null, this.expanded, title.color);
+    }
+
+    /**
+     * The one header look, usable without a section: an optional icon on the left, the
+     * title next to it, and - when {@code expanded} is given - the fold arrow on the right.
+     * Icon and text centre on the area's height, so callers shape the area to say where
+     * "centre" is.
+     */
+    public static void renderHeader(UIContext context, Area area, IKey title, Icon icon, Boolean expanded, int color)
+    {
         FontRenderer font = context.batcher.getFont();
+        int x = area.x;
+        int right = area.ex();
 
-        renderArrow(context, header.ex() - ARROW_SIZE / 2F, header.my(), this.expanded);
+        if (icon != null)
+        {
+            context.batcher.icon(icon, Colors.WHITE, x, area.my(), 0F, 0.5F);
+            x += ICON_WIDTH;
+        }
 
-        String label = font.limitToWidth(title.label.get(), header.w - ARROW_SIZE - 2);
+        if (expanded != null)
+        {
+            renderArrow(context, right - ARROW_SIZE / 2F, area.my(), expanded);
+            right -= ARROW_SIZE + 2;
+        }
 
-        context.batcher.textShadow(label, header.x, header.my() - font.getHeight() / 2, title.color);
+        String label = font.limitToWidth(title.get(), right - x);
+
+        context.batcher.textShadow(label, x, area.my(font.getHeight()), color);
     }
 
     /**

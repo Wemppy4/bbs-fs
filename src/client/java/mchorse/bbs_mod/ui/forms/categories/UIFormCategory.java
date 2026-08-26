@@ -18,27 +18,26 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
-import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.forms.FormCellRenderer;
-import mchorse.bbs_mod.ui.forms.FormDrag;
 import mchorse.bbs_mod.ui.forms.FormGridLayout;
-import mchorse.bbs_mod.ui.forms.FormSelection;
 import mchorse.bbs_mod.ui.forms.UIFormList;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
-import mchorse.bbs_mod.ui.utils.context.MenuVerb;
-import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
+import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
+import mchorse.bbs_mod.ui.framework.elements.input.items.UIItemGrid;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.cells.CellAction;
+import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
+import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
+import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
@@ -47,6 +46,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -54,12 +54,13 @@ import java.util.function.Consumer;
 /**
  * One category in a form list: a header band that collapses it, and a grid of form cells.
  *
- * <p>The category paints and hit-tests its own cells (it's the one that knows its local
- * geometry — see {@link FormGridLayout}), and hands every decision that outlives a single
- * category — what's selected, what's being dragged, what a drop does — to the
- * {@link UIFormList list} that owns it.</p>
+ * <p>An {@link UIItemGrid#embedded() embedded} grid: the list's scroll view lays the
+ * categories out down a column, and they all share the list's selection and drag, so a pick
+ * runs across categories and a drag started in one can drop into another. Everything that
+ * outlives a single category — what a drop does, what a quick action does, the band
+ * stretched over several categories — is handed to the {@link UIFormList list}.</p>
  */
-public class UIFormCategory extends UIElement
+public class UIFormCategory extends UIItemGrid<Form>
 {
     private static final int SORT_BUTTON = 20;
 
@@ -75,10 +76,6 @@ public class UIFormCategory extends UIElement
      */
     private Form contextForm;
 
-    private final FormGridLayout layout = new FormGridLayout();
-    private final CellState state = new CellState();
-
-    private int last;
     private String search = "";
 
     /* The category's forms as shown: sorted, then narrowed by search */
@@ -86,20 +83,23 @@ public class UIFormCategory extends UIElement
     private int viewMod = -1;
     private String viewSearch;
 
-    /* What's under the cursor, refreshed every frame */
-    private int hoverIndex = -1;
-    private int hoverAction = -1;
+    /* The header under the cursor, refreshed every frame along with the cells */
     private boolean hoverHeader;
     private boolean hoverSort;
 
+    /* The slice of the scroll view the cells must fall into to be worth painting */
+    private final Area window = new Area();
+
     public UIFormCategory(FormCategory category, UIFormList list)
     {
+        super(null, (a, b) -> a == b, list.selection, list.drag, new FormGridLayout());
+
         this.category = category;
         this.list = list;
 
+        this.embedded().multi().sorting();
+        this.setCellSize(list.getCellSize());
         this.context(this::buildContextMenu);
-
-        this.h(UIConstants.CONTROL_HEIGHT);
     }
 
     /**
@@ -119,12 +119,13 @@ public class UIFormCategory extends UIElement
     {
         Form form = this.getContextForm();
 
-        return form != null && this.list.selection.isGroup() && this.list.selection.contains(form);
+        return form != null && this.selection.isGroup() && this.selection.contains(form);
     }
 
+    @Override
     public FormGridLayout getLayout()
     {
-        return this.layout;
+        return (FormGridLayout) this.layout;
     }
 
     private void buildContextMenu(ContextMenuManager menu)
@@ -144,7 +145,7 @@ public class UIFormCategory extends UIElement
         {
             if (form != null)
             {
-                this.list.selection.set(form, this.category);
+                this.selection.set(form, this.category);
                 this.select(form, true);
             }
 
@@ -235,7 +236,7 @@ public class UIFormCategory extends UIElement
 
     private void buildGroupContextMenu(ContextMenuManager menu, UserFormSection userForms)
     {
-        String count = String.valueOf(this.list.selection.size());
+        String count = String.valueOf(this.selection.size());
 
         menu.action(Icons.COPY, UIKeys.FORMS_CATEGORIES_CONTEXT_COPY_SELECTED.format(count), () ->
         {
@@ -306,33 +307,35 @@ public class UIFormCategory extends UIElement
         return this.view;
     }
 
+    @Override
+    protected List<Form> visible()
+    {
+        return this.getForms();
+    }
+
     private boolean isHiddenBySearch()
     {
         return !this.search.isEmpty() && this.getForms().isEmpty();
     }
 
-    /**
-     * Pixel height for the category at a given column width (used before {@link #area} is laid out).
-     */
-    public int computeContentHeight(int columnWidth)
+    @Override
+    protected boolean isExpanded()
     {
-        if (this.isHiddenBySearch())
-        {
-            return 0;
-        }
-
-        return this.layout.set(columnWidth, this.list.getCellSize(), this.getForms().size()).getContentHeight(this.category.visible.get());
+        return this.category.visible.get();
     }
 
-    public void refreshLayoutForSearch(int columnWidth)
+    /** A category the search leaves nothing in folds away entirely, band included. */
+    @Override
+    protected int contentSize()
     {
-        int h = this.computeContentHeight(columnWidth);
+        return this.isHiddenBySearch() ? 0 : super.contentSize();
+    }
 
-        if (this.last != h)
-        {
-            this.last = h;
-            this.h(h);
-        }
+    /** Shift-ranges run within one category. */
+    @Override
+    protected Object scope()
+    {
+        return this.category;
     }
 
     /**
@@ -341,14 +344,14 @@ public class UIFormCategory extends UIElement
      */
     public int getFormY(Form form)
     {
-        int index = FormSelection.identityIndex(this.getForms(), form);
+        int index = this.selection.indexOf(this.getForms(), form);
 
         if (index == -1)
         {
             return -1;
         }
 
-        return this.category.visible.get() ? this.layout.getY(index) : 0;
+        return this.isExpanded() ? this.layout.getY(index) : 0;
     }
 
     public void toggle()
@@ -361,7 +364,7 @@ public class UIFormCategory extends UIElement
     {
         List<Form> hit = new ArrayList<>();
 
-        if (!this.category.visible.get() || this.isHiddenBySearch())
+        if (!this.isExpanded() || this.isHiddenBySearch())
         {
             return hit;
         }
@@ -376,6 +379,70 @@ public class UIFormCategory extends UIElement
         return hit;
     }
 
+    public void select(Form form, boolean notify)
+    {
+        if (this.list != null)
+        {
+            this.list.selectCategory(this, form, notify);
+        }
+
+        this.selected = form;
+    }
+
+    /* Cell hooks */
+
+    @Override
+    protected CellAction[] actions(Form form)
+    {
+        return CellAction.of(this.category.canModify(null));
+    }
+
+    @Override
+    protected String caption(Form form)
+    {
+        return form.getDisplayName();
+    }
+
+    @Override
+    protected void onAction(Form form, CellAction action)
+    {
+        this.list.runAction(this, form, action);
+    }
+
+    @Override
+    protected boolean onOpen(Form form)
+    {
+        /* Ctrl is picking, not choosing */
+        if (Window.isCtrlPressed())
+        {
+            return false;
+        }
+
+        this.list.palette.confirm();
+
+        return true;
+    }
+
+    @Override
+    protected boolean onDelete(List<Form> forms)
+    {
+        if (!this.list.canModifySelection())
+        {
+            return false;
+        }
+
+        this.list.removeSelection();
+
+        return true;
+    }
+
+    /** The label is the list's to draw, after every category — nothing below may cover or clip it. */
+    @Override
+    protected void hoveredAction(CellAction action, int x, int y)
+    {
+        this.list.setHoveredAction(action, x, y);
+    }
+
     /* Input */
 
     @Override
@@ -386,8 +453,8 @@ public class UIFormCategory extends UIElement
             return false;
         }
 
-        int x = context.mouseX - this.area.x;
-        int y = context.mouseY - this.area.y;
+        int x = this.contentX(context);
+        int y = this.contentY(context);
         int button = context.mouseButton;
 
         if (this.layout.isHeader(y))
@@ -411,53 +478,66 @@ public class UIFormCategory extends UIElement
             return true;
         }
 
-        int index = this.category.visible.get() ? this.layout.getIndex(x, y) : -1;
-        Form form = index == -1 ? null : this.getForms().get(index);
-
         if (button == 1)
         {
-            this.contextForm = form;
+            int index = this.indexAt(x, y);
+
+            this.contextForm = index == -1 ? null : this.visible().get(index);
 
             return false;
         }
 
-        if (button != 0)
-        {
-            return false;
-        }
+        return super.subMouseClicked(context);
+    }
 
+    /** Shift + drag stretches a band across the categories; a Shift-click that goes nowhere extends the pick. */
+    @Override
+    protected boolean pressItem(int index, UIContext context)
+    {
         if (Window.isShiftPressed())
         {
-            /* Shift + drag stretches a band across the categories; a Shift-click that goes nowhere extends the pick */
-            this.list.pressMarquee(this, form, context);
+            this.list.pressMarquee(this, this.visible().get(index), context);
 
             return true;
         }
 
-        if (form == null)
+        return super.pressItem(index, context);
+    }
+
+    @Override
+    protected boolean pressEmpty(UIContext context)
+    {
+        if (Window.isShiftPressed())
         {
-            this.list.clickEmpty();
+            this.list.pressMarquee(this, null, context);
 
             return true;
         }
 
-        CellAction[] actions = CellAction.of(this.category.canModify(null));
-
-        if (CellActionBar.fits(this.layout.getCellWidth()) && index == this.hoverIndex)
-        {
-            int action = CellActionBar.getAction(this.layout.getX(index), this.layout.getY(index), this.layout.getCellWidth(), actions.length, x, y);
-
-            if (action != -1)
-            {
-                this.list.runAction(this, form, actions[action]);
-
-                return true;
-            }
-        }
-
-        this.list.pressForm(this, form, this.getForms(), context);
+        /* A press over nothing drops the pick; the band is the list's, not this grid's */
+        this.selection.clear();
+        this.fireCallback();
 
         return true;
+    }
+
+    @Override
+    protected void applySelectionOnClick(Form form, int index)
+    {
+        super.applySelectionOnClick(form, index);
+
+        /* Ctrl only picks; a plain click also chooses the form for the editor and the morph */
+        if (!Window.isCtrlPressed())
+        {
+            this.select(form, true);
+        }
+    }
+
+    /** Every category's forms can be carried — a read-only one's get copied by the drop. */
+    @Override
+    protected List<Form> dragPayload(Form form)
+    {
+        return this.selection.contains(form) ? new ArrayList<>(this.selection.getItems()) : Collections.singletonList(form);
     }
 
     /**
@@ -467,12 +547,12 @@ public class UIFormCategory extends UIElement
     @Override
     public boolean subMouseReleased(UIContext context)
     {
-        if (this.list.getPressedHeader() == this && !this.list.drag.isActive() && this.area.isInside(context) && this.layout.isHeader(context.mouseY - this.area.y))
+        if (this.list.getPressedHeader() == this && !this.list.categoryDrag.isActive() && this.area.isInside(context) && this.layout.isHeader(this.contentY(context)))
         {
             this.toggle();
         }
 
-        return false;
+        return super.subMouseReleased(context);
     }
 
     private boolean isSortButton(int x)
@@ -480,14 +560,74 @@ public class UIFormCategory extends UIElement
         return x >= this.area.w - SORT_BUTTON - 2 && x < this.area.w - 2;
     }
 
-    public void select(Form form, boolean notify)
+    /** The keyboard walks the cells; it's the list's scroll view that has to follow. */
+    @Override
+    protected void scrollIntoView(int index)
     {
-        if (this.list != null)
+        if (index < 0 || index >= this.layout.getCount())
         {
-            this.list.selectCategory(this, form, notify);
+            return;
         }
 
-        this.selected = form;
+        UIScrollView forms = this.list.forms;
+        int y = this.area.y - forms.area.y + this.layout.getY(index);
+
+        forms.scroll.scrollIntoView(y, this.layout.getCellHeight() + this.layout.getGap(), this.layout.getGap());
+    }
+
+    /* Drop */
+
+    /** The drag is the list's: only the category under the cursor speaks, and clears what it said on leaving. */
+    @Override
+    protected void updateDropTarget(boolean inside, int x, int y)
+    {
+        if (inside)
+        {
+            this.drag.clearTarget();
+            this.reportDropTarget(x, y);
+        }
+        else if (this.drag.getTarget() == this)
+        {
+            this.drag.clearTarget();
+        }
+    }
+
+    /** A category that can't take forms in offers no slot. */
+    @Override
+    protected void reportDropTarget(int x, int y)
+    {
+        if (this.category.canModify(null))
+        {
+            super.reportDropTarget(x, y);
+        }
+    }
+
+    @Override
+    protected void reorder(List<Form> forms, int insertion)
+    {
+        this.list.dropForms(this, insertion, forms);
+    }
+
+    @Override
+    protected void onDrop(Object target, List<Form> forms)
+    {
+        if (target instanceof UIFormCategory category)
+        {
+            this.list.dropForms(category, this.drag.getInsertion(), forms);
+        }
+    }
+
+    /** While a user category is dragged over this one, say whether it would land above or below. */
+    private void reportCategoryDropTarget(UIContext context)
+    {
+        ItemDrag<UserFormCategory> drag = this.list.categoryDrag;
+
+        if (!drag.isActive() || !this.area.isInside(context) || !(this.category instanceof UserFormCategory user) || drag.isDragging(user))
+        {
+            return;
+        }
+
+        drag.setTarget(this, this.contentY(context) < this.area.h / 2 ? 0 : 1);
     }
 
     /* Rendering */
@@ -495,111 +635,70 @@ public class UIFormCategory extends UIElement
     @Override
     public void render(UIContext context)
     {
-        int layoutWidth = Math.max(this.list.getCellSize(), this.area.w);
-        int h = this.computeContentHeight(layoutWidth);
-
         if (this.isHiddenBySearch())
         {
-            this.syncHeight(h);
+            /* Nothing to show, but the height must still follow (down to nothing) */
+            this.relayout();
 
             return;
         }
 
         super.render(context);
 
+        if (this.hoverHeader)
+        {
+            context.requestCursor(GLFW.GLFW_HAND_CURSOR);
+        }
+    }
+
+    @Override
+    protected void updateHover(UIContext context)
+    {
+        if (this.list.categoryDrag.isActive())
+        {
+            this.hoverIndex = -1;
+            this.hoverAction = -1;
+            this.hoverHeader = false;
+            this.hoverSort = false;
+
+            return;
+        }
+
+        super.updateHover(context);
+
+        boolean inside = this.area.isInside(context) && !this.drag.isActive() && !context.hasContextMenu();
+
+        this.hoverHeader = inside && this.layout.isHeader(this.contentY(context));
+        this.hoverSort = this.hoverHeader && this.isSortButton(this.contentX(context));
+    }
+
+    /** Only what the scroll view shows; the categories above and below are laid out but needn't be drawn. */
+    @Override
+    protected Area visibleWindow()
+    {
+        UIScrollView forms = this.list.forms;
+
+        this.window.set(forms.area.x, forms.area.y + (int) forms.scroll.getScroll(), forms.area.w, forms.area.h);
+
+        return this.window;
+    }
+
+    @Override
+    protected void renderContent(UIContext context)
+    {
         this.updateHover(context);
-        this.reportDropTarget(context);
+        this.reportCategoryDropTarget(context);
 
         this.renderHeader(context);
 
-        if (this.category.visible.get())
+        if (this.isExpanded())
         {
             this.renderCells(context);
         }
 
-        if (this.list.drag.isTarget(this))
+        if (this.list.categoryDrag.isTarget(this))
         {
-            this.renderDropTarget(context);
-        }
-
-        if (this.hoverHeader || this.hoverAction != -1)
-        {
-            context.requestCursor(GLFW.GLFW_HAND_CURSOR);
-        }
-
-        this.syncHeight(h);
-    }
-
-    private void syncHeight(int h)
-    {
-        if (this.last != h)
-        {
-            this.last = h;
-            this.h(h);
-
-            UIElement container = this.getParentContainer();
-
-            if (container != null)
-            {
-                container.resize();
-            }
-        }
-    }
-
-    private void updateHover(UIContext context)
-    {
-        boolean inside = this.area.isInside(context) && !this.list.drag.isActive() && !context.hasContextMenu();
-        int x = context.mouseX - this.area.x;
-        int y = context.mouseY - this.area.y;
-
-        this.hoverHeader = inside && this.layout.isHeader(y);
-        this.hoverSort = this.hoverHeader && this.isSortButton(x);
-        this.hoverIndex = inside && this.category.visible.get() ? this.layout.getIndex(x, y) : -1;
-        this.hoverAction = -1;
-
-        if (this.hoverIndex != -1 && CellActionBar.fits(this.layout.getCellWidth()))
-        {
-            int actions = CellAction.of(this.category.canModify(null)).length;
-
-            this.hoverAction = CellActionBar.getAction(this.layout.getX(this.hoverIndex), this.layout.getY(this.hoverIndex), this.layout.getCellWidth(), actions, x, y);
-
-            if (this.hoverAction != -1)
-            {
-                int ax = CellActionBar.getActionX(this.layout.getX(this.hoverIndex), this.layout.getCellWidth(), actions, this.hoverAction);
-                int ay = this.layout.getY(this.hoverIndex) + CellActionBar.HEIGHT;
-
-                this.list.setHoveredAction(CellAction.of(this.category.canModify(null))[this.hoverAction], context.globalX(this.area.x + ax), context.globalY(this.area.y + ay));
-            }
-        }
-    }
-
-    /** While something is dragged over this category, tell the list where it would land. */
-    private void reportDropTarget(UIContext context)
-    {
-        FormDrag drag = this.list.drag;
-
-        if (!drag.isActive() || !this.area.isInside(context))
-        {
-            return;
-        }
-
-        int x = context.mouseX - this.area.x;
-        int y = context.mouseY - this.area.y;
-
-        if (drag.getKind() == FormDrag.Kind.FORMS)
-        {
-            if (!this.category.canModify(null))
-            {
-                return;
-            }
-
-            int count = this.getForms().size();
-
-            drag.setTarget(this, this.category.visible.get() ? this.layout.getInsertion(x, y) : count);
-        }
-        else if (this.category instanceof UserFormCategory && !drag.isDragging(this.category))
-        {
-            drag.setTarget(this, y < this.area.h / 2 ? 0 : 1);
+            this.renderCategoryDropTarget(context);
         }
     }
 
@@ -611,8 +710,8 @@ public class UIFormCategory extends UIElement
         int y = this.area.y;
         int ex = this.area.ex();
         int ey = y + FormGridLayout.HEADER;
-        boolean expanded = this.category.visible.get();
-        boolean dragged = this.list.drag.isDragging(this.category);
+        boolean expanded = this.isExpanded();
+        boolean dragged = this.category instanceof UserFormCategory user && this.list.categoryDrag.isDragging(user);
 
         /* The band is chrome, like the bars around a panel, and stays readable over the
          * world when the palette has no background of its own */
@@ -654,84 +753,32 @@ public class UIFormCategory extends UIElement
         context.batcher.icon(Icons.LIST, color, x + SORT_BUTTON / 2, y + FormGridLayout.HEADER / 2, 0.5F, 0.5F);
     }
 
-    private void renderCells(UIContext context)
+    @Override
+    protected void renderCell(UIContext context, Form form, int x, int y, int w, int h, CellState state)
     {
-        List<Form> forms = this.getForms();
-        CellAction[] actions = CellAction.of(this.category.canModify(null));
-        int cellW = this.layout.getCellWidth();
-        int cellH = this.layout.getCellHeight();
+        /* The chosen form keeps its frame inside a group too — it's the one the editor edits */
+        state.selected = form == this.selected;
 
-        /* Only what the scroll view shows; the categories above and below are laid
-         * out but needn't be drawn */
-        int scroll = (int) this.list.forms.scroll.getScroll();
-        int top = this.list.forms.area.y + scroll;
-        int bottom = this.list.forms.area.ey() + scroll;
-
-        for (int i = 0; i < forms.size(); i++)
-        {
-            int cx = this.area.x + this.layout.getX(i);
-            int cy = this.area.y + this.layout.getY(i);
-
-            if (cy + cellH < top || cy > bottom)
-            {
-                continue;
-            }
-
-            Form form = forms.get(i);
-
-            this.state.reset();
-            this.state.hover = i == this.hoverIndex;
-            this.state.selected = form == this.selected;
-            this.state.picked = this.list.selection.contains(form);
-            this.state.dragged = this.list.drag.isDragging(form);
-            this.state.hoveredAction = this.state.hover ? this.hoverAction : -1;
-
-            FormCellRenderer.render(context, form, cx, cy, cellW, cellH, this.state, actions);
-        }
+        FormCellRenderer.render(context, form, x, y, w, h, state, this.actions(form));
     }
 
-    /** The caret between cells (or the edge line between categories) where the drop lands. */
-    private void renderDropTarget(UIContext context)
+    /** The whole category lights up under a drop, with the caret between cells on top. */
+    @Override
+    protected void renderInsertion(UIContext context, int insertion)
+    {
+        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), Colors.A12 | BBSSettings.primaryColor.get());
+
+        super.renderInsertion(context, insertion);
+    }
+
+    /** The edge line between categories where a dragged category lands. */
+    private void renderCategoryDropTarget(UIContext context)
     {
         Batcher2D batcher = context.batcher;
         int primary = BBSSettings.primaryColor.get();
-        int insertion = this.list.drag.getInsertion();
+        int y = this.list.categoryDrag.getInsertion() == 0 ? this.area.y : this.area.ey() - 2;
 
         batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), Colors.A12 | primary);
-
-        if (this.list.drag.getKind() == FormDrag.Kind.CATEGORY)
-        {
-            int y = insertion == 0 ? this.area.y : this.area.ey() - 2;
-
-            batcher.box(this.area.x, y, this.area.ex(), y + 2, Colors.A100 | primary);
-
-            return;
-        }
-
-        int count = this.getForms().size();
-
-        if (!this.category.visible.get() || count == 0)
-        {
-            batcher.outline(this.area.x, this.area.y, this.area.ex(), this.area.y + FormGridLayout.HEADER, Colors.A100 | primary, 1);
-
-            return;
-        }
-
-        int cellH = this.layout.getCellHeight();
-        int x;
-        int y;
-
-        if (insertion < count)
-        {
-            x = this.area.x + this.layout.getX(insertion) - FormGridLayout.GAP / 2 - 1;
-            y = this.area.y + this.layout.getY(insertion);
-        }
-        else
-        {
-            x = this.area.x + this.layout.getX(count - 1) + this.layout.getCellWidth() + FormGridLayout.GAP / 2 - 1;
-            y = this.area.y + this.layout.getY(count - 1);
-        }
-
-        batcher.box(x, y, x + 2, y + cellH, Colors.A100 | primary);
+        batcher.box(this.area.x, y, this.area.ex(), y + 2, Colors.A100 | primary);
     }
 }

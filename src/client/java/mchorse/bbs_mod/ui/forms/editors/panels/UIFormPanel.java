@@ -74,12 +74,7 @@ public abstract class UIFormPanel <T extends Form> extends UIElement
      */
     protected UISection section(IKey title, String id, boolean defaultExpanded)
     {
-        UISection section = new UISection(title);
-
-        section.setExpanded(sectionFolds.getOrDefault(id, defaultExpanded));
-        section.onToggle((s) -> sectionFolds.put(id, s.isExpanded()));
-
-        return section;
+        return new UISection(title).remember(sectionFolds, id, defaultExpanded);
     }
 
     public void startEdit(T form)

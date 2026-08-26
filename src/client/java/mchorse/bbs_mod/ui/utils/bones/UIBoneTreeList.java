@@ -353,20 +353,36 @@ public class UIBoneTreeList extends UIStringList
         return meta == null ? element : meta.fullLabel;
     }
 
+    /**
+     * The row's metadata as shown: none while search results render flat — branches
+     * without the parent rows above them are just a lie about structure.
+     */
+    private Meta shownMeta(String element)
+    {
+        return this.flat || this.isFiltering() ? null : this.metas.get(element);
+    }
+
+    /** The tree is always fully unfolded, so rows only step right; no branch ever folds. */
+    @Override
+    protected int indent(String element)
+    {
+        Meta meta = this.shownMeta(element);
+
+        return meta == null ? 0 : meta.depth * INDENT;
+    }
+
     @Override
     protected void renderElementPart(UIContext context, String element, int i, int x, int y, boolean hover, boolean selected)
     {
-        /* Search results render flat with their full label — branches without the
-         * parent rows above them are just a lie about structure. */
         boolean filtering = this.flat || this.isFiltering();
-        Meta meta = filtering ? null : this.metas.get(element);
+        Meta meta = this.shownMeta(element);
         int depth = meta == null ? 0 : meta.depth;
         int h = this.scroll.scrollItemSize;
 
         if (meta != null && depth > 0)
         {
             int mid = y + h / 2;
-            int textX = x + 4 + depth * INDENT;
+            int textX = x + this.rowContentX(element);
 
             for (int level = 0; level < depth - 1; level++)
             {
@@ -389,7 +405,7 @@ public class UIBoneTreeList extends UIStringList
             ? (filtering ? this.elementToString(context, i, element) : element)
             : meta.treeLabel;
         int color = this.isDisabled(element) ? Colors.GRAY : (hover ? Colors.HIGHLIGHT : Colors.WHITE);
-        int textX = x + 4 + depth * INDENT;
+        int textX = x + this.rowContentX(element);
         int right = this.renderMarkers(context, element, x, y, h);
 
         if (right < x + this.area.w)
@@ -444,7 +460,7 @@ public class UIBoneTreeList extends UIStringList
 
     private static int columnX(int x, int level)
     {
-        return x + 4 + level * INDENT + 2;
+        return x + ROW_PADDING + level * INDENT + 2;
     }
 
     /** The dot legend, gated on the cursor actually being in the dot column. */

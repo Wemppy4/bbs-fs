@@ -23,6 +23,7 @@ import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -52,7 +53,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -67,7 +67,7 @@ public class UIAnimationStateEditor extends UIElement
     private Set<String> keys = new LinkedHashSet<>();
 
     /** Track rows the user has unfolded right now; handed to the dope sheet, which folds them in place. */
-    private final Set<String> expandedTabs = new HashSet<>();
+    private final FoldState<String> expandedTabs = new FoldState<>();
 
     public UIAnimationStateEditor(UIFormEditor editor)
     {

@@ -1,30 +1,28 @@
 package mchorse.bbs_mod.ui.framework.elements;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
-import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.resizers.Flex;
 import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Panel base GUI
- * 
- * With this base class, you can add multi panel elements which could be 
+ *
+ * With this base class, you can add multi panel elements which could be
  * switched between using buttons.
  */
 public class UIPanelBase <T extends UIElement> extends UIElement
 {
     public T view;
-    public UIScrollView buttons;
+    public UITabStrip buttons;
     public List<T> panels = new ArrayList<>();
     public Direction direction;
 
@@ -38,21 +36,11 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         super();
 
         this.direction = direction == null ? Direction.BOTTOM : direction;
-        this.buttons = new UIScrollView();
-        this.buttons.scroll.cancelScrolling().noScrollbar();
+        this.buttons = new UITabStrip(ScrollDirection.HORIZONTAL);
+        this.buttons.scroll.cancelScrolling();
         this.buttons.scroll.scrollSpeed = 5;
-        this.buttons.preRender((context) ->
-        {
-            for (int i = 0, c = this.panels.size(); i < c; i++)
-            {
-                if (this.view == this.panels.get(i))
-                {
-                    Area area = ((UIIcon) this.buttons.getChildren().get(i)).area;
-
-                    area.render(context.batcher, Colors.A75 | BBSSettings.primaryColor.get());
-                }
-            }
-        });
+        this.buttons.active(() -> this.panels.indexOf(this.view));
+        this.buttons.onSelect((index) -> this.setPanel(this.panels.get(index)));
 
         this.setButtonsPlacement();
 
@@ -100,12 +88,12 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         boolean side = this.isSideBar();
         boolean far = this.isFarBar();
 
-        this.buttons.scroll.direction = side ? ScrollDirection.VERTICAL : ScrollDirection.HORIZONTAL;
         this.buttons.resetFlex().relative(this);
+        this.buttons.direction(side ? ScrollDirection.VERTICAL : ScrollDirection.HORIZONTAL);
 
         if (side)
         {
-            this.buttons.w(20).h(1F).column(0).scroll().vertical();
+            this.buttons.w(20).h(1F);
 
             if (far)
             {
@@ -114,7 +102,7 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         }
         else
         {
-            this.buttons.w(1F).h(20).row(0).scroll();
+            this.buttons.w(1F).h(20);
 
             if (far)
             {
@@ -156,9 +144,7 @@ public class UIPanelBase <T extends UIElement> extends UIElement
 
     public UIIcon getButton(T panel)
     {
-        int index = this.panels.indexOf(panel);
-
-        return index < 0 ? null : (UIIcon) this.buttons.getChildren().get(index);
+        return (UIIcon) this.buttons.getTab(this.panels.indexOf(panel));
     }
 
     /**
@@ -166,7 +152,7 @@ public class UIPanelBase <T extends UIElement> extends UIElement
      */
     public UIIcon registerPanel(T panel, IKey tooltip, Icon icon)
     {
-        UIIcon button = new UIIcon(icon, (b) -> this.setPanel(panel));
+        UIIcon button = new UIIcon(icon, (b) -> this.buttons.select(b));
 
         if (tooltip != null && !tooltip.get().isEmpty())
         {
@@ -175,7 +161,7 @@ public class UIPanelBase <T extends UIElement> extends UIElement
 
         panel.markContainer();
         this.panels.add(panel);
-        this.buttons.add(button);
+        this.buttons.addTab(button);
 
         return button;
     }

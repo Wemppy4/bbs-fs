@@ -2,44 +2,42 @@ package mchorse.bbs_mod.ui.dashboard.panels.tabs;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
 
-public class UIDataTabs extends UIElement
+public class UIDataTabs extends UITabStrip
 {
     public static final int TABS_HEIGHT_PX = 18;
 
     private static final int TAB_MIN_WIDTH = 110;
     private static final int TAB_MAX_WIDTH = 230;
-    private static final int TABS_GAP = 0;
 
     public final IUITabs host;
-    public final UIScrollView scroll;
     public final UIIcon add;
-    private final ArrayList<UIDataTabElement> tabs = new ArrayList<>();
+    private final ArrayList<UIDataTabElement> elements = new ArrayList<>();
 
     public UIDataTabs(IUITabs host)
     {
+        super(ScrollDirection.HORIZONTAL);
+
         this.host = host;
-        this.scroll = new UIScrollView(ScrollDirection.HORIZONTAL);
-        this.scroll.scroll.scrollSpeed = 20;
-        this.scroll.row(TABS_GAP).scroll();
-        this.scroll.scroll.noScrollbar();
-        this.scroll.relative(this).x(TABS_GAP).w(1F, -TABS_GAP * 2).h(TABS_HEIGHT_PX);
+        this.scroll.scrollSpeed = 20;
+        this.background(BBSSettings::chromeSurface);
+        this.activeColor(BBSSettings::baseSurface);
+        this.hoverColor(() -> BBSSettings.color(BBSSettings.raisedSurface(), Colors.A25));
+        this.active(host::getCurrentTab);
+        this.onSelect(host::switchTab);
+        this.onClose(host::closeTab);
 
         this.add = new UIIcon(Icons.ADD, (b) -> host.addTab());
         this.add.wh(TABS_HEIGHT_PX, TABS_HEIGHT_PX);
-
-        this.add(new UIRenderable(this::renderBackground), this.scroll);
     }
 
     public void sync()
@@ -52,21 +50,21 @@ public class UIDataTabs extends UIElement
 
         this.setVisible(true);
 
-        double scrollPos = this.scroll.scroll.getScroll();
+        double scrollPos = this.scroll.getScroll();
         int count = this.host.getTabCount();
 
-        while (this.tabs.size() < count)
+        while (this.elements.size() < count)
         {
-            this.tabs.add(new UIDataTabElement(this.host, TABS_HEIGHT_PX));
+            this.elements.add(new UIDataTabElement(this, this.host, TABS_HEIGHT_PX));
         }
 
-        while (this.tabs.size() > count)
+        while (this.elements.size() > count)
         {
-            UIDataTabElement removed = this.tabs.remove(this.tabs.size() - 1);
+            UIDataTabElement removed = this.elements.remove(this.elements.size() - 1);
             removed.removeFromParent();
         }
 
-        this.scroll.removeAll();
+        this.removeAll();
 
         FontRenderer font = Batcher2D.getDefaultTextRenderer();
         int baseMin = UIDataTabElement.measureWidth(font, this.host.getNewTabLabel());
@@ -83,24 +81,19 @@ public class UIDataTabs extends UIElement
             w = Math.max(baseMin, Math.min(TAB_MAX_WIDTH, w));
             hasNewTab |= this.host.isNewTab(i);
 
-            UIDataTabElement tabElement = this.tabs.get(i);
+            UIDataTabElement tabElement = this.elements.get(i);
 
             tabElement.setTab(i, label, this.host.getTabTooltip(i), this.host.getTabIcon(i));
             tabElement.wh(w, TABS_HEIGHT_PX);
-            this.scroll.add(tabElement);
+            this.addTab(tabElement);
         }
 
         if (!hasNewTab)
         {
-            this.scroll.add(this.add);
+            this.add(this.add);
         }
 
-        this.scroll.resize();
-        this.scroll.scroll.setScroll(scrollPos);
-    }
-
-    private void renderBackground(UIContext context)
-    {
-        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.chromeSurface());
+        this.resize();
+        this.scroll.setScroll(scrollPos);
     }
 }

@@ -3,26 +3,46 @@ package mchorse.bbs_mod.ui.framework.elements.input.list;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.utils.Scroll;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.framework.elements.input.items.UIItems;
+import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
+import org.lwjgl.glfw.GLFW;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Abstract GUI list element
- * 
- * This element allows managing scrolling vertical lists much easier
+ * Abstract GUI list element: rows of equal height down a scrolling area.
+ *
+ * <p>Selection lives in {@link #selection} as the row objects themselves; {@link #current}
+ * is the same pick seen as backing-list indices, for the many callers that think in
+ * indices. Rows are told apart by identity, so two rows that merely look alike are two
+ * rows — the way indices always told them apart.</p>
+ *
+ * <p>A list can also be a tree: a subclass says how far a row is {@link #indent(Object) indented}
+ * and whether it is a {@link #branch(Object) branch}, and the list draws the fold arrow, turns a
+ * click on it and Left/Right on the focused row into {@link #toggle(Object)}. Flattening the tree
+ * into rows stays with the subclass.</p>
  */
-public abstract class UIList <T> extends UIElement
+public abstract class UIList <T> extends UIItems<T>
 {
+    /** Left padding of a row's content, before the indent. */
+    public static final int ROW_PADDING = 4;
+
+    /** Width of the fold arrow's slot at the start of a branch row. */
+    public static final int ARROW_SLOT = 12;
+
     /**
-     * List of elements 
+     * List of elements
      */
     protected List<T> list = new ArrayList<>();
 
@@ -32,53 +52,31 @@ public abstract class UIList <T> extends UIElement
     private List<T> copy = new ArrayList<>();
 
     /**
-     * Scrolling area
+     * Selected elements, as indices into {@link #list}. A live view over {@link #selection}:
+     * adding an index picks that row, removing one drops it.
      */
-    public Scroll scroll;
-
-    /**
-     * Callback which gets invoked when user selects an element
-     */
-    public Consumer<List<T>> callback;
-
-    /**
-     * Selected elements
-     */
-    public List<Integer> current = new ArrayList<>();
-
-    /**
-     * Whether this list supports multi selection
-     */
-    public boolean multi;
-
-    /**
-     * Whether this list supports reordering
-     */
-    public boolean sorting;
-
-    public int background;
+    public List<Integer> current = new CurrentIndices();
 
     private String filter = "";
     private List<Pair<T, Integer>> filtered = new ArrayList<>();
 
-    protected int dragging = -1;
-    protected long dragTime;
+    /* The filtered rows without their indices, for the geometry that only wants items */
+    private List<T> filteredItems = new ArrayList<>();
 
     public UIList(Consumer<List<T>> callback)
     {
-        super();
-
-        this.callback = callback;
-        this.scroll = new Scroll(this.area, 20);
+        super(callback, (a, b) -> a == b);
     }
 
     /* List element settings */
 
+    @Override
     public UIList<T> background()
     {
         return this.background(Colors.A50);
     }
 
+    @Override
     public UIList<T> background(int color)
     {
         this.background = color;
@@ -86,6 +84,7 @@ public abstract class UIList <T> extends UIElement
         return this;
     }
 
+    @Override
     public UIList<T> multi()
     {
         this.multi = true;
@@ -93,6 +92,7 @@ public abstract class UIList <T> extends UIElement
         return this;
     }
 
+    @Override
     public UIList<T> sorting()
     {
         this.sorting = true;
@@ -100,11 +100,53 @@ public abstract class UIList <T> extends UIElement
         return this;
     }
 
+    @Override
     public UIList<T> cancelScrollEdge()
     {
         this.scroll.cancelScrollEdge = true;
 
         return this;
+    }
+
+    /* Tree support */
+
+    /** How far a row is pushed right, in pixels; 0 for a flat list. */
+    protected int indent(T element)
+    {
+        return 0;
+    }
+
+    /** Null for a leaf (no arrow), otherwise whether the branch is unfolded. */
+    protected Boolean branch(T element)
+    {
+        return null;
+    }
+
+    /** Fold or unfold a branch; called for the arrow, and for Left/Right on the focused row. */
+    protected void toggle(T element)
+    {}
+
+    /** Content X where a row's content starts: past the padding and the indent. */
+    protected int rowContentX(T element)
+    {
+        return ROW_PADDING + this.indent(element);
+    }
+
+    /** Whether a content X lands in the fold arrow's slot of a branch row. */
+    protected boolean hitsArrow(T element, int contentX)
+    {
+        return this.branch(element) != null && contentX < this.rowContentX(element) + ARROW_SLOT;
+    }
+
+    /** Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. */
+    protected void renderArrow(UIContext context, T element, int x, int y)
+    {
+        Boolean expanded = this.branch(element);
+
+        if (expanded != null)
+        {
+            UISection.renderArrow(context, x + this.rowContentX(element) + ARROW_SLOT / 2, y + this.scroll.scrollItemSize / 2, expanded);
+        }
     }
 
     /* Filtering elements */
@@ -120,6 +162,7 @@ public abstract class UIList <T> extends UIElement
 
         this.filter = filter;
         this.filtered.clear();
+        this.filteredItems.clear();
 
         if (filter.isEmpty())
         {
@@ -138,6 +181,7 @@ public abstract class UIList <T> extends UIElement
             if (target.contains(filter) || target.contains(qwerty))
             {
                 this.filtered.add(new Pair<>(element, i));
+                this.filteredItems.add(element);
             }
         }
 
@@ -167,6 +211,75 @@ public abstract class UIList <T> extends UIElement
         }
 
         return this.exists(this.filtered, visibleIndex) ? this.filtered.get(visibleIndex).a : null;
+    }
+
+    /* Geometry */
+
+    @Override
+    protected List<T> visible()
+    {
+        return this.isFiltering() ? this.filteredItems : this.list;
+    }
+
+    @Override
+    protected int indexAt(int x, int y)
+    {
+        if (y < 0)
+        {
+            return -1;
+        }
+
+        int index = y / this.scroll.scrollItemSize;
+
+        return index < this.visible().size() ? index : -1;
+    }
+
+    @Override
+    protected void areaOf(int index, Area out)
+    {
+        int s = this.scroll.scrollItemSize;
+
+        out.set(0, index * s, this.area.w, s);
+    }
+
+    @Override
+    protected int insertionAt(int x, int y)
+    {
+        int s = this.scroll.scrollItemSize;
+
+        return MathUtils.clamp((y + s / 2) / s, 0, this.visible().size());
+    }
+
+    @Override
+    protected int contentSize()
+    {
+        return this.visible().size() * this.scroll.scrollItemSize;
+    }
+
+    @Override
+    protected int step(int index, int dx, int dy)
+    {
+        /* Rows go up and down only; left and right belong to whoever else listens */
+        if (dx != 0)
+        {
+            return -1;
+        }
+
+        return MathUtils.clamp(index + dy, 0, this.visible().size() - 1);
+    }
+
+    /** Index into {@link #list} of a row, by identity; -1 when it isn't there. */
+    protected int indexOfItem(T item)
+    {
+        for (int i = 0; i < this.list.size(); i++)
+        {
+            if (this.list.get(i) == item)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /* Index and current value(s) methods */
@@ -203,15 +316,21 @@ public abstract class UIList <T> extends UIElement
     {
         this.copy.clear();
 
-        for (Integer integer : this.current)
+        for (T item : this.selection.getItems())
         {
-            if (this.exists(integer))
+            if (this.indexOfItem(item) != -1)
             {
-                this.copy.add(this.list.get(integer));
+                this.copy.add(item);
             }
         }
 
         return this.copy;
+    }
+
+    @Override
+    protected List<T> selected()
+    {
+        return this.getCurrent();
     }
 
     public T getCurrentFirst()
@@ -328,14 +447,11 @@ public abstract class UIList <T> extends UIElement
     {
         this.current.clear();
 
-        for (int i = 0; i < this.list.size(); i ++)
-        {
-            if (this.list.get(i) == element)
-            {
-                this.current.add(i);
+        int index = this.indexOfItem(element);
 
-                return;
-            }
+        if (index != -1)
+        {
+            this.current.add(index);
         }
     }
 
@@ -379,15 +495,12 @@ public abstract class UIList <T> extends UIElement
         }
 
         this.setIndex(index);
-
-        if (this.callback != null)
-        {
-            this.callback.accept(this.getCurrent());
-        }
+        this.fireCallback();
 
         return true;
     }
 
+    @Override
     public void selectAll()
     {
         if (!this.multi)
@@ -395,12 +508,7 @@ public abstract class UIList <T> extends UIElement
             return;
         }
 
-        this.current.clear();
-
-        for (int i = 0; i < this.list.size(); i ++)
-        {
-            this.current.add(i);
-        }
+        this.selection.setAll(this.list);
     }
 
     public List<T> getList()
@@ -438,6 +546,9 @@ public abstract class UIList <T> extends UIElement
         if (this.exists(index))
         {
             this.list.set(index, element);
+
+            /* The pick is the row object, so it must follow the row into its new value */
+            this.selection.set(element, null);
         }
     }
 
@@ -460,21 +571,12 @@ public abstract class UIList <T> extends UIElement
 
     /**
      * Sort elements in this array, the subsclasses should implement
-     * the other sorting method in order for it to work
+     * the other sorting method in order for it to work. The pick is made of
+     * the rows themselves, so it follows them wherever they land.
      */
     public final void sort()
     {
-        List<T> current = this.getCurrent();
-
-        if (this.sortElements())
-        {
-            this.current.clear();
-
-            for (T element : current)
-            {
-                this.current.add(this.list.indexOf(element));
-            }
-        }
+        this.sortElements();
     }
 
     /**
@@ -489,7 +591,7 @@ public abstract class UIList <T> extends UIElement
 
     public void update()
     {
-        this.scroll.setSize(this.isFiltering() ? this.filtered.size() : this.list.size());
+        this.scroll.setSize(this.visible().size());
         this.scroll.clamp();
     }
 
@@ -505,63 +607,90 @@ public abstract class UIList <T> extends UIElement
 
     public boolean isDragging()
     {
-        return this.exists(this.dragging) && System.currentTimeMillis() - this.dragTime > 100;
+        return this.drag.isActive();
     }
 
+    /** Index into {@link #list} of the row being dragged, or -1. */
     public int getDraggingIndex()
     {
-        return this.dragging;
+        List<T> items = this.drag.getItems();
+
+        return items.isEmpty() ? -1 : this.indexOfItem(items.get(0));
     }
 
-    @Override
-    public void resize()
+    /** Arm dragging the given row from where the button went down. */
+    protected void startDrag(int index, UIContext context)
     {
-        super.resize();
-
-        this.scroll.clamp();
-        this.scroll.updateTarget();
+        if (this.exists(index))
+        {
+            this.drag.start(Collections.singletonList(this.list.get(index)), context.mouseX, context.mouseY);
+        }
     }
 
+    /* Input */
+
     @Override
-    public boolean subMouseClicked(UIContext context)
+    protected boolean pressItem(int index, UIContext context)
     {
-        if (this.scroll.mouseClicked(context))
+        if (this.pressArrow(index, context))
         {
             return true;
         }
 
-        if (this.area.isInside(context) && context.mouseButton == 0)
+        return super.pressItem(index, context);
+    }
+
+    /**
+     * A press on the fold arrow of a visible row toggles it and takes the press; whether it did.
+     * Subclasses that handle presses themselves ask this first, so the arrow behaves the same.
+     */
+    protected boolean pressArrow(int index, UIContext context)
+    {
+        T element = this.visible().get(index);
+
+        if (!this.hitsArrow(element, this.contentX(context)))
         {
-            int index = this.scroll.getIndex(context.mouseX, context.mouseY);
-            boolean filtering = this.isFiltering();
+            return false;
+        }
 
-            if (filtering)
+        this.cursor = index;
+        this.toggle(element);
+
+        return true;
+    }
+
+    @Override
+    protected boolean subKeyPressed(UIContext context)
+    {
+        /* Left folds and Right unfolds the focused branch; rows have no sideways step, so nothing else wants the keys */
+        if (!context.isFocused() && this.area.isInside(context) && context.getKeyAction() != KeyAction.RELEASED)
+        {
+            int key = context.getKeyCode();
+            int dx = key == GLFW.GLFW_KEY_LEFT ? -1 : (key == GLFW.GLFW_KEY_RIGHT ? 1 : 0);
+            int focus = dx == 0 ? -1 : this.focusIndex();
+
+            if (focus >= 0 && focus < this.visible().size())
             {
-                index = this.exists(this.filtered, index) ? this.filtered.get(index).b : -1;
-            }
+                T element = this.visible().get(focus);
+                Boolean expanded = this.branch(element);
 
-            if (this.exists(index))
-            {
-                this.applySelectionOnClick(index);
-
-                if (!filtering && this.sorting && this.current.size() == 1)
+                if (expanded != null && expanded != (dx > 0))
                 {
-                    this.dragging = index;
-                    this.dragTime = System.currentTimeMillis();
-                }
-
-                List<T> current = this.getCurrent();
-
-                if (this.callback != null)
-                {
-                    this.callback.accept(current);
+                    this.cursor = focus;
+                    this.toggle(element);
 
                     return true;
                 }
             }
         }
 
-        return super.subMouseClicked(context);
+        return super.subKeyPressed(context);
+    }
+
+    @Override
+    protected void applySelectionOnClick(T item, int index)
+    {
+        this.applySelectionOnClick(this.isFiltering() ? this.filtered.get(index).b : index);
     }
 
     /**
@@ -572,13 +701,7 @@ public abstract class UIList <T> extends UIElement
     {
         if (this.multi && Window.isShiftPressed() && this.isSelected())
         {
-            int first = this.current.get(0);
-            int increment = first > index ? -1 : 1;
-
-            for (int i = first + increment; i != index + increment; i += increment)
-            {
-                this.addIndex(i);
-            }
+            this.selection.range(this.list.get(index), null, this.visible());
         }
         else if (this.multi && Window.isCtrlPressed())
         {
@@ -591,76 +714,60 @@ public abstract class UIList <T> extends UIElement
     }
 
     @Override
-    public boolean subMouseScrolled(UIContext context)
+    protected List<T> dragPayload(T item)
     {
-        return this.scroll.mouseScroll(context);
+        /* A filtered view can't be reordered — the gaps between its rows aren't real */
+        if (!this.sorting || this.isFiltering() || this.selection.size() != 1 || !this.selection.contains(item))
+        {
+            return null;
+        }
+
+        return Collections.singletonList(item);
     }
 
     @Override
-    public boolean subMouseReleased(UIContext context)
+    protected void reorder(List<T> items, int insertion)
     {
-        if (this.sorting && !this.isFiltering())
+        int from = this.indexOfItem(items.get(0));
+
+        if (from == -1)
         {
-            if (this.isDragging())
-            {
-                int index = this.scroll.getIndex(context.mouseX, context.mouseY);
-
-                if (index == -2)
-                {
-                    index = this.getList().size() - 1;
-                }
-
-                if (index != this.dragging && this.exists(index))
-                {
-                    this.handleSwap(this.dragging, index);
-                }
-            }
-
-            this.dragging = -1;
+            return;
         }
 
-        this.scroll.mouseReleased(context);
+        /* The caret sits before the row at {@code insertion}; taking the row out first shifts what's after it */
+        int to = insertion > from ? insertion - 1 : insertion;
 
-        return super.subMouseReleased(context);
+        if (to != from && this.exists(to))
+        {
+            this.handleSwap(from, to);
+        }
     }
 
     protected void handleSwap(int from, int to)
     {
-        T value = this.list.remove(this.dragging);
+        T value = this.list.remove(from);
 
         this.list.add(to, value);
         this.setIndex(to);
     }
 
+    /* Rendering */
+
     @Override
-    public void render(UIContext context)
+    protected void renderContent(UIContext context)
     {
-        this.scroll.drag(context);
-
-        /* A row carried to the edge of the list scrolls it, so it can be dropped
-         * next to a row that's out of sight */
-        if (this.isDragging())
-        {
-            this.scroll.autoScrollAt(context.mouseX, context.mouseY, Scroll.AUTO_SCROLL_EDGE, Scroll.AUTO_SCROLL_SPEED);
-        }
-
-        if (Colors.getA(this.background) > 0)
-        {
-            this.area.render(context.batcher, this.background);
-        }
-
-        context.batcher.clip(this.area, context);
         this.renderList(context);
-        this.scroll.renderScrollbar(context.batcher);
-        context.batcher.unclip(context);
+    }
 
-        this.renderLockedArea(context);
+    @Override
+    protected void renderDragGhost(UIContext context)
+    {
+        int index = this.getDraggingIndex();
 
-        super.render(context);
-
-        if (this.exists(this.dragging) && this.isDragging())
+        if (this.exists(index))
         {
-            this.renderListElement(context, this.list.get(this.dragging), this.dragging, context.mouseX + 6, context.mouseY - this.scroll.scrollItemSize / 2, true, true);
+            this.renderListElement(context, this.list.get(index), index, context.mouseX + 6, context.mouseY - this.scroll.scrollItemSize / 2, true, true);
         }
     }
 
@@ -709,7 +816,7 @@ public abstract class UIList <T> extends UIElement
         int low = this.area.y;
         int high =this.area.ey();
 
-        if (y + s < low || (!this.isFiltering() && this.isDragging() && this.dragging == i))
+        if (y + s < low || (!this.isFiltering() && this.isDragging() && this.getDraggingIndex() == i))
         {
             return i + 1;
         }
@@ -758,7 +865,10 @@ public abstract class UIList <T> extends UIElement
      */
     protected void renderElementPart(UIContext context, T element, int i, int x, int y, boolean hover, boolean selected)
     {
-        context.batcher.textShadow(this.elementToString(context, i, element), x + 4, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+        int textX = x + this.rowContentX(element) + (this.branch(element) != null ? ARROW_SLOT : 0);
+
+        this.renderArrow(context, element, x, y);
+        context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
     }
 
     /**
@@ -767,5 +877,85 @@ public abstract class UIList <T> extends UIElement
     protected String elementToString(UIContext context, int i, T element)
     {
         return element.toString();
+    }
+
+    /**
+     * {@link #current}: the pick as indices. Reads look every picked row up in {@link #list};
+     * writes pick or drop the row at that index. Positions passed to {@code add} are ignored —
+     * the pick keeps the order rows were picked in.
+     */
+    private class CurrentIndices extends AbstractList<Integer>
+    {
+        @Override
+        public Integer get(int index)
+        {
+            return UIList.this.indexOfItem(UIList.this.selection.getItems().get(index));
+        }
+
+        @Override
+        public int size()
+        {
+            return UIList.this.selection.size();
+        }
+
+        @Override
+        public boolean add(Integer index)
+        {
+            if (index == null || !UIList.this.exists(index))
+            {
+                return false;
+            }
+
+            T item = UIList.this.list.get(index);
+
+            if (UIList.this.selection.contains(item))
+            {
+                return false;
+            }
+
+            UIList.this.selection.add(item, null);
+
+            return true;
+        }
+
+        @Override
+        public void add(int position, Integer index)
+        {
+            this.add(index);
+        }
+
+        @Override
+        public Integer remove(int index)
+        {
+            T item = UIList.this.selection.getItems().get(index);
+            int removed = UIList.this.indexOfItem(item);
+
+            UIList.this.selection.remove(item);
+
+            return removed;
+        }
+
+        @Override
+        public void clear()
+        {
+            UIList.this.selection.clear();
+        }
+
+        @Override
+        public boolean contains(Object o)
+        {
+            return this.indexOf(o) != -1;
+        }
+
+        @Override
+        public int indexOf(Object o)
+        {
+            if (!(o instanceof Integer index) || !UIList.this.exists(index))
+            {
+                return -1;
+            }
+
+            return UIList.this.selection.indexOf(UIList.this.selection.getItems(), UIList.this.list.get(index));
+        }
     }
 }

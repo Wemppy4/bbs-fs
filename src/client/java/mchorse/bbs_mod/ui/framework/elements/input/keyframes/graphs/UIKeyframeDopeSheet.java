@@ -8,6 +8,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
@@ -38,9 +39,7 @@ import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Map;
 
 public class UIKeyframeDopeSheet implements IUIKeyframeGraph
@@ -82,11 +81,11 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     private UIKeyframeSheet lastSheet;
 
     /**
-     * Addresses of the rows the user has unfolded. Owned by whoever built this timeline (so it
-     * outlives a rebuild) and mutated in place here — one set, not a copy on each side that has to be
-     * kept in step.
+     * Which rows the user has unfolded, by address. Owned by whoever built this timeline (so it
+     * outlives a rebuild) and folded in place here — one state, not a copy on each side that has to
+     * be kept in step. Every row starts folded.
      */
-    private Set<String> expanded = new HashSet<>();
+    private FoldState<String> folds = new FoldState<>();
 
     /** What to draw when there are no tracks at all - see {@link #setEmptyState(IKey, IKey)}. */
     private IKey emptyLabel;
@@ -213,10 +212,10 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         return true;
     }
 
-    /** Whether a row shows what folds under it. Every row starts folded. */
+    /** Whether a row shows what folds under it. */
     private boolean isUnfolded(UIKeyframeSheet sheet)
     {
-        return this.expanded.contains(sheet.id);
+        return this.folds.isExpanded(sheet.id);
     }
 
     private int getSheetIndent(UIKeyframeSheet sheet)
@@ -321,13 +320,13 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     }
 
     /**
-     * Take the set of unfolded row addresses the timeline's owner keeps. It is used in place, not
-     * copied, so folding a row here is remembered across rebuilds without anything reading the state
-     * back out afterwards — which is what the old save-and-restore dance existed for.
+     * Take the fold state the timeline's owner keeps. It is used in place, not copied, so folding a
+     * row here is remembered across rebuilds without anything reading the state back out afterwards
+     * — which is what the old save-and-restore dance existed for.
      */
-    public void setExpanded(Set<String> expanded)
+    public void setExpanded(FoldState<String> folds)
     {
-        this.expanded = expanded == null ? new HashSet<>() : expanded;
+        this.folds = folds == null ? new FoldState<>() : folds;
 
         this.updateScrollSize();
     }
@@ -671,14 +670,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     private void setFolded(UIKeyframeSheet sheet, boolean unfold, boolean branch)
     {
-        if (unfold)
-        {
-            this.expanded.add(sheet.id);
-        }
-        else
-        {
-            this.expanded.remove(sheet.id);
-        }
+        this.folds.set(sheet.id, unfold);
 
         if (!unfold)
         {

@@ -36,6 +36,7 @@ import mchorse.bbs_mod.math.molang.expressions.MolangExpression;
 import mchorse.bbs_mod.ui.film.ICursor;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -91,16 +92,16 @@ public class UIReplaysEditorUtils
      * where the pose actually lives once it has been split, but keying every bone of a form the user
      * has folded away (or never split at all) buries the timeline in keyframes nobody asked for.
      *
-     * @param expandedPoseIds ids of the pose tracks currently unfolded, from {@link UIReplaysEditor#getExpandedPoseTabIds()}.
+     * @param expandedPoseIds which pose tracks are unfolded, from {@link UIReplaysEditor#getExpandedPoseTabIds()}.
      */
-    public static void insertPoseKeyframesAtTick(Replay replay, float tick, Set<String> expandedPoseIds)
+    public static void insertPoseKeyframesAtTick(Replay replay, float tick, FoldState<String> expandedPoseIds)
     {
         if (replay == null)
         {
             return;
         }
 
-        Set<String> expanded = expandedPoseIds == null ? Collections.emptySet() : expandedPoseIds;
+        FoldState<String> expanded = expandedPoseIds == null ? new FoldState<>() : expandedPoseIds;
         Form form = replay.form.get();
 
         BaseValue.edit(replay.properties, (props) ->
@@ -112,12 +113,12 @@ public class UIReplaysEditorUtils
 
                 if (track.is(TrackKind.BONE))
                 {
-                    if (expanded.contains(poseTrackIdOf(track)))
+                    if (expanded.isExpanded(poseTrackIdOf(track)))
                     {
                         insertPoseTransformKeyframe((KeyframeChannel<PoseTransform>) channel, tick, null);
                     }
                 }
-                else if (isWholePoseTrack(track, channel) && !expanded.contains(track.toKey()))
+                else if (isWholePoseTrack(track, channel) && !expanded.isExpanded(track.toKey()))
                 {
                     insertWholePoseKeyframe(form, (KeyframeChannel<Pose>) channel, tick);
                 }

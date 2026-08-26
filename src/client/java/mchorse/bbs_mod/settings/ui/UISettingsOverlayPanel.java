@@ -12,11 +12,13 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIClickable;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
@@ -400,6 +402,8 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
      */
     public static class UISectionHeader extends UIElement
     {
+        private static final Area HEADER = new Area();
+
         private final ValueGroup category;
         private final IKey label;
 
@@ -424,16 +428,10 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         @Override
         public void render(UIContext context)
         {
-            FontRenderer font = context.batcher.getFont();
-            int x = this.area.x;
+            /* Icon and title sit one row above the centre of the 18px, clear of the divider */
+            HEADER.set(this.area.x, this.area.y - 1, this.area.w, this.area.h);
+            UISection.renderHeader(context, HEADER, this.label, this.category.icon, null, Colors.WHITE);
 
-            if (this.category.icon != null)
-            {
-                context.batcher.icon(this.category.icon, Colors.WHITE, x, this.area.my() - 1, 0F, 0.5F);
-                x += 20;
-            }
-
-            context.batcher.text(this.label.get(), x, this.area.my(font.getHeight()) - 1, Colors.WHITE, true);
             context.batcher.box(this.area.x, this.area.ey() - 1, this.area.ex(), this.area.ey(), BBSSettings.dividerColor());
 
             super.render(context);

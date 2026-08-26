@@ -265,6 +265,13 @@ public class UIReplayList extends UIList<ReplayListEntry>
             .category(UIKeys.FILM_REPLAY_TITLE);
     }
 
+    /** Ctrl+A from the base list lands here too: only replay rows are selectable, never folders. */
+    @Override
+    public void selectAll()
+    {
+        this.selectAllReplays();
+    }
+
     private void selectAllReplays()
     {
         if (!this.multi)
@@ -750,8 +757,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
                 if (this.sorting && entry.isReplay() && this.current.size() == 1)
                 {
-                    this.dragging = index;
-                    this.dragTime = System.currentTimeMillis();
+                    this.startDrag(index, context);
                 }
 
                 if (this.callback != null)
@@ -774,20 +780,21 @@ public class UIReplayList extends UIList<ReplayListEntry>
             if (this.isDragging())
             {
                 int index = this.scroll.getIndex(context.mouseX, context.mouseY);
+                int dragging = this.getDraggingIndex();
 
                 /* Past the last row (empty padding below short lists): move to root — no root replay row to drop on. */
                 if (index == -2)
                 {
-                    ReplayListEntry dragged = this.list.get(this.dragging);
+                    ReplayListEntry dragged = this.list.get(dragging);
 
                     if (dragged.isReplay())
                     {
                         this.applyReplayCategory(List.of(dragged.replay), "");
                     }
                 }
-                else if (index != this.dragging && this.exists(index))
+                else if (index != dragging && this.exists(index))
                 {
-                    ReplayListEntry a = this.list.get(this.dragging);
+                    ReplayListEntry a = this.list.get(dragging);
                     ReplayListEntry b = this.list.get(index);
 
                     if (a.isReplay() && b.isFolder())
@@ -796,18 +803,24 @@ public class UIReplayList extends UIList<ReplayListEntry>
                     }
                     else if (a.isReplay() && b.isReplay())
                     {
-                        this.handleSwap(this.dragging, index);
+                        this.handleSwap(dragging, index);
                     }
                 }
             }
 
-            this.dragging = -1;
+            /* The drop is settled here, row by row; the base must not settle it again as a reorder */
+            this.drag.reset();
         }
 
         this.scroll.mouseReleased(context);
 
         return super.subMouseReleased(context);
     }
+
+    /** A replay is dropped onto a row (swapped with it, or filed under a folder), not between rows: no caret. */
+    @Override
+    protected void renderInsertion(UIContext context, int insertion)
+    {}
 
     /** Drag a replay row onto a category header to assign that category. */
     private void dropReplaysOntoCategory(int folderIndex)
@@ -819,7 +832,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        ReplayListEntry draggedEntry = this.list.get(this.dragging);
+        ReplayListEntry draggedEntry = this.list.get(this.getDraggingIndex());
 
         if (!draggedEntry.isReplay())
         {

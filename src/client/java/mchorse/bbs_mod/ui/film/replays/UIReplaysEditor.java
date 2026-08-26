@@ -44,6 +44,7 @@ import mchorse.bbs_mod.ui.film.utils.keyframes.UIFilmKeyframes;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -84,7 +85,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -131,10 +131,10 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
     private Set<String> keys = new LinkedHashSet<>();
     /**
      * Which rows the user left unfolded, per replay. Every rebuild of the timeline throws the dope
-     * sheet away — switching category, toggling "all tracks", changing the track filter — so this set
-     * is handed to each new sheet, which folds in it directly rather than keeping a copy.
+     * sheet away — switching category, toggling "all tracks", changing the track filter — so this
+     * state is handed to each new sheet, which folds in it directly rather than keeping a copy.
      */
-    private final Map<String, Set<String>> expandedTracksByReplay = new HashMap<>();
+    private final Map<String, FoldState<String>> expandedTracksByReplay = new HashMap<>();
 
     public enum ReplayCategory
     {
@@ -842,13 +842,13 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
      * which is what the old save-and-restore step existed for (and it had to know which tracks the
      * current category could even answer for).
      */
-    public Set<String> getExpandedTracks()
+    public FoldState<String> getExpandedTracks()
     {
-        return this.expandedTracksByReplay.computeIfAbsent(this.replay == null ? "" : this.replay.getId(), (k) -> new HashSet<>());
+        return this.expandedTracksByReplay.computeIfAbsent(this.replay == null ? "" : this.replay.getId(), (k) -> new FoldState<>());
     }
 
     /** Pose tracks unfolded right now — what {@code insertFrame} keys by, per limb or as a whole pose. */
-    public Set<String> getExpandedPoseTabIds()
+    public FoldState<String> getExpandedPoseTabIds()
     {
         return this.getExpandedTracks();
     }

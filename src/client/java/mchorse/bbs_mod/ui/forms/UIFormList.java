@@ -21,11 +21,12 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.morphing.UIMorphFormCategoryFilterOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
+import mchorse.bbs_mod.ui.framework.elements.input.items.Selection;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.utils.Marquee;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.UIStrip;
@@ -51,9 +52,10 @@ import java.util.Set;
  * The list of form categories with the search bar under it.
  *
  * <p>Besides the categories themselves it owns everything that spans them: the cell size
- * (Ctrl + wheel zooms it), the {@link #selection multi-selection}, and a {@link #drag} —
- * forms between and within categories, user categories among themselves. Categories paint
- * and hit-test their own cells and call back here with what was pressed.</p>
+ * (Ctrl + wheel zooms it), the {@link #selection multi-selection} and the {@link #drag} of
+ * forms, which every category grid shares (so a pick runs across categories and a drag
+ * started in one drops into another), the {@link #marquee band} stretched over several of
+ * them, and the {@link #categoryDrag drag} of user categories among themselves.</p>
  */
 public class UIFormList extends UIElement
 {
@@ -73,8 +75,12 @@ public class UIFormList extends UIElement
     public UIIcon collapseAll;
     public UIIcon expandAll;
 
-    public final FormSelection selection = new FormSelection();
-    public final FormDrag drag = new FormDrag();
+    /* Forms are matched by identity: two equal-looking forms in different categories are different picks */
+    public final Selection<Form> selection = new Selection<>((a, b) -> a == b);
+    public final ItemDrag<Form> drag = new ItemDrag<>((a, b) -> a == b);
+
+    /** A user category carried by its header to a new place among the others. */
+    public final ItemDrag<UserFormCategory> categoryDrag = new ItemDrag<>();
 
     /** Shift + drag band, in the scroll view's content coordinates. */
     public final Marquee marquee = new Marquee();
@@ -95,8 +101,6 @@ public class UIFormList extends UIElement
 
     /** A header pressed but not yet released: a release without a drag collapses it. */
     private UIFormCategory pressedHeader;
-
-    private final DoubleClick<Form> doubleClick = new DoubleClick<>(true);
 
     /* The quick action under the cursor this frame, and where its label goes */
     private CellAction hoveredAction;
@@ -232,13 +236,12 @@ public class UIFormList extends UIElement
         this.afterSearchLayout();
     }
 
+    /** Lay every category out again — the cell size, the search or the width changed. */
     private void afterSearchLayout()
     {
-        int columnW = Math.max(this.getCellSize(), this.forms.area.w);
-
         for (UIFormCategory category : this.categories)
         {
-            category.refreshLayoutForSearch(columnW);
+            category.setCellSize(this.getCellSize());
         }
 
         this.resize();
@@ -420,7 +423,7 @@ public class UIFormList extends UIElement
     {
         for (UIFormCategory category : this.categories)
         {
-            if (FormSelection.identityIndex(category.category.getForms(), form) != -1)
+            if (this.selection.indexOf(category.category.getForms(), form) != -1)
             {
                 return category.category;
             }
@@ -432,7 +435,7 @@ public class UIFormList extends UIElement
     /** Whether every picked form lives in a category the user may take it out of. */
     public boolean canModifySelection()
     {
-        for (Form form : this.selection.getForms())
+        for (Form form : this.selection.getItems())
         {
             FormCategory category = this.categoryOf(form);
 
@@ -447,7 +450,7 @@ public class UIFormList extends UIElement
 
     public void copySelectionTo(FormCategory to, boolean move)
     {
-        for (Form form : new ArrayList<>(this.selection.getForms()))
+        for (Form form : new ArrayList<>(this.selection.getItems()))
         {
             FormCategory from = this.categoryOf(form);
 
@@ -467,7 +470,7 @@ public class UIFormList extends UIElement
 
     public void removeSelection()
     {
-        for (Form form : new ArrayList<>(this.selection.getForms()))
+        for (Form form : new ArrayList<>(this.selection.getItems()))
         {
             FormCategory from = this.categoryOf(form);
 
@@ -486,19 +489,15 @@ public class UIFormList extends UIElement
      */
     public void reconcile()
     {
-        List<FormCategory> models = new ArrayList<>();
-
         for (UIFormCategory category : this.categories)
         {
-            models.add(category.category);
-
-            if (category.selected != null && FormSelection.identityIndex(category.category.getForms(), category.selected) == -1)
+            if (category.selected != null && this.selection.indexOf(category.category.getForms(), category.selected) == -1)
             {
                 category.selected = null;
             }
         }
 
-        this.selection.retain(models);
+        this.selection.retain((form) -> this.categoryOf(form) != null);
     }
 
     /* Pointer, reported by categories */
@@ -509,7 +508,7 @@ public class UIFormList extends UIElement
         this.marqueeCategory = category;
         this.marqueeForm = form;
         this.marqueeBase.clear();
-        this.marqueeBase.addAll(this.selection.getForms());
+        this.marqueeBase.addAll(this.selection.getItems());
         this.marquee.press(context.mouseX - this.forms.area.x, context.mouseY - this.forms.area.y);
     }
 
@@ -562,51 +561,19 @@ public class UIFormList extends UIElement
         this.marqueeBase.clear();
     }
 
-    public void pressForm(UIFormCategory category, Form form, List<Form> order, UIContext context)
-    {
-        if (Window.isCtrlPressed())
-        {
-            this.selection.toggle(form, category.category);
-        }
-        else
-        {
-            boolean twice = this.doubleClick.hit(form);
-
-            /* A plain click on one of several picked forms keeps the group, so it can be
-             * dragged as a whole; anywhere else it starts a new one */
-            if (!this.selection.contains(form) || !this.selection.isGroup())
-            {
-                this.selection.set(form, category.category);
-            }
-
-            category.select(form, true);
-
-            if (twice)
-            {
-                this.palette.confirm();
-
-                return;
-            }
-        }
-
-        List<Form> payload = this.selection.contains(form) ? new ArrayList<>(this.selection.getForms()) : Collections.singletonList(form);
-
-        this.drag.pressForms(payload, category.category, context.globalX(context.mouseX), context.globalY(context.mouseY));
-    }
-
+    /**
+     * A header went down: on release it collapses, unless the cursor travelled — then a user
+     * category is carried. The gesture is tracked in global coordinates, as the list (not
+     * the category, whose mouse is shifted by the scrolling) feeds it every frame.
+     */
     public void pressHeader(UIFormCategory category, UIContext context)
     {
         this.pressedHeader = category;
 
         if (category.category instanceof UserFormCategory user)
         {
-            this.drag.pressCategory(user, context.globalX(context.mouseX), context.globalY(context.mouseY));
+            this.categoryDrag.start(Collections.singletonList(user), context.globalX(context.mouseX), context.globalY(context.mouseY));
         }
-    }
-
-    public void clickEmpty()
-    {
-        this.selection.clear();
     }
 
     public void runAction(UIFormCategory category, Form form, CellAction action)
@@ -623,13 +590,13 @@ public class UIFormList extends UIElement
             }
             case DUPLICATE ->
             {
-                for (Form f : group ? new ArrayList<>(this.selection.getForms()) : Collections.singletonList(form))
+                for (Form f : group ? new ArrayList<>(this.selection.getItems()) : Collections.singletonList(form))
                 {
                     FormCategory from = this.categoryOf(f);
 
                     if (from != null && from.canModify(f))
                     {
-                        from.insertForm(FormSelection.identityIndex(from.getForms(), f) + 1, FormUtils.copy(f));
+                        from.insertForm(this.selection.indexOf(from.getForms(), f) + 1, FormUtils.copy(f));
                     }
                 }
             }
@@ -660,7 +627,11 @@ public class UIFormList extends UIElement
         return this.pressedHeader;
     }
 
-    /** The button went up: finish the drag if one is on, and forget whatever was pressed. */
+    /**
+     * The button went up: finish what the list itself tracks — the band and a carried
+     * category — and forget whatever was pressed. A drag of forms is the grids' own; the one
+     * that sees the release resolves it through {@link #dropForms}.
+     */
     private void release()
     {
         if (this.marquee.isPressed())
@@ -668,13 +639,13 @@ public class UIFormList extends UIElement
             this.releaseMarquee();
         }
 
-        if (this.drag.isActive())
+        if (this.categoryDrag.isActive())
         {
-            this.drop();
+            this.dropCategory();
         }
 
         this.pressedHeader = null;
-        this.drag.reset();
+        this.categoryDrag.reset();
     }
 
     @Override
@@ -687,36 +658,17 @@ public class UIFormList extends UIElement
 
     /* Drop */
 
-    private void drop()
-    {
-        UIFormCategory target = this.drag.getTarget();
-
-        if (target == null)
-        {
-            return;
-        }
-
-        if (this.drag.getKind() == FormDrag.Kind.FORMS)
-        {
-            this.dropForms(target, this.drag.getInsertion());
-        }
-        else
-        {
-            this.dropCategory(target, this.drag.getInsertion());
-        }
-    }
-
     /**
      * Forms dropped into a category land before the form that was at the caret — the same
      * form for every one of them, so a group keeps its order. Within their own category they
      * are rearranged (when its order is manual); from another they move if that category can
      * let them go and copy otherwise. Ctrl always copies.
      */
-    private void dropForms(UIFormCategory target, int insertion)
+    public void dropForms(UIFormCategory target, int insertion, List<Form> forms)
     {
         FormCategory into = target.category;
 
-        if (!into.canModify(null))
+        if (!into.canModify(null) || insertion < 0)
         {
             return;
         }
@@ -726,7 +678,7 @@ public class UIFormList extends UIElement
 
         for (int i = insertion; i < view.size(); i++)
         {
-            if (!this.drag.isDragging(view.get(i)))
+            if (this.selection.indexOf(forms, view.get(i)) == -1)
             {
                 before = view.get(i);
 
@@ -737,10 +689,10 @@ public class UIFormList extends UIElement
         boolean copy = Window.isCtrlPressed();
         boolean rearrangeable = into.getSort().isRearrangeable();
 
-        for (Form form : this.drag.getForms())
+        for (Form form : forms)
         {
             FormCategory from = this.categoryOf(form);
-            int index = before == null || !rearrangeable ? into.getForms().size() : FormSelection.identityIndex(into.getForms(), before);
+            int index = before == null || !rearrangeable ? into.getForms().size() : this.selection.indexOf(into.getForms(), before);
 
             if (from == into && !copy)
             {
@@ -766,16 +718,17 @@ public class UIFormList extends UIElement
         this.reconcile();
     }
 
-    private void dropCategory(UIFormCategory target, int insertion)
+    /** The carried category lands above (insertion 0) or below (1) the category it was dropped on. */
+    private void dropCategory()
     {
-        if (!(target.category instanceof UserFormCategory user))
+        if (!(this.categoryDrag.getTarget() instanceof UIFormCategory target) || !(target.category instanceof UserFormCategory user))
         {
             return;
         }
 
         UserFormSection section = BBSModClient.getFormCategories().getUserForms();
 
-        section.moveUserCategory(this.drag.getCategory(), section.categories.indexOf(user) + insertion);
+        section.moveUserCategory(this.categoryDrag.getItems().get(0), section.categories.indexOf(user) + this.categoryDrag.getInsertion());
     }
 
     /* Scrolling */
@@ -823,7 +776,7 @@ public class UIFormList extends UIElement
 
     private void autoScroll(UIContext context)
     {
-        if (this.drag.isActive())
+        if (this.drag.isActive() || this.categoryDrag.isActive())
         {
             this.forms.scroll.autoScrollAt(context.mouseX, context.mouseY, Scroll.AUTO_SCROLL_EDGE, Scroll.AUTO_SCROLL_SPEED);
         }
@@ -854,16 +807,16 @@ public class UIFormList extends UIElement
         }
 
         /* A release swallowed by another element (a button, an overlay) must not leave a
-         * drag hanging on the cursor */
-        if ((this.drag.isPressed() || this.pressedHeader != null || this.marquee.isPressed()) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
+         * gesture hanging on the cursor; the grids guard their drag of forms the same way */
+        if ((this.categoryDrag.isPressed() || this.pressedHeader != null || this.marquee.isPressed()) && !Window.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT))
         {
             this.release();
         }
 
         this.marquee.update(context.mouseX - this.forms.area.x, context.mouseY - this.forms.area.y + (int) this.forms.scroll.getScroll());
         this.applyMarquee();
-        this.drag.update(context.mouseX, context.mouseY);
-        this.drag.clearTarget();
+        this.categoryDrag.update(context.mouseX, context.mouseY);
+        this.categoryDrag.clearTarget();
         this.hoveredAction = null;
         this.autoScroll(context);
 
@@ -895,7 +848,7 @@ public class UIFormList extends UIElement
             CellActionBar.renderLabel(context, this.hoveredAction, this.hoveredActionX, this.hoveredActionY);
         }
 
-        if (this.drag.isActive())
+        if (this.drag.isActive() || this.categoryDrag.isActive())
         {
             this.renderGhost(context);
         }
@@ -948,23 +901,29 @@ public class UIFormList extends UIElement
         }
     }
 
-    /** What's being carried, drawn beside the cursor: a small stack of the forms, or the category's name. */
+    /**
+     * What's being carried, drawn beside the cursor: a small stack of the forms, or the
+     * category's name. The grids sit inside the scroll view's clip, so the list draws it
+     * for them, after everything else.
+     */
     private void renderGhost(UIContext context)
     {
         Batcher2D batcher = context.batcher;
         int primary = BBSSettings.primaryColor.get();
         int x = context.mouseX + 10;
         int y = context.mouseY + 10;
-        boolean landing = this.drag.getTarget() != null;
 
-        if (this.drag.getKind() == FormDrag.Kind.CATEGORY)
+        if (this.categoryDrag.isActive())
         {
-            batcher.textCard(this.drag.getCategory().getProcessedTitle(), x + 4, y + 4, Colors.WHITE, landing ? Colors.A100 | primary : Colors.A75, 4);
+            boolean landing = this.categoryDrag.getTarget() != null;
+
+            batcher.textCard(this.categoryDrag.getItems().get(0).getProcessedTitle(), x + 4, y + 4, Colors.WHITE, landing ? Colors.A100 | primary : Colors.A75, 4);
 
             return;
         }
 
-        List<Form> forms = this.drag.getForms();
+        List<Form> forms = this.drag.getItems();
+        boolean landing = this.drag.getTarget() != null;
         int size = Math.min(this.getCellSize(), 48);
         int h = FormGridLayout.cellHeightFor(size);
 
@@ -987,7 +946,7 @@ public class UIFormList extends UIElement
             return true;
         }
 
-        for (Form form : this.drag.getForms())
+        for (Form form : this.drag.getItems())
         {
             FormCategory from = this.categoryOf(form);
 
