@@ -322,6 +322,15 @@ public class Draw
      */
     public static void arc3D(BufferBuilder builder, MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b, float startDeg, float sweepDeg)
     {
+        arc3D(builder, stack, axis, radius, thickness, r, g, b, startDeg, sweepDeg, 1F);
+    }
+
+    /**
+     * Arc with an explicit alpha, so a caller can fade the tube (the gizmo's rings ride
+     * the opacity setting this way).
+     */
+    public static void arc3D(BufferBuilder builder, MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b, float startDeg, float sweepDeg, float a)
+    {
         int segU = 96;
         int segV = 24;
         double u0 = Math.toRadians(startDeg);
@@ -364,13 +373,13 @@ public class Draw
                 float z22 = (float) (cos2 * Math.sin(u2));
                 float y22 = (float) (tubeR * Math.sin(v2));
 
-                builder.vertex(mat, x11, y11, z11).color(r, g, b, 1F);
-                builder.vertex(mat, x12, y12, z12).color(r, g, b, 1F);
-                builder.vertex(mat, x22, y22, z22).color(r, g, b, 1F);
+                builder.vertex(mat, x11, y11, z11).color(r, g, b, a);
+                builder.vertex(mat, x12, y12, z12).color(r, g, b, a);
+                builder.vertex(mat, x22, y22, z22).color(r, g, b, a);
 
-                builder.vertex(mat, x11, y11, z11).color(r, g, b, 1F);
-                builder.vertex(mat, x22, y22, z22).color(r, g, b, 1F);
-                builder.vertex(mat, x21, y21, z21).color(r, g, b, 1F);
+                builder.vertex(mat, x11, y11, z11).color(r, g, b, a);
+                builder.vertex(mat, x22, y22, z22).color(r, g, b, a);
+                builder.vertex(mat, x21, y21, z21).color(r, g, b, a);
             }
         }
 

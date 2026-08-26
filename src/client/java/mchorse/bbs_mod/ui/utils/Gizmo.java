@@ -232,6 +232,37 @@ public class Gizmo
         return gizmoLayer;
     }
 
+    /**
+     * The gizmo opacity setting, folded into the vertex alpha of every visual draw.
+     *
+     * <p>Until 1.21.5 the modulator rode on {@code RenderSystem.setShaderColor}, which
+     * tinted the whole pass at once; the GPU-pipeline rewrite removed it, so each draw
+     * now carries the factor itself. Only the visual passes take it — the pick stencil
+     * writes IDs, not colour.
+     */
+    private static float opacity()
+    {
+        return BBSSettings.gizmoOpacity.get();
+    }
+
+    /**
+     * {@link Draw#fillBox} with the gizmo opacity folded in. Mirrors the int overload's
+     * "no alpha byte means opaque" convention, since the axis colours ({@link Colors#RED}
+     * and friends) are stored without one.
+     */
+    private static void fillBox(BufferBuilder builder, MatrixStack stack, float x1, float y1, float z1, float x2, float y2, float z2, int color)
+    {
+        float alpha = Colors.getA(color);
+
+        if (alpha <= 0F)
+        {
+            alpha = 1F;
+        }
+
+        Draw.fillBox(builder, stack, x1, y1, z1, x2, y2, z2,
+            Colors.getR(color), Colors.getG(color), Colors.getB(color), alpha * opacity());
+    }
+
     /** Start a POSITION_COLOR / TRIANGLES buffer for the gizmo geometry. */
     private static BufferBuilder begin()
     {
@@ -956,8 +987,8 @@ public class Gizmo
          * pipeline is NO_DEPTH (the original depthFunc(GL_ALWAYS) behaviour), so the handles draw
          * flat-on-top as they always have on this branch. Restoring the sorted look means a second,
          * depth-tested gizmo pipeline plus a depth-prime variant. The opacity modulator
-         * (BBSSettings.gizmoOpacity) rode on setShaderColor and is likewise unavailable — the ring
-         * draws already fold it into their own alpha. */
+         * (BBSSettings.gizmoOpacity) also rode on setShaderColor; it is carried per-draw now, see
+         * {@link #opacity()}. */
         this.drawAxes(stack, 0.25F, 0.008F);
         this.drawRotatePieIfActive(stack);
     }
@@ -1055,6 +1086,8 @@ public class Gizmo
         float r = Colors.getR(color);
         float g = Colors.getG(color);
         float b = Colors.getB(color);
+        float fillAlpha = 0.25F * opacity();
+        float edgeAlpha = opacity();
 
         /* Blend and no-cull are encoded by the gizmo pipeline the flush below submits to. */
         /* No sign fold: viewScreenSweepRad() is already the PIXEL-space sweep (ViewRotateDrag
@@ -1073,9 +1106,9 @@ public class Gizmo
             this.pieRim(p1, right, down, startRad + step * i, 1F);
             this.pieRim(p2, right, down, startRad + step * (i + 1), 1F);
 
-            builder.vertex(mat, 0, 0, 0).color(r, g, b, 0.25F);
-            builder.vertex(mat, p1.x, p1.y, p1.z).color(r, g, b, 0.25F);
-            builder.vertex(mat, p2.x, p2.y, p2.z).color(r, g, b, 0.25F);
+            builder.vertex(mat, 0, 0, 0).color(r, g, b, fillAlpha);
+            builder.vertex(mat, p1.x, p1.y, p1.z).color(r, g, b, fillAlpha);
+            builder.vertex(mat, p2.x, p2.y, p2.z).color(r, g, b, fillAlpha);
         }
 
         flush(builder);
@@ -1084,8 +1117,8 @@ public class Gizmo
          * right/down already carry the radius, so radius/thickness are in ring units here. */
         float thickness = 0.005F / 0.22F / VIEW_RING_SCALE;
         builder = begin();
-        this.pieEdge(builder, mat, right, down, startRad, 1F, thickness, r, g, b);
-        this.pieEdge(builder, mat, right, down, startRad + sweepRad, 1F, thickness, r, g, b);
+        this.pieEdge(builder, mat, right, down, startRad, 1F, thickness, r, g, b, edgeAlpha);
+        this.pieEdge(builder, mat, right, down, startRad + sweepRad, 1F, thickness, r, g, b, edgeAlpha);
         flush(builder);
     }
 
@@ -1101,7 +1134,7 @@ public class Gizmo
 
     /** One radial boundary line of the view pie: a thin quad from centre to the rim at
      *  screen {@code angle}, built from the screen right/down basis. */
-    private void pieEdge(BufferBuilder builder, Matrix4f mat, Vector3f right, Vector3f down, float angle, float radius, float thickness, float r, float g, float b)
+    private void pieEdge(BufferBuilder builder, Matrix4f mat, Vector3f right, Vector3f down, float angle, float radius, float thickness, float r, float g, float b, float a)
     {
         Vector3f rim = new Vector3f();
         Vector3f perp = new Vector3f();
@@ -1109,13 +1142,13 @@ public class Gizmo
         this.pieRim(rim, right, down, angle, radius);
         this.pieRim(perp, right, down, angle + (float) (Math.PI / 2D), thickness);
 
-        builder.vertex(mat, perp.x, perp.y, perp.z).color(r, g, b, 1F);
-        builder.vertex(mat, -perp.x, -perp.y, -perp.z).color(r, g, b, 1F);
-        builder.vertex(mat, rim.x - perp.x, rim.y - perp.y, rim.z - perp.z).color(r, g, b, 1F);
+        builder.vertex(mat, perp.x, perp.y, perp.z).color(r, g, b, a);
+        builder.vertex(mat, -perp.x, -perp.y, -perp.z).color(r, g, b, a);
+        builder.vertex(mat, rim.x - perp.x, rim.y - perp.y, rim.z - perp.z).color(r, g, b, a);
 
-        builder.vertex(mat, perp.x, perp.y, perp.z).color(r, g, b, 1F);
-        builder.vertex(mat, rim.x - perp.x, rim.y - perp.y, rim.z - perp.z).color(r, g, b, 1F);
-        builder.vertex(mat, rim.x + perp.x, rim.y + perp.y, rim.z + perp.z).color(r, g, b, 1F);
+        builder.vertex(mat, perp.x, perp.y, perp.z).color(r, g, b, a);
+        builder.vertex(mat, rim.x - perp.x, rim.y - perp.y, rim.z - perp.z).color(r, g, b, a);
+        builder.vertex(mat, rim.x + perp.x, rim.y + perp.y, rim.z + perp.z).color(r, g, b, a);
     }
 
     private float getAxesDistanceScale(MatrixStack stack)
@@ -1150,17 +1183,17 @@ public class Gizmo
 
         if (debugIndex == STENCIL_X || debugIndex == STENCIL_XZ || debugIndex == STENCIL_XY)
         {
-            Draw.fillBox(builder, stack, -size, -t, -t, size, t, t, Colors.RED);
+            fillBox(builder, stack, -size, -t, -t, size, t, t, Colors.RED);
         }
 
         if (debugIndex == STENCIL_Y || debugIndex == STENCIL_XY || debugIndex == STENCIL_ZY)
         {
-            Draw.fillBox(builder, stack, -t, -size, -t, t, size, t, Colors.GREEN);
+            fillBox(builder, stack, -t, -size, -t, t, size, t, Colors.GREEN);
         }
 
         if (debugIndex == STENCIL_Z || debugIndex == STENCIL_XZ || debugIndex == STENCIL_ZY)
         {
-            Draw.fillBox(builder, stack, -t, -t, -size, t, t, size, Colors.BLUE);
+            fillBox(builder, stack, -t, -t, -size, t, t, size, Colors.BLUE);
         }
 
         flush(builder);
@@ -1278,7 +1311,7 @@ public class Gizmo
      * <p>1.21.11: submitted through the gizmo {@link RenderLayer} ({@link #begin}/{@link #flush})
      * instead of {@code setShader(getPositionColorProgram)} + {@code drawWithGlobalProgram}.
      */
-    private void drawOccludedRing(MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b)
+    private void drawOccludedRing(MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b, float a)
     {
         Vector2f arc = new Vector2f();
 
@@ -1289,7 +1322,7 @@ public class Gizmo
 
         BufferBuilder builder = begin();
 
-        Draw.arc3D(builder, stack, axis, radius, thickness, r, g, b, arc.x, arc.y);
+        Draw.arc3D(builder, stack, axis, radius, thickness, r, g, b, arc.x, arc.y, a);
         flush(builder);
     }
 
@@ -1321,9 +1354,7 @@ public class Gizmo
 
         BufferBuilder builder = begin();
 
-        /* Draw.arc3D has no alpha parameter; the view ring is drawn at full colour and its
-         * opacity is carried by the gizmo pipeline's translucent blend. */
-        Draw.arc3D(builder, stack, Axis.Y, radius, thickness, r, g, b, 0F, 360F);
+        Draw.arc3D(builder, stack, Axis.Y, radius, thickness, r, g, b, 0F, 360F, a);
         flush(builder);
 
         stack.pop();
@@ -1399,7 +1430,8 @@ public class Gizmo
         float r = Colors.getR(color);
         float g = Colors.getG(color);
         float b = Colors.getB(color);
-        float a = 0.25F;
+        float a = 0.25F * opacity();
+        float edgeAlpha = opacity();
 
         Matrix4f mat = stack.peek().getPositionMatrix();
 
@@ -1448,22 +1480,22 @@ public class Gizmo
 
         Vector3f p1 = new Vector3f(-sz, 0, sx).normalize().mul(lineThickness);
 
-        builder.vertex(mat, p1.x, 0, p1.z).color(r, g, b, 1F);
-        builder.vertex(mat, -p1.x, 0, -p1.z).color(r, g, b, 1F);
-        builder.vertex(mat, sx - p1.x, 0, sz - p1.z).color(r, g, b, 1F);
+        builder.vertex(mat, p1.x, 0, p1.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, -p1.x, 0, -p1.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, sx - p1.x, 0, sz - p1.z).color(r, g, b, edgeAlpha);
 
-        builder.vertex(mat, p1.x, 0, p1.z).color(r, g, b, 1F);
-        builder.vertex(mat, sx - p1.x, 0, sz - p1.z).color(r, g, b, 1F);
-        builder.vertex(mat, sx + p1.x, 0, sz + p1.z).color(r, g, b, 1F);
+        builder.vertex(mat, p1.x, 0, p1.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, sx - p1.x, 0, sz - p1.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, sx + p1.x, 0, sz + p1.z).color(r, g, b, edgeAlpha);
 
         Vector3f p2 = new Vector3f(-ez, 0, ex).normalize().mul(lineThickness);
-        builder.vertex(mat, p2.x, 0, p2.z).color(r, g, b, 1F);
-        builder.vertex(mat, -p2.x, 0, -p2.z).color(r, g, b, 1F);
-        builder.vertex(mat, ex - p2.x, 0, ez - p2.z).color(r, g, b, 1F);
+        builder.vertex(mat, p2.x, 0, p2.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, -p2.x, 0, -p2.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, ex - p2.x, 0, ez - p2.z).color(r, g, b, edgeAlpha);
 
-        builder.vertex(mat, p2.x, 0, p2.z).color(r, g, b, 1F);
-        builder.vertex(mat, ex - p2.x, 0, ez - p2.z).color(r, g, b, 1F);
-        builder.vertex(mat, ex + p2.x, 0, ez + p2.z).color(r, g, b, 1F);
+        builder.vertex(mat, p2.x, 0, p2.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, ex - p2.x, 0, ez - p2.z).color(r, g, b, edgeAlpha);
+        builder.vertex(mat, ex + p2.x, 0, ez + p2.z).color(r, g, b, edgeAlpha);
 
         flush(builder);
 
@@ -1568,9 +1600,11 @@ public class Gizmo
          * used (X → rotateZ 90°, Z → rotateX 90°, Y → none). */
         if (!BBSSettings.rotateHideRings.get())
         {
-            if (active == null || active == Handle.ROTATE_Z) this.drawOccludedRing(stack, Axis.Z, radius, thicknessRing, dimmed(Colors.getR(Colors.BLUE), constrained), dimmed(Colors.getG(Colors.BLUE), constrained), dimmed(Colors.getB(Colors.BLUE), constrained));
-            if (active == null || active == Handle.ROTATE_X) this.drawOccludedRing(stack, Axis.X, radius, thicknessRing, dimmed(Colors.getR(Colors.RED), constrained), dimmed(Colors.getG(Colors.RED), constrained), dimmed(Colors.getB(Colors.RED), constrained));
-            if (active == null || active == Handle.ROTATE_Y) this.drawOccludedRing(stack, Axis.Y, radius, thicknessRing, dimmed(Colors.getR(Colors.GREEN), constrained), dimmed(Colors.getG(Colors.GREEN), constrained), dimmed(Colors.getB(Colors.GREEN), constrained));
+            float ringAlpha = opacity();
+
+            if (active == null || active == Handle.ROTATE_Z) this.drawOccludedRing(stack, Axis.Z, radius, thicknessRing, dimmed(Colors.getR(Colors.BLUE), constrained), dimmed(Colors.getG(Colors.BLUE), constrained), dimmed(Colors.getB(Colors.BLUE), constrained), ringAlpha);
+            if (active == null || active == Handle.ROTATE_X) this.drawOccludedRing(stack, Axis.X, radius, thicknessRing, dimmed(Colors.getR(Colors.RED), constrained), dimmed(Colors.getG(Colors.RED), constrained), dimmed(Colors.getB(Colors.RED), constrained), ringAlpha);
+            if (active == null || active == Handle.ROTATE_Y) this.drawOccludedRing(stack, Axis.Y, radius, thicknessRing, dimmed(Colors.getR(Colors.GREEN), constrained), dimmed(Colors.getG(Colors.GREEN), constrained), dimmed(Colors.getB(Colors.GREEN), constrained), ringAlpha);
         }
 
         /* The screen-space (billboard) view-rotation ring is intentionally excluded from the
@@ -1578,7 +1612,7 @@ public class Gizmo
         if (active == null || active == Handle.VIEW)
         {
             int color = Colors.LIGHTEST_GRAY;
-            float alpha = Colors.getA(color) * BBSSettings.gizmoOpacity.get() * (constrained ? 0.35F : 1F);
+            float alpha = Colors.getA(color) * opacity() * (constrained ? 0.35F : 1F);
 
             this.drawBillboardRing(stack, radius, thicknessRing, Colors.getR(color), Colors.getG(color), Colors.getB(color), alpha);
         }
@@ -1628,9 +1662,9 @@ public class Gizmo
             Handle planeXY = showMove ? Handle.MOVE_XY : Handle.SCALE_XY;
             Handle planeZY = showMove ? Handle.MOVE_ZY : Handle.SCALE_ZY;
 
-            if (active == null || active == barX) Draw.fillBox(builder, stack, 0, -axisOffset, -axisOffset, axisSize, axisOffset, axisOffset, Colors.RED);
-            if (active == null || active == barY) Draw.fillBox(builder, stack, -axisOffset, 0, -axisOffset, axisOffset, axisSize, axisOffset, Colors.GREEN);
-            if (active == null || active == barZ) Draw.fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, Colors.BLUE);
+            if (active == null || active == barX) fillBox(builder, stack, 0, -axisOffset, -axisOffset, axisSize, axisOffset, axisOffset, Colors.RED);
+            if (active == null || active == barY) fillBox(builder, stack, -axisOffset, 0, -axisOffset, axisOffset, axisSize, axisOffset, Colors.GREEN);
+            if (active == null || active == barZ) fillBox(builder, stack, -axisOffset, -axisOffset, 0, axisOffset, axisOffset, axisSize, Colors.BLUE);
 
             /* Screen-space (view-plane) translate handle: a white cube at the centre, twice the bars'
              * thickness. Drawn before the planes so they overlay it, and after the rotation sphere (above)
@@ -1639,7 +1673,7 @@ public class Gizmo
             {
                 float screenHalf = SCREEN_CUBE_HALF * scale * thickness;
 
-                Draw.fillBox(builder, stack, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, Colors.WHITE);
+                fillBox(builder, stack, -screenHalf, -screenHalf, -screenHalf, screenHalf, screenHalf, screenHalf, Colors.WHITE);
             }
 
             /* Uniform-scale handle: the same centre cube, shown in scale mode only when
@@ -1649,7 +1683,7 @@ public class Gizmo
             {
                 float scaleAllHalf = SCREEN_CUBE_HALF * scale * thickness;
 
-                Draw.fillBox(builder, stack, -scaleAllHalf, -scaleAllHalf, -scaleAllHalf, scaleAllHalf, scaleAllHalf, scaleAllHalf, Colors.WHITE);
+                fillBox(builder, stack, -scaleAllHalf, -scaleAllHalf, -scaleAllHalf, scaleAllHalf, scaleAllHalf, scaleAllHalf, Colors.WHITE);
             }
 
             /* The plane quad's footprint is a fixed fraction of the axis length,
@@ -1659,17 +1693,17 @@ public class Gizmo
             float planeEnd = planeStart + axisSize * 0.2F;
             float planeThickness = axisOffset * 0.5F;
 
-            if (active == null || active == planeXZ) Draw.fillBox(builder, stack, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.PLANE_XZ);
-            if (active == null || active == planeXY) Draw.fillBox(builder, stack, planeStart, planeStart, -planeThickness, planeEnd, planeEnd, planeThickness, Colors.PLANE_XY);
-            if (active == null || active == planeZY) Draw.fillBox(builder, stack, -planeThickness, planeStart, planeStart, planeThickness, planeEnd, planeEnd, Colors.PLANE_ZY);
+            if (active == null || active == planeXZ) fillBox(builder, stack, planeStart, -planeThickness, planeStart, planeEnd, planeThickness, planeEnd, Colors.PLANE_XZ);
+            if (active == null || active == planeXY) fillBox(builder, stack, planeStart, planeStart, -planeThickness, planeEnd, planeEnd, planeThickness, Colors.PLANE_XY);
+            if (active == null || active == planeZY) fillBox(builder, stack, -planeThickness, planeStart, planeStart, planeThickness, planeEnd, planeEnd, Colors.PLANE_ZY);
 
             if (showScale)
             {
                 float cubeHalf = SCALE_CUBE_HALF * scale * thickness;
 
-                if (active == null || active == Handle.SCALE_X) Draw.fillBox(builder, stack, axisSize - cubeHalf, -cubeHalf, -cubeHalf, axisSize + cubeHalf, cubeHalf, cubeHalf, Colors.RED);
-                if (active == null || active == Handle.SCALE_Y) Draw.fillBox(builder, stack, -cubeHalf, axisSize - cubeHalf, -cubeHalf, cubeHalf, axisSize + cubeHalf, cubeHalf, Colors.GREEN);
-                if (active == null || active == Handle.SCALE_Z) Draw.fillBox(builder, stack, -cubeHalf, -cubeHalf, axisSize - cubeHalf, cubeHalf, cubeHalf, axisSize + cubeHalf, Colors.BLUE);
+                if (active == null || active == Handle.SCALE_X) fillBox(builder, stack, axisSize - cubeHalf, -cubeHalf, -cubeHalf, axisSize + cubeHalf, cubeHalf, cubeHalf, Colors.RED);
+                if (active == null || active == Handle.SCALE_Y) fillBox(builder, stack, -cubeHalf, axisSize - cubeHalf, -cubeHalf, cubeHalf, axisSize + cubeHalf, cubeHalf, Colors.GREEN);
+                if (active == null || active == Handle.SCALE_Z) fillBox(builder, stack, -cubeHalf, -cubeHalf, axisSize - cubeHalf, cubeHalf, cubeHalf, axisSize + cubeHalf, Colors.BLUE);
             }
         }
 
@@ -1682,7 +1716,7 @@ public class Gizmo
                 building = true;
             }
 
-            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
+            fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
         }
 
         if (building)
