@@ -245,7 +245,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             this.ensureBaked();
 
             Color set = Color.white();
-            FormColorBlend.blend(set, this.form.color.get(), this.form.additiveColor.get());
+            FormColorBlend.blend(set, this.form.color.get());
 
             consumers.setUI(true);
             /* UI preview always uses the correct (non-fast) path */
@@ -326,7 +326,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             }
 
             COLOR.set(context.color);
-            FormColorBlend.blend(COLOR, this.form.color.get(), this.form.additiveColor.get());
+            FormColorBlend.blend(COLOR, this.form.color.get());
 
             this.ensureBaked();
 
