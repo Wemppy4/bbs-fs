@@ -362,6 +362,24 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV,
             contextColor, formColor, additive, true, null, transition, null);
 
+        /* Attached body parts. They hang off the bone matrices renderModel just captured and
+         * renderBodyParts clears that cache when it is done, so they draw here, inside the same
+         * push, right after the model — not from render(), which this preview path never enters.
+         *
+         * The normal matrix is flipped exactly as renderModel's `ui` branch flips its own: the UI
+         * framing scales Y negative, and a nested form drawn without the flip shades inside-out.
+         * The parts run through the ordinary FormRenderingContext, marked inUI, so every form type
+         * that can hang on a bone reaches its normal render3D. */
+        stack.push();
+        stack.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
+        stack.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
+
+        this.renderBodyParts(new FormRenderingContext()
+            .set(FormRenderType.ENTITY, this.entity, stack, LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV, transition)
+            .inUI());
+
+        stack.pop();
+
         stack.pop();
     }
 
