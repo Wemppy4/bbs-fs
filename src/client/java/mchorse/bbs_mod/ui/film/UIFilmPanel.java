@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film;
 
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.DataResult;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
@@ -13,12 +14,14 @@ import mchorse.bbs_mod.camera.controller.RunnerCameraController;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.renderer.MorphRenderer;
+import mchorse.bbs_mod.data.GameRegistries;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FrozenFilmController;
 import mchorse.bbs_mod.film.Recorder;
 import mchorse.bbs_mod.film.replays.Replay;
+import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -78,6 +81,9 @@ import mchorse.bbs_mod.utils.presets.PresetManager;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
@@ -1363,13 +1369,19 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         int replayId = recorder.exception;
         Replay rp = CollectionUtils.getSafe(film.replays.getList(), replayId);
 
+        probeEquipment("recorded", recorder.keyframes);
+
         recorder.keyframes.compressItemChannels();
+
+        probeEquipment("compressed", recorder.keyframes);
 
         if (rp != null)
         {
             BaseValue.edit(film, (f) ->
             {
                 rp.keyframes.copyOver(recorder.keyframes, 0);
+
+                probeEquipment("copied over", rp.keyframes);
 
                 Form form = rp.form.get();
 
@@ -1394,6 +1406,38 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
 
         this.applyRecordedMobs(recorder, film);
+    }
+
+    /* TODO(strip): recording probe. An enchanted helmet put on during a take reportedly never
+     * reaches the timeline while a plain one does; the first guess (the item codec refusing to
+     * encode registry-backed components without RegistryOps) did not fix it, so this dumps the
+     * head channel at every hop of the hand-over instead of guessing at a second one. Says, per
+     * keyframe: what the recorder captured, whether it survived the repeat-drop, what the
+     * toData/fromData round trip inside copyOver made of it, and whether the encode that round
+     * trip rides on actually succeeds here. */
+    private static void probeEquipment(String stage, ReplayKeyframes keyframes)
+    {
+        KeyframeChannel<ItemStack> head = keyframes.getEquipmentChannel(EquipmentSlot.HEAD);
+        StringBuilder builder = new StringBuilder("[BBS probe] ").append(stage)
+            .append(": head keys=").append(head.getKeyframes().size())
+            .append(", registries=").append(GameRegistries.lookup() == null ? "NONE" : "present")
+            .append(", ops=").append(GameRegistries.nbtOps().getClass().getSimpleName());
+
+        for (Keyframe<ItemStack> keyframe : head.getKeyframes())
+        {
+            ItemStack stack = keyframe.getValue();
+            DataResult<NbtElement> encoded = ItemStack.CODEC.encodeStart(GameRegistries.nbtOps(), stack);
+
+            builder.append("\n    t=").append(keyframe.getTick())
+                .append(" stack=").append(stack)
+                .append(" empty=").append(stack.isEmpty())
+                .append(" components=").append(stack.getComponentChanges())
+                .append(" encode=").append(encoded.result().isPresent()
+                    ? String.valueOf(encoded.result().get())
+                    : "ERROR " + encoded.error().map(DataResult.Error::message).orElse("?"));
+        }
+
+        System.out.println(builder);
     }
 
     /**
