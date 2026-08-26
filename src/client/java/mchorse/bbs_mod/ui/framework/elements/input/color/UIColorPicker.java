@@ -118,6 +118,14 @@ public class UIColorPicker extends UIElement
      */
     private final Color initial = new Color();
 
+    /**
+     * The color model the current layout was built for. Everything that paints or hits
+     * the surface reads this rather than the setting: the setting can change from another
+     * picker or the settings screen, and a popup laid out for one model must never be
+     * painted as the other. {@link #render} notices the drift and lays out again.
+     */
+    private boolean layoutHsv;
+
     /** Whether what's typed into the hex field can't be read as a color. */
     private boolean hexError;
 
@@ -231,7 +239,7 @@ public class UIColorPicker extends UIElement
     /** Show the current color in the numeric row, in the units of the model on show. */
     private void syncFields()
     {
-        boolean hsv = this.isHsvPicker();
+        boolean hsv = this.layoutHsv;
 
         this.fields.mode(hsv, this.editAlpha);
 
@@ -252,7 +260,7 @@ public class UIColorPicker extends UIElement
      */
     private void applyChannel(int channel, float value)
     {
-        if (this.isHsvPicker())
+        if (this.layoutHsv)
         {
             this.hsv.set(value, channel + 1);
             this.syncColorFromHsv();
@@ -520,6 +528,8 @@ public class UIColorPicker extends UIElement
     {
         PickerLayout layout = this.createLayout();
 
+        this.layoutHsv = layout.hsv;
+
         this.w(layout.width);
         this.h(layout.height);
 
@@ -559,6 +569,13 @@ public class UIColorPicker extends UIElement
         layout.surfaceHeight = layout.hsv ? this.hsvSize(layout.paletteWidth) : RGB_SLIDER_HEIGHT;
         layout.fieldsY = layout.surfaceY + layout.surfaceHeight + FIELDS_GAP;
         layout.paletteY = layout.fieldsY + FIELDS_HEIGHT + (layout.hsv ? HSV_SECTION_GAP : RGB_SECTION_GAP);
+
+        /* Both palettes are placed from the layout alone. Reading one's area to place the
+         * other would read it a layout late — the element's area only catches up with its
+         * flex in resize(), which runs after everything here. */
+        layout.favoriteY = layout.paletteY;
+        layout.recentY = layout.favoriteHeight > 0 ? layout.paletteY + layout.favoriteHeight + PALETTE_GAP : layout.paletteY;
+
         layout.height = layout.paletteY;
 
         if (layout.favoriteHeight > 0)
@@ -606,16 +623,8 @@ public class UIColorPicker extends UIElement
         }
 
         this.fields.set(contentX, this.area.y + layout.fieldsY, layout.paletteWidth, FIELDS_HEIGHT);
-        this.favorite.set(contentX, this.area.y + layout.paletteY, layout.paletteWidth, layout.favoriteHeight);
-
-        if (layout.favoriteHeight > 0 && layout.recentHeight > 0)
-        {
-            this.recent.set(contentX, this.favorite.area.ey() + PALETTE_GAP, layout.paletteWidth, layout.recentHeight);
-        }
-        else
-        {
-            this.recent.set(contentX, this.area.y + layout.paletteY, layout.paletteWidth, layout.recentHeight);
-        }
+        this.favorite.set(contentX, this.area.y + layout.favoriteY, layout.paletteWidth, layout.favoriteHeight);
+        this.recent.set(contentX, this.area.y + layout.recentY, layout.paletteWidth, layout.recentHeight);
     }
 
     /**
@@ -749,6 +758,12 @@ public class UIColorPicker extends UIElement
     @Override
     public void render(UIContext context)
     {
+        /* The setting may have been changed elsewhere while this popup was open */
+        if (this.layoutHsv != this.isHsvPicker())
+        {
+            this.resize();
+        }
+
         this.handleDragging(context);
 
         /* Before anything of this popup is painted: what the dropper sees is what's under it */
@@ -760,7 +775,7 @@ public class UIColorPicker extends UIElement
         this.renderBackground(context);
         this.renderPreview(context);
 
-        if (this.isHsvPicker())
+        if (this.layoutHsv)
         {
             this.renderHsv(context);
         }
@@ -794,7 +809,7 @@ public class UIColorPicker extends UIElement
 
     private boolean beginDragging(UIContext context)
     {
-        if (this.isHsvPicker())
+        if (this.layoutHsv)
         {
             if (this.picker.isInside(context))
             {
@@ -858,7 +873,7 @@ public class UIColorPicker extends UIElement
             return;
         }
 
-        if (this.isHsvPicker())
+        if (this.layoutHsv)
         {
             this.handleHsvDragging(context);
         }
@@ -1138,6 +1153,8 @@ public class UIColorPicker extends UIElement
         public int surfaceHeight;
         public int fieldsY;
         public int paletteY;
+        public int favoriteY;
+        public int recentY;
         public int recentHeight;
         public int favoriteHeight;
     }
