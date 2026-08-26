@@ -425,7 +425,7 @@ public class Batcher2D
             return;
         }
 
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             color = darkenWhite(color);
         }
@@ -448,7 +448,7 @@ public class Batcher2D
             return;
         }
 
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             color = darkenWhite(color);
         }
@@ -463,7 +463,7 @@ public class Batcher2D
 
     public void iconArea(Icon icon, int color, float x, float y, float w, float h)
     {
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             color = darkenWhite(color);
         }
@@ -611,7 +611,7 @@ public class Batcher2D
 
     public void text(String label, float x, float y, int color, boolean shadow)
     {
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             shadow = false;
             color = darkenWhite(color);
@@ -692,7 +692,7 @@ public class Batcher2D
 
         if (a != 0)
         {
-            if (BBSSettings.isLightTheme() && (background & 0xFFFFFF) == 0)
+            if (BBSSettings.lightSurfaces() && (background & 0xFFFFFF) == 0)
             {
                 background = (background & 0xFF000000) | 0xFFFFFF;
             }

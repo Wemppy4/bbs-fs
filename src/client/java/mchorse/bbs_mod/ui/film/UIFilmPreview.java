@@ -486,7 +486,7 @@ public class UIFilmPreview extends UIElement
             Area a = this.icons.area;
 
             /* Render icon bar */
-            int barShade = BBSSettings.isLightTheme() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
+            int barShade = BBSSettings.lightSurfaces() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
             context.batcher.gradientVBox(a.x, a.y, a.ex(), a.ey(), 0, barShade);
 
             if (this.panel.getController().isControlling())

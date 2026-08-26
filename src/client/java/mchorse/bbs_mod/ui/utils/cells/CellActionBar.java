@@ -27,7 +27,7 @@ public class CellActionBar
      */
     public static int ink(int alpha)
     {
-        return alpha | (BBSSettings.isLightTheme() ? 0 : 0xffffff);
+        return alpha | (BBSSettings.lightSurfaces() ? 0 : 0xffffff);
     }
 
     public static boolean fits(int cellWidth)
