@@ -338,7 +338,6 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         int ey = this.content.area.ey();
 
         context.batcher.box(x, y, x + SIDE_WIDTH, ey, BBSSettings.chromeSurface());
-        context.batcher.box(x + SIDE_WIDTH, y, x + SIDE_WIDTH + 1, ey, BBSSettings.dividerColor());
     }
 
     /**

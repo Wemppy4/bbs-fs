@@ -1026,7 +1026,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     private void renderOutOfRangeShading(UIContext context, BufferBuilder builder, Matrix4f matrix, Area area)
     {
         int timelineBottom = TimelineRulerRenderer.getTimelineBottom(area);
-        int contentY = Math.min(area.ey(), timelineBottom + 1);
+        int contentY = Math.min(area.ey(), timelineBottom);
 
         if (contentY >= area.ey())
         {
@@ -1054,9 +1054,6 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     {
         Area area = this.keyframes.area;
         int w = this.keyframes.getLabelWidth();
-
-        /* Render background */
-        context.batcher.box(area.x + w - 1, area.y, area.x + w, area.ey(), BBSSettings.dividerColor());
 
         context.batcher.clipBox(area.x, area.y, area.x + w, area.ey(), context);
 

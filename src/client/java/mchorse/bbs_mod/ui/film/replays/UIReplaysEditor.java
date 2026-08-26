@@ -260,7 +260,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         Scale scale = keyframes.getXAxis();
         boolean renderedOnce = false;
         int y = area.y + 1;
-        int h = Math.max(1, rulerBottom - y - 1);
+        int h = Math.max(1, rulerBottom - y);
 
         for (Clip clip : camera.get())
         {
@@ -325,7 +325,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         int left = Math.max(area.x, x1);
         int right = Math.min(area.ex(), x2);
         int top = area.y + 1;
-        int bottom = Math.max(top + 1, rulerBottom - 1);
+        int bottom = Math.max(top + 1, rulerBottom);
 
         context.batcher.gradientVBox(left, top, right, bottom, Colors.setA(color, 0.03F), Colors.setA(color, 0.78F));
         context.batcher.box(left, Math.max(top, bottom - 2), right, bottom, Colors.setA(color, 0.92F));

@@ -228,7 +228,8 @@ public class BBSSettings {
 	 * How far apart the levels sit came off a screenshot of Essential's
 	 * interface, whose dominant grey and the greys layered over it stand one
 	 * step apart — {@link #DEFAULT_SECONDARY_COLOR} reproduces that ramp
-	 * exactly (#131313, #181818, #1d1d1d, #222222, divider #2a2a2a). The step
+	 * exactly (#131313, #181818, #1d1d1d, #222222, divider #2a2a2a), with one
+	 * further rung below #131313 for the strips that sit under all of it. The step
 	 * is deliberately small: depth should be felt rather than announced, and a
 	 * dark interface that stays dark is easier to sit in front of for hours.
 	 */
@@ -236,13 +237,14 @@ public class BBSSettings {
 	private static final float SURFACE_STEP = 0.022F;
 	private static final float DIVIDER_STEP = 0.054F;
 
-	private static final int SURFACE_DEEP = 0;
-	private static final int SURFACE_CHROME = 1;
-	private static final int SURFACE_BASE = 2;
-	private static final int SURFACE_RAISED = 3;
-	private static final int SURFACE_DIVIDER = 4;
+	private static final int SURFACE_SUNKEN = 0;
+	private static final int SURFACE_DEEP = 1;
+	private static final int SURFACE_CHROME = 2;
+	private static final int SURFACE_BASE = 3;
+	private static final int SURFACE_RAISED = 4;
+	private static final int SURFACE_DIVIDER = 5;
 
-	private static final float[] SURFACE_OFFSETS = {-SURFACE_STEP * 2F, -SURFACE_STEP, 0F, SURFACE_STEP, DIVIDER_STEP};
+	private static final float[] SURFACE_OFFSETS = {-SURFACE_STEP * 3F, -SURFACE_STEP * 2F, -SURFACE_STEP, 0F, SURFACE_STEP, DIVIDER_STEP};
 
 	/**
 	 * The lightness past which the surfaces are bright enough that white icons
@@ -335,6 +337,16 @@ public class BBSSettings {
 	public static int deepSurface()
 	{
 		return surface(SURFACE_DEEP);
+	}
+
+	/**
+	 * One rung below {@link #deepSurface()}: the floor of the ladder, for the
+	 * strips that have to sit under everything the interface layers on top —
+	 * the timeline ruler being the one that asked for it.
+	 */
+	public static int sunkenSurface()
+	{
+		return surface(SURFACE_SUNKEN);
 	}
 
 	public static int dividerColor()
