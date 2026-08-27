@@ -169,7 +169,13 @@ public abstract class FormRenderer <T extends Form>
         matrix.mul(this.createTransform().createMatrix());
     }
 
-    protected Transform createTransform()
+    /**
+     * The form's own transform as it is actually rendered: its transform, its overlay and
+     * whatever else was hung on it. Public because the film's orbit camera attaches to this
+     * frame - what the camera follows has to be what the eye sees, not just where the replay
+     * stands.
+     */
+    public Transform createTransform()
     {
         Transform transform = new Transform();
 

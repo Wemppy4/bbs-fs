@@ -46,9 +46,14 @@ public class OrbitCamera
     protected int lastX;
     protected int lastY;
 
-    protected float low = 0.05F;
-    protected float normal = 0.25F;
-    protected float high = 1F;
+    /** What Alt, nothing and Ctrl make of an editor camera's speed. */
+    public static final float SPEED_LOW = 0.05F;
+    public static final float SPEED_NORMAL = 0.25F;
+    public static final float SPEED_HIGH = 1F;
+
+    protected float low = SPEED_LOW;
+    protected float normal = SPEED_NORMAL;
+    protected float high = SPEED_HIGH;
 
     protected Vector3d finalPosition = new Vector3d();
 
@@ -189,6 +194,18 @@ public class OrbitCamera
     public Vector3f getLook()
     {
         return Matrices.rotation(this.rotation.x, MathUtils.PI - this.rotation.y);
+    }
+
+    /**
+     * How far an editor camera turns per pixel of drag, the modifier keys included. It is the
+     * same everywhere one is dragged - the film's orbit and the model previews - so it is
+     * answered here rather than by each of them.
+     */
+    public static float dragAngleSpeed()
+    {
+        float factor = Window.isCtrlPressed() ? SPEED_HIGH : (Window.isAltPressed() ? SPEED_LOW : SPEED_NORMAL);
+
+        return 1 / 80F * BBSSettings.editorCameraAngleSpeed.get() * factor;
     }
 
     public float getAngleSpeed()
