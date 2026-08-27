@@ -207,6 +207,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             this.pickForm(l.get(0));
             this.updateFormListButtons();
         });
+        this.formsList.onReorder = this::dropBodyPart;
         this.formsList.context(this::createFormContextMenu);
         this.formsList.keys().register(Keys.COPY, () ->
         {
@@ -368,6 +369,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         this.add(this.renderer, this.formEditor, this.statesEditor, this.icons);
         this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
+        this.keys().register(Keys.FORMS_CENTER_CAMERA, this::centerCamera).strict();
         this.keys().register(Keys.FORMS_OPEN_STATES_EDITOR, () ->
         {
             if (!this.statesEditor.isVisible())
@@ -651,6 +653,18 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         this.forms.toggleVisible();
     }
 
+    /**
+     * Put the view back onto the middle of what is being edited, wherever it has been dragged
+     * off to - the same thing C does to the orbit of a film or of a model block.
+     */
+    private void centerCamera()
+    {
+        float height = this.form == null ? 1F : this.form.hitboxHeight.get();
+
+        this.renderer.focus(0F, height / 2F, 0F);
+        UIUtils.playClick();
+    }
+
     private void createFormContextMenu(ContextMenuManager menu)
     {
         UIForms.FormEntry current = this.formsList.getCurrentFirst();
@@ -673,29 +687,35 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             {
                 int index = all.indexOf(current.part);
 
-                if (index > 0) menu.action(Icons.ARROW_UP, UIKeys.FORMS_EDITOR_CONTEXT_MOVE_UP, () -> this.moveBodyPart(current, -1));
-                if (index < all.size() - 1) menu.action(Icons.ARROW_DOWN, UIKeys.FORMS_EDITOR_CONTEXT_MOVE_DOWN, () -> this.moveBodyPart(current, 1));
+                if (index > 0) menu.action(Icons.ARROW_UP, UIKeys.FORMS_EDITOR_CONTEXT_MOVE_UP, () -> this.moveBodyPart(current.part, index - 1));
+                if (index < all.size() - 1) menu.action(Icons.ARROW_DOWN, UIKeys.FORMS_EDITOR_CONTEXT_MOVE_DOWN, () -> this.moveBodyPart(current.part, index + 1));
             }
         }
     }
 
-    private void moveBodyPart(UIForms.FormEntry current, int direction)
+    /**
+     * Put a body part at a place among its siblings, wherever that place came from - the menu's
+     * step up or down, or a row carried there and let go.
+     *
+     * @param index where the part is to end up, counted with the part itself still in the list
+     */
+    private void moveBodyPart(BodyPart part, int index)
     {
-        BodyPartManager manager = current.part.getManager();
+        BodyPartManager manager = part.getManager();
         List<BodyPart> all = manager.getAllTyped();
-        int index = all.indexOf(current.part);
-        int newIndex = MathUtils.clamp(index + direction, 0, all.size() - 1);
+        int from = all.indexOf(part);
+        int newIndex = MathUtils.clamp(index, 0, all.size() - 1);
 
-        if (newIndex != index)
+        if (from != -1 && newIndex != from)
         {
-            manager.moveBodyPart(current.part, newIndex);
+            manager.moveBodyPart(part, newIndex);
             this.formsList.setForm(this.form);
 
             UIForms.FormEntry selection = null;
 
             for (UIForms.FormEntry entry : this.formsList.getList())
             {
-                if (entry.part == current.part)
+                if (entry.part == part)
                 {
                     selection = entry;
 
@@ -711,6 +731,19 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         }
 
         this.refillState();
+    }
+
+    /**
+     * A carried part was let go at a slot between its siblings. The slot counts the gaps, the
+     * move counts the parts: dropping past where the part already sits skips over the gap it
+     * left behind, so the slot is one ahead of the place it lands in.
+     */
+    private void dropBodyPart(BodyPart part, int slot)
+    {
+        List<BodyPart> all = part.getManager().getAllTyped();
+        int from = all.indexOf(part);
+
+        this.moveBodyPart(part, from != -1 && slot > from ? slot - 1 : slot);
     }
 
     private void addBodyPart(BodyPart part)
