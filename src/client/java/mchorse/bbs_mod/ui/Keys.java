@@ -98,6 +98,8 @@ public class Keys
     public static final KeyCombo PIXEL_COPY_HEX = new KeyCombo("copy_hex", UIKeys.TEXTURES_VIEWER_CONTEXT_COPY_HEX, GLFW.GLFW_KEY_C, GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
     public static final KeyCombo PIXEL_BRUSH_DEC = new KeyCombo("brush_dec", UIKeys.TEXTURES_KEYS_BRUSH_DEC, GLFW.GLFW_KEY_LEFT_BRACKET).repeatable().categoryKey("pixels");
     public static final KeyCombo PIXEL_BRUSH_INC = new KeyCombo("brush_inc", UIKeys.TEXTURES_KEYS_BRUSH_INC, GLFW.GLFW_KEY_RIGHT_BRACKET).repeatable().categoryKey("pixels");
+    public static final KeyCombo PIXEL_FRAME_PREV = new KeyCombo("frame_prev", UIKeys.TEXTURES_KEYS_FRAME_PREV, GLFW.GLFW_KEY_COMMA).repeatable().categoryKey("pixels");
+    public static final KeyCombo PIXEL_FRAME_NEXT = new KeyCombo("frame_next", UIKeys.TEXTURES_KEYS_FRAME_NEXT, GLFW.GLFW_KEY_PERIOD).repeatable().categoryKey("pixels");
 
     /* Keyframes */
     public static final KeyCombo KEYFRAMES_MAXIMIZE = new KeyCombo("maximize", UIKeys.KEYFRAMES_CONTEXT_MAXIMIZE, GLFW.GLFW_KEY_HOME).categoryKey("keyframes");

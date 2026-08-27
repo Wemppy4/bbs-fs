@@ -40,6 +40,19 @@ public class Document implements IMapSerializable
     public int width;
     public int height;
 
+    /**
+     * The animation the game reads from the {@code .mcmeta} sidecar; {@code null} when the texture
+     * isn't animated. Runtime only — it is never written into the {@code .dat} project: the
+     * {@code .mcmeta} is the one place it lives (see {@link TextureAnimation}).
+     */
+    public TextureAnimation animation;
+
+    /** The user turned the animation off, so saving removes the {@code .mcmeta} that is on disk. */
+    public boolean removeAnimationOnSave;
+
+    /** Grows with every change the canvas reports, so caches (the model preview's frames) know when to rebuild. */
+    public int revision;
+
     /** Extension of the project sidecar, appended to the texture's full name ({@code skin.png} -> {@code skin.png.dat}). */
     public static final String EXTENSION = ".dat";
 
@@ -99,6 +112,62 @@ public class Document implements IMapSerializable
         return this.activeLayerIndex >= 0 && this.activeLayerIndex < this.layers.size()
             ? this.layers.get(this.activeLayerIndex)
             : null;
+    }
+
+    /* The strip: an animated document is a stack of same-sized images the frames point at */
+
+    /** Width of one image — the whole document when it isn't animated. */
+    public int frameWidth()
+    {
+        return this.animation == null ? this.width : this.animation.frameWidth(this.width, this.height);
+    }
+
+    /** Height of one image — the whole document when it isn't animated. */
+    public int frameHeight()
+    {
+        return this.animation == null ? this.height : this.animation.frameHeight(this.width, this.height);
+    }
+
+    /** How many images the strip holds, top to bottom. */
+    public int imageCount()
+    {
+        return this.animation == null ? 1 : this.animation.imageCount(this.width, this.height);
+    }
+
+    /* Undo snapshots: the project plus the animation, which the .dat format leaves out on purpose */
+
+    /** Everything an undo step has to bring back — see {@link #restore(MapType)}. */
+    public MapType snapshot()
+    {
+        MapType data = this.toData();
+
+        if (this.animation != null)
+        {
+            data.put("animation", this.animation.toData());
+        }
+
+        return data;
+    }
+
+    /** Put the document back to a {@link #snapshot()}. */
+    public void restore(MapType data)
+    {
+        this.fromData(data);
+
+        if (data.has("animation"))
+        {
+            /* Keep the object: it remembers the .mcmeta as it was read, which the snapshot doesn't carry */
+            if (this.animation == null)
+            {
+                this.animation = new TextureAnimation();
+            }
+
+            this.animation.fromData(data.getMap("animation"));
+        }
+        else
+        {
+            this.animation = null;
+        }
     }
 
     /** Resize every layer to {@code w}x{@code h}, preserving the existing content in the top-left. */

@@ -1333,6 +1333,9 @@ public class UIKeys
     public static final IKey TEXTURES_LAYERS_DUPE_SUFFIX = L10n.lang("bbs.ui.textures.layers.dupe_suffix");
 
     public static final IKey TEXTURES_KEYS_TOOL_FILL = L10n.lang("bbs.ui.textures.keys.tool_fill");
+    public static final IKey TEXTURES_KEYS_FRAME_PREV = L10n.lang("bbs.ui.textures.keys.frame_prev");
+    public static final IKey TEXTURES_KEYS_FRAME_NEXT = L10n.lang("bbs.ui.textures.keys.frame_next");
+    public static final IKey TEXTURES_FRAME_COUNTER = L10n.lang("bbs.ui.textures.frame_counter");
     public static final IKey TEXTURES_LINEAR = L10n.lang("bbs.ui.textures.linear");
     public static final IKey TEXTURES_MIPMAP = L10n.lang("bbs.ui.textures.mipmap");
     public static final IKey TEXTURES_RESIZE = L10n.lang("bbs.ui.textures.resize");

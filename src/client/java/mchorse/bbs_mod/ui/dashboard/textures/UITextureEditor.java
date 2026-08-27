@@ -6,6 +6,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.dashboard.textures.undo.PixelsUndo;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageFolderOverlayPanel;
@@ -89,7 +90,8 @@ public class UITextureEditor extends UIPixelsEditor
         {
             return;
         }
-        UIResizeTextureOverlayPanel overlayPanel = new UIResizeTextureOverlayPanel(this.w, this.h, (size) ->
+        /* The whole document is resized — the strip, not the frame on show */
+        UIResizeTextureOverlayPanel overlayPanel = new UIResizeTextureOverlayPanel(this.document.width, this.document.height, (size) ->
         {
             boolean editing = this.isEditing();
             int newW = MathUtils.clamp(size.x, 1, 4096);
@@ -163,6 +165,7 @@ public class UITextureEditor extends UIPixelsEditor
     @Override
     protected void wasChanged()
     {
+        super.wasChanged();
         this.dirty();
     }
 
@@ -319,6 +322,9 @@ public class UITextureEditor extends UIPixelsEditor
 
         try
         {
+            /* The animation goes first: the watchdog re-reads the texture per file, and by the time
+             * it reads the PNG the .mcmeta has to be beside it already */
+            this.writeAnimation(file);
             PNGEncoder.writeToFile(pixels, file);
 
             this.setDirty(false);
@@ -359,6 +365,29 @@ public class UITextureEditor extends UIPixelsEditor
                 pixels.delete();
             }
         }
+    }
+
+    /**
+     * Write the {@code .mcmeta} beside the texture, or remove it when the user turned the
+     * animation off. A texture that was never animated leaves whatever is on disk alone.
+     */
+    private void writeAnimation(File file)
+    {
+        if (this.document.animation != null)
+        {
+            this.document.animation.write(file, this.document.width, this.document.height);
+        }
+        else if (this.document.removeAnimationOnSave)
+        {
+            File mcmeta = TextureAnimation.file(file);
+
+            if (mcmeta.isFile())
+            {
+                mcmeta.delete();
+            }
+        }
+
+        this.document.removeAnimationOnSave = false;
     }
 
     /**

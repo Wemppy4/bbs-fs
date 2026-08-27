@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelActionBar;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.dashboard.textures.layers.UILayersPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPicker;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -391,6 +392,8 @@ public class UITexturePainter extends UIElement
         this.keys().register(Keys.PIXEL_TOOL_SELECTION, () -> this.userSelectTool(TexturePaintTool.SELECTION)).inside().category(category);
         this.keys().register(Keys.PIXEL_BRUSH_DEC, () -> this.adjustBrushSize(-1)).inside().category(category);
         this.keys().register(Keys.PIXEL_BRUSH_INC, () -> this.adjustBrushSize(1)).inside().category(category);
+        this.keys().register(Keys.PIXEL_FRAME_PREV, () -> this.withEditor((editor) -> editor.stepFrame(-1))).inside().category(category);
+        this.keys().register(Keys.PIXEL_FRAME_NEXT, () -> this.withEditor((editor) -> editor.stepFrame(1))).inside().category(category);
 
         /* Ctrl+S lives on its own element so it outranks the other keybinds, the way the data
          * panels do it — the painter isn't one of those, so nothing registered it before */
@@ -667,11 +670,27 @@ public class UITexturePainter extends UIElement
     }
 
     /**
-     * Loads the editable document for {@code link}: deserializes the {@code NAME_INCLUDING_EXTENSION.dat}
-     * sidecar next to the texture when present, otherwise builds a fresh single-layer document from
-     * the texture's pixels.
+     * Loads the editable document for {@code link}: the project from the {@code .dat} sidecar (or a
+     * fresh single-layer one from the texture's pixels), and the animation from the {@code .mcmeta}
+     * — which lives there alone, whether or not there was a project.
      */
     private Document loadDocument(Link link)
+    {
+        Document document = this.loadProject(link);
+
+        if (document != null)
+        {
+            document.animation = TextureAnimation.read(link, document.width, document.height);
+        }
+
+        return document;
+    }
+
+    /**
+     * Deserializes the {@code NAME_INCLUDING_EXTENSION.dat} sidecar next to the texture when present,
+     * otherwise builds a fresh single-layer document from the texture's pixels.
+     */
+    private Document loadProject(Link link)
     {
         File datFile = Document.datFile(BBSMod.getAssetsPath(link.path));
 
@@ -734,12 +753,13 @@ public class UITexturePainter extends UIElement
 
     private void renderHoverInfo(UIContext context, UITextureEditor editor)
     {
-        Pixels pixels = editor.getPixels();
+        Document document = editor.getDocument();
         Vector2i hover = editor.getHoverPixel(context.mouseX, context.mouseY);
-        int tw = pixels.width;
-        int th = pixels.height;
-        int px = tw <= 0 ? 0 : MathUtils.clamp(hover.x, 0, tw - 1);
-        int py = th <= 0 ? 0 : MathUtils.clamp(hover.y, 0, th - 1);
+        /* Size and position within the frame on show — what the user is looking at */
+        int tw = editor.getWidth();
+        int th = editor.getHeight();
+        int px = tw <= 0 ? 0 : MathUtils.clamp(hover.x - editor.getFrameX(), 0, tw - 1);
+        int py = th <= 0 ? 0 : MathUtils.clamp(hover.y - editor.getFrameY(), 0, th - 1);
         /* Read the merged colour across all layers at the cursor (document space). */
         Color color = editor.getMergedColor(hover.x, hover.y);
 
@@ -756,10 +776,11 @@ public class UITexturePainter extends UIElement
             a = (int) Math.floor(color.a * 255);
         }
 
-        String[] lines = {
-            tw + "x" + th + " (" + px + ", " + py + ")",
-            "\u00A7cR\u00A7aG\u00A79B\u00A7rA (" + r + ", " + g + ", " + b + ", " + a + ")",
-        };
+        String size = tw + "x" + th + " (" + px + ", " + py + ")";
+        String rgba = "\u00A7cR\u00A7aG\u00A79B\u00A7rA (" + r + ", " + g + ", " + b + ", " + a + ")";
+        String[] lines = document != null && document.animation != null
+            ? new String[] {size, rgba, UIKeys.TEXTURES_FRAME_COUNTER.format(String.valueOf(editor.getFrame() + 1), String.valueOf(document.animation.frames.size())).get()}
+            : new String[] {size, rgba};
 
         FontRenderer font = context.batcher.getFont();
         int margin = 10;
