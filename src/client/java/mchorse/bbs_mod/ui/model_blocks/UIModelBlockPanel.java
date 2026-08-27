@@ -198,6 +198,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             palette.getEvents().register(UIRemovedEvent.class, (e) ->
             {
                 this.scrollView.setVisible(true);
+                this.draggable.setVisible(true);
             });
 
             palette.resize();
@@ -208,6 +209,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             }
 
             this.scrollView.setVisible(false);
+            this.draggable.setVisible(false);
         });
         this.pickEdit.keybinds();
 
@@ -859,8 +861,13 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
 
         context.batcher.textCard(label, x, y, Colors.WHITE, Colors.A50);
 
-        /* Solid backdrop under the sidebar, same surface as the form editor's options column. */
-        this.scrollView.area.render(context.batcher, BBSSettings.deepSurface());
+        /* Solid backdrop under the sidebar, same surface as the form editor's
+         * options column. Skipped while the sidebar is hidden (form palette
+         * open) — the backdrop is painted here, not by the sidebar itself. */
+        if (this.scrollView.isVisible())
+        {
+            this.scrollView.area.render(context.batcher, BBSSettings.deepSurface());
+        }
 
         /* Light inputs on the deep backdrop, the film editor's scoping — the
          * sections drop them back to deep on their raised cards themselves. */
