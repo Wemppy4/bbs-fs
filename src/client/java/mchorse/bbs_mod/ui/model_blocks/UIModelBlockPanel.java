@@ -36,7 +36,7 @@ import mchorse.bbs_mod.ui.framework.elements.events.UIRemovedEvent;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
@@ -99,6 +99,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
     public UISplitter draggable;
     public UIElement editor;
     public UIModelBlockEntityList modelBlocks;
+    public UISearchList<ModelBlockEntity> modelBlocksSearch;
     public UINestedEdit pickEdit;
     public UIToggle enabled;
     public UIToggle shadow;
@@ -173,7 +174,10 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
             if (this.modelBlock != null) menu.action(UIKeys.MODEL_BLOCKS_KEYS_TELEPORT, this::teleport);
         });
         this.modelBlocks.background();
-        this.modelBlocks.h(UIStringList.DEFAULT_HEIGHT * 9);
+
+        this.modelBlocksSearch = new UISearchList<>(this.modelBlocks);
+        this.modelBlocksSearch.label(UIKeys.GENERAL_SEARCH);
+        this.modelBlocksSearch.h(20 + UIModelBlockEntityList.ROW * 9);
 
         this.pickEdit = new UINestedEdit((editing) ->
         {
@@ -342,7 +346,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
 
         this.editor = UI.column(this.pickEdit, this.enabled, this.shadow, this.global, this.lookAt, this.transform);
 
-        this.scrollView = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, this.modelBlocks, this.editor, this.bodySection, this.equipmentSection);
+        this.scrollView = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, this.modelBlocksSearch, this.editor, this.bodySection, this.equipmentSection);
         this.scrollView.scroll.opposite().cancelScrolling();
 
         /* The sidebar resizes like the form editor's options column: a draggable
@@ -696,12 +700,11 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
 
     private void updateList()
     {
-        this.modelBlocks.clear();
+        this.modelBlocks.setBlocks(BBSRendering.capturedModelBlocks);
 
-        for (ModelBlockEntity modelBlock : BBSRendering.capturedModelBlocks)
-        {
-            this.modelBlocks.add(modelBlock);
-        }
+        /* Filling resets the list's filter, but the search box keeps its text - reapply
+         * so what you see matches the query. */
+        this.modelBlocks.filter(this.modelBlocksSearch.search.getText());
 
         this.fill(this.modelBlock, true);
     }

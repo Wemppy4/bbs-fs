@@ -1262,6 +1262,7 @@
 	"bbs.ui.model_blocks.equipment.feet": "Ботинки",
 	"bbs.ui.model_blocks.equipment.mainhand": "Правая рука",
 	"bbs.ui.model_blocks.equipment.offhand": "Левая рука",
+	"bbs.ui.model_blocks.distance": "%sм",
 	"bbs.ui.model_blocks.global": "Глобальный",
 	"bbs.ui.model_blocks.keys.move_to": "Переместить",
 	"bbs.ui.model_blocks.keys.teleport": "Телепортироваться к блок-модели",

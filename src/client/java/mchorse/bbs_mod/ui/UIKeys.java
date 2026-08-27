@@ -873,6 +873,7 @@ public class UIKeys
     public static final IKey MODEL_BLOCKS_BODY_SOUND_STONE = L10n.lang("bbs.ui.model_blocks.body.sound.stone");
     public static final IKey MODEL_BLOCKS_BODY_SOUND_WOOD = L10n.lang("bbs.ui.model_blocks.body.sound.wood");
     public static final IKey MODEL_BLOCKS_BODY_SOUND_WOOL = L10n.lang("bbs.ui.model_blocks.body.sound.wool");
+    public static final IKey MODEL_BLOCKS_DISTANCE = L10n.lang("bbs.ui.model_blocks.distance");
     public static final IKey MODEL_BLOCKS_EQUIPMENT = L10n.lang("bbs.ui.model_blocks.equipment.title");
     public static final IKey MODEL_BLOCKS_EQUIPMENT_CHEST = L10n.lang("bbs.ui.model_blocks.equipment.chest");
     public static final IKey MODEL_BLOCKS_EQUIPMENT_FEET = L10n.lang("bbs.ui.model_blocks.equipment.feet");

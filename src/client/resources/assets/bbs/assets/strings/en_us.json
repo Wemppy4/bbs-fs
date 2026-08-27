@@ -1268,6 +1268,7 @@
 	"bbs.ui.model_blocks.equipment.feet": "Feet",
 	"bbs.ui.model_blocks.equipment.mainhand": "Main hand",
 	"bbs.ui.model_blocks.equipment.offhand": "Off hand",
+	"bbs.ui.model_blocks.distance": "%sm",
 	"bbs.ui.model_blocks.global": "Global",
 	"bbs.ui.model_blocks.keys.move_to": "Move to",
 	"bbs.ui.model_blocks.keys.teleport": "Teleport to model block",
