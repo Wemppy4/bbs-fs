@@ -333,25 +333,24 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
 
         for (TextureLayer layer : document.layers)
         {
-            if (!layer.visible || layer.texture == null)
+            if (!layer.visible)
             {
                 continue;
             }
 
             int x1 = Math.max(ix, layer.offsetX);
             int y1 = Math.max(iy, layer.offsetY);
-            int x2 = Math.min(ix + fw, layer.offsetX + layer.texture.width);
-            int y2 = Math.min(iy + fh, layer.offsetY + layer.texture.height);
+            int x2 = Math.min(ix + fw, layer.offsetX + layer.width());
+            int y2 = Math.min(iy + fh, layer.offsetY + layer.height());
 
             if (x2 <= x1 || y2 <= y1)
             {
                 continue;
             }
 
-            context.batcher.texturedBox(layer.texture, Colors.setA(Colors.WHITE, layer.opacity),
+            layer.draw(context.batcher, Colors.setA(Colors.WHITE, layer.opacity),
                 x + (x1 - ix) * sx, y + (y1 - iy) * sy, (x2 - x1) * sx, (y2 - y1) * sy,
-                x1 - layer.offsetX, y1 - layer.offsetY, x2 - layer.offsetX, y2 - layer.offsetY,
-                layer.texture.width, layer.texture.height);
+                x1 - layer.offsetX, y1 - layer.offsetY, x2 - layer.offsetX, y2 - layer.offsetY);
         }
     }
 }

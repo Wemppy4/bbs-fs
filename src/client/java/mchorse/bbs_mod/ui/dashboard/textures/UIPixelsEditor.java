@@ -528,6 +528,15 @@ public class UIPixelsEditor extends UICanvasEditor
         Pixels flat = this.flattenLayers();
         if (flat != null)
         {
+            /* Taller than the card takes one texture: the canvas and the frame strip draw such a
+             * picture in bands, but this is one texture and would come out black — better nothing */
+            if (flat.height > TextureLayer.maxBandHeight())
+            {
+                flat.delete();
+
+                return this.temporary;
+            }
+
             if (this.temporaryFlat == null)
             {
                 this.temporaryFlat = new Texture();
@@ -2198,7 +2207,7 @@ public class UIPixelsEditor extends UICanvasEditor
 
         for (TextureLayer layer : this.document.layers)
         {
-            if (!layer.visible || layer.texture == null)
+            if (!layer.visible)
             {
                 continue;
             }
@@ -2206,8 +2215,8 @@ public class UIPixelsEditor extends UICanvasEditor
             /* Window ∩ layer, in document coordinates */
             int x1 = Math.max(frameX, layer.offsetX);
             int y1 = Math.max(frameY, layer.offsetY);
-            int x2 = Math.min(frameX + this.w, layer.offsetX + layer.texture.width);
-            int y2 = Math.min(frameY + this.h, layer.offsetY + layer.texture.height);
+            int x2 = Math.min(frameX + this.w, layer.offsetX + layer.width());
+            int y2 = Math.min(frameY + this.h, layer.offsetY + layer.height());
 
             if (x2 <= x1 || y2 <= y1)
             {
@@ -2217,7 +2226,7 @@ public class UIPixelsEditor extends UICanvasEditor
             Area part = this.calculate(vx + x1 - frameX, vy + y1 - frameY, vx + x2 - frameX, vy + y2 - frameY);
             int color = Colors.setA(Colors.WHITE, layer.opacity * alpha);
 
-            context.batcher.texturedBox(layer.texture, color, part.x, part.y, part.w, part.h, x1 - layer.offsetX, y1 - layer.offsetY, x2 - layer.offsetX, y2 - layer.offsetY, layer.texture.width, layer.texture.height);
+            layer.draw(context.batcher, color, part.x, part.y, part.w, part.h, x1 - layer.offsetX, y1 - layer.offsetY, x2 - layer.offsetX, y2 - layer.offsetY);
         }
     }
 
