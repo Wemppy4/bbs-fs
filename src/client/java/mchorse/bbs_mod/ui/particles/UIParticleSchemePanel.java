@@ -136,8 +136,8 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         this.actions()
             .action(restart)
             .action(presets)
-            .action(lock, this.dock::isLocked)
-            .action(resetLayout);
+            .action(resetLayout)
+            .layout(lock, this.dock::isLocked);
 
         /* Ctrl+Tab / Ctrl+Shift+Tab cycle the tabs of the dock stack under the cursor (like the film editor). */
         this.keys().register(Keys.FILM_CONTROLLER_NEXT_DOCK_TAB, () ->

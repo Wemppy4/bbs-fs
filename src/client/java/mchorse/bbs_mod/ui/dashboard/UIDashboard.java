@@ -96,7 +96,7 @@ public class UIDashboard extends UIBaseMenu
         this.settings = new UIIcon(Icons.SETTINGS, (b) -> this.openSettings());
         this.selectors = new UIIcon(Icons.PROPERTIES, (b) ->
         {
-            UIOverlay.addOverlayRight(this.context, new UISelectorsOverlayPanel(), 240);
+            UIOverlay.addOverlay(this.context, new UISelectorsOverlayPanel(), 430, 300);
         });
         this.chalkboard = new UIChalkboard();
         this.chalkboard.full(this.getRoot());

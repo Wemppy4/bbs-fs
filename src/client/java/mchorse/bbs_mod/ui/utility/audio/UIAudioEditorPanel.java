@@ -34,6 +34,7 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
         super(dashboard);
 
         this.pickAudio = new UIIcon(Icons.MORE, (b) -> this.openDataManager());
+        this.pickAudio.tooltip(UIKeys.PANELS_KEYS_OPEN_DATA_MANAGER);
         this.plause = new UIIcon(() ->
         {
             SoundPlayer player = this.audioEditor.getPlayer();
@@ -46,10 +47,11 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
             return player.isPlaying() ? Icons.PAUSE : Icons.PLAY;
         }, (b) -> this.audioEditor.togglePlayback());
         this.saveColors = new UIIcon(Icons.SAVED, (b) -> this.saveColors());
+        this.saveColors.tooltip(UIKeys.GENERAL_SAVE);
         this.audioEditor = new UIAudioEditor();
         this.audioEditor.full(this.editor);
 
-        this.actions().action(this.plause).common(this.saveColors).menu(this.pickAudio);
+        this.actions().action(this.plause).common(this.pickAudio).common(this.saveColors);
         this.editor.add(this.audioEditor);
 
         this.mountLanding();

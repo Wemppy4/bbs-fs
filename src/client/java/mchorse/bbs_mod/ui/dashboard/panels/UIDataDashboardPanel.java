@@ -33,6 +33,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         super(dashboard);
 
         this.saveIcon = new UIIcon(Icons.SAVED, (b) -> this.save());
+        this.saveIcon.tooltip(UIKeys.GENERAL_SAVE);
 
         this.actions().common(this.saveIcon);
 

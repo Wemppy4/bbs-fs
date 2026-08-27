@@ -118,6 +118,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     public UIIcon openFilmMenu;
     public UIIcon openCameraEditor;
     public UIIcon openReplayEditor;
+    public UIIcon layoutLock;
 
     private UICopyPasteController layoutPresetsController;
 
@@ -195,15 +196,16 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         this.selectedMainEditorPanel = this.cameraEditor;
 
-        /* Film panel keeps common CRUD actions inside the film menu instead of the action bar. */
-        this.actions().dismiss(this.saveIcon);
-
-        this.openFilmMenu = new UIIcon(Icons.MORE, (b) ->
+        /* Not MORE: that icon is the film list now, and the menu beside it must not read the same */
+        this.openFilmMenu = new UIIcon(Icons.GEAR, (b) ->
         {
             this.getContext().replaceContextMenu(this::fillFilmContextMenu);
         });
         this.openCameraEditor = new UIIcon(Icons.FRUSTUM, (b) -> this.showPanel(this.cameraEditor));
         this.openReplayEditor = new UIIcon(Icons.SCENE, (b) -> this.showPanel(this.replayEditor));
+
+        this.layoutLock = new UIIcon(() -> this.dock.isLocked() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.toggleLayoutLock());
+        this.layoutLock.tooltip(() -> (this.dock.isLocked() ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK).get());
 
         this.layoutPresetsController = new UICopyPasteController(PresetManager.LAYOUTS, "_CopyFilmLayout")
             .supplier(this::getFilmLayoutPresetData)
@@ -216,6 +218,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.actions()
             .action(this.openCameraEditor, this.cameraEditor::isVisible)
             .action(this.openReplayEditor, this.replayEditor::isVisible)
+            .layout(this.layoutLock, () -> this.dock.isLocked())
             .menu(this.openFilmMenu);
 
         /* Setup elements */
@@ -602,21 +605,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     private void fillFilmContextMenu(ContextMenuManager menu)
     {
-        menu.action(Icons.FILM, UIKeys.FILM_TITLE, this::openDataManager);
-
-        if (this.data == null)
-        {
-            return;
-        }
-
-        menu.action(Icons.SAVED, UIKeys.GENERAL_SAVE, this::save);
+        /* The film list, saving and the layout lock are buttons of the action bar, not entries here */
         menu.action(Icons.LAYOUT, UIKeys.FILM_LAYOUT_PRESETS, this::openLayoutPresetsMenu);
         menu.action(Icons.LINK, UIKeys.FILM_LAYOUT_BIND_TO_EDITOR, this.isCurrentFilmLayoutBound(), this::toggleCurrentFilmLayoutBinding);
         menu.action(Icons.REFRESH, UIKeys.FILM_LAYOUT_RESET, this::resetFilmLayout);
         this.dock.fillHiddenPanelsMenu(menu);
-        boolean locked = this.dock.isLocked();
-
-        menu.action(locked ? Icons.UNLOCKED : Icons.LOCKED, locked ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK, locked, this::toggleLayoutLock);
 
         menu.action(Icons.LIST, UIKeys.FILM_OPEN_HISTORY, () ->
         {
@@ -1454,7 +1447,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             this.undoHandler = null;
         }
 
-        this.openFilmMenu.setEnabled(true);
+        /* Everything left in the film menu needs an open film, and so does the layout it locks */
+        this.openFilmMenu.setEnabled(data != null);
+        this.layoutLock.setEnabled(data != null);
         this.openCameraEditor.setEnabled(data != null);
         this.openReplayEditor.setEnabled(data != null);
         this.duplicateFilm.setEnabled(data != null);

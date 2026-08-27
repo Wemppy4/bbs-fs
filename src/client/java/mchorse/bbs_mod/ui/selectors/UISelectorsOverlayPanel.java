@@ -9,7 +9,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
@@ -27,9 +27,12 @@ import java.util.List;
 
 public class UISelectorsOverlayPanel extends UIOverlayPanel
 {
+    /** Width of the list side, the way the settings panel splits itself. */
+    public static final int SIDE_WIDTH = 150;
+
     public UISelectorList selectors;
 
-    public UIElement column;
+    public UIScrollView column;
     public UIToggle enabled;
     public UINestedEdit form;
     public UITextbox entity;
@@ -127,7 +130,7 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
             }).label(UIKeys.SELECTORS_CONTEXT_REMOVE).enabled(this.current != null);
         });
 
-        this.column = UI.column(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,
+        this.column = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,
             this.enabled,
             this.form,
             UI.labelRow(UIKeys.SELECTORS_ENTITY_ID, this.entity).marginTop(UIConstants.SECTION_GAP),
@@ -136,8 +139,9 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
             this.nbt
         );
 
-        this.selectors.relative(this.content).w(1F).hTo(this.column.area);
-        this.column.relative(this.content).y(1F).w(1F).anchor(0F, 1F);
+        /* Selectors on the left, the properties of the selected one on the right — same split as the settings panel */
+        this.selectors.relative(this.content).w(SIDE_WIDTH).h(1F);
+        this.column.relative(this.content).x(SIDE_WIDTH).w(1F, -SIDE_WIDTH).h(1F);
 
         this.add(this.column, this.selectors);
         this.onClose((e) -> BBSModClient.getSelectors().save());
@@ -172,5 +176,9 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
         super.renderBackground(context);
 
         this.content.area.render(context.batcher, BBSSettings.baseSurface());
+
+        int x = this.content.area.x;
+
+        context.batcher.box(x, this.content.area.y, x + SIDE_WIDTH, this.content.area.ey(), BBSSettings.chromeSurface());
     }
 }

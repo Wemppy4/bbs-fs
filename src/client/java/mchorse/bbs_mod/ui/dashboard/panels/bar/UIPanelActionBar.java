@@ -20,10 +20,14 @@ import java.util.function.BooleanSupplier;
  * button whose feature is currently active, and the direction its buttons' tooltips open. Panels
  * only say <em>which</em> buttons they have and, for toggles, <em>when</em> those read as active.</p>
  *
- * <p>Buttons sit in three slots, always laid out in the same order so that the same thing is in
+ * <p>Buttons sit in fixed slots, always laid out in the same order so that the same thing is in
  * the same place in every panel: {@link #action panel actions}, then a separator, then
- * {@link #common the buttons every panel shares} such as save, and finally
- * {@link #menu the panel's menu} at the very end.</p>
+ * {@link #layout what acts on the panel's own layout}, then {@link #common the buttons every
+ * panel shares} — the list of what the panel edits, then save — and finally {@link #menu the
+ * panel's menu} at the very end.</p>
+ *
+ * <p>Past the separator is everything that is <em>about</em> the panel rather than about what it
+ * edits, which is why the layout lock sits there rather than among the actions.</p>
  */
 public class UIPanelActionBar extends UIElement
 {
@@ -37,6 +41,7 @@ public class UIPanelActionBar extends UIElement
     private static final Direction EDGE = Direction.BOTTOM;
 
     private final List<UIIcon> actions = new ArrayList<>();
+    private final List<UIIcon> layout = new ArrayList<>();
     private final List<UIIcon> common = new ArrayList<>();
     private final UIElement separator = new UIElement();
 
@@ -69,7 +74,19 @@ public class UIPanelActionBar extends UIElement
         return this;
     }
 
-    /** Add a button every panel shares, such as save. Sits between the actions and the menu. */
+    /**
+     * Add a button that acts on the panel's own layout rather than on what it edits — the lock of
+     * a dockable editor. Sits past the separator, ahead of the shared buttons.
+     */
+    public UIPanelActionBar layout(UIIcon icon, BooleanSupplier active)
+    {
+        this.layout.add(this.adopt(icon, active));
+        this.sync();
+
+        return this;
+    }
+
+    /** Add a button every panel shares, such as save. Sits between the layout buttons and the menu. */
     public UIPanelActionBar common(UIIcon icon)
     {
         this.common.add(this.adopt(icon, null));
@@ -79,9 +96,8 @@ public class UIPanelActionBar extends UIElement
     }
 
     /**
-     * Set the button that opens this panel's menu — the last button of the bar. A panel that
-     * wants its own menu (the film opens film options instead of the data manager) simply sets
-     * it again, replacing the one its base class put there.
+     * Set the button that opens this panel's menu — the last button of the bar. Only a panel with
+     * more to offer than its buttons (the film editor and its options) has one.
      */
     public UIPanelActionBar menu(UIIcon icon)
     {
@@ -89,25 +105,6 @@ public class UIPanelActionBar extends UIElement
         this.sync();
 
         return this;
-    }
-
-    /** Drop a button this panel does not want (the film saves from its own menu, not from the bar). */
-    public void dismiss(UIIcon icon)
-    {
-        boolean removed = this.actions.remove(icon);
-
-        removed |= this.common.remove(icon);
-
-        if (this.menu == icon)
-        {
-            this.menu = null;
-            removed = true;
-        }
-
-        if (removed)
-        {
-            this.sync();
-        }
     }
 
     private UIIcon adopt(UIIcon icon, BooleanSupplier active)
@@ -137,13 +134,14 @@ public class UIPanelActionBar extends UIElement
 
         int width = this.addSlot(this.actions, 0);
 
-        if (width > 0 && (this.hasVisible(this.common) || this.isVisible(this.menu)))
+        if (width > 0 && (this.hasVisible(this.layout) || this.hasVisible(this.common) || this.isVisible(this.menu)))
         {
             this.add(this.separator);
 
             width += SEPARATOR_WIDTH;
         }
 
+        width = this.addSlot(this.layout, width);
         width = this.addSlot(this.common, width);
 
         if (this.isVisible(this.menu))
@@ -200,6 +198,7 @@ public class UIPanelActionBar extends UIElement
     public void render(UIContext context)
     {
         this.renderHover(context, this.actions);
+        this.renderHover(context, this.layout);
         this.renderHover(context, this.common);
 
         if (this.menu != null)

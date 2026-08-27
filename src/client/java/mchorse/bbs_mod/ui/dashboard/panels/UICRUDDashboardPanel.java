@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.dashboard.panels;
 
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -20,16 +21,17 @@ public abstract class UICRUDDashboardPanel extends UIEditorDashboardPanel
 
         this.overlay = this.createOverlayPanel();
         this.openOverlay = new UIIcon(Icons.MORE, (b) -> this.openDataManager());
+        this.openOverlay.tooltip(UIKeys.PANELS_KEYS_OPEN_DATA_MANAGER);
 
-        this.actions().menu(this.openOverlay);
+        /* The list of what this panel edits is a button of its own, in the same place in every panel */
+        this.actions().common(this.openOverlay);
 
         this.keys().register(Keys.OPEN_DATA_MANAGER, this::openDataManager);
     }
 
     /**
-     * Put the data manager on screen. Opens the overlay directly rather than through the menu
-     * button: a panel with a menu of its own (the film editor) takes that button off the bar, and
-     * a button that is not on screen cannot be clicked.
+     * Put the data manager on screen. Opens the overlay directly rather than through the button,
+     * so that the keybind does not depend on the button being on the bar.
      */
     public void openDataManager()
     {
