@@ -21,7 +21,11 @@ import org.joml.Vector2i;
 
 import java.io.File;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class UITextureEditor extends UIPixelsEditor
@@ -290,6 +294,245 @@ public class UITextureEditor extends UIPixelsEditor
             queue.add(new Vector2i(px, py + 1));
             queue.add(new Vector2i(px, py - 1));
         }
+    }
+
+    /*
+     * The animation: the frames are the order of showing, the images are the strip's rows. Every
+     * operation here is one undo step, and the frame on show follows what was done.
+     */
+
+    public boolean isAnimated()
+    {
+        return this.document != null && this.document.animation != null;
+    }
+
+    /**
+     * Turn the animation on — the whole texture becomes the one image, shown as the one frame —
+     * or off: the order is forgotten (and the {@code .mcmeta} goes on save); the pixels stay.
+     */
+    public void setAnimated(boolean animated)
+    {
+        if (this.document == null || animated == this.isAnimated())
+        {
+            return;
+        }
+
+        this.recordLayerChange(null, () ->
+        {
+            this.document.animation = animated ? TextureAnimation.create(this.document.width, this.document.height) : null;
+            this.document.removeAnimationOnSave = !animated;
+            this.wasChanged();
+        });
+
+        this.setFrame(0);
+    }
+
+    /** A new blank frame at {@code position} of the order — a fresh image at the end of the strip — shown at once. */
+    public void insertFrame(int position)
+    {
+        if (!this.isAnimated())
+        {
+            return;
+        }
+
+        List<TextureAnimation.Frame> frames = this.document.animation.frames;
+        int at = MathUtils.clamp(position, 0, frames.size());
+
+        this.recordLayerChange(null, () ->
+        {
+            this.document.bakeOffsets();
+            frames.add(at, new TextureAnimation.Frame(this.document.appendImage(), 0));
+            this.afterStripChanged();
+        });
+
+        this.setFrame(at);
+    }
+
+    /** Copies of the given frames, each right after its original and with an image of its own; the copies, the first of them shown. */
+    public List<TextureAnimation.Frame> duplicateFrames(List<TextureAnimation.Frame> selected)
+    {
+        List<TextureAnimation.Frame> copies = new ArrayList<>();
+
+        if (!this.isAnimated() || selected.isEmpty())
+        {
+            return copies;
+        }
+
+        List<TextureAnimation.Frame> frames = this.document.animation.frames;
+
+        this.recordLayerChange(null, () ->
+        {
+            this.document.bakeOffsets();
+
+            /* From the end, so the insertions don't shift the positions still to come */
+            for (int i = frames.size() - 1; i >= 0; i--)
+            {
+                TextureAnimation.Frame frame = frames.get(i);
+
+                if (selected.contains(frame))
+                {
+                    TextureAnimation.Frame copy = new TextureAnimation.Frame(this.document.duplicateImage(frame.index), frame.time);
+
+                    frames.add(i + 1, copy);
+                    copies.add(0, copy);
+                }
+            }
+
+            this.afterStripChanged();
+        });
+
+        if (!copies.isEmpty())
+        {
+            this.setFrame(frames.indexOf(copies.get(0)));
+        }
+
+        return copies;
+    }
+
+    /**
+     * Take frames out of the order; an image nobody shows any more is cut from the strip. The
+     * last frame stays put — whether anything went.
+     */
+    public boolean removeFrames(List<TextureAnimation.Frame> selected)
+    {
+        if (!this.isAnimated() || selected.isEmpty())
+        {
+            return false;
+        }
+
+        List<TextureAnimation.Frame> frames = this.document.animation.frames;
+        List<TextureAnimation.Frame> going = new ArrayList<>();
+
+        for (TextureAnimation.Frame frame : frames)
+        {
+            if (selected.contains(frame))
+            {
+                going.add(frame);
+            }
+        }
+
+        if (going.isEmpty() || going.size() >= frames.size())
+        {
+            return false;
+        }
+
+        int first = frames.indexOf(going.get(0));
+
+        this.recordLayerChange(null, () ->
+        {
+            this.document.bakeOffsets();
+            frames.removeAll(going);
+
+            /* Images nobody shows any more go too — highest first, so the numbers still to cut don't shift */
+            Set<Integer> shown = new HashSet<>();
+            List<Integer> orphans = new ArrayList<>();
+
+            for (TextureAnimation.Frame frame : frames)
+            {
+                shown.add(frame.index);
+            }
+
+            for (TextureAnimation.Frame frame : going)
+            {
+                if (!shown.contains(frame.index) && !orphans.contains(frame.index))
+                {
+                    orphans.add(frame.index);
+                }
+            }
+
+            orphans.sort((a, b) -> b - a);
+
+            for (int image : orphans)
+            {
+                this.document.removeImage(image);
+            }
+
+            this.afterStripChanged();
+        });
+
+        this.setFrame(Math.min(first, frames.size() - 1));
+
+        return true;
+    }
+
+    /** Put frames elsewhere in the order: before the frame now at {@code insertion}, or last. */
+    public void moveFrames(List<TextureAnimation.Frame> selected, int insertion)
+    {
+        if (!this.isAnimated() || selected.isEmpty())
+        {
+            return;
+        }
+
+        List<TextureAnimation.Frame> frames = this.document.animation.frames;
+        List<TextureAnimation.Frame> moving = new ArrayList<>();
+        int target = MathUtils.clamp(insertion, 0, frames.size());
+
+        for (int i = 0; i < frames.size(); i++)
+        {
+            TextureAnimation.Frame frame = frames.get(i);
+
+            if (selected.contains(frame))
+            {
+                moving.add(frame);
+
+                /* The slot is counted among the frames that stay */
+                if (i < target)
+                {
+                    target--;
+                }
+            }
+        }
+
+        if (moving.isEmpty())
+        {
+            return;
+        }
+
+        int at = target;
+
+        this.recordLayerChange(null, () ->
+        {
+            frames.removeAll(moving);
+            frames.addAll(at, moving);
+            this.wasChanged();
+        });
+
+        this.setFrame(at);
+    }
+
+    /**
+     * How long frames stay on show, in ticks; the animation's own frametime (or 0) puts them back
+     * on the default. Consecutive changes merge into one undo step, so a drag is one.
+     */
+    public void setFrameTime(List<TextureAnimation.Frame> selected, int time)
+    {
+        if (!this.isAnimated() || selected.isEmpty())
+        {
+            return;
+        }
+
+        TextureAnimation animation = this.document.animation;
+        int value = time <= 0 || time == animation.frametime ? 0 : time;
+
+        this.recordLayerChange("frame_time", () ->
+        {
+            for (TextureAnimation.Frame frame : animation.frames)
+            {
+                if (selected.contains(frame))
+                {
+                    frame.time = value;
+                }
+            }
+
+            this.wasChanged();
+        });
+    }
+
+    /** The layers' buffers were replaced: re-cache the active one's, and count the change. */
+    private void afterStripChanged()
+    {
+        this.setActiveLayer(this.document.activeLayerIndex);
+        this.wasChanged();
     }
 
     /**

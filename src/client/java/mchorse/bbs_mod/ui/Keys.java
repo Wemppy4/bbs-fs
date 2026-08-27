@@ -100,6 +100,7 @@ public class Keys
     public static final KeyCombo PIXEL_BRUSH_INC = new KeyCombo("brush_inc", UIKeys.TEXTURES_KEYS_BRUSH_INC, GLFW.GLFW_KEY_RIGHT_BRACKET).repeatable().categoryKey("pixels");
     public static final KeyCombo PIXEL_FRAME_PREV = new KeyCombo("frame_prev", UIKeys.TEXTURES_KEYS_FRAME_PREV, GLFW.GLFW_KEY_COMMA).repeatable().categoryKey("pixels");
     public static final KeyCombo PIXEL_FRAME_NEXT = new KeyCombo("frame_next", UIKeys.TEXTURES_KEYS_FRAME_NEXT, GLFW.GLFW_KEY_PERIOD).repeatable().categoryKey("pixels");
+    public static final KeyCombo PIXEL_FRAME_ADD = new KeyCombo("frame_add", UIKeys.TEXTURES_KEYS_FRAME_ADD, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_LEFT_ALT).categoryKey("pixels");
 
     /* Keyframes */
     public static final KeyCombo KEYFRAMES_MAXIMIZE = new KeyCombo("maximize", UIKeys.KEYFRAMES_CONTEXT_MAXIMIZE, GLFW.GLFW_KEY_HOME).categoryKey("keyframes");

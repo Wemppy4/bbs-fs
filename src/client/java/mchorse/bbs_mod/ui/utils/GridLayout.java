@@ -23,6 +23,9 @@ public class GridLayout
     private int perRow = 1;
     private int count;
 
+    /** One row however many cells: the grid runs sideways and its length is its width. */
+    private boolean strip;
+
     /**
      * @param header     height of the band above the rows (0 for none)
      * @param margin     space between the rows and the left/right edges
@@ -46,12 +49,25 @@ public class GridLayout
         return Math.round(cellWidth * this.aspect);
     }
 
+    /** Lay every cell in one row, so the grid runs sideways; the width given to {@link #set} is then ignored. */
+    public GridLayout strip()
+    {
+        this.strip = true;
+
+        return this;
+    }
+
+    public boolean isStrip()
+    {
+        return this.strip;
+    }
+
     public GridLayout set(int width, int cellWidth, int count)
     {
         this.cell = cellWidth;
         this.cellHeight = this.heightFor(cellWidth);
         this.count = count;
-        this.perRow = Math.max(1, (width - this.margin * 2 + this.gap) / (cellWidth + this.gap));
+        this.perRow = this.strip ? Math.max(1, count) : Math.max(1, (width - this.margin * 2 + this.gap) / (cellWidth + this.gap));
 
         return this;
     }
@@ -106,6 +122,17 @@ public class GridLayout
         }
 
         return this.header + this.gridTop + rows * this.cellHeight + (rows - 1) * this.gap + this.gridBottom;
+    }
+
+    /** How wide a {@link #strip() strip} is: its one row of cells and the margins. */
+    public int getContentWidth()
+    {
+        if (this.count == 0)
+        {
+            return this.margin * 2;
+        }
+
+        return this.margin * 2 + this.count * this.cell + (this.count - 1) * this.gap;
     }
 
     public int getX(int index)
@@ -175,12 +202,13 @@ public class GridLayout
      */
     public int getInsertion(int x, int y)
     {
-        if (this.count == 0 || y < this.header + this.gridTop)
+        if (this.count == 0 || (!this.strip && y < this.header + this.gridTop))
         {
             return 0;
         }
 
-        int row = Math.max(0, this.getRowAt(y));
+        /* A strip has one row: only X says where between the cells the drop goes */
+        int row = this.strip ? 0 : Math.max(0, this.getRowAt(y));
         int pitch = this.cell + this.gap;
         int column = Math.round((x - this.margin) / (float) pitch);
 

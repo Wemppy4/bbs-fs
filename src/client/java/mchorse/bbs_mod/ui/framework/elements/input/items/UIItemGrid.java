@@ -5,6 +5,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.GridLayout;
+import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
@@ -25,6 +26,10 @@ import java.util.function.Consumer;
  * its own: it reports its height through {@link #contentSize()}, keeps its {@link #area} in
  * step with it, and the parent lays it out and scrolls.</p>
  *
+ * <p>And two ways of running: down the usual rows, or {@link #horizontal()} — one row of cells
+ * that scrolls sideways, for a strip of frames under a canvas. The geometry stays the layout's;
+ * only which axis is the long one changes.</p>
+ *
  * @param <T> what's in the cells
  */
 public abstract class UIItemGrid<T> extends UIItems<T>
@@ -36,6 +41,7 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 
     private int cellSize = 60;
     private boolean embedded;
+    private boolean horizontal;
     private int lastHeight = -1;
 
     /* What's under the cursor, refreshed every frame */
@@ -80,6 +86,21 @@ public abstract class UIItemGrid<T> extends UIItems<T>
     public boolean isEmbedded()
     {
         return this.embedded;
+    }
+
+    /** One row of cells scrolling sideways, instead of rows scrolling down. Not for an embedded grid. */
+    public UIItemGrid<T> horizontal()
+    {
+        this.horizontal = true;
+        this.layout.strip();
+        this.scroll.direction = ScrollDirection.HORIZONTAL;
+
+        return this;
+    }
+
+    public boolean isHorizontal()
+    {
+        return this.horizontal;
     }
 
     public GridLayout getLayout()
@@ -197,10 +218,17 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         return !this.embedded;
     }
 
+    /** Sideways, the scrolling is taken out of X rather than Y. */
+    @Override
+    protected int originX()
+    {
+        return this.horizontal ? this.area.x - (int) this.scroll.getScroll() : super.originX();
+    }
+
     @Override
     protected int originY()
     {
-        return this.embedded ? this.area.y : super.originY();
+        return this.embedded || this.horizontal ? this.area.y : super.originY();
     }
 
     @Override
@@ -239,7 +267,7 @@ public abstract class UIItemGrid<T> extends UIItems<T>
     @Override
     protected int contentSize()
     {
-        return this.layout.getContentHeight(this.isExpanded());
+        return this.horizontal ? this.layout.getContentWidth() : this.layout.getContentHeight(this.isExpanded());
     }
 
     @Override
@@ -263,7 +291,14 @@ public abstract class UIItemGrid<T> extends UIItems<T>
     {
         if (!this.embedded && index >= 0 && index < this.layout.getCount())
         {
-            this.scroll.scrollIntoView(this.layout.getY(index), this.layout.getCellHeight() + this.layout.getGap(), this.layout.getGap());
+            if (this.horizontal)
+            {
+                this.scroll.scrollIntoView(this.layout.getX(index), this.layout.getCellWidth() + this.layout.getGap(), this.layout.getGap());
+            }
+            else
+            {
+                this.scroll.scrollIntoView(this.layout.getY(index), this.layout.getCellHeight() + this.layout.getGap(), this.layout.getGap());
+            }
         }
     }
 
@@ -402,15 +437,18 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 
         for (int i = 0; i < visible.size(); i++)
         {
+            int cx = ox + this.layout.getX(i);
             int cy = oy + this.layout.getY(i);
 
-            if (window != null && (cy + cellH < window.y || cy > window.ey()))
+            /* Only what's in view is worth painting: along whichever axis the grid runs */
+            if (window != null && (this.horizontal
+                ? cx + cellW < window.x || cx > window.ex()
+                : cy + cellH < window.y || cy > window.ey()))
             {
                 continue;
             }
 
             T item = visible.get(i);
-            int cx = ox + this.layout.getX(i);
 
             this.state.reset();
             this.state.hover = i == this.hoverIndex;
