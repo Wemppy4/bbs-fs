@@ -343,7 +343,8 @@ public class BBSSettings {
 	/**
 	 * One rung below {@link #deepSurface()}: the floor of the ladder, for the
 	 * strips that have to sit under everything the interface layers on top —
-	 * the timeline ruler being the one that asked for it.
+	 * the timeline ruler and the field outside the film, which is not a surface
+	 * anything can be put on.
 	 */
 	public static int sunkenSurface()
 	{

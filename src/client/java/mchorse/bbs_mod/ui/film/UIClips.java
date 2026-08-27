@@ -1872,11 +1872,6 @@ public class UIClips extends UIElement
         int leftEdge = this.toGraphX(0);
         int rulerBottom = TimelineRulerRenderer.getRulerBottom(area);
 
-        if (leftEdge > this.area.x)
-        {
-            batcher.box(this.area.x, this.area.y, Math.min(leftEdge, this.area.ex()), this.area.ey(), BBSSettings.chromeSurface());
-        }
-
         area.render(batcher, BBSSettings.deepSurface());
         batcher.clipBox(this.vertical.area.x, rulerBottom, this.vertical.area.ex(), this.vertical.area.ey(), context);
 
@@ -1889,6 +1884,8 @@ public class UIClips extends UIElement
                 batcher.box(leftEdge, ly, this.area.ex(), ly + h, BBSSettings.baseSurface());
             }
         }
+
+        this.renderOutOfRange(batcher, leftEdge);
 
         batcher.unclip(context);
         batcher.clip(this.area, context);
@@ -2017,6 +2014,42 @@ public class UIClips extends UIElement
         int d = this.toGraphX(this.addPreview.x + this.addPreview.z);
 
         context.batcher.outline(x, y, d, y + h, Colors.WHITE);
+    }
+
+    /**
+     * Paint the field before the first tick and after the last one.
+     *
+     * <p>It drops to the floor of the tonal ladder — nothing can be put there, so it is not a
+     * surface but the absence of one. The far edge is where the ruler stops labelling, so the
+     * two agree on where the camera work ends; with no clips at all the ruler runs the whole
+     * width and there is no outside to paint.</p>
+     *
+     * <p>Goes on after the layer rows, which run the full width of the view: painting it before
+     * them (or before the backdrop, as it used to be) means painting under them. That is what
+     * silently swallowed this strip when the surfaces stopped being translucent tints.</p>
+     */
+    private void renderOutOfRange(Batcher2D batcher, int leftEdge)
+    {
+        int color = BBSSettings.sunkenSurface();
+
+        if (leftEdge > this.area.x)
+        {
+            batcher.box(this.area.x, this.area.y, Math.min(leftEdge, this.area.ex()), this.area.ey(), color);
+        }
+
+        int duration = this.clips.calculateDuration();
+
+        if (duration <= 0)
+        {
+            return;
+        }
+
+        int rightEdge = this.toGraphX(duration);
+
+        if (rightEdge < this.area.ex())
+        {
+            batcher.box(Math.max(rightEdge, this.area.x), this.area.y, this.area.ex(), this.area.ey(), color);
+        }
     }
 
     /**
