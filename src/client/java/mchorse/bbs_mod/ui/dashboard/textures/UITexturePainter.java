@@ -921,10 +921,60 @@ public class UITexturePainter extends UIElement
             }
         }
 
-        Texture texture = BBSModClient.getTextures().getTexture(link);
-        Pixels pixels = Texture.pixelsFromTexture(texture);
+        Pixels pixels = loadPixels(link);
 
         return pixels == null ? null : Document.fromPixels(link, pixels);
+    }
+
+    /**
+     * The pixels of the texture file itself, four channels per pixel.
+     *
+     * <p>Not the GL texture: an animated texture is cut into frames when it is loaded, and
+     * {@link mchorse.bbs_mod.graphics.texture.TextureManager#getTexture} hands out the frame on
+     * show, so reading it back would give the editor one image of the strip in place of the whole
+     * strip — every frame past the first would then point outside the document and come out
+     * empty. The GL texture stays as the fallback for what the provider can't read (a downloaded
+     * texture, say).</p>
+     */
+    private static Pixels loadPixels(Link link)
+    {
+        try
+        {
+            Pixels pixels = BBSModClient.getTextures().getPixels(link);
+
+            if (pixels != null)
+            {
+                return toRGBA(pixels);
+            }
+        }
+        catch (Exception e)
+        {}
+
+        return Texture.pixelsFromTexture(BBSModClient.getTextures().getTexture(link));
+    }
+
+    /** A PNG without an alpha channel reads back three bytes per pixel; the editor paints with four. */
+    private static Pixels toRGBA(Pixels pixels)
+    {
+        if (pixels.bits == 4)
+        {
+            return pixels;
+        }
+
+        Pixels rgba = Pixels.fromSize(pixels.width, pixels.height);
+
+        for (int y = 0; y < pixels.height; y++)
+        {
+            for (int x = 0; x < pixels.width; x++)
+            {
+                rgba.setColor(x, y, pixels.getColor(x, y));
+            }
+        }
+
+        pixels.delete();
+        rgba.rewindBuffer();
+
+        return rgba;
     }
 
     private void swapColors()
