@@ -91,12 +91,6 @@ public class UIPanelActionBar extends UIElement
         return this;
     }
 
-    /** The button that opens this panel's menu, or null. */
-    public UIIcon getMenuButton()
-    {
-        return this.menu;
-    }
-
     /** Drop a button this panel does not want (the film saves from its own menu, not from the bar). */
     public void dismiss(UIIcon icon)
     {

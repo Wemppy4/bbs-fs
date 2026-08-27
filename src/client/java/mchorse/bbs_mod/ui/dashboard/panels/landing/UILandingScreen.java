@@ -6,10 +6,8 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
-import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueRecentData.Entry;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -37,7 +35,7 @@ import java.util.Set;
  * <p>Nothing here changes files. Renaming, removing, folders, duplicates all live in the data
  * manager the list entry leads to; this screen only opens things.</p>
  */
-public class UILandingScreen<T extends ValueGroup> extends UIElement
+public class UILandingScreen extends UIElement
 {
     private static final int CARD_W = 440;
     private static final int CARD_H = 360;
@@ -67,7 +65,7 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
     private static final String TUTORIALS_LINK = "https://www.youtube.com/watch?v=yY5uE3PVd5Y&list=PLM5Z4FJ0AVdw";
     private static final String WIKI_LINK = "https://github.com/Wemppy4/bbs-fs/wiki";
 
-    private final UIDataDashboardPanel<T> panel;
+    private final ILandingHost host;
     private final LandingBackdrop backdrop = new LandingBackdrop();
     private final UIElement card;
     private final UIElement banner;
@@ -78,9 +76,9 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
     /** Ids the repository reported last; null until it answered, when nothing is filtered out. */
     private Set<String> known;
 
-    public UILandingScreen(UIDataDashboardPanel<T> panel)
+    public UILandingScreen(ILandingHost host)
     {
-        this.panel = panel;
+        this.host = host;
 
         /* Centered, with the backdrop showing all around it */
         this.card = new UIElement();
@@ -90,7 +88,7 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
         this.banner.relative(this.card).xy(0, 0).w(1F).h(BANNER_H);
         this.banner.add(new UIRenderable((context) -> this.renderBanner(context, this.banner.area)));
 
-        UILabel title = UI.label(panel.getTitle()).color(DIMMED);
+        UILabel title = UI.label(host.getTitle()).color(DIMMED);
         title.labelAnchor(0, 0.5F);
         title.relative(this.card).xy(PADDING, CONTENT_Y).w(MENU_W).h(HEADER_H);
 
@@ -104,8 +102,8 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
         version.relative(this.banner).x(1F, -HEADER_MARGIN).y(1F, -HEADER_MARGIN).w(MENU_W).h(HEADER_H).anchor(1F, 1F);
 
         /* The menu: what leads into the editor first, what leads out of it after a gap */
-        UILandingRow create = new UILandingRow(Icons.ADD, panel.getCreateLabel(), (b) -> panel.overlay.addNewData(this.getContext()));
-        UILandingRow list = new UILandingRow(Icons.MORE, panel.getListLabel(), (b) -> panel.openDataManager());
+        IKey createLabel = host.getCreateLabel();
+        UILandingRow list = new UILandingRow(Icons.MORE, host.getListLabel(), (b) -> host.openDataManager());
         UIElement gap = new UIElement();
         UILandingRow discord = new UILandingRow(Icons.DISCORD, IKey.constant("Discord"), (b) -> UIUtils.openWebLink(DISCORD_LINK));
         UILandingRow tutorials = new UILandingRow(Icons.PLAY, UIKeys.SUPPORTERS_TUTORIALS, (b) -> UIUtils.openWebLink(TUTORIALS_LINK));
@@ -113,18 +111,35 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
 
         this.folder = new UILandingRow(Icons.FOLDER, UIKeys.PANELS_CONTEXT_OPEN, (b) -> this.openFolder());
 
-        /* Asset-backed panels (the model editor) have nothing to create; there the list is the way in */
-        boolean canCreate = panel.overlay.showActionButtons();
-
-        create.setVisible(canCreate);
-        (canCreate ? create : list).accent();
-
         gap.h(GROUP_GAP);
 
-        this.menu = UI.column(0, create, list, this.folder, gap, discord, tutorials, wiki);
+        List<UIElement> rows = new ArrayList<>();
+
+        /* Panels backed by assets (the model editor) and by files (the audio editor) have nothing
+         * to create; there the list is the way in, and it wears the accent instead */
+        if (createLabel == null)
+        {
+            list.accent();
+        }
+        else
+        {
+            UILandingRow create = new UILandingRow(Icons.ADD, createLabel, (b) -> host.addNewData(this.getContext()));
+
+            create.accent();
+            rows.add(create);
+        }
+
+        rows.add(list);
+        rows.add(this.folder);
+        rows.add(gap);
+        rows.add(discord);
+        rows.add(tutorials);
+        rows.add(wiki);
+
+        this.menu = UI.column(0, rows.toArray(new UIElement[0]));
         this.menu.relative(this.card).xy(PADDING, LIST_Y).w(MENU_W).h(1F, -(LIST_Y + PADDING));
 
-        this.recent = new UIRecentDataList((entries) -> this.open(entries.get(0)), panel::getTabIcon);
+        this.recent = new UIRecentDataList((entries) -> this.open(entries.get(0)), host::getTabIcon);
         this.recent.relative(this.card).xy(RECENT_X, LIST_Y).w(CARD_W - RECENT_X - PADDING).h(1F, -(LIST_Y + PADDING));
         this.recent.context(this::fillRecentMenu);
 
@@ -160,7 +175,7 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
         if (visible && !wasVisible)
         {
             this.refresh();
-            this.panel.requestNames();
+            this.host.requestNames();
         }
     }
 
@@ -179,7 +194,7 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
      */
     private void refresh()
     {
-        boolean hasFolder = this.panel.getType().getRepository().getFolder() != null;
+        boolean hasFolder = this.host.getDataFolder() != null;
 
         if (this.folder.isVisible() != hasFolder)
         {
@@ -189,7 +204,7 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
 
         List<Entry> entries = new ArrayList<>();
 
-        for (Entry entry : BBSSettings.recentData.get(this.panel.getType().getId()))
+        for (Entry entry : BBSSettings.recentData.get(this.host.getRecentType()))
         {
             if (this.known == null || this.known.contains(entry.id))
             {
@@ -203,12 +218,12 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
 
     private void open(Entry entry)
     {
-        this.panel.pickData(entry.id);
+        this.host.pickData(entry.id);
     }
 
     private void openFolder()
     {
-        File folder = this.panel.getType().getRepository().getFolder();
+        File folder = this.host.getDataFolder();
 
         if (folder != null)
         {
@@ -225,20 +240,14 @@ public class UILandingScreen<T extends ValueGroup> extends UIElement
             return;
         }
 
-        menu.action(this.panel.getTabIcon(entry.id), UIKeys.PANELS_LANDING_OPEN, () -> this.open(entry));
-        menu.action(Icons.MORE, UIKeys.PANELS_LANDING_SHOW_IN_MANAGER, () -> this.showInManager(entry));
+        menu.action(this.host.getTabIcon(entry.id), UIKeys.PANELS_LANDING_OPEN, () -> this.open(entry));
+        menu.action(Icons.MORE, UIKeys.PANELS_LANDING_SHOW_IN_MANAGER, () -> this.host.showInList(entry.id));
         menu.action(Icons.REMOVE, UIKeys.PANELS_LANDING_FORGET, () -> this.forget(entry));
-    }
-
-    private void showInManager(Entry entry)
-    {
-        this.panel.openDataManager();
-        this.panel.overlay.namesList.setCurrentFile(entry.id);
     }
 
     private void forget(Entry entry)
     {
-        BBSSettings.recentData.forget(this.panel.getType().getId(), entry.id);
+        BBSSettings.recentData.forget(this.host.getRecentType(), entry.id);
         this.refresh();
     }
 

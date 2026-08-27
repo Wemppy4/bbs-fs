@@ -200,7 +200,8 @@ public class UISoundOverlayPanel extends UIStringOverlayPanel
         this.switchToMode(ViewMode.FOLDER);
     }
 
-    private static Set<String> getSoundEvents()
+    /** Every sound file the picker offers; the audio editor's landing screen goes by the same list. */
+    public static Set<String> getSoundEvents()
     {
         Set<String> locations = new HashSet<>();
 

@@ -406,6 +406,7 @@
 	"bbs.ui.back": "Back",
 	"bbs.ui.audio_editor.context.add": "Add color code",
 	"bbs.ui.audio_editor.context.remove": "Remove color code",
+	"bbs.ui.audio_editor.landing.list": "Sound list",
 	"bbs.ui.audio_editor.title": "Audio editor",
 	"bbs.ui.browse": "Browse...",
 	"bbs.ui.bone_picker.click_bone": "Click on a bone",

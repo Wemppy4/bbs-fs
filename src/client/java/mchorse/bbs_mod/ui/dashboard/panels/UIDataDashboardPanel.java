@@ -15,9 +15,9 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.utils.UIDataUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Timer;
-import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 
+import java.io.File;
 import java.util.Collection;
 
 public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUDDashboardPanel
@@ -64,7 +64,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     /* Tabs — the panel says what an id means, UITabList does the bookkeeping */
 
     @Override
-    public void openTab(String id)
+    protected void showTab(String id)
     {
         if (id == null)
         {
@@ -157,28 +157,48 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
      */
     public abstract ContentType getType();
 
-    /** Label of the landing screen's entry that creates a new document. */
-    public IKey getCreateLabel()
+    /* ILandingHost — the landing screen of a panel that edits saved documents */
+
+    @Override
+    public String getRecentType()
     {
-        return UIKeys.GENERAL_ADD;
+        return this.getType().getId();
     }
 
-    /** Label of the landing screen's entry that opens the data manager. */
-    public IKey getListLabel()
+    @Override
+    public File getDataFolder()
     {
-        return UIKeys.PANELS_KEYS_OPEN_DATA_MANAGER;
+        return this.getType().getRepository().getFolder();
+    }
+
+    /**
+     * Label of the landing screen's entry that creates a new document, or null when there is
+     * nothing to create: asset-backed panels (the model editor) keep the data manager as a pure
+     * picker, and the landing screen offers exactly what the manager does.
+     */
+    @Override
+    public IKey getCreateLabel()
+    {
+        return this.overlay.showActionButtons() ? UIKeys.GENERAL_ADD : null;
+    }
+
+    @Override
+    public void addNewData(UIContext context)
+    {
+        this.overlay.addNewData(context);
+    }
+
+    @Override
+    public void showInList(String id)
+    {
+        this.openDataManager();
+        this.overlay.namesList.setCurrentFile(id);
     }
 
     @Override
     protected UICRUDOverlayPanel createOverlayPanel()
     {
         return new UIDataOverlayPanel<>(this.getTitle(), this, this::pickData);
-    }
-
-    @Override
-    public void pickData(String id)
-    {
-        this.tabs.pick(id);
     }
 
     public void requestData(String id)
@@ -193,6 +213,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         this.data = data;
 
         this.tabs.setOpenId(data == null ? null : data.getId());
+        this.syncLanding();
 
         this.saveIcon.setEnabled(data != null);
         this.editor.setVisible(data != null);
@@ -216,8 +237,11 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     public void fillDefaultData(T data)
     {}
 
+    @Override
     public void fillNames(Collection<String> names)
     {
+        super.fillNames(names);
+
         String value = this.tabs.getCurrentId();
 
         if (value == null && this.data != null)
@@ -257,11 +281,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     @Override
     public void render(UIContext context)
     {
-        if (this.data == null)
-        {
-            this.renderDataManagerHint(context);
-        }
-
         super.render(context);
 
         if (!this.editor.isEnabled() && this.data != null)
@@ -270,28 +289,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.checkPeriodicSave(context);
-    }
-
-    /**
-     * Nudge towards the panel's menu while nothing is open: an arrow bobbing under the button
-     * that leads to the data manager.
-     */
-    private void renderDataManagerHint(UIContext context)
-    {
-        UIIcon button = this.actions().getMenuButton();
-
-        if (button == null)
-        {
-            return;
-        }
-
-        double ticks = context.getTickTransition() % 15D;
-        double factor = Math.abs(ticks / 15D * 2 - 1F);
-
-        int x = button.area.mx();
-        int y = button.area.ey() + 10 + (int) Interpolations.SINE_INOUT.interpolate(10, 0, factor);
-
-        context.batcher.icon(Icons.ARROW_UP, x, y, 0.5F, 0.5F);
     }
 
     private void checkPeriodicSave(UIContext context)

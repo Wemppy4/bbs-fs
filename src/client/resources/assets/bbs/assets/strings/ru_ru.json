@@ -402,6 +402,7 @@
 	"bbs.ui.back": "Назад",
 	"bbs.ui.audio_editor.context.add": "Добавить цветовой код",
 	"bbs.ui.audio_editor.context.remove": "Удалить цветовой код",
+	"bbs.ui.audio_editor.landing.list": "Список звуков",
 	"bbs.ui.audio_editor.title": "Аудио редактор",
 	"bbs.ui.bone_picker.click_bone": "Кликните на кость",
 	"bbs.ui.browse": "Обзор...",

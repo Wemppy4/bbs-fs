@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.dashboard.panels;
 
-import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
@@ -43,8 +42,4 @@ public abstract class UICRUDDashboardPanel extends UIEditorDashboardPanel
     }
 
     protected abstract UICRUDOverlayPanel createOverlayPanel();
-
-    public abstract IKey getTitle();
-
-    public abstract void pickData(String id);
 }

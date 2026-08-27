@@ -36,7 +36,6 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingScreen;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.dashboard.utils.IUIOrbitKeysHandler;
 import mchorse.bbs_mod.ui.film.audio.UIAudioRecorder;
@@ -82,7 +81,6 @@ import org.joml.Vector2i;
 import org.joml.Vector3d;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +100,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private final Position position = new Position(0, 0, 0, 0, 0);
     private final Position lastPosition = new Position(0, 0, 0, 0, 0);
 
-    public UILandingScreen<Film> landing;
 
     public UIElement main;
     public UIElement editArea;
@@ -290,8 +287,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             }
         }).active(active).category(editor);
 
-        this.landing = new UILandingScreen<>(this);
-
         /* Dockable layout, shared with the particle editor. */
         this.dock = new UIDockLayout();
         this.dock.relative(this.editor).w(1F).h(1F);
@@ -358,7 +353,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         BBSSettings.editorPreviewCustomHeight.postCallback(refreshPreviewOnVideoResolution);
         BBSSettings.editorPreviewResolutionScale.postCallback(refreshPreviewOnVideoResolution);
 
-        this.add(this.layoutUnderTopBar(this.landing));
+        this.mountLanding();
 
         this.onOpen(this::pickUpRecording);
         this.onAppear(this::enterEditing);
@@ -427,10 +422,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     /** Runs after every dock layout pass; the dock owns panel visibility, this owns what's inside them. */
     private void onDockLayoutChanged()
     {
-        boolean hasFilm = this.hasFilmInCurrentTab();
-
-        this.updateMainEditorVisibility(hasFilm);
-        this.landing.setVisible(!hasFilm);
+        this.updateMainEditorVisibility(this.hasFilmInCurrentTab());
+        this.syncLanding();
     }
 
     private boolean hasFilmInCurrentTab()
@@ -1496,17 +1489,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
 
         this.updateTabVisibility();
-    }
-
-    @Override
-    public void fillNames(Collection<String> names)
-    {
-        super.fillNames(names);
-
-        if (this.landing != null)
-        {
-            this.landing.fillNames(names);
-        }
     }
 
     public void undo()

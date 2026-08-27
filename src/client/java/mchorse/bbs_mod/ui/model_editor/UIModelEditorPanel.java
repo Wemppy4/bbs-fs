@@ -31,7 +31,6 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingScreen;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
@@ -69,7 +68,6 @@ import mchorse.bbs_mod.utils.presets.PresetManager;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -157,7 +155,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     private boolean bulkFill;
 
     /** Landing screen shown when the current tab has no model open. */
-    private UILandingScreen<ModelConfig> landing;
 
     /** A small morph-style model thumbnail pinned to the top-right of the orbit viewport. */
     private UIElement miniPreview;
@@ -241,26 +238,13 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.actions().action(this.folderIcon).action(this.historyIcon);
 
-        this.landing = new UILandingScreen<>(this);
-
-        this.add(this.layoutUnderTopBar(this.landing));
+        this.mountLanding();
 
         this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         this.registerKeybinds();
 
         this.fill(null);
-
-        this.onAppear(this::refreshLanding);
-    }
-
-    /** No model open → the landing screen is up; refresh its list each time the panel is shown. */
-    private void refreshLanding()
-    {
-        if (this.landing != null && this.landing.isVisible())
-        {
-            this.requestNames();
-        }
     }
 
     private void layoutPanes()
@@ -441,11 +425,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.fillSections(data);
 
-        if (this.landing != null)
-        {
-            this.landing.setVisible(data == null);
-        }
-
         if (this.folderIcon != null)
         {
             this.folderIcon.setEnabled(data != null);
@@ -527,17 +506,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.seedMap(this.flippedEntries, this.data.flippedParts);
         this.seedMap(this.pickingEntries, this.data.pickingOverrides);
         this.fillSections(this.data);
-    }
-
-    @Override
-    public void fillNames(Collection<String> names)
-    {
-        super.fillNames(names);
-
-        if (this.landing != null)
-        {
-            this.landing.fillNames(names);
-        }
     }
 
     private void seedMap(List<String[]> entries, ValueStringMap value)
