@@ -20,8 +20,8 @@ import java.util.function.Consumer;
 
 /**
  * The behaviour every collection of items shares — rows of a list, cells of a grid, nodes
- * of a tree: what a click picks (plain, Ctrl toggles, Shift extends), a band stretched over
- * empty space, a drag that reorders, the keyboard walking the items, and the callback that
+ * of a tree: what a click picks (plain, Ctrl toggles, Shift extends), a band stretched with
+ * Shift, a drag that reorders, the keyboard walking the items, and the callback that
  * tells the host what's picked now.
  *
  * <p>Subclasses only describe the geometry: which item sits at a point, where an item's
@@ -332,26 +332,28 @@ public abstract class UIItems<T> extends UIElement
         return true;
     }
 
-    /** A left press over nothing: arms a band when several items may be picked. */
+    /**
+     * A left press over nothing. The band is a Shift gesture everywhere in the mod — the
+     * clips of the timeline, the keyframes, the form list — so a plain press only drops the
+     * pick, and Shift (or Ctrl) is what stretches a rectangle over several items.
+     */
     protected boolean pressEmpty(UIContext context)
     {
-        if (this.clearsOnEmpty() && !Window.isShiftPressed() && !Window.isCtrlPressed())
+        boolean extending = Window.isShiftPressed() || Window.isCtrlPressed();
+
+        if (this.clearsOnEmpty() && !extending)
         {
             this.selection.clear();
             this.fireCallback();
         }
 
-        if (!this.multi)
+        if (!this.multi || !extending)
         {
             return this.clearsOnEmpty();
         }
 
         this.marqueeBase.clear();
-
-        if (Window.isShiftPressed() || Window.isCtrlPressed())
-        {
-            this.marqueeBase.addAll(this.selection.getItems());
-        }
+        this.marqueeBase.addAll(this.selection.getItems());
 
         this.marquee.press(this.contentX(context), this.contentY(context));
 
