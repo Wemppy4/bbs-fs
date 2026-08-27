@@ -214,29 +214,35 @@ public class UIAnimationStateEditor extends UIElement
             this.keyframeEditor.view.duration(() -> this.state.duration.get());
             this.keyframeEditor.view.context((menu) ->
             {
-                if (this.editor.form instanceof ModelForm modelForm)
+                int mouseY = this.getContext().mouseY;
+                UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
+
+                /* Whose pose the hovered track is: this form's for "pose", a body part's for
+                 * "<path>/pose" - the animations offered are that form's own. */
+                Form sheetForm = sheet != null && sheet.property != null ? FormUtils.getForm(sheet.property) : null;
+                boolean isPoseTrack = sheet != null
+                    && sheet.channel.getFactory() == KeyframeFactories.POSE
+                    && (sheet.id.equals("pose")
+                    || sheet.id.endsWith(FormUtils.PATH_SEPARATOR + "pose"))
+                    && !sheet.id.contains("pose_overlay");
+
+                if (isPoseTrack && sheetForm instanceof ModelForm poseModelForm)
                 {
-                    int mouseY = this.getContext().mouseY;
-                    UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
-
-                    if (sheet != null && sheet.channel.getFactory() == KeyframeFactories.POSE && sheet.id.equals("pose"))
+                    menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () ->
                     {
-                        menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () ->
+                        ModelInstance model = ModelFormRenderer.getModel(poseModelForm);
+
+                        if (model != null)
                         {
-                            ModelInstance model = ModelFormRenderer.getModel(modelForm);
-
-                            if (model != null)
+                            UIOverlay.addOverlay(this.getContext(), new UIAnimationToPoseOverlayPanel((animationKey, onlyKeyframes, length, step) ->
                             {
-                                UIOverlay.addOverlay(this.getContext(), new UIAnimationToPoseOverlayPanel((animationKey, onlyKeyframes, length, step) ->
-                                {
-                                    int current = this.editor.getCursor();
-                                    IEntity entity = this.editor.renderer.getTargetEntity();
+                                int current = this.editor.getCursor();
+                                IEntity entity = this.editor.renderer.getTargetEntity();
 
-                                    UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, modelForm, entity, current, animationKey, onlyKeyframes, length, step);
-                                }, modelForm, sheet), 200, 197);
-                            }
-                        });
-                    }
+                                UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, poseModelForm, entity, current, animationKey, onlyKeyframes, length, step);
+                            }, poseModelForm, sheet), 200, 197);
+                        }
+                    });
                 }
 
                 if (this.keyframeEditor.view.getGraph() instanceof UIKeyframeDopeSheet)

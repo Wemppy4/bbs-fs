@@ -667,47 +667,44 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
             this.keyframeEditor.view.duration(() -> this.film.camera.calculateDuration());
             this.keyframeEditor.view.context(menu ->
             {
-                if (this.replay.form.get() instanceof ModelForm modelForm)
+                int mouseY = this.getContext().mouseY;
+                UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
+
+                /* Whose pose the hovered track is: the replay's own form for "pose", a body
+                 * part's for "<path>/pose". Everything that works on a pose asks the track,
+                 * not the replay - a body part carries its own model, animations and bones. */
+                Form sheetForm = sheet != null && sheet.property != null ? FormUtils.getForm(sheet.property) : null;
+                boolean isPoseTrack = sheet != null
+                    && sheet.channel.getFactory() == KeyframeFactories.POSE
+                    && (sheet.id.equals("pose")
+                    || sheet.id.endsWith(FormUtils.PATH_SEPARATOR + "pose"))
+                    && !sheet.id.contains("pose_overlay");
+
+                if (isPoseTrack && sheetForm instanceof ModelForm poseModelForm)
                 {
-                    int mouseY = this.getContext().mouseY;
-                    UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
-
-                    if (sheet != null && sheet.channel.getFactory() == KeyframeFactories.POSE && sheet.id.equals("pose"))
+                    menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () ->
                     {
-                        menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () ->
+                        ModelInstance model = ModelFormRenderer.getModel(poseModelForm);
+
+                        if (model != null)
                         {
-                            ModelInstance model = ModelFormRenderer.getModel(modelForm);
+                            UIOverlay.addOverlay(
+                                this.getContext(),
+                                new UIAnimationToPoseOverlayPanel(
+                                    (animationKey, onlyKeyframes, length, step) ->
+                                    {
+                                        int current = this.filmPanel.getCursor();
+                                        IEntity entity = this.filmPanel.getController().getCurrentEntity();
 
-                            if (model != null)
-                            {
-                                UIOverlay.addOverlay(
-                                    this.getContext(),
-                                    new UIAnimationToPoseOverlayPanel(
-                                        (animationKey, onlyKeyframes, length, step) ->
-                                        {
-                                            int current = this.filmPanel.getCursor();
-                                            IEntity entity = this.filmPanel.getController().getCurrentEntity();
+                                        UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, poseModelForm, entity, current, animationKey, onlyKeyframes, length, step);
+                                    },
+                                poseModelForm, sheet), 200, 197
+                            );
+                        }
+                    });
 
-                                            UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, modelForm, entity, current, animationKey, onlyKeyframes, length, step);
-                                        },
-                                    modelForm, sheet), 200, 197
-                                );
-                            }
-                        });
-                    }
-
-                    boolean isPoseTrack = sheet != null
-                        && sheet.channel.getFactory() == KeyframeFactories.POSE
-                        && (sheet.id.equals("pose")
-                        || sheet.id.endsWith(FormUtils.PATH_SEPARATOR + "pose"))
-                        && !sheet.id.contains("pose_overlay");
-
-                    Form sheetForm = sheet != null && sheet.property != null ? FormUtils.getForm(sheet.property) : null;
-                    boolean limbTracksOn = sheetForm instanceof ModelForm m && m.boneTracks.get();
-
-                    if (isPoseTrack && sheet.selection.hasAny() && limbTracksOn)
+                    if (sheet.selection.hasAny() && poseModelForm.boneTracks.get())
                     {
-                        ModelForm poseModelForm = sheetForm instanceof ModelForm m ? m : modelForm;
                         menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
                         {
                             UIReplaysEditorUtils.posesToLimbTracks(this.replay, sheet, poseModelForm);
@@ -716,7 +713,10 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
                             this.updateChannelsList();
                         });
                     }
+                }
 
+                if (this.replay.form.get() instanceof ModelForm modelForm)
+                {
                     List<String> controllers = ModelIKRuntime.getControllers(ModelFormRenderer.getModel(modelForm));
                     if (!controllers.isEmpty())
                     {
@@ -734,9 +734,9 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
                     {
                         Set<String> disabledSet = BBSSettings.disabledSheets.get();
                         Map<String, Integer> keyToColor = new HashMap<>();
-                        for (UIKeyframeSheet sheet : this.keyframeEditor.view.getGraph().getSheets())
+                        for (UIKeyframeSheet listed : this.keyframeEditor.view.getGraph().getSheets())
                         {
-                            keyToColor.put(getSheetFilterKey(sheet), sheet.color);
+                            keyToColor.put(getSheetFilterKey(listed), listed.color);
                         }
                         UIKeyframeSheetFilterOverlayPanel panel = new UIKeyframeSheetFilterOverlayPanel(
                                 disabledSet,
