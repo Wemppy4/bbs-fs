@@ -2257,13 +2257,18 @@ public class UIPixelsEditor extends UICanvasEditor
         return this.getTemporaryTexture();
     }
 
+    /** The checkerboard's grey for a brightness of 0..1 — the canvas's, and whatever shows the same pixels beside it. */
+    public static int checkerboardColor(float brightness)
+    {
+        int value = (int) (MathUtils.clamp(brightness, 0F, 1F) * 255);
+
+        return Colors.setA(value << 16 | value << 8 | value, 1F);
+    }
+
     @Override
     protected void renderCheckboard(UIContext context, Area area)
     {
-        int brightness = (int) (this.backgroundSupplier.get() * 255);
-        int color = Colors.setA(brightness << 16 | brightness << 8 | brightness, 1F);
-
-        context.batcher.iconArea(Icons.CHECKBOARD, color, area.x, area.y, area.w, area.h);
+        context.batcher.iconArea(Icons.CHECKBOARD, checkerboardColor(this.backgroundSupplier.get()), area.x, area.y, area.w, area.h);
     }
 
     @Override

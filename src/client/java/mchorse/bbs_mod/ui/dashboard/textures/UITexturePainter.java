@@ -880,6 +880,12 @@ public class UITexturePainter extends UIElement
         return this.editor;
     }
 
+    /** The checkerboard brightness the user set for the canvas, 0..1 — the strip's cells go by it too. */
+    public float getBackgroundBrightness()
+    {
+        return (float) this.brightness.getValue();
+    }
+
     /**
      * Loads the editable document for {@code link}: the project from the {@code .dat} sidecar (or a
      * fresh single-layer one from the texture's pixels), and the animation from the {@code .mcmeta}

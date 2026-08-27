@@ -262,7 +262,7 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
             int dx = x + PADDING + (pw - dw) / 2;
             int dy = y + PADDING + (ph - dh) / 2;
 
-            batcher.iconArea(Icons.CHECKBOARD, dx, dy, dw, dh);
+            batcher.iconArea(Icons.CHECKBOARD, this.panel.checkerboardColor(), dx, dy, dw, dh);
 
             if (item.index < 0 || item.index >= document.imageCount())
             {

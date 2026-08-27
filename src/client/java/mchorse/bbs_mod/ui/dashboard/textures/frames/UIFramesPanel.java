@@ -5,6 +5,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.textures.PixelMacro;
+import mchorse.bbs_mod.ui.dashboard.textures.UIPixelsEditor;
 import mchorse.bbs_mod.ui.dashboard.textures.UITextureEditor;
 import mchorse.bbs_mod.ui.dashboard.textures.UITexturePainter;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
@@ -129,6 +130,12 @@ public class UIFramesPanel extends UIElement
         Document document = this.document();
 
         return document == null ? null : document.animation;
+    }
+
+    /** The cells' checkerboard is the canvas's: the brightness set in the editor's options. */
+    public int checkerboardColor()
+    {
+        return UIPixelsEditor.checkerboardColor(this.painter.getBackgroundBrightness());
     }
 
     /** Position of the frame on show, or -1. */
