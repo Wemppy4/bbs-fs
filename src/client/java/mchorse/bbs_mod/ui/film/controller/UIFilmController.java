@@ -899,7 +899,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         double x = center.x - camera.getPos().x;
         double y = center.y - camera.getPos().y;
         double z = center.z - camera.getPos().z;
-        float distanceScale = BBSSettings.getAxesDistanceScale((float) Math.sqrt(x * x + y * y + z * z));
+        float distanceScale = BBSSettings.getScreenSizeScale((float) Math.sqrt(x * x + y * y + z * z));
         MatrixStack stack = context.matrixStack();
 
         stack.push();

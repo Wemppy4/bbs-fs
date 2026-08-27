@@ -1460,7 +1460,6 @@ public class UIKeys
     public static final IKey TRANSFORMS_KEYS_TOGGLE_FIX = L10n.lang("bbs.ui.transforms.keys.toggle_fix");
     public static final IKey TRANSFORMS_KEYS_MIRROR_EDIT = L10n.lang("bbs.ui.transforms.keys.mirror_edit");
     public static final IKey TRANSFORMS_KEYS_ROTATION_MODE = L10n.lang("bbs.ui.transforms.keys.rotation_mode");
-    public static final IKey TRANSFORMS_COMBINED = L10n.lang("bbs.ui.transforms.combined");
     public static final IKey TRANSFORMS_ROTATE = L10n.lang("bbs.ui.transforms.rotate");
     public static final IKey TRANSFORMS_ROTATE2 = L10n.lang("bbs.ui.transforms.rotate2");
     public static final IKey TRANSFORMS_SCALE = L10n.lang("bbs.ui.transforms.scale");
@@ -1486,6 +1485,7 @@ public class UIKeys
     public static final IKey UTILITY_RELOAD_TEXTURES = L10n.lang("studio.ui.utility.reload_textures");
     public static final IKey UTILITY_RESIZE_WINDOW = L10n.lang("studio.ui.utility.resize");
     public static final IKey UTILITY_TITLE = L10n.lang("studio.ui.utility.title");
+    public static final IKey CONFIG_GIZMO_ELEMENTS = L10n.lang("bbs.config.transformation.gizmo_elements");
     public static final IKey CONFIG_KEYFRAME_STYLE_EDIT = L10n.lang("bbs.config.timeline.keyframe_default_style.edit");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_EXPORT = L10n.lang("bbs.config.viewport.preview_size_mode.export");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_CUSTOM = L10n.lang("bbs.config.viewport.preview_size_mode.custom");

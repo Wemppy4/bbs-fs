@@ -61,11 +61,17 @@ public class BBSSettings {
 	public static ValueRecentData recentData;
 	public static ValueFloat axesScale;
 	public static ValueFloat axesThickness;
-	public static ValueBoolean axesKeepScreenSize;
-	public static ValueBoolean rotate3dSphere;
+	public static ValueBoolean gizmoKeepScreenSize;
+	public static ValueFloat gizmoPlaneSize;
 	public static ValueInt rotate3dSphereMode;
-	public static ValueBoolean rotateHideRings;
 	public static ValueBoolean hideInactiveHandles;
+	/* The gizmo always carries every one of its elements; these say which of them
+	 * reach the screen and the cursor. See mchorse.bbs_mod.ui.utils.Gizmo.Element. */
+	public static ValueBoolean gizmoShowTranslate;
+	public static ValueBoolean gizmoShowScale;
+	public static ValueBoolean gizmoShowRotate;
+	public static ValueBoolean gizmoShowViewRotate;
+	public static ValueBoolean gizmoShowSphere;
 	public static ValueFloat snapTranslate;
 	public static ValueFloat snapRotate;
 	public static ValueFloat snapScale;
@@ -416,23 +422,35 @@ public class BBSSettings {
 		return BBSSettings.fov == null ? MathUtils.toRad(50) : MathUtils.toRad(BBSSettings.fov.get());
 	}
 
-	public static float getAxesDistanceScale(float distance)
+	/**
+	 * How much a world-space overlay has to grow with distance to keep the same size on
+	 * screen. Markers and paths always want this - what they mark is a point, and a point
+	 * that shrinks into nothing marks nothing.
+	 */
+	public static float getScreenSizeScale(float distance)
 	{
-		return getAxesDistanceScale(distance, getFov());
+		return getScreenSizeScale(distance, getFov());
 	}
 
-	public static float getAxesDistanceScale(float distance, float fov)
+	public static float getScreenSizeScale(float distance, float fov)
 	{
-		if (axesKeepScreenSize != null && axesKeepScreenSize.get())
-		{
-			float tanFov = (float) Math.tan(fov / 2.0);
-			// 0.4663F is roughly tan(50 degrees / 2)
-			float scale = (distance / 5F) * (tanFov / 0.4663F);
+		float tanFov = (float) Math.tan(fov / 2.0);
+		// 0.4663F is roughly tan(50 degrees / 2)
+		float scale = (distance / 5F) * (tanFov / 0.4663F);
 
-			return Math.max(scale, 0.0001F);
-		}
+		return Math.max(scale, 0.0001F);
+	}
 
-		return 1F;
+	/**
+	 * The same for the gizmo, which is the one overlay that may turn it off: a gizmo that
+	 * shrinks with distance reads as part of the scene rather than as a tool over it, and
+	 * some people prefer it that way.
+	 */
+	public static float getGizmoDistanceScale(float distance, float fov)
+	{
+		boolean keep = gizmoKeepScreenSize == null || gizmoKeepScreenSize.get();
+
+		return keep ? getScreenSizeScale(distance, fov) : 1F;
 	}
 
 	public static boolean isHorizontalClipEditorEffective()
@@ -517,6 +535,12 @@ public class BBSSettings {
 		migrated |= migrateLegacyCategory(root, "encoder", "video",
 			"encoder_path", "log", "arguments", "arguments_audio", "arguments_mux");
 
+		/* The gizmo lost its display modes: every element is always there, and these
+		 * two toggles became part of the per-element visibility set */
+		migrated |= migrateLegacyValue(root, "transformation", "axes_keep_screen_size", "transformation", "gizmo_keep_screen_size");
+		migrated |= migrateLegacyValue(root, "transformation", "rotate_3d_sphere", "transformation", "gizmo_show_sphere");
+		migrated |= migrateLegacyFlipped(root, "transformation", "rotate_hide_rings", "transformation", "gizmo_show_rotate");
+
 		/* Single option features share one category now, so their ids say what they switch */
 		migrated |= migrateLegacyValue(root, "dc", "enabled", "misc", "damage_control");
 		migrated |= migrateLegacyValue(root, "shader_curves", "enabled", "misc", "shader_curves");
@@ -536,6 +560,26 @@ public class BBSSettings {
 		}
 
 		return migrated;
+	}
+
+	/**
+	 * The same, for a boolean whose meaning was turned around by the rename
+	 * ("hide X" becoming "show X"), so the migrated file keeps the look the user had.
+	 */
+	private static boolean migrateLegacyFlipped(MapType root, String oldCategory, String oldKey, String newCategory, String newKey)
+	{
+		MapType oldMap = root.getMap(oldCategory);
+		MapType newMap = root.getMap(newCategory);
+
+		if (newMap.has(newKey) || !oldMap.has(oldKey))
+		{
+			return false;
+		}
+
+		newMap.putBool(newKey, !oldMap.getBool(oldKey));
+		root.put(newCategory, newMap);
+
+		return true;
 	}
 
 	private static boolean migrateLegacyValue(MapType root, String oldCategory, String oldKey, String newCategory, String newKey)
@@ -649,10 +693,14 @@ public class BBSSettings {
 		gizmos = builder.getBoolean("gizmos", true);
 		axesScale = builder.getFloat("axes_scale", 2F, 0F, 10F).slider();
 		axesThickness = builder.getFloat("axes_thickness", 0.35F, 0.25F, 3F).slider();
-		axesKeepScreenSize = builder.getBoolean("axes_keep_screen_size", true);
-		rotate3dSphere = builder.getBoolean("rotate_3d_sphere", true);
+		gizmoPlaneSize = builder.getFloat("gizmo_plane_size", 1F, 0.25F, 3F).slider();
+		gizmoKeepScreenSize = builder.getBoolean("gizmo_keep_screen_size", true);
+		gizmoShowTranslate = builder.getBoolean("gizmo_show_translate", true);
+		gizmoShowScale = builder.getBoolean("gizmo_show_scale", true);
+		gizmoShowRotate = builder.getBoolean("gizmo_show_rotate", true);
+		gizmoShowViewRotate = builder.getBoolean("gizmo_show_view_rotate", true);
+		gizmoShowSphere = builder.getBoolean("gizmo_show_sphere", true);
 		rotate3dSphereMode = builder.getInt("rotate_3d_sphere_mode", 0);
-		rotateHideRings = builder.getBoolean("rotate_hide_rings", false);
 		hideInactiveHandles = builder.getBoolean("hide_inactive_handles", true);
 		snapTranslate = builder.getFloat("snap_translate", 1F, 0.001F, 100F);
 		snapRotate = builder.getFloat("snap_rotate", 5F, 0.001F, 90F);

@@ -257,7 +257,7 @@ public class MotionPath
 
     private static void dot(BufferBuilder builder, MatrixStack stack, Vector3d point, float radius, float[] color)
     {
-        float half = radius * BBSSettings.getAxesDistanceScale((float) point.length());
+        float half = radius * BBSSettings.getScreenSizeScale((float) point.length());
 
         Draw.fillBox(builder, stack, (float) point.x - half, (float) point.y - half, (float) point.z - half, (float) point.x + half, (float) point.y + half, (float) point.z + half, color[0], color[1], color[2], 1F);
     }
@@ -289,7 +289,7 @@ public class MotionPath
             return;
         }
 
-        double half = halfWidth * BBSSettings.getAxesDistanceScale((float) Math.sqrt(mx * mx + my * my + mz * mz)) / length;
+        double half = halfWidth * BBSSettings.getScreenSizeScale((float) Math.sqrt(mx * mx + my * my + mz * mz)) / length;
 
         sx *= half;
         sy *= half;

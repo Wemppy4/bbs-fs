@@ -51,10 +51,11 @@ public class GizmoRings
     private float lastThickness = -1F;
 
     /**
-     * Rebuilds the cached geometry when the axes scale or thickness settings changed. Call
-     * before drawing anything from here.
+     * Rebuilds the cached geometry when the axes scale or thickness settings changed. Every draw
+     * call here runs it first, so no caller has to remember to — one that forgot drew nothing at
+     * all, and the miss showed up only in whichever gizmo element happened to be alone on screen.
      */
-    public void update()
+    private void update()
     {
         float scale = BBSSettings.axesScale.get();
         float thickness = BBSSettings.axesThickness.get();
@@ -92,18 +93,14 @@ public class GizmoRings
         }
     }
 
-    /** Whether the geometry has been built at least once. */
-    public boolean isReady()
-    {
-        return this.sphereVbo != null;
-    }
-
     /**
      * Draws the cached sphere straight with the given model-view — used to re-draw it into
      * the hover mask at the exact footprint it was drawn at in the viewport.
      */
     public void drawSphere(Matrix4f modelView, Matrix4f projection)
     {
+        this.update();
+
         this.sphereVbo.bind();
         this.sphereVbo.draw(modelView, projection, GameRenderer.getPositionColorProgram());
         VertexBuffer.unbind();
@@ -116,6 +113,8 @@ public class GizmoRings
      */
     public void drawOccluded(MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b)
     {
+        this.update();
+
         Vector2f arc = new Vector2f();
 
         if (!this.visibleArc(stack, axis, arc))
@@ -134,6 +133,8 @@ public class GizmoRings
     /** Draws the cached ring turned to face the camera — the view (screen-space) rotation ring. */
     public void drawBillboard(MatrixStack stack, float r, float g, float b, float a)
     {
+        this.update();
+
         stack.push();
 
         Matrix4f matrix = stack.peek().getPositionMatrix();

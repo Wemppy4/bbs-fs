@@ -273,8 +273,8 @@ public class FilmEntityRenderer
      * The replay's "axes preview" (a secondary bone): plain, non-interactive
      * cool axes via {@link Draw#coolerAxes} — not the editing gizmo. Resolves the
      * bone matrix exactly like {@link #renderAxes} and applies the same
-     * distance scaling the gizmo uses, so the preview keeps a constant on-screen
-     * size and matches the gizmo's axes.
+     * distance scaling the gizmo uses - the "fixed gizmo size" setting included, since
+     * the whole point is that the preview matches the gizmo's axes.
      */
     private static void renderPreviewAxes(String bone, boolean local, Form form, IEntity entity, float transition, MatrixStack stack, FormFrameCache frame)
     {
@@ -303,7 +303,7 @@ public class FilmEntityRenderer
         Vector3f cameraRelative = stack.peek().getPositionMatrix().getTranslation(new Vector3f());
         Matrix4f proj = RenderSystem.getProjectionMatrix();
         float fov = proj.m33() == 0 ? (float) (2.0 * Math.atan(1.0 / proj.m11())) : BBSSettings.getFov();
-        float distanceScale = BBSSettings.getAxesDistanceScale(cameraRelative.length(), fov);
+        float distanceScale = BBSSettings.getGizmoDistanceScale(cameraRelative.length(), fov);
 
         stack.scale(distanceScale, distanceScale, distanceScale);
         Draw.coolerAxes(stack, 0.25F, 0.008F);

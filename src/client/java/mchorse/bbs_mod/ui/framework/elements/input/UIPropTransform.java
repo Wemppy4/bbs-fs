@@ -352,7 +352,6 @@ public class UIPropTransform extends UITransform
         this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, () -> this.enableMode(TransformOp.TRANSLATE)).active(enabled).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_SCALE, () -> this.enableMode(TransformOp.SCALE)).active(enabled).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_ROTATE, () -> this.enableMode(TransformOp.ROTATE)).active(enabled).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_COMBINED, () -> Gizmo.INSTANCE.toggleCombined()).strict().active(enabled).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.setEditingAxis(Axis.X)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.setEditingAxis(Axis.Y)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.setEditingAxis(Axis.Z)).active(active).category(category);
@@ -682,10 +681,11 @@ public class UIPropTransform extends UITransform
         }
     }
 
-    /* Edit entry points. The mouse path (a gizmo handle pick) supplies the
-     * axes directly and never switches the gizmo's display mode; the keyboard
-     * path walks the user-configured hotkey orders and switches the displayed
-     * handles on the first press. Both funnel into startEdit. */
+    /* Edit entry points. The mouse path (a gizmo handle pick) supplies the axes
+     * directly; the keyboard path walks the user-configured hotkey orders. Both
+     * funnel into startEdit, and both start their operation on the first press —
+     * the gizmo shows every element at once, so there is no display mode for a
+     * press to switch first. */
 
     public void enableMode(TransformOp op)
     {
@@ -694,8 +694,10 @@ public class UIPropTransform extends UITransform
 
         /* G/S/R walk their handles in the user-configured order (the
          * *_hotkey_order settings), wrapping past the end back to the first
-         * step. Steps whose handle is unavailable drop out: the ray-driven
-         * ones without a rendered gizmo, the sphere when it's turned off.
+         * step. Steps whose handle is unavailable drop out: the ray-driven ones
+         * without a rendered gizmo. Hiding an element does NOT drop its step —
+         * the keyboard reaches handles the eye isn't shown, which is the only
+         * thing keeping every operation reachable when the gizmo is stripped bare.
          * Scale's uniform three-axis lever is a step of that walk like any
          * other (Blender's plain S, first in the default order) — it used to
          * short-circuit the whole method, which left every repeat press of S
@@ -753,17 +755,11 @@ public class UIPropTransform extends UITransform
     /**
      * Start (or switch to) a hotkey-driven operation along a specific axis.
      * Unlike the mouse path this keeps the hotkey semantics (numeric input,
-     * accept/reject overlay, the display-mode switch on the first press);
-     * the axis comes from the configured hotkey order rather than a fixed
-     * cycle.
+     * accept/reject overlay); the axis comes from the configured hotkey order
+     * rather than a fixed cycle.
      */
     private void enableHotkeyAxis(TransformOp op, Axis axis, GizmoDrag drag)
     {
-        if (this.switchGizmoDisplayMode(op))
-        {
-            return;
-        }
-
         this.startEdit(op, axis, null, DragStrategyFactory.Variant.AXIS, drag, true);
     }
 
@@ -779,9 +775,9 @@ public class UIPropTransform extends UITransform
 
     /**
      * Start an operation from a mouse handle pick: the axes come straight
-     * from the picked handle, so this never cycles and never switches the
-     * gizmo's display mode. The keyboard path goes through
-     * {@link #enableMode(TransformOp)} and the configured hotkey orders instead.
+     * from the picked handle, so this never cycles. The keyboard path goes
+     * through {@link #enableMode(TransformOp)} and the configured hotkey
+     * orders instead.
      */
     public void enableMode(TransformOp op, Axis axis, Axis axis2, GizmoDrag drag)
     {
@@ -807,11 +803,6 @@ public class UIPropTransform extends UITransform
 
     public void enableTrackball(GizmoDrag drag, boolean hotkeyMode)
     {
-        if (hotkeyMode && this.switchGizmoDisplayMode(TransformOp.ROTATE))
-        {
-            return;
-        }
-
         this.startEdit(TransformOp.ROTATE, null, null, DragStrategyFactory.Variant.TRACKBALL, drag, hotkeyMode);
     }
 
@@ -822,11 +813,6 @@ public class UIPropTransform extends UITransform
 
     public void enableArcball(GizmoDrag drag, boolean hotkeyMode)
     {
-        if (hotkeyMode && this.switchGizmoDisplayMode(TransformOp.ROTATE))
-        {
-            return;
-        }
-
         this.startEdit(TransformOp.ROTATE, null, null, DragStrategyFactory.Variant.ARCBALL, drag, hotkeyMode);
     }
 
@@ -837,19 +823,13 @@ public class UIPropTransform extends UITransform
 
     public void enableViewRotate(GizmoDrag drag, boolean hotkeyMode)
     {
-        if (hotkeyMode && this.switchGizmoDisplayMode(TransformOp.ROTATE))
-        {
-            return;
-        }
-
         this.startEdit(TransformOp.ROTATE, null, null, DragStrategyFactory.Variant.VIEW, drag, hotkeyMode);
     }
 
     /**
      * Start a uniform (three-axis) scale: one lever axis drives all three, the
-     * same math Ctrl+axis-scale uses. A mouse pick ({@code hotkeyMode == false})
-     * never switches the gizmo's display mode; as the S-key walk step it switches
-     * to scale mode on the first press like the other hotkey starters.
+     * same math Ctrl+axis-scale uses. Reached by a mouse pick on the centre cube
+     * and as a step of the S-key walk alike.
      */
     public void enableUniformScale(GizmoDrag drag)
     {
@@ -858,20 +838,13 @@ public class UIPropTransform extends UITransform
 
     public void enableUniformScale(GizmoDrag drag, boolean hotkeyMode)
     {
-        if (hotkeyMode && this.switchGizmoDisplayMode(TransformOp.SCALE))
-        {
-            return;
-        }
-
         this.startEdit(TransformOp.SCALE, Axis.X, null, DragStrategyFactory.Variant.UNIFORM_SCALE, drag, hotkeyMode);
     }
 
     /**
      * Start a screen-space (view-plane) translate: the object moves along the
-     * camera's right/up axes in the plane facing the camera. Grabbing the
-     * centre cube with the mouse never switches the gizmo's display mode
-     * (like the other handle picks); as a hotkey walk step the first press
-     * switches it like the rest of the hotkey starters.
+     * camera's right/up axes in the plane facing the camera. Reached by grabbing
+     * the centre cube and as a step of the G-key walk alike.
      */
     public void enableScreenTranslate(GizmoDrag drag)
     {
@@ -880,25 +853,7 @@ public class UIPropTransform extends UITransform
 
     public void enableScreenTranslate(GizmoDrag drag, boolean hotkeyMode)
     {
-        if (hotkeyMode && this.switchGizmoDisplayMode(TransformOp.TRANSLATE))
-        {
-            return;
-        }
-
         this.startEdit(TransformOp.TRANSLATE, Axis.X, Axis.Y, DragStrategyFactory.Variant.SCREEN, drag, hotkeyMode);
-    }
-
-    /**
-     * The hotkey starters switch the gizmo's displayed handles to their
-     * operation on the first press; when that happens the press is consumed
-     * by the switch and no edit starts. In combined mode there is nothing to
-     * switch, so the edit always starts.
-     */
-    private boolean switchGizmoDisplayMode(TransformOp op)
-    {
-        Gizmo.Mode target = op == TransformOp.TRANSLATE ? Gizmo.Mode.TRANSLATE : (op == TransformOp.SCALE ? Gizmo.Mode.SCALE : Gizmo.Mode.ROTATE);
-
-        return Gizmo.INSTANCE.getMode() != Gizmo.Mode.COMBINED && Gizmo.INSTANCE.setMode(target);
     }
 
     /**
