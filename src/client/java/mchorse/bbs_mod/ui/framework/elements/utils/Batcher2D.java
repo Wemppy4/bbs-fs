@@ -563,6 +563,9 @@ public class Batcher2D
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
+        /* The colour carries an alpha and the caller means it, so blending is turned on here
+         * rather than borrowed from whatever was drawn before - see the note above box() */
+        RenderSystem.enableBlend();
         RenderSystem.setShader(texturedProgram(texture));
 
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
@@ -583,6 +586,7 @@ public class Batcher2D
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
+        RenderSystem.enableBlend();
         RenderSystem.setShader(shader);
 
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
@@ -613,6 +617,7 @@ public class Batcher2D
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
+        RenderSystem.enableBlend();
         RenderSystem.setShader(texturedProgram(texture));
         RenderSystem.setShaderTexture(0, texture.id);
 
