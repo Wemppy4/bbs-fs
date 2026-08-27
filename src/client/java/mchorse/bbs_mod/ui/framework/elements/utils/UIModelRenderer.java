@@ -3,15 +3,17 @@ package mchorse.bbs_mod.ui.framework.elements.utils;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.camera.Camera;
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.camera.OrbitCamera;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.UIUtils;
-import mchorse.bbs_mod.utils.Factor;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
+import mchorse.bbs_mod.utils.interps.Lerps;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BufferRenderer;
@@ -25,6 +27,7 @@ import org.joml.Intersectiond;
 import org.joml.Matrix3d;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
@@ -33,11 +36,28 @@ import org.lwjgl.opengl.GL11;
  * Model renderer GUI element
  *
  * This base class can be used for full screen model viewer.
+ *
+ * <p>It is flown the way the film's orbit is flown, and for the same reason the two exist at
+ * all: the left button swings the view around what is being looked at, the middle one (or Shift
+ * with the left) slides it along the plane of the screen, the wheel closes in by a share of the
+ * distance rather than by a fixed step, and what is drawn chases where the input has put it
+ * instead of snapping there. Everything one learns in the film viewport is worth the same in a
+ * preview.</p>
  */
 public abstract class UIModelRenderer extends UIElement
 {
     private static Vector3d vec = new Vector3d();
     private static Matrix3d mat = new Matrix3d();
+
+    /** As far as the view may be tipped: straight up and down is where the maths gives out. */
+    private static final float PITCH_LIMIT = MathUtils.PI * 0.5F - 0.01F;
+
+    private static final float MIN_DISTANCE = 0.5F;
+    private static final float MAX_DISTANCE = 256F;
+
+    /** How much of the distance one notch of the wheel eats; Ctrl takes a bigger bite. */
+    private static final float ZOOM_STEP = 0.1F;
+    private static final float ZOOM_STEP_FAST = 0.22F;
 
     protected IEntity entity = new StubEntity();
 
@@ -47,8 +67,13 @@ public abstract class UIModelRenderer extends UIElement
     public Camera camera = new Camera();
 
     public Vector3f pos = new Vector3f();
-    public Factor distance = new Factor(0, 0, 100, (x) -> Math.pow(x, 2) / 100D);
     public boolean grid = true;
+
+    /* What the input drives, and - in pos, camera.rotation and distance - what is drawn chasing it */
+    private final Vector2f targetRotation = new Vector2f();
+    private final Vector3f targetPos = new Vector3f();
+    private float distance;
+    private float targetDistance;
 
     private Vector3d cachedPlaneIntersection = new Vector3d();
     private Vector3f cachedPos = new Vector3f();
@@ -111,18 +136,32 @@ public abstract class UIModelRenderer extends UIElement
 
     public void setRotation(float yaw, float pitch)
     {
-        this.camera.rotation.y = MathUtils.toRad(yaw);
-        this.camera.rotation.x = MathUtils.toRad(pitch);
+        this.targetRotation.set(MathUtils.clamp(MathUtils.toRad(pitch), -PITCH_LIMIT, PITCH_LIMIT), MathUtils.toRad(yaw));
+        this.camera.rotation.x = this.targetRotation.x;
+        this.camera.rotation.y = this.targetRotation.y;
     }
 
     public void setPosition(float x, float y, float z)
     {
         this.pos.set(x, y, z);
+        this.targetPos.set(x, y, z);
     }
 
-    public void setDistance(int distanceX)
+    public float getDistance()
     {
-        this.distance.setX(distanceX);
+        return this.distance;
+    }
+
+    /** Slide the view onto a point, letting the smoothing carry it there. */
+    public void focus(float x, float y, float z)
+    {
+        this.targetPos.set(x, y, z);
+    }
+
+    public void setDistance(float distance)
+    {
+        this.distance = MathUtils.clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
+        this.targetDistance = this.distance;
     }
 
     public void setEntity(IEntity entity)
@@ -137,7 +176,7 @@ public abstract class UIModelRenderer extends UIElement
 
     public void reset()
     {
-        this.setDistance(15);
+        this.setDistance(2.25F);
         this.setPosition(0, 1, 0);
         this.setRotation(0, 0);
     }
@@ -161,7 +200,7 @@ public abstract class UIModelRenderer extends UIElement
             this.lastX = context.mouseX;
             this.lastY = context.mouseY;
 
-            this.cachedPos.set(this.pos);
+            this.cachedPos.set(this.targetPos);
             this.cachedCamera.copy(this.camera);
             this.plane.set(0, 0, 1);
             this.rotateVector(this.plane);
@@ -172,19 +211,18 @@ public abstract class UIModelRenderer extends UIElement
         return false;
     }
 
+    /** The wheel closes in by a share of the distance, so it is as fine up close as it is far out. */
     @Override
     public boolean subMouseScrolled(UIContext context)
     {
-        if (this.area.isInside(context) && !this.isDragging())
+        if (this.area.isInside(context) && !this.isDragging() && context.mouseWheel != 0)
         {
-            int x = Integer.compare(-(int) context.mouseWheel, 0);
+            float step = Window.isCtrlPressed() ? ZOOM_STEP_FAST : ZOOM_STEP;
+            float factor = (float) Math.pow(1F - step, context.mouseWheel);
 
-            if (Window.isCtrlPressed())
-            {
-                x *= 8;
-            }
+            this.targetDistance = MathUtils.clamp(this.targetDistance * factor, MIN_DISTANCE, MAX_DISTANCE);
 
-            this.distance.setX(this.distance.getX() + x);
+            return true;
         }
 
         return super.subMouseScrolled(context);
@@ -210,8 +248,37 @@ public abstract class UIModelRenderer extends UIElement
         super.render(context);
     }
 
+    /**
+     * What is drawn walks towards what the input has set, by the share of the way a frame is
+     * worth. With the smoothing turned off it simply is what the input set.
+     */
+    private void applySmoothing()
+    {
+        float smoothness = BBSSettings.editorCameraSmoothness.get();
+
+        if (smoothness <= 0F)
+        {
+            this.camera.rotation.x = this.targetRotation.x;
+            this.camera.rotation.y = this.targetRotation.y;
+            this.pos.set(this.targetPos);
+            this.distance = this.targetDistance;
+
+            return;
+        }
+
+        float dt = MinecraftClient.getInstance().getLastFrameDuration();
+        float factor = MathUtils.clamp(1F - (float) Math.pow(Math.min(smoothness, 0.99F), dt), 0F, 1F);
+
+        this.camera.rotation.x = Lerps.lerp(this.camera.rotation.x, this.targetRotation.x, factor);
+        this.camera.rotation.y = Lerps.lerp(this.camera.rotation.y, this.targetRotation.y, factor);
+        this.pos.lerp(this.targetPos, factor);
+        this.distance = Lerps.lerp(this.distance, this.targetDistance, factor);
+    }
+
     private void updateLogic(UIContext context)
     {
+        this.applySmoothing();
+
         long tick = context.getTick();
         long i = tick - this.tick;
 
@@ -303,9 +370,9 @@ public abstract class UIModelRenderer extends UIElement
                 {
                     Vector3d newPoint = this.calculateOnPlane(context);
 
-                    this.pos.set(this.cachedPos);
-                    this.pos.sub((float) newPoint.x, (float) newPoint.y, (float) newPoint.z);
-                    this.pos.add((float) this.cachedPlaneIntersection.x, (float) this.cachedPlaneIntersection.y, (float) this.cachedPlaneIntersection.z);
+                    this.targetPos.set(this.cachedPos);
+                    this.targetPos.sub((float) newPoint.x, (float) newPoint.y, (float) newPoint.z);
+                    this.targetPos.add((float) this.cachedPlaneIntersection.x, (float) this.cachedPlaneIntersection.y, (float) this.cachedPlaneIntersection.z);
 
                     this.lastX = mouseX;
                     this.lastY = mouseY;
@@ -313,8 +380,10 @@ public abstract class UIModelRenderer extends UIElement
             }
             else
             {
-                this.camera.rotation.y -= MathUtils.toRad(this.lastX - mouseX);
-                this.camera.rotation.x -= MathUtils.toRad(this.lastY - mouseY);
+                float angle = OrbitCamera.dragAngleSpeed() * 4F;
+
+                this.targetRotation.y += (mouseX - this.lastX) * angle;
+                this.targetRotation.x = MathUtils.clamp(this.targetRotation.x + (mouseY - this.lastY) * angle, -PITCH_LIMIT, PITCH_LIMIT);
 
                 this.lastX = mouseX;
                 this.lastY = mouseY;
@@ -326,7 +395,7 @@ public abstract class UIModelRenderer extends UIElement
     {
         this.camera.position.set(this.pos);
 
-        vec.set(0, 0, -this.distance.getValue());
+        vec.set(0, 0, -this.distance);
         this.rotateVector(vec);
 
         this.camera.position.x += vec.x;
@@ -338,7 +407,7 @@ public abstract class UIModelRenderer extends UIElement
     {
         Vector3d vector = new Vector3d();
         Vector3d origin = new Vector3d(this.cachedCamera.position).sub(this.cachedPos);
-        Vector3d destination = new Vector3d(this.cachedCamera.getMouseDirection(context.mouseX, context.mouseY, this.area.x, this.area.y, this.area.w, this.area.h)).mul(this.distance.getValue() * 2).add(origin);
+        Vector3d destination = new Vector3d(this.cachedCamera.getMouseDirection(context.mouseX, context.mouseY, this.area.x, this.area.y, this.area.w, this.area.h)).mul(this.distance * 2D).add(origin);
         Intersectiond.intersectLineSegmentPlane(origin.x, origin.y, origin.z, destination.x, destination.y, destination.z, this.plane.x, this.plane.y, this.plane.z, 0, vector);
 
         return vector;
