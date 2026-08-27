@@ -643,6 +643,13 @@ public class BBSModClient implements ClientModInitializer
                 films.update();
                 modelBlockItemRenderer.update();
                 gunItemRenderer.update();
+            }
+
+            /* Animated textures keep going in BBS's own screens even while the game is paused
+             * under them — the texture manager pauses it, the film editor doesn't, and a preview
+             * should play in both. With no BBS screen the clock stops with the world, as vanilla's does. */
+            if (!mc.isPaused() || mc.currentScreen instanceof UIScreen)
+            {
                 textures.update();
             }
 

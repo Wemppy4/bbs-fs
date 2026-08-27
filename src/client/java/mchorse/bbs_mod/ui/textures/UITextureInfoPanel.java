@@ -194,17 +194,21 @@ public class UITextureInfoPanel extends UIElement
         context.batcher.textShadow(font.limitToWidth(name, w - 20), x, y + 4);
         y += 22;
 
-        if (this.texture != null)
+        /* Looked up afresh every frame, so an animated texture plays here as it does in the grid;
+         * the one caught at set() stays for the sampling toggles */
+        Texture texture = this.texture == null ? null : BBSModClient.getTextures().getTexture(this.link);
+
+        if (texture != null)
         {
-            int tw = Math.max(1, this.texture.width);
-            int th = Math.max(1, this.texture.height);
+            int tw = Math.max(1, texture.width);
+            int th = Math.max(1, texture.height);
             float scale = Math.min(w / (float) tw, w / (float) th);
             int fw = Math.max(1, Math.round(tw * scale));
             int fh = Math.max(1, Math.round(th * scale));
             int fx = x + (w - fw) / 2;
 
             context.batcher.iconArea(Icons.CHECKBOARD, fx, y, fw, fh);
-            context.batcher.fullTexturedBox(this.texture, fx, y, fw, fh);
+            context.batcher.fullTexturedBox(texture, fx, y, fw, fh);
             y += fh + 8;
 
             context.batcher.text(this.texture.width + " × " + this.texture.height, x, y, Colors.LIGHTER_GRAY);

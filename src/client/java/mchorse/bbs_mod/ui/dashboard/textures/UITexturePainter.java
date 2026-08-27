@@ -21,7 +21,6 @@ import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
@@ -103,6 +102,7 @@ public class UITexturePainter extends UIElement
     public UIIcon saveIcon;
     public UIIcon resizeIcon;
     public UIIcon extractIcon;
+    public UIIcon macrosIcon;
     public UIIcon animationIcon;
 
     private TexturePaintTool activeTool = TexturePaintTool.BRUSH;
@@ -155,9 +155,6 @@ public class UITexturePainter extends UIElement
     private UIToggle alphaLockToggle;
     private UIElement eraserOpacityRow;
     private UISliderTrackpad eraserOpacity;
-
-    /* One-shot operations over the selection or the frame on show */
-    private UISection macrosSection;
 
     /* The animation's own settings, there only for an animated texture */
     private UISection animationSection;
@@ -236,6 +233,24 @@ public class UITexturePainter extends UIElement
         this.modelPreviewIcon.tooltip(UIKeys.TEXTURES_PREVIEW_MODEL);
         this.animationIcon = new UIIcon(Icons.FILM, (b) -> this.withEditor(this::toggleAnimation));
         this.animationIcon.tooltip(UIKeys.TEXTURES_FRAMES_TOGGLE);
+        this.macrosIcon = new UIIcon(Icons.WRENCH, (b) -> this.openMacrosMenu());
+        this.macrosIcon.tooltip(UIKeys.TEXTURES_MACROS_TOOLTIP);
+    }
+
+    /** The one-shot operations as a list under the bar button: the selection, or the whole frame without one, on the active layer. */
+    private void openMacrosMenu()
+    {
+        if (this.editor == null)
+        {
+            return;
+        }
+
+        this.getContext().replaceContextMenu((menu) ->
+        {
+            menu.action(Icons.ERASER, UIKeys.TEXTURES_MACROS_CLEAR, () -> this.withEditor((editor) -> editor.applyMacroToWindow(PixelMacro.CLEAR)));
+            menu.action(Icons.HORIZONTAL, UIKeys.TEXTURES_MACROS_FLIP_H, () -> this.withEditor((editor) -> editor.applyMacroToWindow(PixelMacro.FLIP_HORIZONTAL)));
+            menu.action(Icons.VERTICAL, UIKeys.TEXTURES_MACROS_FLIP_V, () -> this.withEditor((editor) -> editor.applyMacroToWindow(PixelMacro.FLIP_VERTICAL)));
+        });
     }
 
     /**
@@ -248,6 +263,7 @@ public class UITexturePainter extends UIElement
 
         bar.action(this.resizeIcon)
             .action(this.extractIcon)
+            .action(this.macrosIcon)
             .action(this.animationIcon, this::isAnimated)
             .action(this.modelPreviewIcon, this.modelPreviewHost::isVisible)
             .common(this.saveIcon);
@@ -258,6 +274,7 @@ public class UITexturePainter extends UIElement
         this.saveIcon.setVisible(visible);
         this.resizeIcon.setVisible(visible);
         this.extractIcon.setVisible(visible);
+        this.macrosIcon.setVisible(visible);
         this.animationIcon.setVisible(visible);
         this.modelPreviewIcon.setVisible(visible);
 
@@ -389,14 +406,6 @@ public class UITexturePainter extends UIElement
         }));
         this.frameHeight.limit(1, 4096).integer();
 
-        /* The macros work on the selection, or the whole frame on show without one, on the active layer */
-        this.macrosSection = new UISection(UIKeys.TEXTURES_MACROS_SECTION).remember(SECTION_FOLDS, "macros", true);
-        this.macrosSection.fields.add(
-            this.macroButton(UIKeys.TEXTURES_MACROS_CLEAR, PixelMacro.CLEAR),
-            this.macroButton(UIKeys.TEXTURES_MACROS_FLIP_H, PixelMacro.FLIP_HORIZONTAL),
-            this.macroButton(UIKeys.TEXTURES_MACROS_FLIP_V, PixelMacro.FLIP_VERTICAL)
-        );
-
         this.animationSection = new UISection(UIKeys.TEXTURES_FRAMES_SECTION).remember(SECTION_FOLDS, "animation", true);
         this.animationSection.fields.add(
             UI.labelRow(UIKeys.TEXTURES_FRAMES_FRAMETIME, this.frametime),
@@ -414,18 +423,8 @@ public class UITexturePainter extends UIElement
             this.roundBrushToggle,
             this.brushBuildUpToggle,
             this.eraserOpacityRow,
-            this.macrosSection,
             this.animationSection
         );
-    }
-
-    private UIButton macroButton(IKey label, PixelMacro macro)
-    {
-        UIButton button = new UIButton(label, (b) -> this.withEditor((editor) -> editor.applyMacroToWindow(macro)));
-
-        button.tooltip(UIKeys.TEXTURES_MACROS_TOOLTIP);
-
-        return button;
     }
 
     private void buildModelPreviewHost()

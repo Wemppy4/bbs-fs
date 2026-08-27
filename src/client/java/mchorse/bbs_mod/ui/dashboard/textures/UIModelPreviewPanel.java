@@ -9,6 +9,7 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureManager;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -19,6 +20,7 @@ import mchorse.bbs_mod.utils.resources.Pixels;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 public class UIModelPreviewPanel extends UIElement
@@ -30,7 +32,7 @@ public class UIModelPreviewPanel extends UIElement
     private ModelForm form;
     private Link fakeLink;
 
-    /* For an animated texture: its frames as the game would play them, rebuilt when the document changes */
+    /* For an animated texture: its images cut from the strip the way the game cuts them, rebuilt when the document changes */
     private AnimatedTexture animated;
     private int animatedRevision = -1;
 
@@ -74,11 +76,15 @@ public class UIModelPreviewPanel extends UIElement
         Document document = editor == null ? null : editor.getDocument();
         TextureManager textures = BBSModClient.getTextures();
 
-        if (document != null && document.animation != null && this.updateAnimated(editor, document))
+        /* The model shows the frame the canvas shows — the editor's clock, not the game's: click
+         * a frame and the model wears it; play, and the two run together */
+        Texture frame = document != null && document.animation != null && this.updateAnimated(editor, document)
+            ? this.frameOnShow(editor, document)
+            : null;
+
+        if (frame != null)
         {
-            /* The animated entry wins the lookup, so the still one has to go */
-            textures.textures.remove(this.fakeLink);
-            textures.animatedTextures.put(this.fakeLink, this.animated);
+            textures.textures.put(this.fakeLink, frame);
         }
         else
         {
@@ -99,16 +105,31 @@ public class UIModelPreviewPanel extends UIElement
         super.render(context);
     }
 
+    /** The image of the frame on show, out of those cut from the strip; null for a frame pointing past it. */
+    private Texture frameOnShow(UITextureEditor editor, Document document)
+    {
+        List<TextureAnimation.Frame> frames = document.animation.frames;
+        int position = editor.getFrame();
+
+        if (position < 0 || position >= frames.size())
+        {
+            return null;
+        }
+
+        int image = frames.get(position).index;
+
+        return image >= 0 && image < this.animated.textures.size() ? this.animated.textures.get(image) : null;
+    }
+
     /**
-     * Keep the animated frames in step with the document: cut from the flattened strip the way the
-     * game cuts them, by the same {@code .mcmeta}, and rebuilt only when the document changed.
-     * False when they can't be made (a strip shorter than a frame), so the still texture shows.
+     * Keep the images in step with the document: cut from the flattened strip the way the game
+     * cuts them, by the same {@code .mcmeta}, and rebuilt only when the document changed (or the
+     * textures were thrown away under us by a resource reload). False when they can't be made
+     * (a strip shorter than a frame), so the still texture shows.
      */
     private boolean updateAnimated(UITextureEditor editor, Document document)
     {
-        TextureManager textures = BBSModClient.getTextures();
-
-        if (this.animated != null && this.animatedRevision == document.revision && textures.animatedTextures.get(this.fakeLink) == this.animated)
+        if (this.animated != null && this.animatedRevision == document.revision && !this.animated.textures.isEmpty() && this.animated.textures.get(0).isValid())
         {
             return true;
         }
@@ -145,7 +166,8 @@ public class UIModelPreviewPanel extends UIElement
     {
         if (this.animated != null)
         {
-            BBSModClient.getTextures().animatedTextures.remove(this.fakeLink);
+            /* The manager may hold one of the images as the fake link's texture: not after this */
+            BBSModClient.getTextures().textures.remove(this.fakeLink);
             this.animated.delete();
             this.animated = null;
         }

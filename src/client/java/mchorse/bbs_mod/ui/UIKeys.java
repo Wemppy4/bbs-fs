@@ -1366,7 +1366,6 @@ public class UIKeys
     public static final IKey TEXTURES_KEYS_CLEAR = L10n.lang("bbs.ui.textures.keys.clear");
     public static final IKey TEXTURES_KEYS_FLIP_H = L10n.lang("bbs.ui.textures.keys.flip_h");
     public static final IKey TEXTURES_KEYS_FLIP_V = L10n.lang("bbs.ui.textures.keys.flip_v");
-    public static final IKey TEXTURES_MACROS_SECTION = L10n.lang("bbs.ui.textures.macros.section");
     public static final IKey TEXTURES_MACROS_CLEAR = L10n.lang("bbs.ui.textures.macros.clear");
     public static final IKey TEXTURES_MACROS_FLIP_H = L10n.lang("bbs.ui.textures.macros.flip_h");
     public static final IKey TEXTURES_MACROS_FLIP_V = L10n.lang("bbs.ui.textures.macros.flip_v");
