@@ -91,6 +91,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     public UITextbox search;
     public UIIcon sort;
     public UIIcon everywhere;
+    public UIIcon combine;
     public UIIcon newTexture;
 
     /** The path typed by hand — shown in place of the breadcrumbs while editing. */
@@ -201,6 +202,47 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         }
     }
 
+    /** Several textures made into one animated texture: undone by deleting it, redone by making it again. */
+    private static class CombineChange implements Change
+    {
+        private final List<Link> frames;
+        private final Link folder;
+        private final int frametime;
+        private Link created;
+
+        public CombineChange(List<Link> frames, Link folder, int frametime, Link created)
+        {
+            this.frames = frames;
+            this.folder = folder;
+            this.frametime = frametime;
+            this.created = created;
+        }
+
+        @Override
+        public boolean undo(UITextureBrowser browser)
+        {
+            if (this.created.equals(browser.getCurrent()))
+            {
+                browser.picker.selectCurrent(null);
+            }
+
+            return TextureFiles.delete(this.created);
+        }
+
+        @Override
+        public boolean redo(UITextureBrowser browser)
+        {
+            Link again = TextureFiles.combine(this.frames, this.folder, StringUtils.fileName(this.created.path), this.frametime);
+
+            if (again != null)
+            {
+                this.created = again;
+            }
+
+            return again != null;
+        }
+    }
+
     /* Changes done and undone, most recent last */
     private final Deque<Change> undos = new ArrayDeque<>();
     private final Deque<Change> redos = new ArrayDeque<>();
@@ -252,6 +294,8 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         });
         this.everywhere.tooltip(UIKeys.TEXTURES_BROWSER_EVERYWHERE, Direction.BOTTOM);
         this.everywhere.highlight(() -> this.searchEverywhere, Direction.BOTTOM);
+        this.combine = new UIIcon(Icons.FILM, (b) -> this.promptCombine(this.pickedFrames()));
+        this.combine.tooltip(UIKeys.TEXTURES_BROWSER_COMBINE_TOOLTIP, Direction.BOTTOM);
         this.newTexture = new UIIcon(Icons.MATERIAL, (b) -> this.promptNewTexture());
         this.newTexture.tooltip(UIKeys.TEXTURES_BROWSER_NEW_TEXTURE, Direction.BOTTOM);
 
@@ -284,7 +328,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.infoHandle.relative(this.info).x(0).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT);
-        this.bar.add(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.newTexture, picker.close);
+        this.bar.add(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.combine, this.newTexture, picker.close);
         /* The grid goes before the tree: it clears the drag's target as its frame begins, and
          * the tree reports a folder of its own while painting after it */
         this.add(this.bar, this.crumbs, this.text, this.grid, this.left, this.info, picker.editor, this.leftHandle, this.infoHandle, this.clearClipboard);
@@ -689,6 +733,41 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         return links;
     }
 
+    /**
+     * The picked textures in the order they are shown — the frames a combined animation is made
+     * of. Folders are left out: only pictures become frames.
+     */
+    private List<Link> pickedFrames()
+    {
+        List<Link> links = new ArrayList<>();
+
+        for (TextureEntry entry : this.entries)
+        {
+            if (!entry.folder() && this.grid.selection.contains(entry))
+            {
+                links.add(entry.link());
+            }
+        }
+
+        return links;
+    }
+
+    /** How many of the picked entries are textures; asked every frame, so it walks the pick rather than the listing. */
+    private int pickedFrameCount()
+    {
+        int count = 0;
+
+        for (TextureEntry entry : this.grid.selection.getItems())
+        {
+            if (!entry.folder())
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
     private boolean isPicked(Link link)
     {
         return this.grid.selection.contains(TextureEntry.of(link));
@@ -1061,6 +1140,106 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         }));
     }
 
+    /* Combining several textures into one animated texture */
+
+    /**
+     * Where a combined animation is written: the folder on show, or — when that isn't one on
+     * disk, as while searching from the root — the folder the first frame lives in.
+     */
+    private Link combineFolder(List<Link> frames)
+    {
+        if (TextureFiles.isFolder(this.path))
+        {
+            return this.path;
+        }
+
+        Link parent = frames.isEmpty() ? null : TextureEntry.folderLink(frames.get(0).parent());
+
+        return TextureFiles.isFolder(parent) ? parent : null;
+    }
+
+    /**
+     * What the animation is called by default: what the frames' names have in common, without
+     * whatever separated the numbering ("fire_1", "fire_2" → "fire"), and free in the folder.
+     * When they have nothing in common, the first frame's name stands in.
+     */
+    private static String defaultAnimationName(List<Link> frames, Link folder)
+    {
+        String first = StringUtils.removeExtension(StringUtils.fileName(frames.get(0).path));
+        String prefix = first;
+
+        for (Link frame : frames)
+        {
+            String name = StringUtils.removeExtension(StringUtils.fileName(frame.path));
+            int i = 0;
+
+            while (i < prefix.length() && i < name.length() && prefix.charAt(i) == name.charAt(i))
+            {
+                i += 1;
+            }
+
+            prefix = prefix.substring(0, i);
+        }
+
+        while (!prefix.isEmpty() && !Character.isLetterOrDigit(prefix.charAt(prefix.length() - 1)))
+        {
+            prefix = prefix.substring(0, prefix.length() - 1);
+        }
+
+        return TextureFiles.freeName(folder, prefix.isEmpty() ? first : prefix);
+    }
+
+    /** Ask what the animation the picked textures are about to become is called, then make it. */
+    private void promptCombine(List<Link> frames)
+    {
+        if (frames.size() < TextureFiles.MIN_COMBINE_FRAMES)
+        {
+            return;
+        }
+
+        Link folder = this.combineFolder(frames);
+
+        /* Both the folder on show and the frames' own are inside the mod: there is nothing to write to */
+        if (folder == null)
+        {
+            this.getContext().notifyError(UIKeys.TEXTURES_BROWSER_COMBINE_NO_FOLDER);
+
+            return;
+        }
+
+        IKey message = UIKeys.TEXTURES_BROWSER_COMBINE_DESCRIPTION.format(
+            String.valueOf(frames.size()),
+            StringUtils.fileName(frames.get(0).path),
+            StringUtils.fileName(frames.get(frames.size() - 1).path)
+        );
+
+        UIOverlay.addOverlay(this.getContext(), new UICombineTexturesOverlayPanel(message, defaultAnimationName(frames, folder), (name, frametime) ->
+        {
+            this.combine(frames, folder, name, frametime);
+        }));
+    }
+
+    /** Stack the frames into the folder, then show what came out of it: picked, listed and open in the editor. */
+    private void combine(List<Link> frames, Link folder, String name, int frametime)
+    {
+        Link created = TextureFiles.combine(frames, folder, name, frametime);
+
+        if (created == null)
+        {
+            this.getContext().notifyError(UIKeys.TEXTURES_BROWSER_COMBINE_FAILED);
+
+            return;
+        }
+
+        this.record(new CombineChange(frames, folder, frametime, created));
+        this.notify(UIKeys.TEXTURES_BROWSER_NOTIFY_COMBINED, frames.size());
+        this.grid.selection.clear();
+        this.refresh();
+        this.tree.refresh();
+        this.picker.selectCurrent(created);
+        this.picker.openTexture(created);
+    }
+
     /* File operations */
 
     private void promptNewFolder()
@@ -1198,9 +1377,15 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             menu.action(Icons.COPY, UIKeys.TEXTURES_COPY, () -> Window.setClipboard(link.toString()));
 
             File file = TextureFiles.file(link);
+            List<Link> frames = group ? this.pickedFrames() : Collections.emptyList();
 
+            /* Several pictures picked: they become the frames of one animated texture */
+            if (frames.size() >= TextureFiles.MIN_COMBINE_FRAMES)
+            {
+                menu.action(Icons.FILM, UIKeys.TEXTURES_BROWSER_COMBINE.format(String.valueOf(frames.size())), () -> this.promptCombine(frames));
+            }
             /* A texture on disk that isn't animated yet: into the editor with the animation on */
-            if (file != null && file.isFile() && !TextureAnimation.file(file).isFile())
+            else if (file != null && file.isFile() && !TextureAnimation.file(file).isFile())
             {
                 menu.action(Icons.FILM, UIKeys.TEXTURES_MAKE_ANIMATED, () -> this.picker.openTextureAnimated(link));
             }
@@ -1430,6 +1615,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
 
         this.hoveredAction = null;
         this.back.setEnabled(!this.path.source.isEmpty());
+        this.combine.setEnabled(this.pickedFrameCount() >= TextureFiles.MIN_COMBINE_FRAMES);
 
         int strip = BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50);
 

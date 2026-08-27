@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSResources;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.utils.PNGEncoder;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.resources.Pixels;
@@ -13,7 +14,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -28,6 +31,9 @@ import java.util.stream.Stream;
 public class TextureFiles
 {
     public static final String COPY_SUFFIX = "_copy";
+
+    /** Fewer pictures than this don't make an animation. */
+    public static final int MIN_COMBINE_FRAMES = 2;
 
     /** What belongs to a texture and goes wherever it goes: the animation and the editor's project. */
     private static final String[] SIDECARS = {".mcmeta", Document.EXTENSION};
@@ -242,6 +248,164 @@ public class TextureFiles
         }
 
         return done(target, folder);
+    }
+
+    /**
+     * Make one animated texture out of several: the pictures are stacked top to bottom into the
+     * strip the {@code .mcmeta} format plays, and the sidecar that says how to play them is
+     * written beside it — every picture once, in the order given, each for {@code frametime}
+     * ticks.
+     *
+     * <p>The frames keep their pixels: a cell of the strip is as wide and as tall as the largest
+     * of them, and a smaller frame sits in the top left corner of its cell with the rest left
+     * transparent — nothing is ever scaled, so pixel art comes out as it went in. The frames
+     * themselves may be read-only (a texture inside the mod's jar): they are read through the
+     * provider, and only the strip is written.</p>
+     */
+    public static Link combine(List<Link> frames, Link folder, String name, int frametime)
+    {
+        File into = file(folder);
+
+        if (into == null || !into.isDirectory() || frames.size() < MIN_COMBINE_FRAMES || name.isEmpty())
+        {
+            return null;
+        }
+
+        File target = new File(into, name.endsWith(".png") ? name : name + ".png");
+
+        if (target.exists())
+        {
+            return null;
+        }
+
+        List<Pixels> pictures = readPictures(frames);
+
+        if (pictures == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return writeStrip(target, pictures, Math.max(1, frametime)) ? done(target, null) : null;
+        }
+        finally
+        {
+            for (Pixels picture : pictures)
+            {
+                picture.delete();
+            }
+        }
+    }
+
+    /** A name (without the extension) nothing in the folder answers to yet: "fire", then "fire_2", "fire_3"… */
+    public static String freeName(Link folder, String name)
+    {
+        File into = file(folder);
+
+        if (into == null || name.isEmpty())
+        {
+            return name;
+        }
+
+        String free = name;
+
+        for (int i = 2; new File(into, free + ".png").exists(); i++)
+        {
+            free = name + "_" + i;
+        }
+
+        return free;
+    }
+
+    /** The pictures of every frame, or null when one of them can't be read: nothing is made out of half a set. */
+    private static List<Pixels> readPictures(List<Link> frames)
+    {
+        List<Pixels> pictures = new ArrayList<>();
+
+        for (Link frame : frames)
+        {
+            try (InputStream stream = BBSMod.getProvider().getAsset(frame))
+            {
+                pictures.add(Pixels.fromPNGStream(stream));
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+
+                for (Pixels picture : pictures)
+                {
+                    picture.delete();
+                }
+
+                return null;
+            }
+        }
+
+        return pictures;
+    }
+
+    /**
+     * The strip and its sidecar. Without the sidecar the strip is a squashed texture rather than
+     * an animation, so when that can't be written what was written goes too.
+     */
+    private static boolean writeStrip(File target, List<Pixels> pictures, int frametime)
+    {
+        int w = 1;
+        int h = 1;
+
+        for (Pixels picture : pictures)
+        {
+            w = Math.max(w, picture.width);
+            h = Math.max(h, picture.height);
+        }
+
+        int stripHeight = h * pictures.size();
+        Pixels strip = Pixels.fromSize(w, stripHeight);
+
+        try
+        {
+            for (int i = 0; i < pictures.size(); i++)
+            {
+                Pixels picture = pictures.get(i);
+
+                for (int x = 0; x < picture.width; x++)
+                {
+                    for (int y = 0; y < picture.height; y++)
+                    {
+                        strip.setColor(x, i * h + y, picture.getColor(x, y));
+                    }
+                }
+            }
+
+            PNGEncoder.writeToFile(strip, target);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+
+            return false;
+        }
+        finally
+        {
+            strip.delete();
+        }
+
+        TextureAnimation animation = new TextureAnimation();
+
+        animation.frametime = frametime;
+        animation.width = w;
+        animation.height = h;
+        animation.fillDefaultFrames(w, stripHeight);
+
+        if (!animation.write(target, w, stripHeight))
+        {
+            target.delete();
+
+            return false;
+        }
+
+        return true;
     }
 
     public static boolean delete(Link link)
