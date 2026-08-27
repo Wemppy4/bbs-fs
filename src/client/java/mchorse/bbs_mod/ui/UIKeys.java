@@ -1338,6 +1338,11 @@ public class UIKeys
     public static final IKey TEXTURES_KEYS_FRAME_NEXT = L10n.lang("bbs.ui.textures.keys.frame_next");
     public static final IKey TEXTURES_FRAME_COUNTER = L10n.lang("bbs.ui.textures.frame_counter");
     public static final IKey TEXTURES_KEYS_FRAME_ADD = L10n.lang("bbs.ui.textures.keys.frame_add");
+    public static final IKey TEXTURES_KEYS_FRAME_ADD_EMPTY = L10n.lang("bbs.ui.textures.keys.frame_add_empty");
+    public static final IKey TEXTURES_KEYS_FRAME_FIRST = L10n.lang("bbs.ui.textures.keys.frame_first");
+    public static final IKey TEXTURES_KEYS_FRAME_LAST = L10n.lang("bbs.ui.textures.keys.frame_last");
+    public static final IKey TEXTURES_FRAMES_PREV = L10n.lang("bbs.ui.textures.frames.prev");
+    public static final IKey TEXTURES_FRAMES_NEXT = L10n.lang("bbs.ui.textures.frames.next");
     public static final IKey TEXTURES_FRAMES_TOGGLE = L10n.lang("bbs.ui.textures.frames.toggle");
     public static final IKey TEXTURES_FRAMES_PLAY = L10n.lang("bbs.ui.textures.frames.play");
     public static final IKey TEXTURES_FRAMES_ADD = L10n.lang("bbs.ui.textures.frames.add");

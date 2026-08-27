@@ -396,6 +396,55 @@ public class UITextureEditor extends UIPixelsEditor
     }
 
     /**
+     * Copies of the given frames (in their order, each with an image of its own) put before the
+     * frame now at {@code insertion}, or last — a Ctrl-drag's drop. The copies, the first shown.
+     */
+    public List<TextureAnimation.Frame> duplicateFramesAt(List<TextureAnimation.Frame> selected, int insertion)
+    {
+        List<TextureAnimation.Frame> copies = new ArrayList<>();
+
+        if (!this.isAnimated() || selected.isEmpty())
+        {
+            return copies;
+        }
+
+        List<TextureAnimation.Frame> frames = this.document.animation.frames;
+        List<TextureAnimation.Frame> ordered = new ArrayList<>();
+
+        for (TextureAnimation.Frame frame : frames)
+        {
+            if (selected.contains(frame))
+            {
+                ordered.add(frame);
+            }
+        }
+
+        if (ordered.isEmpty())
+        {
+            return copies;
+        }
+
+        int at = MathUtils.clamp(insertion, 0, frames.size());
+
+        this.recordLayerChange(null, () ->
+        {
+            this.document.bakeOffsets();
+
+            for (TextureAnimation.Frame frame : ordered)
+            {
+                copies.add(new TextureAnimation.Frame(this.document.duplicateImage(frame.index), frame.time));
+            }
+
+            frames.addAll(at, copies);
+            this.afterStripChanged();
+        });
+
+        this.setFrame(at);
+
+        return copies;
+    }
+
+    /**
      * Take frames out of the order; an image nobody shows any more is cut from the strip. The
      * last frame stays put — whether anything went.
      */

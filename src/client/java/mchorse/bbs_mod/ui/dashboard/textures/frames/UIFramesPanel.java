@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.dashboard.textures.frames;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.textures.UITextureEditor;
@@ -60,12 +61,13 @@ public class UIFramesPanel extends UIElement
         this.play = new UIIcon(() -> this.playing ? Icons.PAUSE : Icons.PLAY, (b) -> this.togglePlaying());
         this.play.tooltip(UIKeys.TEXTURES_FRAMES_PLAY);
 
-        UIIcon prev = new UIIcon(Icons.FRAME_PREV, (b) -> this.step(-1));
-        UIIcon next = new UIIcon(Icons.FRAME_NEXT, (b) -> this.step(1));
-        UIIcon add = new UIIcon(Icons.ADD, (b) -> this.insertAfterShown());
+        /* Shift turns a step into a jump to the end, and a copy into a blank frame */
+        UIIcon prev = new UIIcon(Icons.FRAME_PREV, (b) -> this.stepOrJump(-1));
+        UIIcon next = new UIIcon(Icons.FRAME_NEXT, (b) -> this.stepOrJump(1));
+        UIIcon add = new UIIcon(Icons.ADD, (b) -> this.addFrame(!Window.isShiftPressed()));
 
-        prev.tooltip(UIKeys.TEXTURES_KEYS_FRAME_PREV);
-        next.tooltip(UIKeys.TEXTURES_KEYS_FRAME_NEXT);
+        prev.tooltip(UIKeys.TEXTURES_FRAMES_PREV);
+        next.tooltip(UIKeys.TEXTURES_FRAMES_NEXT);
         add.tooltip(UIKeys.TEXTURES_FRAMES_ADD);
 
         this.counter = UI.label(IKey.raw(""));
@@ -184,6 +186,52 @@ public class UIFramesPanel extends UIElement
         this.sync();
     }
 
+    /** Straight to a frame of the order, picking it, the way a click on it would. */
+    public void jump(int position)
+    {
+        if (this.editor == null || this.animation() == null)
+        {
+            return;
+        }
+
+        this.playing = false;
+        this.editor.setFrame(position);
+        this.selectShown();
+        this.sync();
+    }
+
+    public void first()
+    {
+        this.jump(0);
+    }
+
+    public void last()
+    {
+        TextureAnimation animation = this.animation();
+
+        if (animation != null)
+        {
+            this.jump(animation.frames.size() - 1);
+        }
+    }
+
+    /** A step, or with Shift held a jump to that end of the order. */
+    private void stepOrJump(int delta)
+    {
+        if (!Window.isShiftPressed())
+        {
+            this.step(delta);
+        }
+        else if (delta < 0)
+        {
+            this.first();
+        }
+        else
+        {
+            this.last();
+        }
+    }
+
     public void insert(int position)
     {
         if (this.editor == null || this.animation() == null)
@@ -197,9 +245,42 @@ public class UIFramesPanel extends UIElement
         this.sync();
     }
 
-    public void insertAfterShown()
+    /**
+     * A new frame after the one on show: a copy of it — what nearly every next frame of a
+     * pixel animation starts as — or a blank one.
+     */
+    public void addFrame(boolean copy)
     {
-        this.insert(this.shown() + 1);
+        TextureAnimation.Frame shown = this.shownFrame();
+
+        if (copy && shown != null)
+        {
+            this.duplicate(Collections.singletonList(shown));
+        }
+        else
+        {
+            this.insert(this.shown() + 1);
+        }
+    }
+
+    /** Copies of frames dropped between others with Ctrl held. */
+    public void copyTo(List<TextureAnimation.Frame> frames, int insertion)
+    {
+        if (this.editor == null)
+        {
+            return;
+        }
+
+        this.playing = false;
+
+        List<TextureAnimation.Frame> copies = this.editor.duplicateFramesAt(frames, insertion);
+
+        if (!copies.isEmpty())
+        {
+            this.strip.selection.setAll(copies);
+        }
+
+        this.sync();
     }
 
     public void duplicate(List<TextureAnimation.Frame> frames)
@@ -331,9 +412,23 @@ public class UIFramesPanel extends UIElement
         }
     }
 
+    /** Ctrl + wheel over the bar flips the frames too; over the row of cells the strip does it itself. */
+    @Override
+    public boolean subMouseScrolled(UIContext context)
+    {
+        if (Window.isCtrlPressed() && context.mouseWheel != 0 && this.area.isInside(context) && this.animation() != null)
+        {
+            this.step(context.mouseWheel > 0 ? -1 : 1);
+
+            return true;
+        }
+
+        return super.subMouseScrolled(context);
+    }
+
     /* Playing */
 
-    private void togglePlaying()
+    public void togglePlaying()
     {
         TextureAnimation animation = this.animation();
 

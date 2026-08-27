@@ -471,9 +471,20 @@ public class UITexturePainter extends UIElement
         this.keys().register(Keys.PIXEL_TOOL_SELECTION, () -> this.userSelectTool(TexturePaintTool.SELECTION)).inside().category(category);
         this.keys().register(Keys.PIXEL_BRUSH_DEC, () -> this.adjustBrushSize(-1)).inside().category(category);
         this.keys().register(Keys.PIXEL_BRUSH_INC, () -> this.adjustBrushSize(1)).inside().category(category);
-        this.keys().register(Keys.PIXEL_FRAME_PREV, () -> this.framesPanel.step(-1)).inside().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_NEXT, () -> this.framesPanel.step(1)).inside().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_ADD, this.framesPanel::insertAfterShown).inside().active(this::isAnimated).category(category);
+        /* The plain steps are strict, so they step aside for their Shift and Alt+Shift variants */
+        this.keys().register(Keys.PIXEL_FRAME_PREV, () -> this.framesPanel.step(-1)).inside().strict().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_NEXT, () -> this.framesPanel.step(1)).inside().strict().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_FIRST, this.framesPanel::first).inside().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_LAST, this.framesPanel::last).inside().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_ADD, () -> this.framesPanel.addFrame(true)).inside().strict().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_ADD_EMPTY, () -> this.framesPanel.addFrame(false)).inside().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_PLAY, this.framesPanel::togglePlaying).inside().active(this::isAnimated).category(category);
+
+        /* Undo has to answer wherever the cursor is in the editor — over the strip, the layers,
+         * the options — not only over the canvas, which keeps its own binds for when it's there
+         * (a key stops at the first element that takes it, so the two never both fire) */
+        this.keys().register(Keys.UNDO, () -> this.withEditor(UITextureEditor::undo)).inside().active(() -> this.editor != null).category(category);
+        this.keys().register(Keys.REDO, () -> this.withEditor(UITextureEditor::redo)).inside().active(() -> this.editor != null).category(category);
 
         /* Ctrl+S lives on its own element so it outranks the other keybinds, the way the data
          * panels do it — the painter isn't one of those, so nothing registered it before */
@@ -795,6 +806,7 @@ public class UITexturePainter extends UIElement
         editor.brushSoftnessSupplier(() -> (float) this.brushSoftness.getValue() / 100.0F);
         editor.eraserOpacitySupplier(() -> (float) this.eraserOpacity.getValue() / 100.0F);
         editor.secondaryEraserToggle(this::setSecondaryEraser);
+        editor.frameStepper(this.framesPanel::step);
         editor.layersChangedCallback(() ->
         {
             if (this.layersPanel != null && this.getCurrentEditor() == editor)

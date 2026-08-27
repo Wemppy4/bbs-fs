@@ -71,6 +71,9 @@ public class UIPixelsEditor extends UICanvasEditor
     /** Show the frame before the one on show faintly under it — the trace an animator draws against. */
     private boolean onionSkin;
 
+    /** Who flips the frames when the canvas asks (Ctrl + wheel): the owner's strip, so it keeps up; the canvas itself by default. */
+    private Consumer<Integer> frameStepper = this::stepFrame;
+
     private boolean editing;
     private Color drawColor;
     private boolean blendStroke;
@@ -431,6 +434,13 @@ public class UIPixelsEditor extends UICanvasEditor
         this.setFrame(this.frame + delta);
     }
 
+    public UIPixelsEditor frameStepper(Consumer<Integer> stepper)
+    {
+        this.frameStepper = stepper != null ? stepper : this::stepFrame;
+
+        return this;
+    }
+
     public void setOnionSkin(boolean onionSkin)
     {
         this.onionSkin = onionSkin;
@@ -469,6 +479,10 @@ public class UIPixelsEditor extends UICanvasEditor
             this.frame = 0;
         }
 
+        /* The selection is in document coordinates, so it would stay behind on the old frame's
+         * rows — invisible, yet still keeping the brush out. It goes along with the window. */
+        this.shiftSelection(-this.frameX, y - this.frameY);
+
         this.frameX = 0;
         this.frameY = y;
 
@@ -476,6 +490,46 @@ public class UIPixelsEditor extends UICanvasEditor
         {
             super.setSize(w, h);
         }
+    }
+
+    private void shiftSelection(int dx, int dy)
+    {
+        if ((dx == 0 && dy == 0) || (!this.hasSelection() && this.currentSelection == null))
+        {
+            return;
+        }
+
+        for (SelectionRect rect : this.selections)
+        {
+            rect.x1 += dx;
+            rect.x2 += dx;
+            rect.y1 += dy;
+            rect.y2 += dy;
+        }
+
+        if (this.currentSelection != null)
+        {
+            this.currentSelection.x1 += dx;
+            this.currentSelection.x2 += dx;
+            this.currentSelection.y1 += dy;
+            this.currentSelection.y2 += dy;
+        }
+
+        this.invalidateSelectionMask();
+    }
+
+    /** Ctrl + wheel flips through the frames; the wheel alone zooms, as on any canvas. */
+    @Override
+    public boolean subMouseScrolled(UIContext context)
+    {
+        if (Window.isCtrlPressed() && context.mouseWheel != 0 && this.area.isInside(context) && this.document != null && this.document.animation != null)
+        {
+            this.frameStepper.accept(context.mouseWheel > 0 ? -1 : 1);
+
+            return true;
+        }
+
+        return super.subMouseScrolled(context);
     }
 
     /** The document pixel under the mouse: the canvas maps to the window, the window sits in the document. */

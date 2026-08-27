@@ -100,7 +100,11 @@ public class Keys
     public static final KeyCombo PIXEL_BRUSH_INC = new KeyCombo("brush_inc", UIKeys.TEXTURES_KEYS_BRUSH_INC, GLFW.GLFW_KEY_RIGHT_BRACKET).repeatable().categoryKey("pixels");
     public static final KeyCombo PIXEL_FRAME_PREV = new KeyCombo("frame_prev", UIKeys.TEXTURES_KEYS_FRAME_PREV, GLFW.GLFW_KEY_COMMA).repeatable().categoryKey("pixels");
     public static final KeyCombo PIXEL_FRAME_NEXT = new KeyCombo("frame_next", UIKeys.TEXTURES_KEYS_FRAME_NEXT, GLFW.GLFW_KEY_PERIOD).repeatable().categoryKey("pixels");
+    public static final KeyCombo PIXEL_FRAME_FIRST = new KeyCombo("frame_first", UIKeys.TEXTURES_KEYS_FRAME_FIRST, GLFW.GLFW_KEY_COMMA, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
+    public static final KeyCombo PIXEL_FRAME_LAST = new KeyCombo("frame_last", UIKeys.TEXTURES_KEYS_FRAME_LAST, GLFW.GLFW_KEY_PERIOD, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
     public static final KeyCombo PIXEL_FRAME_ADD = new KeyCombo("frame_add", UIKeys.TEXTURES_KEYS_FRAME_ADD, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_LEFT_ALT).categoryKey("pixels");
+    public static final KeyCombo PIXEL_FRAME_ADD_EMPTY = new KeyCombo("frame_add_empty", UIKeys.TEXTURES_KEYS_FRAME_ADD_EMPTY, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
+    public static final KeyCombo PIXEL_FRAME_PLAY = new KeyCombo("frame_play", UIKeys.TEXTURES_FRAMES_PLAY, GLFW.GLFW_KEY_SPACE).categoryKey("pixels");
 
     /* Keyframes */
     public static final KeyCombo KEYFRAMES_MAXIMIZE = new KeyCombo("maximize", UIKeys.KEYFRAMES_CONTEXT_MAXIMIZE, GLFW.GLFW_KEY_HOME).categoryKey("keyframes");

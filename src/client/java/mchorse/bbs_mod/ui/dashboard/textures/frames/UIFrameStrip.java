@@ -113,10 +113,32 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
         return true;
     }
 
+    /** A drop between the cells moves the frames; with Ctrl held it puts copies there, as in the texture browser. */
     @Override
     protected void reorder(List<TextureAnimation.Frame> items, int insertion)
     {
-        this.panel.move(items, insertion);
+        if (this.drag.isCopy())
+        {
+            this.panel.copyTo(items, insertion);
+        }
+        else
+        {
+            this.panel.move(items, insertion);
+        }
+    }
+
+    /** Ctrl + wheel flips the frames instead of scrolling the row. */
+    @Override
+    public boolean subMouseScrolled(UIContext context)
+    {
+        if (Window.isCtrlPressed() && context.mouseWheel != 0 && this.area.isInside(context))
+        {
+            this.panel.step(context.mouseWheel > 0 ? -1 : 1);
+
+            return true;
+        }
+
+        return super.subMouseScrolled(context);
     }
 
     /** A plain click shows the frame; Ctrl and Shift only change the pick, the way they do everywhere. */
