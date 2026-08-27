@@ -663,6 +663,15 @@ public abstract class UIItems<T> extends UIElement
     protected void renderDragGhost(UIContext context)
     {}
 
+    /**
+     * How far the caret is pushed in from the left edge, so it starts where the dropped item's
+     * content would. Flat by default; a tree indents it to the depth the drop lands at.
+     */
+    protected int insertionInset(int insertion)
+    {
+        return 0;
+    }
+
     /** The line between two rows where a drop would land. */
     protected void renderInsertion(UIContext context, int insertion)
     {
@@ -688,6 +697,6 @@ public abstract class UIItems<T> extends UIElement
 
         int sy = this.originY() + y;
 
-        context.batcher.box(this.area.x, sy - 1, this.area.ex(), sy + 1, Colors.A100 | BBSSettings.primaryColor.get());
+        context.batcher.box(this.area.x + this.insertionInset(insertion), sy - 1, this.area.ex(), sy + 1, Colors.A100 | BBSSettings.primaryColor.get());
     }
 }

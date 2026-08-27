@@ -772,109 +772,117 @@ public class UIReplayList extends UIList<ReplayListEntry>
         return super.subMouseClicked(context);
     }
 
+    /** A category header takes replays dropped into it; between the rows, the caret decides. */
     @Override
-    public boolean subMouseReleased(UIContext context)
+    protected boolean acceptsDrop(ReplayListEntry element)
     {
-        if (this.sorting && !this.isFiltering())
-        {
-            if (this.isDragging())
-            {
-                int index = this.scroll.getIndex(context.mouseX, context.mouseY);
-                int dragging = this.getDraggingIndex();
-
-                /* Past the last row (empty padding below short lists): move to root — no root replay row to drop on. */
-                if (index == -2)
-                {
-                    ReplayListEntry dragged = this.list.get(dragging);
-
-                    if (dragged.isReplay())
-                    {
-                        this.applyReplayCategory(List.of(dragged.replay), "");
-                    }
-                }
-                else if (index != dragging && this.exists(index))
-                {
-                    ReplayListEntry a = this.list.get(dragging);
-                    ReplayListEntry b = this.list.get(index);
-
-                    if (a.isReplay() && b.isFolder())
-                    {
-                        this.dropReplaysOntoCategory(index);
-                    }
-                    else if (a.isReplay() && b.isReplay())
-                    {
-                        this.handleSwap(dragging, index);
-                    }
-                }
-            }
-
-            /* The drop is settled here, row by row; the base must not settle it again as a reorder */
-            this.drag.reset();
-        }
-
-        this.scroll.mouseReleased(context);
-
-        return super.subMouseReleased(context);
+        return element.isFolder();
     }
 
-    /** A replay is dropped onto a row (swapped with it, or filed under a folder), not between rows: no caret. */
+    /** The caret runs from where a replay row's name starts, so a drop into a category reads as one. */
     @Override
-    protected void renderInsertion(UIContext context, int insertion)
-    {}
-
-    /** Drag a replay row onto a category header to assign that category. */
-    private void dropReplaysOntoCategory(int folderIndex)
+    protected int dropInset(ReplayListEntry element)
     {
-        ReplayListEntry folderEntry = this.list.get(folderIndex);
-
-        if (!folderEntry.isFolder())
-        {
-            return;
-        }
-
-        ReplayListEntry draggedEntry = this.list.get(this.getDraggingIndex());
-
-        if (!draggedEntry.isReplay())
-        {
-            return;
-        }
-
-        this.applyReplayCategory(List.of(draggedEntry.replay), folderEntry.folderName);
+        return ROW_PADDING + element.indent;
     }
 
+    /** Dropped onto a category header: the replay is filed under it, keeping its place in the film. */
     @Override
-    protected void handleSwap(int from, int to)
+    protected void onDrop(Object target, List<ReplayListEntry> items)
+    {
+        ReplayListEntry dragged = items.isEmpty() ? null : items.get(0);
+
+        if (target instanceof ReplayListEntry folder && folder.isFolder() && dragged != null && dragged.isReplay())
+        {
+            this.applyReplayCategory(List.of(dragged.replay), folder.folderName);
+        }
+    }
+
+    /** Dropped between rows: the replay takes the category of that slot and lands in it. */
+    @Override
+    protected void reorder(List<ReplayListEntry> items, int insertion)
+    {
+        ReplayListEntry dragged = items.isEmpty() ? null : items.get(0);
+
+        if (dragged != null && dragged.isReplay())
+        {
+            this.moveReplayToSlot(dragged.replay, insertion);
+        }
+    }
+
+    /**
+     * Which category a slot between rows belongs to: the group the rows around it are in, and
+     * the root below the last row - the replays of no category are listed last, so the bottom
+     * of the list is the one place that always means "out of every category".
+     */
+    private String slotCategory(int insertion)
+    {
+        if (insertion >= this.list.size())
+        {
+            return "";
+        }
+
+        ReplayListEntry at = this.list.get(insertion);
+
+        if (at.isReplay())
+        {
+            return Replay.normalizeCategory(at.replay.category.get());
+        }
+
+        /* The slot sits right above a header, so it belongs to whatever ends above it */
+        ReplayListEntry above = insertion > 0 ? this.list.get(insertion - 1) : null;
+
+        if (above == null)
+        {
+            return "";
+        }
+
+        return above.isReplay()
+            ? Replay.normalizeCategory(above.replay.category.get())
+            : Replay.normalizeCategory(above.folderName);
+    }
+
+    /**
+     * Move a replay to a slot of the list. The film keeps one flat list of replays and the
+     * categories are only a way of showing it, so the place in that flat list has to be the one
+     * that looks like the slot: right after the last replay of the same category above the
+     * caret, or right before the first one below it.
+     */
+    private void moveReplayToSlot(Replay moved, int insertion)
     {
         Film data = this.panel.getData();
+
+        if (data == null)
+        {
+            return;
+        }
+
+        String category = this.slotCategory(insertion);
+        Replay above = this.neighbourInCategory(insertion - 1, -1, category, moved);
+        Replay below = this.neighbourInCategory(insertion, 1, category, moved);
+
         Replays replays = data.replays;
-        List<Replay> all = replays.getList();
-
-        ReplayListEntry ef = this.list.get(from);
-        ReplayListEntry et = this.list.get(to);
-
-        if (!ef.isReplay() || !et.isReplay())
-        {
-            return;
-        }
-
-        this.assignReplayCategoryValue(ef.replay, et.replay.category.get());
-
-        int globalFrom = all.indexOf(ef.replay);
-        int globalTo = all.indexOf(et.replay);
-
-        if (globalFrom < 0 || globalTo < 0)
-        {
-            return;
-        }
-
-        Replay value = all.get(globalFrom);
 
         data.preNotify(IValueListener.FLAG_UNMERGEABLE);
 
-        /* Reordering is just reordering now: anchors and camera selectors hold the replay's
-         * stable id, so the hand-written index remapping that used to chase them is gone. */
-        replays.remove(value);
-        replays.add(globalTo, value);
+        this.assignReplayCategoryValue(moved, category);
+        replays.remove(moved);
+
+        List<Replay> all = replays.getList();
+        int target = all.size();
+
+        if (above != null)
+        {
+            target = all.indexOf(above) + 1;
+        }
+        else if (below != null)
+        {
+            target = all.indexOf(below);
+        }
+
+        /* Anchors and camera selectors hold the replay's stable id, so moving it about is
+         * nothing but moving it about. */
+        replays.add(MathUtils.clamp(target, 0, all.size()), moved);
 
         data.postNotify(IValueListener.FLAG_UNMERGEABLE);
 
@@ -885,13 +893,30 @@ public class UIReplayList extends UIList<ReplayListEntry>
         {
             ReplayListEntry e = this.list.get(i);
 
-            if (e.isReplay() && e.replay == value)
+            if (e.isReplay() && e.replay == moved)
             {
                 this.pick(i);
 
                 break;
             }
         }
+    }
+
+    /** Walking from {@code from} in {@code step}s, the first replay row of {@code category}. */
+    private Replay neighbourInCategory(int from, int step, String category, Replay skip)
+    {
+        for (int i = from; i >= 0 && i < this.list.size(); i += step)
+        {
+            ReplayListEntry entry = this.list.get(i);
+
+            if (entry.isReplay() && entry.replay != skip
+                && Replay.normalizeCategory(entry.replay.category.get()).equals(category))
+            {
+                return entry.replay;
+            }
+        }
+
+        return null;
     }
 
     private void pasteToReplays(MapType data)

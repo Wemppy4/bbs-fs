@@ -149,6 +149,77 @@ public abstract class UIList <T> extends UIItems<T>
         }
     }
 
+    /* Drops: into a row, or between two of them */
+
+    /**
+     * How much of a row, at its top and its bottom, reads as "between the rows" rather than as
+     * the row itself. Every row of a list is a place to drop <em>beside</em>; only some are a
+     * place to drop <em>into</em>, and those need both meanings out of the same 20 pixels.
+     */
+    public static final float DROP_EDGE = 0.25F;
+
+    /**
+     * Whether items dropped over the middle of this row go inside it &mdash; a category that
+     * holds replays, a form that holds body parts. The row's edges still give the caret, so
+     * such a row can be dropped beside as well as into.
+     */
+    protected boolean acceptsDrop(T element)
+    {
+        return false;
+    }
+
+    /** How deep the caret sits for a drop beside this row; as deep as the row's own content. */
+    protected int dropInset(T element)
+    {
+        return this.rowContentX(element);
+    }
+
+    /**
+     * The caret goes as deep as the deeper of the two rows it runs between: under the last
+     * child of a group it stays with the children, not with whatever group starts next.
+     */
+    @Override
+    protected int insertionInset(int insertion)
+    {
+        List<T> visible = this.visible();
+        int inset = 0;
+
+        if (insertion > 0 && insertion - 1 < visible.size())
+        {
+            inset = this.dropInset(visible.get(insertion - 1));
+        }
+
+        if (insertion >= 0 && insertion < visible.size())
+        {
+            inset = Math.max(inset, this.dropInset(visible.get(insertion)));
+        }
+
+        return inset;
+    }
+
+    @Override
+    protected void reportDropTarget(int x, int y)
+    {
+        int index = this.indexAt(x, y);
+
+        if (index != -1)
+        {
+            T row = this.visible().get(index);
+            int size = this.scroll.scrollItemSize;
+            int within = y - index * size;
+
+            if (within > size * DROP_EDGE && within < size * (1F - DROP_EDGE)
+                && this.acceptsDrop(row) && !this.drag.isDragging(row))
+            {
+                this.drag.setTarget(row);
+
+                return;
+            }
+        }
+
+        super.reportDropTarget(x, y);
+    }
+
     /* Filtering elements */
 
     public void filter(String filter)
@@ -855,6 +926,12 @@ public abstract class UIList <T> extends UIItems<T>
         if (selected)
         {
             context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A50 | BBSSettings.primaryColor.get());
+        }
+
+        /* Where a drop would land inside this row, said the way the caret says "between" */
+        if (this.drag.isTarget(element))
+        {
+            context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A25 | BBSSettings.primaryColor.get());
         }
 
         this.renderElementPart(context, element, i, x, y, hover, selected);
