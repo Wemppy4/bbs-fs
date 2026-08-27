@@ -940,12 +940,12 @@ public class UIColorPicker extends UIElement
 
     private boolean isHsvPicker()
     {
-        return BBSSettings.hsvColorPicker.get();
+        return BBSSettings.colorPickerHsvTab.get();
     }
 
     /**
-     * Switch color models. The choice is remembered in the settings, so it's still one
-     * setting for every picker — it just isn't only reachable from the settings screen.
+     * Switch color models. The choice is remembered globally, so every picker opens on
+     * the tab the last one was left on; the settings screen has no row for it.
      */
     private void setHsvPicker(boolean hsv)
     {
@@ -954,7 +954,7 @@ public class UIColorPicker extends UIElement
             return;
         }
 
-        BBSSettings.hsvColorPicker.set(hsv);
+        BBSSettings.colorPickerHsvTab.set(hsv);
 
         this.dragging = -1;
         this.syncFields();

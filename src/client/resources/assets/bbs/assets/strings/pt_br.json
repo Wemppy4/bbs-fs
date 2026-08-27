@@ -12,8 +12,6 @@
     "bbs.config.appearance.freeze_models-comment": "Quando habilitado, modelos no seletor de formas não seguiram o mouse",
     "bbs.config.appearance.gizmos": "Gizmos",
     "bbs.config.appearance.gizmos-comment": "Se os elementos de eixos para, movimentar, escalar e rotacionar estão habilitados",
-    "bbs.config.appearance.hsv_color_picker": "Seletor HSV",
-    "bbs.config.appearance.hsv_color_picker-comment": "Quando ativo, a opção alterará todos os selecionadores de cores para usar o modelo de cor HSV em vez de RGB, o que é mais intuitivo,",
     "bbs.config.appearance.language": "Idioma",
     "bbs.config.appearance.language-comment": "Idioma de Interface de Usúario (UI) ",
     "bbs.config.appearance.title": "Aparência",

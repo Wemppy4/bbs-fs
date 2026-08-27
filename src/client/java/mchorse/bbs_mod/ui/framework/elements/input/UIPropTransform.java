@@ -690,7 +690,7 @@ public class UIPropTransform extends UITransform
     public void enableMode(TransformOp op)
     {
         GizmoDrag drag = this.getHotkeyDrag();
-        boolean ray = BBSSettings.transformHotkeys3dRay.get() && drag != null;
+        boolean ray = drag != null;
 
         /* G/S/R walk their handles in the user-configured order (the
          * *_hotkey_order settings), wrapping past the end back to the first
@@ -943,7 +943,7 @@ public class UIPropTransform extends UITransform
         this.cache.copy(this.transform);
         Gizmo.INSTANCE.trackTransform(this);
 
-        this.strategy = DragStrategyFactory.create(this.bridge, op, axis, axis2, variant, hotkeyMode);
+        this.strategy = DragStrategyFactory.create(this.bridge, op, axis, axis2, variant);
         this.strategy.begin(context.mouseX, context.mouseY);
 
         if (!this.handler.hasParent())
@@ -1001,7 +1001,7 @@ public class UIPropTransform extends UITransform
 
         if (context != null && op != null)
         {
-            this.strategy = DragStrategyFactory.create(this.bridge, op, this.axis, this.axis2, DragStrategyFactory.Variant.AXIS, this.hotkeyMode);
+            this.strategy = DragStrategyFactory.create(this.bridge, op, this.axis, this.axis2, DragStrategyFactory.Variant.AXIS);
             this.strategy.begin(context.mouseX, context.mouseY);
         }
 

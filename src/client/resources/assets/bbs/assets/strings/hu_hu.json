@@ -11,8 +11,6 @@
     "bbs.config.appearance.freeze_models-comment": "Ha engedélyezve van, a modellválasztóban lévő modellek nem fogják követni az egeret. ",
     "bbs.config.appearance.gizmos": "Mozgatható tengelyelemek",
     "bbs.config.appearance.gizmos-comment": "Meghatározza, hogy a mozgatható tengelyelemek (eltolás, méretezés, forgatás) engedélyezve legyenek-e.",
-    "bbs.config.appearance.hsv_color_picker": "HSV színválasztó ",
-    "bbs.config.appearance.hsv_color_picker-comment": "Ha engedélyezve van, ez az opció az összes színválasztót HSV színmodell használatára kapcsolja át az RGB helyett, ami intuitívabb.",
     "bbs.config.appearance.language": "Nyelv",
     "bbs.config.appearance.language-comment": "Felhasználói felület (UI) nyelve",
     "bbs.config.appearance.title": "Megjelenés",

@@ -11,8 +11,6 @@
     "bbs.config.appearance.freeze_models-comment": "Model sẽ không xoay theo chuột khi bật",
     "bbs.config.appearance.gizmos": "Gizmos",
     "bbs.config.appearance.gizmos-comment": "Whether grab-able axes elements for translation, scale and rotation are enabled",
-    "bbs.config.appearance.hsv_color_picker": "Chọn màu kiểu HSV",
-    "bbs.config.appearance.hsv_color_picker-comment": "Dùng HSV thay vì RGB để chọn màu (dễ dùng hơn)",
     "bbs.config.appearance.language": "Ngôn ngữ",
     "bbs.config.appearance.language-comment": "Ngôn ngữ của giao diện người dùng (UI)",
     "bbs.config.appearance.title": "Giao diện",

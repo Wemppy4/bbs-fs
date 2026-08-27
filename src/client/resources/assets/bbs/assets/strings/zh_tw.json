@@ -11,8 +11,6 @@
     "bbs.config.appearance.freeze_models-comment": "啟用時，形態選擇器中的模型不再會跟隨鼠標轉動",
     "bbs.config.appearance.gizmos": "操控器",
     "bbs.config.appearance.gizmos-comment": "是否啟用可拖拽的軸操控器用於平移、縮放和旋轉",
-    "bbs.config.appearance.hsv_color_picker": "HSV 選擇器",
-    "bbs.config.appearance.hsv_color_picker-comment": "啟用此選項後，所有顏色選擇器將從 RGB 切換為使用 HSV 顏色模型，更為直觀",
     "bbs.config.appearance.language": "語言",
     "bbs.config.appearance.language-comment": "用戶界面（UI）語言",
     "bbs.config.appearance.title": "外觀",

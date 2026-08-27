@@ -11,8 +11,6 @@
     "bbs.config.appearance.freeze_models-comment": "Wenn aktiviert folgen Modelle in der Form-Auswahl nicht der Maus",
     "bbs.config.appearance.gizmos": "Gizmos",
     "bbs.config.appearance.gizmos-comment": "Ob greifbare Achsen für Position, Größe und Rotation aktiviert sein sollen",
-    "bbs.config.appearance.hsv_color_picker": "HSV Wähler",
-    "bbs.config.appearance.hsv_color_picker-comment": "Wenn aktiviert ändert diese Option alle Farbwähler sodass sie das HSV Farbmodell verwenden, statt RGB, was intuitiver ist.",
     "bbs.config.appearance.language": "Sprache",
     "bbs.config.appearance.language-comment": "Benutzer Oberfläche (UI) Sprache",
     "bbs.config.appearance.title": "Erscheinung",

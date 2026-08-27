@@ -9,8 +9,6 @@
     "bbs.config.appearance.fov-comment": "이 옵션은 월드 메뉴와 애니메이션 패널에서 카메라의 FOV를 제어합니다",
     "bbs.config.appearance.freeze_models": "모델 고정",
     "bbs.config.appearance.freeze_models-comment": "활성화되면 폼 피커의 모델이 마우스를 따르지 않습니다",
-    "bbs.config.appearance.hsv_color_picker": "HSV 선택기",
-    "bbs.config.appearance.hsv_color_picker-comment": "이 옵션을 활성화하면 모든 컬러 피커가 더 직관적인 RGB 대신 HSV 컬러 모델을 사용하도록 전환됩니다",
     "bbs.config.appearance.language": "언어",
     "bbs.config.appearance.language-comment": "사용자 인터페이스(UI) 언어",
     "bbs.config.appearance.title": "외형",

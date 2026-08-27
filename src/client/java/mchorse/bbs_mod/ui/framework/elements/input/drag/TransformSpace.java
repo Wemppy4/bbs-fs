@@ -106,8 +106,7 @@ public enum TransformSpace
 
     /**
      * The frame remembered from the last session, guarded against an out-of-range or
-     * not-yet-implemented stored value (then falls back to the default: PARENT, or LOCAL when
-     * the {@code default_local} toggle is on).
+     * not-yet-implemented stored value (then falls back to the default, {@link #PARENT}).
      *
      * <p>The choice is GLOBAL to the mod, not per-editor: picking a frame in one transform
      * editor is the frame every other one opens in.
@@ -117,12 +116,7 @@ public enum TransformSpace
         TransformSpace[] values = values();
         TransformSpace space = values[MathUtils.clamp(BBSSettings.transformSpace.get(), 0, values.length - 1)];
 
-        if (!space.implemented)
-        {
-            return BBSSettings.defaultLocalTransform.get() ? LOCAL : PARENT;
-        }
-
-        return space;
+        return space.implemented ? space : PARENT;
     }
 
     /** Remembers this frame as the one every transform editor opens in. */

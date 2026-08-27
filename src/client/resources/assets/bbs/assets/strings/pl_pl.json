@@ -10,8 +10,6 @@
     "bbs.config.appearance.freeze_models-comment": "Gdy włączone to modele w wybieraczu formy nie bendą podąrzać za myszką",
     "bbs.config.appearance.gizmos": "Manipulatory",
     "bbs.config.appearance.gizmos-comment": "Czy łapanie elementów osi dla przesuwania, skalowania i rotacji jest włączone",
-    "bbs.config.appearance.hsv_color_picker": "Wybieracz HSV",
-    "bbs.config.appearance.hsv_color_picker-comment": "Gdy włączone to ta opcja zmienia wszystkie wybieracze kolorów by używała model kolorów HSV zamiast RGB, który jest bardziej intuicyjny",
     "bbs.config.appearance.language": "Język",
     "bbs.config.appearance.language-comment": "Język interfejsu użytkownika (UI)",
     "bbs.config.appearance.title": "Wygląd",

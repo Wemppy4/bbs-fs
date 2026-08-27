@@ -11,8 +11,6 @@
     "bbs.config.appearance.freeze_models-comment": "Lorsque l'option est activée, les modèles dans le selecteur de formes ne vont plus suivre la souris",
     "bbs.config.appearance.gizmos": "Gizmos",
     "bbs.config.appearance.gizmos-comment": "Que les éléments d'axes de position, de mise à l'échelle et de rotation soient activés",
-    "bbs.config.appearance.hsv_color_picker": "Couleurs TSL",
-    "bbs.config.appearance.hsv_color_picker-comment": "Lorsqu'elle est activée, cette option change toute les couleurs choisies pour être au format TSL (Teinte Saturation Luminosité) qui, contrairement au modèle RGB, est plus intuitif",
     "bbs.config.appearance.language": "Langue",
     "bbs.config.appearance.language-comment": "Langage de l'Interface Utilisateur (UI)",
     "bbs.config.appearance.title": "Apparence",

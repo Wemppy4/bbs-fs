@@ -9,8 +9,6 @@
     "bbs.config.appearance.fov-comment": "Bu seçenek dünya menüsünde ve animasyon panelinde kamera için görüş açısını kontrol eder",
     "bbs.config.appearance.freeze_models": "Modelleri dondur",
     "bbs.config.appearance.freeze_models-comment": "Etkinleştirildiğinde, form seçicideki modeller fareyi takip etmez",
-    "bbs.config.appearance.hsv_color_picker": "HSV seçici",
-    "bbs.config.appearance.hsv_color_picker-comment": "Bu seçenek etkinleştirildiğinde tüm renk seçicileri RGB yerine daha sezgisel olan HSV renk modelini kullanacak şekilde değiştirilir",
     "bbs.config.appearance.language": "Dil",
     "bbs.config.appearance.language-comment": "Arayüz dili",
     "bbs.config.appearance.title": "Görünüm",

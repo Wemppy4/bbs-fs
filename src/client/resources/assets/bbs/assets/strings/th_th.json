@@ -11,8 +11,6 @@
     "bbs.config.appearance.freeze_models-comment": "เมื่อเปิดใช้งานแล้ว โมเดลในตัวเลือกแบบฟอร์มจะไม่ติดตามเมาส์",
     "bbs.config.appearance.gizmos": "กิซโมส",
     "bbs.config.appearance.gizmos-comment": "เปิดให้จับแกนเพื่อย้าย ขยาย หรือหมุนได้หรือไม่",
-    "bbs.config.appearance.hsv_color_picker": "เครื่องมือเลือกสี",
-    "bbs.config.appearance.hsv_color_picker-comment": "เมื่อเปิดใช้งาน ตัวเลือกนี้จะเปลี่ยนเครื่องมือเลือกสีทั้งหมดให้ใช้โมเดลสีแบบ HSV แทน RGB ซึ่งใช้งานได้ง่ายกว่า",
     "bbs.config.appearance.language": "ภาษา",
     "bbs.config.appearance.language-comment": "ภาษาของอินเตอร์เฟซผู้ใช้",
     "bbs.config.appearance.title": "ลักษณะ",

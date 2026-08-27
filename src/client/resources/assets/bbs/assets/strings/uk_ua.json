@@ -11,8 +11,6 @@
     "bbs.config.appearance.freeze_models-comment": "Якщо увімкнено, то моделі не будуть слідкувати за мишею, коли ви обираєте їх",
     "bbs.config.appearance.gizmos": "Ґізмо",
     "bbs.config.appearance.gizmos-comment": "Чи ввімкнено захват осей для перенесення, масштабування та обертання",
-    "bbs.config.appearance.hsv_color_picker": "HSV кольори",
-    "bbs.config.appearance.hsv_color_picker-comment": "Якщо ввімкнено, цей параметр перемикає всі засоби вибору кольорів кольорів HSV замість RGB, що є більш інтуїтивно зрозумілим",
     "bbs.config.appearance.language": "Мова",
     "bbs.config.appearance.language-comment": "Мова інтерфейсу користувача",
     "bbs.config.appearance.title": "Зовнішній вигляд",

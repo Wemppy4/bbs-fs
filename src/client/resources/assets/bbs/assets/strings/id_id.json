@@ -5,8 +5,6 @@
     "bbs.config.appearance.freeze_models-comment": "Jika dinyalakan, model dalam pemilih bentuk tidak akan mengikuti mouse",
     "bbs.config.appearance.fov": "FOV",
     "bbs.config.appearance.fov-comment": "Opsi ini mengontrol FOV untuk kamera di menu dunia dan panel animasi",
-    "bbs.config.appearance.hsv_color_picker": "Pemilih warna HSV",
-    "bbs.config.appearance.hsv_color_picker-comment": "Jika diaktifkan, opsi ini mengubah semua pemilih warna untuk menggunakan model warna HSV alih-alih RGB, yang lebih intuitif",
     "bbs.config.appearance.language": "Bahasa",
     "bbs.config.appearance.language-comment": "Bahasa Antarmuka Pengguna (UI)",
     "bbs.config.appearance.title": "Penampilan",

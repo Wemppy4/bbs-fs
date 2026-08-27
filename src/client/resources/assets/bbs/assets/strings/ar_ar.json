@@ -9,8 +9,6 @@
     "bbs.config.appearance.fov-comment": "ﻳﺘﺤﻜﻢ ﻫﺬﺍ ﺍﻟﺨﻴﺎﺭ ﻓﻲ ﻣﺠﺎﻝ ﺍﻟﺮﺅﻳﺔ (FOV) ﻟﻠﻜﺎﻣﻴﺮﺍ ﻓﻲ ﺍﻟﻘﺎﺋﻤﺔ ﺍﻟﺮﺋﻴﺴﻴﺔ ﻭﻟﻮﺣﺔ ﺍﻟﺘﺤﻜﻢ",
     "bbs.config.appearance.freeze_models": "تجميد النماذج",
     "bbs.config.appearance.freeze_models-comment": "ﻋﻨﺪ ﺍﻟﺘﻤﻜﻴﻦ، ﻟﻦ ﺗﺘﺤﺮﻙ ﺍﻟﻨﻤﺎﺫﺝ ﻓﻲ ﺍﻟﻤﺸﺎﻫﺪ",
-    "bbs.config.appearance.hsv_color_picker": "منتقي ألوان HSV",
-    "bbs.config.appearance.hsv_color_picker-comment": "ﻋﻨﺪ ﺍﻟﺘﻤﻜﻴﻦ، ﺳﻴﺘﻢ ﺍﺳﺘﺨﺪﺍﻡ ﻧﻤﻮﺫﺝ ﺃﻟﻮﺍﻥ HSV ﺑﺪﻻ ﻣﻦ RGB ﻓﻲ ﺟﻤﻴﻊ ﻣﻨﺘﻘﻲ ﺍﻷﻟﻮﺍﻥ، ﻣﻤﺎ ﻳﺠﻌﻠﻪ ﺃﻛﺜﺮ ﺳﻬﻮﻟﺔ",
     "bbs.config.appearance.language": "اللغة",
     "bbs.config.appearance.language-comment": "(UI) ﻟﻐﺔ ﻭﺍﺟﻬﺔ ﺍﻟﻤﺴﺘﺨﺪﻡ",
     "bbs.config.appearance.title": "المظهر",

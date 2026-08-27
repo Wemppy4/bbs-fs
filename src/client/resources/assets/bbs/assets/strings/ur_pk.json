@@ -9,8 +9,6 @@
     "bbs.config.appearance.fov-comment": "یہ اختیار ورلڈ مینو اور اینی میشن پینل میں کیمرے کے FOV کو کنٹرول کرتا ہے",
     "bbs.config.appearance.freeze_models": "ماڈلز کو فریز کریں",
     "bbs.config.appearance.freeze_models-comment": "فعال ہونے پر فارم پِکر میں ماڈلز ماؤس کی پیروی نہیں کریں گے",
-    "bbs.config.appearance.hsv_color_picker": "HSV پِکر",
-    "bbs.config.appearance.hsv_color_picker-comment": "فعال کرنے پر تمام کلر پِکرز کو RGB کے بجائے HSV کلر ماڈل پر بدل دیتا ہے، جو زیادہ فہم ہے",
     "bbs.config.appearance.language": "زبان",
     "bbs.config.appearance.language-comment": "یوزر انٹرفیس (UI) کی زبان",
     "bbs.config.appearance.title": "ظاہری شکل",

@@ -49,7 +49,7 @@ public class BBSSettings {
 	public static ValueBoolean pixelArtSmoothing;
 	public static ValueInt taskbarSide;
 	public static ValueFloat fov;
-	public static ValueBoolean hsvColorPicker;
+	public static ValueBoolean colorPickerHsvTab;
 	public static ValueBoolean forceQwerty;
 	public static ValueBoolean freezeModels;
 	public static ValueBoolean listModelPreview;
@@ -74,9 +74,7 @@ public class BBSSettings {
 	public static ValueBoolean uniformScale;
 	public static ValueBoolean clickSound;
 	public static ValueBoolean gizmos;
-	public static ValueBoolean defaultLocalTransform;
 	public static ValueInt transformSpace;
-	public static ValueBoolean transformHotkeys3dRay;
 	public static ValueBoolean poseMirrorEdit;
 	public static ValueBoolean poseAlternateInvert;
 	public static ValueBoolean poseShowDisabledBones;
@@ -587,7 +585,7 @@ public class BBSSettings {
 		pixelArtSmoothing = builder.getBoolean("pixel_art_smoothing", true);
 		taskbarSide = builder.getInt("taskbar_side", 0);
 		fov = builder.getFloat("fov", 40, 0, 180);
-		hsvColorPicker = builder.getBoolean("hsv_color_picker", true);
+		colorPickerHsvTab = builder.getBoolean("hsv_color_picker", true);
 		forceQwerty = builder.getBoolean("force_qwerty", false);
 		freezeModels = builder.getBoolean("freeze_models", false);
 		listModelPreview = builder.getBoolean("list_model_preview", true);
@@ -605,6 +603,10 @@ public class BBSSettings {
 		formCellSize.invisible();
 		textureCellSize.invisible();
 		textureSort.invisible();
+		/* Which tab the colour picker was left on, written by the picker itself when
+		 * the tab is switched - a remembered position, not a setting to sit in a list.
+		 * The key stays "hsv_color_picker" so an existing settings file keeps its tab. */
+		colorPickerHsvTab.invisible();
 		uniformScale = builder.getBoolean("uniform_scale", false);
 		clickSound = builder.getBoolean("click_sound", false);
 		favoriteColors = new ValueColors("favorite_colors");
@@ -657,10 +659,12 @@ public class BBSSettings {
 		snapScale = builder.getFloat("snap_scale", 0.1F, 0.001F, 10F);
 		gizmoHoverTolerance = builder.getInt("gizmo_hover_tolerance", 8, 0, 40).slider();
 		gizmoOpacity = builder.getFloat("gizmo_opacity", 1F, 0.05F, 1F).slider();
-		defaultLocalTransform = builder.getBoolean("default_local", false);
-		transformSpace = builder.getInt("transform_space", defaultLocalTransform.get() ? 0 : 3);
+		/* The frame every transform editor opens in, remembered from the last
+		 * session; picked from the gizmo's own space picker, so it has no row here.
+		 * The default is PARENT's ordinal - see TransformSpace, whose constants may
+		 * only be appended because this persists the ordinal. */
+		transformSpace = builder.getInt("transform_space", 3);
 		transformSpace.invisible();
-		transformHotkeys3dRay = builder.getBoolean("hotkeys_3d_ray", true);
 		poseMirrorEdit = builder.getBoolean("pose_mirror_edit", false);
 		poseMirrorEdit.invisible();
 		poseAlternateInvert = builder.getBoolean("pose_alternate_invert", false);
