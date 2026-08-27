@@ -20,6 +20,9 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
  * beside it, the way add and remove pair up everywhere else in BBS; what tells it apart is its
  * colour, not its distance. The step back, when there is one, comes before both — it is the way
  * out of where you are, not something you do here.</p>
+ *
+ * <p>Resetting sits with removal: it throws the current work away just as surely, so it is
+ * marked the same and stands ahead of the verbs that only shuffle data about.</p>
  */
 public enum MenuVerb
 {
@@ -28,7 +31,7 @@ public enum MenuVerb
     REMOVE(Icons.REMOVE, UIKeys.GENERAL_REMOVE, Slot.DESTROY),
     COPY(Icons.COPY, UIKeys.GENERAL_COPY, Slot.CLIPBOARD),
     PASTE(Icons.PASTE, UIKeys.GENERAL_PASTE, Slot.CLIPBOARD),
-    RESET(Icons.REFRESH, UIKeys.GENERAL_RESET, Slot.COMMON),
+    RESET(Icons.REFRESH, UIKeys.GENERAL_RESET, Slot.DESTROY),
     SAVE(Icons.SAVED, UIKeys.GENERAL_SAVE, Slot.COMMON),
     PRESETS(Icons.MORE, UIKeys.GENERAL_PRESETS, Slot.COMMON);
 
