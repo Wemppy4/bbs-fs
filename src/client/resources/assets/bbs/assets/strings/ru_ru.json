@@ -1102,8 +1102,6 @@
 	"bbs.ui.generic_keyframes.anchor.pick_attachment": "Выбрать кость...",
 	"bbs.ui.generic_keyframes.boolean.true": "Включено",
 	"bbs.ui.generic_keyframes.link.pick_texture": "Выбрать текстуру...",
-	"bbs.ui.graph.help": "Нажмите на эту кнопку чтобы перейти на веб-страницу со справкой по написанию математических выражений",
-	"bbs.ui.graph.tooltip": "Графический калькулятор",
 	"bbs.ui.gun.commands.firing": "Во время выстрела",
 	"bbs.ui.gun.commands.impact": "По столкновению",
 	"bbs.ui.gun.commands.ticking": "Периодически",

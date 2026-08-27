@@ -612,8 +612,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Csatolmány kiválasztása...",
     "bbs.ui.generic_keyframes.boolean.true": "Igaz",
     "bbs.ui.generic_keyframes.link.pick_texture": "Textúra kiválasztása...",
-    "bbs.ui.graph.help": "Erre a gombra kattintva egy olyan weboldalra léphet, amely a következő grafikus számológép jellemzőit dokumentálja.",
-    "bbs.ui.graph.tooltip": "Grafikus számológép",
     "bbs.ui.gun.commands.firing": "Tüzeléskor",
     "bbs.ui.gun.commands.impact": "Becsapódáskor",
     "bbs.ui.gun.commands.ticking": "Tick-nél",

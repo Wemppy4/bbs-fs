@@ -621,8 +621,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Обрати кістку...",
     "bbs.ui.generic_keyframes.boolean.true": "Включено",
     "bbs.ui.generic_keyframes.link.pick_texture": "Обрати текстуру...",
-    "bbs.ui.graph.help": "Натисніть на цю кнопку, щоб перейти на веб-сторінку з документацією про написану функцію.",
-    "bbs.ui.graph.tooltip": "Графічний калькулятор",
     "bbs.ui.gun.commands.firing": "При вистрілі",
     "bbs.ui.gun.commands.impact": "При зіткненні",
     "bbs.ui.gun.commands.ticking": "При тиці",

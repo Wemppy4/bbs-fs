@@ -639,8 +639,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "选择附件...",
     "bbs.ui.generic_keyframes.boolean.true": "是",
     "bbs.ui.generic_keyframes.link.pick_texture": "选择纹理...",
-    "bbs.ui.graph.help": "点击此按钮，跳转到文档页面，了解以下图形计算器的功能。",
-    "bbs.ui.graph.tooltip": "图形计算器",
     "bbs.ui.gun.commands.firing": "开火时",
     "bbs.ui.gun.commands.impact": "发生碰撞",
     "bbs.ui.gun.commands.ticking": "以刻执行",

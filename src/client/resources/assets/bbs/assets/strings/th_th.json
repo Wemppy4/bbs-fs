@@ -625,8 +625,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "เลือกไฟล์แนบ...",
     "bbs.ui.generic_keyframes.boolean.true": "True | จริง",
     "bbs.ui.generic_keyframes.link.pick_texture": "เลือกพื้นผิว...",
-    "bbs.ui.graph.help": "คลิกที่ปุ่มนี้เพื่อไปยังหน้าเว็บที่แสดงเอกสารคุณสมบัติของเครื่องคำนวณเชิงกราฟต่อไปนี้",
-    "bbs.ui.graph.tooltip": "เครื่องคำนวณเชิงกราฟ",
     "bbs.ui.gun.commands.firing": "เมื่อถูกยิง",
     "bbs.ui.gun.commands.impact": "เมื่อเกิดการกระทบ",
     "bbs.ui.gun.commands.ticking": "ระหว่างรอบการทำงาน",

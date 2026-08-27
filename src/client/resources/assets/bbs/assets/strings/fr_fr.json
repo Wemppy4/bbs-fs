@@ -574,8 +574,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Choisir un attachement...",
     "bbs.ui.generic_keyframes.boolean.true": "Oui",
     "bbs.ui.generic_keyframes.link.pick_texture": "Choisir une texture...",
-    "bbs.ui.graph.help": "Cliquez sur ce boutton pour aller sur une page internet contenant un document sur la fonctionnalité suivante du calcul graphique.",
-    "bbs.ui.graph.tooltip": "Calcul Graphique",
     "bbs.ui.gun.commands.firing": "Quand tiré",
     "bbs.ui.gun.commands.impact": "Dans l'impact",
     "bbs.ui.gun.commands.ticking": "Toutes les ticks",

@@ -436,8 +436,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Pilih lampiran...",
     "bbs.ui.generic_keyframes.boolean.true": "Benar",
     "bbs.ui.generic_keyframes.link.pick_texture": "Pilih tekstur...",
-    "bbs.ui.graph.help": "Klik tombol ini untuk membuka halaman web yang mendokumentasikan fitur kalkulator grafik berikut.",
-    "bbs.ui.graph.tooltip": "Kalkulator grafik",
     "bbs.ui.importer.ffmpeg-notification": "Sepertinya FFMPEG tidak dikonfigurasi dengan benar... periksa opsi Encoder Path di Pengaturan Video!",
     "bbs.ui.importer.gif": "GIF ke urutan PNG",
     "bbs.ui.importer.jpeg": "JPEG ke PNG",

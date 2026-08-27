@@ -638,8 +638,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Escolher anexo...",
     "bbs.ui.generic_keyframes.boolean.true": "Verdadeiro",
     "bbs.ui.generic_keyframes.link.pick_texture": "Escolher textura...",
-    "bbs.ui.graph.help": "Clique neste botão para ir para uma página da web que documenta os recursos da calculadora gráfica.",
-    "bbs.ui.graph.tooltip": "Calculadora gráfica",
     "bbs.ui.gun.commands.firing": "Quando disparado",
     "bbs.ui.gun.commands.impact": "No impacto",
     "bbs.ui.gun.commands.ticking": "No tick",

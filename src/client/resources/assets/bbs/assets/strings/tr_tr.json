@@ -579,8 +579,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Eklenti seç...",
     "bbs.ui.generic_keyframes.boolean.true": "Doğru",
     "bbs.ui.generic_keyframes.link.pick_texture": "Doku seç...",
-    "bbs.ui.graph.help": "Bu grafik hesap makinesinin özelliklerini anlatan web sayfasına gitmek için bu düğmeye tıklayın.",
-    "bbs.ui.graph.tooltip": "Grafik hesaplayıcı",
     "bbs.ui.gun.commands.firing": "Ateş edildiğinde",
     "bbs.ui.gun.commands.impact": "Çarpma anında",
     "bbs.ui.gun.commands.ticking": "Tick başına",

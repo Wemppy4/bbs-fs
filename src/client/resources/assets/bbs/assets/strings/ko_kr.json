@@ -562,8 +562,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "첨부 파일 선택...",
     "bbs.ui.generic_keyframes.boolean.true": "참",
     "bbs.ui.generic_keyframes.link.pick_texture": "텍스처 선택...",
-    "bbs.ui.graph.help": "이 버튼을 클릭하여 다음 그래프 계산기의 기능을 문서화하는 웹 페이지로 이동하십시오.",
-    "bbs.ui.graph.tooltip": "그래프 계산기",
     "bbs.ui.gun.commands.firing": "발사 시",
     "bbs.ui.gun.commands.impact": "충돌 시",
     "bbs.ui.gun.commands.ticking": "틱당",

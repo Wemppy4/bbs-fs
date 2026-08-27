@@ -607,8 +607,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Wybierz połączenie...",
     "bbs.ui.generic_keyframes.boolean.true": "Prawda",
     "bbs.ui.generic_keyframes.link.pick_texture": "Wybierz teksturę...",
-    "bbs.ui.graph.help": "Kliknij ten przycisk, aby przejść do strony internetowej, która dokumentuje funkcje następującego kalkulatora graficznego.",
-    "bbs.ui.graph.tooltip": "Kalkulator graficzny",
     "bbs.ui.gun.commands.firing": "Gdy odpalone",
     "bbs.ui.gun.commands.impact": "Na uderzenie",
     "bbs.ui.gun.commands.ticking": "Na tick",

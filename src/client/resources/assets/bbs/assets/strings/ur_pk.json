@@ -627,8 +627,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "اٹیچمنٹ منتخب کریں...",
     "bbs.ui.generic_keyframes.boolean.true": "درست",
     "bbs.ui.generic_keyframes.link.pick_texture": "ٹیکسچر منتخب کریں...",
-    "bbs.ui.graph.help": "اس بٹن پر کلک کر کے اُس ویب صفحے پر جائیں جہاں درج ذیل گرافنگ کیلکولیٹر کی خصوصیات درج ہیں۔",
-    "bbs.ui.graph.tooltip": "گرافنگ کیلکولیٹر",
     "bbs.ui.gun.commands.firing": "جب فائر ہو",
     "bbs.ui.gun.commands.impact": "اثر پڑنے پر",
     "bbs.ui.gun.commands.ticking": "ہر ٹِک پر",

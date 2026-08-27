@@ -726,8 +726,6 @@ public class UIKeys
     public static final IKey GENERIC_KEYFRAMES_ANCHOR_PICK_ATTACHMENT = L10n.lang("bbs.ui.generic_keyframes.anchor.pick_attachment");
     public static final IKey GENERIC_KEYFRAMES_BOOLEAN_TRUE = L10n.lang("bbs.ui.generic_keyframes.boolean.true");
     public static final IKey GENERIC_KEYFRAMES_LINK_PICK_TEXTURE = L10n.lang("bbs.ui.generic_keyframes.link.pick_texture");
-    public static final IKey GRAPH_HELP = L10n.lang("bbs.ui.graph.help");
-    public static final IKey GRAPH_TOOLTIP = L10n.lang("bbs.ui.graph.tooltip");
     public static final IKey GUN_COMMANDS_FIRING = L10n.lang("bbs.ui.gun.commands.firing");
     public static final IKey GUN_COMMANDS_IMPACT = L10n.lang("bbs.ui.gun.commands.impact");
     public static final IKey GUN_COMMANDS_TICKING = L10n.lang("bbs.ui.gun.commands.ticking");

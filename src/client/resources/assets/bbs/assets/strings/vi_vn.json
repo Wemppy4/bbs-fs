@@ -623,8 +623,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Chọn đính kèm...",
     "bbs.ui.generic_keyframes.boolean.true": "Đúng",
     "bbs.ui.generic_keyframes.link.pick_texture": "Chọn texture...",
-    "bbs.ui.graph.help": "Nhấn vào nút này để đi đến trang web tài liệu về các tính năng của máy tính đồ thị.",
-    "bbs.ui.graph.tooltip": "Máy tính đồ thị",
     "bbs.ui.gun.commands.firing": "Khi bắn",
     "bbs.ui.gun.commands.impact": "Khi chạm",
     "bbs.ui.gun.commands.ticking": "Mỗi tick",

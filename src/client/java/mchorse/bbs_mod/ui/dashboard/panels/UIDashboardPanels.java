@@ -26,9 +26,6 @@ public class UIDashboardPanels extends UIElement
     /** How thick the task bar is, whichever edge it is docked to — a bar icon is 20×20. */
     public static final int BAR = 20;
 
-    /** The gap in front of a button that starts a new group of panels. */
-    public static final int GROUP_GAP = 10;
-
     /**
      * The edges the bar can be docked to, in the order they are offered — and the order
      * {@code BBSSettings.taskbarSide} stores, so the bottom (the default) is 0.
@@ -295,27 +292,15 @@ public class UIDashboardPanels extends UIElement
         }
     }
 
+    /** Register a panel and the button that opens it. */
     public UIIcon registerPanel(UIDashboardPanel panel, IKey tooltip, Icon icon)
-    {
-        return this.registerPanel(panel, tooltip, icon, false);
-    }
-
-    /**
-     * Register a panel and the button that opens it.
-     *
-     * <p>{@code startsGroup} puts a gap in front of the button, which is how the bar tells one
-     * family of panels from the next. The gap runs along the bar, so which margin it becomes
-     * follows the side — that is why it is a flag here instead of a {@code marginLeft} at the
-     * call site.</p>
-     */
-    public UIIcon registerPanel(UIDashboardPanel panel, IKey tooltip, Icon icon, boolean startsGroup)
     {
         UIIcon button = new UIIcon(icon, (b) -> this.setPanel(panel));
 
         this.panels.add(panel);
         this.panelButtons.add(button);
 
-        return this.addBarButton(new BarButton(button, tooltip, () -> this.panel == panel, startsGroup));
+        return this.addBarButton(new BarButton(button, tooltip, () -> this.panel == panel));
     }
 
     /**
@@ -326,7 +311,7 @@ public class UIDashboardPanels extends UIElement
     {
         this.pinned.add(icon);
 
-        return this.addBarButton(new BarButton(icon, tooltip, null, false));
+        return this.addBarButton(new BarButton(icon, tooltip, null));
     }
 
     private UIIcon addBarButton(BarButton button)
@@ -366,15 +351,11 @@ public class UIDashboardPanels extends UIElement
         /** When this button is the chosen one, or null for the icons that are never chosen. */
         public final BooleanSupplier highlight;
 
-        /** Whether a gap goes in front of this button. */
-        public final boolean group;
-
-        public BarButton(UIIcon icon, IKey tooltip, BooleanSupplier highlight, boolean group)
+        public BarButton(UIIcon icon, IKey tooltip, BooleanSupplier highlight)
         {
             this.icon = icon;
             this.tooltip = tooltip;
             this.highlight = highlight;
-            this.group = group;
         }
 
         public void apply(Direction side)
@@ -385,20 +366,6 @@ public class UIDashboardPanels extends UIElement
             if (this.highlight != null)
             {
                 this.icon.highlight(this.highlight, side);
-            }
-
-            this.icon.margin(0);
-
-            if (this.group)
-            {
-                if (runsHorizontally(side))
-                {
-                    this.icon.marginLeft(GROUP_GAP);
-                }
-                else
-                {
-                    this.icon.marginTop(GROUP_GAP);
-                }
             }
         }
     }

@@ -589,8 +589,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Elije una parte...",
     "bbs.ui.generic_keyframes.boolean.true": "Verdadero",
     "bbs.ui.generic_keyframes.link.pick_texture": "Elige textura...",
-    "bbs.ui.graph.help": "Haz clic en este botón para ir a una página web que documenta las características de la siguiente calculadora gráfica",
-    "bbs.ui.graph.tooltip": "Calculadora gráfica",
     "bbs.ui.gun.commands.firing": "Cuando abre fuego",
     "bbs.ui.gun.commands.impact": "En el impacto",
     "bbs.ui.gun.commands.ticking": "En tick",

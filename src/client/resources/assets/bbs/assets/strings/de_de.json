@@ -589,8 +589,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "Anhang auswählen...",
     "bbs.ui.generic_keyframes.boolean.true": "Wahr",
     "bbs.ui.generic_keyframes.link.pick_texture": "Textur auswählen...",
-    "bbs.ui.graph.help": "Drücke auf diesen Knopf um auf eine Webseite geleitet zu werden die Features dieses Graphen-Rechners dokumentiert",
-    "bbs.ui.graph.tooltip": "Graphen-Rechner",
     "bbs.ui.gun.commands.firing": "Wenn gefeuert",
     "bbs.ui.gun.commands.impact": "Auf Einschlag",
     "bbs.ui.gun.commands.ticking": "Auf Tick",

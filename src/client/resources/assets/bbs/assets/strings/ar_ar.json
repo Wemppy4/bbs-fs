@@ -567,8 +567,6 @@
     "bbs.ui.generic_keyframes.anchor.pick_attachment": "اختيار مرفق...",
     "bbs.ui.generic_keyframes.boolean.true": "صحيح",
     "bbs.ui.generic_keyframes.link.pick_texture": "اختيار نسيج...",
-    "bbs.ui.graph.help": "انقر على هذا الزر للانتقال إلى صفحة ويب توثق ميزات آلة الرسم البياني التالية.",
-    "bbs.ui.graph.tooltip": "آلة رسم بياني",
     "bbs.ui.gun.commands.firing": "عند الإطلاق",
     "bbs.ui.gun.commands.impact": "عند الاصطدام",
     "bbs.ui.gun.commands.ticking": "عند النقطة الزمنية",

@@ -1106,8 +1106,6 @@
 	"bbs.ui.generic_keyframes.anchor.pick_attachment": "Pick attachment...",
 	"bbs.ui.generic_keyframes.boolean.true": "True",
 	"bbs.ui.generic_keyframes.link.pick_texture": "Pick texture...",
-	"bbs.ui.graph.help": "Click on this button to go to a web page which documents features of the following graphing calculator.",
-	"bbs.ui.graph.tooltip": "Graphing calculator",
 	"bbs.ui.gun.commands.firing": "When fired",
 	"bbs.ui.gun.commands.impact": "On impact",
 	"bbs.ui.gun.commands.ticking": "On tick",
