@@ -100,7 +100,11 @@ public class FilmEditorController extends BaseFilmController
             entity.setPrevBodyYaw(entity.getBodyYaw());
             entity.setPrevPitch(entity.getPitch());
 
-            int diff = Math.abs(this.lastTick - ticks);
+            /* Signed, not absolute: only a forward jump has intermediate ticks to replay. This loop is
+             * the only thing that grows an actor age while the film is paused, so it IS the simulation
+             * clock here - taking the absolute value made a backward scrub advance physics FORWARD by
+             * the distance scrubbed, and every scrub back lurched the chains. */
+            int diff = ticks - this.lastTick;
 
             while (diff > 0)
             {
