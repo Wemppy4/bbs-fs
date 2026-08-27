@@ -49,6 +49,7 @@ import mchorse.bbs_mod.resources.packs.URLTextureErrorCallback;
 import mchorse.bbs_mod.selectors.EntitySelectors;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
+import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
@@ -432,6 +433,16 @@ public class BBSModClient implements ClientModInitializer
                 panel.fillData();
             }
         });
+
+        BBSSettings.taskbarSide.postCallback((v, f) ->
+        {
+            if (dashboard != null)
+            {
+                dashboard.getPanels().setSide(UIDashboardPanels.getSettingsSide());
+            }
+        });
+
+        BBSSettings.taskbarSide.modes(UIDashboardPanels.getSideLabels());
 
         BBSSettings.keystrokeMode.modes(
             UIKeys.ENGINE_KEYSTROKES_POSITION_AUTO,

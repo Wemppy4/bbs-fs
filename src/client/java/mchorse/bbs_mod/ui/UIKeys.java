@@ -233,6 +233,10 @@ public class UIKeys
     public static final IKey DASHBOARD_KEYS_TOGGLE_DEBUG = L10n.lang("bbs.ui.dashboard.keys.toggle_debug");
     public static final IKey DASHBOARD_OPTIFINE_EW_DESCRIPTION = L10n.lang("bbs.ui.dashboard.optifine_ew-description");
     public static final IKey DASHBOARD_OPTIFINE_EW_TITLE = L10n.lang("bbs.ui.dashboard.optifine_ew-title");
+    public static final IKey DASHBOARD_TASKBAR_SIDE_BOTTOM = L10n.lang("bbs.ui.dashboard.taskbar_side.bottom");
+    public static final IKey DASHBOARD_TASKBAR_SIDE_LEFT = L10n.lang("bbs.ui.dashboard.taskbar_side.left");
+    public static final IKey DASHBOARD_TASKBAR_SIDE_RIGHT = L10n.lang("bbs.ui.dashboard.taskbar_side.right");
+    public static final IKey DASHBOARD_TASKBAR_SIDE_TOP = L10n.lang("bbs.ui.dashboard.taskbar_side.top");
     public static final IKey ENGINE_KEYSTROKES_POSITION_AUTO = L10n.lang("bbs.keystrokes_position.auto");
     public static final IKey ENGINE_KEYSTROKES_POSITION_BOTTOM_LEFT = L10n.lang("bbs.keystrokes_position.bottom_left");
     public static final IKey ENGINE_KEYSTROKES_POSITION_BOTTOM_RIGHT = L10n.lang("bbs.keystrokes_position.bottom_right");
