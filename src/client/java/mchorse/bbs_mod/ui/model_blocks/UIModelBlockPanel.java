@@ -20,7 +20,6 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
-import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
@@ -42,6 +41,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.framework.elements.utils.UISplitter;
 import mchorse.bbs_mod.ui.model_blocks.camera.ImmersiveModelBlockCameraController;
+import mchorse.bbs_mod.ui.model_blocks.camera.OrbitModelBlockCameraController;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
@@ -82,7 +82,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSupported, GizmoViewport
+public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
 {
     public static boolean toggleRendering;
 
@@ -136,6 +136,14 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
     private Set<ModelBlockEntity> toSave = new HashSet<>();
 
     private ImmersiveModelBlockCameraController cameraController;
+
+    /**
+     * How this panel is flown: turning around the selected block, the way the film's viewport
+     * turns around a replay. It replaces the dashboard's flight here rather than sitting beside
+     * it - a block is a thing one walks around, and two ways of moving would only split the
+     * muscle memory in half.
+     */
+    public final OrbitModelBlockCameraController orbit = new OrbitModelBlockCameraController(this);
     private UIElement keyDude;
 
     public UIModelBlockPanel(UIDashboard dashboard)
@@ -352,6 +360,11 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         this.fill(null, false);
 
         this.keys().register(Keys.MODEL_BLOCKS_TELEPORT, this::teleport);
+        this.keys().register(Keys.MODEL_BLOCKS_TELEPORT_ORBIT, () ->
+        {
+            this.orbit.teleportPivotToSubject();
+            UIUtils.playClick();
+        }).strict().active(() -> this.modelBlock != null);
 
         this.add(this.scrollView, this.draggable);
 
@@ -374,7 +387,9 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
     private void enterEditing()
     {
         this.getContext().menu.main.add(this.keyDude);
-        this.dashboard.orbitKeysUI.setEnabled(() -> this.getChildren(UIFormPalette.class).isEmpty());
+
+        this.orbit.enabled = true;
+        BBSModClient.getCameraController().add(this.orbit);
 
         if (this.cameraController != null)
         {
@@ -385,8 +400,10 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
     private void leaveEditing()
     {
         this.keyDude.removeFromParent();
-        this.dashboard.orbitKeysUI.setEnabled(null);
         this.gizmo.stop();
+
+        this.orbit.enabled = false;
+        BBSModClient.getCameraController().remove(this.orbit);
 
         /* Detached from the global controller, but the field is kept: coming back to this panel
          * hands the same controller over again in enterEditing(). Dropping it (see
@@ -418,12 +435,6 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             PlayerUtils.teleport(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
             UIUtils.playClick();
         }
-    }
-
-    @Override
-    public boolean supportsRollFOVControl()
-    {
-        return false;
     }
 
     public ModelBlockEntity getModelBlock()
@@ -702,7 +713,16 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
             this.toSave.add(modelBlock);
         }
 
+        boolean switched = modelBlock != null && modelBlock != this.modelBlock;
+
         this.modelBlock = modelBlock;
+
+        /* Another block is another subject: the orbit goes to it instead of leaving the user
+         * turning around where the last one stood. C brings it back over afterwards. */
+        if (switched)
+        {
+            this.orbit.teleportPivotToSubject();
+        }
 
         if (modelBlock != null)
         {
@@ -795,6 +815,20 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         }
     }
 
+    /** While a form is being edited in place, the palette owns the viewport and its own camera. */
+    private boolean canOrbit()
+    {
+        return this.getChildren(UIFormPalette.class).isEmpty();
+    }
+
+    private void startOrbit(UIContext context)
+    {
+        if (this.canOrbit() && this.area.isInside(context))
+        {
+            this.orbit.start(context);
+        }
+    }
+
     @Override
     protected boolean subMouseClicked(UIContext context)
     {
@@ -818,10 +852,32 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         {
             this.fill(this.hovered, true);
 
+            /* Picking a block and turning around it are the same gesture: the press chooses,
+             * and carrying on with the button down orbits */
+            this.startOrbit(context);
+
             return false;
         }
 
-        return this.canShowGizmo() && this.gizmo.mouseClickedSphere(context);
+        if (this.canShowGizmo() && this.gizmo.mouseClickedSphere(context))
+        {
+            return true;
+        }
+
+        this.startOrbit(context);
+
+        return false;
+    }
+
+    @Override
+    protected boolean subMouseScrolled(UIContext context)
+    {
+        if (this.canOrbit() && this.area.isInside(context) && this.orbit.zoom(context.mouseWheel))
+        {
+            return true;
+        }
+
+        return super.subMouseScrolled(context);
     }
 
     @Override
@@ -830,6 +886,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
         boolean consumed = this.canShowGizmo() && this.gizmo.mouseReleased(context);
 
         this.gizmo.stop();
+        this.orbit.stop();
 
         return super.subMouseReleased(context) || consumed;
     }
@@ -837,12 +894,23 @@ public class UIModelBlockPanel extends UIDashboardPanel implements IFlightSuppor
     @Override
     protected boolean subKeyPressed(UIContext context)
     {
+        if (this.canOrbit() && this.orbit.keyPressed(context, this.area))
+        {
+            return true;
+        }
+
         return super.subKeyPressed(context);
     }
 
     @Override
     public void render(UIContext context)
     {
+        if (this.canOrbit())
+        {
+            this.orbit.handleOrbiting(context);
+            this.orbit.update(context);
+        }
+
         /* Pick first (UI pass): the stencil must be read before the visual's hover
          * (gizmo.update / renderGizmoHover both consume the picked index). */
         this.renderGizmoStencilInterface(context);
