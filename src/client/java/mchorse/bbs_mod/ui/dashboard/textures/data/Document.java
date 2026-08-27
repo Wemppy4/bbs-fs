@@ -40,10 +40,13 @@ public class Document implements IMapSerializable
     public int width;
     public int height;
 
+    /** Extension of the project sidecar, appended to the texture's full name ({@code skin.png} -> {@code skin.png.dat}). */
+    public static final String EXTENSION = ".dat";
+
     /** The {@code .dat} sidecar file for a given texture file (e.g. {@code skin.png} -> {@code skin.png.dat}). */
     public static File datFile(File textureFile)
     {
-        return new File(textureFile.getParentFile(), textureFile.getName() + ".dat");
+        return new File(textureFile.getParentFile(), textureFile.getName() + EXTENSION);
     }
 
     /** Deserialize a document from its {@code .dat} sidecar, or {@code null} when it can't be read. */

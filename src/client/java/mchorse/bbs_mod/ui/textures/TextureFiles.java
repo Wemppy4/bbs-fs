@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.textures;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSResources;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
 import mchorse.bbs_mod.utils.PNGEncoder;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.resources.Pixels;
@@ -17,8 +18,9 @@ import java.util.stream.Stream;
 
 /**
  * The file operations a texture browser offers, on the sources that are real folders on disk
- * (the assets folder; not http). A texture's {@code .mcmeta} sidecar travels with it: renamed,
- * copied, moved and deleted alongside, so an animation never comes apart from its frames.
+ * (the assets folder; not http). A texture's sidecars travel with it — the {@code .mcmeta}
+ * animation and the {@code .dat} editor project are renamed, copied, moved and deleted
+ * alongside, so an animation never comes apart from its frames, nor a texture from its layers.
  *
  * <p>Every operation returns what it produced — the new link — or null when it couldn't, and
  * tells the browsers to relist so the change shows without waiting for the watchdog.</p>
@@ -26,6 +28,9 @@ import java.util.stream.Stream;
 public class TextureFiles
 {
     public static final String COPY_SUFFIX = "_copy";
+
+    /** What belongs to a texture and goes wherever it goes: the animation and the editor's project. */
+    private static final String[] SIDECARS = {".mcmeta", Document.EXTENSION};
 
     public static File file(Link link)
     {
@@ -75,7 +80,7 @@ public class TextureFiles
         try
         {
             Files.move(file.toPath(), target.toPath());
-            moveSidecar(file, target);
+            moveSidecars(file, target);
         }
         catch (IOException e)
         {
@@ -101,13 +106,7 @@ public class TextureFiles
         try
         {
             Files.copy(file.toPath(), target.toPath());
-
-            File sidecar = sidecar(file);
-
-            if (sidecar.exists())
-            {
-                Files.copy(sidecar.toPath(), sidecar(target).toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
+            copySidecars(file, target);
         }
         catch (IOException e)
         {
@@ -145,7 +144,7 @@ public class TextureFiles
         try
         {
             Files.move(file.toPath(), target.toPath());
-            moveSidecar(file, target);
+            moveSidecars(file, target);
         }
         catch (IOException e)
         {
@@ -181,7 +180,11 @@ public class TextureFiles
         try
         {
             copyAsset(link, target);
-            copyAsset(new Link(link.source, link.path + ".mcmeta"), sidecar(target));
+
+            for (String extension : SIDECARS)
+            {
+                copyAsset(new Link(link.source, link.path + extension), sidecar(target, extension));
+            }
         }
         catch (IOException e)
         {
@@ -262,13 +265,7 @@ public class TextureFiles
             else
             {
                 Files.delete(file.toPath());
-
-                File sidecar = sidecar(file);
-
-                if (sidecar.exists())
-                {
-                    Files.delete(sidecar.toPath());
-                }
+                deleteSidecars(file);
             }
         }
         catch (IOException e)
@@ -319,18 +316,47 @@ public class TextureFiles
         return target;
     }
 
-    private static File sidecar(File file)
+    private static File sidecar(File file, String extension)
     {
-        return new File(file.getParentFile(), file.getName() + ".mcmeta");
+        return new File(file.getParentFile(), file.getName() + extension);
     }
 
-    private static void moveSidecar(File from, File to) throws IOException
+    private static void moveSidecars(File from, File to) throws IOException
     {
-        File sidecar = sidecar(from);
-
-        if (sidecar.isFile())
+        for (String extension : SIDECARS)
         {
-            Files.move(sidecar.toPath(), sidecar(to).toPath(), StandardCopyOption.REPLACE_EXISTING);
+            File sidecar = sidecar(from, extension);
+
+            if (sidecar.isFile())
+            {
+                Files.move(sidecar.toPath(), sidecar(to, extension).toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+    }
+
+    private static void copySidecars(File from, File to) throws IOException
+    {
+        for (String extension : SIDECARS)
+        {
+            File sidecar = sidecar(from, extension);
+
+            if (sidecar.isFile())
+            {
+                Files.copy(sidecar.toPath(), sidecar(to, extension).toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+    }
+
+    private static void deleteSidecars(File file) throws IOException
+    {
+        for (String extension : SIDECARS)
+        {
+            File sidecar = sidecar(file, extension);
+
+            if (sidecar.isFile())
+            {
+                Files.delete(sidecar.toPath());
+            }
         }
     }
 
