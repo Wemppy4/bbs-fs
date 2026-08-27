@@ -13,6 +13,7 @@
         "IntegratedServerMixin",
         "WindowMixin",
         "WorldRendererMixin",
+        "WorldRendererAccessor",
         "LanguageManagerMixin",
         "LivingEntityMixin",
         "LivingEntityFilmUseMixin",

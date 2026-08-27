@@ -174,7 +174,11 @@ public class BBSMod implements ModInitializer
         .noCollision()
         .nonOpaque()
         .notSolid()
-        .strength(0F));
+        .strength(0F)
+        /* The hitbox comes from the block entity, so the state's shape cache
+         * must stay off — with it on, the per-block shape would never be asked. */
+        .dynamicBounds()
+        .luminance((state) -> state.get(ModelBlock.LIGHT_LEVEL)));
     public static final Block CHROMA_RED_BLOCK = createChromaBlock();
     public static final Block CHROMA_GREEN_BLOCK = createChromaBlock();
     public static final Block CHROMA_BLUE_BLOCK = createChromaBlock();

@@ -3,6 +3,7 @@ package mchorse.bbs_mod;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.audio.MinecraftSoundCapture;
 import mchorse.bbs_mod.audio.SoundManager;
+import mchorse.bbs_mod.blocks.ModelBlock;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
@@ -404,6 +405,20 @@ public class BBSModClient implements ClientModInitializer
         films = new Films();
 
         BBSResources.init();
+
+        /* While the dashboard is open or a model block is held, model blocks
+         * are targetable as at least a full cube even with a tiny hitbox. */
+        ModelBlock.editingCheck = () ->
+        {
+            if (UIScreen.getCurrentMenu() instanceof UIDashboard)
+            {
+                return true;
+            }
+
+            MinecraftClient mc = MinecraftClient.getInstance();
+
+            return mc.player != null && mc.player.getMainHandStack().isOf(BBSMod.MODEL_BLOCK_ITEM);
+        };
 
         URLRepository repository = new URLRepository(new File(parentFile, "url_cache"));
 

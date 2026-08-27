@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.blocks.entities;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.blocks.ModelBlock;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
@@ -16,6 +17,7 @@ import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
@@ -97,9 +99,20 @@ public class ModelBlockEntity extends BlockEntity
     {
         ModelBlockEntityUpdateCallback.EVENT.invoker().update(this);
 
+        this.properties.getEquipment().apply(this.entity);
+
         this.entity.update();
         this.entity.setWorld(world);
         this.properties.update(this.entity);
+    }
+
+    /**
+     * The block's physical shape, built from the body settings against the
+     * current form and transform.
+     */
+    public VoxelShape getShape()
+    {
+        return this.properties.getBody().buildShape(this.properties.getForm(), this.properties.getTransform());
     }
 
     @Nullable
@@ -143,6 +156,14 @@ public class ModelBlockEntity extends BlockEntity
         this.properties.fromData(data);
 
         BlockPos pos = this.getPos();
+
+        /* Light and sound live in the block STATE (the engine reads them from
+         * there), but their source of truth is the body data — mirror it. */
+        if (!world.isClient())
+        {
+            ModelBlock.mirrorBlockState(world, pos);
+        }
+
         BlockState blockState = world.getBlockState(pos);
 
         world.updateListeners(pos, blockState, blockState, Block.NOTIFY_LISTENERS);

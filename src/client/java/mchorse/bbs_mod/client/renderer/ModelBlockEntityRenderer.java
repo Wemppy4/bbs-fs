@@ -19,6 +19,7 @@ import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.mixin.client.EntityRendererDispatcherInvoker;
+import mchorse.bbs_mod.mixin.client.WorldRendererAccessor;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
@@ -28,17 +29,25 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.BlockBreakingInfo;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.OverlayVertexConsumer;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.render.model.ModelLoader;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.render.OverlayTexture;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
+import java.util.SortedSet;
 
 public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockEntity>
 {
@@ -111,6 +120,9 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
         ModelProperties properties = entity.getProperties();
         Transform transform = properties.getTransform();
         BlockPos pos = entity.getPos();
+
+        /* While the matrices still sit at the cell's corner. */
+        this.renderBreakingOverlay(mc, entity, matrices);
 
         matrices.push();
         matrices.translate(0.5F, 0F, 0.5F);
@@ -305,6 +317,64 @@ public class ModelBlockEntityRenderer implements BlockEntityRenderer<ModelBlockE
         }
 
         transform.rotate.y = yaw;
+    }
+
+    /**
+     * The vanilla mining cracks, painted over the block's hitbox box. The
+     * block renders INVISIBLE, so vanilla's own crumbling pass (which redraws
+     * the block model) has nothing to draw on — instead the cracks go onto the
+     * body's shape here, through the same decal machinery vanilla uses: the
+     * per-stage block-breaking layers on the effect buffers, UVs projected
+     * from positions by {@link OverlayVertexConsumer}.
+     */
+    private void renderBreakingOverlay(MinecraftClient mc, ModelBlockEntity entity, MatrixStack matrices)
+    {
+        SortedSet<BlockBreakingInfo> infos = ((WorldRendererAccessor) mc.worldRenderer).bbs$getBlockBreakingProgressions().get(entity.getPos().asLong());
+
+        if (infos == null || infos.isEmpty())
+        {
+            return;
+        }
+
+        int stage = infos.last().getStage();
+
+        if (stage < 0 || stage >= ModelLoader.BLOCK_DESTRUCTION_RENDER_LAYERS.size())
+        {
+            return;
+        }
+
+        MatrixStack.Entry entry = matrices.peek();
+        VertexConsumer consumer = new OverlayVertexConsumer(
+            mc.getBufferBuilders().getEffectVertexConsumers().getBuffer(ModelLoader.BLOCK_DESTRUCTION_RENDER_LAYERS.get(stage)),
+            entry.getPositionMatrix(), entry.getNormalMatrix(), 1F
+        );
+
+        Box box = entity.getShape().getBoundingBox();
+        int light = WorldRenderer.getLightmapCoordinates(entity.getWorld(), entity.getPos());
+        float x1 = (float) box.minX, y1 = (float) box.minY, z1 = (float) box.minZ;
+        float x2 = (float) box.maxX, y2 = (float) box.maxY, z2 = (float) box.maxZ;
+
+        /* Vertices wind counter-clockwise seen from outside each face. */
+        quad(consumer, entry, light, 0F, -1F, 0F, x1, y1, z1, x2, y1, z1, x2, y1, z2, x1, y1, z2);
+        quad(consumer, entry, light, 0F, 1F, 0F, x1, y2, z2, x2, y2, z2, x2, y2, z1, x1, y2, z1);
+        quad(consumer, entry, light, 0F, 0F, -1F, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1);
+        quad(consumer, entry, light, 0F, 0F, 1F, x2, y1, z2, x2, y2, z2, x1, y2, z2, x1, y1, z2);
+        quad(consumer, entry, light, -1F, 0F, 0F, x1, y1, z2, x1, y2, z2, x1, y2, z1, x1, y1, z1);
+        quad(consumer, entry, light, 1F, 0F, 0F, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2);
+    }
+
+    private static void quad(VertexConsumer consumer, MatrixStack.Entry entry, int light, float nx, float ny, float nz, float... xyz)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            consumer.vertex(entry.getPositionMatrix(), xyz[i * 3], xyz[i * 3 + 1], xyz[i * 3 + 2])
+                .color(255, 255, 255, 255)
+                .texture(0F, 0F)
+                .overlay(OverlayTexture.DEFAULT_UV)
+                .light(light)
+                .normal(entry.getNormalMatrix(), nx, ny, nz)
+                .next();
+        }
     }
 
     @Override
