@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.dashboard.textures.frames;
 
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.textures.PixelMacro;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
 import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.dashboard.textures.data.TextureLayer;
@@ -187,7 +188,7 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
         return super.subMouseClicked(context);
     }
 
-    /** One order throughout: add → copy → time → remove, the destructive one last. */
+    /** One order throughout: add → copy → order → pixels → time → remove, the destructive one last. */
     private void buildContextMenu(ContextMenuManager menu)
     {
         List<TextureAnimation.Frame> visible = this.visible();
@@ -207,10 +208,26 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
         }
 
         List<TextureAnimation.Frame> group = this.group(frame);
+        /* A ping-pong runs over the pick, or over the whole order when only this frame is picked */
+        int run = group.size() > 1 ? group.size() : visible.size();
 
         menu.action(Icons.ADD, UIKeys.TEXTURES_FRAMES_INSERT_BEFORE, () -> this.panel.insert(index));
         menu.action(Icons.ADD, UIKeys.TEXTURES_FRAMES_INSERT_AFTER, () -> this.panel.insert(index + 1));
         menu.action(Icons.DUPE, UIKeys.TEXTURES_FRAMES_DUPLICATE, () -> this.panel.duplicate(group));
+        /* Order entries only when they'd do something: one frame has no order, a run of two no way back */
+        if (group.size() > 1)
+        {
+            menu.action(Icons.REVERSE, UIKeys.TEXTURES_FRAMES_REVERSE, () -> this.panel.reverse(group));
+        }
+
+        if (run >= 3)
+        {
+            menu.action(Icons.REFRESH, UIKeys.TEXTURES_FRAMES_PING_PONG, () -> this.panel.pingPong(group));
+        }
+
+        menu.action(Icons.ERASER, UIKeys.TEXTURES_FRAMES_CLEAR, () -> this.panel.macro(PixelMacro.CLEAR, group));
+        menu.action(Icons.HORIZONTAL, UIKeys.TEXTURES_MACROS_FLIP_H, () -> this.panel.macro(PixelMacro.FLIP_HORIZONTAL, group));
+        menu.action(Icons.VERTICAL, UIKeys.TEXTURES_MACROS_FLIP_V, () -> this.panel.macro(PixelMacro.FLIP_VERTICAL, group));
         menu.action(Icons.TIME, UIKeys.TEXTURES_FRAMES_TIME, () -> this.panel.askTime(group));
         menu.icon(MenuVerb.REMOVE, () -> this.panel.remove(group)).label(UIKeys.GENERAL_REMOVE).enabled(visible.size() > group.size());
     }
@@ -273,11 +290,31 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
 
                 batcher.textShadow(time, x + w - 3 - font.getWidth(time), y + h - 3 - font.getHeight(), Colors.LIGHTEST_GRAY);
             }
+
+            /* A chain on the frames that show one image between them: painting one paints them all */
+            if (this.isShared(item))
+            {
+                batcher.icon(Icons.LINK, Colors.LIGHTER_GRAY, x + 2, y + h - 18);
+            }
         }
 
         CellPainter.frames(context, x, y, w, h, state);
 
         batcher.unclip(context);
+    }
+
+    /** Whether another frame shows the same image as this one. */
+    private boolean isShared(TextureAnimation.Frame item)
+    {
+        for (TextureAnimation.Frame frame : this.visible())
+        {
+            if (frame != item && frame.index == item.index)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

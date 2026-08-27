@@ -645,6 +645,126 @@ public class UITextureEditor extends UIPixelsEditor
         this.updateWindow(true);
     }
 
+    /** The given frames' places in the order, filled the other way round. */
+    public void reverseFrames(List<TextureAnimation.Frame> selected)
+    {
+        if (!this.isAnimated() || selected.isEmpty())
+        {
+            return;
+        }
+
+        List<TextureAnimation.Frame> frames = this.document.animation.frames;
+        List<Integer> positions = new ArrayList<>();
+
+        for (int i = 0; i < frames.size(); i++)
+        {
+            if (selected.contains(frames.get(i)))
+            {
+                positions.add(i);
+            }
+        }
+
+        if (positions.size() < 2)
+        {
+            return;
+        }
+
+        this.recordLayerChange(null, () ->
+        {
+            List<TextureAnimation.Frame> picked = new ArrayList<>();
+
+            for (int position : positions)
+            {
+                picked.add(frames.get(position));
+            }
+
+            for (int i = 0; i < positions.size(); i++)
+            {
+                frames.set(positions.get(i), picked.get(positions.size() - 1 - i));
+            }
+
+            this.wasChanged();
+        });
+
+        /* The place on show now holds another frame */
+        this.setFrame(this.getFrame());
+    }
+
+    /**
+     * The way back after a run of frames — the given ones, or the whole order when it's one frame
+     * or none: the run's inner frames again, last to first, as frames pointing at the same images
+     * (the format's way; no pixels are copied). The frames added, the first of them shown.
+     */
+    public List<TextureAnimation.Frame> pingPong(List<TextureAnimation.Frame> selected)
+    {
+        List<TextureAnimation.Frame> added = new ArrayList<>();
+
+        if (!this.isAnimated())
+        {
+            return added;
+        }
+
+        List<TextureAnimation.Frame> frames = this.document.animation.frames;
+        List<TextureAnimation.Frame> run = new ArrayList<>();
+
+        for (TextureAnimation.Frame frame : frames)
+        {
+            if (selected.size() <= 1 || selected.contains(frame))
+            {
+                run.add(frame);
+            }
+        }
+
+        if (run.size() < 3)
+        {
+            return added;
+        }
+
+        int after = frames.indexOf(run.get(run.size() - 1));
+
+        for (int i = run.size() - 2; i >= 1; i--)
+        {
+            TextureAnimation.Frame frame = run.get(i);
+
+            added.add(new TextureAnimation.Frame(frame.index, frame.time));
+        }
+
+        this.recordLayerChange(null, () ->
+        {
+            frames.addAll(after + 1, added);
+            this.wasChanged();
+        });
+
+        this.setFrame(after + 1);
+
+        return added;
+    }
+
+    /** A macro over the whole images the given frames show (each image once), on the active layer. */
+    public void applyMacroToFrames(PixelMacro macro, List<TextureAnimation.Frame> selected)
+    {
+        if (!this.isAnimated())
+        {
+            return;
+        }
+
+        List<int[]> rects = new ArrayList<>();
+        Set<Integer> images = new HashSet<>();
+        int fw = this.document.frameWidth();
+        int fh = this.document.frameHeight();
+        int count = this.document.imageCount();
+
+        for (TextureAnimation.Frame frame : selected)
+        {
+            if (frame.index >= 0 && frame.index < count && images.add(frame.index))
+            {
+                rects.add(new int[] {0, frame.index * fh, fw, fh});
+            }
+        }
+
+        this.applyMacro(macro, rects, false);
+    }
+
     /** The layers' buffers were replaced: re-cache the active one's, and count the change. */
     private void afterStripChanged()
     {

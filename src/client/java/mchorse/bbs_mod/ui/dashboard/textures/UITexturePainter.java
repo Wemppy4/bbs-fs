@@ -21,6 +21,7 @@ import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
@@ -154,6 +155,9 @@ public class UITexturePainter extends UIElement
     private UIToggle alphaLockToggle;
     private UIElement eraserOpacityRow;
     private UISliderTrackpad eraserOpacity;
+
+    /* One-shot operations over the selection or the frame on show */
+    private UISection macrosSection;
 
     /* The animation's own settings, there only for an animated texture */
     private UISection animationSection;
@@ -385,6 +389,14 @@ public class UITexturePainter extends UIElement
         }));
         this.frameHeight.limit(1, 4096).integer();
 
+        /* The macros work on the selection, or the whole frame on show without one, on the active layer */
+        this.macrosSection = new UISection(UIKeys.TEXTURES_MACROS_SECTION).remember(SECTION_FOLDS, "macros", true);
+        this.macrosSection.fields.add(
+            this.macroButton(UIKeys.TEXTURES_MACROS_CLEAR, PixelMacro.CLEAR),
+            this.macroButton(UIKeys.TEXTURES_MACROS_FLIP_H, PixelMacro.FLIP_HORIZONTAL),
+            this.macroButton(UIKeys.TEXTURES_MACROS_FLIP_V, PixelMacro.FLIP_VERTICAL)
+        );
+
         this.animationSection = new UISection(UIKeys.TEXTURES_FRAMES_SECTION).remember(SECTION_FOLDS, "animation", true);
         this.animationSection.fields.add(
             UI.labelRow(UIKeys.TEXTURES_FRAMES_FRAMETIME, this.frametime),
@@ -402,8 +414,18 @@ public class UITexturePainter extends UIElement
             this.roundBrushToggle,
             this.brushBuildUpToggle,
             this.eraserOpacityRow,
+            this.macrosSection,
             this.animationSection
         );
+    }
+
+    private UIButton macroButton(IKey label, PixelMacro macro)
+    {
+        UIButton button = new UIButton(label, (b) -> this.withEditor((editor) -> editor.applyMacroToWindow(macro)));
+
+        button.tooltip(UIKeys.TEXTURES_MACROS_TOOLTIP);
+
+        return button;
     }
 
     private void buildModelPreviewHost()

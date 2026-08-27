@@ -105,6 +105,9 @@ public class Keys
     public static final KeyCombo PIXEL_FRAME_ADD = new KeyCombo("frame_add", UIKeys.TEXTURES_KEYS_FRAME_ADD, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_LEFT_ALT).categoryKey("pixels");
     public static final KeyCombo PIXEL_FRAME_ADD_EMPTY = new KeyCombo("frame_add_empty", UIKeys.TEXTURES_KEYS_FRAME_ADD_EMPTY, GLFW.GLFW_KEY_N, GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
     public static final KeyCombo PIXEL_FRAME_PLAY = new KeyCombo("frame_play", UIKeys.TEXTURES_FRAMES_PLAY, GLFW.GLFW_KEY_SPACE).categoryKey("pixels");
+    public static final KeyCombo PIXEL_CLEAR = new KeyCombo("clear", UIKeys.TEXTURES_KEYS_CLEAR, GLFW.GLFW_KEY_DELETE).categoryKey("pixels");
+    public static final KeyCombo PIXEL_FLIP_H = new KeyCombo("flip_h", UIKeys.TEXTURES_KEYS_FLIP_H, GLFW.GLFW_KEY_H, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
+    public static final KeyCombo PIXEL_FLIP_V = new KeyCombo("flip_v", UIKeys.TEXTURES_KEYS_FLIP_V, GLFW.GLFW_KEY_V, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
 
     /* Keyframes */
     public static final KeyCombo KEYFRAMES_MAXIMIZE = new KeyCombo("maximize", UIKeys.KEYFRAMES_CONTEXT_MAXIMIZE, GLFW.GLFW_KEY_HOME).categoryKey("keyframes");

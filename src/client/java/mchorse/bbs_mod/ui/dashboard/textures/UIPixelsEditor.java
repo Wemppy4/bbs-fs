@@ -35,6 +35,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -161,8 +162,165 @@ public class UIPixelsEditor extends UICanvasEditor
         this.keys().register(Keys.UNDO, this::undo).inside().active(editing).category(category);
         this.keys().register(Keys.REDO, this::redo).inside().active(editing).category(category);
         this.keys().register(Keys.PIXEL_DESELECT, this::clearSelection).inside().active(editing).category(category);
+        this.keys().register(Keys.PIXEL_CLEAR, () -> this.applyMacroToWindow(PixelMacro.CLEAR)).inside().active(editing).category(category);
+        this.keys().register(Keys.PIXEL_FLIP_H, () -> this.applyMacroToWindow(PixelMacro.FLIP_HORIZONTAL)).inside().active(editing).category(category);
+        this.keys().register(Keys.PIXEL_FLIP_V, () -> this.applyMacroToWindow(PixelMacro.FLIP_VERTICAL)).inside().active(editing).category(category);
 
         this.setEditing(false);
+    }
+
+    /* Macros */
+
+    /** A macro over the selection's part of the frame on show, or the whole frame without one. */
+    public void applyMacroToWindow(PixelMacro macro)
+    {
+        this.applyMacro(macro, Collections.singletonList(new int[] {this.frameX, this.frameY, this.w, this.h}), true);
+    }
+
+    /**
+     * A macro over rectangles of the document ({@code x, y, w, h} each) on the active layer — down
+     * to the selection's part of them when asked and there is one. One undo step for the lot.
+     */
+    public void applyMacro(PixelMacro macro, List<int[]> rects, boolean withinSelection)
+    {
+        TextureLayer layer = this.document == null ? null : this.document.getActiveLayer();
+
+        if (!this.editing || this.undoManager == null || layer == null || layer.pixels == null || rects.isEmpty())
+        {
+            return;
+        }
+
+        PixelsUndo undo = new PixelsUndo();
+        boolean selection = withinSelection && this.hasSelection();
+
+        undo.layerIndex = this.document.activeLayerIndex;
+
+        for (int[] rect : rects)
+        {
+            int x1 = rect[0];
+            int y1 = rect[1];
+            int x2 = rect[0] + rect[2];
+            int y2 = rect[1] + rect[3];
+
+            if (selection)
+            {
+                int[] bounds = this.selectionBounds(x1, y1, x2, y2);
+
+                if (bounds == null)
+                {
+                    continue;
+                }
+
+                x1 = bounds[0];
+                y1 = bounds[1];
+                x2 = bounds[2];
+                y2 = bounds[3];
+            }
+
+            this.applyMacro(undo, macro, layer, x1, y1, x2, y2, selection);
+        }
+
+        if (undo.pixels.isEmpty())
+        {
+            return;
+        }
+
+        this.undoManager.pushUndo(undo);
+        this.updateTexture();
+        this.wasChanged();
+    }
+
+    /** The bounds of the selection within a rectangle (document coordinates, exclusive ends), or null when none of it is there. */
+    private int[] selectionBounds(int x1, int y1, int x2, int y2)
+    {
+        int bx1 = Integer.MAX_VALUE;
+        int by1 = Integer.MAX_VALUE;
+        int bx2 = Integer.MIN_VALUE;
+        int by2 = Integer.MIN_VALUE;
+
+        for (SelectionRect rect : this.selections)
+        {
+            int rx1 = Math.max(x1, Math.min(rect.x1, rect.x2));
+            int ry1 = Math.max(y1, Math.min(rect.y1, rect.y2));
+            int rx2 = Math.min(x2, Math.max(rect.x1, rect.x2) + 1);
+            int ry2 = Math.min(y2, Math.max(rect.y1, rect.y2) + 1);
+
+            if (rx2 <= rx1 || ry2 <= ry1)
+            {
+                continue;
+            }
+
+            bx1 = Math.min(bx1, rx1);
+            by1 = Math.min(by1, ry1);
+            bx2 = Math.max(bx2, rx2);
+            by2 = Math.max(by2, ry2);
+        }
+
+        return bx2 <= bx1 || by2 <= by1 ? null : new int[] {bx1, by1, bx2, by2};
+    }
+
+    private void applyMacro(PixelsUndo undo, PixelMacro macro, TextureLayer layer, int x1, int y1, int x2, int y2, boolean selection)
+    {
+        Pixels pixels = layer.pixels;
+        int ox = layer.offsetX;
+        int oy = layer.offsetY;
+
+        if (macro == PixelMacro.CLEAR)
+        {
+            Color transparent = new Color(0F, 0F, 0F, 0F);
+
+            for (int x = x1; x < x2; x++)
+            {
+                for (int y = y1; y < y2; y++)
+                {
+                    if (!selection || this.isInsideSelection(x, y))
+                    {
+                        undo.setColor(pixels, x - ox, y - oy, transparent);
+                    }
+                }
+            }
+
+            return;
+        }
+
+        /* A flip swaps pixels across the middle: take the originals first, then put each back
+         * where its mirror image was. What's off the layer's buffer counts as transparent. */
+        int w = x2 - x1;
+        int h = y2 - y1;
+        int[] before = new int[w * h];
+        boolean horizontal = macro == PixelMacro.FLIP_HORIZONTAL;
+        Color color = new Color();
+
+        for (int x = 0; x < w; x++)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                int lx = x1 + x - ox;
+                int ly = y1 + y - oy;
+
+                if (lx >= 0 && ly >= 0 && lx < pixels.width && ly < pixels.height)
+                {
+                    before[x + y * w] = pixels.getColor(lx, ly).getARGBColor();
+                }
+            }
+        }
+
+        for (int x = 0; x < w; x++)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                if (selection && !this.isInsideSelection(x1 + x, y1 + y))
+                {
+                    continue;
+                }
+
+                int sx = horizontal ? w - 1 - x : x;
+                int sy = horizontal ? y : h - 1 - y;
+
+                color.set(before[sx + sy * w], true);
+                undo.setColor(pixels, x1 + x - ox, y1 + y - oy, color);
+            }
+        }
     }
 
     public void clearSelection()

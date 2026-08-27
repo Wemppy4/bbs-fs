@@ -1360,6 +1360,17 @@ public class UIKeys
     public static final IKey TEXTURES_FRAMES_FRAMETIME = L10n.lang("bbs.ui.textures.frames.frametime");
     public static final IKey TEXTURES_FRAMES_FRAME_WIDTH = L10n.lang("bbs.ui.textures.frames.frame_width");
     public static final IKey TEXTURES_FRAMES_FRAME_HEIGHT = L10n.lang("bbs.ui.textures.frames.frame_height");
+    public static final IKey TEXTURES_FRAMES_REVERSE = L10n.lang("bbs.ui.textures.frames.reverse");
+    public static final IKey TEXTURES_FRAMES_PING_PONG = L10n.lang("bbs.ui.textures.frames.ping_pong");
+    public static final IKey TEXTURES_FRAMES_CLEAR = L10n.lang("bbs.ui.textures.frames.clear");
+    public static final IKey TEXTURES_KEYS_CLEAR = L10n.lang("bbs.ui.textures.keys.clear");
+    public static final IKey TEXTURES_KEYS_FLIP_H = L10n.lang("bbs.ui.textures.keys.flip_h");
+    public static final IKey TEXTURES_KEYS_FLIP_V = L10n.lang("bbs.ui.textures.keys.flip_v");
+    public static final IKey TEXTURES_MACROS_SECTION = L10n.lang("bbs.ui.textures.macros.section");
+    public static final IKey TEXTURES_MACROS_CLEAR = L10n.lang("bbs.ui.textures.macros.clear");
+    public static final IKey TEXTURES_MACROS_FLIP_H = L10n.lang("bbs.ui.textures.macros.flip_h");
+    public static final IKey TEXTURES_MACROS_FLIP_V = L10n.lang("bbs.ui.textures.macros.flip_v");
+    public static final IKey TEXTURES_MACROS_TOOLTIP = L10n.lang("bbs.ui.textures.macros.tooltip");
     public static final IKey TEXTURES_LINEAR = L10n.lang("bbs.ui.textures.linear");
     public static final IKey TEXTURES_MIPMAP = L10n.lang("bbs.ui.textures.mipmap");
     public static final IKey TEXTURES_RESIZE = L10n.lang("bbs.ui.textures.resize");

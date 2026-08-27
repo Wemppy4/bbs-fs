@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.textures.PixelMacro;
 import mchorse.bbs_mod.ui.dashboard.textures.UITextureEditor;
 import mchorse.bbs_mod.ui.dashboard.textures.UITexturePainter;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
@@ -333,6 +334,45 @@ public class UIFramesPanel extends UIElement
         this.playing = false;
         this.editor.moveFrames(frames, insertion);
         this.sync();
+    }
+
+    public void reverse(List<TextureAnimation.Frame> frames)
+    {
+        if (this.editor == null)
+        {
+            return;
+        }
+
+        this.playing = false;
+        this.editor.reverseFrames(frames);
+        this.sync();
+    }
+
+    public void pingPong(List<TextureAnimation.Frame> frames)
+    {
+        if (this.editor == null)
+        {
+            return;
+        }
+
+        this.playing = false;
+
+        List<TextureAnimation.Frame> added = this.editor.pingPong(frames);
+
+        if (!added.isEmpty())
+        {
+            this.strip.selection.setAll(added);
+        }
+
+        this.sync();
+    }
+
+    public void macro(PixelMacro macro, List<TextureAnimation.Frame> frames)
+    {
+        if (this.editor != null)
+        {
+            this.editor.applyMacroToFrames(macro, frames);
+        }
     }
 
     /** Ask for a duration in ticks for the given frames. */
