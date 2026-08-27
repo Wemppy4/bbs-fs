@@ -1421,16 +1421,24 @@ public class Gizmo
         /* The centre cube is decoration, not a handle, so any filtered drag hides it — but
          * nothing else does. With every element switched off it is all that is left, and it
          * has to be: the gizmo's origin is where the selection is, and losing that marker
-         * means losing sight of what is being edited. */
+         * means losing sight of what is being edited.
+         *
+         * Standing alone it takes the size the centre normally reads at — the screen-translate
+         * cube's. At the bar thickness it would be a speck: that size is chosen to sit in the
+         * crook of three axis bars, and with the bars gone there is nothing to be small against. */
         if (active == null)
         {
+            float centreHalf = layout.showsBoxes() || layout.showRotate
+                ? axisOffset
+                : SCREEN_CUBE_HALF * layout.scale * layout.thickness;
+
             if (!building)
             {
                 builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
                 building = true;
             }
 
-            Draw.fillBox(builder, stack, -axisOffset, -axisOffset, -axisOffset, axisOffset, axisOffset, axisOffset, Colors.WHITE);
+            Draw.fillBox(builder, stack, -centreHalf, -centreHalf, -centreHalf, centreHalf, centreHalf, centreHalf, Colors.WHITE);
         }
 
         if (building)
