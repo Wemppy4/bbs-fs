@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIStrip;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.Direction;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +43,10 @@ public class UIFramesPanel extends UIElement
     private final UIIcon play;
     private final UILabel counter;
     private final UITrackpad time;
+    private final UIIcon onion;
+
+    /* Kept here, for the session: it's a way of looking, not a fact about the texture */
+    private boolean onionSkin;
 
     /* Playing: the tick it started on, and how far into the run the frame on show was */
     private boolean playing;
@@ -72,10 +77,14 @@ public class UIFramesPanel extends UIElement
         this.time.tooltip(UIKeys.TEXTURES_FRAMES_TIME);
         this.time.w(60);
 
+        this.onion = new UIIcon(Icons.ONION_SKIN, (b) -> this.toggleOnionSkin());
+        this.onion.tooltip(UIKeys.TEXTURES_FRAMES_ONION);
+        this.onion.highlight(() -> this.onionSkin, Direction.BOTTOM);
+
         UIStrip bar = new UIStrip(BAR_HEIGHT);
 
         bar.relative(this).w(1F).h(BAR_HEIGHT);
-        bar.add(this.play, prev, next, this.counter, this.time, add);
+        bar.add(this.play, prev, next, this.counter, this.time, this.onion, add);
 
         this.strip = new UIFrameStrip(this);
         this.strip.relative(this).y(BAR_HEIGHT).w(1F).h(1F, -BAR_HEIGHT);
@@ -89,7 +98,22 @@ public class UIFramesPanel extends UIElement
         this.editor = editor;
         this.playing = false;
 
+        if (editor != null)
+        {
+            editor.setOnionSkin(this.onionSkin);
+        }
+
         this.sync();
+    }
+
+    private void toggleOnionSkin()
+    {
+        this.onionSkin = !this.onionSkin;
+
+        if (this.editor != null)
+        {
+            this.editor.setOnionSkin(this.onionSkin);
+        }
     }
 
     public Document document()

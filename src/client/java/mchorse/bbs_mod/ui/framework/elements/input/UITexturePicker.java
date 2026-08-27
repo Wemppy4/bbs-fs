@@ -432,6 +432,19 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         }
     }
 
+    /** Opens {@code link} like {@link #openTexture} and turns its animation on, if it wasn't already. */
+    public void openTextureAnimated(Link link)
+    {
+        this.openTexture(link);
+
+        UITextureEditor editor = this.painter.getCurrentEditor();
+
+        if (editor != null && link != null && link.toString().equals(String.valueOf(editor.getTexture())))
+        {
+            this.painter.enableAnimation();
+        }
+    }
+
     /** Shows tab {@code index}: the file browser for tab 0, otherwise the painter for editor {@code index - 1}. */
     private void showTab(int index)
     {

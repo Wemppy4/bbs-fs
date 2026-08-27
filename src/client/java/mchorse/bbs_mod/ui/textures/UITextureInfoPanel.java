@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.textures;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.graphics.texture.AnimatedTexture;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.resources.Link;
@@ -44,6 +45,11 @@ public class UITextureInfoPanel extends UIElement
     private Link link;
     private Texture texture;
     private boolean animated;
+
+    /* What the game made of the animation: how many frames it plays and how long a run is, in ticks */
+    private int frames;
+    private int length;
+
     private int files = -1;
 
     public UITextureInfoPanel(UITextureBrowser browser)
@@ -103,6 +109,8 @@ public class UITextureInfoPanel extends UIElement
         this.link = link;
         this.texture = null;
         this.animated = false;
+        this.frames = 0;
+        this.length = 0;
         this.files = -1;
 
         boolean file = link != null && !link.path.endsWith("/") && !link.path.isEmpty();
@@ -122,6 +130,15 @@ public class UITextureInfoPanel extends UIElement
             File sidecar = TextureFiles.file(new Link(link.source, link.path + ".mcmeta"));
 
             this.animated = sidecar != null && sidecar.isFile();
+
+            /* Loaded by getTexture above, when the sidecar could be read */
+            AnimatedTexture animation = BBSModClient.getTextures().animatedTextures.get(link);
+
+            if (animation != null)
+            {
+                this.frames = animation.index.getKeyframes().size();
+                this.length = animation.length;
+            }
         }
         else if (link != null)
         {
@@ -195,7 +212,12 @@ public class UITextureInfoPanel extends UIElement
 
             if (this.animated)
             {
-                context.batcher.text(UIKeys.TEXTURES_BROWSER_INFO_ANIMATED.get(), x, y, Colors.LIGHTER_GRAY);
+                /* What the game made of the .mcmeta when it could read it; the bare fact otherwise */
+                String label = this.frames > 0
+                    ? UIKeys.TEXTURES_BROWSER_INFO_ANIMATION.format(String.valueOf(this.frames), String.valueOf(this.length)).get()
+                    : UIKeys.TEXTURES_BROWSER_INFO_ANIMATED.get();
+
+                context.batcher.text(font.limitToWidth(label, w), x, y, Colors.LIGHTER_GRAY);
                 y += 12;
             }
 

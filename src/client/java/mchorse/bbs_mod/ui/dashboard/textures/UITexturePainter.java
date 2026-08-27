@@ -20,6 +20,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
@@ -44,7 +45,9 @@ import mchorse.bbs_mod.utils.resources.Pixels;
 import org.joml.Vector2i;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -84,6 +87,9 @@ public class UITexturePainter extends UIElement
     private static final int DEFAULT_FRAMES_HEIGHT = 90;
     private static final int MIN_FRAMES_HEIGHT = 44;
     private static final int MAX_FRAMES_HEIGHT = 300;
+
+    /** Fold state of the option sections, kept across painters for the session. */
+    private static final Map<String, Boolean> SECTION_FOLDS = new HashMap<>();
 
     public UISliderTrackpad brightness;
     public UITrackpad brushSize;
@@ -148,6 +154,12 @@ public class UITexturePainter extends UIElement
     private UIToggle alphaLockToggle;
     private UIElement eraserOpacityRow;
     private UISliderTrackpad eraserOpacity;
+
+    /* The animation's own settings, there only for an animated texture */
+    private UISection animationSection;
+    private UITrackpad frametime;
+    private UITrackpad frameWidth;
+    private UITrackpad frameHeight;
 
     private UIElement content;
     private final Consumer<Link> saveCallback;
@@ -358,6 +370,29 @@ public class UITexturePainter extends UIElement
         this.eraserOpacity.limit(0, 100).setValue(100);
         this.eraserOpacityRow = UI.labelRow(UIKeys.TEXTURES_ERASER_OPACITY, this.eraserOpacity);
 
+        this.frametime = new UITrackpad((v) -> this.withEditor((editor) -> editor.setFrametime(v.intValue())));
+        this.frametime.limit(1, UIFramesPanel.MAX_TIME).integer();
+        this.frameWidth = new UITrackpad((v) -> this.withEditor((editor) ->
+        {
+            editor.setFrameSize(v.intValue(), (int) this.frameHeight.getValue());
+            this.framesPanel.sync();
+        }));
+        this.frameWidth.limit(1, 4096).integer();
+        this.frameHeight = new UITrackpad((v) -> this.withEditor((editor) ->
+        {
+            editor.setFrameSize((int) this.frameWidth.getValue(), v.intValue());
+            this.framesPanel.sync();
+        }));
+        this.frameHeight.limit(1, 4096).integer();
+
+        this.animationSection = new UISection(UIKeys.TEXTURES_FRAMES_SECTION).remember(SECTION_FOLDS, "animation", true);
+        this.animationSection.fields.add(
+            UI.labelRow(UIKeys.TEXTURES_FRAMES_FRAMETIME, this.frametime),
+            UI.labelRow(UIKeys.TEXTURES_FRAMES_FRAME_WIDTH, this.frameWidth),
+            UI.labelRow(UIKeys.TEXTURES_FRAMES_FRAME_HEIGHT, this.frameHeight)
+        );
+        this.animationSection.setVisible(false);
+
         this.options.add(
             this.colorPickersRow,
             this.alphaLockToggle,
@@ -366,7 +401,8 @@ public class UITexturePainter extends UIElement
             this.brushSoftnessRow,
             this.roundBrushToggle,
             this.brushBuildUpToggle,
-            this.eraserOpacityRow
+            this.eraserOpacityRow,
+            this.animationSection
         );
     }
 
@@ -557,7 +593,22 @@ public class UITexturePainter extends UIElement
         this.updateFramesVisibility();
     }
 
-    /** The strip is there for an animated texture and gone otherwise; the canvas takes what's left. */
+    /** Turn the animation of the texture on show on, if it isn't already — the browser's way in. */
+    public void enableAnimation()
+    {
+        this.withEditor((editor) ->
+        {
+            if (!editor.isAnimated())
+            {
+                this.setAnimated(editor, true);
+            }
+        });
+    }
+
+    /**
+     * The strip and the animation section are there for an animated texture and gone otherwise;
+     * the canvas takes what's left.
+     */
     private void updateFramesVisibility()
     {
         boolean animated = this.isAnimated();
@@ -566,6 +617,25 @@ public class UITexturePainter extends UIElement
         this.framesHost.setVisible(animated);
         this.framesDraggable.setVisible(animated);
         this.editorHost.resize();
+
+        this.animationSection.setVisible(animated);
+        this.syncAnimationSettings();
+        this.optionsHost.resize();
+    }
+
+    /** The section reads the animation on show; setValue doesn't fire the trackpads, so this can't loop. */
+    private void syncAnimationSettings()
+    {
+        Document document = this.editor == null ? null : this.editor.getDocument();
+
+        if (document == null || document.animation == null)
+        {
+            return;
+        }
+
+        this.frametime.setValue(document.animation.frametime);
+        this.frameWidth.setValue(document.frameWidth());
+        this.frameHeight.setValue(document.frameHeight());
     }
 
     private void adjustBrushSize(int delta)

@@ -1238,6 +1238,7 @@ public class UIKeys
     public static final IKey TEXTURES_BROWSER_DELETE_TITLE = L10n.lang("bbs.ui.textures.browser.delete-title");
     public static final IKey TEXTURES_BROWSER_EVERYWHERE = L10n.lang("bbs.ui.textures.browser.everywhere");
     public static final IKey TEXTURES_BROWSER_INFO_ANIMATED = L10n.lang("bbs.ui.textures.browser.info.animated");
+    public static final IKey TEXTURES_BROWSER_INFO_ANIMATION = L10n.lang("bbs.ui.textures.browser.info.animation");
     public static final IKey TEXTURES_BROWSER_INFO_EMPTY = L10n.lang("bbs.ui.textures.browser.info.empty");
     public static final IKey TEXTURES_BROWSER_INFO_FILES = L10n.lang("bbs.ui.textures.browser.info.files");
     public static final IKey TEXTURES_BROWSER_INFO_READ_ONLY = L10n.lang("bbs.ui.textures.browser.info.read_only");
@@ -1284,7 +1285,7 @@ public class UIKeys
     public static final IKey TEXTURES_COPY = L10n.lang("bbs.ui.textures.copy");
     public static final IKey TEXTURES_COPY_IMAGE = L10n.lang("bbs.ui.textures.copy_image");
     public static final IKey TEXTURES_PASTE_IMAGE = L10n.lang("bbs.ui.textures.paste_image");
-    public static final IKey TEXTURES_CREATE_MCMETA = L10n.lang("bbs.ui.textures.create_mcmeta");
+    public static final IKey TEXTURES_MAKE_ANIMATED = L10n.lang("bbs.ui.textures.make_animated");
     public static final IKey TEXTURES_DOWNLOAD = L10n.lang("bbs.ui.textures.download");
     public static final IKey TEXTURES_DOWNLOAD_DESCRIPTION = L10n.lang("bbs.ui.textures.download-description");
     public static final IKey TEXTURES_DOWNLOAD_FILENAME = L10n.lang("bbs.ui.textures.download.filename");
@@ -1349,6 +1350,11 @@ public class UIKeys
     public static final IKey TEXTURES_FRAMES_LAST = L10n.lang("bbs.ui.textures.frames.last");
     public static final IKey TEXTURES_FRAMES_DISABLE_TITLE = L10n.lang("bbs.ui.textures.frames.disable_title");
     public static final IKey TEXTURES_FRAMES_DISABLE_MESSAGE = L10n.lang("bbs.ui.textures.frames.disable_message");
+    public static final IKey TEXTURES_FRAMES_ONION = L10n.lang("bbs.ui.textures.frames.onion");
+    public static final IKey TEXTURES_FRAMES_SECTION = L10n.lang("bbs.ui.textures.frames.section");
+    public static final IKey TEXTURES_FRAMES_FRAMETIME = L10n.lang("bbs.ui.textures.frames.frametime");
+    public static final IKey TEXTURES_FRAMES_FRAME_WIDTH = L10n.lang("bbs.ui.textures.frames.frame_width");
+    public static final IKey TEXTURES_FRAMES_FRAME_HEIGHT = L10n.lang("bbs.ui.textures.frames.frame_height");
     public static final IKey TEXTURES_LINEAR = L10n.lang("bbs.ui.textures.linear");
     public static final IKey TEXTURES_MIPMAP = L10n.lang("bbs.ui.textures.mipmap");
     public static final IKey TEXTURES_RESIZE = L10n.lang("bbs.ui.textures.resize");

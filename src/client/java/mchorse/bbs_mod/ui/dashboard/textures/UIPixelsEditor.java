@@ -68,6 +68,9 @@ public class UIPixelsEditor extends UICanvasEditor
     /** Which frame of the animation's order is on show. */
     private int frame;
 
+    /** Show the frame before the one on show faintly under it — the trace an animator draws against. */
+    private boolean onionSkin;
+
     private boolean editing;
     private Color drawColor;
     private boolean blendStroke;
@@ -426,6 +429,16 @@ public class UIPixelsEditor extends UICanvasEditor
     public void stepFrame(int delta)
     {
         this.setFrame(this.frame + delta);
+    }
+
+    public void setOnionSkin(boolean onionSkin)
+    {
+        this.onionSkin = onionSkin;
+    }
+
+    public boolean isOnionSkin()
+    {
+        return this.onionSkin;
     }
 
     /**
@@ -1856,6 +1869,7 @@ public class UIPixelsEditor extends UICanvasEditor
         }
         else if (this.document != null)
         {
+            this.renderOnionSkin(context);
             this.renderLayers(context, this.frameX, this.frameY, 1F);
         }
 
@@ -1934,6 +1948,27 @@ public class UIPixelsEditor extends UICanvasEditor
                 this.lastX = context.mouseX;
                 this.lastY = context.mouseY;
             }
+        }
+    }
+
+    private static final float ONION_ALPHA = 0.35F;
+
+    /** The frame before the one on show, faint, under it. */
+    private void renderOnionSkin(UIContext context)
+    {
+        TextureAnimation animation = this.document.animation;
+
+        if (!this.onionSkin || animation == null || animation.frames.size() < 2)
+        {
+            return;
+        }
+
+        int count = animation.frames.size();
+        int image = animation.frames.get((this.frame - 1 + count) % count).index;
+
+        if (image >= 0 && image < this.document.imageCount())
+        {
+            this.renderLayers(context, 0, image * this.document.frameHeight(), ONION_ALPHA);
         }
     }
 

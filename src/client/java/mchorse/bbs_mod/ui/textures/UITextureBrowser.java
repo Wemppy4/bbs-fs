@@ -3,13 +3,12 @@ package mchorse.bbs_mod.ui.textures;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSResources;
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.data.DataToString;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -1200,14 +1199,10 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
 
             File file = TextureFiles.file(link);
 
-            if (file != null && file.isFile())
+            /* A texture on disk that isn't animated yet: into the editor with the animation on */
+            if (file != null && file.isFile() && !TextureAnimation.file(file).isFile())
             {
-                menu.action(Icons.FILE, UIKeys.TEXTURES_CREATE_MCMETA, () ->
-                {
-                    MapType data = DataToString.mapFromString("{\"animation\":{\"frametime\":2}}");
-
-                    DataToString.writeSilently(new File(file.getAbsolutePath() + ".mcmeta"), data, true);
-                });
+                menu.action(Icons.FILM, UIKeys.TEXTURES_MAKE_ANIMATED, () -> this.picker.openTextureAnimated(link));
             }
         }
 

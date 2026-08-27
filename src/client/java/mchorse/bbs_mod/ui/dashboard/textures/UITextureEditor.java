@@ -164,6 +164,12 @@ public class UITextureEditor extends UIPixelsEditor
     public void setDirty(boolean dirty)
     {
         this.dirty = dirty;
+
+        /* Whatever dirties the document is a change for the caches to notice (the preview's frames) */
+        if (dirty && this.document != null)
+        {
+            this.document.revision++;
+        }
     }
 
     @Override
@@ -526,6 +532,68 @@ public class UITextureEditor extends UIPixelsEditor
 
             this.wasChanged();
         });
+    }
+
+    /** Ticks a frame lasts unless it says otherwise. Consecutive changes merge into one undo step. */
+    public void setFrametime(int ticks)
+    {
+        if (!this.isAnimated())
+        {
+            return;
+        }
+
+        int value = Math.max(1, ticks);
+
+        if (value == this.document.animation.frametime)
+        {
+            return;
+        }
+
+        this.recordLayerChange("frametime", () ->
+        {
+            this.document.animation.frametime = value;
+            this.wasChanged();
+        });
+    }
+
+    /**
+     * The size of one image of the strip. The strip is re-cut by it: an order that was the plain
+     * one (every image once) is made again for the new count; a custom order is kept, and frames
+     * of it pointing past the shorter strip show for what they are.
+     */
+    public void setFrameSize(int width, int height)
+    {
+        if (!this.isAnimated())
+        {
+            return;
+        }
+
+        TextureAnimation animation = this.document.animation;
+        int w = MathUtils.clamp(width, 1, this.document.width);
+        int h = MathUtils.clamp(height, 1, this.document.height);
+
+        if (w == this.document.frameWidth() && h == this.document.frameHeight())
+        {
+            return;
+        }
+
+        boolean plain = animation.isDefaultSequence(this.document.width, this.document.height);
+
+        this.recordLayerChange("frame_size", () ->
+        {
+            animation.width = w;
+            animation.height = h;
+
+            if (plain)
+            {
+                animation.fillDefaultFrames(this.document.width, this.document.height);
+            }
+
+            this.wasChanged();
+        });
+
+        this.setFrame(Math.min(this.getFrame(), animation.frames.size() - 1));
+        this.updateWindow(true);
     }
 
     /** The layers' buffers were replaced: re-cache the active one's, and count the change. */
