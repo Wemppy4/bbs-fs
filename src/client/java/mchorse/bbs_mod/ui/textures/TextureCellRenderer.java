@@ -22,6 +22,15 @@ public class TextureCellRenderer
     /** Cell width from which a texture cell carries its name. Folders always do. */
     public static final int NAME_THRESHOLD = 80;
 
+    /**
+     * How solidly the NAME of what lives inside the mod is drawn. It can be copied out but not
+     * changed in place, and that is said by its name going faint rather than by a badge beside
+     * it: a mark has to be read, a faint name is seen. Only the name - the picture is what the
+     * grid is for, and fading it would be fading the very thing one came to look at. The same
+     * fade marks such a folder down the tree, so the two sides agree.
+     */
+    public static final float READ_ONLY_ALPHA = 0.4F;
+
     private static final int PADDING = 3;
 
     public static void render(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, CellAction[] actions)
@@ -30,13 +39,15 @@ public class TextureCellRenderer
 
         CellPainter.ground(context, x, y, w, h, state);
 
+        float alpha = isReadOnly(entry) ? READ_ONLY_ALPHA : 1F;
+
         if (entry.folder())
         {
-            renderFolder(context, entry, x, y, w, h, state);
+            renderFolder(context, entry, x, y, w, h, state, alpha);
         }
         else
         {
-            renderTexture(context, entry, x, y, w, h, state);
+            renderTexture(context, entry, x, y, w, h, state, alpha);
         }
 
         CellPainter.dim(context, x, y, w, h, state);
@@ -54,23 +65,14 @@ public class TextureCellRenderer
     }
 
     /**
-     * The corner marks, in a row from the left: a bookmark for what's pinned, a gear for what
-     * is built into the mod (it can be copied out, but not changed in place). Both say
-     * something about the cell that holds true whether or not the cursor is on it.
+     * The corner marks: a bookmark for what's pinned. It is drawn solid even on a faded cell -
+     * a mark is about the cell, not part of its picture, and pinning is the user's own doing.
      */
     private static void renderMarks(UIContext context, TextureEntry entry, int x, int y)
     {
-        int mx = x + 2;
-
         if (TexturePins.isPinned(entry.link()))
         {
-            context.batcher.icon(Icons.BOOKMARK, Colors.LIGHTER_GRAY, mx, y + 2);
-            mx += 18;
-        }
-
-        if (isReadOnly(entry))
-        {
-            context.batcher.icon(Icons.GEAR, Colors.LIGHTER_GRAY, mx, y + 2);
+            context.batcher.icon(Icons.BOOKMARK, Colors.LIGHTER_GRAY, x + 2, y + 2);
         }
     }
 
@@ -80,7 +82,7 @@ public class TextureCellRenderer
         return entry.folder() ? TextureFiles.isReadOnly(entry.link()) : !TextureFiles.canModify(entry.link());
     }
 
-    private static void renderFolder(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state)
+    private static void renderFolder(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, float alpha)
     {
         /* The icon grows with the cell and sits in the space above the name strip */
         int room = h - CellPainter.CAPTION_HEIGHT;
@@ -88,10 +90,10 @@ public class TextureCellRenderer
         int cy = y + room / 2;
 
         context.batcher.scaledIcon(Icons.FOLDER, state.hover ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + (w - size) / 2, cy - size / 2, size);
-        CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected);
+        CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected, alpha);
     }
 
-    private static void renderTexture(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state)
+    private static void renderTexture(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, float alpha)
     {
         Batcher2D batcher = context.batcher;
         Texture texture = BBSModClient.getTextures().getTexture(entry.link());
@@ -121,7 +123,7 @@ public class TextureCellRenderer
 
         if (name)
         {
-            CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected);
+            CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected, alpha);
         }
     }
 }

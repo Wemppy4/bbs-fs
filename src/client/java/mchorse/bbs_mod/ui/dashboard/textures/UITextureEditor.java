@@ -84,7 +84,7 @@ public class UITextureEditor extends UIPixelsEditor
             return file != null;
         });
 
-        UIOverlay.addOverlay(this.getContext(), panel, 480, 320);
+        UIOverlay.addOverlay(this.getContext(), panel, 530, 340);
     }
 
     /** Called from UITexturePainter resize icon. Opens the resize overlay. */

@@ -61,12 +61,22 @@ public class CellPainter
     /** A caption along the bottom of a cell, on a gradient so it reads over any picture. */
     public static void caption(UIContext context, String label, int x, int y, int w, int h, boolean bright)
     {
+        caption(context, label, x, y, w, h, bright, 1F);
+    }
+
+    /**
+     * The same caption, faded along with the picture above it. The gradient behind it keeps its
+     * own strength - it is there so the words read over whatever is under them, and a cell that
+     * is faint needs that as much as a solid one.
+     */
+    public static void caption(UIContext context, String label, int x, int y, int w, int h, boolean bright, float alpha)
+    {
         Batcher2D batcher = context.batcher;
         FontRenderer font = batcher.getFont();
 
         label = font.limitToWidth(label, w - 6);
 
         batcher.gradientVBox(x, y + h - CAPTION_HEIGHT - 8, x + w, y + h, 0, Colors.A75);
-        batcher.textShadow(label, x + (w - font.getWidth(label)) / 2, y + h - CAPTION_HEIGHT + (CAPTION_HEIGHT - font.getHeight()) / 2 + 1, bright ? Colors.WHITE : Colors.LIGHTEST_GRAY);
+        batcher.textShadow(label, x + (w - font.getWidth(label)) / 2, y + h - CAPTION_HEIGHT + (CAPTION_HEIGHT - font.getHeight()) / 2 + 1, Colors.mulA(bright ? Colors.WHITE : Colors.LIGHTEST_GRAY, alpha));
     }
 }
