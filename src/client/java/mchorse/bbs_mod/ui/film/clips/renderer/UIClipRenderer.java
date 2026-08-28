@@ -67,21 +67,23 @@ public class UIClipRenderer <T extends Clip> implements IUIClipRenderer<T>
         }
 
         FontRenderer font = context.batcher.getFont();
-        String label = font.limitToWidth(clips.getClipDisplayName(clip), right - 6 - left);
+        boolean hasIcon = right - left >= 20;
+        int labelX = left + (hasIcon ? 20 : 5);
+        String label = font.limitToWidth(clips.getClipDisplayName(clip), right - 2 - labelX);
 
         boolean alignTop = h >= 28;
         int labelY = alignTop ? y + 3 : y + (h - font.getHeight()) / 2;
         float iconAnchorY = alignTop ? 0F : 0.5F;
         int iconY = alignTop ? y + 3 : y + h / 2;
 
-        if (right - left >= 20)
+        if (hasIcon)
         {
-            context.batcher.icon(data.icon, Colors.mulA(Colors.mulRGB(Colors.WHITE, 0.75F), 0.5F), right - 2, iconY, 1F, iconAnchorY);
+            context.batcher.icon(data.icon, left + 2, iconY, 0F, iconAnchorY);
         }
 
         if (!label.isEmpty())
         {
-            context.batcher.textShadow(label, left + 5, labelY);
+            context.batcher.textShadow(label, labelX, labelY);
         }
     }
 
