@@ -12,8 +12,6 @@ import java.util.List;
 
 public class VideoClientClip extends VideoClip
 {
-    private VideoOverlay overlay = new VideoOverlay();
-
     @Override
     public boolean isGlobal()
     {

@@ -170,6 +170,8 @@ public class UISubtitleRenderer
             /* Render the texture */
             fb.beginWrite(true);
 
+            subtitle.box.set(x - fw * placement.anchorX, y - fh * placement.anchorY, fw, fh, width);
+
             RenderSystem.setProjectionMatrix(ortho, VertexSorter.BY_Z);
 
             Transform transform = new Transform();

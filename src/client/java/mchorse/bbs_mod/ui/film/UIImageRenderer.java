@@ -116,6 +116,8 @@ public class UIImageRenderer
                 anchorY = placement.anchorY;
             }
 
+            image.box.set(x - w * anchorX, y - h * anchorY, w, h, width);
+
             Transform transform = new Transform();
 
             transform.lerp(image.transform, 1F - image.factor);

@@ -15,6 +15,8 @@ public class ImageOverlay
     public Transform transform;
     public float factor;
 
+    public final OverlayBox box = new OverlayBox();
+
     public void update(Link texture, Placement placement, int color, boolean fullscreen, boolean smooth)
     {
         this.texture = texture;

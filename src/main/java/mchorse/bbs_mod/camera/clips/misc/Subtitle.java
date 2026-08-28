@@ -18,6 +18,8 @@ public class Subtitle
     public Transform transform;
     public float factor;
 
+    public final OverlayBox box = new OverlayBox();
+
     public int lineHeight;
     public int maxWidth;
 

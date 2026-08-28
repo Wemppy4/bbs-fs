@@ -59,6 +59,7 @@ public class UIFilmPreview extends UIElement
 {
     private List<AudioClip> clips = new ArrayList<>();
     private UIFilmPanel panel;
+    private UIPlacementGizmo placementGizmo;
 
     public UIElement icons;
 
@@ -79,6 +80,7 @@ public class UIFilmPreview extends UIElement
     public UIFilmPreview(UIFilmPanel filmPanel)
     {
         this.panel = filmPanel;
+        this.placementGizmo = new UIPlacementGizmo(filmPanel);
 
         this.icons = UI.row(0, 0);
         this.icons.row().resize();
@@ -356,10 +358,26 @@ public class UIFilmPreview extends UIElement
                 return true;
             }
 
+            if (this.placementGizmo.mouseClicked(context, area))
+            {
+                return true;
+            }
+
             return this.panel.replayEditor.clickViewport(context, area);
         }
 
         return super.subMouseClicked(context);
+    }
+
+    @Override
+    protected boolean subMouseReleased(UIContext context)
+    {
+        if (this.placementGizmo.mouseReleased(context))
+        {
+            return true;
+        }
+
+        return super.subMouseReleased(context);
     }
 
     @Override
@@ -452,6 +470,8 @@ public class UIFilmPreview extends UIElement
                 context.batcher.box(x - 1, y - 4, x, y + 3, Colors.setA(Colors.WHITE, 0.5F));
             }
         }
+
+        this.placementGizmo.render(context, area);
 
         /* Current window resolution label (bottom-right, same style as replay name) */
         int resW = BBSRendering.getVideoWidth();

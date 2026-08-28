@@ -44,6 +44,11 @@ public class SubtitleClip extends CameraClip
         return context.clipData.get("subtitles", ArrayList::new);
     }
 
+    public Subtitle getSubtitle()
+    {
+        return this.subtitle;
+    }
+
     public SubtitleClip()
     {
         this.add(this.placement);

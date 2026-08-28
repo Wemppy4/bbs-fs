@@ -18,9 +18,16 @@ public class VideoClip extends AudioClip
 {
     public ValuePlacement placement = new ValuePlacement("placement", new Placement());
     public ValueInt color = new ValueInt("color", Colors.WHITE);
-    public ValueBoolean fullscreen = new ValueBoolean("fullscreen", true);
+    public ValueBoolean fullscreen = new ValueBoolean("fullscreen", false);
     public ValueBoolean smooth = new ValueBoolean("smooth", true);
     public ValueTransform transform = new ValueTransform("transform", new Transform());
+
+    protected VideoOverlay overlay = new VideoOverlay();
+
+    public VideoOverlay getOverlay()
+    {
+        return this.overlay;
+    }
 
     public VideoClip()
     {

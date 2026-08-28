@@ -32,6 +32,11 @@ public class ImageClip extends CameraClip
         return context.clipData.get("images", ArrayList::new);
     }
 
+    public ImageOverlay getOverlay()
+    {
+        return this.image;
+    }
+
     public ImageClip()
     {
         this.add(this.texture);
