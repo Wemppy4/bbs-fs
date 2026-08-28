@@ -90,6 +90,19 @@ public class Batcher2D
         return this.font;
     }
 
+    /**
+     * Swap the font every text call of this batcher goes through, handing back the
+     * previous one so the caller can put it back. A null restores the default one.
+     */
+    public FontRenderer setFont(FontRenderer font)
+    {
+        FontRenderer previous = this.font;
+
+        this.font = font == null ? getDefaultTextRenderer() : font;
+
+        return previous;
+    }
+
     /* Screen space clipping */
 
     public void clip(Area area, UIContext context)

@@ -10,6 +10,7 @@ import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
 import mchorse.bbs_mod.camera.clips.misc.CurveClientClip;
 import mchorse.bbs_mod.camera.clips.misc.TrackerClientClip;
 import mchorse.bbs_mod.camera.clips.misc.VideoClientClip;
+import mchorse.bbs_mod.fonts.FontManager;
 import mchorse.bbs_mod.video.VideoManager;
 import mchorse.bbs_mod.camera.controller.CameraController;
 import mchorse.bbs_mod.client.BBSRendering;
@@ -106,6 +107,7 @@ public class BBSModClient implements ClientModInitializer
     private static FramebufferManager framebuffers;
     private static SoundManager sounds;
     private static VideoManager videos;
+    private static FontManager fonts;
     private static L10n l10n;
 
     private static ModelManager models;
@@ -161,6 +163,11 @@ public class BBSModClient implements ClientModInitializer
     public static VideoManager getVideos()
     {
         return videos;
+    }
+
+    public static FontManager getFonts()
+    {
+        return fonts;
     }
 
     public static L10n getL10n()
@@ -391,6 +398,7 @@ public class BBSModClient implements ClientModInitializer
         framebuffers = new FramebufferManager();
         sounds = new SoundManager(provider);
         videos = new VideoManager();
+        fonts = new FontManager();
         l10n = new L10n();
         l10n.register((lang) -> Collections.singletonList(Link.assets("strings/" + lang + ".json")));
 
@@ -623,6 +631,7 @@ public class BBSModClient implements ClientModInitializer
 
             videos.update();
             sounds.update();
+            fonts.update();
 
             BBSRendering.startTick();
 
