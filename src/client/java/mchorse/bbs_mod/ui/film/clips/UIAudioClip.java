@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.audio.SoundBuffer;
 import mchorse.bbs_mod.camera.clips.misc.AudioClip;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
@@ -20,7 +21,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 import java.io.File;
 
-public class UIAudioClip extends UIClip<AudioClip>
+public class UIAudioClip <T extends AudioClip> extends UIClip<T>
 {
     public UIButton pickAudio;
     public UIIcon openFolder;
@@ -28,7 +29,7 @@ public class UIAudioClip extends UIClip<AudioClip>
     public UITrackpad offset;
     public UISliderTrackpad volume;
 
-    public UIAudioClip(AudioClip clip, IUIClipsDelegate editor)
+    public UIAudioClip(T clip, IUIClipsDelegate editor)
     {
         super(clip, editor);
     }
@@ -87,12 +88,17 @@ public class UIAudioClip extends UIClip<AudioClip>
         this.volume.limit(this.clip.volume).values(0.05F, 0.01F, 0.2F).increment(0.1F).tooltip(UIKeys.CAMERA_PANELS_AUDIO_VOLUME);
     }
 
+    protected IKey getMediaTitle()
+    {
+        return UIKeys.C_CLIP.get("bbs:audio");
+    }
+
     @Override
     protected void registerPanels()
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:audio"),
+        this.panels.add(this.section(this.getMediaTitle(),
             UI.row(this.pickAudio, this.extendDuration, this.openFolder),
             UI.labelRow(UIKeys.CAMERA_PANELS_AUDIO_OFFSET, this.offset).marginTop(UIConstants.SECTION_GAP),
             UI.labelRow(UIKeys.CAMERA_PANELS_AUDIO_VOLUME, this.volume)

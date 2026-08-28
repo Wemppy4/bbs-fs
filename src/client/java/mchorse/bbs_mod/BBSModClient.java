@@ -9,6 +9,8 @@ import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
 import mchorse.bbs_mod.camera.clips.misc.CurveClientClip;
 import mchorse.bbs_mod.camera.clips.misc.TrackerClientClip;
+import mchorse.bbs_mod.camera.clips.misc.VideoClientClip;
+import mchorse.bbs_mod.video.VideoManager;
 import mchorse.bbs_mod.camera.controller.CameraController;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.renderer.LivePlayerItemUse;
@@ -103,6 +105,7 @@ public class BBSModClient implements ClientModInitializer
     private static TextureManager textures;
     private static FramebufferManager framebuffers;
     private static SoundManager sounds;
+    private static VideoManager videos;
     private static L10n l10n;
 
     private static ModelManager models;
@@ -153,6 +156,11 @@ public class BBSModClient implements ClientModInitializer
     public static SoundManager getSounds()
     {
         return sounds;
+    }
+
+    public static VideoManager getVideos()
+    {
+        return videos;
     }
 
     public static L10n getL10n()
@@ -382,6 +390,7 @@ public class BBSModClient implements ClientModInitializer
         textures = new TextureManager(provider);
         framebuffers = new FramebufferManager();
         sounds = new SoundManager(provider);
+        videos = new VideoManager();
         l10n = new L10n();
         l10n.register((lang) -> Collections.singletonList(Link.assets("strings/" + lang + ".json")));
 
@@ -506,6 +515,7 @@ public class BBSModClient implements ClientModInitializer
         /* Replace audio clip with client version that plays audio */
         BBSMod.getFactoryCameraClips()
             .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825))
+            .register(Link.bbs("video"), VideoClientClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c))
             .register(Link.bbs("tracker"), TrackerClientClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc))
             .register(Link.bbs("curve"), CurveClientClip.class, new ClipFactoryData(Icons.ARC, 0xff1493));
 
@@ -592,6 +602,7 @@ public class BBSModClient implements ClientModInitializer
         {
             dashboard = null;
             worldExportSession.stop();
+            videos.delete();
 
             /* A panel export dies with its dashboard without finishing - the sound
              * capture must not keep accumulating into the next session */

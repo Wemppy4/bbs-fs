@@ -178,6 +178,7 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_IMAGE_WINDOW = L10n.lang("bbs.ui.camera.panels.image.window");
     public static final IKey CAMERA_PANELS_IMAGE_ANCHOR = L10n.lang("bbs.ui.camera.panels.image.anchor");
     public static final IKey CAMERA_PANELS_IMAGE_TRANSFORM = L10n.lang("bbs.ui.camera.panels.image.transform");
+    public static final IKey CAMERA_PANELS_VIDEO_PICK = L10n.lang("bbs.ui.camera.panels.video.pick");
     public static final IKey CAMERA_PANELS_TARGET = L10n.lang("bbs.ui.camera.panels.target");
     public static final IKey CAMERA_PANELS_TARGET_TITLE = L10n.lang("bbs.ui.camera.panels.target-title");
     public static final IKey CAMERA_PANELS_TARGET_TOOLTIP = L10n.lang("bbs.ui.camera.panels.target-tooltip");
@@ -1495,6 +1496,7 @@ public class UIKeys
     public static final IKey UTILITY_LANG_LABEL = L10n.lang("studio.ui.utility.lang");
     public static final IKey UTILITY_OPEN_AUDIO_EDITOR = L10n.lang("studio.ui.utility.open_audio_editor");
     public static final IKey UTILITY_OPEN_AUDIO_FOLDER = L10n.lang("studio.ui.utility.open_audio_folder");
+    public static final IKey UTILITY_OPEN_VIDEO_FOLDER = L10n.lang("studio.ui.utility.open_video_folder");
     public static final IKey UTILITY_OPEN_FOLDER = L10n.lang("studio.ui.utility.open_folder");
     public static final IKey UTILITY_OPEN_GAME_FOLDER = L10n.lang("studio.ui.utility.open_game_folder");
     public static final IKey UTILITY_OPEN_MODELS_FOLDER = L10n.lang("studio.ui.utility.open_models_folder");

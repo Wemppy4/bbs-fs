@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.clips.misc.ImageOverlay;
+import mchorse.bbs_mod.camera.clips.misc.VideoOverlay;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
@@ -42,16 +43,35 @@ public class UIImageRenderer
         {
             float alpha = Colors.getA(image.color);
 
-            if (alpha <= 0 || image.texture == null || !BBSModClient.getTextures().has(image.texture))
+            if (alpha <= 0)
             {
                 continue;
             }
 
-            Texture texture = BBSModClient.getTextures().getTexture(image.texture);
+            Texture texture;
 
-            if (texture == BBSModClient.getTextures().getError())
+            if (image instanceof VideoOverlay video)
             {
-                continue;
+                texture = video.video == null ? null : BBSModClient.getVideos().getFrame(video.video, video.seconds);
+
+                if (texture == null)
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                if (image.texture == null || !BBSModClient.getTextures().has(image.texture))
+                {
+                    continue;
+                }
+
+                texture = BBSModClient.getTextures().getTexture(image.texture);
+
+                if (texture == BBSModClient.getTextures().getError())
+                {
+                    continue;
+                }
             }
 
             texture.bind();

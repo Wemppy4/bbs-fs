@@ -101,10 +101,13 @@ public class AudioClientClip extends AudioClip
         }
     }
 
-    @Override
-    protected void applyClip(ClipContext context, Position position)
+    /**
+     * Schedule the clip's audio file for this frame. Shared between the audio clip itself
+     * and the video clip, whose audio track goes through the same playback machinery.
+     */
+    public static void scheduleAudio(ClipContext context, AudioClip clip, float gain)
     {
-        Link link = this.audio.get();
+        Link link = clip.audio.get();
 
         if (link != null)
         {
@@ -117,17 +120,22 @@ public class AudioClientClip extends AudioClip
 
             float tickTime = (context.relativeTick + context.transition) / 20F;
             Map<Link, Playback> playback = getPlayback(context);
-            float gain = this.volume.get();
 
-            if (context.relativeTick >= this.duration.get() || tickTime < 0)
+            if (context.relativeTick >= clip.duration.get() || tickTime < 0)
             {
                 playback.putIfAbsent(link, new Playback(-1F, gain));
             }
             else
             {
-                playback.put(link, new Playback(TimeUtils.toSeconds(this.offset.get()) + tickTime, gain));
+                playback.put(link, new Playback(TimeUtils.toSeconds(clip.offset.get()) + tickTime, gain));
             }
         }
+    }
+
+    @Override
+    protected void applyClip(ClipContext context, Position position)
+    {
+        scheduleAudio(context, this, this.volume.get());
     }
 
     @Override
