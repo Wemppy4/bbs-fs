@@ -24,6 +24,8 @@ public class UIConfirmOverlayPanel extends UIMessageOverlayPanel
 
         this.confirm.relative(this.content).x(0.5F).y(1F, -10).w(80).anchor(0.5F, 1F);
         this.content.add(this.confirm);
+
+        this.bottom = this.confirm;
     }
 
     @Override

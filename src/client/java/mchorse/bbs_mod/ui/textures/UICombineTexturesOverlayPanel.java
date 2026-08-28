@@ -54,6 +54,15 @@ public class UICombineTexturesOverlayPanel extends UIMessageBarOverlayPanel
     }
 
     @Override
+    public int getContentHeight()
+    {
+        int height = super.getContentHeight();
+
+        /* The name field sits above the bar, so it is not part of the sum the base panel took */
+        return height < 0 ? height : height + this.name.area.h - this.name.getFlex().y.offset;
+    }
+
+    @Override
     protected void onAdd(UIElement parent)
     {
         super.onAdd(parent);
