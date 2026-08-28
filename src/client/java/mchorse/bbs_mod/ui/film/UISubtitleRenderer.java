@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.clips.misc.Subtitle;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -59,13 +60,10 @@ public class UISubtitleRenderer
         Supplier<ShaderProgram> supplier = () -> program;
 
         net.minecraft.client.gl.Framebuffer fb = MinecraftClient.getInstance().getFramebuffer();
-        int width = fb.textureWidth;
-        int height = fb.textureHeight;
+        float width = UIImageRenderer.getUnitWidth();
+        float height = Placement.HEIGHT;
 
         Matrix4f cache = new Matrix4f(RenderSystem.getProjectionMatrix());
-
-        width /= 2;
-        height /= 2;
 
         Framebuffer framebuffer = getTextFramebuffer();
         Texture texture = framebuffer.getMainTexture();
@@ -85,11 +83,12 @@ public class UISubtitleRenderer
             }
 
             String label = StringUtils.processColoredText(subtitle.label);
+            Placement placement = subtitle.placement;
             int w = 0;
             int h = 0;
-            int x = (int) (width * subtitle.windowX + subtitle.x);
-            int y = (int) (height * subtitle.windowY + subtitle.y);
-            float scale = subtitle.size;
+            float x = width * placement.windowX + placement.offsetX;
+            float y = height * placement.windowY + placement.offsetY;
+            float scale = placement.scale;
             int subColor = subtitle.color;
 
             List<String> strings = subtitle.maxWidth <= 10 ? Arrays.asList(label) : font.wrap(label, subtitle.maxWidth);
@@ -194,7 +193,7 @@ public class UISubtitleRenderer
             RenderSystem.enableBlend();
             RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
 
-            batcher.texturedBox(supplier, texture.id, Colors.setA(Colors.WHITE, alpha), -fw * subtitle.anchorX, -fh * subtitle.anchorY, texture.width, texture.height, 0, 0, texture.width, texture.height, texture.width, texture.height);
+            batcher.texturedBox(supplier, texture.id, Colors.setA(Colors.WHITE, alpha), -fw * placement.anchorX, -fh * placement.anchorY, texture.width, texture.height, 0, 0, texture.width, texture.height, texture.width, texture.height);
 
             stack.pop();
         }

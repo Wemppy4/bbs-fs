@@ -4,25 +4,21 @@ import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
+import mchorse.bbs_mod.ui.film.clips.widgets.UIPlacement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.Direction;
 
 public class UISubtitleClip extends UIClip<SubtitleClip>
 {
-    public UITrackpad x;
-    public UITrackpad y;
-    public UITrackpad size;
-    public UITrackpad anchorX;
-    public UITrackpad anchorY;
+    public UIPlacement placement;
     public UIColor color;
     public UIToggle textShadow;
-    public UITrackpad windowX;
-    public UITrackpad windowY;
     public UIColor background;
     public UITrackpad backgroundOffset;
     public UITrackpad shadow;
@@ -44,23 +40,11 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
     {
         super.registerUI();
 
-        this.x = new UITrackpad((v) -> this.clip.x.set(v.intValue()));
-        this.x.integer();
-        this.y = new UITrackpad((v) -> this.clip.y.set(v.intValue()));
-        this.y.integer();
+        this.placement = new UIPlacement((p) -> this.editor.editMultiple(this.clip.placement, (value) ->
+        {
+            value.set(p.copy());
+        }));
 
-        this.size = new UITrackpad((v) -> this.editor.editMultiple(this.clip.size, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.anchorX = new UITrackpad((v) -> this.editor.editMultiple(this.clip.anchorX, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.anchorY = new UITrackpad((v) -> this.editor.editMultiple(this.clip.anchorY, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
         this.color = new UIColor((c) -> this.editor.editMultiple(this.clip.color, (value) ->
         {
             value.set(c);
@@ -69,15 +53,6 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
         this.textShadow = new UIToggle(UIKeys.CAMERA_PANELS_SUBTITLE_TEXT_SHADOW, (b) -> this.editor.editMultiple(this.clip.textShadow, (value) ->
         {
             value.set(b.getValue());
-        }));
-
-        this.windowX = new UITrackpad((v) -> this.editor.editMultiple(this.clip.windowX, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.windowY = new UITrackpad((v) -> this.editor.editMultiple(this.clip.windowY, (value) ->
-        {
-            value.set(v.floatValue());
         }));
 
         this.background = new UIColor((c) -> this.editor.editMultiple(this.clip.background, (value) ->
@@ -131,10 +106,8 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_OFFSET, UI.row(this.x, this.y)));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SIZE, this.size, this.color, this.textShadow));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_ANCHOR, UI.row(this.anchorX, this.anchorY)));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_WINDOW, UI.row(this.windowX, this.windowY)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_TEXT, this.color, this.textShadow));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_PLACEMENT, this.placement.fields()));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_BACKGROUND, this.background, this.backgroundOffset));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SHADOW, this.shadow, this.shadowOpaque));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_TRANSFORM, this.transform));
@@ -147,15 +120,9 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
     {
         super.fillData();
 
-        this.x.setValue(this.clip.x.get());
-        this.y.setValue(this.clip.y.get());
-        this.size.setValue(this.clip.size.get());
-        this.anchorX.setValue(this.clip.anchorX.get());
-        this.anchorY.setValue(this.clip.anchorY.get());
+        this.placement.setPlacement(this.clip.placement.get());
         this.color.setColor(this.clip.color.get());
         this.textShadow.setValue(this.clip.textShadow.get());
-        this.windowX.setValue(this.clip.windowX.get());
-        this.windowY.setValue(this.clip.windowY.get());
         this.background.setColor(this.clip.background.get());
         this.backgroundOffset.setValue(this.clip.backgroundOffset.get());
         this.shadow.setValue(this.clip.shadow.get());

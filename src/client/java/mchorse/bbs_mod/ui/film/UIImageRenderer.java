@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.film;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.camera.clips.misc.ImageOverlay;
 import mchorse.bbs_mod.camera.clips.misc.VideoOverlay;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -20,6 +21,17 @@ import java.util.List;
 
 public class UIImageRenderer
 {
+    /**
+     * The virtual frame's width in units: always {@link Placement#HEIGHT} tall,
+     * as wide as the frame's aspect ratio makes it.
+     */
+    public static float getUnitWidth()
+    {
+        net.minecraft.client.gl.Framebuffer fb = MinecraftClient.getInstance().getFramebuffer();
+
+        return fb.textureWidth * Placement.HEIGHT / fb.textureHeight;
+    }
+
     public static void renderImages(MatrixStack stack, Batcher2D batcher, List<ImageOverlay> images)
     {
         if (images.isEmpty())
@@ -27,9 +39,8 @@ public class UIImageRenderer
             return;
         }
 
-        net.minecraft.client.gl.Framebuffer fb = MinecraftClient.getInstance().getFramebuffer();
-        int width = fb.textureWidth / 2;
-        int height = fb.textureHeight / 2;
+        float width = getUnitWidth();
+        float height = Placement.HEIGHT;
 
         Matrix4f cache = new Matrix4f(RenderSystem.getProjectionMatrix());
 
@@ -78,6 +89,7 @@ public class UIImageRenderer
             texture.setFilter(image.smooth ? GL11.GL_LINEAR : GL11.GL_NEAREST);
             texture.setWrap(GL13.GL_CLAMP_TO_EDGE);
 
+            Placement placement = image.placement;
             float w;
             float h;
             float x;
@@ -96,12 +108,12 @@ public class UIImageRenderer
             }
             else
             {
-                w = texture.width * image.scale;
-                h = texture.height * image.scale;
-                x = width * image.windowX + image.x;
-                y = height * image.windowY + image.y;
-                anchorX = image.anchorX;
-                anchorY = image.anchorY;
+                w = texture.width * placement.scale;
+                h = texture.height * placement.scale;
+                x = width * placement.windowX + placement.offsetX;
+                y = height * placement.windowY + placement.offsetY;
+                anchorX = placement.anchorX;
+                anchorY = placement.anchorY;
             }
 
             Transform transform = new Transform();

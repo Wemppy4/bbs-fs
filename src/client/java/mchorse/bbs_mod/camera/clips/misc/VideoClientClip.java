@@ -51,9 +51,7 @@ public class VideoClientClip extends VideoClip
         float tickTime = (context.relativeTick + context.transition) / 20F;
         float seconds = TimeUtils.toSeconds(this.offset.get()) + tickTime;
 
-        this.overlay.update(null, this.x.get(), this.y.get(), this.scale.get(), color, this.fullscreen.get(), this.smooth.get());
-        this.overlay.updateWindow(this.windowX.get(), this.windowY.get());
-        this.overlay.updateAnchor(this.anchorX.get(), this.anchorY.get());
+        this.overlay.update(null, this.placement.get(), color, this.fullscreen.get(), this.smooth.get());
         this.overlay.updateTransform(this.transform.get(), factor);
         this.overlay.updateVideo(link, seconds);
         images.add(this.overlay);

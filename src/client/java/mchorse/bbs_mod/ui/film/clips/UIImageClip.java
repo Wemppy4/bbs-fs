@@ -4,27 +4,20 @@ import mchorse.bbs_mod.camera.clips.misc.ImageClip;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
+import mchorse.bbs_mod.ui.film.clips.widgets.UIPlacement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
-import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.utils.UI;
 
 public class UIImageClip extends UIClip<ImageClip>
 {
     public UIButton pickTexture;
     public UIToggle fullscreen;
     public UIToggle smooth;
-    public UITrackpad x;
-    public UITrackpad y;
-    public UITrackpad windowX;
-    public UITrackpad windowY;
-    public UITrackpad anchorX;
-    public UITrackpad anchorY;
-    public UITrackpad scale;
     public UIColor color;
+    public UIPlacement placement;
     public UIPropTransform transform;
 
     public UIImageClip(ImageClip clip, IUIClipsDelegate editor)
@@ -49,45 +42,15 @@ public class UIImageClip extends UIClip<ImageClip>
         {
             value.set(b.getValue());
         }));
-
-        this.x = new UITrackpad((v) -> this.editor.editMultiple(this.clip.x, (value) ->
-        {
-            value.set(v.intValue());
-        }));
-        this.x.integer();
-        this.y = new UITrackpad((v) -> this.editor.editMultiple(this.clip.y, (value) ->
-        {
-            value.set(v.intValue());
-        }));
-        this.y.integer();
-
-        this.windowX = new UITrackpad((v) -> this.editor.editMultiple(this.clip.windowX, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.windowY = new UITrackpad((v) -> this.editor.editMultiple(this.clip.windowY, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-
-        this.anchorX = new UITrackpad((v) -> this.editor.editMultiple(this.clip.anchorX, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.anchorY = new UITrackpad((v) -> this.editor.editMultiple(this.clip.anchorY, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-
-        this.scale = new UITrackpad((v) -> this.editor.editMultiple(this.clip.scale, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.scale.limit(0);
         this.color = new UIColor((c) -> this.editor.editMultiple(this.clip.color, (value) ->
         {
             value.set(c);
         })).withAlpha();
+
+        this.placement = new UIPlacement((p) -> this.editor.editMultiple(this.clip.placement, (value) ->
+        {
+            value.set(p.copy());
+        }));
 
         this.transform = new UIPropTransform().callbacks(
             () -> this.editor.editMultiple(this.clip.transform, IValueNotifier::preNotify),
@@ -104,11 +67,8 @@ public class UIImageClip extends UIClip<ImageClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_IMAGE, this.pickTexture, this.fullscreen, this.smooth));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_SCALE, this.scale, this.color));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_OFFSET, UI.row(this.x, this.y)));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_WINDOW, UI.row(this.windowX, this.windowY)));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_ANCHOR, UI.row(this.anchorX, this.anchorY)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_IMAGE, this.pickTexture, this.fullscreen, this.smooth, this.color));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_PLACEMENT, this.placement.fields()));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_TRANSFORM, this.transform));
     }
 
@@ -119,14 +79,8 @@ public class UIImageClip extends UIClip<ImageClip>
 
         this.fullscreen.setValue(this.clip.fullscreen.get());
         this.smooth.setValue(this.clip.smooth.get());
-        this.x.setValue(this.clip.x.get());
-        this.y.setValue(this.clip.y.get());
-        this.windowX.setValue(this.clip.windowX.get());
-        this.windowY.setValue(this.clip.windowY.get());
-        this.anchorX.setValue(this.clip.anchorX.get());
-        this.anchorY.setValue(this.clip.anchorY.get());
-        this.scale.setValue(this.clip.scale.get());
         this.color.setColor(this.clip.color.get());
+        this.placement.setPlacement(this.clip.placement.get());
         this.transform.setTransform(this.clip.transform.get());
     }
 }
