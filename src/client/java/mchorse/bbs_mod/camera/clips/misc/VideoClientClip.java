@@ -56,9 +56,19 @@ public class VideoClientClip extends VideoClip
 
         AudioClientClip.scheduleAudio(context, this, this.volume.get() * factor, loopSeconds);
 
+        float tickTime = (context.relativeTick + context.transition) / 20F;
+
+        /* A video clip is GLOBAL (inherited from the audio clip, whose player has to be
+         * kept paused and in sync outside the clip too), so applyClip runs on every tick
+         * of the film - the PICTURE, unlike the sound, must not. Without this the frame
+         * kept being drawn before the clip started and after it ended. */
+        if (tickTime < 0F || context.relativeTick >= this.duration.get())
+        {
+            return;
+        }
+
         List<ImageOverlay> images = ImageClip.getImages(context);
         int color = Colors.setA(this.color.get(), factor * Colors.getA(this.color.get()));
-        float tickTime = (context.relativeTick + context.transition) / 20F;
         float seconds = TimeUtils.toSeconds(this.offset.get()) + tickTime;
 
         if (loopSeconds > 0F)
