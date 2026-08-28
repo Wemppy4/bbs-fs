@@ -39,6 +39,9 @@ public class VideoManager
      */
     private final Map<Object, PlayerEntry> ownedPlayers = new IdentityHashMap<>();
 
+    /** Frames seen so far: an entry not asked for during the current one is free to be taken over. */
+    private long frame;
+
     /**
      * The link's metadata player - for code that only needs the duration or the size.
      * Never ask it for frames: use {@link #getPlayer(Object, Link)} for that.
@@ -72,6 +75,11 @@ public class VideoManager
         PlayerEntry entry = this.ownedPlayers.get(owner);
         long now = System.currentTimeMillis();
 
+        if (entry == null)
+        {
+            entry = this.adopt(owner, link);
+        }
+
         /* A missing or broken file is retried once in a while - the file may
          * have appeared or been fixed since; without this the entry would sit
          * dead forever, because its lastUsed keeps refreshing. */
@@ -93,8 +101,48 @@ public class VideoManager
         }
 
         entry.lastUsed = now;
+        entry.frame = this.frame;
 
         return entry.player;
+    }
+
+    /**
+     * Take over a player of the same file that nobody asked for during this frame.
+     *
+     * <p>Owners are transient: every edit in the form editor stores a COPY of the form,
+     * and a copy brings a new renderer with it. A newcomer starting its own decoder means
+     * a probe, an ffmpeg restart and a seek - so the video blinked out on every keystroke
+     * in the editor. It is the same video playing in the same place, so the newcomer
+     * inherits the running decoder, texture and all, instead.</p>
+     *
+     * <p>A player of a video that is actually on screen can never be taken: it is asked
+     * for every frame, so it is never free.</p>
+     */
+    private PlayerEntry adopt(Object owner, Link link)
+    {
+        Object taken = null;
+        PlayerEntry adopted = null;
+
+        for (Map.Entry<Object, PlayerEntry> pair : this.ownedPlayers.entrySet())
+        {
+            PlayerEntry entry = pair.getValue();
+
+            if (entry.frame < this.frame && entry.link.equals(link) && entry.player != null && !entry.player.isInvalid())
+            {
+                taken = pair.getKey();
+                adopted = entry;
+
+                break;
+            }
+        }
+
+        if (adopted != null)
+        {
+            this.ownedPlayers.remove(taken);
+            this.ownedPlayers.put(owner, adopted);
+        }
+
+        return adopted;
     }
 
     /**
@@ -114,6 +162,15 @@ public class VideoManager
     /**
      * Once a tick: wind down decoders of owners that are no longer on screen.
      */
+    /**
+     * Once per rendered frame, BEFORE anything asks for a player: what makes an entry
+     * that nobody asked for during this frame adoptable (see {@link #adopt}).
+     */
+    public void startFrame()
+    {
+        this.frame += 1;
+    }
+
     public void update()
     {
         if (this.ownedPlayers.isEmpty())
@@ -173,6 +230,7 @@ public class VideoManager
         public final VideoPlayer player;
         public final long createdAt = System.currentTimeMillis();
         public long lastUsed;
+        public long frame = -1;
 
         public PlayerEntry(Link link, VideoPlayer player)
         {

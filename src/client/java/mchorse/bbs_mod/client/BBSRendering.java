@@ -369,6 +369,8 @@ public class BBSRendering
         orthoDistance = -1F;
 
         MinecraftClient mc = MinecraftClient.getInstance();
+
+        BBSModClient.getVideos().startFrame();
         BBSModClient.getFilms().startRenderFrame(mc.getTickDelta());
 
         UIBaseMenu menu = UIScreen.getCurrentMenu();
