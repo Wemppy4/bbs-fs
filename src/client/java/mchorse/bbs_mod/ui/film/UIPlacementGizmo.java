@@ -244,7 +244,7 @@ public class UIPlacementGizmo
                 }
                 else
                 {
-                    /* Unchained corners stretch each axis on its own */
+                    /* With shift held the corner stretches each axis on its own */
                     float startX = Math.abs(this.startUnitX - anchorX);
                     float startY = Math.abs(this.startUnitY - anchorY);
 

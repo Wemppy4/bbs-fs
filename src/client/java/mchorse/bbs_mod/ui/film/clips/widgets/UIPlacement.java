@@ -1,9 +1,9 @@
 package mchorse.bbs_mod.ui.film.clips.widgets;
 
 import mchorse.bbs_mod.camera.data.Placement;
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -27,10 +27,6 @@ public class UIPlacement
     public UITrackpad anchorY;
     public UITrackpad scaleX;
     public UITrackpad scaleY;
-    public UIIcon chain;
-
-    /** Session-wide, shared by every overlay clip's panel AND the preview gizmo's side handles. */
-    private static boolean chained = true;
 
     private Placement placement = new Placement();
     private Placement defaultPlacement;
@@ -90,7 +86,7 @@ public class UIPlacement
         {
             this.placement.scaleX = v.floatValue();
 
-            if (chained)
+            if (isChained())
             {
                 this.placement.scaleY = this.placement.scaleX;
                 this.scaleY.setValue(this.placement.scaleY);
@@ -103,7 +99,7 @@ public class UIPlacement
         {
             this.placement.scaleY = v.floatValue();
 
-            if (chained)
+            if (isChained())
             {
                 this.placement.scaleX = this.placement.scaleY;
                 this.scaleX.setValue(this.placement.scaleX);
@@ -112,17 +108,20 @@ public class UIPlacement
             this.emit();
         });
         this.scaleY.limit(0);
-
-        this.chain = new UIIcon(Icons.LINK, (b) -> chained = !chained);
-        this.chain.highlight(() -> chained, Direction.BOTTOM);
-        this.chain.tooltip(UIKeys.CAMERA_PANELS_PLACEMENT_CHAIN, Direction.BOTTOM);
+        this.scaleX.tooltip(UIKeys.CAMERA_PANELS_PLACEMENT_SCALE_SHIFT, Direction.BOTTOM);
+        this.scaleY.tooltip(UIKeys.CAMERA_PANELS_PLACEMENT_SCALE_SHIFT, Direction.BOTTOM);
 
         this.grid.context((menu) -> menu.action(Icons.REFRESH, UIKeys.GENERAL_RESET, this::reset));
     }
 
+    /**
+     * Both scale axes move together, unless shift is held — the modifier
+     * every scale editor shares: these trackpads AND the preview gizmo's
+     * handles. Read live, so shift can be pressed and released mid-drag.
+     */
     public static boolean isChained()
     {
-        return chained;
+        return !Window.isShiftPressed();
     }
 
     private void reset()
@@ -142,7 +141,7 @@ public class UIPlacement
             UI.label(UIKeys.CAMERA_PANELS_PLACEMENT_POSITION), UI.row(this.windowX, this.windowY),
             UI.label(UIKeys.CAMERA_PANELS_PLACEMENT_OFFSET), UI.row(this.offsetX, this.offsetY),
             UI.label(UIKeys.CAMERA_PANELS_PLACEMENT_ANCHOR), UI.row(this.anchorX, this.anchorY),
-            UI.label(UIKeys.CAMERA_PANELS_PLACEMENT_SCALE), UI.row(this.scaleX, this.chain, this.scaleY)
+            UI.label(UIKeys.CAMERA_PANELS_PLACEMENT_SCALE), UI.row(this.scaleX, this.scaleY)
         };
     }
 

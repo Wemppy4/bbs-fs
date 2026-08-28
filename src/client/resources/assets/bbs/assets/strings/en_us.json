@@ -595,7 +595,7 @@
 	"bbs.ui.camera.panels.placement.offset": "Offset",
 	"bbs.ui.camera.panels.placement.anchor": "Anchor",
 	"bbs.ui.camera.panels.placement.scale": "Scale",
-	"bbs.ui.camera.panels.placement.chain": "Change both scales together",
+	"bbs.ui.camera.panels.placement.scale-shift": "Both scales change together — hold Shift to change this axis alone",
 	"bbs.ui.camera.panels.subtitle.image": "Image",
 	"bbs.ui.camera.panels.subtitle.image.pick": "Pick image",
 	"bbs.ui.camera.panels.subtitle.image.right": "Right",
