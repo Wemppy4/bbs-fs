@@ -7,6 +7,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.ClipContext;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.video.VideoPlayer;
 
 import java.util.List;
 
@@ -41,13 +42,34 @@ public class VideoClientClip extends VideoClip
         }
 
         float factor = this.envelope.factorEnabled(this.duration.get(), context.relativeTick + context.transition);
+        float loopSeconds = 0F;
 
-        AudioClientClip.scheduleAudio(context, this, this.volume.get() * factor);
+        if (this.loop.get())
+        {
+            VideoPlayer player = BBSModClient.getVideos().get(link);
+
+            if (player != null && player.isValid())
+            {
+                loopSeconds = player.getDuration();
+            }
+        }
+
+        AudioClientClip.scheduleAudio(context, this, this.volume.get() * factor, loopSeconds);
 
         List<ImageOverlay> images = ImageClip.getImages(context);
         int color = Colors.setA(this.color.get(), factor * Colors.getA(this.color.get()));
         float tickTime = (context.relativeTick + context.transition) / 20F;
         float seconds = TimeUtils.toSeconds(this.offset.get()) + tickTime;
+
+        if (loopSeconds > 0F)
+        {
+            seconds = seconds % loopSeconds;
+
+            if (seconds < 0F)
+            {
+                seconds += loopSeconds;
+            }
+        }
 
         this.overlay.update(null, this.placement.get(), color, this.fullscreen.get(), this.smooth.get());
         this.overlay.updateTransform(this.transform.get(), factor);

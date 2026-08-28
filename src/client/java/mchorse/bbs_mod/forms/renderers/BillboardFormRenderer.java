@@ -38,14 +38,14 @@ import org.joml.Vector4f;
 
 import java.util.function.Supplier;
 
-public class BillboardFormRenderer extends FormRenderer<BillboardForm>
+public class BillboardFormRenderer <T extends BillboardForm> extends FormRenderer<T>
 {
     private static final Quad quad = new Quad();
     private static final Quad uvQuad = new Quad();
 
     private static final Matrix4f matrix = new Matrix4f();
 
-    public BillboardFormRenderer(BillboardForm form)
+    public BillboardFormRenderer(T form)
     {
         super(form);
     }
@@ -95,16 +95,25 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         this.renderModel(format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
     }
 
-    private void renderModel(VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    /**
+     * The texture the quad wears. The video form's renderer swaps this for a
+     * decoded video frame; everything else about the quad stays shared.
+     */
+    protected Texture getTexture()
     {
         Link t = this.form.texture.get();
 
-        if (t == null)
+        return t == null ? null : BBSModClient.getTextures().getTexture(t);
+    }
+
+    private void renderModel(VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    {
+        Texture texture = this.getTexture();
+
+        if (texture == null)
         {
             return;
         }
-
-        Texture texture = BBSModClient.getTextures().getTexture(t);
 
         float w = texture.width;
         float h = texture.height;

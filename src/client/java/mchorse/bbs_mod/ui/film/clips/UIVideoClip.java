@@ -28,6 +28,7 @@ import java.util.List;
 
 public class UIVideoClip extends UIAudioClip<VideoClientClip>
 {
+    public UIToggle loop;
     public UIToggle fullscreen;
     public UIToggle smooth;
     public UIColor color;
@@ -82,6 +83,11 @@ public class UIVideoClip extends UIAudioClip<VideoClientClip>
             {
                 VideoPlayer player = BBSModClient.getVideos().get(link);
 
+                if (player != null)
+                {
+                    player.ensureProbed();
+                }
+
                 if (player != null && player.isValid())
                 {
                     this.clip.duration.set((int) ((player.getDuration() * 20) - this.clip.offset.get()));
@@ -91,6 +97,10 @@ public class UIVideoClip extends UIAudioClip<VideoClientClip>
         });
         this.extendDuration.tooltip(UIKeys.CAMERA_PANELS_AUDIO_EXTEND_DURATION);
 
+        this.loop = new UIToggle(UIKeys.CAMERA_PANELS_VIDEO_LOOP, (b) -> this.editor.editMultiple(this.clip.loop, (value) ->
+        {
+            value.set(b.getValue());
+        }));
         this.fullscreen = new UIToggle(UIKeys.CAMERA_PANELS_IMAGE_FULLSCREEN, (b) -> this.editor.editMultiple(this.clip.fullscreen, (value) ->
         {
             value.set(b.getValue());
@@ -130,7 +140,7 @@ public class UIVideoClip extends UIAudioClip<VideoClientClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_IMAGE, this.fullscreen, this.smooth, this.color));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_IMAGE, this.loop, this.fullscreen, this.smooth, this.color));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_PLACEMENT, this.placement.fields()));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_IMAGE_TRANSFORM, this.transform));
     }
@@ -140,6 +150,7 @@ public class UIVideoClip extends UIAudioClip<VideoClientClip>
     {
         super.fillData();
 
+        this.loop.setValue(this.clip.loop.get());
         this.fullscreen.setValue(this.clip.fullscreen.get());
         this.smooth.setValue(this.clip.smooth.get());
         this.color.setColor(this.clip.color.get());

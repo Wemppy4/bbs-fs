@@ -47,13 +47,21 @@ public class VideoPlayer
      * spread over render frames instead (recording is exempt and decodes everything). */
     private static final int MAX_CATCH_UP_FRAMES = 4;
 
+    private static final int STATE_UNPROBED = 0;
+    private static final int STATE_VALID = 1;
+    private static final int STATE_INVALID = 2;
+
     private final File file;
 
     private int width;
     private int height;
     private float fps;
     private float duration;
-    private boolean valid;
+
+    /* Probing spawns ffmpeg and parses its output - too slow for the render thread,
+     * so it normally runs on the seek worker; only recording and explicit UI asks
+     * (ensureProbed) do it synchronously. */
+    private volatile int state = STATE_UNPROBED;
 
     private Process process;
     private ReadableByteChannel channel;
@@ -82,18 +90,38 @@ public class VideoPlayer
     public VideoPlayer(File file)
     {
         this.file = file;
-
-        this.probe();
     }
 
     public boolean isValid()
     {
-        return this.valid;
+        return this.state == STATE_VALID;
+    }
+
+    public boolean isInvalid()
+    {
+        return this.state == STATE_INVALID;
     }
 
     public float getDuration()
     {
         return this.duration;
+    }
+
+    /**
+     * Probe synchronously if it hasn't happened yet - for UI code that needs the
+     * metadata (duration) right now and can afford the wait.
+     */
+    public void ensureProbed()
+    {
+        if (this.state == STATE_UNPROBED)
+        {
+            this.finishSeek();
+
+            if (this.state == STATE_UNPROBED)
+            {
+                this.probe();
+            }
+        }
     }
 
     /**
@@ -126,6 +154,8 @@ public class VideoPlayer
 
             if (!size.find() || !duration.find())
             {
+                this.state = STATE_INVALID;
+
                 return;
             }
 
@@ -138,15 +168,19 @@ public class VideoPlayer
 
             if (this.width <= 0 || this.height <= 0 || this.fps <= 0 || this.duration <= 0)
             {
+                this.state = STATE_INVALID;
+
                 return;
             }
 
             this.frameBuffer = MemoryUtil.memAlloc(this.width * this.height * 4);
-            this.valid = true;
+            this.state = STATE_VALID;
         }
         catch (Exception e)
         {
             e.printStackTrace();
+
+            this.state = STATE_INVALID;
         }
     }
 
@@ -157,7 +191,36 @@ public class VideoPlayer
      */
     public Texture getFrame(float seconds)
     {
-        if (!this.valid)
+        if (this.state == STATE_INVALID)
+        {
+            return null;
+        }
+
+        boolean recording = BBSModClient.getVideoRecorder().isRecording();
+
+        if (recording)
+        {
+            /* Exported frames must be exact right away - wait out an in-flight
+             * seek and probe on the spot if it hasn't happened yet */
+            this.finishSeek();
+
+            if (this.state == STATE_UNPROBED)
+            {
+                this.probe();
+            }
+        }
+        else if (this.state == STATE_UNPROBED)
+        {
+            /* First contact: the worker probes and decodes the first frame */
+            if (!this.seeking)
+            {
+                this.startSeek(seconds);
+            }
+
+            return null;
+        }
+
+        if (this.state != STATE_VALID)
         {
             return null;
         }
@@ -165,13 +228,6 @@ public class VideoPlayer
         seconds = MathUtils.clamp(seconds, 0F, this.duration);
 
         int target = Math.min((int) (seconds * this.fps), (int) (this.duration * this.fps));
-        boolean recording = BBSModClient.getVideoRecorder().isRecording();
-
-        if (recording)
-        {
-            /* Exported frames must be exact right away - wait out an in-flight seek */
-            this.finishSeek();
-        }
 
         if (this.texture != null && target == this.currentFrame)
         {
@@ -234,7 +290,7 @@ public class VideoPlayer
                 }
 
                 this.settlingTarget = -1;
-                this.startSeek(target);
+                this.startSeek(seconds);
 
                 return this.texture;
             }
@@ -271,13 +327,26 @@ public class VideoPlayer
         return this.texture;
     }
 
-    private void startSeek(int target)
+    private void startSeek(float seconds)
     {
         this.seeking = true;
         this.seekThread = new Thread(() ->
         {
             try
             {
+                if (this.state == STATE_UNPROBED)
+                {
+                    this.probe();
+                }
+
+                if (this.state != STATE_VALID)
+                {
+                    return;
+                }
+
+                float clamped = MathUtils.clamp(seconds, 0F, this.duration);
+                int target = Math.min((int) (clamped * this.fps), (int) (this.duration * this.fps));
+
                 this.restart(target / this.fps, target);
 
                 if (this.readFrame())
@@ -348,7 +417,7 @@ public class VideoPlayer
             e.printStackTrace();
 
             this.stop();
-            this.valid = false;
+            this.state = STATE_INVALID;
         }
     }
 
@@ -443,6 +512,6 @@ public class VideoPlayer
             this.frameBuffer = null;
         }
 
-        this.valid = false;
+        this.state = STATE_INVALID;
     }
 }

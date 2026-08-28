@@ -172,6 +172,7 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_IMAGE_SMOOTH = L10n.lang("bbs.ui.camera.panels.image.smooth");
     public static final IKey CAMERA_PANELS_IMAGE_TRANSFORM = L10n.lang("bbs.ui.camera.panels.image.transform");
     public static final IKey CAMERA_PANELS_VIDEO_PICK = L10n.lang("bbs.ui.camera.panels.video.pick");
+    public static final IKey CAMERA_PANELS_VIDEO_LOOP = L10n.lang("bbs.ui.camera.panels.video.loop");
     public static final IKey CAMERA_PANELS_PLACEMENT = L10n.lang("bbs.ui.camera.panels.placement.title");
     public static final IKey CAMERA_PANELS_PLACEMENT_POSITION = L10n.lang("bbs.ui.camera.panels.placement.position");
     public static final IKey CAMERA_PANELS_PLACEMENT_OFFSET = L10n.lang("bbs.ui.camera.panels.placement.offset");
@@ -488,6 +489,11 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_BILLBOARD_SHADING = L10n.lang("bbs.ui.forms.editors.billboard.shading");
     public static final IKey FORMS_EDITORS_BILLBOARD_TITLE = L10n.lang("bbs.ui.forms.editors.billboard.title");
     public static final IKey FORMS_EDITORS_BILLBOARD_UV_SHIFT = L10n.lang("bbs.ui.forms.editors.billboard.uv_shift");
+    public static final IKey FORMS_EDITORS_VIDEO_TITLE = L10n.lang("bbs.ui.forms.editors.video.title");
+    public static final IKey FORMS_EDITORS_VIDEO_PLAYBACK = L10n.lang("bbs.ui.forms.editors.video.playback");
+    public static final IKey FORMS_EDITORS_VIDEO_SPEED = L10n.lang("bbs.ui.forms.editors.video.speed");
+    public static final IKey FORMS_EDITORS_VIDEO_OFFSET = L10n.lang("bbs.ui.forms.editors.video.offset");
+    public static final IKey FORMS_EDITORS_VIDEO_BILLBOARD = L10n.lang("bbs.ui.forms.editors.video.billboard");
     public static final IKey FORMS_EDITORS_BLOCK_PROPERTIES = L10n.lang("bbs.ui.forms.editors.block.title");
     public static final IKey FORMS_EDITORS_BLOCK_TITLE = L10n.lang("bbs.ui.forms.editors.block.title");
     public static final IKey FORMS_EDITORS_BLOCK_EMPTY = L10n.lang("bbs.ui.forms.editors.block.empty");

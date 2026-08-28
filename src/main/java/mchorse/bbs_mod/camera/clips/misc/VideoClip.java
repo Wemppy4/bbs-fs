@@ -18,6 +18,7 @@ public class VideoClip extends AudioClip
 {
     public ValuePlacement placement = new ValuePlacement("placement", new Placement());
     public ValueInt color = new ValueInt("color", Colors.WHITE);
+    public ValueBoolean loop = new ValueBoolean("loop", false);
     public ValueBoolean fullscreen = new ValueBoolean("fullscreen", false);
     public ValueBoolean smooth = new ValueBoolean("smooth", true);
     public ValueTransform transform = new ValueTransform("transform", new Transform());
@@ -35,6 +36,7 @@ public class VideoClip extends AudioClip
 
         this.add(this.placement);
         this.add(this.color);
+        this.add(this.loop);
         this.add(this.fullscreen);
         this.add(this.smooth);
         this.add(this.transform);

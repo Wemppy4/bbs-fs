@@ -107,6 +107,15 @@ public class AudioClientClip extends AudioClip
      */
     public static void scheduleAudio(ClipContext context, AudioClip clip, float gain)
     {
+        scheduleAudio(context, clip, gain, 0F);
+    }
+
+    /**
+     * @param loopSeconds when positive, the playback position wraps around this
+     *                    period (the video clip loops its audio with its picture)
+     */
+    public static void scheduleAudio(ClipContext context, AudioClip clip, float gain, float loopSeconds)
+    {
         Link link = clip.audio.get();
 
         if (link != null)
@@ -127,7 +136,19 @@ public class AudioClientClip extends AudioClip
             }
             else
             {
-                playback.put(link, new Playback(TimeUtils.toSeconds(clip.offset.get()) + tickTime, gain));
+                float position = TimeUtils.toSeconds(clip.offset.get()) + tickTime;
+
+                if (loopSeconds > 0F)
+                {
+                    position = position % loopSeconds;
+
+                    if (position < 0F)
+                    {
+                        position += loopSeconds;
+                    }
+                }
+
+                playback.put(link, new Playback(position, gain));
             }
         }
     }

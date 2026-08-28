@@ -621,6 +621,8 @@ public class BBSModClient implements ClientModInitializer
              * again and nothing of the film's use answers for them */
             LivePlayerItemUse.endFrame();
 
+            videos.update();
+
             BBSRendering.startTick();
 
             getFormCategories().getUserForms().flush();
