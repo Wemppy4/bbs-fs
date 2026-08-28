@@ -22,13 +22,7 @@ public class VideoClientClip extends VideoClip
     @Override
     public void shutdown(ClipContext context)
     {
-        Link link = this.audio.get();
-
-        if (link != null)
-        {
-            BBSModClient.getSounds().stop(link);
-        }
-
+        BBSModClient.getSounds().stopOwned(this);
         BBSModClient.getVideos().release(this.overlay);
     }
 

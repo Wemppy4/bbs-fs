@@ -16,11 +16,13 @@ public class AudioClientClip extends AudioClip
 {
     static final class Playback
     {
+        final Link link;
         final float seconds;
         final float gain;
 
-        Playback(float seconds, float gain)
+        Playback(Link link, float seconds, float gain)
         {
+            this.link = link;
             this.seconds = seconds;
             this.gain = gain;
         }
@@ -31,22 +33,23 @@ public class AudioClientClip extends AudioClip
         super();
     }
 
-    public static Map<Link, Playback> getPlayback(ClipContext context)
+    /** Keyed by the CLIP, so two clips of the same file each keep their own playback. */
+    public static Map<Object, Playback> getPlayback(ClipContext context)
     {
         return context.clipData.get("audio", ConcurrentHashMap::new);
     }
 
     public static void manageSounds(ClipContext context)
     {
-        Map<Link, Playback> playback = getPlayback(context);
+        Map<Object, Playback> playback = getPlayback(context);
         boolean muteFilmAudioDuringVideoCapture = BBSSettings.videoMuteAudioWhileRender.get()
             && BBSModClient.getVideoRecorder().isRecording();
 
-        for (Map.Entry<Link, Playback> entry : playback.entrySet())
+        for (Map.Entry<Object, Playback> entry : playback.entrySet())
         {
             Playback state = entry.getValue();
             float tickTime = state.seconds;
-            SoundPlayer player = BBSModClient.getSounds().playUnique(entry.getKey());
+            SoundPlayer player = BBSModClient.getSounds().playUnique(entry.getKey(), state.link);
 
             if (player == null)
             {
@@ -93,12 +96,7 @@ public class AudioClientClip extends AudioClip
     @Override
     public void shutdown(ClipContext context)
     {
-        Link link = this.audio.get();
-
-        if (link != null)
-        {
-            BBSModClient.getSounds().stop(link);
-        }
+        BBSModClient.getSounds().stopOwned(this);
     }
 
     /**
@@ -120,7 +118,7 @@ public class AudioClientClip extends AudioClip
 
         if (link != null)
         {
-            SoundPlayer player = BBSModClient.getSounds().playUnique(link);
+            SoundPlayer player = BBSModClient.getSounds().playUnique(clip, link);
 
             if (player == null)
             {
@@ -128,11 +126,11 @@ public class AudioClientClip extends AudioClip
             }
 
             float tickTime = (context.relativeTick + context.transition) / 20F;
-            Map<Link, Playback> playback = getPlayback(context);
+            Map<Object, Playback> playback = getPlayback(context);
 
             if (context.relativeTick >= clip.duration.get() || tickTime < 0)
             {
-                playback.putIfAbsent(link, new Playback(-1F, gain));
+                playback.putIfAbsent(clip, new Playback(link, -1F, gain));
             }
             else
             {
@@ -148,7 +146,7 @@ public class AudioClientClip extends AudioClip
                     }
                 }
 
-                playback.put(link, new Playback(position, gain));
+                playback.put(clip, new Playback(link, position, gain));
             }
         }
     }

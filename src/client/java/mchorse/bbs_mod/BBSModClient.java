@@ -622,6 +622,7 @@ public class BBSModClient implements ClientModInitializer
             LivePlayerItemUse.endFrame();
 
             videos.update();
+            sounds.update();
 
             BBSRendering.startTick();
 

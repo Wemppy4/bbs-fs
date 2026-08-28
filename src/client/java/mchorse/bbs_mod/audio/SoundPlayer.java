@@ -11,6 +11,12 @@ public class SoundPlayer
     private SoundBuffer buffer;
     private boolean unique;
 
+    /** Who this source belongs to, for the players handed out per owner - see the sound manager. */
+    private Object owner;
+
+    /** When the owner last asked for this source, for pruning the ones whose owner is gone. */
+    private long lastUsed = System.currentTimeMillis();
+
     public SoundPlayer(SoundBuffer buffer)
     {
         this.buffer = buffer;
@@ -27,6 +33,28 @@ public class SoundPlayer
         this.unique = true;
 
         return this;
+    }
+
+    public SoundPlayer owner(Object owner)
+    {
+        this.owner = owner;
+
+        return this;
+    }
+
+    public Object getOwner()
+    {
+        return this.owner;
+    }
+
+    public void refresh()
+    {
+        this.lastUsed = System.currentTimeMillis();
+    }
+
+    public long getLastUsed()
+    {
+        return this.lastUsed;
     }
 
     public int getSource()

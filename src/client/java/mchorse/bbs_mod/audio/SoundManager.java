@@ -25,6 +25,12 @@ import java.util.Map;
 
 public class SoundManager implements IWatchDogListener
 {
+    /**
+     * An owned source whose owner stopped asking for it this long is orphaned: the clip
+     * was deleted, or the film it belongs to was rebuilt. Nothing announces either.
+     */
+    private static final long OWNED_IDLE_MS = 5_000;
+
     private AssetProvider provider;
     private Map<Link, SoundBuffer> buffers = new HashMap<>();
     private List<SoundPlayer> sounds = new ArrayList<>();
@@ -174,21 +180,46 @@ public class SoundManager implements IWatchDogListener
         return null;
     }
 
-    public SoundPlayer playUnique(Link link)
+    /**
+     * The owner's own source for this file, made on the first ask.
+     *
+     * <p>Keyed by the OWNER, not by the file: two clips playing the same audio sit at
+     * different positions, and one shared source can only be at one of them - the
+     * later clip used to simply overwrite the earlier one's playback.</p>
+     */
+    public SoundPlayer playUnique(Object owner, Link link)
     {
-        for (SoundPlayer player : this.sounds)
+        Iterator<SoundPlayer> it = this.sounds.iterator();
+
+        while (it.hasNext())
         {
-            if (player.isUnique() && player.getBuffer().getId().equals(link))
+            SoundPlayer player = it.next();
+
+            if (player.getOwner() != owner)
             {
+                continue;
+            }
+
+            if (player.getBuffer().getId().equals(link))
+            {
+                player.refresh();
+
                 return player;
             }
+
+            /* The owner points at another file now - its old source has nothing left to play */
+            player.stop();
+            player.delete();
+            it.remove();
+
+            break;
         }
 
         SoundBuffer buffer = this.get(link, true);
 
         if (buffer != null)
         {
-            SoundPlayer player = new SoundPlayer(buffer).unique();
+            SoundPlayer player = new SoundPlayer(buffer).unique().owner(owner);
 
             player.setRelative(true);
             player.play();
@@ -198,6 +229,26 @@ public class SoundManager implements IWatchDogListener
         }
 
         return null;
+    }
+
+    /**
+     * Dispose of an owner's source (a clip whose context is shutting down).
+     */
+    public void stopOwned(Object owner)
+    {
+        Iterator<SoundPlayer> it = this.sounds.iterator();
+
+        while (it.hasNext())
+        {
+            SoundPlayer player = it.next();
+
+            if (player.getOwner() == owner)
+            {
+                player.stop();
+                player.delete();
+                it.remove();
+            }
+        }
     }
 
     public void stop(Link link)
@@ -222,14 +273,17 @@ public class SoundManager implements IWatchDogListener
 
     public void update()
     {
+        long now = System.currentTimeMillis();
         Iterator<SoundPlayer> it = this.sounds.iterator();
 
         while (it.hasNext())
         {
             SoundPlayer player = it.next();
+            boolean orphaned = player.getOwner() != null && now - player.getLastUsed() > OWNED_IDLE_MS;
 
-            if (player.canBeRemoved())
+            if (player.canBeRemoved() || orphaned)
             {
+                player.stop();
                 player.delete();
                 it.remove();
             }
