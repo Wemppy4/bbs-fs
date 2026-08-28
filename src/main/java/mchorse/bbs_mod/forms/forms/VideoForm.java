@@ -26,6 +26,17 @@ public class VideoForm extends BillboardForm
     {
         super();
 
+        /* The quad's own texture is dead here — the renderer takes the frame from
+         * the decoder instead, so it must not offer a track that does nothing. */
+        this.texture.invisible();
+
+        /* One-off authoring switches, like the render layer: playback wraps or it
+         * doesn't. Animating the speed is worse than useless — it multiplies the
+         * carrier's WHOLE age, so a keyframe on it jumps the playhead instead of
+         * ramping. Animate the offset (the time curve) for that. */
+        this.loop.invisible();
+        this.speed.invisible();
+
         this.add(this.video);
         this.add(this.loop);
         this.add(this.speed);
