@@ -147,6 +147,12 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         this.setTrackHeight(16);
     }
 
+    @Override
+    public UIKeyframes getKeyframes()
+    {
+        return this.keyframes;
+    }
+
     public double getTrackHeight()
     {
         return this.trackHeight;

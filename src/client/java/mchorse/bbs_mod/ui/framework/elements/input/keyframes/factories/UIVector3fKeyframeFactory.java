@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
@@ -77,14 +78,39 @@ public class UIVector3fKeyframeFactory extends UIKeyframeFactory<Vector3f>
     {
         super.update();
 
-        Vector3f value = this.keyframe.getValue();
-
-        this.x.setValue(value.x);
-        this.y.setValue(value.y);
-        this.z.setValue(value.z);
+        this.refill();
         this.handlesX.update();
         this.handlesY.update();
         this.handlesZ.update();
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        if (this.followsPlayhead())
+        {
+            this.refill();
+        }
+
+        super.render(context);
+    }
+
+    /** Nothing is refreshed under the user's hands: not while typing and not while dragging. */
+    private void refill()
+    {
+        Vector3f value = this.getDisplayValue();
+
+        this.fill(this.x, value.x);
+        this.fill(this.y, value.y);
+        this.fill(this.z, value.z);
+    }
+
+    private void fill(UITrackpad trackpad, float value)
+    {
+        if (!trackpad.isDragging() && !trackpad.textbox.isFocused())
+        {
+            trackpad.setValue(value);
+        }
     }
 
     private Vector3f getValue()

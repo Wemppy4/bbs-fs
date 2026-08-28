@@ -463,11 +463,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return this.recorder.getRecordingGroups();
     }
 
-    public boolean isTransformRecording()
-    {
-        return this.recorder.isTransformRecording();
-    }
-
     public void startRecording(List<String> groups)
     {
         this.recorder.startRecording(groups);

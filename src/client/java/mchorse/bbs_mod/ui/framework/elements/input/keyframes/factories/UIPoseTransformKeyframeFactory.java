@@ -94,36 +94,24 @@ public class UIPoseTransformKeyframeFactory extends UIKeyframeFactory<PoseTransf
         }
 
         @Override
+        protected UIKeyframes getKeyframes()
+        {
+            return this.editor.editor;
+        }
+
+        @Override
         protected void applyToSelection(Consumer<Transform> consumer)
         {
             apply(this.editor.editor, this.editor.keyframe, (poseT) -> consumer.accept(poseT));
         }
 
         @Override
-        protected void applyDuringRecording(int tick, Consumer<Transform> consumer)
-        {
-            applyRecording(this.editor.editor, this.editor.keyframe, tick, (poseT) -> consumer.accept(poseT));
-        }
-
-        @Override
-        protected Transform getRecordedTransform(int tick)
+        protected Transform getAutoKeyTransform(int tick)
         {
             UIKeyframeSheet sheet = this.editor.editor.getGraph().getSheet(this.editor.keyframe);
-            Keyframe<PoseTransform> recorded = UIReplaysEditorUtils.ensureKeyframe(sheet, tick);
+            Keyframe<PoseTransform> target = sheet == null ? null : sheet.ensureKeyframe(tick);
 
-            return recorded == null ? null : recorded.getValue();
-        }
-
-        public static void applyRecording(UIKeyframes editor, Keyframe keyframe, int tick, Consumer<PoseTransform> consumer)
-        {
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                PoseTransform transform = (PoseTransform) recorded.getValue();
-
-                recorded.preNotify();
-                consumer.accept(transform);
-                recorded.postNotify();
-            });
+            return target == null ? null : target.getValue();
         }
 
         public static void apply(UIKeyframes editor, Keyframe keyframe, Consumer<PoseTransform> consumer)

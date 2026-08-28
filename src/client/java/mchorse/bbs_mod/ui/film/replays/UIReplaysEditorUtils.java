@@ -238,55 +238,16 @@ public class UIReplaysEditorUtils
         }
     }
 
-    public static <T> Keyframe<T> ensureKeyframe(UIKeyframeSheet sheet, float tick)
-    {
-        if (sheet == null)
-        {
-            return null;
-        }
-
-        for (Keyframe<T> keyframe : (List<Keyframe<T>>) sheet.channel.getKeyframes())
-        {
-            if (keyframe.getTick() == tick)
-            {
-                return keyframe;
-            }
-        }
-
-        KeyframeSegment<T> segment = sheet.channel.find(tick);
-        BaseValueBasic property = sheet.property;
-        Keyframe<T> template = null;
-        T value;
-
-        if (segment != null)
-        {
-            value = segment.createInterpolated();
-            template = segment.a;
-        }
-        else if (property != null)
-        {
-            value = (T) sheet.channel.getFactory().copy(property.get());
-        }
-        else if (sheet.seed != null)
-        {
-            value = (T) sheet.seed.get();
-        }
-        else
-        {
-            value = (T) sheet.channel.getFactory().createEmpty();
-        }
-
-        int index = sheet.channel.insert(tick, value);
-        Keyframe<T> keyframe = (Keyframe<T>) sheet.channel.get(index);
-
-        if (template != null && template != keyframe)
-        {
-            keyframe.copyOverExtra(template);
-        }
-
-        return keyframe;
-    }
-
+    /**
+     * Run an edit over the keyframes it should land on: every selected keyframe of every track
+     * that holds this kind of value, or &mdash; with auto-keyframing on &mdash; the keyframe each
+     * of those tracks has at the playhead, brought into being from the interpolated value if the
+     * track has none there yet.
+     *
+     * <p>This is the one place the film's value editors (pose, transform, IK, physics, wind...)
+     * decide <em>which</em> keyframe they write into, so auto-keyframing reaches all of them
+     * without any of them knowing about it.
+     */
     public static <T> void forEachSelectedKeyframe(UIKeyframes editor, Keyframe<?> keyframe, Consumer<Keyframe<T>> consumer)
     {
         if (editor == null || keyframe == null)
@@ -294,39 +255,30 @@ public class UIReplaysEditorUtils
             return;
         }
 
+        Integer tick = editor.getAutoKeyframeTick();
+
         for (UIKeyframeSheet sheet : editor.getGraph().getSheets())
         {
-            if (sheet.channel.getFactory() != keyframe.getFactory())
+            if (sheet.channel.getFactory() != keyframe.getFactory() || sheet.header)
             {
                 continue;
             }
 
-            for (Keyframe selected : sheet.selection.getSelected())
+            if (tick == null)
             {
-                consumer.accept((Keyframe<T>) selected);
+                for (Keyframe selected : sheet.selection.getSelected())
+                {
+                    consumer.accept((Keyframe<T>) selected);
+                }
             }
-        }
-    }
-
-    public static <T> void forEachRecordedKeyframe(UIKeyframes editor, Keyframe<?> keyframe, int tick, Consumer<Keyframe<T>> consumer)
-    {
-        if (editor == null || keyframe == null)
-        {
-            return;
-        }
-
-        for (UIKeyframeSheet sheet : editor.getGraph().getSheets())
-        {
-            if (sheet.channel.getFactory() != keyframe.getFactory() || sheet.selection.getSelected().isEmpty())
+            else if (!sheet.selection.getSelected().isEmpty())
             {
-                continue;
-            }
+                Keyframe<T> target = sheet.ensureKeyframe(tick);
 
-            Keyframe<T> recorded = ensureKeyframe(sheet, tick);
-
-            if (recorded != null)
-            {
-                consumer.accept(recorded);
+                if (target != null)
+                {
+                    consumer.accept(target);
+                }
             }
         }
     }

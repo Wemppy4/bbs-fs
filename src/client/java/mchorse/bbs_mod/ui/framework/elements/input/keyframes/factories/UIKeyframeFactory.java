@@ -169,6 +169,47 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         return this.keyframe;
     }
 
+    /**
+     * The keyframe an edit made in this panel should land on: the one the panel was opened for,
+     * or &mdash; with auto-keyframing on &mdash; the keyframe of the same track at the playhead,
+     * made from the track's interpolated value if there is none there yet.
+     */
+    public Keyframe<T> getEditTarget()
+    {
+        return this.editor.getGraph().getEditTarget(this.keyframe);
+    }
+
+    /**
+     * Whether this panel's fields should follow the playhead rather than the keyframe they were
+     * opened for. They have to when auto-keyframing, because that is where the next edit lands:
+     * a field showing a keyframe at another tick would start a drag from the wrong number.
+     */
+    protected boolean followsPlayhead()
+    {
+        return this.editor.getGraph().getAutoKeyframeTick() != null;
+    }
+
+    /**
+     * What the fields should show: the edited keyframe's value, or what the track reads at the
+     * playhead while {@link #followsPlayhead()}. Read-only &mdash; a keyframe is only brought into
+     * being once something is actually edited.
+     */
+    protected T getDisplayValue()
+    {
+        IUIKeyframeGraph graph = this.editor.getGraph();
+        Integer tick = graph.getAutoKeyframeTick();
+        UIKeyframeSheet sheet = tick == null ? null : graph.getSheet(this.keyframe);
+
+        if (sheet == null || sheet.channel.isEmpty())
+        {
+            return this.keyframe.getValue();
+        }
+
+        T value = (T) sheet.channel.interpolate(tick);
+
+        return value == null ? this.keyframe.getValue() : value;
+    }
+
     public void setTick(double tick)
     {
         double time = TimeUtils.fromTime(tick);
@@ -183,7 +224,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
 
     public void setValue(Object value)
     {
-        this.editor.getGraph().setValue(value, true);
+        this.editor.getGraph().setValue(value, true, true);
     }
 
     public void update()

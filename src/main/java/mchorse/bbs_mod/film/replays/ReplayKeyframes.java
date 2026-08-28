@@ -28,7 +28,6 @@ public class ReplayKeyframes extends ValueGroup
     public static final String GROUP_TRIGGERS = "triggers";
     public static final String GROUP_EXTRA1 = "extra1";
     public static final String GROUP_EXTRA2 = "extra2";
-    public static final String GROUP_TRANSFORM = "transform";
 
     /**
      * Vanilla's per-tick gravity step (0.08 damped by 0.98). A grounded entity in

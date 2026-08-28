@@ -991,6 +991,20 @@ public class UIKeyframes extends UIElement
         return (float) this.fromGraphX(this.getContext().mouseX);
     }
 
+    /**
+     * The tick auto-keyframing writes at, or {@code null} when an edit should land on the
+     * keyframes it was made on.
+     *
+     * <p>Auto-keyframing turns every value edit into a key at the playhead instead of a rewrite of
+     * whatever keyframe happens to be selected, so posing at a tick where the track has no keyframe
+     * yet makes one rather than dragging the past along with it. A timeline without a playhead has
+     * no tick to key at, so it never auto-keyframes &mdash; only the film editor's timelines do.
+     */
+    public Integer getAutoKeyframeTick()
+    {
+        return null;
+    }
+
     public boolean isSelecting()
     {
         return this.marquee.isPressed();

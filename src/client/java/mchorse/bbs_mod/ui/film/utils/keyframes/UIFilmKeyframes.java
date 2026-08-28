@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.utils.keyframes;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.UIClips;
@@ -56,6 +57,21 @@ public class UIFilmKeyframes extends UIKeyframes
     @Override
     public float getTick()
     {
+        return this.getOffset();
+    }
+
+    /**
+     * The playhead in this timeline's own tick space &mdash; {@link #getOffset()} rather than the
+     * raw cursor, so a keyframe clip keys where its cursor is drawn instead of at the film's tick.
+     */
+    @Override
+    public Integer getAutoKeyframeTick()
+    {
+        if (!BBSSettings.autoKeyframe.get() || this.editor == null)
+        {
+            return null;
+        }
+
         return this.getOffset();
     }
 

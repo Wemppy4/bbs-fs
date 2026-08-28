@@ -1,83 +1,50 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
-import mchorse.bbs_mod.ui.film.UIFilmPanel;
-import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.UIDeltaPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.utils.pose.Transform;
 
-import java.util.List;
-import java.util.function.Consumer;
-
 /**
- * Delta transform editor whose selection spans keyframes, plus the film
- * recording layer: while transform recording is live the edit lands on the
- * recorded keyframes ({@link #applyDuringRecording}) instead of the selection,
- * and the fields mirror the recorded transform.
+ * Delta transform editor whose selection spans keyframes, plus the auto-keyframing layer: while
+ * auto-keyframing is on the fields mirror the keyframe at the playhead ({@link
+ * #getAutoKeyTransform}) instead of the edited one, so a drag is measured against the pose that is
+ * actually on screen at that tick.
+ *
+ * <p>The write itself needs nothing here — every {@link #applyToSelection} implementation goes
+ * through {@code UIReplaysEditorUtils.forEachSelectedKeyframe}, which redirects to the playhead's
+ * keyframe on its own.
  */
 public abstract class UIKeyframePropTransform extends UIDeltaPropTransform
 {
-    protected abstract void applyDuringRecording(int tick, Consumer<Transform> consumer);
-
-    protected Transform getRecordedTransform(int tick)
-    {
-        return null;
-    }
+    /** The timeline the edited keyframe lives in, so this editor can ask about the playhead. */
+    protected abstract UIKeyframes getKeyframes();
 
     /**
-     * Resolves the film panel from the menu root rather than walking up the parent chain, so this
-     * transform works even when it lives outside the film panel (e.g. the animation state editor,
-     * where there is no film panel and recording simply doesn't apply). Mirrors the lookup in
-     * {@link UIAnchorKeyframeFactory}.
+     * The transform of this track's keyframe at the given tick, created if the track has none
+     * there. Null when the editor cannot produce one, which leaves the fields on the edited
+     * keyframe.
      */
-    protected UIFilmPanel getPanel()
+    protected Transform getAutoKeyTransform(int tick)
     {
-        UIContext context = this.getContext();
-
-        if (context == null)
-        {
-            return null;
-        }
-
-        List<UIFilmPanel> panels = context.menu.main.getChildren(UIFilmPanel.class);
-
-        return panels.isEmpty() ? null : panels.get(0);
-    }
-
-    protected boolean isTransformRecording()
-    {
-        UIFilmPanel panel = this.getPanel();
-
-        return panel != null && panel.getController().isTransformRecording();
-    }
-
-    protected int getRecordingTick()
-    {
-        UIFilmPanel panel = this.getPanel();
-
-        return panel == null ? 0 : panel.getCursor();
+        return null;
     }
 
     @Override
     protected Transform getTargetTransform()
     {
-        if (this.isTransformRecording())
+        UIKeyframes keyframes = this.getKeyframes();
+        Integer tick = keyframes == null ? null : keyframes.getAutoKeyframeTick();
+
+        if (tick != null)
         {
-            return this.getRecordedTransform(this.getRecordingTick());
+            Transform transform = this.getAutoKeyTransform(tick);
+
+            if (transform != null)
+            {
+                return transform;
+            }
         }
 
         return this.getTransform();
-    }
-
-    @Override
-    protected void applyToTarget(Consumer<Transform> consumer)
-    {
-        if (this.isTransformRecording())
-        {
-            this.applyDuringRecording(this.getRecordingTick(), consumer);
-        }
-        else
-        {
-            this.applyToSelection(consumer);
-        }
     }
 }

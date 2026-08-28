@@ -136,6 +136,7 @@ public class BBSSettings {
 	public static ValueFloat editorCameraAngleSpeed;
 	public static ValueInt duration;
 	public static ValueBoolean editorLoop;
+	public static ValueBoolean autoKeyframe;
 	public static ValueInt editorJump;
 	public static ValueInt editorGuidesColor;
 	public static ValueBoolean editorRuleOfThirds;
@@ -774,6 +775,7 @@ public class BBSSettings {
 		duration = builder.getInt("duration", 30, 1, 1000);
 		editorJump = builder.getInt("jump", 5, 1, 1000);
 		editorLoop = builder.getBoolean("loop", false);
+		autoKeyframe = builder.getBoolean("auto_keyframe", false);
 		editorSeconds = builder.getBoolean("seconds", false);
 		editorTimelineGrid = builder.getBoolean("timeline_grid", false);
 		keyframeDefaultInterpolation = builder.getString("keyframe_default_interpolation", Interpolations.LINEAR.getKey());

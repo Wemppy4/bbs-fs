@@ -155,36 +155,24 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         }
 
         @Override
+        protected UIKeyframes getKeyframes()
+        {
+            return this.editor.editor;
+        }
+
+        @Override
         protected void applyToSelection(Consumer<Transform> consumer)
         {
             apply(this.editor.editor, this.editor.keyframe, consumer);
         }
 
         @Override
-        protected void applyDuringRecording(int tick, Consumer<Transform> consumer)
-        {
-            applyRecording(this.editor.editor, this.editor.keyframe, tick, consumer);
-        }
-
-        @Override
-        protected Transform getRecordedTransform(int tick)
+        protected Transform getAutoKeyTransform(int tick)
         {
             UIKeyframeSheet sheet = this.editor.editor.getGraph().getSheet(this.editor.keyframe);
-            Keyframe<?> recorded = UIReplaysEditorUtils.ensureKeyframe(sheet, tick);
+            Keyframe<?> target = sheet == null ? null : sheet.ensureKeyframe(tick);
 
-            return recorded == null ? null : ((Anchor) recorded.getValue()).transform;
-        }
-
-        public static void applyRecording(UIKeyframes editor, Keyframe<?> keyframe, int tick, Consumer<Transform> consumer)
-        {
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                Anchor anchor = (Anchor) recorded.getValue();
-
-                recorded.preNotify();
-                consumer.accept(anchor.transform);
-                recorded.postNotify();
-            });
+            return target == null ? null : ((Anchor) target.getValue()).transform;
         }
 
         public static void apply(UIKeyframes editor, Keyframe<?> keyframe, Consumer<Transform> consumer)

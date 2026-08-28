@@ -6,12 +6,9 @@ import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.film.replays.Replay;
-import mchorse.bbs_mod.film.replays.tracks.TrackId;
-import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.replays.UIRecordOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
@@ -23,7 +20,6 @@ import org.joml.Vector2i;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Shooting a take into a replay: the pre-roll countdown, which groups of channels are being
@@ -69,18 +65,6 @@ public class FilmRecordingController
         return this.recordingGroups;
     }
 
-    private boolean hasTransformRecordingGroup()
-    {
-        return this.recordingGroups != null && this.recordingGroups.contains(ReplayKeyframes.GROUP_TRANSFORM);
-    }
-
-    public boolean isTransformRecording()
-    {
-        return this.recording
-            && this.recordingCountdown <= 0
-            && this.hasTransformRecordingGroup();
-    }
-
     public void startRecording(List<String> groups)
     {
         if (groups != null && groups.contains("outside"))
@@ -104,20 +88,10 @@ public class FilmRecordingController
         this.recording = true;
         this.recordingCountdown = Math.max(0, TimeUtils.toTick(BBSSettings.recordingCountdown.get()));
         this.recordingGroups = groups;
-        boolean transformRecording = groups != null && groups.contains(ReplayKeyframes.GROUP_TRANSFORM);
 
-        this.recordingOld = transformRecording ? this.controller.getReplay().properties.toData() : this.controller.getReplay().keyframes.toData();
+        this.recordingOld = this.controller.getReplay().keyframes.toData();
 
-        if (transformRecording)
-        {
-            if (this.controller.getControlled() != null)
-            {
-                this.controller.toggleControl();
-            }
-
-            this.controller.setMouseMode(0);
-        }
-        else if (groups != null)
+        if (groups != null)
         {
             if (groups.contains(ReplayKeyframes.GROUP_LEFT_STICK))
             {
@@ -145,12 +119,12 @@ public class FilmRecordingController
             }
         }
 
-        if (!transformRecording && this.controller.getControlled() == null)
+        if (this.controller.getControlled() == null)
         {
             this.controller.toggleControl();
         }
 
-        this.controller.toggleMousePointer(!transformRecording && this.controller.getControlled() != null);
+        this.controller.toggleMousePointer(this.controller.getControlled() != null);
 
         /* No countdown means the take starts now. Without this nothing ever started it: the countdown
          * branch below is what calls togglePlayback, and it only runs while the counter is still above
@@ -178,12 +152,10 @@ public class FilmRecordingController
             return;
         }
 
-        boolean transformRecording = this.hasTransformRecordingGroup();
-
         this.recording = false;
         this.recordingGroups = null;
 
-        if (!transformRecording && this.controller.getControlled() != null)
+        if (this.controller.getControlled() != null)
         {
             this.controller.toggleControl();
         }
@@ -204,42 +176,17 @@ public class FilmRecordingController
 
         if (replay != null && this.recordingOld != null)
         {
-            if (transformRecording)
+            for (KeyframeChannel<?> channel : replay.keyframes.getChannels())
             {
-                for (Map.Entry<TrackId, KeyframeChannel> entry : replay.properties.tracks.entrySet())
-                {
-                    if (entry.getKey().is(TrackKind.BONE))
-                    {
-                        entry.getValue().simplify();
-                    }
-                }
-
-                BaseType newData = replay.properties.toData();
-
-                replay.properties.fromData(this.recordingOld);
-                replay.properties.preNotify();
-                replay.properties.fromData(newData);
-                replay.properties.postNotify();
-
-                if (this.controller.panel.replayEditor.getReplay() == replay)
-                {
-                    this.controller.panel.replayEditor.setReplay(replay, false, UIReplaysEditor.OrbitReaction.SWITCH);
-                }
+                channel.simplify();
             }
-            else
-            {
-                for (KeyframeChannel<?> channel : replay.keyframes.getChannels())
-                {
-                    channel.simplify();
-                }
 
-                BaseType newData = replay.keyframes.toData();
+            BaseType newData = replay.keyframes.toData();
 
-                replay.keyframes.fromData(this.recordingOld);
-                replay.keyframes.preNotify();
-                replay.keyframes.fromData(newData);
-                replay.keyframes.postNotify();
-            }
+            replay.keyframes.fromData(this.recordingOld);
+            replay.keyframes.preNotify();
+            replay.keyframes.fromData(newData);
+            replay.keyframes.postNotify();
 
             this.recordingOld = null;
         }
@@ -266,8 +213,7 @@ public class FilmRecordingController
         UIRecordOverlayPanel overlay = new UIRecordOverlayPanel(
             UIKeys.FILM_CONTROLLER_RECORD_TITLE,
             UIKeys.FILM_CONTROLLER_RECORD_DESCRIPTION,
-            this::startRecording,
-            this.controller.panel.replayEditor.getCategory() == UIReplaysEditor.ReplayCategory.POSE
+            this::startRecording
         );
         UIIcon icon = new UIIcon(Icons.UPLOAD, (b) -> overlay.submit(Arrays.asList("outside")));
 

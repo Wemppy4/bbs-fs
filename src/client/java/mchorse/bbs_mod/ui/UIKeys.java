@@ -293,7 +293,6 @@ public class UIKeys
     public static final IKey FILM_GROUPS_ONLY_POSITION = L10n.lang("bbs.ui.film.groups.only_position");
     public static final IKey FILM_GROUPS_ONLY_POS_ROT = L10n.lang("bbs.ui.film.groups.pos_rot");
     public static final IKey FILM_GROUPS_ONLY_ROTATION = L10n.lang("bbs.ui.film.groups.only_rotation");
-    public static final IKey FILM_GROUPS_TRANSFORM = L10n.lang("bbs.ui.film.groups.transform");
     public static final IKey FILM_GROUPS_OUTSIDE = L10n.lang("bbs.ui.film.groups.outside");
     public static final IKey FILM_GROUPS_RIGHT_STICK = L10n.lang("bbs.ui.film.groups.right_stick");
     public static final IKey FILM_GROUPS_TRIGGERS = L10n.lang("bbs.ui.film.groups.triggers");
@@ -331,6 +330,7 @@ public class UIKeys
     public static final IKey FILM_LAYOUT_UNLOCK = L10n.lang("bbs.ui.film.layout_unlock");
     public static final IKey FILM_LAYOUT_RESET = L10n.lang("bbs.ui.film.layout_reset");
     public static final IKey FILM_OPEN_HISTORY = L10n.lang("bbs.ui.film.open_history");
+    public static final IKey FILM_AUTO_KEYFRAME_TOOLTIP = L10n.lang("bbs.ui.film.auto_keyframe_tooltip");
     public static final IKey FILM_OPTIONS = L10n.lang("bbs.ui.film.options");
     public static final IKey FILM_TABS_NEW_TAB = L10n.lang("bbs.ui.film.tabs.new_tab");
     public static final IKey FILM_LANDING_NEW = L10n.lang("bbs.ui.film.landing.new");
@@ -835,7 +835,6 @@ public class UIKeys
     public static final IKey KEYFRAMES_SHAPES_TRIANGLE = L10n.lang("bbs.ui.keyframes.shapes.triangle");
     public static final IKey KEYFRAMES_SHAPES_TRI_STAR = L10n.lang("bbs.ui.keyframes.shapes.tri_star");
     public static final IKey KEYFRAMES_TICK = L10n.lang("bbs.ui.keyframes.tick");
-    public static final IKey KEYFRAMES_RECORD_VALUE = L10n.lang("bbs.ui.keyframes.record_value");
     public static final IKey KEYS_LIST = L10n.lang("bbs.ui.keys.list");
     public static final IKey KEYS_UI_SCALE_INC = L10n.lang("bbs.ui.keys.ui_scale_inc");
     public static final IKey KEYS_UI_SCALE_DEC = L10n.lang("bbs.ui.keys.ui_scale_dec");

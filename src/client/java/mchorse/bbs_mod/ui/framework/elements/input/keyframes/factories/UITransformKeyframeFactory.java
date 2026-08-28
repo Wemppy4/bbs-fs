@@ -38,36 +38,24 @@ public class UITransformKeyframeFactory extends UIKeyframeFactory<Transform>
         }
 
         @Override
+        protected UIKeyframes getKeyframes()
+        {
+            return this.editor.editor;
+        }
+
+        @Override
         protected void applyToSelection(Consumer<Transform> consumer)
         {
             apply(this.editor.editor, this.editor.keyframe, consumer);
         }
 
         @Override
-        protected void applyDuringRecording(int tick, Consumer<Transform> consumer)
-        {
-            applyRecording(this.editor.editor, this.editor.keyframe, tick, consumer);
-        }
-
-        @Override
-        protected Transform getRecordedTransform(int tick)
+        protected Transform getAutoKeyTransform(int tick)
         {
             UIKeyframeSheet sheet = this.editor.editor.getGraph().getSheet(this.editor.keyframe);
-            Keyframe<Transform> recorded = UIReplaysEditorUtils.ensureKeyframe(sheet, tick);
+            Keyframe<Transform> target = sheet == null ? null : sheet.ensureKeyframe(tick);
 
-            return recorded == null ? null : recorded.getValue();
-        }
-
-        public static void applyRecording(UIKeyframes editor, Keyframe keyframe, int tick, Consumer<Transform> consumer)
-        {
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                Transform transform = (Transform) recorded.getValue();
-
-                recorded.preNotify();
-                consumer.accept(transform);
-                recorded.postNotify();
-            });
+            return target == null ? null : target.getValue();
         }
 
         public static void apply(UIKeyframes editor, Keyframe keyframe, Consumer<Transform> consumer)

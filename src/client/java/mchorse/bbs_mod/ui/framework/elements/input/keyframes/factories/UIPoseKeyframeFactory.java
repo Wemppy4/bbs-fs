@@ -276,69 +276,24 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
 
         @Override
-        protected void applyDuringRecording(int tick, Consumer<Transform> consumer)
+        protected UIKeyframes getKeyframes()
         {
-            Map<String, UIPoseEditor.BoneEdit> targets = this.editor.resolveBoneEdits(this.isMirrorEdit(), this.isAlternateInvert());
-
-            applyRecordingBones(this.editor.editor, this.editor.keyframe, tick, new ArrayList<>(targets.keySet()),
-                (bone, poseT) -> this.editor.applyToBone(targets.get(bone), poseT, consumer));
+            return this.editor.editor;
         }
 
         @Override
-        protected Transform getRecordedTransform(int tick)
+        protected Transform getAutoKeyTransform(int tick)
         {
             UIKeyframeSheet sheet = this.editor.editor.getGraph().getSheet(this.editor.keyframe);
-            Keyframe<Pose> recorded = UIReplaysEditorUtils.ensureKeyframe(sheet, tick);
+            Keyframe<Pose> target = sheet == null ? null : sheet.ensureKeyframe(tick);
             String bone = this.editor.getGroup();
 
-            if (recorded == null || bone == null)
+            if (target == null || bone == null)
             {
                 return null;
             }
 
-            return recorded.getValue().getOrCreate(bone);
-        }
-
-        public static void applyRecording(UIKeyframes editor, Keyframe keyframe, int tick, List<String> bones, Consumer<PoseTransform> consumer)
-        {
-            if (bones == null || bones.isEmpty())
-            {
-                return;
-            }
-
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                Pose pose = (Pose) recorded.getValue();
-                recorded.preNotify();
-
-                for (String bone : bones)
-                {
-                    consumer.accept(pose.getOrCreate(bone));
-                }
-
-                recorded.postNotify();
-            });
-        }
-
-        public static void applyRecordingBones(UIKeyframes editor, Keyframe keyframe, int tick, List<String> bones, BiConsumer<String, PoseTransform> consumer)
-        {
-            if (bones == null || bones.isEmpty())
-            {
-                return;
-            }
-
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                Pose pose = (Pose) recorded.getValue();
-                recorded.preNotify();
-
-                for (String bone : bones)
-                {
-                    consumer.accept(bone, pose.getOrCreate(bone));
-                }
-
-                recorded.postNotify();
-            });
+            return target.getValue().getOrCreate(bone);
         }
 
         @Override
