@@ -786,7 +786,7 @@ public class BBSSettings {
 		editorRewind = builder.getBoolean("rewind", true);
 		editorStopPlaybackOnScrub = builder.getBoolean("stop_playback_on_scrub", false);
 		editorRestartOnSeek = builder.getBoolean("restart_on_seek", false);
-		editorHorizontalClipEditor = builder.getBoolean("horizontal_clip_editor", true);
+		editorHorizontalClipEditor = builder.getBoolean("horizontal_clip_editor", false);
 
 		builder.category("workspace", Icons.EDITOR);
 		builder.register(editorLayoutSettings = new ValueEditorLayout("layout"));
