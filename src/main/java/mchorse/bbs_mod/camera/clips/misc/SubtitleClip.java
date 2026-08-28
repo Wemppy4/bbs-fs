@@ -31,8 +31,12 @@ public class SubtitleClip extends CameraClip
     public ValueFloat shadow = new ValueFloat("shadow", 0F);
     public ValueBoolean shadowOpaque = new ValueBoolean("shadowOpaque", false);
     public ValueTransform transform = new ValueTransform("transform", new Transform());
+    /** 0 hands the spacing over to the font itself. */
     public ValueInt lineHeight = new ValueInt("lineHeight", 12);
     public ValueInt maxWidth = new ValueInt("maxWidth", 0);
+    /* Font: a TrueType file in the assets, empty for Minecraft's own one */
+    public ValueLink font = new ValueLink("font", null);
+    public ValueInt fontSize = new ValueInt("fontSize", 9);
     public ValueLink image = new ValueLink("image", null);
     public ValueBoolean imageRight = new ValueBoolean("imageRight", true);
     public ValueFloat imageScale = new ValueFloat("imageScale", 1F);
@@ -61,6 +65,8 @@ public class SubtitleClip extends CameraClip
         this.add(this.transform);
         this.add(this.lineHeight);
         this.add(this.maxWidth);
+        this.add(this.font);
+        this.add(this.fontSize);
         this.add(this.image);
         this.add(this.imageRight);
         this.add(this.imageScale);
@@ -98,6 +104,7 @@ public class SubtitleClip extends CameraClip
         this.subtitle.updateBackground(this.background.get(), this.backgroundOffset.get(), this.shadow.get(), this.shadowOpaque.get());
         this.subtitle.updateTransform(this.transform.get(), factor);
         this.subtitle.updateConstraints(this.lineHeight.get(), this.maxWidth.get());
+        this.subtitle.updateFont(this.font.get(), this.fontSize.get());
         this.subtitle.updateImage(this.image.get(), this.imageRight.get(), this.imageScale.get());
         subtitles.add(this.subtitle);
     }

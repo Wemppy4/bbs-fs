@@ -27,6 +27,9 @@ public class Subtitle
     public boolean imageRight;
     public float imageScale;
 
+    public Link font;
+    public int fontSize;
+
     public void update(String label, Placement placement, int color, boolean textShadow)
     {
         this.label = label;
@@ -53,6 +56,12 @@ public class Subtitle
     {
         this.lineHeight = lineHeight;
         this.maxWidth = maxWidth;
+    }
+
+    public void updateFont(Link font, int fontSize)
+    {
+        this.font = font;
+        this.fontSize = fontSize;
     }
 
     public void updateImage(Link image, boolean imageRight, float imageScale)
