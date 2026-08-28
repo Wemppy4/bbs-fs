@@ -6,6 +6,7 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.camera.clips.misc.ImageOverlay;
 import mchorse.bbs_mod.camera.clips.misc.VideoOverlay;
+import mchorse.bbs_mod.video.VideoPlayer;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
@@ -63,7 +64,12 @@ public class UIImageRenderer
 
             if (image instanceof VideoOverlay video)
             {
-                texture = video.video == null ? null : BBSModClient.getVideos().getFrame(video.video, video.seconds);
+                /* The overlay is the clip's own object, so it IS the decoder's owner:
+                 * two clips playing the same file sit on different timestamps and
+                 * cannot share one. */
+                VideoPlayer player = video.video == null ? null : BBSModClient.getVideos().getPlayer(video, video.video);
+
+                texture = player == null ? null : player.getFrame(video.seconds);
 
                 if (texture == null)
                 {

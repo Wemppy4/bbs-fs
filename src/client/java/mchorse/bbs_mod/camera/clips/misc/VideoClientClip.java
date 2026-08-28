@@ -27,8 +27,9 @@ public class VideoClientClip extends VideoClip
         if (link != null)
         {
             BBSModClient.getSounds().stop(link);
-            BBSModClient.getVideos().stop(link);
         }
+
+        BBSModClient.getVideos().release(this.overlay);
     }
 
     @Override
@@ -42,11 +43,20 @@ public class VideoClientClip extends VideoClip
         }
 
         float factor = this.envelope.factorEnabled(this.duration.get(), context.relativeTick + context.transition);
+        float tickTime = (context.relativeTick + context.transition) / 20F;
+
+        /* A video clip is GLOBAL (inherited from the audio clip, whose player has to be
+         * kept paused and in sync outside the clip too), so applyClip runs on every tick
+         * of the film. Only the SOUND wants that: the picture must not be drawn outside
+         * the clip, and the decoder must not be kept awake by ticks that don't show it. */
+        boolean inside = tickTime >= 0F && context.relativeTick < this.duration.get();
         float loopSeconds = 0F;
 
-        if (this.loop.get())
+        if (this.loop.get() && inside)
         {
-            VideoPlayer player = BBSModClient.getVideos().get(link);
+            /* The clip's OWN player, the one that decodes for it - the link-keyed
+             * player is metadata only and never gets probed by anybody. */
+            VideoPlayer player = BBSModClient.getVideos().getPlayer(this.overlay, link);
 
             if (player != null && player.isValid())
             {
@@ -56,13 +66,7 @@ public class VideoClientClip extends VideoClip
 
         AudioClientClip.scheduleAudio(context, this, this.volume.get() * factor, loopSeconds);
 
-        float tickTime = (context.relativeTick + context.transition) / 20F;
-
-        /* A video clip is GLOBAL (inherited from the audio clip, whose player has to be
-         * kept paused and in sync outside the clip too), so applyClip runs on every tick
-         * of the film - the PICTURE, unlike the sound, must not. Without this the frame
-         * kept being drawn before the clip started and after it ended. */
-        if (tickTime < 0F || context.relativeTick >= this.duration.get())
+        if (!inside)
         {
             return;
         }

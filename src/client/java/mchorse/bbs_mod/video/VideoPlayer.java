@@ -173,7 +173,6 @@ public class VideoPlayer
                 return;
             }
 
-            this.frameBuffer = MemoryUtil.memAlloc(this.width * this.height * 4);
             this.state = STATE_VALID;
         }
         catch (Exception e)
@@ -396,6 +395,14 @@ public class VideoPlayer
 
         try
         {
+            /* Allocated on the first decode, not on probing: a player asked only for
+             * metadata (a clip's duration) would otherwise hold a full frame of pixels
+             * - up to 33 MB for a 4K file - without ever decoding anything. */
+            if (this.frameBuffer == null)
+            {
+                this.frameBuffer = MemoryUtil.memAlloc(this.width * this.height * 4);
+            }
+
             ProcessBuilder builder = new ProcessBuilder(
                 FFMpegUtils.getFFMPEG(),
                 "-ss", String.valueOf(seconds),

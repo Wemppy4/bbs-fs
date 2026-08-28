@@ -68,7 +68,7 @@ public class VideoFormRenderer extends BillboardFormRenderer<VideoForm>
             return null;
         }
 
-        VideoPlayer player = BBSModClient.getVideos().getFormPlayer(this.still ? this.uiPlayerKey : this, link);
+        VideoPlayer player = BBSModClient.getVideos().getPlayer(this.still ? this.uiPlayerKey : this, link);
 
         if (player == null)
         {
