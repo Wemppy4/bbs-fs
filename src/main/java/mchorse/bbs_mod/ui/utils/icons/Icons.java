@@ -200,6 +200,7 @@ public class Icons
     public static final Icon PHYSICS = register(new Icon(ATLAS, "physics", 240, 160));
 
     public static final Icon HOTBAR = register(new Icon(ATLAS, "hotbar", 0, 176));
+    public static final Icon PICTURE = register(new Icon(ATLAS, "picture", 64, 176));
     public static final Icon DISCORD = register(new Icon(ATLAS, "discord", 48, 176));
 
     public static final Icon INTERP_LINEAR = register(new Icon(ATLAS, "interp_linear", 0, 192));

@@ -169,6 +169,15 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_SUBTITLE_IMAGE_PICK = L10n.lang("bbs.ui.camera.panels.subtitle.image.pick");
     public static final IKey CAMERA_PANELS_SUBTITLE_IMAGE_RIGHT = L10n.lang("bbs.ui.camera.panels.subtitle.image.right");
     public static final IKey CAMERA_PANELS_SUBTITLE_IMAGE_SIZE = L10n.lang("bbs.ui.camera.panels.subtitle.image.size");
+    public static final IKey CAMERA_PANELS_IMAGE_IMAGE = L10n.lang("bbs.ui.camera.panels.image.image");
+    public static final IKey CAMERA_PANELS_IMAGE_PICK = L10n.lang("bbs.ui.camera.panels.image.pick");
+    public static final IKey CAMERA_PANELS_IMAGE_FULLSCREEN = L10n.lang("bbs.ui.camera.panels.image.fullscreen");
+    public static final IKey CAMERA_PANELS_IMAGE_SMOOTH = L10n.lang("bbs.ui.camera.panels.image.smooth");
+    public static final IKey CAMERA_PANELS_IMAGE_SCALE = L10n.lang("bbs.ui.camera.panels.image.scale");
+    public static final IKey CAMERA_PANELS_IMAGE_OFFSET = L10n.lang("bbs.ui.camera.panels.image.offset");
+    public static final IKey CAMERA_PANELS_IMAGE_WINDOW = L10n.lang("bbs.ui.camera.panels.image.window");
+    public static final IKey CAMERA_PANELS_IMAGE_ANCHOR = L10n.lang("bbs.ui.camera.panels.image.anchor");
+    public static final IKey CAMERA_PANELS_IMAGE_TRANSFORM = L10n.lang("bbs.ui.camera.panels.image.transform");
     public static final IKey CAMERA_PANELS_TARGET = L10n.lang("bbs.ui.camera.panels.target");
     public static final IKey CAMERA_PANELS_TARGET_TITLE = L10n.lang("bbs.ui.camera.panels.target-title");
     public static final IKey CAMERA_PANELS_TARGET_TOOLTIP = L10n.lang("bbs.ui.camera.panels.target-tooltip");
