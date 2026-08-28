@@ -343,7 +343,7 @@ public class UIKeys
     public static final IKey FILM_LAYOUT_UNLOCK = L10n.lang("bbs.ui.film.layout_unlock");
     public static final IKey FILM_LAYOUT_RESET = L10n.lang("bbs.ui.film.layout_reset");
     public static final IKey FILM_OPEN_HISTORY = L10n.lang("bbs.ui.film.open_history");
-    public static final IKey FILM_AUTO_KEYFRAME_TOOLTIP = L10n.lang("bbs.ui.film.auto_keyframe_tooltip");
+    public static final IKey FILM_AUTO_KEYFRAME = L10n.lang("bbs.ui.film.auto_keyframe");
     public static final IKey FILM_OPTIONS = L10n.lang("bbs.ui.film.options");
     public static final IKey FILM_TABS_NEW_TAB = L10n.lang("bbs.ui.film.tabs.new_tab");
     public static final IKey FILM_LANDING_NEW = L10n.lang("bbs.ui.film.landing.new");
@@ -1275,7 +1275,6 @@ public class UIKeys
     public static final IKey TEXTURES_BROWSER_COMBINE_NAME = L10n.lang("bbs.ui.textures.browser.combine.name");
     public static final IKey TEXTURES_BROWSER_COMBINE_NO_FOLDER = L10n.lang("bbs.ui.textures.browser.combine.no_folder");
     public static final IKey TEXTURES_BROWSER_COMBINE_TITLE = L10n.lang("bbs.ui.textures.browser.combine-title");
-    public static final IKey TEXTURES_BROWSER_COMBINE_TOOLTIP = L10n.lang("bbs.ui.textures.browser.combine-tooltip");
     public static final IKey TEXTURES_BROWSER_STATUS_COPIED = L10n.lang("bbs.ui.textures.browser.status.copied");
     public static final IKey TEXTURES_BROWSER_STATUS_CUT = L10n.lang("bbs.ui.textures.browser.status.cut");
     public static final IKey TEXTURES_BROWSER_STATUS_FILES = L10n.lang("bbs.ui.textures.browser.status.files");

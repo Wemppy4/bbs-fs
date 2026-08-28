@@ -63,7 +63,6 @@ public class UIFilmPreview extends UIElement
 
     public UIElement icons;
 
-    public UIIcon autoKeyframe;
     public UIIcon onionSkin;
     public UIIcon motionPath;
     public UIIcon plause;
@@ -87,9 +86,6 @@ public class UIFilmPreview extends UIElement
         this.icons.relative(this).x(0.5F).y(1F).anchor(0.5F, 1F);
 
         /* Preview buttons */
-        this.autoKeyframe = new UIIcon(Icons.KEY, (b) -> this.toggleAutoKeyframe());
-        this.autoKeyframe.highlight(BBSSettings.autoKeyframe::get, Direction.BOTTOM);
-        this.autoKeyframe.tooltip(UIKeys.FILM_AUTO_KEYFRAME_TOOLTIP);
         this.onionSkin = new UIIcon(Icons.ONION_SKIN, (b) -> this.openOnionSkin());
         this.onionSkin.highlight(() -> this.panel.getController().getOnionSkin().enabled.get(), Direction.BOTTOM);
         this.onionSkin.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE);
@@ -176,6 +172,8 @@ public class UIFilmPreview extends UIElement
         this.recordReplay.tooltip(UIKeys.FILM_REPLAY_RECORD);
         this.recordReplay.context((menu) ->
         {
+            menu.action(Icons.KEY, UIKeys.FILM_AUTO_KEYFRAME, BBSSettings.autoKeyframe.get(), this::toggleAutoKeyframe);
+
             menu.action(Icons.DOWNLOAD, UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_INSTANT_KEYFRAMES, this.panel.getController().isInstantKeyframes(), () ->
             {
                 this.panel.getController().toggleInstantKeyframes();
@@ -257,7 +255,7 @@ public class UIFilmPreview extends UIElement
             });
         });
 
-        this.icons.add(this.autoKeyframe, this.onionSkin, this.motionPath, this.plause, this.teleport, this.flight, this.control, this.perspective, this.recordReplay, this.recordVideo);
+        this.icons.add(this.onionSkin, this.motionPath, this.plause, this.teleport, this.flight, this.control, this.perspective, this.recordReplay, this.recordVideo);
         this.add(this.icons);
     }
 

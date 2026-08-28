@@ -91,7 +91,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     public UITextbox search;
     public UIIcon sort;
     public UIIcon everywhere;
-    public UIIcon combine;
     public UIIcon newTexture;
 
     /** The path typed by hand — shown in place of the breadcrumbs while editing. */
@@ -294,8 +293,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         });
         this.everywhere.tooltip(UIKeys.TEXTURES_BROWSER_EVERYWHERE, Direction.BOTTOM);
         this.everywhere.highlight(() -> this.searchEverywhere, Direction.BOTTOM);
-        this.combine = new UIIcon(Icons.FILM, (b) -> this.promptCombine(this.pickedFrames()));
-        this.combine.tooltip(UIKeys.TEXTURES_BROWSER_COMBINE_TOOLTIP, Direction.BOTTOM);
         this.newTexture = new UIIcon(Icons.MATERIAL, (b) -> this.promptNewTexture());
         this.newTexture.tooltip(UIKeys.TEXTURES_BROWSER_NEW_TEXTURE, Direction.BOTTOM);
 
@@ -328,7 +325,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.infoHandle.relative(this.info).x(0).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.bar.relative(this).xy(0, 0).w(1F).h(BAR_HEIGHT);
-        this.bar.add(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.combine, this.newTexture, picker.close);
+        this.bar.add(this.back, this.treeToggle, this.multiToggle, this.search, this.everywhere, this.sort, this.newTexture, picker.close);
         /* The grid goes before the tree: it clears the drag's target as its frame begins, and
          * the tree reports a folder of its own while painting after it */
         this.add(this.bar, this.crumbs, this.text, this.grid, this.left, this.info, picker.editor, this.leftHandle, this.infoHandle, this.clearClipboard);
@@ -1615,7 +1612,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
 
         this.hoveredAction = null;
         this.back.setEnabled(!this.path.source.isEmpty());
-        this.combine.setEnabled(this.pickedFrameCount() >= TextureFiles.MIN_COMBINE_FRAMES);
 
         int strip = BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50);
 
