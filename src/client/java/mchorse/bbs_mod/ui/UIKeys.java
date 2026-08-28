@@ -1510,6 +1510,7 @@ public class UIKeys
     public static final IKey UTILITY_OPEN_AUDIO_FOLDER = L10n.lang("studio.ui.utility.open_audio_folder");
     public static final IKey UTILITY_OPEN_VIDEO_FOLDER = L10n.lang("studio.ui.utility.open_video_folder");
     public static final IKey UTILITY_OPEN_FOLDER = L10n.lang("studio.ui.utility.open_folder");
+    public static final IKey UTILITY_OPEN_FONTS_FOLDER = L10n.lang("studio.ui.utility.open_fonts_folder");
     public static final IKey UTILITY_OPEN_GAME_FOLDER = L10n.lang("studio.ui.utility.open_game_folder");
     public static final IKey UTILITY_OPEN_MODELS_FOLDER = L10n.lang("studio.ui.utility.open_models_folder");
     public static final IKey UTILITY_RELOAD_LABEL = L10n.lang("studio.ui.utility.reload");

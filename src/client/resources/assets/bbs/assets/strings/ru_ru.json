@@ -1973,6 +1973,7 @@
 	"studio.ui.utility.open_audio_folder": "Аудио",
 	"studio.ui.utility.open_video_folder": "Видео",
 	"studio.ui.utility.open_folder": "Открыть папку...",
+	"studio.ui.utility.open_fonts_folder": "Шрифты",
 	"studio.ui.utility.open_game_folder": "Игра",
 	"studio.ui.utility.open_models_folder": "Модели",
 	"studio.ui.utility.reload": "Перезагрузить",
