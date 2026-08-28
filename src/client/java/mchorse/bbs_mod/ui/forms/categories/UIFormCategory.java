@@ -403,6 +403,13 @@ public class UIFormCategory extends UIItemGrid<Form>
         return form.getDisplayName();
     }
 
+    /** Zoomed out past the name strip (or with a name longer than it), the cell says its name by the cursor. */
+    @Override
+    protected boolean showsCaption(UIContext context, Form form, int cellWidth)
+    {
+        return FormCellRenderer.showsWholeName(context, form, cellWidth);
+    }
+
     @Override
     protected void onAction(Form form, CellAction action)
     {

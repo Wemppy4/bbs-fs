@@ -33,6 +33,22 @@ public class TextureCellRenderer
 
     private static final int PADDING = 3;
 
+    /** Whether a cell this wide carries a name strip at all: a folder always does. */
+    public static boolean hasName(TextureEntry entry, int w)
+    {
+        return entry.folder() || w >= NAME_THRESHOLD;
+    }
+
+    /**
+     * Whether the cell says the entry's whole name — it has a strip and the name fits in it.
+     * Zoomed out far enough the strip goes, and a long name is cut short even with one; either
+     * way the grid says the name by the cursor instead.
+     */
+    public static boolean showsWholeName(UIContext context, TextureEntry entry, int w)
+    {
+        return hasName(entry, w) && CellPainter.captionFits(context, entry.caption(), w);
+    }
+
     public static void render(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, CellAction[] actions)
     {
         context.batcher.clip(x, y, w, h, context);
@@ -97,7 +113,7 @@ public class TextureCellRenderer
     {
         Batcher2D batcher = context.batcher;
         Texture texture = BBSModClient.getTextures().getTexture(entry.link());
-        boolean name = w >= NAME_THRESHOLD;
+        boolean name = hasName(entry, w);
         int px = x + PADDING;
         int py = y + PADDING;
         int pw = w - PADDING * 2;

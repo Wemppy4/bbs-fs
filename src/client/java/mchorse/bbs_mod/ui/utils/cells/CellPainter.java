@@ -17,6 +17,9 @@ public class CellPainter
     /** Height of the caption strip along the bottom of a cell. */
     public static final int CAPTION_HEIGHT = 14;
 
+    /** Space kept between the words of a caption and either edge of the cell. */
+    public static final int CAPTION_PADDING = 3;
+
     /**
      * Under the picture: the accent for a chosen cell, and nothing at all under the cursor.
      * Hovering is said with the frame instead — a wash over the ground shifted every picture's
@@ -58,6 +61,18 @@ public class CellPainter
         }
     }
 
+    /**
+     * Whether a cell this wide says a caption whole, or cuts it short to fit the strip. What
+     * the cell can't say the grid says by the cursor instead, so the two agree on where the
+     * words stop fitting — down to the strict comparison, which is the one
+     * {@link FontRenderer#limitToWidth(String, int) the cut} makes: a caption exactly as wide
+     * as the room it has is already shortened.
+     */
+    public static boolean captionFits(UIContext context, String label, int w)
+    {
+        return context.batcher.getFont().getWidth(label) < w - CAPTION_PADDING * 2;
+    }
+
     /** A caption along the bottom of a cell, on a gradient so it reads over any picture. */
     public static void caption(UIContext context, String label, int x, int y, int w, int h, boolean bright)
     {
@@ -74,7 +89,7 @@ public class CellPainter
         Batcher2D batcher = context.batcher;
         FontRenderer font = batcher.getFont();
 
-        label = font.limitToWidth(label, w - 6);
+        label = font.limitToWidth(label, w - CAPTION_PADDING * 2);
 
         batcher.gradientVBox(x, y + h - CAPTION_HEIGHT - 8, x + w, y + h, 0, Colors.A75);
         batcher.textShadow(label, x + (w - font.getWidth(label)) / 2, y + h - CAPTION_HEIGHT + (CAPTION_HEIGHT - font.getHeight()) / 2 + 1, Colors.mulA(bright ? Colors.WHITE : Colors.LIGHTEST_GRAY, alpha));

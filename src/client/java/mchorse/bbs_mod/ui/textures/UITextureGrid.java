@@ -71,6 +71,13 @@ public class UITextureGrid extends UIItemGrid<TextureEntry>
         return item.caption();
     }
 
+    /** Zoomed out past the name strip (or with a name longer than it), the cell says its name by the cursor. */
+    @Override
+    protected boolean showsCaption(UIContext context, TextureEntry item, int cellWidth)
+    {
+        return TextureCellRenderer.showsWholeName(context, item, cellWidth);
+    }
+
     @Override
     protected CellAction[] actions(TextureEntry item)
     {

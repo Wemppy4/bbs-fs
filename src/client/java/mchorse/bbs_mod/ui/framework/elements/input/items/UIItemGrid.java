@@ -1,8 +1,11 @@
 package mchorse.bbs_mod.ui.framework.elements.input.items;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.tooltips.TooltipPlacement;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.GridLayout;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
@@ -36,6 +39,11 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 {
     public static final int GHOST_SIZE = 48;
 
+    /** How far from the cursor the name card of a cell that can't carry its own name sits. */
+    private static final int CAPTION_OFFSET = 8;
+
+    private static final Area CAPTION_CARD = new Area();
+
     protected final GridLayout layout;
     protected final CellState state = new CellState();
 
@@ -52,6 +60,9 @@ public abstract class UIItemGrid<T> extends UIItems<T>
     private CellAction labelAction;
     private int labelX;
     private int labelY;
+
+    /* The name of the hovered cell when the cell itself doesn't say it whole */
+    private String hoverCaption;
 
     public UIItemGrid(Consumer<List<T>> callback, GridLayout layout)
     {
@@ -70,6 +81,9 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 
         this.layout = layout;
         this.scroll.scrollSpeed = 40;
+
+        /* The name card is drawn as a tooltip, and only an element with one gets asked to draw it */
+        this.tooltip(IKey.EMPTY);
     }
 
     /* Settings */
@@ -151,6 +165,16 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 
     /** Whether the cells are shown at all — a collapsed category keeps only its band. */
     protected boolean isExpanded()
+    {
+        return true;
+    }
+
+    /**
+     * Whether a cell this wide says the item's whole {@link #caption(Object) name} itself. When
+     * it doesn't — no name strip at a small zoom, or a name longer than the strip — the name is
+     * shown by the cursor instead, so a grid of tiny cells can still be read.
+     */
+    protected boolean showsCaption(UIContext context, T item, int cellWidth)
     {
         return true;
     }
@@ -349,6 +373,7 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         this.hoverIndex = inside ? this.indexAt(x, y) : -1;
         this.hoverAction = -1;
         this.labelAction = null;
+        this.hoverCaption = null;
 
         if (this.hoverIndex == -1)
         {
@@ -357,23 +382,28 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 
         T item = this.visible().get(this.hoverIndex);
         CellAction[] actions = this.actions(item);
+        int width = this.layout.getCellWidth();
 
-        if (actions.length == 0 || !CellActionBar.fits(this.layout.getCellWidth()))
+        if (actions.length > 0 && CellActionBar.fits(width))
         {
-            return;
+            int cx = this.layout.getX(this.hoverIndex);
+            int cy = this.layout.getY(this.hoverIndex);
+
+            this.hoverAction = CellActionBar.getAction(cx, cy, width, actions.length, x, y);
+
+            if (this.hoverAction != -1)
+            {
+                int ax = this.originX() + CellActionBar.getActionX(cx, width, actions.length, this.hoverAction);
+                int ay = this.originY() + cy + CellActionBar.HEIGHT;
+
+                this.hoveredAction(actions[this.hoverAction], context.globalX(ax), context.globalY(ay));
+            }
         }
 
-        int cx = this.layout.getX(this.hoverIndex);
-        int cy = this.layout.getY(this.hoverIndex);
-
-        this.hoverAction = CellActionBar.getAction(cx, cy, this.layout.getCellWidth(), actions.length, x, y);
-
-        if (this.hoverAction != -1)
+        /* An action has its own label, and a band being stretched is drawing rather than pointing */
+        if (this.hoverAction == -1 && !this.marquee.isActive() && !this.showsCaption(context, item, width))
         {
-            int ax = this.originX() + CellActionBar.getActionX(cx, this.layout.getCellWidth(), actions.length, this.hoverAction);
-            int ay = this.originY() + cy + CellActionBar.HEIGHT;
-
-            this.hoveredAction(actions[this.hoverAction], context.globalX(ax), context.globalY(ay));
+            this.hoverCaption = this.caption(item);
         }
     }
 
@@ -396,6 +426,26 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         {
             context.requestCursor(GLFW.GLFW_HAND_CURSOR);
         }
+    }
+
+    /**
+     * The name of the hovered cell beside the cursor, for a cell too small to carry it. It goes
+     * through the tooltip — drawn after the whole screen — so no neighbouring cell, column or
+     * panel painted after the grid covers it.
+     */
+    @Override
+    public void renderTooltip(UIContext context, Area area)
+    {
+        if (this.hoverCaption == null)
+        {
+            return;
+        }
+
+        FontRenderer font = context.batcher.getFont();
+        /* The card is the text plus its 3px padding on each side */
+        Area card = TooltipPlacement.nearMouse(context, font.getWidth(this.hoverCaption) + 6, font.getHeight() + 6, CAPTION_OFFSET, true, 2, CAPTION_CARD);
+
+        context.batcher.textCard(this.hoverCaption, card.x + 3, card.y + 3, Colors.WHITE, Colors.A75, 3);
     }
 
     @Override

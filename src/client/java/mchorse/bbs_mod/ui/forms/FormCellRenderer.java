@@ -26,6 +26,15 @@ public class FormCellRenderer
         return cellWidth >= NAME_THRESHOLD;
     }
 
+    /**
+     * Whether the cell says the form's whole name — it has a strip and the name fits in it.
+     * What the cell can't say, the grid says by the cursor instead.
+     */
+    public static boolean showsWholeName(UIContext context, Form form, int w)
+    {
+        return hasName(w) && CellPainter.captionFits(context, form.getDisplayName(), w);
+    }
+
     public static void render(UIContext context, Form form, int x, int y, int w, int h, CellState state, CellAction[] actions)
     {
         context.batcher.clip(x, y, w, h, context);

@@ -79,6 +79,13 @@ public class UITexturePickGrid extends UIItemGrid<TextureEntry>
         return item.caption();
     }
 
+    /** The cells here are small enough that no name fits: hovering one says it by the cursor. */
+    @Override
+    protected boolean showsCaption(UIContext context, TextureEntry item, int cellWidth)
+    {
+        return TextureCellRenderer.showsWholeName(context, item, cellWidth);
+    }
+
     @Override
     protected boolean onOpen(TextureEntry item)
     {
