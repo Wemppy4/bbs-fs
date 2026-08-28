@@ -25,7 +25,8 @@ public class Placement implements IDataSerializable<BaseType>
     public float anchorY = 0.5F;
     public float offsetX;
     public float offsetY;
-    public float scale = 1F;
+    public float scaleX = 1F;
+    public float scaleY = 1F;
 
     /**
      * Read the flat fields overlay clips carried before the placement object
@@ -42,7 +43,7 @@ public class Placement implements IDataSerializable<BaseType>
         placement.anchorY = data.getFloat("anchorY", 0.5F);
         placement.offsetX = data.getFloat("x", 0F) * 2F;
         placement.offsetY = data.getFloat("y", 0F) * 2F;
-        placement.scale = data.getFloat(scaleKey, defaultScale) * 2F;
+        placement.scaleX = placement.scaleY = data.getFloat(scaleKey, defaultScale) * 2F;
 
         return placement;
     }
@@ -52,7 +53,8 @@ public class Placement implements IDataSerializable<BaseType>
 
     public Placement(float scale)
     {
-        this.scale = scale;
+        this.scaleX = scale;
+        this.scaleY = scale;
     }
 
     public Placement copy()
@@ -72,7 +74,8 @@ public class Placement implements IDataSerializable<BaseType>
         this.anchorY = placement.anchorY;
         this.offsetX = placement.offsetX;
         this.offsetY = placement.offsetY;
-        this.scale = placement.scale;
+        this.scaleX = placement.scaleX;
+        this.scaleY = placement.scaleY;
     }
 
     @Override
@@ -86,7 +89,8 @@ public class Placement implements IDataSerializable<BaseType>
                 && this.anchorY == placement.anchorY
                 && this.offsetX == placement.offsetX
                 && this.offsetY == placement.offsetY
-                && this.scale == placement.scale;
+                && this.scaleX == placement.scaleX
+                && this.scaleY == placement.scaleY;
         }
 
         return super.equals(obj);
@@ -95,7 +99,7 @@ public class Placement implements IDataSerializable<BaseType>
     @Override
     public int hashCode()
     {
-        return Objects.hash(this.windowX, this.windowY, this.anchorX, this.anchorY, this.offsetX, this.offsetY, this.scale);
+        return Objects.hash(this.windowX, this.windowY, this.anchorX, this.anchorY, this.offsetX, this.offsetY, this.scaleX, this.scaleY);
     }
 
     @Override
@@ -109,7 +113,8 @@ public class Placement implements IDataSerializable<BaseType>
         data.putFloat("anchorY", this.anchorY);
         data.putFloat("offsetX", this.offsetX);
         data.putFloat("offsetY", this.offsetY);
-        data.putFloat("scale", this.scale);
+        data.putFloat("scaleX", this.scaleX);
+        data.putFloat("scaleY", this.scaleY);
 
         return data;
     }
@@ -130,6 +135,11 @@ public class Placement implements IDataSerializable<BaseType>
         this.anchorY = map.getFloat("anchorY", 0.5F);
         this.offsetX = map.getFloat("offsetX", 0F);
         this.offsetY = map.getFloat("offsetY", 0F);
-        this.scale = map.getFloat("scale", 1F);
+
+        /* Films saved while the scale was still uniform carry a single "scale" */
+        float scale = map.getFloat("scale", 1F);
+
+        this.scaleX = map.getFloat("scaleX", scale);
+        this.scaleY = map.getFloat("scaleY", scale);
     }
 }

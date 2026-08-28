@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.audio.AudioReader;
 import mchorse.bbs_mod.camera.clips.misc.VideoClientClip;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
@@ -103,7 +104,7 @@ public class UIVideoClip extends UIAudioClip<VideoClientClip>
             value.set(c);
         })).withAlpha();
 
-        this.placement = new UIPlacement((p) -> this.editor.editMultiple(this.clip.placement, (value) ->
+        this.placement = new UIPlacement(new Placement(), (p) -> this.editor.editMultiple(this.clip.placement, (value) ->
         {
             value.set(p.copy());
         }));

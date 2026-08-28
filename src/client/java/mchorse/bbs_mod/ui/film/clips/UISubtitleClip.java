@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film.clips;
 
 import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
@@ -40,7 +41,7 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
     {
         super.registerUI();
 
-        this.placement = new UIPlacement((p) -> this.editor.editMultiple(this.clip.placement, (value) ->
+        this.placement = new UIPlacement(new Placement(SubtitleClip.DEFAULT_SCALE), (p) -> this.editor.editMultiple(this.clip.placement, (value) ->
         {
             value.set(p.copy());
         }));

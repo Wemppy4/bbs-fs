@@ -6,6 +6,7 @@ import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
 import mchorse.bbs_mod.camera.clips.misc.VideoClip;
 import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.settings.values.core.ValuePlacement;
+import mchorse.bbs_mod.ui.film.clips.widgets.UIPlacement;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.utils.clips.Clip;
@@ -29,6 +30,8 @@ public class UIPlacementGizmo
     private static final int MODE_NONE = 0;
     private static final int MODE_MOVE = 1;
     private static final int MODE_SCALE = 2;
+    private static final int MODE_SCALE_X = 3;
+    private static final int MODE_SCALE_Y = 4;
 
     private final UIFilmPanel panel;
 
@@ -152,17 +155,21 @@ public class UIPlacementGizmo
         int y1 = (int) this.toScreenY(box.y, viewport);
         int x2 = (int) this.toScreenX(box.x + box.w, viewport, box.unitWidth);
         int y2 = (int) this.toScreenY(box.y + box.h, viewport);
+        int mx = (x1 + x2) / 2;
+        int my = (y1 + y2) / 2;
         int handle = HANDLE_SIZE + 2;
 
         boolean corner = this.isNear(context, x1, y1, handle) || this.isNear(context, x2, y1, handle)
             || this.isNear(context, x1, y2, handle) || this.isNear(context, x2, y2, handle);
+        boolean sideX = this.isNear(context, x1, my, handle) || this.isNear(context, x2, my, handle);
+        boolean sideY = this.isNear(context, mx, y1, handle) || this.isNear(context, mx, y2, handle);
 
-        if (!corner && !(context.mouseX >= x1 && context.mouseX < x2 && context.mouseY >= y1 && context.mouseY < y2))
+        if (!corner && !sideX && !sideY && !(context.mouseX >= x1 && context.mouseX < x2 && context.mouseY >= y1 && context.mouseY < y2))
         {
             return false;
         }
 
-        this.mode = corner ? MODE_SCALE : MODE_MOVE;
+        this.mode = corner ? MODE_SCALE : (sideX ? MODE_SCALE_X : (sideY ? MODE_SCALE_Y : MODE_MOVE));
         this.startUnitX = this.toUnitX(context, viewport, box.unitWidth);
         this.startUnitY = this.toUnitY(context, viewport);
         this.startPlacement = value.get().copy();
@@ -217,15 +224,77 @@ public class UIPlacementGizmo
             /* Scale around the anchor point, which stays put on screen */
             float anchorX = box.unitWidth * this.startPlacement.windowX + this.startPlacement.offsetX;
             float anchorY = Placement.HEIGHT * this.startPlacement.windowY + this.startPlacement.offsetY;
-            float startDistance = (float) Math.hypot(this.startUnitX - anchorX, this.startUnitY - anchorY);
-            float distance = (float) Math.hypot(unitX - anchorX, unitY - anchorY);
 
-            if (startDistance < MIN_SCALE_DISTANCE)
+            if (this.mode == MODE_SCALE)
             {
-                return;
-            }
+                if (UIPlacement.isChained())
+                {
+                    float startDistance = (float) Math.hypot(this.startUnitX - anchorX, this.startUnitY - anchorY);
+                    float distance = (float) Math.hypot(unitX - anchorX, unitY - anchorY);
 
-            edited.scale = this.startPlacement.scale * (distance / startDistance);
+                    if (startDistance < MIN_SCALE_DISTANCE)
+                    {
+                        return;
+                    }
+
+                    float ratio = distance / startDistance;
+
+                    edited.scaleX = this.startPlacement.scaleX * ratio;
+                    edited.scaleY = this.startPlacement.scaleY * ratio;
+                }
+                else
+                {
+                    /* Unchained corners stretch each axis on its own */
+                    float startX = Math.abs(this.startUnitX - anchorX);
+                    float startY = Math.abs(this.startUnitY - anchorY);
+
+                    if (startX >= MIN_SCALE_DISTANCE)
+                    {
+                        edited.scaleX = this.startPlacement.scaleX * (Math.abs(unitX - anchorX) / startX);
+                    }
+
+                    if (startY >= MIN_SCALE_DISTANCE)
+                    {
+                        edited.scaleY = this.startPlacement.scaleY * (Math.abs(unitY - anchorY) / startY);
+                    }
+                }
+            }
+            else if (this.mode == MODE_SCALE_X)
+            {
+                float startDistance = Math.abs(this.startUnitX - anchorX);
+
+                if (startDistance < MIN_SCALE_DISTANCE)
+                {
+                    return;
+                }
+
+                float ratio = Math.abs(unitX - anchorX) / startDistance;
+
+                edited.scaleX = this.startPlacement.scaleX * ratio;
+
+                if (UIPlacement.isChained())
+                {
+                    edited.scaleY = this.startPlacement.scaleY * ratio;
+                }
+            }
+            else
+            {
+                float startDistance = Math.abs(this.startUnitY - anchorY);
+
+                if (startDistance < MIN_SCALE_DISTANCE)
+                {
+                    return;
+                }
+
+                float ratio = Math.abs(unitY - anchorY) / startDistance;
+
+                edited.scaleY = this.startPlacement.scaleY * ratio;
+
+                if (UIPlacement.isChained())
+                {
+                    edited.scaleX = this.startPlacement.scaleX * ratio;
+                }
+            }
         }
 
         if (!value.get().equals(edited))
@@ -259,10 +328,17 @@ public class UIPlacementGizmo
 
         context.batcher.outline(x1, y1, x2, y2, this.mode == MODE_NONE ? Colors.A75 | Colors.WHITE & Colors.RGB : Colors.WHITE);
 
+        int mx = (x1 + x2) / 2;
+        int my = (y1 + y2) / 2;
+
         this.renderHandle(context, x1, y1);
         this.renderHandle(context, x2, y1);
         this.renderHandle(context, x1, y2);
         this.renderHandle(context, x2, y2);
+        this.renderHandle(context, x1, my);
+        this.renderHandle(context, x2, my);
+        this.renderHandle(context, mx, y1);
+        this.renderHandle(context, mx, y2);
 
         /* The anchor point the scaling pivots around */
         float anchorX = box.unitWidth * value.get().windowX + value.get().offsetX;

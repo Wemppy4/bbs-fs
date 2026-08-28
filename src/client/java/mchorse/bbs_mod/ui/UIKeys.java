@@ -177,6 +177,7 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_PLACEMENT_OFFSET = L10n.lang("bbs.ui.camera.panels.placement.offset");
     public static final IKey CAMERA_PANELS_PLACEMENT_ANCHOR = L10n.lang("bbs.ui.camera.panels.placement.anchor");
     public static final IKey CAMERA_PANELS_PLACEMENT_SCALE = L10n.lang("bbs.ui.camera.panels.placement.scale");
+    public static final IKey CAMERA_PANELS_PLACEMENT_CHAIN = L10n.lang("bbs.ui.camera.panels.placement.chain");
     public static final IKey CAMERA_PANELS_TARGET = L10n.lang("bbs.ui.camera.panels.target");
     public static final IKey CAMERA_PANELS_TARGET_TITLE = L10n.lang("bbs.ui.camera.panels.target-title");
     public static final IKey CAMERA_PANELS_TARGET_TOOLTIP = L10n.lang("bbs.ui.camera.panels.target-tooltip");

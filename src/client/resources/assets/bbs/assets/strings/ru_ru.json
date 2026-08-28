@@ -591,6 +591,7 @@
 	"bbs.ui.camera.panels.placement.offset": "Сдвиг",
 	"bbs.ui.camera.panels.placement.anchor": "Якорь",
 	"bbs.ui.camera.panels.placement.scale": "Масштаб",
+	"bbs.ui.camera.panels.placement.chain": "Менять оба масштаба вместе",
 	"bbs.ui.camera.panels.subtitle.image": "Изображение",
 	"bbs.ui.camera.panels.subtitle.image.pick": "Выбрать изображение",
 	"bbs.ui.camera.panels.subtitle.image.right": "Справа",

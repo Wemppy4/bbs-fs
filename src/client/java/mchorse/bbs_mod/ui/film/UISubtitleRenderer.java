@@ -88,7 +88,8 @@ public class UISubtitleRenderer
             int h = 0;
             float x = width * placement.windowX + placement.offsetX;
             float y = height * placement.windowY + placement.offsetY;
-            float scale = placement.scale;
+            float scaleX = placement.scaleX;
+            float scaleY = placement.scaleY;
             int subColor = subtitle.color;
 
             List<String> strings = subtitle.maxWidth <= 10 ? Arrays.asList(label) : font.wrap(label, subtitle.maxWidth);
@@ -124,8 +125,8 @@ public class UISubtitleRenderer
             float contentW = w + (imgTex != null && imgH > 0 ? (gap + imgW) : 0);
             float contentH = Math.max(h, imgH);
 
-            int fw = (int) ((contentW + 10) * scale);
-            int fh = (int) ((contentH + 10) * scale);
+            int fw = (int) ((contentW + 10) * scaleX);
+            int fh = (int) ((contentH + 10) * scaleY);
 
             RenderSystem.setProjectionMatrix(new Matrix4f().ortho(0, contentW + 10, 0, contentH + 10, -100, 100), VertexSorter.BY_Z);
 

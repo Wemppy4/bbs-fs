@@ -108,8 +108,8 @@ public class UIImageRenderer
             }
             else
             {
-                w = texture.width * placement.scale;
-                h = texture.height * placement.scale;
+                w = texture.width * placement.scaleX;
+                h = texture.height * placement.scaleY;
                 x = width * placement.windowX + placement.offsetX;
                 y = height * placement.windowY + placement.offsetY;
                 anchorX = placement.anchorX;
