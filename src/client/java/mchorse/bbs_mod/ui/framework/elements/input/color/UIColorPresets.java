@@ -185,6 +185,11 @@ public class UIColorPresets extends UIElement
         this.renderDefault(context);
 
         super.render(context);
+
+        /* After the children: the label overhangs the swatch and the preset
+         * tiles are drawn by super, so anything shown before them ends up
+         * underneath. */
+        this.renderDefaultHover(context);
     }
 
     /** The default swatch: same cell as the palette's, plus the divider that keeps it apart. */
@@ -206,12 +211,17 @@ public class UIColorPresets extends UIElement
         int divider = ex + DEFAULT_GAP / 2;
 
         context.batcher.box(divider, y, divider + 1, ey, Colors.A50);
+    }
 
-        if (this.defaultArea.isInside(context))
+    private void renderDefaultHover(UIContext context)
+    {
+        if (!this.hasDefault() || !this.defaultArea.isInside(context))
         {
-            context.batcher.outline(x, y, ex, ey, Colors.WHITE);
-            context.requestCursor(GLFW.GLFW_HAND_CURSOR);
-            context.batcher.textCard(UIKeys.VALUE_RESET.get(), context.mouseX + 6, context.mouseY + 10);
+            return;
         }
+
+        context.batcher.outline(this.defaultArea.x, this.defaultArea.y, this.defaultArea.ex(), this.defaultArea.ey(), Colors.WHITE);
+        context.requestCursor(GLFW.GLFW_HAND_CURSOR);
+        context.batcher.textCard(UIKeys.VALUE_RESET.get(), context.mouseX + 6, context.mouseY + 10);
     }
 }
