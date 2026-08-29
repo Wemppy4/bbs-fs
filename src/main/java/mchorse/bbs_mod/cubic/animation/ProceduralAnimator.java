@@ -142,6 +142,10 @@ public class ProceduralAnimator implements IAnimator
         float limbPhase = target.getLimbPos(transition);
         float leaningPitch = target.getLeaningPitch(transition);
 
+        /* Holding something up stops the swimming stroke - vanilla checks isUsingItem, and a
+         * use pose is exactly what that resolves to here. */
+        boolean usingItem = ItemUsePose.get(target, true) != null || ItemUsePose.get(target, false) != null;
+
         float coefficient = 1F;
 
         if (isRolling)
@@ -315,7 +319,7 @@ public class ProceduralAnimator implements IAnimator
                 ModelGroup leftGroup = leftArm;
 
                 VanillaArmPoses.apply(
-                    cubicArm(rightGroup), cubicArm(leftGroup),
+                    cubicBone(rightGroup), cubicBone(leftGroup),
                     head == null ? MathUtils.toRad(pitch) : -MathUtils.toRad(head.current.rotate.x),
                     head == null ? MathUtils.toRad(yaw) : -MathUtils.toRad(head.current.rotate.y),
                     main, offhand,
@@ -354,6 +358,16 @@ public class ProceduralAnimator implements IAnimator
                 rightArm.current.rotate.x = group.current.rotate.x + MathUtils.toDeg(swing1 * 1.2F + swign2);
                 rightArm.current.rotate.y += torso.current.rotate.y * 2F;
                 rightArm.current.rotate.z += MathUtils.toDeg(MathHelper.sin(handSwingProgress * MathUtils.PI) * -0.4F);
+            }
+
+            /* Last, the way vanilla does it: the stroke overrides the walk the limbs were given
+             * above, weighted by how flat the body has gone. */
+            if (leaningPitch > 0F)
+            {
+                VanillaSwimPose.apply(
+                    cubicBone(rightArm), cubicBone(leftArm), cubicBone(rightLeg), cubicBone(leftLeg),
+                    leaningPitch, limbPhase, handSwingProgress, usingItem
+                );
             }
         }
         /* For BOBJ models */
@@ -491,7 +505,7 @@ public class ProceduralAnimator implements IAnimator
                 BOBJBone head = bobjHead;
 
                 VanillaArmPoses.apply(
-                    bobjArm(bobjRightArm), bobjArm(bobjLeftArm),
+                    bobjBone(bobjRightArm), bobjBone(bobjLeftArm),
                     head == null ? MathUtils.toRad(pitch) : head.transform.rotate.x,
                     head == null ? MathUtils.toRad(yaw) : -head.transform.rotate.y,
                     main, offhand,
@@ -530,6 +544,14 @@ public class ProceduralAnimator implements IAnimator
                 bobjRightArm.transform.rotate.y -= MathUtils.toRad(rotate * 2F);
                 bobjRightArm.transform.rotate.z -= MathHelper.sin(handSwingProgress * MathUtils.PI) * -0.4F;
             }
+
+            if (leaningPitch > 0F)
+            {
+                VanillaSwimPose.apply(
+                    bobjBone(bobjRightArm), bobjBone(bobjLeftArm), bobjBone(bobjRightLeg), bobjBone(bobjLeftLeg),
+                    leaningPitch, limbPhase, handSwingProgress, usingItem
+                );
+            }
         }
 
         if (this.basePost != null)
@@ -538,10 +560,18 @@ public class ProceduralAnimator implements IAnimator
         }
     }
 
-    /** A cubic arm bone spoken in vanilla: degrees flipped into radians, x = -pitch, y = -yaw. */
-    private static VanillaArmPoses.Arm cubicArm(ModelGroup group)
+    /**
+     * A cubic bone spoken in vanilla: degrees flipped into radians, x = -pitch, y = -yaw,
+     * z = +roll (the arm bob above writes the roll that way).
+     */
+    private static VanillaBone cubicBone(ModelGroup group)
     {
-        return new VanillaArmPoses.Arm()
+        if (group == null)
+        {
+            return null;
+        }
+
+        return new VanillaBone()
         {
             @Override
             public float pitch()
@@ -566,13 +596,32 @@ public class ProceduralAnimator implements IAnimator
             {
                 group.current.rotate.y = -MathUtils.toDeg(yaw);
             }
+
+            @Override
+            public float roll()
+            {
+                return MathUtils.toRad(group.current.rotate.z);
+            }
+
+            @Override
+            public void roll(float roll)
+            {
+                group.current.rotate.z = MathUtils.toDeg(roll);
+            }
         };
     }
 
-    /** A BOBJ arm bone spoken in vanilla: already radians, x = -pitch, y = +yaw. */
-    private static VanillaArmPoses.Arm bobjArm(BOBJBone bone)
+    /**
+     * A BOBJ bone spoken in vanilla: already radians, x = -pitch, y = +yaw, z = -roll.
+     */
+    private static VanillaBone bobjBone(BOBJBone bone)
     {
-        return new VanillaArmPoses.Arm()
+        if (bone == null)
+        {
+            return null;
+        }
+
+        return new VanillaBone()
         {
             @Override
             public float pitch()
@@ -596,6 +645,18 @@ public class ProceduralAnimator implements IAnimator
             public void yaw(float yaw)
             {
                 bone.transform.rotate.y = yaw;
+            }
+
+            @Override
+            public float roll()
+            {
+                return -bone.transform.rotate.z;
+            }
+
+            @Override
+            public void roll(float roll)
+            {
+                bone.transform.rotate.z = -roll;
             }
         };
     }
