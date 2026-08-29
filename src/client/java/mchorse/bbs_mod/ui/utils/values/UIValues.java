@@ -6,6 +6,7 @@ import mchorse.bbs_mod.settings.values.base.BaseValueNumber;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
@@ -15,6 +16,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Color;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -39,6 +42,8 @@ public class UIValues
 
     public static <T extends UIElement> T resettable(T element, Supplier<? extends BaseValue> value, Runnable refresh)
     {
+        resettableColor(element, value, refresh);
+
         element.context((menu) ->
         {
             BaseValue current = value.get();
@@ -60,6 +65,58 @@ public class UIValues
         });
 
         return element;
+    }
+
+    /**
+     * A color swatch never sees the ordinary menu — a right click on it opens
+     * the presets — so the verb is handed to that popup instead, as the value's
+     * declared color standing apart from the preset grid.
+     *
+     * <p>The swatch is looked for in the whole subtree because the settings hang
+     * the reset on the row, not on the control inside it. More than one swatch
+     * under an element means the property behind them is ambiguous, so nothing
+     * is wired and the row's own menu stays the only way.</p>
+     */
+    private static void resettableColor(UIElement element, Supplier<? extends BaseValue> value, Runnable refresh)
+    {
+        List<UIColor> colors = element.getChildren(UIColor.class, new ArrayList<>(), true);
+
+        if (colors.size() != 1)
+        {
+            return;
+        }
+
+        colors.get(0).withDefault(() ->
+        {
+            BaseValue current = value.get();
+
+            if (current == null || current.isDefault())
+            {
+                return null;
+            }
+
+            if (current instanceof ValueColor color)
+            {
+                return color.getDefaultValue().getARGBColor();
+            }
+
+            return current instanceof ValueInt integer ? integer.getDefaultValue() : null;
+        }, () ->
+        {
+            BaseValue current = value.get();
+
+            if (current == null)
+            {
+                return;
+            }
+
+            current.reset();
+
+            if (refresh != null)
+            {
+                refresh.run();
+            }
+        });
     }
 
     /* Widgets bound to a value */

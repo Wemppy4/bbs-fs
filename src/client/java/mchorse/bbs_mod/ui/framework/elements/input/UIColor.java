@@ -7,9 +7,11 @@ import mchorse.bbs_mod.ui.framework.elements.input.color.UIColorPresets;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.Direction;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Color GUI element
@@ -24,6 +26,9 @@ public class UIColor extends UIElement
     public Direction direction;
 
     private UIElement target;
+
+    private Supplier<Integer> defaultColor;
+    private Runnable onReset;
 
     public UIColor(Consumer<Integer> callback)
     {
@@ -124,10 +129,45 @@ public class UIColor extends UIElement
         return context.globalY(this.area.y(this.direction.anchorY) + 2 * this.direction.factorY);
     }
 
+    /**
+     * What this swatch offers past the presets: the value behind it standing at
+     * something other than its declared color, and the way back to it. The
+     * supplier is asked at every right click and may answer null — the property
+     * is already at its default, and the popup stays the plain grid.
+     *
+     * <p>A right click here never reaches the ordinary context menu (the presets
+     * take it), so the reset verb every other property carries has to be handed
+     * to the popup instead.</p>
+     */
+    public UIColor withDefault(Supplier<Integer> defaultColor, Runnable onReset)
+    {
+        this.defaultColor = defaultColor;
+        this.onReset = onReset;
+
+        return this;
+    }
+
+    /** The declared color, as a {@link Color}, or null when there is nothing to go back to. */
+    private Color readDefaultColor()
+    {
+        if (this.defaultColor == null || this.onReset == null)
+        {
+            return null;
+        }
+
+        Integer color = this.defaultColor.get();
+
+        /* Read the same way this swatch reads any color it is given: a value
+         * without an alpha channel would otherwise come back fully transparent. */
+        return color == null ? null : new Color().set(color, this.picker.editAlpha);
+    }
+
     private void openPresets(UIContext context)
     {
         UIColorPresets presets = new UIColorPresets(this.picker::applyOpaqueColor);
         UIElement target = this.popupTarget(context);
+
+        presets.withDefault(this.readDefaultColor(), this.onReset);
 
         /* One popup of this swatch at a time */
         this.picker.removeFromParent();

@@ -250,7 +250,9 @@ public class UIElement implements IUIElement, IUndoElement
 
             if (element instanceof UIElement)
             {
-                ((UIElement) element).getChildren(clazz, list, includeItself);
+                /* Never with includeItself: this loop has already considered the
+                 * child, and passing the flag down would list it a second time. */
+                ((UIElement) element).getChildren(clazz, list, false);
             }
         }
 
@@ -278,7 +280,9 @@ public class UIElement implements IUIElement, IUndoElement
 
             if (element instanceof UIElement)
             {
-                ((UIElement) element).visitChildren(clazz, includeItself, consumer);
+                /* See getChildren: the flag must not travel down, or every
+                 * descendant is handed over twice. */
+                ((UIElement) element).visitChildren(clazz, false, consumer);
             }
         }
     }
