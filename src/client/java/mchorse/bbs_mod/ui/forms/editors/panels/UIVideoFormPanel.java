@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.forms.forms.VideoForm;
-import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.clips.UIVideoClip;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
@@ -12,6 +11,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIStringOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 public class UIVideoFormPanel extends UIFormPanel<VideoForm>
 {
@@ -31,12 +31,12 @@ public class UIVideoFormPanel extends UIFormPanel<VideoForm>
 
             UIOverlay.addOverlay(this.getContext(), panel.set(this.form.video.get()));
         });
-        this.loop = new UIToggle(UIKeys.CAMERA_PANELS_VIDEO_LOOP, (b) -> this.form.loop.set(b.getValue()));
-        this.speed = new UITrackpad((v) -> this.form.speed.set(v.floatValue()));
+        this.loop = UIValues.toggle(UIKeys.CAMERA_PANELS_VIDEO_LOOP, () -> this.form.loop);
+        this.speed = UIValues.trackpad(() -> this.form.speed);
         this.speed.tooltip(UIKeys.FORMS_EDITORS_VIDEO_SPEED);
-        this.offset = new UITrackpad((v) -> this.form.videoOffset.set(v.floatValue()));
+        this.offset = UIValues.trackpad(() -> this.form.videoOffset);
         this.offset.tooltip(UIKeys.FORMS_EDITORS_VIDEO_OFFSET);
-        this.billboard = new UIToggle(UIKeys.FORMS_EDITORS_VIDEO_BILLBOARD, (b) -> this.form.billboard.set(b.getValue()));
+        this.billboard = UIValues.toggle(UIKeys.FORMS_EDITORS_VIDEO_BILLBOARD, () -> this.form.billboard);
 
         this.options.add(this.pickVideo);
         this.options.add(this.loop, this.billboard);

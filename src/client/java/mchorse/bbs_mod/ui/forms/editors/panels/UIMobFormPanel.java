@@ -11,6 +11,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
 import mchorse.bbs_mod.ui.framework.elements.input.text.utils.TextLine;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 import net.minecraft.entity.EntityType;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
@@ -50,10 +51,7 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
 
             UITexturePicker.open(this.getContext(), link, (l) -> this.form.texture.set(l));
         });
-        this.slim = new UIToggle(UIKeys.FORMS_EDITOR_SLIM, (b) ->
-        {
-            this.form.slim.set(b.getValue());
-        });
+        this.slim = UIValues.toggle(UIKeys.FORMS_EDITOR_SLIM, () -> this.form.slim);
         this.slim.tooltip(UIKeys.FORMS_EDITOR_SLIM_TOOLTIP);
 
         this.mobID = new UISearchList<>(new UIStringList((l) -> this.form.mobID.set(l.get(0))));

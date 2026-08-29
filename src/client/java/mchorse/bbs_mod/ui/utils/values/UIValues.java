@@ -94,7 +94,17 @@ public class UIValues
 
     public static UITextbox textbox(Supplier<ValueString> value)
     {
-        UITextbox textbox = new UITextbox((s) -> value.get().set(s));
+        return textbox(new UITextbox(), value);
+    }
+
+    public static UITextbox textbox(int maxLength, Supplier<ValueString> value)
+    {
+        return textbox(new UITextbox(maxLength, null), value);
+    }
+
+    private static UITextbox textbox(UITextbox textbox, Supplier<ValueString> value)
+    {
+        textbox.callback = (s) -> value.get().set(s);
 
         return resettable(textbox, value, () -> textbox.setText(value.get().get()));
     }

@@ -21,6 +21,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.Collections;
 import java.util.List;
@@ -90,13 +91,14 @@ public class UIMaterialFormPanel extends UIFormPanel
         this.layer.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_LAYER_CUTOUT);
         this.layer.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_LAYER_TRANSLUCENT);
         this.layer.tooltip(UIKeys.FORMS_EDITORS_MATERIAL_LAYER_TOOLTIP);
+        UIValues.resettable(this.layer, () -> this.form.renderLayer, () -> this.layer.setValue(this.form.renderLayer.get()));
 
         this.culling = new UICirculate((b) -> this.materialValue().culling.set(b.getValue()));
         this.culling.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_CULLING_MODEL);
         this.culling.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_CULLING_ON);
         this.culling.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_CULLING_OFF);
 
-        this.shaderShadow = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_SHADER_SHADOW, (b) -> this.form.shaderShadow.set(b.getValue()));
+        this.shaderShadow = UIValues.toggle(UIKeys.FORMS_EDITORS_GENERAL_SHADER_SHADOW, () -> this.form.shaderShadow);
 
         this.smoothness = this.pbrSlider((v) -> this.materialValue().smoothness.set(v));
         this.metallic = this.pbrSlider((v) -> this.materialValue().metallic.set(v));

@@ -35,6 +35,7 @@ import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.ModelIKManager;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -159,6 +160,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         });
         this.target.viewport(this.viewportBonePicking());
         this.target.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_TARGET);
+        this.resetBone(this.target, (bone) -> bone.ikTarget);
 
         this.chainLength = new UITrackpad((v) ->
         {
@@ -167,6 +169,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         });
         this.chainLength.limit(0).integer();
         this.chainLength.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH);
+        this.resetBone(this.chainLength, (bone) -> bone.ikChainLength);
 
         /* The live meaning of the chain length number: the bones the chain
          * actually spans, root to tip — so "0 = up to the root" stops being
@@ -205,6 +208,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         });
         this.poleTarget.viewport(this.viewportBonePicking());
         this.poleTarget.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_POLE_TARGET);
+        this.resetBone(this.poleTarget, (bone) -> bone.ikPoleTarget);
 
         this.poleAngle = new UISliderTrackpad((v) -> this.editControl((c) -> c.poleAngle = v.floatValue()));
         this.poleAngle.angle180();
@@ -227,6 +231,10 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             this.updateLabels();
         });
         this.classic.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC_TOOLTIP);
+
+        this.resetBone(this.tipRotation, (bone) -> bone.ikTipRotation);
+        this.resetBone(this.stretch, (bone) -> bone.ikStretch);
+        this.resetBone(this.classic, (bone) -> bone.ikClassic);
 
         UISection settings = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_SETTINGS, "ik.chain", true);
 
@@ -869,5 +877,16 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         }
 
         return group == null ? "" : group;
+    }
+
+    /**
+     * Hang the reset verb on a field standing for one of the selected bone's own
+     * values. Resolved through {@link #selectedFormBone()} on every right click,
+     * so it follows the selection and never conjures a bone entry just by being
+     * looked at.
+     */
+    private void resetBone(UIElement element, Function<FormBone, BaseValue> getter)
+    {
+        UIValues.resettable(element, () -> this.readBone(getter, null), this::updateLabels);
     }
 }

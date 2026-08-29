@@ -30,6 +30,8 @@ import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.ModelPhysicsManager;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -142,12 +144,20 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         this.iterations = new UITrackpad((v) -> this.editBone((bone) -> bone.physicsIterations.set(v.intValue())));
         this.iterations.onlyNumbers().integer().values(1D).increment(1D).limit(1D, 20D, true);
         this.iterations.tooltip(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS);
+        this.resetBone(this.iterations, (bone) -> bone.physicsIterations);
 
         this.collisions = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS, (b) -> this.editBone((bone) -> bone.physicsCollisions.set(b.getValue())));
 
         this.radius = new UISliderTrackpad((v) -> this.editBone((bone) -> bone.physicsRadius.set(v.floatValue())));
         this.radius.normalized();
         this.radius.tooltip(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RADIUS);
+
+        this.resetBone(this.relativeGravity, (bone) -> bone.physicsRelativeGravity);
+        this.resetBone(this.relativeGravityRotateX, (bone) -> bone.physicsGravityRotateX);
+        this.resetBone(this.relativeGravityRotateY, (bone) -> bone.physicsGravityRotateY);
+        this.resetBone(this.relativeGravityRotateZ, (bone) -> bone.physicsGravityRotateZ);
+        this.resetBone(this.collisions, (bone) -> bone.physicsCollisions);
+        this.resetBone(this.radius, (bone) -> bone.physicsRadius);
 
         this.windStrength = new UISliderTrackpad((v) -> this.editWind((w) -> w.strength = v.floatValue()));
         this.windStrength.onlyNumbers().values(0.1D, 0.01D, 0.5D).increment(0.25D).limit(0D, 10D);
@@ -598,5 +608,16 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         }
 
         return group == null ? "" : group;
+    }
+
+    /**
+     * Hang the reset verb on a field standing for one of the selected bone's own
+     * values. Resolved through {@link #selectedFormBone()} on every right click,
+     * so it follows the selection and never conjures a bone entry just by being
+     * looked at.
+     */
+    private void resetBone(UIElement element, Function<FormBone, BaseValue> getter)
+    {
+        UIValues.resettable(element, () -> this.readBone(getter, null), this::updateFields);
     }
 }
