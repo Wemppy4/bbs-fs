@@ -312,6 +312,16 @@ public class UIKeys
     public static final IKey FILM_HISTORY_TITLE = L10n.lang("bbs.ui.film.history-title");
     public static final IKey FILM_INSERT_SPACE_DESCRIPTION = L10n.lang("bbs.ui.film.insert_space-description");
     public static final IKey FILM_INSERT_SPACE_TITLE = L10n.lang("bbs.ui.film.insert_space-title");
+    public static final IKey FILM_MARKERS_ADD = L10n.lang("bbs.ui.film.markers.add");
+    public static final IKey FILM_MARKERS_COLOR = L10n.lang("bbs.ui.film.markers.color");
+    public static final IKey FILM_MARKERS_EDIT = L10n.lang("bbs.ui.film.markers.edit");
+    public static final IKey FILM_MARKERS_KEYS_ADD = L10n.lang("bbs.ui.film.markers.keys.add");
+    public static final IKey FILM_MARKERS_KEYS_NEXT = L10n.lang("bbs.ui.film.markers.keys.next");
+    public static final IKey FILM_MARKERS_KEYS_PREV = L10n.lang("bbs.ui.film.markers.keys.prev");
+    public static final IKey FILM_MARKERS_NAME = L10n.lang("bbs.ui.film.markers.name");
+    public static final IKey FILM_MARKERS_REMOVE = L10n.lang("bbs.ui.film.markers.remove");
+    public static final IKey FILM_MARKERS_TICK = L10n.lang("bbs.ui.film.markers.tick");
+    public static final IKey FILM_MARKERS_TITLE = L10n.lang("bbs.ui.film.markers.title");
     public static final IKey FILM_MOVE_DESCRIPTION = L10n.lang("bbs.ui.film.move-description");
     public static final IKey FILM_MOVE_TITLE = L10n.lang("bbs.ui.film.move-title");
     public static final IKey FILM_MOVE_CONTEXT_FILL = L10n.lang("bbs.ui.film.move.context.fill");

@@ -161,6 +161,8 @@ public class BBSSettings {
 	public static ValueIKDebug ikDebug;
 	public static ValuePhysicsDebug physicsDebug;
 	public static ValueBoolean editorSnapToMarkers;
+	/** Snapping to the film's own markers &mdash; unlike {@link #editorSnapToMarkers}, which is the ruler's notches. */
+	public static ValueBoolean editorSnapToFilmMarkers;
 	public static ValueBoolean editorClipPreview;
 	public static ValueBoolean editorRewind;
 	public static ValueBoolean editorStopPlaybackOnScrub;
@@ -785,6 +787,7 @@ public class BBSSettings {
 		keyframePreview = builder.getBoolean("keyframe_preview", true);
 		editorTrackWidth = builder.getInt("track_width", 2, 1, 10).slider();
 		editorSnapToMarkers = builder.getBoolean("snap_to_markers", false);
+		editorSnapToFilmMarkers = builder.getBoolean("snap_to_film_markers", true);
 		editorRewind = builder.getBoolean("rewind", true);
 		editorStopPlaybackOnScrub = builder.getBoolean("stop_playback_on_scrub", false);
 		editorRestartOnSeek = builder.getBoolean("restart_on_seek", false);

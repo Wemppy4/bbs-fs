@@ -55,6 +55,9 @@ public class Keys
     public static final KeyCombo JUMP_BACKWARD = new KeyCombo("jump_backward", UIKeys.CAMERA_EDITOR_KEYS_EDITOR_JUMP_BACKWARD, GLFW.GLFW_KEY_DOWN).repeatable().categoryKey("camera");
     public static final KeyCombo FADE_IN = new KeyCombo("fade_in", UIKeys.CAMERA_EDITOR_KEYS_EDITOR_FADE_IN, GLFW.GLFW_KEY_COMMA).categoryKey("camera");
     public static final KeyCombo FADE_OUT = new KeyCombo("fade_out", UIKeys.CAMERA_EDITOR_KEYS_EDITOR_FADE_OUT, GLFW.GLFW_KEY_PERIOD).categoryKey("camera");
+    public static final KeyCombo MARKER_ADD = new KeyCombo("marker_add", UIKeys.FILM_MARKERS_KEYS_ADD, GLFW.GLFW_KEY_M, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("camera");
+    public static final KeyCombo MARKER_NEXT = new KeyCombo("marker_next", UIKeys.FILM_MARKERS_KEYS_NEXT, GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_LEFT_CONTROL).repeatable().categoryKey("camera");
+    public static final KeyCombo MARKER_PREV = new KeyCombo("marker_prev", UIKeys.FILM_MARKERS_KEYS_PREV, GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_LEFT_CONTROL).repeatable().categoryKey("camera");
 
     /* Flight mode keybinds */
     public static final KeyCombo FLIGHT_FORWARD = new KeyCombo("flight_forward", UIKeys.CAMERA_FLIGHT_FLIGHT_FORWARD, GLFW.GLFW_KEY_W).categoryKey("flight");

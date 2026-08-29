@@ -2,8 +2,11 @@ package mchorse.bbs_mod.ui.film.utils.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
+import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.markers.FilmMarkers;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.UIClips;
+import mchorse.bbs_mod.ui.film.markers.UIMarkersController;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -15,11 +18,24 @@ public class UIFilmKeyframes extends UIKeyframes
     public IUIClipsDelegate editor;
     public boolean absolute;
 
+    /**
+     * Every film keyframe timeline knows both the film and its own clip offset, so wiring the
+     * markers here covers the replay dope sheet and every nested clip keyframe editor at once.
+     */
+    private final UIMarkersController markers = new UIMarkersController(this::getFilmMarkers);
+
     public UIFilmKeyframes(IUIClipsDelegate delegate, Consumer<Keyframe> callback)
     {
         super(callback);
 
         this.editor = delegate;
+    }
+
+    private FilmMarkers getFilmMarkers()
+    {
+        Film film = this.editor == null ? null : this.editor.getFilm();
+
+        return film == null ? null : film.markers;
     }
 
     public UIFilmKeyframes absolute()
@@ -107,6 +123,8 @@ public class UIFilmKeyframes extends UIKeyframes
         {
             int cx = this.toGraphX(this.getOffset());
             String label = TimeUtils.formatTime(this.getOffset()) + "/" + TimeUtils.formatTime(this.getDuration());
+
+            this.markers.render(context, this.graphArea, this.getXAxis(), (int) this.getClipOffset());
 
             context.batcher.clip(this.graphArea, context);
             UIClips.renderCursor(context, label, this.area, cx - 1);
