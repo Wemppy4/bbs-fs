@@ -3,8 +3,10 @@ package mchorse.bbs_mod.ui.framework.elements.buttons;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.tooltips.ITooltip;
 import mchorse.bbs_mod.ui.framework.tooltips.LabelTooltip;
+import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -89,6 +91,17 @@ public abstract class UIIconStrip <T> extends UIClickable<T>
         }
 
         return Math.max(1, Math.min(CELL, this.area.w / this.items.size()));
+    }
+
+    /**
+     * The strip in a named row, sized to its cells and pinned to the same divider column as the
+     * label rows around it, so a panel of properties keeps one edge. A strip is one question, so
+     * it gets one name rather than a name per cell — which is the whole reason to reach for a
+     * strip instead of a column of toggles.
+     */
+    public UIElement labelRow(IKey label)
+    {
+        return UI.labelRow(label, this.getPreferredWidth(), this);
     }
 
     /**
@@ -219,7 +232,9 @@ public abstract class UIIconStrip <T> extends UIClickable<T>
         public Item(Icon icon, IKey tooltip)
         {
             this.icon = icon;
-            this.tooltip = new LabelTooltip(tooltip, Direction.TOP);
+            /* A cell whose icon says it all takes no tooltip - null, rather than an empty one that
+             * would still open a box under the cursor. */
+            this.tooltip = tooltip == null ? null : new LabelTooltip(tooltip, Direction.TOP);
         }
     }
 }

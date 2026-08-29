@@ -13,7 +13,6 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -122,13 +121,18 @@ public class UISettingsLayout
         @Override
         public List<UIElement> create(UIElement ui)
         {
-            UIIconToggles toggles = new UIIconToggles(this::apply);
+            UIIconToggles toggles = new UIIconToggles(null);
 
             for (int i = 0; i < this.values.size(); i++)
             {
                 ValueBoolean value = this.values.get(i);
 
-                toggles.add(this.icons.get(i), this.tooltip(value), value.get());
+                toggles.add(
+                    this.icons.get(i),
+                    L10n.lang(UIValueFactory.getValueLabelKey(value)),
+                    L10n.lang(UIValueFactory.getValueCommentKey(value)),
+                    () -> value
+                );
             }
 
             toggles.w(toggles.getPreferredWidth());
@@ -141,23 +145,5 @@ public class UISettingsLayout
             return Collections.singletonList(row);
         }
 
-        private void apply(UIIconToggles toggles)
-        {
-            int index = toggles.getLastToggled();
-
-            if (index >= 0 && index < this.values.size())
-            {
-                this.values.get(index).set(toggles.getValue(index));
-            }
-        }
-
-        private IKey tooltip(ValueBoolean value)
-        {
-            return IKey.comp(Arrays.asList(
-                L10n.lang(UIValueFactory.getValueLabelKey(value)),
-                IKey.constant("\n"),
-                L10n.lang(UIValueFactory.getValueCommentKey(value))
-            ));
-        }
     }
 }
