@@ -612,6 +612,8 @@ public class BBSSettings {
 		defaultFilters.add("vY");
 		defaultFilters.add("vZ");
 		defaultFilters.add("grounded");
+		defaultFilters.add("leaning");
+		defaultFilters.add("roll");
 		defaultFilters.add("stick_rx");
 		defaultFilters.add("stick_ry");
 		defaultFilters.add("trigger_l");

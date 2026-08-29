@@ -62,6 +62,24 @@ public interface IEntity
 
     public void setOnGround(boolean ground);
 
+    public boolean isSwimming();
+
+    public void setSwimming(boolean swimming);
+
+    /**
+     * Whether the entity rides something. A replay only writes the fact down - it never mounts
+     * anyone, since the frame already says where the rider is - so this drives the pose and the
+     * animation and nothing else.
+     */
+    public boolean isRiding();
+
+    public void setRiding(boolean riding);
+
+    /** Creative flight, as opposed to {@link #isFallFlying()}, which is an elytra. */
+    public boolean isFlying();
+
+    public void setFlying(boolean flying);
+
     public void swingArm();
 
     public float getHandSwingProgress(float tickDelta);
@@ -152,9 +170,11 @@ public interface IEntity
     {
         this.setForm(entity.getForm());
 
-        this.setSneaking(entity.isSneaking());
-        this.setSprinting(entity.isSprinting());
-        this.setOnGround(entity.isOnGround());
+        for (EntityState state : EntityState.values())
+        {
+            state.set(this, state.get(entity));
+        }
+
         this.setFallDistance(entity.getFallDistance());
         this.setHurtTimer(entity.getHurtTimer());
 
@@ -196,13 +216,28 @@ public interface IEntity
 
     public float getLeaningPitch(float tickDelta);
 
+    /**
+     * How far the body has leant into a swim, 0 to 1.
+     *
+     * <p>Vanilla grows this a step per tick while the entity is in a swimming pose. A replay
+     * can't do that: a timeline is random access, and anything a playback accumulates tick by
+     * tick is wrong the moment someone scrubs to the middle of a swim. So the lean is recorded
+     * as a value of its own and handed back here.</p>
+     */
+    public void setLeaningPitch(float leaningPitch);
+
     public boolean isTouchingWater();
 
     public EntityPose getEntityPose();
 
     public int getRoll();
 
+    /** Ticks of roll, which ramps the elytra's dive and spins a riptide. Recorded, not counted. */
+    public void setRoll(int roll);
+
     public boolean isFallFlying();
+
+    public void setFallFlying(boolean fallFlying);
 
     public Vec3d getRotationVec(float transition);
 

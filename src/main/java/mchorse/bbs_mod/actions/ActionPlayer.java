@@ -7,9 +7,12 @@ import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.forms.entities.EntityState;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.mixin.EntityInvoker;
+import mchorse.bbs_mod.mixin.LivingEntityRollAccessor;
 import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
@@ -251,12 +254,28 @@ public class ActionPlayer
         actor.setHeadYaw(yawHead);
         actor.setPitch(pitch);
         actor.setBodyYaw(yawBody);
-        actor.setSneaking(replay.keyframes.sneaking.interpolate(tick) > 0);
+        boolean sneaking = EntityState.isOn(replay.keyframes.state(EntityState.SNEAKING).interpolate(tick));
+        boolean swimming = EntityState.isOn(replay.keyframes.state(EntityState.SWIMMING).interpolate(tick));
+        boolean gliding = EntityState.isOn(replay.keyframes.state(EntityState.GLIDING).interpolate(tick));
+
+        actor.setSneaking(sneaking);
         actor.setOnGround(grounded);
 
         /* The sprinting flag is tracked data, so setting it here is what makes the
-         * client spawn vanilla's sprinting particles for this actor */
-        actor.setSprinting(replay.keyframes.sprinting.interpolate(tick) > 0);
+         * client spawn vanilla's sprinting particles for this actor. Swimming and gliding are
+         * the same kind of thing: the flag is what spreads the elytra's wings and lays the body
+         * flat on every client watching, and neither would happen from the frame alone. */
+        actor.setSprinting(EntityState.isOn(replay.keyframes.state(EntityState.SPRINTING).interpolate(tick)));
+        actor.setSwimming(swimming);
+        ((EntityInvoker) actor).bbs$setFlag(EntityState.FALL_FLYING_FLAG, gliding);
+        actor.setPose(EntityState.pose(gliding, swimming, sneaking));
+
+        /* Vanilla counts the roll up while flying, and an actor is placed rather than flown, so
+         * the recorded count is handed over - it's what ramps the elytra's dive. */
+        ((LivingEntityRollAccessor) actor).bbs$setRoll(replay.keyframes.roll.interpolate(tick).intValue());
+
+        /* Riding and creative flight are recorded but not written here: a replay doesn't mount
+         * anyone, and flight is a permission on a real player. Both only pick an animation. */
 
         if (actor instanceof ServerPlayerEntity player)
         {

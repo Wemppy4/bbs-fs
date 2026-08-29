@@ -85,6 +85,7 @@ public class MotionPath
      * always-applied actions don't perturb the sampled bone path. */
     private static final String[] ACTION_KEYS = {
         "idle", "running", "sprinting", "crouching", "crouching_idle", "dying", "falling",
+        "swimming", "swimming_idle", "riding", "riding_idle", "flying", "flying_idle",
         "swipe", "jump", "jump_alt", "hurt", "land", "shoot", "consume", "base_pre", "base_post"
     };
 

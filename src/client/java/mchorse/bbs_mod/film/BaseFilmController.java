@@ -18,12 +18,15 @@ import mchorse.bbs_mod.film.replays.tracks.TrackBehaviour;
 import mchorse.bbs_mod.film.replays.tracks.TrackBehaviours;
 import mchorse.bbs_mod.film.replays.tracks.TrackContext;
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.forms.entities.EntityState;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.mixin.EntityInvoker;
+import mchorse.bbs_mod.mixin.LivingEntityRollAccessor;
 import mchorse.bbs_mod.mixin.client.ClientPlayerEntityAccessor;
 import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.utils.CollectionUtils;
@@ -245,8 +248,10 @@ public abstract class BaseFilmController
                             double x = replay.keyframes.x.interpolate(replayTicks);
                             double y = replay.keyframes.y.interpolate(replayTicks);
                             double z = replay.keyframes.z.interpolate(replayTicks);
-                            boolean sneaking = replay.keyframes.sneaking.interpolate(replayTicks) > 0;
-                            boolean grounded = replay.keyframes.grounded.interpolate(replayTicks) > 0;
+                            boolean sneaking = EntityState.isOn(replay.keyframes.state(EntityState.SNEAKING).interpolate(replayTicks));
+                            boolean grounded = EntityState.isOn(replay.keyframes.state(EntityState.GROUNDED).interpolate(replayTicks));
+                            boolean swimming = EntityState.isOn(replay.keyframes.state(EntityState.SWIMMING).interpolate(replayTicks));
+                            boolean gliding = EntityState.isOn(replay.keyframes.state(EntityState.GLIDING).interpolate(replayTicks));
 
                             Vec3d pos = player.getPos();
 
@@ -263,7 +268,14 @@ public abstract class BaseFilmController
                             /* The player's own tick overwrites this from the input every tick, but
                              * baseTick (which spawns the sprinting particles) runs before it, so a
                              * value written at the end of the world tick is the one vanilla sees. */
-                            player.setSprinting(replay.keyframes.sprinting.interpolate(replayTicks) > 0);
+                            player.setSprinting(EntityState.isOn(replay.keyframes.state(EntityState.SPRINTING).interpolate(replayTicks)));
+
+                            /* Same window, same reason: written at the end of the world tick so
+                             * the player's own tick doesn't get to overwrite them first. */
+                            player.setSwimming(swimming);
+                            ((EntityInvoker) player).bbs$setFlag(EntityState.FALL_FLYING_FLAG, gliding);
+                            player.setPose(EntityState.pose(gliding, swimming, sneaking));
+                            ((LivingEntityRollAccessor) player).bbs$setRoll(replay.keyframes.roll.interpolate(replayTicks).intValue());
 
                             /* First person teleports the player from keyframes instead of walking it, so vanilla's
                              * stride distance (the view-bobbing amplitude) is computed from a zero velocity and stays

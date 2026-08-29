@@ -23,6 +23,16 @@ import java.util.List;
 
 public class ProceduralAnimator implements IAnimator
 {
+    /**
+     * {@code BipedEntityModel.setAngles}' riding block, in vanilla's own terms - radians and
+     * vanilla's signs - off the 1.20.4 bytecode, the same way the arm poses were taken. Each
+     * rig converts them into its own units and directions where they're applied.
+     */
+    private static final float RIDING_ARM_PITCH = -0.62831855F;
+    private static final float RIDING_LEG_PITCH = -1.4137167F;
+    private static final float RIDING_LEG_YAW = 0.31415927F;
+    private static final float RIDING_LEG_ROLL = 0.07853982F;
+
     public ActionPlayback basePre;
     public ActionPlayback basePost;
 
@@ -164,6 +174,8 @@ public class ProceduralAnimator implements IAnimator
         {
             ModelGroup leftArm = null;
             ModelGroup rightArm = null;
+            ModelGroup leftLeg = null;
+            ModelGroup rightLeg = null;
             ModelGroup torso = null;
             ModelGroup headGroup = null;
 
@@ -258,10 +270,37 @@ public class ProceduralAnimator implements IAnimator
                 else if (group.id.equals("right_leg"))
                 {
                     group.current.rotate.x = MathUtils.toDeg(MathHelper.cos(limbPhase * 0.6662F + 3.1415927F) * 1.4F * limbSpeed / coefficient);
+
+                    rightLeg = group;
                 }
                 else if (group.id.equals("left_leg"))
                 {
                     group.current.rotate.x = MathUtils.toDeg(MathHelper.cos(limbPhase * 0.6662F) * 1.4F * limbSpeed / coefficient);
+
+                    leftLeg = group;
+                }
+            }
+
+            /* Vanilla seats a rider right here, after the base angles and before the arms are
+             * posed: hips up, knees apart, arms dropped. Cubic bones are degrees and read
+             * x = -pitch, y = -yaw, z = +roll. */
+            if (target.isRiding())
+            {
+                if (rightArm != null) rightArm.current.rotate.x += -MathUtils.toDeg(RIDING_ARM_PITCH);
+                if (leftArm != null) leftArm.current.rotate.x += -MathUtils.toDeg(RIDING_ARM_PITCH);
+
+                if (rightLeg != null)
+                {
+                    rightLeg.current.rotate.x = -MathUtils.toDeg(RIDING_LEG_PITCH);
+                    rightLeg.current.rotate.y = -MathUtils.toDeg(RIDING_LEG_YAW);
+                    rightLeg.current.rotate.z = MathUtils.toDeg(RIDING_LEG_ROLL);
+                }
+
+                if (leftLeg != null)
+                {
+                    leftLeg.current.rotate.x = -MathUtils.toDeg(RIDING_LEG_PITCH);
+                    leftLeg.current.rotate.y = MathUtils.toDeg(RIDING_LEG_YAW);
+                    leftLeg.current.rotate.z = -MathUtils.toDeg(RIDING_LEG_ROLL);
                 }
             }
 
@@ -322,6 +361,8 @@ public class ProceduralAnimator implements IAnimator
         {
             BOBJBone bobjLeftArm = null;
             BOBJBone bobjRightArm = null;
+            BOBJBone bobjLeftLeg = null;
+            BOBJBone bobjRightLeg = null;
             BOBJBone bobjHead = null;
 
             for (BOBJBone bone : model.getAllBOBJBones())
@@ -409,10 +450,36 @@ public class ProceduralAnimator implements IAnimator
                 else if (bone.name.equals("right_leg"))
                 {
                     bone.transform.rotate.x = MathHelper.cos(limbPhase * 0.6662F + 3.1415927F) * 1.4F * limbSpeed / coefficient;
+
+                    bobjRightLeg = bone;
                 }
                 else if (bone.name.equals("left_leg"))
                 {
                     bone.transform.rotate.x = MathHelper.cos(limbPhase * 0.6662F) * 1.4F * limbSpeed / coefficient;
+
+                    bobjLeftLeg = bone;
+                }
+            }
+
+            /* Same seat for BOBJ rigs: already radians, and their limbs read x = -pitch,
+             * y = +yaw, z = -roll (the arm bob above writes them that way). */
+            if (target.isRiding())
+            {
+                if (bobjRightArm != null) bobjRightArm.transform.rotate.x += -RIDING_ARM_PITCH;
+                if (bobjLeftArm != null) bobjLeftArm.transform.rotate.x += -RIDING_ARM_PITCH;
+
+                if (bobjRightLeg != null)
+                {
+                    bobjRightLeg.transform.rotate.x = -RIDING_LEG_PITCH;
+                    bobjRightLeg.transform.rotate.y = RIDING_LEG_YAW;
+                    bobjRightLeg.transform.rotate.z = -RIDING_LEG_ROLL;
+                }
+
+                if (bobjLeftLeg != null)
+                {
+                    bobjLeftLeg.transform.rotate.x = -RIDING_LEG_PITCH;
+                    bobjLeftLeg.transform.rotate.y = -RIDING_LEG_YAW;
+                    bobjLeftLeg.transform.rotate.z = RIDING_LEG_ROLL;
                 }
             }
 
