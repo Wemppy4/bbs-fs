@@ -1853,6 +1853,7 @@
 	"bbs.ui.transforms.translate": "Перемещение",
 	"bbs.ui.transforms.uniform_scale": "Переключить равномерный масштаб",
 	"bbs.ui.upload": "Загрузить",
+	"bbs.ui.value.reset": "Сбросить значение",
 	"bbs.ui.video_settings.height": "Высота",
 	"bbs.ui.video_settings.presets.shorts_1080p": "1080p для Шортсов (1080x1920 - 60 FPS)",
 	"bbs.ui.video_settings.resolution": "Разрешение кадра",

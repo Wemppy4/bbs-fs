@@ -1866,6 +1866,7 @@
 	"bbs.ui.transforms.translate": "Translate",
 	"bbs.ui.transforms.uniform_scale": "Toggle uniform scale",
 	"bbs.ui.upload": "Upload",
+	"bbs.ui.value.reset": "Reset value",
 	"bbs.ui.video_settings.height": "Height",
 	"bbs.ui.video_settings.presets.1080p": "1080p (1920x1080 - 60 FPS)",
 	"bbs.ui.video_settings.presets.1440p": "1440p (2560x1440 - 60 FPS)",
