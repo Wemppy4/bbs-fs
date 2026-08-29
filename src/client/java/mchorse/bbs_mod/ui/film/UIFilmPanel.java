@@ -1533,6 +1533,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             else
             {
                 this.lastPosition.set(Position.ZERO);
+                this.dashboard.orbit.apply(this.position);
             }
 
             this.runner.setManual(flight ? this.position : null);
