@@ -15,6 +15,30 @@ public abstract class BaseValueGroup extends BaseValue
 
     public abstract BaseValue get(String key);
 
+    /** A group has no value of its own — resetting one resets everything under it. */
+    @Override
+    public void reset()
+    {
+        for (BaseValue value : this.getAll())
+        {
+            value.reset();
+        }
+    }
+
+    @Override
+    public boolean isDefault()
+    {
+        for (BaseValue value : this.getAll())
+        {
+            if (!value.isDefault())
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public BaseValue findRecursively(DataPath path)
     {
         BaseValue value = this.get(path.size() <= 0 ? "" : path.strings.get(0));

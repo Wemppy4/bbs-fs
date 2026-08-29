@@ -25,4 +25,10 @@ public class ValuePlacement extends BaseValueBasic<Placement>
         placement.fromData(data);
         this.value = placement;
     }
+
+    @Override
+    protected Placement copyValue(Placement value)
+    {
+        return value == null ? null : value.copy();
+    }
 }

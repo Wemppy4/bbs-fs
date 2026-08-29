@@ -70,9 +70,10 @@ public class ValueOrder extends BaseValueBasic<List<String>>
         return this.colors != null && index >= 0 && index < this.colors.length ? this.colors[index] : 0;
     }
 
-    public void reset()
+    @Override
+    protected List<String> copyValue(List<String> value)
     {
-        this.set(new ArrayList<>(this.tokens));
+        return value == null ? null : new ArrayList<>(value);
     }
 
     @Override

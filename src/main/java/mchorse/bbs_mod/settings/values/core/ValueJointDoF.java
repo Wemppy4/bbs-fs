@@ -30,4 +30,10 @@ public class ValueJointDoF extends BaseValueBasic<JointDoF>
 
         this.value = joint;
     }
+
+    @Override
+    protected JointDoF copyValue(JointDoF value)
+    {
+        return value == null ? null : value.copy();
+    }
 }

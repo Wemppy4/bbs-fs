@@ -30,4 +30,10 @@ public class ValueBonePhysics extends BaseValueBasic<PhysicsControl>
 
         this.value = control;
     }
+
+    @Override
+    protected PhysicsControl copyValue(PhysicsControl value)
+    {
+        return value == null ? null : value.copy();
+    }
 }
