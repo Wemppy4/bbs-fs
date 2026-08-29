@@ -1495,6 +1495,10 @@ public class UIKeys
     public static final IKey TRANSFORMS_KEYS_ROTATION_MODE = L10n.lang("bbs.ui.transforms.keys.rotation_mode");
     public static final IKey TRANSFORMS_ROTATE = L10n.lang("bbs.ui.transforms.rotate");
     public static final IKey TRANSFORMS_ROTATE2 = L10n.lang("bbs.ui.transforms.rotate2");
+    public static final IKey INHERIT_POSITION = L10n.lang("bbs.ui.inherit.position");
+    public static final IKey INHERIT_ROTATION = L10n.lang("bbs.ui.inherit.rotation");
+    public static final IKey INHERIT_SCALE = L10n.lang("bbs.ui.inherit.scale");
+    public static final IKey INHERIT_TITLE = L10n.lang("bbs.ui.inherit.title");
     public static final IKey TRANSFORMS_SCALE = L10n.lang("bbs.ui.transforms.scale");
     public static final IKey TRANSFORMS_TRANSLATE = L10n.lang("bbs.ui.transforms.translate");
     public static final IKey TRANSFORMS_UNIFORM_SCALE = L10n.lang("bbs.ui.transforms.uniform_scale");

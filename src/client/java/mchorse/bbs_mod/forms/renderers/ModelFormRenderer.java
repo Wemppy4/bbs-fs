@@ -837,7 +837,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         for (BodyPart part : this.form.parts.getAllTyped())
         {
-            Matrix4f matrix = this.bones.get(part.bone.get()).matrix();
+            Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
 
             context.stack.push();
             if (context.world != null)
@@ -940,7 +940,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             if (form != null)
             {
-                Matrix4f matrix = this.bones.get(part.bone.get()).matrix();
+                Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
 
                 stack.push();
 

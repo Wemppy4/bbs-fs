@@ -146,25 +146,12 @@ public class FilmMatrices
                 {
                     basic.mul(matrix);
 
-                    if (!fullMatrix && anchor.scale)
+                    /* The full matrix is the target's frame as it is — the gizmo's parent and the
+                     * drag's world space are about where the target actually is, not about which
+                     * components of it this anchor chose to ride. */
+                    if (!fullMatrix)
                     {
-                        Matrix3f mat = new Matrix3f();
-                        Vector3f v = new Vector3f();
-                        basic.get3x3(mat);
-
-                        mat.getColumn(0, v); v.normalize(); mat.setColumn(0, v);
-                        mat.getColumn(1, v); v.normalize(); mat.setColumn(1, v);
-                        mat.getColumn(2, v); v.normalize(); mat.setColumn(2, v);
-
-                        basic.set3x3(mat);
-                    }
-
-                    if (!fullMatrix && anchor.translate)
-                    {
-                        Vector3f t = new Vector3f();
-                        basic.getTranslation(t);
-                        basic.set(defaultMatrix);
-                        basic.setTranslation(t);
+                        basic = anchor.filterMatrix(basic, defaultMatrix);
                     }
                 }
 

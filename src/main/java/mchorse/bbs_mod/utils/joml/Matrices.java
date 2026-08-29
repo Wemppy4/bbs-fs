@@ -30,6 +30,56 @@ public class Matrices
     private static final Vector3f lerpVa = new Vector3f();
     private static final Vector3f lerpVb = new Vector3f();
 
+    /**
+     * Build a matrix taking each component of a transform from whichever matrix is named for it.
+     * Passing the same matrix three times reproduces it; naming a second one for a component makes
+     * that component come from there instead — which is how an attachment drops a part of the frame
+     * it hangs off (a form that follows a bone's position without turning with it, an anchor that
+     * ignores its target's scale) and falls back to the frame it would have had without it.
+     *
+     * <p>Rotation and scale are separated by column: the direction of a column is the rotation, its
+     * length is the scale. A column with no length left has no direction to keep either, so the axis
+     * is restored instead of normalized — normalizing it would put NaN in the matrix and everything
+     * drawn under it would vanish.</p>
+     */
+    public static Matrix4f compose(Matrix4f position, Matrix4f rotation, Matrix4f scale)
+    {
+        Matrix3f basis = new Matrix3f();
+
+        if (rotation == scale)
+        {
+            rotation.get3x3(basis);
+        }
+        else
+        {
+            Matrix3f rotationBasis = rotation.get3x3(new Matrix3f());
+            Matrix3f scaleBasis = scale.get3x3(new Matrix3f());
+            Vector3f axis = new Vector3f();
+            Vector3f other = new Vector3f();
+
+            for (int i = 0; i < 3; i++)
+            {
+                rotationBasis.getColumn(i, axis);
+                scaleBasis.getColumn(i, other);
+
+                float length = axis.length();
+
+                if (length < 1E-6F)
+                {
+                    axis.set(i == 0 ? 1F : 0F, i == 1 ? 1F : 0F, i == 2 ? 1F : 0F);
+                }
+                else
+                {
+                    axis.mul(other.length() / length);
+                }
+
+                basis.setColumn(i, axis);
+            }
+        }
+
+        return new Matrix4f().set(basis).setTranslation(position.getTranslation(new Vector3f()));
+    }
+
     public static Vector3f rotate(Vector3f vector, float pitch, float yaw)
     {
         rotation.identity();

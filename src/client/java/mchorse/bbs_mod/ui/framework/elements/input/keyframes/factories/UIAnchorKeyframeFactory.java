@@ -12,7 +12,7 @@ import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIconToggles;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -31,8 +31,7 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
 {
     private UIButton actor;
     private UIButton attachment;
-    private UIToggle translate;
-    private UIToggle scale;
+    private UIIconToggles inherit;
     public UIPropTransform transform;
 
     /**
@@ -102,15 +101,18 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         {
             displayAttachments(this.getPanel(), this.keyframe.getValue().replay, this.keyframe.getValue().attachment, this::setAttachment);
         });
-        this.translate = new UIToggle(UIKeys.TRANSFORMS_TRANSLATE, (b) -> this.setTranslate(b.getValue()));
-        this.translate.setValue(keyframe.getValue().translate);
-        this.scale = new UIToggle(UIKeys.TRANSFORMS_SCALE, (b) -> this.setScale(b.getValue()));
-        this.scale.setValue(keyframe.getValue().scale);
+        /* Which components of the target's frame the form rides, as one strip: the same three icons
+         * the gizmo and the body part editor use for the same three ideas. The anchor's flags are
+         * plain fields rather than values, so the cells are bound by getter and setter. */
+        this.inherit = new UIIconToggles(null)
+            .add(Icons.ALL_DIRECTIONS, UIKeys.INHERIT_POSITION, () -> this.keyframe.getValue().inheritPosition, (v) -> this.edit((anchor) -> anchor.inheritPosition = v))
+            .add(Icons.ORBIT, UIKeys.INHERIT_ROTATION, () -> this.keyframe.getValue().inheritRotation, (v) -> this.edit((anchor) -> anchor.inheritRotation = v))
+            .add(Icons.SCALE, UIKeys.INHERIT_SCALE, () -> this.keyframe.getValue().inheritScale, (v) -> this.edit((anchor) -> anchor.inheritScale = v));
         this.transform = new UIAnchorTransforms(this);
         this.transform.enableHotkeys();
         this.transform.setTransform(keyframe.getValue().transform);
 
-        this.scroll.add(this.actor, this.attachment, this.translate, this.scale, this.transform);
+        this.scroll.add(this.actor, this.attachment, this.inherit.labelRow(UIKeys.INHERIT_TITLE), this.transform);
     }
 
     private void displayActors()
@@ -130,14 +132,9 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         BaseValue.edit(this.keyframe, (value) -> value.getValue().attachment = attachment);
     }
 
-    private void setTranslate(boolean translate)
+    private void edit(Consumer<Anchor> consumer)
     {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().translate = translate);
-    }
-
-    private void setScale(boolean scale)
-    {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().scale = scale);
+        BaseValue.edit(this.keyframe, (keyframe) -> consumer.accept(keyframe.getValue()));
     }
 
     private UIFilmPanel getPanel()
