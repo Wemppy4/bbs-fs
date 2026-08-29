@@ -60,4 +60,10 @@ public class ValueFloat extends BaseValueNumber<Float>
     {
         return Float.toString(this.value);
     }
+
+    @Override
+    public void setNumber(double value)
+    {
+        this.set((float) value);
+    }
 }

@@ -1,9 +1,19 @@
 package mchorse.bbs_mod.ui.utils.values;
 
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.settings.values.base.BaseValueNumber;
+import mchorse.bbs_mod.settings.values.core.ValueColor;
+import mchorse.bbs_mod.settings.values.core.ValueString;
+import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
+import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.colors.Color;
 
 import java.util.function.Supplier;
 
@@ -50,5 +60,42 @@ public class UIValues
         });
 
         return element;
+    }
+
+    /* Widgets bound to a value */
+
+    /**
+     * A numeric field writing straight into the value it is pointed at. Range,
+     * step and the rest stay the caller's business — chain them onto the field
+     * as before.
+     */
+    public static UITrackpad trackpad(Supplier<? extends BaseValueNumber<?>> value)
+    {
+        UITrackpad trackpad = new UITrackpad(null);
+
+        trackpad.callback = (v) -> value.get().setNumber(v);
+
+        return resettable(trackpad, value, () -> trackpad.setValue(value.get().get().doubleValue()));
+    }
+
+    public static UIToggle toggle(IKey label, Supplier<ValueBoolean> value)
+    {
+        UIToggle toggle = new UIToggle(label, false, (b) -> value.get().set(b.getValue()));
+
+        return resettable(toggle, value, () -> toggle.setValue(value.get().get()));
+    }
+
+    public static UIColor color(Supplier<ValueColor> value)
+    {
+        UIColor color = new UIColor((v) -> value.get().set(Color.rgba(v)));
+
+        return resettable(color, value, () -> color.setColor(value.get().get().getARGBColor()));
+    }
+
+    public static UITextbox textbox(Supplier<ValueString> value)
+    {
+        UITextbox textbox = new UITextbox((s) -> value.get().set(s));
+
+        return resettable(textbox, value, () -> textbox.setText(value.get().get()));
     }
 }
