@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film.clips.actions;
 
 import mchorse.bbs_mod.actions.types.ActionClip;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.UIClip;
@@ -48,7 +49,19 @@ public abstract class UIActionClip <T extends ActionClip> extends UIClip<T>
     protected void addEnvelopes()
     {}
 
-    protected void addBlockPositionContext(UITrackpad x, UITrackpad y, UITrackpad z, IntSupplier getX, IntSupplier getY, IntSupplier getZ, IntConsumer setX, IntConsumer setY, IntConsumer setZ)
+    /** Hang the copy/paste/from-look verbs on a block action's three coordinate fields. */
+    protected void addBlockPositionContext(UITrackpad x, UITrackpad y, UITrackpad z, ValueInt vx, ValueInt vy, ValueInt vz)
+    {
+        this.addBlockPositionContext(
+            x, y, z,
+            vx::get, vy::get, vz::get,
+            (value) -> this.editor.editMultiple(vx, (v) -> v.set(value)),
+            (value) -> this.editor.editMultiple(vy, (v) -> v.set(value)),
+            (value) -> this.editor.editMultiple(vz, (v) -> v.set(value))
+        );
+    }
+
+    private void addBlockPositionContext(UITrackpad x, UITrackpad y, UITrackpad z, IntSupplier getX, IntSupplier getY, IntSupplier getZ, IntConsumer setX, IntConsumer setY, IntConsumer setZ)
     {
         x.context((menu) -> this.populateBlockPositionContext(menu, getX, getY, getZ, setX, setY, setZ));
         y.context((menu) -> this.populateBlockPositionContext(menu, getX, getY, getZ, setX, setY, setZ));

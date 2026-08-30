@@ -293,7 +293,10 @@ public interface IUIKeyframeGraph
     public default void onCallback(Keyframe keyframe)
     {}
 
-    public void pickKeyframe(Keyframe keyframe);
+    public default void pickKeyframe(Keyframe keyframe)
+    {
+        this.getKeyframes().pickKeyframe(keyframe);
+    }
 
     public void selectKeyframe(Keyframe keyframe);
 

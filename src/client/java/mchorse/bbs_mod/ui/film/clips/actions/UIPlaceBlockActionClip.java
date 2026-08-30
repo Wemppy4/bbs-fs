@@ -34,13 +34,7 @@ public class UIPlaceBlockActionClip extends UIActionClip<PlaceBlockActionClip>
             () -> this.blockState.setBlockState(this.clip.state.get())
         );
 
-        this.addBlockPositionContext(
-            this.x, this.y, this.z,
-            () -> this.clip.x.get(), () -> this.clip.y.get(), () -> this.clip.z.get(),
-            (value) -> this.editor.editMultiple(this.clip.x, (x) -> x.set(value)),
-            (value) -> this.editor.editMultiple(this.clip.y, (y) -> y.set(value)),
-            (value) -> this.editor.editMultiple(this.clip.z, (z) -> z.set(value))
-        );
+        this.addBlockPositionContext(this.x, this.y, this.z, this.clip.x, this.clip.y, this.clip.z);
     }
 
     @Override

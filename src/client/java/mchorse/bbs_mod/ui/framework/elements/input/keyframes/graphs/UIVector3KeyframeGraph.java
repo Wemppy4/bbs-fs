@@ -14,7 +14,6 @@ import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
-import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import net.minecraft.client.render.BufferBuilder;
@@ -38,49 +37,23 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
         super(keyframes, sheet);
     }
 
+    /* The vertical range covers all three axes at once: they share one graph, so the view has to
+     * hold the lowest and the highest of them, not of any single one. */
+
     @Override
-    public void resetViewY(UIKeyframeSheet current)
+    protected double lowestValue(Keyframe frame, int index)
     {
-        this.yAxis.set(0, 2);
+        Vector3f v = (Vector3f) frame.getValue();
 
-        KeyframeChannel channel = current.channel;
-        List<Keyframe> keyframes = channel.getKeyframes();
-        int c = keyframes.size();
+        return Math.min(v.x, Math.min(v.y, v.z));
+    }
 
-        double minY = Double.POSITIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
+    @Override
+    protected double highestValue(Keyframe frame, int index)
+    {
+        Vector3f v = (Vector3f) frame.getValue();
 
-        if (c > 1)
-        {
-            for (int i = 0; i < c; i++)
-            {
-                Vector3f v = (Vector3f) keyframes.get(i).getValue();
-
-                minY = Math.min(minY, Math.min(v.x, Math.min(v.y, v.z)));
-                maxY = Math.max(maxY, Math.max(v.x, Math.max(v.y, v.z)));
-            }
-        }
-        else
-        {
-            minY = -10;
-            maxY = 10;
-
-            if (c == 1)
-            {
-                Vector3f v = (Vector3f) channel.get(0).getValue();
-                minY = maxY = v.x;
-            }
-        }
-
-        if (Math.abs(maxY - minY) < 0.01F)
-        {
-            this.yAxis.setShift(minY);
-            this.yAxis.anchor(0.5F);
-        }
-        else
-        {
-            this.yAxis.viewOffset(minY, maxY, this.keyframes.area.h, 30);
-        }
+        return Math.max(v.x, Math.max(v.y, v.z));
     }
 
     @Override

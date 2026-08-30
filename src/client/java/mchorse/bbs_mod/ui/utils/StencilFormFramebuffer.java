@@ -1,6 +1,9 @@
 package mchorse.bbs_mod.ui.utils;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.Renderbuffer;
@@ -9,6 +12,9 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.colors.Colors;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -32,6 +38,37 @@ public class StencilFormFramebuffer
     public Framebuffer getFramebuffer()
     {
         return this.framebuffer;
+    }
+
+    /**
+     * Draw the stencil buffer over the area with the picked form lit up: the preview shader is
+     * told which index it is looking for and what colour to paint it, and the buffer is drawn
+     * flipped, the way it was rendered.
+     */
+    public void renderPreview(UIContext context, Area area)
+    {
+        Texture texture = this.getFramebuffer().getMainTexture();
+        ShaderProgram program = BBSShaders.getPickerPreviewProgram();
+        GlUniform target = program.getUniform("Target");
+
+        if (target != null)
+        {
+            target.set(this.getIndex());
+        }
+
+        GlUniform highlight = program.getUniform("HighlightColor");
+
+        if (highlight != null)
+        {
+            int color = BBSSettings.stencilHighlightColor.get();
+
+            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+        }
+
+        RenderSystem.enableBlend();
+        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE,
+            area.x, area.y, area.w, area.h,
+            0, texture.height, texture.width, 0, texture.width, texture.height);
     }
 
     public int getIndex()
