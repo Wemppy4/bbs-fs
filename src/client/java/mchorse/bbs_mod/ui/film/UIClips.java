@@ -2046,6 +2046,14 @@ public class UIClips extends UIElement
             IUIClipRenderer renderer = this.renderers.get(clip);
 
             Area clipArea = this.getClipArea(clip, CLIP_AREA, h);
+
+            /* A clip fully off the visible span was drawn anyway and only hidden by the
+             * scissor after all its work was done. The margin keeps edge handles alive. */
+            if (clipArea.ex() < area.x - 20 || clipArea.x > area.ex() + 20)
+            {
+                continue;
+            }
+
             boolean selected = this.hasSelected(i);
 
             if (!this.hasEmbeddedView())

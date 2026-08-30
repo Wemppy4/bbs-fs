@@ -70,6 +70,9 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     /** Half-size of a summary square, matching the footprint of the keyframes it stands for. */
     private static final int SUMMARY_MARK_SIZE = 3;
 
+    /** Horizontal cull slack: wider than any keyframe shape's radius, so edge keyframes draw whole. */
+    private static final int CULL_MARGIN = 20;
+
     private UIKeyframes keyframes;
 
     /** Every row, parents before their children — the order the catalog handed them over in. */
@@ -1205,6 +1208,12 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
         builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 
+        /* Keyframes sorted by tick map to ascending X, so everything left of the view is
+         * skipped and the first frame past the right edge ends the loop. The margin covers a
+         * shape's visual radius, so a keyframe half over the edge still draws whole. */
+        int cullMinX = area.x - CULL_MARGIN;
+        int cullMaxX = area.ex() + CULL_MARGIN;
+
         /* Render bars indicating same values */
         for (int j = 1; j < keyframes.size(); j++)
         {
@@ -1213,6 +1222,16 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             int c = Colors.setA(sheet.color, TRACK_BAR_ALPHA);
             int xx = this.keyframes.toGraphX(previous.getTick());
             int xxx = this.keyframes.toGraphX(frame.getTick());
+
+            if (xxx < cullMinX)
+            {
+                continue;
+            }
+
+            if (xx > cullMaxX)
+            {
+                break;
+            }
 
             if (previous.getFactory().compare(previous.getValue(), frame.getValue()))
             {
@@ -1238,6 +1257,22 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             float tick = frame.getTick();
             int x1 = this.keyframes.toGraphX(tick);
             int x2 = this.keyframes.toGraphX(tick + frame.getDuration());
+
+            if (x1 > cullMaxX)
+            {
+                break;
+            }
+
+            if (Math.max(x1, x2) < cullMinX)
+            {
+                /* Keep the duration markers' zigzag parity stable as offscreen ones scroll out. */
+                if (x1 != x2)
+                {
+                    forcedIndex += 1;
+                }
+
+                continue;
+            }
 
             /* Render custom duration markers */
             if (x1 != x2)
@@ -1278,6 +1313,17 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         {
             Keyframe frame = (Keyframe) keyframes.get(j);
             int mx = this.keyframes.toGraphX(frame.getTick());
+
+            if (mx < cullMinX)
+            {
+                continue;
+            }
+
+            if (mx > cullMaxX)
+            {
+                break;
+            }
+
             int mc = keyframeCoreColor(frame, sheet, sheet.selection.has(j));
             IKeyframeShapeRenderer shapeResult = renderShape(frame, context, builder, matrix, mx, my, 2, mc);
 
@@ -1363,6 +1409,8 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         List keyframes = sheet.channel.getKeyframes();
         int my = y + height / 2;
         int forcedIndex = 0;
+        int cullMinX = area.x - CULL_MARGIN;
+        int cullMaxX = area.ex() + CULL_MARGIN;
 
         for (int j = 0; j < keyframes.size(); j++)
         {
@@ -1370,6 +1418,16 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             float tick = frame.getTick();
             int x1 = this.keyframes.toGraphX(tick);
             int x2 = this.keyframes.toGraphX(tick + frame.getDuration());
+
+            if (x1 > cullMaxX)
+            {
+                break;
+            }
+
+            if (Math.max(x1, x2) < cullMinX)
+            {
+                continue;
+            }
 
             if (x1 != x2)
             {
@@ -1401,6 +1459,17 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         {
             Keyframe frame = (Keyframe) keyframes.get(j);
             int mx = this.keyframes.toGraphX(frame.getTick());
+
+            if (mx < cullMinX)
+            {
+                continue;
+            }
+
+            if (mx > cullMaxX)
+            {
+                break;
+            }
+
             int mc = keyframeCoreColor(frame, sheet, sheet.selection.has(j));
             IKeyframeShapeRenderer shapeResult = renderShape(frame, context, builder, matrix, mx, my, 2, mc);
 

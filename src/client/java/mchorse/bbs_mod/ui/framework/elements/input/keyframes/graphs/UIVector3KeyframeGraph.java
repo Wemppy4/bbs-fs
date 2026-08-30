@@ -157,7 +157,7 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
 
             if (prev != null)
             {
-                this.renderInterpolation(lineBuilder, segment, prev, frame, x, axis);
+                this.renderInterpolation(lineBuilder, segment, prev, frame, x, axis, i - 1);
             }
 
             lineBuilder.add(x, y);
@@ -173,7 +173,7 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
         lineBuilder.render(context.batcher, SolidColorLineRenderer.get(Colors.COLOR.set(AXIS_COLORS[axis] | Colors.A100)));
     }
 
-    private void renderInterpolation(LineBuilder lineBuilder, KeyframeSegment segment, Keyframe prev, Keyframe frame, int x, int axis)
+    private void renderInterpolation(LineBuilder lineBuilder, KeyframeSegment segment, Keyframe prev, Keyframe frame, int x, int axis, int prevIndex)
     {
         IInterp interp = prev.getInterpolation().getInterp();
         int px = this.keyframes.toGraphX(prev.getTick());
@@ -186,13 +186,23 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
         }
         else if (interp != Interpolations.LINEAR)
         {
-            float steps = 50F;
+            /* See UIKeyframeGraph#renderGraph: no sampling offscreen, one sample per pixel. */
+            boolean visible = Math.max(px, x) >= this.keyframes.area.x - 20 && Math.min(px, x) <= this.keyframes.area.ex() + 20;
+
+            if (!visible)
+            {
+                return;
+            }
+
+            float steps = Math.min(50, Math.max(2, Math.abs(x - px)));
+
+            segment.fill(prev, frame, prevIndex);
 
             for (int j = 1; j <= steps; j++)
             {
                 float a = j / steps;
 
-                segment.setup(prev, frame, prev.getTick() + a * (frame.getTick() - prev.getTick()));
+                segment.setup(prev.getTick() + a * (frame.getTick() - prev.getTick()));
                 float interpolate = this.toGraphY(this.getValue(segment.createInterpolated(), axis));
 
                 lineBuilder.add(Lerps.lerp(px, x, a), interpolate);

@@ -569,17 +569,28 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
                 }
                 else if (interp != Interpolations.LINEAR)
                 {
-                    float steps = 50F;
+                    /* Sampling a curve nobody can see is the whole cost of a dense channel, and a
+                     * pixel-wide segment needs no more points than it has pixels. The straight
+                     * stand-in an offscreen segment gets is behind the scissor either way. */
+                    boolean visible = Math.max(px, x) >= this.keyframes.area.x - 20 && Math.min(px, x) <= this.keyframes.area.ex() + 20;
 
-                    for (int j = 1; j <= steps; j++)
+                    if (visible)
                     {
-                        float a = j / steps;
+                        float steps = Math.min(50, Math.max(2, Math.abs(x - px)));
 
-                        segment.setup(prev, frame, prev.getTick() + a * (frame.getTick() - prev.getTick()));
+                        /* prev sits at i - 1 by construction — no need to re-find it per sample. */
+                        segment.fill(prev, frame, i - 1);
 
-                        float interpolate = this.toGraphY((float) frame.getFactory().getY(segment.createInterpolated()));
+                        for (int j = 1; j <= steps; j++)
+                        {
+                            float a = j / steps;
 
-                        lineBuilder.add(Lerps.lerp(px, x, a), interpolate);
+                            segment.setup(prev.getTick() + a * (frame.getTick() - prev.getTick()));
+
+                            float interpolate = this.toGraphY((float) frame.getFactory().getY(segment.createInterpolated()));
+
+                            lineBuilder.add(Lerps.lerp(px, x, a), interpolate);
+                        }
                     }
                 }
             }
