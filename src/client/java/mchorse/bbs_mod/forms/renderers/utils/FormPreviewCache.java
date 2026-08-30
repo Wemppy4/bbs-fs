@@ -178,11 +178,16 @@ public class FormPreviewCache
         entry.framebuffer.bind();
         entry.framebuffer.clear();
 
-        /* GUI y runs down, GL y runs up: the box's bottom-left corner has to land at the
-         * framebuffer's origin. */
+        /* The box's coordinates are local to a scrolled element (the scroll rides the matrix
+         * stack via UIContext#shiftY), so where it actually lands on screen is the global
+         * position — that is what the viewport has to be placed by. GUI y runs down, GL y runs
+         * up: the box's bottom-left corner has to land at the framebuffer's origin. */
+        int screenX = context.globalX(x1);
+        int screenY = context.globalY(y1);
+
         GL11.glViewport(
-            Math.round(-x1 * scaleX),
-            Math.round(-(menuH - y1 - h) * scaleY),
+            Math.round(-screenX * scaleX),
+            Math.round(-(menuH - screenY - h) * scaleY),
             Math.round(menuW * scaleX),
             Math.round(menuH * scaleY)
         );
