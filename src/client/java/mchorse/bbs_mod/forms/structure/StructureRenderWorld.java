@@ -88,20 +88,7 @@ public class StructureRenderWorld implements BlockRenderView
     @Override
     public float getBrightness(Direction direction, boolean shaded)
     {
-        /* Vanilla overworld directional shade */
-        if (!shaded)
-        {
-            return 1F;
-        }
-
-        switch (direction)
-        {
-            case DOWN: return 0.5F;
-            case UP: return 1F;
-            case NORTH:
-            case SOUTH: return 0.8F;
-            default: return 0.6F;
-        }
+        return StructureLighting.getBrightness(direction, shaded);
     }
 
     @Override
@@ -124,7 +111,7 @@ public class StructureRenderWorld implements BlockRenderView
     @Override
     public int getLightLevel(LightType type, BlockPos pos)
     {
-        return type == LightType.SKY ? 15 : 0;
+        return StructureLighting.getLightLevel(type);
     }
 
     @Nullable

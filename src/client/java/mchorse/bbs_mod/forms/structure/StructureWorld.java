@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.structure;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
@@ -27,6 +28,7 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.tick.QueryableTickScheduler;
 import net.minecraft.world.tick.TickManager;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -48,6 +50,11 @@ import java.util.Map;
  */
 public class StructureWorld extends World
 {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    /** The fallback below is a silent downgrade in quality, so it is worth saying once — but only once. */
+    private static boolean reportedFailure;
+
     private final ClientWorld delegate;
     private final StructureRenderData data;
     private final Map<BlockPos, BlockEntity> blockEntities;
@@ -88,7 +95,16 @@ public class StructureWorld extends World
         }
         catch (Exception e)
         {
-            /* Properties not castable / accessor missing on this build — fall back to mc.world */
+            /* Properties not castable / accessor missing on this build. The caller falls back to
+             * mc.world, where block entities resolve their neighbours at unrelated coordinates —
+             * double chests stop pairing and the like. Worth knowing about when that shows up. */
+            if (!reportedFailure)
+            {
+                reportedFailure = true;
+
+                LOGGER.warn("Couldn't build a structure-backed world, block entities will see the real world instead", e);
+            }
+
             return null;
         }
     }
@@ -161,27 +177,13 @@ public class StructureWorld extends World
     @Override
     public float getBrightness(Direction direction, boolean shaded)
     {
-        /* Fixed overworld daylight shade, independent of the real world's dimension/time */
-        if (!shaded)
-        {
-            return 1F;
-        }
-
-        switch (direction)
-        {
-            case DOWN: return 0.5F;
-            case UP: return 1F;
-            case NORTH:
-            case SOUTH: return 0.8F;
-            default: return 0.6F;
-        }
+        return StructureLighting.getBrightness(direction, shaded);
     }
 
     @Override
     public int getLightLevel(LightType type, BlockPos pos)
     {
-        /* Lit as if in full sun (sky 15); no block/torch light */
-        return type == LightType.SKY ? 15 : 0;
+        return StructureLighting.getLightLevel(type);
     }
 
     @Override
