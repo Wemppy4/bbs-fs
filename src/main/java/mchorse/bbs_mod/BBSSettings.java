@@ -180,6 +180,7 @@ public class BBSSettings {
 	public static ValueFloat editorPreviewResolutionScale;
 	public static ValueBoolean editorClipAutoName;
 	public static ValueBoolean editorPreviewIconsAutoHide;
+	public static ValueBoolean editorPreviewSelectionHud;
 	public static ValueBoolean editorKeepFrameOnExit;
 
 	public static ValueFloat recordingCountdown;
@@ -757,6 +758,7 @@ public class BBSSettings {
 		editorPreviewResolutionScale = builder.getFloat("preview_resolution_scale", 2F, 1F, 3F).slider();
 		editorClipPreview = builder.getBoolean("clip_preview", true);
 		editorPreviewIconsAutoHide = builder.getBoolean("preview_icons_auto_hide", false);
+		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
 		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
 		/* Overlays drawn over the preview which are edited through the gear in the

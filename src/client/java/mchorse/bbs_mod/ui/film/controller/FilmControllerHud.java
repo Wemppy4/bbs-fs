@@ -78,7 +78,7 @@ public class FilmControllerHud
 
         Replay replay = this.controller.panel.replayEditor.getReplay();
 
-        if (replay != null)
+        if (replay != null && BBSSettings.editorPreviewSelectionHud.get())
         {
             Form form = replay.form.get();
 
