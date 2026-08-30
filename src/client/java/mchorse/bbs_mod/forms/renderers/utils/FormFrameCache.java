@@ -43,9 +43,13 @@ public final class FormFrameCache
      */
     public static MatrixCache collect(FormFrameCache cache, Form form, IEntity entity, float transition)
     {
+        /* The cache-less branch lands on the frame-wide cache, so every caller that never
+         * carried an explicit span — the gizmo rotation, tracker frames, the UI's double
+         * reads — shares this frame's evaluation for free. See RenderFrame on why that is
+         * safe now (the pose version) when it wasn't before. */
         if (cache == null)
         {
-            return FormUtilsClient.getRenderer(form).collectMatrices(entity, transition);
+            return RenderFrame.collect(form, entity, transition);
         }
 
         return cache.collect(form, entity, transition);
@@ -62,7 +66,7 @@ public final class FormFrameCache
             return entry.matrices;
         }
 
-        MatrixCache matrices = FormUtilsClient.getRenderer(form).collectMatrices(entity, transition);
+        MatrixCache matrices = RenderFrame.collect(form, entity, transition);
 
         this.entries.put(form, new Entry(entity, transition, matrices));
 

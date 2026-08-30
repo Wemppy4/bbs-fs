@@ -11,6 +11,7 @@ import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.utils.CollectionUtils;
@@ -182,6 +183,9 @@ public class FilmEditorController extends BaseFilmController
                     Form form = entity.getForm();
                     replay.properties.applyProperties(form, tick);
 
+                    /* Back on the current tick after the onion excursion. */
+                    RenderFrame.invalidate();
+
                     if (!isPlaying)
                     {
                         entity.setPrevX(entity.getX());
@@ -216,6 +220,10 @@ public class FilmEditorController extends BaseFilmController
             float tick = (int) keyframe.getTick();
             Form form = entity.getForm();
             replay.properties.applyProperties(form, tick);
+
+            /* This pass re-poses the live entity for another tick; whatever the frame cache
+             * holds for it no longer describes what is about to render. */
+            RenderFrame.invalidate();
 
             FilmEntityRenderer.renderEntity(FilmControllerContext.instance
                 .setup(this.getEntities(), entity, replay, context)

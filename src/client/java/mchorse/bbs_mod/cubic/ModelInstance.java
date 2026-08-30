@@ -76,6 +76,44 @@ public class ModelInstance implements IModelInstance
     public IModel model;
     public Animations animations;
 
+    /* The channels token: which (form, entity, transition, frame, pose version) the asset's
+     * pose currently holds. The instance is one globally cached asset per model id, so the
+     * token must live HERE — two forms sharing a model overwrite each other's pose, and each
+     * write re-stamps it. See ModelFormRenderer#evaluateChannels. */
+    private Object channelsForm;
+    private Object channelsEntity;
+    private float channelsTransition;
+    private long channelsEpoch;
+    private int channelsPoseVersion;
+    private boolean channelsValid;
+
+    public boolean matchesChannels(Object form, Object entity, float transition, long epoch, int poseVersion)
+    {
+        return this.channelsValid
+            && this.channelsForm == form
+            && this.channelsEntity == entity
+            && Float.compare(this.channelsTransition, transition) == 0
+            && this.channelsEpoch == epoch
+            && this.channelsPoseVersion == poseVersion;
+    }
+
+    public void stampChannels(Object form, Object entity, float transition, long epoch, int poseVersion)
+    {
+        this.channelsForm = form;
+        this.channelsEntity = entity;
+        this.channelsTransition = transition;
+        this.channelsEpoch = epoch;
+        this.channelsPoseVersion = poseVersion;
+        this.channelsValid = true;
+    }
+
+    public void clearChannels()
+    {
+        this.channelsValid = false;
+        this.channelsForm = null;
+        this.channelsEntity = null;
+    }
+
     /** The model's intrinsic texture from its loader; {@link ModelConfig#texture} overrides it when set. */
     public Link baseTexture;
 

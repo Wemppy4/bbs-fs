@@ -139,6 +139,24 @@ public class Model implements IMapSerializable, IModel
         }
     }
 
+    /** Record every group's channels-phase orient/offset — see {@link ModelGroup#snapshotChannels()}. */
+    public void snapshotChannels()
+    {
+        for (ModelGroup orderedGroup : this.orderedGroups)
+        {
+            orderedGroup.snapshotChannels();
+        }
+    }
+
+    /** Rewind every group's orient/offset to the channels-phase snapshot. */
+    public void restoreChannels()
+    {
+        for (ModelGroup orderedGroup : this.orderedGroups)
+        {
+            orderedGroup.restoreChannels();
+        }
+    }
+
     @Override
     public void applyPose(Pose pose)
     {

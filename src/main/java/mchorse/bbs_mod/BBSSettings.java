@@ -161,6 +161,8 @@ public class BBSSettings {
 	public static ValueIKDebug ikDebug;
 	public static ValuePhysicsDebug physicsDebug;
 	public static ValueBoolean profilerOverlay;
+	/** Emergency switch for the per-frame pose caches; invisible, on by default. */
+	public static ValueBoolean framePoseCache;
 	public static ValueBoolean editorSnapToMarkers;
 	/** Snapping to the film's own markers &mdash; unlike {@link #editorSnapToMarkers}, which is the ruler's notches. */
 	public static ValueBoolean editorSnapToFilmMarkers;
@@ -767,6 +769,8 @@ public class BBSSettings {
 		builder.register(ikDebug = new ValueIKDebug("ik_debug"));
 		builder.register(physicsDebug = new ValuePhysicsDebug("physics_debug"));
 		profilerOverlay = builder.getBoolean("profiler_overlay", false);
+		framePoseCache = builder.getBoolean("frame_pose_cache", true);
+		framePoseCache.invisible();
 
 		builder.category("background", Icons.IMAGE);
 		backgroundImage = builder.getRL("image", null);

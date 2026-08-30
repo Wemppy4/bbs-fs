@@ -88,6 +88,33 @@ public abstract class Form extends ValueGroup
 
     private final List<StatePlayer> statePlayers = new ArrayList<>();
 
+    /**
+     * Bumped whenever anything that can move this form's evaluated pose changes: every value
+     * notification bubbling through this form ({@link #postNotify(BaseValue, int)}) and the
+     * animation state applications, which write silently. Together with the render frame's
+     * epoch this keys the per-frame pose caches; a spare bump costs one cache miss (today's
+     * behaviour), a missed one costs correctness — so bumping errs generous.
+     */
+    private int poseVersion;
+
+    public int getPoseVersion()
+    {
+        return this.poseVersion;
+    }
+
+    public void bumpPoseVersion()
+    {
+        this.poseVersion += 1;
+    }
+
+    @Override
+    public void postNotify(BaseValue value, int flag)
+    {
+        this.poseVersion += 1;
+
+        super.postNotify(value, flag);
+    }
+
     public Form()
     {
         super("");
@@ -241,6 +268,14 @@ public abstract class Form extends ValueGroup
 
     public void applyStates(float transition)
     {
+        /* States mutate the pose without notifications; bump only when there are any, so a
+         * state-less form keeps one pose version across its render passes and the per-frame
+         * pose caches hold. */
+        if (!this.statePlayers.isEmpty())
+        {
+            this.poseVersion += 1;
+        }
+
         for (StatePlayer statePlayer : this.statePlayers)
         {
             statePlayer.assignValues(this, transition);
@@ -249,6 +284,11 @@ public abstract class Form extends ValueGroup
 
     public void unapplyStates()
     {
+        if (!this.statePlayers.isEmpty())
+        {
+            this.poseVersion += 1;
+        }
+
         for (StatePlayer statePlayer : this.statePlayers)
         {
             statePlayer.resetValues(this);

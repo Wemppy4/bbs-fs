@@ -34,7 +34,13 @@ public class BBSProfiler
         /** Full model renders into UI boxes (lists, palettes, HUD thumbnails). */
         UI_PREVIEW_RENDERS,
         /** 2D UI draw calls issued by Batcher2D (each is a shader bind + draw + flush). */
-        UI_DRAW_CALLS;
+        UI_DRAW_CALLS,
+        /** Per-frame pose cache: reads served without re-evaluating the pipeline. */
+        FRAME_CACHE_HIT,
+        /** Per-frame pose cache: reads that had to evaluate (first read, or the pose moved). */
+        FRAME_CACHE_MISS,
+        /** Channel evaluations skipped because the model still holds the same evaluation. */
+        CHANNELS_SKIPPED;
 
         /** Values are cached because {@code values()} clones the array on every call. */
         public static final Section[] VALUES = values();

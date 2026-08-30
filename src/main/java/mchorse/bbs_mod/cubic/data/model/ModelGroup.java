@@ -56,9 +56,57 @@ public class ModelGroup implements IMapSerializable, RigBone
      * orient, never a channel; null when the bone has no shift this frame. */
     public Vector3f offset;
 
+    /* Snapshot of orient/offset as they stood at the END of the channels phase, so a skipped
+     * re-evaluation (see ModelFormRenderer#evaluateChannels) can rewind the constraint stack's
+     * writes: IK/physics blend FROM evaluatedRotation(), and running them on top of their own
+     * previous output would double-apply. Holders are lazy and reused; the booleans say whether
+     * the snapshot value was present (null is a meaningful state for both fields). */
+    private Quaternionf channelOrient;
+    private Vector3f channelOffset;
+    private boolean channelOrientSet;
+    private boolean channelOffsetSet;
+
     public ModelGroup(String id)
     {
         this.id = id;
+    }
+
+    /** Record the channels-phase orient/offset (called right after the channels evaluate). */
+    public void snapshotChannels()
+    {
+        this.channelOrientSet = this.orient != null;
+
+        if (this.channelOrientSet)
+        {
+            if (this.channelOrient == null)
+            {
+                this.channelOrient = new Quaternionf();
+            }
+
+            this.channelOrient.set(this.orient);
+        }
+
+        this.channelOffsetSet = this.offset != null;
+
+        if (this.channelOffsetSet)
+        {
+            if (this.channelOffset == null)
+            {
+                this.channelOffset = new Vector3f();
+            }
+
+            this.channelOffset.set(this.offset);
+        }
+    }
+
+    /**
+     * Rewind orient/offset to the channels-phase snapshot. Fresh instances are handed out where
+     * a value existed — constraint stages mutate what they find in place.
+     */
+    public void restoreChannels()
+    {
+        this.orient = this.channelOrientSet ? new Quaternionf(this.channelOrient) : null;
+        this.offset = this.channelOffsetSet ? new Vector3f(this.channelOffset) : null;
     }
 
     public void reset()
