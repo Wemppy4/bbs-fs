@@ -4,6 +4,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.film.FilmMatrices;
@@ -78,11 +79,15 @@ public class OrbitFilmCameraController extends OrbitViewportController
         return this.controller.panel.dashboard.orbit.getSpeed();
     }
 
-    /** Flight moves the camera itself, so WASD walks the pivot only when it is off. */
+    /**
+     * Flight moves the camera itself, so WASD walks the pivot only when it is off - and by
+     * default not even then: walking the viewport is what flight is for, and the setting keeps
+     * WASD out of the orbit until it is asked for.
+     */
     @Override
     protected boolean canMove()
     {
-        return !this.controller.panel.isFlying();
+        return !this.controller.panel.isFlying() && !BBSSettings.editorOrbitMovementRequiresFlight.get();
     }
 
     /** While flying, the wheel is the flight camera's speed dial, not the orbit's zoom. */

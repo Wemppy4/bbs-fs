@@ -225,6 +225,8 @@
 	"bbs.config.timeline.horizontal_clip_editor-comment": "Определяет если элементы в редакторе клипов будут расположены горизонтально или вертикально",
 	"bbs.config.camera.horizontal_flight": "Горизонтальный полёт",
 	"bbs.config.camera.horizontal_flight-comment": "Когда включено, тангаж камеры не повлияет на горизонтальное движение при движение (по XZ плоскости)",
+	"bbs.config.camera.orbit_movement_requires_flight": "Перемещение в орбитальной камере только в полёте",
+	"bbs.config.camera.orbit_movement_requires_flight-comment": "Если включено, WASD в орбитальной камере не делает ничего, пока не включён полёт — там камера летит свободно. Если выключено, WASD ещё и панорамирует саму орбиту без входа в полёт.",
 	"bbs.config.camera.orbit_center_marker": "Маркер центра орбиты",
 	"bbs.config.camera.orbit_center_marker-comment": "Показывает debug-маркер в точке, вокруг которой сейчас вращается орбитальная камера.",
 	"bbs.config.camera.orbit_gizmo": "Навигационная сфера (орбита)",
