@@ -74,10 +74,49 @@ public class Batcher2D
         return texturedProgram();
     }
 
+    /* Quad batching. A scope opened with beginBatch() collects every solid quad (box, outline,
+     * surfaceBox and friends all funnel into box) into one dedicated buffer and draws it once at
+     * endBatch() - instead of a begin/setShader/draw/flush per rectangle. Order stays exact
+     * because only homogeneous solid quads batch: every other primitive (textures, text, clip)
+     * flushes the pending quads first. The buffer is our own, not the shared Tessellator one,
+     * so code that builds on the Tessellator directly can never collide with an open batch. */
+    private BufferBuilder batchBuilder;
+    private boolean batching;
+    private boolean batchStarted;
+
     public Batcher2D(DrawContext context)
     {
         this.context = context;
         this.font = getDefaultTextRenderer();
+    }
+
+    /** Open a quad batch. Nested calls are folded into the outermost scope. */
+    public void beginBatch()
+    {
+        this.batching = true;
+    }
+
+    /** Close the scope opened by {@link #beginBatch()} and draw the collected quads. */
+    public void endBatch()
+    {
+        this.batching = false;
+        this.flushBatch();
+    }
+
+    private void flushBatch()
+    {
+        if (!this.batchStarted)
+        {
+            return;
+        }
+
+        this.batchStarted = false;
+
+        RenderSystem.enableBlend();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BufferRenderer.drawWithGlobalProgram(this.batchBuilder.end());
+
+        this.context.draw();
     }
 
     public DrawContext getContext()
@@ -130,6 +169,7 @@ public class Batcher2D
      */
     public void clip(int x, int y, int w, int h, int sw, int sh)
     {
+        this.flushBatch();
         this.context.enableScissor(x, y, x + w, y + h);
     }
 
@@ -140,6 +180,7 @@ public class Batcher2D
 
     public void unclip(int sw, int sh)
     {
+        this.flushBatch();
         this.context.disableScissor();
     }
 
@@ -168,6 +209,27 @@ public class Batcher2D
     public void box(float x, float y, float w, float h, int color1, int color2, int color3, int color4)
     {
         Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
+
+        /* The matrix bakes into the vertices right here, so quads from different matrix
+         * contexts share one batch safely. */
+        if (this.batching)
+        {
+            if (!this.batchStarted)
+            {
+                if (this.batchBuilder == null)
+                {
+                    this.batchBuilder = new BufferBuilder(262144);
+                }
+
+                this.batchBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+                this.batchStarted = true;
+            }
+
+            this.fillRect(this.batchBuilder, matrix4f, x, y, w, h, color1, color2, color3, color4);
+
+            return;
+        }
+
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
         builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
@@ -188,6 +250,8 @@ public class Batcher2D
      */
     public void splitBox(float x1, float y1, float x2, float y2, int topLeft, int bottomRight)
     {
+        this.flushBatch();
+
         Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
@@ -262,6 +326,8 @@ public class Batcher2D
         {
             return;
         }
+
+        this.flushBatch();
 
         left -= offset;
         top -= offset;
@@ -364,6 +430,8 @@ public class Batcher2D
 
     public void dropCircleShadow(int x, int y, int radius, int segments, int opaque, int shadow)
     {
+        this.flushBatch();
+
         Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
@@ -386,6 +454,8 @@ public class Batcher2D
 
             return;
         }
+
+        this.flushBatch();
 
         Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
 
@@ -571,6 +641,8 @@ public class Batcher2D
 
     public void texturedBox(Texture texture, int color, float x, float y, float w, float h, float u1, float v1, float u2, float v2, int textureW, int textureH)
     {
+        this.flushBatch();
+
         RenderSystem.setShaderTexture(0, texture.id);
 
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
@@ -594,6 +666,8 @@ public class Batcher2D
 
     public void texturedBox(Supplier<ShaderProgram> shader, int texture, int color, float x, float y, float w, float h, float u1, float v1, float u2, float v2, int textureW, int textureH)
     {
+        this.flushBatch();
+
         RenderSystem.setShaderTexture(0, texture);
 
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
@@ -622,6 +696,8 @@ public class Batcher2D
 
     public void texturedArea(Texture texture, int color, float x, float y, float w, float h, float u, float v, float tileW, float tileH, int tw, int th)
     {
+        this.flushBatch();
+
         int countX = (int) (((w - 1) / tileW) + 1);
         int countY = (int) (((h - 1) / tileH) + 1);
         float fillerX = w - (countX - 1) * tileW;
@@ -687,6 +763,8 @@ public class Batcher2D
     /** Actual text draw (theming is applied by the public text() before calling this). */
     private void drawTextDirect(String label, float x, float y, int color, boolean shadow)
     {
+        this.flushBatch();
+
         if (Colors.getA(color) <= 0F)
         {
             color = Colors.opaque(color);
@@ -769,6 +847,7 @@ public class Batcher2D
 
     public void flush()
     {
+        this.flushBatch();
         this.context.draw();
     }
 }

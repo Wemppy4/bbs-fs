@@ -130,26 +130,37 @@ public class TimelineRulerRenderer
 
         long first = Math.max(0, (long) Math.floor(startTick / (double) minor) * minor - step);
 
-        for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
+        /* One batch for the notches: a label in between flushes what is pending and the batch
+         * picks back up, so ~300 draw calls collapse to one per label gap. */
+        context.batcher.beginBatch();
+
+        try
         {
-            int x = toGraphX.applyAsInt((int) tick);
-
-            if (x >= visibleEx)
+            for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
             {
-                break;
-            }
+                int x = toGraphX.applyAsInt((int) tick);
 
-            boolean major = tick % step == 0;
+                if (x >= visibleEx)
+                {
+                    break;
+                }
 
-            if (x >= area.x)
-            {
-                context.batcher.box(x, major ? majorTop : minorTop, x + 1, lineBottom, major ? majorColor : minorColor);
-            }
+                boolean major = tick % step == 0;
 
-            if (major && x > area.x - labelMargin)
-            {
-                context.batcher.textShadow(labelFormatter.apply((int) tick), x + 4, area.y + 2, labelColor);
+                if (x >= area.x)
+                {
+                    context.batcher.box(x, major ? majorTop : minorTop, x + 1, lineBottom, major ? majorColor : minorColor);
+                }
+
+                if (major && x > area.x - labelMargin)
+                {
+                    context.batcher.textShadow(labelFormatter.apply((int) tick), x + 4, area.y + 2, labelColor);
+                }
             }
+        }
+        finally
+        {
+            context.batcher.endBatch();
         }
     }
 
@@ -187,19 +198,28 @@ public class TimelineRulerRenderer
 
         long first = Math.max(0, (long) Math.floor(startTick / (double) minor) * minor);
 
-        for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
+        context.batcher.beginBatch();
+
+        try
         {
-            int x = toGraphX.applyAsInt((int) tick);
-
-            if (x >= visibleEx)
+            for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
             {
-                break;
-            }
+                int x = toGraphX.applyAsInt((int) tick);
 
-            if (x >= area.x)
-            {
-                context.batcher.box(x, top, x + 1, area.ey(), tick % step == 0 ? majorColor : minorColor);
+                if (x >= visibleEx)
+                {
+                    break;
+                }
+
+                if (x >= area.x)
+                {
+                    context.batcher.box(x, top, x + 1, area.ey(), tick % step == 0 ? majorColor : minorColor);
+                }
             }
+        }
+        finally
+        {
+            context.batcher.endBatch();
         }
 
         context.batcher.unclip(context);

@@ -2005,14 +2005,23 @@ public class UIClips extends UIElement
         area.render(batcher, BBSSettings.deepSurface());
         batcher.clipBox(this.vertical.area.x, rulerBottom, this.vertical.area.ex(), this.vertical.area.ey(), context);
 
-        for (int i = 0; i < this.layers; i++)
-        {
-            int ly = this.toLayerY(i);
+        batcher.beginBatch();
 
-            if (i % 2 != 0)
+        try
+        {
+            for (int i = 0; i < this.layers; i++)
             {
-                batcher.box(leftEdge, ly, this.area.ex(), ly + h, BBSSettings.baseSurface());
+                int ly = this.toLayerY(i);
+
+                if (i % 2 != 0)
+                {
+                    batcher.box(leftEdge, ly, this.area.ex(), ly + h, BBSSettings.baseSurface());
+                }
             }
+        }
+        finally
+        {
+            batcher.endBatch();
         }
 
         this.renderOutOfRange(batcher, leftEdge);
