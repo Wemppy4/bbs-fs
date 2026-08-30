@@ -50,9 +50,23 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
         return this.list.isEmpty();
     }
 
+    /* The backing list is final in ValueList, so one unmodifiable view serves forever —
+     * getKeyframes() sits in every per-frame interpolation path and used to wrap anew each call. */
+    private List<Keyframe<T>> keyframesView;
+
     public List<Keyframe<T>> getKeyframes()
     {
-        return Collections.unmodifiableList(this.list);
+        if (this.keyframesView == null)
+        {
+            this.keyframesView = Collections.unmodifiableList(this.list);
+        }
+
+        return this.keyframesView;
+    }
+
+    public int indexOf(Keyframe<T> keyframe)
+    {
+        return this.list.indexOf(keyframe);
     }
 
     public boolean has(int index)
@@ -121,14 +135,14 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
 
         if (size == 1 || ticks < prev.getTick())
         {
-            return new KeyframeSegment<>(prev, prev);
+            return new KeyframeSegment<>(prev, prev, 0);
         }
 
         Keyframe<T> last = this.list.get(size - 1);
 
         if (ticks >= last.getTick())
         {
-            return new KeyframeSegment<>(last, last);
+            return new KeyframeSegment<>(last, last, size - 1);
         }
 
         /* Use binary search to find the proper segment */
@@ -158,7 +172,7 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
         }
 
         Keyframe<T> a = low - 1 >= 0 ? this.list.get(low - 1) : b;
-        KeyframeSegment<T> segment = new KeyframeSegment<>(a, b);
+        KeyframeSegment<T> segment = new KeyframeSegment<>(a, b, low - 1 >= 0 ? low - 1 : low);
 
         segment.setup(ticks);
 
