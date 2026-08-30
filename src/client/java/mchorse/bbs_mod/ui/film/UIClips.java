@@ -44,6 +44,7 @@ import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.factory.IFactory;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -1657,10 +1658,12 @@ public class UIClips extends UIElement
 
         if (this.clips != null && !this.hasEmbeddedView())
         {
+            BBSProfiler.begin(BBSProfiler.Timer.UI_TIMELINE);
             this.vertical.drag(context);
             this.handleInput(context.mouseX, context.mouseY);
             this.handleScrolling(context.mouseX, context.mouseY);
             this.renderCameraWork(context);
+            BBSProfiler.end(BBSProfiler.Timer.UI_TIMELINE);
         }
 
         super.render(context);

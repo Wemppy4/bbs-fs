@@ -32,6 +32,7 @@ import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
@@ -463,6 +464,8 @@ public abstract class BaseFilmController
     {
         RenderSystem.enableDepthTest();
 
+        BBSProfiler.begin(BBSProfiler.Timer.WORLD_FORMS);
+
         List<Replay> replays = this.replays();
 
         for (int i = 0; i < replays.size(); i++)
@@ -477,6 +480,8 @@ public abstract class BaseFilmController
 
             this.renderEntity(context, replay, entity);
         }
+
+        BBSProfiler.end(BBSProfiler.Timer.WORLD_FORMS);
     }
 
     protected void renderEntity(WorldRenderContext context, Replay replay, IEntity entity)

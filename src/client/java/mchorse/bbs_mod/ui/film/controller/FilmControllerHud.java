@@ -176,10 +176,14 @@ public class FilmControllerHud
          * correctly (see Gizmo#renderInterface). */
         if (this.controller.canShowGizmo())
         {
+            BBSProfiler.begin(BBSProfiler.Timer.GIZMO);
             this.controller.gizmo().renderGizmo(context);
+            BBSProfiler.end(BBSProfiler.Timer.GIZMO);
         }
 
+        BBSProfiler.begin(BBSProfiler.Timer.PICK_PREVIEW);
         this.controller.picker.renderPreview(context, area);
+        BBSProfiler.end(BBSProfiler.Timer.PICK_PREVIEW);
 
         this.controller.orbitGizmo.render(context, navBlock);
 
@@ -199,6 +203,14 @@ public class FilmControllerHud
      */
     private void renderProfiler(UIContext context, PreviewHud hud)
     {
+        /* Milliseconds first: they rank the subsystems. Counts below verify the caches. */
+        for (BBSProfiler.Timer timer : BBSProfiler.Timer.VALUES)
+        {
+            String label = String.format("%s: %.2f ms", timer.name().toLowerCase(), BBSProfiler.getMs(timer));
+
+            hud.text(context, PreviewHud.Anchor.BOTTOM_LEFT, label, Colors.WHITE);
+        }
+
         for (BBSProfiler.Section section : BBSProfiler.Section.VALUES)
         {
             hud.text(context, PreviewHud.Anchor.BOTTOM_LEFT, section.name().toLowerCase() + ": " + BBSProfiler.get(section), Colors.LIGHTEST_GRAY);

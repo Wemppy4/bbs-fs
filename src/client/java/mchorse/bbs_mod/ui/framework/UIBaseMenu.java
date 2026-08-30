@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.ui.framework.elements.IFocusedUIElement;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.IViewport;
@@ -327,7 +328,9 @@ public abstract class UIBaseMenu
             this.context.reset();
             this.context.pushViewport(this.viewport);
 
+            BBSProfiler.begin(BBSProfiler.Timer.UI_TOTAL);
             this.root.render(this.context);
+            BBSProfiler.end(BBSProfiler.Timer.UI_TOTAL);
 
             this.context.popViewport();
             this.context.postRender();

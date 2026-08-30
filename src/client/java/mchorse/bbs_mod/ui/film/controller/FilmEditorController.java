@@ -17,6 +17,7 @@ import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -175,8 +176,10 @@ public class FilmEditorController extends BaseFilmController
 
                 if (segment != null)
                 {
+                    BBSProfiler.begin(BBSProfiler.Timer.ONION);
                     this.renderOnion(replay, pose.getKeyframes().indexOf(segment.a), -1, pose, onionSkin.preColor.get(), onionSkin.preFrames.get(), context, isPlaying, entity);
                     this.renderOnion(replay, pose.getKeyframes().indexOf(segment.b), 1, pose, onionSkin.postColor.get(), onionSkin.postFrames.get(), context, isPlaying, entity);
+                    BBSProfiler.end(BBSProfiler.Timer.ONION);
 
                     replay.keyframes.apply(ticks, entity);
                     float tick = ticks + this.getTransition(entity, context.tickDelta());

@@ -66,6 +66,7 @@ import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.PlayerUtils;
 import mchorse.bbs_mod.utils.RayTracing;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -870,7 +871,9 @@ public class UIFilmController extends UIElement implements GizmoViewport
             Replay replay = pinned ? this.motionPathPin.getReplay() : this.getReplay();
             FilmTarget target = pinned ? this.motionPathPin.getTarget() : this.getEditTarget();
 
+            BBSProfiler.begin(BBSProfiler.Timer.MOTION_PATH);
             MotionPath.render(context, motionPath, this, replay, target, replay == null ? 0F : replay.getTick(this.getTick()));
+            BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
         }
 
         this.mouse.trackCursor(this.canControl(), ClientNetwork.isIsBBSModOnServer());

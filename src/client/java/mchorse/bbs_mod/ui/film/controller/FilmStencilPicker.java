@@ -233,6 +233,7 @@ public class FilmStencilPicker
         }
 
         BBSProfiler.count(BBSProfiler.Section.STENCIL_PASS);
+        BBSProfiler.begin(BBSProfiler.Timer.STENCIL_PASS);
 
         this.ensureFramebuffer();
 
@@ -311,6 +312,8 @@ public class FilmStencilPicker
         this.stencil.unbind(this.stencilMap);
 
         MinecraftClient.getInstance().getFramebuffer().beginWrite(true);
+
+        BBSProfiler.end(BBSProfiler.Timer.STENCIL_PASS);
     }
 
     /**
