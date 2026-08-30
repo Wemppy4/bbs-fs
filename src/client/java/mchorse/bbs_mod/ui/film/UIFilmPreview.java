@@ -265,7 +265,7 @@ public class UIFilmPreview extends UIElement
             });
         });
 
-        this.icons.add(this.onionSkin, this.motionPath, this.plause, this.teleport, this.flight, this.control, this.perspective, this.recordReplay, this.recordVideo);
+        this.icons.add(this.onionSkin, this.motionPath, this.teleport, this.flight, this.plause, this.control, this.perspective, this.recordReplay, this.recordVideo);
         this.add(this.icons);
     }
 
