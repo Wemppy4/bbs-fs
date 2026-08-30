@@ -493,15 +493,10 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
          * so the deferred sphere-vs-form pick never resolves to a form here. */
     }
 
-    /**
-     * Ray-drag context for the model block gizmo. Translation is one world unit
-     * per local unit, so the Jacobian comes out as identity — but the rotation
-     * handles still need {@link GizmoDrag#computeRotateAxes}: the transform's
-     * Euler angles compose ({@code Rz·Ry·Rx·Rz2·Ry2·Rx2}), so {@code rotate.x/y/z}
-     * do not turn about the world axes once the block is rotated. Sampling the
-     * block's actual rotation matrix recovers the real per-component axes, which
-     * is what keeps the arcball and trackball accurate at any orientation.
-     */
+    /** Ray-drag context for the model block gizmo. Translation is one world unit per local
+     *  unit, so the Jacobian is identity — but the rotation handles still need
+     *  {@link GizmoDrag#computeRotateAxes}: the eulers compose, so {@code rotate.x/y/z} stop
+     *  turning about the world axes once the block is rotated. */
     private GizmoDrag buildGizmoDrag()
     {
         if (this.modelBlock == null)
@@ -528,6 +523,12 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
                 transform,
                 () -> MatrixStackUtils.stripScale(transform.createMatrix())
             ));
+            /* The block's two frames: its own rotation, and — since its transform
+             * composes straight onto the world — the plain world axes above it (which
+             * is also why PARENT is drawn as GLOBAL here, see renderGizmoVisual). The
+             * pair lets the axis-key walk move a live gesture into LOCAL even when the
+             * handles are drawn world-aligned. */
+            drag.setFrameAxes(new Matrix4f().set(transform.createRotationMatrix()), new Matrix4f());
         }
 
         return drag;
@@ -611,7 +612,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
             pos.getZ() + 0.5D + transform.translate.z - cameraPos.z
         );
 
-        if (this.transform.isLocal())
+        if (this.transform.getSpace().placesOnOwnFrame())
         {
             MatrixStackUtils.multiply(stack, new Matrix4f().set(transform.createRotationMatrix()));
         }

@@ -866,7 +866,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         {
             boolean pinned = this.motionPathPin.isPinned();
             Replay replay = pinned ? this.motionPathPin.getReplay() : this.getReplay();
-            Pair<String, Boolean> bone = pinned ? this.motionPathPin.getBone() : this.getBone();
+            Pair<String, TransformSpace> bone = pinned ? this.motionPathPin.getBone() : this.getBone();
 
             MotionPath.render(context, motionPath, this, replay, bone, replay == null ? 0F : replay.getTick(this.getTick()));
         }
@@ -913,19 +913,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return context == null ? 0F : context.getTransition();
     }
 
-    public Pair<String, Boolean> getBone()
+    public Pair<String, TransformSpace> getBone()
     {
         UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
 
         return keyframeEditor != null ? keyframeEditor.getBone() : null;
-    }
-
-    /** The space the bone gizmo should be drawn in (active transform's space). */
-    public TransformSpace getBoneSpace()
-    {
-        UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
-
-        return keyframeEditor != null ? keyframeEditor.getBoneSpace() : TransformSpace.LOCAL;
     }
 
     /** The film camera's world&rarr;camera rotation, for reorienting the gizmo into a space. */
@@ -942,11 +934,12 @@ public class UIFilmController extends UIElement implements GizmoViewport
         return keyframeEditor != null && keyframeEditor.isFormAnchorTrack();
     }
 
-    public boolean getAnchorLocal()
+    /** The frame the anchor gizmo is placed, drawn and dragged in. */
+    public TransformSpace getAnchorSpace()
     {
         UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
 
-        return keyframeEditor != null && keyframeEditor.getAnchorLocal();
+        return keyframeEditor == null ? TransformSpace.LOCAL : keyframeEditor.getAnchorSpace();
     }
 
     /**

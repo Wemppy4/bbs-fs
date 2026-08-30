@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionConfig;
@@ -39,25 +40,18 @@ import java.util.Map;
 import java.util.TreeSet;
 
 /**
- * The selected replay's (or selected bone's) world-space trajectory drawn into
- * the film viewport: a curve sampled over time with a dot on every tick, a
- * marker on every keyframe and a highlight on the current frame — the same idea
- * as Blender's motion paths. Every part is configured through
- * {@link ValueMotionPath} (edited from the preview's motion path button).
+ * The selected replay's (or bone's) world trajectory drawn into the film viewport —
+ * Blender's motion paths: a sampled curve with a dot per tick, a marker per keyframe and a
+ * highlight on the current frame, all configured through {@link ValueMotionPath}.
  *
- * <p>The root path comes straight from the replay's position channels. The bone
- * path is the expensive one: a bone's world position has to be simulated tick by
- * tick (pose + IK run inside {@code collectMatrices}), so it is computed on a
- * scratch entity (never touching the on-screen model) into a cached world-point
- * list, recomputed only when the animation changes — detected by a cheap
- * structural signature plus a per-frame divergence check against one live sample
- * at the current frame (which also serves as the current-frame marker).
- * Procedural limb motion and physics are approximate (a discrete snapshot has no
- * history); keyframed pose and IK are exact.
+ * <p>The root path comes straight from the position channels. The BONE path is the expensive
+ * one: a bone's world position must be simulated tick by tick, so it runs on a scratch entity
+ * (never the on-screen model) into a cached point list, recomputed only when the animation
+ * changes — a cheap structural signature plus a divergence check against one live sample.
+ * Procedural limb motion and physics are approximate there; keyframed pose and IK are exact.
  *
- * <p>It draws in the world / 3D pass like {@link UIFilmController}'s orbit centre
- * marker (camera-relative, depth disabled). The curve is a camera-facing ribbon
- * (one flat quad per segment) and the dots are small axis-aligned cubes.
+ * <p>Drawn in the 3D pass (camera-relative, depth disabled): the curve is a camera-facing
+ * ribbon, the dots are small axis-aligned cubes.
  */
 public class MotionPath
 {
@@ -89,7 +83,7 @@ public class MotionPath
         "swipe", "jump", "jump_alt", "hurt", "land", "shoot", "consume", "base_pre", "base_post"
     };
 
-    public static void render(WorldRenderContext context, ValueMotionPath config, UIFilmController controller, Replay replay, Pair<String, Boolean> bone, float currentTick)
+    public static void render(WorldRenderContext context, ValueMotionPath config, UIFilmController controller, Replay replay, Pair<String, TransformSpace> bone, float currentTick)
     {
         if (replay == null || replay.relative.get())
         {

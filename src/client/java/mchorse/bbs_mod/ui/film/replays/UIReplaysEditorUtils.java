@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.replays;
 
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.data.types.MapType;
@@ -198,18 +199,14 @@ public class UIReplaysEditorUtils
     }
 
     /**
-     * Make the tree of rows agree with the list of them, after a tab or a filter has taken rows out.
-     * A row that left is still listed among its parent's children and still points back at its
-     * parent, so {@link UIKeyframeSheet#children} would answer for a timeline other than this one:
-     * a section would fold rows that are not there, and the summary it draws would count keyframes
-     * this timeline is not showing.
+     * Make the tree of rows agree with the list of them after a tab or filter took rows out:
+     * a departed row is still among its parent's children and still points back at it, so the
+     * timeline would fold rows that are not there and count keyframes it is not showing.
      *
-     * <p>Three things follow from a row leaving, and each can cause the next, so they settle
-     * together rather than in a fixed order: its parent forgets it; a header left with nothing under
-     * it names nothing and leaves as well (which is what the loop is for — a part holding only parts
-     * empties one level at a time); and a row whose parent left is cut loose instead of dropped,
-     * because a row pointing at a parent that is not there would be folded away with no arrow left
-     * to unfold it.</p>
+     * <p>Three consequences settle together (each can cause the next, hence the loop): the parent
+     * forgets it; a header left empty leaves too, one level at a time; and a row whose parent left
+     * is CUT LOOSE, not dropped — pointing at an absent parent would fold it away with no arrow
+     * left to unfold it.
      */
     public static void pruneTree(List<UIKeyframeSheet> sheets)
     {
@@ -240,13 +237,10 @@ public class UIReplaysEditorUtils
 
     /**
      * Run an edit over the keyframes it should land on: every selected keyframe of every track
-     * that holds this kind of value, or &mdash; with auto-keyframing on &mdash; the keyframe each
-     * of those tracks has at the playhead, brought into being from the interpolated value if the
-     * track has none there yet.
-     *
-     * <p>This is the one place the film's value editors (pose, transform, IK, physics, wind...)
-     * decide <em>which</em> keyframe they write into, so auto-keyframing reaches all of them
-     * without any of them knowing about it.
+     * holding this kind of value, or — with auto-keyframing on — the keyframe each track has at
+     * the playhead, created from the interpolated value if it has none. The ONE place the film's
+     * value editors decide which keyframe they write into, so auto-keyframing reaches all of them
+     * without any of them knowing.
      */
     public static <T> void forEachSelectedKeyframe(UIKeyframes editor, Keyframe<?> keyframe, Consumer<Keyframe<T>> consumer)
     {
@@ -388,7 +382,7 @@ public class UIReplaysEditorUtils
         }
 
         IEntity entity = panel.getController().getCurrentEntity();
-        Pair<String, Boolean> bone = keyframeEditor.getBone();
+        Pair<String, TransformSpace> bone = keyframeEditor.getBone();
 
         if (entity == null || bone == null || bone.a == null)
         {
@@ -410,14 +404,10 @@ public class UIReplaysEditorUtils
     }
 
     /**
-     * Ray gizmo context for the film / replay viewport: same camera-origin and
-     * axes as {@link GizmoDrag#fromRenderedGizmo}, plus numeric
-     * {@link GizmoDrag#computeRotateAxes} / {@link GizmoDrag#computeTranslateJacobian}
-     * driven by the composite bone matrix {@code target.mul(bone)} so replay
-     * {@code bodyYaw}, anchor parents, and other film-only transforms match
-     * {@link BaseFilmController#renderEntity}. Also the one place the film's
-     * GLOBAL frame is set on the drag &mdash; the replay's own facing
-     * ({@link BaseFilmController#getReplayWorldAxes}).
+     * Ray gizmo context for the film viewport: {@link GizmoDrag#fromRenderedGizmo} plus the
+     * numeric samplers, driven by the composite bone matrix so replay {@code bodyYaw}, anchor
+     * parents and other film-only transforms match what the renderer draws. Also the one place
+     * the film's GLOBAL frame is set on the drag — the replay's own facing.
      */
     public static GizmoDrag buildFilmGizmoDrag(
         UIFilmPanel panel,
@@ -455,7 +445,7 @@ public class UIReplaysEditorUtils
             return drag;
         }
 
-        Pair<String, Boolean> bone = keyframeEditor.getBone();
+        Pair<String, TransformSpace> bone = keyframeEditor.getBone();
         Replay replay = panel.replayEditor.getReplay();
 
         if (bone == null || bone.a == null || replay == null || entity == null)
@@ -510,6 +500,23 @@ public class UIReplaysEditorUtils
             replay.properties.applyProperties(form, tick);
         }
 
+        /* Both of the bone's frames — its own and its parent's — so the snapshot can
+         * answer for either instead of only for the one the handles were drawn in: the
+         * axis-key walk moves a live gesture between LOCAL and PARENT
+         * (UIPropTransform#setEditingAxis). Same composite the gizmo is placed on, read
+         * with and without the bone's own rotation, and after the restore above so both
+         * describe the unperturbed pose. */
+        drag.setFrameAxes(
+            FilmMatrices.getGizmoBoneCompositeMatrix(
+                panel.getController().getEntities(), entity, replay,
+                camera.position.x, camera.position.y, camera.position.z, transition, bone.a, true
+            ),
+            FilmMatrices.getGizmoBoneCompositeMatrix(
+                panel.getController().getEntities(), entity, replay,
+                camera.position.x, camera.position.y, camera.position.z, transition, bone.a, false
+            )
+        );
+
         /* After the restore, so the evaluated channels the base reads reflect
          * the unperturbed pose (the helper re-collects the capture itself). */
         drag.setAdditiveRotationBase(filmPoseRotationBase(keyframeEditor, entity, transition, bone.a));
@@ -518,16 +525,11 @@ public class UIReplaysEditorUtils
     }
 
     /**
-     * The additive euler base under the edited pose/overlay track's channels for
-     * the current bone ({@link FormUtils#additivePoseRotationBase}): the pose
-     * stack merges per-channel, so an overlay's drag deltas must compose at the
-     * bone's EFFECTIVE angles, not the overlay's own near-zero channels. The
-     * total comes from the bone's EVALUATED channels in the render capture
-     * ({@link BaseFilmController#getGizmoBoneEvaluatedRotation}) — folding the
-     * animator's actions and the model's rest rotation in — with the edited
-     * track resolved through the sheet's property path on the LIVE form and its
-     * own contribution subtracted. {@code null} (zero base) when the track isn't
-     * a pose one or the merge for this bone isn't purely additive.
+     * The additive euler base under the edited pose/overlay track for the current bone: the
+     * pose stack merges per-channel, so drag deltas must compose at the bone's EFFECTIVE
+     * angles, not the overlay's own near-zero ones. Taken from the bone's evaluated channels
+     * in the render capture (actions and rest rotation folded in), minus the edited track's own
+     * contribution. {@code null} when the track isn't a pose one or the merge isn't additive.
      */
     private static Vector3f filmPoseRotationBase(UIKeyframeEditor keyframeEditor, IEntity entity, float transition, String bonePath)
     {

@@ -61,7 +61,7 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public Matrix4f getOrigin(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), this.generalPanel != null && this.generalPanel.transform.isLocal());
+        return this.getOrigin(transition, FormUtils.getPath(this.form), this.getGizmoSpace());
     }
 
     /** The space the gizmo should be drawn in (the active panel's transform space). */
@@ -70,36 +70,40 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
         return this.generalPanel != null ? this.generalPanel.transform.getSpace() : TransformSpace.LOCAL;
     }
 
-    /**
-     * Always returns the bone's full local matrix (including its own rotation),
-     * irrespective of the LOCAL/GLOBAL UI toggle. Required for sampling-based
-     * gizmo helpers that need the rotation to be visible in the matrix &mdash;
-     * the rotation-stripped &quot;origin&quot; variant doesn't move when
-     * {@code transform.rotate} is perturbed, so axis extraction would silently
-     * fall back to identity.
-     */
+    /** Always the bone's FULL local matrix (its own rotation included), whatever the
+     *  picker says. 🔴 The sampling helpers need it: the rotation-stripped origin variant
+     *  doesn't move when {@code transform.rotate} is perturbed, so axis extraction would
+     *  silently collapse to identity. */
     public Matrix4f getOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), true);
+        return this.getOrigin(transition, FormUtils.getPath(this.form), TransformSpace.LOCAL);
     }
 
-    /**
-     * Origin for the body part gizmo mode: always the edited form's OWN root frame (where the body
-     * part actually renders &mdash; attach bone &middot; part transform &middot; form transform),
-     * ignoring any type-specific override like the model's selected pose bone. The drag math stays
-     * correct for editing the body part transform because the attach bone is constant w.r.t. it and
-     * the form's own transform cancels in the Jacobian/rotate-axes derivatives.
-     */
-    public Matrix4f getBodyPartGizmoOrigin(float transition, boolean local)
+    /** The twin of {@link #getOriginMatrix}: always the ORIGIN flavour, the frame before
+     *  the edited thing's own rotation. The pair is what a drag snapshot carries as its
+     *  two bone frames ({@code GizmoDrag#setFrameAxes}). */
+    public Matrix4f getParentOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), local);
+        return this.getOrigin(transition, FormUtils.getPath(this.form), TransformSpace.PARENT);
     }
 
-    protected Matrix4f getOrigin(float transition, String path, boolean local)
+    /** Origin for the body part gizmo mode: the edited form's OWN root frame, ignoring any
+     *  type-specific override like the model's selected pose bone. The drag math still holds
+     *  — the attach bone is constant w.r.t. the edited transform and the form's own cancels
+     *  in the derivatives. */
+    public Matrix4f getBodyPartGizmoOrigin(float transition, TransformSpace space)
+    {
+        return this.getOrigin(transition, FormUtils.getPath(this.form), space);
+    }
+
+    /** The frame's placement matrix: its own for LOCAL, the origin flavour (the frame
+     *  before its own rotation) for every other — {@link TransformSpace#placesOnOwnFrame}
+     *  is the one place that call is made, so no caller can answer it differently. */
+    protected Matrix4f getOrigin(float transition, String path, TransformSpace space)
     {
         Form root = FormUtils.getRoot(this.form);
         MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
-        Matrix4f matrix = local ? map.get(path).matrix() : map.get(path).origin();
+        Matrix4f matrix = space.placesOnOwnFrame() ? map.get(path).matrix() : map.get(path).origin();
 
         return matrix == null ? Matrices.EMPTY_4F : matrix;
     }

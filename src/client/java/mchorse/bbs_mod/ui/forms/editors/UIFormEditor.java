@@ -552,6 +552,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
                 }
             ));
             drag.setAdditiveRotationBase(this.poseRotationBase(transform, transition));
+            /* Both bone frames, lifted into the gizmo's frame like the samples above:
+             * LOCAL and PARENT are different frames, and the snapshot must be able to
+             * answer for either — the walk on the axis keys moves a live gesture
+             * between them (UIPropTransform#setEditingAxis). */
+            drag.setFrameAxes(
+                this.renderer.toSceneMatrix(this.getOriginMatrix(transition)),
+                this.renderer.toSceneMatrix(this.getParentOriginMatrix(transition))
+            );
         }
 
         return drag;
@@ -1108,7 +1116,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         if (this.isBodyPartGizmoMode())
         {
-            return this.editor.getBodyPartGizmoOrigin(transition, this.bodyPartEditor.transform.isLocal());
+            return this.editor.getBodyPartGizmoOrigin(transition, this.bodyPartEditor.transform.getSpace());
         }
 
         return this.editor.getOrigin(transition);
@@ -1146,10 +1154,27 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         if (this.isBodyPartGizmoMode())
         {
-            return this.editor.getBodyPartGizmoOrigin(transition, true);
+            return this.editor.getBodyPartGizmoOrigin(transition, TransformSpace.LOCAL);
         }
 
         return this.editor.getOriginMatrix(transition);
+    }
+
+    /** The parent-frame twin of {@link #getOriginMatrix}, dispatched the same way;
+     *  the pair is what the drag snapshot carries as its two bone frames. */
+    public Matrix4f getParentOriginMatrix(float transition)
+    {
+        if (this.statesEditor.isVisible())
+        {
+            return this.statesKeyframes.getParentOriginMatrix(transition);
+        }
+
+        if (this.isBodyPartGizmoMode())
+        {
+            return this.editor.getBodyPartGizmoOrigin(transition, TransformSpace.PARENT);
+        }
+
+        return this.editor.getParentOriginMatrix(transition);
     }
 
     /**

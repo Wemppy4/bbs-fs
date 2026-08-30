@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.Film;
@@ -229,24 +230,22 @@ public class FilmEditorController extends BaseFilmController
     @Override
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
     {
-        Pair<String, Boolean> bone = this.isCurrent(entity) && !this.controller.panel.recorder.isRecording() ? this.controller.getBone() : null;
+        Pair<String, TransformSpace> bone = this.isCurrent(entity) && !this.controller.panel.recorder.isRecording() ? this.controller.getBone() : null;
         String aBone = bone == null ? null : bone.a;
-        boolean local = bone != null && bone.b;
+        /* The bone's own frame, straight off the pair — never resolved a second time. */
+        TransformSpace space = bone == null ? TransformSpace.LOCAL : bone.b;
         String aBone2 = null;
-        boolean local2 = false;
 
         if (replay.axesPreview.get())
         {
             aBone2 = replay.axesPreviewBone.get();
-            local2 = true;
         }
 
         if (this.controller.panel.recorder.isRecording())
         {
             aBone = null;
-            local = false;
+            space = TransformSpace.LOCAL;
             aBone2 = null;
-            local2 = false;
         }
 
         boolean anchorGizmo = this.isCurrent(entity)
@@ -255,10 +254,10 @@ public class FilmEditorController extends BaseFilmController
 
         return super.getFilmControllerContext(context, replay, entity)
             .transition(this.getTransition(entity, context.tickDelta()))
-            .bone(aBone, local)
-            .gizmoSpace(this.controller.getBoneSpace(), this.controller.getGizmoView())
-            .bone2(aBone2, local2)
-            .anchorGizmo(anchorGizmo, this.controller.getAnchorLocal());
+            .bone(aBone, space)
+            .gizmoView(this.controller.getGizmoView())
+            .bone2(aBone2, TransformSpace.LOCAL)
+            .anchorGizmo(anchorGizmo, this.controller.getAnchorSpace());
     }
 
     private boolean isCurrent(IEntity entity)

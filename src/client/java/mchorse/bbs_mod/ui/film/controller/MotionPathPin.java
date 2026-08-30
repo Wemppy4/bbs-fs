@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.utils.Pair;
 
@@ -18,7 +19,7 @@ public class MotionPathPin
     }
 
     private Replay pinnedReplay;
-    private Pair<String, Boolean> pinnedBone;
+    private Pair<String, TransformSpace> pinnedBone;
 
     public boolean isPinned()
     {
@@ -64,7 +65,7 @@ public class MotionPathPin
     }
 
     /** The bone the pin was taken on, so the path keeps tracking the same point of the actor. */
-    public Pair<String, Boolean> getBone()
+    public Pair<String, TransformSpace> getBone()
     {
         return this.pinnedBone;
     }

@@ -29,22 +29,14 @@ public interface DragContext
     /** A freshly built drag from the host's hotkey supplier, or {@code null}. */
     GizmoDrag freshHotkeyDrag();
 
-    boolean isLocal();
-
-    /** The reference frame this edit operates in (LOCAL is the former {@link #isLocal()}). */
+    /** The reference frame this edit operates in — the ONE thing that decides it. */
     TransformSpace space();
 
     boolean isModel();
 
-    /**
-     * Whether the edited bone's ROTATION is owned by an enabled IK chain. The
-     * render follows the solved orientation there — perturbing the FK channels
-     * barely moves it, the measured axes degenerate, and a ring would sweep
-     * while the bone ignores it. Rotation gestures refuse to start instead
-     * (the value pads still edit the FK channels, which stay the blend base
-     * and the pose IK falls back to). Default {@code false} for hosts without
-     * an IK concept.
-     */
+    /** Whether the edited bone's ROTATION is owned by an enabled IK chain: the render
+     *  follows the solve, so the measured axes degenerate and a ring would sweep while
+     *  the bone ignores it. Rotation gestures refuse to start instead. */
     default boolean rotationConstrained()
     {
         return false;

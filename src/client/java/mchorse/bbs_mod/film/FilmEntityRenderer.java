@@ -41,12 +41,9 @@ import org.joml.Vector3f;
 import java.util.Map;
 
 /**
- * Drawing one replay's actor into the world: its form, the gizmo axes when it is the one being
- * edited, and its name tag.
- *
- * <p>Split out of {@link BaseFilmController} for the same reason as {@link FilmMatrices} — it is
- * static, it is long, and it is what every host of a film (the editor, the world, the export)
- * calls to put an actor on screen, rather than part of running the film itself.
+ * Drawing one replay's actor into the world: its form, the gizmo axes when it is the one
+ * being edited, and its name tag. Split out of {@link BaseFilmController} like
+ * {@link FilmMatrices}: every host of a film calls it to put an actor on screen.
  */
 public class FilmEntityRenderer
 {
@@ -163,27 +160,26 @@ public class FilmEntityRenderer
 
         if (UIBaseMenu.shouldRenderAxes())
         {
-            if (context.bone != null) renderAxes(context.bone, context.local, context.space, context.gizmoView, context.map, form, entity, transition, stack, gizmoFrame);
-            if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.local2, form, entity, transition, stack, gizmoFrame);
+            if (context.bone != null) renderAxes(context.bone, context.space, context.gizmoView, context.map, form, entity, transition, stack, gizmoFrame);
+            if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.space2, form, entity, transition, stack, gizmoFrame);
         }
 
         stack.pop();
 
         if (UIBaseMenu.shouldRenderAxes() && context.anchorGizmo)
         {
-            renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorLocal, context.space, context.gizmoView, context.map, stack, gizmoFrame);
+            renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.gizmoView, context.map, stack, gizmoFrame);
         }
 
         if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F && form.visible.get())
         {
-            /* Skip the shadow when the form is hidden (form.visible, animatable via keyframes): the form
-             * itself renders nothing then - see FormRenderer.render - so its shadow must vanish too.
-             * The animated value is live here, applied to form.visible in startRenderFrame this frame.
+            /* No shadow while the form is hidden (form.visible, keyframable) — the form renders
+             * nothing then, so its shadow must vanish too.
              *
-             * Place the shadow under the replay's perceived position: shift the actual shadow position
-             * by how far the model (form transform + anchor-bone root motion) has moved from rest,
-             * mapped from form-local into world axes via the render target. Moving the position itself
-             * (not just translating the quad) makes the shadow's ground projection and shading match. */
+             * The shadow goes under the replay's PERCEIVED position: shift it by how far the model
+             * (form transform + anchor-bone root motion) has moved from rest, mapped into world
+             * axes. Moving the position itself, not just the quad, keeps the ground projection and
+             * the shading in step. */
             double shadowX = position.x;
             double shadowY = position.y;
             double shadowZ = position.z;
@@ -235,12 +231,13 @@ public class FilmEntityRenderer
         RenderSystem.enableDepthTest();
     }
 
-    private static void renderAxes(String bone, boolean local, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, Form form, IEntity entity, float transition, MatrixStack stack, FormFrameCache frame)
+    private static void renderAxes(String bone, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, Form form, IEntity entity, float transition, MatrixStack stack, FormFrameCache frame)
     {
         String mapKey = FilmMatrices.boneMapKey(bone);
         Form root = FormUtils.getRoot(form);
         MatrixCache map = FormFrameCache.collect(frame, root, entity, transition);
-        Matrix4f matrix = local ? map.get(mapKey).matrix() : map.get(mapKey).origin();
+        /* Placement flavour straight off the frame (TransformSpace#placesOnOwnFrame). */
+        Matrix4f matrix = space.placesOnOwnFrame() ? map.get(mapKey).matrix() : map.get(mapKey).origin();
 
         if (matrix != null)
         {
@@ -269,14 +266,10 @@ public class FilmEntityRenderer
         }
     }
 
-    /**
-     * The replay's "axes preview" (a secondary bone): plain, non-interactive
-     * cool axes via {@link Draw#coolerAxes} — not the editing gizmo. Resolves the
-     * bone matrix exactly like {@link #renderAxes} and applies the same
-     * distance scaling the gizmo uses - the "fixed gizmo size" setting included, since
-     * the whole point is that the preview matches the gizmo's axes.
-     */
-    private static void renderPreviewAxes(String bone, boolean local, Form form, IEntity entity, float transition, MatrixStack stack, FormFrameCache frame)
+    /** The replay's "axes preview" (a secondary bone): plain non-interactive axes, not the
+     *  editing gizmo. Resolved and distance-scaled exactly like {@link #renderAxes}, since
+     *  the whole point is that it matches the gizmo's axes. */
+    private static void renderPreviewAxes(String bone, TransformSpace space, Form form, IEntity entity, float transition, MatrixStack stack, FormFrameCache frame)
     {
         String mapKey = FilmMatrices.boneMapKey(bone);
         Form root = FormUtils.getRoot(form);
@@ -288,14 +281,15 @@ public class FilmEntityRenderer
             return;
         }
 
-        Matrix4f matrix = local ? entry.matrix() : entry.origin();
+        boolean ownFrame = space.placesOnOwnFrame();
+        Matrix4f matrix = ownFrame ? entry.matrix() : entry.origin();
 
         if (matrix == null)
         {
             return;
         }
 
-        if (local) matrix = MatrixStackUtils.stripScale(matrix);
+        if (ownFrame) matrix = MatrixStackUtils.stripScale(matrix);
 
         stack.push();
         MatrixStackUtils.multiply(stack, matrix);
@@ -313,18 +307,13 @@ public class FilmEntityRenderer
     }
 
     /**
-     * Draw the editing gizmo for the form's anchor offset. The anchor is applied
-     * as {@code parent.mul(transform)} in {@link #getTotalMatrix}, so the gizmo
-     * sits at that resolved matrix {@code full} (already computed as the entity's
-     * render target) and edits {@code form.anchor.transform}. The placement
-     * mirrors {@link #renderAxes}: local keeps the anchor's own orientation,
-     * otherwise the attachment's orientation at the anchor's position is used
-     * (this path's origin flavour) — and the result is reoriented into the
-     * active space just the same, so the drawn handles match the frame the drag
-     * works in (GLOBAL/VIEW would otherwise stay on the attachment's axes while
-     * the drag ran in world/screen axes).
+     * The editing gizmo for the form's anchor offset. The anchor is applied as
+     * {@code parent.mul(transform)}, so the gizmo sits at the resolved matrix {@code full}
+     * and edits {@code form.anchor.transform}. Placement mirrors {@link #renderAxes}: the
+     * anchor's own orientation for LOCAL, the attachment's (this path's origin flavour)
+     * otherwise, reoriented into the active frame just the same.
      */
-    private static void renderAnchorGizmo(Map<String, IEntity> entities, IEntity entity, Matrix4f full, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, boolean local, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, MatrixStack stack, FormFrameCache frame)
+    private static void renderAnchorGizmo(Map<String, IEntity> entities, IEntity entity, Matrix4f full, Matrix4f defaultMatrix, double cx, double cy, double cz, float transition, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, MatrixStack stack, FormFrameCache frame)
     {
         Form form = entity.getForm();
 
@@ -335,7 +324,7 @@ public class FilmEntityRenderer
 
         Matrix4f matrix;
 
-        if (local)
+        if (space.placesOnOwnFrame())
         {
             matrix = MatrixStackUtils.stripScale(full);
         }

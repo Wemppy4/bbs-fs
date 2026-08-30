@@ -86,13 +86,19 @@ public class UIModelForm extends UIForm<ModelForm>
     @Override
     public Matrix4f getOrigin(float transition)
     {
-        return this.getOrigin(transition, this.bonePath(), this.modelPanel.poseEditor.transform.isLocal());
+        return this.getOrigin(transition, this.bonePath(), this.getGizmoSpace());
     }
 
     @Override
     public Matrix4f getOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, this.bonePath(), true);
+        return this.getOrigin(transition, this.bonePath(), TransformSpace.LOCAL);
+    }
+
+    @Override
+    public Matrix4f getParentOriginMatrix(float transition)
+    {
+        return this.getOrigin(transition, this.bonePath(), TransformSpace.PARENT);
     }
 
     @Override
@@ -106,14 +112,10 @@ public class UIModelForm extends UIForm<ModelForm>
         return StringUtils.combinePaths(FormUtils.getPath(this.form), this.modelPanel.poseEditor.groups.list.getCurrentFirst());
     }
 
-    /**
-     * The additive euler base under the pose editor's channels for the picked
-     * bone ({@link FormUtils#additivePoseRotationBase}): the total comes from
-     * the bone's EVALUATED channels in the capture (rest + actions + the whole
-     * pose stack) with the pose track's own contribution subtracted, so gizmo
-     * deltas compose at the bone's effective angles. {@code null} for any other
-     * transform editor — only the pose panel edits a pose-stacked track.
-     */
+    /** The additive euler base under the pose editor's channels for the picked bone:
+     *  the bone's EVALUATED channels (rest + actions + pose stack) minus the pose track's
+     *  own contribution, so gizmo deltas compose at the effective angles. {@code null} for
+     *  every other editor — only the pose panel edits a pose-stacked track. */
     public Vector3f poseRotationBase(UIPropTransform transform, float transition)
     {
         if (transform != this.modelPanel.poseEditor.transform)

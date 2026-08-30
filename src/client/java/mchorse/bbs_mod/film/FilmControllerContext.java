@@ -31,19 +31,24 @@ public class FilmControllerContext
     public float shadowRadius;
 
     public String bone;
-    public boolean local;
 
-    /** The reference frame the bone gizmo is drawn in, and the film camera's
-     *  world&rarr;camera rotation used to reorient it (null keeps LOCAL). */
+    /** The frame the bone gizmo is PLACED and drawn in — one field decides both, so
+     *  they cannot disagree. */
     public TransformSpace space = TransformSpace.LOCAL;
+
+    /** The film camera's world&rarr;camera rotation, used to reorient the gizmo. */
     public Matrix4f gizmoView;
 
     public String bone2;
-    public boolean local2;
+
+    /** The preview axes' frame; always LOCAL today — the preview shows the bone's own axes. */
+    public TransformSpace space2 = TransformSpace.LOCAL;
 
     /** Draw the editing gizmo at the entity's resolved {@code form.anchor} matrix. */
     public boolean anchorGizmo;
-    public boolean anchorLocal;
+
+    /** The anchor gizmo's own frame. */
+    public TransformSpace anchorSpace = TransformSpace.LOCAL;
 
     public String nameTag = "";
     public boolean relative;
@@ -57,13 +62,12 @@ public class FilmControllerContext
         this.shadowRadius = 0F;
         this.color = Colors.WHITE;
         this.bone = null;
-        this.local = false;
         this.space = TransformSpace.LOCAL;
         this.gizmoView = null;
         this.bone2 = null;
-        this.local2 = false;
+        this.space2 = TransformSpace.LOCAL;
         this.anchorGizmo = false;
-        this.anchorLocal = false;
+        this.anchorSpace = TransformSpace.LOCAL;
         this.nameTag = "";
         this.relative = false;
     }
@@ -133,35 +137,35 @@ public class FilmControllerContext
         return this;
     }
 
-    public FilmControllerContext bone(String bone, boolean local)
+    /** The bone the gizmo edits and the frame it is edited in. */
+    public FilmControllerContext bone(String bone, TransformSpace space)
     {
         this.bone = bone;
-        this.local = local;
+        this.space = space == null ? TransformSpace.LOCAL : space;
 
         return this;
     }
 
-    /** Set the space and camera view used to reorient the bone gizmo (Phase C). */
-    public FilmControllerContext gizmoSpace(TransformSpace space, Matrix4f view)
+    /** The film camera's view rotation, needed to reorient the gizmo. */
+    public FilmControllerContext gizmoView(Matrix4f view)
     {
-        this.space = space;
         this.gizmoView = view;
 
         return this;
     }
 
-    public FilmControllerContext bone2(String bone, boolean local)
+    public FilmControllerContext bone2(String bone, TransformSpace space)
     {
         this.bone2 = bone;
-        this.local2 = local;
+        this.space2 = space == null ? TransformSpace.LOCAL : space;
 
         return this;
     }
 
-    public FilmControllerContext anchorGizmo(boolean anchorGizmo, boolean anchorLocal)
+    public FilmControllerContext anchorGizmo(boolean anchorGizmo, TransformSpace anchorSpace)
     {
         this.anchorGizmo = anchorGizmo;
-        this.anchorLocal = anchorLocal;
+        this.anchorSpace = anchorSpace == null ? TransformSpace.LOCAL : anchorSpace;
 
         return this;
     }
