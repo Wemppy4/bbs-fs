@@ -26,6 +26,7 @@ import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
+import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.gl.GlUniform;
@@ -427,6 +428,17 @@ public class Gizmo
      * are the same pair {@link #computeScreenCenter} uses, so the mask lands on
      * the sphere's footprint regardless of mask resolution.
      */
+    /* What the hover mask currently holds, so a still sphere is not re-drawn every hovered
+     * frame — the mask used to be a window-sized clear plus a full-viewport composite per
+     * frame; now it is the sphere's own rectangle, re-drawn only when that moved. */
+    private final Matrix4f lastMaskMatrix = new Matrix4f();
+    private final Matrix4f lastMaskProjection = new Matrix4f();
+    private int lastMaskX;
+    private int lastMaskY;
+    private int lastMaskW;
+    private int lastMaskH;
+    private boolean maskValid;
+
     public void renderSphereHighlight(UIContext context, Matrix4f projection, Area area)
     {
         if (!this.sphereHovered || !this.hasLastSphereMatrix || !this.isSphereInteractive()
@@ -435,36 +447,110 @@ public class Gizmo
             return;
         }
 
+        /* The highlight only ever lights the sphere's own footprint, so both the mask and the
+         * composite live in that footprint's rectangle rather than the whole viewport. */
+        Vector2f center = new Vector2f();
+
+        if (!this.computeScreenCenter(projection, area.x, area.y, area.w, area.h, center))
+        {
+            return;
+        }
+
+        float radius = this.computeScreenRadius(projection, area.x, area.y, area.w, area.h);
+
+        if (radius <= 0F)
+        {
+            return;
+        }
+
+        int margin = 4;
+        int rectX = Math.max(area.x, (int) Math.floor(center.x - radius) - margin);
+        int rectY = Math.max(area.y, (int) Math.floor(center.y - radius) - margin);
+        int rectEndX = Math.min(area.ex(), (int) Math.ceil(center.x + radius) + margin);
+        int rectEndY = Math.min(area.ey(), (int) Math.ceil(center.y + radius) + margin);
+        int rw = rectEndX - rectX;
+        int rh = rectEndY - rectY;
+
+        if (rw <= 0 || rh <= 0)
+        {
+            return;
+        }
+
         MinecraftClient mc = MinecraftClient.getInstance();
+        float pixelScale = mc.getWindow().getFramebufferWidth() / (float) Math.max(1, context.menu.width);
+        int pw = Math.max(1, Math.min(512, Math.round(rw * pixelScale)));
+        int ph = Math.max(1, Math.min(512, Math.round(rh * pixelScale)));
+        float scaleX = pw / (float) rw;
+        float scaleY = ph / (float) rh;
 
         this.sphereHighlight.setup(Link.bbs("gizmo_sphere_highlight"));
 
-        int w = mc.getWindow().getWidth();
-        int h = mc.getWindow().getHeight();
         Texture texture = this.sphereHighlight.getFramebuffer().getMainTexture();
 
-        if (texture.width != w || texture.height != h)
+        /* Grow-only, so a pixel of rectangle jitter doesn't reallocate the texture per frame. */
+        if (texture.width < pw || texture.height < ph)
         {
-            this.sphereHighlight.resize(w, h);
+            this.sphereHighlight.resize(Math.max(texture.width, pw), Math.max(texture.height, ph));
         }
 
-        this.sphereHighlight.apply();
+        boolean moved = !this.maskValid
+            || this.lastMaskX != rectX || this.lastMaskY != rectY
+            || this.lastMaskW != pw || this.lastMaskH != ph
+            || !this.lastMaskMatrix.equals(this.lastSphereMatrix)
+            || !this.lastMaskProjection.equals(projection);
 
-        /* The sphere matrix was captured with the lens already applied to it, so the
-         * mask has to be projected through the lens as well or it lands somewhere
-         * else entirely. An inactive lens hands the camera projection straight back. */
-        GizmoLens lens = new GizmoLens();
+        if (moved)
+        {
+            context.batcher.flush();
 
-        lens.set(projection, this.lastRenderMatrix);
+            boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
 
-        RenderSystem.disableDepthTest();
-        RenderSystem.setShaderColor(STENCIL_TRACKBALL / 255F, 0F, 0F, 1F);
-        this.rings.drawSphere(this.lastSphereMatrix, lens.projection);
-        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
-        RenderSystem.enableDepthTest();
+            if (scissor)
+            {
+                GlStateManager._disableScissorTest();
+            }
 
-        this.sphereHighlight.unbind();
-        mc.getFramebuffer().beginWrite(true);
+            this.sphereHighlight.getFramebuffer().bind();
+            this.sphereHighlight.getFramebuffer().clear();
+
+            /* The sphere projects in the viewport's NDC; the viewport is oversized and offset so
+             * the rectangle's slice of it lands on the mask (GUI y runs down, GL y runs up). */
+            GL11.glViewport(
+                Math.round(-(rectX - area.x) * scaleX),
+                Math.round(-(area.ey() - rectY - rh) * scaleY),
+                Math.round(area.w * scaleX),
+                Math.round(area.h * scaleY)
+            );
+
+            /* The sphere matrix was captured with the lens already applied to it, so the
+             * mask has to be projected through the lens as well or it lands somewhere
+             * else entirely. An inactive lens hands the camera projection straight back. */
+            GizmoLens lens = new GizmoLens();
+
+            lens.set(projection, this.lastRenderMatrix);
+
+            RenderSystem.disableDepthTest();
+            RenderSystem.setShaderColor(STENCIL_TRACKBALL / 255F, 0F, 0F, 1F);
+            this.rings.drawSphere(this.lastSphereMatrix, lens.projection);
+            RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+            RenderSystem.enableDepthTest();
+
+            this.sphereHighlight.unbind();
+            mc.getFramebuffer().beginWrite(true);
+
+            if (scissor)
+            {
+                GlStateManager._enableScissorTest();
+            }
+
+            this.lastMaskMatrix.set(this.lastSphereMatrix);
+            this.lastMaskProjection.set(projection);
+            this.lastMaskX = rectX;
+            this.lastMaskY = rectY;
+            this.lastMaskW = pw;
+            this.lastMaskH = ph;
+            this.maskValid = true;
+        }
 
         ShaderProgram previewProgram = BBSShaders.getPickerPreviewProgram();
         GlUniform target = previewProgram.getUniform("Target");
@@ -484,7 +570,7 @@ public class Gizmo
         }
 
         RenderSystem.enableBlend();
-        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE, area.x, area.y, area.w, area.h, 0, texture.height, texture.width, 0, texture.width, texture.height);
+        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE, rectX, rectY, rw, rh, 0, ph, pw, 0, texture.width, texture.height);
     }
 
     public boolean start(int index, int mouseX, int mouseY, UIPropTransform transform)
