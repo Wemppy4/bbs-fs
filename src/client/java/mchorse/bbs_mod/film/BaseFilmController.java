@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.renderer.ItemUseEffects;
 import mchorse.bbs_mod.client.renderer.LivePlayerItemUse;
 import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
@@ -38,6 +40,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
@@ -45,6 +48,7 @@ import net.minecraft.entity.MovementType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.LightType;
 import net.minecraft.world.World;
@@ -460,6 +464,13 @@ public abstract class BaseFilmController
         return i != this.exception;
     }
 
+    /**
+     * Half-extent of the box a replay is culled by, around its entity. Deliberately generous:
+     * a form reaches past its hitbox (trails, particles, scaled models), and a box this large
+     * still culls everything a big set keeps far outside the shot.
+     */
+    private static final double CULL_RADIUS = 32D;
+
     public void render(WorldRenderContext context)
     {
         RenderSystem.enableDepthTest();
@@ -467,6 +478,7 @@ public abstract class BaseFilmController
         BBSProfiler.begin(BBSProfiler.Timer.WORLD_FORMS);
 
         List<Replay> replays = this.replays();
+        Frustum frustum = BBSSettings.frustumCulling.get() && !BBSRendering.isIrisShadowPass() ? context.frustum() : null;
 
         for (int i = 0; i < replays.size(); i++)
         {
@@ -478,10 +490,40 @@ public abstract class BaseFilmController
                 continue;
             }
 
+            if (frustum != null && this.isCulled(frustum, replay, entity))
+            {
+                continue;
+            }
+
             this.renderEntity(context, replay, entity);
         }
 
         BBSProfiler.end(BBSProfiler.Timer.WORLD_FORMS);
+    }
+
+    /**
+     * Whether the replay's generous surroundings are entirely off screen. An anchored form
+     * stands wherever its target does, not at its entity, so it is never culled by the entity's
+     * position; culling a replay others hang off is fine — anchors read its matrices through
+     * the pose pipeline, not through its draw.
+     */
+    private boolean isCulled(Frustum frustum, Replay replay, IEntity entity)
+    {
+        Form form = entity.getForm();
+
+        if (form == null || form.anchor.get().hasTarget())
+        {
+            return false;
+        }
+
+        double x = entity.getX();
+        double y = entity.getY();
+        double z = entity.getZ();
+
+        return !frustum.isVisible(new Box(
+            x - CULL_RADIUS, y - CULL_RADIUS, z - CULL_RADIUS,
+            x + CULL_RADIUS, y + CULL_RADIUS, z + CULL_RADIUS
+        ));
     }
 
     protected void renderEntity(WorldRenderContext context, Replay replay, IEntity entity)

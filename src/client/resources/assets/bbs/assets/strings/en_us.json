@@ -211,6 +211,8 @@
 	"bbs.config.camera.angle_speed-comment": "Angle flight speed when rotating the camera around",
 	"bbs.config.viewport.center_lines": "Center lines",
 	"bbs.config.viewport.center_lines-comment": "Center lines",
+	"bbs.config.performance.frustum_culling": "Replay frustum culling",
+	"bbs.config.performance.frustum_culling-comment": "Skips rendering replays that are far outside the camera's view (a generous 32-block margin around each). Anchored replays are never culled. Turn it off if an actor ever disappears at the edge of the screen",
 	"bbs.config.performance.profiler_overlay": "Performance counters",
 	"bbs.config.performance.profiler_overlay-comment": "Shows per-frame milliseconds by subsystem and call counters of the film editor's hot paths (pose evaluations, stencil passes, UI draw calls) in the corner of the preview",
 	"bbs.config.viewport.clip_preview": "Clip preview",

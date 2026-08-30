@@ -165,6 +165,8 @@ public class BBSSettings {
 	public static ValueBoolean profilerOverlay;
 	/** Emergency switch for the per-frame pose caches; invisible, on by default. */
 	public static ValueBoolean framePoseCache;
+	/** Skip rendering replays whose surroundings are entirely off screen. */
+	public static ValueBoolean frustumCulling;
 	public static ValueBoolean editorSnapToMarkers;
 	/** Snapping to the film's own markers &mdash; unlike {@link #editorSnapToMarkers}, which is the ruler's notches. */
 	public static ValueBoolean editorSnapToFilmMarkers;
@@ -783,6 +785,7 @@ public class BBSSettings {
 		freezeModels = builder.getBoolean("freeze_models", false);
 		translucencyQueue = builder.getBoolean("translucency_queue", false);
 		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
+		frustumCulling = builder.getBoolean("frustum_culling", true);
 		profilerOverlay = builder.getBoolean("profiler_overlay", false);
 		framePoseCache = builder.getBoolean("frame_pose_cache", true);
 		framePoseCache.invisible();
