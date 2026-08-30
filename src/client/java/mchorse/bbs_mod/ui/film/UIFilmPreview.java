@@ -21,6 +21,7 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.controller.UIMotionPathContextMenu;
 import mchorse.bbs_mod.ui.film.controller.UIOnionSkinContextMenu;
+import mchorse.bbs_mod.ui.film.controller.OrbitViewGizmo;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
@@ -75,6 +76,15 @@ public class UIFilmPreview extends UIElement
 
     /** Whether the icon bar is currently shown - see {@link #updateIconsVisibility(UIContext)} */
     private boolean iconsVisible = true;
+
+    /** The side of the axes crosshair's block, matching {@link RenderSystem#renderCrosshair}'s reach. */
+    private static final int CURSOR_SIZE = 24;
+
+    /** Everything drawn over the frame goes through here - see {@link PreviewHud}. */
+    private final PreviewHud hud = new PreviewHud();
+
+    /** Where the axes crosshair or the navigation ball landed this frame, for drawing and clicking. */
+    private final Area navBlock = new Area();
 
     public UIFilmPreview(UIFilmPanel filmPanel)
     {
@@ -351,7 +361,7 @@ public class UIFilmPreview extends UIElement
 
         if (area.isInside(context))
         {
-            if (this.panel.getController().orbitGizmo.mouseClicked(context, area))
+            if (this.panel.getController().orbitGizmo.mouseClicked(context, this.navBlock))
             {
                 return true;
             }
@@ -427,8 +437,21 @@ public class UIFilmPreview extends UIElement
             context.batcher.texturedBox(texture.id, Colors.WHITE, area.x, area.y, area.w, area.h, 0, texture.height, texture.width, 0, texture.width, texture.height);
         }
 
-        /* The navigation ball replaces the axes crosshair in the corner */
-        if (!this.panel.getController().orbitGizmo.isActive())
+        this.hud.begin(area);
+        this.hud.reserve(PreviewHud.Anchor.BOTTOM_CENTER, area.ey() - this.icons.area.y);
+
+        /* The navigation widget claims the bottom left corner before anything else does, so
+         * that whatever the editor stacks there later (the stick guide) ends up above it
+         * rather than on top of it. The ball replaces the axes crosshair when it is on, and
+         * the block is reserved for whichever of the two is showing. Its click test reads
+         * the same block, hence the field. */
+        OrbitViewGizmo orbitGizmo = this.panel.getController().orbitGizmo;
+        boolean ball = orbitGizmo.isActive();
+        int navSize = ball ? orbitGizmo.getSize() : CURSOR_SIZE;
+
+        this.navBlock.copy(this.hud.push(PreviewHud.Anchor.BOTTOM_LEFT, navSize, navSize));
+
+        if (!ball)
         {
             this.renderCursor(context);
         }
@@ -471,17 +494,7 @@ public class UIFilmPreview extends UIElement
 
         this.placementGizmo.render(context, area);
 
-        /* Current window resolution label (bottom-right, same style as replay name) */
-        int resW = BBSRendering.getVideoWidth();
-        int resH = BBSRendering.getVideoHeight();
-        String resLabel = resW + " × " + resH;
-        int resLabelW = context.batcher.getFont().getWidth(resLabel);
-        int resLabelH = context.batcher.getFont().getHeight();
-        int resX = area.ex() - 4;
-        int resY = area.ey() - resLabelH - 5;
-        context.batcher.textCard(resLabel, resX - resLabelW, resY, Colors.WHITE, Colors.A50);
-
-        this.panel.getController().renderHUD(context, area);
+        this.panel.getController().renderHUD(context, this.hud, this.navBlock);
 
         if (this.panel.replayEditor.isVisible() && BBSSettings.audioWaveformVisibleInPreview.get())
         {
@@ -521,16 +534,19 @@ public class UIFilmPreview extends UIElement
             /* Render icon bar */
             int barShade = BBSSettings.lightSurfaces() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
             context.batcher.gradientVBox(a.x, a.y, a.ex(), a.ey(), 0, barShade);
-
-            if (this.panel.getController().isControlling())
-            {
-                String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();
-                int w = context.batcher.getFont().getWidth(s);
-                int height = context.batcher.getFont().getHeight();
-
-                context.batcher.textCard(s, a.mx(w), a.y - height - 5);
-            }
         }
+
+        /* Outside the bar's visibility: hiding the icons must not take away the one line
+         * that says how to leave control mode. */
+        if (this.panel.getController().isControlling())
+        {
+            String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();
+
+            this.hud.label(context, PreviewHud.Anchor.BOTTOM_CENTER, s, Colors.WHITE, Colors.A50);
+        }
+
+        /* Everything the corners collected this frame goes down here, each zone's wash first. */
+        this.hud.flush(context);
 
         context.batcher.clip(this.area, context);
         super.render(context);
@@ -545,7 +561,7 @@ public class UIFilmPreview extends UIElement
         stack.push();
 
         stack.multiplyPositionMatrix(context.batcher.getContext().getMatrices().peek().getPositionMatrix());
-        stack.translate(area.x + 16, area.ey() - 12, 0F);
+        stack.translate(this.navBlock.mx(), this.navBlock.my(), 0F);
         stack.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(mcCamera.getPitch()));
         stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(mcCamera.getYaw()));
         stack.scale(-1F, -1F, -1F);
