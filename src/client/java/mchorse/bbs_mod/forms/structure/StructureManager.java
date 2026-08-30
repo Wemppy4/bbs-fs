@@ -7,6 +7,7 @@ import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.WorldSavePath;
 
+import java.lang.ref.SoftReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -30,7 +31,13 @@ import java.util.stream.Stream;
  */
 public class StructureManager
 {
-    private static final Map<String, StructureRenderData> CACHE = new HashMap<>();
+    /**
+     * Parsed structures, kept softly: a renderer holds its own hard reference to the data it is
+     * drawing, so anything only this map still points at is a structure nobody is using. Letting
+     * the GC take those under pressure costs a re-parse and bounds a session that opened a lot of
+     * big structures; a hard map would hold every one of them until the world changed.
+     */
+    private static final Map<String, SoftReference<StructureRenderData>> CACHE = new HashMap<>();
     private static final Set<String> FAILED = new HashSet<>();
 
     private static MinecraftServer lastServer;
@@ -135,7 +142,8 @@ public class StructureManager
             return null;
         }
 
-        StructureRenderData data = CACHE.get(id);
+        SoftReference<StructureRenderData> cached = CACHE.get(id);
+        StructureRenderData data = cached == null ? null : cached.get();
 
         if (data != null)
         {
@@ -168,7 +176,7 @@ public class StructureManager
             NbtCompound root = NbtIo.readCompressed(file, NbtTagSizeTracker.ofUnlimitedBytes());
 
             data = StructureRenderData.parse(id, root);
-            CACHE.put(id, data);
+            CACHE.put(id, new SoftReference<>(data));
 
             return data;
         }

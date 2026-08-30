@@ -372,12 +372,18 @@ public class BakedStructure
      * template. With an Iris shaderpack active the builder's actual format is EXTENDED (bigger
      * stride, extra attributes appended), so the vanilla attributes are extracted by their real
      * offsets; returns null if the format misses any of them.
+     *
+     * <p>The copy lives on the heap. It used to be off-heap for the raw replay path, which
+     * bulk-copied it into the builder's own direct buffer; that path is gone and every remaining
+     * reader is an absolute {@code get}, which a heap buffer serves just as well. Off-heap would
+     * now only buy a second memory budget to exhaust and a {@code Cleaner} to wait on — a bake
+     * replaced on every biome change or resource reload is much better left to the GC.</p>
      */
     private static ByteBuffer normalize(ByteBuffer source, VertexFormat format, int count)
     {
         int stride = format.getVertexSizeByte();
         int base = source.position();
-        ByteBuffer copy = ByteBuffer.allocateDirect(count * BakedBuffer.STRIDE).order(ByteOrder.nativeOrder());
+        ByteBuffer copy = ByteBuffer.allocate(count * BakedBuffer.STRIDE).order(ByteOrder.nativeOrder());
 
         if (stride == BakedBuffer.STRIDE && VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL.equals(format))
         {
