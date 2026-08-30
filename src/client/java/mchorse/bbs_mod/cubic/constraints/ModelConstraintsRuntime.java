@@ -9,6 +9,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.joml.Matrices;
@@ -41,6 +42,14 @@ public final class ModelConstraintsRuntime
         applyToBones(instance.model, bones);
     }
 
+    /* One-slot per-frame memo - the walk used to run twice per form per frame (physics asks
+     * once, the constraints stage once). Track overrides land before renders, so within a
+     * frame the map cannot change; the epoch re-reads it next frame. */
+    private static ModelInstance lastInstance;
+    private static Object lastForm;
+    private static long lastEpoch;
+    private static Map<String, BoneConstraint> lastBones;
+
     /**
      * The form's enabled constraints by bone name, read fresh from the bone properties each
      * frame (a track's runtime override on the property is picked up for free that way).
@@ -52,6 +61,23 @@ public final class ModelConstraintsRuntime
             return Collections.emptyMap();
         }
 
+        if (RenderFrame.isEnabled() && lastInstance == instance && lastForm == form && lastEpoch == RenderFrame.getEpoch())
+        {
+            return lastBones;
+        }
+
+        Map<String, BoneConstraint> bones = collectBones(form);
+
+        lastInstance = instance;
+        lastForm = form;
+        lastEpoch = RenderFrame.getEpoch();
+        lastBones = bones;
+
+        return bones;
+    }
+
+    private static Map<String, BoneConstraint> collectBones(ModelForm form)
+    {
         Map<String, BoneConstraint> bones = null;
 
         for (BaseValue value : form.bones.getAll())

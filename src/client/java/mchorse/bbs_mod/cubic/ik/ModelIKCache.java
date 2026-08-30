@@ -3,6 +3,7 @@ package mchorse.bbs_mod.cubic.ik;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ik.JointDoF;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 
@@ -35,6 +36,14 @@ final class ModelIKCache
     {
     }
 
+    /* One-slot per-frame memo: the walk is cheap once, but it used to run 2-4 times per form
+     * per frame (render's IK, the matrix collection's IK, the debug overlay). Same frame, same
+     * form, same model - same topology; a config edit lands next frame via the epoch. */
+    private static IModel lastModel;
+    private static ModelForm lastForm;
+    private static long lastEpoch;
+    private static Compiled lastCompiled;
+
     public static Compiled compile(IModel model, ModelForm form)
     {
         if (model == null || form == null)
@@ -42,6 +51,23 @@ final class ModelIKCache
             return null;
         }
 
+        if (RenderFrame.isEnabled() && lastModel == model && lastForm == form && lastEpoch == RenderFrame.getEpoch())
+        {
+            return lastCompiled;
+        }
+
+        Compiled compiled = compileFresh(model, form);
+
+        lastModel = model;
+        lastForm = form;
+        lastEpoch = RenderFrame.getEpoch();
+        lastCompiled = compiled;
+
+        return compiled;
+    }
+
+    private static Compiled compileFresh(IModel model, ModelForm form)
+    {
         List<CompiledChain> chains = null;
         Map<String, JointDoF> joints = null;
 
