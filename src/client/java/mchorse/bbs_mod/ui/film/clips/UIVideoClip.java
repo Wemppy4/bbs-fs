@@ -74,34 +74,25 @@ public class UIVideoClip extends UIAudioClip<VideoClientClip>
             UIUtils.openFolder(folder);
         });
 
-        this.extendDuration = new UIIcon(Icons.RIGHTLOAD, (b) ->
-        {
-            Link link = this.clip.audio.get();
-
-            if (link != null)
-            {
-                VideoPlayer player = BBSModClient.getVideos().get(link);
-
-                if (player != null)
-                {
-                    player.ensureProbed();
-                }
-
-                if (player != null && player.isValid())
-                {
-                    this.clip.duration.set((int) ((player.getDuration() * 20) - this.clip.offset.get()));
-                    this.fillData();
-                }
-            }
-        });
-        this.extendDuration.tooltip(UIKeys.CAMERA_PANELS_AUDIO_EXTEND_DURATION);
-
         this.loop = this.toggle(UIKeys.CAMERA_PANELS_VIDEO_LOOP, this.clip.loop);
         this.fullscreen = this.toggle(UIKeys.CAMERA_PANELS_IMAGE_FULLSCREEN, this.clip.fullscreen);
         this.smooth = this.toggle(UIKeys.CAMERA_PANELS_IMAGE_SMOOTH, this.clip.smooth);
         this.color = this.color(this.clip.color).withAlpha();
         this.placement = this.placement(this.clip.placement, new Placement());
         this.transform = this.transform(this.clip.transform);
+    }
+
+    @Override
+    protected double getMediaDuration(Link link)
+    {
+        VideoPlayer player = BBSModClient.getVideos().get(link);
+
+        if (player != null)
+        {
+            player.ensureProbed();
+        }
+
+        return player != null && player.isValid() ? player.getDuration() : 0D;
     }
 
     @Override

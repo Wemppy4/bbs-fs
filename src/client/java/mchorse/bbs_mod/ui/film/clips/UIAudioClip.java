@@ -64,21 +64,7 @@ public class UIAudioClip <T extends AudioClip> extends UIClip<T>
             UIUtils.openFolder(file);
         });
 
-        this.extendDuration = new UIIcon(Icons.RIGHTLOAD, (b) ->
-        {
-            Link link = this.clip.audio.get();
-
-            if (link != null)
-            {
-                SoundBuffer buffer = BBSModClient.getSounds().get(link, true);
-
-                if (buffer != null)
-                {
-                    this.clip.duration.set((int) ((buffer.getDuration() * 20) - this.clip.offset.get()));
-                    this.fillData();
-                }
-            }
-        });
+        this.extendDuration = new UIIcon(Icons.RIGHTLOAD, (b) -> this.extendToMediaDuration());
         this.extendDuration.tooltip(UIKeys.CAMERA_PANELS_AUDIO_EXTEND_DURATION);
 
         this.offset = new UITrackpad((v) -> this.clip.offset.set(v.intValue()));
@@ -86,6 +72,27 @@ public class UIAudioClip <T extends AudioClip> extends UIClip<T>
 
         this.volume = new UISliderTrackpad((v) -> this.clip.volume.set(v.floatValue()));
         this.volume.limit(this.clip.volume).values(0.05F, 0.01F, 0.2F).increment(0.1F).tooltip(UIKeys.CAMERA_PANELS_AUDIO_VOLUME);
+    }
+
+    /** Stretch the clip to the end of its media, counted from the offset it starts playing at. */
+    private void extendToMediaDuration()
+    {
+        Link link = this.clip.audio.get();
+        double duration = link == null ? 0D : this.getMediaDuration(link);
+
+        if (duration > 0D)
+        {
+            this.clip.duration.set((int) ((duration * 20) - this.clip.offset.get()));
+            this.fillData();
+        }
+    }
+
+    /** How long the picked media runs, in seconds — zero when it isn't there or isn't loaded yet. */
+    protected double getMediaDuration(Link link)
+    {
+        SoundBuffer buffer = BBSModClient.getSounds().get(link, true);
+
+        return buffer == null ? 0D : buffer.getDuration();
     }
 
     protected IKey getMediaTitle()
