@@ -10,6 +10,7 @@
 	"bbs.config.performance.list_model_preview": "Превью модели в списках",
 	"bbs.config.performance.list_model_preview-comment": "Когда включено, у пунктов списков реплеев, селекторов и частей формы рисуется маленькое 3D-превью модели. Выключите, чтобы разгрузить списки или сэкономить производительность.",
 	"bbs.config.performance.title": "Производительность",
+	"bbs.config.performance.tooltip": "Всё, что меняет работу на кадры: превью, кеши, прозрачность и счётчики производительности",
 	"bbs.config.performance.preview_refresh_budget": "Обновлений превью за кадр",
 	"bbs.config.performance.preview_refresh_budget-comment": "Превью форм в списках и палитре хранятся как текстуры и перерисовываются по кругу — столько штук за кадр; изменённая форма перерисовывается сразу. 0 — рисовать все превью вживую каждый кадр (как раньше).",
 	"bbs.config.appearance.morphing_focus_search": "Фокус на поиске при открытии морфинга",

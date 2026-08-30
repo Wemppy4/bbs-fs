@@ -254,7 +254,7 @@ public class UIFilmPreview extends UIElement
                 UISettingsOverlayPanel panel = new UISettingsOverlayPanel();
 
                 panel.showCategory("bbs", "video");
-                UIOverlay.addOverlay(this.getContext(), panel, 430, 380);
+                UIOverlay.addOverlay(this.getContext(), panel, 430, 400);
             });
 
             menu.action(Icons.VIDEO_CAMERA, UIKeys.FILM_RENDER_QUEUE, this::exportQueueFromTabs);

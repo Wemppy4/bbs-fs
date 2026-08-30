@@ -8,6 +8,7 @@
 	"bbs.config.performance.freeze_models": "Freeze models",
 	"bbs.config.performance.freeze_models-comment": "When enabled, models in form picker won't follow the mouse",
 	"bbs.config.performance.title": "Performance",
+	"bbs.config.performance.tooltip": "Everything that trades work for frames: previews, caches, translucency and the performance counters",
 	"bbs.config.performance.list_model_preview": "Model preview in lists",
 	"bbs.config.performance.list_model_preview-comment": "When enabled, entries in the replay, selector and form part lists render a small 3D preview of their model. Turn it off to declutter the lists or save performance.",
 	"bbs.config.performance.preview_refresh_budget": "Preview refreshes per frame",
