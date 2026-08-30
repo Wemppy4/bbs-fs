@@ -6,7 +6,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class AutomaticResizer extends BaseResizer
+public abstract class AutomaticResizer implements IResizer, IParentResizer
 {
     public UIElement parent;
     public int margin;
@@ -96,29 +96,5 @@ public abstract class AutomaticResizer extends BaseResizer
         {
             child.resizer(((ChildResizer) resizer).resizer);
         }
-    }
-
-    @Override
-    public int getX()
-    {
-        return 0;
-    }
-
-    @Override
-    public int getY()
-    {
-        return 0;
-    }
-
-    @Override
-    public int getW()
-    {
-        return 0;
-    }
-
-    @Override
-    public int getH()
-    {
-        return 0;
     }
 }

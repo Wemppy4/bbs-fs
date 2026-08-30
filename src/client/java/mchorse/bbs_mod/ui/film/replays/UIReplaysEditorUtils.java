@@ -506,45 +506,17 @@ public class UIReplaysEditorUtils
             return drag;
         }
 
-        Supplier<Matrix4f> matrixSampler = () ->
-        {
-            Form form = entity.getForm();
-            float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
-
-            if (form != null)
-            {
-                /* Force-apply the perturbed keyframe state to the entity's form 
-                 * so that FormUtilsClient's matrix cache updates for this sample. */
-                replay.properties.applyProperties(form, tick);
-            }
-
-            Matrix4f m = FilmMatrices.getGizmoBoneCompositeMatrix(
-                panel.getController().getEntities(),
-                entity,
-                replay,
-                camera.position.x,
-                camera.position.y,
-                camera.position.z,
-                transition,
-                bone.a,
-                true
-            );
-
-            return m == null ? new Matrix4f() : m;
-        };
-
-        drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform.getTransform(), matrixSampler));
-        drag.setJacobian(GizmoDrag.computeTranslateJacobian(
-            transform.getTransform(),
-            () -> matrixSampler.get().getTranslation(new Vector3f())
+        sampleGizmoAxes(panel, drag, transform, replay, entity, transition, () -> FilmMatrices.getGizmoBoneCompositeMatrix(
+            panel.getController().getEntities(),
+            entity,
+            replay,
+            camera.position.x,
+            camera.position.y,
+            camera.position.z,
+            transition,
+            bone.a,
+            true
         ));
-        /* Restore the form to its unperturbed state */
-        Form form = entity.getForm();
-        if (form != null)
-        {
-            float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
-            replay.properties.applyProperties(form, tick);
-        }
 
         /* Both of the bone's frames — its own and its parent's — so the snapshot can
          * answer for either instead of only for the one the handles were drawn in: the
@@ -648,29 +620,32 @@ public class UIReplaysEditorUtils
         float transition
     )
     {
+        sampleGizmoAxes(panel, drag, transform, replay, entity, transition, () -> FilmMatrices.getGizmoAnchorCompositeMatrix(
+            panel.getController().getEntities(),
+            entity,
+            replay,
+            camera.position.x,
+            camera.position.y,
+            camera.position.z,
+            transition
+        ));
+    }
+
+    /**
+     * Measure a gizmo's axes by perturbing what it drives: every probe pushes the keyframe state
+     * onto the form so the matrix cache reflects that sample, and the pose is put back afterwards.
+     * The composite the sampler returns is what the form is actually drawn with, so the numeric
+     * Jacobian answers in world space.
+     */
+    private static void sampleGizmoAxes(UIFilmPanel panel, GizmoDrag drag, UIPropTransform transform, Replay replay, IEntity entity, float transition, Supplier<Matrix4f> composite)
+    {
         Supplier<Matrix4f> matrixSampler = () ->
         {
-            Form form = entity.getForm();
-            float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
+            applyFormProperties(panel, replay, entity, transition);
 
-            if (form != null)
-            {
-                /* Push the perturbed keyframe state onto the form so the resolved
-                 * anchor matrix reflects this sample. */
-                replay.properties.applyProperties(form, tick);
-            }
+            Matrix4f matrix = composite.get();
 
-            Matrix4f m = FilmMatrices.getGizmoAnchorCompositeMatrix(
-                panel.getController().getEntities(),
-                entity,
-                replay,
-                camera.position.x,
-                camera.position.y,
-                camera.position.z,
-                transition
-            );
-
-            return m == null ? new Matrix4f() : m;
+            return matrix == null ? new Matrix4f() : matrix;
         };
 
         drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform.getTransform(), matrixSampler));
@@ -678,12 +653,19 @@ public class UIReplaysEditorUtils
             transform.getTransform(),
             () -> matrixSampler.get().getTranslation(new Vector3f())
         ));
+
         /* Restore the form to its unperturbed state */
+        applyFormProperties(panel, replay, entity, transition);
+    }
+
+    /** Lay the replay's properties onto its form at the cursor, the pose everything here measures from. */
+    private static void applyFormProperties(UIFilmPanel panel, Replay replay, IEntity entity, float transition)
+    {
         Form form = entity.getForm();
+
         if (form != null)
         {
-            float tick = panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F);
-            replay.properties.applyProperties(form, tick);
+            replay.properties.applyProperties(form, panel.getCursor() + (panel.getRunner().isRunning() ? transition : 0F));
         }
     }
 

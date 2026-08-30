@@ -83,31 +83,9 @@ public class UIOrbitCamera implements IUIElement
     /* Unimplemented GUI element methods */
 
     @Override
-    public void resize()
-    {}
-
-    @Override
     public boolean isEnabled()
     {
         return this.enabled;
-    }
-
-    @Override
-    public boolean isVisible()
-    {
-        return true;
-    }
-
-    @Override
-    public IUIElement keyPressed(UIContext context)
-    {
-        return null;
-    }
-
-    @Override
-    public IUIElement textInput(UIContext context)
-    {
-        return null;
     }
 
     @Override
