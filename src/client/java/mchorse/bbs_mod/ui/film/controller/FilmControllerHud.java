@@ -14,6 +14,7 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 
 /**
  * The editor's overlay on the film preview. Split out of {@link UIFilmController} because it
@@ -164,6 +165,11 @@ public class FilmControllerHud
             context.batcher.box(bx - 4, by - 4, bx + 4, by + 4, color);
         }
 
+        if (BBSSettings.profilerOverlay.get())
+        {
+            this.renderProfiler(context, hud);
+        }
+
         /* The visual gizmo draws here, before the picking preview, so the bone /
          * sphere hover highlights composite on top of it. It moved out of the
          * world pass into the UI pipeline so its translucent parts blend
@@ -187,6 +193,18 @@ public class FilmControllerHud
      * {@link UIKeyframeEditor#getTargetLabel}, which knows whether the useful name is the
      * track's or a bone picked inside it.
      */
+    /**
+     * The per-frame call counters of the hot paths, bottom left. Numbers come from the
+     * previous finished frame's snapshot, so they don't flicker mid-frame.
+     */
+    private void renderProfiler(UIContext context, PreviewHud hud)
+    {
+        for (BBSProfiler.Section section : BBSProfiler.Section.VALUES)
+        {
+            hud.text(context, PreviewHud.Anchor.BOTTOM_LEFT, section.name().toLowerCase() + ": " + BBSProfiler.get(section), Colors.LIGHTEST_GRAY);
+        }
+    }
+
     private String editTargetLabel()
     {
         if (!this.controller.canShowGizmo())

@@ -160,6 +160,7 @@ public class BBSSettings {
 	public static ValueOnionSkin editorOnionSkin;
 	public static ValueIKDebug ikDebug;
 	public static ValuePhysicsDebug physicsDebug;
+	public static ValueBoolean profilerOverlay;
 	public static ValueBoolean editorSnapToMarkers;
 	/** Snapping to the film's own markers &mdash; unlike {@link #editorSnapToMarkers}, which is the ruler's notches. */
 	public static ValueBoolean editorSnapToFilmMarkers;
@@ -765,6 +766,7 @@ public class BBSSettings {
 		 * IK and physics panels - stored here, no row of their own in the settings */
 		builder.register(ikDebug = new ValueIKDebug("ik_debug"));
 		builder.register(physicsDebug = new ValuePhysicsDebug("physics_debug"));
+		profilerOverlay = builder.getBoolean("profiler_overlay", false);
 
 		builder.category("background", Icons.IMAGE);
 		backgroundImage = builder.getRL("image", null);

@@ -15,6 +15,7 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Lerps;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
@@ -99,6 +100,8 @@ public abstract class FormRenderer <T extends Form>
         {
             return;
         }
+
+        BBSProfiler.count(BBSProfiler.Section.FORM_RENDER);
 
         this.form.applyStates(context.transition);
 
@@ -291,6 +294,8 @@ public abstract class FormRenderer <T extends Form>
 
     public MatrixCache collectMatrices(IEntity entity, float transition)
     {
+        BBSProfiler.count(BBSProfiler.Section.COLLECT_MATRICES);
+
         MatrixCache map = new MatrixCache();
         MatrixStack stack = new MatrixStack();
 

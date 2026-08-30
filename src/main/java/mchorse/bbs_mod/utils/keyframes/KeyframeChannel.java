@@ -7,6 +7,7 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueList;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.interps.Interpolations;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import org.slf4j.Logger;
@@ -123,6 +124,8 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
      */
     public KeyframeSegment<T> findSegment(float ticks)
     {
+        BBSProfiler.count(BBSProfiler.Section.KEYFRAME_FIND_SEGMENT);
+
         /* No keyframes, no values */
         if (this.list.isEmpty())
         {

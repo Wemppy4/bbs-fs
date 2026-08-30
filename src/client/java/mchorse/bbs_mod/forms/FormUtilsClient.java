@@ -21,6 +21,7 @@ import mchorse.bbs_mod.forms.renderers.BillboardFormRenderer;
 import mchorse.bbs_mod.forms.renderers.BlockFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ExtrudedFormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.FramebufferFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ItemFormRenderer;
@@ -155,6 +156,8 @@ public class FormUtilsClient
 
     public static void renderUI(Form form, UIContext context, int x1, int y1, int x2, int y2)
     {
+        BBSProfiler.count(BBSProfiler.Section.UI_PREVIEW_RENDERS);
+
         FormRenderer renderer = getRenderer(form);
 
         if (renderer != null)
@@ -166,6 +169,8 @@ public class FormUtilsClient
     /** The form's picture alone; see {@link FormRenderer#renderPreview}. */
     public static void renderPreview(Form form, UIContext context, int x1, int y1, int x2, int y2)
     {
+        BBSProfiler.count(BBSProfiler.Section.UI_PREVIEW_RENDERS);
+
         FormRenderer renderer = getRenderer(form);
 
         if (renderer != null)

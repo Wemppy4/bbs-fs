@@ -23,6 +23,7 @@ import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
@@ -230,6 +231,8 @@ public class FilmStencilPicker
         {
             return;
         }
+
+        BBSProfiler.count(BBSProfiler.Section.STENCIL_PASS);
 
         this.ensureFramebuffer();
 

@@ -11,6 +11,7 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gui.DrawContext;
@@ -114,6 +115,7 @@ public class Batcher2D
 
         RenderSystem.enableBlend();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(this.batchBuilder.end());
 
         this.context.draw();
@@ -238,6 +240,7 @@ public class Batcher2D
 
         RenderSystem.enableBlend();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
 
         this.context.draw();
@@ -266,6 +269,7 @@ public class Batcher2D
 
         RenderSystem.enableBlend();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
 
         this.context.draw();
@@ -371,6 +375,7 @@ public class Batcher2D
 
         RenderSystem.enableBlend();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
 
@@ -475,6 +480,7 @@ public class Batcher2D
             builder.vertex(matrix4f, (int) (x - Math.cos(a) * offset), (int) (y + Math.sin(a) * offset), 0F).color(opaque).next();
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
 
         /* Draw outer shadow */
@@ -493,6 +499,7 @@ public class Batcher2D
             builder.vertex(matrix4f, (float) (x - Math.cos(alpha2) * radius), (float) (y + Math.sin(alpha2) * radius), 0F).color(shadow).next();
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
 
@@ -656,6 +663,7 @@ public class Batcher2D
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
         this.fillTexturedBox(builder, matrix, color, x, y, w, h, u1, v1, u2, v2, textureW, textureH);
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
 
@@ -679,6 +687,7 @@ public class Batcher2D
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
         this.fillTexturedBox(builder, matrix, color, x, y, w, h, u1, v1, u2, v2, textureW, textureH);
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
 
@@ -724,6 +733,7 @@ public class Batcher2D
             this.fillTexturedBox(builder, matrix, color, xx, yy, xw, yh, u, v, u + xw, v + yh, tw, th);
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
     }
 
@@ -770,6 +780,7 @@ public class Batcher2D
             color = Colors.opaque(color);
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         this.context.drawText(this.font.getRenderer(), label, (int) x, (int) y, color, shadow);
         this.context.draw();
 

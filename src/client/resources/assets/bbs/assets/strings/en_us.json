@@ -207,6 +207,8 @@
 	"bbs.config.camera.angle_speed-comment": "Angle flight speed when rotating the camera around",
 	"bbs.config.viewport.center_lines": "Center lines",
 	"bbs.config.viewport.center_lines-comment": "Center lines",
+	"bbs.config.viewport.profiler_overlay": "Performance counters",
+	"bbs.config.viewport.profiler_overlay-comment": "Shows per-frame call counters of the film editor's hot paths (pose evaluations, stencil passes, UI draw calls) in the corner of the preview",
 	"bbs.config.viewport.clip_preview": "Clip preview",
 	"bbs.config.viewport.clip_preview-comment": "When enabled, you can see currently selected clip in the keyframe timeline",
 	"bbs.config.viewport.crosshair": "Crosshair",

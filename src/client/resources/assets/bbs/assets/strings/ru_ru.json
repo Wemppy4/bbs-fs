@@ -205,6 +205,8 @@
 	"bbs.config.camera.angle_speed-comment": "Скорость вращения полёта камеры когда вращаешь камеру",
 	"bbs.config.viewport.center_lines": "Центральные линии",
 	"bbs.config.viewport.center_lines-comment": "Линии обозначающие центр композиции",
+	"bbs.config.viewport.profiler_overlay": "Счётчики производительности",
+	"bbs.config.viewport.profiler_overlay-comment": "Показывает в углу превью покадровые счётчики вызовов горячих путей редактора (оценки позы, стенсил-проходы, draw call интерфейса)",
 	"bbs.config.viewport.clip_preview": "Предпросмотр клипа",
 	"bbs.config.viewport.clip_preview-comment": "Когда включено, Вы сможете увидеть выделенный клип в данный момент в редакторе ключевых кадров",
 	"bbs.config.viewport.crosshair": "Перекрестие",

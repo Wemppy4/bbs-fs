@@ -40,6 +40,7 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.Transform;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
@@ -371,6 +372,8 @@ public class ModelInstance implements IModelInstance
 
     public void captureMatrices(MatrixCache bones)
     {
+        BBSProfiler.count(BBSProfiler.Section.CAPTURE_MATRICES);
+
         if (this.model instanceof Model model)
         {
             MatrixStack stack = new MatrixStack();
