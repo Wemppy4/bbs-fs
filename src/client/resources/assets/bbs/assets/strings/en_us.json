@@ -9,6 +9,8 @@
 	"bbs.config.appearance.freeze_models-comment": "When enabled, models in form picker won't follow the mouse",
 	"bbs.config.appearance.list_model_preview": "Model preview in lists",
 	"bbs.config.appearance.list_model_preview-comment": "When enabled, entries in the replay, selector and form part lists render a small 3D preview of their model. Turn it off to declutter the lists or save performance.",
+	"bbs.config.appearance.preview_refresh_budget": "Form picture refreshes per frame",
+	"bbs.config.appearance.preview_refresh_budget-comment": "Form pictures in lists and palettes are kept as textures and re-rendered in rotation, this many per frame; an edited form always re-renders at once. 0 renders every picture live every frame (the old behaviour).",
 	"bbs.config.appearance.morphing_focus_search": "Focus search on open morphing",
 	"bbs.config.appearance.morphing_focus_search-comment": "When enabled, the form search field is focused automatically when you open the morphing menu",
 	"bbs.ui.textures.browser.search": "Search...",

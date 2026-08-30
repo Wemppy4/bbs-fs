@@ -15,6 +15,7 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Lerps;
+import mchorse.bbs_mod.forms.renderers.utils.FormPreviewCache;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.gl.GlUniform;
@@ -51,7 +52,7 @@ public abstract class FormRenderer <T extends Form>
 
     public final void renderUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        this.renderInUI(context, x1, y1, x2, y2);
+        FormPreviewCache.render(this, context, x1, y1, x2, y2);
 
         FontRenderer font = context.batcher.getFont();
         String name = this.form.name.get();
@@ -83,6 +84,12 @@ public abstract class FormRenderer <T extends Form>
      * host that draws its own captions around the picture.
      */
     public final void renderPreview(UIContext context, int x1, int y1, int x2, int y2)
+    {
+        FormPreviewCache.render(this, context, x1, y1, x2, y2);
+    }
+
+    /** The picture drawn right now, bypassing the preview cache — what the cache itself renders from. */
+    public final void renderLive(UIContext context, int x1, int y1, int x2, int y2)
     {
         this.renderInUI(context, x1, y1, x2, y2);
     }

@@ -53,6 +53,8 @@ public class BBSSettings {
 	public static ValueBoolean forceQwerty;
 	public static ValueBoolean freezeModels;
 	public static ValueBoolean listModelPreview;
+	/** How many cached form pictures (lists, palettes) are re-rendered per frame; 0 renders them live. */
+	public static ValueInt previewRefreshBudget;
 	public static ValueBoolean morphingFocusSearch;
 	public static ValueInt formCellSize;
 	public static ValueInt textureCellSize;
@@ -642,6 +644,7 @@ public class BBSSettings {
 		forceQwerty = builder.getBoolean("force_qwerty", false);
 		freezeModels = builder.getBoolean("freeze_models", false);
 		listModelPreview = builder.getBoolean("list_model_preview", true);
+		previewRefreshBudget = builder.getInt("preview_refresh_budget", 2, 0, 8).slider();
 		morphingFocusSearch = builder.getBoolean("morphing_focus_search", false);
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();

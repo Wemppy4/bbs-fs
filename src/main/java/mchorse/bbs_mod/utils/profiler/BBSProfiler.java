@@ -33,6 +33,8 @@ public class BBSProfiler
         KEYFRAME_FIND_SEGMENT,
         /** Full model renders into UI boxes (lists, palettes, HUD thumbnails). */
         UI_PREVIEW_RENDERS,
+        /** UI form pictures served from the preview cache instead of a live render. */
+        UI_PREVIEWS_CACHED,
         /** 2D UI draw calls issued by Batcher2D (each is a shader bind + draw + flush). */
         UI_DRAW_CALLS,
         /** Per-frame pose cache: reads served without re-evaluating the pipeline. */
