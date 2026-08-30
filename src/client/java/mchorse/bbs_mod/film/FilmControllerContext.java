@@ -30,11 +30,11 @@ public class FilmControllerContext
     public int color;
     public float shadowRadius;
 
-    public String bone;
-
-    /** The frame the bone gizmo is PLACED and drawn in — one field decides both, so
-     *  they cannot disagree. */
-    public TransformSpace space = TransformSpace.LOCAL;
+    /** What the gizmo is on this frame — bone, anchor or the replay's own placement — and
+     *  the frame it is placed and drawn in. ONE field for the whole cascade: the passes that
+     *  draw the gizmo and the pass that picks it are built from the same answer, so a target
+     *  cannot reach one of them and not the other. {@link FilmTarget#NONE} draws nothing. */
+    public FilmTarget gizmoTarget = FilmTarget.NONE;
 
     /** The film camera's world&rarr;camera rotation, used to reorient the gizmo. */
     public Matrix4f gizmoView;
@@ -43,19 +43,6 @@ public class FilmControllerContext
 
     /** The preview axes' frame; always LOCAL today — the preview shows the bone's own axes. */
     public TransformSpace space2 = TransformSpace.LOCAL;
-
-    /** Draw the editing gizmo at the entity's resolved {@code form.anchor} matrix. */
-    public boolean anchorGizmo;
-
-    /** The anchor gizmo's own frame. */
-    public TransformSpace anchorSpace = TransformSpace.LOCAL;
-
-    /** Draw the editing gizmo on the replay's own placement in the world — where the actor
-     *  stands and which way it faces — rather than on anything inside its form. */
-    public boolean replayGizmo;
-
-    /** The replay gizmo's own frame. */
-    public TransformSpace replaySpace = TransformSpace.LOCAL;
 
     public String nameTag = "";
     public boolean relative;
@@ -68,15 +55,10 @@ public class FilmControllerContext
         this.map = null;
         this.shadowRadius = 0F;
         this.color = Colors.WHITE;
-        this.bone = null;
-        this.space = TransformSpace.LOCAL;
+        this.gizmoTarget = FilmTarget.NONE;
         this.gizmoView = null;
         this.bone2 = null;
         this.space2 = TransformSpace.LOCAL;
-        this.anchorGizmo = false;
-        this.anchorSpace = TransformSpace.LOCAL;
-        this.replayGizmo = false;
-        this.replaySpace = TransformSpace.LOCAL;
         this.nameTag = "";
         this.relative = false;
     }
@@ -146,11 +128,10 @@ public class FilmControllerContext
         return this;
     }
 
-    /** The bone the gizmo edits and the frame it is edited in. */
-    public FilmControllerContext bone(String bone, TransformSpace space)
+    /** What the gizmo edits and the frame it is edited in, as one answer. */
+    public FilmControllerContext gizmoTarget(FilmTarget target)
     {
-        this.bone = bone;
-        this.space = space == null ? TransformSpace.LOCAL : space;
+        this.gizmoTarget = target == null ? FilmTarget.NONE : target;
 
         return this;
     }
@@ -167,22 +148,6 @@ public class FilmControllerContext
     {
         this.bone2 = bone;
         this.space2 = space == null ? TransformSpace.LOCAL : space;
-
-        return this;
-    }
-
-    public FilmControllerContext anchorGizmo(boolean anchorGizmo, TransformSpace anchorSpace)
-    {
-        this.anchorGizmo = anchorGizmo;
-        this.anchorSpace = anchorSpace == null ? TransformSpace.LOCAL : anchorSpace;
-
-        return this;
-    }
-
-    public FilmControllerContext replayGizmo(boolean replayGizmo, TransformSpace replaySpace)
-    {
-        this.replayGizmo = replayGizmo;
-        this.replaySpace = replaySpace == null ? TransformSpace.LOCAL : replaySpace;
 
         return this;
     }

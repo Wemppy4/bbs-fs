@@ -1,12 +1,12 @@
 package mchorse.bbs_mod.ui.film.controller;
 
-import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionConfig;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.FilmMatrices;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -16,7 +16,6 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
-import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
@@ -83,16 +82,19 @@ public class MotionPath
         "swipe", "jump", "jump_alt", "hurt", "land", "shoot", "consume", "base_pre", "base_post"
     };
 
-    public static void render(WorldRenderContext context, ValueMotionPath config, UIFilmController controller, Replay replay, Pair<String, TransformSpace> bone, float currentTick)
+    public static void render(WorldRenderContext context, ValueMotionPath config, UIFilmController controller, Replay replay, FilmTarget target, float currentTick)
     {
         if (replay == null || replay.relative.get())
         {
             return;
         }
 
-        String bonePath = bone == null ? null : bone.a;
-
-        Trajectory trajectory = bonePath == null ? null : boneTrajectory(controller, replay, bonePath);
+        /* The same target the gizmo is on, so the path is the trajectory of the thing being
+         * dragged. Root is the fallback in both senses: the target's own, and what a bone or
+         * anchor falls back to when its path cannot be sampled (no form, no world yet). */
+        Trajectory trajectory = target == null || target.is(FilmTarget.Kind.ROOT) || target.isNone()
+            ? null
+            : sampledTrajectory(controller, replay, target);
 
         if (trajectory == null)
         {
@@ -350,7 +352,9 @@ public class MotionPath
 
     /* Bone trajectory: simulated per tick on a scratch entity, cached. */
 
-    private static Trajectory boneTrajectory(UIFilmController controller, Replay replay, String bonePath)
+    /** The trajectory of a bone or of the form's anchor: both are sampled by posing a scratch
+     *  entity tick by tick and reading a matrix off it, and differ only in which matrix. */
+    private static Trajectory sampledTrajectory(UIFilmController controller, Replay replay, FilmTarget target)
     {
         World world = MinecraftClient.getInstance().world;
         Form form = replay.form.get();
@@ -368,11 +372,11 @@ public class MotionPath
          * seed so each recompute drifted ~1cm — and self-triggering (a single off-sequence sample
          * never matches the in-sequence cached value). Without it the cached path is stable while
          * idle and only rebuilt on a real edit. */
-        String signature = signature(replay, bonePath);
+        String signature = signature(replay, target);
 
         if (boneCache == null || !signature.equals(boneCacheSignature))
         {
-            boneCache = computeBoneTrajectory(entities, replay, bonePath);
+            boneCache = computeSampledTrajectory(entities, replay, target);
             boneCacheSignature = signature;
         }
 
@@ -414,7 +418,7 @@ public class MotionPath
         return true;
     }
 
-    private static BoneTrajectory computeBoneTrajectory(Map<String, IEntity> entities, Replay replay, String bonePath)
+    private static BoneTrajectory computeSampledTrajectory(Map<String, IEntity> entities, Replay replay, FilmTarget target)
     {
         float[] range = range(replay);
 
@@ -431,7 +435,7 @@ public class MotionPath
 
         for (int i = 0; i < count; i++)
         {
-            if (!sampleBoneWorld(entities, replay, bonePath, base + i, LIVE))
+            if (!sampleTargetWorld(entities, replay, target, base + i, LIVE))
             {
                 return null;
             }
@@ -442,11 +446,11 @@ public class MotionPath
         }
 
         TreeSet<Float> ticks = new TreeSet<>();
-        String boneName = bonePath.contains(".") ? bonePath.substring(bonePath.lastIndexOf('.') + 1) : bonePath;
+        String marker = trackMarker(target);
 
         for (KeyframeChannel<?> channel : replay.properties.tracks.values())
         {
-            if (channel.getId() != null && channel.getId().contains(boneName))
+            if (channel.getId() != null && channel.getId().contains(marker))
             {
                 collectTicks(ticks, channel);
             }
@@ -455,8 +459,21 @@ public class MotionPath
         return new BoneTrajectory(base, count, points, range[0], range[1], ticks);
     }
 
-    /** Pose the scratch entity at {@code tick} and read the bone's world position (camera at origin). */
-    private static boolean sampleBoneWorld(Map<String, IEntity> entities, Replay replay, String bonePath, int tick, Vector3d out)
+    /** Which property tracks put a keyframe dot on the path: the ones naming this target. */
+    private static String trackMarker(FilmTarget target)
+    {
+        if (target.is(FilmTarget.Kind.ANCHOR))
+        {
+            return "anchor";
+        }
+
+        String bonePath = target.bone();
+
+        return bonePath.contains(".") ? bonePath.substring(bonePath.lastIndexOf('.') + 1) : bonePath;
+    }
+
+    /** Pose the scratch entity at {@code tick} and read the target's world position (camera at origin). */
+    private static boolean sampleTargetWorld(Map<String, IEntity> entities, Replay replay, FilmTarget target, int tick, Vector3d out)
     {
         StubEntity entity = scratchEntity;
 
@@ -465,7 +482,9 @@ public class MotionPath
         entity.getForm().update(entity);
         replay.properties.applyProperties(entity.getForm(), tick);
 
-        Matrix4f matrix = FilmMatrices.getBoneCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F, bonePath, false);
+        Matrix4f matrix = target.is(FilmTarget.Kind.ANCHOR)
+            ? FilmMatrices.getGizmoAnchorCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F)
+            : FilmMatrices.getBoneCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F, target.bone(), false);
 
         if (matrix == null)
         {
@@ -624,9 +643,13 @@ public class MotionPath
         return channel.isEmpty() ? -Float.MAX_VALUE : channel.get(channel.getKeyframes().size() - 1).getTick();
     }
 
-    private static String signature(Replay replay, String bonePath)
+    private static String signature(Replay replay, FilmTarget target)
     {
-        StringBuilder builder = new StringBuilder(replay.getId()).append('|').append(bonePath);
+        /* The kind is part of the key, not just the bone path: a null path would make the anchor
+         * and "no bone" hash alike and hand one the other's cached path. */
+        StringBuilder builder = new StringBuilder(replay.getId())
+            .append('|').append(target.kind())
+            .append('|').append(target.bone());
 
         signature(builder, replay.keyframes.x);
         signature(builder, replay.keyframes.y);

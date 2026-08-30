@@ -5,6 +5,7 @@ import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmControllerContext;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
@@ -13,7 +14,6 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
@@ -227,50 +227,24 @@ public class FilmEditorController extends BaseFilmController
         }
     }
 
-    /**
-     * 🔴 The gizmo fields set here have a hand-kept twin in
-     * {@link FilmStencilPicker#renderStencil}, which builds its own context for the pick
-     * pass. A target added to one and not the other is drawn but not clickable.
-     */
     @Override
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
     {
-        Pair<String, TransformSpace> bone = this.isCurrent(entity) && !this.controller.panel.recorder.isRecording() ? this.controller.getBone() : null;
-        String aBone = bone == null ? null : bone.a;
-        /* The bone's own frame, straight off the pair — never resolved a second time. */
-        TransformSpace space = bone == null ? TransformSpace.LOCAL : bone.b;
-        String aBone2 = null;
+        boolean recording = this.controller.panel.recorder.isRecording();
 
-        if (replay.axesPreview.get())
-        {
-            aBone2 = replay.axesPreviewBone.get();
-        }
+        /* One question, asked once. The gizmo only ever belongs to the replay being edited,
+         * so every other actor in the film gets NONE. */
+        FilmTarget target = this.isCurrent(entity) && !recording
+            ? this.controller.getEditTarget()
+            : FilmTarget.NONE;
 
-        if (this.controller.panel.recorder.isRecording())
-        {
-            aBone = null;
-            space = TransformSpace.LOCAL;
-            aBone2 = null;
-        }
-
-        boolean anchorGizmo = this.isCurrent(entity)
-            && !this.controller.panel.recorder.isRecording()
-            && this.controller.isAnchorGizmo();
-
-        /* The fallback target: with no bone and no anchor claiming the gizmo, it goes to
-         * the replay's own placement. Only one gizmo exists at a time, so this is an
-         * "or", not an addition. */
-        boolean replayGizmo = this.isCurrent(entity)
-            && !this.controller.panel.recorder.isRecording()
-            && this.controller.isReplayGizmo();
+        String aBone2 = replay.axesPreview.get() && !recording ? replay.axesPreviewBone.get() : null;
 
         return super.getFilmControllerContext(context, replay, entity)
             .transition(this.getTransition(entity, context.tickDelta()))
-            .bone(aBone, space)
+            .gizmoTarget(target)
             .gizmoView(this.controller.getGizmoView())
-            .bone2(aBone2, TransformSpace.LOCAL)
-            .anchorGizmo(anchorGizmo, this.controller.getAnchorSpace())
-            .replayGizmo(replayGizmo, this.controller.getReplaySpace());
+            .bone2(aBone2, TransformSpace.LOCAL);
     }
 
     private boolean isCurrent(IEntity entity)

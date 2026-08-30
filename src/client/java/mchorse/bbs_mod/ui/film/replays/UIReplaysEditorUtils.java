@@ -25,6 +25,7 @@ import mchorse.bbs_mod.film.replays.FormProperties;
 import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -329,7 +330,7 @@ public class UIReplaysEditorUtils
      */
     public static UIPropTransform getFilmGizmoTransform(UIFilmPanel panel, float transition)
     {
-        if (panel.getController().isReplayGizmo())
+        if (panel.getController().getEditTarget().is(FilmTarget.Kind.ROOT))
         {
             UIReplayPropTransform replayTransform = panel.replayEditor.replayTransform;
 

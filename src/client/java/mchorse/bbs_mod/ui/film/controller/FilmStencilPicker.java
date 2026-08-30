@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.film.controller;
 
-import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSSettings;
@@ -9,6 +8,7 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.FilmControllerContext;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -186,13 +186,6 @@ public class FilmStencilPicker
     }
 
 
-    /**
-     * 🔴 The gizmo fields set on the context below are a second, hand-kept copy of the ones
-     * {@link FilmEditorController#getFilmControllerContext} sets for the visual pass. Add a
-     * gizmo target to one and it MUST be added here too, in both branches: the visual pass
-     * would draw it and this pass would leave it out of the pick buffer, giving a gizmo that
-     * is on screen and cannot be clicked.
-     */
     private void renderStencil(WorldRenderContext renderContext, UIContext context, boolean altPressed)
     {
         Area viewport = this.controller.panel.preview.getViewport();
@@ -227,7 +220,7 @@ public class FilmStencilPicker
         {
             List<Replay> replays = this.controller.panel.getData().replays.getList();
             int selectedReplayIndex = this.controller.getCurrentReplayIndex();
-            Pair<String, TransformSpace> bone = this.controller.getBone();
+            FilmTarget target = this.controller.getEditTarget();
 
             /* Walked by list position, not by the entity map: the stencil object index IS the
              * replay's position in the film, which is what the pick reads back. */
@@ -253,10 +246,8 @@ public class FilmStencilPicker
                     this.stencilMap.setIncrement(true);
 
                     filmContext
-                        .bone(bone == null ? null : bone.a, bone == null ? null : bone.b)
-                        .gizmoView(this.controller.getGizmoView())
-                        .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorSpace())
-                        .replayGizmo(this.controller.isReplayGizmo(), this.controller.getReplaySpace());
+                        .gizmoTarget(target)
+                        .gizmoView(this.controller.getGizmoView());
                 }
                 else
                 {
@@ -270,7 +261,6 @@ public class FilmStencilPicker
         else
         {
             Replay replay = this.controller.panel.replayEditor.getReplay();
-            Pair<String, TransformSpace> bone = this.controller.getBone();
 
             this.stencilMap.setIncrement(true);
 
@@ -279,10 +269,8 @@ public class FilmStencilPicker
                 .transition(isPlaying ? renderContext.tickDelta() : 0)
                 .stencil(this.stencilMap)
                 .relative(replay.relative.get())
-                .bone(bone == null ? null : bone.a, bone == null ? null : bone.b)
-                .gizmoView(this.controller.getGizmoView())
-                .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorSpace())
-                .replayGizmo(this.controller.isReplayGizmo(), this.controller.getReplaySpace()));
+                .gizmoTarget(this.controller.getEditTarget())
+                .gizmoView(this.controller.getGizmoView()));
         }
 
         int x = (int) ((context.mouseX - viewport.x) / (float) viewport.w * mainTexture.width);

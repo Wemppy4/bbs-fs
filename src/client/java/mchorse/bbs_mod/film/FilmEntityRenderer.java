@@ -159,22 +159,29 @@ public class FilmEntityRenderer
          * which was taken before the states moved the pose. */
         FormFrameCache gizmoFrame = UIBaseMenu.shouldRenderAxes() ? new FormFrameCache() : null;
 
+        FilmTarget gizmoTarget = context.gizmoTarget;
+
         if (UIBaseMenu.shouldRenderAxes())
         {
-            if (context.bone != null) renderAxes(context.bone, context.space, context.gizmoView, context.map, form, entity, transition, stack, gizmoFrame);
+            /* The bone case is the only one drawn INSIDE the form's frame; the other two are
+             * placed on matrices of their own and so live past the pop below. Both halves read
+             * the one target, so they cannot disagree about which of the three it is. */
+            if (gizmoTarget.boneOrNull() != null) renderAxes(gizmoTarget.bone(), gizmoTarget.space(), context.gizmoView, context.map, form, entity, transition, stack, gizmoFrame);
             if (context.bone2 != null && context.map == null) renderPreviewAxes(context.bone2, context.space2, form, entity, transition, stack, gizmoFrame);
         }
 
         stack.pop();
 
-        if (UIBaseMenu.shouldRenderAxes() && context.anchorGizmo)
+        if (UIBaseMenu.shouldRenderAxes())
         {
-            renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.gizmoView, context.map, stack, gizmoFrame);
-        }
-
-        if (UIBaseMenu.shouldRenderAxes() && context.replayGizmo)
-        {
-            renderReplayGizmo(entity, cx, cy, cz, transition, context.replaySpace, context.gizmoView, context.map, stack);
+            if (gizmoTarget.is(FilmTarget.Kind.ANCHOR))
+            {
+                renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, gizmoTarget.space(), context.gizmoView, context.map, stack, gizmoFrame);
+            }
+            else if (gizmoTarget.is(FilmTarget.Kind.ROOT))
+            {
+                renderReplayGizmo(entity, cx, cy, cz, transition, gizmoTarget.space(), context.gizmoView, context.map, stack);
+            }
         }
 
         if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F && form.visible.get())

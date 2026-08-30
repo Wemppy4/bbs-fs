@@ -252,6 +252,34 @@ public class UIKeyframeEditor extends UITimelinePanel
     }
 
     /**
+     * How to NAME whatever {@link #getBone} just resolved, for the readouts that say what is
+     * being edited. It answers the same dispatch, so keep the two together.
+     *
+     * <p>A pose track is one channel called "pose" and the bone is picked inside it, in the
+     * group list — so there the bone's own name is the useful answer, not the track's. Every
+     * other track IS the thing being edited, so it goes by its timeline title, which also
+     * carries the user's renames. The distinction matters because {@code getBone()} returns a
+     * path that means different things in the two cases: a bone's for a pose track, the form's
+     * for a transform one (empty for the root form).
+     */
+    public String getTargetLabel()
+    {
+        if (this.editor instanceof UIPoseKeyframeFactory pose)
+        {
+            String bone = pose.poseEditor.groups.list.getCurrentFirst();
+
+            if (bone != null && !bone.isEmpty())
+            {
+                return bone;
+            }
+        }
+
+        UIKeyframeSheet sheet = this.editor == null ? null : this.getSheet(this.editor.getKeyframe());
+
+        return sheet == null || sheet.title == null ? null : sheet.title.get();
+    }
+
+    /**
      * Whether the active editor is the form's "anchor" property track — the one that
      * re-parents the form and carries a Transform offset the gizmo can edit. The
      * IK/pole/physics targets reuse the {@code Anchor} type without a backing property,
