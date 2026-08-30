@@ -38,7 +38,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Matrices;
-import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
 import org.lwjgl.glfw.GLFW;
@@ -210,16 +209,9 @@ public class UIAnimationStateEditor extends UIElement
                 int mouseY = this.getContext().mouseY;
                 UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
 
-                /* Whose pose the hovered track is: this form's for "pose", a body part's for
-                 * "<path>/pose" - the animations offered are that form's own. */
-                Form sheetForm = sheet != null && sheet.property != null ? FormUtils.getForm(sheet.property) : null;
-                boolean isPoseTrack = sheet != null
-                    && sheet.channel.getFactory() == KeyframeFactories.POSE
-                    && (sheet.id.equals("pose")
-                    || sheet.id.endsWith(FormUtils.PATH_SEPARATOR + "pose"))
-                    && !sheet.id.contains("pose_overlay");
+                ModelForm poseModelForm = sheet == null ? null : sheet.getPoseForm();
 
-                if (isPoseTrack && sheetForm instanceof ModelForm poseModelForm)
+                if (poseModelForm != null)
                 {
                     menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () ->
                     {

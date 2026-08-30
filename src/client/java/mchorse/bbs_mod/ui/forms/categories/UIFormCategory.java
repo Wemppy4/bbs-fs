@@ -111,6 +111,34 @@ public class UIFormCategory extends UIItemGrid<Form>
         return this.contextForm == null ? this.selected : this.contextForm;
     }
 
+    /** Offer pasting whatever form is on the clipboard; silent when it doesn't hold one. */
+    protected void pasteFormAction(ContextMenuManager menu)
+    {
+        try
+        {
+            Form form = FormUtils.fromData(Window.getClipboardMap());
+
+            menu.action(Icons.PASTE, UIKeys.FORMS_CATEGORIES_CONTEXT_PASTE_FORM, () -> this.category.addForm(form));
+        }
+        catch (Exception e)
+        {}
+    }
+
+    /** Offer removing one form. With several picked the group menu already offers their removal. */
+    protected void removeFormAction(ContextMenuManager menu, Form form)
+    {
+        if (this.isGroupContext())
+        {
+            return;
+        }
+
+        menu.icon(MenuVerb.REMOVE, () ->
+        {
+            this.category.removeForm(form);
+            this.list.reconcile();
+        }).label(UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM);
+    }
+
     /**
      * Whether a menu opened over a form should act on the whole multi-selection instead —
      * the form is one of several picked.

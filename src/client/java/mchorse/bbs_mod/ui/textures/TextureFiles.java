@@ -94,19 +94,13 @@ public class TextureFiles
             return null;
         }
 
-        try
-        {
-            Files.move(file.toPath(), target.toPath());
-            moveSidecars(file, target);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
+        return moveFile(link, file, target);
+    }
 
-            return null;
-        }
-
-        return moved(link, done(target, link));
+    /** Move a texture and whatever sits beside it, and hand back the link it now lives at. */
+    private static Link moveFile(Link link, File file, File target)
+    {
+        return moveFile(link, file, target);
     }
 
     public static Link duplicate(Link link)

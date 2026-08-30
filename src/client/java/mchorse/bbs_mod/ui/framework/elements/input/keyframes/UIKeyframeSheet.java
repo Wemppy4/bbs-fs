@@ -5,6 +5,7 @@ import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
@@ -15,6 +16,7 @@ import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
+import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -128,6 +130,27 @@ public class UIKeyframeSheet
         this.filterKey = descriptor != null ? descriptor.filterKey() : (isBoneTrack ? title.get() : StringUtils.fileName(id));
 
         this.applyStyle();
+    }
+
+    /**
+     * The model form whose pose this track drives, or {@code null} when it isn't a pose track at
+     * all. Whose pose it is comes from the track, not from whoever owns the timeline: a body part
+     * carries its own model, animations and bones, and it answers for {@code "<path>/pose"} the
+     * same way the root answers for {@code "pose"}. Overlays are not it — they layer over a pose
+     * rather than being one.
+     */
+    public ModelForm getPoseForm()
+    {
+        boolean isPose = this.channel.getFactory() == KeyframeFactories.POSE
+            && (this.id.equals("pose") || this.id.endsWith(FormUtils.PATH_SEPARATOR + "pose"))
+            && !this.id.contains("pose_overlay");
+
+        if (!isPose || this.property == null)
+        {
+            return null;
+        }
+
+        return FormUtils.getForm(this.property) instanceof ModelForm modelForm ? modelForm : null;
     }
 
     /** The key this track is identified by in the global filters and in the user's name/colour overrides. */

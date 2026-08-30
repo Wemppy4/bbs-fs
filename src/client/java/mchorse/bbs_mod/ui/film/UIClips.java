@@ -58,6 +58,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class UIClips extends UIElement
@@ -244,8 +245,8 @@ public class UIClips extends UIElement
         this.keys().register(Keys.CLIP_SELECT_TRACK_AFTER, this::selectTrackAfter).category(KEYS_CATEGORY).active(canUseKeybinds);
         this.keys().register(Keys.CLIP_SELECT_AFTER, this::selectAfter).category(KEYS_CATEGORY).active(canUseKeybinds);
         this.keys().register(Keys.CLIP_SELECT_BEFORE, this::selectBefore).category(KEYS_CATEGORY).active(canUseKeybinds);
-        this.keys().register(Keys.CLIP_LAYER_UP, () -> this.moveSelectedByLayer(1)).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
-        this.keys().register(Keys.CLIP_LAYER_DOWN, () -> this.moveSelectedByLayer(-1)).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
+        this.keys().register(Keys.CLIP_LAYER_UP, () -> this.moveSelectedBy(0, 1)).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
+        this.keys().register(Keys.CLIP_LAYER_DOWN, () -> this.moveSelectedBy(0, -1)).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
         this.keys().register(Keys.FADE_IN, () ->
         {
             Clip clip = this.delegate.getClip();
@@ -742,13 +743,21 @@ public class UIClips extends UIElement
 
     private void selectBefore()
     {
+        int cursor = this.delegate.getCursor();
+
+        this.selectWhere((clip) -> clip.tick.get() < cursor);
+    }
+
+    /** Replace the selection with every clip the test accepts, and pick the first of them. */
+    private void selectWhere(Predicate<Clip> test)
+    {
         int i = 0;
 
         this.clearSelection();
 
         for (Clip clip : this.clips.get())
         {
-            if (clip.tick.get() < this.delegate.getCursor())
+            if (test.test(clip))
             {
                 this.selection.add(i);
             }
@@ -757,6 +766,15 @@ public class UIClips extends UIElement
         }
 
         this.delegate.pickClip(this.selection.isEmpty() ? null : this.clips.get(this.selection.get(0)));
+    }
+
+    /** The layer the mouse is over, falling back to the selected clip's — negative when there is neither. */
+    private int layerUnderMouse()
+    {
+        Clip clip = this.delegate.getClip();
+        int layer = this.fromLayerY(this.getContext().mouseY);
+
+        return layer < 0 && clip != null ? clip.layer.get() : layer;
     }
 
     private void selectAll()
@@ -773,13 +791,7 @@ public class UIClips extends UIElement
 
     private void selectTrack()
     {
-        Clip clip = this.delegate.getClip();
-        int layer = this.fromLayerY(this.getContext().mouseY);
-
-        if (layer < 0 && clip != null)
-        {
-            layer = clip.layer.get();
-        }
+        int layer = this.layerUnderMouse();
 
         if (layer < 0)
         {
@@ -804,13 +816,7 @@ public class UIClips extends UIElement
      */
     private void selectTrackBefore()
     {
-        Clip clip = this.delegate.getClip();
-        int layer = this.fromLayerY(this.getContext().mouseY);
-
-        if (layer < 0 && clip != null)
-        {
-            layer = clip.layer.get();
-        }
+        int layer = this.layerUnderMouse();
 
         if (layer < 0)
         {
@@ -818,21 +824,8 @@ public class UIClips extends UIElement
         }
 
         int cursor = this.delegate.getCursor();
-        int i = 0;
 
-        this.clearSelection();
-
-        for (Clip c : this.clips.get())
-        {
-            if (c.layer.get() == layer && c.tick.get() < cursor)
-            {
-                this.selection.add(i);
-            }
-
-            i += 1;
-        }
-
-        this.delegate.pickClip(this.selection.isEmpty() ? null : this.clips.get(this.selection.get(0)));
+        this.selectWhere((c) -> c.layer.get() == layer && c.tick.get() < cursor);
     }
 
     /**
@@ -840,13 +833,7 @@ public class UIClips extends UIElement
      */
     private void selectTrackAfter()
     {
-        Clip clip = this.delegate.getClip();
-        int layer = this.fromLayerY(this.getContext().mouseY);
-
-        if (layer < 0 && clip != null)
-        {
-            layer = clip.layer.get();
-        }
+        int layer = this.layerUnderMouse();
 
         if (layer < 0)
         {
@@ -854,40 +841,15 @@ public class UIClips extends UIElement
         }
 
         int cursor = this.delegate.getCursor();
-        int i = 0;
 
-        this.clearSelection();
-
-        for (Clip c : this.clips.get())
-        {
-            if (c.layer.get() == layer && c.tick.get() + c.duration.get() > cursor)
-            {
-                this.selection.add(i);
-            }
-
-            i += 1;
-        }
-
-        this.delegate.pickClip(this.selection.isEmpty() ? null : this.clips.get(this.selection.get(0)));
+        this.selectWhere((c) -> c.layer.get() == layer && c.tick.get() + c.duration.get() > cursor);
     }
 
     private void selectAfter()
     {
-        int i = 0;
+        int cursor = this.delegate.getCursor();
 
-        this.clearSelection();
-
-        for (Clip clip : this.clips.get())
-        {
-            if (clip.tick.get() + clip.duration.get() > this.delegate.getCursor())
-            {
-                this.selection.add(i);
-            }
-
-            i += 1;
-        }
-
-        this.delegate.pickClip(this.selection.isEmpty() ? null : this.clips.get(this.selection.get(0)));
+        this.selectWhere((clip) -> clip.tick.get() + clip.duration.get() > cursor);
     }
 
     /* Selection */
@@ -1499,7 +1461,7 @@ public class UIClips extends UIElement
             {
                 if (this.isSelecting())
                 {
-                    this.moveSelectedBy((int) Math.copySign(1, context.mouseWheel));
+                    this.moveSelectedBy((int) Math.copySign(1, context.mouseWheel), 0);
                 }
                 else
                 {
@@ -1522,7 +1484,8 @@ public class UIClips extends UIElement
         return super.subMouseScrolled(context);
     }
 
-    private void moveSelectedBy(int dx)
+    /** Shift the selection by whole ticks and layers, giving way to whatever it would run into. */
+    private void moveSelectedBy(int dx, int dy)
     {
         List<Clip> selected = this.getClipsFromSelection();
 
@@ -1539,11 +1502,12 @@ public class UIClips extends UIElement
         }
 
         List<Clip> others = new ArrayList<>(this.clips.get());
+
         others.removeIf(selected::contains);
 
-        int[] adjusted = this.resolveCollisions(others, data, dx, 0);
+        int[] adjusted = this.resolveCollisions(others, data, dx, dy);
 
-        if (adjusted[0] == 0)
+        if (adjusted[0] == 0 && adjusted[1] == 0)
         {
             return;
         }
@@ -1552,43 +1516,7 @@ public class UIClips extends UIElement
         {
             Vector3i clipData = data.get(i);
 
-            this.setClipData(selected.get(i), clipData.x() + adjusted[0], clipData.y(), clipData.z());
-        }
-
-        this.delegate.fillData();
-    }
-
-    private void moveSelectedByLayer(int dy)
-    {
-        List<Clip> selected = this.getClipsFromSelection();
-
-        if (selected.isEmpty())
-        {
-            return;
-        }
-
-        List<Vector3i> data = new ArrayList<>(selected.size());
-
-        for (Clip clip : selected)
-        {
-            data.add(new Vector3i(clip.tick.get(), clip.layer.get(), clip.duration.get()));
-        }
-
-        List<Clip> others = new ArrayList<>(this.clips.get());
-        others.removeIf(selected::contains);
-
-        int[] adjusted = this.resolveCollisions(others, data, 0, dy);
-
-        if (adjusted[1] == 0)
-        {
-            return;
-        }
-
-        for (int i = 0; i < selected.size(); i++)
-        {
-            Vector3i clipData = data.get(i);
-
-            this.setClipData(selected.get(i), clipData.x(), clipData.y() + adjusted[1], clipData.z());
+            this.setClipData(selected.get(i), clipData.x() + adjusted[0], clipData.y() + adjusted[1], clipData.z());
         }
 
         this.delegate.fillData();
