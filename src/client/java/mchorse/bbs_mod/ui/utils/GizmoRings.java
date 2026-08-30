@@ -42,13 +42,33 @@ public class GizmoRings
     private final static float RING_FACE_ON_BIAS = 0.18F;
 
     /** Points sampled around a ring when working out its camera-facing arc. */
-    private final static int RING_OCCLUSION_SAMPLES = 180;
+    private final static int RING_OCCLUSION_SAMPLES = 90;
 
     private VertexBuffer ringVbo;
     private VertexBuffer sphereVbo;
 
     private float lastScale = -1F;
     private float lastThickness = -1F;
+
+    /* Cached tessellation of each rotation ring's visible arc, one slot per axis. A ring's
+     * geometry is a pure function of (radius, thickness, arc) — the arc only moves with the
+     * camera, so on a still viewport the slot never rebuilds, and the same buffer serves the
+     * depth pass, the colour pass and the stencil pass of the frame (colour arrives through
+     * the shader colour, not the vertices). This replaced re-tessellating a 96x24 torus in
+     * immediate mode NINE times per frame — the single biggest FPS cost of the editor. */
+    private final ArcSlot[] arcSlots = {new ArcSlot(), new ArcSlot(), new ArcSlot()};
+
+    private final Vector2f arcScratch = new Vector2f();
+    private final boolean[] occlusionScratch = new boolean[RING_OCCLUSION_SAMPLES];
+
+    private static class ArcSlot
+    {
+        VertexBuffer vbo;
+        float radius = -1F;
+        float thickness;
+        float start;
+        float sweep;
+    }
 
     /**
      * Rebuilds the cached geometry when the axes scale or thickness settings changed. Every draw
@@ -108,27 +128,72 @@ public class GizmoRings
 
     /**
      * Draws a rotation ring with its far half (behind the central sphere) culled, so it reads
-     * like the rings in a typical 3D gizmo. Immediate mode, since the visible arc changes with
-     * the camera every frame.
+     * like the rings in a typical 3D gizmo. The tessellated arc is cached per axis and only
+     * rebuilt when the camera actually changes what is visible; colour is modulated through
+     * the shader colour, so one buffer serves the depth, colour and stencil passes alike.
      */
     public void drawOccluded(MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b)
     {
         this.update();
 
-        Vector2f arc = new Vector2f();
+        Vector2f arc = this.arcScratch;
 
         if (!this.visibleArc(stack, axis, arc))
         {
             return;
         }
 
-        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        ArcSlot slot = this.arcSlots[axis.ordinal()];
 
-        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-        Draw.arc3D(builder, stack, axis, radius, thickness, r, g, b, arc.x, arc.y);
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        BufferRenderer.drawWithGlobalProgram(builder.end());
+        if (slot.vbo == null
+            || Float.compare(slot.radius, radius) != 0
+            || Float.compare(slot.thickness, thickness) != 0
+            || Float.compare(slot.start, arc.x) != 0
+            || Float.compare(slot.sweep, arc.y) != 0)
+        {
+            if (slot.vbo == null)
+            {
+                slot.vbo = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+            }
+
+            BufferBuilder builder = Tessellator.getInstance().getBuffer();
+
+            /* Tessellated in the ring's own frame (a Y-axis torus); the axis turn is applied
+             * to the draw matrix below, so all three axes share one shape family. */
+            builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+            Draw.arc3D(builder, IDENTITY, Axis.Y, radius, thickness, 1F, 1F, 1F, arc.x, arc.y);
+            slot.vbo.bind();
+            slot.vbo.upload(builder.end());
+            VertexBuffer.unbind();
+
+            slot.radius = radius;
+            slot.thickness = thickness;
+            slot.start = arc.x;
+            slot.sweep = arc.y;
+        }
+
+        Matrix4f matrix = new Matrix4f(stack.peek().getPositionMatrix());
+
+        if (axis == Axis.X) matrix.rotateZ(MathUtils.PI / 2F);
+        else if (axis == Axis.Z) matrix.rotateX(MathUtils.PI / 2F);
+
+        /* The caller's shader colour carries the pass's opacity (or nothing, in the depth and
+         * stencil passes); fold the ring's own colour in and put things back afterwards. */
+        float[] shaderColor = RenderSystem.getShaderColor();
+        float pr = shaderColor[0];
+        float pg = shaderColor[1];
+        float pb = shaderColor[2];
+        float pa = shaderColor[3];
+
+        RenderSystem.setShaderColor(r, g, b, pa);
+        slot.vbo.bind();
+        slot.vbo.draw(matrix, RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
+        VertexBuffer.unbind();
+        RenderSystem.setShaderColor(pr, pg, pb, pa);
     }
+
+    /** A shared identity stack for tessellating cached geometry in local space. */
+    private static final MatrixStack IDENTITY = new MatrixStack();
 
     /** Draws the cached ring turned to face the camera — the view (screen-space) rotation ring. */
     public void drawBillboard(MatrixStack stack, float r, float g, float b, float a)
@@ -202,7 +267,7 @@ public class GizmoRings
         float length = camera.length();
         float bias = length > 1.0E-6F ? RING_FACE_ON_BIAS * (camera.y * camera.y) / length : 0F;
         int n = RING_OCCLUSION_SAMPLES;
-        boolean[] visible = new boolean[n];
+        boolean[] visible = this.occlusionScratch;
         int count = 0;
 
         for (int i = 0; i < n; i++)
