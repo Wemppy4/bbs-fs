@@ -9,6 +9,7 @@ import mchorse.bbs_mod.forms.forms.ExtrudedForm;
 import mchorse.bbs_mod.forms.forms.ItemForm;
 import mchorse.bbs_mod.forms.forms.LabelForm;
 import mchorse.bbs_mod.forms.forms.MobForm;
+import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.forms.TrailForm;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.forms.forms.VideoForm;
@@ -51,6 +52,7 @@ public class ExtraFormSection extends FormSection
         ExtrudedForm extruded = new ExtrudedForm();
         BlockForm block = new BlockForm();
         ItemForm item = new ItemForm();
+        StructureForm structure = new StructureForm();
         VanillaParticleForm vanillaParticle = new VanillaParticleForm();
         TrailForm trail = new TrailForm();
         VideoForm video = new VideoForm();
@@ -66,6 +68,7 @@ public class ExtraFormSection extends FormSection
         extra.addForm(extruded);
         extra.addForm(block);
         extra.addForm(item);
+        extra.addForm(structure);
         extra.addForm(vanillaParticle);
         extra.addForm(trail);
         extra.addForm(video);
