@@ -1,12 +1,21 @@
 package mchorse.bbs_mod.audio;
 
+import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import org.joml.Vector3f;
+import org.lwjgl.openal.AL;
 import org.lwjgl.openal.AL10;
 import org.lwjgl.openal.AL11;
+import org.lwjgl.openal.ALCapabilities;
+import org.lwjgl.openal.SOFTGainClampEx;
+import org.slf4j.Logger;
 
 public class SoundPlayer
 {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    private static float gainLimit = -1F;
+
     private int source;
     private SoundBuffer buffer;
     private boolean unique;
@@ -79,9 +88,36 @@ public class SoundPlayer
 
     /* Properties */
 
+    public static float getGainLimit()
+    {
+        if (gainLimit < 0F)
+        {
+            ALCapabilities capabilities = AL.getCapabilities();
+
+            gainLimit = capabilities != null && capabilities.AL_SOFT_gain_clamp_ex
+                ? Math.max(AL10.alGetFloat(SOFTGainClampEx.AL_GAIN_LIMIT_SOFT), 1F)
+                : 1F;
+
+            if (gainLimit <= 1F)
+            {
+                LOGGER.warn("AL_SOFT_gain_clamp_ex is missing, sounds can't be played louder than 100%");
+            }
+        }
+
+        return gainLimit;
+    }
+
     public void setVolume(float volume)
     {
-        AL10.alSourcef(this.source, AL10.AL_GAIN, volume);
+        float gain = MathUtils.clamp(volume, 0F, getGainLimit());
+
+        /* AL_MAX_GAIN has to be lifted first, or the gain below gets clamped back to it */
+        if (gain > 1F)
+        {
+            AL10.alSourcef(this.source, AL10.AL_MAX_GAIN, gain);
+        }
+
+        AL10.alSourcef(this.source, AL10.AL_GAIN, gain);
     }
 
     public void setPitch(float pitch)
