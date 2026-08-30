@@ -30,6 +30,7 @@ import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
 import java.util.List;
@@ -56,6 +57,24 @@ public class FilmStencilPicker
 
     /** The replay under the cursor while Alt is held, or -1. */
     private int hoveredReplayIndex = -1;
+
+    /* The pick is a pure function of these inputs; while none of them change, the previous
+     * pass's buffer and pick result stand, and the whole scene re-render is skipped. The
+     * heartbeat below bounds staleness from anything this key does not see (an undo from the
+     * keyboard, physics settling) to a fraction of a second. */
+    private final Matrix4f lastPickView = new Matrix4f();
+    private final Matrix4f lastPickProjection = new Matrix4f();
+    private int lastPickMouseX = Integer.MIN_VALUE;
+    private int lastPickMouseY;
+    private boolean lastPickAlt;
+    private int lastPickCursor;
+    private int lastPickReplayIndex;
+    private FilmTarget lastPickTarget;
+    private int lastPickReplayCount;
+    private int framesSincePick;
+
+    /** Repick at least this often (in frames) even when no tracked input changed. */
+    private static final int PICK_HEARTBEAT = 15;
 
     public FilmStencilPicker(UIFilmController controller)
     {
@@ -193,6 +212,7 @@ public class FilmStencilPicker
         if (!viewport.isInside(context) || this.controller.getControlled() != null)
         {
             this.stencil.clearPicking();
+            this.lastPickMouseX = Integer.MIN_VALUE;
 
             return;
         }
@@ -200,6 +220,13 @@ public class FilmStencilPicker
         IEntity entity = this.controller.getCurrentEntity();
 
         if ((entity == null || (this.controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON && entity == this.controller.getCurrentEntity())) && !altPressed)
+        {
+            this.lastPickMouseX = Integer.MIN_VALUE;
+
+            return;
+        }
+
+        if (!this.needsRepick(context, altPressed))
         {
             return;
         }
@@ -281,6 +308,51 @@ public class FilmStencilPicker
         this.stencil.unbind(this.stencilMap);
 
         MinecraftClient.getInstance().getFramebuffer().beginWrite(true);
+    }
+
+    /**
+     * True when any input the pick depends on changed since the buffer was last drawn — or when
+     * the heartbeat expires. Doubt resolves toward repicking: a spare pass costs what every
+     * frame used to cost, a missed one costs a stale highlight.
+     */
+    private boolean needsRepick(UIContext context, boolean altPressed)
+    {
+        this.framesSincePick += 1;
+
+        int cursor = this.controller.panel.getCursor();
+        int replayIndex = this.controller.getCurrentReplayIndex();
+        FilmTarget target = this.controller.getEditTarget();
+        int replayCount = this.controller.panel.getData().replays.getList().size();
+
+        boolean unchanged = !this.controller.isPlaying()
+            && this.framesSincePick < PICK_HEARTBEAT
+            && context.mouseX == this.lastPickMouseX
+            && context.mouseY == this.lastPickMouseY
+            && altPressed == this.lastPickAlt
+            && cursor == this.lastPickCursor
+            && replayIndex == this.lastPickReplayIndex
+            && target.equals(this.lastPickTarget)
+            && replayCount == this.lastPickReplayCount
+            && this.controller.panel.lastView.equals(this.lastPickView)
+            && this.controller.panel.lastProjection.equals(this.lastPickProjection);
+
+        if (unchanged)
+        {
+            return false;
+        }
+
+        this.framesSincePick = 0;
+        this.lastPickMouseX = context.mouseX;
+        this.lastPickMouseY = context.mouseY;
+        this.lastPickAlt = altPressed;
+        this.lastPickCursor = cursor;
+        this.lastPickReplayIndex = replayIndex;
+        this.lastPickTarget = target;
+        this.lastPickReplayCount = replayCount;
+        this.lastPickView.set(this.controller.panel.lastView);
+        this.lastPickProjection.set(this.controller.panel.lastProjection);
+
+        return true;
     }
 
     private void ensureFramebuffer()
