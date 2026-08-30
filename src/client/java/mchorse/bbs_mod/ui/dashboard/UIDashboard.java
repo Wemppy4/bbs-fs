@@ -264,15 +264,36 @@ public class UIDashboard extends UIBaseMenu
 
     protected void registerPanels()
     {
+        /* The first dashboard open builds all of this at once and the user feels every
+         * millisecond of it, so each panel reports what it cost — the log names the panel
+         * to blame instead of leaving a five second mystery. */
+        long start = System.nanoTime();
+
         this.panels.registerPanel(new UIMorphingPanel(this), UIKeys.MORPHING_TITLE, Icons.MORPH);
+        start = logPanelTime(start, "morphing");
         this.panels.registerPanel(new UIFilmPanel(this), UIKeys.FILM_TITLE, Icons.FILM);
+        start = logPanelTime(start, "film");
         this.panels.registerPanel(new UIModelBlockPanel(this), UIKeys.MODEL_BLOCKS_TITLE, Icons.BLOCK);
+        start = logPanelTime(start, "model blocks");
         this.panels.registerPanel(new UIParticleSchemePanel(this), UIKeys.PANELS_PARTICLES, Icons.PARTICLE);
+        start = logPanelTime(start, "particles");
         this.panels.registerPanel(new UIModelEditorPanel(this), UIKeys.MODEL_EDITOR_TITLE, Icons.POSE);
+        start = logPanelTime(start, "model editor");
         this.panels.registerPanel(new UITextureManagerPanel(this), UIKeys.TEXTURES_TOOLTIP, Icons.MATERIAL);
+        start = logPanelTime(start, "textures");
         this.panels.registerPanel(new UIAudioEditorPanel(this), UIKeys.AUDIO_TITLE, Icons.SOUND);
+        logPanelTime(start, "audio");
 
         this.setPanel(this.getPanel(UIFilmPanel.class));
+    }
+
+    private static long logPanelTime(long start, String name)
+    {
+        long now = System.nanoTime();
+
+        System.out.println(String.format("Dashboard panel \"%s\" built in %.1f ms", name, (now - start) / 1_000_000D));
+
+        return now;
     }
 
     public <T> T getPanel(Class<T> clazz)

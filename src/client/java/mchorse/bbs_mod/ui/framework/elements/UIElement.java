@@ -116,6 +116,16 @@ public class UIElement implements IUIElement, IUndoElement
     private List<IUIElement> children = new ArrayList<>();
 
     /**
+     * Whether this element or anything under it listens to tree events. {@link #onAdd} and
+     * {@link #onRemove} used to walk the WHOLE subtree of every element being attached, looking
+     * for {@link IUITreeEventListener}s — with exactly one implementor in the codebase, that
+     * made building a large screen O(n²) of pure nothing. The flag rides up the ancestors when
+     * a listener-carrying child is attached; a removal may leave it stale at {@code true},
+     * which only costs the walk it would have done anyway.
+     */
+    private boolean treeListeners = this instanceof IUITreeEventListener;
+
+    /**
      * Whether this element is enabled (can handle any input) 
      */
     protected boolean enabled = true;
@@ -361,6 +371,15 @@ public class UIElement implements IUIElement, IUndoElement
             UIElement child = (UIElement) element;
 
             child.parent = this;
+
+            if (child.treeListeners)
+            {
+                for (UIElement ancestor = this; ancestor != null && !ancestor.treeListeners; ancestor = ancestor.parent)
+                {
+                    ancestor.treeListeners = true;
+                }
+            }
+
             child.onAdd(this);
 
             if (this.resizer != null)
@@ -455,9 +474,12 @@ public class UIElement implements IUIElement, IUndoElement
     {
         this.events.emit(new UIAddedEvent(this));
 
-        for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+        if (this.treeListeners)
         {
-            listener.onAddedToTree(this);
+            for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+            {
+                listener.onAddedToTree(this);
+            }
         }
     }
 
@@ -465,9 +487,12 @@ public class UIElement implements IUIElement, IUndoElement
     {
         this.events.emit(new UIRemovedEvent(this));
 
-        for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+        if (this.treeListeners)
         {
-            listener.onRemovedFromTree(this);
+            for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+            {
+                listener.onRemovedFromTree(this);
+            }
         }
     }
 
