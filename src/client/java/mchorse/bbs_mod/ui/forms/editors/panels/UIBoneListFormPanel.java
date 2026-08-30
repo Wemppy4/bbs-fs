@@ -10,7 +10,12 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.settings.values.ui.ValueModelDebug;
+import mchorse.bbs_mod.ui.forms.editors.utils.UIDebugOverlayContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -69,6 +74,22 @@ public abstract class UIBoneListFormPanel extends UIFormPanel<ModelForm>
         /* Search box plus eight rows is the minimum; the list takes whatever the sections below
          * leave in the panel, so folding them away hands the room to the bones. */
         this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8).expand();
+    }
+
+    /** The solver's debug toggle with its settings gear beside it, on one row. */
+    protected UIElement debugRow(UIToggle debug, ValueModelDebug config)
+    {
+        UIIcon settings = new UIIcon(Icons.GEAR, (b) -> this.getContext().replaceContextMenu(new UIDebugOverlayContextMenu(config)));
+
+        settings.tooltip(UIKeys.MODEL_DEBUG_CONFIGURE);
+        settings.wh(20, 14);
+
+        UIElement row = new UIElement();
+
+        row.row(0).preferred(0).height(14);
+        row.add(debug, settings);
+
+        return row;
     }
 
     /** Hang the preset copy/paste menu on the bone list; each panel names its own store and labels. */

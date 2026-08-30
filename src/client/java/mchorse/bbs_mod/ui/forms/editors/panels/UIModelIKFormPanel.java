@@ -277,18 +277,8 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
             this.jointAxisRow(this.lockZ, this.limitZ, this.limitMinZ, this.limitMaxZ, this.stiffnessZ)
         );
 
-        UIIcon debugSettings = new UIIcon(Icons.GEAR, (b) -> this.getContext().replaceContextMenu(new UIDebugOverlayContextMenu(BBSSettings.ikDebug)));
-
-        debugSettings.tooltip(UIKeys.MODEL_DEBUG_CONFIGURE);
-        debugSettings.wh(20, 14);
-
-        UIElement debugRow = new UIElement();
-
-        debugRow.row(0).preferred(0).height(14);
-        debugRow.add(this.debug, debugSettings);
-
         this.options.add(
-            debugRow,
+            this.debugRow(this.debug, BBSSettings.ikDebug),
             this.bonesSearch,
             settings,
             advanced,
