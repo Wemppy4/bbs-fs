@@ -537,8 +537,9 @@ public class BBSSettings {
 		migrated |= migrateLegacyCategory(root, "appearance", "workspace", "clip_auto_name");
 
 		/* The performance knobs gathered into a category of their own */
-		migrated |= migrateLegacyCategory(root, "appearance", "performance", "list_model_preview", "preview_refresh_budget");
+		migrated |= migrateLegacyCategory(root, "appearance", "performance", "list_model_preview", "preview_refresh_budget", "freeze_models");
 		migrated |= migrateLegacyCategory(root, "viewport", "performance", "profiler_overlay", "frame_pose_cache");
+		migrated |= migrateLegacyCategory(root, "misc", "performance", "translucency_queue", "multiskin_multithreaded");
 
 		/* Video capture was briefly split three ways, which turned out to be worse
 		 * than the one long page it came from */
@@ -646,7 +647,6 @@ public class BBSSettings {
 		fov = builder.getFloat("fov", 40, 0, 180);
 		colorPickerHsvTab = builder.getBoolean("hsv_color_picker", true);
 		forceQwerty = builder.getBoolean("force_qwerty", false);
-		freezeModels = builder.getBoolean("freeze_models", false);
 		morphingFocusSearch = builder.getBoolean("morphing_focus_search", false);
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
@@ -774,11 +774,15 @@ public class BBSSettings {
 		builder.register(ikDebug = new ValueIKDebug("ik_debug"));
 		builder.register(physicsDebug = new ValuePhysicsDebug("physics_debug"));
 
-		/* Everything that trades work for frames: what the editor caches and how often it
-		 * refreshes what it can afford to refresh lazily, plus the counters that show it. */
+		/* Everything that trades work for frames: what the editor renders at all, at what
+		 * resolution and how often, what it computes in parallel, plus the counters that
+		 * show where the frame goes. */
 		builder.category("performance", Icons.PROCESSOR);
 		listModelPreview = builder.getBoolean("list_model_preview", true);
 		previewRefreshBudget = builder.getInt("preview_refresh_budget", 2, 0, 8).slider();
+		freezeModels = builder.getBoolean("freeze_models", false);
+		translucencyQueue = builder.getBoolean("translucency_queue", false);
+		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
 		profilerOverlay = builder.getBoolean("profiler_overlay", false);
 		framePoseCache = builder.getBoolean("frame_pose_cache", true);
 		framePoseCache.invisible();
@@ -877,8 +881,6 @@ public class BBSSettings {
 		builder.category("misc", Icons.MORE);
 		damageControl = builder.getBoolean("damage_control", true);
 		shaderCurvesEnabled = builder.getBoolean("shader_curves", true);
-		translucencyQueue = builder.getBoolean("translucency_queue", false);
-		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
 		entitySelectorsPropertyWhitelist = builder.getString("entity_selectors_whitelist", "CustomName,Name");
 	}
 }
