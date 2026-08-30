@@ -7,6 +7,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.resizers.ChildResizer;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -28,8 +29,11 @@ public class UISection extends UIElement
     private static final int ARROW_SIZE = 8;
     /** Icon column of a header that has one: 16px icon plus the gap to the title. */
     private static final int ICON_WIDTH = 20;
+    /** Inset of the card's contents, and so the padding the header strip reclaims around itself. */
+    private static final int PADDING = 4;
 
     private static final Area HEADER = new Area();
+    private static final Area HOVER = new Area();
 
     public UILabel title;
     public UIElement fields;
@@ -59,7 +63,7 @@ public class UISection extends UIElement
         this.fields = new UIElement();
         this.fields.column().stretch().vertical().height(20);
 
-        this.column(UIConstants.MARGIN).stretch().vertical().padding(4);
+        this.column(UIConstants.MARGIN).stretch().vertical().padding(PADDING);
         this.add(this.title, this.fields);
     }
 
@@ -77,7 +81,9 @@ public class UISection extends UIElement
      */
     public UISection onToggle(Consumer<UISection> callback)
     {
-        this.callback = callback;
+        /* Composes rather than replaces, so {@link #remember} stays a modifier a caller can add
+         * its own reaction on top of, instead of the two silently cancelling each other out. */
+        this.callback = this.callback == null ? callback : this.callback.andThen(callback);
 
         return this;
     }
@@ -130,18 +136,45 @@ public class UISection extends UIElement
         this.resizeParent();
     }
 
+    /**
+     * Lay out again from an ancestor that can be resized on its own.
+     *
+     * <p>Not simply the immediate parent: a child of a column layout is placed by a
+     * {@link ChildResizer} that advances the column's running offset, so resizing such an element
+     * alone advances that offset a second time and slides the whole subtree down the page. Walking
+     * up to the first ancestor that isn't laid out that way (a scroll view, a panel) makes the pass
+     * start where the column resets its accumulator.</p>
+     */
     public void resizeParent()
     {
-        if (this.getParent() != null)
+        UIElement parent = this.getParent();
+
+        if (parent == null)
         {
-            this.getParent().resize();
+            return;
         }
+
+        while (parent.getParent() != null && parent.resizer() instanceof ChildResizer)
+        {
+            parent = parent.getParent();
+        }
+
+        parent.resize();
     }
 
     @Override
     public void render(UIContext context)
     {
         context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.raisedSurface());
+
+        /* The header is clickable and nothing said so; it lifts under the cursor with the same
+         * accent wash a hovered context menu row uses, just lighter — this is a hint, not a pick. */
+        if (this.headerArea().isInside(context))
+        {
+            Area header = this.headerArea();
+
+            context.batcher.box(header.x, header.y, header.ex(), header.ey(), Colors.A25 | BBSSettings.primaryColor.get());
+        }
 
         /* The block is the raised (light) surface, so inputs inside it drop to the deep surface to
          * stay readable - mirroring how the film editor scopes lightInputs for its dark panels. */
@@ -167,6 +200,18 @@ public class UISection extends UIElement
          * taller reproduces that through the shared centring without moving anything. */
         HEADER.set(header.x, header.y, header.w, header.h + 1);
         renderHeader(context, HEADER, title.label, null, this.expanded, title.color);
+    }
+
+    /**
+     * The strip that toggles the section: the title row plus the card's padding around it, so the
+     * whole top edge of the card reacts rather than just the text line. Both the hover tint and the
+     * click test read it, which is what keeps what lights up and what responds the same rectangle.
+     */
+    private Area headerArea()
+    {
+        HOVER.set(this.area.x, this.area.y, this.area.w, this.title.area.ey() + PADDING - this.area.y);
+
+        return HOVER;
     }
 
     /**
@@ -215,7 +260,7 @@ public class UISection extends UIElement
     @Override
     public boolean subMouseClicked(UIContext context)
     {
-        if (this.title.area.isInside(context))
+        if (this.headerArea().isInside(context))
         {
             this.toggle();
 
