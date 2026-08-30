@@ -69,6 +69,8 @@ public class BBSProfiler
         UI_TIMELINE,
         /** Model renders into UI boxes (lists, palettes, thumbnails). */
         UI_PREVIEWS,
+        /** Welded models' CPU side: seam capture, tessellation, upload (cache misses only). */
+        WELDS,
         /** The whole UI tree render. */
         UI_TOTAL;
 

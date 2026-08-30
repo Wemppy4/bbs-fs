@@ -61,6 +61,42 @@ public class CubicVAORenderer extends CubicCubeRenderer
         this.weldedGroups = weldedGroups;
     }
 
+    /* Hybrid mode's two halves can run as separate walks: the VAO groups every pass (they ride the GPU),
+     * the CPU groups only when the welded-geometry cache misses. The CPU set is decided once per rebuild
+     * and handed in, so both walks agree on which bones are which even when the seams' live state has
+     * since moved on to another pose (the cache serving an older pose than the last capture). */
+    private Set<ModelGroup> cpuGroups;
+    private boolean drawVaoGroups = true;
+    private boolean emitCpuGroups = true;
+
+    public void setCpuGroups(Set<ModelGroup> cpuGroups)
+    {
+        this.cpuGroups = cpuGroups;
+    }
+
+    public void setHybridPasses(boolean drawVaoGroups, boolean emitCpuGroups)
+    {
+        this.drawVaoGroups = drawVaoGroups;
+        this.emitCpuGroups = emitCpuGroups;
+    }
+
+    /** Whether the group tessellates on the CPU in hybrid mode: a welded bone whose seam bends, or a bone with no VAO. */
+    public boolean isCpuGroup(ModelGroup group)
+    {
+        if (this.cpuGroups != null)
+        {
+            return this.cpuGroups.contains(group);
+        }
+
+        Map<String, ModelVAO> groupVaos = this.model.getVaos().get(group);
+
+        /* A welded bone tessellates on the CPU only while its seam actually bends — at rest it rides
+         * its VAO like everything else. Groups with no VAO (shape-keyed meshes) always render immediate. */
+        boolean welded = this.weldedGroups.contains(group) && WeldBinding.hasActiveSeam(this.welds, group);
+
+        return welded || groupVaos == null || groupVaos.isEmpty();
+    }
+
     @Override
     public boolean renderGroup(BufferBuilder builder, MatrixStack stack, ModelGroup group, Model model)
     {
@@ -68,13 +104,14 @@ public class CubicVAORenderer extends CubicCubeRenderer
 
         if (this.weldedGroups != null)
         {
-            /* A welded bone tessellates on the CPU only while its seam actually bends — at rest it rides
-             * its VAO like everything else. Groups with no VAO (shape-keyed meshes) always render immediate. */
-            boolean welded = this.weldedGroups.contains(group) && WeldBinding.hasActiveSeam(this.welds, group);
-
-            if (welded || groupVaos == null || groupVaos.isEmpty())
+            if (this.isCpuGroup(group))
             {
-                return super.renderGroup(builder, stack, group, model);
+                return this.emitCpuGroups && super.renderGroup(builder, stack, group, model);
+            }
+
+            if (!this.drawVaoGroups)
+            {
+                return false;
             }
         }
 
