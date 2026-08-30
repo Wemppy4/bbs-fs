@@ -536,6 +536,10 @@ public class BBSSettings {
 		migrated |= migrateLegacyCategory(root, "personalization", "timeline", "track_width", "keyframe_default_shape");
 		migrated |= migrateLegacyCategory(root, "appearance", "workspace", "clip_auto_name");
 
+		/* The performance knobs gathered into a category of their own */
+		migrated |= migrateLegacyCategory(root, "appearance", "performance", "list_model_preview", "preview_refresh_budget");
+		migrated |= migrateLegacyCategory(root, "viewport", "performance", "profiler_overlay", "frame_pose_cache");
+
 		/* Video capture was briefly split three ways, which turned out to be worse
 		 * than the one long page it came from */
 		migrated |= migrateLegacyCategory(root, "export", "video",
@@ -643,8 +647,6 @@ public class BBSSettings {
 		colorPickerHsvTab = builder.getBoolean("hsv_color_picker", true);
 		forceQwerty = builder.getBoolean("force_qwerty", false);
 		freezeModels = builder.getBoolean("freeze_models", false);
-		listModelPreview = builder.getBoolean("list_model_preview", true);
-		previewRefreshBudget = builder.getInt("preview_refresh_budget", 2, 0, 8).slider();
 		morphingFocusSearch = builder.getBoolean("morphing_focus_search", false);
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
@@ -771,6 +773,12 @@ public class BBSSettings {
 		 * IK and physics panels - stored here, no row of their own in the settings */
 		builder.register(ikDebug = new ValueIKDebug("ik_debug"));
 		builder.register(physicsDebug = new ValuePhysicsDebug("physics_debug"));
+
+		/* Everything that trades work for frames: what the editor caches and how often it
+		 * refreshes what it can afford to refresh lazily, plus the counters that show it. */
+		builder.category("performance", Icons.PROCESSOR);
+		listModelPreview = builder.getBoolean("list_model_preview", true);
+		previewRefreshBudget = builder.getInt("preview_refresh_budget", 2, 0, 8).slider();
 		profilerOverlay = builder.getBoolean("profiler_overlay", false);
 		framePoseCache = builder.getBoolean("frame_pose_cache", true);
 		framePoseCache.invisible();
