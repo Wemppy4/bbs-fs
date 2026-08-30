@@ -33,7 +33,23 @@ public class FormRenderingContext
         this.type = type == null ? FormRenderType.ENTITY : type;
         this.entity = entity;
         this.stack = stack;
-        this.world = new MatrixStack();
+
+        /* Reused, not reallocated: set() runs per replay per frame, and nothing retains the
+         * stack itself (readers snapshot matrices). The drain guards against a render that
+         * left it unbalanced. */
+        if (this.world == null)
+        {
+            this.world = new MatrixStack();
+        }
+        else
+        {
+            while (!this.world.isEmpty())
+            {
+                this.world.pop();
+            }
+
+            this.world.loadIdentity();
+        }
         this.light = light;
         this.overlay = overlay;
         this.transition = transition;

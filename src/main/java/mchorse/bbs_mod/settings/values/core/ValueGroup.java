@@ -54,6 +54,12 @@ public class ValueGroup extends BaseValueGroup
         return new ArrayList<>(this.children.values());
     }
 
+    /** One child by id, if it is a basic value — the per-lookup shape of {@link #getAllMap()}. */
+    public BaseValueBasic getBasic(String id)
+    {
+        return this.children.get(id) instanceof BaseValueBasic<?> basic ? basic : null;
+    }
+
     public Map<String, BaseValueBasic> getAllMap()
     {
         Map<String, BaseValueBasic> map = new HashMap<>();
