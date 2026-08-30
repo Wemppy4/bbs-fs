@@ -408,7 +408,7 @@ public class BBSMod implements ModInitializer
         forms = new FormArchitect();
         forms
             .register(Link.bbs("billboard"), BillboardForm.class, null)
-            .register(Link.bbs("video_form"), VideoForm.class, null)
+            .register(Link.bbs("video"), VideoForm.class, null)
             .register(Link.bbs("label"), LabelForm.class, null)
             .register(Link.bbs("model"), ModelForm.class, null)
             .register(Link.bbs("particle"), ParticleForm.class, null)
