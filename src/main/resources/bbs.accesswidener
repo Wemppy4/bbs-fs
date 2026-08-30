@@ -27,8 +27,3 @@ accessible method net/minecraft/entity/LivingEntity setLivingFlag (IZ)V
 # own method, and an actor is not a player - it sets the two fields by hand
 accessible field net/minecraft/entity/LivingEntity riptideTicks I
 
-# BufferBuilder internals for the structure form's fast replay path (bulk byte copy + in-place fixup)
-accessible field net/minecraft/client/render/BufferBuilder buffer Ljava/nio/ByteBuffer;
-accessible field net/minecraft/client/render/BufferBuilder elementOffset I
-accessible field net/minecraft/client/render/BufferBuilder vertexCount I
-accessible method net/minecraft/client/render/BufferBuilder grow (I)V

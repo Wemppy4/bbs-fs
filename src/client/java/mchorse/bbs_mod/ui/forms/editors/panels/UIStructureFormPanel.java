@@ -7,7 +7,6 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIStringOverlayPanel;
@@ -35,7 +34,6 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
     public UITrackpad originX;
     public UITrackpad originY;
     public UITrackpad originZ;
-    public UIToggle fastRender;
 
     public UIStructureFormPanel(UIForm editor)
     {
@@ -46,13 +44,10 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
         this.originX = this.createOriginTrackpad(Colors.RED, UIKeys.GENERAL_X);
         this.originY = this.createOriginTrackpad(Colors.GREEN, UIKeys.GENERAL_Y);
         this.originZ = this.createOriginTrackpad(Colors.BLUE, UIKeys.GENERAL_Z);
-        this.fastRender = new UIToggle(L10n.lang("bbs.ui.forms.editors.structure.fast_render"), false, (b) -> this.form.fastRender.set(b.getValue()));
-        this.fastRender.tooltip(L10n.lang("bbs.ui.forms.editors.structure.fast_render_desc"));
 
         /* Both buttons name what they pick, so they carry no label of their own */
         this.options.add(this.structure, this.biome);
         this.options.add(UI.label(L10n.lang("bbs.ui.forms.editors.structure.origin")), UI.row(this.originX, this.originY, this.originZ));
-        this.options.add(this.fastRender);
     }
 
     /** One axis of the origin offset, colored like the axis it moves along. */
@@ -125,6 +120,5 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
         this.originX.setValue(origin.x);
         this.originY.setValue(origin.y);
         this.originZ.setValue(origin.z);
-        this.fastRender.setValue(form.fastRender.get());
     }
 }

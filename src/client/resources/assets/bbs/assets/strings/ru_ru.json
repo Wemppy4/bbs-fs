@@ -1144,8 +1144,6 @@
 	"bbs.ui.forms.editors.structure.pick_structure": "Выбрать структуру...",
 	"bbs.ui.forms.editors.structure.pick_biome": "Выбрать биом...",
 	"bbs.ui.forms.editors.structure.origin": "Ориджин",
-	"bbs.ui.forms.editors.structure.fast_render": "Быстрый рендер",
-	"bbs.ui.forms.editors.structure.fast_render_desc": "Ускоренный рендер больших структур, но работает только без шейдеров (без Iris/шейдерпаков). У полупрозрачных блоков возможны артефакты сортировки.",
 	"bbs.ui.forms.editors.trail.length": "Длинна",
 	"bbs.ui.forms.editors.trail.loop": "Зацикливание",
 	"bbs.ui.forms.editors.trail.title": "След",

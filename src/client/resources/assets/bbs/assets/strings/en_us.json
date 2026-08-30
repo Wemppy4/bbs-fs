@@ -1148,8 +1148,6 @@
 	"bbs.ui.forms.editors.structure.pick_structure": "Pick structure...",
 	"bbs.ui.forms.editors.structure.pick_biome": "Pick biome...",
 	"bbs.ui.forms.editors.structure.origin": "Origin",
-	"bbs.ui.forms.editors.structure.fast_render": "Fast render",
-	"bbs.ui.forms.editors.structure.fast_render_desc": "Faster replay for large structures, but only works without shaders (no Iris/shaderpacks). Semi-transparent blocks may show sorting artifacts.",
 	"bbs.ui.forms.editors.trail.length": "Length",
 	"bbs.ui.forms.editors.trail.loop": "Loop",
 	"bbs.ui.forms.editors.trail.title": "Trail",

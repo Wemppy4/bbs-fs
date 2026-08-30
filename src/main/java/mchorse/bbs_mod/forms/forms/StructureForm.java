@@ -4,7 +4,6 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
-import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.utils.colors.Color;
 import org.joml.Vector3f;
 
@@ -34,22 +33,12 @@ public class StructureForm extends Form
      */
     public final ValueVector3f origin = new ValueVector3f("origin", new Vector3f());
 
-    /**
-     * Opt-in fast replay: copies the baked vertices into the render buffer as raw bytes instead of
-     * going through the per-vertex consumer path. Faster on large structures, but only takes effect
-     * without a shaderpack (Iris owns the terrain pipeline), and it routes translucent geometry
-     * through the terrain layers — so semi-transparent blocks can show the depth-sorting artifacts
-     * the default path avoids. Off by default.
-     */
-    public final ValueBoolean fastRender = new ValueBoolean("fastRender", false);
-
     public StructureForm()
     {
         this.add(this.structure);
         this.add(this.biome);
         this.add(this.color);
         this.add(this.origin);
-        this.add(this.fastRender);
     }
 
     @Override

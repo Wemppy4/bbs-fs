@@ -287,8 +287,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             FormColorBlend.blend(set, this.form.color.get());
 
             consumers.setUI(true);
-            /* UI preview always uses the correct (non-fast) path */
-            this.baked.render(matrices.peek(), consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, set.getARGBColor(), false);
+            this.baked.render(matrices.peek(), consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, set.getARGBColor());
 
             consumers.setSubstitute(BBSRendering.getColorConsumer(set));
             this.renderBlockEntities(matrices, consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
@@ -377,9 +376,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
                     RenderSystem.setShader(BBSShaders::getPickerModelsProgram);
                 });
 
-                /* Picking replays the geometry through the picker shader per layer — force the
-                 * correct (non-fast) path so the raw-byte route never bypasses it */
-                this.baked.render(context.stack.peek(), consumers, context.light, 0xFFFFFFFF, false);
+                this.baked.render(context.stack.peek(), consumers, context.light, 0xFFFFFFFF);
             }
             else
             {
@@ -398,7 +395,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
                     }
                 });
 
-                this.baked.render(context.stack.peek(), consumers, context.light, COLOR.getARGBColor(), this.form.fastRender.get());
+                this.baked.render(context.stack.peek(), consumers, context.light, COLOR.getARGBColor());
 
                 /* Block entities still go through the consumer interface — tint them via substitute */
                 consumers.setSubstitute(BBSRendering.getColorConsumer(COLOR));
