@@ -478,7 +478,8 @@ public abstract class DragStrategy
             .append("  style=").append(this.getClass().getSimpleName())
             .append("  axis=").append(this.axis).append(this.axis2 != null ? ("+" + this.axis2) : "")
             .append("  space=").append(space)
-            .append("  mode=").append(now.rotationMode).append('\n');
+            .append("  mode=").append(now.rotationMode)
+            .append("  target=").append(this.ctx.targetName()).append('\n');
         b.append("  flags: model=").append(this.ctx.isModel())
             .append(" sphere=").append(this.isSphere())
             .append(" view=").append(this.isView())
@@ -498,7 +499,9 @@ public abstract class DragStrategy
 
         if (drag != null)
         {
-            b.append("  rotateAxes     ").append(fmtBasis(drag.rotateAxes)).append('\n');
+            b.append("  rotateAxes     ").append(fmtBasis(drag.rotateAxes))
+                .append(drag.hasRotateAxes ? "  [measured]" : "  [UNSET - identity default]").append('\n');
+            b.append("  frameAxes set  ").append(drag.hasFrameAxes()).append('\n');
             b.append("  gizmoWorldAxes ").append(fmtBasis(drag.gizmoWorldAxes)).append('\n');
             b.append("  frameBasis     ").append(fmtBasis(drag.frameBasis(space))).append('\n');
         }

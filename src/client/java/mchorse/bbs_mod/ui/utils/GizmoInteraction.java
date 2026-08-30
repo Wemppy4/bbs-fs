@@ -155,18 +155,21 @@ public class GizmoInteraction
     }
 
     /**
-     * Keep a running gesture moving even when the editor that owns it isn't drawn.
-     * {@link UIPropTransform#render} pumps its own drag, which is enough while its
-     * panel is open, but the film's replay-root gizmo edits a transform with no
-     * visible fields at all, and a bone drag used to freeze the moment its keyframe
-     * panel was closed. Pumping is idempotent within the transform's own timer, so
-     * doing it from both places is safe.
+     * Keep a running gesture moving when the editor that owns it is NOT drawn — the film's
+     * replay-root gizmo edits a transform with no visible fields at all, and a bone drag
+     * froze the moment its keyframe panel was closed.
+     *
+     * <p>Strictly only then. {@link UIPropTransform#render} still pumps its own drag, and
+     * pumping a drawn editor from here as well would advance the same gesture twice in one
+     * frame. That is not free the way it looks: the per-gesture timer that appears to throttle
+     * it is only ever armed when the cursor wraps at a screen edge, so both calls really do go
+     * through, and any strategy that is not perfectly idempotent moves twice.
      */
     private void pumpDrag(UIContext context)
     {
         UIPropTransform transform = Gizmo.INSTANCE.getTrackedTransform();
 
-        if (transform != null)
+        if (transform != null && !transform.isVisible())
         {
             transform.pumpDrag(context);
         }

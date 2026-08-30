@@ -55,6 +55,12 @@ public interface DragContext
         return false;
     }
 
+    /** Diagnostic only: which editor owns this gesture, for the drag log. */
+    default String targetName()
+    {
+        return "?";
+    }
+
     /** Whether values of the given operation should snap to the configured step. */
     boolean shouldSnap(TransformOp op);
 

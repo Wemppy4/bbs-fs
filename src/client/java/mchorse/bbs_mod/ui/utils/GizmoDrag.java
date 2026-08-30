@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.utils;
 
 import mchorse.bbs_mod.camera.Camera;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.camera.CameraUtils;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.utils.Axis;
@@ -360,9 +361,14 @@ public class GizmoDrag
         return this;
     }
 
+    /** Diagnostic: whether a host actually measured the rotate axes, as opposed to the
+     *  identity they default to. An unset drag turns the bone in the wrong frame. */
+    public boolean hasRotateAxes;
+
     public GizmoDrag setRotateAxes(Matrix3f axes)
     {
         this.rotateAxes.set(axes);
+        this.hasRotateAxes = true;
 
         return this;
     }
@@ -442,8 +448,33 @@ public class GizmoDrag
      * differences become the Jacobian's columns, carrying both the orientation and the
      * scale of the local-to-world mapping. Restores the original value before returning.
      */
-    public static Matrix3f computeTranslateJacobian(Transform transform, Supplier<Vector3f> worldPositionSampler)
+    /**
+     * Wrap a pose sampler so every read re-evaluates the form instead of being answered from
+     * this frame's pose cache ({@link RenderFrame}).
+     *
+     * <p>Required by every probe below, and by any other measurement built the same way. The
+     * probes work by writing raw fields of a {@link Transform} and re-reading the matrices that
+     * come out; those writes are plain {@code Vector3f} assignments, so they do NOT bubble a
+     * value notification and do NOT bump {@link mchorse.bbs_mod.forms.forms.Form#getPoseVersion}.
+     * The frame cache is keyed on that version, so without this every probe of a gesture is
+     * answered with the same unperturbed matrix: the measured response is zero, the rotate axes
+     * collapse to the identity and the translate Jacobian to zero, and the gesture then turns
+     * and slides the bone in a frame that has nothing to do with the one on screen. This is
+     * exactly the out-of-band mutation {@link RenderFrame#invalidate} exists for.
+     */
+    public static <T> Supplier<T> freshSampler(Supplier<T> sampler)
     {
+        return () ->
+        {
+            RenderFrame.invalidate();
+
+            return sampler.get();
+        };
+    }
+
+    public static Matrix3f computeTranslateJacobian(Transform transform, Supplier<Vector3f> sampler)
+    {
+        Supplier<Vector3f> worldPositionSampler = freshSampler(sampler);
         Vector3f saved = new Vector3f(transform.translate);
 
         try
@@ -485,8 +516,9 @@ public class GizmoDrag
      * silently collapse to identity. Columns are the unit axes of x/y/z; the original
      * values are restored before returning.
      */
-    public static Matrix3f computeRotateAxes(Transform transform, Supplier<Matrix4f> matrixSampler)
+    public static Matrix3f computeRotateAxes(Transform transform, Supplier<Matrix4f> sampler)
     {
+        Supplier<Matrix4f> matrixSampler = freshSampler(sampler);
         boolean quat = transform.rotationMode == Transform.RotationMode.QUATERNION;
         Vector3f savedRotate = new Vector3f(transform.rotate);
         Quaternionf savedQuat = new Quaternionf(transform.quat);

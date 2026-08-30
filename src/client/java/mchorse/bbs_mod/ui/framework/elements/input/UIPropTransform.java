@@ -1686,6 +1686,12 @@ public class UIPropTransform extends UITransform
             return UIPropTransform.this.isRotationChannelOnly();
         }
 
+        @Override
+        public String targetName()
+        {
+            return UIPropTransform.this.getClass().getSimpleName();
+        }
+
         /* Blender-style snapping: every gesture is free by default and snaps to
          * the configured step only while Ctrl is held. Typed numeric input is
          * exact already, so it never snaps. */
