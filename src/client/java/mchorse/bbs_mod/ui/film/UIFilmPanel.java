@@ -1840,14 +1840,17 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     @Override
     public void setCursor(int value)
     {
+        int ticks = Math.max(0, value);
+        boolean moved = ticks != this.runner.ticks;
+
         this.flightEditTime.mark();
         this.lastPosition.set(Position.ZERO);
 
-        this.runner.ticks = Math.max(0, value);
+        this.runner.ticks = ticks;
 
         this.notifyServer(ActionState.SEEK);
 
-        if (BBSSettings.editorRestartOnSeek.get())
+        if (moved && BBSSettings.editorRestartOnSeek.get())
         {
             this.restartPending = true;
         }
