@@ -45,11 +45,6 @@ public class UIMessageOverlayPanel extends UIOverlayPanel
         this.fits = false;
     }
 
-    public void setMessage(IKey message)
-    {
-        this.message.text(message);
-    }
-
     @Override
     public boolean isResizable()
     {

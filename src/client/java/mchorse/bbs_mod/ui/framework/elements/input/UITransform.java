@@ -424,12 +424,6 @@ public abstract class UITransform extends UIElement
         return this;
     }
 
-    /** The world-matrix source wired by the host, or {@code null} (see {@link #worldTransform}). */
-    protected IWorldTransformProvider getWorldProvider()
-    {
-        return this.worldProvider;
-    }
-
     /** Capture the element's current full world matrix into the shared world clipboard. */
     private void copyWorldTransform()
     {

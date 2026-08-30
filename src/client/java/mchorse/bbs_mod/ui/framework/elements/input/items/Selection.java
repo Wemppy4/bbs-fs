@@ -98,11 +98,6 @@ public class Selection<T>
         return this.anchor;
     }
 
-    public Object getAnchorScope()
-    {
-        return this.anchorScope;
-    }
-
     public void clear()
     {
         boolean had = !this.items.isEmpty() || this.anchor != null;

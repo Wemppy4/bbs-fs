@@ -147,11 +147,6 @@ public abstract class UIModelRenderer extends UIElement
         this.targetPos.set(x, y, z);
     }
 
-    public float getDistance()
-    {
-        return this.distance;
-    }
-
     /** Slide the view onto a point, letting the smoothing carry it there. */
     public void focus(float x, float y, float z)
     {
@@ -162,11 +157,6 @@ public abstract class UIModelRenderer extends UIElement
     {
         this.distance = MathUtils.clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
         this.targetDistance = this.distance;
-    }
-
-    public void setEntity(IEntity entity)
-    {
-        this.entity = entity;
     }
 
     public IEntity getEntity()

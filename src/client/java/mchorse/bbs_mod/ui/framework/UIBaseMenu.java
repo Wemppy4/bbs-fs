@@ -306,11 +306,6 @@ public abstract class UIBaseMenu
         this.closeMenu();
     }
 
-    public void renderDefaultBackground()
-    {
-        this.context.batcher.box(0, 0, this.width, this.height, Colors.A50);
-    }
-
     public void renderMenu(UIRenderingContext context, int mouseX, int mouseY)
     {
         RenderSystem.depthFunc(GL11.GL_ALWAYS);

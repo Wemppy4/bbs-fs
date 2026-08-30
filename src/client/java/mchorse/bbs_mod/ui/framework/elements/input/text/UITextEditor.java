@@ -46,18 +46,6 @@ public class UITextEditor extends UITextarea<HighlightedTextLine>
         return new HighlightedTextLine(line);
     }
 
-    public UITextEditor noLineNumbers()
-    {
-        this.lines = false;
-
-        return this;
-    }
-
-    public ISyntaxHighlighter getHighlighter()
-    {
-        return this.highlighter;
-    }
-
     public void resetHighlight()
     {
         for (HighlightedTextLine textLine : this.text)

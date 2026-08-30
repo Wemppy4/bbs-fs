@@ -593,11 +593,6 @@ public class UIElement implements IUIElement, IUndoElement
         return element;
     }
 
-    public void resetContext()
-    {
-        this.contextOptions = null;
-    }
-
     public UIElement context(Supplier<UIContextMenu> supplier)
     {
         if (supplier != null)
@@ -925,13 +920,6 @@ public class UIElement implements IUIElement, IUndoElement
         return this;
     }
 
-    public UIElement minH(int max)
-    {
-        this.flex.h.min = max;
-
-        return this;
-    }
-
     public UIElement maxW(int max)
     {
         this.flex.w.max = max;
@@ -1070,23 +1058,9 @@ public class UIElement implements IUIElement, IUndoElement
         return this;
     }
 
-    public UIElement marginLeft(int left)
-    {
-        this.margin.left(left);
-
-        return this;
-    }
-
     public UIElement marginTop(int top)
     {
         this.margin.top(top);
-
-        return this;
-    }
-
-    public UIElement marginRight(int right)
-    {
-        this.margin.right(right);
 
         return this;
     }

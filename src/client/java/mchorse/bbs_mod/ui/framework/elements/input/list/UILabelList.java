@@ -22,19 +22,6 @@ public class UILabelList <T> extends UIList<Label<T>>
         this.add(new Label<>(title, value));
     }
 
-    public void setCurrentTitle(String title)
-    {
-        for (int i = 0; i < this.list.size(); i ++)
-        {
-            if (this.list.get(i).title.equals(title))
-            {
-                this.setIndex(i);
-
-                return;
-            }
-        }
-    }
-
     public void setCurrentValue(T value)
     {
         for (int i = 0; i < this.list.size(); i ++)

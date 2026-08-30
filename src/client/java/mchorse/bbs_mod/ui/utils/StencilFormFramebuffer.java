@@ -39,11 +39,6 @@ public class StencilFormFramebuffer
         return this.index;
     }
 
-    public Map<Integer, Pair<Form, String>> getIndexMap()
-    {
-        return this.indexMap;
-    }
-
     public Pair<Form, String> getPicked()
     {
         return this.indexMap.get(this.index);

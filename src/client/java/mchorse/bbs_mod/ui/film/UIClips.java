@@ -264,11 +264,6 @@ public class UIClips extends UIElement
         }).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
     }
 
-    public UIClipRenderers getRenderers()
-    {
-        return this.renderers;
-    }
-
     public IFactory<Clip, ClipFactoryData> getFactory()
     {
         return this.factory;

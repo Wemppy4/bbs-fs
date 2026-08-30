@@ -38,11 +38,6 @@ public class UIAudioPlayer extends UIElement implements IUITreeEventListener
         this.add(this.play);
     }
 
-    public Wave getWave()
-    {
-        return this.wave;
-    }
-
     public SoundPlayer getPlayer()
     {
         return this.player;

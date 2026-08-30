@@ -47,28 +47,6 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         this.add(new UIRenderable(this::renderOverlay), this.buttons);
     }
 
-    public void changeDirection(Direction direction)
-    {
-        this.direction = direction == null ? Direction.BOTTOM : direction;
-
-        this.setButtonsPlacement();
-
-        if (this.view != null)
-        {
-            this.setPanelPlacement(this.view);
-        }
-
-        for (UIElement element : this.buttons.getChildren(UIElement.class))
-        {
-            if (element.tooltip != null)
-            {
-                element.tooltip(element.tooltip.getLabel(), this.direction.opposite());
-            }
-        }
-
-        this.resize();
-    }
-
     /**
      * The bar is a 20px strip on the {@link #direction} side; LEFT/RIGHT run it down the side,
      * BOTTOM/RIGHT put it at the far edge. Everything below derives from these two facts.
@@ -142,11 +120,6 @@ public class UIPanelBase <T extends UIElement> extends UIElement
                 panel.y(20);
             }
         }
-    }
-
-    public UIIcon getButton(T panel)
-    {
-        return (UIIcon) this.buttons.getTab(this.panels.indexOf(panel));
     }
 
     /**

@@ -324,11 +324,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
         BBSSettings.editorCameraMode.set(this.pov);
     }
 
-    private int getMouseMode()
-    {
-        return this.mouse.getMode();
-    }
-
     /**
      * Steps the mouse to that mode. Look mode needs the server to run the mod — it turns the
      * real player's head, and a vanilla server would fight the client over it — so off one the

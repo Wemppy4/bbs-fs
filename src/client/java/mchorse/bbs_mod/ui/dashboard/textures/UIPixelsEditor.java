@@ -613,11 +613,6 @@ public class UIPixelsEditor extends UICanvasEditor
         this.onionSkin = onionSkin;
     }
 
-    public boolean isOnionSkin()
-    {
-        return this.onionSkin;
-    }
-
     /**
      * Put the window on the frame on show — the whole document when it isn't animated — and size
      * the canvas to it. The view is refitted only when the window's size changed (or when asked),
@@ -709,11 +704,6 @@ public class UIPixelsEditor extends UICanvasEditor
         pixel.y += this.frameY;
 
         return pixel;
-    }
-
-    public int getBrushSize()
-    {
-        return this.brushSize;
     }
 
     public UIPixelsEditor setBrushSize(int size)

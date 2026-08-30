@@ -36,14 +36,6 @@ public class UINestedEdit extends UIElement
         return this;
     }
 
-    public UINestedEdit alternativeKeybinds()
-    {
-        this.keys().register(Keys.FORMS_PICK_ALT, () -> this.pick.clickItself());
-        this.keys().register(Keys.FORMS_EDIT_ALT, () -> this.edit.clickItself());
-
-        return this;
-    }
-
     public void setForm(Form form)
     {
         this.edit.setEnabled(form != null);

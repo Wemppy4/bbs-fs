@@ -97,11 +97,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         return this;
     }
 
-    public boolean isEmbedded()
-    {
-        return this.embedded;
-    }
-
     /** One row of cells scrolling sideways, instead of rows scrolling down. Not for an embedded grid. */
     public UIItemGrid<T> horizontal()
     {

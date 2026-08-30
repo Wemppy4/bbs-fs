@@ -35,11 +35,6 @@ public class ValueOrder extends BaseValueBasic<List<String>>
         this.tokens = Collections.unmodifiableList(Arrays.asList(tokens));
     }
 
-    public List<String> getTokens()
-    {
-        return this.tokens;
-    }
-
     /** Display labels, parallel to the constructor's token order. */
     public ValueOrder labels(IKey... labels)
     {

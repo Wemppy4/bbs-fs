@@ -85,13 +85,6 @@ public class UITextbox extends UIBaseTextbox implements ITextColoring
         return this;
     }
 
-    public UITextbox noBorder()
-    {
-        this.textbox.setBorder(false);
-
-        return this;
-    }
-
     public UITextbox delayedInput()
     {
         this.delayedInput = true;

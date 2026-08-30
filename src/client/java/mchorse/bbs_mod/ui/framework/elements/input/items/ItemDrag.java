@@ -97,11 +97,6 @@ public class ItemDrag<T> extends DragGesture
         this.insertion = insertion;
     }
 
-    public void setInsertion(int insertion)
-    {
-        this.insertion = insertion;
-    }
-
     public void clearTarget()
     {
         this.target = null;

@@ -43,22 +43,6 @@ public class FoldState<K>
         }
     }
 
-    public boolean isDefaultExpanded()
-    {
-        return this.defaultExpanded;
-    }
-
-    /** Switch the default; every branch the user hasn't touched follows it. */
-    public void setDefaultExpanded(boolean expanded)
-    {
-        if (this.defaultExpanded != expanded)
-        {
-            this.defaultExpanded = expanded;
-            this.exceptions.clear();
-            this.changed();
-        }
-    }
-
     public boolean isExpanded(K key)
     {
         return this.exceptions.contains(key) != this.defaultExpanded;

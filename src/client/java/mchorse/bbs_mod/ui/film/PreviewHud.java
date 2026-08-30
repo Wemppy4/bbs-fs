@@ -147,12 +147,6 @@ public class PreviewHud
         this.inset[anchor.ordinal()] = amount;
     }
 
-    /** The width the zone's anchored side is holding clear, from {@link #inset}. */
-    public int getInset(Anchor anchor)
-    {
-        return this.inset[anchor.ordinal()];
-    }
-
     /**
      * Takes room in a zone without drawing anything, for the one thing that lays itself out
      * on its own: the icon bar is a real UI element positioned against the panel, not the

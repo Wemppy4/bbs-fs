@@ -951,13 +951,6 @@ public class UIKeyframes extends UIElement
 
     /* Getters & setters */
 
-    public UIKeyframes backgroundRenderer(Consumer<UIContext> backgroundRender)
-    {
-        this.backgroundRender = backgroundRender;
-
-        return this;
-    }
-
     public UIKeyframes rulerRenderer(Consumer<UIContext> rulerRender)
     {
         this.rulerRender = rulerRender;

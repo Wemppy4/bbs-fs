@@ -408,21 +408,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         return id == null ? Icons.SEARCH : Icons.FILM;
     }
 
-    public void deleteFilmIds(Set<String> ids)
-    {
-        if (ids == null || ids.isEmpty())
-        {
-            return;
-        }
-
-        for (String id : ids)
-        {
-            this.onDataRemoved(id);
-        }
-
-        this.updateTabVisibility();
-    }
-
     public void updateTabVisibility()
     {
         this.dock.refreshVisibility();
@@ -775,15 +760,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             this.applyPreviewSizeToBBS();
         }
-    }
-
-    /**
-     * Returns the currently-active queue exporter, or {@code null} when no
-     * multi-film export is in progress.
-     */
-    public FilmQueueExporter getQueueExporter()
-    {
-        return this.queueExporter;
     }
 
     /**

@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.cubic.ik;
 
-import mchorse.bbs_mod.data.IMapSerializable;
+import mchorse.bbs_mod.cubic.chains.ChainControl;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.interps.AutoBezier;
 import mchorse.bbs_mod.utils.interps.IInterp;
@@ -11,7 +11,7 @@ import mchorse.bbs_mod.utils.interps.IInterp;
  * Mirrors {@link mchorse.bbs_mod.utils.pose.PoseTransform} as the element of the
  * {@link IKControls} keyframe container. Floats interpolate; the booleans step.
  */
-public class IKControl implements IMapSerializable
+public class IKControl extends ChainControl<IKControl>
 {
     /* Mirrors ModelIKConfig's defaults; duplicated because that config class lives
      * in the client source set and this keyframe value lives in main. */
@@ -27,6 +27,7 @@ public class IKControl implements IMapSerializable
     public boolean enabled = true;
     public boolean pole = true;
 
+    @Override
     public void identity()
     {
         this.weight = DEFAULT_WEIGHT;
@@ -36,6 +37,7 @@ public class IKControl implements IMapSerializable
         this.pole = true;
     }
 
+    @Override
     public void lerp(IKControl preA, IKControl a, IKControl b, IKControl postB, IInterp interp, float x)
     {
         this.weight = (float) interp.interpolate(IInterp.context.set(preA.weight, a.weight, b.weight, postB.weight, x));
@@ -45,6 +47,7 @@ public class IKControl implements IMapSerializable
         this.pole = a.pole;
     }
 
+    @Override
     public void autoLerp(IKControl preA, IKControl a, IKControl b, IKControl postB, float pt, float at, float bt, float qt, boolean clamped, float x)
     {
         this.weight = (float) AutoBezier.get(preA.weight, a.weight, b.weight, postB.weight, pt, at, bt, qt, clamped, x);
@@ -54,6 +57,7 @@ public class IKControl implements IMapSerializable
         this.pole = a.pole;
     }
 
+    @Override
     public IKControl copy()
     {
         IKControl control = new IKControl();
@@ -63,6 +67,7 @@ public class IKControl implements IMapSerializable
         return control;
     }
 
+    @Override
     public void copy(IKControl other)
     {
         this.weight = other.weight;
@@ -72,6 +77,7 @@ public class IKControl implements IMapSerializable
         this.pole = other.pole;
     }
 
+    @Override
     public boolean isDefault()
     {
         return this.weight == DEFAULT.weight

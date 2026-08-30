@@ -280,11 +280,6 @@ public class UIContext implements IViewportStack
         return this.keyCode == keyCode && this.keyAction == KeyAction.RELEASED;
     }
 
-    public boolean isRepeated(int keyCode)
-    {
-        return this.keyCode == keyCode && this.keyAction == KeyAction.REPEAT;
-    }
-
     public boolean isHeld(int keyCode)
     {
         return this.keyCode == keyCode && this.keyAction != KeyAction.RELEASED;

@@ -62,11 +62,6 @@ public class UIColor extends UIElement
         return this;
     }
 
-    public UIColor onTop()
-    {
-        return this.direction(Direction.TOP);
-    }
-
     public UIColor noLabel()
     {
         this.label = false;

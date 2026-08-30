@@ -514,18 +514,6 @@ public abstract class UIList <T> extends UIItems<T>
         }
     }
 
-    public void setCurrentDirect(T element)
-    {
-        this.current.clear();
-
-        int index = this.indexOfItem(element);
-
-        if (index != -1)
-        {
-            this.current.add(index);
-        }
-    }
-
     public void setCurrent(List<T> elements)
     {
         if (!this.multi && !elements.isEmpty())

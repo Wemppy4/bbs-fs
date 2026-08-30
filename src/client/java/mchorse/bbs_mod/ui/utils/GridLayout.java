@@ -57,11 +57,6 @@ public class GridLayout
         return this;
     }
 
-    public boolean isStrip()
-    {
-        return this.strip;
-    }
-
     public GridLayout set(int width, int cellWidth, int count)
     {
         this.cell = cellWidth;

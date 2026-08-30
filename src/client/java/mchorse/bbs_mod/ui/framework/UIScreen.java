@@ -57,11 +57,6 @@ public class UIScreen extends Screen implements IFileDropListener
         this.menu.context.setup(this.context);
     }
 
-    public UIBaseMenu getMenu()
-    {
-        return this.menu;
-    }
-
     public void update()
     {
         this.menu.update();

@@ -752,22 +752,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         return links;
     }
 
-    /** How many of the picked entries are textures; asked every frame, so it walks the pick rather than the listing. */
-    private int pickedFrameCount()
-    {
-        int count = 0;
-
-        for (TextureEntry entry : this.grid.selection.getItems())
-        {
-            if (!entry.folder())
-            {
-                count += 1;
-            }
-        }
-
-        return count;
-    }
-
     private boolean isPicked(Link link)
     {
         return this.grid.selection.contains(TextureEntry.of(link));
