@@ -17,6 +17,7 @@ import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.render.CubicCubeRenderer;
 import mchorse.bbs_mod.cubic.render.CubicMatrixRenderer;
 import mchorse.bbs_mod.cubic.render.CubicRenderer;
+import mchorse.bbs_mod.cubic.model.ModelSetupQueue;
 import mchorse.bbs_mod.cubic.render.CubicVAOBuilderRenderer;
 import mchorse.bbs_mod.cubic.render.CubicVAORenderer;
 import mchorse.bbs_mod.cubic.render.WeldGeometryCache;
@@ -336,25 +337,22 @@ public class ModelInstance implements IModelInstance
 
     public void setup()
     {
-        if (this.model instanceof BOBJModel model)
+        if (this.model instanceof BOBJModel bobjModel)
         {
-            MinecraftClient.getInstance().execute(model::setup);
+            ModelSetupQueue.add(bobjModel::setup);
         }
 
         /* A welded or shape-keyed model still builds VAOs: only its welded bones and shape-keyed groups render
          * on the immediate (CPU) path, the rest ride their VAOs on the GPU (see {@link #renderHybrid}). */
-        if (this.model instanceof Model model)
+        if (this.model instanceof Model cubicModel)
         {
             boolean bake = !this.config.onCpu.get();
 
-            this.partialVaos = bake && this.hasShapeKeyedGroups(model);
+            this.partialVaos = bake && this.hasShapeKeyedGroups(cubicModel);
 
             if (bake)
             {
-                MinecraftClient.getInstance().execute(() ->
-                {
-                    CubicRenderer.processRenderModel(new CubicVAOBuilderRenderer(this.vaos), null, new MatrixStack(), model);
-                });
+                ModelSetupQueue.add(() -> CubicRenderer.processRenderModel(new CubicVAOBuilderRenderer(this.vaos), null, new MatrixStack(), cubicModel));
             }
         }
     }

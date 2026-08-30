@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
+import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.Renderbuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -63,6 +64,9 @@ public class FormPreviewCache
         int poseVersion;
         long renderedEpoch = -1L;
         long usedEpoch;
+
+        /** The picture was taken while the form's model was still loading — retake as soon as it lands. */
+        boolean modelPending;
     }
 
     /** Draw the form's picture into the box — from the cache when it can, live when it cannot. */
@@ -112,6 +116,15 @@ public class FormPreviewCache
          * wrong, an unrefreshed idle animation is merely late. Rotation: with N pictures on screen
          * and K renders a frame, each one comes round every N/K frames. */
         boolean fresh = entry.renderedEpoch < 0 || entry.width != w || entry.height != h || entry.poseVersion != form.getPoseVersion();
+
+        /* A cell drawn while its model was still in the loader's queue holds an empty picture;
+         * the moment the model lands, it retakes ahead of the rotation — an empty cell that
+         * waits its turn reads as a much longer load than it was. */
+        if (!fresh && entry.modelPending && renderer instanceof ModelFormRenderer modelRenderer && modelRenderer.getModel() != null)
+        {
+            fresh = true;
+        }
+
         int interval = Math.max(1, (requestedLastFrame + budget - 1) / budget);
         boolean due = rendersThisFrame < budget && now - entry.renderedEpoch >= interval;
 
@@ -128,6 +141,7 @@ public class FormPreviewCache
             entry.height = h;
             entry.poseVersion = form.getPoseVersion();
             entry.renderedEpoch = now;
+            entry.modelPending = renderer instanceof ModelFormRenderer modelRenderer && modelRenderer.getModel() == null;
             rendersThisFrame += 1;
         }
 
