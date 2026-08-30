@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.film.AnchorRebase;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -13,6 +15,7 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIconToggles;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -31,6 +34,7 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
 {
     private UIButton actor;
     private UIButton attachment;
+    private UIToggle keepTransform;
     private UIIconToggles inherit;
     public UIPropTransform transform;
 
@@ -104,15 +108,17 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         /* Which components of the target's frame the form rides, as one strip: the same three icons
          * the gizmo and the body part editor use for the same three ideas. The anchor's flags are
          * plain fields rather than values, so the cells are bound by getter and setter. */
+        this.keepTransform = new UIToggle(UIKeys.GENERIC_KEYFRAMES_ANCHOR_KEEP_TRANSFORM, BBSSettings.anchorKeepTransform.get(), (b) -> BBSSettings.anchorKeepTransform.set(b.getValue()));
+        this.keepTransform.tooltip(UIKeys.GENERIC_KEYFRAMES_ANCHOR_KEEP_TRANSFORM_TOOLTIP);
         this.inherit = new UIIconToggles(null)
-            .add(Icons.ALL_DIRECTIONS, UIKeys.INHERIT_POSITION, () -> this.keyframe.getValue().inheritPosition, (v) -> this.edit((anchor) -> anchor.inheritPosition = v))
-            .add(Icons.ORBIT, UIKeys.INHERIT_ROTATION, () -> this.keyframe.getValue().inheritRotation, (v) -> this.edit((anchor) -> anchor.inheritRotation = v))
-            .add(Icons.SCALE, UIKeys.INHERIT_SCALE, () -> this.keyframe.getValue().inheritScale, (v) -> this.edit((anchor) -> anchor.inheritScale = v));
+            .add(Icons.ALL_DIRECTIONS, UIKeys.INHERIT_POSITION, () -> this.keyframe.getValue().inheritPosition, (v) -> this.retarget((anchor) -> anchor.inheritPosition = v))
+            .add(Icons.ORBIT, UIKeys.INHERIT_ROTATION, () -> this.keyframe.getValue().inheritRotation, (v) -> this.retarget((anchor) -> anchor.inheritRotation = v))
+            .add(Icons.SCALE, UIKeys.INHERIT_SCALE, () -> this.keyframe.getValue().inheritScale, (v) -> this.retarget((anchor) -> anchor.inheritScale = v));
         this.transform = new UIAnchorTransforms(this);
         this.transform.enableHotkeys();
         this.transform.setTransform(keyframe.getValue().transform);
 
-        this.scroll.add(this.actor, this.attachment, this.inherit.labelRow(UIKeys.INHERIT_TITLE), this.transform);
+        this.scroll.add(this.actor, this.attachment, this.keepTransform, this.inherit.labelRow(UIKeys.INHERIT_TITLE), this.transform);
     }
 
     private void displayActors()
@@ -124,17 +130,72 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
 
     private void setActor(String actor)
     {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().replay = actor);
+        this.retarget((anchor) -> anchor.replay = actor);
     }
 
     private void setAttachment(String attachment)
     {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().attachment = attachment);
+        this.retarget((anchor) -> anchor.attachment = attachment);
     }
 
-    private void edit(Consumer<Anchor> consumer)
+    /**
+     * Change what this anchor hangs off. Every such change goes through here so
+     * {@link BBSSettings#anchorKeepTransform} can compensate for it: the anchor's transform is
+     * rebased onto the new target ({@link AnchorRebase}) so the form stays where it is instead of
+     * being thrown into whichever frame the new target happens to sit in.
+     *
+     * <p>The rebase is measured on copies before the edit and written inside it, so the retarget
+     * and its compensation are one undo step — an undo that put back the target but kept the
+     * compensating transform would leave the form somewhere neither value ever meant.</p>
+     */
+    private void retarget(Consumer<Anchor> change)
     {
-        BaseValue.edit(this.keyframe, (keyframe) -> consumer.accept(keyframe.getValue()));
+        Anchor from = this.keyframe.getValue().copy();
+        Anchor to = from.copy();
+
+        change.accept(to);
+
+        boolean rebased = BBSSettings.anchorKeepTransform.get() && this.rebase(from, to);
+
+        BaseValue.edit(this.keyframe, (keyframe) ->
+        {
+            Anchor anchor = keyframe.getValue();
+
+            change.accept(anchor);
+
+            if (rebased)
+            {
+                anchor.transform.copy(to.transform);
+            }
+        });
+
+        if (rebased)
+        {
+            /* The fields hold the same transform object the rebase wrote through, but they were
+             * filled from its old numbers. */
+            this.transform.setTransform(this.keyframe.getValue().transform);
+        }
+    }
+
+    /**
+     * Rebase against the replay this anchor belongs to. Only a root form's anchor is animatable
+     * (see {@code TrackCatalog}), so the edited keyframe is always the selected replay's own —
+     * and the entity is what carries the live pose everything is measured from, which is why
+     * there is nothing to compensate against when the replay isn't in the scene right now.
+     */
+    private boolean rebase(Anchor from, Anchor to)
+    {
+        UIFilmPanel panel = this.getPanel();
+        Replay replay = panel == null ? null : panel.replayEditor.getReplay();
+
+        if (replay == null)
+        {
+            return false;
+        }
+
+        Map<String, IEntity> entities = panel.getController().getEntities();
+
+        return AnchorRebase.keepWorldTransform(entities, entities.get(replay.getId()), replay, 0F, from, to);
     }
 
     private UIFilmPanel getPanel()

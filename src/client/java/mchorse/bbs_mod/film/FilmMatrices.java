@@ -342,12 +342,40 @@ public class FilmMatrices
         double cameraZ,
         float transition
     ) {
-        if (entity == null || entity.getForm() == null)
+        Matrix4f full = entity == null || entity.getForm() == null
+            ? null
+            : getAnchorMatrix(entities, entity, replay, cameraX, cameraY, cameraZ, transition, entity.getForm().anchor.get());
+
+        return full == null ? null : MatrixStackUtils.stripScale(full);
+    }
+
+    /**
+     * Where a form ends up hanging off the given anchor — the same {@code target} the renderer
+     * places it with, but for an anchor that is not necessarily the form's current one. That is
+     * what lets a caller ask where the form <em>would</em> sit under another target and compare
+     * the two (see {@code AnchorRebase}); {@link #getGizmoAnchorCompositeMatrix} is this with the
+     * gizmo's scale stripped off.
+     *
+     * <p>A replay in relative mode renders without resolving anchors at all (see
+     * {@link FilmEntityRenderer}), so it answers with the replay's own placement whatever the
+     * anchor says — a caller for whom that distinction matters checks {@code replay.relative}
+     * itself.</p>
+     */
+    public static Matrix4f getAnchorMatrix(
+        Map<String, IEntity> entities,
+        IEntity entity,
+        Replay replay,
+        double cameraX,
+        double cameraY,
+        double cameraZ,
+        float transition,
+        Anchor anchor
+    ) {
+        if (entity == null || entity.getForm() == null || anchor == null)
         {
             return null;
         }
 
-        Form form = entity.getForm();
         boolean relative = replay != null && replay.relative.get();
         Vector3d origin = replayOrigin(replay, relative, cameraX, cameraY, cameraZ);
 
@@ -355,17 +383,18 @@ public class FilmMatrices
         double cy = origin.y;
         double cz = origin.z;
 
+        /* Fresh every call: getTotalMatrix multiplies the anchor's transform onto this very matrix
+         * when the anchor has no target to compose onto. */
         Matrix4f defaultMatrix = getMatrixForRenderWithRotation(entity, cx, cy, cz, transition);
-        Matrix4f full = defaultMatrix;
 
-        if (!relative)
+        if (relative)
         {
-            Pair<Matrix4f, Float> pair = getTotalMatrix(entities, form.anchor.get(), defaultMatrix, cx, cy, cz, transition, 0);
-
-            full = pair.a != null ? pair.a : defaultMatrix;
+            return defaultMatrix;
         }
 
-        return MatrixStackUtils.stripScale(full);
+        Pair<Matrix4f, Float> pair = getTotalMatrix(entities, anchor, defaultMatrix, cx, cy, cz, transition, 0);
+
+        return pair.a != null ? pair.a : defaultMatrix;
     }
 
     static String boneMapKey(String bonePath)
