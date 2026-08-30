@@ -2,14 +2,12 @@ package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.physics.BonePhysicsIO;
 import mchorse.bbs_mod.cubic.physics.PhysicsControl;
 import mchorse.bbs_mod.cubic.physics.WindControl;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
-import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
@@ -20,18 +18,12 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
-import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.ModelPhysicsManager;
-import mchorse.bbs_mod.settings.values.base.BaseValue;
-import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,15 +31,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
-public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
+public class UIModelPhysicsFormPanel extends UIBoneListFormPanel
 {
     public UIToggle debug;
     public UIBonePicker end;
     public UIBonePicker targetBone;
-    public UIBoneTreeList bones;
-    public UISearchList<String> bonesSearch;
     public UIToggle enabled;
     public UISliderTrackpad gravity;
     public UIToggle relativeGravity;
@@ -68,37 +57,19 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
     public UISliderTrackpad windTurbulenceScale;
     public UIToggle windLocal;
 
-    private List<String> availableBones = Collections.emptyList();
-    private String selectedBone = "";
-    private ModelInstance modelInstance;
-    private String presetGroup = "";
-
     public UIModelPhysicsFormPanel(UIForm editor)
     {
         super(editor);
 
         IKey axis = IKey.constant("%s (%s)");
 
-        this.bones = new UIBoneTreeList((l) ->
-        {
-            this.selectedBone = l.isEmpty() ? "" : l.get(0);
-
-            this.boneSelection().set(this.selectedBone);
-            this.updateFields();
-        });
-        this.bones.background();
-        this.bonesSearch = new UISearchList<>(this.bones);
-        this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
-        /* Search box plus eight rows is the minimum; the list takes whatever the sections below
-         * leave in the panel, so folding them away hands the room to the bones. */
-        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8).expand();
-        this.bones.context(() -> new UIDataContextMenu(ModelPhysicsManager.INSTANCE, this.presetGroup, this::toPresetData, this::applyPresetData).tooltips("_CopyModelPhysics",
+        this.bonePresets(ModelPhysicsManager.INSTANCE, "_CopyModelPhysics",
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_COPY,
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_PASTE,
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_RESET,
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_SAVE,
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_NAME
-        ));
+        );
 
         this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DEBUG, (b) -> BBSSettings.physicsDebug.enabled.set(b.getValue()));
         this.debug.setValue(BBSSettings.physicsDebug.enabled.get());
@@ -278,49 +249,15 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
     @Override
     public void startEdit(ModelForm form)
     {
-        super.startEdit(form);
-
         this.debug.setValue(BBSSettings.physicsDebug.enabled.get());
 
-        ModelInstance model = ModelFormRenderer.getModel(form);
-        this.modelInstance = model;
-        this.presetGroup = this.resolvePresetGroup(form, model);
+        super.startEdit(form);
 
-        if (model == null || model.model == null)
-        {
-            this.availableBones = Collections.emptyList();
-            this.bones.clear();
-            this.selectedBone = "";
-            this.setElementsEnabled(false);
-            this.updateWindFields();
-        }
-        else
-        {
-            List<String> bones = new ArrayList<>(model.model.getGroupKeysInHierarchyOrder());
-            bones.removeIf(model.getDisabledBones()::contains);
-            this.availableBones = bones;
-
-            this.setElementsEnabled(true);
-            this.bones.fillBones(model.model, model.getDisabledBones());
-
-            /* The fill resets the list's filter state, but the search box keeps its
-             * text across startEdit — reapply so what you see matches the query. */
-            this.bones.filter(this.bonesSearch.search.getText());
-            this.updateWindFields();
-
-            /* The bone the animator is working on, when this model has it —
-             * the panel is rebuilt on many editor actions, and falling back to
-             * the first bone every time would keep yanking them to the root. */
-            if (!this.pickBoneInList(this.boneSelection().get()) && !this.availableBones.isEmpty())
-            {
-                this.selectBone(this.availableBones.get(0));
-            }
-        }
-
-        this.options.resize();
+        this.updateWindFields();
     }
 
-    private void setElementsEnabled(boolean enabled)
+    @Override
+    protected void setElementsEnabled(boolean enabled)
     {
         this.bonesSearch.setEnabled(enabled);
         this.bones.setEnabled(enabled);
@@ -345,52 +282,6 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         this.windTurbulenceSpeed.setEnabled(enabled);
         this.windTurbulenceScale.setEnabled(enabled);
         this.windLocal.setEnabled(enabled);
-    }
-
-    private void selectBone(String bone)
-    {
-        this.selectedBone = bone == null ? "" : bone;
-        this.bones.setCurrentScroll(this.selectedBone);
-        this.updateFields();
-    }
-
-    @Override
-    public boolean pickBoneInList(String bone)
-    {
-        if (bone == null || bone.isEmpty() || !this.availableBones.contains(bone))
-        {
-            return false;
-        }
-
-        this.selectBone(bone);
-        this.boneSelection().set(bone);
-
-        return true;
-    }
-
-    /* Value access: the panel holds no data of its own — every read and write
-     * goes to the form's bone properties, and undo picks the writes up itself. */
-
-    private FormBone selectedFormBone()
-    {
-        return this.form == null || this.selectedBone.isEmpty() ? null : this.form.bones.getBone(this.selectedBone);
-    }
-
-    private <T> T readBone(Function<FormBone, T> getter, T fallback)
-    {
-        FormBone bone = this.selectedFormBone();
-
-        return bone == null ? fallback : getter.apply(bone);
-    }
-
-    private void editBone(Consumer<FormBone> edit)
-    {
-        if (this.form == null || this.selectedBone.isEmpty())
-        {
-            return;
-        }
-
-        edit.accept(this.form.bones.getOrCreate(this.selectedBone));
     }
 
     /** Edits the selected bone's physics scalars as one value change (one undo entry). */
@@ -419,7 +310,8 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         this.form.wind.set(wind);
     }
 
-    private void updateFields()
+    @Override
+    protected void updateFields()
     {
         boolean panelEnabled = this.bones.isEnabled();
         boolean boneSelected = !this.selectedBone.isEmpty();
@@ -567,12 +459,14 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         return out;
     }
 
-    private MapType toPresetData()
+    @Override
+    protected MapType toPresetData()
     {
         return this.form == null ? new MapType() : BonePhysicsIO.write(this.form.bones, this.form.wind);
     }
 
-    private void applyPresetData(MapType map)
+    @Override
+    protected void applyPresetData(MapType map)
     {
         if (this.form == null)
         {
@@ -585,14 +479,6 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         this.updateWindFields();
     }
 
-    private static UISliderTrackpad axisTrackpad(Consumer<Double> callback, int color, IKey tooltip)
-    {
-        UISliderTrackpad t = new UISliderTrackpad(callback).angle180();
-        t.textbox.setColor(color);
-        t.tooltip(tooltip);
-        return t;
-    }
-
     private static UITrackpad windAxisTrackpad(Consumer<Double> callback, int color)
     {
         UITrackpad t = new UITrackpad(callback).onlyNumbers().values(0.1D, 0.5D, 1D).increment(0.1D);
@@ -600,26 +486,4 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         return t;
     }
 
-    private String resolvePresetGroup(ModelForm form, ModelInstance model)
-    {
-        String group = model != null ? model.getPoseGroup() : "";
-
-        if (group == null || group.isEmpty())
-        {
-            group = form == null ? "" : form.model.get();
-        }
-
-        return group == null ? "" : group;
-    }
-
-    /**
-     * Hang the reset verb on a field standing for one of the selected bone's own
-     * values. Resolved through {@link #selectedFormBone()} on every right click,
-     * so it follows the selection and never conjures a bone entry just by being
-     * looked at.
-     */
-    private void resetBone(UIElement element, Function<FormBone, BaseValue> getter)
-    {
-        UIValues.resettable(element, () -> this.readBone(getter, null), this::updateFields);
-    }
 }

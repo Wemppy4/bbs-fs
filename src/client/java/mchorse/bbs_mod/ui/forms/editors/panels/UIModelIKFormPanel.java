@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.ik.BoneIKIO;
 import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.cubic.ik.JointDoF;
@@ -10,7 +9,6 @@ import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
-import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -31,11 +29,9 @@ import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.ModelIKManager;
-import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,10 +40,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
+public class UIModelIKFormPanel extends UIBoneListFormPanel
 {
     /* Bone list role dots — the same yellow the film's IK sheet uses for a chain. */
     private static final int MARKER_CHAIN = Colors.A100 | Colors.YELLOW;
@@ -89,36 +84,20 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     public UISliderTrackpad stiffnessZ;
     public UIToggle stretch;
 
-    private String selectedBone = "";
     private final Map<String, UIBoneTreeList.Marker[]> boneMarkers = new HashMap<>();
-    private ModelInstance model;
-    private String presetGroup = "";
 
     public UIModelIKFormPanel(UIForm editor)
     {
         super(editor);
 
-        this.bones = new UIBoneTreeList((l) ->
-        {
-            this.selectedBone = l.isEmpty() ? "" : l.get(0);
-
-            this.boneSelection().set(this.selectedBone);
-            this.updateLabels();
-        });
-        this.bones.background();
         this.bones.markers(this.boneMarkers::get, UIKeys.FORMS_EDITORS_MODEL_IK_BONES_TOOLTIP);
-        this.bonesSearch = new UISearchList<>(this.bones);
-        this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
-        /* Same as the other bone-list panels: this height is the minimum, the list expands into
-         * whatever the sections below it leave. */
-        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8).expand();
-        this.bones.context(() -> new UIDataContextMenu(ModelIKManager.INSTANCE, this.presetGroup, this::toPresetData, this::applyPresetData).tooltips("_CopyModelIK",
+        this.bonePresets(ModelIKManager.INSTANCE, "_CopyModelIK",
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_COPY,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_PASTE,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_RESET,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_SAVE,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_NAME
-        ));
+        );
 
         this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_DEBUG, (b) -> BBSSettings.ikDebug.enabled.set(b.getValue()));
         this.debug.setValue(BBSSettings.ikDebug.enabled.get());
@@ -127,7 +106,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_ENABLED, (b) ->
         {
             this.editControl((c) -> c.enabled = b.getValue());
-            this.updateLabels();
+            this.updateFields();
         });
         this.enabled.h(UIConstants.CONTROL_HEIGHT);
 
@@ -146,7 +125,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             }
 
             this.form.bones.getOrCreate(this.selectedBone).ikTarget.set(bone);
-            this.updateLabels();
+            this.updateFields();
         });
 
         /* A target the chain itself drives never compiles — gray it out in the
@@ -167,7 +146,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         this.chainLength = new UITrackpad((v) ->
         {
             this.editBone((bone) -> bone.ikChainLength.set(Math.max(0, (int) v.floatValue())));
-            this.updateLabels();
+            this.updateFields();
         });
         this.chainLength.limit(0).integer();
         this.chainLength.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH);
@@ -182,7 +161,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         this.pole = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_POLE, (b) ->
         {
             this.editControl((c) -> c.pole = b.getValue());
-            this.updateLabels();
+            this.updateFields();
         });
         this.pole.h(UIConstants.CONTROL_HEIGHT);
 
@@ -194,7 +173,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             }
 
             this.form.bones.getOrCreate(this.selectedBone).ikPoleTarget.set(bone);
-            this.updateLabels();
+            this.updateFields();
         });
 
         /* A pole on a chain bone is not fatal (the compiler falls back to the
@@ -230,7 +209,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         this.classic = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC, (b) ->
         {
             this.editBone((bone) -> bone.ikClassic.set(b.getValue()));
-            this.updateLabels();
+            this.updateFields();
         });
         this.classic.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC_TOOLTIP);
 
@@ -344,7 +323,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         UIIcon icon = new UIIcon(() -> getter.test(this.currentJoint()) ? Icons.LOCKED : Icons.UNLOCKED, (b) ->
         {
             this.editJoint((j) -> setter.accept(j, !getter.test(j)));
-            this.updateLabels();
+            this.updateFields();
         })
         {
             @Override
@@ -370,7 +349,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         UIToggle toggle = new UIToggle(IKey.EMPTY, (b) ->
         {
             this.editJoint((j) -> setter.accept(j, b.getValue()));
-            this.updateLabels();
+            this.updateFields();
         });
 
         toggle.tooltip(label);
@@ -411,41 +390,13 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     @Override
     public void startEdit(ModelForm form)
     {
-        super.startEdit(form);
-
         this.debug.setValue(BBSSettings.ikDebug.enabled.get());
 
-        ModelInstance model = ModelFormRenderer.getModel(form);
-        this.model = model;
-        this.presetGroup = this.resolvePresetGroup(form, model);
-
-        if (model == null || model.model == null)
-        {
-            this.bones.clear();
-            this.selectedBone = "";
-
-            this.setElementsEnabled(false);
-        }
-        else
-        {
-            this.bones.fillBones(model.model, model.getDisabledBones());
-
-            /* The fill resets the list's filter state, but the search box keeps its
-             * text across startEdit — reapply so what you see matches the query. */
-            this.bones.filter(this.bonesSearch.search.getText());
-            this.setElementsEnabled(true);
-
-            /* Land on the bone the animator is working on — the panel is rebuilt
-             * on many editor actions, and the bone they came from another tab
-             * with is the one they mean here too. */
-            this.pickBoneInList(this.boneSelection().get());
-        }
-
-        this.updateLabels();
-        this.options.resize();
+        super.startEdit(form);
     }
 
-    private void setElementsEnabled(boolean enabled)
+    @Override
+    protected void setElementsEnabled(boolean enabled)
     {
         this.bonesSearch.setEnabled(enabled);
         this.bones.setEnabled(enabled);
@@ -482,49 +433,20 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         this.stiffnessZ.setEnabled(enabled);
     }
 
-    @Override
-    public boolean pickBoneInList(String bone)
-    {
-        if (bone == null || bone.isEmpty() || !this.bones.getList().contains(bone))
-        {
-            return false;
-        }
-
-        this.selectedBone = bone;
-
-        this.boneSelection().set(bone);
-        this.bones.setCurrentScroll(bone);
-        this.updateLabels();
-
-        return true;
-    }
-
     private void fillBoneMenu(UIBonePickerContextMenu picker, String current, Predicate<String> disabled)
     {
-        if (this.model == null || this.model.model == null)
+        if (this.modelInstance == null || this.modelInstance.model == null)
         {
             return;
         }
 
-        picker.bones(this.model.model, this.model.getDisabledBones()).none().disabled(disabled).set(current);
+        picker.bones(this.modelInstance.model, this.modelInstance.getDisabledBones()).none().disabled(disabled).set(current);
     }
 
     /* Value access: the panel holds no data of its own — every read and write
      * goes to the form's bone properties, and undo picks the writes up itself. */
 
     /** The selected bone's properties, or null when it was never touched. */
-    private FormBone selectedFormBone()
-    {
-        return this.form == null || this.selectedBone.isEmpty() ? null : this.form.bones.getBone(this.selectedBone);
-    }
-
-    private <T> T readBone(Function<FormBone, T> getter, T fallback)
-    {
-        FormBone bone = this.selectedFormBone();
-
-        return bone == null ? fallback : getter.apply(bone);
-    }
-
     private IKControl currentControl()
     {
         FormBone bone = this.selectedFormBone();
@@ -539,14 +461,10 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         return bone == null ? JointDoF.FREE : bone.joint.get();
     }
 
-    private void editBone(Consumer<FormBone> edit)
+    @Override
+    protected void editBone(Consumer<FormBone> edit)
     {
-        if (this.form == null || this.selectedBone.isEmpty())
-        {
-            return;
-        }
-
-        edit.accept(this.form.bones.getOrCreate(this.selectedBone));
+        super.editBone(edit);
         this.updateMarkers();
     }
 
@@ -585,7 +503,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     {
         this.boneMarkers.clear();
 
-        IModel model = this.model == null ? null : this.model.model;
+        IModel model = this.modelInstance == null ? null : this.modelInstance.model;
 
         if (model == null || this.form == null)
         {
@@ -679,7 +597,8 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         }
     }
 
-    private void updateLabels()
+    @Override
+    protected void updateFields()
     {
         if (this.target == null || this.enabled == null)
         {
@@ -778,7 +697,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
      */
     private String chainPreviewText(int chainLength)
     {
-        IModel model = this.model == null ? null : this.model.model;
+        IModel model = this.modelInstance == null ? null : this.modelInstance.model;
 
         if (model == null || this.selectedBone.isEmpty())
         {
@@ -796,7 +715,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
      */
     private boolean classicFallsBack(FormBone formBone)
     {
-        IModel model = this.model == null ? null : this.model.model;
+        IModel model = this.modelInstance == null ? null : this.modelInstance.model;
 
         if (model == null || this.form == null)
         {
@@ -842,22 +761,24 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     /** Whether pointing the selected bone's chain at {@code bone} would close a feedback loop. */
     private boolean isCyclic(String bone)
     {
-        if (bone == null || bone.isEmpty() || this.model == null || this.model.model == null)
+        if (bone == null || bone.isEmpty() || this.modelInstance == null || this.modelInstance.model == null)
         {
             return false;
         }
 
         int chainLength = this.readBone((b) -> b.ikChainLength.get(), 0);
 
-        return ModelIKRuntime.isCyclicTarget(this.model.model, this.selectedBone, chainLength, bone);
+        return ModelIKRuntime.isCyclicTarget(this.modelInstance.model, this.selectedBone, chainLength, bone);
     }
 
-    private MapType toPresetData()
+    @Override
+    protected MapType toPresetData()
     {
         return this.form == null ? new MapType() : BoneIKIO.write(this.form.bones);
     }
 
-    private void applyPresetData(MapType map)
+    @Override
+    protected void applyPresetData(MapType map)
     {
         if (this.form == null)
         {
@@ -866,29 +787,7 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
         BoneIKIO.read(map, this.form.bones, true);
 
-        this.updateLabels();
+        this.updateFields();
     }
 
-    private String resolvePresetGroup(ModelForm form, ModelInstance model)
-    {
-        String group = model != null ? model.getPoseGroup() : "";
-
-        if (group == null || group.isEmpty())
-        {
-            group = form == null ? "" : form.model.get();
-        }
-
-        return group == null ? "" : group;
-    }
-
-    /**
-     * Hang the reset verb on a field standing for one of the selected bone's own
-     * values. Resolved through {@link #selectedFormBone()} on every right click,
-     * so it follows the selection and never conjures a bone entry just by being
-     * looked at.
-     */
-    private void resetBone(UIElement element, Function<FormBone, BaseValue> getter)
-    {
-        UIValues.resettable(element, () -> this.readBone(getter, null), this::updateLabels);
-    }
 }

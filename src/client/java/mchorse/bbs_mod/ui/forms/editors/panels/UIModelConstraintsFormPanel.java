@@ -1,13 +1,10 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
-import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
 import mchorse.bbs_mod.cubic.constraints.BoneConstraintsIO;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
-import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
@@ -15,11 +12,8 @@ import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.ModelConstraintsManager;
 
@@ -28,11 +22,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
+public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
 {
-    public UIBoneTreeList bones;
-    public UISearchList<String> bonesSearch;
-
     public UIToggle enabled;
     public UISliderTrackpad minX;
     public UISliderTrackpad minY;
@@ -42,37 +33,19 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
     public UISliderTrackpad maxZ;
     public UIButton applyToChildren;
 
-    private List<String> availableBones = Collections.emptyList();
-    private String selectedBone = "";
-    private ModelInstance modelInstance;
-    private String presetGroup = "";
-
     public UIModelConstraintsFormPanel(UIForm editor)
     {
         super(editor);
 
         IKey axis = IKey.constant("%s (%s)");
 
-        this.bones = new UIBoneTreeList((l) ->
-        {
-            this.selectedBone = l.isEmpty() ? "" : l.get(0);
-
-            this.boneSelection().set(this.selectedBone);
-            this.updateFields();
-        });
-        this.bones.background();
-        this.bonesSearch = new UISearchList<>(this.bones);
-        this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
-        /* Same as the other bone-list panels: this height is the minimum, the list expands into
-         * whatever the section below it leaves. */
-        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8).expand();
-        this.bones.context(() -> new UIDataContextMenu(ModelConstraintsManager.INSTANCE, this.presetGroup, this::toPresetData, this::applyPresetData).tooltips("_CopyModelConstraints",
+        this.bonePresets(ModelConstraintsManager.INSTANCE, "_CopyModelConstraints",
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_COPY,
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_PASTE,
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_RESET,
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_SAVE,
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_NAME
-        ));
+        );
 
         this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_ENABLED, (b) ->
         {
@@ -108,90 +81,6 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         );
     }
 
-    private static UISliderTrackpad axisTrackpad(Consumer<Double> c, int color, IKey tooltip)
-    {
-        UISliderTrackpad t = new UISliderTrackpad(c).angle180();
-        t.textbox.setColor(color);
-        t.tooltip(tooltip);
-        return t;
-    }
-
-    @Override
-    public void startEdit(ModelForm form)
-    {
-        super.startEdit(form);
-
-        ModelInstance model = ModelFormRenderer.getModel(form);
-        this.modelInstance = model;
-        this.presetGroup = this.resolvePresetGroup(form, model);
-
-        this.selectedBone = "";
-
-        if (model == null || model.model == null)
-        {
-            this.availableBones = Collections.emptyList();
-            this.bones.clear();
-            this.setElementsEnabled(false);
-            this.updateFields();
-            this.options.resize();
-            return;
-        }
-
-        List<String> bones = new ArrayList<>(model.model.getGroupKeysInHierarchyOrder());
-        bones.removeIf(model.getDisabledBones()::contains);
-        this.availableBones = bones;
-
-        this.bones.fillBones(model.model, model.getDisabledBones());
-
-        /* The fill resets the list's filter state, but the search box keeps its
-         * text across startEdit — reapply so what you see matches the query. */
-        this.bones.filter(this.bonesSearch.search.getText());
-        this.setElementsEnabled(true);
-
-        /* Same as the other bone-list panels: keep the animator on the bone
-         * they are working on across a rebuild instead of resetting to the root. */
-        if (this.pickBoneInList(this.boneSelection().get()))
-        {
-            /* Already selected and filled in. */
-        }
-        else if (!bones.isEmpty())
-        {
-            this.selectBone(bones.get(0));
-        }
-        else
-        {
-            this.updateFields();
-        }
-
-        this.options.resize();
-    }
-
-    @Override
-    public boolean pickBoneInList(String bone)
-    {
-        if (bone == null || bone.isEmpty() || !this.bones.getList().contains(bone))
-        {
-            return false;
-        }
-
-        this.selectBone(bone);
-        this.boneSelection().set(bone);
-
-        return true;
-    }
-
-    private void selectBone(String bone)
-    {
-        this.selectedBone = bone == null ? "" : bone;
-
-        if (!this.selectedBone.isEmpty())
-        {
-            this.bones.setCurrentScroll(this.selectedBone);
-        }
-
-        this.updateFields();
-    }
-
     /** The selected bone's constraint as stored, or the neutral default when never touched. */
     private BoneConstraint currentConstraint()
     {
@@ -223,7 +112,8 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         bone.constraints.set(constraint);
     }
 
-    private void updateFields()
+    @Override
+    protected void updateFields()
     {
         BoneConstraint c = this.currentConstraint();
 
@@ -294,7 +184,8 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         return descendants;
     }
 
-    private void setElementsEnabled(boolean enabled)
+    @Override
+    protected void setElementsEnabled(boolean enabled)
     {
         this.bonesSearch.setEnabled(enabled);
         this.bones.setEnabled(enabled);
@@ -309,12 +200,14 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.updateFieldsEnabled();
     }
 
-    private MapType toPresetData()
+    @Override
+    protected MapType toPresetData()
     {
         return this.form == null ? new MapType() : BoneConstraintsIO.write(this.form.bones);
     }
 
-    private void applyPresetData(MapType map)
+    @Override
+    protected void applyPresetData(MapType map)
     {
         if (this.form == null)
         {
@@ -326,15 +219,4 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.updateFields();
     }
 
-    private String resolvePresetGroup(ModelForm form, ModelInstance model)
-    {
-        String group = model != null ? model.getPoseGroup() : "";
-
-        if (group == null || group.isEmpty())
-        {
-            group = form == null ? "" : form.model.get();
-        }
-
-        return group == null ? "" : group;
-    }
 }
