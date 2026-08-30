@@ -666,10 +666,18 @@ public class MotionPath
 
     private static void signature(StringBuilder builder, KeyframeChannel<?> channel)
     {
-        /* Hash the channel's serialized data so the signature changes on value edits (re-posing a
-         * bone), not only on add/remove/move — the path follows a gizmo drag without a per-frame
-         * resample of the bone. */
-        builder.append(':').append(channel.toData().toString().hashCode());
+        /* A content hash so the signature changes on value edits (re-posing a bone), not only on
+         * add/remove/move — the path follows a gizmo drag without a per-frame resample of the
+         * bone. Field mixing, not serialization: the old toData().toString() built the whole
+         * data tree and a giant string for every channel every frame. */
+        int hash = 1;
+
+        for (Keyframe<?> keyframe : channel.getKeyframes())
+        {
+            hash = 31 * hash + keyframe.contentHash();
+        }
+
+        builder.append(':').append(hash);
     }
 
     private static void collectTicks(TreeSet<Float> ticks, KeyframeChannel<?> channel)

@@ -8,10 +8,24 @@ import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class PoseKeyframeFactory implements IKeyframeFactory<Pose>
 {
+    @Override
+    public int contentHash(Pose value)
+    {
+        int hash = 1;
+
+        for (Map.Entry<String, PoseTransform> entry : value.transforms.entrySet())
+        {
+            hash += entry.getKey().hashCode() ^ entry.getValue().contentHash();
+        }
+
+        return hash;
+    }
+
     private static Set<String> keys = new HashSet<>();
 
     /**

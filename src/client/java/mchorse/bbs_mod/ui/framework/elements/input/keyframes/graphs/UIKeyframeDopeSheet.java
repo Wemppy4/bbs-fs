@@ -1019,7 +1019,9 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             return;
         }
 
-        this.updateScrollSize();
+        /* No recomputing row offsets per frame: every mutation that can change them
+         * (addSheet, removeAllSheets, setExpanded, fold toggles, setTrackHeight) already
+         * calls updateScrollSize() itself, and resize() re-clamps the scroll. */
 
         Area area = this.keyframes.graphArea;
         int rulerBottom = TimelineRulerRenderer.getRulerBottom(area);

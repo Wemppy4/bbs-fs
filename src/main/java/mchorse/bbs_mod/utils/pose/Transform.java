@@ -366,6 +366,23 @@ public class Transform implements IMapSerializable
         return false;
     }
 
+    /**
+     * Content hash: changes whenever any stored component changes. Cheap (pure field mixing, no
+     * allocation), for signature checks that run per frame — unlike serializing to data and
+     * hashing the string.
+     */
+    public int contentHash()
+    {
+        int hash = this.translate.hashCode();
+
+        hash = 31 * hash + this.scale.hashCode();
+        hash = 31 * hash + this.rotate.hashCode();
+        hash = 31 * hash + this.quat.hashCode();
+        hash = 31 * hash + this.rotationMode.ordinal();
+
+        return hash;
+    }
+
     public Transform copy()
     {
         Transform transform = new Transform();

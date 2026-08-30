@@ -132,6 +132,19 @@ public class PoseTransform extends Transform
     }
 
     @Override
+    public int contentHash()
+    {
+        int hash = super.contentHash();
+
+        hash = 31 * hash + Float.floatToIntBits(this.fix);
+        hash = 31 * hash + this.color.getARGBColor();
+        hash = 31 * hash + this.overlay.getARGBColor();
+        hash = 31 * hash + Float.floatToIntBits(this.lighting);
+
+        return hash;
+    }
+
+    @Override
     public Transform copy()
     {
         PoseTransform transform = new PoseTransform();

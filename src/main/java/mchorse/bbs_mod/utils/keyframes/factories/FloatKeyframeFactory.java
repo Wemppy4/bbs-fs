@@ -11,6 +11,12 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 public class FloatKeyframeFactory implements IKeyframeFactory<Float>
 {
     @Override
+    public int contentHash(Float value)
+    {
+        return value.hashCode();
+    }
+
+    @Override
     public Float fromData(BaseType data)
     {
         return data.isNumeric() ? data.asNumeric().floatValue() : 0F;
