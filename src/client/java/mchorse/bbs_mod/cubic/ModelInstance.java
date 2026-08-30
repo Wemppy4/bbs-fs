@@ -886,6 +886,9 @@ public class ModelInstance implements IModelInstance
 
                 model.getArmature().setupMatrices();
 
+                /* One key for the whole armature; each mesh compares it against what its VBO holds. */
+                long armatureKey = RenderFrame.isEnabled() ? BOBJModelVAO.armatureKey(model.getArmature()) : Long.MIN_VALUE;
+
                 /* One draw per mesh; bind that mesh's resolved texture (mesh name = material). */
                 ModelForm modelForm = this.form instanceof ModelForm form ? form : null;
                 boolean hurtFlash = overlay != OverlayTexture.DEFAULT_UV;
@@ -912,7 +915,7 @@ public class ModelInstance implements IModelInstance
                         texture = BBSModClient.getTextures().getLastBound();
                     }
 
-                    vao.updateMesh(stencilMap);
+                    vao.updateMesh(stencilMap, armatureKey);
 
                     /* Form + material overlay per mesh; no bone level here — BOBJ vertices are
                      * skinned across bones, so a per-bone overlay has no per-draw home. */

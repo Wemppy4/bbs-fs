@@ -229,15 +229,14 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
          * the shadow displacement's two samples, the stencil pass, the Iris shadow pass.
          * Skipping rewinds the constraint stack's orient/offset writes to the channels-phase
          * snapshot, because IK/physics blend FROM the evaluated state and must not stack on
-         * their own previous output. Cubic models only for now: the BOBJ armature keeps the
-         * old always-evaluate path. */
-        boolean cacheable = this.form != null && model.model instanceof Model && RenderFrame.isEnabled();
+         * their own previous output. Both skeleton flavours keep such a snapshot. */
+        boolean cacheable = this.form != null && model.model != null && RenderFrame.isEnabled();
 
         if (cacheable && model.matchesChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion()))
         {
             BBSProfiler.count(BBSProfiler.Section.CHANNELS_SKIPPED);
 
-            ((Model) model.model).restoreChannels();
+            model.model.restoreChannels();
 
             return;
         }
@@ -250,7 +249,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         if (cacheable)
         {
-            ((Model) model.model).snapshotChannels();
+            model.model.snapshotChannels();
             model.stampChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion());
         }
         else

@@ -40,7 +40,11 @@ public class BBSProfiler
         /** Per-frame pose cache: reads that had to evaluate (first read, or the pose moved). */
         FRAME_CACHE_MISS,
         /** Channel evaluations skipped because the model still holds the same evaluation. */
-        CHANNELS_SKIPPED;
+        CHANNELS_SKIPPED,
+        /** BOBJ meshes skinned on the CPU and re-uploaded (the armature moved since the last upload). */
+        BOBJ_SKINS,
+        /** BOBJ mesh uploads skipped — the VAO already holds this armature pose. */
+        BOBJ_SKINS_SKIPPED;
 
         /** Values are cached because {@code values()} clones the array on every call. */
         public static final Section[] VALUES = values();

@@ -140,6 +140,7 @@ public class Model implements IMapSerializable, IModel
     }
 
     /** Record every group's channels-phase orient/offset — see {@link ModelGroup#snapshotChannels()}. */
+    @Override
     public void snapshotChannels()
     {
         for (ModelGroup orderedGroup : this.orderedGroups)
@@ -149,6 +150,7 @@ public class Model implements IMapSerializable, IModel
     }
 
     /** Rewind every group's orient/offset to the channels-phase snapshot. */
+    @Override
     public void restoreChannels()
     {
         for (ModelGroup orderedGroup : this.orderedGroups)

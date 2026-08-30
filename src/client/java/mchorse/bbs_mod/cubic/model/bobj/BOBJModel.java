@@ -132,6 +132,24 @@ public class BOBJModel implements IModel
     }
 
     @Override
+    public void snapshotChannels()
+    {
+        for (BOBJBone orderedBone : this.armature.orderedBones)
+        {
+            orderedBone.snapshotChannels();
+        }
+    }
+
+    @Override
+    public void restoreChannels()
+    {
+        for (BOBJBone orderedBone : this.armature.orderedBones)
+        {
+            orderedBone.restoreChannels();
+        }
+    }
+
+    @Override
     public void applyPose(Pose pose)
     {
         if (pose.isEmpty())

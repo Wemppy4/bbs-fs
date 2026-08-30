@@ -19,6 +19,15 @@ public interface IModel
 
     public void applyPose(Pose pose);
 
+    /**
+     * Record every bone's channels-phase orient/offset, right after the channels evaluate, so a
+     * skipped re-evaluation can rewind the constraint stack's writes with {@link #restoreChannels()}
+     * — IK/physics blend FROM the evaluated state and must not stack on their own previous output.
+     */
+    public void snapshotChannels();
+
+    public void restoreChannels();
+
     public Set<String> getShapeKeys();
 
     public String getAnchor();
