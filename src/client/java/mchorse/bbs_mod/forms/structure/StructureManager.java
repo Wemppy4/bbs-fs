@@ -33,11 +33,26 @@ public class StructureManager
     private static final Set<String> FAILED = new HashSet<>();
 
     private static MinecraftServer lastServer;
+    private static int generation;
+
+    /**
+     * Bumped every time the cache is dropped. Renderers keep their own derived state (parsed data,
+     * baked geometry, block entities bound to a structure world) which the cache knows nothing
+     * about — comparing generations is how they learn to throw it away.
+     */
+    public static int getGeneration()
+    {
+        checkServer();
+
+        return generation;
+    }
 
     public static void invalidate()
     {
         CACHE.clear();
         FAILED.clear();
+
+        generation += 1;
     }
 
     /** Drop caches when the integrated server changes (entering/leaving a world). */

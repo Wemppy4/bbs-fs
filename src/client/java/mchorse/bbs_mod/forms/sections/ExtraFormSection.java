@@ -51,6 +51,7 @@ public class ExtraFormSection extends FormSection
         ExtrudedForm extruded = new ExtrudedForm();
         BlockForm block = new BlockForm();
         ItemForm item = new ItemForm();
+        StructureForm structure = new StructureForm();
         VanillaParticleForm vanillaParticle = new VanillaParticleForm();
         TrailForm trail = new TrailForm();
 
@@ -65,6 +66,7 @@ public class ExtraFormSection extends FormSection
         extra.addForm(extruded);
         extra.addForm(block);
         extra.addForm(item);
+        extra.addForm(structure);
         extra.addForm(vanillaParticle);
         extra.addForm(trail);
 

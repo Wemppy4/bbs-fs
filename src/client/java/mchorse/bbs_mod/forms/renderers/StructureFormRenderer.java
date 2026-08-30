@@ -52,6 +52,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
 
     private String lastStructure;
     private String lastBiome;
+    private int lastGeneration = -1;
 
     private StructureRenderData data;
     private StructureRenderWorld world;
@@ -68,33 +69,50 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
         super(form);
     }
 
-    /** Reload structure/biome when the form properties change. */
+    /** Reload structure/biome when the form properties change, or the manager dropped its cache. */
     private void ensureData()
     {
+        int generation = StructureManager.getGeneration();
         String structure = this.form.structure.get();
         String biome = this.form.biome.get();
 
-        if (!Objects.equals(structure, this.lastStructure))
+        /* A new generation means a world switch or a re-scan from the picker: every piece of state
+         * below was derived from data (and a client world) that no longer applies */
+        if (generation != this.lastGeneration || !Objects.equals(structure, this.lastStructure))
         {
+            this.lastGeneration = generation;
             this.lastStructure = structure;
-            this.data = StructureManager.get(structure);
-            this.world = null;
-            this.blockEntities = null;
+
+            this.reset();
         }
 
-        /* The cache may deliver data later (e.g. after a world is present) */
         if (this.data == null)
         {
+            /* The manager can only answer once a world is present — retry until it does */
             this.data = StructureManager.get(structure);
-            this.world = null;
-            this.blockEntities = null;
+
+            if (this.data == null)
+            {
+                return;
+            }
         }
 
-        if (this.data != null && (this.world == null || !Objects.equals(biome, this.lastBiome)))
+        if (this.world == null || !Objects.equals(biome, this.lastBiome))
         {
             this.lastBiome = biome;
             this.world = new StructureRenderWorld(this.data, biome);
         }
+    }
+
+    /** Drop everything derived from the structure file: it is gone, replaced, or stale. */
+    private void reset()
+    {
+        this.data = null;
+        this.world = null;
+        this.baked = null;
+        this.blockEntities = null;
+        this.structureWorld = null;
+        this.erroredBlockEntities.clear();
     }
 
     private void ensureBaked()
