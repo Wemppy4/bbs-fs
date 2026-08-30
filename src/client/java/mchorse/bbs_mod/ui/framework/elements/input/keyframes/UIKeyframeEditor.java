@@ -79,16 +79,22 @@ public class UIKeyframeEditor extends UITimelinePanel
 
         if (keyframe != null)
         {
+            /* Null when the keyframe's type has no editor registered: the track still works, it
+             * just gets no properties panel. It used to be dereferenced straight away, so a type
+             * whose registration went missing crashed on the click that selected a keyframe. */
             this.editor = UIKeyframeFactory.createPanel(keyframe, this.view);
 
-            this.attachPropertiesPanel(this.editor, 140);
-            this.editor.setVisible(this.propertiesVisible);
-            this.resize();
-
-            if (this.target != null)
+            if (this.editor != null)
             {
-                this.target.resize();
-                this.editor.resize();
+                this.attachPropertiesPanel(this.editor, 140);
+                this.editor.setVisible(this.propertiesVisible);
+                this.resize();
+
+                if (this.target != null)
+                {
+                    this.target.resize();
+                    this.editor.resize();
+                }
             }
         }
 
