@@ -14,6 +14,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.CollectionUtils;
@@ -162,6 +163,11 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             this.editor = editor;
             this.keyframe = keyframe;
 
+            /* This popup is short and the user resizes it, so the list asks for less than the form
+             * editor's does — it expands into the leftover anyway, and this is the floor it hits
+             * when the fields alone already fill the popup. */
+            this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 4);
+
             ((UIPoseTransforms) this.transform).setKeyframe(this);
         }
 
@@ -178,12 +184,6 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         private String getGroup(PoseTransform transform)
         {
             return CollectionUtils.getKey(this.getPose().transforms, transform);
-        }
-
-        @Override
-        protected boolean stretchesBoneList()
-        {
-            return true;
         }
 
         @Override

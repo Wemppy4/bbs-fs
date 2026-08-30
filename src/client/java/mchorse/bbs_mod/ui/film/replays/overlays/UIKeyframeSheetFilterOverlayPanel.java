@@ -67,8 +67,11 @@ public class UIKeyframeSheetFilterOverlayPanel extends UIOverlayPanel
 
         UIScrollView scrollView = UI.scrollView(4, 6);
 
+        /* Where the toggles start: under the button, which sits 6 from the top */
+        int top = 6 + UIConstants.CONTROL_HEIGHT + 4;
+
         toggleAll.relative(this.content).x(6).y(6).w(1F, -12).h(UIConstants.CONTROL_HEIGHT);
-        scrollView.relative(this.content).x(0).y(6 + UIConstants.CONTROL_HEIGHT + 4).w(1F).h(1F, -(6 + UIConstants.CONTROL_HEIGHT + 4));
+        scrollView.relative(this.content).x(0).y(top).w(1F).hTo(this.content.area, 1F);
         this.content.add(toggleAll, scrollView);
 
         for (String key : keys)

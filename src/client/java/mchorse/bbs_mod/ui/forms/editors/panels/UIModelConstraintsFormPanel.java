@@ -63,7 +63,9 @@ public class UIModelConstraintsFormPanel extends UIFormPanel<ModelForm>
         this.bones.background();
         this.bonesSearch = new UISearchList<>(this.bones);
         this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
-        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8);
+        /* Same as the other bone-list panels: this height is the minimum, the list expands into
+         * whatever the section below it leaves. */
+        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8).expand();
         this.bones.context(() -> new UIDataContextMenu(ModelConstraintsManager.INSTANCE, this.presetGroup, this::toPresetData, this::applyPresetData).tooltips("_CopyModelConstraints",
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_COPY,
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_PASTE,

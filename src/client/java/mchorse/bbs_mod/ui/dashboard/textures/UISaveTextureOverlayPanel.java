@@ -83,13 +83,16 @@ public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolder
         this.tree.relative(this.content).xy(PAD, PAD).w(TREE_WIDTH).h(1F, -PAD * 2);
         this.right.relative(this.content).x(TREE_WIDTH + PAD * 2).y(PAD).w(1F, -TREE_WIDTH - PAD * 3).h(1F, -PAD * 2);
 
-        /* Where it goes (20), the folder's textures (the rest), the name (20), then the
-         * thumbnail row with the save button — each part 5 apart */
-        this.files.relative(this.right).xy(0, 20).w(1F).h(1F, -20 - 5 - 20 - 5 - PREVIEW);
+        /* Where it goes (20), the folder's textures (down to the name box), the name (20), then
+         * the thumbnail row with the save button — each part 5 apart. The grid is told where the
+         * name box begins instead of restating the heights of everything below it. */
         this.name.relative(this.right).x(0).y(1F, -PREVIEW - 5).w(1F).h(20).anchorY(1F);
         this.save.relative(this.right).x(1F).y(1F, -(PREVIEW - 20) / 2).w(100).h(20).anchor(1F, 1F);
+        this.files.relative(this.right).xy(0, 20).w(1F).hTo(this.name.area, 0F, -5);
 
-        this.right.add(this.files, this.name, this.save);
+        /* The grid comes last: hTo reads the name box's area of this pass only if it was laid out
+         * before the grid, and children are laid out in the order they were added. */
+        this.right.add(this.name, this.save, this.files);
         this.content.add(this.tree, this.right);
 
         Link current = editor.getTexture();

@@ -50,6 +50,12 @@ public class UIElement implements IUIElement, IUndoElement
     public final Margin margin = new Margin();
 
     /**
+     * Whether this element grows into the space its parent's layout has left over
+     * (it's used only by layout resizers), see {@link #expand()}
+     */
+    protected boolean expand;
+
+    /**
      * Flex resizer of this class
      */
     protected Flex flex = new Flex();
@@ -807,6 +813,40 @@ public class UIElement implements IUIElement, IUndoElement
         this.flex.h.offset = offset;
 
         return this;
+    }
+
+    /* Expansion */
+
+    /**
+     * Grow into whatever vertical space the parent layout has left over.
+     *
+     * <p>A marker rather than a size, because how much is left over is only known while the parent
+     * lays itself out: {@link ColumnResizer} hands every child marked this way an equal share of
+     * the height it did not spend on the others, and {@link RowResizer} gives it the full height of
+     * the row. The height the element asks for on its own ({@link #h(int)} and friends) stays as
+     * its minimum &mdash; the share is added on top of it, and when there is nothing left over
+     * (the content already overflows, e.g. a scroll view scrolls) it keeps exactly that height.</p>
+     *
+     * <p>Expansion does not pass through a layer that hasn't asked for it: to let a list at the
+     * bottom of a nested column fill a scroll view, every element on the way down &mdash; the
+     * column and the list &mdash; has to be marked. That is what keeps the marker local: an element
+     * can only ever take space its own parent had spare.</p>
+     */
+    public UIElement expand()
+    {
+        return this.expand(true);
+    }
+
+    public UIElement expand(boolean expand)
+    {
+        this.expand = expand;
+
+        return this;
+    }
+
+    public boolean isExpanding()
+    {
+        return this.expand;
     }
 
     /* Other variations */

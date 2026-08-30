@@ -58,7 +58,9 @@ public class UIPhysicsKeyframeFactory extends UIKeyframeFactory<PhysicsControls>
             this.selected = l.isEmpty() ? "" : l.get(0);
             this.display();
         });
-        this.chains.background().h(UIConstants.LIST_ITEM_HEIGHT * 6);
+        /* Six chains is the minimum; the list grows into whatever the fields below it leave in
+         * the properties strip, which is as tall as the timeline. */
+        this.chains.background().h(UIConstants.LIST_ITEM_HEIGHT * 6).expand();
 
         this.weight = new UISliderTrackpad((v) -> this.edit((control) -> control.weight = v.floatValue()));
         this.weight.limit(0D, 1D).increment(0.1D).values(0.1D, 0.05D, 0.2D);
@@ -76,6 +78,8 @@ public class UIPhysicsKeyframeFactory extends UIKeyframeFactory<PhysicsControls>
 
         this.fillChains();
 
+        /* The column is marked too: the strip's spare height only reaches the list through the
+         * layers that asked for it. */
         this.scroll.add(UI.column(
             this.chains,
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT, this.weight).marginTop(UIConstants.SECTION_GAP),
@@ -83,7 +87,7 @@ public class UIPhysicsKeyframeFactory extends UIKeyframeFactory<PhysicsControls>
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING, this.damping).marginTop(UIConstants.SECTION_GAP),
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS, this.stiffness).marginTop(UIConstants.SECTION_GAP),
             this.enabled
-        ));
+        ).expand());
 
         this.display();
     }

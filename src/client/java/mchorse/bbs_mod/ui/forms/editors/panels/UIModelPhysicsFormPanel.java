@@ -89,7 +89,9 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
         this.bones.background();
         this.bonesSearch = new UISearchList<>(this.bones);
         this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
-        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8);
+        /* Search box plus eight rows is the minimum; the list takes whatever the sections below
+         * leave in the panel, so folding them away hands the room to the bones. */
+        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8).expand();
         this.bones.context(() -> new UIDataContextMenu(ModelPhysicsManager.INSTANCE, this.presetGroup, this::toPresetData, this::applyPresetData).tooltips("_CopyModelPhysics",
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_COPY,
             UIKeys.FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_PASTE,
@@ -233,7 +235,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS, this.iterations)
         );
 
-        UISection collisionsSection = this.section(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS, "physics.collisions", true);
+        UISection collisionsSection = this.section(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS, "physics.collisions", false);
 
         collisionsSection.fields.add(
             this.collisions,
@@ -242,7 +244,7 @@ public class UIModelPhysicsFormPanel extends UIFormPanel<ModelForm>
 
         /* Wind is the form's own `wind` property, not bound to any bone, so the section is always
          * editable and does not depend on which bone is selected in the list. */
-        UISection windSection = this.section(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND, "physics.wind", true);
+        UISection windSection = this.section(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND, "physics.wind", false);
 
         windSection.fields.add(
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_WIND_STRENGTH, this.windStrength),

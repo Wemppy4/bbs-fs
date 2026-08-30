@@ -5,7 +5,6 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
@@ -18,7 +17,6 @@ import mchorse.bbs_mod.ui.utils.BoneSelection;
 import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.resizers.AutomaticResizer;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.context.MenuIcon;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
@@ -43,9 +41,6 @@ import java.util.function.Consumer;
 
 public class UIPoseEditor extends UIElement
 {
-    /** The bone list never shrinks below this height when it gets stretched to fill the panel. */
-    private static final int MIN_LIST_HEIGHT = UIStringList.DEFAULT_HEIGHT * 4;
-
     public static final int WIDE_WIDTH = (UIConstants.VALUE_WIDTH + 80) * 2;
 
     /** Fold state of the material section, kept across the rebuilds that undo/redo and re-opening
@@ -70,7 +65,14 @@ public class UIPoseEditor extends UIElement
     {
         this.groups = new UIBoneList(this::pickBones);
         this.groups.onFiltered = this::afterFilter;
-        this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 8 - 8);
+
+        /* The bone list eats whatever room the panel has to spare, down through every layer between
+         * it and the scroll view. The height below is what it asks for, i.e. its minimum: when the
+         * fields underneath already fill the panel there is nothing to expand into and the list
+         * stays exactly this tall. */
+        this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 8 - 8).expand();
+        this.groups.expand();
+        this.expand();
         this.groups.list.context(() ->
         {
             UIDataContextMenu menu = new UIDataContextMenu(PoseManager.INSTANCE, this.group, () -> this.pose.toData(), this::pastePose);
@@ -163,7 +165,6 @@ public class UIPoseEditor extends UIElement
         this.removeAll();
 
         this.material = materialSection(this.color, this.overlay, this.lighting);
-        this.material.onToggle((section) -> this.relayout());
         this.material.setVisible(this.hasBones);
 
         /* Every row rides the same labelRow grid, so the trackpads and colour swatches pin to one
@@ -176,7 +177,9 @@ public class UIPoseEditor extends UIElement
 
         if (wide)
         {
-            this.add(UI.row(UI.column(fields), UI.column(this.groups)));
+            /* The row and the list's column are marked too: the leftover height only reaches the
+             * list through the layers that asked for it. */
+            this.add(UI.row(UI.column(fields), UI.column(this.groups).expand()).expand());
         }
         else
         {
@@ -185,99 +188,6 @@ public class UIPoseEditor extends UIElement
             this.add(this.groups);
             this.add(fields);
         }
-    }
-
-    @Override
-    public void resize()
-    {
-        super.resize();
-
-        /* Measured after the pass, so this.area holds the height this layout actually came out at,
-         * but only written into the list's flex — never re-laid-out here. A second super.resize()
-         * would run this element's ChildResizer against its parent column's accumulator a second
-         * time, which advances it and slides the panel down the page. The height asked for here is
-         * picked up by the next full pass from the viewport down. */
-        if (this.stretchesBoneList())
-        {
-            this.stretchBoneList();
-        }
-    }
-
-    /**
-     * Whether the bone list grows to fill the viewport. Only the film editor's pose keyframe editor
-     * opts in; the form pose editor keeps the list at its fixed height, so the collapsible sections
-     * below it (transform, shape keys) lay out predictably instead of fighting the stretch.
-     */
-    protected boolean stretchesBoneList()
-    {
-        return false;
-    }
-
-    private void stretchBoneList()
-    {
-        UIScrollView viewport = this.getViewport();
-
-        if (viewport == null || this.area.h <= 0 || this.groups.getParent() == null)
-        {
-            return;
-        }
-
-        int current = this.groups.list.getFlex().getH();
-        int target = viewport.area.ey() - this.getViewportPadding(viewport);
-
-        this.groups.list.h(Math.max(current + (target - this.area.ey()), MIN_LIST_HEIGHT));
-    }
-
-    /**
-     * Lay the whole panel out again after something inside it changed how much room it takes.
-     *
-     * <p>From the scroll view down, because {@link UISection} only resizes its immediate parent —
-     * in the two-column arrangement that is an inner column, which never reaches this editor. And
-     * twice, because the two passes do different jobs: the first lets {@link #stretchBoneList} see
-     * the new content height and ask for a list height, the second actually lays that height out.
-     * Each pass starts at the viewport, so no column resizer is ever run against a half-advanced
-     * accumulator.</p>
-     */
-    private void relayout()
-    {
-        UIScrollView viewport = this.getViewport();
-
-        if (viewport == null)
-        {
-            return;
-        }
-
-        viewport.resize();
-        viewport.resize();
-    }
-
-    private UIScrollView getViewport()
-    {
-        UIElement element = this.getParent();
-
-        while (element != null)
-        {
-            if (element instanceof UIScrollView)
-            {
-                return (UIScrollView) element;
-            }
-
-            element = element.getParent();
-        }
-
-        return null;
-    }
-
-    /** The scroll content lays itself out with this much padding at the bottom; leaving exactly
-     *  that gap below the list is what keeps the panel from overflowing into a stray scrollbar. */
-    private int getViewportPadding(UIScrollView viewport)
-    {
-        if (viewport.getFlex().post instanceof AutomaticResizer resizer)
-        {
-            return resizer.padding;
-        }
-
-        return UIConstants.SCROLL_PADDING;
     }
 
     private void applyChildren(Consumer<PoseTransform> consumer)

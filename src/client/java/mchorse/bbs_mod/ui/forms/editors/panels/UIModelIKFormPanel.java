@@ -109,7 +109,9 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         this.bones.markers(this.boneMarkers::get, UIKeys.FORMS_EDITORS_MODEL_IK_BONES_TOOLTIP);
         this.bonesSearch = new UISearchList<>(this.bones);
         this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
-        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8);
+        /* Same as the other bone-list panels: this height is the minimum, the list expands into
+         * whatever the sections below it leave. */
+        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8).expand();
         this.bones.context(() -> new UIDataContextMenu(ModelIKManager.INSTANCE, this.presetGroup, this::toPresetData, this::applyPresetData).tooltips("_CopyModelIK",
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_COPY,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_PASTE,

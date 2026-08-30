@@ -155,6 +155,13 @@ public class RowResizer extends AutomaticResizer
         int cw = resizer == null ? 0 : resizer.getW();
         int ch = resizer == null ? this.height : resizer.getH();
 
+        /* A row has no leftover to divide vertically — every child starts at its top — so an
+         * element marked with expand() simply takes the whole height of the row */
+        if (child.element.isExpanding())
+        {
+            ch = this.parent.area.h - this.padding * 2 - child.element.margin.vertical();
+        }
+
         if (this.width > 0)
         {
             cw = this.width;
