@@ -39,6 +39,7 @@ import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
+import mchorse.bbs_mod.utils.resources.PlayerSkins;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
@@ -75,6 +76,8 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
      */
     private static final CellAction[] PIN_MODIFIABLE = CellAction.with(CellAction.PIN, CellAction.of(true));
     private static final CellAction[] UNPIN_MODIFIABLE = CellAction.with(CellAction.UNPIN, CellAction.of(true));
+    private static final CellAction[] PIN_DELETABLE = CellAction.with(CellAction.PIN, CellAction.of(false, true));
+    private static final CellAction[] UNPIN_DELETABLE = CellAction.with(CellAction.UNPIN, CellAction.of(false, true));
     private static final CellAction[] PIN_READ_ONLY = CellAction.with(CellAction.PIN, CellAction.of(false));
     private static final CellAction[] UNPIN_READ_ONLY = CellAction.with(CellAction.UNPIN, CellAction.of(false));
 
@@ -791,30 +794,46 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         return current == null || current.path.endsWith("/") ? Collections.emptyList() : Collections.singletonList(current);
     }
 
-    /** The subjects that live on disk — the ones a rename, a move or a deletion can touch. */
+    /** The subjects that live on disk — the ones a rename or a move can touch. */
     private List<Link> modifiableSubjects()
     {
-        return this.modifiable(this.subjects());
+        return this.keep(this.subjects(), true);
+    }
+
+    /** The subjects a deletion can touch: those on disk, plus the player skins fetched here. */
+    private List<Link> deletableSubjects()
+    {
+        return this.keep(this.subjects(), false);
     }
 
     private List<Link> modifiable(List<Link> subjects)
     {
-        List<Link> modifiable = new ArrayList<>();
+        return this.keep(subjects, true);
+    }
+
+    private List<Link> deletable(List<Link> subjects)
+    {
+        return this.keep(subjects, false);
+    }
+
+    private List<Link> keep(List<Link> subjects, boolean modifiable)
+    {
+        List<Link> kept = new ArrayList<>();
 
         for (Link link : subjects)
         {
-            if (TextureFiles.canModify(link))
+            if (modifiable ? TextureFiles.canModify(link) : TextureFiles.canDelete(link))
             {
-                modifiable.add(link);
+                kept.add(link);
             }
         }
 
-        if (modifiable.isEmpty() && !subjects.isEmpty())
+        if (kept.isEmpty() && !subjects.isEmpty())
         {
             this.getContext().notifyError(UIKeys.TEXTURES_BROWSER_READ_ONLY);
         }
 
-        return modifiable;
+        return kept;
     }
 
     /** Whether the drag in progress copies rather than moves: Ctrl is held, or the files can't be moved anyway. */
@@ -987,6 +1006,11 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             return pinned ? UNPIN_MODIFIABLE : PIN_MODIFIABLE;
         }
 
+        if (TextureFiles.canDelete(entry.link()))
+        {
+            return pinned ? UNPIN_DELETABLE : PIN_DELETABLE;
+        }
+
         return pinned ? UNPIN_READ_ONLY : PIN_READ_ONLY;
     }
 
@@ -1036,7 +1060,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             links.add(entry.link());
         }
 
-        this.confirmDelete(this.modifiable(links));
+        this.confirmDelete(this.deletable(links));
     }
 
     /** Put the links in or take them out of the pins, and let the tree show what changed. */
@@ -1373,6 +1397,13 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         {
             menu.action(Icons.COPY, UIKeys.TEXTURES_COPY, () -> Window.setClipboard(link.toString()));
 
+            String nickname = PlayerSkins.nickname(link);
+
+            if (nickname != null)
+            {
+                menu.action(Icons.REFRESH, UIKeys.TEXTURES_PLAYER_SKIN_REFRESH, () -> this.fetchPlayerSkin(nickname, true));
+            }
+
             File file = TextureFiles.file(link);
             List<Link> frames = group ? this.pickedFrames() : Collections.emptyList();
 
@@ -1388,7 +1419,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             }
         }
 
-        if (modifiable)
+        if (TextureFiles.canDelete(link))
         {
             List<Link> links = this.group(link);
 
@@ -1424,6 +1455,50 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         {
             menu.action(Icons.DOWNLOAD, UIKeys.TEXTURES_DOWNLOAD, () -> this.picker.download(""));
         }
+
+        if (PlayerSkins.SOURCE.equals(this.path.source))
+        {
+            menu.action(Icons.DOWNLOAD, UIKeys.TEXTURES_PLAYER_SKIN, this::promptPlayerSkin);
+        }
+    }
+
+    /** Asks for a nickname and fetches that player's skin into the <code>player:</code> source. */
+    private void promptPlayerSkin()
+    {
+        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(UIKeys.TEXTURES_PLAYER_SKIN_TITLE, UIKeys.TEXTURES_PLAYER_SKIN_DESCRIPTION, (nickname) ->
+        {
+            this.fetchPlayerSkin(nickname.trim(), false);
+        });
+
+        UIOverlay.addOverlay(this.getContext(), panel);
+    }
+
+    private void fetchPlayerSkin(String nickname, boolean refetch)
+    {
+        if (!PlayerSkins.isNickname(nickname))
+        {
+            return;
+        }
+
+        Link link = new Link(PlayerSkins.SOURCE, nickname + ".png");
+
+        if (refetch)
+        {
+            PlayerSkins.forget(nickname);
+        }
+
+        PlayerSkins.request(link, nickname, (loaded) ->
+        {
+            if (loaded)
+            {
+                /* The relist comes off the assets version the fetch bumped */
+                this.picker.selectCurrent(link);
+            }
+            else if (this.getContext() != null)
+            {
+                this.getContext().notifyError(UIKeys.TEXTURES_PLAYER_SKIN_ERROR.format(nickname));
+            }
+        });
     }
 
     /* Keyboard */
@@ -1449,7 +1524,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         }
         else if (context.isPressed(Keys.DELETE))
         {
-            this.confirmDelete(this.modifiableSubjects());
+            this.confirmDelete(this.deletableSubjects());
 
             return true;
         }

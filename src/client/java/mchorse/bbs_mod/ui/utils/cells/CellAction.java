@@ -20,6 +20,7 @@ public enum CellAction
 
     /** Editing is the one action every cell has, so it keeps the same place — last — everywhere. */
     private static final CellAction[] MODIFIABLE = {DUPLICATE, REMOVE, EDIT};
+    private static final CellAction[] DELETABLE = {REMOVE, EDIT};
     private static final CellAction[] READ_ONLY = {EDIT};
     private static final CellAction[] NONE = {};
 
@@ -38,7 +39,21 @@ public enum CellAction
      */
     public static CellAction[] of(boolean modifiable)
     {
-        return modifiable ? MODIFIABLE : READ_ONLY;
+        return of(modifiable, modifiable);
+    }
+
+    /**
+     * For content that can be thrown away but not copied or renamed — a player skin fetched
+     * by nickname, which has no file of its own to duplicate.
+     */
+    public static CellAction[] of(boolean modifiable, boolean deletable)
+    {
+        if (modifiable)
+        {
+            return MODIFIABLE;
+        }
+
+        return deletable ? DELETABLE : READ_ONLY;
     }
 
     public static CellAction[] none()

@@ -1334,6 +1334,11 @@ public class UIKeys
     public static final IKey TEXTURES_DOWNLOAD_FILENAME = L10n.lang("bbs.ui.textures.download.filename");
     public static final IKey TEXTURES_DOWNLOAD_TITLE = L10n.lang("bbs.ui.textures.download-title");
     public static final IKey TEXTURES_DOWNLOAD_URL = L10n.lang("bbs.ui.textures.download.url");
+    public static final IKey TEXTURES_PLAYER_SKIN = L10n.lang("bbs.ui.textures.player_skin");
+    public static final IKey TEXTURES_PLAYER_SKIN_DESCRIPTION = L10n.lang("bbs.ui.textures.player_skin-description");
+    public static final IKey TEXTURES_PLAYER_SKIN_ERROR = L10n.lang("bbs.ui.textures.player_skin.error");
+    public static final IKey TEXTURES_PLAYER_SKIN_REFRESH = L10n.lang("bbs.ui.textures.player_skin.refresh");
+    public static final IKey TEXTURES_PLAYER_SKIN_TITLE = L10n.lang("bbs.ui.textures.player_skin-title");
     public static final IKey TEXTURES_DESELECT = L10n.lang("bbs.ui.textures.deselect");
     public static final IKey TEXTURES_EXPORT_OVERLAY_ERROR = L10n.lang("bbs.ui.textures.export_overlay.error");
     public static final IKey TEXTURES_EXPORT_OVERLAY_OPEN_FOLDER = L10n.lang("bbs.ui.textures.export_overlay.open_folder");

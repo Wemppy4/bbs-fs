@@ -68,6 +68,8 @@ import mchorse.bbs_mod.utils.VideoRecorder;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.resources.MinecraftSourcePack;
+import mchorse.bbs_mod.utils.resources.PlayerSkinSourcePack;
+import mchorse.bbs_mod.utils.resources.PlayerSkins;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -441,6 +443,10 @@ public class BBSModClient implements ClientModInitializer
 
         provider.register(new URLSourcePack("http", repository));
         provider.register(new URLSourcePack("https", repository));
+
+        PlayerSkins.init(new File(parentFile, "skin_cache"));
+
+        provider.register(new PlayerSkinSourcePack());
 
         KeybindSettings.registerClasses();
 
