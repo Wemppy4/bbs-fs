@@ -1223,6 +1223,24 @@ public class Gizmo
     }
 
     /**
+     * Frame boundary: drop the captured placement, so a gizmo is drawn only where something
+     * placed it THIS frame — which is what every reader of it already assumes.
+     *
+     * <p>The capture used to be set once and never cleared, and this is a singleton shared by
+     * every editor. So the film's last bone position survived into the form editor and the
+     * model-block panel, which draw from the capture in the UI pass ({@link #renderInterface}):
+     * the gizmo appeared at a place belonging to a scene that was no longer on screen. Placing
+     * and drawing are always the same frame — the world pass captures, the UI pass draws — so
+     * forgetting at the boundary costs a live gizmo nothing.
+     */
+    public void forgetPlacement()
+    {
+        this.hasLastRenderMatrix = false;
+        this.hasLastSphereMatrix = false;
+        this.lastSphereLocalRadius = 0F;
+    }
+
+    /**
      * Bake a transform-space reorientation into the gizmo's drawing frame, in
      * place, BEFORE it is captured &mdash; so the visual ({@link #renderInterface})
      * and the pick stencil, both rebuilt from the captured frame, stay in

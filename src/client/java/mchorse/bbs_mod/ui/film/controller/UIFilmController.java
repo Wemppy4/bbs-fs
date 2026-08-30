@@ -44,6 +44,7 @@ import mchorse.bbs_mod.ui.film.replays.UIRecordOverlayPanel;
 import mchorse.bbs_mod.ui.film.replays.UIReplayList;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
+import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -962,7 +963,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
      */
     public FilmTarget getEditTarget()
     {
-        if (this.isRecording())
+        if (this.isRecording() || this.isCovered())
         {
             return FilmTarget.NONE;
         }
@@ -992,6 +993,25 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         return FilmTarget.NONE;
+    }
+
+    /**
+     * Whether the film's own viewport is hidden behind a full-screen editor. The form editor
+     * ({@link UIFormPalette}) is not a dashboard panel of its own — it is added as a full-size
+     * CHILD of the film panel's container — so the film stays the dashboard's current panel and
+     * keeps running its world pass underneath. Left ungated it goes on placing and drawing its
+     * gizmo behind the form editor, and since {@link mchorse.bbs_mod.ui.utils.Gizmo} is a
+     * singleton the two then take turns over one captured placement: the film's bone shows up in
+     * the middle of the form editor's scene.
+     *
+     * <p>Answered here rather than at the draw, so the film stops CLAIMING the gizmo at all — no
+     * placement, no visual, no pick — instead of every consumer having to remember.
+     */
+    private boolean isCovered()
+    {
+        UIElement root = this.panel.getRoot();
+
+        return root != null && !root.getChildren(UIFormPalette.class).isEmpty();
     }
 
     /**
