@@ -14,7 +14,6 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Colors;
-import mchorse.bbs_mod.utils.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;

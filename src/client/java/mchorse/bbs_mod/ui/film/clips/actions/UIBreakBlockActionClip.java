@@ -22,14 +22,10 @@ public class UIBreakBlockActionClip extends UIActionClip<BreakBlockActionClip>
     {
         super.registerUI();
 
-        this.x = new UITrackpad((v) -> this.editor.editMultiple(this.clip.x, (x) -> x.set(v.intValue())));
-        this.x.integer();
-        this.y = new UITrackpad((v) -> this.editor.editMultiple(this.clip.y, (y) -> y.set(v.intValue())));
-        this.y.integer();
-        this.z = new UITrackpad((v) -> this.editor.editMultiple(this.clip.z, (z) -> z.set(v.intValue())));
-        this.z.integer();
-        this.progress = new UITrackpad((v) -> this.editor.editMultiple(this.clip.progress, (progress) -> progress.set(v.intValue())));
-        this.progress.integer();
+        this.x = this.trackpad(this.clip.x);
+        this.y = this.trackpad(this.clip.y);
+        this.z = this.trackpad(this.clip.z);
+        this.progress = this.trackpad(this.clip.progress);
 
         this.addBlockPositionContext(
             this.x, this.y, this.z,
@@ -47,16 +43,5 @@ public class UIBreakBlockActionClip extends UIActionClip<BreakBlockActionClip>
 
         this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_POSITION, UI.row(this.x, this.y, this.z)));
         this.panels.add(this.section(UIKeys.ACTIONS_BLOCK_PROGRESS, this.progress));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.x.setValue(this.clip.x.get());
-        this.y.setValue(this.clip.y.get());
-        this.z.setValue(this.clip.z.get());
-        this.progress.setValue(this.clip.progress.get());
     }
 }

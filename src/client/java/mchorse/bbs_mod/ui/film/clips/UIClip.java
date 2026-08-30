@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.film.clips;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import mchorse.bbs_mod.BBSSettings;
@@ -35,11 +37,20 @@ import mchorse.bbs_mod.camera.clips.overwrite.DollyClip;
 import mchorse.bbs_mod.camera.clips.overwrite.IdleClip;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
 import mchorse.bbs_mod.camera.clips.overwrite.PathClip;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
+import mchorse.bbs_mod.settings.values.mc.ValueItemStack;
+import mchorse.bbs_mod.settings.values.core.ValuePlacement;
+import mchorse.bbs_mod.settings.values.core.ValueTransform;
+import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
+import mchorse.bbs_mod.settings.values.numeric.ValueDouble;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.actions.UIAttackActionClip;
@@ -55,11 +66,15 @@ import mchorse.bbs_mod.ui.film.clips.actions.UISwipeActionClip;
 import mchorse.bbs_mod.ui.film.clips.actions.UIUseBlockItemActionClip;
 import mchorse.bbs_mod.ui.film.clips.actions.UIUseItemActionClip;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIEnvelope;
+import mchorse.bbs_mod.ui.film.clips.widgets.UIPlacement;
+import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemStack;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
+import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
+import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
@@ -86,6 +101,9 @@ public abstract class UIClip <T extends Clip> extends UIElement
     public UIEnvelope envelope;
 
     public UIScrollView panels;
+
+    /** How each bound widget reads its property back - see {@link #bind(Object, Runnable)}. */
+    private final List<Runnable> fillers = new ArrayList<>();
 
     static
     {
@@ -153,10 +171,7 @@ public abstract class UIClip <T extends Clip> extends UIElement
         this.clip = clip;
         this.editor = editor;
 
-        this.enabled = new UIToggle(UIKeys.CAMERA_PANELS_ENABLED, (b) -> this.editor.editMultiple(this.clip.enabled, (value) ->
-        {
-            value.set(b.getValue());
-        }));
+        this.enabled = this.toggle(UIKeys.CAMERA_PANELS_ENABLED, clip.enabled);
         this.title = new UITextbox(1000, (t) -> this.clip.title.set(t));
         this.title.tooltip(UIKeys.CAMERA_PANELS_TITLE_TOOLTIP);
         this.layer = new UITrackpad((v) -> this.editor.editMultiple(this.clip.layer, v.intValue()));
@@ -221,6 +236,85 @@ public abstract class UIClip <T extends Clip> extends UIElement
         return section;
     }
 
+    /**
+     * Bind a widget to a clip property: the widget is remembered so {@link #fillData()} reads the
+     * value back into it, which is why the helpers below are all a panel needs to spend on a
+     * property. Use this directly for a widget the typed helpers don't cover.
+     */
+    protected <T> T bind(T element, Runnable filler)
+    {
+        this.fillers.add(filler);
+
+        return element;
+    }
+
+    protected UIToggle toggle(IKey label, ValueBoolean value)
+    {
+        UIToggle toggle = new UIToggle(label, (b) -> this.editor.editMultiple(value, (v) -> v.set(b.getValue())));
+
+        return this.bind(toggle, () -> toggle.setValue(value.get()));
+    }
+
+    protected UITrackpad trackpad(ValueInt value)
+    {
+        UITrackpad trackpad = new UITrackpad((v) -> this.editor.editMultiple(value, (i) -> i.set(v.intValue())));
+
+        trackpad.integer();
+
+        return this.bind(trackpad, () -> trackpad.setValue(value.get()));
+    }
+
+    protected UITrackpad trackpad(ValueFloat value)
+    {
+        UITrackpad trackpad = new UITrackpad((v) -> this.editor.editMultiple(value, (f) -> f.set(v.floatValue())));
+
+        return this.bind(trackpad, () -> trackpad.setValue(value.get()));
+    }
+
+    protected UITrackpad trackpad(ValueDouble value)
+    {
+        UITrackpad trackpad = new UITrackpad((v) -> this.editor.editMultiple(value, (d) -> d.set(v)));
+
+        return this.bind(trackpad, () -> trackpad.setValue(value.get()));
+    }
+
+    protected UIColor color(ValueInt value)
+    {
+        UIColor color = new UIColor((c) -> this.editor.editMultiple(value, (v) -> v.set(c)));
+
+        return this.bind(color, () -> color.setColor(value.get()));
+    }
+
+    protected UIItemStack itemStack(ValueItemStack value)
+    {
+        UIItemStack itemStack = new UIItemStack((stack) -> this.editor.editMultiple(value, (v) -> v.set(stack)));
+
+        return this.bind(itemStack, () -> itemStack.setStack(value.get()));
+    }
+
+    protected UIPlacement placement(ValuePlacement value, Placement defaultPlacement)
+    {
+        UIPlacement placement = new UIPlacement(defaultPlacement, (p) -> this.editor.editMultiple(value, (v) -> v.set(p.copy())));
+
+        return this.bind(placement, () -> placement.setPlacement(value.get()));
+    }
+
+    protected UIPropTransform transform(ValueTransform value)
+    {
+        UIPropTransform transform = new UIPropTransform();
+
+        transform.callbacks(
+            () -> this.editor.editMultiple(value, IValueNotifier::preNotify),
+            () -> this.editor.editMultiple(value, (t) ->
+            {
+                t.set(transform.getTransform().copy());
+                t.postNotify();
+            })
+        );
+
+        return this.bind(transform, () -> transform.setTransform(value.get()));
+    }
+
     public void handleUndo(IUndo<ValueGroup> undo, boolean redo)
     {
         this.fillData();
@@ -239,13 +333,17 @@ public abstract class UIClip <T extends Clip> extends UIElement
         TimeUtilsClient.configure(this.tick, 0);
         TimeUtilsClient.configure(this.duration, 1);
 
-        this.enabled.setValue(this.clip.enabled.get());
         this.title.setText(this.clip.title.get());
         this.title.placeholder(IKey.constant(this.editor.getClipDisplayName(this.clip)));
         this.layer.setValue(this.clip.layer.get());
         this.tick.setValue(TimeUtils.toTime(this.clip.tick.get()));
         this.duration.setValue(TimeUtils.toTime(this.clip.duration.get()));
         this.envelope.fillData();
+
+        for (Runnable filler : this.fillers)
+        {
+            filler.run();
+        }
     }
 
     @Override

@@ -33,8 +33,7 @@ public abstract class UIActionClip <T extends ActionClip> extends UIClip<T>
     {
         super.registerUI();
 
-        this.frequency = new UITrackpad((v) -> this.editor.editMultiple(this.clip.frequency, (frequency) -> frequency.set(v.intValue())));
-        this.frequency.limit(0).integer();
+        this.frequency = this.trackpad(this.clip.frequency).limit(0);
     }
 
     @Override
@@ -48,14 +47,6 @@ public abstract class UIActionClip <T extends ActionClip> extends UIClip<T>
     @Override
     protected void addEnvelopes()
     {}
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.frequency.setValue(this.clip.frequency.get());
-    }
 
     protected void addBlockPositionContext(UITrackpad x, UITrackpad y, UITrackpad z, IntSupplier getX, IntSupplier getY, IntSupplier getZ, IntConsumer setX, IntConsumer setY, IntConsumer setZ)
     {

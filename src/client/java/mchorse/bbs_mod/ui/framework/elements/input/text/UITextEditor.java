@@ -11,7 +11,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.undo.TextEditUndo;
 import mchorse.bbs_mod.ui.framework.elements.input.text.utils.Cursor;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.utils.colors.Colors;
-import net.minecraft.client.font.TextRenderer;
 
 import java.util.ArrayList;
 import java.util.List;

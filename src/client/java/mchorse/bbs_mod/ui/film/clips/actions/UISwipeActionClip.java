@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.film.clips.actions;
 
-import mchorse.bbs_mod.actions.types.AttackActionClip;
 import mchorse.bbs_mod.actions.types.SwipeActionClip;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 

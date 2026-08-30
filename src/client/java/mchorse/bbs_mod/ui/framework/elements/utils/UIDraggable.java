@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.framework.elements.utils;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.Scroll;
-import mchorse.bbs_mod.utils.colors.Colors;
 import org.joml.Vector2i;
 import org.lwjgl.glfw.GLFW;
 

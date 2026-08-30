@@ -4,7 +4,6 @@ import mchorse.bbs_mod.forms.forms.ExtrudedForm;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIExtrudedFormPanel;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIExtrudedForm extends UIForm<ExtrudedForm>
 {

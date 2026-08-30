@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.input.color;
 
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.ui.UIKeys;
