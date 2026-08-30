@@ -227,8 +227,6 @@
 	"bbs.config.timeline.horizontal_clip_editor-comment": "Determines whether clip editor's elements will be organized vertically or horizontally",
 	"bbs.config.camera.horizontal_flight": "Horizontal flight",
 	"bbs.config.camera.horizontal_flight-comment": "When enabled, the pitch of the camera won't affect the movement making the WASD movement cardinal (XZ plane)",
-	"bbs.config.camera.orbit_movement_requires_flight": "Movement in orbit camera only in flight",
-	"bbs.config.camera.orbit_movement_requires_flight-comment": "When enabled, WASD movement in orbit camera requires flight: without flight you need middle mouse plus the orbit modifier key. When disabled, WASD and middle-mouse orbit work without entering flight.",
 	"bbs.config.camera.orbit_center_marker": "Orbit center marker",
 	"bbs.config.camera.orbit_center_marker-comment": "Shows a debug marker at the point the orbit camera currently rotates around.",
 	"bbs.config.camera.orbit_gizmo": "Navigation ball (orbit)",

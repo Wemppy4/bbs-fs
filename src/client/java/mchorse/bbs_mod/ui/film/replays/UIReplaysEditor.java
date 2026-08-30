@@ -1006,20 +1006,13 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 
     public boolean clickViewport(UIContext context, Area area)
     {
-        if (this.filmPanel.isFlying() && area.isInside(context))
+        /* In flight the buttons are the flight camera's, so the left one is left for it to
+         * pick up as free look; only the middle one has to be handed over by hand. */
+        if (this.filmPanel.isFlying() && area.isInside(context) && context.mouseButton == 2)
         {
-            if (context.mouseButton == 0 && this.filmPanel.getController().orbit.enabled)
-            {
-                this.filmPanel.getController().orbit.start(context);
+            this.filmPanel.dashboard.orbit.start(2, context.mouseX, context.mouseY);
 
-                return true;
-            }
-            if (context.mouseButton == 2)
-            {
-                this.filmPanel.dashboard.orbit.start(2, context.mouseX, context.mouseY);
-
-                return true;
-            }
+            return true;
         }
 
         if (this.filmPanel.isFlying())

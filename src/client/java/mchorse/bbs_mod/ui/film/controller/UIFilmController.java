@@ -740,6 +740,17 @@ public class UIFilmController extends UIElement implements GizmoViewport
     {
         if (this.orbit.enabled)
         {
+            /* Flight flies the camera, whatever the mode would have done with it: a camera
+             * mode that places the camera steps aside, and the orbit only keeps track of
+             * where the flight left it, so taking over again neither jumps nor loses its
+             * anchor. The FOV is driven live by the flight camera too. */
+            if (this.panel.isFlying())
+            {
+                this.orbit.follow(camera, transition);
+
+                return;
+            }
+
             int mode = this.getPovMode();
 
             if (mode == CAMERA_MODE_ORBIT)
@@ -751,11 +762,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
                 this.handleFirstThirdPerson(camera, transition, mode);
             }
 
-            /* While flying, the FOV is driven live by the flight camera, so don't overwrite it */
-            if (!this.panel.isFlying())
-            {
-                camera.fov = BBSSettings.getFov();
-            }
+            camera.fov = BBSSettings.getFov();
         }
     }
 
@@ -869,7 +876,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     private void renderOrbitCenterMarker(WorldRenderContext context)
     {
-        if (this.getPovMode() != CAMERA_MODE_ORBIT || !BBSSettings.editorOrbitCenterMarker.get())
+        /* Nothing is turning around it while the camera is being flown. */
+        if (this.getPovMode() != CAMERA_MODE_ORBIT || this.panel.isFlying() || !BBSSettings.editorOrbitCenterMarker.get())
         {
             return;
         }

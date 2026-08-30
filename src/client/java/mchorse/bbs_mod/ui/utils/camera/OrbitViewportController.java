@@ -585,18 +585,38 @@ public abstract class OrbitViewportController implements ICameraController
     }
 
     /**
-     * When there is nothing to focus on, place the orbit center in front of the
-     * current camera (keeping its position and rotation), instead of leaving it at
-     * the world origin which could be nowhere near the view.
+     * Track a camera somebody else is driving (the editor's flight), instead of driving it.
+     * The pivot is kept the same distance ahead of wherever that camera ended up, so when the
+     * orbit takes over again it is already centred on what is being looked at and the view
+     * doesn't jump. The anchor keeps ticking meanwhile, so a subject that moved underneath
+     * doesn't drag the camera along while it is being flown.
+     */
+    public void follow(Camera camera, float transition)
+    {
+        this.updateAnchor(transition);
+        this.seedPivotFromCamera(camera);
+        this.positioned = true;
+    }
+
+    /**
+     * Place the orbit center in front of the given camera, keeping its position and rotation.
+     * Used when there is nothing to focus on - leaving the pivot at the world origin could put
+     * it nowhere near the view - and while something else drives the camera (see follow).
+     *
+     * <p>It is the exact inverse of {@link #setup(Camera, float)}: the rotation loses the
+     * anchor's yaw and the pivot is brought down into the anchor's frame, so an attached orbit
+     * seeds just as well as a detached one.</p>
      */
     private void seedPivotFromCamera(Camera camera)
     {
-        this.targetRotation.set(-camera.rotation.x, -camera.rotation.y);
+        this.targetRotation.set(-camera.rotation.x, -camera.rotation.y - this.anchorYaw);
         this.rotation.set(this.targetRotation);
 
-        Vector3f forward = this.rotateVector(0F, 0F, -1F, this.rotation.y, this.rotation.x, false).mul(this.distance);
+        Vector3f pivot = new Vector3f((float) camera.position.x, (float) camera.position.y, (float) camera.position.z);
 
-        this.pivot.set((float) camera.position.x, (float) camera.position.y, (float) camera.position.z).add(forward);
+        pivot.sub(this.getOffset());
+
+        this.pivot.set(this.toLocal(pivot));
         this.targetPivot.set(this.pivot);
     }
 
