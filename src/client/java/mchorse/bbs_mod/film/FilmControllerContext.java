@@ -50,6 +50,13 @@ public class FilmControllerContext
     /** The anchor gizmo's own frame. */
     public TransformSpace anchorSpace = TransformSpace.LOCAL;
 
+    /** Draw the editing gizmo on the replay's own placement in the world — where the actor
+     *  stands and which way it faces — rather than on anything inside its form. */
+    public boolean replayGizmo;
+
+    /** The replay gizmo's own frame. */
+    public TransformSpace replaySpace = TransformSpace.LOCAL;
+
     public String nameTag = "";
     public boolean relative;
 
@@ -68,6 +75,8 @@ public class FilmControllerContext
         this.space2 = TransformSpace.LOCAL;
         this.anchorGizmo = false;
         this.anchorSpace = TransformSpace.LOCAL;
+        this.replayGizmo = false;
+        this.replaySpace = TransformSpace.LOCAL;
         this.nameTag = "";
         this.relative = false;
     }
@@ -166,6 +175,14 @@ public class FilmControllerContext
     {
         this.anchorGizmo = anchorGizmo;
         this.anchorSpace = anchorSpace == null ? TransformSpace.LOCAL : anchorSpace;
+
+        return this;
+    }
+
+    public FilmControllerContext replayGizmo(boolean replayGizmo, TransformSpace replaySpace)
+    {
+        this.replayGizmo = replayGizmo;
+        this.replaySpace = replaySpace == null ? TransformSpace.LOCAL : replaySpace;
 
         return this;
     }

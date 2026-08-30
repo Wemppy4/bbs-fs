@@ -227,6 +227,11 @@ public class FilmEditorController extends BaseFilmController
         }
     }
 
+    /**
+     * 🔴 The gizmo fields set here have a hand-kept twin in
+     * {@link FilmStencilPicker#renderStencil}, which builds its own context for the pick
+     * pass. A target added to one and not the other is drawn but not clickable.
+     */
     @Override
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
     {
@@ -252,12 +257,20 @@ public class FilmEditorController extends BaseFilmController
             && !this.controller.panel.recorder.isRecording()
             && this.controller.isAnchorGizmo();
 
+        /* The fallback target: with no bone and no anchor claiming the gizmo, it goes to
+         * the replay's own placement. Only one gizmo exists at a time, so this is an
+         * "or", not an addition. */
+        boolean replayGizmo = this.isCurrent(entity)
+            && !this.controller.panel.recorder.isRecording()
+            && this.controller.isReplayGizmo();
+
         return super.getFilmControllerContext(context, replay, entity)
             .transition(this.getTransition(entity, context.tickDelta()))
             .bone(aBone, space)
             .gizmoView(this.controller.getGizmoView())
             .bone2(aBone2, TransformSpace.LOCAL)
-            .anchorGizmo(anchorGizmo, this.controller.getAnchorSpace());
+            .anchorGizmo(anchorGizmo, this.controller.getAnchorSpace())
+            .replayGizmo(replayGizmo, this.controller.getReplaySpace());
     }
 
     private boolean isCurrent(IEntity entity)

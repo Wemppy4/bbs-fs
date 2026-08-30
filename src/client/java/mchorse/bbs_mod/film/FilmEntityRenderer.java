@@ -19,6 +19,7 @@ import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
+import mchorse.bbs_mod.ui.film.replays.UIReplayPropTransform;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
@@ -169,6 +170,11 @@ public class FilmEntityRenderer
         if (UIBaseMenu.shouldRenderAxes() && context.anchorGizmo)
         {
             renderAnchorGizmo(entities, entity, target, defaultMatrix, cx, cy, cz, transition, context.anchorSpace, context.gizmoView, context.map, stack, gizmoFrame);
+        }
+
+        if (UIBaseMenu.shouldRenderAxes() && context.replayGizmo)
+        {
+            renderReplayGizmo(entity, cx, cy, cz, transition, context.replaySpace, context.gizmoView, context.map, stack);
         }
 
         if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F && form.visible.get())
@@ -352,6 +358,40 @@ public class FilmEntityRenderer
         else
         {
             Gizmo.INSTANCE.renderStencil(stack);
+        }
+
+        RenderSystem.enableDepthTest();
+        stack.pop();
+    }
+
+    /**
+     * Draw the gizmo on the replay's own placement: the frame the whole actor is rendered
+     * under, {@code translate(x, y, z) · rotateY(-bodyYaw)}, and nothing from inside the
+     * form. It is deliberately the very matrix {@link BaseFilmController#renderEntity}
+     * places the actor with, so the gizmo sits exactly where the actor does &mdash; and
+     * deliberately flat: Y stays vertical, so the Y ring turns about the world's up (the
+     * yaw channels) and the move bars run along the actor's own left/right/up.
+     *
+     * <p>The mask keeps scale, roll, the trackball and the view ring out of both passes:
+     * a record has three position channels and two angles, and no third rotational
+     * degree of freedom for the rest to write into.
+     */
+    private static void renderReplayGizmo(IEntity entity, double cx, double cy, double cz, float transition, TransformSpace space, Matrix4f gizmoView, StencilMap stencilMap, MatrixStack stack)
+    {
+        stack.push();
+        MatrixStackUtils.multiply(stack, FilmMatrices.getMatrixForRenderWithRotation(entity, cx, cy, cz, transition));
+
+        /* Same lockstep as renderAxes: reorient before the frame is captured, so the
+         * visual and the pick stencil built from it agree with the drag. */
+        Gizmo.INSTANCE.reorientForSpace(stack, space, gizmoView, FilmMatrices.getReplayWorldAxes(entity, transition));
+
+        if (stencilMap == null)
+        {
+            Gizmo.INSTANCE.captureVisual(stack, UIReplayPropTransform.MASK);
+        }
+        else
+        {
+            Gizmo.INSTANCE.renderStencil(stack, UIReplayPropTransform.MASK);
         }
 
         RenderSystem.enableDepthTest();

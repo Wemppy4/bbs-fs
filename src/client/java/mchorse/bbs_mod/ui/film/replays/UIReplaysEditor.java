@@ -110,6 +110,16 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
     /* Keyframes */
     public UIKeyframeEditor keyframeEditor;
 
+    /**
+     * The gizmo target for the replay's own placement in the world. It has no fields on
+     * screen — the record is edited by dragging the actor, not by typing — but it is a
+     * child all the same, so it can reach the UI context; its gesture is driven by
+     * {@link mchorse.bbs_mod.ui.utils.GizmoInteraction#update} rather than by a render.
+     * It outlives the keyframe editor, which is rebuilt on every replay and category
+     * switch, so a running drag survives whatever the selection does underneath it.
+     */
+    public final UIReplayPropTransform replayTransform = new UIReplayPropTransform();
+
     /* Action clips share the timeline area; the toggle below the categories switches to them. */
     private UIClipsPanel actionTimeline;
     private UIIcon actionsToggle;
@@ -394,7 +404,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         this.keys().register(Keys.REPLAYS_TAB_5, () -> this.setCategoryByPosition(4))
             .category(UIKeys.FILM_REPLAY_TITLE);
 
-        this.add(this.iconBar, this.collapseAll, this.expandAll, this.actionsToggle);
+        this.add(this.iconBar, this.collapseAll, this.expandAll, this.actionsToggle, this.replayTransform);
         this.markContainer();
     }
 
@@ -430,6 +440,22 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         this.allMode = false;
         this.category = c;
         this.updateChannelsList();
+    }
+
+    /**
+     * Bring the replay's own tracks into view, for when something outside the timeline starts
+     * writing to them — dragging the replay gizmo. Without this the keys land on x/y/z and the
+     * angles while the timeline is showing bones or materials, and the edit happens off screen.
+     *
+     * <p>"All tracks" already shows them, so it is left alone: it is the wider view, and
+     * dropping out of it into a single category would be a step back, not forward.
+     */
+    public void showReplayTracks()
+    {
+        if (this.actionsMode || (!this.allMode && this.category != ReplayCategory.REPLAY))
+        {
+            this.setCategory(ReplayCategory.REPLAY);
+        }
     }
 
     /** Show every category's tracks at once, bypassing the category filter. */

@@ -186,6 +186,13 @@ public class FilmStencilPicker
     }
 
 
+    /**
+     * 🔴 The gizmo fields set on the context below are a second, hand-kept copy of the ones
+     * {@link FilmEditorController#getFilmControllerContext} sets for the visual pass. Add a
+     * gizmo target to one and it MUST be added here too, in both branches: the visual pass
+     * would draw it and this pass would leave it out of the pick buffer, giving a gizmo that
+     * is on screen and cannot be clicked.
+     */
     private void renderStencil(WorldRenderContext renderContext, UIContext context, boolean altPressed)
     {
         Area viewport = this.controller.panel.preview.getViewport();
@@ -248,7 +255,8 @@ public class FilmStencilPicker
                     filmContext
                         .bone(bone == null ? null : bone.a, bone == null ? null : bone.b)
                         .gizmoView(this.controller.getGizmoView())
-                        .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorSpace());
+                        .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorSpace())
+                        .replayGizmo(this.controller.isReplayGizmo(), this.controller.getReplaySpace());
                 }
                 else
                 {
@@ -273,7 +281,8 @@ public class FilmStencilPicker
                 .relative(replay.relative.get())
                 .bone(bone == null ? null : bone.a, bone == null ? null : bone.b)
                 .gizmoView(this.controller.getGizmoView())
-                .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorSpace()));
+                .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorSpace())
+                .replayGizmo(this.controller.isReplayGizmo(), this.controller.getReplaySpace()));
         }
 
         int x = (int) ((context.mouseX - viewport.x) / (float) viewport.w * mainTexture.width);

@@ -943,15 +943,52 @@ public class UIFilmController extends UIElement implements GizmoViewport
     }
 
     /**
+     * Whether the gizmo falls through to the replay's own placement — where the actor
+     * stands and which way it faces. It is the fallback target, claimed only when nothing
+     * inside the form has the gizmo: a selected bone or the anchor track always wins,
+     * since {@link mchorse.bbs_mod.ui.utils.Gizmo} is a singleton and carries one target
+     * at a time. That is the whole switching rule — no mode and no toggle, just what is
+     * selected.
+     *
+     * <p>Gated on the replay editor being the chosen one: while the camera timeline is up
+     * the work is the camera's, and an actor gizmo would only be in the way there. Chosen,
+     * not visible — see {@link UIFilmPanel#isReplayEditorSelected}.
+     */
+    public boolean isReplayGizmo()
+    {
+        if (this.getBone() != null || this.isAnchorGizmo() || this.isRecording())
+        {
+            return false;
+        }
+
+        UIReplaysEditor editor = this.panel.replayEditor;
+        Replay replay = editor == null ? null : editor.getReplay();
+
+        return editor != null
+            && this.panel.isReplayEditorSelected()
+            && replay != null
+            && replay.enabled.get()
+            && this.getCurrentEntity() != null;
+    }
+
+    /** The frame the replay gizmo is placed, drawn and dragged in. */
+    public TransformSpace getReplaySpace()
+    {
+        UIReplaysEditor editor = this.panel.replayEditor;
+
+        return editor == null ? TransformSpace.LOCAL : editor.replayTransform.getSpace();
+    }
+
+    /**
      * Whether the preview gizmo is actually drawn right now — the same gate the
      * renderer uses ({@link BaseFilmController#render}): axes enabled, not
-     * recording, and a bone selected. The gizmo interaction must honour it, or
+     * recording, and a target selected. The gizmo interaction must honour it, or
      * its trackball sphere keeps grabbing clicks (and blocking actor markers)
      * after a keyframe is deselected and nothing is rendered.
      */
     boolean canShowGizmo()
     {
-        return UIBaseMenu.shouldRenderAxes() && !this.isRecording() && (this.getBone() != null || this.isAnchorGizmo());
+        return UIBaseMenu.shouldRenderAxes() && !this.isRecording() && (this.getBone() != null || this.isAnchorGizmo() || this.isReplayGizmo());
     }
 
 }

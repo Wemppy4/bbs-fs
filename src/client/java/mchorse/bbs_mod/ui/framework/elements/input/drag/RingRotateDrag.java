@@ -190,9 +190,15 @@ public class RingRotateDrag extends DragStrategy
          * (gimbal semantics, but alive) and re-anchor their cursor coupling to
          * the channel's measured response axis, the frames with no channel of
          * their own (GLOBAL/VIEW/WORLD) skip the gesture as before. */
+        /* A gimbal-angle target (a replay's root: yaw and pitch, no roll) takes the channel
+         * path outright, in every space. The gimbal-free path would decompose its turn back
+         * into ZYX and can put part of it in the roll channel, which such a target has to
+         * drop — the actor would then settle somewhere the sweep never pointed. */
+        boolean channelOnly = this.ctx.rotationChannelOnly() && !this.quatMode;
+
         if (!this.channelPath)
         {
-            Matrix3f parentInverse = RotationDragMath.parentInverse(this.ctx, drag);
+            Matrix3f parentInverse = channelOnly ? null : RotationDragMath.parentInverse(this.ctx, drag);
 
             if (parentInverse != null)
             {
@@ -201,7 +207,7 @@ public class RingRotateDrag extends DragStrategy
 
             if (parentInverse == null || this.axisLocalParent.lengthSquared() < 1.0E-8F)
             {
-                if ((this.space != TransformSpace.LOCAL && this.space != TransformSpace.PARENT) || this.quatMode)
+                if (!channelOnly && ((this.space != TransformSpace.LOCAL && this.space != TransformSpace.PARENT) || this.quatMode))
                 {
                     return;
                 }

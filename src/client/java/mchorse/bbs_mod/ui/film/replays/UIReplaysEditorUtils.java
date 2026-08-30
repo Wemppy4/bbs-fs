@@ -321,6 +321,30 @@ public class UIReplaysEditorUtils
         return null;
     }
 
+    /**
+     * The transform the film's gizmo edits right now: whatever the keyframe editor offers
+     * for the selected bone or track, and — when nothing there claims it — the replay's own
+     * placement. Same fallback rule as {@link UIFilmController#isReplayGizmo}, so what is
+     * drawn and what a drag writes to can never be two different things.
+     */
+    public static UIPropTransform getFilmGizmoTransform(UIFilmPanel panel, float transition)
+    {
+        if (panel.getController().isReplayGizmo())
+        {
+            UIReplayPropTransform replayTransform = panel.replayEditor.replayTransform;
+
+            replayTransform.syncFromReplay(
+                panel.replayEditor.getReplay(),
+                panel.getController().getCurrentEntity(),
+                panel.getCursor()
+            );
+
+            return replayTransform;
+        }
+
+        return getEditableTransform(panel.replayEditor.keyframeEditor);
+    }
+
     public static boolean startFilmGizmo(UIFilmPanel panel, UIContext context, int stencilIndex, float gizmoTransition)
     {
         if (panel.isFlying())
@@ -328,7 +352,7 @@ public class UIReplaysEditorUtils
             return false;
         }
 
-        UIPropTransform transform = getEditableTransform(panel.replayEditor.keyframeEditor);
+        UIPropTransform transform = getFilmGizmoTransform(panel, gizmoTransition);
         GizmoDrag drag = buildFilmGizmoDrag(
             panel,
             panel.getCamera(),
@@ -337,11 +361,43 @@ public class UIReplaysEditorUtils
             gizmoTransition
         );
 
-        return Gizmo.INSTANCE.start(stencilIndex, context.mouseX, context.mouseY, transform, drag);
+        boolean started = Gizmo.INSTANCE.start(stencilIndex, context.mouseX, context.mouseY, transform, drag);
+
+        /* Only once the gesture is real, and only for the replay's own placement: the drag is
+         * about to write x/y/z and the angles, so put the tracks it writes to on the timeline.
+         * A refused handle must not move the timeline out from under the user. */
+        if (started && transform instanceof UIReplayPropTransform)
+        {
+            panel.replayEditor.showReplayTracks();
+        }
+
+        return started;
     }
 
     public static void configureFilmHotkeyDrag(UIFilmPanel panel, UIContext context)
     {
+        float transition = panel.replayEditor.getContext() == null ? 0F : panel.replayEditor.getContext().getTransition();
+
+        /* The replay's own placement is a target of its own, refreshed every frame so a
+         * gesture always starts from the pose on screen. It is configured beside the
+         * keyframe editor's transform rather than instead of it: the two never hold the
+         * gizmo at the same time, but a track can own the value pads without owning the
+         * gizmo (a form-transform property track), and that one must keep its wiring. */
+        UIReplayPropTransform replayTransform = panel.replayEditor.replayTransform;
+
+        replayTransform.syncFromReplay(
+            panel.replayEditor.getReplay(),
+            panel.getController().getCurrentEntity(),
+            panel.getCursor()
+        );
+        replayTransform.hotkeyDrag(() -> buildFilmGizmoDrag(
+            panel,
+            panel.getCamera(),
+            panel.preview.getViewport(),
+            replayTransform,
+            transition
+        ));
+
         UIPropTransform transform = getEditableTransform(panel.replayEditor.keyframeEditor);
 
         if (transform == null)
@@ -359,8 +415,10 @@ public class UIReplaysEditorUtils
 
         /* World-space copy/paste only makes sense for an actor's bone in the scene, so the world
          * matrix provider is wired solely for the pose editor's transform (other tracks leave it off
-         * and the world context actions stay hidden there). */
-        boolean pose = panel.replayEditor.keyframeEditor.editor instanceof UIPoseKeyframeFactory;
+         * and the world context actions stay hidden there). The replay's own placement has no
+         * keyframe editor behind it at all, which is also why this is read defensively. */
+        UIKeyframeEditor hotkeyEditor = panel.replayEditor.keyframeEditor;
+        boolean pose = hotkeyEditor != null && hotkeyEditor.editor instanceof UIPoseKeyframeFactory;
 
         transform.worldTransform(pose ? new FilmBoneWorldProvider(panel) : null);
         transform.rotationConstrained(pose ? () -> isFilmBoneRotationConstrained(panel) : null);
@@ -435,6 +493,13 @@ public class UIReplaysEditorUtils
 
         if (transform == null || transform.getTransform() == null)
         {
+            return drag;
+        }
+
+        if (transform instanceof UIReplayPropTransform && entity != null)
+        {
+            buildReplayGizmoDrag(camera, drag, entity, transition);
+
             return drag;
         }
 
@@ -522,6 +587,34 @@ public class UIReplaysEditorUtils
         drag.setAdditiveRotationBase(filmPoseRotationBase(keyframeEditor, entity, transition, bone.a));
 
         return drag;
+    }
+
+    /**
+     * Ray context for a drag on the replay's own placement. Everything here is analytic
+     * rather than sampled: the composition behind a record is just
+     * {@code translate(x, y, z) · Ry(-yaw) · Rx(pitch)}, so there is nothing to measure
+     * numerically the way a bone's chain has to be.
+     *
+     * <ul>
+     * <li>The translate Jacobian stays the identity {@link GizmoDrag} defaults to — one
+     *     channel unit is one block.</li>
+     * <li>The rotate axes are the drawn gizmo's own axes. The gizmo is placed on
+     *     {@code Ry(-bodyYaw)}, so its Y column is the world's up (which is what the yaw
+     *     channels turn about) and its X column is the actor's right (which is what pitch
+     *     turns about) — exactly the rings the user grabs.</li>
+     * <li>Both frames are that same placement: a record sits in no container, so its own
+     *     frame and its "parent" frame are one and the same.</li>
+     * </ul>
+     */
+    private static void buildReplayGizmoDrag(Camera camera, GizmoDrag drag, IEntity entity, float transition)
+    {
+        drag.setRotateAxes(drag.gizmoWorldAxes);
+
+        Matrix4f placement = FilmMatrices.getMatrixForRenderWithRotation(
+            entity, camera.position.x, camera.position.y, camera.position.z, transition
+        );
+
+        drag.setFrameAxes(placement, placement);
     }
 
     /**

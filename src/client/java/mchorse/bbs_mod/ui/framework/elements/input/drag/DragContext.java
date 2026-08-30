@@ -42,6 +42,19 @@ public interface DragContext
         return false;
     }
 
+    /**
+     * Whether the target stores gimbal angles rather than a free orientation, so a ring
+     * must bump its own channel instead of composing a parent-frame delta. True for a
+     * replay's root, whose rotation is Minecraft's yaw/pitch pair: the gimbal-free path
+     * decomposes its turn back into ZYX and can land roll in the third channel, and there
+     * is no roll to land — it would be silently dropped and the actor would end up
+     * somewhere the sweep never pointed.
+     */
+    default boolean rotationChannelOnly()
+    {
+        return false;
+    }
+
     /** Whether values of the given operation should snap to the configured step. */
     boolean shouldSnap(TransformOp op);
 

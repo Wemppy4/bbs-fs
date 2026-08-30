@@ -282,6 +282,18 @@ public class UIPropTransform extends UITransform
         return this.rotationConstrainedSupplier != null && Boolean.TRUE.equals(this.rotationConstrainedSupplier.get());
     }
 
+    /**
+     * Whether this editor's rotation channels are gimbal angles with no third axis to
+     * spare, so rotation rings turn their own channel instead of composing a
+     * gimbal-free delta (see {@link DragContext#rotationChannelOnly}). False for
+     * everything that edits a real {@link Transform}; overridden by the replay-root
+     * editor, whose rotation is Minecraft's yaw/pitch pair.
+     */
+    public boolean isRotationChannelOnly()
+    {
+        return false;
+    }
+
     /** A frame picked from the dropdown: remembered mod-wide, and — since the picker is
      *  reachable mid-gesture (Q) — it also ends whatever frame the axis walk had put the
      *  live edit in, which would otherwise keep overriding the hand-picked one. */
@@ -1493,13 +1505,27 @@ public class UIPropTransform extends UITransform
         this.setTransform(this.transform);
     }
 
-    @Override
-    public void render(UIContext context)
+    /**
+     * Advance a running gesture if it is due. Normally this happens from {@link #render},
+     * but a gesture must not depend on its editor being on screen: the film's replay-root
+     * gizmo has no visible fields at all, and a bone drag used to freeze the moment its
+     * keyframe panel was closed. So {@link mchorse.bbs_mod.ui.utils.GizmoInteraction#update}
+     * pumps the tracked
+     * transform every frame as well — the {@code checker} timer swallows whichever of the
+     * two calls comes second within its window, so pumping twice costs nothing.
+     */
+    public void pumpDrag(UIContext context)
     {
         if (this.editing && !this.numeric.isActive() && this.checker.isTime())
         {
             this.updateDrag(context);
         }
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        this.pumpDrag(context);
 
         super.render(context);
 
@@ -1652,6 +1678,12 @@ public class UIPropTransform extends UITransform
         public boolean rotationConstrained()
         {
             return UIPropTransform.this.isRotationConstrained();
+        }
+
+        @Override
+        public boolean rotationChannelOnly()
+        {
+            return UIPropTransform.this.isRotationChannelOnly();
         }
 
         /* Blender-style snapping: every gesture is free by default and snaps to

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.utils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.joml.Matrix4f;
@@ -148,8 +149,27 @@ public class GizmoInteraction
      */
     public void update(UIContext context)
     {
+        this.pumpDrag(context);
         this.promotePendingPick(context);
         this.updateSphereHover(context);
+    }
+
+    /**
+     * Keep a running gesture moving even when the editor that owns it isn't drawn.
+     * {@link UIPropTransform#render} pumps its own drag, which is enough while its
+     * panel is open, but the film's replay-root gizmo edits a transform with no
+     * visible fields at all, and a bone drag used to freeze the moment its keyframe
+     * panel was closed. Pumping is idempotent within the transform's own timer, so
+     * doing it from both places is safe.
+     */
+    private void pumpDrag(UIContext context)
+    {
+        UIPropTransform transform = Gizmo.INSTANCE.getTrackedTransform();
+
+        if (transform != null)
+        {
+            transform.pumpDrag(context);
+        }
     }
 
     /**

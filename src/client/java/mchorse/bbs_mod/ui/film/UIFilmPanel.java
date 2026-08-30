@@ -472,6 +472,17 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.getFilmLayoutSettings().setDockUnlocked(ValueEditorLayout.FILM, !this.dock.isLocked());
     }
 
+    /**
+     * Whether the replay editor is the chosen main editor, as opposed to the camera one.
+     * Deliberately not {@code replayEditor.isVisible()}: that also goes false when both
+     * dock panels are collapsed for a full-screen preview, which is precisely when
+     * dragging an actor around in the viewport is most useful.
+     */
+    public boolean isReplayEditorSelected()
+    {
+        return this.selectedMainEditorPanel == this.replayEditor;
+    }
+
     /** Which editor's own layout id the current view corresponds to. */
     private String currentEditorLayoutId()
     {

@@ -38,6 +38,7 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 
+import java.util.EnumSet;
 import java.util.function.Supplier;
 
 public class Gizmo
@@ -170,6 +171,14 @@ public class Gizmo
      *  pass so the drawn gizmo and its pick hitbox scale together. */
     private float viewportScale = 1F;
 
+    /** What the edited target can actually accept this frame ({@link HandleMask}).
+     *  Captured together with the render matrix, because both draw passes run
+     *  later, in the UI pass, and must be laid out from the same description as
+     *  the world pass that placed the gizmo. Reset to {@link HandleMask#ALL} by
+     *  the plain capture calls, so a restricted target cannot leak its mask into
+     *  the next editor's gizmo. */
+    private HandleMask mask = HandleMask.ALL;
+
     private Gizmo()
     {}
 
@@ -264,7 +273,7 @@ public class Gizmo
 
     public boolean isSphereInteractive()
     {
-        if (!BBSSettings.gizmos.get() || !Element.SPHERE.isVisible())
+        if (!BBSSettings.gizmos.get() || !Element.SPHERE.isVisible() || !this.mask.allows(Op.TRACKBALL))
         {
             return false;
         }
@@ -492,7 +501,10 @@ public class Gizmo
 
         Handle handle = Handle.byIndex(index);
 
-        if (handle == null)
+        /* The mask already keeps a forbidden handle out of both draw passes, so a pick
+         * can't name one; the hotkey walk and any programmatic start bypass the stencil
+         * though, so the refusal lives here too. */
+        if (handle == null || !this.mask.allows(handle))
         {
             return false;
         }
@@ -535,6 +547,14 @@ public class Gizmo
         this.currentTransform = transform;
     }
 
+    /** The transform a gesture is currently running on, or {@code null}. Its owner may
+     *  well be off screen (the replay-root gizmo has no fields at all), which is why
+     *  {@link GizmoInteraction#update} drives it from here rather than from a render. */
+    public UIPropTransform getTrackedTransform()
+    {
+        return this.currentTransform;
+    }
+
     public void clearTrackedTransform(UIPropTransform transform)
     {
         if (this.currentTransform == transform)
@@ -563,10 +583,17 @@ public class Gizmo
 
     public void render(MatrixStack stack)
     {
+        this.render(stack, HandleMask.ALL);
+    }
+
+    public void render(MatrixStack stack, HandleMask mask)
+    {
         if (BBSRendering.isIrisShadowPass())
         {
             return;
         }
+
+        this.mask = mask == null ? HandleMask.ALL : mask;
 
         stack.push();
         MatrixStackUtils.scaleBack(stack);
@@ -584,10 +611,17 @@ public class Gizmo
      */
     public void captureVisual(MatrixStack stack)
     {
+        this.captureVisual(stack, HandleMask.ALL);
+    }
+
+    public void captureVisual(MatrixStack stack, HandleMask mask)
+    {
         if (BBSRendering.isIrisShadowPass())
         {
             return;
         }
+
+        this.mask = mask == null ? HandleMask.ALL : mask;
 
         stack.push();
         MatrixStackUtils.scaleBack(stack);
@@ -991,7 +1025,7 @@ public class Gizmo
      */
     private float innerScale()
     {
-        return Element.ROTATE.isVisible() ? INNER_SCALE : 1F;
+        return Element.ROTATE.isVisible() && this.mask.allows(Op.ROTATE) ? INNER_SCALE : 1F;
     }
 
     /** Washes a ring colour channel toward flat gray for IK-owned rotations. */
@@ -1002,6 +1036,11 @@ public class Gizmo
 
     public void renderStencil(MatrixStack stack)
     {
+        this.renderStencil(stack, HandleMask.ALL);
+    }
+
+    public void renderStencil(MatrixStack stack, HandleMask mask)
+    {
         if (BBSRendering.isIrisShadowPass())
         {
             return;
@@ -1011,6 +1050,8 @@ public class Gizmo
         {
             return;
         }
+
+        this.mask = mask == null ? HandleMask.ALL : mask;
 
         stack.push();
         MatrixStackUtils.scaleBack(stack);
@@ -1248,9 +1289,12 @@ public class Gizmo
             float radius = 0.22F * scale;
             float ringThickness = 0.02F * scale * BBSSettings.axesThickness.get();
 
-            if (active == null || active == Handle.ROTATE_Z) sink.ring(Handle.ROTATE_Z, Axis.Z, radius, ringThickness, Colors.BLUE);
-            if (active == null || active == Handle.ROTATE_X) sink.ring(Handle.ROTATE_X, Axis.X, radius, ringThickness, Colors.RED);
-            if (active == null || active == Handle.ROTATE_Y) sink.ring(Handle.ROTATE_Y, Axis.Y, radius, ringThickness, Colors.GREEN);
+            /* A target may own only some of the three rotation axes (a replay's root turns
+             * about Y and pitches about X, but has nowhere to put roll), so each ring is
+             * filtered on its own axis rather than the group as a whole. */
+            if (layout.mask.allowsRotateAxis(Axis.Z) && (active == null || active == Handle.ROTATE_Z)) sink.ring(Handle.ROTATE_Z, Axis.Z, radius, ringThickness, Colors.BLUE);
+            if (layout.mask.allowsRotateAxis(Axis.X) && (active == null || active == Handle.ROTATE_X)) sink.ring(Handle.ROTATE_X, Axis.X, radius, ringThickness, Colors.RED);
+            if (layout.mask.allowsRotateAxis(Axis.Y) && (active == null || active == Handle.ROTATE_Y)) sink.ring(Handle.ROTATE_Y, Axis.Y, radius, ringThickness, Colors.GREEN);
         }
 
         /* The screen-space (billboard) view-rotation ring hides on its own element, not with
@@ -1296,7 +1340,7 @@ public class Gizmo
         /* Screen-space (view-plane) translate handle: a white cube at the centre, twice the
          * bars' thickness. Drawn before the planes so they overlay it, and after the rotation
          * rings so it stays visible when they are on screen too. */
-        if (showMove && (active == null || active == Handle.SCREEN))
+        if (showMove && layout.mask.allows(Op.SCREEN) && (active == null || active == Handle.SCREEN))
         {
             float screenHalf = SCREEN_CUBE_HALF * scale * thickness;
 
@@ -1306,7 +1350,7 @@ public class Gizmo
         /* Uniform-scale handle: the same centre cube, shown only when move isn't (with
          * both on screen the centre is the translate handle), so the pick is never
          * ambiguous between the two. */
-        if (showScale && !showMove && (active == null || active == Handle.SCALE_ALL))
+        if (showScale && !showMove && layout.mask.allows(Op.SCALE_ALL) && (active == null || active == Handle.SCALE_ALL))
         {
             float scaleAllHalf = SCREEN_CUBE_HALF * scale * thickness;
 
@@ -1345,11 +1389,15 @@ public class Gizmo
     {
         final Handle active = Gizmo.this.activeDragHandle();
 
-        final boolean showRings = Element.ROTATE.isVisible() && (this.active == null || this.active.op == Op.ROTATE);
-        final boolean showViewRing = Element.VIEW_ROTATE.isVisible() && (this.active == null || this.active.op == Op.VIEW);
+        /* Settings say what the user wants to see, the mask says what the target can
+         * accept at all — a handle needs both to reach the screen and the cursor. */
+        final HandleMask mask = Gizmo.this.mask;
 
-        final boolean showMove = Element.TRANSLATE.isVisible() && (this.active == null || this.active.op == Op.MOVE || this.active.op == Op.SCREEN);
-        final boolean showScale = Element.SCALE.isVisible() && (this.active == null || this.active.op == Op.SCALE || this.active.op == Op.SCALE_ALL);
+        final boolean showRings = Element.ROTATE.isVisible() && mask.allows(Op.ROTATE) && (this.active == null || this.active.op == Op.ROTATE);
+        final boolean showViewRing = Element.VIEW_ROTATE.isVisible() && mask.allows(Op.VIEW) && (this.active == null || this.active.op == Op.VIEW);
+
+        final boolean showMove = Element.TRANSLATE.isVisible() && mask.allows(Op.MOVE) && (this.active == null || this.active.op == Op.MOVE || this.active.op == Op.SCREEN);
+        final boolean showScale = Element.SCALE.isVisible() && mask.allows(Op.SCALE) && (this.active == null || this.active.op == Op.SCALE || this.active.op == Op.SCALE_ALL);
         final boolean showRotate = this.showRings || this.showViewRing;
 
         final float scale = BBSSettings.axesScale.get();
@@ -1548,6 +1596,59 @@ public class Gizmo
             ValueBoolean value = this.setting.get();
 
             return value == null || value.get();
+        }
+    }
+
+    /**
+     * Which handles the edited target can accept at all, as opposed to which ones the
+     * user chose to see ({@link Element}). The two are separate questions: a setting
+     * hides a handle the target could have driven, a mask drops one the target has
+     * nowhere to write &mdash; a replay's root has no scale and no roll, so those
+     * handles must not be drawn, must not reach the pick stencil and must not start a
+     * gesture, whatever the settings say.
+     *
+     * <p>Passed to the capture calls rather than kept as a mode, so it travels with the
+     * frame it describes and both passes read the same one.
+     */
+    public static final class HandleMask
+    {
+        /** No restriction &mdash; a full {@link mchorse.bbs_mod.utils.pose.Transform} target. */
+        public static final HandleMask ALL = new HandleMask(EnumSet.allOf(Op.class), EnumSet.allOf(Axis.class));
+
+        private final EnumSet<Op> ops;
+        private final EnumSet<Axis> rotateAxes;
+
+        public static HandleMask of(EnumSet<Op> ops, EnumSet<Axis> rotateAxes)
+        {
+            return new HandleMask(ops, rotateAxes);
+        }
+
+        private HandleMask(EnumSet<Op> ops, EnumSet<Axis> rotateAxes)
+        {
+            this.ops = EnumSet.copyOf(ops);
+            this.rotateAxes = EnumSet.copyOf(rotateAxes);
+        }
+
+        public boolean allows(Op op)
+        {
+            return this.ops.contains(op);
+        }
+
+        public boolean allowsRotateAxis(Axis axis)
+        {
+            return this.rotateAxes.contains(axis);
+        }
+
+        /** Whether a picked or hotkeyed handle may start a gesture: its operation must be
+         *  allowed, and an axis ring's axis must be too. */
+        public boolean allows(Handle handle)
+        {
+            if (handle == null || !this.allows(handle.op))
+            {
+                return false;
+            }
+
+            return handle.op != Op.ROTATE || this.allowsRotateAxis(handle.axis);
         }
     }
 
