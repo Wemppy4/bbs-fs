@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events;
+package mchorse.bbs_mod.api;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

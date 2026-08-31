@@ -1,0 +1,67 @@
+public abstract class mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent {
+    public mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent();
+    public void register(mchorse.bbs_mod.ui.utils.icons.Icon, java.lang.String, java.util.function.Consumer<mchorse.bbs_mod.settings.SettingsBuilder>);
+}
+
+public class mchorse.bbs_mod.api.EventBus {
+    public mchorse.bbs_mod.api.EventBus();
+    public void post(java.lang.Object);
+    public void register(java.lang.Object);
+}
+
+public class mchorse.bbs_mod.api.Subscription {
+    public final java.lang.Object target;
+    public final java.lang.reflect.Method method;
+    public mchorse.bbs_mod.api.Subscription(java.lang.Object, java.lang.reflect.Method);
+}
+
+public class mchorse.bbs_mod.api.client.events.L10nReloadEvent {
+    public final mchorse.bbs_mod.l10n.L10n l10n;
+    public mchorse.bbs_mod.api.client.events.L10nReloadEvent(mchorse.bbs_mod.l10n.L10n);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent extends mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent();
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterDashboardPanelsEvent {
+    public final mchorse.bbs_mod.ui.dashboard.UIDashboard dashboard;
+    public mchorse.bbs_mod.api.client.events.RegisterDashboardPanelsEvent(mchorse.bbs_mod.ui.dashboard.UIDashboard);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterL10nEvent {
+    public final mchorse.bbs_mod.l10n.L10n l10n;
+    public mchorse.bbs_mod.api.client.events.RegisterL10nEvent(mchorse.bbs_mod.l10n.L10n);
+}
+
+public class mchorse.bbs_mod.api.events.RegisterSettingsEvent extends mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent {
+    public mchorse.bbs_mod.api.events.RegisterSettingsEvent();
+}
+
+public class mchorse.bbs_mod.api.events.RegisterSourcePacksEvent {
+    public final mchorse.bbs_mod.resources.AssetProvider provider;
+    public mchorse.bbs_mod.api.events.RegisterSourcePacksEvent(mchorse.bbs_mod.resources.AssetProvider);
+    public void registerAddon(java.lang.String, java.lang.Class<?>);
+}
+
+public final class mchorse.bbs_mod.api.BBSApi {
+    public static boolean isAtLeast(int);
+    public static final int VERSION;
+    public static java.lang.String getModVersion();
+    public static void requireVersion(java.lang.String, int);
+}
+
+public interface mchorse.bbs_mod.api.BBSAddonMod {
+}
+
+public interface mchorse.bbs_mod.api.Experimental extends java.lang.annotation.Annotation {
+}
+
+public interface mchorse.bbs_mod.api.Subscribe extends java.lang.annotation.Annotation {
+}
+
+public interface mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback {
+    public abstract void update(mchorse.bbs_mod.blocks.entities.ModelBlockEntity);
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback> EVENT;
+}
+

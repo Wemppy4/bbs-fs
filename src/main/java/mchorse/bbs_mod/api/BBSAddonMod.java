@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events;
+package mchorse.bbs_mod.api;
 
 /**
  * An addon event subscribers container.

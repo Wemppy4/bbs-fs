@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events;
+package mchorse.bbs_mod.api;
 
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;

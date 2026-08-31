@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events.register;
+package mchorse.bbs_mod.api.events;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.settings.SettingsBuilder;

@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events.register;
+package mchorse.bbs_mod.api.events;
 
 /**
  * Posted on both sides, while BBS registers its own settings. Its client counterpart is

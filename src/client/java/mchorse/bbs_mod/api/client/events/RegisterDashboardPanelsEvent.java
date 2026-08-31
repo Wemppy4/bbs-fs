@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events.register;
+package mchorse.bbs_mod.api.client.events;
 
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 

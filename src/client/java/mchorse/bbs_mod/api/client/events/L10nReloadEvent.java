@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events;
+package mchorse.bbs_mod.api.client.events;
 
 import mchorse.bbs_mod.l10n.L10n;
 

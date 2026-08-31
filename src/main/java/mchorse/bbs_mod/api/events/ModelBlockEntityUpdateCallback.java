@@ -1,4 +1,4 @@
-package mchorse.bbs_mod.events;
+package mchorse.bbs_mod.api.events;
 
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import net.fabricmc.fabric.api.event.Event;
