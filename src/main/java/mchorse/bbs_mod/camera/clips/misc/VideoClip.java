@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.camera.clips.misc;
 
+import mchorse.bbs_mod.camera.clips.IPlaceableClip;
 import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.settings.values.core.ValuePlacement;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;

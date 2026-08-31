@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.camera.clips.misc;
 
 import mchorse.bbs_mod.camera.clips.CameraClip;
+import mchorse.bbs_mod.camera.clips.IPlaceableClip;
 import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
@@ -16,7 +17,7 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImageClip extends CameraClip
+public class ImageClip extends CameraClip implements IPlaceableClip
 {
     public ValueLink texture = new ValueLink("texture", null);
     public ValuePlacement placement = new ValuePlacement("placement", new Placement());
@@ -35,6 +36,19 @@ public class ImageClip extends CameraClip
     public ImageOverlay getOverlay()
     {
         return this.image;
+    }
+
+    @Override
+    public ValuePlacement getPlacement()
+    {
+        /* Nothing to move while it covers the frame. */
+        return this.fullscreen.get() ? null : this.placement;
+    }
+
+    @Override
+    public OverlayBox getOverlayBox()
+    {
+        return this.image.box;
     }
 
     public ImageClip()

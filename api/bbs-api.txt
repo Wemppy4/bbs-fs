@@ -63,6 +63,11 @@ public class mchorse.bbs_mod.api.client.events.RegisterFormSectionsEvent {
     public void register(java.util.function.Function<mchorse.bbs_mod.forms.FormCategories, mchorse.bbs_mod.forms.sections.FormSection>);
 }
 
+public class mchorse.bbs_mod.api.client.events.RegisterFrameOverlaysEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterFrameOverlaysEvent();
+    public void register(mchorse.bbs_mod.ui.film.FrameOverlays$IFrameOverlayRenderer);
+}
+
 public class mchorse.bbs_mod.api.client.events.RegisterImportersEvent {
     public mchorse.bbs_mod.api.client.events.RegisterImportersEvent();
     public void register(mchorse.bbs_mod.importers.types.IImporter);

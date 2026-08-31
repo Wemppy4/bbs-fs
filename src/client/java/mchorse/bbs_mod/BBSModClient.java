@@ -29,6 +29,8 @@ import mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClipRenderersEvent;
 import mchorse.bbs_mod.api.client.events.RegisterFormSectionsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterFrameOverlaysEvent;
+import mchorse.bbs_mod.ui.film.FrameOverlays;
 import mchorse.bbs_mod.api.client.events.RegisterImportersEvent;
 import mchorse.bbs_mod.api.client.events.RegisterKeybindsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterModelLoadersEvent;
@@ -590,6 +592,9 @@ public class BBSModClient implements ClientModInitializer
 
         Importers.setup();
         BBSMod.events.post(new RegisterImportersEvent());
+
+        FrameOverlays.setup();
+        BBSMod.events.post(new RegisterFrameOverlaysEvent());
 
         /* Keybinds */
         keyDashboard = this.createKey("dashboard", GLFW.GLFW_KEY_0);

@@ -1,9 +1,7 @@
 package mchorse.bbs_mod.ui.film;
 
-import mchorse.bbs_mod.camera.clips.misc.ImageClip;
+import mchorse.bbs_mod.camera.clips.IPlaceableClip;
 import mchorse.bbs_mod.camera.clips.misc.OverlayBox;
-import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
-import mchorse.bbs_mod.camera.clips.misc.VideoClip;
 import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.settings.values.core.ValuePlacement;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIPlacement;
@@ -77,39 +75,13 @@ public class UIPlacementGizmo
             return null;
         }
 
-        if (clip instanceof SubtitleClip subtitle)
-        {
-            return subtitle.placement;
-        }
-        else if (clip instanceof VideoClip video)
-        {
-            return video.fullscreen.get() ? null : video.placement;
-        }
-        else if (clip instanceof ImageClip image)
-        {
-            return image.fullscreen.get() ? null : image.placement;
-        }
-
-        return null;
+        return clip instanceof IPlaceableClip placeable ? placeable.getPlacement() : null;
     }
 
     private OverlayBox getBox()
     {
         Clip clip = this.panel.cameraEditor.getClip();
-        OverlayBox box = null;
-
-        if (clip instanceof SubtitleClip subtitle)
-        {
-            box = subtitle.getSubtitle().box;
-        }
-        else if (clip instanceof VideoClip video)
-        {
-            box = video.getOverlay().box;
-        }
-        else if (clip instanceof ImageClip image)
-        {
-            box = image.getOverlay().box;
-        }
+        OverlayBox box = clip instanceof IPlaceableClip placeable ? placeable.getOverlayBox() : null;
 
         return box == null || box.unitWidth <= 0F ? null : box;
     }
