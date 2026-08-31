@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.renderers.InputRenderer;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -31,6 +32,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
@@ -77,6 +79,13 @@ public class StructureWand
 
     private static final Color COLOR = new Color();
 
+    /** The inventory tooltip, line by line, out of the item's own language file. */
+    private static final String[] TOOLTIP = {
+        "item.bbs.structure_wand.tooltip.corners",
+        "item.bbs.structure_wand.tooltip.faces",
+        "item.bbs.structure_wand.tooltip.save"
+    };
+
     /* HUD */
 
     /** Mouse glyph footprint from {@link InputRenderer#renderMouseButtons}. */
@@ -107,6 +116,19 @@ public class StructureWand
          * the same callbacks is a net under all of it. */
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> isHolding(player, hand) ? ActionResult.FAIL : ActionResult.PASS);
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> isHolding(player, hand) ? ActionResult.FAIL : ActionResult.PASS);
+
+        /* The item stays a plain Item: the tooltip is the one thing it would need a class for, and
+         * it belongs on the client with the rest of the wand anyway */
+        ItemTooltipCallback.EVENT.register((stack, context, lines) ->
+        {
+            if (stack.isOf(BBSMod.STRUCTURE_WAND_ITEM))
+            {
+                for (String line : TOOLTIP)
+                {
+                    lines.add(Text.translatable(line).formatted(Formatting.GRAY));
+                }
+            }
+        });
     }
 
     /* Input */
