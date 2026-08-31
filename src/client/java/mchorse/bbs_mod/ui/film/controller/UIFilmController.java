@@ -333,12 +333,13 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     public void createEntities()
     {
-        this.stopRecording();
-
-        if (this.controlled != null)
-        {
-            this.toggleControl();
-        }
+        /* Which replay is being puppeteered, noted before the stubs are thrown away. The map is
+         * keyed by the replay's stable id, so the control can be handed to the same replay's new
+         * body afterwards. Dropping it here instead - and stopping the take with it - was the
+         * whole of «the control falls off by itself»: the stubs are rebuilt by things that have
+         * nothing to do with the controlled replay, such as another replay's "enabled" toggle, an
+         * undo, or the restart that scrubbing triggers. */
+        String controlledKey = this.controlled == null ? null : CollectionUtils.getKey(this.getEntities(), this.controlled);
 
         this.editorController = new FilmEditorController(this.panel.getData(), this);
         this.editorController.createEntities();
@@ -347,6 +348,55 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
         entities.clear();
         entities.putAll(this.editorController.getEntities());
+
+        this.restoreControl(controlledKey);
+    }
+
+    /**
+     * Hand the control back to the rebuilt body of the replay it was on. Only a replay that is
+     * gone or switched off leaves nothing to steer, and only then is the control let go &mdash;
+     * along with the player's own form, which the control borrowed.
+     */
+    private void restoreControl(String key)
+    {
+        if (key == null)
+        {
+            return;
+        }
+
+        IEntity rebuilt = this.getEntities().get(key);
+
+        if (rebuilt == null)
+        {
+            if (this.previousEntity != null)
+            {
+                this.controlled.setForm(this.playerForm);
+
+                this.previousEntity = null;
+                this.playerForm = null;
+            }
+
+            this.controlled = null;
+
+            this.toggleMousePointer(false);
+            this.stopRecording();
+
+            return;
+        }
+
+        if (this.previousEntity != null)
+        {
+            /* Steering through the real player: the player stands in the map in place of the
+             * replay's stub, and the fresh stub is what gets put back on release. */
+            this.previousEntity = rebuilt;
+
+            this.editorController.getEntities().put(key, this.controlled);
+            this.panel.getRunner().getContext().entities.put(key, this.controlled);
+        }
+        else
+        {
+            this.controlled = rebuilt;
+        }
     }
 
     public Map<String, IEntity> getEntities()
@@ -428,7 +478,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
     }
 
-    private boolean canControl()
+    public boolean canControl()
     {
         UIContext context = this.getContext();
 

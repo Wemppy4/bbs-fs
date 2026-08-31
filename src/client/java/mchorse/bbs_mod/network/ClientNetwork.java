@@ -338,6 +338,7 @@ public class ClientNetwork
     {
         Map<String, Integer> actors = new HashMap<>();
         String filmId = buf.readString();
+        boolean merge = buf.readBoolean();
 
         for (int i = 0, c = buf.readInt(); i < c; i++)
         {
@@ -349,11 +350,17 @@ public class ClientNetwork
 
         client.execute(() ->
         {
-            UIDashboard dashboard = BBSModClient.getDashboard();
-            UIFilmPanel panel = dashboard.getPanel(UIFilmPanel.class);
+            BBSModClient.getFilms().updateActors(filmId, actors, merge);
 
-            panel.updateActors(filmId, actors);
-            BBSModClient.getFilms().updateActors(filmId, actors);
+            /* Only if the dashboard is already there: building it costs the whole UI, and this
+             * packet reaches every player in the world - including ones who never opened BBS. */
+            UIDashboard dashboard = BBSModClient.getDashboardIfCreated();
+            UIFilmPanel panel = dashboard == null ? null : dashboard.getPanel(UIFilmPanel.class);
+
+            if (panel != null)
+            {
+                panel.updateActors(filmId, BBSModClient.getFilms().getActors(filmId));
+            }
         });
     }
 

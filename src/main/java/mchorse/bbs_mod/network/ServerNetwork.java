@@ -450,20 +450,25 @@ public class ServerNetwork
             {
                 ActionPlayer actionPlayer = actions.getPlayer(filmId);
 
-                if (actionPlayer == null)
-                {
-                    Film film = BBSMod.getFilms().load(filmId);
+                /* The same editor asking for the same film from the top only wants it rewound.
+                 * Stopping and starting again discards every actor and spawns a replacement, so
+                 * the whole cast blinked and took new entity ids on each restart - and the editor
+                 * restarts whenever the cursor is dragged. */
+                boolean rewind = actionPlayer != null
+                    && actionPlayer.type == PlayerType.FILM_EDITOR
+                    && actionPlayer.isPlayedBy(player)
+                    && actionPlayer.getWorld() == player.getServerWorld();
 
-                    if (film != null)
+                if (!rewind)
+                {
+                    Film film = actionPlayer == null ? BBSMod.getFilms().load(filmId) : actionPlayer.film;
+
+                    if (actionPlayer != null)
                     {
-                        actionPlayer = actions.play(player, player.getServerWorld(), film, tick, PlayerType.FILM_EDITOR);
+                        actions.stop(filmId);
                     }
-                }
-                else
-                {
-                    actions.stop(filmId);
 
-                    actionPlayer = actions.play(player, player.getServerWorld(), actionPlayer.film, tick, PlayerType.FILM_EDITOR);
+                    actionPlayer = film == null ? null : actions.play(player, player.getServerWorld(), film, tick, PlayerType.FILM_EDITOR);
                 }
 
                 if (actionPlayer != null)
@@ -471,10 +476,7 @@ public class ServerNetwork
                     actionPlayer.syncing = true;
                     actionPlayer.playing = false;
 
-                    if (tick != 0)
-                    {
-                        actionPlayer.goTo(0, tick);
-                    }
+                    actionPlayer.goTo(0, tick);
                 }
 
                 sendStopFilm(player, filmId);
@@ -823,6 +825,7 @@ public class ServerNetwork
         PacketByteBuf buf = PacketByteBufs.create();
 
         buf.writeString(filmId);
+        buf.writeBoolean(false);
         buf.writeInt(actors.size());
 
         for (Map.Entry<String, LivingEntity> entry : actors.entrySet())
@@ -830,6 +833,24 @@ public class ServerNetwork
             buf.writeString(entry.getKey());
             buf.writeInt(entry.getValue().getId());
         }
+
+        ServerPlayNetworking.send(player, CLIENT_ACTORS, buf);
+    }
+
+    /**
+     * One pairing, merged into whatever the client already knows. The full map only goes out when
+     * the cast is rebuilt, which is of no use to a player who wasn't there at the time - they meet
+     * the actor later, when they come within tracking range of it.
+     */
+    public static void sendActor(ServerPlayerEntity player, String filmId, String replayId, int entityId)
+    {
+        PacketByteBuf buf = PacketByteBufs.create();
+
+        buf.writeString(filmId);
+        buf.writeBoolean(true);
+        buf.writeInt(1);
+        buf.writeString(replayId);
+        buf.writeInt(entityId);
 
         ServerPlayNetworking.send(player, CLIENT_ACTORS, buf);
     }

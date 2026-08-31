@@ -464,6 +464,11 @@ public class BBSCommands
         Collection<ServerPlayerEntity> players = EntityArgumentType.getPlayers(source, "target");
         String filmId = StringArgumentType.getString(source, "film");
 
+        /* The server acts the film too - the actors, the action clips, the damage control it
+         * holds - and only the clients were ever told to stop. The bodies stayed in the world
+         * acting out the rest of the take with nobody watching. */
+        BBSMod.getActions().stop(filmId);
+
         for (ServerPlayerEntity player : players)
         {
             ServerNetwork.sendStopFilm(player, filmId);

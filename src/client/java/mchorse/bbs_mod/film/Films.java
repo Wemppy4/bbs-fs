@@ -28,9 +28,11 @@ import org.joml.Vector3d;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class Films
 {
@@ -45,6 +47,24 @@ public class Films
     private Recorder recorder;
 
     public Map<String, Map<String, Integer>> actors = new HashMap<>();
+
+    /**
+     * Actor entities a film drew a body for this frame, and the same for the frame before it.
+     *
+     * <p>An actor's body belongs to whoever draws it: a replay flagged as an actor is drawn by the
+     * film, from its keyframes, and {@code ActorEntityRenderer} has to stay out of the way or the
+     * body would be drawn twice. But a player watching without the film running locally has no one
+     * to draw it for them, so the entity must still draw itself &mdash; hence «drawn by someone
+     * else», not «never draw».
+     *
+     * <p>Two frames because the world draws its entities before the film gets its hands on the
+     * frame ({@code WorldRenderEvents.AFTER_ENTITIES}), so the only honest answer available to the
+     * entity renderer is what happened last frame. Ownership is kept here rather than in a field on
+     * the renderer for the reason {@code 60139132d} found the hard way: a renderer is one object
+     * serving every actor at once.
+     */
+    private Set<Integer> drawnActors = new HashSet<>();
+    private Set<Integer> drawingActors = new HashSet<>();
 
     /* Static helpers */
 
@@ -291,6 +311,10 @@ public class Films
     {
         Iterator<BaseFilmController> it = this.controllers.iterator();
 
+        /* The film is going away, so its cast is too: entity ids left behind here outlive the
+         * entities and get handed to whatever the server spawns next under the same number. */
+        this.actors.remove(id);
+
         while (it.hasNext())
         {
             BaseFilmController next = it.next();
@@ -307,13 +331,43 @@ public class Films
         return null;
     }
 
-    public void updateActors(String filmId, Map<String, Integer> actors)
+    public void updateActors(String filmId, Map<String, Integer> actors, boolean merge)
     {
-        this.actors.put(filmId, actors);
+        if (merge)
+        {
+            this.actors.computeIfAbsent(filmId, (key) -> new HashMap<>()).putAll(actors);
+        }
+        else
+        {
+            this.actors.put(filmId, new HashMap<>(actors));
+        }
+    }
+
+    public Map<String, Integer> getActors(String filmId)
+    {
+        return this.actors.get(filmId);
+    }
+
+    /** A film says here that this actor's body is its business to draw for the current frame. */
+    public void markActorDrawn(int entityId)
+    {
+        this.drawingActors.add(entityId);
+    }
+
+    /** Whether a film drew this actor's body last frame - see {@link #drawnActors}. */
+    public boolean isActorDrawn(int entityId)
+    {
+        return this.drawnActors.contains(entityId);
     }
 
     public void startRenderFrame(float transition)
     {
+        Set<Integer> drawn = this.drawnActors;
+
+        this.drawnActors = this.drawingActors;
+        this.drawingActors = drawn;
+        this.drawingActors.clear();
+
         if (this.recorder != null)
         {
             this.recorder.startRenderFrame(transition);
@@ -424,6 +478,7 @@ public class Films
     public void reset()
     {
         controllers.clear();
+        actors.clear();
 
         recorder = null;
     }

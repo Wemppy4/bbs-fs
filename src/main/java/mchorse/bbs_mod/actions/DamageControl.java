@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.actions;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.entity.ActorEntity;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
@@ -28,12 +29,16 @@ import java.util.Set;
  */
 public class DamageControl
 {
+    /** Smallest size worth walking the spawn list for - see {@link #addEntity(Entity)}. */
+    private static final int PRUNE_FLOOR = 256;
+
     /* Insertion ordered, so blocks are put back in the order they were first changed, and keyed
      * by position, so re-touching a block during a long take is a lookup rather than a scan of
      * everything captured so far - an explosion or a /fill used to cost time quadratic in the
      * size of the snapshot. */
     private Map<BlockPos, BlockCapture> blocks = new LinkedHashMap<>();
     private List<Entity> entities = new ArrayList<>();
+    private int pruneAt = PRUNE_FLOOR;
 
     /* Identity, not equality: two ActionPlayers of the same film are two holders. */
     private Set<Object> owners = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -122,6 +127,24 @@ public class DamageControl
         if (!this.enable)
         {
             return;
+        }
+
+        /* Actors are not damage done to the world: their lifetime belongs to the playback that
+         * put them there. Releasing a snapshot held by something else - another film, or
+         * /bbs dc start by hand - took them down with it, in the middle of a take that had
+         * nothing to do with it. */
+        if (entity instanceof ActorEntity)
+        {
+            return;
+        }
+
+        /* Entities already gone are dead weight: this list is only ever walked once, at the end,
+         * so a long session held a strong reference per spawn for as long as the hold lasted.
+         * Pruned on doubling rather than on every spawn, which would be quadratic. */
+        if (this.entities.size() >= this.pruneAt)
+        {
+            this.entities.removeIf(Entity::isRemoved);
+            this.pruneAt = Math.max(PRUNE_FLOOR, this.entities.size() * 2);
         }
 
         this.entities.add(entity);
