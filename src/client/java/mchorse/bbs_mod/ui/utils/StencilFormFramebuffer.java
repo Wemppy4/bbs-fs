@@ -47,13 +47,19 @@ public class StencilFormFramebuffer
      */
     public void renderPreview(UIContext context, Area area)
     {
+        this.renderPreview(context, area, this.getIndex());
+    }
+
+    /** Same, lighting up {@code index} instead of what is under the cursor — a host pointing at a bone from a list. */
+    public void renderPreview(UIContext context, Area area, int index)
+    {
         Texture texture = this.getFramebuffer().getMainTexture();
         ShaderProgram program = BBSShaders.getPickerPreviewProgram();
         GlUniform target = program.getUniform("Target");
 
         if (target != null)
         {
-            target.set(this.getIndex());
+            target.set(index);
         }
 
         GlUniform highlight = program.getUniform("HighlightColor");
@@ -79,6 +85,22 @@ public class StencilFormFramebuffer
     public Pair<Form, String> getPicked()
     {
         return this.indexMap.get(this.index);
+    }
+
+    /** The id the last pass drew {@code bone} of {@code form} with, or 0 when it wasn't drawn. */
+    public int indexOf(Form form, String bone)
+    {
+        for (Map.Entry<Integer, Pair<Form, String>> entry : this.indexMap.entrySet())
+        {
+            Pair<Form, String> pair = entry.getValue();
+
+            if (pair.a == form && pair.b.equals(bone))
+            {
+                return entry.getKey();
+            }
+        }
+
+        return 0;
     }
 
     public void setup(Link id)
@@ -278,6 +300,12 @@ public class StencilFormFramebuffer
     {
         this.index = 0;
         this.indexMap.clear();
+    }
+
+    /** Nothing under the cursor, while what the pass drew stays known (for {@link #indexOf}). */
+    public void clearIndex()
+    {
+        this.index = 0;
     }
 
     public boolean hasPicked()
