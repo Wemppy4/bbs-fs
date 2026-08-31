@@ -101,6 +101,22 @@ public class DamageControl
         this.blocks.put(key, new BlockCapture(key, state, entity == null ? null : entity.createNbtWithId()));
     }
 
+    /**
+     * Drop a region from the snapshot: whatever the film did in there stops mattering, because the
+     * region itself is being taken out of the world on purpose.
+     *
+     * <p>This exists for the structure cut. Every {@code setBlockState} on the server is captured
+     * while a film holds a snapshot, so a cut made with the editor open would be undone on the way
+     * out — the build would come back and stand inside the form made from it.</p>
+     */
+    public void forget(BlockPos min, BlockPos max)
+    {
+        this.blocks.keySet().removeIf((pos) ->
+            pos.getX() >= min.getX() && pos.getX() <= max.getX() &&
+            pos.getY() >= min.getY() && pos.getY() <= max.getY() &&
+            pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ());
+    }
+
     public void addEntity(Entity entity)
     {
         if (!this.enable)

@@ -276,6 +276,18 @@ public class ActionManager
         }
     }
 
+    /**
+     * Take a region out of every snapshot. Block changes go into all of them (see
+     * {@link #changedBlock}), so a region only stays gone if it leaves all of them too.
+     */
+    public void forgetBlocks(BlockPos min, BlockPos max)
+    {
+        for (DamageControl control : this.dc.values())
+        {
+            control.forget(min, max);
+        }
+    }
+
     public void spawnedEntity(Entity entity)
     {
         for (DamageControl control : this.dc.values())

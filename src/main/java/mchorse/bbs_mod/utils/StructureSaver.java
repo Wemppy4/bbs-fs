@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.utils;
 
+import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.actions.ActionManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -118,6 +120,18 @@ public class StructureSaver
                     cleared += 1;
                 }
             }
+        }
+
+        /* Damage Control captures every setBlockState on the server while a film holds a snapshot,
+         * and puts them all back when the editor closes. That is right for what a film does to the
+         * world and wrong for this: a cut is an authoring edit, and restoring it would stand the
+         * build back up inside the form made from it. Dropped after the clear, so the region's
+         * earlier captures go with it — the cut is the last word on what is there. */
+        ActionManager actions = BBSMod.getActions();
+
+        if (actions != null)
+        {
+            actions.forgetBlocks(new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ));
         }
 
         return cleared;
