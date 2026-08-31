@@ -38,10 +38,26 @@ public class TrackStyle
     private static final int ARMOR_LEGS = 0x5698db;
     private static final int ARMOR_FEET = 0x407cc0;
 
-    static
+    /**
+     * Fills the tables. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to them.
+     */
+    public static void setup()
     {
         setupColors();
         setupIcons();
+    }
+
+    /**
+     * Gives a property of an addon's its own look on the timeline.
+     *
+     * <p>Keyed by the property's own name, the last segment of a track's address — the same
+     * way BBS keys its own, so the same thing wears the same colour wherever it appears.</p>
+     */
+    public static void register(String property, Icon icon, int color)
+    {
+        ICONS.put(property, icon);
+        COLORS.put(property, color & Colors.RGB);
     }
 
     private static void setupColors()

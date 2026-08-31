@@ -7,28 +7,37 @@ import mchorse.bbs_mod.utils.clips.Clip;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * How each kind of clip draws its strip on a timeline.
+ *
+ * <p>The registry is static because the object is not: a new one is made for every timeline
+ * that exists, and it used to fill itself in its constructor — so there was no one place an
+ * addon could have registered into even if it had been able to reach it.</p>
+ */
 public class UIClipRenderers
 {
-    private UIClipRenderer defaultRenderer;
+    private static final Map<Class, IUIClipRenderer> RENDERERS = new HashMap<>();
 
-    private Map<Class, IUIClipRenderer> renderers = new HashMap<>();
+    private final UIClipRenderer defaultRenderer = new UIClipRenderer();
 
-    public UIClipRenderers()
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     */
+    public static void setup()
     {
-        this.defaultRenderer = new UIClipRenderer();
-
-        this.register(AudioClientClip.class, new UIAudioClipRenderer());
-        this.register(VideoClientClip.class, new UIAudioClipRenderer());
+        register(AudioClientClip.class, new UIAudioClipRenderer());
+        register(VideoClientClip.class, new UIAudioClipRenderer());
     }
 
-    public void register(Class key, IUIClipRenderer renderer)
+    public static void register(Class key, IUIClipRenderer renderer)
     {
-        this.renderers.put(key, renderer);
+        RENDERERS.put(key, renderer);
     }
 
     public <T extends Clip> IUIClipRenderer<T> get(T clip)
     {
-        IUIClipRenderer renderer = this.renderers.get(clip.getClass());
+        IUIClipRenderer renderer = RENDERERS.get(clip.getClass());
 
         return renderer == null ? this.defaultRenderer : renderer;
     }

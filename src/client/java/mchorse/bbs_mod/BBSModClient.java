@@ -27,6 +27,15 @@ import mchorse.bbs_mod.api.BBSAddonMod;
 import mchorse.bbs_mod.api.client.events.BBSClientReadyEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterClipRenderersEvent;
+import mchorse.bbs_mod.api.client.events.RegisterFormSectionsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterImportersEvent;
+import mchorse.bbs_mod.api.client.events.RegisterKeybindsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterModelLoadersEvent;
+import mchorse.bbs_mod.api.client.events.RegisterTrackStylesEvent;
+import mchorse.bbs_mod.film.replays.tracks.TrackStyle;
+import mchorse.bbs_mod.importers.Importers;
+import mchorse.bbs_mod.ui.film.clips.renderer.UIClipRenderers;
 import mchorse.bbs_mod.api.client.events.RegisterFormEditorsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterFormRenderersEvent;
 import mchorse.bbs_mod.api.client.events.RegisterKeyframeEditorsEvent;
@@ -430,6 +439,11 @@ public class BBSModClient implements ClientModInitializer
 
         particles = new ParticleManager(() -> new File(BBSMod.getAssetsFolder(), "particles"));
 
+        /* Both of these are read by the objects made right below, and both lists are rebuilt
+         * on every asset reload — so the moment to add to them is before the first build. */
+        BBSMod.events.post(new RegisterModelLoadersEvent());
+        BBSMod.events.post(new RegisterFormSectionsEvent());
+
         models = new ModelManager(provider);
         formCategories = new FormCategories();
         screenshotRecorder = new ScreenshotRecorder(new File(parentFile, "screenshots"));
@@ -464,6 +478,8 @@ public class BBSModClient implements ClientModInitializer
         provider.register(new PlayerSkinSourcePack());
 
         KeybindSettings.registerClasses();
+
+        BBSMod.events.post(new RegisterKeybindsEvent());
 
         BBSMod.setupConfig(Icons.KEY_CAP, "keybinds", new File(BBSMod.getSettingsFolder(), "keybinds.json"), KeybindSettings::register);
 
@@ -565,6 +581,15 @@ public class BBSModClient implements ClientModInitializer
 
         UIValueMap.setup();
         BBSMod.events.post(new RegisterValueWidgetsEvent());
+
+        UIClipRenderers.setup();
+        BBSMod.events.post(new RegisterClipRenderersEvent());
+
+        TrackStyle.setup();
+        BBSMod.events.post(new RegisterTrackStylesEvent());
+
+        Importers.setup();
+        BBSMod.events.post(new RegisterImportersEvent());
 
         /* Keybinds */
         keyDashboard = this.createKey("dashboard", GLFW.GLFW_KEY_0);

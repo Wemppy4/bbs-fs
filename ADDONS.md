@@ -121,12 +121,18 @@ The client only, from `BBSModClient`:
 | Event | What it is for |
 | --- | --- |
 | `RegisterL10nEvent` | your own language files, before the first load |
+| `RegisterModelLoadersEvent` | your own model format |
+| `RegisterFormSectionsEvent` | your own tab in the form palette |
+| `RegisterKeybindsEvent` | your own key combos, as a class of them |
 | `RegisterClientSettingsEvent` | your own client settings |
 | `RegisterFormRenderersEvent` | how your forms draw |
 | `RegisterFormEditorsEvent` | how your forms are edited |
 | `RegisterClipPanelsEvent` | how your clips are edited |
 | `RegisterKeyframeEditorsEvent` | how your keyframe values are edited |
 | `RegisterValueWidgetsEvent` | how your settings value types are drawn |
+| `RegisterClipRenderersEvent` | how your clips draw their strip on a timeline |
+| `RegisterTrackStylesEvent` | the colour and icon of your track properties |
+| `RegisterImportersEvent` | what happens to a file of your type dragged into the assets |
 | `RegisterDashboardPanelsEvent` | your own dashboard panel (posted when the dashboard is first opened) |
 | `BBSClientReadyEvent` | the client half is registered |
 

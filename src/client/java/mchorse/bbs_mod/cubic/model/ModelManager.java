@@ -32,10 +32,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public class ModelManager implements IWatchDogListener
 {
     public static final String MODELS_PREFIX = "models/";
+
+    /**
+     * Model loaders an addon added.
+     *
+     * <p>Suppliers rather than loaders: the list is rebuilt from scratch on every asset
+     * reload, so anything added to it directly would survive exactly until the user saved a
+     * file in the assets folder.</p>
+     */
+    private static final List<Supplier<IModelLoader>> EXTRA_LOADERS = new ArrayList<>();
 
     /* Loaded models only (a concurrent map holds no nulls); which keys were ever queued lives
      * in {@link #requested} — both sides are touched by the render thread and the loader. */
@@ -63,6 +73,12 @@ public class ModelManager implements IWatchDogListener
         this.loaders.addAll(createLoaders());
     }
 
+    /** Teaches BBS to read a model format of an addon's. */
+    public static void registerLoader(Supplier<IModelLoader> loader)
+    {
+        EXTRA_LOADERS.add(loader);
+    }
+
     private static List<IModelLoader> createLoaders()
     {
         List<IModelLoader> loaders = new ArrayList<>();
@@ -71,6 +87,11 @@ public class ModelManager implements IWatchDogListener
         loaders.add(new CubicModelLoader());
         loaders.add(new GeoCubicModelLoader());
         loaders.add(new VoxModelLoader());
+
+        for (Supplier<IModelLoader> extra : EXTRA_LOADERS)
+        {
+            loaders.add(extra.get());
+        }
 
         return loaders;
     }

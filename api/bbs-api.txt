@@ -38,6 +38,11 @@ public class mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent {
     public mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent();
 }
 
+public class mchorse.bbs_mod.api.client.events.RegisterClipRenderersEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterClipRenderersEvent();
+    public void register(java.lang.Class<? extends mchorse.bbs_mod.utils.clips.Clip>, mchorse.bbs_mod.ui.film.clips.renderer.IUIClipRenderer);
+}
+
 public class mchorse.bbs_mod.api.client.events.RegisterDashboardPanelsEvent {
     public final mchorse.bbs_mod.ui.dashboard.UIDashboard dashboard;
     public mchorse.bbs_mod.api.client.events.RegisterDashboardPanelsEvent(mchorse.bbs_mod.ui.dashboard.UIDashboard);
@@ -53,6 +58,22 @@ public class mchorse.bbs_mod.api.client.events.RegisterFormRenderersEvent {
     public mchorse.bbs_mod.api.client.events.RegisterFormRenderersEvent();
 }
 
+public class mchorse.bbs_mod.api.client.events.RegisterFormSectionsEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterFormSectionsEvent();
+    public void register(java.util.function.Function<mchorse.bbs_mod.forms.FormCategories, mchorse.bbs_mod.forms.sections.FormSection>);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterImportersEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterImportersEvent();
+    public void register(mchorse.bbs_mod.importers.types.IImporter);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterKeybindsEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterKeybindsEvent();
+    public void register(java.lang.Class);
+    public void registerCategoryIcon(java.lang.String, mchorse.bbs_mod.ui.utils.icons.Icon);
+}
+
 public class mchorse.bbs_mod.api.client.events.RegisterKeyframeEditorsEvent {
     public <T> void register(mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory<T>, mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory$IUIKeyframeFactoryFactory<T>);
     public <T> void registerProperty(java.lang.String, mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory$IUIKeyframeFactoryFactory<T>);
@@ -62,6 +83,16 @@ public class mchorse.bbs_mod.api.client.events.RegisterKeyframeEditorsEvent {
 public class mchorse.bbs_mod.api.client.events.RegisterL10nEvent {
     public final mchorse.bbs_mod.l10n.L10n l10n;
     public mchorse.bbs_mod.api.client.events.RegisterL10nEvent(mchorse.bbs_mod.l10n.L10n);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterModelLoadersEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterModelLoadersEvent();
+    public void register(java.util.function.Supplier<mchorse.bbs_mod.cubic.model.loaders.IModelLoader>);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterTrackStylesEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterTrackStylesEvent();
+    public void register(java.lang.String, mchorse.bbs_mod.ui.utils.icons.Icon, int);
 }
 
 public class mchorse.bbs_mod.api.client.events.RegisterValueWidgetsEvent {
