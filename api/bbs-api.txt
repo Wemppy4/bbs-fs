@@ -33,6 +33,12 @@ public class mchorse.bbs_mod.api.client.events.FilmEvents {
     public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FilmEvents$Tick> TICK_BEFORE;
 }
 
+public class mchorse.bbs_mod.api.client.events.FormRenderEvents {
+    public mchorse.bbs_mod.api.client.events.FormRenderEvents();
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FormRenderEvents$Render> AFTER;
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FormRenderEvents$Render> BEFORE;
+}
+
 public class mchorse.bbs_mod.api.client.events.L10nReloadEvent {
     public final mchorse.bbs_mod.l10n.L10n l10n;
     public mchorse.bbs_mod.api.client.events.L10nReloadEvent(mchorse.bbs_mod.l10n.L10n);
@@ -104,6 +110,11 @@ public class mchorse.bbs_mod.api.client.events.RegisterModelLoadersEvent {
     public void register(java.util.function.Supplier<mchorse.bbs_mod.cubic.model.loaders.IModelLoader>);
 }
 
+public class mchorse.bbs_mod.api.client.events.RegisterPreviewOverlaysEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterPreviewOverlaysEvent();
+    public void register(java.util.function.Function<mchorse.bbs_mod.ui.film.UIFilmPreview, mchorse.bbs_mod.ui.framework.elements.UIElement>);
+}
+
 public class mchorse.bbs_mod.api.client.events.RegisterTrackStylesEvent {
     public mchorse.bbs_mod.api.client.events.RegisterTrackStylesEvent();
     public void register(java.lang.String, mchorse.bbs_mod.ui.utils.icons.Icon, int);
@@ -124,6 +135,11 @@ public class mchorse.bbs_mod.api.events.RegisterActionClipsEvent extends mchorse
 
 public class mchorse.bbs_mod.api.events.RegisterCameraClipsEvent extends mchorse.bbs_mod.api.events.BaseRegisterClipsEvent {
     public mchorse.bbs_mod.api.events.RegisterCameraClipsEvent(mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData>);
+}
+
+public class mchorse.bbs_mod.api.events.RegisterFormModifiersEvent {
+    public mchorse.bbs_mod.api.events.RegisterFormModifiersEvent();
+    public void register(java.util.function.Consumer<mchorse.bbs_mod.forms.forms.Form>);
 }
 
 public class mchorse.bbs_mod.api.events.RegisterFormsEvent {
@@ -153,6 +169,21 @@ public final class mchorse.bbs_mod.api.BBSApi {
     public static void requireVersion(java.lang.String, int);
 }
 
+public final class mchorse.bbs_mod.api.client.compat.ClientVanillaAccess {
+    public static net.minecraft.client.gl.Framebuffer getFramebuffer(net.minecraft.client.MinecraftClient);
+    public static void setFramebuffer(net.minecraft.client.MinecraftClient, net.minecraft.client.gl.Framebuffer);
+}
+
+public final class mchorse.bbs_mod.api.compat.VanillaAccess {
+    public static int getItemUseTimeLeft(net.minecraft.entity.LivingEntity);
+    public static int getRiptideTicks(net.minecraft.entity.LivingEntity);
+    public static net.minecraft.item.ItemStack getActiveItemStack(net.minecraft.entity.LivingEntity);
+    public static void setActiveItemStack(net.minecraft.entity.LivingEntity, net.minecraft.item.ItemStack);
+    public static void setItemUseTimeLeft(net.minecraft.entity.LivingEntity, int);
+    public static void setLivingFlag(net.minecraft.entity.LivingEntity, int, boolean);
+    public static void setRiptideTicks(net.minecraft.entity.LivingEntity, int);
+}
+
 public interface mchorse.bbs_mod.api.BBSAddonMod {
 }
 
@@ -176,6 +207,10 @@ public interface mchorse.bbs_mod.api.client.events.FilmEvents$Shutdown {
 
 public interface mchorse.bbs_mod.api.client.events.FilmEvents$Tick {
     public abstract void onFilmTick(mchorse.bbs_mod.film.BaseFilmController, int);
+}
+
+public interface mchorse.bbs_mod.api.client.events.FormRenderEvents$Render {
+    public abstract void onFormRender(mchorse.bbs_mod.forms.forms.Form, mchorse.bbs_mod.forms.renderers.FormRenderingContext);
 }
 
 public interface mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback {

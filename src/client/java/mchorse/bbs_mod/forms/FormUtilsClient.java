@@ -24,6 +24,7 @@ import mchorse.bbs_mod.forms.renderers.BlockFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ExtrudedFormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
+import mchorse.bbs_mod.api.client.events.FormRenderEvents;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.FramebufferFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ItemFormRenderer;
@@ -248,6 +249,8 @@ public class FormUtilsClient
         {
             currentForm.push(form);
 
+            FormRenderEvents.BEFORE.invoker().onFormRender(form, context);
+
             try
             {
                 renderer.render(context);
@@ -256,6 +259,10 @@ public class FormUtilsClient
             {
                 reportRenderFailure(form, e);
             }
+
+            /* After the catch, so a listener that pushed something in BEFORE still gets to
+             * pop it when the form's own renderer threw. */
+            FormRenderEvents.AFTER.invoker().onFormRender(form, context);
 
             currentForm.pop();
         }

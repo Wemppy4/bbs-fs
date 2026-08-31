@@ -52,6 +52,7 @@ import mchorse.bbs_mod.api.EventBus;
 import mchorse.bbs_mod.api.events.BBSReadyEvent;
 import mchorse.bbs_mod.api.events.RegisterActionClipsEvent;
 import mchorse.bbs_mod.api.events.RegisterCameraClipsEvent;
+import mchorse.bbs_mod.api.events.RegisterFormModifiersEvent;
 import mchorse.bbs_mod.api.events.RegisterFormsEvent;
 import mchorse.bbs_mod.api.events.RegisterKeyframeFactoriesEvent;
 import mchorse.bbs_mod.api.events.RegisterSettingsEvent;
@@ -441,6 +442,7 @@ public class BBSMod implements ModInitializer
             .register(Link.bbs("structure"), StructureForm.class, null);
 
         events.post(new RegisterFormsEvent(forms));
+        events.post(new RegisterFormModifiersEvent());
 
         films = new FilmManager(() -> new File(worldFolder, "bbs/films"));
 

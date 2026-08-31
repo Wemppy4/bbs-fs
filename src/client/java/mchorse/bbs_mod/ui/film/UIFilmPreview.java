@@ -54,9 +54,18 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class UIFilmPreview extends UIElement
 {
+    /**
+     * Layers an addon put over the preview.
+     *
+     * <p>Factories rather than elements: a preview is built anew every time a film editor is
+     * opened, and an element belongs to exactly one of them.</p>
+     */
+    private static final List<Function<UIFilmPreview, UIElement>> OVERLAYS = new ArrayList<>();
+
     private List<AudioClip> clips = new ArrayList<>();
     private UIFilmPanel panel;
     private UIPlacementGizmo placementGizmo;
@@ -253,6 +262,17 @@ public class UIFilmPreview extends UIElement
 
         this.icons.add(this.onionSkin, this.motionPath, this.teleport, this.flight, this.plause, this.control, this.perspective, this.recordReplay, this.recordVideo);
         this.add(this.icons);
+
+        for (Function<UIFilmPreview, UIElement> factory : OVERLAYS)
+        {
+            this.add(factory.apply(this));
+        }
+    }
+
+    /** Puts a layer of an addon's over the preview — one that takes the mouse, not just draws. */
+    public static void registerOverlay(Function<UIFilmPreview, UIElement> factory)
+    {
+        OVERLAYS.add(factory);
     }
 
     /**

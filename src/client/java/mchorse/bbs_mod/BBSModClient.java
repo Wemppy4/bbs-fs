@@ -34,6 +34,7 @@ import mchorse.bbs_mod.ui.film.FrameOverlays;
 import mchorse.bbs_mod.api.client.events.RegisterImportersEvent;
 import mchorse.bbs_mod.api.client.events.RegisterKeybindsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterModelLoadersEvent;
+import mchorse.bbs_mod.api.client.events.RegisterPreviewOverlaysEvent;
 import mchorse.bbs_mod.api.client.events.RegisterTrackStylesEvent;
 import mchorse.bbs_mod.film.replays.tracks.TrackStyle;
 import mchorse.bbs_mod.importers.Importers;
@@ -595,6 +596,8 @@ public class BBSModClient implements ClientModInitializer
 
         FrameOverlays.setup();
         BBSMod.events.post(new RegisterFrameOverlaysEvent());
+
+        BBSMod.events.post(new RegisterPreviewOverlaysEvent());
 
         /* Keybinds */
         keyDashboard = this.createKey("dashboard", GLFW.GLFW_KEY_0);
