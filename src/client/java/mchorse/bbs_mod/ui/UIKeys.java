@@ -1341,6 +1341,22 @@ public class UIKeys
     public static final IKey TEXTURES_PLAYER_SKIN_ERROR = L10n.lang("bbs.ui.textures.player_skin.error");
     public static final IKey TEXTURES_PLAYER_SKIN_REFRESH = L10n.lang("bbs.ui.textures.player_skin.refresh");
     public static final IKey TEXTURES_PLAYER_SKIN_TITLE = L10n.lang("bbs.ui.textures.player_skin-title");
+
+    /* Structure wand */
+    public static final IKey STRUCTURE_WAND_CORNER_A = L10n.lang("bbs.ui.structure_wand.corner_a");
+    public static final IKey STRUCTURE_WAND_CORNER_B = L10n.lang("bbs.ui.structure_wand.corner_b");
+    public static final IKey STRUCTURE_WAND_CLEAR = L10n.lang("bbs.ui.structure_wand.clear");
+    public static final IKey STRUCTURE_WAND_SAVE = L10n.lang("bbs.ui.structure_wand.save");
+    public static final IKey STRUCTURE_WAND_PUSH = L10n.lang("bbs.ui.structure_wand.push");
+    public static final IKey STRUCTURE_WAND_MOVE = L10n.lang("bbs.ui.structure_wand.move");
+    public static final IKey STRUCTURE_WAND_BLOCKS = L10n.lang("bbs.ui.structure_wand.blocks");
+    public static final IKey STRUCTURE_WAND_SAVED = L10n.lang("bbs.ui.structure_wand.saved");
+    public static final IKey STRUCTURE_WAND_SAVE_FAILED = L10n.lang("bbs.ui.structure_wand.save_failed");
+    public static final IKey STRUCTURE_WAND_SAVE_TITLE = L10n.lang("bbs.ui.structure_wand.save_title");
+    public static final IKey STRUCTURE_WAND_SAVE_NAME = L10n.lang("bbs.ui.structure_wand.save.name");
+    public static final IKey STRUCTURE_WAND_SAVE_RECENT = L10n.lang("bbs.ui.structure_wand.save.recent");
+    public static final IKey STRUCTURE_WAND_SAVE_TOO_BIG = L10n.lang("bbs.ui.structure_wand.save.too_big");
+    public static final IKey STRUCTURE_WAND_SAVE_INVALID = L10n.lang("bbs.ui.structure_wand.save.invalid");
     public static final IKey TEXTURES_DESELECT = L10n.lang("bbs.ui.textures.deselect");
     public static final IKey TEXTURES_EXPORT_OVERLAY_ERROR = L10n.lang("bbs.ui.textures.export_overlay.error");
     public static final IKey TEXTURES_EXPORT_OVERLAY_OPEN_FOLDER = L10n.lang("bbs.ui.textures.export_overlay.open_folder");

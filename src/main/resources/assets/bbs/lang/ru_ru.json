@@ -10,6 +10,9 @@
 	"block.bbs.chroma_white": "Белый хрома",
 	"item.bbs.gun": "ББС ружьё",
 	"item.bbs.structure_wand": "Палочка структур",
+	"item.bbs.structure_wand.tooltip.corners": "ЛКМ / ПКМ — углы A и B",
+	"item.bbs.structure_wand.tooltip.faces": "Колесо на грани — тянуть её, с шифтом — двигать область",
+	"item.bbs.structure_wand.tooltip.save": "Шифт + ПКМ — сохранить, шифт + ЛКМ — сбросить",
 	"itemGroup.bbs.main": "ББС мод",
 
 	"key.bbs.item_editor": "Редактор предметов",

@@ -8,7 +8,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.forms.structure.StructureManager;
+import mchorse.bbs_mod.forms.structure.StructureWand;
 import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.entity.IEntityFormProvider;
 import mchorse.bbs_mod.film.Film;
@@ -86,10 +86,19 @@ public class ClientNetwork
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_ANIMATION_STATE_MODEL_BLOCK_TRIGGER, (client, handler, buf, responseSender) -> handleAnimationStateModelBlockPacket(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_REFRESH_MODEL_BLOCKS, (client, handler, buf, responseSender) -> handleRefreshModelBlocksPacket(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_REQUEST_FILM_RESYNC, (client, handler, buf, responseSender) -> handleRequestFilmResync(client, buf));
-        ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_STRUCTURE_SAVED, (client, handler, buf, responseSender) -> StructureManager.invalidate());
+        ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_STRUCTURE_SAVED, (client, handler, buf, responseSender) -> handleStructureSaved(client, buf));
     }
 
     /* Handlers */
+
+    /** The server's answer to the wand: whether the file got written, and under which id. */
+    private static void handleStructureSaved(MinecraftClient client, PacketByteBuf buf)
+    {
+        boolean saved = buf.readBoolean();
+        String name = buf.readString();
+
+        client.execute(() -> StructureWand.onSaved(saved, name));
+    }
 
     private static void handleClientModelBlockPacket(MinecraftClient client, PacketByteBuf buf)
     {

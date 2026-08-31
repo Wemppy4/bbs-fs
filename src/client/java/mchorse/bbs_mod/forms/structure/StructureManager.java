@@ -40,8 +40,20 @@ public class StructureManager
     private static final Map<String, SoftReference<StructureRenderData>> CACHE = new HashMap<>();
     private static final Set<String> FAILED = new HashSet<>();
 
+    /**
+     * A structure that exists in memory only — the wand's region shown in the save dialog before
+     * there is a file. Kept apart from the cache so a save, which drops the cache, doesn't take the
+     * preview with it; the dialog clears it when it closes.
+     */
+    private static StructureRenderData preview;
+
     private static MinecraftServer lastServer;
     private static int generation;
+
+    public static void setPreview(StructureRenderData data)
+    {
+        preview = data;
+    }
 
     /**
      * Bumped every time the cache is dropped. Renderers keep their own derived state (parsed data,
@@ -136,6 +148,11 @@ public class StructureManager
     public static StructureRenderData get(String id)
     {
         checkServer();
+
+        if (preview != null && preview.id.equals(id))
+        {
+            return preview;
+        }
 
         if (id == null || id.isEmpty() || FAILED.contains(id))
         {

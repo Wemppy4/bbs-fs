@@ -1,23 +1,24 @@
 package mchorse.bbs_mod.ui.structures;
 
-import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
- * The one screen the structure wand opens: a name prompt and nothing else. It exists only because
- * overlays need a menu to live in — it shows the prompt as soon as it opens and closes itself
- * again the moment the prompt is done, whether the name was confirmed or dropped.
+ * The one screen the structure wand opens: the save dialog and nothing else. It exists only because
+ * overlays need a menu to live in — it shows the dialog as soon as it opens and closes itself
+ * again the moment the dialog is done, whether the save was confirmed or dropped.
  */
 public class UIStructureSaveMenu extends UIBaseMenu
 {
-    private final String name;
-    private final Consumer<String> callback;
+    private static final int WIDTH = 520;
+    private static final int HEIGHT = 300;
 
-    public UIStructureSaveMenu(String name, Consumer<String> callback)
+    private final String name;
+    private final BiConsumer<String, Boolean> callback;
+
+    public UIStructureSaveMenu(String name, BiConsumer<String, Boolean> callback)
     {
         this.name = name;
         this.callback = callback;
@@ -28,22 +29,11 @@ public class UIStructureSaveMenu extends UIBaseMenu
     {
         super.onOpen(oldMenu);
 
-        UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
-            L10n.lang("bbs.ui.structure_wand.save_title"),
-            L10n.lang("bbs.ui.structure_wand.save_message"),
-            (name) ->
-            {
-                if (name != null && !name.trim().isEmpty())
-                {
-                    this.callback.accept(name.trim());
-                }
-            }
-        );
+        UIStructureSavePanel panel = new UIStructureSavePanel(this.name, this.callback);
 
-        panel.text.setText(this.name);
         /* Confirmed or dismissed, there is nothing else on this screen to come back to */
         panel.onClose((e) -> this.closeThisMenu());
 
-        UIOverlay.addOverlay(this.context, panel, 240, 80);
+        UIOverlay.addOverlay(this.context, panel, WIDTH, HEIGHT);
     }
 }

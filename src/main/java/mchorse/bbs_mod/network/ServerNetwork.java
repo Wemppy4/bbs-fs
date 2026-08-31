@@ -139,10 +139,13 @@ public class ServerNetwork
 
         server.execute(() ->
         {
-            if (StructureSaver.save(player.getServerWorld(), name, from, to))
-            {
-                ServerPlayNetworking.send(player, CLIENT_STRUCTURE_SAVED, PacketByteBufs.create());
-            }
+            boolean saved = StructureSaver.save(player.getServerWorld(), name, from, to);
+            PacketByteBuf reply = PacketByteBufs.create();
+
+            reply.writeBoolean(saved);
+            reply.writeString(name);
+
+            ServerPlayNetworking.send(player, CLIENT_STRUCTURE_SAVED, reply);
         });
     }
 
