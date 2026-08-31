@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms;
 
+import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
@@ -28,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class FormUtils
 {
+    private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
+
     public static final String PATH_SEPARATOR = "/";
 
     public static boolean isPoseProperty(String name)
@@ -139,12 +142,23 @@ public class FormUtils
 
     public static Form fromData(MapType data)
     {
+        if (data == null)
+        {
+            return null;
+        }
+
         try
         {
-            return data == null ? null : BBSMod.getForms().fromData(data);
+            return BBSMod.getForms().fromData(data);
         }
         catch (Exception e)
-        {}
+        {
+            /* A form id this build has no class for comes back as a stand-in now (see
+             * UnknownForm), so what reaches here is data that is genuinely broken. That still
+             * ends in a lost form — but it no longer ends in silence, which is how a
+             * switched-off addon used to eat a scene. */
+            LOGGER.error("Failed to read a form out of {}!", data, e);
+        }
 
         return null;
     }

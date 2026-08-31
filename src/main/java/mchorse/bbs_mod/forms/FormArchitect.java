@@ -3,6 +3,7 @@ package mchorse.bbs_mod.forms;
 import mchorse.bbs_mod.data.migration.FormStableIds;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.UnknownForm;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.factory.MapFactory;
 
@@ -29,6 +30,12 @@ public class FormArchitect extends MapFactory<Form, Void>
         }
 
         return super.fromData(data);
+    }
+
+    @Override
+    public Form createUnknown(Link type, MapType data)
+    {
+        return new UnknownForm(type);
     }
 
     public boolean has(MapType data)

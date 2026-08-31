@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.utils.clips;
 
+import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
 import mchorse.bbs_mod.camera.data.Point;
@@ -18,6 +19,8 @@ import java.util.List;
 
 public class Clips extends ValueGroup
 {
+    private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
+
     private List<Clip> clips = new ArrayList<>();
     private IFactory<Clip, ClipFactoryData> factory;
 
@@ -355,9 +358,21 @@ public class Clips extends ValueGroup
                 continue;
             }
 
+            MapType map = type.asMap();
+
+            /* The circular clip was replaced by the keyframe one, so its data is converted rather
+             * than read. It is caught here, before the factory is asked for a type that was never
+             * registered and would now answer with a stand-in instead of an exception. */
+            if (map.getString("type").equalsIgnoreCase("bbs:circular"))
+            {
+                this.clips.add(readCircular(map));
+
+                continue;
+            }
+
             try
             {
-                Clip clip = this.factory.fromData(type.asMap());
+                Clip clip = this.factory.fromData(map);
 
                 if (clip != null)
                 {
@@ -366,30 +381,33 @@ public class Clips extends ValueGroup
             }
             catch (Exception e)
             {
-                MapType map = type.asMap();
-
-                if (map.getString("type").equalsIgnoreCase("bbs:circular"))
-                {
-                    KeyframeClip clip = new KeyframeClip();
-                    Point point = new Point(0D, 0D, 0D);
-
-                    point.fromData(map.getMap("start"));
-                    clip.fromData(map);
-                    clip.x.insert(0F, point.x);
-                    clip.y.insert(0F, point.y);
-                    clip.z.insert(0F, point.z);
-                    clip.yaw.insert(0F, (double) map.getFloat("start"));
-                    clip.yaw.insert(clip.duration.get(), (double) map.getFloat("start") + (double) map.getFloat("circles"));
-                    clip.pitch.insert(0F, (double) map.getFloat("pitch"));
-                    clip.roll.insert(0F, 0D);
-                    clip.fov.insert(0F, (double) map.getFloat("fov"));
-                    clip.distance.insert(0F, (double) map.getFloat("distance"));
-
-                    this.clips.add(clip);
-                }
+                /* An unknown clip type is no longer an exception — it comes back as a stand-in
+                 * holding its data. What is left here is data that is actually broken, and the
+                 * one clip is dropped rather than the whole film, but not quietly. */
+                LOGGER.error("Failed to read a clip out of {}!", map, e);
             }
         }
 
         this.sync();
+    }
+
+    private static Clip readCircular(MapType map)
+    {
+        KeyframeClip clip = new KeyframeClip();
+        Point point = new Point(0D, 0D, 0D);
+
+        point.fromData(map.getMap("start"));
+        clip.fromData(map);
+        clip.x.insert(0F, point.x);
+        clip.y.insert(0F, point.y);
+        clip.z.insert(0F, point.z);
+        clip.yaw.insert(0F, (double) map.getFloat("start"));
+        clip.yaw.insert(clip.duration.get(), (double) map.getFloat("start") + (double) map.getFloat("circles"));
+        clip.pitch.insert(0F, (double) map.getFloat("pitch"));
+        clip.roll.insert(0F, 0D);
+        clip.fov.insert(0F, (double) map.getFloat("fov"));
+        clip.distance.insert(0F, (double) map.getFloat("distance"));
+
+        return clip;
     }
 }

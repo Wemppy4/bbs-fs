@@ -36,6 +36,7 @@ run_server/
 
 # java
 
+logs/
 hs_err_*.log
 replay_*.log
 *.hprof

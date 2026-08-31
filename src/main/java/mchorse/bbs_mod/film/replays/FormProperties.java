@@ -24,9 +24,11 @@ import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -49,6 +51,16 @@ public class FormProperties extends ValueGroup
     private static final String TRACKS = "tracks";
 
     public final Map<TrackId, KeyframeChannel> tracks = new LinkedHashMap<>();
+
+    /**
+     * Tracks that were read but could not be understood — an unknown kind, or a channel whose
+     * value factory this build does not have. Both mean an addon that is not loaded.
+     *
+     * <p>They are kept verbatim and written back out on save. Dropping them was worse than it
+     * looked: opening a film once without the addon and saving it took the animation with it,
+     * and nothing said so.</p>
+     */
+    private final List<MapType> foreignTracks = new ArrayList<>();
 
     public FormProperties(String id)
     {
@@ -334,6 +346,11 @@ public class FormProperties extends ValueGroup
             list.add(data);
         }
 
+        for (MapType foreign : this.foreignTracks)
+        {
+            list.add(foreign.copy());
+        }
+
         MapType map = new MapType();
 
         map.put(TRACKS, list);
@@ -346,6 +363,7 @@ public class FormProperties extends ValueGroup
     {
         this.removeAll();
         this.tracks.clear();
+        this.foreignTracks.clear();
 
         if (!data.isMap())
         {
@@ -378,6 +396,8 @@ public class FormProperties extends ValueGroup
 
             if (kind == null)
             {
+                this.foreignTracks.add((MapType) data.copy());
+
                 continue;
             }
 
@@ -387,14 +407,44 @@ public class FormProperties extends ValueGroup
             channel.fromData(data.getMap("channel"));
 
             /* The factory is written next to the keyframes; a channel saved with one this build no
-             * longer knows can't be read at all, and is dropped rather than kept half-alive. */
+             * longer knows can't be read at all, so the track is kept as data rather than as a
+             * half-alive channel. */
             if (channel.getFactory() == null)
             {
+                this.foreignTracks.add((MapType) data.copy());
+
                 continue;
             }
 
             this.put(track, channel);
         }
+    }
+
+    /** The saved shape of one track, for a channel that could not be turned into one. */
+    private static MapType toForeignTrack(TrackId track, MapType channel)
+    {
+        MapType data = new MapType();
+
+        data.putString("kind", track.kind().key);
+
+        if (!track.formPath().isEmpty())
+        {
+            data.putString("form", track.formPath());
+        }
+
+        if (!track.subject().isEmpty())
+        {
+            data.putString("subject", track.subject());
+        }
+
+        if (!track.property().isEmpty())
+        {
+            data.putString("prop", track.property());
+        }
+
+        data.put("channel", channel.copy());
+
+        return data;
     }
 
     /**
@@ -468,6 +518,11 @@ public class FormProperties extends ValueGroup
 
             if (channel.getFactory() == null)
             {
+                /* The legacy format has no place to keep an unreadable channel, so the track
+                 * is written out in the current one instead — the address parsed fine, it is
+                 * only the value type that this build has no factory for. */
+                this.foreignTracks.add(toForeignTrack(track, mapType));
+
                 continue;
             }
 
