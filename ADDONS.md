@@ -161,3 +161,70 @@ switched off: BBS keeps unknown namespaced keys, unknown forms, unknown clips an
 verbatim and writes them back out unchanged, so a user who removes your addon for an evening still
 has their scene when they put it back. An un-namespaced key of yours is indistinguishable from one
 of BBS's own that was removed, and is dropped on save.
+
+## Adding to forms you did not write
+
+`RegisterFormModifiersEvent` runs a step of yours on every form BBS makes:
+
+```java
+event.register((form) -> form.add(new ValueFloat("myaddon:wobble", 0F)));
+```
+
+Everything else follows from the value existing. It is saved and read like any other; the timeline
+finds a track for it, because the track catalogue walks a form's values rather than a list of
+names; its keyframes work, because the value carries its own factory. Give the track a colour with
+`RegisterTrackStylesEvent` if you care how it looks.
+
+The palette's forms are templates and are built directly, so they are not modified. Everything
+that lands in a scene is copied, and a copy is read through the factory — so what a user actually
+animates always has your value.
+
+## The life of a film
+
+`FilmEvents` has the four moments a scene has: `CREATED`, `TICK_BEFORE`, `TICK_AFTER`,
+`RENDER_AFTER`, `SHUTDOWN`. `FormRenderEvents.BEFORE` and `.AFTER` wrap the drawing of one form —
+every form, anywhere BBS draws one.
+
+These are plain Fabric events, not the addon bus: two of them run every tick and every frame, and
+the bus finds its subscribers by reflection. Register your listeners once, from `BBSReadyEvent` or
+`BBSClientReadyEvent`.
+
+Whatever you build in `CREATED`, let go in `SHUTDOWN`. A listener that skips it leaks for the rest
+of the session. Every controller comes through — the film playing in the world, the editor's
+preview, the recorder — so ask the controller which it is when that matters.
+
+`BBSModClient.getFilms().getControllers()` lists the films playing right now.
+
+## Vanilla fields BBS widened
+
+BBS widens access to a handful of vanilla fields (the ones the item-model predicates read, and the
+game's framebuffer). An access widener applies only to the mod that declares it, so yours would
+need a second copy of BBS's — and two copies drift. Call
+`mchorse.bbs_mod.api.compat.VanillaAccess` and `…api.client.compat.ClientVanillaAccess` instead;
+a method needs no widener.
+
+## A worked example
+
+[`docs/addon-template`](docs/addon-template) is a complete, buildable addon: entry points on both
+sides, a version check, its own assets source, a form built on top of one of BBS's, a value added
+to every form, a settings category, a track style and film listeners. Its `build.gradle` also
+carries the Loom cache workaround described above.
+
+Build it with BBS's own wrapper:
+
+```
+gradlew publishToMavenLocal          # in the BBS repository
+gradlew -p docs/addon-template build
+```
+
+## What is still a mixin
+
+Honest list of what the API does not cover yet, so nobody hunts for a method that isn't there:
+
+- **Audio.** A clip that plays sound extends `AudioClip`; there is no interface for it, because
+  the audio path — the renderer, the export, the waveform on the timeline — is written against
+  that class. This is what `VideoClip` does.
+- **Track kinds.** The kinds of track a film can animate are an enum. An addon's own kind of track
+  (as opposed to its own animated property, which the modifier above covers) has no way in yet.
+- **Adding a tab to someone else's editor panel.** A form's panels are registered on the form's
+  own editor; there is no hook to add one to a form you did not write.
