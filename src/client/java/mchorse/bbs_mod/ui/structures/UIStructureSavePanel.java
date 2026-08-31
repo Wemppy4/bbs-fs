@@ -7,6 +7,7 @@ import mchorse.bbs_mod.forms.structure.StructurePreview;
 import mchorse.bbs_mod.forms.structure.StructureRenderData;
 import mchorse.bbs_mod.forms.structure.StructureSelection;
 import mchorse.bbs_mod.forms.structure.StructureWand;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -19,6 +20,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -51,6 +53,7 @@ public class UIStructureSavePanel extends UIOverlayPanel
     public UITrackpad bz;
     public UIToggle recent;
     public UIButton save;
+    public UILabel hint;
 
     private final UIElement column;
     private final StructureForm form = new StructureForm();
@@ -72,9 +75,12 @@ public class UIStructureSavePanel extends UIOverlayPanel
         this.renderer.form = this.form;
         this.renderer.setRotation(-35, 22);
 
-        this.name = new UITextbox(100, (t) -> {});
+        this.name = new UITextbox(100, (t) -> this.updateHint());
         this.name.placeholder(UIKeys.STRUCTURE_WAND_SAVE_NAME);
         this.name.setText(name);
+
+        this.hint = new UILabel(IKey.EMPTY, Colors.LIGHTER_GRAY);
+        this.hint.h(this.getFont().getHeight());
 
         this.ax = this.corner(StructureWand.COLOR_A);
         this.ay = this.corner(StructureWand.COLOR_A);
@@ -94,7 +100,7 @@ public class UIStructureSavePanel extends UIOverlayPanel
         b.h(UIConstants.CONTROL_HEIGHT);
 
         this.column = UI.column(5,
-            this.name,
+            this.name, this.hint,
             UI.label(UIKeys.STRUCTURE_WAND_CORNER_A, label, StructureWand.COLOR_A).marginTop(6), a,
             UI.label(UIKeys.STRUCTURE_WAND_CORNER_B, label, StructureWand.COLOR_B).marginTop(6), b,
             this.recent.marginTop(6)
@@ -107,6 +113,7 @@ public class UIStructureSavePanel extends UIOverlayPanel
         this.content.add(this.renderer, this.column, this.save);
 
         this.fill();
+        this.updateHint();
         this.rebuildPreview();
     }
 
@@ -221,14 +228,30 @@ public class UIStructureSavePanel extends UIOverlayPanel
         return name.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replaceAll("[^a-z0-9/._:-]", "");
     }
 
+    /**
+     * The line under the field: the id the name will actually become, or why it can't become one.
+     *
+     * <p>A structure is addressed by an {@link Identifier}, and those hold nothing but
+     * {@code a-z 0-9 _ - . /} — a Cyrillic name has no id to turn into, and no amount of our
+     * cleverness changes that. So it is said plainly, as it is typed, instead of the field
+     * quietly emptying itself on save.</p>
+     */
+    private void updateHint()
+    {
+        String id = sanitize(this.name.getText());
+        boolean ok = !id.isEmpty() && Identifier.tryParse(id) != null;
+
+        this.hint.label = ok ? IKey.constant(id) : UIKeys.STRUCTURE_WAND_SAVE_INVALID;
+        this.hint.color = ok ? Colors.LIGHTER_GRAY : Colors.NEGATIVE;
+    }
+
     private void save()
     {
         String name = sanitize(this.name.getText());
 
-        this.name.setText(name);
-
         if (name.isEmpty() || Identifier.tryParse(name) == null)
         {
+            /* What they typed stays: it is theirs, and the hint below already says what is wrong */
             this.getContext().notifyError(UIKeys.STRUCTURE_WAND_SAVE_INVALID);
             this.getContext().focus(this.name);
 

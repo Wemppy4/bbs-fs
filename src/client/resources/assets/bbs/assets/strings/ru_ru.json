@@ -1157,7 +1157,7 @@
 	"bbs.ui.structure_wand.save.name": "Имя структуры...",
 	"bbs.ui.structure_wand.save.recent": "Форму в «Недавние»",
 	"bbs.ui.structure_wand.save.too_big": "Слишком большая для предпросмотра — сохранится как есть",
-	"bbs.ui.structure_wand.save.invalid": "В имени можно только a-z, 0-9, _ - . /",
+	"bbs.ui.structure_wand.save.invalid": "Только латиница: a-z, 0-9, _ - . / — ограничение Minecraft на id структур",
 	"bbs.ui.forms.editors.structure.title": "Структура",
 	"bbs.ui.forms.editors.structure.pick_structure": "Выбрать структуру...",
 	"bbs.ui.forms.editors.structure.pick_biome": "Выбрать биом...",

@@ -1161,7 +1161,7 @@
 	"bbs.ui.structure_wand.save.name": "Structure name...",
 	"bbs.ui.structure_wand.save.recent": "A form into Recent",
 	"bbs.ui.structure_wand.save.too_big": "Too big to preview — it is saved all the same",
-	"bbs.ui.structure_wand.save.invalid": "Only a-z, 0-9, _ - . / can be in the name",
+	"bbs.ui.structure_wand.save.invalid": "Latin only: a-z, 0-9, _ - . / — a Minecraft limit on structure ids",
 	"bbs.ui.forms.editors.structure.title": "Structure",
 	"bbs.ui.forms.editors.structure.pick_structure": "Pick structure...",
 	"bbs.ui.forms.editors.structure.pick_biome": "Pick biome...",
