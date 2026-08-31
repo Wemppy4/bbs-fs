@@ -23,6 +23,7 @@ import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.graphics.window.Window;
@@ -688,6 +689,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
                 UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
 
                 ModelForm poseModelForm = sheet == null ? null : sheet.getPoseForm();
+                IPosedForm posedForm = sheet == null ? null : sheet.getPosedForm();
 
                 if (poseModelForm != null)
                 {
@@ -712,16 +714,19 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
                         }
                     });
 
-                    if (sheet.selection.hasAny() && poseModelForm.boneTracks.get())
-                    {
-                        menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
-                        {
-                            UIReplaysEditorUtils.posesToLimbTracks(this.replay, sheet, poseModelForm);
+                }
 
-                            sheet.selection.removeSelected();
-                            this.updateChannelsList();
-                        });
-                    }
+                /* Not gated on a MODEL form: baking a pose into per-bone tracks is a pose
+                 * operation, and a mob form has a skeleton to bake onto just the same. */
+                if (posedForm != null && sheet.selection.hasAny() && posedForm.hasBoneTracks())
+                {
+                    menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
+                    {
+                        UIReplaysEditorUtils.posesToLimbTracks(this.replay, sheet, posedForm);
+
+                        sheet.selection.removeSelected();
+                        this.updateChannelsList();
+                    });
                 }
 
                 if (this.replay.form.get() instanceof ModelForm modelForm)
@@ -989,7 +994,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 
     private void pickFormBone(Form form, String bone, boolean insert)
     {
-        if (form instanceof ModelForm && bone != null && !bone.isEmpty())
+        if (form instanceof IPosedForm && bone != null && !bone.isEmpty())
         {
             if (this.allMode)
             {

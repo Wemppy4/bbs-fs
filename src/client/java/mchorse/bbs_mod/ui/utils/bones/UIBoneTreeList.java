@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.ui.utils.bones;
 
-import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -140,7 +140,7 @@ public class UIBoneTreeList extends UIStringList
      * Set only the hierarchy metadata from a model, leaving the list contents to the
      * host. Passing a null model clears the metadata (every row renders flat).
      */
-    public void setHierarchy(IModel model, Predicate<String> hidden)
+    public void setHierarchy(IBoneHierarchy model, Predicate<String> hidden)
     {
         this.metas.clear();
 
@@ -155,7 +155,7 @@ public class UIBoneTreeList extends UIStringList
      * bone's children stay visible and take over its depth, mirroring how the flat
      * lists used to just remove disabled bones from the hierarchy-ordered key list.
      */
-    public void fillBones(IModel model, Collection<String> hidden)
+    public void fillBones(IBoneHierarchy model, Collection<String> hidden)
     {
         this.clear();
         this.metas.clear();
@@ -172,7 +172,7 @@ public class UIBoneTreeList extends UIStringList
 
     /**
      * Fill with a plain list of bone names, no hierarchy — the fallback for forms
-     * whose bones don't come from an {@link IModel} (e.g. mob forms' model parts).
+     * whose bones don't come from a rig at all.
      */
     public void fillFlat(Collection<String> bones)
     {
@@ -223,7 +223,7 @@ public class UIBoneTreeList extends UIStringList
     /* Building the intermediate node tree */
 
     /** A bone (and its visible subtree); a hidden bone dissolves into its children in place. */
-    private static List<Node> boneNodes(IModel model, Collection<String> bones, Predicate<String> hidden)
+    private static List<Node> boneNodes(IBoneHierarchy model, Collection<String> bones, Predicate<String> hidden)
     {
         List<Node> nodes = new ArrayList<>();
 
@@ -292,7 +292,7 @@ public class UIBoneTreeList extends UIStringList
         return new ArrayList<>(List.of(node));
     }
 
-    private static List<Node> formBoneNodes(Form owner, IModel model, Collection<String> bones, String formPath, Set<String> keys)
+    private static List<Node> formBoneNodes(Form owner, IBoneHierarchy model, Collection<String> bones, String formPath, Set<String> keys)
     {
         List<Node> nodes = new ArrayList<>();
 

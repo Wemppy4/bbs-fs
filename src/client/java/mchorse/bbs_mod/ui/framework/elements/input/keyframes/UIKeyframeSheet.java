@@ -5,6 +5,7 @@ import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
@@ -141,6 +142,15 @@ public class UIKeyframeSheet
      */
     public ModelForm getPoseForm()
     {
+        return this.getPosedForm() instanceof ModelForm modelForm ? modelForm : null;
+    }
+
+    /**
+     * The same track, without narrowing to a model form — a mob form poses a skeleton too, and
+     * everything that works on a pose track rather than on a MODEL asks for this one.
+     */
+    public IPosedForm getPosedForm()
+    {
         boolean isPose = this.channel.getFactory() == KeyframeFactories.POSE
             && (this.id.equals("pose") || this.id.endsWith(FormUtils.PATH_SEPARATOR + "pose"))
             && !this.id.contains("pose_overlay");
@@ -150,7 +160,7 @@ public class UIKeyframeSheet
             return null;
         }
 
-        return FormUtils.getForm(this.property) instanceof ModelForm modelForm ? modelForm : null;
+        return FormUtils.getForm(this.property) instanceof IPosedForm posedForm ? posedForm : null;
     }
 
     /** The key this track is identified by in the global filters and in the user's name/colour overrides. */

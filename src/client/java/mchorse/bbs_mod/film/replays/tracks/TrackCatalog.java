@@ -13,7 +13,11 @@ import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
+import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
 import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -36,6 +40,7 @@ import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -142,9 +147,15 @@ public class TrackCatalog
             ModelInstance model = ModelFormRenderer.getModel(modelForm);
 
             materials(modelForm, model, path, properties, out);
-            bones(modelForm, model, path, properties, out);
+            bones(modelForm, model == null ? null : model.model, model == null ? null : model.getDisabledBones(), path, properties, out);
             ik(modelForm, model, path, properties, out);
             physics(modelForm, path, properties, out);
+        }
+        else if (form instanceof MobForm mobForm)
+        {
+            /* A mob form poses the vanilla model's parts, and those are a skeleton like any
+             * other - no disabled-bone config behind them, and no per-bone constraints. */
+            bones(mobForm, MobFormRenderer.getRig(mobForm), null, path, properties, out);
         }
 
         /* By the part's stable id, never by its position: the address a track is stored under is
@@ -276,14 +287,15 @@ public class TrackCatalog
 
     /* Bones */
 
-    private static void bones(ModelForm modelForm, ModelInstance model, String path, FormProperties properties, List<TrackDescriptor> out)
+    private static void bones(IPosedForm posedForm, IBoneHierarchy iModel, Collection<String> disabledBones, String path, FormProperties properties, List<TrackDescriptor> out)
     {
-        if (!modelForm.boneTracks.get() || model == null)
+        if (!posedForm.hasBoneTracks() || iModel == null)
         {
             return;
         }
 
-        IModel iModel = model.model;
+        Form owner = (Form) posedForm;
+        ModelForm modelForm = posedForm instanceof ModelForm m ? m : null;
         TrackId pose = TrackId.property(path, FormProperties.POSE_PROPERTY);
         Map<String, Integer> parentToColor = new HashMap<>();
         Set<String> shown = new HashSet<>();
@@ -291,7 +303,7 @@ public class TrackCatalog
 
         for (String bone : iModel.getGroupKeysInHierarchyOrder())
         {
-            if (PoseBones.isHidden(model.getDisabledBones(), bone))
+            if (PoseBones.isHidden(disabledBones, bone))
             {
                 continue;
             }
@@ -312,11 +324,14 @@ public class TrackCatalog
 
             /* No icon: a skeleton is most of the rows in the timeline, and the same limb icon on every
              * one of them is a column of noise. Their colour already groups them by parent. */
-            out.add(new TrackDescriptor(id, channel(properties, id), modelForm, IKey.constant(title),
+            out.add(new TrackDescriptor(id, channel(properties, id), owner, IKey.constant(title),
                 null, color, new ValueTransform(id.toKey(), new PoseTransform()))
                 .under(ancestor == null ? pose : TrackId.bone(path, ancestor)));
 
-            boneConstraint(modelForm, path, bone, id, color, properties, out);
+            if (modelForm != null)
+            {
+                boneConstraint(modelForm, path, bone, id, color, properties, out);
+            }
         }
     }
 
@@ -353,7 +368,7 @@ public class TrackCatalog
      * row, so its children would have nothing to hang off; they attach to its nearest shown ancestor
      * instead of falling out of the tree.
      */
-    private static String nearestShown(IModel model, Set<String> shown, String bone)
+    private static String nearestShown(IBoneHierarchy model, Set<String> shown, String bone)
     {
         String current = bone;
 

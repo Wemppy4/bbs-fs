@@ -7,7 +7,7 @@ import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -349,12 +349,12 @@ public class UIKeyframePreviewTooltip implements ITooltip
          * matching FormProperties.applyProperty */
         TrackId path = TrackId.parse(sheet.id, TrackKind.BONE);
 
-        if (path == null || !(copy instanceof ModelForm modelForm) || !(value instanceof Transform boneValue))
+        if (path == null || !(copy instanceof IPosedForm posedForm) || !(value instanceof Transform boneValue))
         {
             return null;
         }
 
-        Pose pose = modelForm.pose.get();
+        Pose pose = posedForm.getPose().get();
         PoseTransform transform = pose.transforms.get(path.subject());
 
         if (transform == null)

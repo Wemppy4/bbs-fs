@@ -21,6 +21,7 @@
         "ClientPlayerEntityFilmUseMixin",
         "LivingEntityUpdateMixin",
         "LivingEntityRendererMixin",
+        "ModelPartMixin",
         "iris.SystemTimeUniformsTimerMixin",
         "InGameHudMixin",
         "KeyboardMixin",

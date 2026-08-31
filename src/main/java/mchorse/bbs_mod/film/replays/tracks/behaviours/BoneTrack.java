@@ -5,7 +5,7 @@ import mchorse.bbs_mod.film.replays.tracks.TrackBlend;
 import mchorse.bbs_mod.film.replays.tracks.TrackContext;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.forms.FormUtils;
-import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
@@ -14,7 +14,7 @@ import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
 
 /**
- * One bone of a model form's pose. Its transform is added onto whatever the pose already holds, so
+ * One bone of a posed form's pose. Its transform is added onto whatever the pose already holds, so
  * a bone track layers over the form's own pose and over the form's whole-pose track — several
  * tracks can drive the same bone and they sum.
  */
@@ -29,7 +29,7 @@ public class BoneTrack implements TrackBehaviour
     @Override
     public void apply(TrackContext context, TrackId track, KeyframeChannel channel, float tick, float blend)
     {
-        if (!(FormUtils.getForm(context.root(), track.formPath()) instanceof ModelForm modelForm))
+        if (!(FormUtils.getForm(context.root(), track.formPath()) instanceof IPosedForm posedForm))
         {
             return;
         }
@@ -42,12 +42,12 @@ public class BoneTrack implements TrackBehaviour
         }
 
         /* Copy on write */
-        if (modelForm.pose.getRuntimeValue() == null)
+        if (posedForm.getPose().getRuntimeValue() == null)
         {
-            modelForm.pose.setRuntimeValue(modelForm.pose.getOriginalValue().copy());
+            posedForm.getPose().setRuntimeValue(posedForm.getPose().getOriginalValue().copy());
         }
 
-        PoseTransform transform = modelForm.pose.get().getOrCreate(track.subject());
+        PoseTransform transform = posedForm.getPose().get().getOrCreate(track.subject());
 
         transform.add((Transform) TrackBlend.value(channel, new PoseTransform(), segment, blend));
     }

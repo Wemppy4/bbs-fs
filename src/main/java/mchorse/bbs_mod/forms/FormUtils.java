@@ -6,6 +6,7 @@ import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.states.AnimationState;
@@ -76,16 +77,15 @@ public class FormUtils
         Form form = getForm(editedTrack);
         List<ValuePose> tracks = new ArrayList<>();
 
-        if (form instanceof ModelForm modelForm)
+        if (form instanceof IPosedForm posedForm)
         {
-            tracks.add(modelForm.pose);
-            tracks.add(modelForm.poseOverlay);
-            tracks.addAll(modelForm.additionalOverlays);
-        }
-        else if (form instanceof MobForm mobForm)
-        {
-            tracks.add(mobForm.pose);
-            tracks.add(mobForm.poseOverlay);
+            tracks.add(posedForm.getPose());
+            tracks.add(posedForm.getPoseOverlay());
+
+            if (form instanceof ModelForm modelForm)
+            {
+                tracks.addAll(modelForm.additionalOverlays);
+            }
         }
         else
         {

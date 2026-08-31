@@ -4,6 +4,8 @@ import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
+import mchorse.bbs_mod.forms.renderers.mob.MobRig;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
@@ -55,10 +57,20 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
         else if (FormUtils.getForm(sheet.property) instanceof MobForm mobForm)
         {
-            List<String> bones = FormUtilsClient.getRenderer(mobForm).getBones();
+            MobRig rig = MobFormRenderer.getRig(mobForm);
 
-            this.poseEditor.setPose(keyframe.getValue(), "");
-            this.poseEditor.fillGroups(bones, false);
+            this.poseEditor.setPose(keyframe.getValue(), mobForm.mobID.get());
+
+            if (rig == null)
+            {
+                this.poseEditor.fillGroups(FormUtilsClient.getRenderer(mobForm).getBones(), false);
+            }
+            else
+            {
+                /* No flipped-parts table: vanilla part names are already left_/right_, which is
+                 * exactly what Pose's own mirror rule matches. */
+                this.poseEditor.fillGroups(rig, null, false, null);
+            }
         }
 
         this.scroll.add(this.poseEditor);

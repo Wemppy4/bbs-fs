@@ -10,6 +10,7 @@ import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.settings.values.base.BaseKeyframeFactoryValue;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
@@ -236,9 +237,9 @@ public class FormProperties extends ValueGroup
                 continue;
             }
 
-            if (!this.has(TrackId.property(formPath, POSE_PROPERTY)) && FormUtils.getForm(context.root(), formPath) instanceof ModelForm modelForm)
+            if (!this.has(TrackId.property(formPath, POSE_PROPERTY)) && FormUtils.getForm(context.root(), formPath) instanceof IPosedForm posedForm)
             {
-                modelForm.pose.setRuntimeValue(null);
+                posedForm.getPose().setRuntimeValue(null);
             }
         }
 

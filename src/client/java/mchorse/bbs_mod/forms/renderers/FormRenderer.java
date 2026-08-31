@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.forms.renderers;
 
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
@@ -48,6 +49,17 @@ public abstract class FormRenderer <T extends Form>
     public List<String> getBones()
     {
         return Collections.emptyList();
+    }
+
+    /**
+     * The shape of this form's skeleton, or null when it has none. The one question the bone
+     * widgets ask a form - the tree list, the pose editor's bone column, the bone picker menus -
+     * so they no longer have to know whether they are looking at a cubic model, a BOBJ armature or
+     * a vanilla entity model.
+     */
+    public IBoneHierarchy getBoneHierarchy()
+    {
+        return null;
     }
 
     public final void renderUI(UIContext context, int x1, int y1, int x2, int y2)

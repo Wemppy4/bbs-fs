@@ -6,6 +6,7 @@ import mchorse.bbs_mod.forms.forms.AnchorForm;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.forms.BlockForm;
 import mchorse.bbs_mod.forms.forms.ExtrudedForm;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
 import mchorse.bbs_mod.forms.forms.ItemForm;
@@ -232,6 +233,13 @@ public class FormUtilsClient
         {
             LOGGER.error("[BBS form] {} failed to render - further repeats of this failure are silenced.", form.getClass().getSimpleName(), e);
         }
+    }
+
+    public static IBoneHierarchy getBoneHierarchy(Form form)
+    {
+        FormRenderer renderer = getRenderer(form);
+
+        return renderer == null ? null : renderer.getBoneHierarchy();
     }
 
     public static List<String> getBones(Form form)

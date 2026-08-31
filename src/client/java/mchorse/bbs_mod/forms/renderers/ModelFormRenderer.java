@@ -8,6 +8,7 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.renderer.ItemPredicateDonor;
 import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.Animator;
@@ -166,6 +167,14 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     public ModelInstance getModel()
     {
         return getModel(this.form);
+    }
+
+    @Override
+    public IBoneHierarchy getBoneHierarchy()
+    {
+        ModelInstance model = this.getModel();
+
+        return model == null ? null : model.model;
     }
 
     public Pose getPose()

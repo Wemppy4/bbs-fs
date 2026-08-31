@@ -576,12 +576,12 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
      */
     private Vector3f poseRotationBase(UIPropTransform transform, float transition)
     {
-        if (this.isBodyPartGizmoMode() || this.statesEditor.isVisible() || !(this.editor instanceof UIModelForm modelForm))
+        if (this.isBodyPartGizmoMode() || this.statesEditor.isVisible() || this.editor == null)
         {
             return null;
         }
 
-        return modelForm.poseRotationBase(transform, transition);
+        return this.editor.poseRotationBase(transform, transition);
     }
 
     public GizmoDrag buildHotkeyDrag(UIPropTransform transform)

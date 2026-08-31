@@ -15,6 +15,7 @@ import mchorse.bbs_mod.ui.forms.editors.panels.UIModelFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelIKFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelPhysicsFormPanel;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.StringUtils;
@@ -58,9 +59,9 @@ public class UIModelForm extends UIForm<ModelForm>
     }
 
     @Override
-    public UIPropTransform getEditableTransform()
+    public UIPoseEditor getPoseEditor()
     {
-        return this.modelPanel.poseEditor.transform;
+        return this.modelPanel.poseEditor;
     }
 
     @Override
@@ -82,66 +83,4 @@ public class UIModelForm extends UIForm<ModelForm>
         }
     }
 
-    @Override
-    public Matrix4f getOrigin(float transition)
-    {
-        return this.getOrigin(transition, this.bonePath(), this.getGizmoSpace());
-    }
-
-    @Override
-    public Matrix4f getOriginMatrix(float transition)
-    {
-        return this.getOrigin(transition, this.bonePath(), TransformSpace.LOCAL);
-    }
-
-    @Override
-    public Matrix4f getParentOriginMatrix(float transition)
-    {
-        return this.getOrigin(transition, this.bonePath(), TransformSpace.PARENT);
-    }
-
-    @Override
-    public TransformSpace getGizmoSpace()
-    {
-        return this.modelPanel.poseEditor.transform.getSpace();
-    }
-
-    private String bonePath()
-    {
-        return StringUtils.combinePaths(FormUtils.getPath(this.form), this.modelPanel.poseEditor.groups.list.getCurrentFirst());
-    }
-
-    /** The additive euler base under the pose editor's channels for the picked bone:
-     *  the bone's EVALUATED channels (rest + actions + pose stack) minus the pose track's
-     *  own contribution, so gizmo deltas compose at the effective angles. {@code null} for
-     *  every other editor — only the pose panel edits a pose-stacked track. */
-    public Vector3f poseRotationBase(UIPropTransform transform, float transition)
-    {
-        if (transform != this.modelPanel.poseEditor.transform)
-        {
-            return null;
-        }
-
-        String bone = this.modelPanel.poseEditor.groups.list.getCurrentFirst();
-
-        if (bone == null)
-        {
-            return null;
-        }
-
-        return FormUtils.additivePoseRotationBase(this.form.pose, bone, this.getEvaluatedRotation(transition, this.bonePath()));
-    }
-
-    @Override
-    public boolean toggleBoneSelection(String bone)
-    {
-        if (!this.modelPanel.poseEditor.hasBone(bone))
-        {
-            return false;
-        }
-
-        this.modelPanel.poseEditor.selectBone(bone, true);
-
-        return true;
-    }
 }

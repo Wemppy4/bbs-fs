@@ -22,6 +22,9 @@ import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
+import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.graphics.window.Window;
@@ -1035,31 +1038,26 @@ public class UIReplaysEditorUtils
     }
 
     @SuppressWarnings("unchecked")
-    public static void posesToLimbTracks(Replay replay, UIKeyframeSheet poseSheet, ModelForm modelForm)
+    public static void posesToLimbTracks(Replay replay, UIKeyframeSheet poseSheet, IPosedForm posedForm)
     {
-        if (replay == null || poseSheet == null || modelForm == null)
+        if (replay == null || poseSheet == null || posedForm == null)
         {
             return;
         }
 
         String formPath = poseSheet.id.equals("pose") ? "" : poseSheet.id.substring(0, poseSheet.id.length() - (FormUtils.PATH_SEPARATOR + "pose").length());
         Form form = formPath.isEmpty() ? replay.form.get() : FormUtils.getForm(replay.form.get(), formPath);
+        IBoneHierarchy hierarchy = FormUtilsClient.getBoneHierarchy(form);
 
-        if (!(form instanceof ModelForm targetModelForm))
+        if (!(form instanceof IPosedForm) || hierarchy == null)
         {
             return;
         }
 
-        ModelInstance model = ModelFormRenderer.getModel(targetModelForm);
+        ModelInstance model = form instanceof ModelForm targetModelForm ? ModelFormRenderer.getModel(targetModelForm) : null;
+        List<String> bones = new ArrayList<>(hierarchy.getGroupKeysInHierarchyOrder());
 
-        if (model == null)
-        {
-            return;
-        }
-
-        List<String> bones = new ArrayList<>(model.model.getGroupKeysInHierarchyOrder());
-
-        bones.removeIf((bone) -> PoseBones.isHidden(model.getDisabledBones(), bone));
+        bones.removeIf((bone) -> model != null && PoseBones.isHidden(model.getDisabledBones(), bone));
 
         List<Keyframe<Pose>> selectedKeyframes = (List<Keyframe<Pose>>) (List<?>) poseSheet.selection.getSelected();
 
@@ -1180,20 +1178,21 @@ public class UIReplaysEditorUtils
             return;
         }
 
-        if (!bone.isEmpty() && form instanceof ModelForm modelForm)
+        if (!bone.isEmpty())
         {
-            ModelInstance model = ModelFormRenderer.getModel(modelForm);
+            IBoneHierarchy hierarchy = FormUtilsClient.getBoneHierarchy(form);
+            ModelInstance model = form instanceof ModelForm modelForm ? ModelFormRenderer.getModel(modelForm) : null;
 
-            if (model == null)
+            if (hierarchy == null)
             {
                 return;
             }
 
             context.replaceContextMenu((menu) ->
             {
-                for (String modelGroup : model.model.getAdjacentGroups(bone))
+                for (String modelGroup : hierarchy.getAdjacentGroups(bone))
                 {
-                    if (PoseBones.isHidden(model.getDisabledBones(), modelGroup))
+                    if (model != null && PoseBones.isHidden(model.getDisabledBones(), modelGroup))
                     {
                         continue;
                     }
@@ -1213,20 +1212,21 @@ public class UIReplaysEditorUtils
             return;
         }
 
-        if (!bone.isEmpty() && form instanceof ModelForm modelForm)
+        if (!bone.isEmpty())
         {
-            ModelInstance model = ModelFormRenderer.getModel(modelForm);
+            IBoneHierarchy hierarchy = FormUtilsClient.getBoneHierarchy(form);
+            ModelInstance model = form instanceof ModelForm modelForm ? ModelFormRenderer.getModel(modelForm) : null;
 
-            if (model == null)
+            if (hierarchy == null)
             {
                 return;
             }
 
             context.replaceContextMenu((menu) ->
             {
-                for (String modelGroup : model.model.getHierarchyGroups(bone))
+                for (String modelGroup : hierarchy.getHierarchyGroups(bone))
                 {
-                    if (PoseBones.isHidden(model.getDisabledBones(), modelGroup))
+                    if (model != null && PoseBones.isHidden(model.getDisabledBones(), modelGroup))
                     {
                         continue;
                     }

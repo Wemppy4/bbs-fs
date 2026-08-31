@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.ui.utils.pose;
 
-import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -56,7 +56,7 @@ public class UIPoseEditor extends UIElement
     private String group = "";
     private boolean hasBones = true;
     private Pose pose;
-    protected IModel model;
+    protected IBoneHierarchy model;
     protected Map<String, String> flippedParts;
 
     public UIPoseEditor()
@@ -255,12 +255,12 @@ public class UIPoseEditor extends UIElement
         this.fillInGroups(groups, reset, true);
     }
 
-    public void fillGroups(IModel model, Map<String, String> flippedParts, boolean reset)
+    public void fillGroups(IBoneHierarchy model, Map<String, String> flippedParts, boolean reset)
     {
         this.fillGroups(model, flippedParts, reset, null);
     }
 
-    public void fillGroups(IModel model, Map<String, String> flippedParts, boolean reset, Collection<String> disabledBones)
+    public void fillGroups(IBoneHierarchy model, Map<String, String> flippedParts, boolean reset, Collection<String> disabledBones)
     {
         this.model = model;
         this.flippedParts = flippedParts;

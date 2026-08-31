@@ -15,7 +15,10 @@ import mchorse.bbs_mod.ui.forms.editors.panels.UIGeneralFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIMaterialFormPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIPanelBase;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -44,9 +47,39 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public UIPropTransform getEditableTransform()
     {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor != null)
+        {
+            return poseEditor.transform;
+        }
+
         this.setPanel(this.generalPanel);
 
         return this.general;
+    }
+
+    /**
+     * The pose editor this form edits bones through, or null when the form has no skeleton.
+     *
+     * <p>Everything that places the gizmo on a BONE rather than on the form goes through this one
+     * answer — which is why a mob form, whose bones are vanilla model parts, gets the same gizmo,
+     * the same world-space paste and the same Ctrl+click bone toggling as a model form without a
+     * second copy of any of it.</p>
+     */
+    public UIPoseEditor getPoseEditor()
+    {
+        return null;
+    }
+
+    /** The path the gizmo sits on: the selected bone, or the form itself when there is none. */
+    protected String bonePath()
+    {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+        String bone = poseEditor == null ? null : poseEditor.groups.list.getCurrentFirst();
+        String path = FormUtils.getPath(this.form);
+
+        return bone == null || bone.isEmpty() ? path : StringUtils.combinePaths(path, bone);
     }
 
     private void cyclePanels()
@@ -60,12 +93,19 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public Matrix4f getOrigin(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), this.getGizmoSpace());
+        return this.getOrigin(transition, this.bonePath(), this.getGizmoSpace());
     }
 
     /** The space the gizmo should be drawn in (the active panel's transform space). */
     public TransformSpace getGizmoSpace()
     {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor != null)
+        {
+            return poseEditor.transform.getSpace();
+        }
+
         return this.generalPanel != null ? this.generalPanel.transform.getSpace() : TransformSpace.LOCAL;
     }
 
@@ -75,7 +115,7 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      *  silently collapse to identity. */
     public Matrix4f getOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), TransformSpace.LOCAL);
+        return this.getOrigin(transition, this.bonePath(), TransformSpace.LOCAL);
     }
 
     /** The twin of {@link #getOriginMatrix}: always the ORIGIN flavour, the frame before
@@ -83,7 +123,7 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      *  two bone frames ({@code GizmoDrag#setFrameAxes}). */
     public Matrix4f getParentOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), TransformSpace.PARENT);
+        return this.getOrigin(transition, this.bonePath(), TransformSpace.PARENT);
     }
 
     /** Origin for the body part gizmo mode: the edited form's OWN root frame, ignoring any
@@ -199,7 +239,41 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      */
     public boolean toggleBoneSelection(String bone)
     {
-        return false;
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor == null || !poseEditor.hasBone(bone))
+        {
+            return false;
+        }
+
+        poseEditor.selectBone(bone, true);
+
+        return true;
+    }
+
+    /**
+     * The additive euler base under the pose editor's channels for the picked bone: the bone's
+     * EVALUATED channels (rest + actions + pose stack) minus the pose track's own contribution, so
+     * gizmo deltas compose at the effective angles. Null for anything that isn't the pose panel of
+     * a posed form — only that edits a pose-stacked track.
+     */
+    public Vector3f poseRotationBase(UIPropTransform transform, float transition)
+    {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor == null || transform != poseEditor.transform || !(this.form instanceof IPosedForm posedForm))
+        {
+            return null;
+        }
+
+        String bone = poseEditor.groups.list.getCurrentFirst();
+
+        if (bone == null)
+        {
+            return null;
+        }
+
+        return FormUtils.additivePoseRotationBase(posedForm.getPose(), bone, this.getEvaluatedRotation(transition, this.bonePath()));
     }
 
     public Class<?> getActivePanelClass()

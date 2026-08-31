@@ -1,9 +1,12 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.forms.forms.MobForm;
+import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
+import mchorse.bbs_mod.forms.renderers.mob.MobRig;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPoseEditor;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
@@ -26,6 +29,7 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
 
     public UIButton pick;
     public UIToggle slim;
+    public UIModelPoseEditor poseEditor;
     public UISearchList<String> mobID;
     public UITextarea<TextLine> mobNBT;
 
@@ -54,6 +58,9 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
         this.slim = UIValues.toggle(UIKeys.FORMS_EDITOR_SLIM, () -> this.form.slim);
         this.slim.tooltip(UIKeys.FORMS_EDITOR_SLIM_TOOLTIP);
 
+        this.poseEditor = new UIModelPoseEditor();
+        this.poseEditor.transform.barBackground();
+
         this.mobID = new UISearchList<>(new UIStringList((l) -> this.form.mobID.set(l.get(0))));
         this.mobID.list.background().add(mobIDs);
         this.mobID.h(20 + 16 * 8);
@@ -62,7 +69,7 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
         this.mobNBT.background().h(160);
         this.mobNBT.wrap();
 
-        this.options.add(this.pick, this.slim, this.mobID, this.mobNBT);
+        this.options.add(this.pick, this.slim, this.poseEditor, this.mobID, this.mobNBT);
     }
 
     @Override
@@ -73,5 +80,24 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
         this.slim.setValue(this.form.slim.get());
         this.mobID.list.setCurrentScroll(this.form.mobID.get());
         this.mobNBT.setText(this.form.mobNBT.get());
+
+        MobRig rig = MobFormRenderer.getRig(this.form);
+
+        this.poseEditor.setValuePose(form.pose);
+        /* The mob id is the pose group, so a chicken's presets don't show up under a zombie. */
+        this.poseEditor.setPose(form.pose.get(), this.form.mobID.get());
+        /* No flipped-parts table: vanilla part names are already left_/right_, which is exactly
+         * what Pose's own mirror rule matches. */
+        this.poseEditor.fillGroups(rig, null, true, null);
+
+        this.options.resize();
+    }
+
+    @Override
+    public void pickBone(String bone)
+    {
+        super.pickBone(bone);
+
+        this.poseEditor.selectBone(bone);
     }
 }
