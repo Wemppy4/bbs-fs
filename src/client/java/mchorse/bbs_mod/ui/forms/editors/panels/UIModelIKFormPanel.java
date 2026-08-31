@@ -23,7 +23,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
@@ -50,9 +49,6 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
     private static final int MARKER_POLE = Colors.A100 | Colors.MAGENTA;
     private static final int MARKER_JOINT = Colors.A100 | Colors.ORANGE;
     private static final int MARKER_OFF = Colors.GRAY;
-
-    public UIBoneTreeList bones;
-    public UISearchList<String> bonesSearch;
 
     public UIToggle debug;
     public UIToggle enabled;
