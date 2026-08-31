@@ -280,9 +280,18 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     {
         DataPath path = property.getRelativePath(this.getClip());
 
+        if (path == null)
+        {
+            /* The property doesn't belong to the edited clip — apply it as is */
+            consumer.accept(property);
+
+            return;
+        }
+
         for (Clip clip : this.clips.getClipsFromSelection())
         {
-            BaseValue value = clip.getRecursively(path);
+            /* Clips of other types simply have no such property */
+            BaseValue value = clip.findRecursively(path);
 
             if (value != null && value.getClass() == property.getClass())
             {
