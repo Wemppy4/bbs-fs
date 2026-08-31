@@ -5,6 +5,9 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.l10n.L10n;
+import mchorse.bbs_mod.network.ClientNetwork;
+import mchorse.bbs_mod.ui.framework.UIScreen;
+import mchorse.bbs_mod.ui.structures.UIStructureSaveMenu;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.utils.renderers.InputRenderer;
 import mchorse.bbs_mod.utils.colors.Color;
@@ -41,6 +44,9 @@ public class StructureWand
     private static final int MOUSE_WIDTH = 14;
     private static final int MOUSE_HEIGHT = 18;
     private static final int GAP = 6;
+
+    /** Prefilled into the next prompt, so re-saving the same structure is a single Enter. */
+    private static String lastName = "";
 
     public static void register()
     {
@@ -79,7 +85,7 @@ public class StructureWand
             {
                 if (StructureSelection.isReady())
                 {
-                    /* TODO: the naming screen lands here in the next step */
+                    openSavePrompt();
                 }
                 else
                 {
@@ -89,6 +95,24 @@ public class StructureWand
 
             return ActionResult.SUCCESS;
         });
+    }
+
+    /**
+     * Ask for a name, then hand the corners to the server. The selection is only dropped once the
+     * name is confirmed — dismissing the prompt leaves the region alone to try again.
+     */
+    private static void openSavePrompt()
+    {
+        BlockPos min = StructureSelection.getMin();
+        BlockPos max = StructureSelection.getMax();
+
+        UIScreen.open(new UIStructureSaveMenu(lastName, (name) ->
+        {
+            lastName = name;
+
+            ClientNetwork.sendSaveStructure(name, min, max);
+            StructureSelection.clear();
+        }));
     }
 
     private static boolean isHolding(PlayerEntity player, Hand hand)
@@ -172,13 +196,13 @@ public class StructureWand
         {
             String label = size.getX() + " × " + size.getY() + " × " + size.getZ();
 
-            batcher.text(label, (width - batcher.getFont().getWidth(label)) / 2F, y - 12, Colors.WHITE);
+            batcher.textShadow(label, (width - batcher.getFont().getWidth(label)) / 2F, y - 12, Colors.WHITE);
         }
     }
 
     private static void drawHint(Batcher2D batcher, int x, int y, boolean left, boolean right, String label)
     {
         InputRenderer.renderMouseButtons(batcher, x, y, 0, left, right, false, false);
-        batcher.text(label, x + MOUSE_WIDTH + 4, y + (MOUSE_HEIGHT - batcher.getFont().getHeight()) / 2F, Colors.WHITE);
+        batcher.textShadow(label, x + MOUSE_WIDTH + 4, y + (MOUSE_HEIGHT - batcher.getFont().getHeight()) / 2F, Colors.WHITE);
     }
 }

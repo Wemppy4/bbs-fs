@@ -8,6 +8,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.forms.structure.StructureManager;
 import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.entity.IEntityFormProvider;
 import mchorse.bbs_mod.film.Film;
@@ -85,6 +86,7 @@ public class ClientNetwork
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_ANIMATION_STATE_MODEL_BLOCK_TRIGGER, (client, handler, buf, responseSender) -> handleAnimationStateModelBlockPacket(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_REFRESH_MODEL_BLOCKS, (client, handler, buf, responseSender) -> handleRefreshModelBlocksPacket(client, buf));
         ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_REQUEST_FILM_RESYNC, (client, handler, buf, responseSender) -> handleRequestFilmResync(client, buf));
+        ClientPlayNetworking.registerGlobalReceiver(ServerNetwork.CLIENT_STRUCTURE_SAVED, (client, handler, buf, responseSender) -> StructureManager.invalidate());
     }
 
     /* Handlers */
@@ -515,6 +517,18 @@ public class ClientNetwork
                 packetByteBuf.writeString(string);
             }
         });
+    }
+
+    /** Ask the server to write the wand's region out. The reply drops the structure cache. */
+    public static void sendSaveStructure(String name, BlockPos from, BlockPos to)
+    {
+        PacketByteBuf buf = PacketByteBufs.create();
+
+        buf.writeString(name);
+        buf.writeBlockPos(from);
+        buf.writeBlockPos(to);
+
+        ClientPlayNetworking.send(ServerNetwork.SERVER_SAVE_STRUCTURE, buf);
     }
 
     public static void sendTeleport(PlayerEntity entity, double x, double y, double z)

@@ -1144,6 +1144,8 @@
 	"bbs.ui.structure_wand.second": "Второй угол",
 	"bbs.ui.structure_wand.save": "Сохранить",
 	"bbs.ui.structure_wand.cancel": "Отменить",
+	"bbs.ui.structure_wand.save_title": "Сохранить структуру",
+	"bbs.ui.structure_wand.save_message": "Назови структуру. Существующее имя будет перезаписано.",
 	"bbs.ui.forms.editors.structure.title": "Структура",
 	"bbs.ui.forms.editors.structure.pick_structure": "Выбрать структуру...",
 	"bbs.ui.forms.editors.structure.pick_biome": "Выбрать биом...",

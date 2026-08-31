@@ -1148,6 +1148,8 @@
 	"bbs.ui.structure_wand.second": "Second corner",
 	"bbs.ui.structure_wand.save": "Save",
 	"bbs.ui.structure_wand.cancel": "Cancel",
+	"bbs.ui.structure_wand.save_title": "Save structure",
+	"bbs.ui.structure_wand.save_message": "Name the structure. An existing name gets overwritten.",
 	"bbs.ui.forms.editors.structure.title": "Structure",
 	"bbs.ui.forms.editors.structure.pick_structure": "Pick structure...",
 	"bbs.ui.forms.editors.structure.pick_biome": "Pick biome...",
