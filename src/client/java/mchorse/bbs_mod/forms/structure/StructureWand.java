@@ -55,9 +55,11 @@ import java.util.List;
  * or on the block at arm's length when there is none, so a region can start in the air. A corner
  * is re-placed by clicking again, nothing has to be undone first. Once both are down the box can
  * be reshaped without touching them: with the crosshair on one of its faces the wheel pushes that
- * face in and out, and with sneak held it slides the whole box that way instead (Ctrl takes five
- * blocks per notch). Sneak + left drops the selection, sneak + right opens the save dialog. The
- * hint above the hotbar always names what the buttons do right now.</p>
+ * face in and out, and with Alt held it slides the whole box that way instead. Alt + left drops the
+ * selection, Alt + right opens the save dialog. Alt is the modifier throughout on purpose: sneak
+ * would drop a flying player out of the air and Ctrl would break their sprint, and both happen
+ * exactly while lining a region up. The hint above the hotbar always names what the buttons do
+ * right now.</p>
  *
  * <p>Only useful in singleplayer — the save it leads to runs against the integrated server's
  * template manager, and the structure form reads that same save folder.</p>
@@ -67,15 +69,13 @@ public class StructureWand
     public static final int COLOR_A = 0x4fb4ff;
     public static final int COLOR_B = 0xffb04a;
 
-    /** Alpha of the box's faces, and of the one under the crosshair. */
-    private static final float FACE = 0.07F;
+    /** Alpha of the face under the crosshair. The others are left empty so it reads as the one. */
     private static final float FACE_HOVER = 0.28F;
     private static final float CORNER_FILL = 0.3F;
     private static final float GHOST = 0.35F;
 
-    /** Blocks one notch of the wheel is worth, plain and with Ctrl. */
+    /** Blocks one notch of the wheel is worth. A bigger jump is a click: re-placing a corner. */
     private static final int STEP = 1;
-    private static final int STEP_FAST = 5;
 
     private static final Color COLOR = new Color();
 
@@ -92,8 +92,9 @@ public class StructureWand
     private static final int MOUSE_WIDTH = 14;
     private static final int MOUSE_HEIGHT = 18;
     private static final int ROW = 20;
-    private static final int GAP = 12;
-    private static final int CARD = 0x77000000;
+
+    /** Between the two columns. Wide enough that a row reads as a pair, not as four loose things. */
+    private static final int COLUMN_GAP = 18;
 
     /** Prefilled into the next save dialog, so re-saving the same structure is sneak + right and Enter. */
     private static String lastName = "";
@@ -143,7 +144,7 @@ public class StructureWand
             return false;
         }
 
-        if (mc.player.isSneaking())
+        if (Window.isAltPressed())
         {
             StructureSelection.clear();
         }
@@ -167,7 +168,7 @@ public class StructureWand
             return false;
         }
 
-        if (mc.player.isSneaking())
+        if (Window.isAltPressed())
         {
             if (StructureSelection.isReady())
             {
@@ -196,9 +197,11 @@ public class StructureWand
             return false;
         }
 
-        int amount = (vertical > 0 ? 1 : -1) * (Window.isCtrlPressed() ? STEP_FAST : STEP);
+        /* Wheel away from the user pulls the face towards them: the box follows the hand, not
+         * the normal it happens to be drawn on */
+        int amount = vertical > 0 ? -STEP : STEP;
 
-        if (mc.player.isSneaking())
+        if (Window.isAltPressed())
         {
             StructureSelection.move(face, amount);
         }
@@ -450,17 +453,17 @@ public class StructureWand
         stack.push();
         stack.translate(box.minX - camera.x, box.minY - camera.y, box.minZ - camera.z);
 
-        BufferBuilder builder = Tessellator.getInstance().getBuffer();
-
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-
-        for (Direction side : Direction.values())
+        /* Only the hovered face is filled — an empty box lets the build inside it be seen, and
+         * makes the one filled face unmistakable */
+        if (face != null)
         {
-            fillFace(builder, stack, side, w, h, d, COLOR.r, COLOR.g, COLOR.b, side == face ? FACE_HOVER : FACE);
-        }
+            BufferBuilder builder = Tessellator.getInstance().getBuffer();
 
-        BufferRenderer.drawWithGlobalProgram(builder.end());
+            RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+            builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+            fillFace(builder, stack, face, w, h, d, COLOR.r, COLOR.g, COLOR.b, FACE_HOVER);
+            BufferRenderer.drawWithGlobalProgram(builder.end());
+        }
 
         Draw.renderBox(stack, 0, 0, 0, w, h, d, COLOR.r, COLOR.g, COLOR.b, 1F);
 
@@ -528,7 +531,7 @@ public class StructureWand
 
     private enum Glyph
     {
-        LMB, RMB, WHEEL, SHIFT
+        LMB, RMB, WHEEL, ALT
     }
 
     /** One entry of the hint row: what to press, and what it does. */
@@ -569,19 +572,19 @@ public class StructureWand
 
         private static int glyphWidth(FontRenderer font, Glyph glyph)
         {
-            return glyph == Glyph.SHIFT ? 16 + font.getWidth("Shift") : MOUSE_WIDTH;
+            return glyph == Glyph.ALT ? 16 + font.getWidth("Alt") : MOUSE_WIDTH;
         }
 
         private static int renderGlyph(Batcher2D batcher, Glyph glyph, int x, int y)
         {
-            if (glyph == Glyph.SHIFT)
+            if (glyph == Glyph.ALT)
             {
                 int width = glyphWidth(batcher.getFont(), glyph);
 
                 batcher.icon(Icons.KEY_CAP_LEFT, x, y);
                 batcher.iconArea(Icons.KEY_CAP_REPEATABLE, x + 4, y, width - 8, ROW);
                 batcher.icon(Icons.KEY_CAP_RIGHT, x + width, y, 1F, 0F);
-                batcher.text("Shift", x + 8, y + 5, Colors.A100);
+                batcher.text("Alt", x + 8, y + 5, Colors.A100);
 
                 return width;
             }
@@ -593,9 +596,13 @@ public class StructureWand
     }
 
     /**
-     * The hint above the hotbar: what each button does right now, and the box's size once there is
-     * one. Wheel entries appear only while a face is under the crosshair, which is also what tells
-     * the user the wheel is about to reshape the box rather than switch the slot.
+     * The hint above the hotbar. Two columns: the bare gesture on the left, the same gesture with
+     * Alt on the right, so a row reads across as "this button, and this button with Alt" and the
+     * whole thing is half as wide as one long line. No plate behind it — the shadow on the text
+     * carries it, and a slab of black over the world was worse than what it was protecting.
+     *
+     * <p>Wheel entries appear only while a face is under the crosshair, which is also what tells
+     * the user the wheel is about to reshape the box rather than switch the slot.</p>
      */
     public static void renderHud(Batcher2D batcher)
     {
@@ -608,37 +615,68 @@ public class StructureWand
 
         FontRenderer font = batcher.getFont();
         boolean ready = StructureSelection.isReady();
-        List<Hint> hints = new ArrayList<>();
+        List<Hint> plain = new ArrayList<>();
+        List<Hint> alt = new ArrayList<>();
 
-        hints.add(new Hint(UIKeys.STRUCTURE_WAND_CORNER_A.get(), COLOR_A, Glyph.LMB));
-        hints.add(new Hint(UIKeys.STRUCTURE_WAND_CORNER_B.get(), COLOR_B, Glyph.RMB));
+        plain.add(new Hint(UIKeys.STRUCTURE_WAND_CORNER_A.get(), COLOR_A, Glyph.LMB));
+        plain.add(new Hint(UIKeys.STRUCTURE_WAND_CORNER_B.get(), COLOR_B, Glyph.RMB));
 
         if (ready)
         {
-            hints.add(new Hint(UIKeys.STRUCTURE_WAND_CLEAR.get(), Colors.WHITE, Glyph.SHIFT, Glyph.LMB));
-            hints.add(new Hint(UIKeys.STRUCTURE_WAND_SAVE.get(), Colors.WHITE, Glyph.SHIFT, Glyph.RMB));
+            alt.add(new Hint(UIKeys.STRUCTURE_WAND_CLEAR.get(), Colors.WHITE, Glyph.ALT, Glyph.LMB));
+            alt.add(new Hint(UIKeys.STRUCTURE_WAND_SAVE.get(), Colors.WHITE, Glyph.ALT, Glyph.RMB));
 
             if (face != null)
             {
-                hints.add(new Hint(UIKeys.STRUCTURE_WAND_PUSH.get(), Colors.WHITE, Glyph.WHEEL));
-                hints.add(new Hint(UIKeys.STRUCTURE_WAND_MOVE.get(), Colors.WHITE, Glyph.SHIFT, Glyph.WHEEL));
+                plain.add(new Hint(UIKeys.STRUCTURE_WAND_PUSH.get(), Colors.WHITE, Glyph.WHEEL));
+                alt.add(new Hint(UIKeys.STRUCTURE_WAND_MOVE.get(), Colors.WHITE, Glyph.ALT, Glyph.WHEEL));
             }
         }
 
-        int total = -GAP;
-
-        for (Hint hint : hints)
-        {
-            total += hint.width(font) + GAP;
-        }
+        int leftWidth = columnWidth(font, plain);
+        int rightWidth = columnWidth(font, alt);
+        int total = leftWidth + (rightWidth == 0 ? 0 : COLUMN_GAP + rightWidth);
+        int rows = Math.max(plain.size(), alt.size());
 
         int width = mc.getWindow().getScaledWidth();
         int height = mc.getWindow().getScaledHeight();
 
-        /* Above the hotbar, clear of the health and hunger rows */
-        int y = height - 74;
+        /* Bottom edge clear of the hotbar and the health rows; the block grows upwards */
+        int y = height - 54 - rows * ROW;
         int x = (width - total) / 2;
-        String status = null;
+
+        renderStatus(batcher, font, ready, width, y - 13);
+
+        for (int i = 0; i < rows; i++)
+        {
+            if (i < plain.size())
+            {
+                plain.get(i).render(batcher, x, y + i * ROW);
+            }
+
+            if (i < alt.size())
+            {
+                alt.get(i).render(batcher, x + leftWidth + COLUMN_GAP, y + i * ROW);
+            }
+        }
+    }
+
+    private static int columnWidth(FontRenderer font, List<Hint> hints)
+    {
+        int width = 0;
+
+        for (Hint hint : hints)
+        {
+            width = Math.max(width, hint.width(font));
+        }
+
+        return width;
+    }
+
+    /** The line above the columns: the box's size once there is one, the lone corner before that. */
+    private static void renderStatus(Batcher2D batcher, FontRenderer font, boolean ready, int width, int y)
+    {
+        String status;
         int statusColor = Colors.WHITE;
         String detail = null;
 
@@ -656,29 +694,20 @@ public class StructureWand
             status = (StructureSelection.getA() != null ? "A" : "B") + "  " + corner.getX() + "  " + corner.getY() + "  " + corner.getZ();
             statusColor = StructureSelection.getA() != null ? COLOR_A : COLOR_B;
         }
-
-        int top = y - (status == null ? 4 : 18);
-
-        batcher.box(x - 8, top, x + total + 8, y + ROW + 4, CARD);
-
-        if (status != null)
+        else
         {
-            String line = detail == null ? status : status + "   ·   " + detail;
-            int lineX = (width - font.getWidth(line)) / 2;
-
-            batcher.textShadow(status, lineX, y - 13, statusColor);
-
-            if (detail != null)
-            {
-                batcher.textShadow("   ·   " + detail, lineX + font.getWidth(status), y - 13, Colors.LIGHTER_GRAY);
-            }
+            return;
         }
 
-        for (Hint hint : hints)
-        {
-            hint.render(batcher, x, y);
+        String line = detail == null ? status : status + "   ·   " + detail;
+        int lineX = (width - font.getWidth(line)) / 2;
 
-            x += hint.width(font) + GAP;
+        batcher.textShadow(status, lineX, y, statusColor);
+
+        if (detail != null)
+        {
+            batcher.textShadow("   ·   " + detail, lineX + font.getWidth(status), y, Colors.LIGHTER_GRAY);
         }
     }
+
 }
