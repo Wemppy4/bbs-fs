@@ -9,6 +9,7 @@
     "block.bbs.chroma_black": "Black chroma",
     "block.bbs.chroma_white": "White chroma",
     "item.bbs.gun": "BBS gun",
+    "item.bbs.structure_wand": "Structure wand",
     "itemGroup.bbs.main": "BBS mod",
 
     "key.bbs.item_editor": "Item editor",

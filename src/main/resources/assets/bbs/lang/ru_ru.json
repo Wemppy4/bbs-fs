@@ -9,6 +9,7 @@
 	"block.bbs.chroma_black": "Чёрный хрома",
 	"block.bbs.chroma_white": "Белый хрома",
 	"item.bbs.gun": "ББС ружьё",
+	"item.bbs.structure_wand": "Палочка структур",
 	"itemGroup.bbs.main": "ББС мод",
 
 	"key.bbs.item_editor": "Редактор предметов",
