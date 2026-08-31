@@ -88,15 +88,12 @@ public class StructureWand
 
     /* HUD */
 
-    /** Mouse glyph footprint from {@link InputRenderer#renderMouseButtons}. */
-    private static final int MOUSE_WIDTH = 14;
-    private static final int MOUSE_HEIGHT = 18;
     private static final int ROW = 20;
 
     /** Between the two columns. Wide enough that a row reads as a pair, not as four loose things. */
     private static final int COLUMN_GAP = 18;
 
-    /** Prefilled into the next save dialog, so re-saving the same structure is sneak + right and Enter. */
+    /** Prefilled into the next save dialog, so re-saving the same structure is Alt + right and Enter. */
     private static String lastName = "";
 
     /** Structure id whose form goes to "Recent" once the server confirms the file is written. */
@@ -134,7 +131,7 @@ public class StructureWand
 
     /* Input */
 
-    /** Left button: corner A, or with sneak the whole selection dropped. True when the click was the wand's. */
+    /** Left button: corner A, or with Alt the whole selection dropped. True when the click was the wand's. */
     public static boolean onAttack()
     {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -158,7 +155,7 @@ public class StructureWand
         return true;
     }
 
-    /** Right button: corner B, or with sneak the finished box off to the save dialog. */
+    /** Right button: corner B, or with Alt the finished box off to the save dialog. */
     public static boolean onUse()
     {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -185,7 +182,7 @@ public class StructureWand
     }
 
     /**
-     * The wheel over a face of the box: pushes it, or slides the box with sneak held. True when the
+     * The wheel over a face of the box: pushes it, or slides the box with Alt held. True when the
      * notch was taken, in which case the hotbar must not get it.
      */
     public static boolean onScroll(double vertical)
@@ -572,7 +569,7 @@ public class StructureWand
 
         private static int glyphWidth(FontRenderer font, Glyph glyph)
         {
-            return glyph == Glyph.ALT ? 16 + font.getWidth("Alt") : MOUSE_WIDTH;
+            return glyph == Glyph.ALT ? 16 + font.getWidth("Alt") : InputRenderer.MOUSE_WIDTH;
         }
 
         private static int renderGlyph(Batcher2D batcher, Glyph glyph, int x, int y)
@@ -589,9 +586,9 @@ public class StructureWand
                 return width;
             }
 
-            InputRenderer.renderMouseButtons(batcher, x, y + (ROW - MOUSE_HEIGHT) / 2, 0, glyph == Glyph.LMB, glyph == Glyph.RMB, glyph == Glyph.WHEEL, false);
+            InputRenderer.renderMouseButtons(batcher, x, y + (ROW - InputRenderer.MOUSE_HEIGHT) / 2, 0, glyph == Glyph.LMB, glyph == Glyph.RMB, glyph == Glyph.WHEEL, false);
 
-            return MOUSE_WIDTH;
+            return InputRenderer.MOUSE_WIDTH;
         }
     }
 

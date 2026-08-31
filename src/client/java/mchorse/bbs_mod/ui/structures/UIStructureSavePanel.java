@@ -13,6 +13,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
@@ -39,9 +40,6 @@ public class UIStructureSavePanel extends UIOverlayPanel
 {
     private static final int SIDE = 200;
     private static final int PAD = 10;
-
-    /** Every rebuild gets a fresh id: the renderer notices a new name, where it would keep the old data under a reused one. */
-    private static int previews;
 
     public UIFormRenderer renderer;
     public UITextbox name;
@@ -124,8 +122,23 @@ public class UIStructureSavePanel extends UIOverlayPanel
 
         trackpad.integer();
         trackpad.textbox.setColor(color);
+        trackpad.getEvents().register(UITrackpadDragEndEvent.class, (e) -> this.rebuildPreview());
 
         return trackpad;
+    }
+
+    /** Whether any of the six is under the hand right now. */
+    private boolean isDragging()
+    {
+        for (UITrackpad trackpad : new UITrackpad[] {this.ax, this.ay, this.az, this.bx, this.by, this.bz})
+        {
+            if (trackpad.isDragging())
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Show the selection's corners; the trackpads' callbacks stay quiet meanwhile. */
@@ -157,7 +170,12 @@ public class UIStructureSavePanel extends UIOverlayPanel
         StructureSelection.setA(new BlockPos((int) this.ax.getValue(), (int) this.ay.getValue(), (int) this.az.getValue()));
         StructureSelection.setB(new BlockPos((int) this.bx.getValue(), (int) this.by.getValue(), (int) this.bz.getValue()));
 
-        this.rebuildPreview();
+        /* Capturing walks every block in the region, and a drag fires this every frame. The box in
+         * the world follows the hand; the preview catches up when the hand lets go. */
+        if (!this.isDragging())
+        {
+            this.rebuildPreview();
+        }
     }
 
     private void rebuildPreview()
@@ -180,7 +198,7 @@ public class UIStructureSavePanel extends UIOverlayPanel
             return;
         }
 
-        String id = "bbs:preview/" + (++previews);
+        String id = StructureManager.nextPreviewId();
         StructureRenderData data = StructurePreview.capture(id, min, size);
 
         StructureManager.setPreview(data);

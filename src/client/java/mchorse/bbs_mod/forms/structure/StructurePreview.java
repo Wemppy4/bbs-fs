@@ -10,9 +10,13 @@ import net.minecraft.util.math.Vec3i;
 
 /**
  * The wand's region as a structure before it is saved: read out of the client world through the
- * same {@link StructureTemplate} the server will use, so the save dialog shows exactly what the
- * file is going to hold. The client world is enough for that — block states and block entity data
- * are all the renderer wants, and entities are left out.
+ * same {@link StructureTemplate} the server will use, so every block in the dialog is the block
+ * that lands in the file. The client world is enough — block states and block entity data are all
+ * the renderer wants.
+ *
+ * <p>Entities are the one thing left out where the server takes them. Nothing renders them from a
+ * structure, so capturing them would cost a walk over the region's entities to draw nothing; the
+ * file still gets them.</p>
  */
 public class StructurePreview
 {

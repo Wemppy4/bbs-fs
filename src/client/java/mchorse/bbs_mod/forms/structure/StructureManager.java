@@ -47,12 +47,26 @@ public class StructureManager
      */
     private static StructureRenderData preview;
 
+    /** Ids under this prefix are memory-only and never looked for on disk. */
+    private static final String PREVIEW_PREFIX = "bbs:preview/";
+
+    private static int previews;
+
     private static MinecraftServer lastServer;
     private static int generation;
 
     public static void setPreview(StructureRenderData data)
     {
         preview = data;
+    }
+
+    /**
+     * A fresh id for the next preview. It has to be fresh: a renderer reloads on a change of
+     * structure name, so a reused id would leave it showing the previous capture.
+     */
+    public static String nextPreviewId()
+    {
+        return PREVIEW_PREFIX + (++previews);
     }
 
     /**
@@ -149,9 +163,11 @@ public class StructureManager
     {
         checkServer();
 
-        if (preview != null && preview.id.equals(id))
+        if (id != null && id.startsWith(PREVIEW_PREFIX))
         {
-            return preview;
+            /* Answered from the slot or not at all — a preview has no file, and letting one fall
+             * through would park a dead id in FAILED for the rest of the session */
+            return preview != null && preview.id.equals(id) ? preview : null;
         }
 
         if (id == null || id.isEmpty() || FAILED.contains(id))
