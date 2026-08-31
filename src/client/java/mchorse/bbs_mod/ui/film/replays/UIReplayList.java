@@ -30,6 +30,9 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueForm;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.forms.forms.StructureForm;
+import mchorse.bbs_mod.forms.structure.StructureCut;
+import mchorse.bbs_mod.forms.structure.StructureSelection;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
@@ -76,6 +79,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Vector3d;
@@ -162,6 +166,11 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 String cat = this.contextFolderCategoryName;
 
                 menu.action(Icons.TRASH, UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE_CATEGORY, () -> this.removeReplayCategory(cat));
+            }
+
+            if (film != null && StructureSelection.isReady())
+            {
+                menu.action(Icons.BLOCK, UIKeys.STRUCTURE_CUT_TITLE, this::cutSelectionIntoReplay);
             }
 
             if (film != null)
@@ -2072,6 +2081,74 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 replay.form.set(form);
             }
         }
+
+        this.refreshReplayList();
+        this.update();
+        this.panel.replayEditor.setReplay(replay);
+        this.scrollToReplay(replay);
+        this.updateFilmEditor();
+    }
+
+    /**
+     * The wand's region as a replay: saved as a structure, cleared out of the world, and added as a
+     * form standing exactly where the blocks did. Destructive, so it asks first — and the message
+     * names the command that puts the build back, because Minecraft has no undo for this.
+     */
+    private void cutSelectionIntoReplay()
+    {
+        Film film = this.panel.getData();
+
+        if (film == null || !StructureSelection.isReady())
+        {
+            return;
+        }
+
+        String id = StructureCut.nextId(film.getId());
+        BlockPos min = StructureSelection.getMin();
+        BlockPos max = StructureSelection.getMax();
+        Vec3i size = StructureSelection.getSize();
+        IKey message = UIKeys.STRUCTURE_CUT_CONFIRM.format(String.valueOf(StructureSelection.getVolume()), id);
+
+        UIOverlay.addOverlay(this.getContext(), new UIConfirmOverlayPanel(UIKeys.STRUCTURE_CUT_TITLE, message, (confirmed) ->
+        {
+            if (confirmed)
+            {
+                StructureCut.request(id, min, max, (ok) ->
+                {
+                    if (ok)
+                    {
+                        this.addStructureReplay(id, min, size);
+                    }
+                });
+            }
+        }), 300, 140);
+    }
+
+    /** The cut region's form, dropped in at the very spot it was cut from. */
+    private void addStructureReplay(String id, BlockPos min, Vec3i size)
+    {
+        Film film = this.panel.getData();
+
+        if (film == null)
+        {
+            return;
+        }
+
+        StructureForm form = new StructureForm();
+
+        form.structure.set(id);
+        form.name.set(id.substring(id.lastIndexOf('/') + 1));
+
+        Replay replay = film.replays.addReplay();
+
+        replay.category.set("");
+        replay.form.set(form);
+
+        /* The form centres its footprint and stands on its lowest layer, so this is the one
+         * position at which the structure covers the blocks it was made from */
+        replay.keyframes.x.insert(0, min.getX() + size.getX() / 2D);
+        replay.keyframes.y.insert(0, (double) min.getY());
+        replay.keyframes.z.insert(0, min.getZ() + size.getZ() / 2D);
 
         this.refreshReplayList();
         this.update();

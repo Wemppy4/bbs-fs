@@ -1343,6 +1343,10 @@ public class UIKeys
     public static final IKey TEXTURES_PLAYER_SKIN_TITLE = L10n.lang("bbs.ui.textures.player_skin-title");
 
     /* Structure wand */
+    public static final IKey STRUCTURE_CUT_TITLE = L10n.lang("bbs.ui.structure_cut.title");
+    public static final IKey STRUCTURE_CUT_CONFIRM = L10n.lang("bbs.ui.structure_cut.confirm");
+    public static final IKey STRUCTURE_CUT_DONE = L10n.lang("bbs.ui.structure_cut.done");
+    public static final IKey STRUCTURE_CUT_FAILED = L10n.lang("bbs.ui.structure_cut.failed");
     public static final IKey STRUCTURE_WAND_CORNER_A = L10n.lang("bbs.ui.structure_wand.corner_a");
     public static final IKey STRUCTURE_WAND_CORNER_B = L10n.lang("bbs.ui.structure_wand.corner_b");
     public static final IKey STRUCTURE_WAND_CLEAR = L10n.lang("bbs.ui.structure_wand.clear");

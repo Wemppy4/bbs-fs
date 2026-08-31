@@ -1,6 +1,10 @@
 package mchorse.bbs_mod.utils;
 
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.inventory.Inventory;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
@@ -62,5 +66,60 @@ public class StructureSaver
         {
             return false;
         }
+    }
+
+    /**
+     * Empty a region, for the film cut that turns a build into a form: the blocks have to leave the
+     * world once the structure stands in their place, or the shot has both.
+     *
+     * <p>This is not breaking. Blocks are replaced with air without notifying neighbours, so the
+     * water at the edge does not pour in, the gravel above does not fall, and no redstone, door or
+     * piston runs while the region empties. Containers are emptied first, so a cleared chest does
+     * not carpet the floor with its contents. Top down, because a column cleared from below leaves
+     * whatever is above it unsupported for a tick.</p>
+     *
+     * @return how many blocks were removed
+     */
+    public static int clear(ServerWorld world, BlockPos from, BlockPos to)
+    {
+        BlockState air = Blocks.AIR.getDefaultState();
+        BlockPos.Mutable pos = new BlockPos.Mutable();
+        int flags = Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS;
+        int cleared = 0;
+
+        int minX = Math.min(from.getX(), to.getX());
+        int minY = Math.min(from.getY(), to.getY());
+        int minZ = Math.min(from.getZ(), to.getZ());
+        int maxX = Math.max(from.getX(), to.getX());
+        int maxY = Math.max(from.getY(), to.getY());
+        int maxZ = Math.max(from.getZ(), to.getZ());
+
+        for (int y = maxY; y >= minY; y--)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                for (int z = minZ; z <= maxZ; z++)
+                {
+                    pos.set(x, y, z);
+
+                    if (world.getBlockState(pos).isAir())
+                    {
+                        continue;
+                    }
+
+                    BlockEntity blockEntity = world.getBlockEntity(pos);
+
+                    if (blockEntity instanceof Inventory inventory)
+                    {
+                        inventory.clear();
+                    }
+
+                    world.setBlockState(pos, air, flags);
+                    cleared += 1;
+                }
+            }
+        }
+
+        return cleared;
     }
 }

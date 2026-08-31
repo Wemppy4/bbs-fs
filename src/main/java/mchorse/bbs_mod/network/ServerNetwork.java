@@ -76,6 +76,7 @@ public class ServerNetwork
     public static final Identifier CLIENT_REFRESH_MODEL_BLOCKS = new Identifier(BBSMod.MOD_ID, "c17");
     public static final Identifier CLIENT_REQUEST_FILM_RESYNC = new Identifier(BBSMod.MOD_ID, "c18");
     public static final Identifier CLIENT_STRUCTURE_SAVED = new Identifier(BBSMod.MOD_ID, "c19");
+    public static final Identifier CLIENT_STRUCTURE_CUT = new Identifier(BBSMod.MOD_ID, "c20");
 
     public static final Identifier SERVER_MODEL_BLOCK_FORM_PACKET = new Identifier(BBSMod.MOD_ID, "s1");
     public static final Identifier SERVER_MODEL_BLOCK_TRANSFORMS_PACKET = new Identifier(BBSMod.MOD_ID, "s2");
@@ -92,6 +93,7 @@ public class ServerNetwork
     public static final Identifier SERVER_PAUSE_FILM = new Identifier(BBSMod.MOD_ID, "s13");
     public static final Identifier SERVER_APPLY_FILM_PLAYER_SETTINGS = new Identifier(BBSMod.MOD_ID, "s14");
     public static final Identifier SERVER_SAVE_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s15");
+    public static final Identifier SERVER_CUT_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s16");
 
     private static ServerPacketCrusher crusher = new ServerPacketCrusher();
 
@@ -117,6 +119,7 @@ public class ServerNetwork
         ServerPlayNetworking.registerGlobalReceiver(SERVER_PAUSE_FILM, (server, player, handler, buf, responder) -> handlePauseFilmPacket(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_APPLY_FILM_PLAYER_SETTINGS, (server, player, handler, buf, responder) -> handleApplyFilmPlayerSettings(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_SAVE_STRUCTURE, (server, player, handler, buf, responder) -> handleSaveStructure(server, player, buf));
+        ServerPlayNetworking.registerGlobalReceiver(SERVER_CUT_STRUCTURE, (server, player, handler, buf, responder) -> handleCutStructure(server, player, buf));
     }
 
     /* Handlers */
@@ -126,6 +129,41 @@ public class ServerNetwork
      * itself never leaves the client — and the reply tells it to drop its structure cache so the
      * new file is visible to the pickers and to any form already pointing at that name.
      */
+    /**
+     * Save a region and then empty it, for the film cut that turns a build into a form. Saving
+     * first is what makes this survivable: the file is the only way back, so the world is not
+     * touched until it is on disk. A failed save clears nothing.
+     */
+    private static void handleCutStructure(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
+    {
+        String name = buf.readString();
+        BlockPos from = buf.readBlockPos();
+        BlockPos to = buf.readBlockPos();
+
+        if (!PermissionUtils.arePanelsAllowed(server, player))
+        {
+            return;
+        }
+
+        server.execute(() ->
+        {
+            ServerWorld world = player.getServerWorld();
+            boolean saved = StructureSaver.save(world, name, from, to);
+
+            if (saved)
+            {
+                StructureSaver.clear(world, from, to);
+            }
+
+            PacketByteBuf reply = PacketByteBufs.create();
+
+            reply.writeBoolean(saved);
+            reply.writeString(name);
+
+            ServerPlayNetworking.send(player, CLIENT_STRUCTURE_CUT, reply);
+        });
+    }
+
     private static void handleSaveStructure(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
     {
         String name = buf.readString();
