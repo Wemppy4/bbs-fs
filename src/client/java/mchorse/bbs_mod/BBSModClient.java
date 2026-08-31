@@ -24,7 +24,18 @@ import mchorse.bbs_mod.client.renderer.item.GunItemRenderer;
 import mchorse.bbs_mod.client.renderer.item.ModelBlockItemRenderer;
 import mchorse.bbs_mod.cubic.model.ModelManager;
 import mchorse.bbs_mod.api.BBSAddonMod;
+import mchorse.bbs_mod.api.client.events.BBSClientReadyEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterFormEditorsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterFormRenderersEvent;
+import mchorse.bbs_mod.api.client.events.RegisterKeyframeEditorsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterValueWidgetsEvent;
+import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.settings.ui.UIValueMap;
+import mchorse.bbs_mod.ui.film.clips.UIClip;
+import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory;
 import mchorse.bbs_mod.api.client.events.RegisterL10nEvent;
 import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.film.Recorder;
@@ -537,6 +548,24 @@ public class BBSModClient implements ClientModInitializer
             .register(Link.bbs("tracker"), TrackerClientClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc))
             .register(Link.bbs("curve"), CurveClientClip.class, new ClipFactoryData(Icons.ARC, 0xff1493));
 
+        /* The client-side registries, each followed by the event that lets addons add to it.
+         * They used to fill themselves in static initialisers, so the moment depended on who
+         * touched the class first — a moment nobody chose and an addon could not aim at. */
+        FormUtilsClient.setup();
+        BBSMod.events.post(new RegisterFormRenderersEvent());
+
+        UIFormEditor.setup();
+        BBSMod.events.post(new RegisterFormEditorsEvent());
+
+        UIClip.setup();
+        BBSMod.events.post(new RegisterClipPanelsEvent());
+
+        UIKeyframeFactory.setup();
+        BBSMod.events.post(new RegisterKeyframeEditorsEvent());
+
+        UIValueMap.setup();
+        BBSMod.events.post(new RegisterValueWidgetsEvent());
+
         /* Keybinds */
         keyDashboard = this.createKey("dashboard", GLFW.GLFW_KEY_0);
         keyItemEditor = this.createKey("item_editor", GLFW.GLFW_KEY_HOME);
@@ -805,6 +834,8 @@ public class BBSModClient implements ClientModInitializer
         {
             BBSMod.getAssetsPath("models/player/" + path + "/").mkdirs();
         }
+
+        BBSMod.events.post(new BBSClientReadyEvent());
     }
 
     private void keyRecordVideo(MinecraftClient mc)

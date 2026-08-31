@@ -105,7 +105,14 @@ public abstract class UIClip <T extends Clip> extends UIElement
     /** How each bound widget reads its property back - see {@link #bind(Object, Runnable)}. */
     private final List<Runnable> fillers = new ArrayList<>();
 
-    static
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
     {
         register(IdleClip.class, UIIdleClip::new);
         register(DollyClip.class, UIDollyClip::new);

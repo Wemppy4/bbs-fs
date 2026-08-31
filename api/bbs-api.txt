@@ -1,3 +1,8 @@
+public abstract class mchorse.bbs_mod.api.events.BaseRegisterClipsEvent {
+    public final mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData> factory;
+    public mchorse.bbs_mod.api.events.BaseRegisterClipsEvent(mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData>);
+}
+
 public abstract class mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent {
     public mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent();
     public void register(mchorse.bbs_mod.ui.utils.icons.Icon, java.lang.String, java.util.function.Consumer<mchorse.bbs_mod.settings.SettingsBuilder>);
@@ -15,6 +20,10 @@ public class mchorse.bbs_mod.api.Subscription {
     public mchorse.bbs_mod.api.Subscription(java.lang.Object, java.lang.reflect.Method);
 }
 
+public class mchorse.bbs_mod.api.client.events.BBSClientReadyEvent {
+    public mchorse.bbs_mod.api.client.events.BBSClientReadyEvent();
+}
+
 public class mchorse.bbs_mod.api.client.events.L10nReloadEvent {
     public final mchorse.bbs_mod.l10n.L10n l10n;
     public mchorse.bbs_mod.api.client.events.L10nReloadEvent(mchorse.bbs_mod.l10n.L10n);
@@ -24,14 +33,62 @@ public class mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent exten
     public mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent();
 }
 
+public class mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent {
+    public <T extends mchorse.bbs_mod.utils.clips.Clip> void register(java.lang.Class<T>, mchorse.bbs_mod.ui.film.clips.UIClip$IUIClipFactory<T>);
+    public mchorse.bbs_mod.api.client.events.RegisterClipPanelsEvent();
+}
+
 public class mchorse.bbs_mod.api.client.events.RegisterDashboardPanelsEvent {
     public final mchorse.bbs_mod.ui.dashboard.UIDashboard dashboard;
     public mchorse.bbs_mod.api.client.events.RegisterDashboardPanelsEvent(mchorse.bbs_mod.ui.dashboard.UIDashboard);
 }
 
+public class mchorse.bbs_mod.api.client.events.RegisterFormEditorsEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterFormEditorsEvent();
+    public void register(java.lang.Class, java.util.function.Supplier<mchorse.bbs_mod.ui.forms.editors.forms.UIForm>);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterFormRenderersEvent {
+    public <T extends mchorse.bbs_mod.forms.forms.Form> void register(java.lang.Class<T>, mchorse.bbs_mod.forms.FormUtilsClient$IFormRendererFactory<T>);
+    public mchorse.bbs_mod.api.client.events.RegisterFormRenderersEvent();
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterKeyframeEditorsEvent {
+    public <T> void register(mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory<T>, mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory$IUIKeyframeFactoryFactory<T>);
+    public <T> void registerProperty(java.lang.String, mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory$IUIKeyframeFactoryFactory<T>);
+    public mchorse.bbs_mod.api.client.events.RegisterKeyframeEditorsEvent();
+}
+
 public class mchorse.bbs_mod.api.client.events.RegisterL10nEvent {
     public final mchorse.bbs_mod.l10n.L10n l10n;
     public mchorse.bbs_mod.api.client.events.RegisterL10nEvent(mchorse.bbs_mod.l10n.L10n);
+}
+
+public class mchorse.bbs_mod.api.client.events.RegisterValueWidgetsEvent {
+    public <T extends mchorse.bbs_mod.settings.values.base.BaseValue> void register(java.lang.Class<T>, mchorse.bbs_mod.settings.ui.UIValueMap$IUIValueFactory<T>);
+    public mchorse.bbs_mod.api.client.events.RegisterValueWidgetsEvent();
+}
+
+public class mchorse.bbs_mod.api.events.BBSReadyEvent {
+    public mchorse.bbs_mod.api.events.BBSReadyEvent();
+}
+
+public class mchorse.bbs_mod.api.events.RegisterActionClipsEvent extends mchorse.bbs_mod.api.events.BaseRegisterClipsEvent {
+    public mchorse.bbs_mod.api.events.RegisterActionClipsEvent(mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData>);
+}
+
+public class mchorse.bbs_mod.api.events.RegisterCameraClipsEvent extends mchorse.bbs_mod.api.events.BaseRegisterClipsEvent {
+    public mchorse.bbs_mod.api.events.RegisterCameraClipsEvent(mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData>);
+}
+
+public class mchorse.bbs_mod.api.events.RegisterFormsEvent {
+    public final mchorse.bbs_mod.forms.FormArchitect forms;
+    public mchorse.bbs_mod.api.events.RegisterFormsEvent(mchorse.bbs_mod.forms.FormArchitect);
+}
+
+public class mchorse.bbs_mod.api.events.RegisterKeyframeFactoriesEvent {
+    public mchorse.bbs_mod.api.events.RegisterKeyframeFactoriesEvent();
+    public void register(java.lang.String, mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory);
 }
 
 public class mchorse.bbs_mod.api.events.RegisterSettingsEvent extends mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent {

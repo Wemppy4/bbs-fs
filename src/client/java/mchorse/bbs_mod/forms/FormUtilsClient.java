@@ -69,7 +69,7 @@ public class FormUtilsClient
     private static CustomVertexConsumerProvider customVertexConsumerProvider;
     private static Stack<Form> currentForm = new Stack<>();
 
-    static
+    private static CustomVertexConsumerProvider createProvider()
     {
         BlockBufferBuilderStorage storage = new BlockBufferBuilderStorage();
         SortedMap sortedMap = Util.make(new Object2ObjectLinkedOpenHashMap(), map -> {
@@ -103,8 +103,18 @@ public class FormUtilsClient
             ModelLoader.BLOCK_DESTRUCTION_RENDER_LAYERS.forEach(renderLayer -> assignBufferBuilder(map, renderLayer));
         });
 
-        customVertexConsumerProvider = new CustomVertexConsumerProvider(new BufferBuilder(1536), sortedMap);
+        return new CustomVertexConsumerProvider(new BufferBuilder(1536), sortedMap);
+    }
 
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
+    {
         register(BillboardForm.class, BillboardFormRenderer::new);
         register(VideoForm.class, VideoFormRenderer::new);
         register(ExtrudedForm.class, ExtrudedFormRenderer::new);
@@ -128,12 +138,44 @@ public class FormUtilsClient
 
     public static CustomVertexConsumerProvider getProvider()
     {
+        /* Built on first use rather than while the mod initialises: it allocates the render
+         * layers' buffers, and doing that before the game is ready is the kind of thing that
+         * goes wrong in the game instead of in the build. */
+        if (customVertexConsumerProvider == null)
+        {
+            customVertexConsumerProvider = createProvider();
+        }
+
         return customVertexConsumerProvider;
     }
 
     public static <T extends Form> void register(Class<T> clazz, IFormRendererFactory<T> function)
     {
         map.put(clazz, function);
+    }
+
+    /**
+     * The renderer registered for a form's own class, or for the nearest class it extends.
+     *
+     * <p>Without the walk up, extending one of BBS's forms bought nothing: the subclass
+     * inherited the shape and the data and then drew as nothing at all, until it registered a
+     * renderer that was usually a copy of its parent's.</p>
+     */
+    private static IFormRendererFactory findFactory(Class clazz)
+    {
+        while (clazz != null && clazz != Object.class)
+        {
+            IFormRendererFactory factory = map.get(clazz);
+
+            if (factory != null)
+            {
+                return factory;
+            }
+
+            clazz = clazz.getSuperclass();
+        }
+
+        return null;
     }
 
     public static Form getCurrentForm()
@@ -153,7 +195,7 @@ public class FormUtilsClient
             return renderer;
         }
 
-        IFormRendererFactory factory = map.get(form.getClass());
+        IFormRendererFactory factory = findFactory(form.getClass());
 
         if (factory != null)
         {

@@ -142,7 +142,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     /** Upper part of the sidebar (toolbar + forms list); shrinks by the body part editor's height. */
     private UIElement listSection;
 
-    static
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
     {
         register(BillboardForm.class, UIBillboardForm::new);
         register(VideoForm.class, UIVideoForm::new);
@@ -172,9 +179,31 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             return null;
         }
 
-        Supplier<UIForm> supplier = panels.get(form.getClass());
+        Supplier<UIForm> supplier = findPanel(form.getClass());
 
         return supplier == null ? null : supplier.get();
+    }
+
+    /**
+     * The panel registered for a form's own class, or for the nearest class it extends, so a
+     * form built on top of one of BBS's own is editable through its parent's panel until it
+     * brings one of its own.
+     */
+    private static Supplier<UIForm> findPanel(Class clazz)
+    {
+        while (clazz != null && clazz != Object.class)
+        {
+            Supplier<UIForm> supplier = panels.get(clazz);
+
+            if (supplier != null)
+            {
+                return supplier;
+            }
+
+            clazz = clazz.getSuperclass();
+        }
+
+        return null;
     }
 
     public UIFormEditor(UIFormPalette palette)

@@ -49,7 +49,13 @@ import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.api.BBSAddonMod;
 import mchorse.bbs_mod.api.EventBus;
+import mchorse.bbs_mod.api.events.BBSReadyEvent;
+import mchorse.bbs_mod.api.events.RegisterActionClipsEvent;
+import mchorse.bbs_mod.api.events.RegisterCameraClipsEvent;
+import mchorse.bbs_mod.api.events.RegisterFormsEvent;
+import mchorse.bbs_mod.api.events.RegisterKeyframeFactoriesEvent;
 import mchorse.bbs_mod.api.events.RegisterSettingsEvent;
+import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import mchorse.bbs_mod.api.events.RegisterSourcePacksEvent;
 import mchorse.bbs_mod.film.FilmManager;
 import mchorse.bbs_mod.forms.FormArchitect;
@@ -410,6 +416,12 @@ public class BBSMod implements ModInitializer
 
         events.post(new RegisterSourcePacksEvent(provider));
 
+        /* Before the forms, because a form of an addon's may well animate a value type of
+         * the same addon's. */
+        KeyframeFactories.setup();
+
+        events.post(new RegisterKeyframeFactoriesEvent());
+
         settings = new SettingsManager();
         forms = new FormArchitect();
         forms
@@ -427,6 +439,8 @@ public class BBSMod implements ModInitializer
             .register(Link.bbs("trail"), TrailForm.class, null)
             .register(Link.bbs("framebuffer"), FramebufferForm.class, null)
             .register(Link.bbs("structure"), StructureForm.class, null);
+
+        events.post(new RegisterFormsEvent(forms));
 
         films = new FilmManager(() -> new File(worldFolder, "bbs/films"));
 
@@ -462,6 +476,8 @@ public class BBSMod implements ModInitializer
             .register(Link.bbs("tracker"), TrackerClip.class, new ClipFactoryData(Icons.USER, 0xffffff))
             .register(Link.bbs("dolly_zoom"), DollyZoomClip.class, new ClipFactoryData(Icons.FILTER, 0x7d56c9));
 
+        events.post(new RegisterCameraClipsEvent(factoryCameraClips));
+
         factoryActionClips = new ClipFactory()
             .register(Link.bbs("chat"), ChatActionClip.class, new ClipFactoryData(Icons.BUBBLE, Colors.YELLOW))
             .register(Link.bbs("command"), CommandActionClip.class, new ClipFactoryData(Icons.PROPERTIES, Colors.ACTIVE))
@@ -475,6 +491,8 @@ public class BBSMod implements ModInitializer
             .register(Link.bbs("attack"), AttackActionClip.class, new ClipFactoryData(Icons.DROP, Colors.RED))
             .register(Link.bbs("damage"), DamageActionClip.class, new ClipFactoryData(Icons.SKULL, Colors.CURSOR))
             .register(Link.bbs("swipe"), SwipeActionClip.class, new ClipFactoryData(Icons.LIMB, Colors.ORANGE));
+
+        events.post(new RegisterActionClipsEvent(factoryActionClips));
 
         setupConfig(Icons.SETTINGS, "bbs", new File(settingsFolder, "bbs.json"), BBSSettings::register);
 
@@ -516,6 +534,8 @@ public class BBSMod implements ModInitializer
         Registry.register(Registries.ITEM, new Identifier(MOD_ID, "chroma_white"), CHROMA_WHITE_BLOCK_ITEM);
 
         Registry.register(Registries.ITEM_GROUP, new Identifier(MOD_ID, "main"), ITEM_GROUP);
+
+        events.post(new BBSReadyEvent());
     }
 
     private void registerEvents()

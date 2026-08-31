@@ -98,3 +98,60 @@ mismatch breaks the dev environment in ways that look like anything but a mappin
 version does not change while it is being worked on. So a rebuilt BBS is silently ignored, and it
 looks exactly like your changes to BBS not existing. See `docs/addon-template/build.gradle` for a
 build script that notices and clears the cache by itself.
+
+## The registration events, in order
+
+BBS fills a registry, then posts the event for it. Subscribe to the event, register into what it
+hands you, and your things sit next to BBS's own.
+
+Both sides, from `BBSMod`:
+
+| Event | What it is for |
+| --- | --- |
+| `RegisterSourcePacksEvent` | your own assets, addressable as `yourmod:...` |
+| `RegisterKeyframeFactoriesEvent` | your own keyframe value types |
+| `RegisterFormsEvent` | your own forms |
+| `RegisterCameraClipsEvent` | your own camera and overlay clips |
+| `RegisterActionClipsEvent` | your own action clips |
+| `RegisterSettingsEvent` | your own settings file and categories |
+| `BBSReadyEvent` | everything is registered; look, don't register |
+
+The client only, from `BBSModClient`:
+
+| Event | What it is for |
+| --- | --- |
+| `RegisterL10nEvent` | your own language files, before the first load |
+| `RegisterClientSettingsEvent` | your own client settings |
+| `RegisterFormRenderersEvent` | how your forms draw |
+| `RegisterFormEditorsEvent` | how your forms are edited |
+| `RegisterClipPanelsEvent` | how your clips are edited |
+| `RegisterKeyframeEditorsEvent` | how your keyframe values are edited |
+| `RegisterValueWidgetsEvent` | how your settings value types are drawn |
+| `RegisterDashboardPanelsEvent` | your own dashboard panel (posted when the dashboard is first opened) |
+| `BBSClientReadyEvent` | the client half is registered |
+
+No registry fills itself in a static initialiser any more, so "before" and "after" mean something:
+whatever you register in one of these events is in place before BBS uses it, and BBS's own entries
+are in place before you are called.
+
+## Types named in the API
+
+The API package holds the events and the entry points. The types they hand you — `Form`, `Clip`,
+`FormArchitect`, the factory interfaces — live where they always did, and are covered by the same
+promise by being named in a signature that `api/bbs-api.txt` records. Reaching for a type the API
+never mentions is reaching into BBS's internals.
+
+## Extending one of BBS's forms
+
+A renderer and an editor panel are looked up by the form's own class first, then by the classes it
+extends. So a form extending, say, `BillboardForm` draws and edits like one until you register
+something of your own for it — and you register only the part you actually changed.
+
+## Naming things
+
+Give every id you register a namespace: `yourmod:gadget`, not `gadget`. Two reasons. It keeps you
+out of BBS's way and out of other addons'. And it is what makes your data survive your addon being
+switched off: BBS keeps unknown namespaced keys, unknown forms, unknown clips and unknown tracks
+verbatim and writes them back out unchanged, so a user who removes your addon for an evening still
+has their scene when they put it back. An un-namespaced key of yours is indistinguishable from one
+of BBS's own that was removed, and is dropped on save.
