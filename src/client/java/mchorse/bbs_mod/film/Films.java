@@ -26,6 +26,7 @@ import net.minecraft.client.MinecraftClient;
 import org.joml.Vector3d;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -139,6 +140,18 @@ public class Films
         }
 
         return null;
+    }
+
+    /**
+     * Every film playing right now, in the order they were started.
+     *
+     * <p>The list itself stays BBS's: a controller is added and removed by the machinery
+     * that owns it. Reading it used to need an accessor mixin, and an access widener could
+     * not help — Loom applies one to Minecraft only, never to another mod.</p>
+     */
+    public List<BaseFilmController> getControllers()
+    {
+        return Collections.unmodifiableList(this.controllers);
     }
 
     public Recorder getRecorder()

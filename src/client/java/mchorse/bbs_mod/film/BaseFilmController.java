@@ -35,6 +35,7 @@ import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.interps.Lerps;
+import mchorse.bbs_mod.api.client.events.FilmEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -132,6 +133,8 @@ public abstract class BaseFilmController
 
             i += 1;
         }
+
+        FilmEvents.CREATED.invoker().onFilmCreated(this);
     }
 
     public abstract Map<String, Integer> getActors();
@@ -150,6 +153,8 @@ public abstract class BaseFilmController
 
     protected void updateEntities(int ticks)
     {
+        FilmEvents.TICK_BEFORE.invoker().onFilmTick(this, ticks);
+
         List<Replay> replays = this.replays();
 
         for (int i = 0; i < replays.size(); i++)
@@ -212,6 +217,8 @@ public abstract class BaseFilmController
                 }
             }
         }
+
+        FilmEvents.TICK_AFTER.invoker().onFilmTick(this, ticks);
     }
 
     public void updateEndWorld()
@@ -498,6 +505,9 @@ public abstract class BaseFilmController
         }
 
         BBSProfiler.end(BBSProfiler.Timer.WORLD_FORMS);
+
+        /* Outside the timer: what an addon draws is the addon's cost, not the forms'. */
+        FilmEvents.RENDER_AFTER.invoker().onFilmRender(this, context);
     }
 
     /**
@@ -605,6 +615,8 @@ public abstract class BaseFilmController
 
     public void shutdown()
     {
+        FilmEvents.SHUTDOWN.invoker().onFilmShutdown(this);
+
         /* A live morphed player outlives the film - without this its bow would
          * stay drawn forever after the playback stops */
         ThirdPersonItemUse.clear();

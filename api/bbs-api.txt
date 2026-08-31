@@ -24,6 +24,15 @@ public class mchorse.bbs_mod.api.client.events.BBSClientReadyEvent {
     public mchorse.bbs_mod.api.client.events.BBSClientReadyEvent();
 }
 
+public class mchorse.bbs_mod.api.client.events.FilmEvents {
+    public mchorse.bbs_mod.api.client.events.FilmEvents();
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FilmEvents$Created> CREATED;
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FilmEvents$Render> RENDER_AFTER;
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FilmEvents$Shutdown> SHUTDOWN;
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FilmEvents$Tick> TICK_AFTER;
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FilmEvents$Tick> TICK_BEFORE;
+}
+
 public class mchorse.bbs_mod.api.client.events.L10nReloadEvent {
     public final mchorse.bbs_mod.l10n.L10n l10n;
     public mchorse.bbs_mod.api.client.events.L10nReloadEvent(mchorse.bbs_mod.l10n.L10n);
@@ -151,6 +160,22 @@ public interface mchorse.bbs_mod.api.Experimental extends java.lang.annotation.A
 }
 
 public interface mchorse.bbs_mod.api.Subscribe extends java.lang.annotation.Annotation {
+}
+
+public interface mchorse.bbs_mod.api.client.events.FilmEvents$Created {
+    public abstract void onFilmCreated(mchorse.bbs_mod.film.BaseFilmController);
+}
+
+public interface mchorse.bbs_mod.api.client.events.FilmEvents$Render {
+    public abstract void onFilmRender(mchorse.bbs_mod.film.BaseFilmController, net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext);
+}
+
+public interface mchorse.bbs_mod.api.client.events.FilmEvents$Shutdown {
+    public abstract void onFilmShutdown(mchorse.bbs_mod.film.BaseFilmController);
+}
+
+public interface mchorse.bbs_mod.api.client.events.FilmEvents$Tick {
+    public abstract void onFilmTick(mchorse.bbs_mod.film.BaseFilmController, int);
 }
 
 public interface mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback {
