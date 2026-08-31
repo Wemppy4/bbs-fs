@@ -657,6 +657,42 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     @Override
     public boolean renderArm(MatrixStack matrices, int light, AbstractClientPlayerEntity player, Hand hand)
     {
+        if (this.renderFirstPersonHand(matrices, light, hand))
+        {
+            return true;
+        }
+
+        return super.renderArm(matrices, light, player, hand);
+    }
+
+    /**
+     * Vanilla's frame for an empty first-person hand — {@code HeldItemRenderer#renderArmHoldingItem}
+     * with no swing and no equip progress, up to where {@code PlayerEntityRenderer#renderArm} (and so
+     * {@link #renderArm} above) is entered. This is what the model editor's first-person preview
+     * multiplies before {@link #renderFirstPersonHand}, so the preview matches the game. The main hand
+     * is the right arm; a left-handed player is not modelled here.
+     */
+    public static void applyFirstPersonArm(MatrixStack stack, boolean mainHand)
+    {
+        float f = mainHand ? 1F : -1F;
+
+        stack.translate(f * 0.64F, -0.6F, -0.72F);
+        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f * 45F));
+        stack.translate(f * -1F, 3.6F, 3.5F);
+        stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(f * 120F));
+        stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(200F));
+        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f * -135F));
+        stack.translate(f * 5.6F, 0F, 0F);
+    }
+
+    /**
+     * The model's first-person hand: only the branch under the slot's bone, placed by the slot's
+     * transform in the arm frame the caller has set up (the game's own, or
+     * {@link #applyFirstPersonArm}). Shared by the in-game arm and the model editor's preview.
+     * Returns false when the model has no slot for that hand.
+     */
+    public boolean renderFirstPersonHand(MatrixStack matrices, int light, Hand hand)
+    {
         ModelInstance model = this.getModel();
 
         if (this.animator != null && model != null)
@@ -734,7 +770,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return true;
         }
 
-        return super.renderArm(matrices, light, player, hand);
+        return false;
     }
 
     @Override
