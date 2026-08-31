@@ -22,6 +22,19 @@ public class MatrixStackUtils
         stack.peek().getNormalMatrix().scale(x < 0F ? -1F : 1F, y < 0F ? -1F : 1F, z < 0F ? -1F : 1F);
     }
 
+    /**
+     * Put the render system on an identity model-view for a 3D pass drawn inside the UI, remembering
+     * the UI's matrices for {@link #restoreMatrices()}.
+     *
+     * <p>The identity is left ON the model-view stack until the restore, so the stack's top and the
+     * applied matrix agree throughout the pass. They used to diverge (the identity was popped right
+     * after being applied), and any vanilla render layer with a layering phase — armor's
+     * {@code VIEW_OFFSET_Z_LAYERING} — does {@code push / scale / applyModelViewMatrix / pop /
+     * applyModelViewMatrix}: it drew itself with the UI's matrix instead of the identity, and left
+     * that matrix applied, so everything vanilla drew after it in the pass (gizmo handles, the pick
+     * stencil, more armor) landed off screen. Every caller pairs the two calls, so the extra level
+     * is balanced.</p>
+     */
     public static void cacheMatrices()
     {
         /* Cache the global stuff */
@@ -34,7 +47,6 @@ public class MatrixStackUtils
         renderStack.push();
         renderStack.loadIdentity();
         RenderSystem.applyModelViewMatrix();
-        renderStack.pop();
     }
 
     public static void restoreMatrices()
@@ -45,6 +57,10 @@ public class MatrixStackUtils
 
         MatrixStack renderStack = RenderSystem.getModelViewStack();
 
+        renderStack.pop();
+
+        /* The UI's applied matrix isn't necessarily the stack's top (the UI sets it on its own), so
+         * it goes back through a temporary level rather than a plain apply of the top. */
         renderStack.push();
         renderStack.loadIdentity();
         MatrixStackUtils.multiply(renderStack, oldMV);

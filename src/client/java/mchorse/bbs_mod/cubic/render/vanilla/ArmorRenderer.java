@@ -3,6 +3,7 @@ package mchorse.bbs_mod.cubic.render.vanilla;
 import com.google.common.collect.Maps;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
@@ -24,6 +25,7 @@ import net.minecraft.item.Items;
 import net.minecraft.item.trim.ArmorTrim;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 import java.util.Map;
 
@@ -90,10 +92,17 @@ public class ArmorRenderer
                     this.renderArmorParts(part, matrices, vertexConsumers, light, armorItem, innerModel, 1F, 1F, 1F, null);
                 }
 
-                ArmorTrim.getTrim(entity.getWorld().getRegistryManager(), itemStack, true).ifPresent((trim) ->
+                /* A stub in a preview may have no world of its own; the trims live in the world's
+                 * registries, so the client's stands in, and without any world there are no trims. */
+                World world = entity.getWorld() != null ? entity.getWorld() : MinecraftClient.getInstance().world;
+
+                if (world != null)
                 {
-                    this.renderTrim(part, armorItem.getMaterial(), matrices, vertexConsumers, light, trim, innerModel);
-                });
+                    ArmorTrim.getTrim(world.getRegistryManager(), itemStack, true).ifPresent((trim) ->
+                    {
+                        this.renderTrim(part, armorItem.getMaterial(), matrices, vertexConsumers, light, trim, innerModel);
+                    });
+                }
 
                 if (itemStack.hasGlint())
                 {
