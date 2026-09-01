@@ -10,6 +10,8 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
+import mchorse.bbs_mod.ui.onboarding.Onboarding;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.dashboard.panels.UIEditorDashboardPanel;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
@@ -61,6 +63,11 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
         this.keys().register(Keys.PLAUSE, this.audioEditor::togglePlayback);
         this.keys().register(Keys.SAVE, this::saveColors);
         this.keys().register(Keys.OPEN_DATA_MANAGER, this.pickAudio::clickItself);
+
+        /* What the tour of this panel points at */
+        TourAnchors.register("audio.waveform", () -> this.audioEditor);
+        TourAnchors.register("audio.play", () -> this.plause);
+        TourAnchors.register("audio.save", () -> this.saveColors);
     }
 
     /* Tabs — a tab holds the link of an open sound */
@@ -100,6 +107,7 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
         if (link != null)
         {
             BBSSettings.recentData.touch(RECENT, link.toString());
+            Onboarding.dataOpened(this);
         }
     }
 

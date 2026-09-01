@@ -35,6 +35,7 @@ import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
@@ -203,6 +204,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     public UIModelEditorPanel(UIDashboard dashboard)
     {
         super(dashboard);
+
+        /* What the tour of this panel points at; the panes are built further down */
+        TourAnchors.register("model_editor.preview", () -> this.renderer);
+        TourAnchors.register("model_editor.settings", () -> this.general);
+        TourAnchors.register("model_editor.bones", () -> this.bonesPane);
 
         this.general = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
 

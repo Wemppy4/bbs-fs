@@ -86,6 +86,7 @@ public class UIDashboard extends UIBaseMenu
             }
 
             this.copyCurrentEntityCamera();
+            Onboarding.panelShown(e.panel);
         });
         this.panels.full(this.viewport);
         this.registerPanels();

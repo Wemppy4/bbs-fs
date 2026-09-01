@@ -2,19 +2,34 @@ package mchorse.bbs_mod.ui.onboarding;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
+import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
+import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
+import mchorse.bbs_mod.ui.dashboard.textures.UITextureManagerPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.model_blocks.UIModelBlockPanel;
+import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
+import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.ui.onboarding.welcome.UIWelcomeOverlayPanel;
+import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
+import mchorse.bbs_mod.ui.utility.audio.UIAudioEditorPanel;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * What happens the first time — the welcome screen once, then a tour chapter the first time
- * each place is reached. The panels report the moments ("the dashboard came up", "a film was
- * opened"); this decides whether anything is owed for them.
+ * each place is reached. The panels report the moments ("the dashboard came up", "this panel
+ * is on screen", "a document was opened in it"); this decides whether anything is owed.
+ *
+ * <p>A place is either a panel as such (morphing, model blocks, textures — there is something
+ * to see the moment it is up) or a panel with a document in it (the film, a model, a particle
+ * scheme, a sound — empty, it is a landing screen, and the landing screen has its own step).
+ * Which is which is the two maps below.</p>
  *
  * <p>One thing at a time: the welcome screen outranks any tour, and between tours the one
  * with the higher priority wins, since a film opens under the dashboard on the way in and
@@ -23,7 +38,25 @@ import java.util.Set;
  */
 public class Onboarding
 {
+    /** Chapters owed the moment a panel is on screen. */
+    private static final Map<Class<?>, TourChapter> SHOWN = new HashMap<>();
+
+    /** Chapters owed once a panel has a document open. */
+    private static final Map<Class<?>, TourChapter> OPENED = new HashMap<>();
+
     private static UITour active;
+
+    static
+    {
+        SHOWN.put(UIMorphingPanel.class, Tours.MORPHING);
+        SHOWN.put(UIModelBlockPanel.class, Tours.MODEL_BLOCKS);
+        SHOWN.put(UITextureManagerPanel.class, Tours.TEXTURES);
+
+        OPENED.put(UIFilmPanel.class, Tours.FILM);
+        OPENED.put(UIModelEditorPanel.class, Tours.MODEL_EDITOR);
+        OPENED.put(UIParticleSchemePanel.class, Tours.PARTICLES);
+        OPENED.put(UIAudioEditorPanel.class, Tours.AUDIO);
+    }
 
     /** The dashboard screen came up. */
     public static void dashboardOpened(UIDashboard dashboard)
@@ -38,14 +71,36 @@ public class Onboarding
         start(dashboard.context, Tours.DASHBOARD);
     }
 
-    /** A film is on screen in the film editor. */
-    public static void filmOpened(UIFilmPanel panel)
+    /**
+     * A panel became the one on screen. A chapter about the panel that just went away is
+     * taken down, not ticked off: its anchors are gone, and walking them blind would count
+     * as walked. The dashboard's own chapter stays — its anchors are on every panel.
+     */
+    public static void panelShown(UIDashboardPanel panel)
     {
+        TourChapter chapter = panel == null ? null : SHOWN.get(panel.getClass());
+        UIContext context = panel == null ? null : panel.getContext();
+
+        if (active != null && !active.isFinished() && active.chapter.priority() == 0 && active.chapter != chapter)
+        {
+            abandon();
+        }
+
+        if (chapter != null && context != null)
+        {
+            start(context, chapter);
+        }
+    }
+
+    /** A panel has a document open in it. */
+    public static void dataOpened(UIDashboardPanel panel)
+    {
+        TourChapter chapter = OPENED.get(panel.getClass());
         UIContext context = panel.getContext();
 
-        if (context != null)
+        if (chapter != null && context != null)
         {
-            start(context, Tours.FILM);
+            start(context, chapter);
         }
     }
 
@@ -121,15 +176,27 @@ public class Onboarding
         overlay.resize();
     }
 
+    /**
+     * A chapter ended; the place the user is standing in may be owed one too — the film is
+     * usually open all along, under the dashboard's chapter.
+     */
     private static void finished(UIContext context, TourChapter chapter)
     {
         markDone(chapter);
         active = null;
 
-        /* The film may have been open all along, under the dashboard's chapter */
-        if (context.menu instanceof UIDashboard dashboard && dashboard.getPanels().panel instanceof UIFilmPanel film && film.getData() != null)
+        if (!(context.menu instanceof UIDashboard dashboard))
         {
-            start(context, Tours.FILM);
+            return;
+        }
+
+        UIDashboardPanel panel = dashboard.getPanels().panel;
+
+        panelShown(panel);
+
+        if (panel instanceof UIDataDashboardPanel<?> data && data.getData() != null)
+        {
+            dataOpened(panel);
         }
     }
 

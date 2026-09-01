@@ -27,6 +27,7 @@ import mchorse.bbs_mod.ui.forms.UIToggleEditorEvent;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemStack;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -178,6 +179,11 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
         this.modelBlocksSearch = new UISearchList<>(this.modelBlocks);
         this.modelBlocksSearch.label(UIKeys.GENERAL_SEARCH);
         this.modelBlocksSearch.h(20 + UIModelBlockEntityList.ROW * 9);
+
+        /* What the tour of this panel points at; the fields below are built further down */
+        TourAnchors.register("model_blocks.list", () -> this.modelBlocksSearch);
+        TourAnchors.register("model_blocks.form", () -> this.pickEdit);
+        TourAnchors.register("model_blocks.transform", () -> this.transform);
 
         this.pickEdit = new UINestedEdit((editing) ->
         {
