@@ -48,16 +48,6 @@ public class UIPanelTopBar extends UIElement
         return this.tabs;
     }
 
-    public UIDataTabs getTabs()
-    {
-        return this.tabs;
-    }
-
-    public boolean hasTabs()
-    {
-        return this.tabs != null;
-    }
-
     @Override
     protected void afterResizeApplied()
     {

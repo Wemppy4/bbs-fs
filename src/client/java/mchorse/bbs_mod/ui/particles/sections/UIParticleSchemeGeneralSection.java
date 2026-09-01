@@ -89,9 +89,15 @@ public class UIParticleSchemeGeneralSection extends UIParticleSchemeSection
 
         this.buildDirectionFields();
 
+        this.facing.w(this.facing.getPreferredWidth());
+
         this.fields.add(this.identifier, UI.row(5, 0, 20, this.pick, this.material));
-        this.fields.add(UI.label(UIKeys.SNOWSTORM_GENERAL_FACING, 20).labelAnchor(0, 1F).marginTop(UIConstants.MARGIN));
-        this.fields.add(this.facing);
+        /* The strip is as wide as its icons and pins itself to the right, so the label rides
+         * the same line instead of costing a row of its own */
+        this.fields.add(UI.row(5, 0, 20,
+            UI.label(UIKeys.SNOWSTORM_GENERAL_FACING, 0).labelAnchor(0, 0.5F),
+            this.facing
+        ).marginTop(UIConstants.MARGIN));
     }
 
     /* Direction source for the direction_x/y/z facing modes (shown only for those modes). */

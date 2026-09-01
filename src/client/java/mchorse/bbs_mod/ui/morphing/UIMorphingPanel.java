@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.morphing.camera.ImmersiveMorphingCameraController;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import net.minecraft.client.MinecraftClient;
@@ -63,6 +64,11 @@ public class UIMorphingPanel extends UIDashboardPanel
 
         this.onAppear(this::enterMorphing);
         this.onDisappear(this::leaveMorphing);
+
+        /* What the tour of this panel points at */
+        TourAnchors.register("morphing.forms", () -> this.palette.list.forms);
+        TourAnchors.register("morphing.edit", () -> this.palette.list.edit);
+        TourAnchors.register("morphing.demorph", () -> this.demorph);
     }
 
     private void enterMorphing()

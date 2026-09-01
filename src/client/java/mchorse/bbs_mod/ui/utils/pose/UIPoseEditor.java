@@ -1,13 +1,11 @@
 package mchorse.bbs_mod.ui.utils.pose;
 
-import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIDeltaPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
@@ -17,7 +15,6 @@ import mchorse.bbs_mod.ui.utils.BoneSelection;
 import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.resizers.AutomaticResizer;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.context.MenuIcon;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
@@ -34,6 +31,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +39,11 @@ import java.util.function.Consumer;
 
 public class UIPoseEditor extends UIElement
 {
-    /** The bone list never shrinks below this height when it gets stretched to fill the panel. */
-    private static final int MIN_LIST_HEIGHT = UIStringList.DEFAULT_HEIGHT * 4;
+    public static final int WIDE_WIDTH = (UIConstants.VALUE_WIDTH + 80) * 2;
+
+    /** Fold state of the material section, kept across the rebuilds that undo/redo and re-opening
+     *  the keyframe popup cause — the same trick the form panels and the texture painter use. */
+    private static final Map<String, Boolean> SECTION_FOLDS = new HashMap<>();
 
     public UIBoneList groups;
     public UISliderTrackpad fix;
@@ -50,17 +51,26 @@ public class UIPoseEditor extends UIElement
     public UIColor overlay;
     public UISliderTrackpad lighting;
     public UIPropTransform transform;
+    public UISection material;
 
     private String group = "";
+    private boolean hasBones = true;
     private Pose pose;
-    protected IModel model;
+    protected IBoneHierarchy model;
     protected Map<String, String> flippedParts;
 
     public UIPoseEditor()
     {
         this.groups = new UIBoneList(this::pickBones);
         this.groups.onFiltered = this::afterFilter;
-        this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 8 - 8);
+
+        /* The bone list eats whatever room the panel has to spare, down through every layer between
+         * it and the scroll view. The height below is what it asks for, i.e. its minimum: when the
+         * fields underneath already fill the panel there is nothing to expand into and the list
+         * stays exactly this tall. */
+        this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 8 - 8).expand();
+        this.groups.expand();
+        this.expand();
         this.groups.list.context(() ->
         {
             UIDataContextMenu menu = new UIDataContextMenu(PoseManager.INSTANCE, this.group, () -> this.pose.toData(), this::pastePose);
@@ -114,83 +124,68 @@ public class UIPoseEditor extends UIElement
         this.keys().register(Keys.TRANSFORMATIONS_TOGGLE_FIX, this::toggleFix).category(UIKeys.TRANSFORMS_KEYS_CATEGORY);
 
         this.column().vertical().stretch();
-        /* Both rows ride the same labelRow grid, so the fix trackpad and the colour
-         * swatch pin to one divider column. The lighting toggle keeps its own name
-         * and takes the label slot of its row — it used to sit in a bare row that
-         * spanned the full width and ignored that column. */
-        this.add(
-            this.groups,
-            UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.fix),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_COLOR, this.color),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_OVERLAY, this.overlay),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_GLOW, this.lighting),
-            this.transform
-        );
-    }
-
-    @Override
-    public void resize()
-    {
-        if (this.stretchesBoneList())
-        {
-            this.stretchBoneList();
-        }
-
-        super.resize();
+        this.buildLayout(false);
     }
 
     /**
-     * Whether the bone list grows to fill the viewport. Only the film editor's pose keyframe editor
-     * opts in; the form pose editor keeps the list at its fixed height, so the collapsible sections
-     * below it (transform, shape keys) lay out predictably instead of fighting the stretch.
+     * A bone's material fields as one folded section. Colour, overlay and glow are the bone's
+     * material rather than its pose, so they fold away under the transform instead of pushing it
+     * down the panel.
+     *
+     * <p>Static because the pose-transform keyframe panel is these same fields without a bone list:
+     * it builds its section from here, so the two cannot disagree about the rows, and the fold
+     * state is shared — closing the section in one place closes it in the other.</p>
      */
-    protected boolean stretchesBoneList()
+    public static UISection materialSection(UIColor color, UIColor overlay, UISliderTrackpad lighting)
     {
-        return false;
+        UISection section = new UISection(UIKeys.FORMS_EDITORS_MATERIAL).remember(SECTION_FOLDS, "material", false);
+
+        section.fields.add(
+            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_COLOR, color),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_OVERLAY, overlay),
+            UI.labelRow(UIKeys.FORMS_EDITORS_MATERIAL_GLOW, lighting)
+        );
+
+        return section;
     }
 
-    private void stretchBoneList()
+    /**
+     * Lays the bone list and the per-bone fields out, either stacked or — when {@code wide} — with
+     * the fields to the left of the list. This widget owns its own layout: the film's pose keyframe
+     * editor used to tear it down and re-assemble it by hand, which is how the two arrangements
+     * drifted apart (the keyframe one lost the overlay field and the field labels entirely).
+     *
+     * <p>The rows are declared once above the branch, so the two arrangements cannot disagree about
+     * which fields exist or in what order.</p>
+     */
+    public void buildLayout(boolean wide)
     {
-        UIScrollView viewport = this.getViewport();
+        this.removeAll();
 
-        if (viewport == null || this.area.h <= 0 || this.groups.getParent() == null)
+        this.material = materialSection(this.color, this.overlay, this.lighting);
+        this.material.setVisible(this.hasBones);
+
+        /* Every row rides the same labelRow grid, so the trackpads and colour swatches pin to one
+         * divider column and the names never truncate. */
+        UIElement[] fields = {
+            UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.fix),
+            this.transform,
+            this.material
+        };
+
+        if (wide)
         {
-            return;
+            /* The row and the list's column are marked too: the leftover height only reaches the
+             * list through the layers that asked for it. */
+            this.add(UI.row(UI.column(fields), UI.column(this.groups).expand()).expand());
         }
-
-        int target = viewport.area.ey() - this.getViewportPadding(viewport);
-        int height = this.groups.list.getFlex().getH() + (target - this.area.ey());
-
-        this.groups.list.h(Math.max(height, MIN_LIST_HEIGHT));
-    }
-
-    private UIScrollView getViewport()
-    {
-        UIElement element = this.getParent();
-
-        while (element != null)
+        else
         {
-            if (element instanceof UIScrollView)
-            {
-                return (UIScrollView) element;
-            }
-
-            element = element.getParent();
+            /* Flat, not wrapped in a column of its own: this is the arrangement the form editor
+             * has always had, and its sections below rely on these rows being direct children. */
+            this.add(this.groups);
+            this.add(fields);
         }
-
-        return null;
-    }
-
-    /** The scroll content lays itself out with this much padding at the bottom; leaving exactly
-     *  that gap below the list is what keeps the panel from overflowing into a stray scrollbar. */
-    private int getViewportPadding(UIScrollView viewport)
-    {
-        if (viewport.getFlex().post instanceof AutomaticResizer resizer)
-        {
-            return resizer.padding;
-        }
-
-        return UIConstants.SCROLL_PADDING;
     }
 
     private void applyChildren(Consumer<PoseTransform> consumer)
@@ -260,12 +255,12 @@ public class UIPoseEditor extends UIElement
         this.fillInGroups(groups, reset, true);
     }
 
-    public void fillGroups(IModel model, Map<String, String> flippedParts, boolean reset)
+    public void fillGroups(IBoneHierarchy model, Map<String, String> flippedParts, boolean reset)
     {
         this.fillGroups(model, flippedParts, reset, null);
     }
 
-    public void fillGroups(IModel model, Map<String, String> flippedParts, boolean reset, Collection<String> disabledBones)
+    public void fillGroups(IBoneHierarchy model, Map<String, String> flippedParts, boolean reset, Collection<String> disabledBones)
     {
         this.model = model;
         this.flippedParts = flippedParts;
@@ -327,11 +322,13 @@ public class UIPoseEditor extends UIElement
     {
         boolean hasBones = this.groups.hasBones();
 
+        /* Remembered so a relayout (the keyframe popup crossing WIDE_WIDTH) rebuilds the material
+         * section in the state it was in, rather than bringing it back on a boneless model. */
+        this.hasBones = hasBones;
+
         this.fix.setVisible(hasBones);
-        this.color.setVisible(hasBones);
-        this.overlay.setVisible(hasBones);
-        this.lighting.setVisible(hasBones);
         this.transform.setVisible(hasBones);
+        this.material.setVisible(hasBones);
 
         List<String> list = this.groups.list.getList();
         int i = Math.max(reset ? 0 : list.indexOf(this.boneSelection().get()), 0);

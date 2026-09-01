@@ -47,11 +47,14 @@ public class BBSSettings {
 	public static ValueBoolean enableTrackpadScrolling;
 	public static ValueFloat userIntefaceScale;
 	public static ValueBoolean pixelArtSmoothing;
+	public static ValueInt taskbarSide;
 	public static ValueFloat fov;
-	public static ValueBoolean hsvColorPicker;
+	public static ValueBoolean colorPickerHsvTab;
 	public static ValueBoolean forceQwerty;
 	public static ValueBoolean freezeModels;
 	public static ValueBoolean listModelPreview;
+	/** How many cached form pictures (lists, palettes) are re-rendered per frame; 0 renders them live. */
+	public static ValueInt previewRefreshBudget;
 	public static ValueBoolean morphingFocusSearch;
 	public static ValueInt formCellSize;
 	public static ValueInt textureCellSize;
@@ -60,11 +63,17 @@ public class BBSSettings {
 	public static ValueRecentData recentData;
 	public static ValueFloat axesScale;
 	public static ValueFloat axesThickness;
-	public static ValueBoolean axesKeepScreenSize;
-	public static ValueBoolean rotate3dSphere;
+	public static ValueBoolean gizmoKeepScreenSize;
+	public static ValueFloat gizmoPlaneSize;
 	public static ValueInt rotate3dSphereMode;
-	public static ValueBoolean rotateHideRings;
 	public static ValueBoolean hideInactiveHandles;
+	/* The gizmo always carries every one of its elements; these say which of them
+	 * reach the screen and the cursor. See mchorse.bbs_mod.ui.utils.Gizmo.Element. */
+	public static ValueBoolean gizmoShowTranslate;
+	public static ValueBoolean gizmoShowScale;
+	public static ValueBoolean gizmoShowRotate;
+	public static ValueBoolean gizmoShowViewRotate;
+	public static ValueBoolean gizmoShowSphere;
 	public static ValueFloat snapTranslate;
 	public static ValueFloat snapRotate;
 	public static ValueFloat snapScale;
@@ -73,9 +82,7 @@ public class BBSSettings {
 	public static ValueBoolean uniformScale;
 	public static ValueBoolean clickSound;
 	public static ValueBoolean gizmos;
-	public static ValueBoolean defaultLocalTransform;
 	public static ValueInt transformSpace;
-	public static ValueBoolean transformHotkeys3dRay;
 	public static ValueBoolean poseMirrorEdit;
 	public static ValueBoolean poseAlternateInvert;
 	public static ValueBoolean poseShowDisabledBones;
@@ -89,6 +96,10 @@ public class BBSSettings {
 	public static ValueBoolean enableKeystrokeRendering;
 	public static ValueInt keystrokeOffset;
 	public static ValueInt keystrokeMode;
+
+	/* First run: the welcome screen shows once, and each tour chapter is ticked off by its id */
+	public static ValueBoolean onboardingWelcomeSeen;
+	public static ValueStringKeys onboardingToursDone;
 
 	public static ValueLink backgroundImage;
 	public static ValueInt backgroundColor;
@@ -131,6 +142,8 @@ public class BBSSettings {
 	public static ValueFloat editorCameraAngleSpeed;
 	public static ValueInt duration;
 	public static ValueBoolean editorLoop;
+	public static ValueBoolean autoKeyframe;
+	public static ValueBoolean anchorKeepTransform;
 	public static ValueInt editorJump;
 	public static ValueInt editorGuidesColor;
 	public static ValueBoolean editorRuleOfThirds;
@@ -154,7 +167,14 @@ public class BBSSettings {
 	public static ValueOnionSkin editorOnionSkin;
 	public static ValueIKDebug ikDebug;
 	public static ValuePhysicsDebug physicsDebug;
+	public static ValueBoolean profilerOverlay;
+	/** Emergency switch for the per-frame pose caches; invisible, on by default. */
+	public static ValueBoolean framePoseCache;
+	/** Skip rendering replays whose surroundings are entirely off screen. */
+	public static ValueBoolean frustumCulling;
 	public static ValueBoolean editorSnapToMarkers;
+	/** Snapping to the film's own markers &mdash; unlike {@link #editorSnapToMarkers}, which is the ruler's notches. */
+	public static ValueBoolean editorSnapToFilmMarkers;
 	public static ValueBoolean editorClipPreview;
 	public static ValueBoolean editorRewind;
 	public static ValueBoolean editorStopPlaybackOnScrub;
@@ -172,6 +192,7 @@ public class BBSSettings {
 	public static ValueFloat editorPreviewResolutionScale;
 	public static ValueBoolean editorClipAutoName;
 	public static ValueBoolean editorPreviewIconsAutoHide;
+	public static ValueBoolean editorPreviewSelectionHud;
 	public static ValueBoolean editorKeepFrameOnExit;
 
 	public static ValueFloat recordingCountdown;
@@ -193,6 +214,8 @@ public class BBSSettings {
 	public static ValueBoolean interfaceShadows;
 	public static ValueBoolean interfaceHighlights;
 	public static ValueBoolean interfaceGlow;
+	public static ValueBoolean interfaceBlur;
+	public static ValueInt interfaceBlurRadius;
 
 	public static ValueBoolean shaderCurvesEnabled;
 	public static ValueBoolean translucencyQueue;
@@ -228,7 +251,8 @@ public class BBSSettings {
 	 * How far apart the levels sit came off a screenshot of Essential's
 	 * interface, whose dominant grey and the greys layered over it stand one
 	 * step apart — {@link #DEFAULT_SECONDARY_COLOR} reproduces that ramp
-	 * exactly (#131313, #181818, #1d1d1d, #222222, divider #2a2a2a). The step
+	 * exactly (#131313, #181818, #1d1d1d, #222222, divider #2a2a2a), with one
+	 * further rung below #131313 for the strips that sit under all of it. The step
 	 * is deliberately small: depth should be felt rather than announced, and a
 	 * dark interface that stays dark is easier to sit in front of for hours.
 	 */
@@ -236,13 +260,14 @@ public class BBSSettings {
 	private static final float SURFACE_STEP = 0.022F;
 	private static final float DIVIDER_STEP = 0.054F;
 
-	private static final int SURFACE_DEEP = 0;
-	private static final int SURFACE_CHROME = 1;
-	private static final int SURFACE_BASE = 2;
-	private static final int SURFACE_RAISED = 3;
-	private static final int SURFACE_DIVIDER = 4;
+	private static final int SURFACE_SUNKEN = 0;
+	private static final int SURFACE_DEEP = 1;
+	private static final int SURFACE_CHROME = 2;
+	private static final int SURFACE_BASE = 3;
+	private static final int SURFACE_RAISED = 4;
+	private static final int SURFACE_DIVIDER = 5;
 
-	private static final float[] SURFACE_OFFSETS = {-SURFACE_STEP * 2F, -SURFACE_STEP, 0F, SURFACE_STEP, DIVIDER_STEP};
+	private static final float[] SURFACE_OFFSETS = {-SURFACE_STEP * 3F, -SURFACE_STEP * 2F, -SURFACE_STEP, 0F, SURFACE_STEP, DIVIDER_STEP};
 
 	/**
 	 * The lightness past which the surfaces are bright enough that white icons
@@ -337,6 +362,17 @@ public class BBSSettings {
 		return surface(SURFACE_DEEP);
 	}
 
+	/**
+	 * One rung below {@link #deepSurface()}: the floor of the ladder, for the
+	 * strips that have to sit under everything the interface layers on top —
+	 * the timeline ruler and the field outside the film, which is not a surface
+	 * anything can be put on.
+	 */
+	public static int sunkenSurface()
+	{
+		return surface(SURFACE_SUNKEN);
+	}
+
 	public static int dividerColor()
 	{
 		return surface(SURFACE_DIVIDER);
@@ -404,23 +440,35 @@ public class BBSSettings {
 		return BBSSettings.fov == null ? MathUtils.toRad(50) : MathUtils.toRad(BBSSettings.fov.get());
 	}
 
-	public static float getAxesDistanceScale(float distance)
+	/**
+	 * How much a world-space overlay has to grow with distance to keep the same size on
+	 * screen. Markers and paths always want this - what they mark is a point, and a point
+	 * that shrinks into nothing marks nothing.
+	 */
+	public static float getScreenSizeScale(float distance)
 	{
-		return getAxesDistanceScale(distance, getFov());
+		return getScreenSizeScale(distance, getFov());
 	}
 
-	public static float getAxesDistanceScale(float distance, float fov)
+	public static float getScreenSizeScale(float distance, float fov)
 	{
-		if (axesKeepScreenSize != null && axesKeepScreenSize.get())
-		{
-			float tanFov = (float) Math.tan(fov / 2.0);
-			// 0.4663F is roughly tan(50 degrees / 2)
-			float scale = (distance / 5F) * (tanFov / 0.4663F);
+		float tanFov = (float) Math.tan(fov / 2.0);
+		// 0.4663F is roughly tan(50 degrees / 2)
+		float scale = (distance / 5F) * (tanFov / 0.4663F);
 
-			return Math.max(scale, 0.0001F);
-		}
+		return Math.max(scale, 0.0001F);
+	}
 
-		return 1F;
+	/**
+	 * The same for the gizmo, which is the one overlay that may turn it off: a gizmo that
+	 * shrinks with distance reads as part of the scene rather than as a tool over it, and
+	 * some people prefer it that way.
+	 */
+	public static float getGizmoDistanceScale(float distance, float fov)
+	{
+		boolean keep = gizmoKeepScreenSize == null || gizmoKeepScreenSize.get();
+
+		return keep ? getScreenSizeScale(distance, fov) : 1F;
 	}
 
 	public static boolean isHorizontalClipEditorEffective()
@@ -497,6 +545,11 @@ public class BBSSettings {
 		migrated |= migrateLegacyCategory(root, "personalization", "timeline", "track_width", "keyframe_default_shape");
 		migrated |= migrateLegacyCategory(root, "appearance", "workspace", "clip_auto_name");
 
+		/* The performance knobs gathered into a category of their own */
+		migrated |= migrateLegacyCategory(root, "appearance", "performance", "list_model_preview", "preview_refresh_budget", "freeze_models");
+		migrated |= migrateLegacyCategory(root, "viewport", "performance", "profiler_overlay", "frame_pose_cache");
+		migrated |= migrateLegacyCategory(root, "misc", "performance", "translucency_queue", "multiskin_multithreaded");
+
 		/* Video capture was briefly split three ways, which turned out to be worse
 		 * than the one long page it came from */
 		migrated |= migrateLegacyCategory(root, "export", "video",
@@ -504,6 +557,12 @@ public class BBSSettings {
 			"world_export_resize_window", "audio", "minecraft_sounds", "mute_audio_while_render");
 		migrated |= migrateLegacyCategory(root, "encoder", "video",
 			"encoder_path", "log", "arguments", "arguments_audio", "arguments_mux");
+
+		/* The gizmo lost its display modes: every element is always there, and these
+		 * two toggles became part of the per-element visibility set */
+		migrated |= migrateLegacyValue(root, "transformation", "axes_keep_screen_size", "transformation", "gizmo_keep_screen_size");
+		migrated |= migrateLegacyValue(root, "transformation", "rotate_3d_sphere", "transformation", "gizmo_show_sphere");
+		migrated |= migrateLegacyFlipped(root, "transformation", "rotate_hide_rings", "transformation", "gizmo_show_rotate");
 
 		/* Single option features share one category now, so their ids say what they switch */
 		migrated |= migrateLegacyValue(root, "dc", "enabled", "misc", "damage_control");
@@ -524,6 +583,26 @@ public class BBSSettings {
 		}
 
 		return migrated;
+	}
+
+	/**
+	 * The same, for a boolean whose meaning was turned around by the rename
+	 * ("hide X" becoming "show X"), so the migrated file keeps the look the user had.
+	 */
+	private static boolean migrateLegacyFlipped(MapType root, String oldCategory, String oldKey, String newCategory, String newKey)
+	{
+		MapType oldMap = root.getMap(oldCategory);
+		MapType newMap = root.getMap(newCategory);
+
+		if (newMap.has(newKey) || !oldMap.has(oldKey))
+		{
+			return false;
+		}
+
+		newMap.putBool(newKey, !oldMap.getBool(oldKey));
+		root.put(newCategory, newMap);
+
+		return true;
 	}
 
 	private static boolean migrateLegacyValue(MapType root, String oldCategory, String oldKey, String newCategory, String newKey)
@@ -555,6 +634,8 @@ public class BBSSettings {
 		defaultFilters.add("vY");
 		defaultFilters.add("vZ");
 		defaultFilters.add("grounded");
+		defaultFilters.add("leaning");
+		defaultFilters.add("roll");
 		defaultFilters.add("stick_rx");
 		defaultFilters.add("stick_ry");
 		defaultFilters.add("trigger_l");
@@ -571,11 +652,10 @@ public class BBSSettings {
 		enableTrackpadScrolling = builder.getBoolean("trackpad_scrolling", false);
 		userIntefaceScale = builder.getFloat("ui_scale", 2F, 0F, 4F).slider(0.25D);
 		pixelArtSmoothing = builder.getBoolean("pixel_art_smoothing", true);
+		taskbarSide = builder.getInt("taskbar_side", 0);
 		fov = builder.getFloat("fov", 40, 0, 180);
-		hsvColorPicker = builder.getBoolean("hsv_color_picker", true);
+		colorPickerHsvTab = builder.getBoolean("hsv_color_picker", true);
 		forceQwerty = builder.getBoolean("force_qwerty", false);
-		freezeModels = builder.getBoolean("freeze_models", false);
-		listModelPreview = builder.getBoolean("list_model_preview", true);
 		morphingFocusSearch = builder.getBoolean("morphing_focus_search", false);
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
@@ -590,6 +670,10 @@ public class BBSSettings {
 		formCellSize.invisible();
 		textureCellSize.invisible();
 		textureSort.invisible();
+		/* Which tab the colour picker was left on, written by the picker itself when
+		 * the tab is switched - a remembered position, not a setting to sit in a list.
+		 * The key stays "hsv_color_picker" so an existing settings file keeps its tab. */
+		colorPickerHsvTab.invisible();
 		uniformScale = builder.getBoolean("uniform_scale", false);
 		clickSound = builder.getBoolean("click_sound", false);
 		favoriteColors = new ValueColors("favorite_colors");
@@ -609,6 +693,8 @@ public class BBSSettings {
 		secondaryColor = builder.getInt("secondary_color", DEFAULT_SECONDARY_COLOR).color();
 		stencilHighlightColor = builder.getInt("stencil_highlight_color", 0x2EFFFFFF).colorAlpha();
 		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
+		interfaceBlur = builder.getBoolean("interface_blur", true);
+		interfaceBlurRadius = builder.getInt("interface_blur_radius", 12, 1, 30).slider();
 		interfaceShadows = builder.getBoolean("interface_shadows", true);
 		interfaceHighlights = builder.getBoolean("interface_highlights", false);
 		interfaceGlow = builder.getBoolean("interface_glow", false);
@@ -626,26 +712,37 @@ public class BBSSettings {
 		enableKeystrokeRendering = builder.getBoolean("keystrokes", false);
 		keystrokeOffset = builder.getInt("keystrokes_offset", 10, 0, 20).slider();
 		keystrokeMode = builder.getInt("keystrokes_position", 1);
+		/* Both stay visible: the settings page draws them as the buttons that bring the
+		 * welcome screen and the tours back, see UISettingsLayout */
+		onboardingWelcomeSeen = builder.getBoolean("welcome_seen", false);
+		onboardingToursDone = new ValueStringKeys("tours_done");
+		builder.register(onboardingToursDone);
 
 		/* Viewport */
 		builder.category("transformation", Icons.SCALE);
 		gizmos = builder.getBoolean("gizmos", true);
 		axesScale = builder.getFloat("axes_scale", 2F, 0F, 10F).slider();
 		axesThickness = builder.getFloat("axes_thickness", 0.35F, 0.25F, 3F).slider();
-		axesKeepScreenSize = builder.getBoolean("axes_keep_screen_size", true);
-		rotate3dSphere = builder.getBoolean("rotate_3d_sphere", true);
+		gizmoPlaneSize = builder.getFloat("gizmo_plane_size", 1F, 0.25F, 3F).slider();
+		gizmoKeepScreenSize = builder.getBoolean("gizmo_keep_screen_size", true);
+		gizmoShowTranslate = builder.getBoolean("gizmo_show_translate", true);
+		gizmoShowScale = builder.getBoolean("gizmo_show_scale", true);
+		gizmoShowRotate = builder.getBoolean("gizmo_show_rotate", true);
+		gizmoShowViewRotate = builder.getBoolean("gizmo_show_view_rotate", true);
+		gizmoShowSphere = builder.getBoolean("gizmo_show_sphere", true);
 		rotate3dSphereMode = builder.getInt("rotate_3d_sphere_mode", 0);
-		rotateHideRings = builder.getBoolean("rotate_hide_rings", false);
 		hideInactiveHandles = builder.getBoolean("hide_inactive_handles", true);
 		snapTranslate = builder.getFloat("snap_translate", 1F, 0.001F, 100F);
 		snapRotate = builder.getFloat("snap_rotate", 5F, 0.001F, 90F);
 		snapScale = builder.getFloat("snap_scale", 0.1F, 0.001F, 10F);
 		gizmoHoverTolerance = builder.getInt("gizmo_hover_tolerance", 8, 0, 40).slider();
 		gizmoOpacity = builder.getFloat("gizmo_opacity", 1F, 0.05F, 1F).slider();
-		defaultLocalTransform = builder.getBoolean("default_local", false);
-		transformSpace = builder.getInt("transform_space", defaultLocalTransform.get() ? 0 : 3);
+		/* The frame every transform editor opens in, remembered from the last
+		 * session; picked from the gizmo's own space picker, so it has no row here.
+		 * The default is PARENT's ordinal - see TransformSpace, whose constants may
+		 * only be appended because this persists the ordinal. */
+		transformSpace = builder.getInt("transform_space", 3);
 		transformSpace.invisible();
-		transformHotkeys3dRay = builder.getBoolean("hotkeys_3d_ray", true);
 		poseMirrorEdit = builder.getBoolean("pose_mirror_edit", false);
 		poseMirrorEdit.invisible();
 		poseAlternateInvert = builder.getBoolean("pose_alternate_invert", false);
@@ -685,12 +782,27 @@ public class BBSSettings {
 		editorPreviewResolutionScale = builder.getFloat("preview_resolution_scale", 2F, 1F, 3F).slider();
 		editorClipPreview = builder.getBoolean("clip_preview", true);
 		editorPreviewIconsAutoHide = builder.getBoolean("preview_icons_auto_hide", false);
+		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
 		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
 		/* Overlays drawn over the preview which are edited through the gear in the
 		 * IK and physics panels - stored here, no row of their own in the settings */
 		builder.register(ikDebug = new ValueIKDebug("ik_debug"));
 		builder.register(physicsDebug = new ValuePhysicsDebug("physics_debug"));
+
+		/* Everything that trades work for frames: what the editor renders at all, at what
+		 * resolution and how often, what it computes in parallel, plus the counters that
+		 * show where the frame goes. */
+		builder.category("performance", Icons.PROCESSOR);
+		listModelPreview = builder.getBoolean("list_model_preview", true);
+		previewRefreshBudget = builder.getInt("preview_refresh_budget", 2, 0, 8).slider();
+		freezeModels = builder.getBoolean("freeze_models", false);
+		translucencyQueue = builder.getBoolean("translucency_queue", false);
+		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
+		frustumCulling = builder.getBoolean("frustum_culling", true);
+		profilerOverlay = builder.getBoolean("profiler_overlay", false);
+		framePoseCache = builder.getBoolean("frame_pose_cache", true);
+		framePoseCache.invisible();
 
 		builder.category("background", Icons.IMAGE);
 		backgroundImage = builder.getRL("image", null);
@@ -707,6 +819,8 @@ public class BBSSettings {
 		duration = builder.getInt("duration", 30, 1, 1000);
 		editorJump = builder.getInt("jump", 5, 1, 1000);
 		editorLoop = builder.getBoolean("loop", false);
+		autoKeyframe = builder.getBoolean("auto_keyframe", false);
+		anchorKeepTransform = builder.getBoolean("anchor_keep_transform", true);
 		editorSeconds = builder.getBoolean("seconds", false);
 		editorTimelineGrid = builder.getBoolean("timeline_grid", false);
 		keyframeDefaultInterpolation = builder.getString("keyframe_default_interpolation", Interpolations.LINEAR.getKey());
@@ -714,10 +828,11 @@ public class BBSSettings {
 		keyframePreview = builder.getBoolean("keyframe_preview", true);
 		editorTrackWidth = builder.getInt("track_width", 2, 1, 10).slider();
 		editorSnapToMarkers = builder.getBoolean("snap_to_markers", false);
+		editorSnapToFilmMarkers = builder.getBoolean("snap_to_film_markers", true);
 		editorRewind = builder.getBoolean("rewind", true);
 		editorStopPlaybackOnScrub = builder.getBoolean("stop_playback_on_scrub", false);
 		editorRestartOnSeek = builder.getBoolean("restart_on_seek", false);
-		editorHorizontalClipEditor = builder.getBoolean("horizontal_clip_editor", true);
+		editorHorizontalClipEditor = builder.getBoolean("horizontal_clip_editor", false);
 
 		builder.category("workspace", Icons.EDITOR);
 		builder.register(editorLayoutSettings = new ValueEditorLayout("layout"));
@@ -784,8 +899,6 @@ public class BBSSettings {
 		builder.category("misc", Icons.MORE);
 		damageControl = builder.getBoolean("damage_control", true);
 		shaderCurvesEnabled = builder.getBoolean("shader_curves", true);
-		translucencyQueue = builder.getBoolean("translucency_queue", false);
-		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
 		entitySelectorsPropertyWhitelist = builder.getString("entity_selectors_whitelist", "CustomName,Name");
 	}
 }

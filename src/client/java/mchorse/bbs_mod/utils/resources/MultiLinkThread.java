@@ -106,8 +106,6 @@ public class MultiLinkThread implements Runnable
                         newTexture.generateMipmap();
                     }
                 });
-
-                Thread.sleep(100);
             }
             catch (Exception e)
             {

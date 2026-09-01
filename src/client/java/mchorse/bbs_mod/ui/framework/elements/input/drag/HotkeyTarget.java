@@ -50,8 +50,12 @@ public enum HotkeyTarget
 
     /**
      * The walk configured for that operation, with the steps this situation cannot offer
-     * dropped: the ray-driven ones without a gizmo to aim at, and the 3D sphere when its
-     * setting is off.
+     * dropped: the ray-driven ones without a gizmo to aim at.
+     *
+     * <p>An element hidden from the gizmo ({@link mchorse.bbs_mod.ui.utils.Gizmo.Element})
+     * keeps its step — visibility is about the screen and the cursor, and dropping the step
+     * too would let a stripped-bare gizmo take a whole operation away from the keyboard as
+     * well. Trimming the walk is what the order settings are for.
      */
     public static List<HotkeyTarget> steps(TransformOp op, boolean ray)
     {
@@ -66,11 +70,6 @@ public enum HotkeyTarget
             HotkeyTarget target = byToken(token);
 
             if (target == null || (target.needsRay && !ray))
-            {
-                continue;
-            }
-
-            if (target == SPHERE && !BBSSettings.rotate3dSphere.get())
             {
                 continue;
             }

@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.textures;
 
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
 
 /**
  * What a {@link UIFolderTree} needs from whoever shows it: where clicks go, which folder is
@@ -26,7 +27,7 @@ public interface IFolderTreeHost
     }
 
     /** The drag in progress, or null for a host without one (a save dialog). */
-    public default TextureDrag getDrag()
+    public default ItemDrag<TextureEntry> getDrag()
     {
         return null;
     }

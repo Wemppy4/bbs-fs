@@ -50,7 +50,8 @@ public class UIFilmDetailsOverlayPanel extends UIOverlayPanel
         this.description = new UITextarea<>((t) -> this.film.description.set(t));
         this.description.setText(film.description.get());
         this.description.background().wrap(true).padding(8);
-        this.description.h(88);
+        /* The one field that grows with the panel — the stats below it are single lines */
+        this.description.h(88).expand();
 
         /* Layout: grouped spacing — meta, then description block, then stats */
         UIElement column = UI.column(
@@ -65,7 +66,11 @@ public class UIFilmDetailsOverlayPanel extends UIOverlayPanel
             this.timeLabel.marginTop(3)
         );
 
-        column.relative(this.content).xy(6, 6).w(1F, -12).h(1F, -12);
+        /* hTo, not h(1F, -12): a column's own resizer reports the height of its content and that
+         * beats a flex height (see Flex#getH), so the column would sit exactly on its fields and
+         * the description would have no leftover to expand into. A height anchored to the panel's
+         * bottom edge is read before the post resizer, so it wins. */
+        column.relative(this.content).xy(6, 6).w(1F, -12).hTo(this.content.area, 1F, -6);
 
         this.content.add(column);
     }

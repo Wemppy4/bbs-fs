@@ -11,6 +11,12 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 public class DoubleKeyframeFactory implements IKeyframeFactory<Double>
 {
     @Override
+    public int contentHash(Double value)
+    {
+        return value.hashCode();
+    }
+
+    @Override
     public Double fromData(BaseType data)
     {
         return data.isNumeric() ? data.asNumeric().doubleValue() : 0D;

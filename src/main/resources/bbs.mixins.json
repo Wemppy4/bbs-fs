@@ -13,7 +13,9 @@
         "LivingEntityMixin",
         "ServerPlayerEntityMixin",
         "LimbAnimatorAccessor",
-        "LevelPropertiesAccessor"
+        "LevelPropertiesAccessor",
+        "EntityInvoker",
+        "LivingEntityRollAccessor"
     ],
     "injectors": {
         "defaultRequire": 1

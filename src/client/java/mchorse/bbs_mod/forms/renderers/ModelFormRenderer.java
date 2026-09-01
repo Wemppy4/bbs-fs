@@ -8,6 +8,7 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.renderer.ItemPredicateDonor;
 import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.Animator;
@@ -23,7 +24,6 @@ import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -39,6 +39,7 @@ import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.ui.utils.pose.PoseBones;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.math.Operation;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
@@ -51,6 +52,7 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -167,8 +169,18 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         return getModel(this.form);
     }
 
+    @Override
+    public IBoneHierarchy getBoneHierarchy()
+    {
+        ModelInstance model = this.getModel();
+
+        return model == null ? null : model.model;
+    }
+
     public Pose getPose()
     {
+        BBSProfiler.count(BBSProfiler.Section.POSE_COPY);
+
         Pose pose = this.form.pose.get().copy();
         Pose overlay = this.form.poseOverlay.get();
 
@@ -219,9 +231,38 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
      */
     private void evaluateChannels(IEntity entity, ModelInstance model, float transition)
     {
+        /* The asset already holds this exact evaluation (same form, entity, transition, frame
+         * and pose version) — every render pass of a frame used to redo it: the main render,
+         * the shadow displacement's two samples, the stencil pass, the Iris shadow pass.
+         * Skipping rewinds the constraint stack's orient/offset writes to the channels-phase
+         * snapshot, because IK/physics blend FROM the evaluated state and must not stack on
+         * their own previous output. Both skeleton flavours keep such a snapshot. */
+        boolean cacheable = this.form != null && model.model != null && RenderFrame.isEnabled();
+
+        if (cacheable && model.matchesChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion()))
+        {
+            BBSProfiler.count(BBSProfiler.Section.CHANNELS_SKIPPED);
+
+            model.model.restoreChannels();
+
+            return;
+        }
+
+        BBSProfiler.count(BBSProfiler.Section.EVALUATE_CHANNELS);
+
         model.model.resetPose();
         this.animator.applyActions(entity, model, transition);
         model.model.applyPose(this.getPose());
+
+        if (cacheable)
+        {
+            model.model.snapshotChannels();
+            model.stampChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion());
+        }
+        else
+        {
+            model.clearChannels();
+        }
     }
 
     public void ensureAnimator(float transition)
@@ -426,10 +467,18 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             RenderSystem.enableCull();
         }
 
-        /* Render items */
-        this.captureMatrices(model);
+        /* Render items. The capture allocates ~4 matrices per bone, and its only readers here
+         * are the item/armor block right below (skipped in the picking pass entirely) and
+         * renderBodyParts afterwards - so a model with neither pays for neither. */
+        boolean hasEquipment = !model.getItemsMain().isEmpty() || !model.getItemsOff().isEmpty() || !model.getArmorSlots().isEmpty();
+        boolean hasBodyParts = this.form != null && !this.form.parts.getAllTyped().isEmpty();
 
-        if (stencilMap == null)
+        if (hasBodyParts || (stencilMap == null && hasEquipment))
+        {
+            this.captureMatrices(model);
+        }
+
+        if (stencilMap == null && hasEquipment)
         {
             this.renderItems(target, model, stack, EquipmentSlot.MAINHAND, ModelTransformationMode.THIRD_PERSON_RIGHT_HAND, model.getItemsMain(), finalColor, overlay, light);
             this.renderItems(target, model, stack, EquipmentSlot.OFFHAND, ModelTransformationMode.THIRD_PERSON_LEFT_HAND, model.getItemsOff(), finalColor, overlay, light);
@@ -617,6 +666,42 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     @Override
     public boolean renderArm(MatrixStack matrices, int light, AbstractClientPlayerEntity player, Hand hand)
     {
+        if (this.renderFirstPersonHand(matrices, light, hand))
+        {
+            return true;
+        }
+
+        return super.renderArm(matrices, light, player, hand);
+    }
+
+    /**
+     * Vanilla's frame for an empty first-person hand — {@code HeldItemRenderer#renderArmHoldingItem}
+     * with no swing and no equip progress, up to where {@code PlayerEntityRenderer#renderArm} (and so
+     * {@link #renderArm} above) is entered. This is what the model editor's first-person preview
+     * multiplies before {@link #renderFirstPersonHand}, so the preview matches the game. The main hand
+     * is the right arm; a left-handed player is not modelled here.
+     */
+    public static void applyFirstPersonArm(MatrixStack stack, boolean mainHand)
+    {
+        float f = mainHand ? 1F : -1F;
+
+        stack.translate(f * 0.64F, -0.6F, -0.72F);
+        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f * 45F));
+        stack.translate(f * -1F, 3.6F, 3.5F);
+        stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(f * 120F));
+        stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(200F));
+        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f * -135F));
+        stack.translate(f * 5.6F, 0F, 0F);
+    }
+
+    /**
+     * The model's first-person hand: only the branch under the slot's bone, placed by the slot's
+     * transform in the arm frame the caller has set up (the game's own, or
+     * {@link #applyFirstPersonArm}). Shared by the in-game arm and the model editor's preview.
+     * Returns false when the model has no slot for that hand.
+     */
+    public boolean renderFirstPersonHand(MatrixStack matrices, int light, Hand hand)
+    {
         ModelInstance model = this.getModel();
 
         if (this.animator != null && model != null)
@@ -694,7 +779,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return true;
         }
 
-        return super.renderArm(matrices, light, player, hand);
+        return false;
     }
 
     @Override
@@ -837,7 +922,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         for (BodyPart part : this.form.parts.getAllTyped())
         {
-            Matrix4f matrix = this.bones.get(part.bone.get()).matrix();
+            Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
 
             context.stack.push();
             if (context.world != null)
@@ -940,7 +1025,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             if (form != null)
             {
-                Matrix4f matrix = this.bones.get(part.bone.get()).matrix();
+                Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
 
                 stack.push();
 

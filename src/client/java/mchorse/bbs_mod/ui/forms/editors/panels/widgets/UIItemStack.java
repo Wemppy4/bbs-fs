@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
@@ -27,6 +28,9 @@ public class UIItemStack extends UIElement
     private Consumer<ItemStack> callback;
     private ItemStack stack;
     private boolean opened;
+
+    /** Ghost icon shown in the slot square while it is empty, like vanilla armor slots. */
+    private Icon placeholder;
 
     public UIItemStack(Consumer<ItemStack> callback)
     {
@@ -57,6 +61,13 @@ public class UIItemStack extends UIElement
     public void setStack(ItemStack stack)
     {
         this.stack = stack == null ? ItemStack.EMPTY : stack.copy();
+    }
+
+    public UIItemStack placeholder(Icon icon)
+    {
+        this.placeholder = icon;
+
+        return this;
     }
 
     protected boolean subMouseClicked(UIContext context)
@@ -112,6 +123,10 @@ public class UIItemStack extends UIElement
             context.batcher.getContext().drawItem(this.stack, this.area.x + (slot - 16) / 2, this.area.my() - 8);
             consumers.setUI(false);
             matrices.pop();
+        }
+        else if (this.placeholder != null)
+        {
+            context.batcher.icon(this.placeholder, Colors.A50 | Colors.WHITE, this.area.x + (slot - 16) / 2, this.area.my() - 8);
         }
 
         FontRenderer font = context.batcher.getFont();

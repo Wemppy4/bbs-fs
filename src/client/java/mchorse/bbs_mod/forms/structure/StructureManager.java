@@ -6,6 +6,7 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.WorldSavePath;
 
+import java.lang.ref.SoftReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -29,11 +30,43 @@ import java.util.stream.Stream;
  */
 public class StructureManager
 {
-    private static final Map<String, StructureRenderData> CACHE = new HashMap<>();
+    /**
+     * Parsed structures, kept softly: a renderer holds its own hard reference to the data it is
+     * drawing, so anything only this map still points at is a structure nobody is using. Letting
+     * the GC take those under pressure costs a re-parse and bounds a session that opened a lot of
+     * big structures; a hard map would hold every one of them until the world changed.
+     */
+    private static final Map<String, SoftReference<StructureRenderData>> CACHE = new HashMap<>();
     private static final Set<String> FAILED = new HashSet<>();
+
+    /**
+     * A structure that exists in memory only — the wand's region shown in the save dialog before
+     * there is a file. Kept apart from the cache so a save, which drops the cache, doesn't take the
+     * preview with it; the dialog clears it when it closes.
+     */
+    private static StructureRenderData preview;
+
+    /** Ids under this prefix are memory-only and never looked for on disk. */
+    private static final String PREVIEW_PREFIX = "bbs:preview/";
+
+    private static int previews;
 
     private static MinecraftServer lastServer;
     private static int generation;
+
+    public static void setPreview(StructureRenderData data)
+    {
+        preview = data;
+    }
+
+    /**
+     * A fresh id for the next preview. It has to be fresh: a renderer reloads on a change of
+     * structure name, so a reused id would leave it showing the previous capture.
+     */
+    public static String nextPreviewId()
+    {
+        return PREVIEW_PREFIX + (++previews);
+    }
 
     /**
      * Bumped every time the cache is dropped. Renderers keep their own derived state (parsed data,
@@ -129,12 +162,20 @@ public class StructureManager
     {
         checkServer();
 
+        if (id != null && id.startsWith(PREVIEW_PREFIX))
+        {
+            /* Answered from the slot or not at all — a preview has no file, and letting one fall
+             * through would park a dead id in FAILED for the rest of the session */
+            return preview != null && preview.id.equals(id) ? preview : null;
+        }
+
         if (id == null || id.isEmpty() || FAILED.contains(id))
         {
             return null;
         }
 
-        StructureRenderData data = CACHE.get(id);
+        SoftReference<StructureRenderData> cached = CACHE.get(id);
+        StructureRenderData data = cached == null ? null : cached.get();
 
         if (data != null)
         {
@@ -167,7 +208,7 @@ public class StructureManager
             NbtCompound root = NbtIo.readCompressed(file.toFile());
 
             data = StructureRenderData.parse(id, root);
-            CACHE.put(id, data);
+            CACHE.put(id, new SoftReference<>(data));
 
             return data;
         }

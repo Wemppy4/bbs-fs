@@ -115,6 +115,7 @@ public class FormBone extends ValueGroup
     }
 
     /** Whether every property is neutral — such a bone is skipped when the form persists. */
+    @Override
     public boolean isDefault()
     {
         return this.constraints.get().isDefault()

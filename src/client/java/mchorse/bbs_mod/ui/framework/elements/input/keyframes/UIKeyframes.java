@@ -45,7 +45,7 @@ import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
-import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
@@ -950,13 +950,6 @@ public class UIKeyframes extends UIElement
 
     /* Getters & setters */
 
-    public UIKeyframes backgroundRenderer(Consumer<UIContext> backgroundRender)
-    {
-        this.backgroundRender = backgroundRender;
-
-        return this;
-    }
-
     public UIKeyframes rulerRenderer(Consumer<UIContext> rulerRender)
     {
         this.rulerRender = rulerRender;
@@ -989,6 +982,20 @@ public class UIKeyframes extends UIElement
     public float getTick()
     {
         return (float) this.fromGraphX(this.getContext().mouseX);
+    }
+
+    /**
+     * The tick auto-keyframing writes at, or {@code null} when an edit should land on the
+     * keyframes it was made on.
+     *
+     * <p>Auto-keyframing turns every value edit into a key at the playhead instead of a rewrite of
+     * whatever keyframe happens to be selected, so posing at a tick where the track has no keyframe
+     * yet makes one rather than dragging the past along with it. A timeline without a playhead has
+     * no tick to key at, so it never auto-keyframes &mdash; only the film editor's timelines do.
+     */
+    public Integer getAutoKeyframeTick()
+    {
+        return null;
     }
 
     public boolean isSelecting()
@@ -1362,6 +1369,8 @@ public class UIKeyframes extends UIElement
     {
         super.render(context);
 
+        BBSProfiler.begin(BBSProfiler.Timer.UI_TIMELINE);
+
         this.handleMouse(context);
 
         context.batcher.clip(this.area, context);
@@ -1386,6 +1395,8 @@ public class UIKeyframes extends UIElement
             Area a = this.labelResizer.area;
             Scroll.bar(context.batcher, a.x, a.y, a.ex(), a.ey());
         }
+
+        BBSProfiler.end(BBSProfiler.Timer.UI_TIMELINE);
     }
 
     protected void renderOverlay(UIContext context)
@@ -1473,7 +1484,7 @@ public class UIKeyframes extends UIElement
             {
                 int leftEx = Math.min(this.graphArea.ex(), leftBorder);
 
-                context.batcher.box(this.graphArea.x, this.graphArea.y, leftEx, this.graphArea.y + this.graphArea.h, BBSSettings.chromeSurface());
+                context.batcher.box(this.graphArea.x, this.graphArea.y, leftEx, this.graphArea.y + this.graphArea.h, BBSSettings.sunkenSurface());
             }
         }
 

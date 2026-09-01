@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
-import mchorse.bbs_mod.utils.Pair;
 
 /**
  * Which replay's motion path stays on screen when the selection moves on. Without a pin the
@@ -18,7 +18,7 @@ public class MotionPathPin
     }
 
     private Replay pinnedReplay;
-    private Pair<String, Boolean> pinnedBone;
+    private FilmTarget pinnedTarget = FilmTarget.NONE;
 
     public boolean isPinned()
     {
@@ -30,19 +30,19 @@ public class MotionPathPin
         return this.pinnedReplay != null;
     }
 
-    /** Pin the currently selected replay and bone so its motion path stays shown. */
+    /** Pin the currently selected replay and target so its motion path stays shown. */
     public void pin()
     {
         Replay replay = this.controller.getReplay();
 
         this.pinnedReplay = replay;
-        this.pinnedBone = replay == null ? null : this.controller.getBone();
+        this.pinnedTarget = replay == null ? FilmTarget.NONE : this.controller.getEditTarget();
     }
 
     public void unpin()
     {
         this.pinnedReplay = null;
-        this.pinnedBone = null;
+        this.pinnedTarget = FilmTarget.NONE;
     }
 
     public void toggle()
@@ -63,9 +63,9 @@ public class MotionPathPin
         return this.pinnedReplay;
     }
 
-    /** The bone the pin was taken on, so the path keeps tracking the same point of the actor. */
-    public Pair<String, Boolean> getBone()
+    /** What the pin was taken on, so the path keeps tracking the same point of the actor. */
+    public FilmTarget getTarget()
     {
-        return this.pinnedBone;
+        return this.pinnedTarget;
     }
 }

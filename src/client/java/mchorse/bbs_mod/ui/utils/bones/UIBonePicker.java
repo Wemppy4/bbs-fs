@@ -10,6 +10,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * The bone-valued control: a button that shows the current bone and opens the
@@ -29,11 +30,21 @@ public class UIBonePicker extends UIElement
     public final UIButton button;
     public final UIIcon eyedropper;
 
-    private final Consumer<String> callback;
+    private Consumer<String> callback;
 
     private Consumer<UIBonePickerContextMenu> menu;
     private Viewport viewport;
     private boolean picking;
+
+    /** What {@link #bind} reads the label from; null for a picker whose host labels it itself. */
+    private Supplier<String> bound;
+    private IKey emptyLabel;
+
+    /** A picker to be {@link #bind}-ed to a bone value. */
+    public UIBonePicker()
+    {
+        this((Consumer<String>) null);
+    }
 
     public UIBonePicker(Consumer<String> callback)
     {
@@ -95,6 +106,37 @@ public class UIBonePicker extends UIElement
         }
 
         return this;
+    }
+
+    /**
+     * Tie the picker to a bone value: a pick writes through {@code set}, and the label is read
+     * back through {@code get} — {@code empty} standing in for no bone — here and on every
+     * {@link #refresh}. Replaces the host relabelling the button by hand after each pick.
+     */
+    public UIBonePicker bind(Supplier<String> get, Consumer<String> set, IKey empty)
+    {
+        this.bound = get;
+        this.emptyLabel = empty;
+        this.callback = (bone) ->
+        {
+            set.accept(bone);
+            this.refresh();
+        };
+
+        this.refresh();
+
+        return this;
+    }
+
+    /** Re-read the bound bone into the label, for a value changed behind the picker's back (undo). */
+    public void refresh()
+    {
+        if (this.bound != null)
+        {
+            String bone = this.bound.get();
+
+            this.setLabel(bone == null || bone.isEmpty() ? this.emptyLabel : IKey.raw(bone));
+        }
     }
 
     public void setLabel(IKey label)

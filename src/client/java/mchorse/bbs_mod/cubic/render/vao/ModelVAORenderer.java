@@ -10,6 +10,13 @@ import org.lwjgl.opengl.GL30;
 
 public class ModelVAORenderer
 {
+    /** Sampler uniform names — setupUniforms runs per draw call, no string building there. */
+    private static final String[] SAMPLERS =
+    {
+        "Sampler0", "Sampler1", "Sampler2", "Sampler3", "Sampler4", "Sampler5",
+        "Sampler6", "Sampler7", "Sampler8", "Sampler9", "Sampler10", "Sampler11"
+    };
+
     /**
      * The full model-view a draw issued right now would use. Deferred translucent commands
      * capture it at enqueue time, because the global model-view is different by the time
@@ -47,9 +54,9 @@ public class ModelVAORenderer
 
     public static void setupUniforms(ShaderProgram shader, Matrix4f modelView, Matrix3f normalMat)
     {
-        for (int i = 0; i < 12; i++)
+        for (int i = 0; i < SAMPLERS.length; i++)
         {
-            shader.addSampler("Sampler" + i, RenderSystem.getShaderTexture(i));
+            shader.addSampler(SAMPLERS[i], RenderSystem.getShaderTexture(i));
         }
 
         if (shader.projectionMat != null)

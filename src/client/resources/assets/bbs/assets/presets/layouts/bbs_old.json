@@ -1,0 +1,34 @@
+{
+    "film_layout": {
+        "type": "splitter",
+        "dir": "v",
+        "first": {
+            "id": "main",
+            "type": "panel"
+        },
+        "ratio": 0.40212765,
+        "second": {
+            "type": "splitter",
+            "dir": "h",
+            "first": {
+                "id": "preview",
+                "type": "panel"
+            },
+            "ratio": 0.64681727,
+            "second": {
+                "type": "splitter",
+                "dir": "v",
+                "first": {
+                    "ids": ["replaysList", "replayProps"],
+                    "active": "replaysList",
+                    "type": "stack"
+                },
+                "ratio": 0.35053378,
+                "second": {
+                    "id": "editArea",
+                    "type": "panel"
+                }
+            }
+        }
+    }
+}

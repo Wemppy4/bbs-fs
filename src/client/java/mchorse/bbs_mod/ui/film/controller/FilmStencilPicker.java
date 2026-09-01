@@ -4,10 +4,9 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.client.BBSShaders;
-import mchorse.bbs_mod.film.BaseFilmController;
 import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.FilmControllerContext;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -19,34 +18,25 @@ import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Gizmo;
-import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
-import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.GlUniform;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
 import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 
 /**
- * Hit-testing the film preview: the scene is drawn a second time into an off-screen buffer
- * where every pickable thing writes its own id instead of its colour, and the pixel under the
- * cursor says what is being hovered — a bone, a gizmo handle, or (with Alt held) another
- * replay entirely.
- *
- * <p>Split out of {@link UIFilmController} as a companion of its own, the way the orbit camera
- * and the gizmo interaction already are: this is one pass with its own buffer, its own id
- * space and its own answer, and it was threaded through the controller's render path.
+ * Hit-testing the film preview: the scene is drawn again into an off-screen buffer where every
+ * pickable thing writes its id instead of its colour, and the pixel under the cursor says what
+ * is hovered — a bone, a gizmo handle, or (with Alt) another replay.
  *
  * <p>The id space is shared with the gizmo, which owns the low ids ({@link Gizmo#STENCIL_MAX});
- * replays begin right after them, so a pixel is never ambiguous about which of the two it is.
+ * replays begin right after, so a pixel is never ambiguous about which of the two it is.
  */
 public class FilmStencilPicker
 {
@@ -60,6 +50,24 @@ public class FilmStencilPicker
 
     /** The replay under the cursor while Alt is held, or -1. */
     private int hoveredReplayIndex = -1;
+
+    /* The pick is a pure function of these inputs; while none of them change, the previous
+     * pass's buffer and pick result stand, and the whole scene re-render is skipped. The
+     * heartbeat below bounds staleness from anything this key does not see (an undo from the
+     * keyboard, physics settling) to a fraction of a second. */
+    private final Matrix4f lastPickView = new Matrix4f();
+    private final Matrix4f lastPickProjection = new Matrix4f();
+    private int lastPickMouseX = Integer.MIN_VALUE;
+    private int lastPickMouseY;
+    private boolean lastPickAlt;
+    private int lastPickCursor;
+    private int lastPickReplayIndex;
+    private FilmTarget lastPickTarget;
+    private int lastPickReplayCount;
+    private int framesSincePick;
+
+    /** Repick at least this often (in frames) even when no tracked input changed. */
+    private static final int PICK_HEARTBEAT = 15;
 
     public FilmStencilPicker(UIFilmController controller)
     {
@@ -126,30 +134,9 @@ public class FilmStencilPicker
         }
 
         int index = this.stencil.getIndex();
-        Texture texture = this.stencil.getFramebuffer().getMainTexture();
         Pair<Form, String> pair = this.stencil.getPicked();
-        int w = texture.width;
-        int h = texture.height;
 
-        ShaderProgram previewProgram = BBSShaders.getPickerPreviewProgram();
-        Supplier<ShaderProgram> getPickerPreviewProgram = BBSShaders::getPickerPreviewProgram;
-        GlUniform target = previewProgram.getUniform("Target");
-
-        if (target != null)
-        {
-            target.set(index);
-        }
-
-        GlUniform highlight = previewProgram.getUniform("HighlightColor");
-
-        if (highlight != null)
-        {
-            int color = BBSSettings.stencilHighlightColor.get();
-            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
-        }
-
-        RenderSystem.enableBlend();
-        context.batcher.texturedBox(getPickerPreviewProgram, texture.id, Colors.WHITE, area.x, area.y, area.w, area.h, 0, h, w, 0, w, h);
+        this.stencil.renderPreview(context, area);
 
         if (altPressed)
         {
@@ -197,6 +184,7 @@ public class FilmStencilPicker
         if (!viewport.isInside(context) || this.controller.getControlled() != null)
         {
             this.stencil.clearPicking();
+            this.lastPickMouseX = Integer.MIN_VALUE;
 
             return;
         }
@@ -205,8 +193,18 @@ public class FilmStencilPicker
 
         if ((entity == null || (this.controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON && entity == this.controller.getCurrentEntity())) && !altPressed)
         {
+            this.lastPickMouseX = Integer.MIN_VALUE;
+
             return;
         }
+
+        if (!this.needsRepick(context, altPressed))
+        {
+            return;
+        }
+
+        BBSProfiler.count(BBSProfiler.Section.STENCIL_PASS);
+        BBSProfiler.begin(BBSProfiler.Timer.STENCIL_PASS);
 
         this.ensureFramebuffer();
 
@@ -224,7 +222,7 @@ public class FilmStencilPicker
         {
             List<Replay> replays = this.controller.panel.getData().replays.getList();
             int selectedReplayIndex = this.controller.getCurrentReplayIndex();
-            Pair<String, Boolean> bone = this.controller.getBone();
+            FilmTarget target = this.controller.getEditTarget();
 
             /* Walked by list position, not by the entity map: the stencil object index IS the
              * replay's position in the film, which is what the pick reads back. */
@@ -250,9 +248,8 @@ public class FilmStencilPicker
                     this.stencilMap.setIncrement(true);
 
                     filmContext
-                        .bone(bone == null ? null : bone.a, bone != null && bone.b)
-                        .gizmoSpace(this.controller.getBoneSpace(), this.controller.getGizmoView())
-                        .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorLocal());
+                        .gizmoTarget(target)
+                        .gizmoView(this.controller.getGizmoView());
                 }
                 else
                 {
@@ -266,7 +263,6 @@ public class FilmStencilPicker
         else
         {
             Replay replay = this.controller.panel.replayEditor.getReplay();
-            Pair<String, Boolean> bone = this.controller.getBone();
 
             this.stencilMap.setIncrement(true);
 
@@ -275,9 +271,8 @@ public class FilmStencilPicker
                 .transition(isPlaying ? renderContext.tickDelta() : 0)
                 .stencil(this.stencilMap)
                 .relative(replay.relative.get())
-                .bone(bone == null ? null : bone.a, bone != null && bone.b)
-                .gizmoSpace(this.controller.getBoneSpace(), this.controller.getGizmoView())
-                .anchorGizmo(this.controller.isAnchorGizmo(), this.controller.getAnchorLocal()));
+                .gizmoTarget(this.controller.getEditTarget())
+                .gizmoView(this.controller.getGizmoView()));
         }
 
         int x = (int) ((context.mouseX - viewport.x) / (float) viewport.w * mainTexture.width);
@@ -288,6 +283,53 @@ public class FilmStencilPicker
         this.stencil.unbind(this.stencilMap);
 
         MinecraftClient.getInstance().getFramebuffer().beginWrite(true);
+
+        BBSProfiler.end(BBSProfiler.Timer.STENCIL_PASS);
+    }
+
+    /**
+     * True when any input the pick depends on changed since the buffer was last drawn — or when
+     * the heartbeat expires. Doubt resolves toward repicking: a spare pass costs what every
+     * frame used to cost, a missed one costs a stale highlight.
+     */
+    private boolean needsRepick(UIContext context, boolean altPressed)
+    {
+        this.framesSincePick += 1;
+
+        int cursor = this.controller.panel.getCursor();
+        int replayIndex = this.controller.getCurrentReplayIndex();
+        FilmTarget target = this.controller.getEditTarget();
+        int replayCount = this.controller.panel.getData().replays.getList().size();
+
+        boolean unchanged = !this.controller.isPlaying()
+            && this.framesSincePick < PICK_HEARTBEAT
+            && context.mouseX == this.lastPickMouseX
+            && context.mouseY == this.lastPickMouseY
+            && altPressed == this.lastPickAlt
+            && cursor == this.lastPickCursor
+            && replayIndex == this.lastPickReplayIndex
+            && target.equals(this.lastPickTarget)
+            && replayCount == this.lastPickReplayCount
+            && this.controller.panel.lastView.equals(this.lastPickView)
+            && this.controller.panel.lastProjection.equals(this.lastPickProjection);
+
+        if (unchanged)
+        {
+            return false;
+        }
+
+        this.framesSincePick = 0;
+        this.lastPickMouseX = context.mouseX;
+        this.lastPickMouseY = context.mouseY;
+        this.lastPickAlt = altPressed;
+        this.lastPickCursor = cursor;
+        this.lastPickReplayIndex = replayIndex;
+        this.lastPickTarget = target;
+        this.lastPickReplayCount = replayCount;
+        this.lastPickView.set(this.controller.panel.lastView);
+        this.lastPickProjection.set(this.controller.panel.lastProjection);
+
+        return true;
     }
 
     private void ensureFramebuffer()

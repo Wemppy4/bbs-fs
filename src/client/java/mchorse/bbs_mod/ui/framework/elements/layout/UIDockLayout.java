@@ -7,9 +7,12 @@ import mchorse.bbs_mod.settings.values.ui.EditorLayoutNode;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -1295,7 +1298,7 @@ public class UIDockLayout extends UIElement
                 continue;
             }
 
-            int index = tabs.getTabIndex(mouseX);
+            int index = tabs.getTabIndex(mouseX, mouseY);
 
             if (index >= 0)
             {
@@ -1745,10 +1748,7 @@ public class UIDockLayout extends UIElement
 
         if (this.dropTargetTabStrip != null && this.dropTargetTabStrip.isVisible() && this.dropTargetTabIndex >= 0)
         {
-            UIDockStackTabs strip = this.dropTargetTabStrip;
-            int x = Math.min(strip.area.x + (this.dropTargetTabIndex + 1) * strip.getTabSize(), strip.area.ex() - 1);
-
-            context.batcher.box(x - 1, strip.area.y, x + 1, strip.area.ey(), BBSSettings.primaryColor(Colors.A100));
+            this.dropTargetTabStrip.renderInsertionCaret(context, this.dropTargetTabIndex);
         }
 
         String label = this.getPanelLabel(this.draggingPanelId).get();
@@ -2004,7 +2004,11 @@ public class UIDockLayout extends UIElement
         }
     }
 
-    private static class UIDockStackTabs extends UIElement
+    /**
+     * The tab strip of a stack: square icon tabs on the shared strip, plus the dock's own press
+     * handling - a press arms a panel drag and only activates the tab if it never moved.
+     */
+    private static class UIDockStackTabs extends UITabStrip
     {
         private final UIDockLayout layout;
         private String anchorPanelId = "";
@@ -2013,15 +2017,38 @@ public class UIDockLayout extends UIElement
 
         public UIDockStackTabs(UIDockLayout layout)
         {
+            super(ScrollDirection.HORIZONTAL);
+
             this.layout = layout;
+
+            this.fixed();
+            this.background(BBSSettings::chromeSurface);
+            this.activeEdge(Direction.BOTTOM);
+            this.active(() -> this.panelIds.indexOf(this.activePanelId));
+            this.hoverLabels((index) -> this.layout.getPanelLabel(this.panelIds.get(index)));
         }
 
         public void configure(DockStackInfo info)
         {
             this.anchorPanelId = info.getAnchorPanelId();
-            this.panelIds.clear();
-            this.panelIds.addAll(info.panelIds);
             this.activePanelId = info.activePanelId;
+
+            if (!this.panelIds.equals(info.panelIds))
+            {
+                this.panelIds.clear();
+                this.panelIds.addAll(info.panelIds);
+                this.removeAll();
+
+                for (String panelId : this.panelIds)
+                {
+                    UIIcon tab = new UIIcon(this.layout.getDockPanelIcon(panelId), null);
+
+                    /* Stays white under the cursor: the label card is the hover cue here */
+                    tab.hoverColor(Colors.WHITE).wh(DOCK_STACK_TABS_HEIGHT_PX, DOCK_STACK_TABS_HEIGHT_PX);
+                    this.addTab(tab);
+                }
+            }
+
             this.setVisible(info.isStacked());
         }
 
@@ -2031,24 +2058,12 @@ public class UIDockLayout extends UIElement
         }
 
         @Override
-        public boolean subMouseClicked(UIContext context)
+        protected boolean pressTab(int index, UIContext context)
         {
-            if (!this.isVisible() || context.mouseButton != 0 || !this.area.isInside(context) || this.panelIds.isEmpty())
-            {
-                return super.subMouseClicked(context);
-            }
+            /* Activation waits for the release: the same press may grow into a drag. */
+            this.layout.onTabPressed(this.panelIds.get(index), context.mouseX, context.mouseY);
 
-            int index = this.getTabIndex(context.mouseX);
-
-            if (index >= 0 && index < this.panelIds.size())
-            {
-                /* Activation waits for the release: the same press may grow into a drag. */
-                this.layout.onTabPressed(this.panelIds.get(index), context.mouseX, context.mouseY);
-
-                return true;
-            }
-
-            return super.subMouseClicked(context);
+            return true;
         }
 
         @Override
@@ -2060,80 +2075,20 @@ public class UIDockLayout extends UIElement
         }
 
         @Override
+        protected boolean canShowHoverCard()
+        {
+            return this.layout.draggingPanelId == null && this.layout.tabPressPanelId == null;
+        }
+
+        @Override
         public void render(UIContext context)
         {
-            if (!this.isVisible() || this.panelIds.isEmpty())
-            {
-                return;
-            }
-
             if (this.area.isInside(context))
             {
                 context.requestCursor(GLFW.GLFW_HAND_CURSOR);
             }
 
-            int tabSize = this.getTabSize();
-            int y = this.area.y;
-            int ey = this.area.ey();
-
-            context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.chromeSurface());
-
-            for (int i = 0; i < this.panelIds.size(); i++)
-            {
-                int x = this.area.x + i * tabSize;
-
-                if (x >= this.area.ex())
-                {
-                    break;
-                }
-
-                int ex = Math.min(this.area.ex(), x + tabSize);
-                String panelId = this.panelIds.get(i);
-                boolean active = panelId.equals(this.activePanelId);
-                Icon icon = this.layout.getDockPanelIcon(panelId);
-
-                if (active)
-                {
-                    Area.SHARED.set(x, y, ex - x, ey - y);
-                    context.batcher.highlight(Area.SHARED, Direction.BOTTOM);
-                }
-
-                context.batcher.icon(icon, Colors.WHITE, (x + ex) / 2, (y + ey) / 2, 0.5F, 0.5F);
-            }
-
-            int hovered = this.area.isInside(context) ? this.getTabIndex(context.mouseX) : -1;
-
-            if (hovered >= 0 && this.layout.draggingPanelId == null && this.layout.tabPressPanelId == null)
-            {
-                String label = this.layout.getPanelLabel(this.panelIds.get(hovered)).get();
-
-                if (!label.isEmpty())
-                {
-                    int ty = this.area.y - 14;
-
-                    context.batcher.textCard(label, context.mouseX + 6, ty < 2 ? this.area.ey() + 4 : ty);
-                }
-            }
-
             super.render(context);
         }
-
-        private int getTabSize()
-        {
-            return Math.max(1, this.area.h);
-        }
-
-        private int getTabIndex(int mouseX)
-        {
-            int index = (mouseX - this.area.x) / this.getTabSize();
-
-            if (index < 0 || index >= this.panelIds.size())
-            {
-                return -1;
-            }
-
-            return index;
-        }
-
     }
 }

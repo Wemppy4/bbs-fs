@@ -2,7 +2,9 @@ package mchorse.bbs_mod.forms.forms.utils;
 
 import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Transform;
+import org.joml.Matrix4f;
 
 public class Anchor implements IMapSerializable
 {
@@ -14,8 +16,23 @@ public class Anchor implements IMapSerializable
      */
     public String replay = NO_ATTACHMENT;
     public String attachment = "";
-    public boolean translate = false;
-    public boolean scale = false;
+
+    /**
+     * Which components of the target's frame the anchored form rides — the same three the body
+     * parts use ({@code BodyPart.inheritPosition} and friends), so one idea reads the same way
+     * wherever something hangs off something else. All three on (the default) is the plain
+     * behaviour: the target's matrix is taken whole. A component that is not inherited comes from
+     * the frame the form would have had with no anchor at all.
+     *
+     * <p>These replace the older {@code translate} / {@code scale} pair, whose two flags meant
+     * opposite things ({@code translate} = take ONLY the position, {@code scale} = take everything
+     * BUT the scale) and could not express the other combinations at all. Files written by those
+     * versions are converted on read, see {@link #fromData}.</p>
+     */
+    public boolean inheritPosition = true;
+    public boolean inheritRotation = true;
+    public boolean inheritScale = true;
+
     public final Transform transform = new Transform();
 
     /* Interpolation data */
@@ -25,17 +42,42 @@ public class Anchor implements IMapSerializable
     public Anchor()
     {}
 
-    public Anchor(String replay, String attachment, boolean translate, boolean scale)
+    public Anchor(String replay, String attachment, boolean inheritPosition, boolean inheritRotation, boolean inheritScale)
     {
         this.replay = replay;
         this.attachment = attachment;
-        this.translate = translate;
-        this.scale = scale;
+        this.inheritPosition = inheritPosition;
+        this.inheritRotation = inheritRotation;
+        this.inheritScale = inheritScale;
     }
 
     public boolean hasTarget()
     {
         return !this.replay.isEmpty();
+    }
+
+    public boolean inheritsWholeTarget()
+    {
+        return this.inheritPosition && this.inheritRotation && this.inheritScale;
+    }
+
+    /**
+     * The resolved target matrix with the components this anchor doesn't inherit taken from
+     * {@code fallback} — the matrix the form would have had unanchored. Returns the matrix itself
+     * when there is nothing to take out.
+     */
+    public Matrix4f filterMatrix(Matrix4f matrix, Matrix4f fallback)
+    {
+        if (matrix == null || fallback == null || this.inheritsWholeTarget())
+        {
+            return matrix;
+        }
+
+        return Matrices.compose(
+            this.inheritPosition ? matrix : fallback,
+            this.inheritRotation ? matrix : fallback,
+            this.inheritScale ? matrix : fallback
+        );
     }
 
     public boolean isFadeIn()
@@ -53,13 +95,14 @@ public class Anchor implements IMapSerializable
         return anchor != null
             && this.replay.equals(anchor.replay)
             && this.attachment.equals(anchor.attachment)
-            && this.translate == anchor.translate
-            && this.scale == anchor.scale;
+            && this.inheritPosition == anchor.inheritPosition
+            && this.inheritRotation == anchor.inheritRotation
+            && this.inheritScale == anchor.inheritScale;
     }
 
     public Anchor copy()
     {
-        Anchor anchor = new Anchor(this.replay, this.attachment, this.translate, this.scale);
+        Anchor anchor = new Anchor(this.replay, this.attachment, this.inheritPosition, this.inheritRotation, this.inheritScale);
 
         anchor.transform.copy(this.transform);
 
@@ -88,8 +131,25 @@ public class Anchor implements IMapSerializable
     {
         this.replay = data.getString("actor");
         this.attachment = data.getString("attachment");
-        this.translate = data.getBool("translate", false);
-        this.scale = data.getBool("scale", false);
+
+        if (data.has("inheritPosition") || data.has("inheritRotation") || data.has("inheritScale"))
+        {
+            this.inheritPosition = data.getBool("inheritPosition", true);
+            this.inheritRotation = data.getBool("inheritRotation", true);
+            this.inheritScale = data.getBool("inheritScale", true);
+        }
+        else
+        {
+            /* Anchors written before the flags were split up. "translate" took only the position,
+             * dropping both the rotation and the scale; "scale" dropped the scale alone and was
+             * moot next to it. The position was always inherited, so it stays on. */
+            boolean translate = data.getBool("translate", false);
+            boolean scale = data.getBool("scale", false);
+
+            this.inheritPosition = true;
+            this.inheritRotation = !translate;
+            this.inheritScale = !translate && !scale;
+        }
 
         if (data.has("transform"))
         {
@@ -106,8 +166,9 @@ public class Anchor implements IMapSerializable
     {
         data.putString("actor", this.replay);
         data.putString("attachment", this.attachment);
-        data.putBool("translate", this.translate);
-        data.putBool("scale", this.scale);
+        data.putBool("inheritPosition", this.inheritPosition);
+        data.putBool("inheritRotation", this.inheritRotation);
+        data.putBool("inheritScale", this.inheritScale);
 
         if (!this.transform.isDefault())
         {

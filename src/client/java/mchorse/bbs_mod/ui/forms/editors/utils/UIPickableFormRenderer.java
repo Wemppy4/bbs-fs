@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.forms.editors.utils;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -11,7 +10,6 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.graphics.Draw;
-import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
@@ -25,10 +23,7 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
-import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.GlUniform;
-import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
@@ -313,30 +308,9 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
             return;
         }
 
-        int index = this.stencil.getIndex();
-        Texture texture = this.stencil.getFramebuffer().getMainTexture();
         Pair<Form, String> pair = this.stencil.getPicked();
-        int w = texture.width;
-        int h = texture.height;
 
-        ShaderProgram previewProgram = BBSShaders.getPickerPreviewProgram();
-        GlUniform target = previewProgram.getUniform("Target");
-
-        if (target != null)
-        {
-            target.set(index);
-        }
-
-        GlUniform highlight = previewProgram.getUniform("HighlightColor");
-
-        if (highlight != null)
-        {
-            int color = BBSSettings.stencilHighlightColor.get();
-            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
-        }
-
-        RenderSystem.enableBlend();
-        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE, this.area.x, this.area.y, this.area.w, this.area.h, 0, h, w, 0, w, h);
+        this.stencil.renderPreview(context, this.area);
 
         if (pair != null && pair.a != null)
         {

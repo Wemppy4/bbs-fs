@@ -5,6 +5,7 @@ import mchorse.bbs_mod.bobj.BOBJLoader;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.joml.Matrices;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
@@ -133,6 +134,29 @@ public class BOBJModelVAO
         return snapshot;
     }
 
+    /* What the VBO currently holds: the armature pose it was skinned from plus the mode bits
+     * that shape the upload (picking bakes bone ids into the light attribute, Iris adds
+     * tangents). The VBO is shared by every actor on this model, so two actors alternating
+     * still re-skin — but one actor across the passes of a frame, and across frames in which
+     * it did not move, skins once. */
+    private static final long NO_KEY = Long.MIN_VALUE;
+
+    private long uploadedKey = NO_KEY;
+    private int uploadedMode = -1;
+
+    /** A content key of the armature's skinning matrices — computed once per render, shared by every mesh. */
+    public static long armatureKey(BOBJArmature armature)
+    {
+        long key = 1469598103934665603L;
+
+        for (Matrix4f matrix : armature.matrices)
+        {
+            key = key * 31 + (matrix == null ? 0 : matrix.hashCode());
+        }
+
+        return key;
+    }
+
     /**
      * Update this mesh. This method is responsible for applying
      * matrix transformations to vertices and normals according to its
@@ -140,11 +164,34 @@ public class BOBJModelVAO
      */
     public void updateMesh(StencilMap stencilMap)
     {
-        this.updateMesh(stencilMap, this.armature.matrices);
+        this.updateMesh(stencilMap, armatureKey(this.armature));
     }
 
+    /** Skin and upload unless the VBO already holds exactly this pose in this mode. */
+    public void updateMesh(StencilMap stencilMap, long key)
+    {
+        int mode = (stencilMap == null ? 0 : (stencilMap.increment ? 2 : 1)) | (BBSRendering.isIrisShadersEnabled() ? 4 : 0);
+
+        if (key != NO_KEY && key == this.uploadedKey && mode == this.uploadedMode)
+        {
+            BBSProfiler.count(BBSProfiler.Section.BOBJ_SKINS_SKIPPED);
+
+            return;
+        }
+
+        this.updateMesh(stencilMap, this.armature.matrices);
+
+        this.uploadedKey = key;
+        this.uploadedMode = mode;
+    }
+
+    /** Skin from an explicit matrix set (a deferred command's snapshot); the VBO's pose is then unknown. */
     public void updateMesh(StencilMap stencilMap, Matrix4f[] matrices)
     {
+        this.uploadedKey = NO_KEY;
+
+        BBSProfiler.count(BBSProfiler.Section.BOBJ_SKINS);
+
         Vector4f sum = new Vector4f();
         Vector4f result = new Vector4f(0F, 0F, 0F, 0F);
         Vector3f sumNormal = new Vector3f();

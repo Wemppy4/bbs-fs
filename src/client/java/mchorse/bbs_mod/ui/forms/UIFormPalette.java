@@ -99,11 +99,6 @@ public class UIFormPalette extends UIElement implements IUIFormList
         this.canModify = true;
     }
 
-    public boolean isImmersive()
-    {
-        return this.immersive;
-    }
-
     public void immersive()
     {
         this.immersive = true;

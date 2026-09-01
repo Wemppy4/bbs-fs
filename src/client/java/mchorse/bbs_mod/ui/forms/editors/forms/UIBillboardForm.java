@@ -4,7 +4,6 @@ import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIBillboardFormPanel;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIBillboardForm extends UIForm<BillboardForm>
 {

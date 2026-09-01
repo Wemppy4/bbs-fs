@@ -44,4 +44,10 @@ public class ValueLong extends BaseValueNumber<Long>
     {
         return Long.toString(this.value);
     }
+
+    @Override
+    public void setNumber(double value)
+    {
+        this.set(Math.round(value));
+    }
 }

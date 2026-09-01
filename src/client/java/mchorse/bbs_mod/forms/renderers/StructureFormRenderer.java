@@ -28,6 +28,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,6 +64,8 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
 
     /** Structure-backed world the block entities are bound to (null until built; falls back to mc.world). */
     private World structureWorld;
+
+    private final Vector3f offset = new Vector3f();
 
     public StructureFormRenderer(StructureForm form)
     {
@@ -102,6 +105,23 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             this.lastBiome = biome;
             this.world = new StructureRenderWorld(this.data, biome);
         }
+    }
+
+    /**
+     * Translation from the form's pivot to the structure's own (0, 0, 0) corner. By default that
+     * centers the footprint and rests it on the pivot; the form's origin offset moves the pivot
+     * through the structure, which shifts the geometry the other way.
+     */
+    private Vector3f getOffset()
+    {
+        Vec3i size = this.data.size;
+        Vector3f origin = this.form.origin.get();
+
+        return this.offset.set(
+            -size.getX() / 2F - origin.x,
+            -origin.y,
+            -size.getZ() / 2F - origin.z
+        );
     }
 
     /** Drop everything derived from the structure file: it is gone, replaced, or stale. */
@@ -253,9 +273,10 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             Vec3i size = this.data.size;
             float max = Math.max(size.getX(), Math.max(size.getY(), size.getZ()));
             float scale = (max > 0 ? 1F / max : 1F) * this.form.uiScale.get();
+            Vector3f offset = this.getOffset();
 
             matrices.scale(scale, scale, scale);
-            matrices.translate(-size.getX() / 2F, 0F, -size.getZ() / 2F);
+            matrices.translate(offset.x, offset.y, offset.z);
 
             matrices.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
             matrices.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
@@ -266,8 +287,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             FormColorBlend.blend(set, this.form.color.get());
 
             consumers.setUI(true);
-            /* UI preview always uses the correct (non-fast) path */
-            this.baked.render(matrices.peek(), consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, set.getARGBColor(), false);
+            this.baked.render(matrices.peek(), consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, set.getARGBColor());
 
             consumers.setSubstitute(BBSRendering.getColorConsumer(set));
             this.renderBlockEntities(matrices, consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
@@ -325,7 +345,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
         }
 
         CustomVertexConsumerProvider consumers = FormUtilsClient.getProvider();
-        Vec3i size = this.data.size;
+        Vector3f offset = this.getOffset();
 
         context.stack.push();
         if (context.world != null)
@@ -337,10 +357,10 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
          * not corrupt the frame ("Pose stack not empty" + profiler cascade) */
         try
         {
-            context.stack.translate(-size.getX() / 2F, 0F, -size.getZ() / 2F);
+            context.stack.translate(offset.x, offset.y, offset.z);
             if (context.world != null)
             {
-                context.world.translate(-size.getX() / 2F, 0F, -size.getZ() / 2F);
+                context.world.translate(offset.x, offset.y, offset.z);
             }
 
             COLOR.set(context.color);
@@ -356,9 +376,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
                     RenderSystem.setShader(BBSShaders::getPickerModelsProgram);
                 });
 
-                /* Picking replays the geometry through the picker shader per layer — force the
-                 * correct (non-fast) path so the raw-byte route never bypasses it */
-                this.baked.render(context.stack.peek(), consumers, context.light, 0xFFFFFFFF, false);
+                this.baked.render(context.stack.peek(), consumers, context.light, 0xFFFFFFFF);
             }
             else
             {
@@ -377,7 +395,7 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
                     }
                 });
 
-                this.baked.render(context.stack.peek(), consumers, context.light, COLOR.getARGBColor(), this.form.fastRender.get());
+                this.baked.render(context.stack.peek(), consumers, context.light, COLOR.getARGBColor());
 
                 /* Block entities still go through the consumer interface — tint them via substitute */
                 consumers.setSubstitute(BBSRendering.getColorConsumer(COLOR));

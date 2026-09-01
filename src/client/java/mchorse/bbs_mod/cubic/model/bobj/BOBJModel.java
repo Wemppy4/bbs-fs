@@ -15,7 +15,6 @@ import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -128,6 +127,24 @@ public class BOBJModel implements IModel
         for (BOBJBone orderedBone : this.armature.orderedBones)
         {
             orderedBone.reset();
+        }
+    }
+
+    @Override
+    public void snapshotChannels()
+    {
+        for (BOBJBone orderedBone : this.armature.orderedBones)
+        {
+            orderedBone.snapshotChannels();
+        }
+    }
+
+    @Override
+    public void restoreChannels()
+    {
+        for (BOBJBone orderedBone : this.armature.orderedBones)
+        {
+            orderedBone.restoreChannels();
         }
     }
 

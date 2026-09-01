@@ -7,7 +7,8 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
+import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -19,10 +20,8 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * The folders of every source as a tree down the side of a texture browser, for jumping
@@ -33,8 +32,10 @@ import java.util.Set;
  * dragged, the row under the cursor is where they'd drop.</p>
  *
  * <p>Above the sources sit the {@link TexturePins pins} — the folders and textures the user
- * keeps at hand — as flat rows, marked with a bookmark and cut off from the tree by a
- * divider. They're the same list everywhere a tree is shown.</p>
+ * keeps at hand — under a title of their own, which folds like any other branch and sits on
+ * the same grid as the sources: arrow, icon, name. So the tree reads as one list of groups
+ * rather than a heading with the roots tucked in beside it. A divider cuts the group off from
+ * the tree below. They're the same list everywhere a tree is shown.</p>
  */
 public class UIFolderTree extends UIList<UIFolderTree.Node>
 {
@@ -56,13 +57,13 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
 
         public static Node pin(Link link)
         {
-            return new Node(link, 0, false, false, Kind.PIN);
+            return new Node(link, 1, false, false, Kind.PIN);
         }
 
-        /** The row that says what the rows under it are; it points at nothing. */
-        public static Node pinsHeader()
+        /** The row the pins hang under; it points at nothing, and folds them away. */
+        public static Node pinsHeader(boolean expanded)
         {
-            return new Node(new Link("", ""), 0, false, false, Kind.HEADER);
+            return new Node(new Link("", ""), 0, true, expanded, Kind.HEADER);
         }
 
         public boolean pin()
@@ -83,7 +84,9 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     }
 
     private final IFolderTreeHost browser;
-    private final Set<Link> expanded = new HashSet<>();
+
+    /* Which folders are unfolded; it outlives every relisting of the tree */
+    private final FoldState<Link> folds = new FoldState<>();
 
     /** Whether a folder has folders inside — asked once per listing, not per frame. */
     private final Map<Link, Boolean> branches = new HashMap<>();
@@ -93,6 +96,9 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
      * the tree itself starts. Zero when nothing is pinned — no title, no divider.
      */
     private int pinRows;
+
+    /** Whether the pins are listed under their title. Folded, only the title is left. */
+    private boolean pinsExpanded = true;
 
     /* The row right clicked on, whose pin the context menu acts upon */
     private Node contextNode;
@@ -120,15 +126,17 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     {
         if (path != null && !path.source.isEmpty())
         {
+            List<Link> above = new ArrayList<>();
             Link folder = TextureEntry.folderLink(path);
 
             while (!folder.path.isEmpty())
             {
                 folder = TextureEntry.folderLink(folder.parent());
-                this.expanded.add(folder);
+                above.add(folder);
             }
 
-            this.expanded.add(new Link(path.source, ""));
+            above.add(new Link(path.source, ""));
+            this.folds.expandAll(above);
         }
 
         this.rebuild();
@@ -142,15 +150,18 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
 
         if (!pinned.isEmpty())
         {
-            this.add(Node.pinsHeader());
+            this.add(Node.pinsHeader(this.pinsExpanded));
 
-            for (Link pin : pinned)
+            if (this.pinsExpanded)
             {
-                this.add(Node.pin(pin));
+                for (Link pin : pinned)
+                {
+                    this.add(Node.pin(pin));
+                }
             }
         }
 
-        this.pinRows = pinned.isEmpty() ? 0 : pinned.size() + 1;
+        this.pinRows = pinned.isEmpty() ? 0 : (this.pinsExpanded ? pinned.size() + 1 : 1);
 
         List<String> sources = new ArrayList<>(BBSMod.getProvider().getSourceKeys());
 
@@ -167,7 +178,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     private void addBranch(Link folder, int depth)
     {
         boolean branch = this.isBranch(folder);
-        boolean open = branch && this.expanded.contains(folder);
+        boolean open = branch && this.folds.isExpanded(folder);
 
         this.add(Node.folder(folder, depth, branch, open));
 
@@ -210,11 +221,30 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         });
     }
 
-    private void toggle(Node node)
+    /* Tree convention: only folders of the tree fold; pins and the title are flat rows */
+
+    @Override
+    protected int indent(Node node)
     {
-        if (!this.expanded.remove(node.link()))
+        return node.depth() * INDENT;
+    }
+
+    @Override
+    protected Boolean branch(Node node)
+    {
+        return node.branch() ? node.expanded() : null;
+    }
+
+    @Override
+    protected void toggle(Node node)
+    {
+        if (node.header())
         {
-            this.expanded.add(node.link());
+            this.pinsExpanded = !this.pinsExpanded;
+        }
+        else
+        {
+            this.folds.toggle(node.link());
         }
 
         this.rebuild();
@@ -296,34 +326,29 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     @Override
     public boolean subMouseClicked(UIContext context)
     {
-        if (!this.area.isInside(context))
+        if (context.mouseButton == 1 && this.area.isInside(context))
         {
-            return false;
-        }
+            int index = this.scroll.getIndex(context.mouseX, context.mouseY);
 
-        if (this.scroll.mouseClicked(context))
-        {
-            return true;
-        }
-
-        int index = this.scroll.getIndex(context.mouseX, context.mouseY);
-        Node node = this.exists(index) ? this.getList().get(index) : null;
-
-        if (context.mouseButton == 1)
-        {
-            this.contextNode = node;
+            this.contextNode = this.exists(index) ? this.getList().get(index) : null;
 
             return false;
         }
 
-        if (node == null || context.mouseButton != 0)
-        {
-            return false;
-        }
+        return super.subMouseClicked(context);
+    }
+
+    /** A row is entered, not picked: the browser goes there, and the tree keeps no pick of its own. */
+    @Override
+    protected boolean pressItem(int index, UIContext context)
+    {
+        Node node = this.getList().get(index);
 
         if (node.header())
         {
-            /* Nothing to enter, but the press is still ours — it mustn't start anything */
+            /* Nothing to enter: the whole row folds the pins away, arrow or not */
+            this.toggle(node);
+
             return true;
         }
 
@@ -334,21 +359,25 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
             return true;
         }
 
-        int arrowX = this.area.x + 4 + node.depth() * INDENT;
-
-        if (node.branch() && context.mouseX < arrowX + 12)
+        if (this.pressArrow(index, context))
         {
-            this.toggle(node);
+            return true;
         }
-        else
-        {
-            this.browser.navigate(node.link());
 
-            if (node.branch() && !node.expanded())
-            {
-                this.expanded.add(node.link());
-                this.rebuild();
-            }
+        /* The whole row is the arrow: a branch folds and unfolds wherever it is clicked, so
+         * getting at what is inside a folder never means aiming at eight pixels of triangle.
+         * The row's own state is what the click flips - entering a folder reveals the way down
+         * to it first, and a source root is the one row that reveal unfolds itself, so asking
+         * the folds afterwards would answer "expanded" to every click on one. */
+        boolean expanded = node.branch() && node.expanded();
+
+        this.cursor = index;
+        this.browser.navigate(node.link());
+
+        if (node.branch())
+        {
+            this.folds.set(node.link(), !expanded);
+            this.rebuild();
         }
 
         return true;
@@ -369,34 +398,41 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     {
         if (node.header())
         {
-            this.renderHeader(context, x, y);
+            if (hover)
+            {
+                context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A12 | 0xffffff);
+            }
 
-            return;
+            this.renderHeader(context, node, x, y, hover);
         }
-
-        TextureDrag drag = this.browser.getDrag();
-        boolean current = node.folder() ? this.browser.isCurrentFolder(node.link()) : this.browser.isCurrentTexture(node.link());
-        boolean target = false;
-
-        if (hover && node.folder() && drag != null && drag.isActive() && !drag.isDragging(node.link()))
+        else
         {
-            drag.setTarget(node.link());
-            target = true;
+            ItemDrag<TextureEntry> drag = this.browser.getDrag();
+            boolean current = node.folder() ? this.browser.isCurrentFolder(node.link()) : this.browser.isCurrentTexture(node.link());
+            boolean target = false;
+
+            /* A folder can't receive itself; the carried entries are matched by link since the tree has no entries */
+            if (hover && node.folder() && drag != null && drag.isActive() && drag.getItems().stream().noneMatch((entry) -> entry.link().equals(node.link())))
+            {
+                drag.setTarget(node.link());
+                target = true;
+            }
+
+            if (current || target)
+            {
+                context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A25 | BBSSettings.primaryColor.get());
+            }
+            else if (hover)
+            {
+                context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A12 | 0xffffff);
+            }
+
+            this.renderElementPart(context, node, i, x, y, hover, selected);
         }
 
-        if (current || target)
-        {
-            context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A25 | BBSSettings.primaryColor.get());
-        }
-        else if (hover)
-        {
-            context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A12 | 0xffffff);
-        }
-
-        this.renderElementPart(context, node, i, x, y, hover, selected);
-
-        /* The pins are their own group: a divider says where the tree itself begins */
-        if (node.pin() && i == this.pinRows - 1)
+        /* The pins are their own group: a divider says where the tree itself begins. Folded,
+         * the title is the group's last row and carries the divider itself. */
+        if (this.pinRows > 0 && i == this.pinRows - 1)
         {
             context.batcher.box(x, y + ROW - 1, x + this.area.w, y + ROW, BBSSettings.dividerColor());
         }
@@ -406,15 +442,18 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     protected void renderElementPart(UIContext context, Node node, int i, int x, int y, boolean hover, boolean selected)
     {
         FontRenderer font = context.batcher.getFont();
-        int ix = x + 4 + node.depth() * INDENT;
+        int ix = x + this.rowContentX(node);
         int my = y + ROW / 2;
         boolean missing = node.pin() && this.isMissing(node);
         int color = missing ? Colors.GRAY : (hover ? Colors.LIGHTEST_GRAY : Colors.WHITE);
 
-        if (node.branch())
-        {
-            UISection.renderArrow(context, ix + 6, my, node.expanded());
-        }
+        /* A folder of the mod's own can't be changed, and its name says so by going faint -
+         * the same fade the grid gives such a cell's name. What a pin is, its title says. */
+        int nameColor = !node.pin() && TextureFiles.isReadOnly(node.link())
+            ? Colors.mulA(color, TextureCellRenderer.READ_ONLY_ALPHA)
+            : color;
+
+        this.renderArrow(context, node, x, y);
 
         if (node.folder())
         {
@@ -430,34 +469,31 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
             this.renderThumbnail(context, node.link(), ix + 12, my - 8, color);
         }
 
-        /* A folder of the mod's own says it can't be changed; what a pin is, its title says */
-        boolean readOnly = !node.pin() && TextureFiles.isReadOnly(node.link());
-        int right = this.area.ex() - 4 - (readOnly ? 18 : 0);
-        String name = font.limitToWidth(this.nameOf(node), right - (ix + 32));
+        String name = font.limitToWidth(this.nameOf(node), this.area.ex() - 4 - (ix + 32));
 
-        context.batcher.textShadow(name, ix + 32, y + (ROW - font.getHeight()) / 2 + 1, color);
-
-        if (readOnly)
-        {
-            context.batcher.icon(Icons.GEAR, Colors.LIGHTER_GRAY, this.area.ex() - 20, my - 8);
-        }
+        context.batcher.textShadow(name, ix + 32, y + (ROW - font.getHeight()) / 2 + 1, nameColor);
     }
 
     /**
-     * The pins' title: a bookmark and a word, in the same full white as everything else down
-     * this side — greyed out, it read as disabled rather than as a label. It carries no band
-     * of its own: the side panel is already chrome, and a second tone there would muddy it.
+     * The pins' title: an arrow, a bookmark and a word, on the very grid the source roots use —
+     * it is a group of the tree like they are, not a heading floating above it. Full white like
+     * everything else down this side; greyed out, it read as disabled rather than as a label.
+     * It carries no band of its own: the side panel is already chrome, and a second tone there
+     * would muddy it.
      */
-    private void renderHeader(UIContext context, int x, int y)
+    private void renderHeader(UIContext context, Node node, int x, int y, boolean hover)
     {
         FontRenderer font = context.batcher.getFont();
+        int ix = x + this.rowContentX(node);
         int my = y + ROW / 2;
+        int color = hover ? Colors.LIGHTEST_GRAY : Colors.WHITE;
 
-        context.batcher.icon(Icons.BOOKMARK, Colors.WHITE, x + 4, my - 8);
+        this.renderArrow(context, node, x, y);
+        context.batcher.icon(Icons.BOOKMARK, color, ix + 12, my - 8);
 
-        String title = font.limitToWidth(UIKeys.TEXTURES_BROWSER_PINNED.get(), this.area.ex() - 4 - (x + 22));
+        String title = font.limitToWidth(UIKeys.TEXTURES_BROWSER_PINNED.get(), this.area.ex() - 4 - (ix + 32));
 
-        context.batcher.textShadow(title, x + 22, y + (ROW - font.getHeight()) / 2 + 1, Colors.WHITE);
+        context.batcher.textShadow(title, ix + 32, y + (ROW - font.getHeight()) / 2 + 1, color);
     }
 
     /** A pinned texture shows itself, fitted into the icon's place, so it's told apart at a glance. */

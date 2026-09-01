@@ -131,11 +131,6 @@ public class UITabList implements IUITabs, Iterable<DataTab>
         return -1;
     }
 
-    public boolean canAddTab()
-    {
-        return this.findEmptyTab() < 0;
-    }
-
     /* IUITabs — index based, for the strip */
 
     @Override

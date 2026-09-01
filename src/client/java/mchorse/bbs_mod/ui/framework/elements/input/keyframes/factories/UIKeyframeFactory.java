@@ -49,7 +49,14 @@ public abstract class UIKeyframeFactory <T> extends UIElement
     protected Keyframe<T> keyframe;
     protected UIKeyframes editor;
 
-    static
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
     {
         register(KeyframeFactories.ANCHOR, UIAnchorKeyframeFactory::new);
         register(KeyframeFactories.BOOLEAN, UIBooleanKeyframeFactory::new);
@@ -60,6 +67,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         register(KeyframeFactories.LINK, UILinkKeyframeFactory::new);
         register(KeyframeFactories.POSE, UIPoseKeyframeFactory::new);
         register(KeyframeFactories.IK, UIIKKeyframeFactory::new);
+        register(KeyframeFactories.PHYSICS, UIPhysicsKeyframeFactory::new);
         register(KeyframeFactories.WIND, UIWindKeyframeFactory::new);
         register(KeyframeFactories.POSE_TRANSFORM, UIPoseTransformKeyframeFactory::new);
         register(KeyframeFactories.BONE_CONSTRAINT, UIBoneConstraintKeyframeFactory::new);
@@ -169,6 +177,47 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         return this.keyframe;
     }
 
+    /**
+     * The keyframe an edit made in this panel should land on: the one the panel was opened for,
+     * or &mdash; with auto-keyframing on &mdash; the keyframe of the same track at the playhead,
+     * made from the track's interpolated value if there is none there yet.
+     */
+    public Keyframe<T> getEditTarget()
+    {
+        return this.editor.getGraph().getEditTarget(this.keyframe);
+    }
+
+    /**
+     * Whether this panel's fields should follow the playhead rather than the keyframe they were
+     * opened for. They have to when auto-keyframing, because that is where the next edit lands:
+     * a field showing a keyframe at another tick would start a drag from the wrong number.
+     */
+    protected boolean followsPlayhead()
+    {
+        return this.editor.getGraph().getAutoKeyframeTick() != null;
+    }
+
+    /**
+     * What the fields should show: the edited keyframe's value, or what the track reads at the
+     * playhead while {@link #followsPlayhead()}. Read-only &mdash; a keyframe is only brought into
+     * being once something is actually edited.
+     */
+    protected T getDisplayValue()
+    {
+        IUIKeyframeGraph graph = this.editor.getGraph();
+        Integer tick = graph.getAutoKeyframeTick();
+        UIKeyframeSheet sheet = tick == null ? null : graph.getSheet(this.keyframe);
+
+        if (sheet == null || sheet.channel.isEmpty())
+        {
+            return this.keyframe.getValue();
+        }
+
+        T value = (T) sheet.channel.interpolate(tick);
+
+        return value == null ? this.keyframe.getValue() : value;
+    }
+
     public void setTick(double tick)
     {
         double time = TimeUtils.fromTime(tick);
@@ -183,7 +232,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
 
     public void setValue(Object value)
     {
-        this.editor.getGraph().setValue(value, true);
+        this.editor.getGraph().setValue(value, true, true);
     }
 
     public void update()

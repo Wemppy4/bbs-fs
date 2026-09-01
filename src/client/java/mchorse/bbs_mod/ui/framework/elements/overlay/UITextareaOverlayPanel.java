@@ -26,6 +26,8 @@ public class UITextareaOverlayPanel extends UIMessageBarOverlayPanel
         this.text.relative(this.message).w(1F).y(1F, 5).hTo(this.bar.area, -5);
 
         this.content.add(this.text);
+
+        this.fillsOverlay();
     }
 
     @Override

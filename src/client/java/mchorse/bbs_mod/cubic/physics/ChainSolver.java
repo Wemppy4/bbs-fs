@@ -56,6 +56,26 @@ final class ChainSolver
      */
     private static final int MAX_TICK_CATCHUP = 4;
 
+    /**
+     * Sub-step budget of the settling pass. A seed puts the chain on the animated pose, which is not a shape
+     * it can hold at any stiffness below 1 — it would sag out of it over the following ticks. Settling runs
+     * the same sub-step ahead of time, so the shape a seed produces IS the shape the sim converges to, and a
+     * re-seed stops being visible: before this, every scrub popped the chain back to the pose and let it fall
+     * again, and a film starting at tick 0 spent its first second waking up. A larger budget than
+     * {@link #PHYSICS_MAX_STEPS} is affordable because it is spent once per seed, not once per tick.
+     */
+    private static final int SETTLE_MAX_SUBSTEPS = 180;
+
+    /** Per-sub-step displacement below which the settling pass calls the chain stopped, in model units. */
+    private static final float SETTLE_EPS = 1.0e-4F;
+
+    /**
+     * Floor on damping while settling. Damping decides how fast the transient dies, not where it dies, so
+     * raising it only fast-forwards to the same rest shape — without it a loose chain would still be
+     * swinging when the sub-step budget runs out.
+     */
+    private static final float SETTLE_DAMPING = 0.5F;
+
     private ChainSolver()
     {
     }
@@ -215,17 +235,10 @@ final class ChainSolver
             return;
         }
 
-        if (state.lastAge == Integer.MIN_VALUE)
-        {
-            seedFromPose(state, chainFrames, lengths, newAnchor, newAnchorRotation);
-            state.lastAge = age;
-            state.renderAlpha = 0F;
-            return;
-        }
+        boolean firstSight = state.lastAge == Integer.MIN_VALUE;
+        int delta = firstSight ? 0 : age - state.lastAge;
 
-        int delta = age - state.lastAge;
-
-        if (delta == 0)
+        if (!firstSight && delta == 0)
         {
             /* Same film tick, a later render within it — no new simulation; the render just interpolates
              * the two latest tick states by the sub-tick transition (and re-roots them to the live anchor). */
@@ -233,19 +246,19 @@ final class ChainSolver
             return;
         }
 
-        if (delta < 0 || delta > MAX_TICK_CATCHUP)
+        /* No history to step from: first sight of the chain, a scrub backwards, or a jump too long to replay
+         * without the intermediate poses (deterministic re-simulation from a window is the runtime's job).
+         * Re-seed at the current animated pose — and then settle below rather than hand that pose to the
+         * render, because the chain cannot hold it. */
+        boolean settle = firstSight || delta < 0 || delta > MAX_TICK_CATCHUP;
+
+        if (settle)
         {
-            /* Scrubbed backwards or jumped a long way: without the intermediate poses the sim can't be
-             * replayed here, so re-seed at the current animated pose. Deterministic re-simulation from a
-             * window is the runtime's job. */
             seedFromPose(state, chainFrames, lengths, newAnchor, newAnchorRotation);
-            state.lastAge = age;
-            state.renderAlpha = clamp01(transition);
-            return;
         }
 
         float gravity = BASE_GRAVITY * gravityMul;
-        float damping = clamp01(dampingValue);
+        float damping = settle ? Math.max(clamp01(dampingValue), SETTLE_DAMPING) : clamp01(dampingValue);
         int iterations = chain.iterations();
         boolean collisions = chain.collisions() && world != null && chain.radius() > 0F;
         float radius = chain.radius();
@@ -256,10 +269,11 @@ final class ChainSolver
          * real-time accumulator — so the chain shape at a tick depends on the tick alone (identical on
          * every playback and in export), not on the render frame rate. A skipped tick (frame hitch)
          * advances several ticks at once, capped. The sub-tick transition interpolates the two latest
-         * tick states in renderInterpolate. */
-        int steps = delta * SUBSTEPS_PER_TICK;
+         * tick states in renderInterpolate. A settling pass is not time passing at all — it stands on one
+         * tick and runs until the chain stops, on its own budget. */
+        int steps = settle ? SETTLE_MAX_SUBSTEPS : delta * SUBSTEPS_PER_TICK;
 
-        if (steps > PHYSICS_MAX_STEPS)
+        if (!settle && steps > PHYSICS_MAX_STEPS)
         {
             steps = PHYSICS_MAX_STEPS;
         }
@@ -285,7 +299,7 @@ final class ChainSolver
         float windMagnitude = PhysicsForces.prepareWind(wind, BASE_GRAVITY, windDir);
         boolean hasWind = windMagnitude > 0F;
         Vector3f windVec = hasWind ? new Vector3f() : null;
-        int startAge = state.lastAge;
+        int startAge = settle ? age : state.lastAge;
 
         /* Per-point spring-back fraction toward the animated pose for one sub-step, falling off toward the
          * floppier tip. Applied as an angular pull in solveSpring, not a positional one. */
@@ -322,7 +336,12 @@ final class ChainSolver
             /* Slide the anchor from where the simulation left it toward the live anchor across the
              * sub-steps of this frame, so the chain sees a smooth anchor trajectory. */
             float progress = (s + 1) / (float) steps;
-            float filmTime = startAge + (s + 1) * h;
+
+            /* Settling stands on one tick, so the wind field is held at that tick instead of scrolling: a
+             * moving field has no rest state to converge to, and freezing it is also what the chain is
+             * about to be handed when the sim resumes. The anchor lerp below is likewise a no-op while
+             * settling — seedFromPose already parked the state anchor on the live one. */
+            float filmTime = settle ? age : startAge + (s + 1) * h;
             stepAnchor.set(startAnchor).lerp(newAnchor, progress);
             stepAnchorRotation.set(startAnchorRotation).slerp(newAnchorRotation, progress);
 
@@ -410,16 +429,47 @@ final class ChainSolver
                 lengthForward(state.pos, lengths);
                 pinEnds(state.pos, state.anchor, targetPosition, last);
             }
+
+            /* Settling runs until the chain stops, not for a fixed time: a stiff chain is home in a few
+             * sub-steps and only a loose one needs the whole budget. */
+            if (settle && stopped(state.pos, state.prev))
+            {
+                break;
+            }
         }
 
         snapshotLocal(state.pos, state.anchor, state.anchorRotation, state.settledLocal);
+
+        /* A settled chain has no previous tick to blend against — the shape it starts on is the shape it is
+         * in. Leaving the seeded pose in the previous slot would show that pose instead for as long as the
+         * sub-tick transition sits at 0, which it does for every actor in a paused editor. */
+        if (settle)
+        {
+            copyPositions(state.settledLocal, state.settledPrevLocal);
+        }
+
         state.lastAge = age;
+    }
+
+    /** True when no free point moved further than {@link #SETTLE_EPS} across the sub-step that just ran. */
+    private static boolean stopped(Vector3f[] pos, Vector3f[] prev)
+    {
+        for (int i = 1; i < pos.length; i++)
+        {
+            if (pos[i].distanceSquared(prev[i]) > SETTLE_EPS * SETTLE_EPS)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
      * Seeds the chain at the current animated pose with zero velocity: every joint on its posed position
      * plus the virtual tip one rest-length past the last bone. Used on first sight of a chain and when a
-     * scrub or long jump leaves no history to replay.
+     * scrub or long jump leaves no history to replay. This is a starting point, not a result — the pose is
+     * not a shape the sim can hold, so {@link #step} always settles it before anything renders it.
      */
     private static void seedFromPose(ChainState state, List<PivotFrame> chainFrames, float[] lengths, Vector3f anchor, Quaternionf anchorRotation)
     {

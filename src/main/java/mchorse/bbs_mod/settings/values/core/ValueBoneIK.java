@@ -30,4 +30,10 @@ public class ValueBoneIK extends BaseValueBasic<IKControl>
 
         this.value = control;
     }
+
+    @Override
+    protected IKControl copyValue(IKControl value)
+    {
+        return value == null ? null : value.copy();
+    }
 }

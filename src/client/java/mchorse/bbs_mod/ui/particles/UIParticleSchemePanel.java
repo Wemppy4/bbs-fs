@@ -17,8 +17,8 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingScreen;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.layout.ILayoutSource;
@@ -51,7 +51,6 @@ import mchorse.bbs_mod.utils.IOUtils;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -70,7 +69,6 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     public UIScrollView particleView;
     public UIScrollView appearanceView;
     public UIDockLayout dock;
-    public UILandingScreen<ParticleScheme> landing;
 
     public List<UIParticleSchemeSection> sections = new ArrayList<>();
 
@@ -105,12 +103,16 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         this.dock.addPanel("appearance", this.appearanceView, Icons.MATERIAL, UIKeys.SNOWSTORM_PANELS_APPEARANCE);
         this.dock.addPanel("molang", this.textEditor, Icons.CODE, UIKeys.SNOWSTORM_PANELS_MOLANG);
         this.dock.addPanel("preview", this.renderer, Icons.VIDEO_CAMERA, UIKeys.SNOWSTORM_PANELS_PREVIEW);
+
+        /* What the tour of this panel points at. The four section views are one place: they
+         * share a stack, and whichever tab is up stands for all of them. */
+        TourAnchors.register("particles.preview", () -> this.renderer);
+        TourAnchors.register("particles.sections", () -> this.generalView, () -> this.emitterView, () -> this.particleView, () -> this.appearanceView);
+        TourAnchors.register("particles.molang", () -> this.textEditor);
         this.dock.mount();
         this.editor.add(this.dock);
 
-        this.landing = new UILandingScreen<>(this);
-
-        this.add(this.layoutUnderTopBar(this.landing));
+        this.mountLanding();
 
         this.overlay.namesList.setFileIcon(Icons.PARTICLE);
 
@@ -141,8 +143,8 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
         this.actions()
             .action(restart)
             .action(presets)
-            .action(lock, this.dock::isLocked)
-            .action(resetLayout);
+            .action(resetLayout)
+            .layout(lock, this.dock::isLocked);
 
         /* Ctrl+Tab / Ctrl+Shift+Tab cycle the tabs of the dock stack under the cursor (like the film editor). */
         this.keys().register(Keys.FILM_CONTROLLER_NEXT_DOCK_TAB, () ->
@@ -352,8 +354,6 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
     {
         this.editMoLang(null, null, null);
 
-        this.landing.setVisible(data == null);
-
         if (this.data != null)
         {
             this.renderer.setScheme(this.data);
@@ -375,17 +375,6 @@ public class UIParticleSchemePanel extends UIDataDashboardPanel<ParticleScheme>
 
         /* Dock gate shows/hides the preview + sections panels based on data presence. */
         this.dock.setupFlex(true);
-    }
-
-    @Override
-    public void fillNames(Collection<String> names)
-    {
-        super.fillNames(names);
-
-        if (this.landing != null)
-        {
-            this.landing.fillNames(names);
-        }
     }
 
     @Override

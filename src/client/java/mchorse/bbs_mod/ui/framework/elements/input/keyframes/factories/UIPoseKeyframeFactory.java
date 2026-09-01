@@ -4,28 +4,24 @@ import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
+import mchorse.bbs_mod.forms.renderers.mob.MobRig;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.settings.values.IValueListener;
-import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
-import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
-import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.MathUtils;
-import mchorse.bbs_mod.utils.joml.Vectors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
-import org.joml.Vector3d;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +32,10 @@ import java.util.function.Consumer;
 public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
 {
     public UIPoseFactoryEditor poseEditor;
+
+    /* Which arrangement the fields are in (null until the first layout), so a resize
+     * that stays on the same side of the threshold doesn't rebuild the subtree */
+    private Boolean wide;
 
     public UIPoseKeyframeFactory(Keyframe<Pose> keyframe, UIKeyframes editor)
     {
@@ -57,36 +57,45 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
         else if (FormUtils.getForm(sheet.property) instanceof MobForm mobForm)
         {
-            List<String> bones = FormUtilsClient.getRenderer(mobForm).getBones();
+            MobRig rig = MobFormRenderer.getRig(mobForm);
 
-            this.poseEditor.setPose(keyframe.getValue(), "");
-            this.poseEditor.fillGroups(bones, false);
+            this.poseEditor.setPose(keyframe.getValue(), mobForm.mobID.get());
+
+            if (rig == null)
+            {
+                this.poseEditor.fillGroups(FormUtilsClient.getRenderer(mobForm).getBones(), false);
+            }
+            else
+            {
+                /* No flipped-parts table: vanilla part names are already left_/right_, which is
+                 * exactly what Pose's own mirror rule matches. */
+                this.poseEditor.fillGroups(rig, null, false, null);
+            }
         }
 
         this.scroll.add(this.poseEditor);
     }
 
+    /**
+     * Only the choice of arrangement lives here — this popup is the one that knows its own width,
+     * since the user resizes it. Building the arrangement is {@link UIPoseEditor}'s own job, so this
+     * editor stays identical to the form editor's pose panel instead of drifting from it.
+     */
     @Override
     public void resize()
     {
-        this.poseEditor.removeAll();
+        boolean wide = this.getFlex().getW() > UIPoseEditor.WIDE_WIDTH;
 
-        if (this.getFlex().getW() > 240)
+        if (this.wide == null || this.wide != wide)
         {
-            this.poseEditor.add(UI.row(
-                UI.column(UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.poseEditor.fix), UI.row(this.poseEditor.color, this.poseEditor.lighting), this.poseEditor.transform),
-                UI.column(UI.label(UIKeys.FORMS_EDITOR_BONE), this.poseEditor.groups)
-            ));
-        }
-        else
-        {
-            this.poseEditor.add(UI.label(UIKeys.FORMS_EDITOR_BONE), this.poseEditor.groups, UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.poseEditor.fix), UI.row(this.poseEditor.color, this.poseEditor.lighting), this.poseEditor.transform);
-        }
+            this.wide = wide;
+            this.poseEditor.buildLayout(wide);
 
-        /* Ew... */
-        for (UIElement child : this.scroll.getChildren(UIElement.class))
-        {
-            child.noCulling();
+            /* Ew... */
+            for (UIElement child : this.scroll.getChildren(UIElement.class))
+            {
+                child.noCulling();
+            }
         }
 
         super.resize();
@@ -161,6 +170,11 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             this.editor = editor;
             this.keyframe = keyframe;
 
+            /* This popup is short and the user resizes it, so the list asks for less than the form
+             * editor's does — it expands into the leftover anyway, and this is the floor it hits
+             * when the fields alone already fill the popup. */
+            this.groups.list.h(UIStringList.DEFAULT_HEIGHT * 4);
+
             ((UIPoseTransforms) this.transform).setKeyframe(this);
         }
 
@@ -177,12 +191,6 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         private String getGroup(PoseTransform transform)
         {
             return CollectionUtils.getKey(this.getPose().transforms, transform);
-        }
-
-        @Override
-        protected boolean stretchesBoneList()
-        {
-            return true;
         }
 
         @Override
@@ -261,69 +269,24 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
 
         @Override
-        protected void applyDuringRecording(int tick, Consumer<Transform> consumer)
+        protected UIKeyframes getKeyframes()
         {
-            Map<String, UIPoseEditor.BoneEdit> targets = this.editor.resolveBoneEdits(this.isMirrorEdit(), this.isAlternateInvert());
-
-            applyRecordingBones(this.editor.editor, this.editor.keyframe, tick, new ArrayList<>(targets.keySet()),
-                (bone, poseT) -> this.editor.applyToBone(targets.get(bone), poseT, consumer));
+            return this.editor.editor;
         }
 
         @Override
-        protected Transform getRecordedTransform(int tick)
+        protected Transform getAutoKeyTransform(int tick)
         {
             UIKeyframeSheet sheet = this.editor.editor.getGraph().getSheet(this.editor.keyframe);
-            Keyframe<Pose> recorded = UIReplaysEditorUtils.ensureKeyframe(sheet, tick);
+            Keyframe<Pose> target = sheet == null ? null : sheet.ensureKeyframe(tick);
             String bone = this.editor.getGroup();
 
-            if (recorded == null || bone == null)
+            if (target == null || bone == null)
             {
                 return null;
             }
 
-            return recorded.getValue().getOrCreate(bone);
-        }
-
-        public static void applyRecording(UIKeyframes editor, Keyframe keyframe, int tick, List<String> bones, Consumer<PoseTransform> consumer)
-        {
-            if (bones == null || bones.isEmpty())
-            {
-                return;
-            }
-
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                Pose pose = (Pose) recorded.getValue();
-                recorded.preNotify();
-
-                for (String bone : bones)
-                {
-                    consumer.accept(pose.getOrCreate(bone));
-                }
-
-                recorded.postNotify();
-            });
-        }
-
-        public static void applyRecordingBones(UIKeyframes editor, Keyframe keyframe, int tick, List<String> bones, BiConsumer<String, PoseTransform> consumer)
-        {
-            if (bones == null || bones.isEmpty())
-            {
-                return;
-            }
-
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                Pose pose = (Pose) recorded.getValue();
-                recorded.preNotify();
-
-                for (String bone : bones)
-                {
-                    consumer.accept(bone, pose.getOrCreate(bone));
-                }
-
-                recorded.postNotify();
-            });
+            return target.getValue().getOrCreate(bone);
         }
 
         @Override

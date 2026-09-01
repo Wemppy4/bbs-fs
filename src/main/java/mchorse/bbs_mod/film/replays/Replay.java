@@ -44,6 +44,8 @@ public class Replay extends ValueGroup
     public final ValueInt looping = new ValueInt("looping", 0);
 
     public final ValueBoolean actor = new ValueBoolean("actor", false);
+    /** Whether the actor's body sweeps up items it walks over. What it takes is given back when the film stops. */
+    public final ValueBoolean actorPickup = new ValueBoolean("actor_pickup", true);
     public final ValueBoolean fp = new ValueBoolean("fp", false);
     public final ValueBoolean relative = new ValueBoolean("relative", false);
     public final ValuePoint relativeOffset = new ValuePoint("relativeOffset", new Point(0, 0, 0));
@@ -71,6 +73,7 @@ public class Replay extends ValueGroup
         this.add(this.looping);
 
         this.add(this.actor);
+        this.add(this.actorPickup);
         this.add(this.fp);
         this.add(this.relative);
         this.add(this.relativeOffset);

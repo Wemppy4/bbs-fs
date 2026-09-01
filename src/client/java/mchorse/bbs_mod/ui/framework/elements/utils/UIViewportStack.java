@@ -21,15 +21,6 @@ public class UIViewportStack implements IViewportStack
     private int shiftX;
     private int shiftY;
 
-    public static UIViewportStack fromElement(UIElement element)
-    {
-        UIViewportStack stack = new UIViewportStack();
-
-        stack.applyFromElement(element);
-
-        return stack;
-    }
-
     public void applyFromElement(UIElement element)
     {
         List<IViewport> elements = new ArrayList<>();

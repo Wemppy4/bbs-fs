@@ -18,8 +18,7 @@ public class UIDamageActionClip extends UIActionClip<DamageActionClip>
     {
         super.registerUI();
 
-        this.damage = new UITrackpad((v) -> this.editor.editMultiple(this.clip.damage, (damage) -> damage.set(v.floatValue())));
-        this.damage.limit(0F);
+        this.damage = this.trackpad(this.clip.damage).limit(0F);
     }
 
     @Override
@@ -28,13 +27,5 @@ public class UIDamageActionClip extends UIActionClip<DamageActionClip>
         super.registerPanels();
 
         this.panels.add(this.section(UIKeys.ACTIONS_ATTACK_DAMAGE, this.damage));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.damage.setValue(this.clip.damage.get());
     }
 }

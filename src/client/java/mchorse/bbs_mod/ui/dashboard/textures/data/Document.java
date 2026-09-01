@@ -40,10 +40,26 @@ public class Document implements IMapSerializable
     public int width;
     public int height;
 
+    /**
+     * The animation the game reads from the {@code .mcmeta} sidecar; {@code null} when the texture
+     * isn't animated. Runtime only — it is never written into the {@code .dat} project: the
+     * {@code .mcmeta} is the one place it lives (see {@link TextureAnimation}).
+     */
+    public TextureAnimation animation;
+
+    /** The user turned the animation off, so saving removes the {@code .mcmeta} that is on disk. */
+    public boolean removeAnimationOnSave;
+
+    /** Grows with every change the canvas reports, so caches (the model preview's frames) know when to rebuild. */
+    public int revision;
+
+    /** Extension of the project sidecar, appended to the texture's full name ({@code skin.png} -> {@code skin.png.dat}). */
+    public static final String EXTENSION = ".dat";
+
     /** The {@code .dat} sidecar file for a given texture file (e.g. {@code skin.png} -> {@code skin.png.dat}). */
     public static File datFile(File textureFile)
     {
-        return new File(textureFile.getParentFile(), textureFile.getName() + ".dat");
+        return new File(textureFile.getParentFile(), textureFile.getName() + EXTENSION);
     }
 
     /** Deserialize a document from its {@code .dat} sidecar, or {@code null} when it can't be read. */
@@ -96,6 +112,183 @@ public class Document implements IMapSerializable
         return this.activeLayerIndex >= 0 && this.activeLayerIndex < this.layers.size()
             ? this.layers.get(this.activeLayerIndex)
             : null;
+    }
+
+    /* The strip: an animated document is a stack of same-sized images the frames point at */
+
+    /** Width of one image — the whole document when it isn't animated. */
+    public int frameWidth()
+    {
+        return this.animation == null ? this.width : this.animation.frameWidth(this.width, this.height);
+    }
+
+    /** Height of one image — the whole document when it isn't animated. */
+    public int frameHeight()
+    {
+        return this.animation == null ? this.height : this.animation.frameHeight(this.width, this.height);
+    }
+
+    /** How many images the strip holds, top to bottom. */
+    public int imageCount()
+    {
+        return this.animation == null ? 1 : this.animation.imageCount(this.width, this.height);
+    }
+
+    /*
+     * The images of the strip: an image is the same band of rows in every layer, so a frame is a
+     * stack of layer slices. Rows are counted in the buffers, which is why the offsets are baked
+     * first (see bakeOffsets).
+     */
+
+    /**
+     * Bake every layer's move offset into its pixels, so the rows of the strip are the rows of the
+     * buffers. Done before any operation on images: a shifted layer would otherwise keep its image
+     * at other rows than the strip's.
+     */
+    public void bakeOffsets()
+    {
+        for (TextureLayer layer : this.layers)
+        {
+            if (layer.pixels == null || (layer.offsetX == 0 && layer.offsetY == 0))
+            {
+                continue;
+            }
+
+            Pixels baked = Pixels.fromSize(this.width, this.height);
+
+            copyRect(layer.pixels, 0, 0, baked, layer.offsetX, layer.offsetY, layer.pixels.width, layer.pixels.height);
+
+            layer.pixels.delete();
+            layer.pixels = baked;
+            layer.offsetX = 0;
+            layer.offsetY = 0;
+            layer.updateTexture();
+        }
+    }
+
+    /** A new blank image at the end of the strip, in every layer; its number. */
+    public int appendImage()
+    {
+        int index = this.imageCount();
+
+        this.resize(this.width, (index + 1) * this.frameHeight());
+
+        return index;
+    }
+
+    /** A copy of an image at the end of the strip, in every layer; the copy's number. */
+    public int duplicateImage(int image)
+    {
+        int h = this.frameHeight();
+        int copy = this.appendImage();
+
+        for (TextureLayer layer : this.layers)
+        {
+            copyRect(layer.pixels, 0, image * h, layer.pixels, 0, copy * h, this.width, h);
+            layer.updateTexture();
+        }
+
+        return copy;
+    }
+
+    /**
+     * Cut an image out of the strip in every layer: the images below move up, and the frames
+     * pointing past it are renumbered. The last image stays, and a number past the strip is ignored.
+     */
+    public void removeImage(int image)
+    {
+        int h = this.frameHeight();
+        int count = this.imageCount();
+
+        if (image < 0 || image >= count || count <= 1)
+        {
+            return;
+        }
+
+        int newHeight = this.height - h;
+
+        for (TextureLayer layer : this.layers)
+        {
+            Pixels cut = Pixels.fromSize(this.width, newHeight);
+
+            copyRect(layer.pixels, 0, 0, cut, 0, 0, this.width, image * h);
+            copyRect(layer.pixels, 0, (image + 1) * h, cut, 0, image * h, this.width, this.height - (image + 1) * h);
+
+            layer.pixels.delete();
+            layer.pixels = cut;
+            layer.updateTexture();
+        }
+
+        this.height = newHeight;
+
+        if (this.animation != null)
+        {
+            for (TextureAnimation.Frame frame : this.animation.frames)
+            {
+                if (frame.index > image)
+                {
+                    frame.index--;
+                }
+            }
+        }
+    }
+
+    /** A plain copy of a rectangle of pixels between buffers — no blending — clipped to both. */
+    private static void copyRect(Pixels from, int sx, int sy, Pixels to, int dx, int dy, int w, int h)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                int fx = sx + x;
+                int fy = sy + y;
+                int tx = dx + x;
+                int ty = dy + y;
+
+                if (fx < 0 || fy < 0 || fx >= from.width || fy >= from.height || tx < 0 || ty < 0 || tx >= to.width || ty >= to.height)
+                {
+                    continue;
+                }
+
+                to.setColor(tx, ty, from.getColor(fx, fy));
+            }
+        }
+    }
+
+    /* Undo snapshots: the project plus the animation, which the .dat format leaves out on purpose */
+
+    /** Everything an undo step has to bring back — see {@link #restore(MapType)}. */
+    public MapType snapshot()
+    {
+        MapType data = this.toData();
+
+        if (this.animation != null)
+        {
+            data.put("animation", this.animation.toData());
+        }
+
+        return data;
+    }
+
+    /** Put the document back to a {@link #snapshot()}. */
+    public void restore(MapType data)
+    {
+        this.fromData(data);
+
+        if (data.has("animation"))
+        {
+            /* Keep the object: it remembers the .mcmeta as it was read, which the snapshot doesn't carry */
+            if (this.animation == null)
+            {
+                this.animation = new TextureAnimation();
+            }
+
+            this.animation.fromData(data.getMap("animation"));
+        }
+        else
+        {
+            this.animation = null;
+        }
     }
 
     /** Resize every layer to {@code w}x{@code h}, preserving the existing content in the top-left. */

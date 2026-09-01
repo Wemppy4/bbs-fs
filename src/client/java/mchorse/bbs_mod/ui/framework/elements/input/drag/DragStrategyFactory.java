@@ -1,14 +1,12 @@
 package mchorse.bbs_mod.ui.framework.elements.input.drag;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.utils.Axis;
 
 /**
  * Resolves an edit request to the drag strategy that will drive it. The
- * ray-vs-additive decision lives here, in one place: hotkey operations
- * honor the 3D-ray setting, the uniform scale always takes the additive
- * lever, a two-axis rotate has no ray implementation, and anything without
- * a drag snapshot falls back to additive as well.
+ * ray-vs-additive decision lives here, in one place: the uniform scale always
+ * takes the additive lever, a two-axis rotate has no ray implementation, and
+ * anything without a drag snapshot falls back to additive as well.
  */
 public final class DragStrategyFactory
 {
@@ -32,9 +30,9 @@ public final class DragStrategyFactory
     private DragStrategyFactory()
     {}
 
-    public static DragStrategy create(DragContext ctx, TransformOp op, Axis axis, Axis axis2, Variant variant, boolean hotkeyMode)
+    public static DragStrategy create(DragContext ctx, TransformOp op, Axis axis, Axis axis2, Variant variant)
     {
-        boolean rayAllowed = (!hotkeyMode || BBSSettings.transformHotkeys3dRay.get()) && ctx.drag() != null;
+        boolean rayAllowed = ctx.drag() != null;
 
         switch (variant)
         {

@@ -80,4 +80,12 @@ public abstract class BaseValueNumber <T extends Number> extends BaseKeyframeFac
     }
 
     protected abstract T clamp(T value);
+
+    /**
+     * Write a number of whatever kind this value happens to hold. The interface
+     * deals in doubles — a field, a track — and this is where that lands,
+     * instead of every widget knowing which of the four numeric values it is
+     * pointed at.
+     */
+    public abstract void setNumber(double value);
 }

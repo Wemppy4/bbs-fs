@@ -146,4 +146,22 @@ public abstract class ValueList <T extends BaseValue> extends BaseValueGroup
             value.fromData(list.get(i));
         }
     }
+
+    /** A list is born empty, so that is what it goes back to. */
+    @Override
+    public void reset()
+    {
+        if (!this.list.isEmpty())
+        {
+            this.preNotify();
+            this.list.clear();
+            this.postNotify();
+        }
+    }
+
+    @Override
+    public boolean isDefault()
+    {
+        return this.list.isEmpty();
+    }
 }

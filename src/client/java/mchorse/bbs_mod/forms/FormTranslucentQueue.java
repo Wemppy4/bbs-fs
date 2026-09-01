@@ -610,6 +610,7 @@ public class FormTranslucentQueue
     public static class VertexBufferCommand extends DrawCommand
     {
         private final VertexBuffer buffer;
+        private final boolean owned;
         private final Supplier<ShaderProgram> shader;
         private final int passMode;
         private final Texture texture;
@@ -632,9 +633,20 @@ public class FormTranslucentQueue
 
         public VertexBufferCommand(VertexBuffer buffer, Supplier<ShaderProgram> shader, int passMode, boolean depthWrite, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, Vector3f cameraSpacePlaneNormal, boolean cull, Runnable preDraw, Runnable postDraw)
         {
+            this(buffer, true, shader, passMode, depthWrite, texture, modelView, normalMat, cameraSpaceOrigin, cameraSpacePlaneNormal, cull, preDraw, postDraw);
+        }
+
+        /**
+         * {@code owned} says whether the command frees the buffer after the flush. A buffer that
+         * lives in a cache (the welded-geometry cache) is only borrowed: it must stay untouched
+         * until the flush, which its owner guarantees by not rebuilding it within the frame.
+         */
+        public VertexBufferCommand(VertexBuffer buffer, boolean owned, Supplier<ShaderProgram> shader, int passMode, boolean depthWrite, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, Vector3f cameraSpacePlaneNormal, boolean cull, Runnable preDraw, Runnable postDraw)
+        {
             super(cameraSpaceOrigin, cameraSpacePlaneNormal, cull, depthWrite);
 
             this.buffer = buffer;
+            this.owned = owned;
             this.shader = shader;
             this.passMode = passMode;
             this.texture = texture;
@@ -689,7 +701,10 @@ public class FormTranslucentQueue
         @Override
         public void release()
         {
-            this.buffer.close();
+            if (this.owned)
+            {
+                this.buffer.close();
+            }
         }
     }
 }

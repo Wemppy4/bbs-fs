@@ -15,6 +15,17 @@ public interface IFactory <T, D>
 
     public T create(Link type);
 
+    /**
+     * A stand-in for a type this factory doesn't know, or null to let the failure through.
+     *
+     * <p>Whoever implements this is promising that the stand-in writes the data back out
+     * unchanged — see {@link IUnknownType} for why that matters.</p>
+     */
+    public default T createUnknown(Link type, MapType data)
+    {
+        return null;
+    }
+
     public default MapType toData(T object)
     {
         MapType data = new MapType();
@@ -47,7 +58,21 @@ public interface IFactory <T, D>
         }
 
         Link type = Link.create(data.getString(this.getTypeKey()));
-        T object = this.create(type);
+        T object;
+
+        try
+        {
+            object = this.create(type);
+        }
+        catch (IllegalStateException e)
+        {
+            object = this.createUnknown(type, data);
+
+            if (object == null)
+            {
+                throw e;
+            }
+        }
 
         if (object instanceof IDataSerializable)
         {

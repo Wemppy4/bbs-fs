@@ -26,6 +26,7 @@ import mchorse.bbs_mod.utils.DataPath;
 import mchorse.bbs_mod.utils.EnumUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.PermissionUtils;
+import mchorse.bbs_mod.utils.StructureSaver;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.repos.RepositoryOperation;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -74,6 +75,8 @@ public class ServerNetwork
     public static final Identifier CLIENT_ANIMATION_STATE_MODEL_BLOCK_TRIGGER = new Identifier(BBSMod.MOD_ID, "c16");
     public static final Identifier CLIENT_REFRESH_MODEL_BLOCKS = new Identifier(BBSMod.MOD_ID, "c17");
     public static final Identifier CLIENT_REQUEST_FILM_RESYNC = new Identifier(BBSMod.MOD_ID, "c18");
+    public static final Identifier CLIENT_STRUCTURE_SAVED = new Identifier(BBSMod.MOD_ID, "c19");
+    public static final Identifier CLIENT_STRUCTURE_CUT = new Identifier(BBSMod.MOD_ID, "c20");
 
     public static final Identifier SERVER_MODEL_BLOCK_FORM_PACKET = new Identifier(BBSMod.MOD_ID, "s1");
     public static final Identifier SERVER_MODEL_BLOCK_TRANSFORMS_PACKET = new Identifier(BBSMod.MOD_ID, "s2");
@@ -89,6 +92,8 @@ public class ServerNetwork
     public static final Identifier SERVER_ZOOM = new Identifier(BBSMod.MOD_ID, "s12");
     public static final Identifier SERVER_PAUSE_FILM = new Identifier(BBSMod.MOD_ID, "s13");
     public static final Identifier SERVER_APPLY_FILM_PLAYER_SETTINGS = new Identifier(BBSMod.MOD_ID, "s14");
+    public static final Identifier SERVER_SAVE_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s15");
+    public static final Identifier SERVER_CUT_STRUCTURE = new Identifier(BBSMod.MOD_ID, "s16");
 
     private static ServerPacketCrusher crusher = new ServerPacketCrusher();
 
@@ -113,9 +118,74 @@ public class ServerNetwork
         ServerPlayNetworking.registerGlobalReceiver(SERVER_ZOOM, (server, player, handler, buf, responder) -> handleZoomPacket(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_PAUSE_FILM, (server, player, handler, buf, responder) -> handlePauseFilmPacket(server, player, buf));
         ServerPlayNetworking.registerGlobalReceiver(SERVER_APPLY_FILM_PLAYER_SETTINGS, (server, player, handler, buf, responder) -> handleApplyFilmPlayerSettings(server, player, buf));
+        ServerPlayNetworking.registerGlobalReceiver(SERVER_SAVE_STRUCTURE, (server, player, handler, buf, responder) -> handleSaveStructure(server, player, buf));
+        ServerPlayNetworking.registerGlobalReceiver(SERVER_CUT_STRUCTURE, (server, player, handler, buf, responder) -> handleCutStructure(server, player, buf));
     }
 
     /* Handlers */
+
+    /**
+     * Save a region the structure wand picked. The corners arrive already chosen — the selection
+     * itself never leaves the client — and the reply tells it to drop its structure cache so the
+     * new file is visible to the pickers and to any form already pointing at that name.
+     */
+    /**
+     * Save a region and then empty it, for the film cut that turns a build into a form. Saving
+     * first is what makes this survivable: the file is the only way back, so the world is not
+     * touched until it is on disk. A failed save clears nothing.
+     */
+    private static void handleCutStructure(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
+    {
+        String name = buf.readString();
+        BlockPos from = buf.readBlockPos();
+        BlockPos to = buf.readBlockPos();
+
+        if (!PermissionUtils.arePanelsAllowed(server, player))
+        {
+            return;
+        }
+
+        server.execute(() ->
+        {
+            ServerWorld world = player.getServerWorld();
+            boolean saved = StructureSaver.save(world, name, from, to);
+
+            if (saved)
+            {
+                StructureSaver.clear(world, from, to);
+            }
+
+            PacketByteBuf reply = PacketByteBufs.create();
+
+            reply.writeBoolean(saved);
+            reply.writeString(name);
+
+            ServerPlayNetworking.send(player, CLIENT_STRUCTURE_CUT, reply);
+        });
+    }
+
+    private static void handleSaveStructure(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
+    {
+        String name = buf.readString();
+        BlockPos from = buf.readBlockPos();
+        BlockPos to = buf.readBlockPos();
+
+        if (!PermissionUtils.arePanelsAllowed(server, player))
+        {
+            return;
+        }
+
+        server.execute(() ->
+        {
+            boolean saved = StructureSaver.save(player.getServerWorld(), name, from, to);
+            PacketByteBuf reply = PacketByteBufs.create();
+
+            reply.writeBoolean(saved);
+            reply.writeString(name);
+
+            ServerPlayNetworking.send(player, CLIENT_STRUCTURE_SAVED, reply);
+        });
+    }
 
     private static void handleModelBlockFormPacket(MinecraftServer server, ServerPlayerEntity player, PacketByteBuf buf)
     {
@@ -380,20 +450,25 @@ public class ServerNetwork
             {
                 ActionPlayer actionPlayer = actions.getPlayer(filmId);
 
-                if (actionPlayer == null)
-                {
-                    Film film = BBSMod.getFilms().load(filmId);
+                /* The same editor asking for the same film from the top only wants it rewound.
+                 * Stopping and starting again discards every actor and spawns a replacement, so
+                 * the whole cast blinked and took new entity ids on each restart - and the editor
+                 * restarts whenever the cursor is dragged. */
+                boolean rewind = actionPlayer != null
+                    && actionPlayer.type == PlayerType.FILM_EDITOR
+                    && actionPlayer.isPlayedBy(player)
+                    && actionPlayer.getWorld() == player.getServerWorld();
 
-                    if (film != null)
+                if (!rewind)
+                {
+                    Film film = actionPlayer == null ? BBSMod.getFilms().load(filmId) : actionPlayer.film;
+
+                    if (actionPlayer != null)
                     {
-                        actionPlayer = actions.play(player, player.getServerWorld(), film, tick, PlayerType.FILM_EDITOR);
+                        actions.stop(filmId);
                     }
-                }
-                else
-                {
-                    actions.stop(filmId);
 
-                    actionPlayer = actions.play(player, player.getServerWorld(), actionPlayer.film, tick, PlayerType.FILM_EDITOR);
+                    actionPlayer = film == null ? null : actions.play(player, player.getServerWorld(), film, tick, PlayerType.FILM_EDITOR);
                 }
 
                 if (actionPlayer != null)
@@ -401,10 +476,7 @@ public class ServerNetwork
                     actionPlayer.syncing = true;
                     actionPlayer.playing = false;
 
-                    if (tick != 0)
-                    {
-                        actionPlayer.goTo(0, tick);
-                    }
+                    actionPlayer.goTo(0, tick);
                 }
 
                 sendStopFilm(player, filmId);
@@ -753,6 +825,7 @@ public class ServerNetwork
         PacketByteBuf buf = PacketByteBufs.create();
 
         buf.writeString(filmId);
+        buf.writeBoolean(false);
         buf.writeInt(actors.size());
 
         for (Map.Entry<String, LivingEntity> entry : actors.entrySet())
@@ -760,6 +833,24 @@ public class ServerNetwork
             buf.writeString(entry.getKey());
             buf.writeInt(entry.getValue().getId());
         }
+
+        ServerPlayNetworking.send(player, CLIENT_ACTORS, buf);
+    }
+
+    /**
+     * One pairing, merged into whatever the client already knows. The full map only goes out when
+     * the cast is rebuilt, which is of no use to a player who wasn't there at the time - they meet
+     * the actor later, when they come within tracking range of it.
+     */
+    public static void sendActor(ServerPlayerEntity player, String filmId, String replayId, int entityId)
+    {
+        PacketByteBuf buf = PacketByteBufs.create();
+
+        buf.writeString(filmId);
+        buf.writeBoolean(true);
+        buf.writeInt(1);
+        buf.writeString(replayId);
+        buf.writeInt(entityId);
 
         ServerPlayNetworking.send(player, CLIENT_ACTORS, buf);
     }

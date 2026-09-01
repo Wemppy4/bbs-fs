@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 public class UIVanillaParticleFormPanel extends UIFormPanel<VanillaParticleForm>
 {
@@ -28,22 +29,22 @@ public class UIVanillaParticleFormPanel extends UIFormPanel<VanillaParticleForm>
         super(editor);
 
         this.settings = new UIParticleSettings();
-        this.paused = new UIToggle(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_PAUSED, (b) -> this.form.paused.set(b.getValue()));
-        this.local = new UIToggle(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_LOCAL, (b) -> this.form.local.set(b.getValue()));
-        this.velocity = new UITrackpad((v) -> this.form.velocity.set(v.floatValue()));
-        this.count = new UITrackpad((v) -> this.form.count.set(v.intValue())).integer();
+        this.paused = UIValues.toggle(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_PAUSED, () -> this.form.paused);
+        this.local = UIValues.toggle(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_LOCAL, () -> this.form.local);
+        this.velocity = UIValues.trackpad(() -> this.form.velocity);
+        this.count = UIValues.trackpad(() -> this.form.count).integer();
         this.count.tooltip(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_COUNT);
-        this.frequency = new UITrackpad((v) -> this.form.frequency.set(v.intValue())).integer();
+        this.frequency = UIValues.trackpad(() -> this.form.frequency).integer();
         this.frequency.tooltip(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_FREQUENCY);
-        this.scatteringYaw = new UITrackpad((v) -> this.form.scatteringYaw.set(v.floatValue()));
+        this.scatteringYaw = UIValues.trackpad(() -> this.form.scatteringYaw);
         this.scatteringYaw.tooltip(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_HORIZONTAL);
-        this.scatteringPitch = new UITrackpad((v) -> this.form.scatteringPitch.set(v.floatValue()));
+        this.scatteringPitch = UIValues.trackpad(() -> this.form.scatteringPitch);
         this.scatteringPitch.tooltip(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_VERTICAL);
-        this.offsetX = new UITrackpad((v) -> this.form.offsetX.set(v.floatValue()));
+        this.offsetX = UIValues.trackpad(() -> this.form.offsetX);
         this.offsetX.tooltip(UIKeys.GENERAL_X);
-        this.offsetY = new UITrackpad((v) -> this.form.offsetY.set(v.floatValue()));
+        this.offsetY = UIValues.trackpad(() -> this.form.offsetY);
         this.offsetY.tooltip(UIKeys.GENERAL_Y);
-        this.offsetZ = new UITrackpad((v) -> this.form.offsetZ.set(v.floatValue()));
+        this.offsetZ = UIValues.trackpad(() -> this.form.offsetZ);
         this.offsetZ.tooltip(UIKeys.GENERAL_Z);
 
         this.options.add(this.settings, this.paused.marginTop(UIConstants.SECTION_GAP), this.local, UI.labelRow(UIKeys.FORMS_EDITORS_VANILLA_PARTICLE_VELOCITY, this.velocity).marginTop(UIConstants.SECTION_GAP));

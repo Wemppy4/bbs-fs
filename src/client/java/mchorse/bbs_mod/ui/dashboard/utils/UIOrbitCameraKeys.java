@@ -3,10 +3,10 @@ package mchorse.bbs_mod.ui.dashboard.utils;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
-import mchorse.bbs_mod.ui.utils.Area;
 
 import java.util.function.Supplier;
 
+/** An element that only listens for keys: the orbit camera's keybinds, above the open panel's own. */
 public class UIOrbitCameraKeys implements IUIElement
 {
     private UIDashboard dashboard;
@@ -23,44 +23,11 @@ public class UIOrbitCameraKeys implements IUIElement
     }
 
     @Override
-    public void resize()
-    {}
-
-    @Override
     public boolean isEnabled()
     {
-        boolean enabled = true;
-
-        if (this.enabled != null)
-        {
-            enabled = this.enabled.get();
-        }
+        boolean enabled = this.enabled == null || this.enabled.get();
 
         return enabled && this.dashboard.orbitUI.isEnabled();
-    }
-
-    @Override
-    public boolean isVisible()
-    {
-        return true;
-    }
-
-    @Override
-    public IUIElement mouseClicked(UIContext context)
-    {
-        return null;
-    }
-
-    @Override
-    public IUIElement mouseScrolled(UIContext context)
-    {
-        return null;
-    }
-
-    @Override
-    public IUIElement mouseReleased(UIContext context)
-    {
-        return null;
     }
 
     @Override
@@ -78,20 +45,4 @@ public class UIOrbitCameraKeys implements IUIElement
 
         return this.dashboard.orbitUI.getControl() && this.dashboard.orbit.keyPressed(context) ? this : null;
     }
-
-    @Override
-    public IUIElement textInput(UIContext context)
-    {
-        return null;
-    }
-
-    @Override
-    public boolean canBeRendered(Area viewport)
-    {
-        return false;
-    }
-
-    @Override
-    public void render(UIContext context)
-    {}
 }

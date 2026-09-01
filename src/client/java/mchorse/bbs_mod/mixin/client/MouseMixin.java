@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.mixin.client;
 
+import mchorse.bbs_mod.forms.structure.StructureWand;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import net.minecraft.client.MinecraftClient;
@@ -23,6 +24,16 @@ public class MouseMixin
         if (MinecraftClient.getInstance().currentScreen instanceof UIScreen screen)
         {
             screen.setHorizontal(horizontal);
+        }
+    }
+
+    /** A notch the structure wand spends on its box must not reach the hotbar. */
+    @Inject(method = "onMouseScroll", at = @At("HEAD"), cancellable = true)
+    public void wandScroll(long window, double horizontal, double vertical, CallbackInfo ci)
+    {
+        if (window == Window.getWindow() && StructureWand.onScroll(vertical))
+        {
+            ci.cancel();
         }
     }
 }

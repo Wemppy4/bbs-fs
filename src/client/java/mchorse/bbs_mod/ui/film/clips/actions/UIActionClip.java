@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film.clips.actions;
 
 import mchorse.bbs_mod.actions.types.ActionClip;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.UIClip;
@@ -33,8 +34,7 @@ public abstract class UIActionClip <T extends ActionClip> extends UIClip<T>
     {
         super.registerUI();
 
-        this.frequency = new UITrackpad((v) -> this.editor.editMultiple(this.clip.frequency, (frequency) -> frequency.set(v.intValue())));
-        this.frequency.limit(0).integer();
+        this.frequency = this.trackpad(this.clip.frequency).limit(0);
     }
 
     @Override
@@ -49,15 +49,19 @@ public abstract class UIActionClip <T extends ActionClip> extends UIClip<T>
     protected void addEnvelopes()
     {}
 
-    @Override
-    public void fillData()
+    /** Hang the copy/paste/from-look verbs on a block action's three coordinate fields. */
+    protected void addBlockPositionContext(UITrackpad x, UITrackpad y, UITrackpad z, ValueInt vx, ValueInt vy, ValueInt vz)
     {
-        super.fillData();
-
-        this.frequency.setValue(this.clip.frequency.get());
+        this.addBlockPositionContext(
+            x, y, z,
+            vx::get, vy::get, vz::get,
+            (value) -> this.editor.editMultiple(vx, (v) -> v.set(value)),
+            (value) -> this.editor.editMultiple(vy, (v) -> v.set(value)),
+            (value) -> this.editor.editMultiple(vz, (v) -> v.set(value))
+        );
     }
 
-    protected void addBlockPositionContext(UITrackpad x, UITrackpad y, UITrackpad z, IntSupplier getX, IntSupplier getY, IntSupplier getZ, IntConsumer setX, IntConsumer setY, IntConsumer setZ)
+    private void addBlockPositionContext(UITrackpad x, UITrackpad y, UITrackpad z, IntSupplier getX, IntSupplier getY, IntSupplier getZ, IntConsumer setX, IntConsumer setY, IntConsumer setZ)
     {
         x.context((menu) -> this.populateBlockPositionContext(menu, getX, getY, getZ, setX, setY, setZ));
         y.context((menu) -> this.populateBlockPositionContext(menu, getX, getY, getZ, setX, setY, setZ));

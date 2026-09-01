@@ -32,7 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ModelForm extends Form
+public class ModelForm extends Form implements IPosedForm
 {
     /** Also what its main tab in the form editor wears — see {@link Form#getIcon()}. */
     public static final Icon ICON = Icons.POSE;
@@ -114,6 +114,24 @@ public class ModelForm extends Form
         this.add(this.bones);
         this.wind.invisible();
         this.add(this.wind);
+    }
+
+    @Override
+    public ValuePose getPose()
+    {
+        return this.pose;
+    }
+
+    @Override
+    public ValuePose getPoseOverlay()
+    {
+        return this.poseOverlay;
+    }
+
+    @Override
+    public boolean hasBoneTracks()
+    {
+        return this.boneTracks.get();
     }
 
     @Override

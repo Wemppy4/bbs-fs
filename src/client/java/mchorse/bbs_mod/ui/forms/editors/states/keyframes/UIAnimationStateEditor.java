@@ -13,7 +13,6 @@ import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.states.AnimationState;
-import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
@@ -23,6 +22,7 @@ import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -32,16 +32,12 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
-import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Matrices;
-import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
-import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
 import org.lwjgl.glfw.GLFW;
@@ -50,10 +46,6 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 public class UIAnimationStateEditor extends UIElement
@@ -67,7 +59,7 @@ public class UIAnimationStateEditor extends UIElement
     private Set<String> keys = new LinkedHashSet<>();
 
     /** Track rows the user has unfolded right now; handed to the dope sheet, which folds them in place. */
-    private final Set<String> expandedTabs = new HashSet<>();
+    private final FoldState<String> expandedTabs = new FoldState<>();
 
     public UIAnimationStateEditor(UIFormEditor editor)
     {
@@ -214,29 +206,28 @@ public class UIAnimationStateEditor extends UIElement
             this.keyframeEditor.view.duration(() -> this.state.duration.get());
             this.keyframeEditor.view.context((menu) ->
             {
-                if (this.editor.form instanceof ModelForm modelForm)
+                int mouseY = this.getContext().mouseY;
+                UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
+
+                ModelForm poseModelForm = sheet == null ? null : sheet.getPoseForm();
+
+                if (poseModelForm != null)
                 {
-                    int mouseY = this.getContext().mouseY;
-                    UIKeyframeSheet sheet = this.keyframeEditor.view.getGraph().getSheet(mouseY);
-
-                    if (sheet != null && sheet.channel.getFactory() == KeyframeFactories.POSE && sheet.id.equals("pose"))
+                    menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () ->
                     {
-                        menu.action(Icons.POSE, UIKeys.FILM_REPLAY_CONTEXT_ANIMATION_TO_KEYFRAMES, () ->
+                        ModelInstance model = ModelFormRenderer.getModel(poseModelForm);
+
+                        if (model != null)
                         {
-                            ModelInstance model = ModelFormRenderer.getModel(modelForm);
-
-                            if (model != null)
+                            UIOverlay.addOverlay(this.getContext(), new UIAnimationToPoseOverlayPanel((animationKey, onlyKeyframes, length, step) ->
                             {
-                                UIOverlay.addOverlay(this.getContext(), new UIAnimationToPoseOverlayPanel((animationKey, onlyKeyframes, length, step) ->
-                                {
-                                    int current = this.editor.getCursor();
-                                    IEntity entity = this.editor.renderer.getTargetEntity();
+                                int current = this.editor.getCursor();
+                                IEntity entity = this.editor.renderer.getTargetEntity();
 
-                                    UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, modelForm, entity, current, animationKey, onlyKeyframes, length, step);
-                                }, modelForm, sheet), 200, 197);
-                            }
-                        });
-                    }
+                                UIReplaysEditorUtils.animationToPoseKeyframes(this.keyframeEditor, sheet, poseModelForm, entity, current, animationKey, onlyKeyframes, length, step);
+                            }, poseModelForm, sheet), 200, 197);
+                        }
+                    });
                 }
 
                 if (this.keyframeEditor.view.getGraph() instanceof UIKeyframeDopeSheet)
@@ -369,6 +360,17 @@ public class UIAnimationStateEditor extends UIElement
                 }
             ));
 
+            /* Both bone frames, so a gesture walked into the other one mid-edit gets its
+             * real axes instead of the ones the handles were drawn on. Sampled after the
+             * pose is restored below? No — the compute* helpers have already reverted the
+             * perturbed transform, so re-posing once here is enough for both reads. */
+            this.editor.applyStateForSampling(tick);
+
+            drag.setFrameAxes(
+                this.editor.renderer.toSceneMatrix(this.getOriginMatrix(transition)),
+                this.editor.renderer.toSceneMatrix(this.getParentOriginMatrix(transition))
+            );
+
             /* Restore the previewed form to the unperturbed pose: the compute* helpers above have
              * already reverted the transform, so re-applying now poses it with the original values. */
             this.editor.applyStateForSampling(tick);
@@ -382,14 +384,9 @@ public class UIAnimationStateEditor extends UIElement
         return this.getOriginInternal(transition, false);
     }
 
-    /**
-     * The space the states gizmo is drawn in — the active keyframe transform's
-     * own, exactly like the film reads it ({@code UIFilmController.getBoneSpace})
-     * and the form editor's pose panel. Hardcoding LOCAL here (as this editor
-     * did) left the gizmo drawn on the bone's axes while the drag ran in the
-     * picked space, so a GLOBAL X-drag slid along world X under an arrow
-     * pointing along the bone.
-     */
+    /** The frame the states gizmo is drawn in: the active keyframe transform's own, like
+     *  the film and the form editor's pose panel read it. 🔴 Never hardcode LOCAL here —
+     *  the gizmo would be drawn on the bone's axes while the drag ran in the picked frame. */
     public TransformSpace getGizmoSpace()
     {
         return this.keyframeEditor == null ? TransformSpace.LOCAL : this.keyframeEditor.getBoneSpace();
@@ -405,6 +402,17 @@ public class UIAnimationStateEditor extends UIElement
         return this.getOriginInternal(transition, true);
     }
 
+    /**
+     * The twin of {@link #getOriginMatrix}: always the origin flavour — the frame
+     * before the bone's own rotation, i.e. its parent's. The pair feeds the drag
+     * snapshot's two bone frames ({@code GizmoDrag#setFrameAxes}), which is what lets
+     * a gesture be walked from LOCAL into PARENT (or back) mid-edit.
+     */
+    public Matrix4f getParentOriginMatrix(float transition)
+    {
+        return this.getOriginFlavour(transition, TransformSpace.PARENT.placesOnOwnFrame());
+    }
+
     private Matrix4f getOriginInternal(float transition, boolean forceMatrix)
     {
         if (this.keyframeEditor == null)
@@ -412,15 +420,12 @@ public class UIAnimationStateEditor extends UIElement
             return Matrices.EMPTY_4F;
         }
 
-        Pair<String, Boolean> bone = this.keyframeEditor.getBone();
+        Pair<String, TransformSpace> bone = this.keyframeEditor.getBone();
 
         if (bone == null)
         {
             return Matrices.EMPTY_4F;
         }
-
-        Form root = FormUtils.getRoot(this.editor.form);
-        MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
 
         /* Placement flavour, THE shared convention (film's renderAxes, the form
          * editor's pose and body-part paths): LOCAL sits on the bone's own frame
@@ -429,7 +434,27 @@ public class UIAnimationStateEditor extends UIElement
          * keeps as-is and GLOBAL/VIEW reorient away from. This editor had the two
          * swapped, so its LOCAL gizmo drew the parent's axes. forceMatrix keeps
          * the rotation-bearing matrix for the axis sampler regardless. */
-        Matrix4f matrix = (forceMatrix || bone.b) ? map.get(bone.a).matrix() : map.get(bone.a).origin();
+        return this.getOriginFlavour(transition, forceMatrix || bone.b.placesOnOwnFrame());
+    }
+
+    /** One of the bone's two frames: its own ({@code ownFrame}) or its parent's. */
+    private Matrix4f getOriginFlavour(float transition, boolean ownFrame)
+    {
+        if (this.keyframeEditor == null)
+        {
+            return Matrices.EMPTY_4F;
+        }
+
+        Pair<String, TransformSpace> bone = this.keyframeEditor.getBone();
+
+        if (bone == null)
+        {
+            return Matrices.EMPTY_4F;
+        }
+
+        Form root = FormUtils.getRoot(this.editor.form);
+        MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
+        Matrix4f matrix = ownFrame ? map.get(bone.a).matrix() : map.get(bone.a).origin();
 
         return matrix == null ? Matrices.EMPTY_4F : matrix;
     }

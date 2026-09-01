@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.framework.elements.input.text.highlighting;
 
 import mchorse.bbs_mod.ui.framework.elements.input.text.utils.TextLine;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import net.minecraft.client.font.TextRenderer;
 
 import java.util.ArrayList;
 import java.util.List;

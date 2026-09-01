@@ -5,6 +5,8 @@ import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
+import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
@@ -14,6 +16,8 @@ import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
+import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
+import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -129,6 +133,36 @@ public class UIKeyframeSheet
         this.applyStyle();
     }
 
+    /**
+     * The model form whose pose this track drives, or {@code null} when it isn't a pose track at
+     * all. Whose pose it is comes from the track, not from whoever owns the timeline: a body part
+     * carries its own model, animations and bones, and it answers for {@code "<path>/pose"} the
+     * same way the root answers for {@code "pose"}. Overlays are not it — they layer over a pose
+     * rather than being one.
+     */
+    public ModelForm getPoseForm()
+    {
+        return this.getPosedForm() instanceof ModelForm modelForm ? modelForm : null;
+    }
+
+    /**
+     * The same track, without narrowing to a model form — a mob form poses a skeleton too, and
+     * everything that works on a pose track rather than on a MODEL asks for this one.
+     */
+    public IPosedForm getPosedForm()
+    {
+        boolean isPose = this.channel.getFactory() == KeyframeFactories.POSE
+            && (this.id.equals("pose") || this.id.endsWith(FormUtils.PATH_SEPARATOR + "pose"))
+            && !this.id.contains("pose_overlay");
+
+        if (!isPose || this.property == null)
+        {
+            return null;
+        }
+
+        return FormUtils.getForm(this.property) instanceof IPosedForm posedForm ? posedForm : null;
+    }
+
     /** The key this track is identified by in the global filters and in the user's name/colour overrides. */
     public String getFilterKey()
     {
@@ -208,6 +242,67 @@ public class UIKeyframeSheet
         return this.icon;
     }
 
+    /**
+     * The keyframe of this track at the given tick, created if the track has none there.
+     *
+     * <p>A created keyframe starts from what the track already reads at that tick &mdash; the
+     * interpolated value between its neighbours, or, on an empty track, the property's current
+     * value (or the track's {@link #seed}) &mdash; so bringing a keyframe into being never moves
+     * anything by itself. When it lands between two keyframes it also inherits the left one's
+     * interpolation, the way a hand-placed keyframe does.
+     */
+    public <T> Keyframe<T> ensureKeyframe(float tick)
+    {
+        for (Keyframe<T> keyframe : (List<Keyframe<T>>) this.channel.getKeyframes())
+        {
+            if (keyframe.getTick() == tick)
+            {
+                return keyframe;
+            }
+        }
+
+        KeyframeSegment<T> segment = this.channel.find(tick);
+        Keyframe<T> template = null;
+        T value;
+
+        if (segment != null)
+        {
+            value = segment.createInterpolated();
+            template = segment.a;
+        }
+        else if (this.property != null)
+        {
+            value = (T) this.channel.getFactory().copy(this.property.get());
+        }
+        else if (this.seed != null)
+        {
+            value = (T) this.seed.get();
+        }
+        else
+        {
+            value = (T) this.channel.getFactory().createEmpty();
+        }
+
+        /* Bringing a keyframe into being changes the track itself, not a value inside it: seal the
+         * channel's before-state so undo takes the keyframe away again instead of only putting back
+         * whatever the edit wrote into it. Only on a real insertion — sealing on every edit would
+         * make each drag frame its own undo entry. */
+        this.channel.preNotify(IValueListener.FLAG_UNMERGEABLE);
+
+        int index = this.channel.insert(tick, value);
+        Keyframe<T> keyframe = (Keyframe<T>) this.channel.get(index);
+
+        /* The selection is stored by index, so it has to be walked past the new keyframe. */
+        this.selection.shiftAfterInsert(index);
+
+        if (template != null && template != keyframe)
+        {
+            keyframe.copyOverExtra(template);
+        }
+
+        return keyframe;
+    }
+
     public List<Integer> sort()
     {
         List<Keyframe> selected = this.selection.getSelected();
@@ -244,30 +339,40 @@ public class UIKeyframeSheet
 
     public void setValue(Object value, Object selectedValue, boolean dirty)
     {
-        Number valueNumber = value instanceof Number ? (Number) value : 0D;
-
         for (Keyframe keyframe : this.selection.getSelected())
         {
-            if (selectedValue instanceof Double)
-            {
-                keyframe.setValue((double) keyframe.getValue() + valueNumber.doubleValue() - (double) selectedValue, dirty);
-            }
-            else if (selectedValue instanceof Float)
-            {
-                keyframe.setValue((float) keyframe.getValue() + valueNumber.floatValue() - (float) selectedValue, dirty);
-            }
-            else if (selectedValue instanceof Integer)
-            {
-                keyframe.setValue((int) keyframe.getValue() + valueNumber.intValue() - (int) selectedValue, dirty);
-            }
-            else if (selectedValue instanceof Long)
-            {
-                keyframe.setValue((long) keyframe.getValue() + valueNumber.longValue() - (long) selectedValue, dirty);
-            }
-            else
-            {
-                keyframe.setValue(this.channel.getFactory().copy(value), dirty);
-            }
+            this.setValueOn(keyframe, value, selectedValue, dirty);
+        }
+    }
+
+    /**
+     * Put a value edit on one keyframe of this track. A number moves by the same delta the edited
+     * keyframe moved by, so several selected keyframes keep their spread; anything else is copied
+     * over wholesale.
+     */
+    public void setValueOn(Keyframe keyframe, Object value, Object selectedValue, boolean dirty)
+    {
+        Number valueNumber = value instanceof Number ? (Number) value : 0D;
+
+        if (selectedValue instanceof Double)
+        {
+            keyframe.setValue((double) keyframe.getValue() + valueNumber.doubleValue() - (double) selectedValue, dirty);
+        }
+        else if (selectedValue instanceof Float)
+        {
+            keyframe.setValue((float) keyframe.getValue() + valueNumber.floatValue() - (float) selectedValue, dirty);
+        }
+        else if (selectedValue instanceof Integer)
+        {
+            keyframe.setValue((int) keyframe.getValue() + valueNumber.intValue() - (int) selectedValue, dirty);
+        }
+        else if (selectedValue instanceof Long)
+        {
+            keyframe.setValue((long) keyframe.getValue() + valueNumber.longValue() - (long) selectedValue, dirty);
+        }
+        else
+        {
+            keyframe.setValue(this.channel.getFactory().copy(value), dirty);
         }
     }
 

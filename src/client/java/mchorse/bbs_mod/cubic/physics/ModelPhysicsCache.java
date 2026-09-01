@@ -3,6 +3,7 @@ package mchorse.bbs_mod.cubic.physics;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import org.joml.Quaternionf;
@@ -119,6 +120,12 @@ final class ModelPhysicsCache
      * bone's {@code physics} property at solve time, so a film track or an edit shows up without
      * any cache to invalidate.
      */
+    /* One-slot per-frame memo - see ModelIKCache: the walk used to repeat per render pass. */
+    private static IModel lastModel;
+    private static ModelForm lastForm;
+    private static long lastEpoch;
+    private static Compiled lastCompiled;
+
     public static Compiled compile(IModel model, ModelForm form)
     {
         if (model == null || form == null)
@@ -126,6 +133,23 @@ final class ModelPhysicsCache
             return null;
         }
 
+        if (RenderFrame.isEnabled() && lastModel == model && lastForm == form && lastEpoch == RenderFrame.getEpoch())
+        {
+            return lastCompiled;
+        }
+
+        Compiled compiled = compileFresh(model, form);
+
+        lastModel = model;
+        lastForm = form;
+        lastEpoch = RenderFrame.getEpoch();
+        lastCompiled = compiled;
+
+        return compiled;
+    }
+
+    private static Compiled compileFresh(IModel model, ModelForm form)
+    {
         List<CompiledChain> out = null;
 
         for (BaseValue value : form.bones.getAll())

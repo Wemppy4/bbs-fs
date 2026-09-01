@@ -9,6 +9,10 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.iris.IrisUtils;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 /**
  * The PBR sliders' albedo redirection: a material with slider values set gets its own GL copy
  * of the albedo texture, because Iris caches PBR holders BY THE ALBEDO'S GL ID — two forms
@@ -19,6 +23,13 @@ import mchorse.bbs_mod.utils.iris.IrisUtils;
  */
 public class FormPbr
 {
+    /**
+     * Variant key strings, built once per (form, material) instead of concatenated on every draw
+     * call. Weak on the form (identity equals), so closed films drop their entries; the key
+     * itself embeds the identityHashCode, which is stable for the object's lifetime.
+     */
+    private static final Map<ModelForm, Map<String, String>> VARIANT_KEYS = new WeakHashMap<>();
+
     /**
      * The texture to actually bind as this material's albedo: the PBR variant when the material
      * has sliders set (statically or by an animation track) and Iris is active, the original
@@ -60,7 +71,23 @@ public class FormPbr
 
         /* One albedo copy per material INSTANCE (identity): two forms sharing a texture with
          * different sliders need different GL ids, because Iris caches PBR holders by that id. */
-        Texture variant = BBSModClient.getTextures().getVariant(link, "pbr:" + materialKey + ":" + System.identityHashCode(form));
+        Map<String, String> byMaterial = VARIANT_KEYS.get(form);
+
+        if (byMaterial == null)
+        {
+            byMaterial = new HashMap<>();
+            VARIANT_KEYS.put(form, byMaterial);
+        }
+
+        String variantKey = byMaterial.get(materialKey);
+
+        if (variantKey == null)
+        {
+            variantKey = "pbr:" + materialKey + ":" + System.identityHashCode(form);
+            byMaterial.put(materialKey, variantKey);
+        }
+
+        Texture variant = BBSModClient.getTextures().getVariant(link, variantKey);
 
         if (variant == null || variant == BBSModClient.getTextures().getError())
         {

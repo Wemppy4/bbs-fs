@@ -1,13 +1,10 @@
 package mchorse.bbs_mod.ui.forms.categories;
 
 import mchorse.bbs_mod.BBSModClient;
-import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.categories.FormCategory;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.sections.UserFormSection;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.UIFormList;
@@ -15,7 +12,6 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
-import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIUserFormCategory extends UIFormCategory
@@ -45,29 +41,13 @@ public class UIUserFormCategory extends UIFormCategory
                 UIOverlay.addOverlay(this.getContext(), panel);
             });
 
-            try
-            {
-                MapType data = Window.getClipboardMap();
-                Form form = FormUtils.fromData(data);
-
-                menu.action(Icons.PASTE, UIKeys.FORMS_CATEGORIES_CONTEXT_PASTE_FORM, () -> this.category.addForm(form));
-            }
-            catch (Exception e)
-            {}
+            this.pasteFormAction(menu);
 
             Form form = this.getContextForm();
 
             if (form != null)
             {
-                /* With several picked, the group menu already offers their removal */
-                if (!this.isGroupContext())
-                {
-                    menu.icon(MenuVerb.REMOVE, () ->
-                    {
-                        this.category.removeForm(form);
-                        this.list.reconcile();
-                    }).label(UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM);
-                }
+                this.removeFormAction(menu, form);
             }
             else
             {

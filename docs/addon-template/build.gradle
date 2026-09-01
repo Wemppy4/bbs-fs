@@ -1,0 +1,58 @@
+plugins {
+	id 'fabric-loom' version '1.15-SNAPSHOT'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	/* BBS is published here by `gradlew publishToMavenLocal` in the BBS repository. There is no
+	 * public repository for it. */
+	mavenLocal()
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	/* transitive = false keeps BBS's own Sodium, Iris and glsl-transformer out of this build.
+	 * The consequence is worth knowing: the dev client then runs BBS without Sodium and Iris, its
+	 * mixins into them are skipped with a warning, and nothing that depends on shaders is
+	 * exercised here. */
+	modImplementation("mchorse:bbs:${project.bbs_version}") { transitive = false }
+}
+
+/* Loom caches the remapped BBS by its Maven coordinates, and BBS's version does not change while
+ * it is being worked on — so a rebuilt BBS is silently ignored, and it looks exactly like the
+ * changes to BBS not existing. A flag one has to remember is a flag one forgets, so this notices
+ * on its own: if the published jar is newer than the cached remap, the cache goes. */
+def bbsJar = new File(new File(System.getProperty("user.home")), ".m2/repository/mchorse/bbs/${project.bbs_version}/bbs-${project.bbs_version}.jar")
+def remapCache = file(".gradle/loom-cache/remapped_mods/remapped/mchorse")
+
+if (bbsJar.exists() && remapCache.exists() && bbsJar.lastModified() > remapCache.lastModified()) {
+	logger.lifecycle("BBS was rebuilt since it was last remapped — clearing ${remapCache}")
+	delete(remapCache)
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 17
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
+}

@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
-import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.entities.EntityState;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -38,10 +38,26 @@ public class TrackStyle
     private static final int ARMOR_LEGS = 0x5698db;
     private static final int ARMOR_FEET = 0x407cc0;
 
-    static
+    /**
+     * Fills the tables. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to them.
+     */
+    public static void setup()
     {
         setupColors();
         setupIcons();
+    }
+
+    /**
+     * Gives a property of an addon's its own look on the timeline.
+     *
+     * <p>Keyed by the property's own name, the last segment of a track's address — the same
+     * way BBS keys its own, so the same thing wears the same colour wherever it appears.</p>
+     */
+    public static void register(String property, Icon icon, int color)
+    {
+        ICONS.put(property, icon);
+        COLORS.put(property, color & Colors.RGB);
     }
 
     private static void setupColors()
@@ -111,6 +127,25 @@ public class TrackStyle
     }
 
     /**
+     * The face of each state track. Exhaustive on purpose: a state added to the table has to be
+     * given an icon here too, and the compiler is what says so rather than a blank icon column
+     * noticed later in a timeline.
+     */
+    private static Icon stateIcon(EntityState state)
+    {
+        return switch (state)
+        {
+            case SNEAKING -> Icons.ARROW_DOWN;
+            case SPRINTING -> Icons.ARROW_RIGHT;
+            case GROUNDED -> Icons.SLAB;
+            case SWIMMING -> Icons.DROP;
+            case RIDING -> Icons.CHICKEN;
+            case FLYING -> Icons.HELICOPTER;
+            case GLIDING -> Icons.PLANE;
+        };
+    }
+
+    /**
      * Every track carries an icon: an empty slot in the icon column reads as "this row is a lesser
      * kind of thing" when it only ever meant "nobody got around to it". Rows that belong together
      * wear the same icon on purpose - the nine hotbar slots, the six particle user values, the label's
@@ -130,10 +165,15 @@ public class TrackStyle
         ICONS.put("rotation", Icons.ORBIT);
 
         /* Movement and state of the actor */
-        ICONS.put("sneaking", Icons.ARROW_DOWN);
-        ICONS.put("grounded", Icons.SLAB);
+        for (EntityState state : EntityState.values())
+        {
+            ICONS.put(state.id, stateIcon(state));
+        }
+
         ICONS.put("damage", Icons.SKULL);
-        putIcons(Icons.ARROW_RIGHT, "sprinting", "velocity");
+        ICONS.put("velocity", Icons.ARROW_RIGHT);
+        ICONS.put("leaning", Icons.ARC);
+        ICONS.put("roll", Icons.ORBIT);
 
         /* The form itself */
         ICONS.put("visible", Icons.VISIBLE);

@@ -9,7 +9,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 import net.minecraft.client.render.model.json.ModelTransformationMode;
 
 public class UIItemFormPanel extends UIFormPanel<ItemForm>
@@ -22,7 +22,7 @@ public class UIItemFormPanel extends UIFormPanel<ItemForm>
     {
         super(editor);
 
-        this.color = new UIColor((c) -> this.form.color.set(Color.rgba(c))).withAlpha();
+        this.color = UIValues.color(() -> this.form.color).withAlpha();
         this.modelTransform = new UIButton(IKey.EMPTY, (b) ->
         {
             this.getContext().replaceContextMenu((menu) ->

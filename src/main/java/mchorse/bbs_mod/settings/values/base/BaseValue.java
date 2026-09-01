@@ -95,6 +95,27 @@ public abstract class BaseValue implements IDataSerializable<BaseType>, IValueNo
         return visible;
     }
 
+    /**
+     * Put this value back to what it was born with — the default its
+     * constructor declared, not what the last loaded file happened to hold.
+     *
+     * <p>Basic values restore their captured default, groups pass the request
+     * down to their children. The write goes through the usual notification
+     * pair, so whatever listens to this value — undo among them — sees an
+     * ordinary edit.</p>
+     */
+    public void reset()
+    {}
+
+    /**
+     * Whether this value still holds its declared default, so the interface
+     * can tell an untouched property from an edited one.
+     */
+    public boolean isDefault()
+    {
+        return true;
+    }
+
     public BaseValue getRoot()
     {
         BaseValue value = this;

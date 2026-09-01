@@ -14,9 +14,7 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * A {@link ModelWeld} resolved against a concrete model. The weld seals a bending joint by pulling both

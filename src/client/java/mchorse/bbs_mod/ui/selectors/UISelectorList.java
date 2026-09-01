@@ -4,9 +4,9 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.selectors.EntitySelector;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
-import mchorse.bbs_mod.ui.utils.UIDataUtils;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -16,17 +16,8 @@ public class UISelectorList extends UIList<EntitySelector>
     public UISelectorList(Consumer<List<EntitySelector>> callback)
     {
         super(callback);
-    }
 
-    @Override
-    public void render(UIContext context)
-    {
-        super.render(context);
-
-        if (this.list.isEmpty())
-        {
-            UIDataUtils.renderRightClickHere(context, this.area);
-        }
+        this.emptyState(UIKeys.GENERAL_RIGHT_CLICK);
     }
 
     @Override

@@ -19,6 +19,7 @@ import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.presets.PresetManager;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.Arrays;
 import java.util.function.Consumer;
@@ -86,17 +87,17 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         });
         this.list.background();
 
-        this.id = new UITextbox((t) -> this.state.customId.set(t));
-        this.main = new UIToggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_MAIN, (b) -> this.state.main.set(b.getValue()));
+        this.id = UIValues.textbox(() -> this.state.customId);
+        this.main = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_MAIN, () -> this.state.main);
         this.keybind = new UIKeybind((keybind) -> this.state.keybind.set(keybind.getMainKey()));
         this.keybind.single();
-        this.duration = new UITrackpad((v) -> this.state.duration.set(v.intValue())).integer().limit(0D);
-        this.fadeIn = new UITrackpad((v) -> this.state.fadeIn.set(v.intValue())).integer().limit(0D);
+        this.duration = UIValues.trackpad(() -> this.state.duration).integer().limit(0D);
+        this.fadeIn = UIValues.trackpad(() -> this.state.fadeIn).integer().limit(0D);
         this.fadeIn.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_START_D);
-        this.fadeOut = new UITrackpad((v) -> this.state.fadeOut.set(v.intValue())).integer().limit(0D);
+        this.fadeOut = UIValues.trackpad(() -> this.state.fadeOut).integer().limit(0D);
         this.fadeOut.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_END_D);
-        this.looping = new UIToggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_LOOPING, (b) -> this.state.looping.set(b.getValue()));
-        this.offset = new UITrackpad((v) -> this.state.offset.set(v.intValue())).integer().limit(0D);
+        this.looping = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_LOOPING, () -> this.state.looping);
+        this.offset = UIValues.trackpad(() -> this.state.offset).integer().limit(0D);
         this.offset.tooltip(UIKeys.FORMS_EDITOR_STATES_MANAGER_OFFSET);
 
         this.editor = UI.scrollView(

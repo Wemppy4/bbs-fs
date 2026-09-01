@@ -78,6 +78,10 @@ public class Scroll
     public static final int HANDLE_COLOR = 0xff4d525a;
     public static final int HANDLE_ACTIVE_COLOR = 0xff6e747c;
 
+    /* Band along the edges within which a drag keeps scrolling, and how fast (per frame) */
+    public static final int AUTO_SCROLL_EDGE = 24;
+    public static final int AUTO_SCROLL_SPEED = 6;
+
     public static void bar(Batcher2D batcher, int x1, int y1, int x2, int y2)
     {
         bar(batcher, x1, y1, x2, y2, HANDLE_COLOR);
@@ -233,6 +237,37 @@ public class Scroll
     public void scrollBy(double x)
     {
         this.scrollTo(this.targetScroll + x);
+    }
+
+    /**
+     * Keep scrolling while a drag rests near the start or end edge of the area, so
+     * something carried across the view can reach what's scrolled out of sight. Call it
+     * every frame the drag is on; it does nothing when the cursor is outside the area
+     * or away from its edges.
+     *
+     * @param edge  band along each edge (in pixels) that triggers scrolling
+     * @param speed pixels scrolled per call
+     */
+    public void autoScrollAt(int x, int y, int edge, double speed)
+    {
+        if (!this.area.isInside(x, y))
+        {
+            return;
+        }
+
+        boolean vertical = this.direction == ScrollDirection.VERTICAL;
+        int position = vertical ? y : x;
+        int start = vertical ? this.area.y : this.area.x;
+        int end = vertical ? this.area.ey() : this.area.ex();
+
+        if (position < start + edge)
+        {
+            this.scrollBy(-speed);
+        }
+        else if (position > end - edge)
+        {
+            this.scrollBy(speed);
+        }
     }
 
     /**

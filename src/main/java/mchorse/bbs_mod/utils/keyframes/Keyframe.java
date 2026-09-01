@@ -67,6 +67,39 @@ public class Keyframe <T> extends BaseValue
         return this.factory;
     }
 
+    /**
+     * Content hash over everything this keyframe serializes: tick, value, interpolation with its
+     * easing arguments, bezier handles. Built by field mixing so per-frame signature checks
+     * (the motion path cache key) cost integer math, not a serialization.
+     */
+    public int contentHash()
+    {
+        int hash = Float.floatToIntBits(this.tick);
+
+        hash = 31 * hash + Float.floatToIntBits(this.duration);
+        hash = 31 * hash + Float.floatToIntBits(this.lx);
+        hash = 31 * hash + Float.floatToIntBits(this.ly);
+        hash = 31 * hash + Float.floatToIntBits(this.rx);
+        hash = 31 * hash + Float.floatToIntBits(this.ry);
+        hash = 31 * hash + hashFloats(this.lx_m);
+        hash = 31 * hash + hashFloats(this.ly_m);
+        hash = 31 * hash + hashFloats(this.rx_m);
+        hash = 31 * hash + hashFloats(this.ry_m);
+        hash = 31 * hash + System.identityHashCode(this.interp.getInterp());
+        hash = 31 * hash + Double.hashCode(this.interp.getV1());
+        hash = 31 * hash + Double.hashCode(this.interp.getV2());
+        hash = 31 * hash + Double.hashCode(this.interp.getV3());
+        hash = 31 * hash + Double.hashCode(this.interp.getV4());
+        hash = 31 * hash + (this.value == null || this.factory == null ? 0 : this.factory.contentHash(this.value));
+
+        return hash;
+    }
+
+    private static int hashFloats(List<Float> floats)
+    {
+        return floats == null ? 0 : floats.hashCode();
+    }
+
     public float getTick()
     {
         return this.tick;

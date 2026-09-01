@@ -90,13 +90,6 @@ public class UIDataPathList extends UIList<DataPath>
         return copy;
     }
 
-    public boolean isFolderSelected()
-    {
-        DataPath item = this.getCurrentFirst();
-
-        return item != null && item.folder;
-    }
-
     public void fill(Collection<String> hierarchy)
     {
         this.hierarchy.clear();
@@ -117,38 +110,6 @@ public class UIDataPathList extends UIList<DataPath>
         this.filter("");
         this.deselect();
         this.updateStrings();
-    }
-
-    public void activateSelection()
-    {
-        DataPath dataPath = this.getCurrentFirst();
-
-        if (dataPath == null)
-        {
-            return;
-        }
-
-        if (dataPath.folder)
-        {
-            DataPath newPath;
-
-            if (dataPath.getLast().equals(".."))
-            {
-                newPath = this.path.getParent();
-            }
-            else
-            {
-                newPath = dataPath;
-            }
-
-            this.goTo(newPath);
-        }
-        else
-        {
-            this.open(dataPath);
-        }
-
-        this.previousPath = dataPath.copy();
     }
 
     private void updateStrings()

@@ -4,6 +4,9 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.tooltips.TooltipPlacement;
+import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
@@ -20,6 +23,8 @@ public class CellActionBar
 
     public static final int HEIGHT = 20;
     public static final int BUTTON = 20;
+
+    private static final Area LABEL = new Area();
 
     /**
      * A translucent overlay that darkens on the light theme and lightens on the dark one —
@@ -94,16 +99,21 @@ public class CellActionBar
 
     /**
      * The label of the hovered action — drawn by the host after everything else so it isn't
-     * clipped by the cell or covered by neighbours. {@code x} is the button's centre.
+     * clipped by the cell or covered by neighbours. {@code x} is the button's centre,
+     * {@code y} the bar's bottom edge; the card goes under the button, or above it at the
+     * bottom of the screen.
      */
     public static void renderLabel(UIContext context, CellAction action, int x, int y)
     {
         String label = action.label.get();
         FontRenderer font = context.batcher.getFont();
         int w = font.getWidth(label) + 6;
+        int h = font.getHeight() + 6;
 
-        x = Math.max(2, Math.min(x - w / 2, context.menu.width - w - 2));
+        Area.SHARED.set(x - BUTTON / 2, y - HEIGHT, BUTTON, HEIGHT);
 
-        context.batcher.textCard(label, x + 3, y + 3, Colors.WHITE, Colors.A75, 3);
+        Area area = TooltipPlacement.place(context, Area.SHARED, w, h, Direction.BOTTOM, 0, 2, LABEL);
+
+        context.batcher.textCard(label, area.x + 3, area.y + 3, Colors.WHITE, Colors.A75, 3);
     }
 }

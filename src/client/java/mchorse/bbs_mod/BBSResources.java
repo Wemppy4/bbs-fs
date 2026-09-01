@@ -31,6 +31,7 @@ public class BBSResources
         watchDog.getProxy().register(BBSModClient.getTextures());
         watchDog.getProxy().register(BBSModClient.getModels());
         watchDog.getProxy().register(BBSModClient.getSounds());
+        watchDog.getProxy().register(BBSModClient.getFonts());
         watchDog.getProxy().register(BBSModClient.getFormCategories());
         watchDog.getProxy().register((path, event) -> assetsVersion += 1);
 

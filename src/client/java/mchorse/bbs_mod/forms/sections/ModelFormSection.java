@@ -78,6 +78,9 @@ public class ModelFormSection extends SubFormSection
         return Objects.equals(modelForm.model.get(), key);
     }
 
+    /** When the models tree was last rescanned — one full rescan per event burst, not per event. */
+    private long lastStructureScan;
+
     @Override
     public void accept(Path path, WatchDogEvent event)
     {
@@ -86,10 +89,19 @@ public class ModelFormSection extends SubFormSection
 
         if (file.isDirectory())
         {
-            this.initiate();
+            /* A batch of directory events (the model loader making material folders) arrives
+             * within one flush; the rescan walks the whole tree anyway, so once covers them all. */
+            long now = System.currentTimeMillis();
+
+            if (now - this.lastStructureScan > 100)
+            {
+                this.initiate();
+            }
+
+            this.lastStructureScan = now;
             this.parent.markDirty();
         }
-        else if (link.path.startsWith(ModelManager.MODELS_PREFIX))
+        else if (link != null && link.path.startsWith(ModelManager.MODELS_PREFIX))
         {
             String extension = this.getExtension(link);
 

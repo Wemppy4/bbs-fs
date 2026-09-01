@@ -5,6 +5,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.utils.PNGEncoder;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.resources.Pixels;
@@ -78,6 +79,11 @@ public class UITextureManagerPanel extends UIDashboardPanel
         this.add(this.picker);
 
         this.onAppear(this.picker::syncToSharedTabs);
+
+        /* What the tour of this panel points at */
+        TourAnchors.register("textures.browser", () -> this.picker.browser);
+        TourAnchors.register("textures.edit", () -> this.picker.edit);
+        TourAnchors.register("textures.tabs", () -> this.picker.topBar);
     }
 
     public Link getLink()

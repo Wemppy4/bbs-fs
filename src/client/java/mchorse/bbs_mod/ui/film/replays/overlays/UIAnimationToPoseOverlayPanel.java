@@ -35,7 +35,8 @@ public class UIAnimationToPoseOverlayPanel extends UIOverlayPanel
         ModelInstance model = ModelFormRenderer.getModel(modelForm);
 
         this.list = new UIStringList((l) -> this.pickAnimation(l.get(0)));
-        this.list.h(UIStringList.DEFAULT_HEIGHT * 6);
+        /* Six rows is the minimum; the list takes whatever height the fields below it leave */
+        this.list.h(UIStringList.DEFAULT_HEIGHT * 6).expand();
         this.list.background();
         this.list.add(model.animations.animations.keySet());
         this.list.sort();

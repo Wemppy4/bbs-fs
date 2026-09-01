@@ -8,11 +8,9 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Vector3f;
 
 /**
- * The plain left/right additive drag: horizontal cursor travel nudges the
- * edited channel by a per-pixel step, with no 3D ray involved. Serves the
- * hotkey operations when ray dragging is disabled or no rendered gizmo is
- * available, and the uniform (three-axis) scale — whose centre grab reads
- * wildly through a single-axis ray lever but stays gentle here.
+ * The plain left/right additive drag: horizontal travel nudges the channel by a per-pixel
+ * step, no 3D ray. Serves the hotkey operations without a rendered gizmo, and the uniform
+ * scale, whose centre grab reads wildly through a single-axis ray lever.
  */
 public class AdditiveDrag extends DragStrategy
 {
@@ -111,7 +109,7 @@ public class AdditiveDrag extends DragStrategy
         {
             Vector3f offset = this.spaceTranslateOffset(factor * dx, this.axis, this.axis2);
 
-            if (offset == null && this.ctx.isLocal())
+            if (offset == null && this.ctx.space().isLocal())
             {
                 offset = this.ctx.localTranslateVector(factor * dx, this.axis);
 

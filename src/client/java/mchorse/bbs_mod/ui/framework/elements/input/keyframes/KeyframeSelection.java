@@ -110,6 +110,24 @@ public class KeyframeSelection
         this.selected.remove(index);
     }
 
+    /**
+     * Keep the selection on the same keyframes after one was inserted into the channel at the
+     * given index. The selection is stored by index, so an insertion ahead of a selected keyframe
+     * would otherwise slide the selection onto its neighbour without a word.
+     */
+    public void shiftAfterInsert(int index)
+    {
+        Set<Integer> shifted = new LinkedHashSet<>();
+
+        for (Integer i : this.selected)
+        {
+            shifted.add(i >= index ? i + 1 : i);
+        }
+
+        this.selected.clear();
+        this.selected.addAll(shifted);
+    }
+
     public void removeSelected()
     {
         tmpIndices.clear();

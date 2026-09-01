@@ -198,15 +198,17 @@ public class InternalAssetsSourcePack implements ISourcePack
 
     /* Zip handling */
 
-    private void getLinksFromZipFile(File file, Link link, Collection<Link> links, boolean recursive)
+    /**
+     * Synchronized: the model loader thread and the main thread both list assets, and the lazy
+     * cache fill plus the iteration below must not interleave.
+     */
+    private synchronized void getLinksFromZipFile(File file, Link link, Collection<Link> links, boolean recursive)
     {
-        /**
-         * Zip files can be big sometimes, so there is no point to
-         * read the zip file every time...
-         */
-        try (ZipFile zipFile = new ZipFile(file))
+        /* The jar doesn't change within a session, so it is opened and read exactly once —
+         * it used to be re-opened on every listing even with the cache already filled. */
+        if (this.zipCache.isEmpty())
         {
-            if (this.zipCache.isEmpty())
+            try (ZipFile zipFile = new ZipFile(file))
             {
                 Enumeration<? extends ZipEntry> it = zipFile.entries();
 
@@ -220,10 +222,10 @@ public class InternalAssetsSourcePack implements ISourcePack
                     }
                 }
             }
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
         }
 
         this.handleLinksFromZipFile(link, links, recursive);

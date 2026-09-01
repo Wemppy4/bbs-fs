@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.framework.elements.utils;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.Scroll;
-import mchorse.bbs_mod.utils.colors.Colors;
 import org.joml.Vector2i;
 import org.lwjgl.glfw.GLFW;
 
@@ -31,6 +30,17 @@ public class UIDraggable extends UIElement
     public UIDraggable(Consumer<UIContext> callback)
     {
         this.callback = callback;
+    }
+
+    /**
+     * Late binding of the drag callback, for subclasses that can't reference themselves in the
+     * {@code super(...)} argument (Java forbids {@code this} there) yet own the drag logic.
+     */
+    protected UIDraggable callback(Consumer<UIContext> callback)
+    {
+        this.callback = callback;
+
+        return this;
     }
 
     public UIDraggable hoverOnly()

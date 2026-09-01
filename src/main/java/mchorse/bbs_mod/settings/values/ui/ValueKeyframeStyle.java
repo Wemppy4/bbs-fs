@@ -39,4 +39,10 @@ public class ValueKeyframeStyle extends BaseValueBasic<KeyframeStyle>
             this.value.fromData(data.asMap());
         }
     }
+
+    @Override
+    protected KeyframeStyle copyValue(KeyframeStyle value)
+    {
+        return value == null ? null : value.copy();
+    }
 }

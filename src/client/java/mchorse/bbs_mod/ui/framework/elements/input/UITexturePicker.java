@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.framework.elements.input;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.data.DataToString;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -36,8 +35,8 @@ import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.StringUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import mchorse.bbs_mod.utils.resources.FilteredLink;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
@@ -184,6 +183,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         this.add = new UIIcon(Icons.ADD, (b) -> this.addMulti());
         this.remove = new UIIcon(Icons.REMOVE, (b) -> this.removeMulti());
         this.edit = new UIIcon(Icons.EDIT, (b) -> this.toggleEditor());
+        this.edit.highlight(this.editor::isVisible, Direction.BOTTOM);
 
         this.add.relative(this.buttons).set(0, 0, 20, 20);
         this.remove.relative(this.add).set(20, 0, 20, 20);
@@ -428,6 +428,19 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         {
             this.painter.openModelPreview(this.initialModelPreview);
             this.initialModelPreview = null;
+        }
+    }
+
+    /** Opens {@code link} like {@link #openTexture} and turns its animation on, if it wasn't already. */
+    public void openTextureAnimated(Link link)
+    {
+        this.openTexture(link);
+
+        UITextureEditor editor = this.painter.getCurrentEditor();
+
+        if (editor != null && link != null && link.toString().equals(String.valueOf(editor.getTexture())))
+        {
+            this.painter.enableAnimation();
         }
     }
 
@@ -913,11 +926,6 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
             if (this.canBeClosed)
             {
                 this.browseContent.area.render(context.batcher, BBSSettings.backgroundColor.get());
-            }
-
-            if (this.editor.isVisible())
-            {
-                this.edit.area.render(context.batcher, Colors.A50 | BBSSettings.primaryColor.get());
             }
         }
 

@@ -17,7 +17,7 @@ public class UILinkKeyframeFactory extends UIKeyframeFactory<Link>
         {
             UITexturePicker.open(this.getContext(), this.keyframe.getValue(), (l) ->
             {
-                this.editor.getGraph().setValue(l, true);
+                this.editor.getGraph().setValue(l, true, true);
             });
         }));
     }

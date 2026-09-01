@@ -37,9 +37,9 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.Arrays;
-import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -49,7 +49,14 @@ public class UIValueMap
 {
     private static Map<Class<? extends BaseValue>, IUIValueFactory<? extends BaseValue>> factories = new HashMap<>();
 
-    static
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
     {
         register(ValueBoolean.class, (value, ui) ->
         {
@@ -228,7 +235,25 @@ public class UIValueMap
     {
         IUIValueFactory<T> factory = (IUIValueFactory<T>) factories.get(value.getClass());
 
-        return factory == null ? Collections.emptyList() : factory.create(value, element);
+        if (factory == null)
+        {
+            return Collections.emptyList();
+        }
+
+        List<UIElement> elements = factory.create(value, element);
+
+        /* Every setting answers a right click the same way, so it is hung here
+         * rather than in each factory above. Rebuilding the list is what puts
+         * the reset on screen — the widgets read their value when they are
+         * made, not while they live. */
+        Runnable refresh = element instanceof UISettingsOverlayPanel panel ? panel::refresh : null;
+
+        for (UIElement created : elements)
+        {
+            UIValues.resettable(created, value, refresh);
+        }
+
+        return elements;
     }
 
     public static interface IUIValueFactory <T extends BaseValue>

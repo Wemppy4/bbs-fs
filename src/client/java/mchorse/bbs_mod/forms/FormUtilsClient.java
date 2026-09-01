@@ -6,6 +6,7 @@ import mchorse.bbs_mod.forms.forms.AnchorForm;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.forms.BlockForm;
 import mchorse.bbs_mod.forms.forms.ExtrudedForm;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
 import mchorse.bbs_mod.forms.forms.ItemForm;
@@ -16,11 +17,14 @@ import mchorse.bbs_mod.forms.forms.ParticleForm;
 import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.forms.TrailForm;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
+import mchorse.bbs_mod.forms.forms.VideoForm;
 import mchorse.bbs_mod.forms.renderers.AnchorFormRenderer;
 import mchorse.bbs_mod.forms.renderers.BillboardFormRenderer;
 import mchorse.bbs_mod.forms.renderers.BlockFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ExtrudedFormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
+import mchorse.bbs_mod.api.client.events.FormRenderEvents;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.FramebufferFormRenderer;
 import mchorse.bbs_mod.forms.renderers.ItemFormRenderer;
@@ -31,6 +35,7 @@ import mchorse.bbs_mod.forms.renderers.ParticleFormRenderer;
 import mchorse.bbs_mod.forms.renderers.StructureFormRenderer;
 import mchorse.bbs_mod.forms.renderers.TrailFormRenderer;
 import mchorse.bbs_mod.forms.renderers.VanillaParticleFormRenderer;
+import mchorse.bbs_mod.forms.renderers.VideoFormRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.RenderLayer;
@@ -65,7 +70,7 @@ public class FormUtilsClient
     private static CustomVertexConsumerProvider customVertexConsumerProvider;
     private static Stack<Form> currentForm = new Stack<>();
 
-    static
+    private static CustomVertexConsumerProvider createProvider()
     {
         BlockBufferBuilderStorage storage = new BlockBufferBuilderStorage();
         SortedMap sortedMap = Util.make(new Object2ObjectLinkedOpenHashMap(), map -> {
@@ -99,9 +104,20 @@ public class FormUtilsClient
             ModelLoader.BLOCK_DESTRUCTION_RENDER_LAYERS.forEach(renderLayer -> assignBufferBuilder(map, renderLayer));
         });
 
-        customVertexConsumerProvider = new CustomVertexConsumerProvider(new BufferBuilder(1536), sortedMap);
+        return new CustomVertexConsumerProvider(new BufferBuilder(1536), sortedMap);
+    }
 
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
+    {
         register(BillboardForm.class, BillboardFormRenderer::new);
+        register(VideoForm.class, VideoFormRenderer::new);
         register(ExtrudedForm.class, ExtrudedFormRenderer::new);
         register(LabelForm.class, LabelFormRenderer::new);
         register(ModelForm.class, ModelFormRenderer::new);
@@ -123,12 +139,44 @@ public class FormUtilsClient
 
     public static CustomVertexConsumerProvider getProvider()
     {
+        /* Built on first use rather than while the mod initialises: it allocates the render
+         * layers' buffers, and doing that before the game is ready is the kind of thing that
+         * goes wrong in the game instead of in the build. */
+        if (customVertexConsumerProvider == null)
+        {
+            customVertexConsumerProvider = createProvider();
+        }
+
         return customVertexConsumerProvider;
     }
 
     public static <T extends Form> void register(Class<T> clazz, IFormRendererFactory<T> function)
     {
         map.put(clazz, function);
+    }
+
+    /**
+     * The renderer registered for a form's own class, or for the nearest class it extends.
+     *
+     * <p>Without the walk up, extending one of BBS's forms bought nothing: the subclass
+     * inherited the shape and the data and then drew as nothing at all, until it registered a
+     * renderer that was usually a copy of its parent's.</p>
+     */
+    private static IFormRendererFactory findFactory(Class clazz)
+    {
+        while (clazz != null && clazz != Object.class)
+        {
+            IFormRendererFactory factory = map.get(clazz);
+
+            if (factory != null)
+            {
+                return factory;
+            }
+
+            clazz = clazz.getSuperclass();
+        }
+
+        return null;
     }
 
     public static Form getCurrentForm()
@@ -148,7 +196,7 @@ public class FormUtilsClient
             return renderer;
         }
 
-        IFormRendererFactory factory = map.get(form.getClass());
+        IFormRendererFactory factory = findFactory(form.getClass());
 
         if (factory != null)
         {
@@ -164,23 +212,33 @@ public class FormUtilsClient
 
     public static void renderUI(Form form, UIContext context, int x1, int y1, int x2, int y2)
     {
+        BBSProfiler.count(BBSProfiler.Section.UI_PREVIEW_RENDERS);
+        BBSProfiler.begin(BBSProfiler.Timer.UI_PREVIEWS);
+
         FormRenderer renderer = getRenderer(form);
 
         if (renderer != null)
         {
             renderer.renderUI(context, x1, y1, x2, y2);
         }
+
+        BBSProfiler.end(BBSProfiler.Timer.UI_PREVIEWS);
     }
 
     /** The form's picture alone; see {@link FormRenderer#renderPreview}. */
     public static void renderPreview(Form form, UIContext context, int x1, int y1, int x2, int y2)
     {
+        BBSProfiler.count(BBSProfiler.Section.UI_PREVIEW_RENDERS);
+        BBSProfiler.begin(BBSProfiler.Timer.UI_PREVIEWS);
+
         FormRenderer renderer = getRenderer(form);
 
         if (renderer != null)
         {
             renderer.renderPreview(context, x1, y1, x2, y2);
         }
+
+        BBSProfiler.end(BBSProfiler.Timer.UI_PREVIEWS);
     }
 
     public static void render(Form form, FormRenderingContext context)
@@ -191,6 +249,8 @@ public class FormUtilsClient
         {
             currentForm.push(form);
 
+            FormRenderEvents.BEFORE.invoker().onFormRender(form, context);
+
             try
             {
                 renderer.render(context);
@@ -199,6 +259,10 @@ public class FormUtilsClient
             {
                 reportRenderFailure(form, e);
             }
+
+            /* After the catch, so a listener that pushed something in BEFORE still gets to
+             * pop it when the form's own renderer threw. */
+            FormRenderEvents.AFTER.invoker().onFormRender(form, context);
 
             currentForm.pop();
         }
@@ -218,6 +282,13 @@ public class FormUtilsClient
         {
             LOGGER.error("[BBS form] {} failed to render - further repeats of this failure are silenced.", form.getClass().getSimpleName(), e);
         }
+    }
+
+    public static IBoneHierarchy getBoneHierarchy(Form form)
+    {
+        FormRenderer renderer = getRenderer(form);
+
+        return renderer == null ? null : renderer.getBoneHierarchy();
     }
 
     public static List<String> getBones(Form form)

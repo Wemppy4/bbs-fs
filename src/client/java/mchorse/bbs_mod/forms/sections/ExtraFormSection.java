@@ -12,6 +12,7 @@ import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.forms.TrailForm;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
+import mchorse.bbs_mod.forms.forms.VideoForm;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -54,6 +55,7 @@ public class ExtraFormSection extends FormSection
         StructureForm structure = new StructureForm();
         VanillaParticleForm vanillaParticle = new VanillaParticleForm();
         TrailForm trail = new TrailForm();
+        VideoForm video = new VideoForm();
 
         billboard.texture.set(Link.assets("textures/error.png"));
         extruded.texture.set(Link.assets("textures/error.png"));
@@ -69,6 +71,7 @@ public class ExtraFormSection extends FormSection
         extra.addForm(structure);
         extra.addForm(vanillaParticle);
         extra.addForm(trail);
+        extra.addForm(video);
 
         this.mobsAnimals = new FormCategory(UIKeys.FORMS_CATEGORIES_MOBS_ANIMALS, this.parent.preferences.visible("mobs_animals")).icon(Icons.CHICKEN);
         this.mobsNeutral = new FormCategory(UIKeys.FORMS_CATEGORIES_MOBS_NEUTRAL, this.parent.preferences.visible("mobs_neutral")).icon(Icons.PLAYER);
