@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
+import mchorse.bbs_mod.ui.utils.InterfaceBlur;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.resizers.Flex;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -211,6 +212,8 @@ public class UIOverlay extends UIElement
 
         if (Colors.getA(background) > 0F)
         {
+            /* Blur goes with the dimming: an overlay that asked for no background gets neither */
+            InterfaceBlur.apply();
             this.area.render(context.batcher, background);
         }
 

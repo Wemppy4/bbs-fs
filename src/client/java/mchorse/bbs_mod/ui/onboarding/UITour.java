@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.onboarding.TourChapter.Step;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.InterfaceBlur;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -260,9 +261,10 @@ public class UITour extends UIElement
     }
 
     /**
-     * Everything but the place goes under the same dimming an overlay puts on the screen, the
-     * place itself gets a frame that breathes so the eye finds it, and the card gets its own
-     * surface. The dimming is paint, not glass: the editor under it still takes clicks.
+     * Everything but the place goes under the same dimming and blur an overlay puts on the
+     * screen, the place itself stays sharp and gets a frame that breathes so the eye finds it,
+     * and the card gets its own surface. The dimming is paint, not glass: the editor under it
+     * still takes clicks.
      */
     private void renderHighlight(UIContext context, Area a)
     {
@@ -273,6 +275,7 @@ public class UITour extends UIElement
 
         if (Colors.getA(dim) > 0F)
         {
+            InterfaceBlur.apply(context, a);
             context.batcher.box(s.x, s.y, s.ex(), a.y, dim);
             context.batcher.box(s.x, a.ey(), s.ex(), s.ey(), dim);
             context.batcher.box(s.x, a.y, a.x, a.ey(), dim);

@@ -114,7 +114,9 @@ public class Onboarding
         panel.onClose((e) -> welcomeClosed(context));
 
         abandon();
-        UIOverlay.addOverlay(context, panel, 1F, 1F);
+
+        /* It paints the whole screen itself; dimming and blurring under it would be wasted work */
+        UIOverlay.addOverlay(context, panel, 1F, 1F).noBackground();
     }
 
     /** The welcome screen went down, however it went down: the tour is what comes next. */

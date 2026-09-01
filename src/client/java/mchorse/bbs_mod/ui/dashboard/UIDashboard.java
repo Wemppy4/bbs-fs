@@ -37,6 +37,7 @@ import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
 import mchorse.bbs_mod.ui.selectors.UISelectorsOverlayPanel;
 import mchorse.bbs_mod.ui.utility.UIUtilityOverlayPanel;
 import mchorse.bbs_mod.ui.utility.audio.UIAudioEditorPanel;
+import mchorse.bbs_mod.ui.utils.InterfaceBlur;
 import mchorse.bbs_mod.ui.utils.UIChalkboard;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -355,6 +356,13 @@ public class UIDashboard extends UIBaseMenu
     {
         Link background = BBSSettings.backgroundImage.get();
         int color = BBSSettings.backgroundColor.get();
+
+        /* The world shows through the tint (and through the image, tinted) — blur it, unless
+         * the tint is solid and there is nothing to see */
+        if (background != null || Colors.getA(color) < 1F)
+        {
+            InterfaceBlur.applyUnder();
+        }
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();

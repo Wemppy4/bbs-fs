@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.IViewportStack;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Gizmo;
+import mchorse.bbs_mod.ui.utils.InterfaceBlur;
 import mchorse.bbs_mod.ui.utils.renderers.InputRenderer;
 import mchorse.bbs_mod.utils.MathUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -312,6 +313,7 @@ public abstract class UIBaseMenu
         this.context.resetMatrix();
         this.context.setMouse(mouseX, mouseY);
         this.context.resetCursor();
+        InterfaceBlur.beginFrame();
 
         this.preRenderMenu(context);
 

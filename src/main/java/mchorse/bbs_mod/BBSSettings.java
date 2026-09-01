@@ -214,6 +214,8 @@ public class BBSSettings {
 	public static ValueBoolean interfaceShadows;
 	public static ValueBoolean interfaceHighlights;
 	public static ValueBoolean interfaceGlow;
+	public static ValueBoolean interfaceBlur;
+	public static ValueInt interfaceBlurRadius;
 
 	public static ValueBoolean shaderCurvesEnabled;
 	public static ValueBoolean translucencyQueue;
@@ -691,6 +693,8 @@ public class BBSSettings {
 		secondaryColor = builder.getInt("secondary_color", DEFAULT_SECONDARY_COLOR).color();
 		stencilHighlightColor = builder.getInt("stencil_highlight_color", 0x2EFFFFFF).colorAlpha();
 		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
+		interfaceBlur = builder.getBoolean("interface_blur", true);
+		interfaceBlurRadius = builder.getInt("interface_blur_radius", 12, 1, 30).slider();
 		interfaceShadows = builder.getBoolean("interface_shadows", true);
 		interfaceHighlights = builder.getBoolean("interface_highlights", false);
 		interfaceGlow = builder.getBoolean("interface_glow", false);
