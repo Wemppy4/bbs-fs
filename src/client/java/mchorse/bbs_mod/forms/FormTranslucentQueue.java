@@ -589,9 +589,15 @@ public class FormTranslucentQueue
             /* startDrawing applied the layer's own write mask — re-assert ours. */
             RenderSystem.depthMask(this.depthWrite);
 
+            /* After startDrawing, which is where the layer's overlay phase bound vanilla's
+             * hurt-flash texture over unit 1: a form's color overlay has to land on top of it. */
+            int previousOverlay = this.bindOverlay();
+
             this.buffer.bind();
             this.buffer.draw(this.modelView, RenderSystem.getProjectionMatrix(), RenderSystem.getShader());
             VertexBuffer.unbind();
+
+            this.unbindOverlay(previousOverlay);
 
             this.layer.endDrawing();
         }

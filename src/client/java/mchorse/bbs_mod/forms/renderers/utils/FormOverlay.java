@@ -8,6 +8,8 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.utils.resources.Pixels;
+import net.minecraft.client.render.OverlayTexture;
+import org.lwjgl.opengl.GL11;
 
 /**
  * The color overlay's render plumbing. The overlay rides the vanilla overlay-texture channel
@@ -16,14 +18,23 @@ import mchorse.bbs_mod.utils.resources.Pixels;
  * overlay.a)}, so a 1&times;1 texture holding (color, 1 - strength) tints the whole draw and
  * the effect SURVIVES shader packs, which no uniform of ours can.
  *
- * <p>One persistent 1&times;1 texture is re-uploaded whenever the requested pixel changes
- * (cheap — four bytes) and bound over unit 1 for the draw; the previous binding is restored
- * right after, because vanilla's hurt-flash overlay lives in that unit. When the context
- * already carries a hurt flash (overlay UV differs from the default), the flash wins and the
- * color overlay skips the draw entirely.</p>
+ * <p>One persistent texture is re-uploaded whenever the requested pixel changes (cheap — a
+ * kilobyte) and bound over unit 1 for the draw; the previous binding is restored right after,
+ * because vanilla's hurt-flash overlay lives in that unit. When the context already carries a
+ * hurt flash (overlay UV differs from the default), the flash wins and the color overlay skips
+ * the draw entirely.</p>
  */
 public class FormOverlay
 {
+    /**
+     * Side of the overlay texture. It holds the same pixel everywhere, so it does not matter
+     * which texel a draw addresses: BBS' own draws emit (0, 0), while vanilla renderers replayed
+     * inside a form — the block entities of a structure — emit {@link OverlayTexture#DEFAULT_UV},
+     * which is (0, 10). Matching vanilla's 16&times;16 overlay atlas covers both without a vertex
+     * consumer wrapper rewriting anyone's overlay UV (Sodium replaces those wrappers anyway).
+     */
+    private static final int SIZE = 16;
+
     private static Texture texture;
     private static int lastPixel;
     private static boolean uploaded;
@@ -85,9 +96,8 @@ public class FormOverlay
     }
 
     /**
-     * Bind the overlay's 1&times;1 texture into unit 1 for the upcoming draw. Returns the unit's
-     * previous texture id to pass to {@link #unbind(int)} after the draw. The draw's overlay UV
-     * must be (0, 0) — the texture is a single texel.
+     * Bind the overlay's texture into unit 1 for the upcoming draw. Returns the unit's previous
+     * texture id to pass to {@link #unbind(int)} after the draw.
      */
     public static int bind(Color overlay)
     {
@@ -97,15 +107,28 @@ public class FormOverlay
         if (texture == null)
         {
             texture = new Texture();
+
+            /* GL's default minification filter is NEAREST_MIPMAP_LINEAR, and only level 0 is ever
+             * uploaded here — at any size past 1x1 that leaves the texture mipmap-incomplete, and
+             * every fetch from an incomplete texture comes back (0, 0, 0, 1). The overlay would
+             * then read as "no overlay" while the draw it rides on is paid for anyway. The
+             * constructor leaves the texture bound, so the filter lands on this one. */
+            texture.setFilter(GL11.GL_NEAREST);
+            texture.unbind();
         }
 
         if (pixel != lastPixel || !uploaded)
         {
-            /* A fresh 1x1 Pixels per re-upload: uploadTexture takes ownership and frees the
-             * buffer, so a persistent Pixels here would die after the first upload. */
-            Pixels pixels = Pixels.fromSize(1, 1);
+            /* A fresh Pixels per re-upload: uploadTexture takes ownership and frees the buffer,
+             * so a persistent Pixels here would die after the first upload. */
+            Pixels pixels = Pixels.fromSize(SIZE, SIZE);
+            Color color = new Color().set(pixel);
 
-            pixels.setColor(0, 0, new Color().set(pixel));
+            for (int i = 0, c = SIZE * SIZE; i < c; i++)
+            {
+                pixels.setColor(i, color);
+            }
+
             pixels.rewindBuffer();
 
             texture.bind();
