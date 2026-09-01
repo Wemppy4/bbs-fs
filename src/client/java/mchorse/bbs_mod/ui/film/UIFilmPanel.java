@@ -45,6 +45,8 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.UIFilmUndoHandler;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.onboarding.Onboarding;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -215,6 +217,14 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.openFilmMenu.tooltip(UIKeys.FILM_OPTIONS);
         this.openCameraEditor.tooltip(UIKeys.FILM_OPEN_CAMERA_EDITOR);
         this.openReplayEditor.tooltip(UIKeys.FILM_OPEN_REPLAY_EDITOR);
+
+        /* What the tour of this editor points at. The two editor buttons are one place: they
+         * only mean something as a pair. */
+        TourAnchors.register("film.preview", () -> this.preview);
+        TourAnchors.register("film.editors", () -> this.openCameraEditor, () -> this.openReplayEditor);
+        TourAnchors.register("film.timeline", () -> this.main);
+        TourAnchors.register("film.properties", () -> this.editArea);
+        TourAnchors.register("film.export", () -> this.preview.recordVideo);
 
         this.actions()
             .action(this.openCameraEditor, this.cameraEditor::isVisible)
@@ -556,6 +566,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         data.put("film_layout", this.dock.getLayoutRoot().toData());
 
         return data;
+    }
+
+    /** A layout preset from outside the preset menu — the welcome screen offers the shipped ones. */
+    public void applyLayoutPreset(MapType data)
+    {
+        this.applyFilmLayoutFromPreset(data, 0, 0);
     }
 
     private void applyFilmLayoutFromPreset(MapType data, int mouseX, int mouseY)
@@ -1446,6 +1462,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.openCameraEditor.setEnabled(data != null);
         this.openReplayEditor.setEnabled(data != null);
         this.duplicateFilm.setEnabled(data != null);
+
+        if (data != null)
+        {
+            Onboarding.filmOpened(this);
+        }
 
         this.actionEditor.setClips(null);
         this.runner.setWork(data == null ? null : data.camera);

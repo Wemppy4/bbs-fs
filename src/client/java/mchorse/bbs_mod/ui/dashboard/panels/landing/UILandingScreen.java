@@ -61,9 +61,9 @@ public class UILandingScreen extends UIElement
     private static final Link BANNER = Link.assets("textures/banners/bg.png");
 
     /* Where the community lives; the same in every language, so not in the language files */
-    private static final String DISCORD_LINK = "https://discord.gg/66mVb7Ezjj";
-    private static final String TUTORIALS_LINK = "https://www.youtube.com/watch?v=yY5uE3PVd5Y&list=PLM5Z4FJ0AVdw";
-    private static final String WIKI_LINK = "https://github.com/Wemppy4/bbs-fs/wiki";
+    public static final String DISCORD_LINK = "https://discord.gg/66mVb7Ezjj";
+    public static final String TUTORIALS_LINK = "https://www.youtube.com/watch?v=yY5uE3PVd5Y&list=PLM5Z4FJ0AVdw";
+    public static final String WIKI_LINK = "https://github.com/Wemppy4/bbs-fs/wiki";
 
     private final ILandingHost host;
     private final LandingBackdrop backdrop = new LandingBackdrop();
@@ -149,6 +149,12 @@ public class UILandingScreen extends UIElement
         this.add(new UIRenderable(this::renderBackdrop), this.card);
 
         this.refresh();
+    }
+
+    /** The card in the middle — what a tour points at when it points at the landing screen. */
+    public UIElement getCard()
+    {
+        return this.card;
     }
 
     /** "BBS FS 2.6.0" — the mod's own version, without the Minecraft version the build appends. */

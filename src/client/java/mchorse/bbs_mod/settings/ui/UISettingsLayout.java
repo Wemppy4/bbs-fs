@@ -6,8 +6,12 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIconToggles;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
+import mchorse.bbs_mod.ui.onboarding.Onboarding;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -17,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * The values that don't fit "one labelled row per value" — a resolution reads
@@ -64,6 +69,9 @@ public class UISettingsLayout
         register(new UIResolutionRow(BBSSettings.editorPreviewCustomWidth, BBSSettings.editorPreviewCustomHeight, false));
         register(new UIExportPathRow(BBSSettings.videoExportPath));
         register(new UIEncoderPathRow(BBSSettings.videoEncoderPath));
+
+        /* The first-run flags aren't switches to flip but things to bring back */
+        register(new OnboardingRow());
     }
 
     private static void register(IValueRow row)
@@ -145,5 +153,40 @@ public class UISettingsLayout
             return Collections.singletonList(row);
         }
 
+    }
+
+    /**
+     * The welcome screen and the tours, as the two buttons that bring them back. The settings
+     * window goes down first: both open on the dashboard itself, not in a window over it.
+     */
+    public static class OnboardingRow implements IValueRow
+    {
+        @Override
+        public List<BaseValue> getValues()
+        {
+            return List.of(BBSSettings.onboardingWelcomeSeen, BBSSettings.onboardingToursDone);
+        }
+
+        @Override
+        public List<UIElement> create(UIElement ui)
+        {
+            UIButton welcome = new UIButton(UIKeys.ONBOARDING_SETTINGS_SHOW_WELCOME, (b) -> this.leaveFor(ui, Onboarding::showWelcome));
+            UIButton tours = new UIButton(UIKeys.ONBOARDING_SETTINGS_RESET_TOURS, (b) -> this.leaveFor(ui, Onboarding::resetTours));
+
+            return List.of(UI.label(UIKeys.ONBOARDING_SETTINGS_TITLE, 0).labelAnchor(0, 0.5F), UI.row(4, 0, 20, welcome, tours));
+        }
+
+        private void leaveFor(UIElement ui, Consumer<UIContext> action)
+        {
+            UIContext context = ui.getContext();
+            UIOverlayPanel settings = ui instanceof UIOverlayPanel panel ? panel : ui.getParent(UIOverlayPanel.class);
+
+            if (settings != null)
+            {
+                settings.close();
+            }
+
+            action.accept(context);
+        }
     }
 }

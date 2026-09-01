@@ -3,8 +3,10 @@ package mchorse.bbs_mod.utils;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -16,9 +18,13 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class FFMpegUtils
 {
+    private static final Pattern VERSION_NUMBER = Pattern.compile("\\d+(\\.\\d+)*");
+
     private static final Set<String> SKIP_DIRS = Set.of("Windows", "Program Files", "Program Files (x86)", "$Recycle.Bin", "System Volume Information", "AppData");
 
     /**
@@ -79,6 +85,53 @@ public class FFMpegUtils
     public static boolean checkFFMPEG()
     {
         return execute(BBSMod.getGameFolder(), "-version");
+    }
+
+    /**
+     * The version the configured encoder reports of itself — "6.1", "7.0.2" — or nothing when
+     * it cannot be run or doesn't answer like ffmpeg. Blocks on the process, so ask from a
+     * thread of your own.
+     *
+     * <p>A "found" that shows the version is the only proof that means anything: a path that
+     * exists can still be the wrong file, and that is found out on export otherwise.</p>
+     */
+    public static Optional<String> version()
+    {
+        ProcessBuilder builder = new ProcessBuilder(getFFMPEG(), "-version");
+
+        builder.redirectErrorStream(true);
+
+        try
+        {
+            Process process = builder.start();
+            String first;
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream())))
+            {
+                first = reader.readLine();
+
+                /* Drain the rest so the process can exit instead of blocking on a full pipe */
+                while (reader.readLine() != null);
+            }
+
+            process.waitFor();
+
+            /* "ffmpeg version 6.1-full_build-www.gyan.dev Copyright ..." or
+             * "ffmpeg version n4.4-154-g79c114e1b2-20210930 ...": the number is the part that
+             * means anything to a person, the rest names the build */
+            if (first != null && first.startsWith("ffmpeg version "))
+            {
+                String[] words = first.split(" ");
+                String word = words.length > 2 ? words[2] : "?";
+                Matcher number = VERSION_NUMBER.matcher(word);
+
+                return Optional.of(number.find() ? number.group() : word);
+            }
+        }
+        catch (Exception e)
+        {}
+
+        return Optional.empty();
     }
 
     public static boolean execute(File folder, String... arguments)
