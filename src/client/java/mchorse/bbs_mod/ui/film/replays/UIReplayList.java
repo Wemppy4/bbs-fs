@@ -63,6 +63,7 @@ import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
+import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.NaturalOrderComparator;
@@ -1277,14 +1278,18 @@ public class UIReplayList extends UIList<ReplayListEntry>
         {
             /* The stagger is ordered by the film's own replay list, not by visible rows: a
              * selected replay whose folder is collapsed has no row, and indexing by rows used
-             * to silently drop it from the batch (and shift everyone else's offset). */
+             * to silently drop it from the batch (and shift everyone else's offset).
+             *
+             * The index is taken by identity: ValueGroup compares by content, so List.indexOf
+             * hands back the first replay that merely looks the same - and a batch is usually
+             * made of duplicates, which all reported index 0 and landed in one spot. */
             List<Replay> selected = UIReplayList.this.getSelectedReplaysInViewOrder();
             List<Replay> all = UIReplayList.this.panel.getData().replays.getList();
             int min = Integer.MAX_VALUE;
 
             for (Replay replay : selected)
             {
-                int index = all.indexOf(replay);
+                int index = CollectionUtils.getIndex(all, replay);
 
                 if (index >= 0)
                 {
@@ -1301,7 +1306,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
             for (Replay replay : selected)
             {
-                int index = all.indexOf(replay);
+                int index = CollectionUtils.getIndex(all, replay);
 
                 if (index >= 0)
                 {
@@ -1800,12 +1805,13 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 List<Replay> selected = this.getSelectedReplaysInViewOrder();
 
                 /* i/o are ordered by the film's own replay list, not by visible rows — a selected
-                 * replay in a collapsed folder has no row and used to silently drop out. */
+                 * replay in a collapsed folder has no row and used to silently drop out. The
+                 * index is taken by identity - see the same note in collectVisibleReplays. */
                 List<Replay> all = film.replays.getList();
 
                 for (Replay replay : selected)
                 {
-                    int index = all.indexOf(replay);
+                    int index = CollectionUtils.getIndex(all, replay);
 
                     if (index >= 0)
                     {
@@ -1820,7 +1826,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
                 for (Replay replay : selected)
                 {
-                    int index = all.indexOf(replay);
+                    int index = CollectionUtils.getIndex(all, replay);
 
                     if (index < 0)
                     {
