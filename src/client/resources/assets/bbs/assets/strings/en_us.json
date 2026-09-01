@@ -1518,7 +1518,7 @@
 	"bbs.ui.reset": "Reset",
 	"bbs.ui.rename": "Rename",
 	"bbs.ui.right_click": "Right click here...",
-	"bbs.ui.onboarding.welcome.title": "First time in BBS FS 2.6?",
+	"bbs.ui.onboarding.welcome.title": "First time in %s?",
 	"bbs.ui.onboarding.appearance.title": "Appearance",
 	"bbs.ui.onboarding.appearance.slogan": "Let's make it look the way you like",
 	"bbs.ui.onboarding.appearance.swatch.dark": "Dark",

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.onboarding.welcome;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.panels.landing.LandingBackdrop;
+import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingScreen;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIClickable;
@@ -146,12 +147,12 @@ public class UIWelcomeOverlayPanel extends UIOverlayPanel
         this.backdrop.render(context, this.area);
     }
 
-    /** The title over the tab, the dots and the tab's name under it. */
+    /** The title over the tab and the dots under it. */
     private void renderFraming(UIContext context)
     {
         Area card = this.host.area;
         FontRenderer font = context.batcher.getFont();
-        String title = UIKeys.ONBOARDING_WELCOME_TITLE.get();
+        String title = UIKeys.ONBOARDING_WELCOME_TITLE.format(UILandingScreen.getVersion()).get();
         MatrixStack stack = context.batcher.getContext().getMatrices();
 
         int titleW = font.getWidth(title) * TITLE_SCALE;
@@ -175,10 +176,6 @@ public class UIWelcomeOverlayPanel extends UIOverlayPanel
 
             x += DOT + DOT_GAP;
         }
-
-        String name = this.pages.get(this.index).name.get();
-
-        context.batcher.text(name, card.mx() - font.getWidth(name) / 2, y + DOT + 8, DIMMED, false);
     }
 
     /**

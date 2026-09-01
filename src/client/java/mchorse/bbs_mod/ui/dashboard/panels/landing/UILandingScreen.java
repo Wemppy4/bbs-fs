@@ -158,7 +158,7 @@ public class UILandingScreen extends UIElement
     }
 
     /** "BBS FS 2.6.0" — the mod's own version, without the Minecraft version the build appends. */
-    private static String getVersion()
+    public static String getVersion()
     {
         return FabricLoader.getInstance().getModContainer(BBSMod.MOD_ID)
             .map((mod) ->

@@ -1512,7 +1512,7 @@
 	"bbs.ui.reset": "Сбросить",
 	"bbs.ui.rename": "Переименовать",
 	"bbs.ui.right_click": "ПКМ здесь...",
-	"bbs.ui.onboarding.welcome.title": "Впервые в BBS FS 2.6?",
+	"bbs.ui.onboarding.welcome.title": "Впервые в %s?",
 	"bbs.ui.onboarding.appearance.title": "Внешний вид",
 	"bbs.ui.onboarding.appearance.slogan": "Давайте настроим всё по вашему вкусу",
 	"bbs.ui.onboarding.appearance.swatch.dark": "Тёмный",
