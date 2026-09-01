@@ -2,11 +2,13 @@ package mchorse.bbs_mod.ui.framework.elements.input.list;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.items.UIItems;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
+import mchorse.bbs_mod.ui.utils.renderers.EmptyStateRenderer;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
@@ -19,6 +21,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 
 /**
  * Abstract GUI list element: rows of equal height down a scrolling area.
@@ -63,9 +66,38 @@ public abstract class UIList <T> extends UIItems<T>
     /* The filtered rows without their indices, for the geometry that only wants items */
     private List<T> filteredItems = new ArrayList<>();
 
+    /**
+     * What an empty list says instead of showing nothing, and how; null keeps it silent, which
+     * is what a list that fills itself (a folder's contents, a picker) wants.
+     */
+    private IKey emptyLabel;
+
+    /** The rung the empty state paints itself on; the chrome, unless a list sits deeper. */
+    private IntSupplier emptyBackground = BBSSettings::chromeSurface;
+
     public UIList(Consumer<List<T>> callback)
     {
         super(callback, (a, b) -> a == b);
+    }
+
+    /**
+     * Say what to do to get something into this list, while it has nothing in it. The label is
+     * drawn with a pointer right clicking under it, so use it where a right click on the list
+     * is what adds a row; where rows come from elsewhere, the pointer would be a lie.
+     */
+    public UIList<T> emptyState(IKey label)
+    {
+        this.emptyLabel = label;
+
+        return this;
+    }
+
+    /** Same, for a list that sits on a rung of its own — the film editor's is a rung deeper. */
+    public UIList<T> emptyState(IKey label, IntSupplier background)
+    {
+        this.emptyBackground = background;
+
+        return this.emptyState(label);
     }
 
     /* List element settings */
@@ -817,6 +849,11 @@ public abstract class UIList <T> extends UIItems<T>
     protected void renderContent(UIContext context)
     {
         this.renderList(context);
+
+        if (this.emptyLabel != null && this.list.isEmpty())
+        {
+            EmptyStateRenderer.renderRightClickHere(context, this.area, this.emptyLabel, this.emptyBackground.getAsInt());
+        }
     }
 
     @Override

@@ -146,6 +146,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE);
 
         this.multi().sorting();
+        this.emptyState(UIKeys.SCENE_REPLAYS_EMPTY, BBSSettings::deepSurface);
         this.context((menu) ->
         {
             Film film = this.panel.getData();

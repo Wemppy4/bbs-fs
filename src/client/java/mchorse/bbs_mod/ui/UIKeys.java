@@ -190,6 +190,8 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_TITLE_TOOLTIP = L10n.lang("bbs.ui.camera.panels.title_tooltip");
     public static final IKey CAMERA_PANELS_YAW = L10n.lang("bbs.ui.camera.panels.yaw");
     public static final IKey CAMERA_TIMELINE_CANT_FIT_NOTIFICATION = L10n.lang("bbs.ui.camera.timeline.cant_fit-notification");
+    public static final IKey CAMERA_TIMELINE_EMPTY_ADD = L10n.lang("bbs.ui.camera.timeline.empty_add");
+    public static final IKey CAMERA_TIMELINE_EMPTY_PICK = L10n.lang("bbs.ui.camera.timeline.empty_pick");
     public static final IKey CAMERA_TIMELINE_CONTEXT_ADD = L10n.lang("bbs.ui.camera.timeline.context.add");
     public static final IKey CAMERA_TIMELINE_CONTEXT_ADD_AT_CURSOR = L10n.lang("bbs.ui.camera.timeline.context.add_at_cursor");
     public static final IKey CAMERA_TIMELINE_CONTEXT_ADD_AT_TICK = L10n.lang("bbs.ui.camera.timeline.context.add_at_tick");
@@ -844,6 +846,8 @@ public class UIKeys
     public static final IKey KEYFRAMES_CONTEXT_SELECT_ALL = L10n.lang("bbs.ui.keyframes.context.select_all");
     public static final IKey KEYFRAMES_CONTEXT_SPREAD = L10n.lang("bbs.ui.keyframes.context.spread");
     public static final IKey KEYFRAMES_CONTEXT_TRACK_STYLE = L10n.lang("bbs.ui.keyframes.context.track_style");
+    public static final IKey KEYFRAMES_EMPTY_ADD = L10n.lang("bbs.ui.keyframes.empty_add");
+    public static final IKey KEYFRAMES_EMPTY_PICK = L10n.lang("bbs.ui.keyframes.empty_pick");
     public static final IKey KEYFRAMES_EMPTY_FILTERED = L10n.lang("bbs.ui.keyframes.empty_filtered");
     public static final IKey KEYFRAMES_EMPTY_FILTERED_HINT = L10n.lang("bbs.ui.keyframes.empty_filtered-hint");
     public static final IKey KEYFRAMES_FORCED_DURATION = L10n.lang("bbs.ui.keyframes.forced_duration");
@@ -1066,6 +1070,7 @@ public class UIKeys
     public static final IKey PRESETS_SAVE_DESCRIPTION = L10n.lang("bbs.ui.presets.save-description");
     public static final IKey PRESETS_SAVE_TITLE = L10n.lang("bbs.ui.presets.save-title");
     public static final IKey PRESETS_TITLE = L10n.lang("bbs.ui.presets.title");
+    public static final IKey SCENE_REPLAYS_EMPTY = L10n.lang("bbs.ui.scene.replays.empty");
     public static final IKey SCENE_REPLAYS_CONTEXT_ADD = L10n.lang("bbs.ui.scene.replays.context.add");
     public static final IKey SCENE_REPLAYS_CONTEXT_COPY = L10n.lang("bbs.ui.scene.replays.context.copy");
     public static final IKey SCENE_REPLAYS_CONTEXT_DUPE = L10n.lang("bbs.ui.scene.replays.context.dupe");

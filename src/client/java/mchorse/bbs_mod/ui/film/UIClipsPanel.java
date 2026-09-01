@@ -6,8 +6,10 @@ import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.clips.UIClip;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -51,9 +53,29 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
 
     public UIClipsPanel target(UIElement target)
     {
-        this.target = target;
+        this.setTarget(target);
+        this.setEmptyState(this::getEmptyLabel);
 
         return this;
+    }
+
+    /**
+     * An empty timeline and an empty pick are different problems, and the way out of each is a
+     * different gesture. With no clips at all there is nothing to explain — the timeline itself
+     * is gone, and the tab belongs to whatever put it away.
+     */
+    private IKey getEmptyLabel()
+    {
+        if (!this.hasClips)
+        {
+            return null;
+        }
+
+        Clips clips = this.clips.getClips();
+
+        return clips == null || clips.get().isEmpty()
+            ? UIKeys.CAMERA_TIMELINE_EMPTY_ADD
+            : UIKeys.CAMERA_TIMELINE_EMPTY_PICK;
     }
 
     public void setClips(Clips clips)

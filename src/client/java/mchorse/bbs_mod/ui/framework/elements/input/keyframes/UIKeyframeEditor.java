@@ -8,6 +8,8 @@ import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelinePanel;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
@@ -60,11 +62,29 @@ public class UIKeyframeEditor extends UITimelinePanel
 
     public UIKeyframeEditor target(UIElement target)
     {
-        this.target = target;
+        this.setTarget(target);
+        this.setEmptyState(this::getEmptyLabel);
 
         this.view.resetFlex().full(this).w(1F);
 
         return this;
+    }
+
+    /**
+     * Tracks with nothing on them are told how to put a keyframe down; tracks that already have
+     * some are told how to pick one. Both name the gesture, since neither is a plain click.
+     */
+    private IKey getEmptyLabel()
+    {
+        for (UIKeyframeSheet sheet : this.view.getGraph().getSheets())
+        {
+            if (!sheet.channel.isEmpty())
+            {
+                return UIKeys.KEYFRAMES_EMPTY_PICK;
+            }
+        }
+
+        return UIKeys.KEYFRAMES_EMPTY_ADD;
     }
 
     private void pickKeyframe(Keyframe keyframe)
