@@ -64,6 +64,7 @@ import mchorse.bbs_mod.utils.RayTracing;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.hit.HitResult;
@@ -659,7 +660,9 @@ public class UIFilmController extends UIElement implements GizmoViewport
                 return true;
             }
 
-            InputUtil.Key utilKey = InputUtil.fromKeyCode(context.getKeyCode(), context.getScanCode());
+            /* fromKeyCode takes the whole KeyInput in 1.21.11; modifiers play no part in the
+             * look-up, so the third field is the neutral 0 the UI's own key events carry. */
+            InputUtil.Key utilKey = InputUtil.fromKeyCode(new KeyInput(context.getKeyCode(), context.getScanCode(), 0));
 
             if (this.canControlWithKeyboard(utilKey))
             {

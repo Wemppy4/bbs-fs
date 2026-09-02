@@ -1,15 +1,13 @@
 package mchorse.bbs_mod.ui.utils;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
-import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.Tessellator;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
@@ -17,6 +15,10 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * The round parts of the gizmo: the three rotation rings, the view ring that always faces
@@ -25,7 +27,17 @@ import org.joml.Vector3f;
  * and is therefore cached rather than rebuilt, while everything else in the gizmo is drawn
  * from the current frame's state.
  *
- * <p>One instance per gizmo; it owns the buffers and rebuilds them when the settings move.
+ * <p>One instance per gizmo; it owns the cached geometry and rebuilds it when the settings move.
+ *
+ * <p>The cache is a CPU one. 1.21.1 held each shape in a {@code VertexBuffer} and re-drew it with a
+ * different {@code RenderSystem.setShaderColor} per pass; the 1.21.5+ GPU rewrite removed both, so
+ * colour has to reach the vertices themselves and the geometry is re-emitted every draw. What the
+ * cache still saves is the part that actually cost — the tessellation of a 96&times;24 torus, nine
+ * times a frame — while re-emitting is a transform and a copy of vertices already computed. Same
+ * bargain {@link mchorse.bbs_mod.cubic.render.vao.ModelVAO} struck for cubic models.
+ *
+ * <p>Nothing here submits: the write methods fill a {@link BufferBuilder} the caller opened, so a
+ * whole gizmo pass — rings, view ring and handle boxes alike — leaves as one draw.
  */
 public class GizmoRings
 {
@@ -42,26 +54,30 @@ public class GizmoRings
     /** Points sampled around a ring when working out its camera-facing arc. */
     private final static int RING_OCCLUSION_SAMPLES = 90;
 
-    private VertexBuffer ringVbo;
-    private VertexBuffer sphereVbo;
+    /** Vertex positions of the full ring and the sphere, in triples, tessellated at identity. */
+    private float[] ringGeometry;
+    private float[] sphereGeometry;
 
     private float lastScale = -1F;
     private float lastThickness = -1F;
 
     /* Cached tessellation of each rotation ring's visible arc, one slot per axis. A ring's
      * geometry is a pure function of (radius, thickness, arc) — the arc only moves with the
-     * camera, so on a still viewport the slot never rebuilds, and the same buffer serves the
-     * depth pass, the colour pass and the stencil pass of the frame (colour arrives through
-     * the shader colour, not the vertices). This replaced re-tessellating a 96x24 torus in
-     * immediate mode NINE times per frame — the single biggest FPS cost of the editor. */
+     * camera, so on a still viewport the slot never re-tessellates, and the same vertices serve
+     * the colour pass and the stencil pass of the frame (colour is written per emit). This
+     * replaced re-tessellating a 96x24 torus in immediate mode NINE times per frame — the single
+     * biggest FPS cost of the editor. */
     private final ArcSlot[] arcSlots = {new ArcSlot(), new ArcSlot(), new ArcSlot()};
 
     private final Vector2f arcScratch = new Vector2f();
     private final boolean[] occlusionScratch = new boolean[RING_OCCLUSION_SAMPLES];
 
+    /** Scratch for the CPU transform of a cached vertex, so an emit allocates nothing. */
+    private final Vector4f vertexScratch = new Vector4f();
+
     private static class ArcSlot
     {
-        VertexBuffer vbo;
+        float[] geometry;
         float radius = -1F;
         float thickness;
         float start;
@@ -78,58 +94,114 @@ public class GizmoRings
         float scale = BBSSettings.axesScale.get();
         float thickness = BBSSettings.axesThickness.get();
 
-        if (this.ringVbo == null || scale != this.lastScale || thickness != this.lastThickness)
+        if (this.ringGeometry == null || scale != this.lastScale || thickness != this.lastThickness)
         {
-            if (this.ringVbo != null)
-            {
-                this.ringVbo.close();
-                this.sphereVbo.close();
-            }
-
-            this.ringVbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
-            this.sphereVbo = new VertexBuffer(VertexBuffer.Usage.STATIC);
-
-
             float radius = 0.22F * scale;
             float thicknessRing = 0.02F * scale * thickness;
 
-            BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+            BufferBuilder builder = tessellate();
+
             Draw.arc3D(builder, new MatrixStack(), Axis.Y, radius, thicknessRing, 1F, 1F, 1F, 0F, 360F);
-            this.ringVbo.bind();
-            this.ringVbo.upload(builder.end());
 
-            builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+            this.ringGeometry = capture(builder);
+
+            builder = tessellate();
+
             Draw.sphere(builder, new MatrixStack(), radius, 24, 24, 1F, 1F, 1F, 1F);
-            this.sphereVbo.bind();
-            this.sphereVbo.upload(builder.end());
 
-            VertexBuffer.unbind();
+            this.sphereGeometry = capture(builder);
 
             this.lastScale = scale;
             this.lastThickness = thickness;
         }
     }
 
-    /**
-     * Draws the cached sphere straight with the given model-view — used to re-draw it into
-     * the hover mask at the exact footprint it was drawn at in the viewport.
-     */
-    public void drawSphere(Matrix4f modelView, Matrix4f projection)
+    /** Open a batch to tessellate cached geometry into. Never submitted — {@link #capture} eats it. */
+    private static BufferBuilder tessellate()
     {
-        this.update();
-
-        this.sphereVbo.bind();
-        this.sphereVbo.draw(modelView, projection, GameRenderer.getPositionColorProgram());
-        VertexBuffer.unbind();
+        return Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
     }
 
     /**
-     * Draws a rotation ring with its far half (behind the central sphere) culled, so it reads
-     * like the rings in a typical 3D gizmo. The tessellated arc is cached per axis and only
-     * rebuilt when the camera actually changes what is visible; colour is modulated through
-     * the shader colour, so one buffer serves the depth, colour and stencil passes alike.
+     * Take the vertex positions out of a freshly tessellated batch and drop the batch.
+     *
+     * <p>POSITION_COLOR is three floats then four bytes; the colour is thrown away because every
+     * emit writes its own — that is the whole reason this is a CPU cache and not a GPU one.</p>
      */
-    public void drawOccluded(MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b)
+    private static float[] capture(BufferBuilder builder)
+    {
+        BuiltBuffer built = builder.endNullable();
+
+        if (built == null)
+        {
+            return new float[0];
+        }
+
+        try
+        {
+            /* duplicate() resets byte order to BIG_ENDIAN — same note as FormRenderCapture#capture. */
+            ByteBuffer bytes = built.getBuffer().duplicate().order(ByteOrder.nativeOrder());
+            int stride = VertexFormats.POSITION_COLOR.getVertexSize();
+            int base = bytes.position();
+            int count = bytes.remaining() / stride;
+            float[] out = new float[count * 3];
+
+            for (int i = 0; i < count; i++)
+            {
+                int at = base + i * stride;
+
+                out[i * 3] = bytes.getFloat(at);
+                out[i * 3 + 1] = bytes.getFloat(at + 4);
+                out[i * 3 + 2] = bytes.getFloat(at + 8);
+            }
+
+            return out;
+        }
+        finally
+        {
+            built.close();
+        }
+    }
+
+    /**
+     * Write cached geometry into {@code builder}, transformed by {@code matrix} and painted the
+     * given colour. The transform is done here rather than left to the draw because a whole gizmo
+     * pass shares one batch, and each shape in it sits at a matrix of its own.
+     */
+    private void emit(BufferBuilder builder, float[] geometry, Matrix4f matrix, float r, float g, float b, float a)
+    {
+        Vector4f vertex = this.vertexScratch;
+
+        for (int i = 0; i < geometry.length; i += 3)
+        {
+            vertex.set(geometry[i], geometry[i + 1], geometry[i + 2], 1F);
+            matrix.transform(vertex);
+
+            builder.vertex(vertex.x, vertex.y, vertex.z).color(r, g, b, a);
+        }
+    }
+
+    /**
+     * Write the cached sphere at the given model-view — used to re-draw it into the hover
+     * highlight at the exact footprint it was drawn at in the viewport.
+     */
+    public void writeSphere(BufferBuilder builder, Matrix4f modelView, float r, float g, float b, float a)
+    {
+        this.update();
+
+        this.emit(builder, this.sphereGeometry, modelView, r, g, b, a);
+    }
+
+    /**
+     * Writes a rotation ring with its far half (behind the central sphere) culled, so it reads
+     * like the rings in a typical 3D gizmo. The tessellated arc is cached per axis and only
+     * re-tessellated when the camera actually changes what is visible.
+     *
+     * <p>{@code a} used to arrive as the caller's {@code RenderSystem} shader colour, which carried
+     * the pass's opacity while the ring supplied only its hue; with the shader colour gone it is an
+     * argument like the rest.</p>
+     */
+    public void writeOccluded(BufferBuilder builder, MatrixStack stack, Axis axis, float radius, float thickness, float r, float g, float b, float a)
     {
         this.update();
 
@@ -142,26 +214,19 @@ public class GizmoRings
 
         ArcSlot slot = this.arcSlots[axis.ordinal()];
 
-        if (slot.vbo == null
+        if (slot.geometry == null
             || Float.compare(slot.radius, radius) != 0
             || Float.compare(slot.thickness, thickness) != 0
             || Float.compare(slot.start, arc.x) != 0
             || Float.compare(slot.sweep, arc.y) != 0)
         {
-            if (slot.vbo == null)
-            {
-                slot.vbo = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
-            }
-
-
             /* Tessellated in the ring's own frame (a Y-axis torus); the axis turn is applied
-             * to the draw matrix below, so all three axes share one shape family. */
-            BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-            Draw.arc3D(builder, IDENTITY, Axis.Y, radius, thickness, 1F, 1F, 1F, arc.x, arc.y);
-            slot.vbo.bind();
-            slot.vbo.upload(builder.end());
-            VertexBuffer.unbind();
+             * to the emit matrix below, so all three axes share one shape family. */
+            BufferBuilder scratch = tessellate();
 
+            Draw.arc3D(scratch, IDENTITY, Axis.Y, radius, thickness, 1F, 1F, 1F, arc.x, arc.y);
+
+            slot.geometry = capture(scratch);
             slot.radius = radius;
             slot.thickness = thickness;
             slot.start = arc.x;
@@ -173,26 +238,14 @@ public class GizmoRings
         if (axis == Axis.X) matrix.rotateZ(MathUtils.PI / 2F);
         else if (axis == Axis.Z) matrix.rotateX(MathUtils.PI / 2F);
 
-        /* The caller's shader colour carries the pass's opacity (or nothing, in the depth and
-         * stencil passes); fold the ring's own colour in and put things back afterwards. */
-        float[] shaderColor = RenderSystem.getShaderColor();
-        float pr = shaderColor[0];
-        float pg = shaderColor[1];
-        float pb = shaderColor[2];
-        float pa = shaderColor[3];
-
-        RenderSystem.setShaderColor(r, g, b, pa);
-        slot.vbo.bind();
-        slot.vbo.draw(matrix, RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
-        VertexBuffer.unbind();
-        RenderSystem.setShaderColor(pr, pg, pb, pa);
+        this.emit(builder, slot.geometry, matrix, r, g, b, a);
     }
 
     /** A shared identity stack for tessellating cached geometry in local space. */
     private static final MatrixStack IDENTITY = new MatrixStack();
 
-    /** Draws the cached ring turned to face the camera — the view (screen-space) rotation ring. */
-    public void drawBillboard(MatrixStack stack, float r, float g, float b, float a)
+    /** Writes the cached ring turned to face the camera — the view (screen-space) rotation ring. */
+    public void writeBillboard(BufferBuilder builder, MatrixStack stack, float r, float g, float b, float a)
     {
         this.update();
 
@@ -215,11 +268,7 @@ public class GizmoRings
 
         stack.scale(VIEW_RING_SCALE, VIEW_RING_SCALE, VIEW_RING_SCALE);
 
-        RenderSystem.setShaderColor(r, g, b, a);
-        this.ringVbo.bind();
-        this.ringVbo.draw(stack.peek().getPositionMatrix(), RenderSystem.getProjectionMatrix(), GameRenderer.getPositionColorProgram());
-        VertexBuffer.unbind();
-        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+        this.emit(builder, this.ringGeometry, stack.peek().getPositionMatrix(), r, g, b, a);
 
         stack.pop();
     }

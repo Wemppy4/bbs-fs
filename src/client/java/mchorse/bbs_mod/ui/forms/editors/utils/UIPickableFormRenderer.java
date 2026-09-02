@@ -245,7 +245,7 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
                 /* Reorient the pick stencil into the active space to match the visual (renderAxes),
                  * so hovering a ring lands where it's drawn. */
                 Gizmo.INSTANCE.reorientForSpace(gizmoStack, this.formEditor.getGizmoSpace(), this.camera.view, this.getSceneAxes());
-                Gizmo.INSTANCE.renderStencil(gizmoStack, this.stencilMap);
+                Gizmo.INSTANCE.renderStencil(gizmoStack);
                 gizmoStack.pop();
             }
 

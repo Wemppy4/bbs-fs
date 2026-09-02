@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.utils;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.DragStrategy;
@@ -9,17 +8,11 @@ import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.client.render.Tessellator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.lwjgl.opengl.GL11;
 
 /**
  * The sweep pie a rotation drag leaves behind it: the wedge from where the ring was grabbed
@@ -109,17 +102,15 @@ public class GizmoPie
         float b = Colors.getB(color);
 
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        RenderSystem.disableCull();
-
+        /* Blend, no culling and no depth test are the gizmo pipeline's own state now
+         * ({@link Gizmo#begin}/{@link Gizmo#flush}), so the RenderSystem bracket that used to set
+         * them here is gone rather than lost. */
         int segments = Math.max(2, (int) (Math.abs(sweepRad) / (float) (2D * Math.PI) * 64F));
         float step = sweepRad / segments;
         Vector3f p1 = new Vector3f();
         Vector3f p2 = new Vector3f();
 
-        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        BufferBuilder builder = Gizmo.begin();
 
         for (int i = 0; i < segments; i++)
         {
@@ -131,17 +122,14 @@ public class GizmoPie
             builder.vertex(mat, p2.x, p2.y, p2.z).color(r, g, b, 0.25F);
         }
 
-        BufferRenderer.drawWithGlobalProgram(builder.end());
+        Gizmo.flush(builder);
 
         /* Bright radial edges at the grab angle and the leading angle, like the axis pie. */
         float thickness = 0.005F * scale;
-        builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        builder = Gizmo.begin();
         edge(builder, mat, right, down, startRad, radius, thickness, r, g, b);
         edge(builder, mat, right, down, startRad + sweepRad, radius, thickness, r, g, b);
-        BufferRenderer.drawWithGlobalProgram(builder.end());
-
-        RenderSystem.enableCull();
-        RenderSystem.disableBlend();
+        Gizmo.flush(builder);
     }
 
     /** Point at screen angle {@code angle} and {@code radius} in the screen right/down
@@ -247,13 +235,8 @@ public class GizmoPie
 
         Matrix4f mat = stack.peek().getPositionMatrix();
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        RenderSystem.disableCull();
-
-        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        /* Blend, no culling and always-pass depth all belong to the gizmo pipeline now. */
+        BufferBuilder builder = Gizmo.begin();
 
         int segments = Math.max(12, (int) (Math.abs(sweepDeg) / 360F * 64F));
         float step = sweepDeg / segments;
@@ -282,10 +265,10 @@ public class GizmoPie
             }
         }
 
-        BufferRenderer.drawWithGlobalProgram(builder.end());
+        Gizmo.flush(builder);
 
         float lineThickness = 0.005F * scale;
-        builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        builder = Gizmo.begin();
 
         float endDeg = startDeg + sweepDeg;
 
@@ -313,11 +296,7 @@ public class GizmoPie
         builder.vertex(mat, ex - p2.x, 0, ez - p2.z).color(r, g, b, 1F);
         builder.vertex(mat, ex + p2.x, 0, ez + p2.z).color(r, g, b, 1F);
 
-        BufferRenderer.drawWithGlobalProgram(builder.end());
-
-        RenderSystem.enableCull();
-        RenderSystem.depthFunc(GL11.GL_LEQUAL);
-        RenderSystem.disableBlend();
+        Gizmo.flush(builder);
 
         stack.pop();
     }

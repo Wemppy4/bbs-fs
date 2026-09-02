@@ -213,8 +213,8 @@ public class FormPreviewCache
         }
         finally
         {
-            mc.getFramebuffer().beginWrite(true);
-
+            /* 1.21.11: Framebuffer.beginWrite(boolean) is gone — a render pass binds its own target,
+             * so there is no bound framebuffer left to put back. Scissor still is global state. */
             if (scissor)
             {
                 GlStateManager._enableScissorTest();

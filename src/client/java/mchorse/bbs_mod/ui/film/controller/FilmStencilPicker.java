@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.graphics.InverseView;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.FilmControllerContext;
 import mchorse.bbs_mod.film.FilmTarget;
@@ -18,6 +19,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
@@ -137,7 +139,19 @@ public class FilmStencilPicker
         int index = this.stencil.getIndex();
         Pair<Form, String> pair = this.stencil.getPicked();
 
-        this.stencil.renderPreview(context, area);
+        /* 1.21.11: StencilFormFramebuffer.renderPreview went with the picker_preview ShaderProgram it
+         * drove. The highlight is now recoloured into an off-screen target and composited through the
+         * recorded GUI blit — the same path UIPickableFormRenderer takes. */
+        if (BBSPickerRenderer.drawHighlight(this.stencil.getPickColorView(),
+            this.stencil.ensureHighlightTarget(this.stencil.getPickWidth(), this.stencil.getPickHeight()),
+            this.stencil.getPickWidth(), this.stencil.getPickHeight(), index, BBSSettings.stencilHighlightColor.get()))
+        {
+            int vw = this.stencil.getHighlightWidth();
+            int vh = this.stencil.getHighlightHeight();
+
+            context.batcher.texturedBox(this.stencil.getHighlightGlId(), Colors.WHITE,
+                area.x, area.y, area.w, area.h, 0, vh, vw, 0, vw, vh);
+        }
 
         if (altPressed)
         {
@@ -283,8 +297,8 @@ public class FilmStencilPicker
         this.stencil.pick(x, y, radius, Gizmo.STENCIL_MAX);
         this.stencil.unbind(this.stencilMap);
 
-        MinecraftClient.getInstance().getFramebuffer().beginWrite(true);
-
+        /* 1.21.11: Framebuffer.beginWrite(boolean) is gone — a render pass binds its own target, so
+         * rebinding the main one after the off-screen pick has nothing left to express. */
         BBSProfiler.end(BBSProfiler.Timer.STENCIL_PASS);
     }
 

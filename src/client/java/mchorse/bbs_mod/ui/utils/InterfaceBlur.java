@@ -1,24 +1,33 @@
 package mchorse.bbs_mod.ui.utils;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gl.GlUniform;
-import net.minecraft.client.gl.PostEffectPass;
+import net.minecraft.client.gl.PostEffectPipeline;
 import net.minecraft.client.gl.PostEffectProcessor;
+import net.minecraft.client.gl.UniformValue;
+import net.minecraft.client.render.ProjectionMatrix2;
+import net.minecraft.client.util.memory.ObjectAllocator;
 import net.minecraft.util.Identifier;
-import org.lwjgl.opengl.GL13;
+import org.joml.Vector2f;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Blurs what is on screen under an overlay panel, on top of the dimming — the way the game's
- * own menus do it from 1.21 on. Two passes of vanilla's own blur program over the main
- * framebuffer, run at the moment the first overlay of the frame is about to paint its dim:
- * everything drawn so far, world and interface alike, is what gets blurred, and the overlay
- * lands sharp on top.
+ * own menus do it from 1.21 on. Two passes of a box blur over the main framebuffer, run at the
+ * moment the first overlay of the frame is about to paint its dim: everything drawn so far,
+ * world and interface alike, is what gets blurred, and the overlay lands sharp on top.
  *
- * <p>The passes are added by hand rather than read from a json, so the radius is a uniform
- * set every frame from the settings, not a number baked into a file.</p>
+ * <p>The effect is built in code rather than read from a json, so the radius is a live value
+ * from the settings. 1.21.1 could load a bare json and add the passes by hand afterwards; in
+ * 1.21.11 a {@link PostEffectProcessor} is parsed whole from a {@link PostEffectPipeline} and
+ * carries its uniform VALUES with it, so a json would have to name one fixed radius. Assembling
+ * the pipeline here keeps the setting, at the cost of rebuilding when it changes — which is
+ * exactly as often as the user drags the slider.</p>
  *
  * <p>Once per frame, with one exception: a second overlay over the first would only blur the
  * blur, but the world under a panel and the panel under an overlay are two different pictures,
@@ -26,13 +35,22 @@ import org.lwjgl.opengl.GL13;
  */
 public class InterfaceBlur
 {
-    private static final Identifier EFFECT = Identifier.of("bbs", "shaders/post/interface_blur.json");
+    /** Screen-sized scratch target: the horizontal pass writes it, the vertical pass reads it back. */
+    private static final Identifier SWAP = Identifier.of(BBSMod.MOD_ID, "swap");
+
+    /** Vanilla's screen-quad vertex shader; there is nothing mod-specific about a full-screen pass. */
+    private static final Identifier SCREEN_QUAD = Identifier.of("minecraft", "core/screenquad");
+
+    /** Vanilla's box blur, minus the alpha averaging — see the shader for why. */
+    private static final Identifier BOX_BLUR = Identifier.of(BBSMod.MOD_ID, "post/box_blur_opaque");
 
     private static PostEffectProcessor processor;
-    private static PostEffectPass horizontal;
-    private static PostEffectPass vertical;
-    private static int width;
-    private static int height;
+
+    /** Owned by us because {@link PostEffectProcessor#parseEffect} takes one and ShaderLoader's is private. */
+    private static ProjectionMatrix2 projection;
+
+    /** The radius baked into the built effect; a different one means a rebuild. */
+    private static float builtRadius = Float.NaN;
 
     /** Whether this frame was blurred already. */
     private static boolean applied;
@@ -57,42 +75,20 @@ public class InterfaceBlur
         applied = true;
 
         MinecraftClient mc = MinecraftClient.getInstance();
-        Framebuffer main = mc.getFramebuffer();
+        float radius = BBSSettings.interfaceBlurRadius.get();
 
-        if (processor == null || main.textureWidth != width || main.textureHeight != height)
+        if (processor == null || radius != builtRadius)
         {
-            if (!rebuild(mc, main))
+            if (!rebuild(mc, radius))
             {
                 return;
             }
         }
 
-        float radius = BBSSettings.interfaceBlurRadius.get();
-
-        direct(horizontal, 1F, 0F, radius);
-        direct(vertical, 0F, 1F, radius);
-
-        /* The passes replace what they draw over, they do not blend into it - and blending is
-         * on by the time a second blur runs in the same frame (the first one leaves it on for
-         * the interface). With it on, the second pass writes a fragment whose alpha is zero
-         * (see the mask below), which lands as nothing at all and leaves the buffer black. */
-        RenderSystem.disableBlend();
-
-        /* Colour only: box_blur averages the whole vec4, alpha included, and the interface
-         * is drawn into a buffer whose alpha is not 1 everywhere - averaging it down turns
-         * the blurred picture dark in patches. The pre-1.21.1 blur program guarded against
-         * exactly this by summing alpha instead of averaging it; masking the channel does
-         * the same thing without a shader of our own (a pass never touches the mask). */
-        RenderSystem.colorMask(true, true, true, false);
-        processor.render(0F);
-        RenderSystem.colorMask(true, true, true, true);
-
-        /* The last pass leaves no framebuffer bound and the blur program's blend state behind;
-         * the interface draws into the main one with the usual blending and texture unit */
-        main.beginWrite(true);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        /* The frame graph sizes the swap target off the framebuffer and puts the result back into
+         * it, so the blend/framebuffer/texture-unit restoration 1.21.1 had to do by hand afterwards
+         * has nothing left to undo — a render pass owns its own state now. */
+        processor.render(mc.getFramebuffer(), ObjectAllocator.TRIVIAL);
     }
 
     /**
@@ -107,44 +103,20 @@ public class InterfaceBlur
         applied = false;
     }
 
-    private static void direct(PostEffectPass pass, float x, float y, float radius)
-    {
-        GlUniform dir = pass.getProgram().getUniformByName("BlurDir");
-        GlUniform size = pass.getProgram().getUniformByName("Radius");
-
-        if (dir != null)
-        {
-            dir.set(x, y);
-        }
-
-        if (size != null)
-        {
-            size.set(radius);
-        }
-    }
-
-    /**
-     * The processor holds targets of the screen's size, so a resized window means a new one.
-     * The json only names the intermediate target; the two passes are added here.
-     */
-    private static boolean rebuild(MinecraftClient mc, Framebuffer main)
+    private static boolean rebuild(MinecraftClient mc, float radius)
     {
         close();
 
         try
         {
-            processor = new PostEffectProcessor(mc.getTextureManager(), mc.getResourceManager(), main, EFFECT);
+            /* The same near/far/invert ShaderLoader builds its own with, so our passes project
+             * their screen quad exactly like every vanilla post effect does. */
+            projection = new ProjectionMatrix2("bbs_interface_blur", 0.1F, 1000F, false);
 
-            Framebuffer swap = processor.getSecondaryTarget("swap");
+            processor = PostEffectProcessor.parseEffect(pipeline(radius), mc.getTextureManager(),
+                Set.of(PostEffectProcessor.MAIN), Identifier.of(BBSMod.MOD_ID, "interface_blur"), projection);
 
-            /* Since 1.21.1 the blur program is called box_blur, and the pass takes its texture
-             * filter explicitly - vanilla's own blur effect runs box_blur with linear on. */
-            horizontal = processor.addPass("box_blur", main, swap, true);
-            vertical = processor.addPass("box_blur", swap, main, true);
-            processor.setupDimensions(main.textureWidth, main.textureHeight);
-
-            width = main.textureWidth;
-            height = main.textureHeight;
+            builtRadius = radius;
 
             return true;
         }
@@ -159,6 +131,35 @@ public class InterfaceBlur
         }
     }
 
+    /** Horizontal into the swap, vertical back into the main target — a separable box blur. */
+    private static PostEffectPipeline pipeline(float radius)
+    {
+        return new PostEffectPipeline(
+            Map.of(SWAP, new PostEffectPipeline.Targets(Optional.empty(), Optional.empty(), false, 0)),
+            List.of(
+                pass(PostEffectProcessor.MAIN, SWAP, 1F, 0F, radius),
+                pass(SWAP, PostEffectProcessor.MAIN, 0F, 1F, radius)
+            )
+        );
+    }
+
+    /**
+     * One blur pass. The uniform list is written into the {@code BlurConfig} std140 block in the
+     * order given, so it has to match the shader's declaration — BlurDir then Radius. Bilinear
+     * sampling is on because the shader halves its sample count by stepping between pixels.
+     */
+    private static PostEffectPipeline.Pass pass(Identifier in, Identifier out, float dirX, float dirY, float radius)
+    {
+        return new PostEffectPipeline.Pass(SCREEN_QUAD, BOX_BLUR,
+            List.of(new PostEffectPipeline.TargetSampler("In", in, false, true)),
+            out,
+            Map.of("BlurConfig", List.of(
+                new UniformValue.Vec2fValue(new Vector2f(dirX, dirY)),
+                new UniformValue.FloatValue(radius)
+            ))
+        );
+    }
+
     private static void close()
     {
         if (processor != null)
@@ -166,8 +167,13 @@ public class InterfaceBlur
             processor.close();
         }
 
+        if (projection != null)
+        {
+            projection.close();
+        }
+
         processor = null;
-        horizontal = null;
-        vertical = null;
+        projection = null;
+        builtRadius = Float.NaN;
     }
 }

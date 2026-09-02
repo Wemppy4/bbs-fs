@@ -60,4 +60,18 @@ public class MobPickerVertexConsumer implements VertexConsumer
     {
         return this.consumer.normal(x, y, z);
     }
+
+    /* Both abstract in 1.21.11 where 1.21.1 had defaults; passed through like everything else here. */
+
+    @Override
+    public VertexConsumer color(int argb)
+    {
+        return this.consumer.color(argb);
+    }
+
+    @Override
+    public VertexConsumer lineWidth(float width)
+    {
+        return this.consumer.lineWidth(width);
+    }
 }

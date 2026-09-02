@@ -79,7 +79,7 @@ public class UIModelBlockEntityList extends UIList<ModelBlockEntity>
             return camera.getCameraPos();
         }
 
-        return mc.player == null ? Vec3d.ZERO : mc.player.getPos();
+        return mc.player == null ? Vec3d.ZERO : mc.player.getEntityPos();
     }
 
     private double distance(ModelBlockEntity element)

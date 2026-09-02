@@ -1,13 +1,25 @@
 package mchorse.bbs_mod.ui.utils;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.systems.VertexSorter;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.OffscreenTarget;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.graphics.Draw;
-import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
@@ -19,26 +31,28 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormat;
-import net.minecraft.client.render.VertexFormats;
-import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
+import net.minecraft.client.gl.MappableRingBuffer;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderSetup;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.gl.GlUniform;
-import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.util.Identifier;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.lwjgl.opengl.GL11;
 
 import java.util.EnumSet;
+import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.function.Supplier;
 
 public class Gizmo
@@ -104,6 +118,55 @@ public class Gizmo
      *  grab target. Like {@link #SCALE_CUBE_HALF} it is offset-independent so the visual
      *  and stencil passes match and the hitbox lines up with the drawn cube. */
     private final static float SCREEN_CUBE_HALF = 0.03F;
+
+    /* POSITION_COLOR / TRIANGLES, no depth test — the gizmo handles, rings, sphere, infinite line and
+     * rotate-pie were all originally drawn under RenderSystem.depthFunc(GL_ALWAYS) so they read on top of
+     * the model. The 1.21.5 GPU rewrite removed RenderSystem.setShader / GameRenderer.getPositionColorProgram
+     * / BufferRenderer.drawWithGlobalProgram / VertexBuffer, so geometry is now built into a BufferBuilder
+     * and submitted through this RenderLayer (same approach as mchorse.bbs_mod.graphics.Draw, whose public
+     * fillBox/arc3D/sphere builders this class reuses). Self-contained here to keep the fix isolated. */
+    private static final RenderPipeline GIZMO_PIPELINE = RenderPipelines.register(
+        RenderPipeline.builder(RenderPipelines.POSITION_COLOR_SNIPPET)
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/gizmo_position_color_no_depth"))
+            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            .withCull(false)
+            .build()
+    );
+
+    private static RenderLayer gizmoLayer;
+
+    /* ---- Interface (UI) pass state ----
+     * While set, the gizmo is being drawn from renderInterface/renderStencilInterface: geometry is
+     * built from the CAPTURED full model-view (lastRenderMatrix seeds the stack), so the flushes must
+     * apply an IDENTITY model-view and the interface projection instead of the world pass' globals,
+     * and the visual flush routes into the off-screen interface target rather than the world layer. */
+    private static boolean interfacePass;
+    private static GpuTextureView interfaceTarget;
+    private static Matrix4f interfaceProjection;
+    private static boolean interfaceDrew;
+
+    /** Ring the Projection UBO is written through, shared by the interface pass and the lens. */
+    private static MappableRingBuffer projectionRing;
+
+    /** std140 size of the Projection block: a single mat4. */
+    private static final int PROJECTION_UBO_SIZE = 64;
+
+    /**
+     * Projection the WORLD pass must bind instead of the one the engine has bound, or null.
+     *
+     * <p>This is the 1.21.11 stand-in for 1.21.1's {@code RenderSystem.setProjectionMatrix(lens.projection,
+     * VertexSorter.BY_Z)}: the GPU rewrite removed the global projection (and the vertex sorter with it), so
+     * there is no longer a matrix to push and pop around {@link GizmoLens}. Instead the lens records its
+     * matrix here and {@link #flush} routes the draw through {@link #drawManual}, which binds it as the
+     * pass' own {@code Projection} uniform. Null means "draw through the shared gizmo layer with whatever
+     * the engine has bound", which is what every unlensed frame does.</p>
+     */
+    private static Matrix4f projectionOverride;
+
+    /** Off-screen colour the interface-pass visual renders into, blitted premultiplied over the viewport. */
+    private final OffscreenTarget interfaceBuffer = new OffscreenTarget("bbs_gizmo_interface");
 
     public final static Gizmo INSTANCE = new Gizmo();
 
@@ -181,6 +244,145 @@ public class Gizmo
 
     private Gizmo()
     {}
+
+    /**
+     * The layer every ordinary world-pass draw goes through. Built lazily rather than in a static
+     * initialiser: {@link RenderSetup} wants the pipeline already registered, and the class is touched
+     * during client bootstrap before that has happened.
+     */
+    private static RenderLayer getGizmoLayer()
+    {
+        if (gizmoLayer == null)
+        {
+            gizmoLayer = RenderLayer.of(BBSMod.MOD_ID + "_gizmo_position_color",
+                RenderSetup.builder(GIZMO_PIPELINE).translucent().build());
+        }
+
+        return gizmoLayer;
+    }
+
+    /** Begin a POSITION_COLOR triangle batch — the one geometry format every gizmo pass builds into.
+     *  Package-private so {@link GizmoPie} submits through the same pipeline the handles do. */
+    static BufferBuilder begin()
+    {
+        return Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+    }
+
+    /**
+     * Submit a visual batch, to whichever of three destinations applies: the off-screen interface
+     * target (UI pass), a manual pass bound to the lens' projection, or — the ordinary case — the
+     * shared layer with whatever the engine has bound.
+     *
+     * <p>Package-private for {@link GizmoPie}, which must land in the same pass the handles do.</p>
+     */
+    static void flush(BufferBuilder builder)
+    {
+        BuiltBuffer built = builder.endNullable();
+
+        if (built == null)
+        {
+            return;
+        }
+
+        if (interfacePass)
+        {
+            /* The interface target accumulates several batches per frame, so only the first clears it.
+             * A lens set inside the UI pass wins over the pass' own matrix — it was built FROM it. */
+            drawManual(built, interfaceTarget, null,
+                projectionOverride != null ? projectionOverride : interfaceProjection,
+                interfaceDrew ? OptionalInt.empty() : OptionalInt.of(0x00000000));
+
+            interfaceDrew = true;
+        }
+        else if (projectionOverride != null)
+        {
+            Framebuffer framebuffer = MinecraftClient.getInstance().getFramebuffer();
+
+            drawManual(built, framebuffer.getColorAttachmentView(),
+                framebuffer.useDepthAttachment ? framebuffer.getDepthAttachmentView() : null,
+                projectionOverride, OptionalInt.empty());
+        }
+        else
+        {
+            getGizmoLayer().draw(built);
+        }
+    }
+
+    /**
+     * Submit a picking batch. The projection swap the lens installed reaches this pass through
+     * {@link BBSPickerRenderer}'s own override (set by {@link #applyLens}), so the ids land on the
+     * same pixels the visible handles do.
+     */
+    private static void flushPick(BufferBuilder builder)
+    {
+        BuiltBuffer built = builder.endNullable();
+
+        if (built != null)
+        {
+            /* In the interface pass the captured full model-view is baked into the vertices, so the
+             * pass applies identity; the world pass keeps handing the global through as before. */
+            BBSPickerRenderer.drawColorId(GIZMO_PIPELINE, built, interfacePass ? new Matrix4f() : RenderSystem.getModelViewMatrix());
+        }
+    }
+
+    /**
+     * Draw one batch through a render pass of the gizmo's own, binding {@code projection} as the pass'
+     * {@code Projection} uniform instead of the one the engine has bound.
+     *
+     * <p>The 1.21.5+ GPU rewrite left no way to push a projection globally, so both cases that need one
+     * of their own — the UI pass (drawing world geometry while the interface's ortho is bound) and the
+     * lens — come through here. The model-view is identity: every caller has already baked its full
+     * pose into the vertices.</p>
+     *
+     * <p>The Projection UBO is written BEFORE the pass is opened: writing rotates a
+     * {@link MappableRingBuffer}, which issues a GPU fence, and the encoder rejects commands while a
+     * pass is open. Same ordering {@link BBSPickerRenderer} uses.</p>
+     */
+    private static void drawManual(BuiltBuffer buffer, GpuTextureView color, GpuTextureView depth, Matrix4f projection, OptionalInt clear)
+    {
+        GpuDevice device = RenderSystem.getDevice();
+        CommandEncoder encoder = device.createCommandEncoder();
+
+        GpuBufferSlice dynamicTransforms = RenderSystem.getDynamicUniforms()
+            .write(new Matrix4f(), new Vector4f(1F, 1F, 1F, 1F), new Vector3f(), new Matrix4f());
+
+        if (projectionRing == null)
+        {
+            projectionRing = new MappableRingBuffer(() -> "bbs:gizmo_projection", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, PROJECTION_UBO_SIZE);
+        }
+
+        projectionRing.rotate();
+
+        GpuBuffer projectionUbo = projectionRing.getBlocking();
+
+        try (GpuBuffer.MappedView view = encoder.mapBuffer(projectionUbo, false, true))
+        {
+            Std140Builder.intoBuffer(view.data()).putMat4f(projection);
+        }
+
+        VertexFormat format = GIZMO_PIPELINE.getVertexFormat();
+        GpuBuffer vertexBuffer = format.uploadImmediateVertexBuffer(buffer.getBuffer());
+        RenderSystem.ShapeIndexBuffer sequential = RenderSystem.getSequentialBuffer(buffer.getDrawParameters().mode());
+        GpuBuffer indexBuffer = sequential.getIndexBuffer(buffer.getDrawParameters().indexCount());
+        VertexFormat.IndexType indexType = sequential.getIndexType();
+
+        try (RenderPass pass = depth == null
+            ? encoder.createRenderPass(() -> "bbs:gizmo_manual", color, clear)
+            : encoder.createRenderPass(() -> "bbs:gizmo_manual", color, clear, depth, OptionalDouble.empty()))
+        {
+            pass.setPipeline(GIZMO_PIPELINE);
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("Projection", projectionUbo.slice(0L, PROJECTION_UBO_SIZE));
+            pass.setUniform("DynamicTransforms", dynamicTransforms);
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.setIndexBuffer(indexBuffer, indexType);
+            pass.drawIndexed(0, 0, buffer.getDrawParameters().indexCount(), 1);
+        }
+        finally
+        {
+            buffer.close();
+        }
+    }
 
     /**
      * Reconstruct the world-space origin of the gizmo from the most recent
@@ -427,156 +629,58 @@ public class Gizmo
      * are the same pair {@link #computeScreenCenter} uses, so the mask lands on
      * the sphere's footprint regardless of mask resolution.
      */
-    /* What the hover mask currently holds, so a still sphere is not re-drawn every hovered
-     * frame — the mask used to be a window-sized clear plus a full-viewport composite per
-     * frame; now it is the sphere's own rectangle, re-drawn only when that moved. */
-    private final Matrix4f lastMaskMatrix = new Matrix4f();
-    private final Matrix4f lastMaskProjection = new Matrix4f();
-    private int lastMaskX;
-    private int lastMaskY;
-    private int lastMaskW;
-    private int lastMaskH;
-    private boolean maskValid;
-
     public void renderSphereHighlight(UIContext context, Matrix4f projection, Area area)
     {
         if (!this.sphereHovered || !this.hasLastSphereMatrix || !this.isSphereInteractive()
-            || !UIBaseMenu.shouldRenderAxes() || projection == null || area == null)
+            || !UIBaseMenu.shouldRenderAxes() || context == null || projection == null || area == null
+            || BBSRendering.isIrisShadowPass())
         {
             return;
         }
 
-        /* The highlight only ever lights the sphere's own footprint, so both the mask and the
-         * composite live in that footprint's rectangle rather than the whole viewport. */
-        Vector2f center = new Vector2f();
+        /* The sphere itself is invisible — it is the trackball's grab area, not a drawn shape — so the
+         * hover feedback is this glow: the same sphere re-drawn at the matrix it was drawn with this
+         * frame, into an off-screen target, then composited over the viewport through the recorded GUI
+         * path. Drawing it onto the framebuffer directly would be overpainted by the deferred GUI flush.
+         *
+         * 1.21.1 masked only the sphere's own rectangle and re-drew it just when it moved. That cache
+         * cannot survive here: it was built out of a framebuffer bind, a manual glViewport into an
+         * oversized NDC slice, a beginWrite(false) to get back out, and the picker-preview ShaderProgram
+         * with its Target/HighlightColor uniforms — every one of them removed by the GPU rewrite. The
+         * whole-area geometry highlight below is the port's standing replacement for that shader, and
+         * it re-draws each hovered frame instead of caching. */
+        float scale = BBSModClient.getGUIScale();
+        int w = Math.max(1, Math.round(area.w * scale));
+        int h = Math.max(1, Math.round(area.h * scale));
 
-        if (!this.computeScreenCenter(projection, area.x, area.y, area.w, area.h, center))
+        /* The sphere is drawn through the gizmo's lens, so the glow has to be projected through the
+         * same one or it lands somewhere else entirely; an inactive lens hands the camera projection
+         * straight back. Built from lastRenderMatrix, matching computeScreenRadius. */
+        GizmoLens lens = new GizmoLens();
+
+        lens.set(projection, this.lastRenderMatrix);
+
+        int color = BBSSettings.stencilHighlightColor.get();
+        BufferBuilder builder = begin();
+
+        /* Geometry at identity, the footprint carried by the model-view below — the same pair the
+         * cached VertexBuffer draw used, so the glow sits exactly on the area that actually grabs. */
+        this.rings.writeSphere(builder, new Matrix4f(),
+            Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+
+        /* The gizmo owns a highlight target of its own: the bone highlight of whichever viewport is
+         * hosting it renders into ITS target in the same frame, and both blits are recorded, so
+         * sharing one texture would leave both showing the last write. */
+        GpuTextureView target = this.sphereHighlight.ensureHighlightTarget(w, h);
+
+        if (BBSPickerRenderer.drawGeometryHighlight(builder.endNullable(), target, this.lastSphereMatrix, lens.projection))
         {
-            return;
+            int vw = this.sphereHighlight.getHighlightWidth();
+            int vh = this.sphereHighlight.getHighlightHeight();
+
+            context.batcher.texturedBox(this.sphereHighlight.getHighlightGlId(), Colors.WHITE,
+                area.x, area.y, area.w, area.h, 0, vh, vw, 0, vw, vh);
         }
-
-        float radius = this.computeScreenRadius(projection, area.x, area.y, area.w, area.h);
-
-        if (radius <= 0F)
-        {
-            return;
-        }
-
-        int margin = 4;
-        int rectX = Math.max(area.x, (int) Math.floor(center.x - radius) - margin);
-        int rectY = Math.max(area.y, (int) Math.floor(center.y - radius) - margin);
-        int rectEndX = Math.min(area.ex(), (int) Math.ceil(center.x + radius) + margin);
-        int rectEndY = Math.min(area.ey(), (int) Math.ceil(center.y + radius) + margin);
-        int rw = rectEndX - rectX;
-        int rh = rectEndY - rectY;
-
-        if (rw <= 0 || rh <= 0)
-        {
-            return;
-        }
-
-        MinecraftClient mc = MinecraftClient.getInstance();
-        float pixelScale = mc.getWindow().getFramebufferWidth() / (float) Math.max(1, context.menu.width);
-        int pw = Math.max(1, Math.min(512, Math.round(rw * pixelScale)));
-        int ph = Math.max(1, Math.min(512, Math.round(rh * pixelScale)));
-        float scaleX = pw / (float) rw;
-        float scaleY = ph / (float) rh;
-
-        this.sphereHighlight.setup(Link.bbs("gizmo_sphere_highlight"));
-
-        Texture texture = this.sphereHighlight.getFramebuffer().getMainTexture();
-
-        /* Grow-only, so a pixel of rectangle jitter doesn't reallocate the texture per frame. */
-        if (texture.width < pw || texture.height < ph)
-        {
-            this.sphereHighlight.resize(Math.max(texture.width, pw), Math.max(texture.height, ph));
-        }
-
-        boolean moved = !this.maskValid
-            || this.lastMaskX != rectX || this.lastMaskY != rectY
-            || this.lastMaskW != pw || this.lastMaskH != ph
-            || !this.lastMaskMatrix.equals(this.lastSphereMatrix)
-            || !this.lastMaskProjection.equals(projection);
-
-        if (moved)
-        {
-            context.batcher.flush();
-
-            boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-
-            if (scissor)
-            {
-                GlStateManager._disableScissorTest();
-            }
-
-            int[] previousViewport = UIUtils.currentViewport();
-
-            this.sphereHighlight.getFramebuffer().bind();
-            this.sphereHighlight.getFramebuffer().clear();
-
-            /* The sphere projects in the viewport's NDC; the viewport is oversized and offset so
-             * the rectangle's slice of it lands on the mask (GUI y runs down, GL y runs up). */
-            GL11.glViewport(
-                Math.round(-(rectX - area.x) * scaleX),
-                Math.round(-(area.ey() - rectY - rh) * scaleY),
-                Math.round(area.w * scaleX),
-                Math.round(area.h * scaleY)
-            );
-
-            /* The sphere matrix was captured with the lens already applied to it, so the
-             * mask has to be projected through the lens as well or it lands somewhere
-             * else entirely. An inactive lens hands the camera projection straight back. */
-            GizmoLens lens = new GizmoLens();
-
-            lens.set(projection, this.lastRenderMatrix);
-
-            RenderSystem.disableDepthTest();
-            RenderSystem.setShaderColor(STENCIL_TRACKBALL / 255F, 0F, 0F, 1F);
-            this.rings.drawSphere(this.lastSphereMatrix, lens.projection);
-            RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
-            RenderSystem.enableDepthTest();
-
-            this.sphereHighlight.unbind();
-
-            /* beginWrite(false) + an explicitly saved viewport: the "main" framebuffer
-             * is the video one while a film renders, so letting it set the viewport
-             * would resize the UI's. */
-            mc.getFramebuffer().beginWrite(false);
-            UIUtils.restoreViewport(previousViewport);
-
-            if (scissor)
-            {
-                GlStateManager._enableScissorTest();
-            }
-
-            this.lastMaskMatrix.set(this.lastSphereMatrix);
-            this.lastMaskProjection.set(projection);
-            this.lastMaskX = rectX;
-            this.lastMaskY = rectY;
-            this.lastMaskW = pw;
-            this.lastMaskH = ph;
-            this.maskValid = true;
-        }
-
-        ShaderProgram previewProgram = BBSShaders.getPickerPreviewProgram();
-        GlUniform target = previewProgram.getUniform("Target");
-
-        if (target != null)
-        {
-            target.set(STENCIL_TRACKBALL);
-        }
-
-        GlUniform highlight = previewProgram.getUniform("HighlightColor");
-
-        if (highlight != null)
-        {
-            int color = BBSSettings.stencilHighlightColor.get();
-
-            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
-        }
-
-        RenderSystem.enableBlend();
-        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE, rectX, rectY, rw, rh, 0, ph, pw, 0, texture.width, texture.height);
     }
 
     public boolean start(int index, int mouseX, int mouseY, UIPropTransform transform)
@@ -726,58 +830,63 @@ public class Gizmo
      * the model-view captured this frame ({@link #lastRenderMatrix}, set by
      * {@link #captureVisual} or {@link #renderStencil}).
      *
-     * <p>It draws straight onto the main framebuffer through the UI pipeline with
-     * the GL viewport set to {@code area} — the same setup the form editor's
-     * model pass uses ({@link mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer}).
-     * This fixes the transparency the world shaders mangled (the whole point of
-     * the move) and places the gizmo correctly: the film world is itself
-     * rendered into that same {@code area}, and {@code projection} maps NDC onto
-     * the area, so the gizmo lines up with the model and stays inside the
-     * preview (the frustum clips it to the viewport rect). It is NOT rendered
-     * to an off-screen buffer and blitted, the way the pick stencil and sphere
-     * highlight are: those are opaque masks, but the rotation pie is translucent,
-     * and an intermediate buffer applies its alpha twice (once on draw, once on
-     * blit), leaving it nearly invisible.
+     * <p>Drawing it from the UI pass rather than the world pass is what fixes the transparency the
+     * world shaders mangled — the whole point of the move — and it places the gizmo correctly: the
+     * film world is itself rendered into that same {@code area}, and {@code projection} maps NDC onto
+     * the area, so the gizmo lines up with the model and stays inside the preview.
      *
-     * <p>The projection is applied before drawing because
-     * {@link #getDistanceScale} reads it back from {@link RenderSystem} to
-     * keep the gizmo a constant on-screen size.
+     * <p>{@code projection} is installed before drawing because {@link #getDistanceScale} reads it
+     * back to keep the gizmo a constant on-screen size.
      */
     public void renderInterface(UIContext context, Matrix4f projection, Area area)
     {
         if (BBSRendering.isIrisShadowPass() || !this.hasLastRenderMatrix
-            || context == null || projection == null || area == null)
+            || context == null || projection == null || area == null || area.w <= 0 || area.h <= 0)
         {
             return;
         }
 
+        /* The 1.21.5 rewrite removed the global projection/viewport swap the 1.21.1 UI pass rode
+         * on, so the pass is rebuilt on manual render passes: the gizmo draws into an off-screen
+         * target sized to the viewport (its own "GL viewport"), each flush binding the viewport's
+         * projection, and the result is composited back through the RECORDED premultiplied blit —
+         * an immediate draw onto the main framebuffer would be overpainted by the deferred GUI
+         * (the film preview itself is a recorded element). Premultiplied is the point: 1.21.1
+         * refused an off-screen buffer here because a translucent sweep pie would have its alpha
+         * applied twice, once on draw and once on blit, and come out nearly invisible.
+         *
+         * Drawing from the UI pass is also what keeps the gizmo visible under a shaderpack: the
+         * pack's composite overwrites world-phase draws that don't go through its programs, while
+         * manual passes at UI time run after it — the same reason stencil picking survived shaders. */
         this.setViewportScale(context.menu.height / (float) area.h);
 
-        context.batcher.flush();
+        double scaleFactor = BBSModClient.getGUIScale();
+        int tw = Math.max(1, (int) (area.w * scaleFactor));
+        int th = Math.max(1, (int) (area.h * scaleFactor));
 
-        MatrixStackUtils.cacheMatrices();
-        RenderSystem.setProjectionMatrix(projection, VertexSorter.BY_Z);
+        interfaceTarget = this.interfaceBuffer.ensure(tw, th);
+        interfaceProjection = new Matrix4f(projection);
+        interfacePass = true;
+        interfaceDrew = false;
 
-        /* Map the UI area to a framebuffer-pixel viewport, exactly as the form
-         * editor's model pass does, so the gizmo renders into the preview and is
-         * clipped to it by the view frustum. */
-        int[] previousViewport = UIUtils.currentViewport();
+        try
+        {
+            MatrixStack stack = new MatrixStack();
 
-        UIUtils.viewportArea(area);
+            MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+            this.drawGizmo(stack);
+        }
+        finally
+        {
+            interfacePass = false;
+            interfaceTarget = null;
+        }
 
-        MatrixStack stack = new MatrixStack();
-        MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
-
-        RenderSystem.disableDepthTest();
-        this.drawGizmo(stack);
-        RenderSystem.enableDepthTest();
-
-        UIUtils.restoreViewport(previousViewport);
-        MatrixStackUtils.restoreMatrices();
-
-        /* Leave the depth state the UI expects after a 3D interlude (always-pass),
-         * the same exit state as the form editor's model pass. */
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        if (interfaceDrew)
+        {
+            context.batcher.texturedBoxPremultiplied(this.interfaceBuffer.getGlId(), Colors.WHITE,
+                area.x, area.y, area.w, area.h, 0, th, tw, 0, tw, th);
+        }
     }
 
     private void drawGizmo(MatrixStack stack)
@@ -854,14 +963,18 @@ public class Gizmo
      */
     private LensSwap applyLens(MatrixStack stack, GizmoLens lens)
     {
-        LensSwap swap = new LensSwap(new Matrix4f(RenderSystem.getProjectionMatrix()), RenderSystem.getVertexSorting());
+        LensSwap swap = new LensSwap(projectionOverride, BBSPickerRenderer.getProjectionOverride());
 
-        if (!lens.set(swap.projection(), stack.peek().getPositionMatrix()))
+        if (!lens.set(currentProjection(), stack.peek().getPositionMatrix()))
         {
             return null;
         }
 
-        RenderSystem.setProjectionMatrix(lens.projection, VertexSorter.BY_Z);
+        /* Both halves of the swap: the visual flush reads the gizmo's own override, the pick flush
+         * goes through BBSPickerRenderer, and they must carry the same matrix or the ids land on
+         * different pixels than the handles. */
+        projectionOverride = new Matrix4f(lens.projection);
+        BBSPickerRenderer.setProjectionOverride(lens.projection);
 
         Matrix4f position = stack.peek().getPositionMatrix();
 
@@ -876,21 +989,39 @@ public class Gizmo
 
     /**
      * Undo {@link #applyLens}'s projection swap; {@code null} means it never happened.
-     * The world pass draws the gizmo mid-scene, so the sorting the projection was set
-     * with goes back too — a lens must not leave the frame it borrowed sorting
-     * translucency differently than it found it.
+     * What was displaced goes back rather than a plain clear: the film editor's picking
+     * preview has already installed the world projection on {@link BBSPickerRenderer}
+     * before the gizmo's stencil pass runs inside it, and clearing that to null would
+     * leave the rest of the pick drawing through the interface's ortho.
      */
     private void restoreLens(LensSwap swap)
     {
         if (swap != null)
         {
-            RenderSystem.setProjectionMatrix(swap.projection(), swap.sorting());
+            projectionOverride = swap.gizmo();
+
+            BBSPickerRenderer.setProjectionOverride(swap.picker());
         }
     }
 
-    /** The {@link RenderSystem} projection state one draw pass borrowed for its lens. */
-    private record LensSwap(Matrix4f projection, VertexSorter sorting)
+    /** The two projection overrides one draw pass displaced for its lens. */
+    private record LensSwap(Matrix4f gizmo, Matrix4f picker)
     {}
+
+    /**
+     * The projection the gizmo is being drawn through right now: the interface pass' own matrix
+     * while that runs, otherwise the world's.
+     *
+     * <p>1.21.1 read this off {@code RenderSystem.getProjectionMatrix()}, which the GPU rewrite
+     * removed along with the global projection itself. {@link BBSRendering#getWorldProjection()} is
+     * the port's stand-in — the matrix of the world's UBO upload, captured by
+     * {@code GameRendererMixin#onSetWorldProjection} — and it is the right one here because the
+     * gizmo's world pass draws inside the same frame that upload describes.</p>
+     */
+    private static Matrix4f currentProjection()
+    {
+        return interfacePass && interfaceProjection != null ? interfaceProjection : BBSRendering.getWorldProjection();
+    }
 
     /**
      * Flatten the handles' third axis onto the eye ray while they are drawn in
@@ -963,43 +1094,27 @@ public class Gizmo
      */
     private void drawOccludedGizmo(MatrixStack stack)
     {
-        float opacity = BBSSettings.gizmoOpacity.get();
-
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
-
-        GL11.glDepthRange(1D, 1D);
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        RenderSystem.colorMask(false, false, false, false);
+        /* TODO(1.21.11 render): 1.21.1 drew the handles TWICE — a depth-only prime that stamped every
+         * handle pixel to the far plane (depthRange(1,1) + depthFunc(ALWAYS) + colorMask off), then a
+         * LEQUAL colour pass so nearer bars, planes and rings hid farther ones. That is what made the
+         * gizmo read solid instead of flat. All four knobs it turned (depthMask / depthFunc /
+         * colorMask / depthRange) became RenderPipeline properties in the GPU rewrite, and depth range
+         * has no pipeline equivalent at all, so the prime cannot be expressed as it stands. Restoring
+         * the sorted look needs a depth-writing gizmo pipeline plus some way to prime at the far
+         * plane; until then the handles draw flat on top, exactly as they have on this branch all
+         * along. The opacity modulator is NOT lost with it — it rides the vertex alpha now, see
+         * {@link #drawAxes}. */
         this.drawAxes(stack);
 
-        GL11.glDepthRange(0D, 1D);
-        RenderSystem.colorMask(true, true, true, true);
-        RenderSystem.depthFunc(GL11.GL_LEQUAL);
-
-        /* The gizmo opacity rides on the shader colour's alpha, which the
-         * position_color program multiplies into every vertex — so blend must be
-         * on for it to show (at opacity 1 this is just opaque, no change). */
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShaderColor(1F, 1F, 1F, opacity);
-        this.drawAxes(stack);
-
-        /* The sweep pie overlays the handles and must not write depth. */
-        RenderSystem.depthMask(false);
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        RenderSystem.setShaderColor(1F, 1F, 1F, opacity);
+        /* The sweep pie overlays the handles; the gizmo pipeline writes no depth, so it cannot punch
+         * holes in them. */
         GizmoPie.draw(stack, this.currentTransform, this.ringDragGesture());
-        RenderSystem.depthMask(true);
-
-        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
-        RenderSystem.depthFunc(GL11.GL_LEQUAL);
     }
 
     private float getDistanceScale(MatrixStack stack)
     {
         Vector3f cameraRelative = stack.peek().getPositionMatrix().getTranslation(new Vector3f());
-        Matrix4f proj = com.mojang.blaze3d.systems.RenderSystem.getProjectionMatrix();
+        Matrix4f proj = currentProjection();
         float fov = proj.m33() == 0 ? (float) (2.0 * Math.atan(1.0 / proj.m11())) : BBSSettings.getFov();
 
         return BBSSettings.getGizmoDistanceScale(cameraRelative.length(), fov) * this.viewportScale;
@@ -1021,7 +1136,7 @@ public class Gizmo
             return;
         }
 
-        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        BufferBuilder builder = begin();
 
         float size = 10000F;
         float t = 0.005F;
@@ -1041,10 +1156,9 @@ public class Gizmo
             Draw.fillBox(builder, stack, -t, -t, -size, t, t, size, Colors.BLUE);
         }
 
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
-        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        /* The depthFunc(ALWAYS) bracket that used to wrap this draw is the gizmo pipeline's own
+         * state now — it never depth-tests, so the guide reads on top of the scene as before. */
+        flush(builder);
     }
 
     /* Cached gizmo geometry is uploaded as VBOs, so unlike the immediate-mode
@@ -1209,26 +1323,31 @@ public class Gizmo
             return;
         }
 
+        /* The stencil counterpart of {@link #renderInterface}: identical stack (the captured full
+         * model-view) and projection, so the handle ids land on exactly the pixels the visual draws.
+         * The caller has the picking framebuffer bound (BBSPickerRenderer.setRenderTarget), so the
+         * flushes only need the projection override plus the interface-pass identity model-view —
+         * the viewport/projection swap 1.21.1 did globally has nowhere to live any more. */
         this.setViewportScale(context.menu.height / (float) area.h);
 
-        MatrixStackUtils.cacheMatrices();
-        RenderSystem.setProjectionMatrix(projection, VertexSorter.BY_Z);
+        BBSPickerRenderer.setProjectionOverride(projection);
 
-        /* Map the UI area to a framebuffer-pixel viewport, exactly as
-         * renderInterface does, so the stencil matches the drawn visual pixel for
-         * pixel. The pick framebuffer is sized to the window, so the same mapping
-         * applies. */
-        int[] previousViewport = UIUtils.currentViewport();
+        interfaceProjection = new Matrix4f(projection);
+        interfacePass = true;
 
-        UIUtils.viewportArea(area);
+        try
+        {
+            MatrixStack stack = new MatrixStack();
 
-        MatrixStack stack = new MatrixStack();
-        MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+            MatrixStackUtils.multiply(stack, this.lastRenderMatrix);
+            this.drawStencilAxes(stack);
+        }
+        finally
+        {
+            interfacePass = false;
 
-        this.drawStencilAxes(stack);
-
-        UIUtils.restoreViewport(previousViewport);
-        MatrixStackUtils.restoreMatrices();
+            BBSPickerRenderer.setProjectionOverride(null);
+        }
     }
 
     private void captureRenderMatrix(MatrixStack stack)
@@ -1303,7 +1422,7 @@ public class Gizmo
          * The lens's own predicate decides, so the frame and the draw agree on whether
          * this frame has a lens — and the swing is read off the placement's translation,
          * which is the gizmo's view-space position, the same value the lens builds from. */
-        if (space == TransformSpace.VIEW && GizmoLens.canFrame(RenderSystem.getProjectionMatrix(), translation))
+        if (space == TransformSpace.VIEW && GizmoLens.canFrame(currentProjection(), translation))
         {
             Matrix4f delta = new Matrix4f();
 
@@ -1548,8 +1667,12 @@ public class Gizmo
         Handle active = layout.active;
         float axisOffset = layout.axisOffset;
 
-        boolean building = false;
-        BufferBuilder builder = null;
+        /* One batch for the whole pass — rings, view ring, bars, planes and cubes all write into it,
+         * so the gizmo leaves as a single draw. 1.21.1 could afford to keep the rings apart (each was
+         * its own VertexBuffer draw, tinted by the shader colour); with the shader colour gone the
+         * opacity has to ride the vertices anyway, and then there is nothing left to separate. */
+        final float opacity = BBSSettings.gizmoOpacity.get();
+        final BufferBuilder builder = begin();
 
         if (layout.showRotate)
         {
@@ -1558,40 +1681,33 @@ public class Gizmo
              * (the pads still edit the FK channels). */
             boolean constrained = this.currentTransform != null && this.currentTransform.isRotationConstrained();
 
-            /* Depth state is owned by the caller ({@link #drawOccludedGizmo}) so the handles
-             * sort against each other. */
             this.collectRings(layout, new RingSink()
             {
                 @Override
                 public void ring(Handle handle, Axis axis, float radius, float ringThickness, int color)
                 {
-                    Gizmo.this.rings.drawOccluded(stack, axis, radius, ringThickness,
+                    Gizmo.this.rings.writeOccluded(builder, stack, axis, radius, ringThickness,
                         dimmed(Colors.getR(color), constrained),
                         dimmed(Colors.getG(color), constrained),
-                        dimmed(Colors.getB(color), constrained));
+                        dimmed(Colors.getB(color), constrained),
+                        Colors.getA(color) * opacity);
                 }
 
                 @Override
                 public void viewRing(Handle handle, int color)
                 {
-                    /* This VBO ring sets the shader colour itself, so the opacity modulator
-                     * doesn't reach it — fold it into the alpha here instead. */
-                    float alpha = Colors.getA(color) * BBSSettings.gizmoOpacity.get() * (constrained ? 0.35F : 1F);
+                    float alpha = Colors.getA(color) * opacity * (constrained ? 0.35F : 1F);
 
-                    Gizmo.this.rings.drawBillboard(stack, Colors.getR(color), Colors.getG(color), Colors.getB(color), alpha);
+                    Gizmo.this.rings.writeBillboard(builder, stack, Colors.getR(color), Colors.getG(color), Colors.getB(color), alpha);
                 }
             });
         }
 
         if (layout.showsBoxes())
         {
-            builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-            building = true;
-
-            BufferBuilder boxes = builder;
-
             this.collectHandles(layout, (handle, x1, y1, z1, x2, y2, z2, color) ->
-                Draw.fillBox(boxes, stack, x1, y1, z1, x2, y2, z2, color));
+                Draw.fillBox(builder, stack, x1, y1, z1, x2, y2, z2,
+                    Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color) * opacity));
         }
 
         /* The centre cube is decoration, not a handle, so any filtered drag hides it — but
@@ -1608,25 +1724,10 @@ public class Gizmo
                 ? axisOffset
                 : SCREEN_CUBE_HALF * layout.scale * layout.thickness;
 
-            if (!building)
-            {
-                builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-                building = true;
-            }
-
-            Draw.fillBox(builder, stack, -centreHalf, -centreHalf, -centreHalf, centreHalf, centreHalf, centreHalf, Colors.WHITE);
+            Draw.fillBox(builder, stack, -centreHalf, -centreHalf, -centreHalf, centreHalf, centreHalf, centreHalf, 1F, 1F, 1F, opacity);
         }
 
-        if (building)
-        {
-            /* Depth func/mask is owned by {@link #drawOccludedGizmo} so bars, planes and cubes
-             * depth-sort against the rings and each other. Re-assert the opacity modulator:
-             * the billboard view ring above sets the shader colour itself and leaves it opaque. */
-            RenderSystem.setShaderColor(1F, 1F, 1F, BBSSettings.gizmoOpacity.get());
-            RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-
-            BufferRenderer.drawWithGlobalProgram(builder.end());
-        }
+        flush(builder);
     }
 
     /**
@@ -1638,7 +1739,10 @@ public class Gizmo
     {
         Layout layout = new Layout();
 
-        RenderSystem.disableDepthTest();
+        /* No depth state to switch off any more: the pipeline this pass submits through has the
+         * depth test disabled outright, which is what 1.21.1's disableDepthTest() bracket bought —
+         * the handles must always win the pick over whatever ids the model already put down. */
+        final BufferBuilder builder = begin();
 
         if (layout.showRotate)
         {
@@ -1647,21 +1751,19 @@ public class Gizmo
                 @Override
                 public void ring(Handle handle, Axis axis, float radius, float ringThickness, int color)
                 {
-                    Gizmo.this.rings.drawOccluded(stack, axis, radius, ringThickness, handle.index / 255F, 0F, 0F);
+                    Gizmo.this.rings.writeOccluded(builder, stack, axis, radius, ringThickness, handle.index / 255F, 0F, 0F, 1F);
                 }
 
                 @Override
                 public void viewRing(Handle handle, int color)
                 {
-                    Gizmo.this.rings.drawBillboard(stack, handle.index / 255F, 0F, 0F, 1F);
+                    Gizmo.this.rings.writeBillboard(builder, stack, handle.index / 255F, 0F, 0F, 1F);
                 }
             });
         }
 
         if (layout.showsBoxes())
         {
-            BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-
             this.collectHandles(layout, new HandleSink()
             {
                 @Override
@@ -1676,13 +1778,9 @@ public class Gizmo
                     Draw.fillBox(builder, stack, -half, -half, -half, half, half, half, 0F, 0F, 0F);
                 }
             });
-
-            RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-
-            { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
         }
 
-        RenderSystem.enableDepthTest();
+        flushPick(builder);
     }
 
     /**

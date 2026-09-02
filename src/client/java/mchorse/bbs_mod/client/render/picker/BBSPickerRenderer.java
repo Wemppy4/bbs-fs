@@ -113,6 +113,19 @@ public class BBSPickerRenderer
     }
 
     /**
+     * The projection the picker passes currently bind, or null when the engine default is in force.
+     *
+     * <p>For a caller that installs an override of its own around a nested pass and has to put back
+     * exactly what it displaced rather than guessing null — {@link mchorse.bbs_mod.ui.utils.Gizmo}'s
+     * lens does this, since the film editor's picking preview has already set the world projection
+     * here before the gizmo's stencil pass runs inside it.</p>
+     */
+    public static Matrix4f getProjectionOverride()
+    {
+        return projectionOverride == null ? null : new Matrix4f(projectionOverride);
+    }
+
+    /**
      * Write the override into its UBO, or null when unset. MUST be called BEFORE the render pass is
      * opened: {@link #writeProjection} rotates a {@link MappableRingBuffer}, which issues a GPU fence, and
      * the encoder rejects any command while a pass is open ("Close the existing render pass before

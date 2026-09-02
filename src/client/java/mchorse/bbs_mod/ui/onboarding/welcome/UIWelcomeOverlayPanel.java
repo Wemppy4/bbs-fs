@@ -15,7 +15,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
-import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -153,16 +153,18 @@ public class UIWelcomeOverlayPanel extends UIOverlayPanel
         Area card = this.host.area;
         FontRenderer font = context.batcher.getFont();
         String title = UIKeys.ONBOARDING_WELCOME_TITLE.format(UILandingScreen.getVersion()).get();
-        MatrixStack stack = context.batcher.getContext().getMatrices();
+        /* 1.21.11: the GUI stack is a 2D Matrix3x2fStack, so the push/translate/scale that framed
+         * this title lose their third dimension — which they never used. */
+        Matrix3x2fStack stack = context.batcher.getContext().getMatrices();
 
         int titleW = font.getWidth(title) * TITLE_SCALE;
         int titleY = card.y - TITLE_GAP - font.getHeight() * TITLE_SCALE;
 
-        stack.push();
-        stack.translate(card.mx() - titleW / 2F, titleY, 0F);
-        stack.scale(TITLE_SCALE, TITLE_SCALE, 1F);
+        stack.pushMatrix();
+        stack.translate(card.mx() - titleW / 2F, titleY);
+        stack.scale(TITLE_SCALE, TITLE_SCALE);
         context.batcher.text(title, 0, 0, Colors.WHITE, true);
-        stack.pop();
+        stack.popMatrix();
 
         int count = this.pages.size();
         int dotsW = count * DOT + (count - 1) * DOT_GAP;

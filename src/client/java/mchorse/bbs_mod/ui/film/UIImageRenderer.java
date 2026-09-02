@@ -1,7 +1,5 @@
 package mchorse.bbs_mod.ui.film;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.camera.clips.misc.ImageOverlay;
@@ -9,12 +7,11 @@ import mchorse.bbs_mod.camera.clips.misc.VideoOverlay;
 import mchorse.bbs_mod.video.VideoPlayer;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
-import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.Matrix4f;
+import org.joml.Matrix3x2fStack;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 
@@ -43,13 +40,16 @@ public class UIImageRenderer
         float width = getUnitWidth();
         float height = Placement.HEIGHT;
 
-        Matrix4f cache = new Matrix4f(RenderSystem.getProjectionMatrix());
+        /* 1.21.11: the unit frame arrives as a scale on the GUI's own 2D stack rather than as a
+         * global ortho projection. There is no global projection left to swap, and Batcher2D draws
+         * through DrawContext#getMatrices() (a Matrix3x2fStack), so a projection swap would not
+         * reach it anyway; scaling unit coordinates onto the GUI's is what the ortho did. The
+         * depth/cull/blend bracket goes with it — the GUI pipeline owns that state now. */
+        Matrix3x2fStack matrices = batcher.getContext().getMatrices();
 
-        RenderSystem.setProjectionMatrix(new Matrix4f().ortho(0, width, height, 0, -100, 100), VertexSorter.BY_Z);
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        RenderSystem.disableCull();
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        matrices.pushMatrix();
+        matrices.scale(batcher.getContext().getScaledWindowWidth() / width,
+            batcher.getContext().getScaledWindowHeight() / height);
 
         for (ImageOverlay image : images)
         {
@@ -128,16 +128,22 @@ public class UIImageRenderer
 
             transform.lerp(image.transform, 1F - image.factor);
 
-            stack.push();
-            stack.translate(x, y, 0);
-            MatrixStackUtils.applyTransform(stack, transform);
+            matrices.pushMatrix();
+            matrices.translate(x, y);
+
+            /* The overlay's placement transform, flattened onto the screen plane: an overlay lives
+             * in the frame, so of its three rotations only the one about the view axis has any
+             * meaning here, and the 2D GUI stack carries exactly that. Out-of-plane rotation of
+             * overlays was deferred when placement was built, so nothing is lost that worked. */
+            matrices.translate(transform.translate.x, transform.translate.y);
+            matrices.rotate(transform.rotate.z);
+            matrices.scale(transform.scale.x, transform.scale.y);
 
             batcher.texturedBox(texture, image.color, -w * anchorX, -h * anchorY, w, h, 0, 0, texture.width, texture.height, texture.width, texture.height);
 
-            stack.pop();
+            matrices.popMatrix();
         }
 
-        RenderSystem.setProjectionMatrix(cache, VertexSorter.BY_Z);
-        RenderSystem.enableCull();
+        matrices.popMatrix();
     }
 }

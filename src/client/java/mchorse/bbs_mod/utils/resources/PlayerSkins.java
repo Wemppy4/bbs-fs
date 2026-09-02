@@ -363,7 +363,7 @@ public class PlayerSkins
             {
                 GameProfile profile = entry.getProfile();
 
-                if (nickname.equalsIgnoreCase(profile.getName()))
+                if (nickname.equalsIgnoreCase(profile.name()))
                 {
                     return skinUrlFromProfile(profile);
                 }
@@ -377,7 +377,7 @@ public class PlayerSkins
 
     private static String skinUrlFromProfile(GameProfile profile)
     {
-        for (Property property : profile.getProperties().get("textures"))
+        for (Property property : profile.properties().get("textures"))
         {
             String url = skinUrlFromTextures(property.value());
 

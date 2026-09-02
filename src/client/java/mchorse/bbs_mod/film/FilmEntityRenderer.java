@@ -308,7 +308,7 @@ public class FilmEntityRenderer
         MatrixStackUtils.multiply(stack, matrix);
 
         Vector3f cameraRelative = stack.peek().getPositionMatrix().getTranslation(new Vector3f());
-        Matrix4f proj = RenderSystem.getProjectionMatrix();
+        Matrix4f proj = BBSRendering.getWorldProjection();
         float fov = proj.m33() == 0 ? (float) (2.0 * Math.atan(1.0 / proj.m11())) : BBSSettings.getFov();
         float distanceScale = BBSSettings.getGizmoDistanceScale(cameraRelative.length(), fov);
 
