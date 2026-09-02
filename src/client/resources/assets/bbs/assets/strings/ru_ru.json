@@ -1423,6 +1423,7 @@
 	"bbs.ui.model_editor.bone.picking": "Подмена при выборе",
 	"bbs.ui.model_editor.bones.legend": "Точки справа: голубая — у кости есть зеркальная кость, оранжевая — клик по ней выбирает другую кость.",
 	"bbs.ui.model_editor.sneaking": "Поза в присяде",
+	"bbs.ui.model_editor.default_pose": "Поза по умолчанию",
 	"bbs.ui.model_editor.sneaking.clear": "Убрать позу",
 	"bbs.ui.model_editor.open_history": "Открыть историю изменений...",
 	"bbs.ui.model_editor.history-title": "История изменений",

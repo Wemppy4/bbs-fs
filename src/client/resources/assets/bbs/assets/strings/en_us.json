@@ -1429,6 +1429,7 @@
 	"bbs.ui.model_editor.bone.picking": "Picking override",
 	"bbs.ui.model_editor.bones.legend": "Dots on the right: cyan — the bone has a mirror bone, orange — clicking it picks another bone.",
 	"bbs.ui.model_editor.sneaking": "Sneaking pose",
+	"bbs.ui.model_editor.default_pose": "Default pose",
 	"bbs.ui.model_editor.sneaking.clear": "Clear pose",
 	"bbs.ui.model_editor.open_history": "Open undo/redo history...",
 	"bbs.ui.model_editor.history-title": "Undo history",

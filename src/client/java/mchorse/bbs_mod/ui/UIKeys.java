@@ -1077,6 +1077,7 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_BONE_PICKING = L10n.lang("bbs.ui.model_editor.bone.picking");
     public static final IKey MODEL_EDITOR_BONES_LEGEND = L10n.lang("bbs.ui.model_editor.bones.legend");
     public static final IKey MODEL_EDITOR_SNEAKING = L10n.lang("bbs.ui.model_editor.sneaking");
+    public static final IKey MODEL_EDITOR_DEFAULT_POSE = L10n.lang("bbs.ui.model_editor.default_pose");
     public static final IKey MODEL_EDITOR_SNEAKING_CLEAR = L10n.lang("bbs.ui.model_editor.sneaking.clear");
     public static final IKey MODEL_EDITOR_OPEN_HISTORY = L10n.lang("bbs.ui.model_editor.open_history");
     public static final IKey MODEL_EDITOR_HISTORY_TITLE = L10n.lang("bbs.ui.model_editor.history-title");

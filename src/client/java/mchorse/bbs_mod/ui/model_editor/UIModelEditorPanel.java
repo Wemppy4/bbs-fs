@@ -22,6 +22,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.base.BaseValueNumber;
+import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
@@ -83,6 +84,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -190,9 +193,12 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     private UIIcon dupeWeld;
     private UIIcon removeWeld;
 
-    /** The poses page: the poses the config holds (the sneaking one, for now) over the editor of the picked one. */
-    private UIStringList poseList;
+    /** The poses page: the config's two poses picked by a tab strip, the editor of the picked one under it. */
+    private UITabStrip poseTabs;
     private UIModelPoseEditor poseEditor;
+
+    /** Which pose the poses page shows: the default one, or the sneaking one. */
+    private boolean defaultPose;
 
     /** Whether the pose editor is in its two-column arrangement, which the pane's width decides. */
     private boolean wide;
@@ -379,7 +385,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.renderer.setFirstPerson(tab == Tab.FIRST_PERSON);
         this.renderer.setEquipment(tab == Tab.ARMOR, tab == Tab.ITEMS);
-        this.renderer.getEntity().setSneaking(tab == Tab.POSES);
+        this.renderer.getEntity().setSneaking(tab == Tab.POSES && !this.defaultPose);
     }
 
     private void cycleTab(int direction)
@@ -871,14 +877,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         );
         this.page(Tab.FIRST_PERSON).add(this.fpTabs, this.firstPerson.panel);
 
-        /* Poses: the config's poses (the sneaking one, for now) over the form editor's pose editor, bound
-         * to the picked one — bare, since a model's pose has no material and no fix to show. The presets
-         * menu of the editor's bone list is where a pose is loaded from and saved to; the row's own menu
-         * clears it. The picked bone is on the viewport gizmo, and G/R/S start a gesture on it. */
-        this.poseList = new UIStringList(null);
-        this.poseList.background();
-        this.poseList.h(UIStringList.DEFAULT_HEIGHT * 2);
-        this.poseList.context((menu) ->
+        /* Poses: the sneaking pose and the default pose, picked by a tab strip, over the form editor's pose
+         * editor bound to the picked one — bare, since a model's pose has no material and no fix to show.
+         * The presets menu of the editor's bone list is where a pose is loaded from and saved to; the
+         * strip's own menu clears the shown one. The picked bone is on the viewport gizmo, and G/R/S
+         * start a gesture on it. */
+        this.poseTabs = this.textTabs(110, () -> this.defaultPose ? 1 : 0, (index) ->
+        {
+            this.defaultPose = index == 1;
+            this.showTab(lastTab);
+            this.fillPoses();
+        }, UIKeys.MODEL_EDITOR_SNEAKING, UIKeys.MODEL_EDITOR_DEFAULT_POSE);
+        this.poseTabs.context((menu) ->
         {
             if (this.data != null)
             {
@@ -893,11 +903,21 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
             return target == null ? null : this.renderer.buildGizmoDrag(target);
         });
-        this.page(Tab.POSES).add(this.poseList, this.poseEditor);
+        this.page(Tab.POSES).add(this.poseTabs, this.poseEditor);
     }
 
     /** The main/off hand strip the items and the first-person pages share; both read {@link #offHand}. */
     private UITabStrip handTabs(Runnable onChange)
+    {
+        return this.textTabs(70, () -> this.offHand ? 1 : 0, (index) ->
+        {
+            this.offHand = index == 1;
+            onChange.run();
+        }, UIKeys.MODEL_EDITOR_ITEMS_MAIN, UIKeys.MODEL_EDITOR_ITEMS_OFF);
+    }
+
+    /** A row of word tabs over a page's content, {@code width} each; the owner keeps which one is active. */
+    private UITabStrip textTabs(int width, IntSupplier active, IntConsumer onSelect, IKey... labels)
     {
         UITabStrip tabs = new UITabStrip(ScrollDirection.HORIZONTAL)
         {
@@ -911,14 +931,14 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         };
 
         tabs.fixed();
-        tabs.active(() -> this.offHand ? 1 : 0);
-        tabs.onSelect((index) ->
+        tabs.active(active);
+        tabs.onSelect(onSelect);
+
+        for (IKey label : labels)
         {
-            this.offHand = index == 1;
-            onChange.run();
-        });
-        tabs.addTab(new UITextTab(UIKeys.MODEL_EDITOR_ITEMS_MAIN)).w(70).h(UIConstants.CONTROL_HEIGHT);
-        tabs.addTab(new UITextTab(UIKeys.MODEL_EDITOR_ITEMS_OFF)).w(70).h(UIConstants.CONTROL_HEIGHT);
+            tabs.addTab(new UITextTab(label)).w(width).h(UIConstants.CONTROL_HEIGHT);
+        }
+
         tabs.h(UIConstants.CONTROL_HEIGHT);
 
         return tabs;
@@ -1024,7 +1044,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             this.armor.refill();
             this.items.refill();
             this.firstPerson.refill();
-            this.poseList.clear();
             this.poseEditor.setPose(new Pose(), "");
             this.poseEditor.fillGroups(null, null, true, null);
             this.fillBone();
@@ -1484,26 +1503,30 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.firstPerson.refill();
     }
 
-    /* Poses: the sneaking pose is edited in place, on the model the animator applies it to in the preview. */
+    /* Poses: the shown pose is edited in place, on the model wearing it in the preview — the default pose
+     * is always on, the sneaking one while the entity sneaks (which the page makes it do). */
+
+    /** The pose the poses page shows and edits. */
+    private ValuePose shownPose()
+    {
+        return this.defaultPose ? this.data.defaultPose : this.data.sneakingPose;
+    }
 
     private void fillPoses()
     {
-        ModelConfig config = this.data;
+        ValuePose pose = this.shownPose();
 
-        this.poseList.setList(new ArrayList<>(List.of(UIKeys.MODEL_EDITOR_SNEAKING.get())));
-        this.poseList.setIndex(0);
-
-        this.poseEditor.setValuePose(config.sneakingPose);
-        this.poseEditor.setPose(config.sneakingPose.get(), this.bound.getPoseGroup());
+        this.poseEditor.setValuePose(pose);
+        this.poseEditor.setPose(pose.get(), this.bound.getPoseGroup());
         this.poseEditor.fillGroups(this.bound.getModel(), this.bound.getFlippedParts(), true, this.bound.getDisabledBones());
 
         this.resizePage(Tab.POSES);
     }
 
-    /** Empty the pose; the editor is re-bound, since it holds the pose object itself. */
+    /** Empty the shown pose; the editor is re-bound, since it holds the pose object itself. */
     private void clearPose()
     {
-        this.data.sneakingPose.set(new Pose());
+        this.shownPose().set(new Pose());
         this.fillPoses();
     }
 

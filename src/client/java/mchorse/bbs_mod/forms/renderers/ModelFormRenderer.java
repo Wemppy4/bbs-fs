@@ -252,6 +252,10 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         model.model.resetPose();
         this.animator.applyActions(entity, model, transition);
+
+        /* The config's default pose sits under the form's, the same additive layer: the posture the
+         * model has before anything of the form is applied, whichever animator drove it. */
+        model.model.applyPose(model.getDefaultPose());
         model.model.applyPose(this.getPose());
 
         if (cacheable)

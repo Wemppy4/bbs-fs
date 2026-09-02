@@ -171,6 +171,11 @@ public class ModelInstance implements IModelInstance
         return this.config.getSneakingPose();
     }
 
+    public Pose getDefaultPose()
+    {
+        return this.config.getDefaultPose();
+    }
+
     @Override
     public Animations getAnimations()
     {

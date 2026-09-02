@@ -50,6 +50,9 @@ public class ModelConfig extends ValueGroup
 
     public final LookAtValue lookAt = new LookAtValue("look_at");
     public final ValuePose sneakingPose = new ValuePose("sneaking_pose", new Pose());
+
+    /** A pose the model always wears, under everything else: the rest posture corrected without touching the geometry. */
+    public final ValuePose defaultPose = new ValuePose("default_pose", new Pose());
     public final ItemSlotList itemsMain = new ItemSlotList("items_main");
     public final ItemSlotList itemsOff = new ItemSlotList("items_off");
     public final ArmorSlotsValue armorSlots = new ArmorSlotsValue("armor_slots");
@@ -82,6 +85,7 @@ public class ModelConfig extends ValueGroup
         this.add(this.disabledBones);
         this.add(this.lookAt);
         this.add(this.sneakingPose);
+        this.add(this.defaultPose);
         this.add(this.itemsMain);
         this.add(this.itemsOff);
         this.add(this.armorSlots);
@@ -109,6 +113,7 @@ public class ModelConfig extends ValueGroup
         if (value == this.fpMain) return this.fpMain.isActive();
         if (value == this.fpOffhand) return this.fpOffhand.isActive();
         if (value == this.sneakingPose) return !this.sneakingPose.get().isEmpty();
+        if (value == this.defaultPose) return !this.defaultPose.get().isEmpty();
         if (value == this.itemsMain) return this.itemsMain.hasActive();
         if (value == this.itemsOff) return this.itemsOff.hasActive();
         if (value == this.flippedParts) return !this.flippedParts.get().isEmpty();
@@ -175,6 +180,11 @@ public class ModelConfig extends ValueGroup
     public Pose getSneakingPose()
     {
         return this.sneakingPose.get();
+    }
+
+    public Pose getDefaultPose()
+    {
+        return this.defaultPose.get();
     }
 
     public View getView()
