@@ -1,9 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.input;
 
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
-import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.IValueNotifier;
@@ -12,64 +9,42 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
-import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.AxisSpaceCycle;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.DragContext;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.DragStrategy;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.DragStrategyFactory;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformNumericInput;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIChoiceButton;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.FineCursor;
-import mchorse.bbs_mod.ui.framework.elements.input.drag.HotkeyTarget;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGesture;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGestureHud;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
-import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
-import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
-import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Transform;
-import net.minecraft.client.MinecraftClient;
 import org.joml.Matrix3f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import org.lwjgl.glfw.GLFW;
 
-import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Transform editor that drives the gizmo and hotkey (G/S/R) edits. The
- * editor itself is a thin coordinator: it owns the edit session (what is
- * being edited, the start snapshot, accept/reject) while all per-gesture
- * state and math live in the active {@link DragStrategy}, created through
- * {@link DragStrategyFactory} when an edit starts and dropped when it ends.
+ * Transform editor that drives the gizmo and hotkey (G/S/R) edits. The editor itself is a
+ * plain field widget — the value rows, the quaternion pads, the space dropdown — plus the
+ * write path ({@link #setT}/{@link #setS}/{@link #setR}/{@link #setRQuat}) that the delta
+ * editors override to fan edits onto selections. The edit session itself — what operation
+ * runs, the start snapshot, accept/reject, the cursor pumping — is its {@link TransformGesture},
+ * which reaches back here through {@link TransformGesture.Host}.
  */
-public class UIPropTransform extends UITransform
+public class UIPropTransform extends UITransform implements TransformGesture.Host
 {
-    private static final double[] CURSOR_X = new double[1];
-    private static final double[] CURSOR_Y = new double[1];
-
-    private static final Vector3f ZERO_RING_VEC = new Vector3f();
-
     private Transform transform;
     private Runnable preCallback;
     private Runnable postCallback;
     private Runnable endCallback;
-
-    private boolean editing;
-    private Axis axis = Axis.X;
-    private Axis axis2;
-    private Transform cache = new Transform();
-    private Timer checker = new Timer(30);
 
     /* What the field rows currently show. The editor is bound to its property and re-read on
      * every frame, so the common call to setTransform changes nothing — this is what lets it
@@ -81,11 +56,6 @@ public class UIPropTransform extends UITransform
 
     private boolean model;
 
-    /** The reference frame the gizmo and constrained edits operate in. Replaces
-     *  the old local/global boolean; {@code space == LOCAL} is the former {@code local}. */
-
-
-    /** Dropdown trigger for {@link #space}; shows the active frame's icon and name. */
     /** The frame every edit is expressed in, and the dropdown that picks it. */
     private UIChoiceButton<TransformSpace> spacePicker;
 
@@ -100,44 +70,17 @@ public class UIPropTransform extends UITransform
     /** Whether the rotate row currently shows the four quaternion pads (vs the three euler pads). */
     private boolean quatFields;
 
-    /** Drag snapshot the active gesture works against (kept for the gizmo's pie preview). */
-    private GizmoDrag drag;
-    private boolean hotkeyMode;
-
-    /* The axis-key walk (see AxisSpaceCycle): which axis it is on, whether in its plane
-     * form (Shift), and how many presses deep. A different axis, or any fresh edit
-     * start, restarts it. */
-    private Axis axisWalkAxis;
-    private boolean axisWalkPlane;
-    private int axisWalkStep;
-
-    /** Frame the live edit was walked into by the axis keys, or {@code null} for the
-     *  picker's. Deliberately NOT written back: a walked frame lasts for that edit only. */
-    private TransformSpace editSpace;
     private Supplier<GizmoDrag> hotkeyDragSupplier;
 
     /** Whether the edited bone's rotation is owned by an enabled IK chain
      *  (wired by hosts that have an IK concept; see {@link #rotationConstrained}). */
     private Supplier<Boolean> rotationConstrainedSupplier;
 
-    /** The live gesture; non-null exactly while {@link #editing}. */
-    private DragStrategy strategy;
-    private final DragContext bridge = new Bridge();
-
-    private final TransformNumericInput numeric = new TransformNumericInput();
-
-    /* Fine-drag (Shift) precision: a virtual cursor that lags the real one,
-     * advancing at {@link DragStrategy#FINE_DRAG_FACTOR} speed while Shift is
-     * held, so every ray gesture slows uniformly without per-mode code. The
-     * lag is the accumulated offset between the two. */
-    private final FineCursor fineCursor = new FineCursor();
-
-    private UITransformHandler handler;
+    /** The edit session this editor's transform is worked through. */
+    private final TransformGesture gesture = new TransformGesture(this);
 
     public UIPropTransform()
     {
-        this.handler = new UITransformHandler(this);
-
         this.buildQuaternionFields();
 
         this.context((menu) ->
@@ -254,6 +197,7 @@ public class UIPropTransform extends UITransform
      * end and the gizmo commit — rather than per value change, so one continuous drag
      * still merges into a single undo while consecutive drags stay distinct.
      */
+    @Override
     public void endGesture()
     {
         if (this.endCallback != null) this.endCallback.run();
@@ -264,11 +208,23 @@ public class UIPropTransform extends UITransform
         this.model = true;
     }
 
+    @Override
+    public boolean isModel()
+    {
+        return this.model;
+    }
+
     public UIPropTransform hotkeyDrag(Supplier<GizmoDrag> supplier)
     {
         this.hotkeyDragSupplier = supplier;
 
         return this;
+    }
+
+    @Override
+    public GizmoDrag freshHotkeyDrag()
+    {
+        return this.hotkeyDragSupplier == null ? null : this.hotkeyDragSupplier.get();
     }
 
     /** Wire the IK-ownership probe for the edited bone's rotation (hosts with an IK concept). */
@@ -285,6 +241,7 @@ public class UIPropTransform extends UITransform
      * and the gizmo dims its rings (the value pads still edit the FK channels —
      * the blend base and the pose IK falls back to).
      */
+    @Override
     public boolean isRotationConstrained()
     {
         return this.rotationConstrainedSupplier != null && Boolean.TRUE.equals(this.rotationConstrainedSupplier.get());
@@ -293,10 +250,10 @@ public class UIPropTransform extends UITransform
     /**
      * Whether this editor's rotation channels are gimbal angles with no third axis to
      * spare, so rotation rings turn their own channel instead of composing a
-     * gimbal-free delta (see {@link DragContext#rotationChannelOnly}). False for
-     * everything that edits a real {@link Transform}; overridden by the replay-root
-     * editor, whose rotation is Minecraft's yaw/pitch pair.
+     * gimbal-free delta. False for everything that edits a real {@link Transform};
+     * overridden by the replay-root editor, whose rotation is Minecraft's yaw/pitch pair.
      */
+    @Override
     public boolean isRotationChannelOnly()
     {
         return false;
@@ -307,38 +264,34 @@ public class UIPropTransform extends UITransform
      *  live edit in, which would otherwise keep overriding the hand-picked one. */
     private void pickSpace(TransformSpace space)
     {
-        this.editSpace = null;
-        this.axisWalkAxis = null;
-        this.axisWalkStep = 0;
+        this.gesture.clearWalk();
 
         space.remember();
     }
 
-    /**
-     * The frame the gizmo and constrained edits operate in: the picker's choice, unless
-     * the live edit was walked into another by its axis key ({@link #setEditingAxis}).
-     * The ONLY frame accessor — the strategies, the hosts' gizmo placement and the HUD
-     * chip all read it here, so nothing can ask a second, staler question.
-     */
+    @Override
+    public TransformSpace pickedSpace()
+    {
+        return this.spacePicker.getValue();
+    }
+
+    /** The frame the gizmo and constrained edits operate in — the session's one accessor,
+     *  kept here because hosts place their gizmos by asking the editor. */
     public TransformSpace getSpace()
     {
-        return this.editing && this.editSpace != null ? this.editSpace : this.spacePicker.getValue();
+        return this.gesture.space();
+    }
+
+    /** The edit session running this editor's gizmo and hotkey edits. */
+    public TransformGesture getGesture()
+    {
+        return this.gesture;
     }
 
     @Override
     protected Transform getEditedTransform()
     {
         return this.transform;
-    }
-
-    public Axis getAxis2()
-    {
-        return this.axis2;
-    }
-
-    public boolean isScreenTranslate()
-    {
-        return this.strategy != null && this.strategy.isScreenTranslate();
     }
 
     /** Old-logic no-op: kept so hosts that gave the spaces bar a backdrop still compile. */
@@ -362,7 +315,8 @@ public class UIPropTransform extends UITransform
         return BBSSettings.poseAlternateInvert.get();
     }
 
-    private Vector3f calculateLocalVector(double factor, Axis axis)
+    @Override
+    public Vector3f localTranslateVector(double factor, Axis axis)
     {
         if (this.transform == null)
         {
@@ -384,6 +338,14 @@ public class UIPropTransform extends UITransform
         return vector3f;
     }
 
+    @Override
+    public float additiveFactor(TransformOp op)
+    {
+        UITrackpad reference = op == TransformOp.TRANSLATE ? this.tx : (op == TransformOp.SCALE ? this.sx : this.rx);
+
+        return (float) reference.getValueModifier();
+    }
+
     public UIPropTransform enableHotkeys()
     {
         return this.enableHotkeys(() -> true);
@@ -392,20 +354,21 @@ public class UIPropTransform extends UITransform
     public UIPropTransform enableHotkeys(Supplier<Boolean> enabled)
     {
         IKey category = UIKeys.TRANSFORMS_KEYS_CATEGORY;
-        Supplier<Boolean> active = () -> enabled.get() && this.editing;
+        Supplier<Boolean> active = () -> enabled.get() && this.gesture.isEditing();
 
-        this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, () -> this.enableMode(TransformOp.TRANSLATE)).active(enabled).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_SCALE, () -> this.enableMode(TransformOp.SCALE)).active(enabled).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_ROTATE, () -> this.enableMode(TransformOp.ROTATE)).active(enabled).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.setEditingAxis(Axis.X)).active(active).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.setEditingAxis(Axis.Y)).active(active).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.setEditingAxis(Axis.Z)).active(active).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, () -> this.gesture.enableMode(TransformOp.TRANSLATE)).active(enabled).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_SCALE, () -> this.gesture.enableMode(TransformOp.SCALE)).active(enabled).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_ROTATE, () -> this.gesture.enableMode(TransformOp.ROTATE)).active(enabled).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.gesture.setAxis(Axis.X)).active(active).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.gesture.setAxis(Axis.Y)).active(active).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.gesture.setAxis(Axis.Z)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_SPACE_MENU, this.spacePicker::open).active(enabled).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_ROTATION_MODE, this::toggleRotationMode).active(enabled).category(category);
 
         return this;
     }
 
+    @Override
     public Transform getTransform()
     {
         return this.transform;
@@ -413,142 +376,38 @@ public class UIPropTransform extends UITransform
 
     public boolean isEditing()
     {
-        return this.editing;
+        return this.gesture.isEditing();
     }
 
     /**
      * A gesture owns the transform for as long as it runs — the gizmo drag, a G/S/R operation, a
-     * typed amount — so a host bound to its property must not read it back underneath. This is the
-     * one thing the editor could not say before, and the reason it was filled on demand instead of
-     * bound like every other field. The value rows answer for themselves through the base's walk
-     * over the subtree.
+     * typed amount — so a host bound to its property must not read it back underneath. The value
+     * rows answer for themselves through the base's walk over the subtree.
      */
     @Override
     public boolean isUserEditing()
     {
-        return this.editing || super.isUserEditing();
-    }
-
-    public Axis getAxis()
-    {
-        return this.axis;
-    }
-
-    /** The active edit's operation, or {@code null} when nothing is being edited. */
-    public TransformOp getOp()
-    {
-        return this.strategy == null ? null : this.strategy.op();
-    }
-
-    /**
-     * The live gesture driving the edit, or {@code null}. Every (re)start —
-     * including an axis switch mid-edit — builds a fresh instance, so the
-     * gizmo uses its identity to scope per-gesture state (the ring freeze).
-     */
-    public DragStrategy getStrategy()
-    {
-        return this.strategy;
-    }
-
-    /** Whether the active rotation is one of the sphere's kinds (trackball or arcball). */
-    public boolean isSphereRotate()
-    {
-        return this.strategy != null && this.strategy.isSphere();
-    }
-
-    public boolean isViewRotate()
-    {
-        return this.strategy != null && this.strategy.isView();
-    }
-
-    /** Whether the active scale drives all three axes off one lever (centre scale
-     *  handle or an unconstrained S). Distinct from {@link #isUniformScale()}, which
-     *  is the trackpad's scale-field linking. */
-    public boolean isScaleAll()
-    {
-        return this.strategy != null && this.strategy.isScaleAll();
-    }
-
-    public Vector3f getInitialDragRingVec()
-    {
-        Vector3f vec = this.strategy == null ? null : this.strategy.initialRingVec();
-
-        return vec == null ? ZERO_RING_VEC : vec;
-    }
-
-    public float getAccumulatedRotateDeg()
-    {
-        return this.strategy == null ? 0F : this.strategy.accumulatedRotateDeg();
-    }
-
-    /** Screen-space start edge of the view sweep pie (radians, Y-down convention). */
-    public float getViewGrabScreenAngle()
-    {
-        return this.strategy == null ? 0F : this.strategy.viewGrabScreenAngle();
-    }
-
-    /** Signed screen-space span of the view sweep, in radians. */
-    public float getViewScreenSweepRad()
-    {
-        return this.strategy == null ? 0F : this.strategy.viewScreenSweepRad();
-    }
-
-    /**
-     * A short summary of what the active drag has changed so far, for the gizmo's
-     * on-screen readout: degrees for a rotation (axis or view ring by swept angle,
-     * the 3D sphere by net turn), the per-axis offset for a move, the per-axis
-     * factor delta for a scale. Returns {@code null} when there is nothing to show.
-     */
-    public String getDragReadout()
-    {
-        if (!this.editing || this.transform == null || this.strategy == null)
-        {
-            return null;
-        }
-
-        return this.strategy.readout();
-    }
-
-    public GizmoDrag getDrag()
-    {
-        return this.drag;
-    }
-
-    public int getDebugLineStencilIndex()
-    {
-        if (!this.editing || this.isScreenTranslate())
-        {
-            return -1;
-        }
-
-        if (this.axis2 != null)
-        {
-            if ((this.axis == Axis.X && this.axis2 == Axis.Z) || (this.axis == Axis.Z && this.axis2 == Axis.X))
-            {
-                return Gizmo.STENCIL_XZ;
-            }
-
-            if ((this.axis == Axis.X && this.axis2 == Axis.Y) || (this.axis == Axis.Y && this.axis2 == Axis.X))
-            {
-                return Gizmo.STENCIL_XY;
-            }
-
-            if ((this.axis == Axis.Z && this.axis2 == Axis.Y) || (this.axis == Axis.Y && this.axis2 == Axis.Z))
-            {
-                return Gizmo.STENCIL_ZY;
-            }
-        }
-
-        if (this.axis == Axis.X) return Gizmo.STENCIL_X;
-        if (this.axis == Axis.Y) return Gizmo.STENCIL_Y;
-        if (this.axis == Axis.Z) return Gizmo.STENCIL_Z;
-
-        return -1;
+        return this.gesture.isEditing() || super.isUserEditing();
     }
 
     public void refillTransform()
     {
         this.setTransform(this.getTransform());
+    }
+
+    @Override
+    public void refreshFields()
+    {
+        this.setTransform(this.transform);
+    }
+
+    /** The session was torn down: the deferred uniform-scale row sync is owed a run, which
+     *  the "nothing moved" shortcut of {@link #setTransform} would otherwise swallow — the
+     *  drag filled the fields with these very values a frame ago. */
+    @Override
+    public void gestureStopped()
+    {
+        this.hasFilled = false;
     }
 
     private boolean isScaleFieldDragging()
@@ -589,7 +448,7 @@ public class UIPropTransform extends UITransform
         {
             this.hasFilled = false;
 
-            this.disable();
+            this.gesture.stopEditing();
             this.fillT(0, 0, 0);
             this.fillS(1, 1, 1);
             this.fillR(0, 0, 0);
@@ -613,10 +472,10 @@ public class UIPropTransform extends UITransform
          * scale trackpad applies its drag from inside render() (through the delta editor
          * this loops right back here): mutating the element tree mid-traversal throws
          * ConcurrentModificationException. So the sync is deferred past any live gesture —
-         * a gizmo/hotkey edit (editing) or a scale-field drag — and runs when a transform
-         * is loaded into the panel, plus once more when the gesture ends (disable() for
-         * hotkey edits, the drag-end listeners in the constructor for field drags). */
-        if (!this.editing && !this.isScaleFieldDragging())
+         * a gizmo/hotkey edit or a scale-field drag — and runs when a transform is loaded
+         * into the panel, plus once more when the gesture ends (gestureStopped for hotkey
+         * edits, the drag-end listeners in the constructor for field drags). */
+        if (!this.gesture.isEditing() && !this.isScaleFieldDragging())
         {
             this.syncUniformScaleRow();
         }
@@ -753,553 +612,6 @@ public class UIPropTransform extends UITransform
         }
     }
 
-    /* Edit entry points. The mouse path (a gizmo handle pick) supplies the axes
-     * directly; the keyboard path walks the user-configured hotkey orders. Both
-     * funnel into startEdit, and both start their operation on the first press —
-     * the gizmo shows every element at once, so there is no display mode for a
-     * press to switch first. */
-
-    public void enableMode(TransformOp op)
-    {
-        GizmoDrag drag = this.getHotkeyDrag();
-        boolean ray = drag != null;
-
-        /* G/S/R walk their handles in the *_hotkey_order the user configured, wrapping
-         * past the end. Only ray-driven steps with no rendered gizmo drop out — HIDING an
-         * element does not drop its step, or a stripped-bare gizmo would take a whole
-         * operation away from the keyboard. Scale's uniform lever is a step like any other. */
-        HotkeyTarget target = this.nextHotkeyTarget(op, ray);
-
-        if (target == HotkeyTarget.VIEW)
-        {
-            this.enableViewRotate(drag, true);
-        }
-        else if (target == HotkeyTarget.SPHERE)
-        {
-            this.enableSphereRotate(drag, true);
-        }
-        else if (target == HotkeyTarget.SCREEN)
-        {
-            this.enableScreenTranslate(drag, true);
-        }
-        else if (target == HotkeyTarget.ALL)
-        {
-            this.enableUniformScale(drag, true);
-        }
-        else
-        {
-            this.enableHotkeyAxis(op, target.axis, drag);
-        }
-    }
-
-    /** The walk step the active edit corresponds to ({@code null} when not editing this op). */
-    private HotkeyTarget currentHotkeyTarget(TransformOp op)
-    {
-        if (!this.editing || this.getOp() != op)
-        {
-            return null;
-        }
-
-        if (this.isViewRotate()) return HotkeyTarget.VIEW;
-        if (this.isSphereRotate()) return HotkeyTarget.SPHERE;
-        if (this.isScreenTranslate()) return HotkeyTarget.SCREEN;
-        /* Before the axis checks: the uniform lever parks on Axis.X, so reading
-         * the axis alone would report it as the X step and the walk would skip
-         * straight past X on the next press. */
-        if (this.isScaleAll()) return HotkeyTarget.ALL;
-        if (this.axis == Axis.Y) return HotkeyTarget.Y;
-        if (this.axis == Axis.Z) return HotkeyTarget.Z;
-
-        return HotkeyTarget.X;
-    }
-
-    private HotkeyTarget nextHotkeyTarget(TransformOp op, boolean ray)
-    {
-        return HotkeyTarget.next(op, ray, this.currentHotkeyTarget(op));
-    }
-
-    /**
-     * Start (or switch to) a hotkey-driven operation along a specific axis.
-     * Unlike the mouse path this keeps the hotkey semantics (numeric input,
-     * accept/reject overlay); the axis comes from the configured hotkey order
-     * rather than a fixed cycle.
-     */
-    private void enableHotkeyAxis(TransformOp op, Axis axis, GizmoDrag drag)
-    {
-        this.startEdit(op, axis, null, DragStrategyFactory.Variant.AXIS, drag, true);
-    }
-
-    public void enableMode(TransformOp op, Axis axis)
-    {
-        this.enableMode(op, axis, null, null);
-    }
-
-    public void enableMode(TransformOp op, Axis axis, Axis axis2)
-    {
-        this.enableMode(op, axis, axis2, null);
-    }
-
-    /**
-     * Start an operation from a mouse handle pick: the axes come straight
-     * from the picked handle, so this never cycles. The keyboard path goes
-     * through {@link #enableMode(TransformOp)} and the configured hotkey
-     * orders instead.
-     */
-    public void enableMode(TransformOp op, Axis axis, Axis axis2, GizmoDrag drag)
-    {
-        this.startEdit(op, axis == null ? Axis.X : axis, axis2, DragStrategyFactory.Variant.AXIS, drag, axis == null);
-    }
-
-    public void enableSphereRotate(GizmoDrag drag)
-    {
-        this.enableSphereRotate(drag, false);
-    }
-
-    /** Start whichever free rotation the sphere is configured to drive. */
-    public void enableSphereRotate(GizmoDrag drag, boolean hotkeyMode)
-    {
-        if (BBSSettings.rotate3dSphereMode.get() == 1) this.enableArcball(drag, hotkeyMode);
-        else this.enableTrackball(drag, hotkeyMode);
-    }
-
-    public void enableTrackball(GizmoDrag drag)
-    {
-        this.enableTrackball(drag, false);
-    }
-
-    public void enableTrackball(GizmoDrag drag, boolean hotkeyMode)
-    {
-        this.startEdit(TransformOp.ROTATE, null, null, DragStrategyFactory.Variant.TRACKBALL, drag, hotkeyMode);
-    }
-
-    public void enableArcball(GizmoDrag drag)
-    {
-        this.enableArcball(drag, false);
-    }
-
-    public void enableArcball(GizmoDrag drag, boolean hotkeyMode)
-    {
-        this.startEdit(TransformOp.ROTATE, null, null, DragStrategyFactory.Variant.ARCBALL, drag, hotkeyMode);
-    }
-
-    public void enableViewRotate(GizmoDrag drag)
-    {
-        this.enableViewRotate(drag, false);
-    }
-
-    public void enableViewRotate(GizmoDrag drag, boolean hotkeyMode)
-    {
-        this.startEdit(TransformOp.ROTATE, null, null, DragStrategyFactory.Variant.VIEW, drag, hotkeyMode);
-    }
-
-    /**
-     * Start a uniform (three-axis) scale: one lever axis drives all three, the
-     * same math Ctrl+axis-scale uses. Reached by a mouse pick on the centre cube
-     * and as a step of the S-key walk alike.
-     */
-    public void enableUniformScale(GizmoDrag drag)
-    {
-        this.enableUniformScale(drag, false);
-    }
-
-    public void enableUniformScale(GizmoDrag drag, boolean hotkeyMode)
-    {
-        this.startEdit(TransformOp.SCALE, Axis.X, null, DragStrategyFactory.Variant.UNIFORM_SCALE, drag, hotkeyMode);
-    }
-
-    /**
-     * Start a screen-space (view-plane) translate: the object moves along the
-     * camera's right/up axes in the plane facing the camera. Reached by grabbing
-     * the centre cube and as a step of the G-key walk alike.
-     */
-    public void enableScreenTranslate(GizmoDrag drag)
-    {
-        this.enableScreenTranslate(drag, false);
-    }
-
-    public void enableScreenTranslate(GizmoDrag drag, boolean hotkeyMode)
-    {
-        this.startEdit(TransformOp.TRANSLATE, Axis.X, Axis.Y, DragStrategyFactory.Variant.SCREEN, drag, hotkeyMode);
-    }
-
-    /**
-     * The one edit-start ritual every entry point funnels into: close any
-     * previous edit, snapshot the transform, build the strategy for the
-     * request and anchor it at the cursor, then raise the accept/reject
-     * overlay.
-     */
-    private void startEdit(TransformOp op, Axis axis, Axis axis2, DragStrategyFactory.Variant variant, GizmoDrag drag, boolean hotkeyMode)
-    {
-        UIContext context = this.getContext();
-
-        if (context == null || this.transform == null)
-        {
-            return;
-        }
-
-        this.numeric.clear();
-
-        if (this.editing)
-        {
-            this.restore();
-        }
-        else
-        {
-            /* Arm the physics rewind for this gesture. Only on a fresh one: re-entering while editing
-             * (switching the op mid-drag) rewinds the transform to the SAME start snapshot, so the sim
-             * the gesture must be able to return to is still the one captured back then. */
-            ModelPhysicsRuntime.checkpoint();
-        }
-
-        this.editing = true;
-        this.axis = axis;
-        this.axis2 = axis2;
-        this.hotkeyMode = hotkeyMode;
-        this.drag = drag;
-
-        /* Every fresh operation starts back in the picker's frame with the walk at zero
-         * — G/S/R, a handle pick and the walk's own release all come through here. */
-        this.editSpace = null;
-        this.axisWalkAxis = null;
-        this.axisWalkPlane = false;
-        this.axisWalkStep = 0;
-
-        /* Scope the IK solve dump to this gesture — the log then holds exactly
-         * the drag being investigated (see ModelIKRuntime#logGesture). */
-        ModelIKRuntime.logGesture(true);
-
-        this.cache.copy(this.transform);
-        Gizmo.INSTANCE.trackTransform(this);
-
-        this.strategy = DragStrategyFactory.create(this.bridge, op, axis, axis2, variant);
-        this.strategy.begin(context.mouseX, context.mouseY);
-
-        if (!this.handler.hasParent())
-        {
-            context.menu.overlay.add(this.handler);
-        }
-    }
-
-    private GizmoDrag getHotkeyDrag()
-    {
-        return this.hotkeyDragSupplier == null ? null : this.hotkeyDragSupplier.get();
-    }
-
-    /**
-     * Constrain the live edit to an axis (with Shift, to the plane perpendicular to it):
-     * rewind to the start values and rebuild the gesture as a plain axis drag.
-     *
-     * <p>The SAME axis pressed again walks Blender's cycle instead of rebuilding the
-     * same constraint: the picker's frame, then the other one ({@link AxisSpaceCycle}),
-     * then no constraint at all ({@link #releaseConstraint}), then over. A different
-     * axis — or the plane form of the same one — restarts the walk.
-     */
-    private void setEditingAxis(Axis axis)
-    {
-        boolean plane = Window.isShiftPressed();
-        boolean same = this.editing && axis == this.axisWalkAxis && plane == this.axisWalkPlane;
-        int step = same ? this.axisWalkStep + 1 : 0;
-        List<TransformSpace> spaces = AxisSpaceCycle.spaces(this.getOp(), this.spacePicker.getValue());
-
-        if (step >= spaces.size())
-        {
-            if (this.releaseConstraint())
-            {
-                return;
-            }
-
-            /* Nothing to fall back to (translate's and rotate's free gestures are
-             * ray-driven), so the walk wraps instead of stalling on that step. */
-            step = 0;
-        }
-
-        this.axisWalkAxis = axis;
-        this.axisWalkPlane = plane;
-        this.axisWalkStep = step;
-        this.editSpace = spaces.get(step);
-
-        if (plane)
-        {
-            switch (axis)
-            {
-                case X:
-                    this.axis = Axis.Y;
-                    this.axis2 = Axis.Z;
-                    break;
-                case Y:
-                    this.axis = Axis.Z;
-                    this.axis2 = Axis.X;
-                    break;
-                case Z:
-                    this.axis = Axis.X;
-                    this.axis2 = Axis.Y;
-                    break;
-            }
-        }
-        else
-        {
-            this.axis = axis;
-            this.axis2 = null;
-        }
-
-        if (!this.editing)
-        {
-            return;
-        }
-
-        this.rebuildConstrainedGesture();
-    }
-
-    /** Rewind to the start values and rebuild the live edit as a plain axis drag on the
-     *  current axes and frame. Rebuilding from the start snapshot every time is what
-     *  makes repeating it free of drift. */
-    private void rebuildConstrainedGesture()
-    {
-        TransformOp op = this.getOp();
-
-        this.restore();
-
-        UIContext context = this.getContext();
-
-        if (context != null && op != null)
-        {
-            this.strategy = DragStrategyFactory.create(this.bridge, op, this.axis, this.axis2, DragStrategyFactory.Variant.AXIS);
-            this.strategy.begin(context.mouseX, context.mouseY);
-        }
-
-        /* Re-route an in-progress typed amount onto the freshly picked axis. */
-        if (this.numeric.isActive())
-        {
-            this.applyNumericInput();
-        }
-    }
-
-    /**
-     * Drop the axis constraint, the last step of the cycle: the operation falls back to
-     * its own free gesture — screen-plane grab, uniform lever, view spin — which are the
-     * same ones a plain G/S/R offers, so no fourth kind of drag is needed.
-     *
-     * <p>Returns whether it could: translate's and rotate's free gestures are ray-driven
-     * (cf. {@link HotkeyTarget#needsRay}), so a keyboard edit with no gizmo has nothing
-     * to drop into and the caller wraps the walk instead.
-     */
-    private boolean releaseConstraint()
-    {
-        TransformOp op = this.getOp();
-
-        if (op == null)
-        {
-            return false;
-        }
-
-        if (op == TransformOp.SCALE)
-        {
-            this.enableUniformScale(this.drag, this.hotkeyMode);
-
-            return true;
-        }
-
-        if (this.drag == null)
-        {
-            return false;
-        }
-
-        if (op == TransformOp.TRANSLATE)
-        {
-            this.enableScreenTranslate(this.drag, this.hotkeyMode);
-        }
-        else
-        {
-            this.enableViewRotate(this.drag, this.hotkeyMode);
-        }
-
-        return true;
-    }
-
-    /** Rewind every channel to the values captured when the edit began. */
-    private void restore()
-    {
-        this.setT(null, this.cache.translate.x, this.cache.translate.y, this.cache.translate.z);
-        this.setS(null, this.cache.scale.x, this.cache.scale.y, this.cache.scale.z);
-
-        if (this.cache.rotationMode == Transform.RotationMode.QUATERNION)
-        {
-            this.setRQuat(new Quaternionf(this.cache.quat));
-        }
-        else
-        {
-            this.setR(null, MathUtils.toDeg(this.cache.rotate.x), MathUtils.toDeg(this.cache.rotate.y), MathUtils.toDeg(this.cache.rotate.z));
-        }
-    }
-
-    private void disable()
-    {
-        ModelIKRuntime.logGesture(false);
-        ModelPhysicsRuntime.dropCheckpoint();
-
-        this.editing = false;
-        this.axis2 = null;
-        this.hotkeyMode = false;
-        this.editSpace = null;
-        this.axisWalkAxis = null;
-        this.axisWalkStep = 0;
-        this.strategy = null;
-        this.drag = null;
-        this.fineCursor.forget();
-        this.numeric.clear();
-
-        /* Force the next read through the full path: the uniform-scale row sync is deferred past
-         * a live gesture, and the end of one is exactly when it owes a run — which the
-         * "nothing moved" shortcut would otherwise swallow, since the drag filled the fields with
-         * these very values a frame ago. */
-        this.hasFilled = false;
-
-        Gizmo.INSTANCE.clearTrackedTransform(this);
-
-        if (this.handler.hasParent())
-        {
-            this.handler.removeFromParent();
-        }
-    }
-
-    public void acceptChanges()
-    {
-        this.disable();
-        this.setTransform(this.transform);
-        this.endGesture();
-    }
-
-    public void rejectChanges()
-    {
-        if (this.transform == null)
-        {
-            this.disable();
-
-            return;
-        }
-
-        /* Rewind BEFORE tearing down: restore() routes a pivot-session revert
-         * through the session's per-bone snapshots, and disable() nulls that
-         * session. Do it the other way round and the rewind falls back to the
-         * per-channel path, which fans the primary's values onto the whole
-         * selection — the bones come back crooked instead of where they were. */
-        this.restore();
-
-        /* The pose is back where it started, so the simulation it drove goes back too — otherwise the
-         * chains stay where the drag flung them and lash home over a single tick. */
-        ModelPhysicsRuntime.rewindToCheckpoint();
-
-        this.disable();
-        this.setTransform(this.transform);
-    }
-
-    /** Route a wheel event into the live gesture (depth move, sphere roll). */
-    public boolean scrollDrag(UIContext context)
-    {
-        return this.editing && this.transform != null && this.strategy != null && this.strategy.scroll(context);
-    }
-
-    /* Numeric (keyboard) input for hotkey-driven transforms */
-
-    /**
-     * Numeric input only rides on the GSR keyboard operations ({@link #hotkeyMode}),
-     * never on a mouse handle drag; the active gesture additionally has a say
-     * (the screen-space grab spreads one drag across two camera axes, so a
-     * single typed scalar is ambiguous there).
-     */
-    private boolean acceptsNumericInput()
-    {
-        return this.editing && this.hotkeyMode && this.transform != null
-            && this.strategy != null && this.strategy.acceptsNumeric();
-    }
-
-    /**
-     * Feed one key into the live numeric buffer: digits and the decimal point
-     * extend it, {@code -} flips the sign, backspace trims it (and hands control
-     * back to the cursor once everything is erased). Returns whether the key was
-     * consumed as numeric input.
-     */
-    private boolean handleNumericInputKey(UIContext context)
-    {
-        if (!this.acceptsNumericInput())
-        {
-            return false;
-        }
-
-        KeyAction action = context.getKeyAction();
-
-        if (action != KeyAction.PRESSED && action != KeyAction.REPEAT)
-        {
-            return false;
-        }
-
-        int key = context.getKeyCode();
-
-        /* While typing on the sphere, X/Y aim the typed angle at the
-         * horizontal (screen-up axis) or vertical (screen-right axis) turn.
-         * Without typed digits they must fall through to the axis keybinds
-         * and constrain to a ring — otherwise they read as dead keys. */
-        if (this.numeric.isActive() && this.strategy.handleNumericAxisKey(key))
-        {
-            this.applyNumericInput();
-
-            return true;
-        }
-
-        switch (this.numeric.feedKey(key))
-        {
-            case EMPTIED:
-                this.stopNumericInput(context);
-
-                return true;
-
-            case CHANGED:
-                this.applyNumericInput();
-
-                return true;
-
-            case CONSUMED:
-                return true;
-
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * Erasing the whole buffer cancels numeric mode: rewind to the operation's
-     * start and re-anchor the cursor drag at the current pointer so mouse
-     * control resumes without a jump.
-     */
-    private void stopNumericInput(UIContext context)
-    {
-        this.numeric.clear();
-        this.restore();
-
-        /* The cursor was free to roam while typing; re-anchor the precision
-         * tracking here so the resumed drag doesn't inherit a stale lag. */
-        this.fineCursor.reset(context.mouseX, context.mouseY);
-
-        if (this.strategy != null)
-        {
-            this.strategy.begin(context.mouseX, context.mouseY);
-        }
-
-        this.setTransform(this.transform);
-    }
-
-    /** Recompute the transform from the start snapshot plus the typed amount. */
-    private void applyNumericInput()
-    {
-        if (this.transform == null || this.strategy == null)
-        {
-            return;
-        }
-
-        this.strategy.applyNumeric(this.numeric.value());
-        this.setTransform(this.transform);
-    }
-
     @Override
     public void setT(Axis axis, double x, double y, double z)
     {
@@ -1372,474 +684,21 @@ public class UIPropTransform extends UITransform
     @Override
     protected boolean subKeyPressed(UIContext context)
     {
-        if (this.editing)
+        if (this.gesture.keyPressed(context))
         {
-            if (context.isPressed(GLFW.GLFW_KEY_ENTER))
-            {
-                this.acceptChanges();
-
-                return true;
-            }
-            else if (context.isPressed(GLFW.GLFW_KEY_ESCAPE))
-            {
-                this.rejectChanges();
-
-                return true;
-            }
-            else if (this.handleNumericInputKey(context))
-            {
-                return true;
-            }
+            return true;
         }
 
         return super.subKeyPressed(context);
     }
 
-    /** Short label of what the active drag grabs: axis letters, the screen
-     *  plane, the view ring, or one of the sphere's rotations. */
-    private String editingTargetLabel()
-    {
-        String special = this.strategy == null ? null : this.strategy.editingTargetLabel();
-
-        if (special != null)
-        {
-            return special;
-        }
-
-        if (this.getOp() == TransformOp.SCALE && (this.isScaleAll() || Window.isCtrlPressed()))
-        {
-            return "XYZ";
-        }
-
-        String label = this.axis == null ? "" : this.axis.name();
-
-        if (this.axis2 != null)
-        {
-            label += this.axis2.name();
-        }
-
-        return label;
-    }
-
-    /** Axis letters tint to their gizmo colors; everything else stays white. */
-    private int editingTargetColor()
-    {
-        boolean singleAxis = this.axis != null && this.axis2 == null
-            && !this.isScreenTranslate()
-            && !(this.getOp() == TransformOp.SCALE && (this.isScaleAll() || Window.isCtrlPressed()));
-
-        if (!singleAxis)
-        {
-            return Colors.WHITE;
-        }
-
-        if (this.axis == Axis.X) return Colors.A100 | Colors.RED;
-        if (this.axis == Axis.Y) return Colors.A100 | Colors.GREEN;
-
-        return Colors.A100 | Colors.BLUE;
-    }
-
-    /** Space chip; scale ignores the space toggle, so it gets none. */
-    private String editingSpaceLabel()
-    {
-        if (this.getOp() == TransformOp.SCALE)
-        {
-            return null;
-        }
-
-        return this.getSpace().label.get();
-    }
-
-    /** The live vector of the edited channel, for the cursor's value card. */
-    private Vector3f getValue()
-    {
-        if (this.transform == null)
-        {
-            return new Vector3f();
-        }
-
-        TransformOp op = this.getOp();
-
-        if (op == TransformOp.SCALE)
-        {
-            return this.transform.scale;
-        }
-        else if (op == TransformOp.ROTATE)
-        {
-            /* A quaternion bone's channels are stale; show its live rotation. */
-            return this.transform.rotationMode == Transform.RotationMode.QUATERNION
-                ? this.transform.getEulerRotation(new Vector3f())
-                : this.transform.rotate;
-        }
-
-        return this.transform.translate;
-    }
-
-    /**
-     * Advance the live gesture: wrap the cursor at the window edges (re-anchoring
-     * the strategy at the teleported position) and feed the strategy the cursor —
-     * virtual (Shift-slowed) for ray gestures, raw for the additive fallback,
-     * which damps Shift through its step factor instead.
-     */
-    private void updateDrag(UIContext context)
-    {
-        /* UIContext.mouseX can't be used because when cursor is outside of window
-         * its position stops being updated. That's why it has to be queried manually
-         * through GLFW...
-         *
-         * It gets updated outside the window only when one of mouse buttons is
-         * being held! */
-        GLFW.glfwGetCursorPos(Window.getWindow(), CURSOR_X, CURSOR_Y);
-
-        MinecraftClient mc = MinecraftClient.getInstance();
-        int w = mc.getWindow().getWidth();
-
-        double rawX = CURSOR_X[0];
-        double fx = Math.ceil(w / (double) context.menu.width);
-        int border = 5;
-        int borderPadding = border + 1;
-
-        this.fineCursor.update(context.mouseX, context.mouseY);
-
-        if (rawX <= border || rawX >= w - border)
-        {
-            int wrapX;
-
-            if (rawX <= border)
-            {
-                Window.moveCursor(w - borderPadding, (int) mc.mouse.getY());
-                wrapX = context.menu.width - (int) (borderPadding / fx);
-            }
-            else
-            {
-                Window.moveCursor(borderPadding, (int) mc.mouse.getY());
-                wrapX = (int) (borderPadding / fx);
-            }
-
-            this.checker.mark();
-
-            /* The wrap re-anchors the drag at the teleported position, so the
-             * virtual cursor resets there too — no lag carries across the seam. */
-            this.fineCursor.reset(wrapX, context.mouseY);
-
-            if (this.strategy != null)
-            {
-                this.strategy.begin(wrapX, context.mouseY);
-            }
-
-            return;
-        }
-
-        if (this.strategy != null)
-        {
-            if (this.strategy.usesFineCursor())
-            {
-                this.strategy.update(this.fineCursor.x(context.mouseX), this.fineCursor.y(context.mouseY));
-            }
-            else
-            {
-                this.strategy.update(context.mouseX, context.mouseY);
-            }
-
-            this.strategy.logDrag();
-        }
-
-        this.setTransform(this.transform);
-    }
-
-    /**
-     * Advance a running gesture if it is due. Normally this happens from {@link #render},
-     * but a gesture must not depend on its editor being on screen: the film's replay-root
-     * gizmo has no visible fields at all, and a bone drag used to freeze the moment its
-     * keyframe panel was closed. So {@link mchorse.bbs_mod.ui.utils.GizmoInteraction#update}
-     * pumps the tracked
-     * transform every frame as well — the {@code checker} timer swallows whichever of the
-     * two calls comes second within its window, so pumping twice costs nothing.
-     */
-    public void pumpDrag(UIContext context)
-    {
-        if (this.editing && !this.numeric.isActive() && this.checker.isTime())
-        {
-            this.updateDrag(context);
-        }
-    }
-
     @Override
     public void render(UIContext context)
     {
-        this.pumpDrag(context);
+        this.gesture.pump(context);
 
         super.render(context);
 
-        if (this.editing)
-        {
-            FontRenderer font = context.batcher.getFont();
-            TransformOp editOp = this.getOp();
-            String op = (editOp == TransformOp.TRANSLATE ? UIKeys.TRANSFORMS_TRANSLATE : editOp == TransformOp.SCALE ? UIKeys.TRANSFORMS_SCALE : UIKeys.TRANSFORMS_ROTATE).get();
-            String target = this.editingTargetLabel();
-            String space = this.editingSpaceLabel();
-
-            /* Chip row: the operation on the primary color, then what is
-             * grabbed (axis letters in their gizmo colors), then the editing
-             * space. The 5s account for textCard's box overhang at the
-             * default card offset. */
-            int gap = 2;
-            int rowWidth = font.getWidth(op) + 5 + gap + font.getWidth(target) + 5;
-
-            if (space != null)
-            {
-                rowWidth += gap + font.getWidth(space) + 5;
-            }
-
-            int x = this.area.mx(rowWidth) + 3;
-            int y = this.area.my(font.getHeight());
-
-            context.batcher.textCard(op, x, y, Colors.WHITE, BBSSettings.primaryColor(Colors.A50));
-            x += font.getWidth(op) + 5 + gap;
-            context.batcher.textCard(target, x, y, this.editingTargetColor(), Colors.A50);
-
-            if (space != null)
-            {
-                x += font.getWidth(target) + 5 + gap;
-                context.batcher.textCard(space, x, y, Colors.LIGHTEST_GRAY, Colors.A50);
-            }
-
-            /* Label echoed both at the cursor and (when typing) under the info row. */
-            String numericLabel = null;
-
-            if (this.axis != null)
-            {
-                Vector3f v = this.getValue();
-                float val = this.axis == Axis.X ? v.x : (this.axis == Axis.Y ? v.y : v.z);
-
-                if (editOp == TransformOp.ROTATE)
-                {
-                    val = MathUtils.toDeg(val);
-                }
-
-                String valueLabel = String.format(java.util.Locale.US, "%.2f", val);
-
-                if (this.axis2 != null)
-                {
-                    float val2 = this.axis2 == Axis.X ? v.x : (this.axis2 == Axis.Y ? v.y : v.z);
-
-                    if (editOp == TransformOp.ROTATE)
-                    {
-                        val2 = MathUtils.toDeg(val2);
-                    }
-
-                    valueLabel += ", " + String.format(java.util.Locale.US, "%.2f", val2);
-                }
-
-                /* While typing, lead with the raw input so the user sees exactly
-                 * what they've entered, with the resulting value in parentheses. */
-                String cursorLabel = this.numeric.isActive()
-                    ? this.numeric.display() + " (" + valueLabel + ")"
-                    : valueLabel;
-
-                if (this.numeric.isActive())
-                {
-                    numericLabel = cursorLabel;
-                }
-
-                context.batcher.textCard(cursorLabel, context.mouseX + 12, context.mouseY + 12, Colors.WHITE, Colors.A50);
-            }
-            else if (this.numeric.isActive())
-            {
-                /* The view ring and the sphere have no single axis component to
-                 * echo, so show the typed angle, plus the aimed direction. */
-                String prefix = this.strategy == null ? "" : this.strategy.numericPrefix();
-
-                numericLabel = prefix + this.numeric.display() + "°";
-
-                context.batcher.textCard(numericLabel, context.mouseX + 12, context.mouseY + 12, Colors.WHITE, Colors.A50);
-            }
-
-            /* Mirror the live numeric input on its own card right under the info row. */
-            if (numericLabel != null)
-            {
-                int nx = this.area.mx(font.getWidth(numericLabel));
-                int ny = y + font.getHeight() + 8;
-
-                context.batcher.textCard(numericLabel, nx, ny, Colors.WHITE, BBSSettings.primaryColor(Colors.A50));
-            }
-        }
-    }
-
-    /**
-     * Bridge the active {@link DragStrategy} works through: it exposes the
-     * edit session's state and funnels every write back through the editor's
-     * virtual {@code setT/setS/setR/setR2}, so the delta editors keep fanning
-     * edits onto their selections.
-     */
-    private class Bridge implements DragContext
-    {
-        @Override
-        public Transform transform()
-        {
-            return UIPropTransform.this.transform;
-        }
-
-        @Override
-        public Transform cache()
-        {
-            return UIPropTransform.this.cache;
-        }
-
-        @Override
-        public GizmoDrag drag()
-        {
-            return UIPropTransform.this.drag;
-        }
-
-        @Override
-        public void setDrag(GizmoDrag drag)
-        {
-            UIPropTransform.this.drag = drag;
-        }
-
-        @Override
-        public GizmoDrag freshHotkeyDrag()
-        {
-            return UIPropTransform.this.getHotkeyDrag();
-        }
-
-        @Override
-        public TransformSpace space()
-        {
-            return UIPropTransform.this.getSpace();
-        }
-
-        @Override
-        public boolean isModel()
-        {
-            return UIPropTransform.this.model;
-        }
-
-        @Override
-        public boolean rotationConstrained()
-        {
-            return UIPropTransform.this.isRotationConstrained();
-        }
-
-        @Override
-        public boolean rotationChannelOnly()
-        {
-            return UIPropTransform.this.isRotationChannelOnly();
-        }
-
-        @Override
-        public String targetName()
-        {
-            return UIPropTransform.this.getClass().getSimpleName();
-        }
-
-        /* Blender-style snapping: every gesture is free by default and snaps to
-         * the configured step only while Ctrl is held. Typed numeric input is
-         * exact already, so it never snaps. */
-        @Override
-        public boolean shouldSnap(TransformOp op)
-        {
-            return UIPropTransform.this.editing && UIPropTransform.this.getOp() == op
-                && Window.isCtrlPressed() && !UIPropTransform.this.numeric.isActive();
-        }
-
-        @Override
-        public float additiveFactor(TransformOp op)
-        {
-            UITrackpad reference = op == TransformOp.TRANSLATE ? UIPropTransform.this.tx : (op == TransformOp.SCALE ? UIPropTransform.this.sx : UIPropTransform.this.rx);
-
-            return (float) reference.getValueModifier();
-        }
-
-        @Override
-        public Vector3f localTranslateVector(double factor, Axis axis)
-        {
-            return UIPropTransform.this.calculateLocalVector(factor, axis);
-        }
-
-        @Override
-        public float sphereWorldRadius()
-        {
-            return Gizmo.INSTANCE.getSphereWorldRadius();
-        }
-
-        @Override
-        public void refreshFields()
-        {
-            UIPropTransform.this.setTransform(UIPropTransform.this.transform);
-        }
-
-        @Override
-        public void writeTranslate(float x, float y, float z)
-        {
-            UIPropTransform.this.setT(null, x, y, z);
-        }
-
-        @Override
-        public void writeScale(float x, float y, float z)
-        {
-            UIPropTransform.this.setS(null, x, y, z);
-        }
-
-        @Override
-        public void writeRotateDeg(float xDeg, float yDeg, float zDeg)
-        {
-            UIPropTransform.this.setR(null, xDeg, yDeg, zDeg);
-        }
-
-        @Override
-        public void writeRotationQuat(Quaternionf quat)
-        {
-            UIPropTransform.this.setRQuat(quat);
-        }
-    }
-
-    public static class UITransformHandler extends UIElement
-    {
-        private UIPropTransform transform;
-
-        public UITransformHandler(UIPropTransform transform)
-        {
-            this.transform = transform;
-        }
-
-        @Override
-        protected boolean subMouseClicked(UIContext context)
-        {
-            if (this.transform.editing)
-            {
-                if (context.mouseButton == 0)
-                {
-                    this.transform.acceptChanges();
-
-                    return true;
-                }
-                else if (context.mouseButton == 1)
-                {
-                    this.transform.rejectChanges();
-
-                    return true;
-                }
-            }
-
-            return super.subMouseClicked(context);
-        }
-
-        @Override
-        protected boolean subMouseScrolled(UIContext context)
-        {
-            /* While sphere-dragging the wheel rolls about the view axis; during a
-             * screen-space grab it drives depth; otherwise it keeps adjusting
-             * the drag sensitivity amplifier as before. */
-            if (this.transform.scrollDrag(context))
-            {
-                return true;
-            }
-
-            UITrackpad.updateAmplifier(context);
-
-            return true;
-        }
+        TransformGestureHud.render(context, this.gesture, this.area);
     }
 }

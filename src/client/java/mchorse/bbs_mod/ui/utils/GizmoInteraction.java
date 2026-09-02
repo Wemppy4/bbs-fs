@@ -3,7 +3,7 @@ package mchorse.bbs_mod.ui.utils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGesture;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import org.joml.Matrix4f;
@@ -157,21 +157,17 @@ public class GizmoInteraction
     /**
      * Keep a running gesture moving when the editor that owns it is NOT drawn — the film's
      * replay-root gizmo edits a transform with no visible fields at all, and a bone drag
-     * froze the moment its keyframe panel was closed.
-     *
-     * <p>Strictly only then. {@link UIPropTransform#render} still pumps its own drag, and
-     * pumping a drawn editor from here as well would advance the same gesture twice in one
-     * frame. That is not free the way it looks: the per-gesture timer that appears to throttle
-     * it is only ever armed when the cursor wraps at a screen edge, so both calls really do go
-     * through, and any strategy that is not perfectly idempotent moves twice.
+     * froze the moment its keyframe panel was closed. The session itself decides whether it
+     * is owed the pump (see {@link TransformGesture#pumpIfHidden}); a drawn editor pumps
+     * from its own render.
      */
     private void pumpDrag(UIContext context)
     {
-        UIPropTransform transform = Gizmo.INSTANCE.getTrackedTransform();
+        TransformGesture gesture = Gizmo.INSTANCE.getTrackedGesture();
 
-        if (transform != null && !transform.isVisible())
+        if (gesture != null)
         {
-            transform.pumpDrag(context);
+            gesture.pumpIfHidden(context);
         }
     }
 
