@@ -85,7 +85,15 @@ import java.util.Set;
 
 public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
 {
-    public static boolean toggleRendering;
+    /** Show the real form while its editor is open (the editor normally hides it and draws its
+     * own preview); flipped by a keybind while editing. Session state of THIS panel — the block
+     * renderer asks the panel instead of a mod-wide static. */
+    private boolean toggleRendering;
+
+    public boolean isRenderingToggled()
+    {
+        return this.toggleRendering;
+    }
 
     /** Slots in the order they are listed in the equipment section. */
     private static final EquipmentSlot[] EQUIPMENT_SLOTS = {
@@ -198,10 +206,10 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
             });
 
             palette.immersive();
-            palette.editor.keys().register(Keys.MODEL_BLOCKS_TOGGLE_RENDERING, () -> toggleRendering = !toggleRendering);
+            palette.editor.keys().register(Keys.MODEL_BLOCKS_TOGGLE_RENDERING, () -> this.toggleRendering = !this.toggleRendering);
             palette.editor.renderer.full(dashboard.getRoot());
             palette.editor.renderer.setTarget(this.modelBlock.getEntity());
-            palette.editor.renderer.setRenderForm(() -> !toggleRendering);
+            palette.editor.renderer.setRenderForm(() -> !this.toggleRendering);
             palette.getEvents().register(UIToggleEditorEvent.class, (e) ->
             {
                 if (e.editing)
