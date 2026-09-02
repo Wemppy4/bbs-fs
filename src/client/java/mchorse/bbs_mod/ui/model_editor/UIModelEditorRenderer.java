@@ -107,7 +107,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
      */
     private static final Map<EquipmentSlot, Item> EQUIPMENT = Map.of(
         EquipmentSlot.MAINHAND, Items.DIAMOND_SWORD,
-        EquipmentSlot.OFFHAND, Items.SHIELD,
+        EquipmentSlot.OFFHAND, Items.NETHERITE_SWORD,
         EquipmentSlot.HEAD, Items.TURTLE_HELMET,
         EquipmentSlot.CHEST, Items.GOLDEN_CHESTPLATE,
         EquipmentSlot.LEGS, Items.DIAMOND_LEGGINGS,
