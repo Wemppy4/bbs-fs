@@ -1,18 +1,13 @@
 package mchorse.bbs_mod.camera.clips.misc;
 
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.pose.Transform;
 
 public class Subtitle
 {
     public String label = "";
-    public int x;
-    public int y;
-    public float size;
-    public float anchorX;
-    public float anchorY;
-    public float windowX;
-    public float windowY;
+    public Placement placement;
     public int color;
     public boolean textShadow;
     public int backgroundColor;
@@ -23,6 +18,8 @@ public class Subtitle
     public Transform transform;
     public float factor;
 
+    public final OverlayBox box = new OverlayBox();
+
     public int lineHeight;
     public int maxWidth;
 
@@ -30,22 +27,15 @@ public class Subtitle
     public boolean imageRight;
     public float imageScale;
 
-    public void update(String label, int x, int y, float size, float anchorX, float anchorY, int color, boolean textShadow)
+    public Link font;
+    public int fontSize;
+
+    public void update(String label, Placement placement, int color, boolean textShadow)
     {
         this.label = label;
-        this.x = x;
-        this.y = y;
-        this.size = size;
-        this.anchorX = anchorX;
-        this.anchorY = anchorY;
+        this.placement = placement;
         this.color = color;
         this.textShadow = textShadow;
-    }
-
-    public void updateWindow(float x, float y)
-    {
-        this.windowX = x;
-        this.windowY = y;
     }
 
     public void updateBackground(int backgroundColor, float backgroundOffset, float shadow, boolean shadowOpaque)
@@ -66,6 +56,12 @@ public class Subtitle
     {
         this.lineHeight = lineHeight;
         this.maxWidth = maxWidth;
+    }
+
+    public void updateFont(Link font, int fontSize)
+    {
+        this.font = font;
+        this.fontSize = fontSize;
     }
 
     public void updateImage(Link image, boolean imageRight, float imageScale)

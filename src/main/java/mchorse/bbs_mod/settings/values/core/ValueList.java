@@ -54,17 +54,22 @@ public abstract class ValueList <T extends BaseValue> extends BaseValueGroup
         return this.list;
     }
 
+    /**
+     * Looked up by the elements' own ids rather than by parsing the key as a position. For
+     * positional lists the two are the same thing ({@link #sync()} keeps id = index); for
+     * {@link ValueStableList} the id is the element's permanent identity and parsing would be
+     * wrong.
+     */
     @Override
     public BaseValue get(String key)
     {
-        try
+        for (T value : this.list)
         {
-            int index = Integer.parseInt(key);
-
-            return CollectionUtils.getSafe(this.list, index);
+            if (value.getId().equals(key))
+            {
+                return value;
+            }
         }
-        catch (Exception e)
-        {}
 
         return null;
     }
@@ -140,5 +145,23 @@ public abstract class ValueList <T extends BaseValue> extends BaseValueGroup
             this.add(value);
             value.fromData(list.get(i));
         }
+    }
+
+    /** A list is born empty, so that is what it goes back to. */
+    @Override
+    public void reset()
+    {
+        if (!this.list.isEmpty())
+        {
+            this.preNotify();
+            this.list.clear();
+            this.postNotify();
+        }
+    }
+
+    @Override
+    public boolean isDefault()
+    {
+        return this.list.isEmpty();
     }
 }

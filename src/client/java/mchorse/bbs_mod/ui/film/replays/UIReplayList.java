@@ -6,7 +6,6 @@ import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.clips.CameraClipContext;
-import mchorse.bbs_mod.camera.clips.modifiers.EntityClip;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -21,7 +20,6 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.AnchorForm;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.math.IExpression;
@@ -32,9 +30,11 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueForm;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.forms.forms.StructureForm;
+import mchorse.bbs_mod.forms.structure.StructureCut;
+import mchorse.bbs_mod.forms.structure.StructureSelection;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
-import mchorse.bbs_mod.ui.film.replays.overlays.UIReplaysOverlayPanel;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -55,13 +55,14 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
+import mchorse.bbs_mod.ui.model_blocks.UIModelBlockEntityList;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -79,6 +80,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Vector3d;
@@ -86,7 +88,6 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -142,18 +143,20 @@ public class UIReplayList extends UIList<ReplayListEntry>
             .supplier(() -> this.hasReplaySelection() ? this.replaysToData() : null)
             .consumer((data, mouseX, mouseY) -> this.pasteReplay(data))
             .canCopy(this::hasReplaySelection)
-            .canPaste(() -> this.panel != null && this.panel.getData() != null);
+            .canPaste(() -> this.panel != null && this.panel.getData() != null)
+            .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE);
 
         this.multi().sorting();
+        this.emptyState(UIKeys.SCENE_REPLAYS_EMPTY, BBSSettings::deepSurface);
         this.context((menu) ->
         {
             Film film = this.panel.getData();
             UIContext context = this.getContext();
 
-            menu.custom(new UIPresetContextMenu(this.presetController, context.mouseX, context.mouseY)
-                .labels(UIKeys.SCENE_REPLAYS_CONTEXT_COPY, UIKeys.SCENE_REPLAYS_CONTEXT_PASTE));
+            this.presetController.install(menu, context, context.mouseX, context.mouseY);
 
-            menu.action(Icons.ADD, UIKeys.SCENE_REPLAYS_CONTEXT_ADD, this::addReplay);
+            menu.icon(MenuVerb.ADD, this::addReplay).label(UIKeys.SCENE_REPLAYS_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removeReplay).label(UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE).enabled(this.hasReplaySelection());
 
             if (film != null)
             {
@@ -165,6 +168,11 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 String cat = this.contextFolderCategoryName;
 
                 menu.action(Icons.TRASH, UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE_CATEGORY, () -> this.removeReplayCategory(cat));
+            }
+
+            if (film != null && StructureSelection.isReady())
+            {
+                menu.action(Icons.BLOCK, UIKeys.STRUCTURE_CUT_TITLE, this::cutSelectionIntoReplay);
             }
 
             if (film != null)
@@ -224,7 +232,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
                         UIOverlay.addOverlay(this.getContext(), numberPanel);
                     }
                 });
-                menu.action(Icons.REMOVE, UIKeys.SCENE_REPLAYS_CONTEXT_REMOVE, this::removeReplay);
             }
         });
 
@@ -266,6 +273,13 @@ public class UIReplayList extends UIList<ReplayListEntry>
             }
         }).inside()
             .category(UIKeys.FILM_REPLAY_TITLE);
+    }
+
+    /** Ctrl+A from the base list lands here too: only replay rows are selectable, never folders. */
+    @Override
+    public void selectAll()
+    {
+        this.selectAllReplays();
     }
 
     private void selectAllReplays()
@@ -494,47 +508,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
 
         return out;
-    }
-
-    /**
-     * Replay index in currently visible replay rows (folder rows ignored).
-     */
-    private int getVisibleReplayIndex(Replay replay)
-    {
-        int index = 0;
-
-        for (ReplayListEntry e : this.list)
-        {
-            if (!e.isReplay())
-            {
-                continue;
-            }
-
-            if (e.replay == replay)
-            {
-                return index;
-            }
-
-            index += 1;
-        }
-
-        return -1;
-    }
-
-    /**
-     * Global index of the first selected replay in {@link Film#replays}, or {@code -1}.
-     */
-    public int getGlobalReplayIndex()
-    {
-        Replay r = this.getSelectedReplayFirst();
-        Film film = this.panel.getData();
-
-        if (r == null || film == null)
-        {
-            return -1;
-        }
-
-        return film.replays.getList().indexOf(r);
     }
 
     public void refreshReplayList()
@@ -794,8 +767,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
                 if (this.sorting && entry.isReplay() && this.current.size() == 1)
                 {
-                    this.dragging = index;
-                    this.dragTime = System.currentTimeMillis();
+                    this.startDrag(index, context);
                 }
 
                 if (this.callback != null)
@@ -810,122 +782,117 @@ public class UIReplayList extends UIList<ReplayListEntry>
         return super.subMouseClicked(context);
     }
 
+    /** A category header takes replays dropped into it; between the rows, the caret decides. */
     @Override
-    public boolean subMouseReleased(UIContext context)
+    protected boolean acceptsDrop(ReplayListEntry element)
     {
-        if (this.sorting && !this.isFiltering())
-        {
-            if (this.isDragging())
-            {
-                int index = this.scroll.getIndex(context.mouseX, context.mouseY);
-
-                /* Past the last row (empty padding below short lists): move to root — no root replay row to drop on. */
-                if (index == -2)
-                {
-                    ReplayListEntry dragged = this.list.get(this.dragging);
-
-                    if (dragged.isReplay())
-                    {
-                        this.applyReplayCategory(List.of(dragged.replay), "");
-                    }
-                }
-                else if (index != this.dragging && this.exists(index))
-                {
-                    ReplayListEntry a = this.list.get(this.dragging);
-                    ReplayListEntry b = this.list.get(index);
-
-                    if (a.isReplay() && b.isFolder())
-                    {
-                        this.dropReplaysOntoCategory(index);
-                    }
-                    else if (a.isReplay() && b.isReplay())
-                    {
-                        this.handleSwap(this.dragging, index);
-                    }
-                }
-            }
-
-            this.dragging = -1;
-        }
-
-        this.scroll.mouseReleased(context);
-
-        return super.subMouseReleased(context);
+        return element.isFolder();
     }
 
-    /** Drag a replay row onto a category header to assign that category. */
-    private void dropReplaysOntoCategory(int folderIndex)
+    /** The caret runs from where a replay row's name starts, so a drop into a category reads as one. */
+    @Override
+    protected int dropInset(ReplayListEntry element)
     {
-        ReplayListEntry folderEntry = this.list.get(folderIndex);
-
-        if (!folderEntry.isFolder())
-        {
-            return;
-        }
-
-        ReplayListEntry draggedEntry = this.list.get(this.dragging);
-
-        if (!draggedEntry.isReplay())
-        {
-            return;
-        }
-
-        this.applyReplayCategory(List.of(draggedEntry.replay), folderEntry.folderName);
+        return ROW_PADDING + element.indent;
     }
 
+    /** Dropped onto a category header: the replay is filed under it, keeping its place in the film. */
     @Override
-    protected void handleSwap(int from, int to)
+    protected void onDrop(Object target, List<ReplayListEntry> items)
+    {
+        ReplayListEntry dragged = items.isEmpty() ? null : items.get(0);
+
+        if (target instanceof ReplayListEntry folder && folder.isFolder() && dragged != null && dragged.isReplay())
+        {
+            this.applyReplayCategory(List.of(dragged.replay), folder.folderName);
+        }
+    }
+
+    /** Dropped between rows: the replay takes the category of that slot and lands in it. */
+    @Override
+    protected void reorder(List<ReplayListEntry> items, int insertion)
+    {
+        ReplayListEntry dragged = items.isEmpty() ? null : items.get(0);
+
+        if (dragged != null && dragged.isReplay())
+        {
+            this.moveReplayToSlot(dragged.replay, insertion);
+        }
+    }
+
+    /**
+     * Which category a slot between rows belongs to: the group the rows around it are in, and
+     * the root below the last row - the replays of no category are listed last, so the bottom
+     * of the list is the one place that always means "out of every category".
+     */
+    private String slotCategory(int insertion)
+    {
+        if (insertion >= this.list.size())
+        {
+            return "";
+        }
+
+        ReplayListEntry at = this.list.get(insertion);
+
+        if (at.isReplay())
+        {
+            return Replay.normalizeCategory(at.replay.category.get());
+        }
+
+        /* The slot sits right above a header, so it belongs to whatever ends above it */
+        ReplayListEntry above = insertion > 0 ? this.list.get(insertion - 1) : null;
+
+        if (above == null)
+        {
+            return "";
+        }
+
+        return above.isReplay()
+            ? Replay.normalizeCategory(above.replay.category.get())
+            : Replay.normalizeCategory(above.folderName);
+    }
+
+    /**
+     * Move a replay to a slot of the list. The film keeps one flat list of replays and the
+     * categories are only a way of showing it, so the place in that flat list has to be the one
+     * that looks like the slot: right after the last replay of the same category above the
+     * caret, or right before the first one below it.
+     */
+    private void moveReplayToSlot(Replay moved, int insertion)
     {
         Film data = this.panel.getData();
+
+        if (data == null)
+        {
+            return;
+        }
+
+        String category = this.slotCategory(insertion);
+        Replay above = this.neighbourInCategory(insertion - 1, -1, category, moved);
+        Replay below = this.neighbourInCategory(insertion, 1, category, moved);
+
         Replays replays = data.replays;
-        List<Replay> all = replays.getList();
-
-        ReplayListEntry ef = this.list.get(from);
-        ReplayListEntry et = this.list.get(to);
-
-        if (!ef.isReplay() || !et.isReplay())
-        {
-            return;
-        }
-
-        this.assignReplayCategoryValue(ef.replay, et.replay.category.get());
-
-        int globalFrom = all.indexOf(ef.replay);
-        int globalTo = all.indexOf(et.replay);
-
-        if (globalFrom < 0 || globalTo < 0)
-        {
-            return;
-        }
-
-        Replay value = all.get(globalFrom);
 
         data.preNotify(IValueListener.FLAG_UNMERGEABLE);
 
-        replays.remove(value);
-        replays.add(globalTo, value);
-        replays.sync();
+        this.assignReplayCategoryValue(moved, category);
+        replays.remove(moved);
 
-        for (Replay replay : replays.getList())
+        List<Replay> all = replays.getList();
+        int target = all.size();
+
+        if (above != null)
         {
-            if (replay.properties.get("anchor") instanceof KeyframeChannel<?> channel && channel.getFactory() == KeyframeFactories.ANCHOR)
-            {
-                KeyframeChannel<Anchor> keyframeChannel = (KeyframeChannel<Anchor>) channel;
-
-                for (Keyframe<Anchor> keyframe : keyframeChannel.getKeyframes())
-                {
-                    keyframe.getValue().replay = MathUtils.remapIndex(keyframe.getValue().replay, globalFrom, globalTo);
-                }
-            }
+            target = all.indexOf(above) + 1;
+        }
+        else if (below != null)
+        {
+            target = all.indexOf(below);
         }
 
-        for (Clip clip : data.camera.get())
-        {
-            if (clip instanceof EntityClip entityClip)
-            {
-                entityClip.selector.set(MathUtils.remapIndex(entityClip.selector.get(), globalFrom, globalTo));
-            }
-        }
+        /* Anchors and camera selectors hold the replay's stable id, so moving it about is
+         * nothing but moving it about. */
+        replays.add(MathUtils.clamp(target, 0, all.size()), moved);
 
         data.postNotify(IValueListener.FLAG_UNMERGEABLE);
 
@@ -936,7 +903,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
         {
             ReplayListEntry e = this.list.get(i);
 
-            if (e.isReplay() && e.replay == value)
+            if (e.isReplay() && e.replay == moved)
             {
                 this.pick(i);
 
@@ -945,10 +912,26 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
     }
 
+    /** Walking from {@code from} in {@code step}s, the first replay row of {@code category}. */
+    private Replay neighbourInCategory(int from, int step, String category, Replay skip)
+    {
+        for (int i = from; i >= 0 && i < this.list.size(); i += step)
+        {
+            ReplayListEntry entry = this.list.get(i);
+
+            if (entry.isReplay() && entry.replay != skip
+                && Replay.normalizeCategory(entry.replay.category.get()).equals(category))
+            {
+                return entry.replay;
+            }
+        }
+
+        return null;
+    }
+
     private void pasteToReplays(MapType data)
     {
-        UIReplaysEditor replayEditor = this.panel.replayEditor;
-        List<Replay> selectedReplays = replayEditor.replaysList.replays.getSelectedReplays();
+        List<Replay> selectedReplays = this.getSelectedReplays();
 
         if (data == null)
         {
@@ -979,6 +962,13 @@ public class UIReplayList extends UIList<ReplayListEntry>
                     if (channel == null || channel.getFactory() != pastedKeyframes.factory)
                     {
                         channel = replay.properties.getOrCreate(replay.form.get(), id);
+                    }
+
+                    /* A track this replay's form has no room for — pasting player keyframes onto a
+                     * replay whose form lost that body part, say. */
+                    if (channel == null)
+                    {
+                        continue;
                     }
 
                     float min = Integer.MAX_VALUE;
@@ -1286,34 +1276,42 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         private List<ReplayBatchProcessor.VisibleReplay> collectVisibleReplays()
         {
+            /* The stagger is ordered by the film's own replay list, not by visible rows: a
+             * selected replay whose folder is collapsed has no row, and indexing by rows used
+             * to silently drop it from the batch (and shift everyone else's offset).
+             *
+             * The index is taken by identity: ValueGroup compares by content, so List.indexOf
+             * hands back the first replay that merely looks the same - and a batch is usually
+             * made of duplicates, which all reported index 0 and landed in one spot. */
             List<Replay> selected = UIReplayList.this.getSelectedReplaysInViewOrder();
-            List<Replay> visible = new ArrayList<>();
+            List<Replay> all = UIReplayList.this.panel.getData().replays.getList();
             int min = Integer.MAX_VALUE;
 
             for (Replay replay : selected)
             {
-                int visibleI = UIReplayList.this.getVisibleReplayIndex(replay);
+                int index = CollectionUtils.getIndex(all, replay);
 
-                if (visibleI < 0)
+                if (index >= 0)
                 {
-                    continue;
+                    min = Math.min(min, index);
                 }
-
-                min = Math.min(min, visibleI);
-                visible.add(replay);
             }
 
-            if (min == Integer.MAX_VALUE || visible.isEmpty())
+            if (min == Integer.MAX_VALUE)
             {
                 return new ArrayList<>();
             }
 
             List<ReplayBatchProcessor.VisibleReplay> out = new ArrayList<>();
 
-            for (Replay replay : visible)
+            for (Replay replay : selected)
             {
-                int visibleI = UIReplayList.this.getVisibleReplayIndex(replay);
-                out.add(new ReplayBatchProcessor.VisibleReplay(replay, visibleI, visibleI - min));
+                int index = CollectionUtils.getIndex(all, replay);
+
+                if (index >= 0)
+                {
+                    out.add(new ReplayBatchProcessor.VisibleReplay(replay, index, index - min));
+                }
             }
 
             return out;
@@ -1806,16 +1804,19 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 Film film = this.panel.getData();
                 List<Replay> selected = this.getSelectedReplaysInViewOrder();
 
+                /* i/o are ordered by the film's own replay list, not by visible rows — a selected
+                 * replay in a collapsed folder has no row and used to silently drop out. The
+                 * index is taken by identity - see the same note in collectVisibleReplays. */
+                List<Replay> all = film.replays.getList();
+
                 for (Replay replay : selected)
                 {
-                    int visibleI = this.getVisibleReplayIndex(replay);
+                    int index = CollectionUtils.getIndex(all, replay);
 
-                    if (visibleI < 0)
+                    if (index >= 0)
                     {
-                        continue;
+                        min = Math.min(min, index);
                     }
-
-                    min = Math.min(min, visibleI);
                 }
 
                 if (min == Integer.MAX_VALUE)
@@ -1825,15 +1826,15 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
                 for (Replay replay : selected)
                 {
-                    int visibleI = this.getVisibleReplayIndex(replay);
+                    int index = CollectionUtils.getIndex(all, replay);
 
-                    if (visibleI < 0)
+                    if (index < 0)
                     {
                         continue;
                     }
 
-                    builder.variables.get("i").set(visibleI);
-                    builder.variables.get("o").set(visibleI - min);
+                    builder.variables.get("i").set(index);
+                    builder.variables.get("o").set(index - min);
 
                     float tickv = parse == null ? 0F : (float) parse.doubleValue();
 
@@ -2010,32 +2011,25 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
     private void fromModelBlock()
     {
-        ArrayList<ModelBlockEntity> modelBlocks = new ArrayList<>(BBSRendering.capturedModelBlocks);
-        UISearchList<String> search = new UISearchList<>(new UIStringList(null));
-        UIList<String> list = search.list;
+        /* The same list the model block panel shows, so a block is picked here by the
+         * face it wears there instead of by a line of coordinates. */
+        UIModelBlockEntityList list = new UIModelBlockEntityList(null);
+        UISearchList<ModelBlockEntity> search = new UISearchList<>(list);
         UIConfirmOverlayPanel panel = new UIConfirmOverlayPanel(UIKeys.SCENE_REPLAYS_CONTEXT_FROM_MODEL_BLOCK_TITLE, UIKeys.SCENE_REPLAYS_CONTEXT_FROM_MODEL_BLOCK_DESCRIPTION, (b) ->
         {
-            if (b)
-            {
-                int index = list.getIndex();
-                ModelBlockEntity modelBlock = CollectionUtils.getSafe(modelBlocks, index);
+            ModelBlockEntity modelBlock = b ? list.getCurrentFirst() : null;
 
-                if (modelBlock != null)
-                {
-                    this.fromModelBlock(modelBlock);
-                }
+            if (modelBlock != null)
+            {
+                this.fromModelBlock(modelBlock);
             }
         });
 
-        modelBlocks.sort(Comparator.comparing(ModelBlockEntity::getName));
-
-        for (ModelBlockEntity modelBlock : modelBlocks)
-        {
-            list.add(modelBlock.getName());
-        }
-
+        list.setBlocks(BBSRendering.capturedModelBlocks);
         list.background();
-        search.relative(panel.confirm).y(-5).w(1F).h(16 * 9 + 20).anchor(0F, 1F);
+
+        search.label(UIKeys.GENERAL_SEARCH);
+        search.relative(panel.confirm).y(-5).w(1F).h(UIModelBlockEntityList.ROW * 7 + 20).anchor(0F, 1F);
 
         panel.confirm.w(1F, -10);
         panel.content.add(search);
@@ -2094,6 +2088,74 @@ public class UIReplayList extends UIList<ReplayListEntry>
                 replay.form.set(form);
             }
         }
+
+        this.refreshReplayList();
+        this.update();
+        this.panel.replayEditor.setReplay(replay);
+        this.scrollToReplay(replay);
+        this.updateFilmEditor();
+    }
+
+    /**
+     * The wand's region as a replay: saved as a structure, cleared out of the world, and added as a
+     * form standing exactly where the blocks did. Destructive, so it asks first — and the message
+     * names the command that puts the build back, because Minecraft has no undo for this.
+     */
+    private void cutSelectionIntoReplay()
+    {
+        Film film = this.panel.getData();
+
+        if (film == null || !StructureSelection.isReady())
+        {
+            return;
+        }
+
+        String id = StructureCut.nextId(film.getId());
+        BlockPos min = StructureSelection.getMin();
+        BlockPos max = StructureSelection.getMax();
+        Vec3i size = StructureSelection.getSize();
+        IKey message = UIKeys.STRUCTURE_CUT_CONFIRM.format(String.valueOf(StructureSelection.getVolume()), id);
+
+        UIOverlay.addOverlay(this.getContext(), new UIConfirmOverlayPanel(UIKeys.STRUCTURE_CUT_TITLE, message, (confirmed) ->
+        {
+            if (confirmed)
+            {
+                StructureCut.request(id, min, max, (ok) ->
+                {
+                    if (ok)
+                    {
+                        this.addStructureReplay(id, min, size);
+                    }
+                });
+            }
+        }), 300, 140);
+    }
+
+    /** The cut region's form, dropped in at the very spot it was cut from. */
+    private void addStructureReplay(String id, BlockPos min, Vec3i size)
+    {
+        Film film = this.panel.getData();
+
+        if (film == null)
+        {
+            return;
+        }
+
+        StructureForm form = new StructureForm();
+
+        form.structure.set(id);
+        form.name.set(id.substring(id.lastIndexOf('/') + 1));
+
+        Replay replay = film.replays.addReplay();
+
+        replay.category.set("");
+        replay.form.set(form);
+
+        /* The form centres its footprint and stands on its lowest layer, so this is the one
+         * position at which the structure covers the blocks it was made from */
+        replay.keyframes.x.insert(0, min.getX() + size.getX() / 2D);
+        replay.keyframes.y.insert(0, (double) min.getY());
+        replay.keyframes.z.insert(0, min.getZ() + size.getZ() / 2D);
 
         this.refreshReplayList();
         this.update();

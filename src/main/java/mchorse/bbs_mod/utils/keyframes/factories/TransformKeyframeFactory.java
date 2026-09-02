@@ -8,6 +8,12 @@ import mchorse.bbs_mod.utils.pose.Transform;
 
 public class TransformKeyframeFactory implements IKeyframeFactory<Transform>
 {
+    @Override
+    public int contentHash(Transform value)
+    {
+        return value.contentHash();
+    }
+
     private Transform i = new Transform();
 
     @Override

@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.utils;
 
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.utils.resizers.IResizer;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -55,16 +54,6 @@ public class Area implements IResizer
         this.y = y;
         this.w = w;
         this.h = h;
-    }
-
-    public int getIndex(int x, int y, int size)
-    {
-        return MathUtils.gridIndex(x - this.x, y - this.y, size, this.w);
-    }
-
-    public int getRows(int count, int size)
-    {
-        return MathUtils.gridRows(count, size, this.w);
     }
 
     public boolean isInside(UIContext context)
@@ -319,26 +308,10 @@ public class Area implements IResizer
     /* IResizer implementation */
 
     @Override
-    public void preApply(Area area)
-    {}
-
-    @Override
     public void apply(Area area)
     {
         area.copy(this);
     }
-
-    @Override
-    public void postApply(Area area)
-    {}
-
-    @Override
-    public void add(UIElement parent, UIElement child)
-    {}
-
-    @Override
-    public void remove(UIElement parent, UIElement child)
-    {}
 
     @Override
     public int getX()

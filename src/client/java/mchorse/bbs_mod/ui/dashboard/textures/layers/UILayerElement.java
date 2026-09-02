@@ -15,6 +15,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.resources.Pixels;
@@ -208,24 +209,21 @@ public class UILayerElement extends UIElement
             }));
         }
 
-        /* Destructive: remove at the very bottom. */
-        if (canDelete)
+        /* Destructive: the bar keeps it at its far end, away from the cursor. */
+        menu.icon(MenuVerb.REMOVE, () -> this.panel.currentEditor.recordLayerChange(null, () ->
         {
-            menu.action(Icons.REMOVE, UIKeys.TEXTURES_LAYERS_CONTEXT_REMOVE, Colors.NEGATIVE, () -> this.panel.currentEditor.recordLayerChange(null, () ->
+            this.panel.currentEditor.getDocument().layers.remove(this.index);
+            this.layer.delete();
+
+            if (this.panel.currentEditor.getDocument().activeLayerIndex >= this.panel.currentEditor.getDocument().layers.size())
             {
-                this.panel.currentEditor.getDocument().layers.remove(this.index);
-                this.layer.delete();
+                this.panel.currentEditor.getDocument().activeLayerIndex = this.panel.currentEditor.getDocument().layers.size() - 1;
+            }
 
-                if (this.panel.currentEditor.getDocument().activeLayerIndex >= this.panel.currentEditor.getDocument().layers.size())
-                {
-                    this.panel.currentEditor.getDocument().activeLayerIndex = this.panel.currentEditor.getDocument().layers.size() - 1;
-                }
-
-                this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.getDocument().activeLayerIndex);
-                this.panel.updateLayers();
-                this.panel.currentEditor.dirty();
-            }));
-        }
+            this.panel.currentEditor.setActiveLayer(this.panel.currentEditor.getDocument().activeLayerIndex);
+            this.panel.updateLayers();
+            this.panel.currentEditor.dirty();
+        })).label(UIKeys.TEXTURES_LAYERS_CONTEXT_REMOVE).enabled(canDelete);
     }
 
     @Override

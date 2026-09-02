@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.ui.utils.bones;
 
-import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -140,7 +140,7 @@ public class UIBoneTreeList extends UIStringList
      * Set only the hierarchy metadata from a model, leaving the list contents to the
      * host. Passing a null model clears the metadata (every row renders flat).
      */
-    public void setHierarchy(IModel model, Predicate<String> hidden)
+    public void setHierarchy(IBoneHierarchy model, Predicate<String> hidden)
     {
         this.metas.clear();
 
@@ -155,7 +155,7 @@ public class UIBoneTreeList extends UIStringList
      * bone's children stay visible and take over its depth, mirroring how the flat
      * lists used to just remove disabled bones from the hierarchy-ordered key list.
      */
-    public void fillBones(IModel model, Collection<String> hidden)
+    public void fillBones(IBoneHierarchy model, Collection<String> hidden)
     {
         this.clear();
         this.metas.clear();
@@ -172,7 +172,7 @@ public class UIBoneTreeList extends UIStringList
 
     /**
      * Fill with a plain list of bone names, no hierarchy — the fallback for forms
-     * whose bones don't come from an {@link IModel} (e.g. mob forms' model parts).
+     * whose bones don't come from a rig at all.
      */
     public void fillFlat(Collection<String> bones)
     {
@@ -223,7 +223,7 @@ public class UIBoneTreeList extends UIStringList
     /* Building the intermediate node tree */
 
     /** A bone (and its visible subtree); a hidden bone dissolves into its children in place. */
-    private static List<Node> boneNodes(IModel model, Collection<String> bones, Predicate<String> hidden)
+    private static List<Node> boneNodes(IBoneHierarchy model, Collection<String> bones, Predicate<String> hidden)
     {
         List<Node> nodes = new ArrayList<>();
 
@@ -268,18 +268,14 @@ public class UIBoneTreeList extends UIStringList
             }
         }
 
-        int i = 0;
-
         for (BodyPart part : form.parts.getAllTyped())
         {
             Form child = part.getForm();
 
             if (child != null)
             {
-                children.addAll(formNodes(child, StringUtils.combinePaths(path, String.valueOf(i)), keys));
+                children.addAll(formNodes(child, StringUtils.combinePaths(path, part.getId()), keys));
             }
-
-            i += 1;
         }
 
         if (!keys.contains(path))
@@ -296,7 +292,7 @@ public class UIBoneTreeList extends UIStringList
         return new ArrayList<>(List.of(node));
     }
 
-    private static List<Node> formBoneNodes(Form owner, IModel model, Collection<String> bones, String formPath, Set<String> keys)
+    private static List<Node> formBoneNodes(Form owner, IBoneHierarchy model, Collection<String> bones, String formPath, Set<String> keys)
     {
         List<Node> nodes = new ArrayList<>();
 
@@ -357,20 +353,36 @@ public class UIBoneTreeList extends UIStringList
         return meta == null ? element : meta.fullLabel;
     }
 
+    /**
+     * The row's metadata as shown: none while search results render flat — branches
+     * without the parent rows above them are just a lie about structure.
+     */
+    private Meta shownMeta(String element)
+    {
+        return this.flat || this.isFiltering() ? null : this.metas.get(element);
+    }
+
+    /** The tree is always fully unfolded, so rows only step right; no branch ever folds. */
+    @Override
+    protected int indent(String element)
+    {
+        Meta meta = this.shownMeta(element);
+
+        return meta == null ? 0 : meta.depth * INDENT;
+    }
+
     @Override
     protected void renderElementPart(UIContext context, String element, int i, int x, int y, boolean hover, boolean selected)
     {
-        /* Search results render flat with their full label — branches without the
-         * parent rows above them are just a lie about structure. */
         boolean filtering = this.flat || this.isFiltering();
-        Meta meta = filtering ? null : this.metas.get(element);
+        Meta meta = this.shownMeta(element);
         int depth = meta == null ? 0 : meta.depth;
         int h = this.scroll.scrollItemSize;
 
         if (meta != null && depth > 0)
         {
             int mid = y + h / 2;
-            int textX = x + 4 + depth * INDENT;
+            int textX = x + this.rowContentX(element);
 
             for (int level = 0; level < depth - 1; level++)
             {
@@ -393,7 +405,7 @@ public class UIBoneTreeList extends UIStringList
             ? (filtering ? this.elementToString(context, i, element) : element)
             : meta.treeLabel;
         int color = this.isDisabled(element) ? Colors.GRAY : (hover ? Colors.HIGHLIGHT : Colors.WHITE);
-        int textX = x + 4 + depth * INDENT;
+        int textX = x + this.rowContentX(element);
         int right = this.renderMarkers(context, element, x, y, h);
 
         if (right < x + this.area.w)
@@ -448,7 +460,7 @@ public class UIBoneTreeList extends UIStringList
 
     private static int columnX(int x, int level)
     {
-        return x + 4 + level * INDENT + 2;
+        return x + ROW_PADDING + level * INDENT + 2;
     }
 
     /** The dot legend, gated on the cursor actually being in the dot column. */

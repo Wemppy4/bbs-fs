@@ -17,7 +17,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UILabelListOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.utils.Label;import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.Label;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.iris.ShaderCurves;
@@ -90,7 +91,7 @@ public class UICurveClip extends UIClip<CurveClip>
 
         this.keyframes.view.context((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.CAMERA_PANELS_CURVE_ADD, () ->
+            menu.icon(MenuVerb.ADD, () ->
             {
                 List<String> existing = new ArrayList<>();
 
@@ -112,18 +113,15 @@ public class UICurveClip extends UIClip<CurveClip>
 
                     this.fillData();
                 });
-            }).order(-3);
+            }).label(UIKeys.CAMERA_PANELS_CURVE_ADD);
 
-            UIKeyframeSheet sheet = this.keyframes.view.getDopeSheet().getSheet(this.getContext().mouseY);
+            UIKeyframeSheet sheet = this.keyframes.view.getDopeSheet().getTrackSheet(this.getContext().mouseY);
 
-            if (sheet != null)
+            menu.icon(MenuVerb.REMOVE, () ->
             {
-                menu.action(Icons.REMOVE, UIKeys.CAMERA_PANELS_CURVE_REMOVE, Colors.RED, () ->
-                {
-                    this.clip.channels.removeChannel(sheet.channel);
-                    this.fillData();
-                });
-            }
+                this.clip.channels.removeChannel(sheet.channel);
+                this.fillData();
+            }).label(UIKeys.CAMERA_PANELS_CURVE_REMOVE).enabled(sheet != null);
         });
 
         this.edit = new UIButton(UIKeys.CAMERA_PANELS_EDIT_KEYFRAMES, (b) ->
@@ -139,7 +137,7 @@ public class UICurveClip extends UIClip<CurveClip>
     {
         int sheetColor = channel.getId().hashCode() & Colors.RGB;
 
-        this.keyframes.view.addSheet(new UIKeyframeSheet(channel.getId(), IKey.constant(channel.getId()), sheetColor, false, channel, null));
+        this.keyframes.view.addSheet(new UIKeyframeSheet(channel.getId(), IKey.constant(channel.getId()), sheetColor, channel, null));
     }
 
     @Override

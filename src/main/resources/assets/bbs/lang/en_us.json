@@ -9,6 +9,10 @@
     "block.bbs.chroma_black": "Black chroma",
     "block.bbs.chroma_white": "White chroma",
     "item.bbs.gun": "BBS gun",
+    "item.bbs.structure_wand": "Structure wand",
+    "item.bbs.structure_wand.tooltip.corners": "Left / right click — corners A and B",
+    "item.bbs.structure_wand.tooltip.faces": "Wheel on a face — push it, with Alt — move the box",
+    "item.bbs.structure_wand.tooltip.save": "Alt + right click — save, Alt + left — clear",
     "itemGroup.bbs.main": "BBS mod",
 
     "key.bbs.item_editor": "Item editor",

@@ -14,7 +14,6 @@ import mchorse.bbs_mod.utils.interps.IInterp;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
-import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import net.minecraft.client.render.BufferBuilder;
@@ -38,49 +37,23 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
         super(keyframes, sheet);
     }
 
+    /* The vertical range covers all three axes at once: they share one graph, so the view has to
+     * hold the lowest and the highest of them, not of any single one. */
+
     @Override
-    public void resetViewY(UIKeyframeSheet current)
+    protected double lowestValue(Keyframe frame, int index)
     {
-        this.yAxis.set(0, 2);
+        Vector3f v = (Vector3f) frame.getValue();
 
-        KeyframeChannel channel = current.channel;
-        List<Keyframe> keyframes = channel.getKeyframes();
-        int c = keyframes.size();
+        return Math.min(v.x, Math.min(v.y, v.z));
+    }
 
-        double minY = Double.POSITIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
+    @Override
+    protected double highestValue(Keyframe frame, int index)
+    {
+        Vector3f v = (Vector3f) frame.getValue();
 
-        if (c > 1)
-        {
-            for (int i = 0; i < c; i++)
-            {
-                Vector3f v = (Vector3f) keyframes.get(i).getValue();
-
-                minY = Math.min(minY, Math.min(v.x, Math.min(v.y, v.z)));
-                maxY = Math.max(maxY, Math.max(v.x, Math.max(v.y, v.z)));
-            }
-        }
-        else
-        {
-            minY = -10;
-            maxY = 10;
-
-            if (c == 1)
-            {
-                Vector3f v = (Vector3f) channel.get(0).getValue();
-                minY = maxY = v.x;
-            }
-        }
-
-        if (Math.abs(maxY - minY) < 0.01F)
-        {
-            this.yAxis.setShift(minY);
-            this.yAxis.anchor(0.5F);
-        }
-        else
-        {
-            this.yAxis.viewOffset(minY, maxY, this.keyframes.area.h, 30);
-        }
+        return Math.max(v.x, Math.max(v.y, v.z));
     }
 
     @Override
@@ -155,7 +128,7 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
 
             if (prev != null)
             {
-                this.renderInterpolation(lineBuilder, segment, prev, frame, x, axis);
+                this.renderInterpolation(lineBuilder, segment, prev, frame, x, axis, i - 1);
             }
 
             lineBuilder.add(x, y);
@@ -171,7 +144,7 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
         lineBuilder.render(context.batcher, SolidColorLineRenderer.get(Colors.COLOR.set(AXIS_COLORS[axis] | Colors.A100)));
     }
 
-    private void renderInterpolation(LineBuilder lineBuilder, KeyframeSegment segment, Keyframe prev, Keyframe frame, int x, int axis)
+    private void renderInterpolation(LineBuilder lineBuilder, KeyframeSegment segment, Keyframe prev, Keyframe frame, int x, int axis, int prevIndex)
     {
         IInterp interp = prev.getInterpolation().getInterp();
         int px = this.keyframes.toGraphX(prev.getTick());
@@ -184,13 +157,23 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
         }
         else if (interp != Interpolations.LINEAR)
         {
-            float steps = 50F;
+            /* See UIKeyframeGraph#renderGraph: no sampling offscreen, one sample per pixel. */
+            boolean visible = Math.max(px, x) >= this.keyframes.area.x - 20 && Math.min(px, x) <= this.keyframes.area.ex() + 20;
+
+            if (!visible)
+            {
+                return;
+            }
+
+            float steps = Math.min(50, Math.max(2, Math.abs(x - px)));
+
+            segment.fill(prev, frame, prevIndex);
 
             for (int j = 1; j <= steps; j++)
             {
                 float a = j / steps;
 
-                segment.setup(prev, frame, prev.getTick() + a * (frame.getTick() - prev.getTick()));
+                segment.setup(prev.getTick() + a * (frame.getTick() - prev.getTick()));
                 float interpolate = this.toGraphY(this.getValue(segment.createInterpolated(), axis));
 
                 lineBuilder.add(Lerps.lerp(px, x, a), interpolate);
@@ -405,7 +388,7 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
     }
     
     @Override
-    public void setValue(Object value, boolean unmergeable)
+    public void setValue(Object value, boolean unmergeable, boolean fromEditor)
     {
         Keyframe selected = this.getSelected();
 
@@ -415,8 +398,9 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
         }
 
         IKeyframeFactory factory = selected.getFactory();
-        Vector3f keyframe = (Vector3f) factory.copy(selected.getValue());
-        
+        Keyframe target = fromEditor && this.getAutoKeyframeTick() != null ? this.getEditTarget(selected) : selected;
+        Vector3f keyframe = (Vector3f) factory.copy(target.getValue());
+
         if (value instanceof Vector3f)
         {
             keyframe.set((Vector3f) value);
@@ -430,13 +414,7 @@ public class UIVector3KeyframeGraph extends UIKeyframeGraph
             else if (this.draggingAxis == 2) keyframe.z = (float) val;
         }
         
-        for (UIKeyframeSheet sheet : this.getSheets())
-        {
-            if (sheet.channel.getFactory() == factory)
-            {
-                sheet.setValue(keyframe, factory.copy(selected.getValue()), unmergeable);
-            }
-        }
+        this.applyValue(factory, keyframe, selected, unmergeable, fromEditor);
     }
 
     private float getValue(Object value, int axis)

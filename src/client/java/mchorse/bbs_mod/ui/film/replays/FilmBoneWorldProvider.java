@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film.replays;
 
-import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -11,17 +12,12 @@ import mchorse.bbs_mod.utils.Pair;
 import org.joml.Matrix4f;
 
 /**
- * World-transform source for the film's pose editor: resolves the currently edited bone and hands
- * back its absolute Minecraft-world matrix for the bone's current pose, so the world paste can drive
- * the pose toward a captured matrix by finite differences.
+ * World-transform source for the film's pose editor: the edited bone's absolute world matrix,
+ * so the world paste can drive the pose toward a captured matrix by finite differences.
  *
- * <p>The matrix is sampled with the camera at the origin, so it is in absolute world coordinates —
- * independent of where the camera is and therefore stable across ticks (the whole point of a
- * world-space paste). Before sampling, the (possibly just-perturbed) keyframe pose is force-applied
- * to the model via the replay's properties — exactly like the gizmo sampler in
- * {@code UIReplaysEditorUtils.buildFilmGizmoDrag} — so a nudge to the pose shows up in the next
- * sample. It reuses {@link BaseFilmController#getBoneCompositeMatrix}, the same composite the
- * viewport draws the bone gizmo with, just keeping scale.
+ * <p>🔴 Sampled with the camera at the ORIGIN, so the matrix is absolute and stable across ticks
+ * — the whole point of a world-space paste. The (possibly perturbed) keyframe pose is
+ * force-applied first, like the gizmo sampler does, or a nudge would not show up in the sample.
  */
 public class FilmBoneWorldProvider implements IWorldTransformProvider
 {
@@ -36,7 +32,7 @@ public class FilmBoneWorldProvider implements IWorldTransformProvider
     public boolean getWorldMatrix(Matrix4f out)
     {
         UIKeyframeEditor keyframeEditor = this.panel.replayEditor.keyframeEditor;
-        Pair<String, Boolean> bone = keyframeEditor == null ? null : keyframeEditor.getBone();
+        Pair<String, TransformSpace> bone = keyframeEditor == null ? null : keyframeEditor.getBone();
 
         return bone != null && this.getWorldMatrix(bone.a, out);
     }
@@ -65,7 +61,7 @@ public class FilmBoneWorldProvider implements IWorldTransformProvider
             replay.properties.applyProperties(form, tick);
         }
 
-        Matrix4f matrix = BaseFilmController.getBoneCompositeMatrix(
+        Matrix4f matrix = FilmMatrices.getBoneCompositeMatrix(
             this.panel.getController().getEntities(), entity, replay, 0D, 0D, 0D, transition, bone, true
         );
 

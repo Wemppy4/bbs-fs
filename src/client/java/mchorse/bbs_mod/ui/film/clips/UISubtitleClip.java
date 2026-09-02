@@ -1,33 +1,40 @@
 package mchorse.bbs_mod.ui.film.clips;
 
 import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
-import mchorse.bbs_mod.settings.values.IValueNotifier;
+import mchorse.bbs_mod.fonts.FontManager;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
+import mchorse.bbs_mod.ui.film.clips.widgets.UIPlacement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIStringOverlayPanel;
+import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
+
+import java.io.File;
 
 public class UISubtitleClip extends UIClip<SubtitleClip>
 {
-    public UITrackpad x;
-    public UITrackpad y;
-    public UITrackpad size;
-    public UITrackpad anchorX;
-    public UITrackpad anchorY;
+    public UIPlacement placement;
     public UIColor color;
     public UIToggle textShadow;
-    public UITrackpad windowX;
-    public UITrackpad windowY;
     public UIColor background;
     public UITrackpad backgroundOffset;
     public UITrackpad shadow;
     public UIToggle shadowOpaque;
     public UIPropTransform transform;
+    public UIButton pickFont;
+    public UIIcon openFontFolder;
+    public UITrackpad fontSize;
     public UITrackpad lineHeight;
     public UITrackpad maxWidth;
     public UIButton pickImage;
@@ -44,85 +51,46 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
     {
         super.registerUI();
 
-        this.x = new UITrackpad((v) -> this.clip.x.set(v.intValue()));
-        this.x.integer();
-        this.y = new UITrackpad((v) -> this.clip.y.set(v.intValue()));
-        this.y.integer();
+        this.placement = this.placement(this.clip.placement, new Placement(SubtitleClip.DEFAULT_SCALE));
 
-        this.size = new UITrackpad((v) -> this.editor.editMultiple(this.clip.size, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.anchorX = new UITrackpad((v) -> this.editor.editMultiple(this.clip.anchorX, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.anchorY = new UITrackpad((v) -> this.editor.editMultiple(this.clip.anchorY, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.color = new UIColor((c) -> this.editor.editMultiple(this.clip.color, (value) ->
-        {
-            value.set(c);
-        }));
-        this.color.withAlpha();
-        this.textShadow = new UIToggle(UIKeys.CAMERA_PANELS_SUBTITLE_TEXT_SHADOW, (b) -> this.editor.editMultiple(this.clip.textShadow, (value) ->
-        {
-            value.set(b.getValue());
-        }));
+        this.color = this.color(this.clip.color).withAlpha();
+        this.textShadow = this.toggle(UIKeys.CAMERA_PANELS_SUBTITLE_TEXT_SHADOW, this.clip.textShadow);
 
-        this.windowX = new UITrackpad((v) -> this.editor.editMultiple(this.clip.windowX, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.windowY = new UITrackpad((v) -> this.editor.editMultiple(this.clip.windowY, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
+        this.background = this.color(this.clip.background).withAlpha();
+        this.backgroundOffset = this.trackpad(this.clip.backgroundOffset);
+        this.shadow = this.trackpad(this.clip.shadow).limit(0);
+        this.shadowOpaque = this.toggle(UIKeys.CAMERA_PANELS_SUBTITLE_OPAQUE, this.clip.shadowOpaque);
 
-        this.background = new UIColor((c) -> this.editor.editMultiple(this.clip.background, (value) ->
-        {
-            value.set(c);
-        })).withAlpha();
-        this.backgroundOffset = new UITrackpad((v) -> this.editor.editMultiple(this.clip.backgroundOffset, (value) ->
-        {
-            value.set(v.floatValue());
-        }));
-        this.shadow = new UITrackpad((v) -> this.editor.editMultiple(this.clip.shadow, (value) ->
-        {
-            value.set(v.floatValue());
-        })).limit(0);
-        this.shadowOpaque = new UIToggle(UIKeys.CAMERA_PANELS_SUBTITLE_OPAQUE, (b) -> this.editor.editMultiple(this.clip.shadowOpaque, (value) ->
-        {
-            value.set(b.getValue());
-        }));
+        this.transform = this.transform(this.clip.transform);
 
-        this.transform = new UIPropTransform().callbacks(
-            () -> this.editor.editMultiple(this.clip.transform, IValueNotifier::preNotify),
-            () -> this.editor.editMultiple(this.clip.transform, (t) ->
+        this.pickFont = new UIButton(UIKeys.CAMERA_PANELS_SUBTITLE_FONT_PICK, (b) ->
+        {
+            UIStringOverlayPanel panel = UIStringOverlayPanel.links(UIKeys.CAMERA_PANELS_SUBTITLE_FONT_PICK, FontManager.getFontLinks(), (l) ->
             {
-                t.set(this.transform.getTransform().copy());
-                t.postNotify();
-            })
-        );
+                this.editor.editMultiple(this.clip.font, (value) -> value.set(l));
+            });
 
-        this.lineHeight = new UITrackpad((v) -> this.editor.editMultiple(this.clip.lineHeight, (value) ->
+            UIOverlay.addOverlay(this.getContext(), panel.set(this.clip.font.get()));
+        });
+        this.openFontFolder = new UIIcon(Icons.FOLDER, (b) ->
         {
-            value.set(v.intValue());
-        }));
-        this.lineHeight.limit(0).integer().tooltip(UIKeys.CAMERA_PANELS_SUBTITLE_LINE_HEIGHT, Direction.BOTTOM);
-        this.maxWidth = new UITrackpad((v) -> this.editor.editMultiple(this.clip.maxWidth, (value) ->
-        {
-            value.set(v.intValue());
-        }));
-        this.maxWidth.limit(0).integer().tooltip(UIKeys.CAMERA_PANELS_SUBTITLE_MAX_WIDTH, Direction.BOTTOM);
+            File folder = FontManager.getFolder();
+
+            folder.mkdirs();
+            UIUtils.openFolder(folder);
+        });
+        this.fontSize = this.trackpad(this.clip.fontSize);
+        this.fontSize.limit(FontManager.MIN_SIZE, FontManager.MAX_SIZE, true).tooltip(UIKeys.CAMERA_PANELS_SUBTITLE_FONT_SIZE, Direction.BOTTOM);
+        this.lineHeight = this.trackpad(this.clip.lineHeight);
+        this.lineHeight.limit(0).tooltip(UIKeys.CAMERA_PANELS_SUBTITLE_LINE_HEIGHT, Direction.BOTTOM);
+        this.maxWidth = this.trackpad(this.clip.maxWidth);
+        this.maxWidth.limit(0).tooltip(UIKeys.CAMERA_PANELS_SUBTITLE_MAX_WIDTH, Direction.BOTTOM);
         this.pickImage = new UIButton(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE_PICK, (b) ->
         {
             UITexturePicker.open(this.getContext(), this.clip.image.get(), (l) -> this.editor.editMultiple(this.clip.image, (value) -> value.set(l)));
         });
-        this.imageRight = new UIToggle(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE_RIGHT, (b) -> this.editor.editMultiple(this.clip.imageRight, (value) -> value.set(b.getValue())));
-        this.imageScale = new UITrackpad((v) -> this.editor.editMultiple(this.clip.imageScale, (value) -> value.set(v.floatValue())));
-        this.imageScale.limit(0);
+        this.imageRight = this.toggle(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE_RIGHT, this.clip.imageRight);
+        this.imageScale = this.trackpad(this.clip.imageScale).limit(0);
         this.imageScale.tooltip(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE_SIZE, Direction.BOTTOM);
     }
 
@@ -131,39 +99,13 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_OFFSET, UI.row(this.x, this.y)));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SIZE, this.size, this.color, this.textShadow));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_ANCHOR, UI.row(this.anchorX, this.anchorY)));
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_WINDOW, UI.row(this.windowX, this.windowY)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_TEXT, this.color, this.textShadow));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_FONT, UI.row(this.pickFont, this.openFontFolder), this.fontSize));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_PLACEMENT, this.placement.fields()));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_BACKGROUND, this.background, this.backgroundOffset));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_SHADOW, this.shadow, this.shadowOpaque));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_TRANSFORM, this.transform));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_CONSTRAINT, UI.row(this.lineHeight, this.maxWidth)));
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE, this.pickImage, this.imageRight, this.imageScale));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.x.setValue(this.clip.x.get());
-        this.y.setValue(this.clip.y.get());
-        this.size.setValue(this.clip.size.get());
-        this.anchorX.setValue(this.clip.anchorX.get());
-        this.anchorY.setValue(this.clip.anchorY.get());
-        this.color.setColor(this.clip.color.get());
-        this.textShadow.setValue(this.clip.textShadow.get());
-        this.windowX.setValue(this.clip.windowX.get());
-        this.windowY.setValue(this.clip.windowY.get());
-        this.background.setColor(this.clip.background.get());
-        this.backgroundOffset.setValue(this.clip.backgroundOffset.get());
-        this.shadow.setValue(this.clip.shadow.get());
-        this.shadowOpaque.setValue(this.clip.shadowOpaque.get());
-        this.transform.setTransform(this.clip.transform.get());
-        this.lineHeight.setValue(this.clip.lineHeight.get());
-        this.maxWidth.setValue(this.clip.maxWidth.get());
-        this.imageRight.setValue(this.clip.imageRight.get());
-        this.imageScale.setValue(this.clip.imageScale.get());
     }
 }

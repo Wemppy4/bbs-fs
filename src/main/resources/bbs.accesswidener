@@ -26,3 +26,4 @@ accessible method net/minecraft/entity/LivingEntity setLivingFlag (IZ)V
 # A recorded riptide spins the body the same way: useRiptide() is the player's
 # own method, and an actor is not a player - it sets the two fields by hand
 accessible field net/minecraft/entity/LivingEntity riptideTicks I
+

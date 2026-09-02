@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.cubic.physics;
 
-import mchorse.bbs_mod.data.IMapSerializable;
+import mchorse.bbs_mod.cubic.chains.ChainControl;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.interps.AutoBezier;
 import mchorse.bbs_mod.utils.interps.IInterp;
@@ -11,7 +11,7 @@ import mchorse.bbs_mod.utils.interps.IInterp;
  * {@link mchorse.bbs_mod.cubic.ik.IKControl}, the IK track's element. Floats interpolate;
  * the boolean steps.
  */
-public class PhysicsControl implements IMapSerializable
+public class PhysicsControl extends ChainControl<PhysicsControl>
 {
     /* Mirrors ModelPhysicsIO's defaults; duplicated because that config class lives
      * in the client source set and this keyframe value lives in main. */
@@ -28,6 +28,7 @@ public class PhysicsControl implements IMapSerializable
     public float stiffness = DEFAULT_STIFFNESS;
     public boolean enabled = true;
 
+    @Override
     public void identity()
     {
         this.weight = DEFAULT_WEIGHT;
@@ -37,6 +38,7 @@ public class PhysicsControl implements IMapSerializable
         this.enabled = true;
     }
 
+    @Override
     public void lerp(PhysicsControl preA, PhysicsControl a, PhysicsControl b, PhysicsControl postB, IInterp interp, float x)
     {
         this.weight = (float) interp.interpolate(IInterp.context.set(preA.weight, a.weight, b.weight, postB.weight, x));
@@ -46,6 +48,7 @@ public class PhysicsControl implements IMapSerializable
         this.enabled = a.enabled;
     }
 
+    @Override
     public void autoLerp(PhysicsControl preA, PhysicsControl a, PhysicsControl b, PhysicsControl postB, float pt, float at, float bt, float qt, boolean clamped, float x)
     {
         this.weight = (float) AutoBezier.get(preA.weight, a.weight, b.weight, postB.weight, pt, at, bt, qt, clamped, x);
@@ -55,6 +58,7 @@ public class PhysicsControl implements IMapSerializable
         this.enabled = a.enabled;
     }
 
+    @Override
     public PhysicsControl copy()
     {
         PhysicsControl control = new PhysicsControl();
@@ -64,6 +68,7 @@ public class PhysicsControl implements IMapSerializable
         return control;
     }
 
+    @Override
     public void copy(PhysicsControl other)
     {
         this.weight = other.weight;
@@ -73,6 +78,7 @@ public class PhysicsControl implements IMapSerializable
         this.enabled = other.enabled;
     }
 
+    @Override
     public boolean isDefault()
     {
         return this.weight == DEFAULT.weight

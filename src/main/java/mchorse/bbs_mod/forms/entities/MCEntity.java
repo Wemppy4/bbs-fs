@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.forms.entities;
 
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.mixin.EntityInvoker;
+import mchorse.bbs_mod.mixin.LivingEntityRollAccessor;
 import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.utils.AABB;
 import net.minecraft.entity.Entity;
@@ -175,6 +177,46 @@ public class MCEntity implements IEntity
     {
         this.mcEntity.setOnGround(ground);
     }
+
+    @Override
+    public boolean isSwimming()
+    {
+        return this.mcEntity.isSwimming();
+    }
+
+    @Override
+    public void setSwimming(boolean swimming)
+    {
+        this.mcEntity.setSwimming(swimming);
+    }
+
+    @Override
+    public boolean isRiding()
+    {
+        return this.mcEntity.hasVehicle();
+    }
+
+    /**
+     * Riding isn't a flag one can set - it's whether something is being ridden - and a replay
+     * doesn't mount anyone, so there is nothing to write onto a live entity here.
+     */
+    @Override
+    public void setRiding(boolean riding)
+    {}
+
+    @Override
+    public boolean isFlying()
+    {
+        return this.mcEntity instanceof PlayerEntity player && player.getAbilities().flying;
+    }
+
+    /**
+     * Deliberately nothing: creative flight is a permission on a real player, and a film has no
+     * business granting or taking it. The recorded state only picks an animation.
+     */
+    @Override
+    public void setFlying(boolean flying)
+    {}
 
     @Override
     public void swingArm()
@@ -532,6 +574,14 @@ public class MCEntity implements IEntity
         return 0F;
     }
 
+    /**
+     * The lean is vanilla's own on a live entity - it grows it every tick - so there is nothing
+     * to hand it. Only the preview stub, which has no ticks of its own, needs to be told.
+     */
+    @Override
+    public void setLeaningPitch(float leaningPitch)
+    {}
+
     @Override
     public boolean isTouchingWater()
     {
@@ -551,6 +601,15 @@ public class MCEntity implements IEntity
     }
 
     @Override
+    public void setRoll(int roll)
+    {
+        if (this.mcEntity instanceof LivingEntity living)
+        {
+            ((LivingEntityRollAccessor) living).bbs$setRoll(roll);
+        }
+    }
+
+    @Override
     public boolean isFallFlying()
     {
         if (this.mcEntity instanceof LivingEntity living)
@@ -559,6 +618,17 @@ public class MCEntity implements IEntity
         }
 
         return false;
+    }
+
+    /**
+     * Gliding is a tracked flag, and writing it on the server is what tells every client to
+     * spread the wings - the same reason a played back actor's sprinting flag is written rather
+     * than merely moved fast.
+     */
+    @Override
+    public void setFallFlying(boolean fallFlying)
+    {
+        ((EntityInvoker) this.mcEntity).bbs$setFlag(EntityState.FALL_FLYING_FLAG, fallFlying);
     }
 
     @Override

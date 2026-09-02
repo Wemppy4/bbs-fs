@@ -7,6 +7,13 @@ import org.joml.Vector4f;
 
 public class Vector4fKeyframeFactory implements IKeyframeFactory<Vector4f>
 {
+    /* JOML vectors hash by content. */
+    @Override
+    public int contentHash(Vector4f value)
+    {
+        return value.hashCode();
+    }
+
     private Vector4f i = new Vector4f();
 
     @Override

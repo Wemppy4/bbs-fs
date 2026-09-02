@@ -9,6 +9,35 @@ public class RecolorVertexConsumer implements VertexConsumer
 {
     public static Color newColor;
 
+    /**
+     * Apply {@link #newColor} to one packed vertex color for the writers that bypass this
+     * consumer's own {@link #color(int, int, int, int)} — Sodium's, and Iris' Sodium-compatible
+     * entity format — where the tint has to be folded into the packed int the writer is about to
+     * store. Returns it untouched while no tint is set.
+     *
+     * <p>That int is <b>ABGR</b>, not the ARGB every other packed color in BBS is: the attribute
+     * is four bytes in RGBA order, so reading them back as one little-endian int puts red in the
+     * lowest byte. Running it through {@code Color#set(int)} instead read the tint's red onto blue
+     * and back — which mirrors a tint across the hue wheel (yellow painting cyan, orange painting
+     * azure) while leaving green and magenta looking right.</p>
+     */
+    public static int tintPackedABGR(int color)
+    {
+        Color tint = newColor;
+
+        if (tint == null)
+        {
+            return color;
+        }
+
+        int r = MathUtils.clamp((int) (tint.r * (color & 0xFF)), 0, 255);
+        int g = MathUtils.clamp((int) (tint.g * (color >> 8 & 0xFF)), 0, 255);
+        int b = MathUtils.clamp((int) (tint.b * (color >> 16 & 0xFF)), 0, 255);
+        int a = MathUtils.clamp((int) (tint.a * (color >> 24 & 0xFF)), 0, 255);
+
+        return (a << 24) | (b << 16) | (g << 8) | r;
+    }
+
     protected VertexConsumer consumer;
     protected Color color;
 

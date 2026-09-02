@@ -1,6 +1,9 @@
 package mchorse.bbs_mod.ui.utils;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.Renderbuffer;
@@ -9,6 +12,9 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.Pair;
+import mchorse.bbs_mod.utils.colors.Colors;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -34,19 +40,67 @@ public class StencilFormFramebuffer
         return this.framebuffer;
     }
 
+    /**
+     * Draw the stencil buffer over the area with the picked form lit up: the preview shader is
+     * told which index it is looking for and what colour to paint it, and the buffer is drawn
+     * flipped, the way it was rendered.
+     */
+    public void renderPreview(UIContext context, Area area)
+    {
+        this.renderPreview(context, area, this.getIndex());
+    }
+
+    /** Same, lighting up {@code index} instead of what is under the cursor — a host pointing at a bone from a list. */
+    public void renderPreview(UIContext context, Area area, int index)
+    {
+        Texture texture = this.getFramebuffer().getMainTexture();
+        ShaderProgram program = BBSShaders.getPickerPreviewProgram();
+        GlUniform target = program.getUniform("Target");
+
+        if (target != null)
+        {
+            target.set(index);
+        }
+
+        GlUniform highlight = program.getUniform("HighlightColor");
+
+        if (highlight != null)
+        {
+            int color = BBSSettings.stencilHighlightColor.get();
+
+            highlight.set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+        }
+
+        RenderSystem.enableBlend();
+        context.batcher.texturedBox(BBSShaders::getPickerPreviewProgram, texture.id, Colors.WHITE,
+            area.x, area.y, area.w, area.h,
+            0, texture.height, texture.width, 0, texture.width, texture.height);
+    }
+
     public int getIndex()
     {
         return this.index;
     }
 
-    public Map<Integer, Pair<Form, String>> getIndexMap()
-    {
-        return this.indexMap;
-    }
-
     public Pair<Form, String> getPicked()
     {
         return this.indexMap.get(this.index);
+    }
+
+    /** The id the last pass drew {@code bone} of {@code form} with, or 0 when it wasn't drawn. */
+    public int indexOf(Form form, String bone)
+    {
+        for (Map.Entry<Integer, Pair<Form, String>> entry : this.indexMap.entrySet())
+        {
+            Pair<Form, String> pair = entry.getValue();
+
+            if (pair.a == form && pair.b.equals(bone))
+            {
+                return entry.getKey();
+            }
+        }
+
+        return 0;
     }
 
     public void setup(Link id)
@@ -246,6 +300,12 @@ public class StencilFormFramebuffer
     {
         this.index = 0;
         this.indexMap.clear();
+    }
+
+    /** Nothing under the cursor, while what the pass drew stays known (for {@link #indexOf}). */
+    public void clearIndex()
+    {
+        this.index = 0;
     }
 
     public boolean hasPicked()

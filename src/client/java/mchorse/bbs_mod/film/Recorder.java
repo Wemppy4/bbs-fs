@@ -6,7 +6,6 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.film.replays.FormProperties;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.entities.MCEntity;
@@ -46,7 +45,6 @@ public class Recorder extends WorldFilmController
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public ReplayKeyframes keyframes = new ReplayKeyframes("keyframes");
-    public FormProperties properties = new FormProperties("properties");
 
     /**
      * Mobs captured within {@link Film#mobRecordingRadius} when recording started.

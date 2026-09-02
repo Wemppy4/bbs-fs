@@ -114,3 +114,132 @@ publishing {
 		// retrieving dependencies.
 	}
 }
+
+/* Addon API snapshot.
+ *
+ * The API's promise is only as good as the ability to notice it being broken, and nothing about a
+ * Java signature says "an addon depends on this". So the whole public surface of
+ * mchorse.bbs_mod.api is dumped into api/bbs-api.txt, which lives in the repository: a change to
+ * it shows up in the diff of the commit that made it, and an accidental one is caught by apiCheck
+ * before it ever reaches an addon. See ADDONS.md. */
+def apiSnapshotFile = rootProject.file("api/bbs-api.txt")
+
+def collectApiSignatures = {
+	def dirs = []
+
+	dirs.addAll(sourceSets.main.output.classesDirs.files)
+	dirs.addAll(sourceSets.client.output.classesDirs.files)
+
+	/* javap rather than a bytecode library: it comes with the JDK that is already running the
+	 * build, and Gradle 9 took Project.exec away, so this is plain ProcessBuilder. */
+	def javap = new File(new File(System.getProperty("java.home"), "bin"), "javap")
+	def entries = [:]
+
+	dirs.findAll { it.exists() }.each { dir ->
+		def root = new File(dir, "mchorse/bbs_mod/api")
+
+		if (!root.exists()) {
+			return
+		}
+
+		def names = []
+
+		root.eachFileRecurse { file ->
+			if (file.name.endsWith(".class")) {
+				names << dir.toPath().relativize(file.toPath()).toString()
+					.replace(File.separator, "/")
+					.replaceAll(/\.class$/, "")
+					.replace("/", ".")
+			}
+		}
+
+		if (names.isEmpty()) {
+			return
+		}
+
+		def process = new ProcessBuilder([javap.absolutePath, "-protected", "-classpath", dir.absolutePath] + names.sort())
+			.redirectErrorStream(true)
+			.start()
+		def output = process.inputStream.getText("UTF-8")
+
+		if (process.waitFor() != 0) {
+			throw new GradleException("javap failed while reading the addon API:\n" + output)
+		}
+
+		def header = null
+		def members = null
+
+		output.eachLine { line ->
+			def trimmed = line.trim()
+
+			if (trimmed.isEmpty() || trimmed.startsWith("Compiled from")) {
+				return
+			}
+
+			if (trimmed == "}") {
+				if (header != null) {
+					entries.put(header, members.sort())
+				}
+
+				header = null
+				members = null
+			}
+			else if (header == null) {
+				header = trimmed
+				members = []
+			}
+			else {
+				members << trimmed
+			}
+		}
+	}
+
+	def builder = new StringBuilder()
+
+	entries.keySet().sort().each { key ->
+		builder.append(key).append("\n")
+		entries.get(key).each { member -> builder.append("    ").append(member).append("\n") }
+		builder.append("}\n\n")
+	}
+
+	return builder.toString()
+}
+
+tasks.register("apiDump") {
+	group = "verification"
+	description = "Writes the signatures of the addon API into api/bbs-api.txt."
+
+	dependsOn tasks.named("classes"), tasks.named("clientClasses")
+
+	doLast {
+		apiSnapshotFile.parentFile.mkdirs()
+		apiSnapshotFile.setText(collectApiSignatures(), "UTF-8")
+
+		logger.lifecycle("Addon API snapshot written to ${apiSnapshotFile}")
+	}
+}
+
+tasks.register("apiCheck") {
+	group = "verification"
+	description = "Fails when the addon API drifts from the snapshot in api/bbs-api.txt."
+
+	dependsOn tasks.named("classes"), tasks.named("clientClasses")
+
+	doLast {
+		def current = collectApiSignatures()
+
+		if (!apiSnapshotFile.exists()) {
+			throw new GradleException("There is no addon API snapshot at ${apiSnapshotFile}. Run `gradlew apiDump` and commit it.")
+		}
+
+		def stored = apiSnapshotFile.getText("UTF-8").replace("\r\n", "\n")
+
+		if (stored != current) {
+			throw new GradleException("The addon API no longer matches api/bbs-api.txt. If the change is intended, run `gradlew apiDump` and commit the snapshot along with it; if it is not, this is an addon-breaking change that slipped in.")
+		}
+	}
+}
+
+tasks.named("build") {
+	dependsOn tasks.named("apiCheck")
+}

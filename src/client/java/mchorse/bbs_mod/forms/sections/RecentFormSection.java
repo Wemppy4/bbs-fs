@@ -19,7 +19,7 @@ public class RecentFormSection extends FormSection
     @Override
     public void initiate()
     {
-        this.recent = new RecentFormCategory(this.parent.visibility.get("recent"));
+        this.recent = new RecentFormCategory(this.parent.preferences.visible("recent"));
     }
 
     @Override

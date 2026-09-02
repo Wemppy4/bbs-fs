@@ -1,19 +1,23 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmEntityRenderer;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmControllerContext;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.MCEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -99,7 +103,11 @@ public class FilmEditorController extends BaseFilmController
             entity.setPrevBodyYaw(entity.getBodyYaw());
             entity.setPrevPitch(entity.getPitch());
 
-            int diff = Math.abs(this.lastTick - ticks);
+            /* Signed, not absolute: only a forward jump has intermediate ticks to replay. This loop is
+             * the only thing that grows an actor age while the film is paused, so it IS the simulation
+             * clock here - taking the absolute value made a backward scrub advance physics FORWARD by
+             * the distance scrubbed, and every scrub back lurched the chains. */
+            int diff = ticks - this.lastTick;
 
             while (diff > 0)
             {
@@ -168,13 +176,18 @@ public class FilmEditorController extends BaseFilmController
 
                 if (segment != null)
                 {
+                    BBSProfiler.begin(BBSProfiler.Timer.ONION);
                     this.renderOnion(replay, pose.getKeyframes().indexOf(segment.a), -1, pose, onionSkin.preColor.get(), onionSkin.preFrames.get(), context, isPlaying, entity);
                     this.renderOnion(replay, pose.getKeyframes().indexOf(segment.b), 1, pose, onionSkin.postColor.get(), onionSkin.postFrames.get(), context, isPlaying, entity);
+                    BBSProfiler.end(BBSProfiler.Timer.ONION);
 
                     replay.keyframes.apply(ticks, entity);
                     float tick = ticks + this.getTransition(entity, context.tickCounter().getTickDelta(false));
                     Form form = entity.getForm();
                     replay.properties.applyProperties(form, tick);
+
+                    /* Back on the current tick after the onion excursion. */
+                    RenderFrame.invalidate();
 
                     if (!isPlaying)
                     {
@@ -211,7 +224,11 @@ public class FilmEditorController extends BaseFilmController
             Form form = entity.getForm();
             replay.properties.applyProperties(form, tick);
 
-            BaseFilmController.renderEntity(FilmControllerContext.instance
+            /* This pass re-poses the live entity for another tick; whatever the frame cache
+             * holds for it no longer describes what is about to render. */
+            RenderFrame.invalidate();
+
+            FilmEntityRenderer.renderEntity(FilmControllerContext.instance
                 .setup(this.getEntities(), entity, replay, context)
                 .color(Colors.setA(color, alpha))
                 .transition(0F));
@@ -224,36 +241,21 @@ public class FilmEditorController extends BaseFilmController
     @Override
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
     {
-        Pair<String, Boolean> bone = this.isCurrent(entity) && !this.controller.panel.recorder.isRecording() ? this.controller.getBone() : null;
-        String aBone = bone == null ? null : bone.a;
-        boolean local = bone != null && bone.b;
-        String aBone2 = null;
-        boolean local2 = false;
+        boolean recording = this.controller.panel.recorder.isRecording();
 
-        if (replay.axesPreview.get())
-        {
-            aBone2 = replay.axesPreviewBone.get();
-            local2 = true;
-        }
+        /* One question, asked once. The gizmo only ever belongs to the replay being edited,
+         * so every other actor in the film gets NONE. */
+        FilmTarget target = this.isCurrent(entity) && !recording
+            ? this.controller.getEditTarget()
+            : FilmTarget.NONE;
 
-        if (this.controller.panel.recorder.isRecording())
-        {
-            aBone = null;
-            local = false;
-            aBone2 = null;
-            local2 = false;
-        }
-
-        boolean anchorGizmo = this.isCurrent(entity)
-            && !this.controller.panel.recorder.isRecording()
-            && this.controller.isAnchorGizmo();
+        String aBone2 = replay.axesPreview.get() && !recording ? replay.axesPreviewBone.get() : null;
 
         return super.getFilmControllerContext(context, replay, entity)
             .transition(this.getTransition(entity, context.tickCounter().getTickDelta(false)))
-            .bone(aBone, local)
-            .gizmoSpace(this.controller.getBoneSpace(), this.controller.getGizmoView())
-            .bone2(aBone2, local2)
-            .anchorGizmo(anchorGizmo, this.controller.getAnchorLocal());
+            .gizmoTarget(target)
+            .gizmoView(this.controller.getGizmoView())
+            .bone2(aBone2, TransformSpace.LOCAL);
     }
 
     private boolean isCurrent(IEntity entity)

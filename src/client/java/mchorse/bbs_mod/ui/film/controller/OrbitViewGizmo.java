@@ -41,7 +41,6 @@ import java.util.Comparator;
 public class OrbitViewGizmo
 {
     public static final int RADIUS = 30;
-    public static final int PADDING = 6;
 
     private static final float BALL_RADIUS = 7F;
     private static final int SEGMENTS = 24;
@@ -243,14 +242,24 @@ public class OrbitViewGizmo
         return BALL_RADIUS * this.scale();
     }
 
-    private float centerX(Area area)
+    /**
+     * The side of the square block the ball needs, so the preview's HUD can reserve it a
+     * spot in the bottom left corner rather than have the ball place itself over whatever
+     * else is standing there.
+     */
+    public int getSize()
     {
-        return area.x + PADDING + this.radius();
+        return Math.round(this.radius() * 2F);
     }
 
-    private float centerY(Area area)
+    private float centerX(Area block)
     {
-        return area.ey() - PADDING - this.radius();
+        return block.mx();
+    }
+
+    private float centerY(Area block)
+    {
+        return block.my();
     }
 
     private Ball[] getBalls(Area area)

@@ -2,18 +2,18 @@ package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.cubic.ik.ModelIKConfig;
-import mchorse.bbs_mod.cubic.ik.ModelIKIO;
+import mchorse.bbs_mod.cubic.ik.BoneIKIO;
+import mchorse.bbs_mod.cubic.ik.IKControl;
+import mchorse.bbs_mod.cubic.ik.JointDoF;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
-import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIDebugOverlayContextMenu;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -23,19 +23,15 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.utils.PickedBone;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.presets.UIDataContextMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.ModelIKManager;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -45,7 +41,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
+public class UIModelIKFormPanel extends UIBoneListFormPanel
 {
     /* Bone list role dots — the same yellow the film's IK sheet uses for a chain. */
     private static final int MARKER_CHAIN = Colors.A100 | Colors.YELLOW;
@@ -53,9 +49,6 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     private static final int MARKER_POLE = Colors.A100 | Colors.MAGENTA;
     private static final int MARKER_JOINT = Colors.A100 | Colors.ORANGE;
     private static final int MARKER_OFF = Colors.GRAY;
-
-    public UIBoneTreeList bones;
-    public UISearchList<String> bonesSearch;
 
     public UIToggle debug;
     public UIToggle enabled;
@@ -87,98 +80,20 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     public UISliderTrackpad stiffnessZ;
     public UIToggle stretch;
 
-    private String selectedBone = "";
-    private Map<String, IKData> ikData = new HashMap<>();
-    private Map<String, JointData> jointData = new HashMap<>();
     private final Map<String, UIBoneTreeList.Marker[]> boneMarkers = new HashMap<>();
-    private ModelInstance model;
-    private String presetGroup = "";
-    private boolean syncingUI;
-
-    private static class IKData
-    {
-        public String target = "";
-        public int chainLength = ModelIKConfig.DEFAULT_CHAIN_LENGTH;
-        public boolean pole = true;
-        public String poleTarget = ModelIKConfig.DEFAULT_POLE_TARGET;
-        public float poleAngle = ModelIKConfig.DEFAULT_POLE_ANGLE;
-        public float softness = ModelIKConfig.DEFAULT_SOFTNESS;
-        public float weight = ModelIKConfig.DEFAULT_WEIGHT;
-        public boolean enabled = true;
-        public boolean tipRotation = ModelIKConfig.DEFAULT_TIP_ROTATION;
-        public boolean stretch = ModelIKConfig.DEFAULT_STRETCH;
-        public boolean classic = ModelIKConfig.DEFAULT_CLASSIC;
-    }
-
-    /** Mutable UI shadow of {@link ModelIKConfig.JointDoF} — the selected bone's joint freedom. */
-    private static class JointData
-    {
-        public boolean lockX, lockY, lockZ;
-        public boolean limitX, limitY, limitZ;
-        public float minX = ModelIKConfig.JointDoF.DEFAULT_MIN;
-        public float maxX = ModelIKConfig.JointDoF.DEFAULT_MAX;
-        public float minY = ModelIKConfig.JointDoF.DEFAULT_MIN;
-        public float maxY = ModelIKConfig.JointDoF.DEFAULT_MAX;
-        public float minZ = ModelIKConfig.JointDoF.DEFAULT_MIN;
-        public float maxZ = ModelIKConfig.JointDoF.DEFAULT_MAX;
-        public float stiffnessX, stiffnessY, stiffnessZ;
-
-        public static JointData from(ModelIKConfig.JointDoF dof)
-        {
-            JointData data = new JointData();
-
-            data.lockX = dof.lockX();
-            data.lockY = dof.lockY();
-            data.lockZ = dof.lockZ();
-            data.limitX = dof.limitX();
-            data.limitY = dof.limitY();
-            data.limitZ = dof.limitZ();
-            data.minX = dof.minX();
-            data.maxX = dof.maxX();
-            data.minY = dof.minY();
-            data.maxY = dof.maxY();
-            data.minZ = dof.minZ();
-            data.maxZ = dof.maxZ();
-            data.stiffnessX = dof.stiffnessX();
-            data.stiffnessY = dof.stiffnessY();
-            data.stiffnessZ = dof.stiffnessZ();
-
-            return data;
-        }
-
-        public ModelIKConfig.JointDoF toDoF()
-        {
-            return new ModelIKConfig.JointDoF(this.lockX, this.lockY, this.lockZ,
-                this.limitX, this.minX, this.maxX,
-                this.limitY, this.minY, this.maxY,
-                this.limitZ, this.minZ, this.maxZ,
-                this.stiffnessX, this.stiffnessY, this.stiffnessZ);
-        }
-    }
 
     public UIModelIKFormPanel(UIForm editor)
     {
         super(editor);
 
-        this.bones = new UIBoneTreeList((l) ->
-        {
-            this.selectedBone = l.isEmpty() ? "" : l.get(0);
-
-            PickedBone.set(this.selectedBone);
-            this.updateLabels();
-        });
-        this.bones.background();
         this.bones.markers(this.boneMarkers::get, UIKeys.FORMS_EDITORS_MODEL_IK_BONES_TOOLTIP);
-        this.bonesSearch = new UISearchList<>(this.bones);
-        this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
-        this.bonesSearch.h(20 + UIConstants.LIST_ITEM_HEIGHT * 8);
-        this.bones.context(() -> new UIDataContextMenu(ModelIKManager.INSTANCE, this.presetGroup, this::toPresetData, this::applyPresetData).tooltips("_CopyModelIK",
+        this.bonePresets(ModelIKManager.INSTANCE, "_CopyModelIK",
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_COPY,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_PASTE,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_RESET,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_SAVE,
             UIKeys.FORMS_EDITORS_MODEL_IK_CONTEXT_NAME
-        ));
+        );
 
         this.debug = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_DEBUG, (b) -> BBSSettings.ikDebug.enabled.set(b.getValue()));
         this.debug.setValue(BBSSettings.ikDebug.enabled.get());
@@ -186,37 +101,27 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
         this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_ENABLED, (b) ->
         {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.enabled = b.getValue();
-            this.updateLabels();
-            this.commitChanges();
+            this.editControl((c) -> c.enabled = b.getValue());
+            this.updateFields();
         });
         this.enabled.h(UIConstants.CONTROL_HEIGHT);
 
         this.target = new UIBonePicker((bone) ->
         {
-            if (this.selectedBone.isEmpty())
+            if (this.form == null || this.selectedBone.isEmpty())
             {
                 return;
             }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
 
             /* The eyedropper bypasses the popup's graying, so the cycle gate sits
              * on the shared callback — a cyclic pick is refused outright. */
-            if (this.isCyclic(data, bone))
+            if (this.isCyclic(bone))
             {
                 return;
             }
 
-            data.target = bone;
-            this.updateLabels();
-            this.commitChanges();
+            this.form.bones.getOrCreate(this.selectedBone).ikTarget.set(bone);
+            this.updateFields();
         });
 
         /* A target the chain itself drives never compiles — gray it out in the
@@ -228,27 +133,20 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
                 return;
             }
 
-            IKData data = this.getOrCreateData(this.selectedBone);
-
-            this.fillBoneMenu(picker, data.target, (bone) -> this.isCyclic(data, bone));
+            this.fillBoneMenu(picker, this.readBone((b) -> b.ikTarget.get(), ""), this::isCyclic);
         });
         this.target.viewport(this.viewportBonePicking());
         this.target.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_TARGET);
+        this.resetBone(this.target, (bone) -> bone.ikTarget);
 
         this.chainLength = new UITrackpad((v) ->
         {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.chainLength = Math.max(0, (int) v.floatValue());
-            this.updateLabels();
-            this.commitChanges();
+            this.editBone((bone) -> bone.ikChainLength.set(Math.max(0, (int) v.floatValue())));
+            this.updateFields();
         });
         this.chainLength.limit(0).integer();
         this.chainLength.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH);
+        this.resetBone(this.chainLength, (bone) -> bone.ikChainLength);
 
         /* The live meaning of the chain length number: the bones the chain
          * actually spans, root to tip — so "0 = up to the root" stops being
@@ -258,30 +156,20 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
         this.pole = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_POLE, (b) ->
         {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.pole = b.getValue();
-            this.updateLabels();
-            this.commitChanges();
+            this.editControl((c) -> c.pole = b.getValue());
+            this.updateFields();
         });
         this.pole.h(UIConstants.CONTROL_HEIGHT);
 
         this.poleTarget = new UIBonePicker((bone) ->
         {
-            if (this.selectedBone.isEmpty())
+            if (this.form == null || this.selectedBone.isEmpty())
             {
                 return;
             }
 
-            IKData data = this.getOrCreateData(this.selectedBone);
-
-            data.poleTarget = bone;
-            this.updateLabels();
-            this.commitChanges();
+            this.form.bones.getOrCreate(this.selectedBone).ikPoleTarget.set(bone);
+            this.updateFields();
         });
 
         /* A pole on a chain bone is not fatal (the compiler falls back to the
@@ -293,90 +181,37 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
                 return;
             }
 
-            this.fillBoneMenu(picker, this.getOrCreateData(this.selectedBone).poleTarget, null);
+            this.fillBoneMenu(picker, this.readBone((b) -> b.ikPoleTarget.get(), ""), null);
         });
         this.poleTarget.viewport(this.viewportBonePicking());
         this.poleTarget.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_POLE_TARGET);
+        this.resetBone(this.poleTarget, (bone) -> bone.ikPoleTarget);
 
-        this.poleAngle = new UISliderTrackpad((v) ->
-        {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.poleAngle = v.floatValue();
-            this.commitChanges();
-        });
+        this.poleAngle = new UISliderTrackpad((v) -> this.editControl((c) -> c.poleAngle = v.floatValue()));
         this.poleAngle.angle180();
         this.poleAngle.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_POLE_ANGLE);
 
-        this.softness = new UISliderTrackpad((v) ->
-        {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.softness = v.floatValue();
-            this.commitChanges();
-        });
+        this.softness = new UISliderTrackpad((v) -> this.editControl((c) -> c.softness = v.floatValue()));
         this.softness.normalized();
         this.softness.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_SOFTNESS);
 
-        this.weight = new UISliderTrackpad((v) ->
-        {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.weight = v.floatValue();
-            this.commitChanges();
-        });
+        this.weight = new UISliderTrackpad((v) -> this.editControl((c) -> c.weight = v.floatValue()));
         this.weight.normalized();
         this.weight.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT);
 
-        this.tipRotation = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_TIP_ROTATION, (b) ->
-        {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.tipRotation = b.getValue();
-            this.commitChanges();
-        });
-
-        this.stretch = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_STRETCH, (b) ->
-        {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.stretch = b.getValue();
-            this.commitChanges();
-        });
+        this.tipRotation = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_TIP_ROTATION, (b) -> this.editBone((bone) -> bone.ikTipRotation.set(b.getValue())));
+        this.stretch = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_STRETCH, (b) -> this.editBone((bone) -> bone.ikStretch.set(b.getValue())));
 
         this.classic = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC, (b) ->
         {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            IKData data = this.getOrCreateData(this.selectedBone);
-            data.classic = b.getValue();
-            this.updateLabels();
-            this.commitChanges();
+            this.editBone((bone) -> bone.ikClassic.set(b.getValue()));
+            this.updateFields();
         });
         this.classic.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC_TOOLTIP);
+
+        this.resetBone(this.tipRotation, (bone) -> bone.ikTipRotation);
+        this.resetBone(this.stretch, (bone) -> bone.ikStretch);
+        this.resetBone(this.classic, (bone) -> bone.ikClassic);
 
         UISection settings = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_SETTINGS, "ik.chain", true);
 
@@ -406,24 +241,24 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
         /* The selected bone's JOINT freedom — per axis: lock, limit (degrees), stiffness.
          * Per BONE, not per chain: a bone shared by several chains has one set of joints. */
-        this.lockX = this.jointLock(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LOCK.format("X"), (d) -> d.lockX, (d, v) -> d.lockX = v);
-        this.lockY = this.jointLock(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LOCK.format("Y"), (d) -> d.lockY, (d, v) -> d.lockY = v);
-        this.lockZ = this.jointLock(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LOCK.format("Z"), (d) -> d.lockZ, (d, v) -> d.lockZ = v);
+        this.lockX = this.jointLock(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LOCK.format("X"), (j) -> j.lockX, (j, v) -> j.lockX = v);
+        this.lockY = this.jointLock(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LOCK.format("Y"), (j) -> j.lockY, (j, v) -> j.lockY = v);
+        this.lockZ = this.jointLock(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LOCK.format("Z"), (j) -> j.lockZ, (j, v) -> j.lockZ = v);
 
-        this.limitX = this.jointToggle(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LIMIT.format("X"), (d, v) -> d.limitX = v);
-        this.limitY = this.jointToggle(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LIMIT.format("Y"), (d, v) -> d.limitY = v);
-        this.limitZ = this.jointToggle(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LIMIT.format("Z"), (d, v) -> d.limitZ = v);
+        this.limitX = this.jointToggle(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LIMIT.format("X"), (j, v) -> j.limitX = v);
+        this.limitY = this.jointToggle(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LIMIT.format("Y"), (j, v) -> j.limitY = v);
+        this.limitZ = this.jointToggle(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_LIMIT.format("Z"), (j, v) -> j.limitZ = v);
 
-        this.limitMinX = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MIN.format("X"), Colors.RED, (d, v) -> d.minX = v);
-        this.limitMaxX = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MAX.format("X"), Colors.RED, (d, v) -> d.maxX = v);
-        this.limitMinY = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MIN.format("Y"), Colors.GREEN, (d, v) -> d.minY = v);
-        this.limitMaxY = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MAX.format("Y"), Colors.GREEN, (d, v) -> d.maxY = v);
-        this.limitMinZ = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MIN.format("Z"), Colors.BLUE, (d, v) -> d.minZ = v);
-        this.limitMaxZ = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MAX.format("Z"), Colors.BLUE, (d, v) -> d.maxZ = v);
+        this.limitMinX = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MIN.format("X"), Colors.RED, (j, v) -> j.minX = v);
+        this.limitMaxX = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MAX.format("X"), Colors.RED, (j, v) -> j.maxX = v);
+        this.limitMinY = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MIN.format("Y"), Colors.GREEN, (j, v) -> j.minY = v);
+        this.limitMaxY = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MAX.format("Y"), Colors.GREEN, (j, v) -> j.maxY = v);
+        this.limitMinZ = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MIN.format("Z"), Colors.BLUE, (j, v) -> j.minZ = v);
+        this.limitMaxZ = this.jointDegrees(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_MAX.format("Z"), Colors.BLUE, (j, v) -> j.maxZ = v);
 
-        this.stiffnessX = this.jointStiffness(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_STIFFNESS.format("X"), Colors.RED, (d, v) -> d.stiffnessX = v);
-        this.stiffnessY = this.jointStiffness(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_STIFFNESS.format("Y"), Colors.GREEN, (d, v) -> d.stiffnessY = v);
-        this.stiffnessZ = this.jointStiffness(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_STIFFNESS.format("Z"), Colors.BLUE, (d, v) -> d.stiffnessZ = v);
+        this.stiffnessX = this.jointStiffness(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_STIFFNESS.format("X"), Colors.RED, (j, v) -> j.stiffnessX = v);
+        this.stiffnessY = this.jointStiffness(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_STIFFNESS.format("Y"), Colors.GREEN, (j, v) -> j.stiffnessY = v);
+        this.stiffnessZ = this.jointStiffness(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_STIFFNESS.format("Z"), Colors.BLUE, (j, v) -> j.stiffnessZ = v);
 
         UISection joint = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT, "ik.joint", false);
 
@@ -438,18 +273,8 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
             this.jointAxisRow(this.lockZ, this.limitZ, this.limitMinZ, this.limitMaxZ, this.stiffnessZ)
         );
 
-        UIIcon debugSettings = new UIIcon(Icons.GEAR, (b) -> this.getContext().replaceContextMenu(new UIDebugOverlayContextMenu(BBSSettings.ikDebug)));
-
-        debugSettings.tooltip(UIKeys.MODEL_DEBUG_CONFIGURE);
-        debugSettings.wh(20, 14);
-
-        UIElement debugRow = new UIElement();
-
-        debugRow.row(0).preferred(0).height(14);
-        debugRow.add(this.debug, debugSettings);
-
         this.options.add(
-            debugRow,
+            this.debugRow(this.debug, BBSSettings.ikDebug),
             this.bonesSearch,
             settings,
             advanced,
@@ -476,40 +301,23 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     /**
      * The per-axis lock as a padlock icon: open when the axis solves freely,
      * closed when it is frozen at its FK value. The glyph IS the state, read
-     * live from the selected bone's joint data — no value syncing; a locked
+     * live from the selected bone's joint property — no value syncing; a locked
      * axis additionally gets the standard selection highlight behind the icon.
-     * A plain square icon button, rendered the way every other icon button is —
-     * glyph centered in its cell, highlight over the whole cell.
      */
-    private UIIcon jointLock(IKey tooltip, Predicate<JointData> getter, BiConsumer<JointData, Boolean> setter)
+    private UIIcon jointLock(IKey tooltip, Predicate<JointDoF> getter, BiConsumer<JointDoF, Boolean> setter)
     {
-        UIIcon icon = new UIIcon(() ->
+        UIIcon icon = new UIIcon(() -> getter.test(this.currentJoint()) ? Icons.LOCKED : Icons.UNLOCKED, (b) ->
         {
-            JointData data = this.jointData.get(this.selectedBone);
-
-            return data != null && getter.test(data) ? Icons.LOCKED : Icons.UNLOCKED;
-        }, (b) ->
-        {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            JointData data = this.getOrCreateJoint(this.selectedBone);
-
-            setter.accept(data, !getter.test(data));
-            this.updateLabels();
-            this.commitChanges();
+            this.editJoint((j) -> setter.accept(j, !getter.test(j)));
+            this.updateFields();
         })
         {
             @Override
             protected void renderSkin(UIContext context)
             {
-                JointData data = UIModelIKFormPanel.this.jointData.get(UIModelIKFormPanel.this.selectedBone);
-
-                if (data != null && getter.test(data))
+                if (getter.test(UIModelIKFormPanel.this.currentJoint()))
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.BOTTOM);
+                    context.batcher.highlight(this.area, Direction.BOTTOM);
                 }
 
                 super.renderSkin(context);
@@ -522,18 +330,12 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         return icon;
     }
 
-    private UIToggle jointToggle(IKey label, BiConsumer<JointData, Boolean> setter)
+    private UIToggle jointToggle(IKey label, BiConsumer<JointDoF, Boolean> setter)
     {
         UIToggle toggle = new UIToggle(IKey.EMPTY, (b) ->
         {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            setter.accept(this.getOrCreateJoint(this.selectedBone), b.getValue());
-            this.updateLabels();
-            this.commitChanges();
+            this.editJoint((j) -> setter.accept(j, b.getValue()));
+            this.updateFields();
         });
 
         toggle.tooltip(label);
@@ -541,9 +343,9 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         return toggle;
     }
 
-    private UISliderTrackpad jointDegrees(IKey tooltip, int color, BiConsumer<JointData, Float> setter)
+    private UISliderTrackpad jointDegrees(IKey tooltip, int color, BiConsumer<JointDoF, Float> setter)
     {
-        UISliderTrackpad pad = new UISliderTrackpad(this.jointCallback(setter));
+        UISliderTrackpad pad = new UISliderTrackpad((v) -> this.editJoint((j) -> setter.accept(j, v.floatValue())));
 
         pad.angle180();
         pad.tooltip(tooltip);
@@ -552,34 +354,15 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         return pad;
     }
 
-    private UISliderTrackpad jointStiffness(IKey tooltip, int color, BiConsumer<JointData, Float> setter)
+    private UISliderTrackpad jointStiffness(IKey tooltip, int color, BiConsumer<JointDoF, Float> setter)
     {
-        UISliderTrackpad pad = new UISliderTrackpad(this.jointCallback(setter));
+        UISliderTrackpad pad = new UISliderTrackpad((v) -> this.editJoint((j) -> setter.accept(j, v.floatValue())));
 
         pad.normalized();
         pad.tooltip(tooltip);
         pad.textbox.setColor(color);
 
         return pad;
-    }
-
-    private Consumer<Double> jointCallback(BiConsumer<JointData, Float> setter)
-    {
-        return (v) ->
-        {
-            if (this.syncingUI || this.selectedBone.isEmpty())
-            {
-                return;
-            }
-
-            setter.accept(this.getOrCreateJoint(this.selectedBone), v.floatValue());
-            this.commitChanges();
-        };
-    }
-
-    private JointData getOrCreateJoint(String bone)
-    {
-        return this.jointData.computeIfAbsent(bone, k -> new JointData());
     }
 
     @Override
@@ -593,45 +376,13 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     @Override
     public void startEdit(ModelForm form)
     {
-        super.startEdit(form);
-
         this.debug.setValue(BBSSettings.ikDebug.enabled.get());
 
-        ModelInstance model = ModelFormRenderer.getModel(form);
-        this.model = model;
-        this.presetGroup = this.resolvePresetGroup(form, model);
-
-        if (model == null || model.model == null)
-        {
-            this.bones.clear();
-            this.selectedBone = "";
-            this.ikData.clear();
-            this.jointData.clear();
-
-            this.setElementsEnabled(false);
-        }
-        else
-        {
-            this.bones.fillBones(model.model, model.getDisabledBones());
-
-            /* The fill resets the list's filter state, but the search box keeps its
-             * text across startEdit — reapply so what you see matches the query. */
-            this.bones.filter(this.bonesSearch.search.getText());
-            this.setElementsEnabled(true);
-
-            this.load();
-
-            /* Land on the bone the animator is working on — the panel is rebuilt
-             * on many editor actions, and the bone they came from another tab
-             * with is the one they mean here too. */
-            this.pickBoneInList(PickedBone.get());
-        }
-
-        this.updateLabels();
-        this.options.resize();
+        super.startEdit(form);
     }
 
-    private void setElementsEnabled(boolean enabled)
+    @Override
+    protected void setElementsEnabled(boolean enabled)
     {
         this.bonesSearch.setEnabled(enabled);
         this.bones.setEnabled(enabled);
@@ -668,31 +419,63 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         this.stiffnessZ.setEnabled(enabled);
     }
 
-    @Override
-    public boolean pickBoneInList(String bone)
-    {
-        if (bone == null || bone.isEmpty() || !this.bones.getList().contains(bone))
-        {
-            return false;
-        }
-
-        this.selectedBone = bone;
-
-        PickedBone.set(bone);
-        this.bones.setCurrentScroll(bone);
-        this.updateLabels();
-
-        return true;
-    }
-
     private void fillBoneMenu(UIBonePickerContextMenu picker, String current, Predicate<String> disabled)
     {
-        if (this.model == null || this.model.model == null)
+        if (this.modelInstance == null || this.modelInstance.model == null)
         {
             return;
         }
 
-        picker.bones(this.model.model, this.model.getDisabledBones()).none().disabled(disabled).set(current);
+        picker.bones(this.modelInstance.model, this.modelInstance.getDisabledBones()).none().disabled(disabled).set(current);
+    }
+
+    /* Value access: the panel holds no data of its own — every read and write
+     * goes to the form's bone properties, and undo picks the writes up itself. */
+
+    /** The selected bone's properties, or null when it was never touched. */
+    private IKControl currentControl()
+    {
+        FormBone bone = this.selectedFormBone();
+
+        return bone == null ? IKControl.DEFAULT : bone.ik.get();
+    }
+
+    private JointDoF currentJoint()
+    {
+        FormBone bone = this.selectedFormBone();
+
+        return bone == null ? JointDoF.FREE : bone.joint.get();
+    }
+
+    @Override
+    protected void editBone(Consumer<FormBone> edit)
+    {
+        super.editBone(edit);
+        this.updateMarkers();
+    }
+
+    /** Edits the selected bone's IK scalars as one value change (one undo entry). */
+    private void editControl(Consumer<IKControl> edit)
+    {
+        this.editBone((bone) ->
+        {
+            IKControl control = bone.ik.get().copy();
+
+            edit.accept(control);
+            bone.ik.set(control);
+        });
+    }
+
+    /** Edits the selected bone's joint freedom as one value change (one undo entry). */
+    private void editJoint(Consumer<JointDoF> edit)
+    {
+        this.editBone((bone) ->
+        {
+            JointDoF joint = bone.joint.get().copy();
+
+            edit.accept(joint);
+            bone.joint.set(joint);
+        });
     }
 
     /**
@@ -706,9 +489,9 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
     {
         this.boneMarkers.clear();
 
-        IModel model = this.model == null ? null : this.model.model;
+        IModel model = this.modelInstance == null ? null : this.modelInstance.model;
 
-        if (model == null)
+        if (model == null || this.form == null)
         {
             return;
         }
@@ -719,33 +502,40 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         Set<String> poles = new HashSet<>();
         Set<String> offControllers = new HashSet<>();
 
-        for (Map.Entry<String, IKData> entry : this.ikData.entrySet())
+        for (BaseValue value : this.form.bones.getAll())
         {
-            String tip = entry.getKey();
-            IKData data = entry.getValue();
-
-            /* A bone with no target carries no chain at all — the same rule the
-             * config's serialization filter uses. */
-            if (tip == null || tip.isEmpty() || data == null || data.target == null || data.target.isEmpty())
+            if (!(value instanceof FormBone bone))
             {
                 continue;
             }
 
-            touched.add(tip);
+            String tip = bone.getId();
 
-            if (data.enabled)
+            if (bone.hasChain())
             {
-                driven.addAll(ModelIKRuntime.chainBones(model, tip, data.chainLength));
-                targets.add(data.target);
+                IKControl control = bone.ik.get();
 
-                if (data.pole && data.poleTarget != null && !data.poleTarget.isEmpty())
+                touched.add(tip);
+
+                if (control.enabled)
                 {
-                    poles.add(data.poleTarget);
+                    driven.addAll(ModelIKRuntime.chainBones(model, tip, bone.ikChainLength.get()));
+                    targets.add(bone.ikTarget.get());
+
+                    if (control.pole && !bone.ikPoleTarget.get().isEmpty())
+                    {
+                        poles.add(bone.ikPoleTarget.get());
+                    }
+                }
+                else
+                {
+                    offControllers.add(bone.ikTarget.get());
                 }
             }
-            else
+
+            if (!bone.joint.get().isFree())
             {
-                offControllers.add(data.target);
+                touched.add(tip);
             }
         }
 
@@ -754,56 +544,47 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         touched.addAll(poles);
         touched.addAll(offControllers);
 
-        for (Map.Entry<String, JointData> entry : this.jointData.entrySet())
+        for (String name : touched)
         {
-            if (entry.getValue() != null && !entry.getValue().toDoF().isFree())
-            {
-                touched.add(entry.getKey());
-            }
-        }
-
-        for (String bone : touched)
-        {
-            IKData chain = this.ikData.get(bone);
-            boolean hasChain = chain != null && chain.target != null && !chain.target.isEmpty();
+            FormBone bone = this.form.bones.getBone(name);
+            boolean hasChain = bone != null && bone.hasChain();
             UIBoneTreeList.Marker slotChain = null;
             UIBoneTreeList.Marker slotController = null;
             UIBoneTreeList.Marker slotJoint = null;
 
             if (hasChain)
             {
-                slotChain = new UIBoneTreeList.Marker(chain.enabled ? MARKER_CHAIN : MARKER_OFF, false);
+                slotChain = new UIBoneTreeList.Marker(bone.ik.get().enabled ? MARKER_CHAIN : MARKER_OFF, false);
             }
-            else if (driven.contains(bone))
+            else if (driven.contains(name))
             {
                 slotChain = new UIBoneTreeList.Marker(MARKER_CHAIN, true);
             }
 
-            if (targets.contains(bone))
+            if (targets.contains(name))
             {
                 slotController = new UIBoneTreeList.Marker(MARKER_TARGET, false);
             }
-            else if (poles.contains(bone))
+            else if (poles.contains(name))
             {
                 slotController = new UIBoneTreeList.Marker(MARKER_POLE, false);
             }
-            else if (offControllers.contains(bone))
+            else if (offControllers.contains(name))
             {
                 slotController = new UIBoneTreeList.Marker(MARKER_OFF, true);
             }
 
-            JointData joint = this.jointData.get(bone);
-
-            if (joint != null && !joint.toDoF().isFree())
+            if (bone != null && !bone.joint.get().isFree())
             {
                 slotJoint = new UIBoneTreeList.Marker(MARKER_JOINT, false);
             }
 
-            this.boneMarkers.put(bone, new UIBoneTreeList.Marker[] {slotChain, slotController, slotJoint});
+            this.boneMarkers.put(name, new UIBoneTreeList.Marker[] {slotChain, slotController, slotJoint});
         }
     }
 
-    private void updateLabels()
+    @Override
+    protected void updateFields()
     {
         if (this.target == null || this.enabled == null)
         {
@@ -812,82 +593,76 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
 
         this.updateMarkers();
 
-        IKData data = this.ikData.get(this.selectedBone);
-        JointData joint = this.jointData.get(this.selectedBone);
+        FormBone formBone = this.selectedFormBone();
+        IKControl control = this.currentControl();
+        JointDoF joint = this.currentJoint();
 
-        String targetLabel = data == null ? "" : data.target;
-        boolean active = data != null && data.enabled;
-        boolean poleOn = data != null && data.pole;
+        String targetLabel = formBone == null ? "" : formBone.ikTarget.get();
+        boolean hasChain = formBone != null && formBone.hasChain();
+        boolean active = formBone != null && control.enabled;
+        boolean poleOn = formBone != null && control.pole;
         boolean canEdit = !this.selectedBone.isEmpty() && this.bones.isEnabled() && active;
+        int chainLength = formBone == null ? 0 : formBone.ikChainLength.get();
 
         /* Cycle validation, but the two cases differ. A TARGET the chain itself drives
          * closes a feedback loop and the chain does NOT compile — loud "(CYCLE!)".
          * A POLE on a chain bone is not fatal: the compiler quietly drops it and the
          * chain solves with the rest-side auto pole instead, so it gets a softer
          * "on chain → auto pole" hint, not the does-not-compile marker. */
-        boolean cyclicTarget = data != null && this.isCyclic(data, targetLabel);
-        boolean cyclicPole = data != null && this.isCyclic(data, data.poleTarget);
+        boolean cyclicTarget = this.isCyclic(targetLabel);
+        boolean cyclicPole = formBone != null && this.isCyclic(formBone.ikPoleTarget.get());
 
-        this.syncingUI = true;
+        String chain = hasChain ? this.chainPreviewText(chainLength) : "";
 
-        try
-        {
-            String chain = this.chainPreviewText(data, targetLabel);
+        /* The pickers show the bare bone name (what they hold), not a
+         * prefixed sentence — the row label and tooltip already say what
+         * the picker means. */
+        this.target.setLabel(IKey.constant(this.formatBone(targetLabel) + (cyclicTarget ? UIKeys.FORMS_EDITORS_MODEL_IK_CYCLE.get() : "")));
+        this.chainLength.setValue(chainLength);
+        this.chainPreview.label = chain.isEmpty() ? UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_EMPTY : IKey.constant(chain);
+        this.pole.setValue(poleOn);
+        this.poleTarget.setLabel(IKey.constant(this.formatBone(formBone == null ? "" : formBone.ikPoleTarget.get()) + (cyclicPole ? UIKeys.FORMS_EDITORS_MODEL_IK_POLE_CYCLE.get() : "")));
+        this.poleAngle.setValue(control.poleAngle);
+        this.softness.setValue(control.softness);
+        this.weight.setValue(control.weight);
+        this.tipRotation.setValue(formBone != null && formBone.ikTipRotation.get());
+        this.stretch.setValue(formBone != null && formBone.ikStretch.get());
+        this.classic.setValue(formBone != null && formBone.ikClassic.get());
 
-            /* The pickers show the bare bone name (what they hold), not a
-             * prefixed sentence — the row label and tooltip already say what
-             * the picker means. */
-            this.target.setLabel(IKey.constant(this.formatBone(targetLabel) + (cyclicTarget ? UIKeys.FORMS_EDITORS_MODEL_IK_CYCLE.get() : "")));
-            this.chainLength.setValue(data == null ? ModelIKConfig.DEFAULT_CHAIN_LENGTH : data.chainLength);
-            this.chainPreview.label = chain.isEmpty() ? UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_EMPTY : IKey.constant(chain);
-            this.pole.setValue(poleOn);
-            this.poleTarget.setLabel(IKey.constant(this.formatBone(data == null ? "" : data.poleTarget) + (cyclicPole ? UIKeys.FORMS_EDITORS_MODEL_IK_POLE_CYCLE.get() : "")));
-            this.poleAngle.setValue(data == null ? ModelIKConfig.DEFAULT_POLE_ANGLE : data.poleAngle);
-            this.softness.setValue(data == null ? ModelIKConfig.DEFAULT_SOFTNESS : data.softness);
-            this.weight.setValue(data == null ? ModelIKConfig.DEFAULT_WEIGHT : data.weight);
-            this.tipRotation.setValue(data != null && data.tipRotation);
-            this.stretch.setValue(data != null && data.stretch);
-            this.classic.setValue(data != null && data.classic);
+        /* The classic toggle is loud about its fallback: a classic chain that
+         * is not exactly two bones, or shares a bone with another enabled
+         * chain, solves on the core instead — the label says so right where
+         * the box was ticked, no runtime surprise. */
+        boolean classicFallsBack = formBone != null && formBone.ikClassic.get() && this.classicFallsBack(formBone);
 
-            /* The classic toggle is loud about its fallback: a classic chain that
-             * is not exactly two bones, or shares a bone with another enabled
-             * chain, solves on the core instead — the label says so right where
-             * the box was ticked, no runtime surprise. */
-            boolean classicFallsBack = data != null && data.classic && this.classicFallsBack(data);
+        this.classic.label = classicFallsBack ? UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC_FALLBACK : UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC;
+        this.enabled.setEnabled(this.bones.isEnabled() && !this.selectedBone.isEmpty());
+        this.enabled.setValue(active);
 
-            this.classic.label = classicFallsBack ? UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC_FALLBACK : UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC;
-            this.enabled.setEnabled(this.bones.isEnabled() && !this.selectedBone.isEmpty());
-            this.enabled.setValue(active);
-
-            this.limitX.setValue(joint != null && joint.limitX);
-            this.limitY.setValue(joint != null && joint.limitY);
-            this.limitZ.setValue(joint != null && joint.limitZ);
-            this.limitMinX.setValue(joint == null ? ModelIKConfig.JointDoF.DEFAULT_MIN : joint.minX);
-            this.limitMaxX.setValue(joint == null ? ModelIKConfig.JointDoF.DEFAULT_MAX : joint.maxX);
-            this.limitMinY.setValue(joint == null ? ModelIKConfig.JointDoF.DEFAULT_MIN : joint.minY);
-            this.limitMaxY.setValue(joint == null ? ModelIKConfig.JointDoF.DEFAULT_MAX : joint.maxY);
-            this.limitMinZ.setValue(joint == null ? ModelIKConfig.JointDoF.DEFAULT_MIN : joint.minZ);
-            this.limitMaxZ.setValue(joint == null ? ModelIKConfig.JointDoF.DEFAULT_MAX : joint.maxZ);
-            this.stiffnessX.setValue(joint == null ? 0D : joint.stiffnessX);
-            this.stiffnessY.setValue(joint == null ? 0D : joint.stiffnessY);
-            this.stiffnessZ.setValue(joint == null ? 0D : joint.stiffnessZ);
-        }
-        finally
-        {
-            this.syncingUI = false;
-        }
+        this.limitX.setValue(joint.limitX);
+        this.limitY.setValue(joint.limitY);
+        this.limitZ.setValue(joint.limitZ);
+        this.limitMinX.setValue(joint.minX);
+        this.limitMaxX.setValue(joint.maxX);
+        this.limitMinY.setValue(joint.minY);
+        this.limitMaxY.setValue(joint.maxY);
+        this.limitMinZ.setValue(joint.minZ);
+        this.limitMaxZ.setValue(joint.maxZ);
+        this.stiffnessX.setValue(joint.stiffnessX);
+        this.stiffnessY.setValue(joint.stiffnessY);
+        this.stiffnessZ.setValue(joint.stiffnessZ);
 
         /* The joint is a property of the BONE, editable regardless of whether a chain
          * ends here — it affects every chain running through this bone. */
         boolean canEditJoint = !this.selectedBone.isEmpty() && this.bones.isEnabled();
 
         this.setJointEnabled(canEditJoint);
-        this.limitMinX.setEnabled(canEditJoint && joint != null && joint.limitX);
-        this.limitMaxX.setEnabled(canEditJoint && joint != null && joint.limitX);
-        this.limitMinY.setEnabled(canEditJoint && joint != null && joint.limitY);
-        this.limitMaxY.setEnabled(canEditJoint && joint != null && joint.limitY);
-        this.limitMinZ.setEnabled(canEditJoint && joint != null && joint.limitZ);
-        this.limitMaxZ.setEnabled(canEditJoint && joint != null && joint.limitZ);
+        this.limitMinX.setEnabled(canEditJoint && joint.limitX);
+        this.limitMaxX.setEnabled(canEditJoint && joint.limitX);
+        this.limitMinY.setEnabled(canEditJoint && joint.limitY);
+        this.limitMaxY.setEnabled(canEditJoint && joint.limitY);
+        this.limitMinZ.setEnabled(canEditJoint && joint.limitZ);
+        this.limitMaxZ.setEnabled(canEditJoint && joint.limitZ);
 
         this.target.setEnabled(canEdit);
         this.chainLength.setEnabled(canEdit);
@@ -906,51 +681,53 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
      * arrow path — the live meaning of the chain length number. Empty when the
      * bone has no chain (no target) or the model is missing.
      */
-    private String chainPreviewText(IKData data, String target)
+    private String chainPreviewText(int chainLength)
     {
-        IModel model = this.model == null ? null : this.model.model;
+        IModel model = this.modelInstance == null ? null : this.modelInstance.model;
 
-        if (data == null || target == null || target.isEmpty() || model == null || this.selectedBone.isEmpty())
+        if (model == null || this.selectedBone.isEmpty())
         {
             return "";
         }
 
-        return String.join(" → ", ModelIKRuntime.chainBones(model, this.selectedBone, data.chainLength));
+        return String.join(" → ", ModelIKRuntime.chainBones(model, this.selectedBone, chainLength));
     }
 
     /**
      * Whether the selected bone's classic-marked chain would actually solve on
      * the core: wrong shape (not exactly two directed bones) or a bone shared
      * with another enabled chain (overlapping chains merge into one core tree).
-     * Mirrors the applier's routing, computed statically from the config.
+     * Mirrors the applier's routing, computed statically from the form.
      */
-    private boolean classicFallsBack(IKData data)
+    private boolean classicFallsBack(FormBone formBone)
     {
-        IModel model = this.model == null ? null : this.model.model;
+        IModel model = this.modelInstance == null ? null : this.modelInstance.model;
 
-        if (model == null)
+        if (model == null || this.form == null)
         {
             return false;
         }
 
-        if (!ModelIKRuntime.isClassicShape(model, this.selectedBone, data.chainLength, data.tipRotation))
+        if (!ModelIKRuntime.isClassicShape(model, this.selectedBone, formBone.ikChainLength.get(), formBone.ikTipRotation.get()))
         {
             return true;
         }
 
-        List<String> mine = ModelIKRuntime.chainBones(model, this.selectedBone, data.chainLength);
+        List<String> mine = ModelIKRuntime.chainBones(model, this.selectedBone, formBone.ikChainLength.get());
 
-        for (Map.Entry<String, IKData> entry : this.ikData.entrySet())
+        for (BaseValue value : this.form.bones.getAll())
         {
-            String tip = entry.getKey();
-            IKData other = entry.getValue();
-
-            if (tip.equals(this.selectedBone) || other == null || !other.enabled || other.target == null || other.target.isEmpty())
+            if (!(value instanceof FormBone other) || other.getId().equals(this.selectedBone))
             {
                 continue;
             }
 
-            for (String bone : ModelIKRuntime.chainBones(model, tip, other.chainLength))
+            if (!other.hasChain() || !other.ik.get().enabled)
+            {
+                continue;
+            }
+
+            for (String bone : ModelIKRuntime.chainBones(model, other.getId(), other.ikChainLength.get()))
             {
                 if (mine.contains(bone))
                 {
@@ -962,211 +739,41 @@ public class UIModelIKFormPanel extends UIFormPanel<ModelForm>
         return false;
     }
 
-    private IKData getOrCreateData(String bone)
-    {
-        return this.ikData.computeIfAbsent(bone, k -> new IKData());
-    }
-
     private String formatBone(String bone)
     {
         return bone == null || bone.isEmpty() ? "-" : bone;
     }
 
     /** Whether pointing the selected bone's chain at {@code bone} would close a feedback loop. */
-    private boolean isCyclic(IKData data, String bone)
+    private boolean isCyclic(String bone)
     {
-        if (bone == null || bone.isEmpty() || this.model == null || this.model.model == null)
+        if (bone == null || bone.isEmpty() || this.modelInstance == null || this.modelInstance.model == null)
         {
             return false;
         }
 
-        return ModelIKRuntime.isCyclicTarget(this.model.model, this.selectedBone, data.chainLength, bone);
+        int chainLength = this.readBone((b) -> b.ikChainLength.get(), 0);
+
+        return ModelIKRuntime.isCyclicTarget(this.modelInstance.model, this.selectedBone, chainLength, bone);
     }
 
-    private void load()
+    @Override
+    protected MapType toPresetData()
     {
-        ModelIKConfig config = null;
-        if (this.form != null && this.form.ik.get() instanceof MapType map)
-        {
-            config = ModelIKIO.fromData(map);
-        }
-
-        this.load(config);
+        return this.form == null ? new MapType() : BoneIKIO.write(this.form.bones);
     }
 
-    private void load(ModelIKConfig config)
-    {
-        this.ikData.clear();
-        this.jointData.clear();
-
-        if (config == null)
-        {
-            return;
-        }
-
-        List<String> bones = this.bones.getList();
-        boolean filterByBones = bones != null && !bones.isEmpty();
-
-        if (config.chains() != null)
-        {
-            for (ModelIKConfig.Chain chain : config.chains())
-            {
-                if (chain == null || chain.tip() == null || chain.tip().isEmpty())
-                {
-                    continue;
-                }
-
-                if (filterByBones && !bones.contains(chain.tip()))
-                {
-                    continue;
-                }
-
-                IKData data = new IKData();
-                data.target = chain.target();
-                data.chainLength = chain.chainLength();
-                data.pole = chain.pole();
-                data.poleTarget = chain.poleTarget();
-                data.poleAngle = chain.poleAngle();
-                data.softness = chain.softness();
-                data.weight = chain.weight();
-                data.enabled = chain.enabled();
-                data.tipRotation = chain.tipRotation();
-                data.stretch = chain.stretch();
-                data.classic = chain.classic();
-                this.ikData.put(chain.tip(), data);
-            }
-        }
-
-        for (Map.Entry<String, ModelIKConfig.JointDoF> entry : config.bones().entrySet())
-        {
-            String bone = entry.getKey();
-
-            if (bone == null || bone.isEmpty() || entry.getValue() == null)
-            {
-                continue;
-            }
-
-            if (filterByBones && !bones.contains(bone))
-            {
-                continue;
-            }
-
-            this.jointData.put(bone, JointData.from(entry.getValue()));
-        }
-    }
-
-    private MapType toPresetData()
-    {
-        List<String> bones = this.bones.getList();
-        boolean filterByBones = bones != null && !bones.isEmpty();
-        List<ModelIKConfig.Chain> out = new ArrayList<>();
-
-        for (Map.Entry<String, IKData> entry : this.ikData.entrySet())
-        {
-            String tip = entry.getKey();
-            IKData data = entry.getValue();
-
-            if (tip == null || tip.isEmpty() || data == null)
-            {
-                continue;
-            }
-
-            if (data.target == null || data.target.isEmpty())
-            {
-                continue;
-            }
-
-            if (filterByBones && (!bones.contains(tip) || !bones.contains(data.target)))
-            {
-                continue;
-            }
-
-            out.add(new ModelIKConfig.Chain(tip, data.target, data.chainLength, data.pole, data.poleTarget, data.poleAngle, data.softness, data.weight, data.enabled, data.tipRotation, data.stretch, data.classic));
-        }
-
-        Map<String, ModelIKConfig.JointDoF> joints = new HashMap<>();
-
-        for (Map.Entry<String, JointData> entry : this.jointData.entrySet())
-        {
-            String bone = entry.getKey();
-            JointData data = entry.getValue();
-
-            if (bone == null || bone.isEmpty() || data == null)
-            {
-                continue;
-            }
-
-            if (filterByBones && !bones.contains(bone))
-            {
-                continue;
-            }
-
-            ModelIKConfig.JointDoF dof = data.toDoF();
-
-            if (!dof.isFree())
-            {
-                joints.put(bone, dof);
-            }
-        }
-
-        if (out.isEmpty() && joints.isEmpty())
-        {
-            return new MapType();
-        }
-
-        return ModelIKIO.toData(new ModelIKConfig(out, joints));
-    }
-
-    private void applyPresetData(MapType map)
-    {
-        String current = this.selectedBone;
-
-        this.load(ModelIKIO.fromData(map));
-
-        if (current == null || current.isEmpty() || !this.bones.getList().contains(current))
-        {
-            current = this.bones.getList().isEmpty() ? "" : this.bones.getList().get(0);
-        }
-
-        this.selectedBone = current;
-
-        if (current.isEmpty())
-        {
-            this.bones.deselect();
-        }
-        else
-        {
-            this.bones.setCurrentScroll(current);
-        }
-
-        this.updateLabels();
-        this.commitChanges();
-    }
-
-    private void commitChanges()
+    @Override
+    protected void applyPresetData(MapType map)
     {
         if (this.form == null)
         {
             return;
         }
 
-        MapType map = this.toPresetData();
-        this.form.ik.set(map.isEmpty() ? null : map);
+        BoneIKIO.read(map, this.form.bones, true);
 
-        /* Not every edit runs through updateLabels (a lone toggle just commits),
-         * and the dots must follow what the list now describes. */
-        this.updateMarkers();
+        this.updateFields();
     }
 
-    private String resolvePresetGroup(ModelForm form, ModelInstance model)
-    {
-        String group = model != null ? model.getPoseGroup() : "";
-
-        if (group == null || group.isEmpty())
-        {
-            group = form == null ? "" : form.model.get();
-        }
-
-        return group == null ? "" : group;
-    }
 }

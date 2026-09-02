@@ -3,12 +3,11 @@ package mchorse.bbs_mod.cubic.ik;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
 import mchorse.bbs_mod.cubic.render.DebugOverlay;
 import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.settings.values.ui.ValueDebugElement;
 import mchorse.bbs_mod.settings.values.ui.ValueIKDebug;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -54,16 +53,16 @@ public final class ModelIKDebug
     {
     }
 
-    public static void render(MatrixStack stack, IModel model, MapType ikData, String selectedTip)
+    public static void render(MatrixStack stack, IModel model, ModelForm form, String selectedTip)
     {
         ValueIKDebug config = BBSSettings.ikDebug;
 
-        if (!config.enabled.get() || model == null || ikData == null)
+        if (!config.enabled.get() || model == null || form == null)
         {
             return;
         }
 
-        ModelIKCache.Compiled compiled = ModelIKCache.getFromData(model, ikData);
+        ModelIKCache.Compiled compiled = ModelIKCache.compile(model, form);
 
         if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
         {
@@ -83,7 +82,7 @@ public final class ModelIKDebug
 
         stack.push();
 
-        if (model instanceof BOBJModel)
+        if (model.isFacingFlipped())
         {
             stack.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
         }
@@ -127,18 +126,18 @@ public final class ModelIKDebug
      * {@code stencilMap.objectIndex} as its colour and {@code addPicking} then
      * claims that same id. The matrix matches the visual overlay's.
      */
-    public static void renderStencil(MatrixStack stack, IModel model, MapType ikData, StencilMap stencilMap, Form form)
+    public static void renderStencil(MatrixStack stack, IModel model, ModelForm modelForm, StencilMap stencilMap, Form form)
     {
         ValueIKDebug config = BBSSettings.ikDebug;
         boolean targets = config.target.visible.get();
         boolean poles = config.pole.visible.get();
 
-        if (!config.enabled.get() || (!targets && !poles) || model == null || ikData == null || stencilMap == null)
+        if (!config.enabled.get() || (!targets && !poles) || model == null || modelForm == null || stencilMap == null)
         {
             return;
         }
 
-        ModelIKCache.Compiled compiled = ModelIKCache.getFromData(model, ikData);
+        ModelIKCache.Compiled compiled = ModelIKCache.compile(model, modelForm);
 
         if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
         {
@@ -157,7 +156,7 @@ public final class ModelIKDebug
 
         stack.push();
 
-        if (model instanceof BOBJModel)
+        if (model.isFacingFlipped())
         {
             stack.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
         }

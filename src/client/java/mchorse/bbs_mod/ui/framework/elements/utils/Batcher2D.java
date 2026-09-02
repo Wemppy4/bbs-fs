@@ -9,16 +9,20 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.util.BufferAllocator;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -73,10 +77,59 @@ public class Batcher2D
         return texturedProgram();
     }
 
+    /* Quad batching. A scope opened with beginBatch() collects every solid quad (box, outline,
+     * surfaceBox and friends all funnel into box) into one dedicated buffer and draws it once at
+     * endBatch() - instead of a begin/setShader/draw/flush per rectangle. Order stays exact
+     * because only homogeneous solid quads batch: every other primitive (textures, text, clip)
+     * flushes the pending quads first. The buffer is our own, not the shared Tessellator one,
+     * so code that builds on the Tessellator directly can never collide with an open batch. */
+    private BufferAllocator batchAllocator;
+    private BufferBuilder batchBuilder;
+    private boolean batching;
+    private boolean batchStarted;
+
     public Batcher2D(DrawContext context)
     {
         this.context = context;
         this.font = getDefaultTextRenderer();
+    }
+
+    /** Open a quad batch. Nested calls are folded into the outermost scope. */
+    public void beginBatch()
+    {
+        this.batching = true;
+    }
+
+    /** Close the scope opened by {@link #beginBatch()} and draw the collected quads. */
+    public void endBatch()
+    {
+        this.batching = false;
+        this.flushBatch();
+    }
+
+    private void flushBatch()
+    {
+        if (!this.batchStarted)
+        {
+            return;
+        }
+
+        this.batchStarted = false;
+
+        RenderSystem.enableBlend();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
+
+        BuiltBuffer built = this.batchBuilder.endNullable();
+
+        this.batchBuilder = null;
+
+        if (built != null)
+        {
+            BufferRenderer.drawWithGlobalProgram(built);
+        }
+
+        this.context.draw();
     }
 
     public DrawContext getContext()
@@ -87,6 +140,19 @@ public class Batcher2D
     public FontRenderer getFont()
     {
         return this.font;
+    }
+
+    /**
+     * Swap the font every text call of this batcher goes through, handing back the
+     * previous one so the caller can put it back. A null restores the default one.
+     */
+    public FontRenderer setFont(FontRenderer font)
+    {
+        FontRenderer previous = this.font;
+
+        this.font = font == null ? getDefaultTextRenderer() : font;
+
+        return previous;
     }
 
     /* Screen space clipping */
@@ -116,6 +182,7 @@ public class Batcher2D
      */
     public void clip(int x, int y, int w, int h, int sw, int sh)
     {
+        this.flushBatch();
         this.context.enableScissor(x, y, x + w, y + h);
     }
 
@@ -126,6 +193,7 @@ public class Batcher2D
 
     public void unclip(int sw, int sh)
     {
+        this.flushBatch();
         this.context.disableScissor();
     }
 
@@ -155,12 +223,62 @@ public class Batcher2D
     {
         Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
 
+        /* The matrix bakes into the vertices right here, so quads from different matrix
+         * contexts share one batch safely. */
+        if (this.batching)
+        {
+            if (!this.batchStarted)
+            {
+                if (this.batchAllocator == null)
+                {
+                    this.batchAllocator = new BufferAllocator(262144);
+                }
+
+                /* Since 1.21.1 a builder is born already begun, out of an allocator — ours stays
+                 * our own, so the shared Tessellator can never collide with an open batch. */
+                this.batchBuilder = new BufferBuilder(this.batchAllocator, VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+                this.batchStarted = true;
+            }
+
+            this.fillRect(this.batchBuilder, matrix4f, x, y, w, h, color1, color2, color3, color4);
+
+            return;
+        }
+
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 
         this.fillRect(builder, matrix4f, x, y, w, h, color1, color2, color3, color4);
 
         RenderSystem.enableBlend();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
+        { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
+
+        this.context.draw();
+    }
+
+    /**
+     * A rectangle cut along its top-left to bottom-right diagonal, a color to each half.
+     * A color with an alpha channel is shown this way — its opaque half beside its real one,
+     * both over a checkboard — so how transparent it is reads at a glance.
+     */
+    public void splitBox(float x1, float y1, float x2, float y2, int topLeft, int bottomRight)
+    {
+        this.flushBatch();
+
+        Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+
+        builder.vertex(matrix4f, x1, y1, 0F).color(topLeft);
+        builder.vertex(matrix4f, x1, y2, 0F).color(topLeft);
+        builder.vertex(matrix4f, x2, y1, 0F).color(topLeft);
+        builder.vertex(matrix4f, x2, y1, 0F).color(bottomRight);
+        builder.vertex(matrix4f, x1, y2, 0F).color(bottomRight);
+        builder.vertex(matrix4f, x2, y2, 0F).color(bottomRight);
+
+        RenderSystem.enableBlend();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
 
         this.context.draw();
@@ -208,8 +326,22 @@ public class Batcher2D
         }
     }
 
+    /**
+     * A soft glow radiating out of a rectangle, with the rectangle itself filled
+     * by the opaque colour. Every glow in the interface comes through here, so
+     * the one toggle that turns them off is read here rather than at each
+     * caller: every caller paints its own background over this rectangle right
+     * after, which is what makes skipping the whole thing safe.
+     */
     public void dropShadow(int left, int top, int right, int bottom, int offset, int opaque, int shadow)
     {
+        if (!BBSSettings.hasInterfaceGlow())
+        {
+            return;
+        }
+
+        this.flushBatch();
+
         left -= offset;
         top -= offset;
         right += offset;
@@ -251,10 +383,53 @@ public class Batcher2D
 
         RenderSystem.enableBlend();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
     }
 
     /* Gradients */
+
+    /**
+     * Draw a selection highlight over an area: a solid bar of the primary color along the
+     * {@code edge}, fading into a gradient towards the opposite side. This is what marks the
+     * chosen tab, mode or tool everywhere in the UI.
+     */
+    public void highlight(Area area, Direction edge)
+    {
+        this.highlight(area, edge, BBSSettings.primaryColor.get());
+    }
+
+    /**
+     * The same mark in a colour of its own — what a destructive button wears, so that "this one
+     * is not like the others" is said the same way as "this one is the active one".
+     */
+    public void highlight(Area area, Direction edge, int color)
+    {
+        int bar = Colors.A100 | color;
+        int near = Colors.A75 | color;
+        int far = color;
+        int t = 2;
+
+        switch (edge)
+        {
+            case TOP:
+                this.box(area.x, area.y, area.ex(), area.y + t, bar);
+                this.gradientVBox(area.x, area.y + t, area.ex(), area.ey(), near, far);
+                break;
+            case BOTTOM:
+                this.box(area.x, area.ey() - t, area.ex(), area.ey(), bar);
+                this.gradientVBox(area.x, area.y, area.ex(), area.ey() - t, far, near);
+                break;
+            case LEFT:
+                this.box(area.x, area.y, area.x + t, area.ey(), bar);
+                this.gradientHBox(area.x + t, area.y, area.ex(), area.ey(), near, far);
+                break;
+            case RIGHT:
+                this.box(area.ex() - t, area.y, area.ex(), area.ey(), bar);
+                this.gradientHBox(area.x, area.y, area.ex() - t, area.ey(), far, near);
+                break;
+        }
+    }
 
     public void gradientHBox(float x1, float y1, float x2, float y2, int leftColor, int rightColor)
     {
@@ -268,6 +443,8 @@ public class Batcher2D
 
     public void dropCircleShadow(int x, int y, int radius, int segments, int opaque, int shadow)
     {
+        this.flushBatch();
+
         Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
 
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLE_FAN, VertexFormats.POSITION_COLOR);
@@ -290,6 +467,8 @@ public class Batcher2D
             return;
         }
 
+        this.flushBatch();
+
         Matrix4f matrix4f = this.context.getMatrices().peek().getPositionMatrix();
 
 
@@ -307,6 +486,7 @@ public class Batcher2D
             builder.vertex(matrix4f, (int) (x - Math.cos(a) * offset), (int) (y + Math.sin(a) * offset), 0F).color(opaque);
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
 
         /* Draw outer shadow */
@@ -325,6 +505,7 @@ public class Batcher2D
             builder.vertex(matrix4f, (float) (x - Math.cos(alpha2) * radius), (float) (y + Math.sin(alpha2) * radius), 0F).color(shadow);
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
     }
 
@@ -386,7 +567,7 @@ public class Batcher2D
             return;
         }
 
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             color = darkenWhite(color);
         }
@@ -397,6 +578,26 @@ public class Batcher2D
         this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, icon.w, icon.h, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
     }
 
+    /**
+     * An icon scaled to a square of {@code size}, for the few places where an icon stands in
+     * for a picture and grows with its cell (a folder in a texture grid). Buttons never come
+     * through here — their icons keep their own size.
+     */
+    public void scaledIcon(Icon icon, int color, float x, float y, float size)
+    {
+        if (icon.texture == null)
+        {
+            return;
+        }
+
+        if (BBSSettings.lightSurfaces())
+        {
+            color = darkenWhite(color);
+        }
+
+        this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, size, size, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
+    }
+
     public void iconArea(Icon icon, float x, float y, float w, float h)
     {
         this.iconArea(icon, Colors.WHITE, x, y, w, h);
@@ -404,7 +605,7 @@ public class Batcher2D
 
     public void iconArea(Icon icon, int color, float x, float y, float w, float h)
     {
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             color = darkenWhite(color);
         }
@@ -453,15 +654,21 @@ public class Batcher2D
 
     public void texturedBox(Texture texture, int color, float x, float y, float w, float h, float u1, float v1, float u2, float v2, int textureW, int textureH)
     {
+        this.flushBatch();
+
         RenderSystem.setShaderTexture(0, texture.id);
 
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
 
+        /* The colour carries an alpha and the caller means it, so blending is turned on here
+         * rather than borrowed from whatever was drawn before - see the note above box() */
+        RenderSystem.enableBlend();
         RenderSystem.setShader(texturedProgram(texture));
 
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
         this.fillTexturedBox(builder, matrix, color, x, y, w, h, u1, v1, u2, v2, textureW, textureH);
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
     }
 
@@ -472,15 +679,19 @@ public class Batcher2D
 
     public void texturedBox(Supplier<ShaderProgram> shader, int texture, int color, float x, float y, float w, float h, float u1, float v1, float u2, float v2, int textureW, int textureH)
     {
+        this.flushBatch();
+
         RenderSystem.setShaderTexture(0, texture);
 
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
 
+        RenderSystem.enableBlend();
         RenderSystem.setShader(shader);
 
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_TEXTURE_COLOR);
         this.fillTexturedBox(builder, matrix, color, x, y, w, h, u1, v1, u2, v2, textureW, textureH);
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
     }
 
@@ -498,6 +709,8 @@ public class Batcher2D
 
     public void texturedArea(Texture texture, int color, float x, float y, float w, float h, float u, float v, float tileW, float tileH, int tw, int th)
     {
+        this.flushBatch();
+
         int countX = (int) (((w - 1) / tileW) + 1);
         int countY = (int) (((h - 1) / tileH) + 1);
         float fillerX = w - (countX - 1) * tileW;
@@ -505,6 +718,7 @@ public class Batcher2D
 
         Matrix4f matrix = this.context.getMatrices().peek().getPositionMatrix();
 
+        RenderSystem.enableBlend();
         RenderSystem.setShader(texturedProgram(texture));
         RenderSystem.setShaderTexture(0, texture.id);
 
@@ -522,6 +736,7 @@ public class Batcher2D
             this.fillTexturedBox(builder, matrix, color, xx, yy, xw, yh, u, v, u + xw, v + yh, tw, th);
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         { net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable(); if (__bbsBuilt != null) BufferRenderer.drawWithGlobalProgram(__bbsBuilt); }
     }
 
@@ -549,7 +764,7 @@ public class Batcher2D
 
     public void text(String label, float x, float y, int color, boolean shadow)
     {
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             shadow = false;
             color = darkenWhite(color);
@@ -561,11 +776,14 @@ public class Batcher2D
     /** Actual text draw (theming is applied by the public text() before calling this). */
     private void drawTextDirect(String label, float x, float y, int color, boolean shadow)
     {
+        this.flushBatch();
+
         if (Colors.getA(color) <= 0F)
         {
             color = Colors.opaque(color);
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         this.context.drawText(this.font.getRenderer(), label, (int) x, (int) y, color, shadow);
         this.context.draw();
 
@@ -630,7 +848,7 @@ public class Batcher2D
 
         if (a != 0)
         {
-            if (BBSSettings.isLightTheme() && (background & 0xFFFFFF) == 0)
+            if (BBSSettings.lightSurfaces() && (background & 0xFFFFFF) == 0)
             {
                 background = (background & 0xFF000000) | 0xFFFFFF;
             }
@@ -643,6 +861,7 @@ public class Batcher2D
 
     public void flush()
     {
+        this.flushBatch();
         this.context.draw();
     }
 }

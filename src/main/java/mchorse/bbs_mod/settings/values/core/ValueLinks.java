@@ -74,4 +74,10 @@ public class ValueLinks extends BaseValueBasic<Map<String, Link>>
             }
         }
     }
+
+    @Override
+    protected Map<String, Link> copyValue(Map<String, Link> value)
+    {
+        return value == null ? null : new HashMap<>(value);
+    }
 }

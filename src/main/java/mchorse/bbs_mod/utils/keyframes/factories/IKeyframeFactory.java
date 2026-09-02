@@ -40,6 +40,16 @@ public interface IKeyframeFactory <T>
 
     public T interpolate(T preA, T a, T b, T postB, IInterp interpolation, float x);
 
+    /**
+     * Content hash of a value: must change whenever the value's serialized form would. Signature
+     * checks call this per keyframe per frame, so hot value types override it with direct field
+     * mixing; the fallback keeps the serialize-and-hash semantics for the rare heavyweight types.
+     */
+    public default int contentHash(T value)
+    {
+        return String.valueOf(this.toData(value)).hashCode();
+    }
+
     public default double getY(T value)
     {
         return 0D;

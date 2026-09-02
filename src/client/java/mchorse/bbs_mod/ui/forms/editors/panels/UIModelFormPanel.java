@@ -13,11 +13,8 @@ import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPicker;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPoseEditor;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
-import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.utils.shapes.UIShapeKeys;
-import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.colors.Color;
 
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +23,6 @@ import java.util.function.Consumer;
 
 public class UIModelFormPanel extends UIFormPanel<ModelForm>
 {
-    public UIColor color;
     public UIModelPoseEditor poseEditor;
     public UIShapeKeys shapeKeys;
     public UISection shapeKeysSection;
@@ -57,8 +53,6 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
                 this.editor.startEdit(this.form);
             });
         });
-        this.color = new UIColor((c) -> this.form.color.set(new Color().set(c))).withAlpha();
-        this.color.direction(Direction.LEFT);
         this.poseEditor = new UIModelPoseEditor();
         this.poseEditor.transform.barBackground();
         this.shapeKeys = new UIShapeKeys();
@@ -71,8 +65,8 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
             List<String> materials = model == null ? Collections.emptyList() : model.materials;
 
             /* At most one material (a single global texture, e.g. cubic, or one unambiguous material):
-             * pick the form's default texture. Multiple: choose which material to pick - the form's
-             * "Default" texture is ambiguous then, so it isn't offered. */
+             * pick the form's default texture. Multiple: the per-material textures live in the
+             * material tab now, so the button only offers the materials as a shortcut there. */
             if (materials.size() <= 1)
             {
                 this.openTexturePicker(null);
@@ -89,7 +83,7 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
             }
         });
 
-        this.options.add(this.pickModel, this.pick, this.color, this.poseEditor);
+        this.options.add(this.pickModel, this.pick, this.poseEditor);
     }
 
     /**
@@ -151,7 +145,6 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
         this.poseEditor.setValuePose(form.pose);
         this.poseEditor.setPose(form.pose.get(), model == null ? this.form.model.get() : model.getPoseGroup());
         this.poseEditor.fillGroups(model == null ? null : model.model, model == null ? null : model.getFlippedParts(), true, model == null ? null : model.getDisabledBones());
-        this.color.setColor(form.color.get().getARGBColor());
 
         Set<String> modelShapeKeys = model == null ? Collections.emptySet() : model.model.getShapeKeys();
 

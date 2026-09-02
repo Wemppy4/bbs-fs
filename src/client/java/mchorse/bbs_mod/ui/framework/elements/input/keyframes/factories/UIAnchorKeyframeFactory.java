@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
-import io.netty.util.collection.IntObjectMap;
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.film.AnchorRebase;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -13,6 +14,7 @@ import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIconToggles;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
@@ -32,55 +34,46 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
 {
     private UIButton actor;
     private UIButton attachment;
-    private UIToggle translate;
-    private UIToggle scale;
+    private UIToggle keepTransform;
+    private UIIconToggles inherit;
     public UIPropTransform transform;
 
-    public static void displayActors(UIContext context, IntObjectMap<IEntity> entities, int value, Consumer<Integer> callback)
+    /**
+     * Pick a replay by its stable id. The rows still show the replay's list position — that is
+     * how the animator counts actors — but what the choice hands back (and what the data stores)
+     * is the id, so the reference survives reordering.
+     */
+    public static void displayActors(UIContext context, Map<String, IEntity> entities, String value, Consumer<String> callback)
     {
         List<UIFilmPanel> children = context.menu.main.getChildren(UIFilmPanel.class);
         UIFilmPanel panel = children.isEmpty() ? null : children.get(0);
-        List<Replay> replays = panel != null ? panel.getData().replays.getList() : null;
-
-        /* The map is keyed by the replay's index in the film, and disabled replays
-         * get no entity, so its size isn't the range of keys: iterating up to it
-         * drops the last actor for every disabled one above it */
-        int count = replays == null ? 0 : replays.size();
-
-        for (Map.Entry<Integer, IEntity> entry : entities.entrySet())
-        {
-            count = Math.max(count, entry.getKey() + 1);
-        }
-
-        final int total = count;
+        List<Replay> replays = panel != null ? panel.getData().replays.getList() : List.of();
 
         context.replaceContextMenu((menu) ->
         {
-            menu.action(Icons.CLOSE, UIKeys.GENERAL_NONE, Colors.NEGATIVE, () -> callback.accept(-1));
+            menu.action(Icons.CLOSE, UIKeys.GENERAL_NONE, Colors.NEGATIVE, () -> callback.accept(Anchor.NO_ATTACHMENT));
 
-            for (int i = 0; i < total; i++)
+            for (int i = 0; i < replays.size(); i++)
             {
-                final int actor = i;
-                IEntity entity = entities.get(i);
+                Replay replay = replays.get(i);
+                String actor = replay.getId();
+                IEntity entity = entities.get(actor);
 
                 if (entity == null)
                 {
                     continue;
                 }
 
-                Replay replay = replays == null || i >= replays.size() ? null : replays.get(i);
-                Form form = entity.getForm();
-                String stringLabel = i + (replay != null ? " - " + replay.getName() : (form == null ? "" : " - " + form.getFormIdOrName()));
-                IKey label = IKey.constant(stringLabel);
+                IKey label = IKey.constant(i + " - " + replay.getName());
 
-                menu.action(Icons.CLOSE, label, actor == value, () -> callback.accept(actor));
+                menu.action(Icons.CLOSE, label, actor.equals(value), () -> callback.accept(actor));
             }
         });
     }
 
-    public static void displayAttachments(UIFilmPanel panel, int index, String value, Consumer<String> consumer)
+    public static void displayAttachments(UIFilmPanel panel, String replayId, String value, Consumer<String> consumer)
     {
-        IEntity entity = panel.getController().getEntities().get(index);
+        IEntity entity = panel.getController().getEntities().get(replayId);
 
         if (entity == null || entity.getForm() == null)
         {
@@ -112,15 +105,20 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         {
             displayAttachments(this.getPanel(), this.keyframe.getValue().replay, this.keyframe.getValue().attachment, this::setAttachment);
         });
-        this.translate = new UIToggle(UIKeys.TRANSFORMS_TRANSLATE, (b) -> this.setTranslate(b.getValue()));
-        this.translate.setValue(keyframe.getValue().translate);
-        this.scale = new UIToggle(UIKeys.TRANSFORMS_SCALE, (b) -> this.setScale(b.getValue()));
-        this.scale.setValue(keyframe.getValue().scale);
+        /* Which components of the target's frame the form rides, as one strip: the same three icons
+         * the gizmo and the body part editor use for the same three ideas. The anchor's flags are
+         * plain fields rather than values, so the cells are bound by getter and setter. */
+        this.keepTransform = new UIToggle(UIKeys.GENERIC_KEYFRAMES_ANCHOR_KEEP_TRANSFORM, BBSSettings.anchorKeepTransform.get(), (b) -> BBSSettings.anchorKeepTransform.set(b.getValue()));
+        this.keepTransform.tooltip(UIKeys.GENERIC_KEYFRAMES_ANCHOR_KEEP_TRANSFORM_TOOLTIP);
+        this.inherit = new UIIconToggles(null)
+            .add(Icons.ALL_DIRECTIONS, UIKeys.INHERIT_POSITION, () -> this.keyframe.getValue().inheritPosition, (v) -> this.retarget((anchor) -> anchor.inheritPosition = v))
+            .add(Icons.ORBIT, UIKeys.INHERIT_ROTATION, () -> this.keyframe.getValue().inheritRotation, (v) -> this.retarget((anchor) -> anchor.inheritRotation = v))
+            .add(Icons.SCALE, UIKeys.INHERIT_SCALE, () -> this.keyframe.getValue().inheritScale, (v) -> this.retarget((anchor) -> anchor.inheritScale = v));
         this.transform = new UIAnchorTransforms(this);
         this.transform.enableHotkeys();
         this.transform.setTransform(keyframe.getValue().transform);
 
-        this.scroll.add(this.actor, this.attachment, this.translate, this.scale, this.transform);
+        this.scroll.add(this.actor, this.attachment, this.keepTransform, this.inherit.labelRow(UIKeys.INHERIT_TITLE), this.transform);
     }
 
     private void displayActors()
@@ -130,24 +128,74 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         displayActors(this.getContext(), panel.getController().getEntities(), this.keyframe.getValue().replay, this::setActor);
     }
 
-    private void setActor(int actor)
+    private void setActor(String actor)
     {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().replay = actor);
+        this.retarget((anchor) -> anchor.replay = actor);
     }
 
     private void setAttachment(String attachment)
     {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().attachment = attachment);
+        this.retarget((anchor) -> anchor.attachment = attachment);
     }
 
-    private void setTranslate(boolean translate)
+    /**
+     * Change what this anchor hangs off. Every such change goes through here so
+     * {@link BBSSettings#anchorKeepTransform} can compensate for it: the anchor's transform is
+     * rebased onto the new target ({@link AnchorRebase}) so the form stays where it is instead of
+     * being thrown into whichever frame the new target happens to sit in.
+     *
+     * <p>The rebase is measured on copies before the edit and written inside it, so the retarget
+     * and its compensation are one undo step — an undo that put back the target but kept the
+     * compensating transform would leave the form somewhere neither value ever meant.</p>
+     */
+    private void retarget(Consumer<Anchor> change)
     {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().translate = translate);
+        Anchor from = this.keyframe.getValue().copy();
+        Anchor to = from.copy();
+
+        change.accept(to);
+
+        boolean rebased = BBSSettings.anchorKeepTransform.get() && this.rebase(from, to);
+
+        BaseValue.edit(this.keyframe, (keyframe) ->
+        {
+            Anchor anchor = keyframe.getValue();
+
+            change.accept(anchor);
+
+            if (rebased)
+            {
+                anchor.transform.copy(to.transform);
+            }
+        });
+
+        if (rebased)
+        {
+            /* The fields hold the same transform object the rebase wrote through, but they were
+             * filled from its old numbers. */
+            this.transform.setTransform(this.keyframe.getValue().transform);
+        }
     }
 
-    private void setScale(boolean scale)
+    /**
+     * Rebase against the replay this anchor belongs to. Only a root form's anchor is animatable
+     * (see {@code TrackCatalog}), so the edited keyframe is always the selected replay's own —
+     * and the entity is what carries the live pose everything is measured from, which is why
+     * there is nothing to compensate against when the replay isn't in the scene right now.
+     */
+    private boolean rebase(Anchor from, Anchor to)
     {
-        BaseValue.edit(this.keyframe, (value) -> value.getValue().scale = scale);
+        UIFilmPanel panel = this.getPanel();
+        Replay replay = panel == null ? null : panel.replayEditor.getReplay();
+
+        if (replay == null)
+        {
+            return false;
+        }
+
+        Map<String, IEntity> entities = panel.getController().getEntities();
+
+        return AnchorRebase.keepWorldTransform(entities, entities.get(replay.getId()), replay, 0F, from, to);
     }
 
     private UIFilmPanel getPanel()
@@ -165,36 +213,24 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
         }
 
         @Override
+        protected UIKeyframes getKeyframes()
+        {
+            return this.editor.editor;
+        }
+
+        @Override
         protected void applyToSelection(Consumer<Transform> consumer)
         {
             apply(this.editor.editor, this.editor.keyframe, consumer);
         }
 
         @Override
-        protected void applyDuringRecording(int tick, Consumer<Transform> consumer)
-        {
-            applyRecording(this.editor.editor, this.editor.keyframe, tick, consumer);
-        }
-
-        @Override
-        protected Transform getRecordedTransform(int tick)
+        protected Transform getAutoKeyTransform(int tick)
         {
             UIKeyframeSheet sheet = this.editor.editor.getGraph().getSheet(this.editor.keyframe);
-            Keyframe<?> recorded = UIReplaysEditorUtils.ensureKeyframe(sheet, tick);
+            Keyframe<?> target = sheet == null ? null : sheet.ensureKeyframe(tick);
 
-            return recorded == null ? null : ((Anchor) recorded.getValue()).transform;
-        }
-
-        public static void applyRecording(UIKeyframes editor, Keyframe<?> keyframe, int tick, Consumer<Transform> consumer)
-        {
-            UIReplaysEditorUtils.forEachRecordedKeyframe(editor, keyframe, tick, (recorded) ->
-            {
-                Anchor anchor = (Anchor) recorded.getValue();
-
-                recorded.preNotify();
-                consumer.accept(anchor.transform);
-                recorded.postNotify();
-            });
+            return target == null ? null : ((Anchor) target.getValue()).transform;
         }
 
         public static void apply(UIKeyframes editor, Keyframe<?> keyframe, Consumer<Transform> consumer)

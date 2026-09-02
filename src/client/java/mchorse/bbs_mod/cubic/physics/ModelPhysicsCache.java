@@ -1,7 +1,10 @@
 package mchorse.bbs_mod.cubic.physics;
 
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -9,7 +12,6 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.WeakHashMap;
 
 final class ModelPhysicsCache
 {
@@ -20,36 +22,28 @@ final class ModelPhysicsCache
         private final String targetBone;
         private final List<String> chainRootToEnd;
         private final float[] restLengths;
-        private final float gravity;
-        private final float damping;
-        private final float stiffness;
         private final int iterations;
         private final boolean relativeGravity;
         private final boolean hasGravityRotation;
         private final Quaternionf gravityRotation;
         private final boolean collisions;
         private final float radius;
-        private final float weight;
 
-        public CompiledChain(String id, String attach, String targetBone, List<String> chainRootToEnd, float[] restLengths, ModelPhysicsConfig.Bone bone)
+        public CompiledChain(String id, String attach, String targetBone, List<String> chainRootToEnd, float[] restLengths, FormBone bone)
         {
             this.id = id;
             this.attach = attach;
             this.targetBone = targetBone;
             this.chainRootToEnd = chainRootToEnd;
             this.restLengths = restLengths;
-            this.gravity = bone.gravity();
-            this.damping = bone.damping();
-            this.stiffness = bone.stiffness();
-            this.iterations = bone.iterations();
-            this.relativeGravity = bone.relativeGravity();
-            this.hasGravityRotation = bone.hasRelativeGravityRotation();
+            this.iterations = bone.physicsIterations.get();
+            this.relativeGravity = bone.physicsRelativeGravity.get();
+            this.hasGravityRotation = bone.physicsGravityRotateX.get() != 0F || bone.physicsGravityRotateY.get() != 0F || bone.physicsGravityRotateZ.get() != 0F;
             this.gravityRotation = this.hasGravityRotation
-                ? Matrices.toQuaternionZYXDegrees(bone.relativeGravityRotateX(), bone.relativeGravityRotateY(), bone.relativeGravityRotateZ())
+                ? Matrices.toQuaternionZYXDegrees(bone.physicsGravityRotateX.get(), bone.physicsGravityRotateY.get(), bone.physicsGravityRotateZ.get())
                 : new Quaternionf();
-            this.collisions = bone.collisions();
-            this.radius = bone.radius();
-            this.weight = bone.weight();
+            this.collisions = bone.physicsCollisions.get();
+            this.radius = bone.physicsRadius.get();
         }
 
         public String id()
@@ -75,21 +69,6 @@ final class ModelPhysicsCache
         public float[] restLengths()
         {
             return this.restLengths;
-        }
-
-        public float gravity()
-        {
-            return this.gravity;
-        }
-
-        public float damping()
-        {
-            return this.damping;
-        }
-
-        public float stiffness()
-        {
-            return this.stiffness;
         }
 
         public int iterations()
@@ -125,19 +104,9 @@ final class ModelPhysicsCache
             return this.radius;
         }
 
-        public float weight()
-        {
-            return this.weight;
-        }
     }
 
-    public record Compiled(List<CompiledChain> chains, ModelPhysicsConfig.Wind wind)
-    {
-    }
-
-    private static final WeakHashMap<MapType, EmbeddedCompiled> EMBEDDED = new WeakHashMap<>();
-
-    private record EmbeddedCompiled(IModel model, List<CompiledChain> chains, ModelPhysicsConfig.Wind wind)
+    public record Compiled(List<CompiledChain> chains)
     {
     }
 
@@ -145,57 +114,53 @@ final class ModelPhysicsCache
     {
     }
 
-    public static void clear()
-    {
-        EMBEDDED.clear();
-    }
+    /**
+     * Compiles the form's physics chain topology against a model. Only the structure and the
+     * simulation's configuration are compiled — the animatable scalars are read live from the
+     * bone's {@code physics} property at solve time, so a film track or an edit shows up without
+     * any cache to invalidate.
+     */
+    /* One-slot per-frame memo - see ModelIKCache: the walk used to repeat per render pass. */
+    private static IModel lastModel;
+    private static ModelForm lastForm;
+    private static long lastEpoch;
+    private static Compiled lastCompiled;
 
-    public static Compiled getFromData(IModel model, MapType data)
+    public static Compiled compile(IModel model, ModelForm form)
     {
-        if (model == null || data == null)
+        if (model == null || form == null)
         {
             return null;
         }
 
-        EmbeddedCompiled cached = EMBEDDED.get(data);
-
-        if (cached != null && cached.model == model)
+        if (RenderFrame.isEnabled() && lastModel == model && lastForm == form && lastEpoch == RenderFrame.getEpoch())
         {
-            return new Compiled(cached.chains, cached.wind);
+            return lastCompiled;
         }
 
-        ModelPhysicsConfig config = ModelPhysicsIO.fromData(data);
-        List<CompiledChain> compiled = compile(model, config);
-        ModelPhysicsConfig.Wind wind = config != null ? config.wind() : ModelPhysicsConfig.Wind.NONE;
+        Compiled compiled = compileFresh(model, form);
 
-        EmbeddedCompiled next = new EmbeddedCompiled(model, compiled, wind);
-        EMBEDDED.put(data, next);
+        lastModel = model;
+        lastForm = form;
+        lastEpoch = RenderFrame.getEpoch();
+        lastCompiled = compiled;
 
-        return new Compiled(compiled, wind);
+        return compiled;
     }
 
-    private static List<CompiledChain> compile(IModel model, ModelPhysicsConfig config)
+    private static Compiled compileFresh(IModel model, ModelForm form)
     {
-        if (config == null || config.bones() == null || config.bones().isEmpty())
+        List<CompiledChain> out = null;
+
+        for (BaseValue value : form.bones.getAll())
         {
-            return Collections.emptyList();
-        }
-
-        List<CompiledChain> out = new ArrayList<>();
-
-        List<String> roots = new ArrayList<>(config.bones().keySet());
-        Collections.sort(roots);
-
-        for (String rootId : roots)
-        {
-            ModelPhysicsConfig.Bone chain = config.bones().get(rootId);
-
-            if (chain == null)
+            if (!(value instanceof FormBone bone) || !bone.hasPhysicsChain())
             {
                 continue;
             }
 
-            String endId = chain.end();
+            String rootId = bone.getId();
+            String endId = bone.physicsEnd.get();
 
             if (!model.getAllGroupKeys().contains(rootId) || !model.getAllGroupKeys().contains(endId))
             {
@@ -216,13 +181,23 @@ final class ModelPhysicsCache
                 continue;
             }
 
-            String attach = rootId;
+            if (out == null)
+            {
+                out = new ArrayList<>();
+            }
 
-            String id = rootId + ":" + endId;
-            out.add(new CompiledChain(id, attach, chain.targetBone(), ids, lengths, chain));
+            out.add(new CompiledChain(rootId + ":" + endId, rootId, bone.physicsTargetBone.get(), ids, lengths, bone));
         }
 
-        return out;
+        if (out == null)
+        {
+            return null;
+        }
+
+        /* Chains ordered by their root bone — the order the old config map iterated in. */
+        out.sort((a, b) -> a.id().compareTo(b.id()));
+
+        return new Compiled(out);
     }
 
     private static List<String> buildChainIds(IModel model, String endId, String rootId)

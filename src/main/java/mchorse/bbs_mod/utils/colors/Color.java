@@ -120,11 +120,6 @@ public class Color
         return ((int) (a * 255) << 24) | ((int) (r * 255) << 16) | ((int) (g * 255) << 8) | (int) (b * 255);
     }
 
-    public int getRGBAColor()
-    {
-        return this.getRGBColor() << 8 + ((int) (this.a * 255) & 0xff);
-    }
-
     public int getRGBColor()
     {
         return this.getARGBColor() & Colors.RGB;

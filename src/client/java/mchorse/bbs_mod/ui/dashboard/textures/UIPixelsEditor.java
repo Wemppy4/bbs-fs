@@ -9,6 +9,7 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
+import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.ui.dashboard.textures.undo.LayerStateUndo;
 import mchorse.bbs_mod.ui.dashboard.textures.undo.PixelsUndo;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -34,6 +35,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +56,24 @@ public class UIPixelsEditor extends UICanvasEditor
 
     private Texture temporary;
     private Pixels pixels;
+
+    /*
+     * The window: the part of the document the canvas shows and paints — the image of the frame
+     * on show, or the whole document when it isn't animated. The canvas's own w/h are the window's
+     * size; these are its top-left corner in document coordinates. The tools work in document
+     * coordinates throughout (see getHoverPixel), so they don't know about the window at all.
+     */
+    private int frameX;
+    private int frameY;
+
+    /** Which frame of the animation's order is on show. */
+    private int frame;
+
+    /** Show the frame before the one on show faintly under it — the trace an animator draws against. */
+    private boolean onionSkin;
+
+    /** Who flips the frames when the canvas asks (Ctrl + wheel): the owner's strip, so it keeps up; the canvas itself by default. */
+    private Consumer<Integer> frameStepper = this::stepFrame;
 
     private boolean editing;
     private Color drawColor;
@@ -142,8 +162,165 @@ public class UIPixelsEditor extends UICanvasEditor
         this.keys().register(Keys.UNDO, this::undo).inside().active(editing).category(category);
         this.keys().register(Keys.REDO, this::redo).inside().active(editing).category(category);
         this.keys().register(Keys.PIXEL_DESELECT, this::clearSelection).inside().active(editing).category(category);
+        this.keys().register(Keys.PIXEL_CLEAR, () -> this.applyMacroToWindow(PixelMacro.CLEAR)).inside().active(editing).category(category);
+        this.keys().register(Keys.PIXEL_FLIP_H, () -> this.applyMacroToWindow(PixelMacro.FLIP_HORIZONTAL)).inside().active(editing).category(category);
+        this.keys().register(Keys.PIXEL_FLIP_V, () -> this.applyMacroToWindow(PixelMacro.FLIP_VERTICAL)).inside().active(editing).category(category);
 
         this.setEditing(false);
+    }
+
+    /* Macros */
+
+    /** A macro over the selection's part of the frame on show, or the whole frame without one. */
+    public void applyMacroToWindow(PixelMacro macro)
+    {
+        this.applyMacro(macro, Collections.singletonList(new int[] {this.frameX, this.frameY, this.w, this.h}), true);
+    }
+
+    /**
+     * A macro over rectangles of the document ({@code x, y, w, h} each) on the active layer — down
+     * to the selection's part of them when asked and there is one. One undo step for the lot.
+     */
+    public void applyMacro(PixelMacro macro, List<int[]> rects, boolean withinSelection)
+    {
+        TextureLayer layer = this.document == null ? null : this.document.getActiveLayer();
+
+        if (!this.editing || this.undoManager == null || layer == null || layer.pixels == null || rects.isEmpty())
+        {
+            return;
+        }
+
+        PixelsUndo undo = new PixelsUndo();
+        boolean selection = withinSelection && this.hasSelection();
+
+        undo.layerIndex = this.document.activeLayerIndex;
+
+        for (int[] rect : rects)
+        {
+            int x1 = rect[0];
+            int y1 = rect[1];
+            int x2 = rect[0] + rect[2];
+            int y2 = rect[1] + rect[3];
+
+            if (selection)
+            {
+                int[] bounds = this.selectionBounds(x1, y1, x2, y2);
+
+                if (bounds == null)
+                {
+                    continue;
+                }
+
+                x1 = bounds[0];
+                y1 = bounds[1];
+                x2 = bounds[2];
+                y2 = bounds[3];
+            }
+
+            this.applyMacro(undo, macro, layer, x1, y1, x2, y2, selection);
+        }
+
+        if (undo.pixels.isEmpty())
+        {
+            return;
+        }
+
+        this.undoManager.pushUndo(undo);
+        this.updateTexture();
+        this.wasChanged();
+    }
+
+    /** The bounds of the selection within a rectangle (document coordinates, exclusive ends), or null when none of it is there. */
+    private int[] selectionBounds(int x1, int y1, int x2, int y2)
+    {
+        int bx1 = Integer.MAX_VALUE;
+        int by1 = Integer.MAX_VALUE;
+        int bx2 = Integer.MIN_VALUE;
+        int by2 = Integer.MIN_VALUE;
+
+        for (SelectionRect rect : this.selections)
+        {
+            int rx1 = Math.max(x1, Math.min(rect.x1, rect.x2));
+            int ry1 = Math.max(y1, Math.min(rect.y1, rect.y2));
+            int rx2 = Math.min(x2, Math.max(rect.x1, rect.x2) + 1);
+            int ry2 = Math.min(y2, Math.max(rect.y1, rect.y2) + 1);
+
+            if (rx2 <= rx1 || ry2 <= ry1)
+            {
+                continue;
+            }
+
+            bx1 = Math.min(bx1, rx1);
+            by1 = Math.min(by1, ry1);
+            bx2 = Math.max(bx2, rx2);
+            by2 = Math.max(by2, ry2);
+        }
+
+        return bx2 <= bx1 || by2 <= by1 ? null : new int[] {bx1, by1, bx2, by2};
+    }
+
+    private void applyMacro(PixelsUndo undo, PixelMacro macro, TextureLayer layer, int x1, int y1, int x2, int y2, boolean selection)
+    {
+        Pixels pixels = layer.pixels;
+        int ox = layer.offsetX;
+        int oy = layer.offsetY;
+
+        if (macro == PixelMacro.CLEAR)
+        {
+            Color transparent = new Color(0F, 0F, 0F, 0F);
+
+            for (int x = x1; x < x2; x++)
+            {
+                for (int y = y1; y < y2; y++)
+                {
+                    if (!selection || this.isInsideSelection(x, y))
+                    {
+                        undo.setColor(pixels, x - ox, y - oy, transparent);
+                    }
+                }
+            }
+
+            return;
+        }
+
+        /* A flip swaps pixels across the middle: take the originals first, then put each back
+         * where its mirror image was. What's off the layer's buffer counts as transparent. */
+        int w = x2 - x1;
+        int h = y2 - y1;
+        int[] before = new int[w * h];
+        boolean horizontal = macro == PixelMacro.FLIP_HORIZONTAL;
+        Color color = new Color();
+
+        for (int x = 0; x < w; x++)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                int lx = x1 + x - ox;
+                int ly = y1 + y - oy;
+
+                if (lx >= 0 && ly >= 0 && lx < pixels.width && ly < pixels.height)
+                {
+                    before[x + y * w] = pixels.getColor(lx, ly).getARGBColor();
+                }
+            }
+        }
+
+        for (int x = 0; x < w; x++)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                if (selection && !this.isInsideSelection(x1 + x, y1 + y))
+                {
+                    continue;
+                }
+
+                int sx = horizontal ? w - 1 - x : x;
+                int sy = horizontal ? y : h - 1 - y;
+
+                color.set(before[sx + sy * w], true);
+                undo.setColor(pixels, x1 + x - ox, y1 + y - oy, color);
+            }
+        }
     }
 
     public void clearSelection()
@@ -287,7 +464,7 @@ public class UIPixelsEditor extends UICanvasEditor
                     int dx = x + ox;
                     int dy = y + oy;
 
-                    if (dx >= 0 && dy >= 0 && dx < this.w && dy < this.h)
+                    if (dx >= 0 && dy >= 0 && dx < this.docW() && dy < this.docH())
                     {
                         mask[dx][dy] = true;
                         any = true;
@@ -351,6 +528,15 @@ public class UIPixelsEditor extends UICanvasEditor
         Pixels flat = this.flattenLayers();
         if (flat != null)
         {
+            /* Taller than the card takes one texture: the canvas and the frame strip draw such a
+             * picture in bands, but this is one texture and would come out black — better nothing */
+            if (flat.height > TextureLayer.maxBandHeight())
+            {
+                flat.delete();
+
+                return this.temporary;
+            }
+
             if (this.temporaryFlat == null)
             {
                 this.temporaryFlat = new Texture();
@@ -370,9 +556,154 @@ public class UIPixelsEditor extends UICanvasEditor
         return this.pixels;
     }
 
-    public int getBrushSize()
+    /* The window */
+
+    /** Width of the whole document; the canvas's own w is the window's. */
+    protected int docW()
     {
-        return this.brushSize;
+        return this.document != null ? this.document.width : this.w;
+    }
+
+    protected int docH()
+    {
+        return this.document != null ? this.document.height : this.h;
+    }
+
+    /** Document X of the window's left edge. */
+    public int getFrameX()
+    {
+        return this.frameX;
+    }
+
+    /** Document Y of the window's top edge. */
+    public int getFrameY()
+    {
+        return this.frameY;
+    }
+
+    /** Which frame of the animation's order is on show; 0 when the texture isn't animated. */
+    public int getFrame()
+    {
+        return this.frame;
+    }
+
+    /** Show a frame of the animation's order (wrapping around at either end), moving the window to its image. */
+    public void setFrame(int position)
+    {
+        int count = this.document == null || this.document.animation == null ? 0 : this.document.animation.frames.size();
+
+        this.frame = count == 0 ? 0 : ((position % count) + count) % count;
+        this.updateWindow(false);
+    }
+
+    public void stepFrame(int delta)
+    {
+        this.setFrame(this.frame + delta);
+    }
+
+    public UIPixelsEditor frameStepper(Consumer<Integer> stepper)
+    {
+        this.frameStepper = stepper != null ? stepper : this::stepFrame;
+
+        return this;
+    }
+
+    public void setOnionSkin(boolean onionSkin)
+    {
+        this.onionSkin = onionSkin;
+    }
+
+    /**
+     * Put the window on the frame on show — the whole document when it isn't animated — and size
+     * the canvas to it. The view is refitted only when the window's size changed (or when asked),
+     * so flipping through the frames keeps the zoom and the scroll.
+     */
+    protected void updateWindow(boolean refit)
+    {
+        if (this.document == null)
+        {
+            return;
+        }
+
+        int w = this.document.frameWidth();
+        int h = this.document.frameHeight();
+        int y = 0;
+
+        if (this.document.animation != null && !this.document.animation.frames.isEmpty())
+        {
+            List<TextureAnimation.Frame> frames = this.document.animation.frames;
+
+            this.frame = MathUtils.clamp(this.frame, 0, frames.size() - 1);
+            y = frames.get(this.frame).index * h;
+        }
+        else
+        {
+            this.frame = 0;
+        }
+
+        /* The selection is in document coordinates, so it would stay behind on the old frame's
+         * rows — invisible, yet still keeping the brush out. It goes along with the window. */
+        this.shiftSelection(-this.frameX, y - this.frameY);
+
+        this.frameX = 0;
+        this.frameY = y;
+
+        if (refit || w != this.w || h != this.h)
+        {
+            super.setSize(w, h);
+        }
+    }
+
+    private void shiftSelection(int dx, int dy)
+    {
+        if ((dx == 0 && dy == 0) || (!this.hasSelection() && this.currentSelection == null))
+        {
+            return;
+        }
+
+        for (SelectionRect rect : this.selections)
+        {
+            rect.x1 += dx;
+            rect.x2 += dx;
+            rect.y1 += dy;
+            rect.y2 += dy;
+        }
+
+        if (this.currentSelection != null)
+        {
+            this.currentSelection.x1 += dx;
+            this.currentSelection.x2 += dx;
+            this.currentSelection.y1 += dy;
+            this.currentSelection.y2 += dy;
+        }
+
+        this.invalidateSelectionMask();
+    }
+
+    /** Ctrl + wheel flips through the frames; the wheel alone zooms, as on any canvas. */
+    @Override
+    public boolean subMouseScrolled(UIContext context)
+    {
+        if (Window.isCtrlPressed() && context.mouseWheel != 0 && this.area.isInside(context) && this.document != null && this.document.animation != null)
+        {
+            this.frameStepper.accept(context.mouseWheel > 0 ? -1 : 1);
+
+            return true;
+        }
+
+        return super.subMouseScrolled(context);
+    }
+
+    /** The document pixel under the mouse: the canvas maps to the window, the window sits in the document. */
+    @Override
+    public Vector2i getHoverPixel(int x, int y)
+    {
+        Vector2i pixel = super.getHoverPixel(x, y);
+
+        pixel.x += this.frameX;
+        pixel.y += this.frameY;
+
+        return pixel;
     }
 
     public UIPixelsEditor setBrushSize(int size)
@@ -820,7 +1151,7 @@ public class UIPixelsEditor extends UICanvasEditor
 
     private boolean[][] createSelectionMask()
     {
-        return new boolean[this.w][this.h];
+        return new boolean[this.docW()][this.docH()];
     }
 
     private void fillSelectionMask(boolean[][] mask, SelectionRect rect, boolean selected)
@@ -831,9 +1162,9 @@ public class UIPixelsEditor extends UICanvasEditor
         }
 
         int minX = Math.max(0, Math.min(rect.x1, rect.x2));
-        int maxX = Math.min(this.w - 1, Math.max(rect.x1, rect.x2));
+        int maxX = Math.min(this.docW() - 1, Math.max(rect.x1, rect.x2));
         int minY = Math.max(0, Math.min(rect.y1, rect.y2));
-        int maxY = Math.min(this.h - 1, Math.max(rect.y1, rect.y2));
+        int maxY = Math.min(this.docH() - 1, Math.max(rect.y1, rect.y2));
 
         for (int x = minX; x <= maxX; x++)
         {
@@ -861,13 +1192,16 @@ public class UIPixelsEditor extends UICanvasEditor
         List<SelectionRect> result = new ArrayList<>();
         List<SelectionRect> active = new ArrayList<>();
 
-        for (int y = 0; y < this.h; y++)
+        int w = this.docW();
+        int h = this.docH();
+
+        for (int y = 0; y < h; y++)
         {
             List<SelectionRect> next = new ArrayList<>();
             List<int[]> spans = new ArrayList<>();
             boolean[] used;
 
-            for (int x = 0; x < this.w; x++)
+            for (int x = 0; x < w; x++)
             {
                 if (!mask[x][y])
                 {
@@ -876,7 +1210,7 @@ public class UIPixelsEditor extends UICanvasEditor
 
                 int start = x;
 
-                while (x + 1 < this.w && mask[x + 1][y])
+                while (x + 1 < w && mask[x + 1][y])
                 {
                     x++;
                 }
@@ -965,21 +1299,25 @@ public class UIPixelsEditor extends UICanvasEditor
 
         this.fillSelectionMask(mask, this.currentSelection, !this.currentSelectionSubtract);
 
-        if (this.selectionMaskPixels == null || this.selectionMaskPixels.width != this.w || this.selectionMaskPixels.height != this.h)
+        /* The mask covers the whole document, not just the window: a selection may span frames */
+        int w = this.docW();
+        int h = this.docH();
+
+        if (this.selectionMaskPixels == null || this.selectionMaskPixels.width != w || this.selectionMaskPixels.height != h)
         {
             if (this.selectionMaskPixels != null)
             {
                 this.selectionMaskPixels.delete();
             }
 
-            this.selectionMaskPixels = Pixels.fromSize(this.w, this.h);
+            this.selectionMaskPixels = Pixels.fromSize(w, h);
         }
 
         Color color = new Color();
 
-        for (int x = 0; x < this.w; x++)
+        for (int x = 0; x < w; x++)
         {
-            for (int y = 0; y < this.h; y++)
+            for (int y = 0; y < h; y++)
             {
                 float value = mask[x][y] ? 1F : 0F;
 
@@ -1049,19 +1387,25 @@ public class UIPixelsEditor extends UICanvasEditor
         {
             /* Screen pixels per document pixel, so the shader can keep the outline a constant
              * on-screen size regardless of canvas size / zoom. */
-            scale.set(aw / (float) this.selectionMaskTexture.width);
+            scale.set(aw / (float) this.w);
         }
 
         context.batcher.texturedBox(
             () -> shader, this.selectionMaskTexture.id, Colors.WHITE,
             ax, ay, aw, ah,
-            0, 0, this.selectionMaskTexture.width, this.selectionMaskTexture.height,
+            this.frameX, this.frameY, this.frameX + this.w, this.frameY + this.h,
             this.selectionMaskTexture.width, this.selectionMaskTexture.height
         );
     }
 
+    /** Something in the document changed; an override has to call this too. */
     protected void wasChanged()
-    {}
+    {
+        if (this.document != null)
+        {
+            this.document.revision++;
+        }
+    }
 
     public boolean isEditing()
     {
@@ -1116,6 +1460,8 @@ public class UIPixelsEditor extends UICanvasEditor
             layer.updateTexture();
         }
 
+        /* Frames may have come or gone with the snapshot */
+        this.updateWindow(false);
         this.wasChanged();
         this.layersChangedCallback.run();
     }
@@ -1141,11 +1487,11 @@ public class UIPixelsEditor extends UICanvasEditor
             return;
         }
 
-        MapType before = this.document.toData();
+        MapType before = this.document.snapshot();
 
         mutation.run();
 
-        this.undoManager.pushUndo(new LayerStateUndo(before, this.document.toData(), mergeTag));
+        this.undoManager.pushUndo(new LayerStateUndo(before, this.document.snapshot(), mergeTag));
     }
 
     /**
@@ -1365,8 +1711,9 @@ public class UIPixelsEditor extends UICanvasEditor
             int h = this.document.height;
             Pixels layerPixels = Pixels.fromSize(w, h);
 
-            int px = ImageClipboard.hasOrigin() ? ImageClipboard.getOriginX() : (w - pasted.width) / 2;
-            int py = ImageClipboard.hasOrigin() ? ImageClipboard.getOriginY() : (h - pasted.height) / 2;
+            /* Without a remembered origin, land in the middle of the frame on show */
+            int px = ImageClipboard.hasOrigin() ? ImageClipboard.getOriginX() : this.frameX + (this.w - pasted.width) / 2;
+            int py = ImageClipboard.hasOrigin() ? ImageClipboard.getOriginY() : this.frameY + (this.h - pasted.height) / 2;
 
             layerPixels.draw(pasted, px, py);
             layerPixels.rewindBuffer();
@@ -1393,9 +1740,8 @@ public class UIPixelsEditor extends UICanvasEditor
     private void copyPixel()
     {
         UIContext context = this.getContext();
-        int pixelX = (int) Math.floor(this.scaleX.from(context.mouseX)) + this.w / 2;
-        int pixelY = (int) Math.floor(this.scaleY.from(context.mouseY)) + this.h / 2;
-        Color color = this.getMergedColor(pixelX, pixelY);
+        Vector2i pixel = this.getHoverPixel(context.mouseX, context.mouseY);
+        Color color = this.getMergedColor(pixel.x, pixel.y);
 
         if (color != null)
         {
@@ -1474,31 +1820,37 @@ public class UIPixelsEditor extends UICanvasEditor
         this.setEditing(false);
 
         this.document = document;
+        this.frame = 0;
 
         if (document != null && !document.layers.isEmpty())
         {
             this.setActiveLayer(MathUtils.clamp(document.activeLayerIndex < 0 ? 0 : document.activeLayerIndex, 0, document.layers.size() - 1));
-            this.setSize(document.width, document.height);
+            this.updateWindow(true);
         }
     }
 
+    /** Resize the document — the whole strip, not just the frame on show — and refit the view to the window. */
     @Override
     public void setSize(int w, int h)
     {
-        super.setSize(w, h);
-
-        if (this.document != null)
+        if (this.document == null)
         {
-            this.document.resize(w, h);
+            super.setSize(w, h);
 
-            TextureLayer active = this.document.getActiveLayer();
-
-            if (active != null)
-            {
-                this.pixels = active.pixels;
-                this.temporary = active.texture;
-            }
+            return;
         }
+
+        this.document.resize(w, h);
+
+        TextureLayer active = this.document.getActiveLayer();
+
+        if (active != null)
+        {
+            this.pixels = active.pixels;
+            this.temporary = active.texture;
+        }
+
+        this.updateWindow(true);
     }
 
     @Override
@@ -1616,7 +1968,7 @@ public class UIPixelsEditor extends UICanvasEditor
                 this.moveStartOffsetY = layer.offsetY;
 
                 /* Snapshot the document so the whole move gesture becomes one undo entry on release. */
-                this.moveUndoBefore = this.document.toData();
+                this.moveUndoBefore = this.document.snapshot();
             }
 
             return;
@@ -1697,7 +2049,7 @@ public class UIPixelsEditor extends UICanvasEditor
 
             if (moved && this.undoManager != null)
             {
-                this.undoManager.pushUndo(new LayerStateUndo(this.moveUndoBefore, this.document.toData()));
+                this.undoManager.pushUndo(new LayerStateUndo(this.moveUndoBefore, this.document.snapshot()));
             }
 
             this.moveUndoBefore = null;
@@ -1720,21 +2072,16 @@ public class UIPixelsEditor extends UICanvasEditor
         if (!this.editing)
         {
             Texture texture = this.getRenderTexture(context);
-            context.batcher.fullTexturedBox(texture, area.x, area.y, area.w, area.h);
+
+            if (texture != null)
+            {
+                this.renderWindowOf(context, texture, area.x, area.y, area.w, area.h);
+            }
         }
         else if (this.document != null)
         {
-            for (TextureLayer layer : this.document.layers)
-            {
-                if (layer.visible && layer.texture != null)
-                {
-                    /* Shift the layer quad by its pixel offset (move tool); the canvas clip keeps it
-                     * within the editor, and flattening crops it to the document bounds. */
-                    Area layerArea = this.calculate(x + layer.offsetX, y + layer.offsetY, x + layer.offsetX + this.w, y + layer.offsetY + this.h);
-                    int color = Colors.setA(Colors.WHITE, layer.opacity);
-                    context.batcher.texturedBox(layer.texture, color, layerArea.x, layerArea.y, layerArea.w, layerArea.h, 0, 0, layer.texture.width, layer.texture.height, layer.texture.width, layer.texture.height);
-                }
-            }
+            this.renderOnionSkin(context);
+            this.renderLayers(context, this.frameX, this.frameY, 1F);
         }
 
         /* Draw brush preview for stroke tools */
@@ -1815,6 +2162,77 @@ public class UIPixelsEditor extends UICanvasEditor
         }
     }
 
+    private static final float ONION_ALPHA = 0.35F;
+
+    /** The frame before the one on show, faint, under it. */
+    private void renderOnionSkin(UIContext context)
+    {
+        TextureAnimation animation = this.document.animation;
+
+        if (!this.onionSkin || animation == null || animation.frames.size() < 2)
+        {
+            return;
+        }
+
+        int count = animation.frames.size();
+        int image = animation.frames.get((this.frame - 1 + count) % count).index;
+
+        if (image >= 0 && image < this.document.imageCount())
+        {
+            this.renderLayers(context, 0, image * this.document.frameHeight(), ONION_ALPHA);
+        }
+    }
+
+    /**
+     * The visible layers, but only the window's worth of each: the part of the layer (shifted by
+     * its move offset) that falls into the canvas-sized window at {@code frameX}/{@code frameY}.
+     * Only that part — a layer's texture wraps, so a quad reaching past its edge would show the
+     * neighbouring frames. Painted over the canvas's window area with {@code alpha} on top of the
+     * layers' own opacity, so the same call draws another frame as an onion skin.
+     */
+    protected void renderLayers(UIContext context, int frameX, int frameY, float alpha)
+    {
+        int vx = -this.w / 2;
+        int vy = -this.h / 2;
+
+        for (TextureLayer layer : this.document.layers)
+        {
+            if (!layer.visible)
+            {
+                continue;
+            }
+
+            /* Window ∩ layer, in document coordinates */
+            int x1 = Math.max(frameX, layer.offsetX);
+            int y1 = Math.max(frameY, layer.offsetY);
+            int x2 = Math.min(frameX + this.w, layer.offsetX + layer.width());
+            int y2 = Math.min(frameY + this.h, layer.offsetY + layer.height());
+
+            if (x2 <= x1 || y2 <= y1)
+            {
+                continue;
+            }
+
+            Area part = this.calculate(vx + x1 - frameX, vy + y1 - frameY, vx + x2 - frameX, vy + y2 - frameY);
+            int color = Colors.setA(Colors.WHITE, layer.opacity * alpha);
+
+            layer.draw(context.batcher, color, part.x, part.y, part.w, part.h, x1 - layer.offsetX, y1 - layer.offsetY, x2 - layer.offsetX, y2 - layer.offsetY);
+        }
+    }
+
+    /** The window's part of a document-sized texture over the window's area; a texture of another size is shown whole. */
+    private void renderWindowOf(UIContext context, Texture texture, int ax, int ay, int aw, int ah)
+    {
+        if (texture.width == this.docW() && texture.height == this.docH())
+        {
+            context.batcher.texturedBox(texture, Colors.WHITE, ax, ay, aw, ah, this.frameX, this.frameY, this.frameX + this.w, this.frameY + this.h, texture.width, texture.height);
+        }
+        else
+        {
+            context.batcher.fullTexturedBox(texture, ax, ay, aw, ah);
+        }
+    }
+
     public Pixels flattenLayers()
     {
         return this.document == null ? null : this.document.flatten();
@@ -1838,13 +2256,18 @@ public class UIPixelsEditor extends UICanvasEditor
         return this.getTemporaryTexture();
     }
 
+    /** The checkerboard's grey for a brightness of 0..1 — the canvas's, and whatever shows the same pixels beside it. */
+    public static int checkerboardColor(float brightness)
+    {
+        int value = (int) (MathUtils.clamp(brightness, 0F, 1F) * 255);
+
+        return Colors.setA(value << 16 | value << 8 | value, 1F);
+    }
+
     @Override
     protected void renderCheckboard(UIContext context, Area area)
     {
-        int brightness = (int) (this.backgroundSupplier.get() * 255);
-        int color = Colors.setA(brightness << 16 | brightness << 8 | brightness, 1F);
-
-        context.batcher.iconArea(Icons.CHECKBOARD, color, area.x, area.y, area.w, area.h);
+        context.batcher.iconArea(Icons.CHECKBOARD, checkerboardColor(this.backgroundSupplier.get()), area.x, area.y, area.w, area.h);
     }
 
     @Override

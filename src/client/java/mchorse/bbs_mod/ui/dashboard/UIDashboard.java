@@ -8,7 +8,7 @@ import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.camera.OrbitCamera;
 import mchorse.bbs_mod.camera.controller.OrbitCameraController;
 import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.events.register.RegisterDashboardPanelsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterDashboardPanelsEvent;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
@@ -18,8 +18,8 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
+import mchorse.bbs_mod.ui.dashboard.panels.UIEditorDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.textures.UITextureManagerPanel;
-import mchorse.bbs_mod.ui.dashboard.utils.UIGraphPanel;
 import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCamera;
 import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCameraKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
@@ -31,18 +31,19 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.model_blocks.UIModelBlockPanel;
 import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
 import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
+import mchorse.bbs_mod.ui.onboarding.Onboarding;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
 import mchorse.bbs_mod.ui.selectors.UISelectorsOverlayPanel;
 import mchorse.bbs_mod.ui.utility.UIUtilityOverlayPanel;
 import mchorse.bbs_mod.ui.utility.audio.UIAudioEditorPanel;
+import mchorse.bbs_mod.ui.utils.InterfaceBlur;
 import mchorse.bbs_mod.ui.utils.UIChalkboard;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.entity.Entity;
@@ -86,6 +87,7 @@ public class UIDashboard extends UIBaseMenu
             }
 
             this.copyCurrentEntityCamera();
+            Onboarding.panelShown(e.panel);
         });
         this.panels.full(this.viewport);
         this.registerPanels();
@@ -97,16 +99,16 @@ public class UIDashboard extends UIBaseMenu
         this.settingsPanel = new UISettingsOverlayPanel();
 
         this.settings = new UIIcon(Icons.SETTINGS, (b) -> this.openSettings());
-        this.settings.tooltip(UIKeys.CONFIG_TITLE, Direction.TOP);
         this.selectors = new UIIcon(Icons.PROPERTIES, (b) ->
         {
-            UIOverlay.addOverlayRight(this.context, new UISelectorsOverlayPanel(), 240);
+            UIOverlay.addOverlay(this.context, new UISelectorsOverlayPanel(), 430, 300);
         });
-        this.selectors.tooltip(UIKeys.SELECTORS_TITLE, Direction.TOP);
         this.chalkboard = new UIChalkboard();
         this.chalkboard.full(this.getRoot());
 
-        this.panels.pinned.add(this.settings, this.selectors);
+        /* Pinned through the bar, not into it: the bar is what knows which way its icons point */
+        this.panels.pin(this.settings, UIKeys.CONFIG_TITLE);
+        this.panels.pin(this.selectors, UIKeys.SELECTORS_TITLE);
         this.getRoot().prepend(this.orbitUI);
         this.getRoot().add(this.orbitKeysUI);
         this.getRoot().add(this.chalkboard);
@@ -151,10 +153,18 @@ public class UIDashboard extends UIBaseMenu
                 return;
             }
 
-            UIOverlay.addOverlay(this.context, new UIUtilityOverlayPanel(UIKeys.UTILITY_TITLE, null), 240, 160);
+            /* Just tall enough for the panel's own content, and never taller than the screen -
+             * an overlay only has its position bounded, so an oversized one gets cut off. */
+            int height = Math.min(300, (int) (this.height * 0.9F));
+
+            UIOverlay.addOverlay(this.context, new UIUtilityOverlayPanel(UIKeys.UTILITY_TITLE, null), 240, height);
         });
 
         this.showAnnoyingPopups();
+
+        /* What the tour of this screen points at; the landing card belongs to whichever panel is up */
+        TourAnchors.register("dashboard.taskbar", () -> this.panels.taskBar);
+        TourAnchors.register("dashboard.landing", () -> this.panels.panel instanceof UIEditorDashboardPanel panel && panel.landing != null ? panel.landing.getCard() : null);
     }
 
     private void showAnnoyingPopups()
@@ -170,7 +180,7 @@ public class UIDashboard extends UIBaseMenu
 
     public void openSettings()
     {
-        UIOverlay.addOverlay(this.context, this.settingsPanel, 430, 380);
+        UIOverlay.addOverlay(this.context, this.settingsPanel, 430, 400);
     }
 
     public void copyCurrentEntityCamera()
@@ -232,6 +242,8 @@ public class UIDashboard extends UIBaseMenu
         }
 
         BBSModClient.getCameraController().add(this.camera);
+
+        Onboarding.dashboardOpened(this);
     }
 
     @Override
@@ -263,21 +275,36 @@ public class UIDashboard extends UIBaseMenu
 
     protected void registerPanels()
     {
-        this.panels.registerPanel(new UIMorphingPanel(this), UIKeys.MORPHING_TITLE, Icons.MORPH);
-        this.panels.registerPanel(new UIFilmPanel(this), UIKeys.FILM_TITLE, Icons.FILM);
-        this.panels.registerPanel(new UIModelBlockPanel(this), UIKeys.MODEL_BLOCKS_TITLE, Icons.BLOCK);
-        this.panels.registerPanel(new UIParticleSchemePanel(this), UIKeys.PANELS_PARTICLES, Icons.PARTICLE).marginLeft(10);
-        this.panels.registerPanel(new UIModelEditorPanel(this), UIKeys.MODEL_EDITOR_TITLE, Icons.POSE);
-        this.panels.registerPanel(new UITextureManagerPanel(this), UIKeys.TEXTURES_TOOLTIP, Icons.MATERIAL);
-        this.panels.registerPanel(new UIAudioEditorPanel(this), UIKeys.AUDIO_TITLE, Icons.SOUND);
-        this.panels.registerPanel(new UIGraphPanel(this), UIKeys.GRAPH_TOOLTIP, Icons.GRAPH);
+        /* The first dashboard open builds all of this at once and the user feels every
+         * millisecond of it, so each panel reports what it cost — the log names the panel
+         * to blame instead of leaving a five second mystery. */
+        long start = System.nanoTime();
 
-        if (FabricLoader.getInstance().isDevelopmentEnvironment())
-        {
-            this.panels.registerPanel(new UIDebugPanel(this), IKey.raw("Sandbox"), Icons.CODE);
-        }
+        this.panels.registerPanel(new UIMorphingPanel(this), UIKeys.MORPHING_TITLE, Icons.MORPH);
+        start = logPanelTime(start, "morphing");
+        this.panels.registerPanel(new UIFilmPanel(this), UIKeys.FILM_TITLE, Icons.FILM);
+        start = logPanelTime(start, "film");
+        this.panels.registerPanel(new UIModelBlockPanel(this), UIKeys.MODEL_BLOCKS_TITLE, Icons.BLOCK);
+        start = logPanelTime(start, "model blocks");
+        this.panels.registerPanel(new UIParticleSchemePanel(this), UIKeys.PANELS_PARTICLES, Icons.PARTICLE);
+        start = logPanelTime(start, "particles");
+        this.panels.registerPanel(new UIModelEditorPanel(this), UIKeys.MODEL_EDITOR_TITLE, Icons.POSE);
+        start = logPanelTime(start, "model editor");
+        this.panels.registerPanel(new UITextureManagerPanel(this), UIKeys.TEXTURES_TOOLTIP, Icons.MATERIAL);
+        start = logPanelTime(start, "textures");
+        this.panels.registerPanel(new UIAudioEditorPanel(this), UIKeys.AUDIO_TITLE, Icons.SOUND);
+        logPanelTime(start, "audio");
 
         this.setPanel(this.getPanel(UIFilmPanel.class));
+    }
+
+    private static long logPanelTime(long start, String name)
+    {
+        long now = System.nanoTime();
+
+        System.out.println(String.format("Dashboard panel \"%s\" built in %.1f ms", name, (now - start) / 1_000_000D));
+
+        return now;
     }
 
     public <T> T getPanel(Class<T> clazz)
@@ -329,6 +356,13 @@ public class UIDashboard extends UIBaseMenu
     {
         Link background = BBSSettings.backgroundImage.get();
         int color = BBSSettings.backgroundColor.get();
+
+        /* The world shows through the tint (and through the image, tinted) — blur it, unless
+         * the tint is solid and there is nothing to see */
+        if (background != null || Colors.getA(color) < 1F)
+        {
+            InterfaceBlur.applyUnder();
+        }
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();

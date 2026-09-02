@@ -4,8 +4,6 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.MolangHelper;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
-import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
-import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.cubic.model.loaders.BOBJModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.CubicModelLoader;
@@ -29,17 +27,30 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public class ModelManager implements IWatchDogListener
 {
     public static final String MODELS_PREFIX = "models/";
 
-    public final Map<String, ModelInstance> models = new HashMap<>();
+    /**
+     * Model loaders an addon added.
+     *
+     * <p>Suppliers rather than loaders: the list is rebuilt from scratch on every asset
+     * reload, so anything added to it directly would survive exactly until the user saved a
+     * file in the assets folder.</p>
+     */
+    private static final List<Supplier<IModelLoader>> EXTRA_LOADERS = new ArrayList<>();
+
+    /* Loaded models only (a concurrent map holds no nulls); which keys were ever queued lives
+     * in {@link #requested} — both sides are touched by the render thread and the loader. */
+    public final Map<String, ModelInstance> models = new ConcurrentHashMap<>();
+    private final Set<String> requested = ConcurrentHashMap.newKeySet();
     public final List<IModelLoader> loaders = new ArrayList<>();
     public final AssetProvider provider;
     public final MolangParser parser;
@@ -59,10 +70,30 @@ public class ModelManager implements IWatchDogListener
     private void setupLoaders()
     {
         this.loaders.clear();
-        this.loaders.add(new BOBJModelLoader());
-        this.loaders.add(new CubicModelLoader());
-        this.loaders.add(new GeoCubicModelLoader());
-        this.loaders.add(new VoxModelLoader());
+        this.loaders.addAll(createLoaders());
+    }
+
+    /** Teaches BBS to read a model format of an addon's. */
+    public static void registerLoader(Supplier<IModelLoader> loader)
+    {
+        EXTRA_LOADERS.add(loader);
+    }
+
+    private static List<IModelLoader> createLoaders()
+    {
+        List<IModelLoader> loaders = new ArrayList<>();
+
+        loaders.add(new BOBJModelLoader());
+        loaders.add(new CubicModelLoader());
+        loaders.add(new GeoCubicModelLoader());
+        loaders.add(new VoxModelLoader());
+
+        for (Supplier<IModelLoader> extra : EXTRA_LOADERS)
+        {
+            loaders.add(extra.get());
+        }
+
+        return loaders;
     }
 
     /**
@@ -98,13 +129,19 @@ public class ModelManager implements IWatchDogListener
 
     public ModelInstance getModel(String id)
     {
-        if (this.models.containsKey(id))
+        ModelInstance model = this.models.get(id);
+
+        if (model != null)
         {
-            return this.models.get(id);
+            return model;
         }
 
-        this.models.put(id, null);
-        this.loader.add(id);
+        /* Queued exactly once; a failed load stays in requested and is never retried, which
+         * is what the old null-in-the-map marker meant. */
+        if (this.requested.add(id))
+        {
+            this.loader.add(id);
+        }
 
         return null;
     }
@@ -116,7 +153,9 @@ public class ModelManager implements IWatchDogListener
         Collection<Link> links = this.provider.getLinksFromPath(modelLink, true);
         MapType config = this.loadConfig(modelLink);
 
-        for (IModelLoader loader : this.loaders)
+        /* Fresh loaders per load: BOBJModelLoader keeps state between calls, and the shared
+         * set would leak one model's leftovers into the next. */
+        for (IModelLoader loader : createLoaders())
         {
             model = loader.load(id, this, modelLink, links, config);
 
@@ -135,9 +174,8 @@ public class ModelManager implements IWatchDogListener
             System.out.println("Model \"" + id + "\" was loaded!");
 
             model.setup();
+            this.models.put(id, model);
         }
-
-        this.models.put(id, model);
 
         return model;
     }
@@ -191,9 +229,8 @@ public class ModelManager implements IWatchDogListener
         }
 
         this.models.clear();
-        ModelIKRuntime.clearCache();
+        this.requested.clear();
         ModelPhysicsRuntime.clearCache();
-        ModelConstraintsRuntime.clearCache();
         PoseManager.INSTANCE.clear();
         ShapeKeysManager.INSTANCE.clear();
         this.setupLoaders();
@@ -238,6 +275,10 @@ public class ModelManager implements IWatchDogListener
         {
             String key = StringUtils.parentPath(link.path.substring(MODELS_PREFIX.length()));
             ModelInstance model = this.models.remove(key);
+
+            /* Un-mark it too, or the next getModel would treat the key as already queued and
+             * the edited model would never reload. */
+            this.requested.remove(key);
 
             if (model != null)
             {

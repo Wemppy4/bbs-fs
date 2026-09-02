@@ -3,23 +3,44 @@ package mchorse.bbs_mod.ui.utils.resizers;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.Area;
 
+/**
+ * How an element's area gets its numbers. Every stage is optional — a resizer writes down only
+ * the ones it takes part in, and the rest stay out of the way.
+ */
 public interface IResizer
 {
-    public void preApply(Area area);
+    public default void preApply(Area area)
+    {}
 
-    public void apply(Area area);
+    public default void apply(Area area)
+    {}
 
-    public void postApply(Area area);
+    public default void postApply(Area area)
+    {}
 
-    public void add(UIElement parent, UIElement child);
+    public default void add(UIElement parent, UIElement child)
+    {}
 
-    public void remove(UIElement parent, UIElement child);
+    public default void remove(UIElement parent, UIElement child)
+    {}
 
-    public int getX();
+    public default int getX()
+    {
+        return 0;
+    }
 
-    public int getY();
+    public default int getY()
+    {
+        return 0;
+    }
 
-    public int getW();
+    public default int getW()
+    {
+        return 0;
+    }
 
-    public int getH();
+    public default int getH()
+    {
+        return 0;
+    }
 }

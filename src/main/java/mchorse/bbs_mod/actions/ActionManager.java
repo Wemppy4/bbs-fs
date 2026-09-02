@@ -142,6 +142,12 @@ public class ActionManager
     {
         if (film != null)
         {
+            /* One playback per film, and the one asked for last wins. Playing a film for several
+             * players at once (/bbs film @a play) called this once per player, and each call put
+             * its own full cast into the world - the scene was acted two, three, five times over,
+             * on top of itself, while stopping and seeking only ever reached the first. */
+            this.stop(film.getId());
+
             ActionPlayer player = new ActionPlayer(serverPlayer, world, film, tick, countdown, exception, type);
 
             this.players.add(player);
@@ -273,6 +279,18 @@ public class ActionManager
         for (DamageControl control : this.dc.values())
         {
             control.addBlock(pos, state, blockEntity);
+        }
+    }
+
+    /**
+     * Take a region out of every snapshot. Block changes go into all of them (see
+     * {@link #changedBlock}), so a region only stays gone if it leaves all of them too.
+     */
+    public void forgetBlocks(BlockPos min, BlockPos max)
+    {
+        for (DamageControl control : this.dc.values())
+        {
+            control.forget(min, max);
         }
     }
 

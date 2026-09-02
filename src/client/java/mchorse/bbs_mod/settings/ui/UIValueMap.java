@@ -11,6 +11,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueDouble;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.settings.values.ui.ValueKeyframeStyle;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -25,11 +26,10 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIOrder;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UINumericInput;
 import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStyleOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UILabelOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
@@ -37,10 +37,9 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.Arrays;
-import java.util.function.Consumer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -50,7 +49,14 @@ public class UIValueMap
 {
     private static Map<Class<? extends BaseValue>, IUIValueFactory<? extends BaseValue>> factories = new HashMap<>();
 
-    static
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
     {
         register(ValueBoolean.class, (value, ui) ->
         {
@@ -107,33 +113,6 @@ public class UIValueMap
                 color.w(90);
 
                 return Arrays.asList(UIValueFactory.column(color, value));
-            }
-            else if (value == BBSSettings.keyframeDefaultShape)
-            {
-                UIIcon button = new UIIcon(() ->
-                {
-                    IKeyframeShapeRenderer r = KeyframeShapeRenderers.SHAPES.get(shapeAt(value.get()));
-
-                    return r != null ? r.getIcon() : Icons.SHAPES;
-                }, (b) -> b.getContext().replaceContextMenu((menu) ->
-                {
-                    KeyframeShape current = shapeAt(value.get());
-
-                    for (KeyframeShape shape : KeyframeShape.values())
-                    {
-                        IKeyframeShapeRenderer renderer = KeyframeShapeRenderers.SHAPES.get(shape);
-
-                        if (renderer == null)
-                        {
-                            continue;
-                        }
-
-                        menu.action(renderer.getIcon(), renderer.getLabel(), shape == current, () -> value.set(shape.ordinal()));
-                    }
-                }));
-                button.tooltip(shapeButtonLabel(value.get()));
-
-                return Arrays.asList(UIValueFactory.column(button, value));
             }
             else if (value.getSubtype() == ValueInt.Subtype.MODES)
             {
@@ -220,6 +199,20 @@ public class UIValueMap
             return Arrays.asList(UIValueFactory.column(new UIOrder(value), value));
         });
 
+        /* The very panel that restyles a keyframe, pointed at the style new keyframes are born with */
+        register(ValueKeyframeStyle.class, (value, ui) ->
+        {
+            UIButton button = new UIButton(UIKeys.CONFIG_KEYFRAME_STYLE_EDIT, (b) -> UIOverlay.addOverlay(
+                ui.getContext(),
+                new UIKeyframeStyleOverlayPanel(value.get(), (style) -> value.set(style.copy())),
+                220, 200
+            ));
+
+            button.w(90);
+
+            return Arrays.asList(UIValueFactory.column(button, value));
+        });
+
         register(ValueKeyCombo.class, (value, ui) ->
         {
             UILabel label = UI.label(value.get().label, 0).labelAnchor(0, 0.5F);
@@ -233,20 +226,6 @@ public class UIValueMap
 
     }
 
-    private static KeyframeShape shapeAt(int ordinal)
-    {
-        KeyframeShape[] values = KeyframeShape.values();
-
-        return ordinal >= 0 && ordinal < values.length ? values[ordinal] : KeyframeShape.SQUARE;
-    }
-
-    private static IKey shapeButtonLabel(int ordinal)
-    {
-        IKeyframeShapeRenderer renderer = KeyframeShapeRenderers.SHAPES.get(shapeAt(ordinal));
-
-        return renderer != null ? renderer.getLabel() : UIKeys.KEYFRAMES_SHAPES_SQUARE;
-    }
-
     public static <T extends BaseValue> void register(Class<T> clazz, IUIValueFactory<T> factory)
     {
         factories.put(clazz, factory);
@@ -256,7 +235,25 @@ public class UIValueMap
     {
         IUIValueFactory<T> factory = (IUIValueFactory<T>) factories.get(value.getClass());
 
-        return factory == null ? Collections.emptyList() : factory.create(value, element);
+        if (factory == null)
+        {
+            return Collections.emptyList();
+        }
+
+        List<UIElement> elements = factory.create(value, element);
+
+        /* Every setting answers a right click the same way, so it is hung here
+         * rather than in each factory above. Rebuilding the list is what puts
+         * the reset on screen — the widgets read their value when they are
+         * made, not while they live. */
+        Runnable refresh = element instanceof UISettingsOverlayPanel panel ? panel::refresh : null;
+
+        for (UIElement created : elements)
+        {
+            UIValues.resettable(created, value, refresh);
+        }
+
+        return elements;
     }
 
     public static interface IUIValueFactory <T extends BaseValue>

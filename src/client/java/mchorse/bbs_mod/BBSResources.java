@@ -9,6 +9,13 @@ public class BBSResources
 {
     private static WatchDog watchDog;
 
+    /**
+     * Bumped on every change the watchdog sees in the assets folder. A browser over the
+     * assets compares it against what it last saw and relists — no per-instance listener
+     * to register and forget, no polling of the disk.
+     */
+    private static int assetsVersion;
+
     public static void init()
     {
         setupWatchdog();
@@ -24,9 +31,22 @@ public class BBSResources
         watchDog.getProxy().register(BBSModClient.getTextures());
         watchDog.getProxy().register(BBSModClient.getModels());
         watchDog.getProxy().register(BBSModClient.getSounds());
+        watchDog.getProxy().register(BBSModClient.getFonts());
         watchDog.getProxy().register(BBSModClient.getFormCategories());
+        watchDog.getProxy().register((path, event) -> assetsVersion += 1);
 
         watchDog.start();
+    }
+
+    public static int getAssetsVersion()
+    {
+        return assetsVersion;
+    }
+
+    /** For code that changed the assets itself and wants browsers to relist right away. */
+    public static void markAssetsChanged()
+    {
+        assetsVersion += 1;
     }
 
     public static void stopWatchdog()

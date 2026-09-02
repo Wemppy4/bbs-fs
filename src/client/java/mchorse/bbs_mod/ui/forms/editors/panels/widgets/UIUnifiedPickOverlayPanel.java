@@ -453,10 +453,8 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
             }
         }
 
-        if (this.getRoot() != null)
-        {
-            this.getRoot().resize();
-        }
+        /* Only the property list changed; its own flex is fixed, so the whole screen needn't relayout */
+        this.blockProperties.invalidateLayout();
     }
 
     private void openPropertyContextMenu(UIButton button, Property<?> property)

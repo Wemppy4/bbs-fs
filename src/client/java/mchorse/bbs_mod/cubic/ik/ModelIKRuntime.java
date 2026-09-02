@@ -2,11 +2,12 @@ package mchorse.bbs_mod.cubic.ik;
 
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Collections;
 import java.util.List;
@@ -19,30 +20,15 @@ public final class ModelIKRuntime
     {
     }
 
-    public static void clearCache()
-    {
-        ModelIKCache.clear();
-    }
-
-    public static void invalidate(String modelId)
-    {
-        clearCache();
-    }
-
     public static void apply(ModelInstance instance, Map<String, Vector3f> controllerTargets, Map<String, Vector3f> poleTargets)
     {
-        if (instance == null || instance.model == null)
+        if (instance == null || instance.model == null || !(instance.form instanceof ModelForm form))
         {
             return;
         }
 
         IModel model = instance.model;
-
-        ModelIKCache.Compiled compiled = null;
-        if (instance.form instanceof ModelForm form && form.ik.get() instanceof MapType map)
-        {
-            compiled = ModelIKCache.getFromData(model, map);
-        }
+        ModelIKCache.Compiled compiled = ModelIKCache.compile(model, form);
 
         if (compiled == null)
         {
@@ -56,18 +42,19 @@ public final class ModelIKRuntime
             return;
         }
 
-        Map<String, IKControl> controlOverrides = null;
-        Map<String, Float> targetWeights = null;
-        Map<String, Float> poleWeights = null;
+        /* The chains' animatable scalars, read live from the bone properties: the form's static
+         * setting, or the film's `ik` track when one is driving the bone (the property's runtime
+         * value). One read per chain per solve — no override map and nothing to clear. */
+        Map<String, IKControl> controls = new HashMap<>();
 
-        if (instance.form instanceof ModelForm form)
+        for (ModelIKCache.CompiledChain chain : chains)
         {
-            controlOverrides = form.ikControlOverrides;
-            targetWeights = form.ikTargetWeights;
-            poleWeights = form.poleTargetWeights;
+            FormBone bone = form.bones.getBone(chain.tip());
+
+            controls.put(chain.tip(), bone == null ? IKControl.DEFAULT : bone.ik.get());
         }
 
-        ModelIKApplier.apply(model, chains, compiled.bones(), controllerTargets, poleTargets, targetWeights, poleWeights, controlOverrides);
+        ModelIKApplier.apply(model, chains, compiled.bones(), controllerTargets, poleTargets, form.ikTargetWeights, form.poleTargetWeights, controls);
     }
 
     /**
@@ -143,9 +130,9 @@ public final class ModelIKRuntime
      * honest response to offer — the gizmo refuses those and dims its rings.
      * The FK channels stay editable through the pads (they remain the blend
      * base and the pose IK falls back to when it's off). The chain tip counts
-     * only when the chain also solves tip rotation; a chain whose weight is
-     * zeroed (config, or the film's per-tick override on the form) doesn't
-     * constrain anything.
+     * only when the chain also solves tip rotation. The scalars are read live
+     * from the bone's {@code ik} property, so a film track that disables or
+     * zeroes a chain for the current tick frees its bones automatically.
      */
     public static boolean isRotationConstrained(IModel model, ModelForm form, String bone)
     {
@@ -154,12 +141,7 @@ public final class ModelIKRuntime
             return false;
         }
 
-        if (!(form.ik.get() instanceof MapType map))
-        {
-            return false;
-        }
-
-        ModelIKCache.Compiled compiled = ModelIKCache.getFromData(model, map);
+        ModelIKCache.Compiled compiled = ModelIKCache.compile(model, form);
 
         if (compiled == null || compiled.chains() == null)
         {
@@ -168,19 +150,15 @@ public final class ModelIKRuntime
 
         for (ModelIKCache.CompiledChain chain : compiled.chains())
         {
-            if (chain == null || chain.weight() <= 0F || chain.chainRootToEffector() == null)
+            if (chain == null || chain.chainRootToEffector() == null)
             {
                 continue;
             }
 
-            /* A chain the film disabled or zeroed for this tick — its per-tick `ik`
-             * track override — no longer owns any rotation, so its bones become
-             * FK-editable again. That override lives in ikControlOverrides keyed by
-             * the tip (the same one resolveChain reads), NOT in ikTargetWeights,
-             * which is only the target's position-fade weight and never reaches 0. */
-            IKControl override = form.ikControlOverrides == null ? null : form.ikControlOverrides.get(chain.tip());
+            FormBone tipBone = form.bones.getBone(chain.tip());
+            IKControl control = tipBone == null ? IKControl.DEFAULT : tipBone.ik.get();
 
-            if (override != null && (!override.enabled || override.weight <= 0F))
+            if (!control.enabled || control.weight <= 0F)
             {
                 continue;
             }
@@ -201,52 +179,23 @@ public final class ModelIKRuntime
 
     public static List<String> getControllers(ModelInstance instance)
     {
-        if (instance == null || instance.model == null)
-        {
-            return Collections.emptyList();
-        }
-
-        IModel model = instance.model;
-
-        ModelIKCache.Compiled compiled = null;
-        if (instance.form instanceof ModelForm form && form.ik.get() instanceof MapType map)
-        {
-            compiled = ModelIKCache.getFromData(model, map);
-        }
-
-        if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
-        {
-            return Collections.emptyList();
-        }
-
-        Set<String> unique = new LinkedHashSet<>();
-
-        for (ModelIKCache.CompiledChain chain : compiled.chains())
-        {
-            if (chain != null && chain.target() != null && !chain.target().isEmpty())
-            {
-                unique.add(chain.target());
-            }
-        }
-
-        return unique.isEmpty() ? Collections.emptyList() : new ArrayList<>(unique);
+        return targetsOf(instance, false);
     }
 
-    /** The pole-target bones of all enabled chains that have one — the film keys a pole anchor sheet off each. */
+    /** The pole-target bones of all chains that have one — the film keys a pole anchor sheet off each. */
     public static List<String> getPoleControllers(ModelInstance instance)
     {
-        if (instance == null || instance.model == null)
+        return targetsOf(instance, true);
+    }
+
+    private static List<String> targetsOf(ModelInstance instance, boolean pole)
+    {
+        if (instance == null || instance.model == null || !(instance.form instanceof ModelForm form))
         {
             return Collections.emptyList();
         }
 
-        IModel model = instance.model;
-
-        ModelIKCache.Compiled compiled = null;
-        if (instance.form instanceof ModelForm form && form.ik.get() instanceof MapType map)
-        {
-            compiled = ModelIKCache.getFromData(model, map);
-        }
+        ModelIKCache.Compiled compiled = ModelIKCache.compile(instance.model, form);
 
         if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
         {
@@ -257,9 +206,11 @@ public final class ModelIKRuntime
 
         for (ModelIKCache.CompiledChain chain : compiled.chains())
         {
-            if (chain != null && chain.pole() && chain.poleTarget() != null && !chain.poleTarget().isEmpty())
+            String target = pole ? chain.poleTarget() : chain.target();
+
+            if (target != null && !target.isEmpty())
             {
-                unique.add(chain.poleTarget());
+                unique.add(target);
             }
         }
 

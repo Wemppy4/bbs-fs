@@ -60,11 +60,6 @@ public class UIScreen extends Screen implements IFileDropListener
         this.menu.context.setup(this.context);
     }
 
-    public UIBaseMenu getMenu()
-    {
-        return this.menu;
-    }
-
     public void update()
     {
         this.menu.update();
@@ -150,7 +145,32 @@ public class UIScreen extends Screen implements IFileDropListener
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button)
     {
-        return this.menu.mouseClicked((int) mouseX, (int) mouseY, button);
+        try
+        {
+            return this.menu.mouseClicked((int) mouseX, (int) mouseY, button);
+        }
+        catch (RuntimeException | Error e)
+        {
+            return this.report("mouse click", e);
+        }
+    }
+
+    /**
+     * Log a failure of an input handler before Minecraft wraps it into a crash report: building
+     * that report can itself fail (a mixin of another mod loading a class mid-transformation),
+     * and then the original stack is gone with it.
+     */
+    private boolean report(String action, Throwable e)
+    {
+        System.err.println("[BBS UI] Unhandled exception on " + action + " in " + this.menu.getClass().getSimpleName());
+        e.printStackTrace();
+
+        if (e instanceof RuntimeException runtime)
+        {
+            throw runtime;
+        }
+
+        throw (Error) e;
     }
 
     @Override
@@ -162,13 +182,27 @@ public class UIScreen extends Screen implements IFileDropListener
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button)
     {
-        return this.menu.mouseReleased((int) mouseX, (int) mouseY, button);
+        try
+        {
+            return this.menu.mouseReleased((int) mouseX, (int) mouseY, button);
+        }
+        catch (RuntimeException | Error e)
+        {
+            return this.report("mouse release", e);
+        }
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers)
     {
-        return this.menu.handleKey(keyCode, scanCode, BBSRendering.lastAction, modifiers);
+        try
+        {
+            return this.menu.handleKey(keyCode, scanCode, BBSRendering.lastAction, modifiers);
+        }
+        catch (RuntimeException | Error e)
+        {
+            return this.report("key press", e);
+        }
     }
 
     @Override

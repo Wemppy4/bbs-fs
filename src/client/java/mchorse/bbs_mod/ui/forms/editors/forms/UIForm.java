@@ -12,15 +12,18 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.UIFormEditor;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIGeneralFormPanel;
+import mchorse.bbs_mod.ui.forms.editors.panels.UIMaterialFormPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIPanelBase;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -44,9 +47,39 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public UIPropTransform getEditableTransform()
     {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor != null)
+        {
+            return poseEditor.transform;
+        }
+
         this.setPanel(this.generalPanel);
 
         return this.general;
+    }
+
+    /**
+     * The pose editor this form edits bones through, or null when the form has no skeleton.
+     *
+     * <p>Everything that places the gizmo on a BONE rather than on the form goes through this one
+     * answer — which is why a mob form, whose bones are vanilla model parts, gets the same gizmo,
+     * the same world-space paste and the same Ctrl+click bone toggling as a model form without a
+     * second copy of any of it.</p>
+     */
+    public UIPoseEditor getPoseEditor()
+    {
+        return null;
+    }
+
+    /** The path the gizmo sits on: the selected bone, or the form itself when there is none. */
+    protected String bonePath()
+    {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+        String bone = poseEditor == null ? null : poseEditor.groups.list.getCurrentFirst();
+        String path = FormUtils.getPath(this.form);
+
+        return bone == null || bone.isEmpty() ? path : StringUtils.combinePaths(path, bone);
     }
 
     private void cyclePanels()
@@ -60,45 +93,56 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public Matrix4f getOrigin(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), this.generalPanel != null && this.generalPanel.transform.isLocal());
+        return this.getOrigin(transition, this.bonePath(), this.getGizmoSpace());
     }
 
     /** The space the gizmo should be drawn in (the active panel's transform space). */
     public TransformSpace getGizmoSpace()
     {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor != null)
+        {
+            return poseEditor.transform.getSpace();
+        }
+
         return this.generalPanel != null ? this.generalPanel.transform.getSpace() : TransformSpace.LOCAL;
     }
 
-    /**
-     * Always returns the bone's full local matrix (including its own rotation),
-     * irrespective of the LOCAL/GLOBAL UI toggle. Required for sampling-based
-     * gizmo helpers that need the rotation to be visible in the matrix &mdash;
-     * the rotation-stripped &quot;origin&quot; variant doesn't move when
-     * {@code transform.rotate} is perturbed, so axis extraction would silently
-     * fall back to identity.
-     */
+    /** Always the bone's FULL local matrix (its own rotation included), whatever the
+     *  picker says. 🔴 The sampling helpers need it: the rotation-stripped origin variant
+     *  doesn't move when {@code transform.rotate} is perturbed, so axis extraction would
+     *  silently collapse to identity. */
     public Matrix4f getOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), true);
+        return this.getOrigin(transition, this.bonePath(), TransformSpace.LOCAL);
     }
 
-    /**
-     * Origin for the body part gizmo mode: always the edited form's OWN root frame (where the body
-     * part actually renders &mdash; attach bone &middot; part transform &middot; form transform),
-     * ignoring any type-specific override like the model's selected pose bone. The drag math stays
-     * correct for editing the body part transform because the attach bone is constant w.r.t. it and
-     * the form's own transform cancels in the Jacobian/rotate-axes derivatives.
-     */
-    public Matrix4f getBodyPartGizmoOrigin(float transition, boolean local)
+    /** The twin of {@link #getOriginMatrix}: always the ORIGIN flavour, the frame before
+     *  the edited thing's own rotation. The pair is what a drag snapshot carries as its
+     *  two bone frames ({@code GizmoDrag#setFrameAxes}). */
+    public Matrix4f getParentOriginMatrix(float transition)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), local);
+        return this.getOrigin(transition, this.bonePath(), TransformSpace.PARENT);
     }
 
-    protected Matrix4f getOrigin(float transition, String path, boolean local)
+    /** Origin for the body part gizmo mode: the edited form's OWN root frame, ignoring any
+     *  type-specific override like the model's selected pose bone. The drag math still holds
+     *  — the attach bone is constant w.r.t. the edited transform and the form's own cancels
+     *  in the derivatives. */
+    public Matrix4f getBodyPartGizmoOrigin(float transition, TransformSpace space)
+    {
+        return this.getOrigin(transition, FormUtils.getPath(this.form), space);
+    }
+
+    /** The frame's placement matrix: its own for LOCAL, the origin flavour (the frame
+     *  before its own rotation) for every other — {@link TransformSpace#placesOnOwnFrame}
+     *  is the one place that call is made, so no caller can answer it differently. */
+    protected Matrix4f getOrigin(float transition, String path, TransformSpace space)
     {
         Form root = FormUtils.getRoot(this.form);
         MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
-        Matrix4f matrix = local ? map.get(path).matrix() : map.get(path).origin();
+        Matrix4f matrix = space.placesOnOwnFrame() ? map.get(path).matrix() : map.get(path).origin();
 
         return matrix == null ? Matrices.EMPTY_4F : matrix;
     }
@@ -117,6 +161,8 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     protected void registerDefaultPanels()
     {
+        this.registerPanel(new UIMaterialFormPanel(this), UIKeys.FORMS_EDITORS_MATERIAL, Icons.MATERIAL);
+
         UIGeneralFormPanel panel = new UIGeneralFormPanel(this);
 
         this.registerPanel(panel, UIKeys.FORMS_EDITORS_GENERAL, Icons.GEAR);
@@ -193,7 +239,41 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      */
     public boolean toggleBoneSelection(String bone)
     {
-        return false;
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor == null || !poseEditor.hasBone(bone))
+        {
+            return false;
+        }
+
+        poseEditor.selectBone(bone, true);
+
+        return true;
+    }
+
+    /**
+     * The additive euler base under the pose editor's channels for the picked bone: the bone's
+     * EVALUATED channels (rest + actions + pose stack) minus the pose track's own contribution, so
+     * gizmo deltas compose at the effective angles. Null for anything that isn't the pose panel of
+     * a posed form — only that edits a pose-stacked track.
+     */
+    public Vector3f poseRotationBase(UIPropTransform transform, float transition)
+    {
+        UIPoseEditor poseEditor = this.getPoseEditor();
+
+        if (poseEditor == null || transform != poseEditor.transform || !(this.form instanceof IPosedForm posedForm))
+        {
+            return null;
+        }
+
+        String bone = poseEditor.groups.list.getCurrentFirst();
+
+        if (bone == null)
+        {
+            return null;
+        }
+
+        return FormUtils.additivePoseRotationBase(posedForm.getPose(), bone, this.getEvaluatedRotation(transition, this.bonePath()));
     }
 
     public Class<?> getActivePanelClass()

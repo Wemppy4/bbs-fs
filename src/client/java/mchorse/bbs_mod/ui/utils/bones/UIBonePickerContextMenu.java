@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.ui.utils.bones;
 
-import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -50,7 +50,7 @@ public class UIBonePickerContextMenu extends UIContextMenu
         this.add(this.search);
     }
 
-    public UIBonePickerContextMenu bones(IModel model, Collection<String> hidden)
+    public UIBonePickerContextMenu bones(IBoneHierarchy model, Collection<String> hidden)
     {
         this.bones.fillBones(model, hidden);
 
@@ -106,7 +106,7 @@ public class UIBonePickerContextMenu extends UIContextMenu
             this.callback.accept(id);
         }
 
-        this.removeFromParent();
+        this.dismiss();
     }
 
     @Override

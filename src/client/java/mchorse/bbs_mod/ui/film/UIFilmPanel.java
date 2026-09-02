@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.ui.film;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.logging.LogUtils;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
@@ -18,10 +18,10 @@ import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FrozenFilmController;
+import mchorse.bbs_mod.film.markers.FilmMarker;
 import mchorse.bbs_mod.film.Recorder;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtils;
-import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.L10n;
@@ -36,11 +36,8 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.DataTab;
-import mchorse.bbs_mod.ui.dashboard.panels.tabs.UIDataTabs;
 import mchorse.bbs_mod.ui.dashboard.utils.IUIOrbitKeysHandler;
 import mchorse.bbs_mod.ui.film.audio.UIAudioRecorder;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
@@ -48,6 +45,9 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.UIFilmUndoHandler;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.onboarding.TourAnchors;
+import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.layout.ILayoutSource;
@@ -56,7 +56,6 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -64,7 +63,6 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.PlayerUtils;
 import mchorse.bbs_mod.utils.Timer;
@@ -83,11 +81,8 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
 import org.joml.Vector3d;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -100,8 +95,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private static final int PREVIEW_MODE_CUSTOM = 1;
     private static final int PREVIEW_MODE_AUTO = 2;
 
-    private static final Logger LOGGER = LogUtils.getLogger();
-
     private RunnerCameraController runner;
     private boolean lastRunning;
     private boolean restartPending;
@@ -109,7 +102,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private final Position position = new Position(0, 0, 0, 0, 0);
     private final Position lastPosition = new Position(0, 0, 0, 0, 0);
 
-    public UIFilmSelectionPanel selectionPanel;
 
     public UIElement main;
     public UIElement editArea;
@@ -128,6 +120,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     public UIIcon openFilmMenu;
     public UIIcon openCameraEditor;
     public UIIcon openReplayEditor;
+    public UIIcon layoutLock;
 
     private UICopyPasteController layoutPresetsController;
 
@@ -153,8 +146,10 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private boolean newFilm;
     private double timelineXMin = Double.NaN;
     private double timelineXMax = Double.NaN;
-    /** Vertical timeline scroll per film, so switching film tabs restores where each one was left. */
-    private final Map<String, FilmTimelineScroll> timelineScrollByFilm = new HashMap<>();
+    /* Vertical timeline scrolls per film id, so switching film tabs restores where each one was left */
+    private final ScrollMemory<String> cameraScrolls = new ScrollMemory<>();
+    private final ScrollMemory<String> actionScrolls = new ScrollMemory<>();
+    private final ScrollMemory<String> replayScrolls = new ScrollMemory<>();
 
     private FilmQueueExporter queueExporter;
 
@@ -164,12 +159,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private static final String PANEL_EDIT_AREA_ID = "editArea";
     private static final String PANEL_REPLAYS_LIST_ID = "replaysList";
     private static final String PANEL_REPLAY_PROPS_ID = "replayProps";
-    private static final int FILM_TOP_BAR_BUTTON_SIZE = UIDataTabs.TABS_HEIGHT_PX;
-    private static final int FILM_TOP_BAR_SEPARATOR_WIDTH = 8;
-    private static final int FILM_TOP_BAR_ACTIONS_WIDTH = FILM_TOP_BAR_BUTTON_SIZE * 3 + FILM_TOP_BAR_SEPARATOR_WIDTH;
     private UIElement selectedMainEditorPanel;
-    private UIElement topBarActions;
-    private UIElement topBarSeparator;
 
     /**
      * Initialize the camera editor with a camera profile.
@@ -177,7 +167,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     public UIFilmPanel(UIDashboard dashboard)
     {
         super(dashboard);
-        this.enableTabs();
         this.playerToCamera = BBSSettings.editorPlayerFollowsCamera.get();
 
         this.runner = new RunnerCameraController(this, (playing) ->
@@ -209,32 +198,38 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         this.selectedMainEditorPanel = this.cameraEditor;
 
-        /* Film panel keeps common CRUD actions inside film settings menu instead of the sidebar. */
-        this.iconBar.remove(this.openOverlay);
-        this.iconBar.remove(this.saveIcon);
-
-        /* Icon bar buttons */
-        this.openFilmMenu = new UIIcon(Icons.MORE, (b) ->
+        /* Not MORE: that icon is the film list now, and the menu beside it must not read the same */
+        this.openFilmMenu = new UIIcon(Icons.GEAR, (b) ->
         {
             this.getContext().replaceContextMenu(this::fillFilmContextMenu);
         });
         this.openCameraEditor = new UIIcon(Icons.FRUSTUM, (b) -> this.showPanel(this.cameraEditor));
         this.openReplayEditor = new UIIcon(Icons.SCENE, (b) -> this.showPanel(this.replayEditor));
 
+        this.layoutLock = new UIIcon(() -> this.dock.isLocked() ? Icons.LOCKED : Icons.UNLOCKED, (b) -> this.toggleLayoutLock());
+        this.layoutLock.tooltip(() -> (this.dock.isLocked() ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK).get());
+
         this.layoutPresetsController = new UICopyPasteController(PresetManager.LAYOUTS, "_CopyFilmLayout")
             .supplier(this::getFilmLayoutPresetData)
             .consumer(this::applyFilmLayoutFromPreset);
 
-        this.openFilmMenu.wh(FILM_TOP_BAR_BUTTON_SIZE, FILM_TOP_BAR_BUTTON_SIZE).tooltip(UIKeys.FILM_OPTIONS, Direction.BOTTOM);
-        this.openCameraEditor.wh(FILM_TOP_BAR_BUTTON_SIZE, FILM_TOP_BAR_BUTTON_SIZE).tooltip(UIKeys.FILM_OPEN_CAMERA_EDITOR, Direction.BOTTOM);
-        this.openReplayEditor.wh(FILM_TOP_BAR_BUTTON_SIZE, FILM_TOP_BAR_BUTTON_SIZE).tooltip(UIKeys.FILM_OPEN_REPLAY_EDITOR, Direction.BOTTOM);
+        this.openFilmMenu.tooltip(UIKeys.FILM_OPTIONS);
+        this.openCameraEditor.tooltip(UIKeys.FILM_OPEN_CAMERA_EDITOR);
+        this.openReplayEditor.tooltip(UIKeys.FILM_OPEN_REPLAY_EDITOR);
 
-        this.topBarActions = new UIElement();
-        this.topBarActions.relative(this.tabBar).x(1F, -FILM_TOP_BAR_ACTIONS_WIDTH).w(FILM_TOP_BAR_ACTIONS_WIDTH).h(UIDataTabs.TABS_HEIGHT_PX).row(0).resize();
-        this.topBarSeparator = new UIElement();
-        this.topBarSeparator.wh(FILM_TOP_BAR_SEPARATOR_WIDTH, UIDataTabs.TABS_HEIGHT_PX);
-        this.topBarActions.add(new UIRenderable(this::renderTopBarActions), this.openCameraEditor, this.openReplayEditor, this.topBarSeparator, this.openFilmMenu);
-        this.tabBar.add(this.topBarActions);
+        /* What the tour of this editor points at. The two editor buttons are one place: they
+         * only mean something as a pair. */
+        TourAnchors.register("film.preview", () -> this.preview);
+        TourAnchors.register("film.editors", () -> this.openCameraEditor, () -> this.openReplayEditor);
+        TourAnchors.register("film.timeline", () -> this.main);
+        TourAnchors.register("film.properties", () -> this.editArea);
+        TourAnchors.register("film.export", () -> this.preview.recordVideo);
+
+        this.actions()
+            .action(this.openCameraEditor, this.cameraEditor::isVisible)
+            .action(this.openReplayEditor, this.replayEditor::isVisible)
+            .layout(this.layoutLock, () -> this.dock.isLocked())
+            .menu(this.openFilmMenu);
 
         /* Setup elements */
 
@@ -263,6 +258,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }).active(active).category(looping);
         this.keys().register(Keys.LOOPING_SET_MIN, () -> this.cameraEditor.clips.setLoopMin()).active(active).category(looping);
         this.keys().register(Keys.LOOPING_SET_MAX, () -> this.cameraEditor.clips.setLoopMax()).active(active).category(looping);
+        Supplier<Boolean> hasFilm = () -> active.get() && this.data != null;
+
+        this.keys().register(Keys.MARKER_ADD, this::addMarkerAtCursor).active(hasFilm).category(editor);
+        this.keys().register(Keys.MARKER_NEXT, () -> this.setCursor(this.data.markers.findNextTick(this.getCursor()))).active(hasFilm).category(editor);
+        this.keys().register(Keys.MARKER_PREV, () -> this.setCursor(this.data.markers.findPreviousTick(this.getCursor()))).active(hasFilm).category(editor);
         this.keys().register(Keys.JUMP_FORWARD, () -> this.setCursor(this.getCursor() + BBSSettings.editorJump.get())).active(active).category(editor);
         this.keys().register(Keys.JUMP_BACKWARD, () -> this.setCursor(this.getCursor() - BBSSettings.editorJump.get())).active(active).category(editor);
         this.keys().register(Keys.FILM_CONTROLLER_CYCLE_EDITORS, () ->
@@ -304,8 +304,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                 UIUtils.playClick();
             }
         }).active(active).category(editor);
-
-        this.selectionPanel = new UIFilmSelectionPanel(this);
 
         /* Dockable layout, shared with the particle editor. */
         this.dock = new UIDockLayout();
@@ -360,7 +358,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         };
 
         this.add(element);
-        this.add(new UIFilmPanelUndoKeys(this).full(this));
+        this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         IValueListener refreshPreviewOnVideoResolution = (v, f) ->
         {
@@ -373,8 +371,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         BBSSettings.editorPreviewCustomHeight.postCallback(refreshPreviewOnVideoResolution);
         BBSSettings.editorPreviewResolutionScale.postCallback(refreshPreviewOnVideoResolution);
 
-        this.selectionPanel.relative(this).y(UIDataTabs.TABS_HEIGHT_PX).wTo(this.iconBar.area).h(1F, -UIDataTabs.TABS_HEIGHT_PX);
-        this.add(this.selectionPanel);
+        this.mountLanding();
+
+        this.onOpen(this::pickUpRecording);
+        this.onAppear(this::enterEditing);
+        this.onDisappear(this::leaveEditing);
+        this.onClose(this::leaveScreen);
     }
 
     private boolean isCursorOverTimeline(UIContext context)
@@ -404,100 +406,15 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     }
 
     @Override
-    protected int getSidebarWidthPx()
-    {
-        return 0;
-    }
-
-    @Override
-    protected int getTabsRightInsetPx()
-    {
-        return FILM_TOP_BAR_ACTIONS_WIDTH;
-    }
-
-    @Override
     public IKey getNewTabLabel()
     {
         return UIKeys.FILM_TABS_NEW_TAB;
     }
 
     @Override
-    public Icon getTabIcon(DataTab tab)
+    public Icon getTabIcon(String id)
     {
-        return tab != null && tab.dataId == null ? Icons.SEARCH : Icons.FILM;
-    }
-
-    public void renameFilmId(String from, String to)
-    {
-        if (from == null || to == null || from.equals(to))
-        {
-            return;
-        }
-
-        if (this.data != null && from.equals(this.data.getId()))
-        {
-            this.data.setId(to);
-        }
-
-        this.onDataRenamed(from, to);
-    }
-
-    public void renameFilmFolder(String fromPath, String name)
-    {
-        if (fromPath == null || name == null || name.trim().isEmpty())
-        {
-            return;
-        }
-
-        String oldPrefix = fromPath + "/";
-        int slash = fromPath.lastIndexOf('/');
-        String parentPath = slash >= 0 ? fromPath.substring(0, slash + 1) : "";
-        String newPrefix = parentPath + name + "/";
-
-        if (this.data != null)
-        {
-            String id = this.data.getId();
-
-            if (id != null && id.startsWith(oldPrefix))
-            {
-                this.data.setId(newPrefix + id.substring(oldPrefix.length()));
-            }
-        }
-
-        this.onDataFolderRenamed(fromPath, name);
-    }
-
-    public void deleteFilmIds(Set<String> ids)
-    {
-        if (ids == null || ids.isEmpty())
-        {
-            return;
-        }
-
-        for (String id : ids)
-        {
-            this.onDataRemoved(id);
-        }
-
-        this.updateTabVisibility();
-    }
-
-    public void deleteFilmFolders(Set<String> folderPaths)
-    {
-        if (folderPaths == null || folderPaths.isEmpty())
-        {
-            return;
-        }
-
-        for (String folder : folderPaths)
-        {
-            if (folder != null && !folder.isEmpty())
-            {
-                this.onDataFolderRemoved(folder);
-            }
-        }
-
-        this.updateTabVisibility();
+        return id == null ? Icons.SEARCH : Icons.FILM;
     }
 
     public void updateTabVisibility()
@@ -508,17 +425,13 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     /** Runs after every dock layout pass; the dock owns panel visibility, this owns what's inside them. */
     private void onDockLayoutChanged()
     {
-        boolean hasFilm = this.hasFilmInCurrentTab();
-
-        this.updateMainEditorVisibility(hasFilm);
-        this.selectionPanel.setVisible(!hasFilm);
+        this.updateMainEditorVisibility(this.hasFilmInCurrentTab());
+        this.syncLanding();
     }
 
     private boolean hasFilmInCurrentTab()
     {
-        DataTab tab = this.getCurrentDataTab();
-
-        return tab != null && tab.dataId != null;
+        return this.tabs.getCurrentId() != null;
     }
 
     private void updateMainEditorVisibility(boolean hasFilm)
@@ -551,6 +464,17 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     {
         this.dock.toggleLock();
         this.getFilmLayoutSettings().setDockUnlocked(ValueEditorLayout.FILM, !this.dock.isLocked());
+    }
+
+    /**
+     * Whether the replay editor is the chosen main editor, as opposed to the camera one.
+     * Deliberately not {@code replayEditor.isVisible()}: that also goes false when both
+     * dock panels are collapsed for a full-screen preview, which is precisely when
+     * dragging an actor around in the viewport is most useful.
+     */
+    public boolean isReplayEditorSelected()
+    {
+        return this.selectedMainEditorPanel == this.replayEditor;
     }
 
     /** Which editor's own layout id the current view corresponds to. */
@@ -643,6 +567,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         return data;
     }
 
+    /** A layout preset from outside the preset menu — the welcome screen offers the shipped ones. */
+    public void applyLayoutPreset(MapType data)
+    {
+        this.applyFilmLayoutFromPreset(data, 0, 0);
+    }
+
     private void applyFilmLayoutFromPreset(MapType data, int mouseX, int mouseY)
     {
         BaseType layoutData = data.get("film_layout");
@@ -692,21 +622,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     private void fillFilmContextMenu(ContextMenuManager menu)
     {
-        menu.action(Icons.FILM, UIKeys.FILM_TITLE, this::openFilmListOverlay);
-
-        if (this.data == null)
-        {
-            return;
-        }
-
-        menu.action(Icons.SAVED, UIKeys.GENERAL_SAVE, this::save);
+        /* The film list, saving and the layout lock are buttons of the action bar, not entries here */
         menu.action(Icons.LAYOUT, UIKeys.FILM_LAYOUT_PRESETS, this::openLayoutPresetsMenu);
         menu.action(Icons.LINK, UIKeys.FILM_LAYOUT_BIND_TO_EDITOR, this.isCurrentFilmLayoutBound(), this::toggleCurrentFilmLayoutBinding);
         menu.action(Icons.REFRESH, UIKeys.FILM_LAYOUT_RESET, this::resetFilmLayout);
         this.dock.fillHiddenPanelsMenu(menu);
-        boolean locked = this.dock.isLocked();
-
-        menu.action(locked ? Icons.UNLOCKED : Icons.LOCKED, locked ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK, locked, this::toggleLayoutLock);
 
         menu.action(Icons.LIST, UIKeys.FILM_OPEN_HISTORY, () ->
         {
@@ -764,7 +684,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                         channel.insertSpace(this.getCursor(), d.intValue());
                     }
 
-                    for (KeyframeChannel channel : replay.properties.properties.values())
+                    for (KeyframeChannel channel : replay.properties.tracks.values())
                     {
                         channel.insertSpace(this.getCursor(), d.intValue());
                     }
@@ -837,22 +757,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         return new Vector3d();
     }
 
-    private void openFilmListOverlay()
-    {
-        UIOverlay.addOverlay(this.getContext(), this.overlay, 200, 0.9F);
-    }
-
     private void openLayoutPresetsMenu()
     {
         UIContext context = this.getContext();
 
         this.layoutPresetsController.openPresets(context, context.mouseX, context.mouseY);
-    }
-
-    @Override
-    protected boolean shouldAutoOpenListOnFirstResize()
-    {
-        return false;
     }
 
     @Override
@@ -866,15 +775,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             this.applyPreviewSizeToBBS();
         }
-    }
-
-    /**
-     * Returns the currently-active queue exporter, or {@code null} when no
-     * multi-film export is in progress.
-     */
-    public FilmQueueExporter getQueueExporter()
-    {
-        return this.queueExporter;
     }
 
     /**
@@ -1003,8 +903,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         if (h % 2 != 0) h++;
 
         boolean applied = w != BBSRendering.getVideoWidth() || h != BBSRendering.getVideoHeight();
-        LOGGER.info("[BBS film] applyPreviewSizeToBBS mode={} cameraEditor={} -> w={} h={} applied={}",
-            previewMode, this.cameraEditor.isVisible(), w, h, applied);
 
         if (applied)
         {
@@ -1112,14 +1010,14 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             return;
         }
 
-        FilmTimelineScroll scroll = this.timelineScrollByFilm.computeIfAbsent(this.data.getId(), (id) -> new FilmTimelineScroll());
+        String id = this.data.getId();
 
-        scroll.camera = this.cameraEditor.clips.vertical.getScroll();
-        scroll.action = this.actionEditor.clips.vertical.getScroll();
+        this.cameraScrolls.save(id, this.cameraEditor.clips.vertical.getScroll());
+        this.actionScrolls.save(id, this.actionEditor.clips.vertical.getScroll());
 
         if (this.replayEditor.keyframeEditor != null)
         {
-            scroll.replay = this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().getScroll();
+            this.replayScrolls.save(id, this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().getScroll());
         }
     }
 
@@ -1130,19 +1028,21 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             return;
         }
 
-        FilmTimelineScroll scroll = this.timelineScrollByFilm.get(this.data.getId());
+        String id = this.data.getId();
 
-        if (scroll == null)
+        if (this.cameraScrolls.has(id))
         {
-            return;
+            this.restoreClipsScroll(this.cameraEditor.clips, this.cameraScrolls.get(id));
         }
 
-        this.restoreClipsScroll(this.cameraEditor.clips, scroll.camera);
-        this.restoreClipsScroll(this.actionEditor.clips, scroll.action);
-
-        if (this.replayEditor.keyframeEditor != null)
+        if (this.actionScrolls.has(id))
         {
-            this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().setScroll(scroll.replay);
+            this.restoreClipsScroll(this.actionEditor.clips, this.actionScrolls.get(id));
+        }
+
+        if (this.replayScrolls.has(id) && this.replayEditor.keyframeEditor != null)
+        {
+            this.replayEditor.keyframeEditor.view.getDopeSheet().getYAxis().setScroll(this.replayScrolls.get(id));
         }
     }
 
@@ -1156,13 +1056,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         /* Scroll size depends on the freshly loaded clips, so recompute it before clamping the restored scroll. */
         clips.updateScrollSize();
         clips.vertical.setScroll(scroll);
-    }
-
-    private static class FilmTimelineScroll
-    {
-        public double camera;
-        public double action;
-        public double replay;
     }
 
     public UIFilmController getController()
@@ -1218,51 +1111,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
     }
 
-    public void dupeCurrentFilmTo(String name)
-    {
-        this.dupeData(name);
-    }
-
-    public void dupeFilmTo(String sourceId, String name)
-    {
-        if (name == null || name.trim().isEmpty())
-        {
-            return;
-        }
-
-        Film current = this.getData();
-
-        if (current != null && (sourceId == null || sourceId.equals(current.getId())))
-        {
-            this.dupeData(name);
-
-            return;
-        }
-
-        if (sourceId == null || sourceId.trim().isEmpty() || this.overlay.namesList.hasInHierarchy(name))
-        {
-            return;
-        }
-
-        this.save();
-
-        this.getType().getRepository().load(sourceId, (loaded) ->
-        {
-            Film source = (Film) loaded;
-
-            if (source == null)
-            {
-                return;
-            }
-
-            Film duplicated = this.createDuplicateFilm(name, source);
-
-            this.fill(duplicated);
-            this.save();
-            this.requestNames();
-        });
-    }
-
     private Film createDuplicateFilm(String name, Film source)
     {
         Film data = new Film();
@@ -1293,7 +1141,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
                 }
             }
 
-            for (Map.Entry<String, KeyframeChannel> entry : replay.properties.properties.entrySet())
+            for (Map.Entry<TrackId, KeyframeChannel> entry : replay.properties.tracks.entrySet())
             {
                 KeyframeChannel channel = entry.getValue();
 
@@ -1312,8 +1160,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
                 if (!newChannel.isEmpty())
                 {
-                    copy.properties.properties.put(newChannel.getId(), newChannel);
-                    copy.properties.add(newChannel);
+                    copy.properties.put(entry.getKey(), newChannel);
                 }
             }
 
@@ -1325,15 +1172,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     /**
      * Runs for every panel the dashboard owns, not just the one being looked at - so nothing here may
-     * touch the world. Playback is started from {@link #appear()} instead: a film left open in this
-     * panel used to be replayed into the world the moment any BBS screen was opened, damage control
-     * and all, while the user was in the model editor.
+     * touch the world. Playback is started from {@link #enterEditing()} instead: a film left open in
+     * this panel used to be replayed into the world the moment any BBS screen was opened, damage
+     * control and all, while the user was in the model editor.
      */
-    @Override
-    public void open()
+    private void pickUpRecording()
     {
-        super.open();
-
         Recorder recorder = BBSModClient.getFilms().stopRecording();
 
         if (recorder != null && !recorder.hasNotStarted())
@@ -1373,20 +1217,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             {
                 rp.keyframes.copyOver(recorder.keyframes, 0);
 
-                Form form = rp.form.get();
-
-                if (form != null)
-                {
-                    for (Map.Entry<String, KeyframeChannel> entry : recorder.properties.properties.entrySet())
-                    {
-                        KeyframeChannel channel = rp.properties.getOrCreate(form, entry.getKey());
-
-                        if (channel != null && entry.getValue() != null)
-                        {
-                            channel.copyOver(entry.getValue(), 0);
-                        }
-                    }
-                }
 
                 f.hp.set(recorder.hp);
                 f.hunger.set(recorder.hunger);
@@ -1427,12 +1257,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.controller.createEntities();
     }
 
-    @Override
-    public void appear()
+    private void enterEditing()
     {
-        super.appear();
-
-        /* appear() also fires while the dashboard is being lazily constructed (the
+        /* This also fires while the dashboard is being lazily constructed (the
          * teleport/record keybinds create it on first use), at which point there's no
          * context and the editor isn't actually shown. Running the side effects below
          * there leaks editor state into the plain world — most importantly it adds the
@@ -1468,29 +1295,20 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.notifyServer(ActionState.RESTART);
     }
 
-    @Override
-    public void close()
+    /**
+     * Leaving the screen. The world effects are not undone here: an editor that was on screen has
+     * already been through {@link #leaveEditing()} by the time this runs (see
+     * {@code UIDashboardPanels.close}), and one that was not never put them up.
+     */
+    private void leaveScreen()
     {
         if (this.queueExporter != null)
         {
             this.queueExporter.cancel();
         }
 
-        super.close();
-
-        BBSRendering.setCustomSize(false);
-        MorphRenderer.hidePlayer = false;
-
-        CameraController cameraController = this.getCameraController();
-
         this.cameraEditor.embedView(null);
-        this.setFlight(false);
-        cameraController.remove(this.runner);
-
-        this.disableContext();
         this.replayEditor.close();
-
-        this.notifyServer(ActionState.STOP);
 
         this.freezeFrame();
     }
@@ -1499,10 +1317,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
      * Opt-in: instead of vanishing with the editor, the tick that was on screen stays in the world,
      * handed over to a controller that keeps rendering it (see {@link FrozenFilmController}).
      *
-     * <p>Only when the film editor is the panel being looked at &mdash; {@link #close()} runs for
-     * every panel the dashboard owns, so a film nobody had open must not pop into the world on the
-     * way out of, say, the model editor. For the same reason a frame frozen on an earlier exit is
-     * left alone there: it is taken down when the editor genuinely comes back (see {@link #appear()}).
+     * <p>Only when the film editor is the panel being looked at &mdash; {@link #leaveScreen()} runs
+     * for every panel the dashboard owns, so a film nobody had open must not pop into the world on
+     * the way out of, say, the model editor. For the same reason a frame frozen on an earlier exit
+     * is left alone there: it is taken down when the editor genuinely comes back (see
+     * {@link #enterEditing()}).
      */
     private void freezeFrame()
     {
@@ -1525,11 +1344,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
     }
 
-    @Override
-    public void disappear()
+    private void leaveEditing()
     {
-        super.disappear();
-
         BBSRendering.setCustomSize(false);
         MorphRenderer.hidePlayer = false;
 
@@ -1575,6 +1391,18 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     public IKey getTitle()
     {
         return UIKeys.FILM_TITLE;
+    }
+
+    @Override
+    public IKey getCreateLabel()
+    {
+        return UIKeys.FILM_LANDING_NEW;
+    }
+
+    @Override
+    public IKey getListLabel()
+    {
+        return UIKeys.FILM_LANDING_LIST;
     }
 
     @Override
@@ -1627,7 +1455,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             this.undoHandler = null;
         }
 
-        this.openFilmMenu.setEnabled(true);
+        /* Everything left in the film menu needs an open film, and so does the layout it locks */
+        this.openFilmMenu.setEnabled(data != null);
+        this.layoutLock.setEnabled(data != null);
         this.openCameraEditor.setEnabled(data != null);
         this.openReplayEditor.setEnabled(data != null);
         this.duplicateFilm.setEnabled(data != null);
@@ -1662,17 +1492,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
 
         this.updateTabVisibility();
-    }
-
-    @Override
-    public void fillNames(Collection<String> names)
-    {
-        super.fillNames(names);
-
-        if (this.selectionPanel != null)
-        {
-            this.selectionPanel.fillNames(names);
-        }
     }
 
     public void undo()
@@ -1722,6 +1541,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             else
             {
                 this.lastPosition.set(Position.ZERO);
+                this.dashboard.orbit.apply(this.position);
             }
 
             this.runner.setManual(flight ? this.position : null);
@@ -1810,58 +1630,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.updateLogic(context);
     }
 
-    @Override
-    protected void renderBackground(UIContext context)
-    {
-        super.renderBackground(context);
-    }
-
-    private void renderTopBarActions(UIContext context)
-    {
-        if (this.topBarActions == null || !this.topBarActions.isVisible())
-        {
-            return;
-        }
-
-        this.renderTopBarButton(context, this.openCameraEditor, this.cameraEditor.isVisible());
-        this.renderTopBarButton(context, this.openReplayEditor, this.replayEditor.isVisible());
-        this.renderTopBarSeparator(context);
-        this.renderTopBarButton(context, this.openFilmMenu, false);
-    }
-
-    private void renderTopBarButton(UIContext context, UIIcon button, boolean active)
-    {
-        if (button == null || !button.isVisible())
-        {
-            return;
-        }
-
-        Area area = button.area;
-        boolean hover = area.isInside(context.mouseX, context.mouseY);
-
-        if (active)
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, area, Direction.BOTTOM);
-        }
-        else if (hover)
-        {
-            context.batcher.box(area.x, area.y, area.ex(), area.ey(), BBSSettings.color(BBSSettings.raisedSurface(), Colors.A25));
-        }
-    }
-
-    private void renderTopBarSeparator(UIContext context)
-    {
-        if (this.topBarSeparator == null || !this.topBarSeparator.isVisible())
-        {
-            return;
-        }
-
-        Area area = this.topBarSeparator.area;
-        int x = area.mx();
-
-        context.batcher.box(x, area.y + 3, x + 1, area.ey() - 3, BBSSettings.dividerColor());
-    }
-
     /**
      * Draw everything on the screen
      */
@@ -1922,11 +1690,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         if (this.editor.isVisible())
         {
             this.preview.area.render(context.batcher, Colors.A75);
-        }
-
-        if (this.getData() == null)
-        {
-            this.openOverlay.area.copy(this.openFilmMenu.area);
         }
 
         BBSSettings.lightInputs = true;
@@ -2082,16 +1845,43 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     @Override
     public void setCursor(int value)
     {
+        int ticks = Math.max(0, value);
+        boolean moved = ticks != this.runner.ticks;
+
         this.flightEditTime.mark();
         this.lastPosition.set(Position.ZERO);
 
-        this.runner.ticks = Math.max(0, value);
+        this.runner.ticks = ticks;
 
         this.notifyServer(ActionState.SEEK);
 
-        if (BBSSettings.editorRestartOnSeek.get())
+        if (moved && BBSSettings.editorRestartOnSeek.get())
         {
             this.restartPending = true;
+        }
+    }
+
+    /**
+     * Drops a marker where the playhead stands, or opens the one already standing there &mdash;
+     * pressing the key twice on the same tick is how you get to naming it without the mouse.
+     */
+    private void addMarkerAtCursor()
+    {
+        if (this.data == null)
+        {
+            return;
+        }
+
+        int tick = this.getCursor();
+        FilmMarker marker = this.data.markers.getAt(tick);
+
+        if (marker == null)
+        {
+            this.data.markers.addMarker(tick);
+        }
+        else
+        {
+            this.cameraEditor.clips.editMarker(marker);
         }
     }
 

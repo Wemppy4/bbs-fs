@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.clips.misc.Subtitle;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -59,18 +60,14 @@ public class UISubtitleRenderer
         Supplier<ShaderProgram> supplier = () -> program;
 
         net.minecraft.client.gl.Framebuffer fb = MinecraftClient.getInstance().getFramebuffer();
-        int width = fb.textureWidth;
-        int height = fb.textureHeight;
+        float width = UIImageRenderer.getUnitWidth();
+        float height = Placement.HEIGHT;
 
         Matrix4f cache = new Matrix4f(RenderSystem.getProjectionMatrix());
-
-        width /= 2;
-        height /= 2;
 
         Framebuffer framebuffer = getTextFramebuffer();
         Texture texture = framebuffer.getMainTexture();
         Matrix4f ortho = new Matrix4f().ortho(0, width, height, 0, -100, 100);
-        FontRenderer font = Batcher2D.getDefaultTextRenderer();
 
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
         RenderSystem.disableCull();
@@ -85,11 +82,25 @@ public class UISubtitleRenderer
             }
 
             String label = StringUtils.processColoredText(subtitle.label);
+            /* The framebuffer is the subtitle's own size times its scale, so that scale is
+             * exactly how many pixels a unit of the layout below covers. */
+            FontRenderer font = BBSModClient.getFonts().get(subtitle.font, subtitle.fontSize, subtitle.placement.scaleX);
+
+            if (font == null)
+            {
+                font = Batcher2D.getDefaultTextRenderer();
+            }
+
+            /* Line spacing of 0 has always drawn every line on top of the previous one,
+             * so nothing out there means it - it's free to stand for "ask the font". */
+            int lineHeight = subtitle.lineHeight > 0 ? subtitle.lineHeight : font.getLineHeight();
+            Placement placement = subtitle.placement;
             int w = 0;
             int h = 0;
-            int x = (int) (width * subtitle.windowX + subtitle.x);
-            int y = (int) (height * subtitle.windowY + subtitle.y);
-            float scale = subtitle.size;
+            float x = width * placement.windowX + placement.offsetX;
+            float y = height * placement.windowY + placement.offsetY;
+            float scaleX = placement.scaleX;
+            float scaleY = placement.scaleY;
             int subColor = subtitle.color;
 
             List<String> strings = subtitle.maxWidth <= 10 ? Arrays.asList(label) : font.wrap(label, subtitle.maxWidth);
@@ -99,7 +110,7 @@ public class UISubtitleRenderer
                 w = Math.max(w, font.getWidth(string.trim()));
             }
 
-            h = (strings.size() - 1) * subtitle.lineHeight + font.getHeight();
+            h = (strings.size() - 1) * lineHeight + font.getHeight();
 
             Texture imgTex = null;
             float gap = 6F;
@@ -112,7 +123,7 @@ public class UISubtitleRenderer
 
                 if (imgTex != BBSModClient.getTextures().getError())
                 {
-                    int base = subtitle.lineHeight > 0 ? subtitle.lineHeight : font.getHeight();
+                    int base = lineHeight;
                     imgH = base * subtitle.imageScale;
                     if (imgH <= 0) imgH = 0;
                     if (imgTex.height > 0)
@@ -125,8 +136,8 @@ public class UISubtitleRenderer
             float contentW = w + (imgTex != null && imgH > 0 ? (gap + imgW) : 0);
             float contentH = Math.max(h, imgH);
 
-            int fw = (int) ((contentW + 10) * scale);
-            int fh = (int) ((contentH + 10) * scale);
+            int fw = (int) ((contentW + 10) * scaleX);
+            int fh = (int) ((contentH + 10) * scaleY);
 
             RenderSystem.setProjectionMatrix(new Matrix4f().ortho(0, contentW + 10, 0, contentH + 10, -100, 100), VertexSorter.BY_Z);
 
@@ -158,18 +169,29 @@ public class UISubtitleRenderer
                 batcher.texturedBox(imgTex, Colors.setA(Colors.WHITE, 1F), imgX, imgY, imgW, imgH, 0, 0, imgTex.width, imgTex.height, imgTex.width, imgTex.height);
             }
 
-            for (String string : strings)
+            FontRenderer previousFont = batcher.setFont(font);
+
+            try
             {
-                string = string.trim();
+                for (String string : strings)
+                {
+                    string = string.trim();
 
-                int xx = (int) (textLeft + (textAreaW - font.getWidth(string)) / 2F);
-                batcher.text(string, xx, (int) yy, Colors.setA(subColor, 1F), subtitle.textShadow);
+                    int xx = (int) (textLeft + (textAreaW - font.getWidth(string)) / 2F);
+                    batcher.text(string, xx, (int) yy, Colors.setA(subColor, 1F), subtitle.textShadow);
 
-                yy += subtitle.lineHeight;
+                    yy += lineHeight;
+                }
+            }
+            finally
+            {
+                batcher.setFont(previousFont);
             }
 
             /* Render the texture */
             fb.beginWrite(true);
+
+            subtitle.box.set(x - fw * placement.anchorX, y - fh * placement.anchorY, fw, fh, width);
 
             RenderSystem.setProjectionMatrix(ortho, VertexSorter.BY_Z);
 
@@ -194,7 +216,7 @@ public class UISubtitleRenderer
             RenderSystem.enableBlend();
             RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
 
-            batcher.texturedBox(supplier, texture.id, Colors.setA(Colors.WHITE, alpha), -fw * subtitle.anchorX, -fh * subtitle.anchorY, texture.width, texture.height, 0, 0, texture.width, texture.height, texture.width, texture.height);
+            batcher.texturedBox(supplier, texture.id, Colors.setA(Colors.WHITE, alpha), -fw * placement.anchorX, -fh * placement.anchorY, texture.width, texture.height, 0, 0, texture.width, texture.height, texture.width, texture.height);
 
             stack.pop();
         }

@@ -15,7 +15,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeSection;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Lerps;
@@ -60,12 +60,8 @@ public class UICurve extends UIElement
 
         this.context((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.SNOWSTORM_CURVES_CONTEXT_ADD, this::addPoint);
-
-            if (this.index >= 0)
-            {
-                menu.action(Icons.REMOVE, UIKeys.SNOWSTORM_CURVES_CONTEXT_REMOVE, this::removePoint);
-            }
+            menu.icon(MenuVerb.ADD, this::addPoint).label(UIKeys.SNOWSTORM_CURVES_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removePoint).label(UIKeys.SNOWSTORM_CURVES_CONTEXT_REMOVE).enabled(this.index >= 0);
         });
     }
 

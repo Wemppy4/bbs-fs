@@ -50,4 +50,10 @@ public class ValueStringMap extends BaseValueBasic<Map<String, String>>
             }
         }
     }
+
+    @Override
+    protected Map<String, String> copyValue(Map<String, String> value)
+    {
+        return value == null ? null : new LinkedHashMap<>(value);
+    }
 }

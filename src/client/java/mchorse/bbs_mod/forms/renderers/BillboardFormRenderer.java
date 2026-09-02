@@ -7,6 +7,8 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
+import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -35,14 +37,14 @@ import org.joml.Vector4f;
 
 import java.util.function.Supplier;
 
-public class BillboardFormRenderer extends FormRenderer<BillboardForm>
+public class BillboardFormRenderer <T extends BillboardForm> extends FormRenderer<T>
 {
     private static final Quad quad = new Quad();
     private static final Quad uvQuad = new Quad();
 
     private static final Matrix4f matrix = new Matrix4f();
 
-    public BillboardFormRenderer(BillboardForm form)
+    public BillboardFormRenderer(T form)
     {
         super(form);
     }
@@ -92,16 +94,25 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         this.renderModel(format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
     }
 
-    private void renderModel(VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    /**
+     * The texture the quad wears. The video form's renderer swaps this for a
+     * decoded video frame; everything else about the quad stays shared.
+     */
+    protected Texture getTexture()
     {
         Link t = this.form.texture.get();
 
-        if (t == null)
+        return t == null ? null : BBSModClient.getTextures().getTexture(t);
+    }
+
+    private void renderModel(VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    {
+        Texture texture = this.getTexture();
+
+        if (texture == null)
         {
             return;
         }
-
-        Texture texture = BBSModClient.getTextures().getTexture(t);
 
         float w = texture.width;
         float h = texture.height;
@@ -174,7 +185,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         MatrixStack.Entry entry = matrices.peek();
 
-        FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
+        FormColorBlend.blend(color, this.form.color.get());
 
         if (this.form.billboard.get())
         {
@@ -185,6 +196,20 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
 
         gameRenderer.getLightmapTextureManager().enable();
         gameRenderer.getOverlayTexture().setupOverlayColor();
+
+        /* The color overlay rides the overlay-texture channel, so it needs the shaded format
+         * (the no-shading format has no overlay UV) and steps aside for a hurt flash. Picker
+         * programs don't sample unit 1, so this is inert while picking. */
+        Color formOverlay = this.form.overlayColor.get();
+        boolean overlayActive = format == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
+            && overlay == OverlayTexture.DEFAULT_UV
+            && OverlayBlend.isActive(formOverlay);
+        int previousOverlayTexture = overlayActive ? FormOverlay.bind(formOverlay) : 0;
+
+        if (overlayActive)
+        {
+            overlay = 0;
+        }
 
         ShaderProgram finalShader = shader.get();
 
@@ -248,7 +273,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
                         texture.setFilterMipmap(linear, mipmap);
                     },
                     () -> texture.setFilterMipmap(false, false)
-                ));
+                ).overlayColor(overlayActive ? formOverlay : null));
             }
             else
             {
@@ -257,6 +282,11 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         }
 
         texture.setFilterMipmap(false, false);
+
+        if (overlayActive)
+        {
+            FormOverlay.unbind(previousOverlayTexture);
+        }
 
         gameRenderer.getLightmapTextureManager().disable();
         gameRenderer.getOverlayTexture().teardownOverlayColor();

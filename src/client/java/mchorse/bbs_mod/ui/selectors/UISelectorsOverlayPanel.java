@@ -9,7 +9,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.forms.UINestedEdit;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
@@ -18,8 +18,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.util.Identifier;
 
@@ -27,9 +26,12 @@ import java.util.List;
 
 public class UISelectorsOverlayPanel extends UIOverlayPanel
 {
+    /** Width of the list side, the way the settings panel splits itself. */
+    public static final int SIDE_WIDTH = 150;
+
     public UISelectorList selectors;
 
-    public UIElement column;
+    public UIScrollView column;
     public UIToggle enabled;
     public UINestedEdit form;
     public UITextbox entity;
@@ -108,29 +110,26 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
 
         this.selectors.context((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.SELECTORS_CONTEXT_ADD, () ->
+            menu.icon(MenuVerb.ADD, () ->
             {
                 EntitySelector element = new EntitySelector();
 
                 this.selectors.add(element);
                 this.setSelector(element, true);
                 BBSModClient.getSelectors().update();
-            });
+            }).label(UIKeys.SELECTORS_CONTEXT_ADD);
 
-            if (this.current != null)
+            menu.icon(MenuVerb.REMOVE, () ->
             {
-                menu.action(Icons.REMOVE, UIKeys.SELECTORS_CONTEXT_REMOVE, () ->
-                {
-                    List<EntitySelector> list = this.selectors.getList();
+                List<EntitySelector> list = this.selectors.getList();
 
-                    list.remove(this.current);
-                    this.setSelector(list.isEmpty() ? null : list.get(0), true);
-                    BBSModClient.getSelectors().update();
-                });
-            }
+                list.remove(this.current);
+                this.setSelector(list.isEmpty() ? null : list.get(0), true);
+                BBSModClient.getSelectors().update();
+            }).label(UIKeys.SELECTORS_CONTEXT_REMOVE).enabled(this.current != null);
         });
 
-        this.column = UI.column(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,
+        this.column = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,
             this.enabled,
             this.form,
             UI.labelRow(UIKeys.SELECTORS_ENTITY_ID, this.entity).marginTop(UIConstants.SECTION_GAP),
@@ -139,8 +138,9 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
             this.nbt
         );
 
-        this.selectors.relative(this.content).w(1F).hTo(this.column.area);
-        this.column.relative(this.content).y(1F).w(1F).anchor(0F, 1F);
+        /* Selectors on the left, the properties of the selected one on the right — same split as the settings panel */
+        this.selectors.relative(this.content).w(SIDE_WIDTH).h(1F);
+        this.column.relative(this.content).x(SIDE_WIDTH).w(1F, -SIDE_WIDTH).h(1F);
 
         this.add(this.column, this.selectors);
         this.onClose((e) -> BBSModClient.getSelectors().save());
@@ -175,5 +175,9 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
         super.renderBackground(context);
 
         this.content.area.render(context.batcher, BBSSettings.baseSurface());
+
+        int x = this.content.area.x;
+
+        context.batcher.box(x, this.content.area.y, x + SIDE_WIDTH, this.content.area.ey(), BBSSettings.chromeSurface());
     }
 }

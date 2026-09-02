@@ -30,7 +30,11 @@ public class Importers
 {
     private final static List<IImporter> importers = new ArrayList<>();
 
-    static
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     */
+    public static void setup()
     {
         importers.add(new ToPNGImporter(UIKeys.IMPORTER_JPEG, ".jpg", ".jpeg"));
         importers.add(new ToPNGImporter(UIKeys.IMPORTER_WEBP, ".webp"));
@@ -42,6 +46,17 @@ public class Importers
         importers.add(new OldSkinImporter());
         importers.add(new PNGImporter());
         importers.add(new WAVImporter());
+    }
+
+    /**
+     * Adds an importer — what happens to a file of some type dragged into an assets folder.
+     *
+     * <p>The javadoc above has called this class a registry since it was written; until now it
+     * was one only for BBS itself.</p>
+     */
+    public static void register(IImporter importer)
+    {
+        importers.add(importer);
     }
 
     public static List<IImporter> getImporters()

@@ -17,16 +17,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * One live transform gesture: a single operation, in a single control style
- * (axis ray, screen plane, ring sweep, trackball, ...), owning all of its
- * per-gesture state. The host editor creates a strategy when an edit starts
- * ({@link DragStrategyFactory}), feeds it the cursor each frame, and drops it
- * when the edit ends — so no state leaks between modes or between gestures.
+ * One live transform gesture: a single operation in a single control style (axis ray,
+ * screen plane, ring sweep, trackball...), owning all of its per-gesture state. The host
+ * builds one when an edit starts, feeds it the cursor each frame and drops it at the end,
+ * so no state leaks between gestures.
  *
- * <p>{@link #begin} anchors the gesture at the cursor and is re-invoked on
- * every cursor wrap, so implementations must be idempotent with respect to
- * their accumulated amounts (fold or keep them; never reset the user's
- * progress).
+ * <p>🔴 {@link #begin} is re-invoked on every cursor wrap, so implementations must be
+ * idempotent about their accumulated amounts — never reset the user's progress.
  */
 public abstract class DragStrategy
 {
@@ -40,14 +37,10 @@ public abstract class DragStrategy
     protected static final float TRACKBALL_WHEEL_DEG = 5F;
 
     /* ── Drag debug logging ─────────────────────────────────────────────────
-     * A single throttled, detailed dump of the live gesture, meant for diagnosing
-     * transform/gizmo bugs. It goes to a FILE (not the console, which drowns in
-     * per-frame spam): {@link #DRAG_LOG_FILE} in the game folder, TRUNCATED at the
-     * start of every gesture — so the file always holds exactly the last drag and
-     * can be read whole. Flip {@link #LOG_DRAG} to disable without removing the
-     * plumbing; the thresholds keep the file compact — a line is emitted only once
-     * the gesture has moved at least this much since the last one (rotation in
-     * degrees, translation in channel units, scale per axis). */
+     * A throttled dump of the live gesture for diagnosing transform/gizmo bugs, written
+     * to {@link #DRAG_LOG_FILE} in the game folder (not the console, which drowns in
+     * per-frame spam) and TRUNCATED at the start of every gesture, so the file always
+     * holds exactly the last drag. The thresholds below keep it compact. */
 
     /** Master switch for the per-drag dump. */
     private static final boolean LOG_DRAG = false;
@@ -267,14 +260,10 @@ public abstract class DragStrategy
             MathUtils.toDeg(now.z - start.z));
     }
 
-    /**
-     * Whether this gesture must refuse because the bone's rotation is owned by
-     * an enabled IK chain ({@link DragContext#rotationConstrained}): the render
-     * follows the solve, not the FK channels, so a rotation gesture would sweep
-     * while the bone ignores it. Every rotation strategy checks this in both
-     * {@code begin} (the gesture never starts) and {@code applyNumeric} (typed
-     * degrees on a refused gesture must not write either).
-     */
+    /** Whether this gesture must refuse because an enabled IK chain owns the rotation:
+     *  the render follows the solve, so the gesture would sweep while the bone ignores it.
+     *  🔴 Checked in BOTH {@code begin} and {@code applyNumeric} — typed degrees on a
+     *  refused gesture must not write either. */
     protected boolean refuseConstrainedRotation()
     {
         return this.op == TransformOp.ROTATE && this.ctx.rotationConstrained();
@@ -285,16 +274,10 @@ public abstract class DragStrategy
      * the exact same semantics: an offset for translate (units) and rotate
      * (degrees), a factor for scale. */
 
-    /**
-     * The typed offset of a translate gesture: {@code value} WORLD units along
-     * the active space's axes as drawn, through {@link #spaceTranslateOffset}
-     * — the exact basis the ray drag slides along, in every space including
-     * LOCAL (the drawn local frame is the truth even for additive layers like
-     * pose overlays, whose own channel rotation is near identity). Without a
-     * drag snapshot there is no frame to map through; the legacy fallbacks
-     * remain — the analytic local vector for LOCAL, raw channel units
-     * otherwise.
-     */
+    /** The typed offset of a translate gesture: {@code value} WORLD units along the
+     *  active frame's drawn axes, through {@link #spaceTranslateOffset} — the exact basis
+     *  the ray drag slides along. Without a snapshot there is no frame to map through, and
+     *  the fallbacks take over (analytic local vector for LOCAL, raw channels otherwise). */
     protected Vector3f numericTranslateOffset(double value)
     {
         Vector3f offset = this.spaceTranslateOffset(value, this.axis, this.axis2);
@@ -304,7 +287,7 @@ public abstract class DragStrategy
             return offset;
         }
 
-        if (this.ctx.isLocal())
+        if (this.ctx.space().isLocal())
         {
             offset = this.ctx.localTranslateVector(value, this.axis);
 
@@ -325,15 +308,10 @@ public abstract class DragStrategy
         return offset;
     }
 
-    /**
-     * Channel offset of {@code value} world units along the active space's
-     * axes — {@code J⁻¹ · frameBasis(space)}, the same mapping the ray
-     * translate drag builds in its {@code begin()}, kept in one place so the
-     * typed input, the additive lever and the cursor drag can never disagree
-     * about what a space's axis means. Returns {@code null} when there is no
-     * drag snapshot (no frame nor Jacobian to map through) or no axis; the
-     * caller then falls back to its legacy raw-channel behaviour.
-     */
+    /** Channel offset of {@code value} world units along the frame's axes —
+     *  {@code J⁻¹ · frameBasis(space)}, the same mapping the ray drag builds, kept in one
+     *  place so typed input, the additive lever and the cursor drag can never disagree
+     *  about what a frame's axis means. {@code null} without a snapshot or an axis. */
     protected Vector3f spaceTranslateOffset(double value, Axis axis, Axis axis2)
     {
         GizmoDrag drag = this.ctx.drag();
@@ -426,16 +404,9 @@ public abstract class DragStrategy
 
     /* ── Drag debug logging ──────────────────────────────────────────────── */
 
-    /**
-     * Dump a detailed snapshot of the live gesture to {@link #DRAG_LOG_FILE},
-     * throttled so it only fires once the transform has moved a meaningful step
-     * since the last dump (see {@link #LOG_STEP_DEG} / {@link #LOG_STEP_TRANSLATE} /
-     * {@link #LOG_STEP_SCALE}). The host calls this once per drag frame, right
-     * after {@link #update}; it is a no-op unless {@link #LOG_DRAG} is on.
-     *
-     * <p>The file is truncated on the first dump of each gesture, so it always
-     * holds exactly the drag in progress and stays small enough to read whole.
-     */
+    /** Dump the live gesture to {@link #DRAG_LOG_FILE}, throttled by the LOG_STEP_*
+     *  thresholds. Called once per drag frame right after {@link #update}; a no-op unless
+     *  {@link #LOG_DRAG} is on. Truncated on the gesture's first dump. */
     public final void logDrag()
     {
         if (!LOG_DRAG)
@@ -507,9 +478,9 @@ public abstract class DragStrategy
             .append("  style=").append(this.getClass().getSimpleName())
             .append("  axis=").append(this.axis).append(this.axis2 != null ? ("+" + this.axis2) : "")
             .append("  space=").append(space)
-            .append("  mode=").append(now.rotationMode).append('\n');
+            .append("  mode=").append(now.rotationMode)
+            .append("  target=").append(this.ctx.targetName()).append('\n');
         b.append("  flags: model=").append(this.ctx.isModel())
-            .append(" local=").append(this.ctx.isLocal())
             .append(" sphere=").append(this.isSphere())
             .append(" view=").append(this.isView())
             .append(" screenT=").append(this.isScreenTranslate())
@@ -528,7 +499,9 @@ public abstract class DragStrategy
 
         if (drag != null)
         {
-            b.append("  rotateAxes     ").append(fmtBasis(drag.rotateAxes)).append('\n');
+            b.append("  rotateAxes     ").append(fmtBasis(drag.rotateAxes))
+                .append(drag.hasRotateAxes ? "  [measured]" : "  [UNSET - identity default]").append('\n');
+            b.append("  frameAxes set  ").append(drag.hasFrameAxes()).append('\n');
             b.append("  gizmoWorldAxes ").append(fmtBasis(drag.gizmoWorldAxes)).append('\n');
             b.append("  frameBasis     ").append(fmtBasis(drag.frameBasis(space))).append('\n');
         }

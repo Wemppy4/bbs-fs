@@ -60,4 +60,10 @@ public class ValueDouble extends BaseValueNumber<Double>
     {
         return Double.toString(this.value);
     }
+
+    @Override
+    public void setNumber(double value)
+    {
+        this.set(value);
+    }
 }

@@ -1,403 +1,132 @@
 package mchorse.bbs_mod.ui.film.controller;
 
-import org.joml.Intersectiond;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import org.joml.Vector2f;
-import org.joml.Vector2i;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
-import org.joml.Vector3i;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
-import mchorse.bbs_mod.client.BBSRendering;
-import mchorse.bbs_mod.camera.controller.ICameraController;
 import mchorse.bbs_mod.cubic.ModelInstance;
-import mchorse.bbs_mod.film.BaseFilmController;
-import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.replays.Replay;
-import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
+import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.FormFrameCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
-import mchorse.bbs_mod.graphics.window.Window;
-import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.keys.KeyAction;
-import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
-import mchorse.bbs_mod.utils.MathUtils;
+import mchorse.bbs_mod.ui.utils.camera.OrbitViewportController;
+import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.joml.Vectors;
-import net.minecraft.client.MinecraftClient;
 
-public class OrbitFilmCameraController implements ICameraController
+/**
+ * The film's orbit: what it turns around is the selected replay, and — while attached — the
+ * orbit hangs off that replay's own frame, so the camera rides along as the actor moves and
+ * turns. Everything about flying the viewport itself lives in {@link OrbitViewportController}.
+ */
+public class OrbitFilmCameraController extends OrbitViewportController
 {
-    private static final float PITCH_LIMIT = MathUtils.PI * 0.5F - 0.01F;
-    private static final float MIN_DISTANCE = 0.5F;
-    private static final float MAX_DISTANCE = 256F;
-    private static final int DRAG_THRESHOLD = 3;
-
     private final UIFilmController controller;
-
-    public boolean enabled;
-
-    private boolean orbiting;
-    private int orbitButton = -1;
-    private final Vector2i last = new Vector2i();
-    private final Vector2i pressOrigin = new Vector2i();
-    private boolean dragged;
-
-    /* The state the input drives. */
-    private final Vector2f targetRotation = new Vector2f();
-    private final Vector3f targetPivot = new Vector3f();
-    private float targetDistance;
-
-    /* The state that is rendered, smoothly chasing the target above. */
-    private final Vector2f rotation = new Vector2f();
-    private final Vector3f pivot = new Vector3f();
-    private float distance;
-
-    /* Whether the pivot has been placed onto the subject after a reset. */
-    private boolean positioned;
 
     /*
      * When attached, pivot and rotation are stored relative to the selected
-     * replay's anchor (interpolated position + body yaw), and world values are
-     * composed on the fly. Detached, the anchor is identity, so the same math
-     * passes world values through untouched. Rebasing between anchors preserves
-     * the world state, so attaching, detaching and switching replays never
-     * moves the camera.
+     * replay's anchor (where the replay is and which way it faces, its own
+     * transform included), and world values are composed on the fly. Detached,
+     * the anchor is identity, so the same math passes world values through
+     * untouched. Rebasing between anchors preserves the world state, so
+     * attaching, detaching and switching replays never moves the camera.
      */
     private boolean attached = true;
-    private boolean ortho;
-
-    /* Whether ortho was turned on by an axis snap rather than by the user, in
-     * which case orbiting away from the axis turns it back off (see rotate). */
-    private boolean autoOrtho;
     private Replay anchorReplay;
-    private final Vector3d anchorPosition = new Vector3d();
-    private float anchorYaw;
-
-    private final PanState panState = new PanState();
-    protected final Vector3i velocityPosition = new Vector3i();
 
     public OrbitFilmCameraController(UIFilmController controller)
     {
+        super();
+
         this.controller = controller;
-        this.reset();
     }
 
-    public void start(UIContext context)
+    /* What the viewport is */
+
+    @Override
+    protected UIContext getContext()
     {
-        if (!this.canStart(context))
-        {
-            return;
-        }
-
-        this.orbitButton = context.mouseButton;
-        this.orbiting = true;
-        this.dragged = false;
-        this.last.set(context.mouseX, context.mouseY);
-        this.pressOrigin.set(context.mouseX, context.mouseY);
-
-        if (this.isPanning())
-        {
-            this.cachePanState(context);
-        }
+        return this.controller.getContext();
     }
 
-    public boolean wasDragged()
+    @Override
+    protected Area getViewport()
     {
-        return this.dragged;
+        return this.controller.panel.preview.getViewport();
     }
 
-    public void stop()
+    @Override
+    protected Camera getViewportCamera()
     {
-        this.orbiting = false;
-        this.orbitButton = -1;
+        return this.controller.panel.getCamera();
     }
 
-    public boolean keyPressed(UIContext context, Area area)
-    {
-        if (!this.enabled || context.isFocused())
-        {
-            return false;
-        }
-
-        if (area.isInside(context) || (!this.velocityPosition.equals(0, 0, 0) && context.getKeyAction() == KeyAction.RELEASED))
-        {
-            if (BBSSettings.editorOrbitMovementRequiresFlight.get() && !this.controller.panel.isFlying())
-            {
-                return false;
-            }
-
-            int x = this.getFactor(context, Keys.FLIGHT_LEFT, Keys.FLIGHT_RIGHT, this.velocityPosition.x);
-            int y = this.getFactor(context, Keys.FLIGHT_UP, Keys.FLIGHT_DOWN, this.velocityPosition.y);
-            int z = this.getFactor(context, Keys.FLIGHT_FORWARD, Keys.FLIGHT_BACKWARD, this.velocityPosition.z);
-            boolean changed = x != this.velocityPosition.x || y != this.velocityPosition.y || z != this.velocityPosition.z;
-
-            this.velocityPosition.set(x, y, z);
-
-            return changed;
-        }
-
-        return false;
-    }
-
-    protected int getFactor(UIContext context, KeyCombo positive, KeyCombo negative, int x)
-    {
-        if (context.isPressed(positive.getMainKey()))
-        {
-            return 1;
-        }
-        else if (context.isPressed(negative.getMainKey()))
-        {
-            return -1;
-        }
-        else if (
-            (context.isReleased(positive.getMainKey()) && x > 0) ||
-            (context.isReleased(negative.getMainKey()) && x < 0)
-        ) {
-            return 0;
-        }
-
-        return x;
-    }
-
-    public void handleOrbiting(UIContext context)
-    {
-        if (!this.orbiting)
-        {
-            return;
-        }
-
-        int x = context.mouseX;
-        int y = context.mouseY;
-        int dx = x - this.last.x;
-        int dy = y - this.last.y;
-
-        if (!this.dragged && (Math.abs(x - this.pressOrigin.x) > DRAG_THRESHOLD || Math.abs(y - this.pressOrigin.y) > DRAG_THRESHOLD))
-        {
-            this.dragged = true;
-        }
-
-        if (this.orbitButton == 2)
-        {
-            this.pan(context);
-        }
-        else
-        {
-            this.rotate(dx, dy);
-        }
-
-        this.last.set(x, y);
-    }
-
-    public boolean zoom(double mouseWheel)
-    {
-        if (!this.enabled || this.controller.panel.isFlying() || mouseWheel == 0D)
-        {
-            return false;
-        }
-
-        float step = Window.isCtrlPressed() ? 0.22F : 0.1F;
-        float factor = (float) Math.pow(1F - step, mouseWheel);
-
-        this.targetDistance = MathUtils.clamp(this.targetDistance * factor, MIN_DISTANCE, MAX_DISTANCE);
-
-        return true;
-    }
-
-    public boolean update(UIContext context)
-    {
-        if (!this.enabled)
-        {
-            return false;
-        }
-
-        this.applySmoothing();
-
-        if (context.isFocused())
-        {
-            return false;
-        }
-
-        if (BBSSettings.editorOrbitMovementRequiresFlight.get() && !this.controller.panel.isFlying())
-        {
-            this.velocityPosition.set(0, 0, 0);
-
-            return false;
-        }
-
-        if (this.velocityPosition.lengthSquared() > 0)
-        {
-            Vector3f delta = this.rotateVector(-this.velocityPosition.x, this.velocityPosition.y, -this.velocityPosition.z, this.targetRotation.y, this.targetRotation.x).mul(this.getSpeed());
-
-            this.targetPivot.add(delta);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private void applySmoothing()
-    {
-        float smoothness = BBSSettings.editorCameraSmoothness.get();
-
-        if (smoothness <= 0F)
-        {
-            this.rotation.set(this.targetRotation);
-            this.pivot.set(this.targetPivot);
-            this.distance = this.targetDistance;
-
-            return;
-        }
-
-        float dt = MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration();
-        float factor = MathUtils.clamp(1F - (float) Math.pow(Math.min(smoothness, 0.99F), dt), 0F, 1F);
-
-        this.rotation.lerp(this.targetRotation, factor);
-        this.pivot.lerp(this.targetPivot, factor);
-        this.distance = Lerps.lerp(this.distance, this.targetDistance, factor);
-    }
-
+    @Override
     protected float getSpeed()
     {
         return this.controller.panel.dashboard.orbit.getSpeed();
     }
 
-    protected Vector3f rotateVector(float x, float y, float z, float yaw, float pitch)
+    /**
+     * Flight moves the camera itself, so WASD walks the pivot only when it is off - and by
+     * default not even then: walking the viewport is what flight is for, and the setting keeps
+     * WASD out of the orbit until it is asked for.
+     */
+    @Override
+    protected boolean canMove()
     {
-        return this.rotateVector(x, y, z, yaw, pitch, BBSSettings.editorHorizontalFlight.get());
+        return !this.controller.panel.isFlying() && !BBSSettings.editorOrbitMovementRequiresFlight.get();
     }
 
-    protected Vector3f rotateVector(float x, float y, float z, float yaw, float pitch, boolean horizontal)
+    /** While flying, the wheel is the flight camera's speed dial, not the orbit's zoom. */
+    @Override
+    protected boolean canZoom()
     {
-        Matrix3f rotation = new Matrix3f();
-        Vector3f rotate = new Vector3f(x, y, z);
-
-        rotation.rotateY(yaw);
-
-        if (!horizontal)
-        {
-            rotation.rotateX(pitch);
-        }
-
-        rotation.transform(rotate);
-
-        return rotate;
+        return !this.controller.panel.isFlying();
     }
 
-    private Vector3d calculateOnPlane(UIContext context)
+    /** While flying, every button belongs to the flight camera: free look, roll and FOV. */
+    @Override
+    protected boolean canStart(UIContext context)
     {
-        Area viewport = this.controller.panel.preview.getViewport();
-        Vector3d vector = new Vector3d();
-        Vector3f originOffset = new Vector3f();
-        Vector3f direction = this.panState.camera.getMouseRay(context.mouseX, context.mouseY, viewport.x, viewport.y, viewport.w, viewport.h, originOffset);
-        Vector3d origin = new Vector3d(this.panState.camera.position)
-            .add(originOffset.x, originOffset.y, originOffset.z)
-            .sub(this.panState.pivot.x, this.panState.pivot.y, this.panState.pivot.z);
-        Vector3d destination = new Vector3d(direction).mul(Math.max(this.distance, MIN_DISTANCE) * 2F).add(origin);
+        return !this.controller.panel.isFlying() && super.canStart(context);
+    }
 
-        Intersectiond.intersectLineSegmentPlane(
-            origin.x,
-            origin.y,
-            origin.z,
-            destination.x,
-            destination.y,
-            destination.z,
-            this.panState.plane.x,
-            this.panState.plane.y,
-            this.panState.plane.z,
-            0,
-            vector
-        );
+    /* The replay it turns around */
 
-        return vector;
+    @Override
+    protected Vector3f getSubjectPivot(float transition)
+    {
+        Vector3d target = this.getOrbitTarget(transition);
+
+        return target == null ? null : new Vector3f((float) target.x, (float) target.y, (float) target.z);
     }
 
     @Override
-    public void setup(Camera camera, float transition)
+    protected boolean hasSubject()
     {
-        /* Re-armed every frame: BBSRendering resets it at the start of every
-         * world render, so ortho turns itself off the moment the orbit stops
-         * driving the camera. Shaderpacks get the ortho matrix too — Iris
-         * captures gbufferProjection from the same WorldRenderer#render
-         * argument the mixin replaces, so pack math built on the matrices
-         * stays consistent (analytic perspective assumptions, e.g. the sky
-         * direction or depth linearization, are up to the pack). */
-        BBSRendering.setOrthoDistance(this.ortho ? this.distance : -1F);
-
-        this.updateAnchor(transition);
-
-        if (!this.positioned)
-        {
-            Vector3f replay = this.getReplayPivot(transition);
-
-            if (replay != null)
-            {
-                this.toLocal(replay);
-                this.pivot.set(replay);
-                this.targetPivot.set(replay);
-                this.positioned = true;
-            }
-            else if (this.hasNoReplays())
-            {
-                this.seedPivotFromCamera(camera);
-                this.positioned = true;
-            }
-        }
-
-        Vector3f offset = this.getOffset();
-
-        camera.position.set(this.toWorld(new Vector3f(this.pivot)));
-        camera.position.add(offset);
-        camera.rotation.set(-this.rotation.x, -(this.rotation.y + this.anchorYaw), 0F);
+        return this.controller.panel.getData() != null && !this.controller.panel.getData().replays.getList().isEmpty();
     }
 
-    @Override
-    public int getPriority()
-    {
-        return 20;
-    }
-
-    public Vector3d getOrbitCenter(float transition)
-    {
-        return new Vector3d(this.toWorld(new Vector3f(this.pivot)));
-    }
-
+    /** Kept for the call sites that speak of replays; the orbit itself only knows subjects. */
     public void teleportPivotToReplay()
     {
-        Vector3f replay = this.getReplayPivot(this.getCurrentTransition());
-
-        if (replay != null)
-        {
-            this.targetPivot.set(this.toLocal(replay));
-            this.positioned = true;
-        }
+        this.teleportPivotToSubject();
     }
 
-    public boolean isOrtho()
-    {
-        return this.ortho;
-    }
-
-    public void toggleOrtho()
-    {
-        this.ortho = !this.ortho;
-
-        /* Toggling by hand takes the projection away from the axis snap: it
-         * stays whatever the user set until they toggle it again. */
-        this.autoOrtho = false;
-    }
+    /* The replay it hangs off */
 
     public boolean isAttached()
     {
@@ -407,10 +136,12 @@ public class OrbitFilmCameraController implements ICameraController
     public void toggleAttachment()
     {
         this.attached = !this.attached;
+
         this.updateAnchor(this.getCurrentTransition());
     }
 
-    private void updateAnchor(float transition)
+    @Override
+    protected void updateAnchor(float transition)
     {
         Replay target = null;
         IEntity entity = null;
@@ -444,109 +175,69 @@ public class OrbitFilmCameraController implements ICameraController
 
     private void rebase(Replay replay, IEntity entity, float transition)
     {
-        this.toWorld(this.pivot);
-        this.toWorld(this.targetPivot);
-        this.rotation.y += this.anchorYaw;
-        this.targetRotation.y += this.anchorYaw;
-
-        this.anchorReplay = replay;
-
-        if (entity == null)
+        this.rebaseAnchor(() ->
         {
-            this.anchorPosition.set(0D, 0D, 0D);
-            this.anchorYaw = 0F;
-        }
-        else
-        {
-            this.writeAnchor(entity, transition);
-        }
+            this.anchorReplay = replay;
 
-        this.toLocal(this.pivot);
-        this.toLocal(this.targetPivot);
-        this.rotation.y -= this.anchorYaw;
-        this.targetRotation.y -= this.anchorYaw;
+            if (entity == null)
+            {
+                this.anchorPosition.set(0D, 0D, 0D);
+                this.anchorYaw = 0F;
+            }
+            else
+            {
+                this.writeAnchor(entity, transition);
+            }
+        });
     }
 
+    /**
+     * The frame the camera hangs off: where the replay stands and which way it faces, its own
+     * transform folded in - so a form moved or turned by its transform (keyframed or not)
+     * carries the camera along instead of sliding out from under it.
+     *
+     * <p>Only the turn about the vertical is taken. The pivot and the rotation are stored in
+     * this frame and the camera has no roll of its own, so a form tipped on its side would tip
+     * the horizon with it; following the yaw is what "the camera stays with the actor" means,
+     * and the horizon staying level is what every other frame of this editor promises.</p>
+     */
     private void writeAnchor(IEntity entity, float transition)
     {
-        this.anchorPosition.set(
-            Lerps.lerp(entity.getPrevX(), entity.getX(), transition),
-            Lerps.lerp(entity.getPrevY(), entity.getY(), transition),
-            Lerps.lerp(entity.getPrevZ(), entity.getZ(), transition)
-        );
-        this.anchorYaw = MathUtils.toRad(-Lerps.lerp(entity.getPrevBodyYaw(), entity.getBodyYaw(), transition));
+        Matrix4f matrix = FilmMatrices.getMatrixForRenderWithRotation(entity, 0D, 0D, 0D, transition);
+        FormRenderer renderer = FormUtilsClient.getRenderer(entity.getForm());
+
+        if (renderer != null)
+        {
+            matrix.mul(renderer.createTransform().createMatrix());
+        }
+
+        Vector3f translation = matrix.getTranslation(new Vector3f());
+        Matrix4f axes = MatrixStackUtils.stripScale(matrix);
+
+        this.anchorPosition.set(translation.x, translation.y, translation.z);
+        this.anchorYaw = (float) Math.atan2(-axes.m02(), axes.m00());
     }
 
     private IEntity resolveEntity(Replay replay)
     {
-        Film film = this.controller.panel.getData();
-
-        if (film == null)
-        {
-            return null;
-        }
-
-        int index = film.replays.getList().indexOf(replay);
-
-        return index < 0 ? null : this.controller.getEntities().get(index);
+        return this.controller.getEntities().get(replay.getId());
     }
 
-    private Vector3f toWorld(Vector3f pivot)
-    {
-        return pivot.rotateY(this.anchorYaw).add((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z);
-    }
-
-    private Vector3f toLocal(Vector3f pivot)
-    {
-        return pivot.sub((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z).rotateY(-this.anchorYaw);
-    }
-
+    @Override
     public void reset()
     {
-        this.pivot.set(0F, 0F, 0F);
-        this.targetPivot.set(0F, 0F, 0F);
-        this.rotation.set(0F, MathUtils.PI);
-        this.targetRotation.set(0F, MathUtils.PI);
-        this.distance = 4F;
-        this.targetDistance = 4F;
-        this.positioned = false;
-        this.orbiting = false;
-        this.orbitButton = -1;
-        this.velocityPosition.set(0, 0, 0);
+        super.reset();
+
         this.anchorReplay = null;
-        this.anchorPosition.set(0D, 0D, 0D);
-        this.anchorYaw = 0F;
-    }
-
-    private Vector3f getReplayPivot(float transition)
-    {
-        OrbitTarget target = this.getOrbitTarget(transition);
-
-        return target == null ? null : new Vector3f((float) target.position.x, (float) target.position.y, (float) target.position.z);
-    }
-
-    private boolean hasNoReplays()
-    {
-        return this.controller.panel.getData() == null || this.controller.panel.getData().replays.getList().isEmpty();
     }
 
     /**
-     * When there is nothing to focus on, place the orbit center in front of the
-     * current camera (keeping its position and rotation), instead of leaving it at
-     * the world origin which could be nowhere near the view.
+     * Where the replay's model actually is: the point its anchor bone stands at (so a form
+     * hung off another replay is found where it is drawn), raised to the middle of the
+     * picking hitbox. The bone alone is usually at the actor's feet, and an orbit around the
+     * feet swings the whole body through the frame.
      */
-    private void seedPivotFromCamera(Camera camera)
-    {
-        this.targetRotation.set(-camera.rotation.x, -camera.rotation.y);
-        this.rotation.set(this.targetRotation);
-
-        Vector3f forward = this.rotateVector(0F, 0F, -1F, this.rotation.y, this.rotation.x, false).mul(this.distance);
-
-        this.pivot.set((float) camera.position.x, (float) camera.position.y, (float) camera.position.z).add(forward);
-        this.targetPivot.set(this.pivot);
-    }
-
-    private OrbitTarget getOrbitTarget(float transition)
+    private Vector3d getOrbitTarget(float transition)
     {
         IEntity entity = this.controller.getCurrentEntity();
 
@@ -555,11 +246,10 @@ public class OrbitFilmCameraController implements ICameraController
             return null;
         }
 
-        float renderYaw = MathUtils.toRad(-Lerps.lerp(entity.getPrevBodyYaw(), entity.getBodyYaw(), transition) + 180F);
         Form form = entity.getForm();
         double h = entity.getPickingHitbox().h / 2;
         double x = Lerps.lerp(entity.getPrevX(), entity.getX(), transition);
-        double y = Lerps.lerp(entity.getPrevY(), entity.getY(), transition) + h;
+        double y = Lerps.lerp(entity.getPrevY(), entity.getY(), transition);
         double z = Lerps.lerp(entity.getPrevZ(), entity.getZ(), transition);
 
         if (form != null)
@@ -587,8 +277,8 @@ public class OrbitFilmCameraController implements ICameraController
             if (anchor != null)
             {
                 Anchor v = form.anchor.get();
-                Matrix4f defaultMatrix = BaseFilmController.getMatrixForRenderWithRotation(entity, x, y, z, transition);
-                Pair<Matrix4f, Float> totalMatrix = BaseFilmController.getTotalMatrix(this.controller.getEntities(), v, defaultMatrix, x, y, z, transition, 0, false, frame);
+                Matrix4f defaultMatrix = FilmMatrices.getMatrixForRenderWithRotation(entity, x, y, z, transition);
+                Pair<Matrix4f, Float> totalMatrix = FilmMatrices.getTotalMatrix(this.controller.getEntities(), v, defaultMatrix, x, y, z, transition, 0, false, frame);
 
                 if (totalMatrix.a != null)
                 {
@@ -605,138 +295,6 @@ public class OrbitFilmCameraController implements ICameraController
             }
         }
 
-        return new OrbitTarget(new Vector3d(x, y, z), renderYaw);
-    }
-
-    private boolean canStart(UIContext context)
-    {
-        if (this.controller.panel.isFlying())
-        {
-            return context.mouseButton == 0;
-        }
-
-        return context.mouseButton == 0 || context.mouseButton == 2;
-    }
-
-    private boolean isPanning()
-    {
-        return this.orbitButton == 2;
-    }
-
-    private void cachePanState(UIContext context)
-    {
-        this.panState.pivot.set(this.toWorld(new Vector3f(this.pivot)));
-        this.panState.camera.copy(this.controller.panel.getCamera());
-        this.panState.plane.set(this.panState.camera.getLookDirection()).normalize();
-        this.panState.intersection.set(this.calculateOnPlane(context));
-    }
-
-    private void pan(UIContext context)
-    {
-        Vector3d point = this.calculateOnPlane(context);
-        Vector3f pivot = new Vector3f(this.panState.pivot);
-
-        pivot.sub((float) point.x, (float) point.y, (float) point.z);
-        pivot.add((float) this.panState.intersection.x, (float) this.panState.intersection.y, (float) this.panState.intersection.z);
-
-        this.targetPivot.set(this.toLocal(pivot));
-    }
-
-    public void rotate(int dx, int dy)
-    {
-        if (dx == 0 && dy == 0)
-        {
-            return;
-        }
-
-        float orbitSpeed = this.controller.panel.dashboard.orbit.getAngleSpeed() * 4F;
-
-        this.targetRotation.x = MathUtils.clamp(this.targetRotation.x - dy * orbitSpeed, -PITCH_LIMIT, PITCH_LIMIT);
-        this.targetRotation.y -= dx * orbitSpeed;
-
-        /* Orbiting off the axis gives the perspective back: an ortho view is
-         * what an axis snap is for, but away from an axis it only costs the
-         * depth cues. A projection the user picked themselves is left alone
-         * (see autoOrtho). */
-        if (this.autoOrtho)
-        {
-            this.ortho = false;
-            this.autoOrtho = false;
-        }
-    }
-
-    /**
-     * Snap the orbit rotation so the camera ends up on the given axis side of
-     * the pivot, looking at it. The axis is given in the anchor's space: for a
-     * detached orbit (or one without a valid anchor) that is world space, for
-     * an attached orbit it is the replay's space, matching the axes the
-     * navigation ball displays. Yaw is unwrapped to the closest turn, so the
-     * camera never spins the long way around.
-     *
-     * The snap turns the orthographic projection on (editorOrbitAxisOrtho): an
-     * axis view is asked for to read the pose as a blueprint (front, side,
-     * top), and perspective skews exactly the alignment it is being read for.
-     * Orbiting away turns it back off, unless the user had turned it on
-     * themselves — and with the setting off nothing arms autoOrtho in the
-     * first place, so the projection is left alone in both directions.
-     */
-    public void snapToAxis(int x, int y, int z)
-    {
-        float pitch;
-        float yaw;
-
-        if (y != 0)
-        {
-            pitch = y > 0 ? -PITCH_LIMIT : PITCH_LIMIT;
-            yaw = this.targetRotation.y;
-        }
-        else
-        {
-            float twoPi = MathUtils.PI * 2F;
-
-            pitch = 0F;
-            yaw = (float) Math.atan2(x, z);
-            yaw += Math.round((this.targetRotation.y - yaw) / twoPi) * twoPi;
-        }
-
-        this.targetRotation.set(pitch, yaw);
-
-        if (!this.ortho && BBSSettings.editorOrbitAxisOrtho.get())
-        {
-            this.ortho = true;
-            this.autoOrtho = true;
-        }
-    }
-
-    /**
-     * Yaw of the attachment anchor (zero when detached), i.e. the rotation
-     * between the orbit's local space and world space.
-     */
-    public float getAnchorYaw()
-    {
-        return this.anchorYaw;
-    }
-
-    private Vector3f getOffset()
-    {
-        return this.rotateVector(0F, 0F, 1F, this.rotation.y + this.anchorYaw, this.rotation.x, false).mul(this.distance);
-    }
-
-    private float getCurrentTransition()
-    {
-        UIContext context = this.controller.getContext();
-
-        return context == null ? 0F : context.getTransition();
-    }
-
-    private record OrbitTarget(Vector3d position, float renderYaw)
-    {}
-
-    private static class PanState
-    {
-        private final Vector3f pivot = new Vector3f();
-        private final Camera camera = new Camera();
-        private final Vector3d plane = new Vector3d();
-        private final Vector3d intersection = new Vector3d();
+        return new Vector3d(x, y + h, z);
     }
 }

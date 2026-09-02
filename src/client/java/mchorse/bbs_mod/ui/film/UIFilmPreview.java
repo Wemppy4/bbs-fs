@@ -19,9 +19,9 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.controller.UIMotionPathContextMenu;
 import mchorse.bbs_mod.ui.film.controller.UIOnionSkinContextMenu;
+import mchorse.bbs_mod.ui.film.controller.OrbitViewGizmo;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
@@ -31,7 +31,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageFolderOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -56,11 +55,21 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class UIFilmPreview extends UIElement
 {
+    /**
+     * Layers an addon put over the preview.
+     *
+     * <p>Factories rather than elements: a preview is built anew every time a film editor is
+     * opened, and an element belongs to exactly one of them.</p>
+     */
+    private static final List<Function<UIFilmPreview, UIElement>> OVERLAYS = new ArrayList<>();
+
     private List<AudioClip> clips = new ArrayList<>();
     private UIFilmPanel panel;
+    private UIPlacementGizmo placementGizmo;
 
     public UIElement icons;
 
@@ -77,9 +86,19 @@ public class UIFilmPreview extends UIElement
     /** Whether the icon bar is currently shown - see {@link #updateIconsVisibility(UIContext)} */
     private boolean iconsVisible = true;
 
+    /** The side of the axes crosshair's block, matching {@link RenderSystem#renderCrosshair}'s reach. */
+    private static final int CURSOR_SIZE = 24;
+
+    /** Everything drawn over the frame goes through here - see {@link PreviewHud}. */
+    private final PreviewHud hud = new PreviewHud();
+
+    /** Where the axes crosshair or the navigation ball landed this frame, for drawing and clicking. */
+    private final Area navBlock = new Area();
+
     public UIFilmPreview(UIFilmPanel filmPanel)
     {
         this.panel = filmPanel;
+        this.placementGizmo = new UIPlacementGizmo(filmPanel);
 
         this.icons = UI.row(0, 0);
         this.icons.row().resize();
@@ -87,8 +106,10 @@ public class UIFilmPreview extends UIElement
 
         /* Preview buttons */
         this.onionSkin = new UIIcon(Icons.ONION_SKIN, (b) -> this.openOnionSkin());
+        this.onionSkin.highlight(() -> this.panel.getController().getOnionSkin().enabled.get(), Direction.BOTTOM);
         this.onionSkin.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE);
         this.motionPath = new UIIcon(Icons.CURVES, (b) -> this.openMotionPath());
+        this.motionPath.highlight(() -> this.panel.getController().getMotionPath().enabled.get(), Direction.BOTTOM);
         this.motionPath.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE);
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
         this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE);
@@ -147,8 +168,10 @@ public class UIFilmPreview extends UIElement
             }
         });
         this.flight = new UIIcon(Icons.PLANE, (b) -> this.panel.toggleFlight());
+        this.flight.highlight(this.panel::isFlying, Direction.BOTTOM);
         this.flight.tooltip(UIKeys.CAMERA_EDITOR_KEYS_MODES_FLIGHT);
         this.control = new UIIcon(Icons.POSE, (b) -> this.panel.getController().toggleControl());
+        this.control.highlight(() -> this.panel.getController().isControlling(), Direction.BOTTOM);
         this.control.tooltip(UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_CONTROL);
         this.perspective = new UIIcon(this.panel.getController()::getOrbitModeIcon, (b) -> this.panel.getController().toggleOrbitMode());
         this.perspective.tooltip(UIKeys.FILM_CONTROLLER_KEYS_CHANGE_CAMERA_MODE);
@@ -164,33 +187,23 @@ public class UIFilmPreview extends UIElement
             }
         });
         this.recordReplay = new UIIcon(Icons.SPHERE, (b) -> this.panel.getController().pickRecording());
+        this.recordReplay.highlight(() -> this.panel.getController().isRecording(), Direction.BOTTOM);
         this.recordReplay.tooltip(UIKeys.FILM_REPLAY_RECORD);
         this.recordReplay.context((menu) ->
         {
+            menu.action(Icons.KEY, UIKeys.FILM_AUTO_KEYFRAME, BBSSettings.autoKeyframe.get(), this::toggleAutoKeyframe);
+
             menu.action(Icons.DOWNLOAD, UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_INSTANT_KEYFRAMES, this.panel.getController().isInstantKeyframes(), () ->
             {
                 this.panel.getController().toggleInstantKeyframes();
             });
 
-            menu.action(Icons.MOVE_TO, UIKeys.FILM_REPLAY_TELEPORT_TO_PLAYER, () -> this.panel.getController().insertPlayerFrame());
+            menu.action(Icons.MOVE_TO, UIKeys.FILM_REPLAY_TELEPORT_TO_PLAYER, () -> this.panel.getController().keyframes.insertPlayerFrame());
         });
         this.recordVideo = new UIIcon(Icons.VIDEO_CAMERA, (b) ->
         {
-            if (this.panel.checkShowNoCamera())
+            if (!this.canExport())
             {
-                return;
-            }
-
-            if (!FFMpegUtils.checkFFMPEG())
-            {
-                UIMessageOverlayPanel panel = new UIMessageOverlayPanel(UIKeys.GENERAL_WARNING, UIKeys.GENERAL_FFMPEG_ERROR_DESCRIPTION);
-                UIIcon guide = new UIIcon(Icons.HELP, (bb) -> UIUtils.openWebLink(UIKeys.GENERAL_FFMPEG_ERROR_GUIDE_LINK.get()));
-
-                guide.tooltip(UIKeys.GENERAL_FFMPEG_ERROR_GUIDE, Direction.LEFT);
-                panel.icons.add(guide);
-
-                UIOverlay.addOverlay(this.getContext(), panel);
-
                 return;
             }
 
@@ -237,7 +250,7 @@ public class UIFilmPreview extends UIElement
                 UISettingsOverlayPanel panel = new UISettingsOverlayPanel();
 
                 panel.showCategory("bbs", "video");
-                UIOverlay.addOverlay(this.getContext(), panel, 430, 380);
+                UIOverlay.addOverlay(this.getContext(), panel, 430, 400);
             });
 
             menu.action(Icons.VIDEO_CAMERA, UIKeys.FILM_RENDER_QUEUE, this::exportQueueFromTabs);
@@ -248,8 +261,30 @@ public class UIFilmPreview extends UIElement
             });
         });
 
-        this.icons.add(this.onionSkin, this.motionPath, this.plause, this.teleport, this.flight, this.control, this.perspective, this.recordReplay, this.recordVideo);
+        this.icons.add(this.onionSkin, this.motionPath, this.teleport, this.flight, this.plause, this.control, this.perspective, this.recordReplay, this.recordVideo);
         this.add(this.icons);
+
+        for (Function<UIFilmPreview, UIElement> factory : OVERLAYS)
+        {
+            this.add(factory.apply(this));
+        }
+    }
+
+    /** Puts a layer of an addon's over the preview — one that takes the mouse, not just draws. */
+    public static void registerOverlay(Function<UIFilmPreview, UIElement> factory)
+    {
+        OVERLAYS.add(factory);
+    }
+
+    /**
+     * Auto-keyframing: with it on, every value edit keys the playhead instead of rewriting the
+     * keyframe it was made on. Kept in the settings rather than on the film, so it stays where the
+     * animator left it across films and sessions, the way looping does.
+     */
+    private void toggleAutoKeyframe()
+    {
+        BBSSettings.autoKeyframe.set(!BBSSettings.autoKeyframe.get());
+        UIUtils.playClick();
     }
 
     public void openOnionSkin()
@@ -264,9 +299,21 @@ public class UIFilmPreview extends UIElement
 
     private void exportQueueFromTabs()
     {
+        if (this.canExport())
+        {
+            this.panel.startQueueExportFromOpenTabs();
+        }
+    }
+
+    /**
+     * Whether an export can start at all: there has to be a camera, and ffmpeg has to be
+     * installed. Both refusals say so on screen, ffmpeg's with a link to the guide.
+     */
+    private boolean canExport()
+    {
         if (this.panel.checkShowNoCamera())
         {
-            return;
+            return false;
         }
 
         if (!FFMpegUtils.checkFFMPEG())
@@ -279,10 +326,10 @@ public class UIFilmPreview extends UIElement
 
             UIOverlay.addOverlay(this.getContext(), panel);
 
-            return;
+            return false;
         }
 
-        this.panel.startQueueExportFromOpenTabs();
+        return true;
     }
 
     private void renderAudio()
@@ -333,7 +380,12 @@ public class UIFilmPreview extends UIElement
 
         if (area.isInside(context))
         {
-            if (this.panel.getController().orbitGizmo.mouseClicked(context, area))
+            if (this.panel.getController().orbitGizmo.mouseClicked(context, this.navBlock))
+            {
+                return true;
+            }
+
+            if (this.placementGizmo.mouseClicked(context, area))
             {
                 return true;
             }
@@ -342,6 +394,17 @@ public class UIFilmPreview extends UIElement
         }
 
         return super.subMouseClicked(context);
+    }
+
+    @Override
+    protected boolean subMouseReleased(UIContext context)
+    {
+        if (this.placementGizmo.mouseReleased(context))
+        {
+            return true;
+        }
+
+        return super.subMouseReleased(context);
     }
 
     @Override
@@ -393,8 +456,21 @@ public class UIFilmPreview extends UIElement
             context.batcher.texturedBox(texture.id, Colors.WHITE, area.x, area.y, area.w, area.h, 0, texture.height, texture.width, 0, texture.width, texture.height);
         }
 
-        /* The navigation ball replaces the axes crosshair in the corner */
-        if (!this.panel.getController().orbitGizmo.isActive())
+        this.hud.begin(area);
+        this.hud.reserve(PreviewHud.Anchor.BOTTOM_CENTER, area.ey() - this.icons.area.y);
+
+        /* The navigation widget claims the bottom left corner before anything else does, so
+         * that whatever the editor stacks there later (the stick guide) ends up above it
+         * rather than on top of it. The ball replaces the axes crosshair when it is on, and
+         * the block is reserved for whichever of the two is showing. Its click test reads
+         * the same block, hence the field. */
+        OrbitViewGizmo orbitGizmo = this.panel.getController().orbitGizmo;
+        boolean ball = orbitGizmo.isActive();
+        int navSize = ball ? orbitGizmo.getSize() : CURSOR_SIZE;
+
+        this.navBlock.copy(this.hud.push(PreviewHud.Anchor.BOTTOM_LEFT, navSize, navSize));
+
+        if (!ball)
         {
             this.renderCursor(context);
         }
@@ -435,17 +511,9 @@ public class UIFilmPreview extends UIElement
             }
         }
 
-        /* Current window resolution label (bottom-right, same style as replay name) */
-        int resW = BBSRendering.getVideoWidth();
-        int resH = BBSRendering.getVideoHeight();
-        String resLabel = resW + " × " + resH;
-        int resLabelW = context.batcher.getFont().getWidth(resLabel);
-        int resLabelH = context.batcher.getFont().getHeight();
-        int resX = area.ex() - 4;
-        int resY = area.ey() - resLabelH - 5;
-        context.batcher.textCard(resLabel, resX - resLabelW, resY, Colors.WHITE, Colors.A50);
+        this.placementGizmo.render(context, area);
 
-        this.panel.getController().renderHUD(context, area);
+        this.panel.getController().renderHUD(context, this.hud, this.navBlock);
 
         if (this.panel.replayEditor.isVisible() && BBSSettings.audioWaveformVisibleInPreview.get())
         {
@@ -483,24 +551,21 @@ public class UIFilmPreview extends UIElement
             Area a = this.icons.area;
 
             /* Render icon bar */
-            int barShade = BBSSettings.isLightTheme() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
+            int barShade = BBSSettings.lightSurfaces() ? (Colors.A50 | 0xFFFFFF) : Colors.A50;
             context.batcher.gradientVBox(a.x, a.y, a.ex(), a.ey(), 0, barShade);
-
-            if (this.panel.isFlying()) UIDashboardPanels.renderHighlight(context.batcher, this.flight.area, Direction.BOTTOM);
-            if (this.panel.getController().isControlling()) UIDashboardPanels.renderHighlight(context.batcher, this.control.area, Direction.BOTTOM);
-            if (this.panel.getController().isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordReplay.area, Direction.BOTTOM);
-            if (this.panel.recorder.isRecording()) UIDashboardPanels.renderHighlight(context.batcher, this.recordVideo.area, Direction.BOTTOM);
-            if (this.panel.getController().getOnionSkin().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.onionSkin.area, Direction.BOTTOM);
-            if (this.panel.getController().getMotionPath().enabled.get()) UIDashboardPanels.renderHighlight(context.batcher, this.motionPath.area, Direction.BOTTOM);
-            if (this.panel.getController().isControlling())
-            {
-                String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();
-                int w = context.batcher.getFont().getWidth(s);
-                int height = context.batcher.getFont().getHeight();
-
-                context.batcher.textCard(s, a.mx(w), a.y - height - 5);
-            }
         }
+
+        /* Outside the bar's visibility: hiding the icons must not take away the one line
+         * that says how to leave control mode. */
+        if (this.panel.getController().isControlling())
+        {
+            String s = UIKeys.FILM_CONTROLLER_CONTROL_MODE_TOOLTIP.format(KeyCodes.getName(Keys.FILM_CONTROLLER_TOGGLE_CONTROL.getMainKey())).get();
+
+            this.hud.label(context, PreviewHud.Anchor.BOTTOM_CENTER, s, Colors.WHITE, Colors.A50);
+        }
+
+        /* Everything the corners collected this frame goes down here, each zone's wash first. */
+        this.hud.flush(context);
 
         context.batcher.clip(this.area, context);
         super.render(context);
@@ -515,7 +580,7 @@ public class UIFilmPreview extends UIElement
         stack.pushMatrix();
 
         stack.mul(context.batcher.getContext().getMatrices().peek().getPositionMatrix());
-        stack.translate(area.x + 16, area.ey() - 12, 0F);
+        stack.translate(this.navBlock.mx(), this.navBlock.my(), 0F);
         stack.rotate(RotationAxis.NEGATIVE_X.rotationDegrees(mcCamera.getPitch()));
         stack.rotate(RotationAxis.POSITIVE_Y.rotationDegrees(mcCamera.getYaw()));
         stack.scale(-1F, -1F, -1F);

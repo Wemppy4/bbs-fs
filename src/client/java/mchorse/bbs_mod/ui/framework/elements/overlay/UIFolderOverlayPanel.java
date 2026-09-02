@@ -29,6 +29,8 @@ public class UIFolderOverlayPanel extends UIMessageBarOverlayPanel
         this.confirm.w(100);
 
         this.content.add(this.list);
+
+        this.fillsOverlay();
     }
 
     public UIFolderOverlayPanel confirmLabel(IKey key)

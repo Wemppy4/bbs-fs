@@ -24,6 +24,10 @@ import java.util.List;
  */
 public class InputRenderer
 {
+    /** Footprint of {@link #renderMouseButtons}, for callers laying anything out beside it. */
+    public static final int MOUSE_WIDTH = 14;
+    public static final int MOUSE_HEIGHT = 18;
+
     private static boolean disabledForFrame = false;
 
     private List<PressedKey> pressedKeys = new ArrayList<>();

@@ -21,6 +21,7 @@ import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.settings.Settings;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
+import mchorse.bbs_mod.utils.StructureSaver;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.command.CommandRegistryAccess;
@@ -463,6 +464,11 @@ public class BBSCommands
         Collection<ServerPlayerEntity> players = EntityArgumentType.getPlayers(source, "target");
         String filmId = StringArgumentType.getString(source, "film");
 
+        /* The server acts the film too - the actors, the action clips, the damage control it
+         * holds - and only the clients were ever told to stop. The bodies stayed in the world
+         * acting out the rest of the take with nobody watching. */
+        BBSMod.getActions().stop(filmId);
+
         for (ServerPlayerEntity player : players)
         {
             ServerNetwork.sendStopFilm(player, filmId);
@@ -513,35 +519,6 @@ public class BBSCommands
         BlockPos from = BlockPosArgumentType.getBlockPos(source, "from");
         BlockPos to = BlockPosArgumentType.getBlockPos(source, "to");
 
-        ServerWorld world = source.getSource().getWorld();
-        StructureTemplateManager structureTemplateManager = world.getStructureTemplateManager();
-        StructureTemplate structureTemplate;
-
-        try
-        {
-            structureTemplate = structureTemplateManager.getTemplateOrBlank(Identifier.of(name));
-        }
-        catch (InvalidIdentifierException e)
-        {
-            return 0;
-        }
-
-        BlockPos min = new BlockPos(Math.min(from.getX(), to.getX()), Math.min(from.getY(), to.getY()), Math.min(from.getZ(), to.getZ()));
-        BlockPos max = new BlockPos(Math.max(from.getX(), to.getX()), Math.max(from.getY(), to.getY()), Math.max(from.getZ(), to.getZ()));
-        BlockPos size = max.subtract(min).add(1, 1, 1);
-
-        structureTemplate.saveFromWorld(world, min, size, true, Blocks.STRUCTURE_VOID);
-
-        try
-        {
-            if (structureTemplateManager.saveTemplate(Identifier.of(name)))
-            {
-                return 1;
-            }
-        }
-        catch (InvalidIdentifierException var7)
-        {}
-
-        return 0;
+        return StructureSaver.save(source.getSource().getWorld(), name, from, to) ? 1 : 0;
     }
 }

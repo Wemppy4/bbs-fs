@@ -8,7 +8,9 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.cubic.render.vao.BOBJModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.IModelVAO;
 import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.GlUniform;
@@ -358,6 +360,30 @@ public class FormTranslucentQueue
             this.depthWrite = depthWrite;
         }
 
+        /** The color overlay captured at enqueue time (see {@link mchorse.bbs_mod.forms.renderers.utils.FormOverlay}); null = none. */
+        private Color overlayColor;
+
+        public DrawCommand overlayColor(Color overlay)
+        {
+            this.overlayColor = overlay == null ? null : overlay.copy();
+
+            return this;
+        }
+
+        /** Re-bind the captured overlay for the replayed draw; the enqueue-time binding is long gone at flush. */
+        protected int bindOverlay()
+        {
+            return this.overlayColor != null ? FormOverlay.bind(this.overlayColor) : 0;
+        }
+
+        protected void unbindOverlay(int previous)
+        {
+            if (this.overlayColor != null)
+            {
+                FormOverlay.unbind(previous);
+            }
+        }
+
         public abstract void draw();
 
         public void release()
@@ -416,9 +442,12 @@ public class FormTranslucentQueue
                 BBSModClient.getTextures().bindTexture(this.texture);
             }
 
+            int previousOverlay = this.bindOverlay();
+
             setPassMode(shader, this.passMode);
             ModelVAORenderer.render(shader, this.vao, this.modelView, this.normalMat, this.r, this.g, this.b, this.a, this.light, this.overlay);
             setPassMode(shader, PASS_SINGLE);
+            this.unbindOverlay(previousOverlay);
         }
     }
 
@@ -482,9 +511,12 @@ public class FormTranslucentQueue
                 this.vao.updateMesh(null, this.armatureSnapshot);
             }
 
+            int previousOverlay = this.bindOverlay();
+
             setPassMode(shader, this.passMode);
             this.vao.render(shader, this.modelView, this.normalMat, this.r, this.g, this.b, this.a, null, this.light, this.overlay);
             setPassMode(shader, PASS_SINGLE);
+            this.unbindOverlay(previousOverlay);
         }
     }
 
@@ -557,9 +589,15 @@ public class FormTranslucentQueue
             /* startDrawing applied the layer's own write mask — re-assert ours. */
             RenderSystem.depthMask(this.depthWrite);
 
+            /* After startDrawing, which is where the layer's overlay phase bound vanilla's
+             * hurt-flash texture over unit 1: a form's color overlay has to land on top of it. */
+            int previousOverlay = this.bindOverlay();
+
             this.buffer.bind();
             this.buffer.draw(this.modelView, RenderSystem.getProjectionMatrix(), RenderSystem.getShader());
             VertexBuffer.unbind();
+
+            this.unbindOverlay(previousOverlay);
 
             this.layer.endDrawing();
         }
@@ -578,6 +616,7 @@ public class FormTranslucentQueue
     public static class VertexBufferCommand extends DrawCommand
     {
         private final VertexBuffer buffer;
+        private final boolean owned;
         private final Supplier<ShaderProgram> shader;
         private final int passMode;
         private final Texture texture;
@@ -600,9 +639,20 @@ public class FormTranslucentQueue
 
         public VertexBufferCommand(VertexBuffer buffer, Supplier<ShaderProgram> shader, int passMode, boolean depthWrite, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, Vector3f cameraSpacePlaneNormal, boolean cull, Runnable preDraw, Runnable postDraw)
         {
+            this(buffer, true, shader, passMode, depthWrite, texture, modelView, normalMat, cameraSpaceOrigin, cameraSpacePlaneNormal, cull, preDraw, postDraw);
+        }
+
+        /**
+         * {@code owned} says whether the command frees the buffer after the flush. A buffer that
+         * lives in a cache (the welded-geometry cache) is only borrowed: it must stay untouched
+         * until the flush, which its owner guarantees by not rebuilding it within the frame.
+         */
+        public VertexBufferCommand(VertexBuffer buffer, boolean owned, Supplier<ShaderProgram> shader, int passMode, boolean depthWrite, Texture texture, Matrix4f modelView, Matrix3f normalMat, Vector3f cameraSpaceOrigin, Vector3f cameraSpacePlaneNormal, boolean cull, Runnable preDraw, Runnable postDraw)
+        {
             super(cameraSpaceOrigin, cameraSpacePlaneNormal, cull, depthWrite);
 
             this.buffer = buffer;
+            this.owned = owned;
             this.shader = shader;
             this.passMode = passMode;
             this.texture = texture;
@@ -637,6 +687,8 @@ public class FormTranslucentQueue
                 }
             }
 
+            int previousOverlay = this.bindOverlay();
+
             setPassMode(program, this.passMode);
 
             this.buffer.bind();
@@ -644,6 +696,7 @@ public class FormTranslucentQueue
             VertexBuffer.unbind();
 
             setPassMode(program, PASS_SINGLE);
+            this.unbindOverlay(previousOverlay);
 
             if (this.postDraw != null)
             {
@@ -654,7 +707,10 @@ public class FormTranslucentQueue
         @Override
         public void release()
         {
-            this.buffer.close();
+            if (this.owned)
+            {
+                this.buffer.close();
+            }
         }
     }
 }

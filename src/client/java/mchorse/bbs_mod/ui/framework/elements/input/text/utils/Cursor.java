@@ -77,19 +77,6 @@ public class Cursor
     }
 
     /**
-     * Whether this cursor is less or equals to given cursor
-     */
-    public boolean isThisLessOrEqualTo(Cursor cursor)
-    {
-        if (this.line == cursor.line)
-        {
-            return this.offset <= cursor.offset;
-        }
-
-        return this.line < cursor.line;
-    }
-
-    /**
      * Whether this cursor is equal to given cursor
      */
     public boolean isEqualTo(Cursor cursor)

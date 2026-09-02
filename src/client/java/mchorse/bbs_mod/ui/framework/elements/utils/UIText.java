@@ -23,6 +23,12 @@ public class UIText extends UIElement implements ITextColoring
     private boolean updates;
     private String lastString;
 
+    /**
+     * Inner width the current {@link #text} was wrapped against; a different width means the
+     * wrap is stale
+     */
+    private int wrappedWidth = -1;
+
     public UIText(String text)
     {
         this();
@@ -124,12 +130,63 @@ public class UIText extends UIElement implements ITextColoring
         this.color(color, shadow);
     }
 
+    /**
+     * Wrap the text against the current width if the cached wrap is stale, and take the
+     * resulting height. Returns whether the height changed, i.e. whether whoever lays this
+     * element out has to run again.
+     */
+    private boolean wrap()
+    {
+        int width = this.area.w - this.paddingH * 2;
+
+        if (this.text != null && this.wrappedWidth == width)
+        {
+            return false;
+        }
+
+        /* New text (or first wrap) means the height flex was never applied yet, so a pass is
+         * owed even if the line count happens to match */
+        boolean fresh = this.text == null;
+        int before = this.height();
+
+        this.text = Batcher2D.getDefaultTextRenderer().wrap(this.temp.get(), width);
+        this.lines = this.text.size();
+        this.wrappedWidth = width;
+        this.h(this.height());
+
+        return fresh || this.height() != before;
+    }
+
     @Override
     public void resize()
     {
+        /* Width is known from the previous pass in the common case, so the height is right
+         * before the flex is applied and no second pass is needed */
+        if (this.area.w > 0)
+        {
+            this.wrap();
+        }
+
         super.resize();
 
-        this.text = null;
+        if (this.area.w > 0 && this.wrap())
+        {
+            this.requestLayout();
+        }
+    }
+
+    /**
+     * The height changed after layout already ran: ask for another pass next frame rather
+     * than resizing the container from inside a render or a resize
+     */
+    private void requestLayout()
+    {
+        UIElement container = this.getParentContainer();
+
+        if (container != null)
+        {
+            container.invalidateLayout();
+        }
     }
 
     @Override
@@ -152,17 +209,9 @@ public class UIText extends UIElement implements ITextColoring
 
         if (this.area.w > 0)
         {
-            if (this.text == null)
+            if (this.wrap())
             {
-                List<String> text = font.wrap(this.temp.get(), this.area.w - this.paddingH * 2);
-
-                this.lines = text.size();
-
-                this.h(this.height());
-                this.getParentContainer().resize();
-
-                this.text = text;
-                this.lines = text.size();
+                this.requestLayout();
             }
 
             int y = this.paddingV;

@@ -39,11 +39,15 @@ public class TimelineRulerRenderer
     private static final int MIN_MINOR_GAP = 5;
     private static final int ITERATION_CAP = 4096;
 
-    private static final float MAJOR_ALPHA = 0.55F;
-    private static final float MINOR_ALPHA = 0.28F;
+    /* The notches sit on the sunken ruler, the darkest surface there is, so they carry more alpha
+     * than the grid does - a major notch lands about where its own label sits. */
+    private static final float MAJOR_ALPHA = 0.70F;
+    private static final float MINOR_ALPHA = 0.38F;
     private static final float LABEL_ALPHA = 0.72F;
-    private static final float GRID_MAJOR_ALPHA = 0.35F;
-    private static final float GRID_MINOR_ALPHA = 0.16F;
+    /* The grid lies over the tracks rather than over the ruler, so it keeps its own, quieter pair:
+     * the same alpha reads differently on either, and the grid must not shout over the keyframes. */
+    private static final float GRID_MAJOR_ALPHA = 0.55F;
+    private static final float GRID_MINOR_ALPHA = 0.28F;
 
     public static int getTimelineBottom(Area area)
     {
@@ -83,12 +87,7 @@ public class TimelineRulerRenderer
         int visibleEx = Math.min(area.ex(), timelineEndX);
 
         context.batcher.clip(area, context);
-        context.batcher.box(area.x, area.y, area.ex(), rulerBottom, BBSSettings.chromeSurface());
-
-        if (visibleEx < area.ex())
-        {
-            context.batcher.box(Math.max(area.x, visibleEx), area.y, area.ex(), rulerBottom, BBSSettings.chromeSurface());
-        }
+        context.batcher.box(area.x, area.y, area.ex(), rulerBottom, BBSSettings.sunkenSurface());
 
         if (rulerDecorator != null)
         {
@@ -97,12 +96,6 @@ public class TimelineRulerRenderer
 
         renderTicks(context, area, startTick, timelineBottom, visibleEx, toGraphX, labelFormatter);
 
-        if (timelineBottom < rulerBottom)
-        {
-            context.batcher.box(area.x, timelineBottom - 1, area.ex(), timelineBottom, BBSSettings.color(BBSSettings.dividerColor(), Colors.A50));
-        }
-
-        context.batcher.box(area.x, rulerBottom - 1, area.ex(), rulerBottom, BBSSettings.color(BBSSettings.dividerColor(), Colors.A75));
         context.batcher.unclip(context);
     }
 
@@ -137,26 +130,37 @@ public class TimelineRulerRenderer
 
         long first = Math.max(0, (long) Math.floor(startTick / (double) minor) * minor - step);
 
-        for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
+        /* One batch for the notches: a label in between flushes what is pending and the batch
+         * picks back up, so ~300 draw calls collapse to one per label gap. */
+        context.batcher.beginBatch();
+
+        try
         {
-            int x = toGraphX.applyAsInt((int) tick);
-
-            if (x >= visibleEx)
+            for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
             {
-                break;
-            }
+                int x = toGraphX.applyAsInt((int) tick);
 
-            boolean major = tick % step == 0;
+                if (x >= visibleEx)
+                {
+                    break;
+                }
 
-            if (x >= area.x)
-            {
-                context.batcher.box(x, major ? majorTop : minorTop, x + 1, lineBottom, major ? majorColor : minorColor);
-            }
+                boolean major = tick % step == 0;
 
-            if (major && x > area.x - labelMargin)
-            {
-                context.batcher.textShadow(labelFormatter.apply((int) tick), x + 4, area.y + 2, labelColor);
+                if (x >= area.x)
+                {
+                    context.batcher.box(x, major ? majorTop : minorTop, x + 1, lineBottom, major ? majorColor : minorColor);
+                }
+
+                if (major && x > area.x - labelMargin)
+                {
+                    context.batcher.textShadow(labelFormatter.apply((int) tick), x + 4, area.y + 2, labelColor);
+                }
             }
+        }
+        finally
+        {
+            context.batcher.endBatch();
         }
     }
 
@@ -194,19 +198,28 @@ public class TimelineRulerRenderer
 
         long first = Math.max(0, (long) Math.floor(startTick / (double) minor) * minor);
 
-        for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
+        context.batcher.beginBatch();
+
+        try
         {
-            int x = toGraphX.applyAsInt((int) tick);
-
-            if (x >= visibleEx)
+            for (long tick = first, i = 0; i < ITERATION_CAP; tick += minor, i++)
             {
-                break;
-            }
+                int x = toGraphX.applyAsInt((int) tick);
 
-            if (x >= area.x)
-            {
-                context.batcher.box(x, top, x + 1, area.ey(), tick % step == 0 ? majorColor : minorColor);
+                if (x >= visibleEx)
+                {
+                    break;
+                }
+
+                if (x >= area.x)
+                {
+                    context.batcher.box(x, top, x + 1, area.ey(), tick % step == 0 ? majorColor : minorColor);
+                }
             }
+        }
+        finally
+        {
+            context.batcher.endBatch();
         }
 
         context.batcher.unclip(context);

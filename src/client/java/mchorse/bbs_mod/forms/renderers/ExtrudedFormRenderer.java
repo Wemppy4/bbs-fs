@@ -105,7 +105,7 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
             GameRenderer gameRenderer = MinecraftClient.getInstance().gameRenderer;
             Color formColor = this.form.color.get();
 
-            FormColorBlend.blend(color, formColor, this.form.additiveColor.get());
+            FormColorBlend.blend(color, formColor);
 
             Texture textureObject = BBSModClient.getTextures().getTexture(texture);
 
@@ -125,7 +125,7 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
              * colour degrades to alpha cutout — transparent texels become holes, semi-transparent
              * ones draw solid. */
             boolean cutout = defer && irisWorld && textureObject != null && textureObject.hasTranslucency()
-                && color.a >= 1F && !this.form.additiveColor.get();
+                && color.a >= 1F;
 
             ShaderProgram finalShader = cutout ? GameRenderer.getRenderTypeEntityCutoutProgram() : shader.get();
             boolean wasActive = false;

@@ -50,6 +50,12 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         this.yAxis = new Scale(this.keyframes.area, ScrollDirection.VERTICAL).inverse();
     }
 
+    @Override
+    public UIKeyframes getKeyframes()
+    {
+        return this.keyframes;
+    }
+
     /* Graphing */
 
     public int toGraphY(double value)
@@ -70,6 +76,18 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         return Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2) < 25D;
     }
 
+    /** How low this keyframe reaches on the graph — a vector track answers for all of its axes. */
+    protected double lowestValue(Keyframe frame, int index)
+    {
+        return frame.getY(index);
+    }
+
+    /** How high this keyframe reaches on the graph. */
+    protected double highestValue(Keyframe frame, int index)
+    {
+        return frame.getY(index);
+    }
+
     public void resetViewY(UIKeyframeSheet current)
     {
         this.yAxis.set(0, 2);
@@ -87,8 +105,8 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
             {
                 Keyframe frame = keyframes.get(i);
 
-                minY = Math.min(minY, frame.getY(i));
-                maxY = Math.max(maxY, frame.getY(i));
+                minY = Math.min(minY, this.lowestValue(frame, i));
+                maxY = Math.max(maxY, this.highestValue(frame, i));
             }
         }
         else
@@ -98,7 +116,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
 
             if (c == 1)
             {
-                minY = maxY = channel.get(0).getY(0);
+                minY = maxY = this.lowestValue(channel.get(0), 0);
             }
         }
 
@@ -233,12 +251,6 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         }
 
         return null;
-    }
-
-    @Override
-    public void pickKeyframe(Keyframe keyframe)
-    {
-        this.keyframes.pickKeyframe(keyframe);
     }
 
     @Override
@@ -562,17 +574,28 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
                 }
                 else if (interp != Interpolations.LINEAR)
                 {
-                    float steps = 50F;
+                    /* Sampling a curve nobody can see is the whole cost of a dense channel, and a
+                     * pixel-wide segment needs no more points than it has pixels. The straight
+                     * stand-in an offscreen segment gets is behind the scissor either way. */
+                    boolean visible = Math.max(px, x) >= this.keyframes.area.x - 20 && Math.min(px, x) <= this.keyframes.area.ex() + 20;
 
-                    for (int j = 1; j <= steps; j++)
+                    if (visible)
                     {
-                        float a = j / steps;
+                        float steps = Math.min(50, Math.max(2, Math.abs(x - px)));
 
-                        segment.setup(prev, frame, prev.getTick() + a * (frame.getTick() - prev.getTick()));
+                        /* prev sits at i - 1 by construction — no need to re-find it per sample. */
+                        segment.fill(prev, frame, i - 1);
 
-                        float interpolate = this.toGraphY((float) frame.getFactory().getY(segment.createInterpolated()));
+                        for (int j = 1; j <= steps; j++)
+                        {
+                            float a = j / steps;
 
-                        lineBuilder.add(Lerps.lerp(px, x, a), interpolate);
+                            segment.setup(prev.getTick() + a * (frame.getTick() - prev.getTick()));
+
+                            float interpolate = this.toGraphY((float) frame.getFactory().getY(segment.createInterpolated()));
+
+                            lineBuilder.add(Lerps.lerp(px, x, a), interpolate);
+                        }
                     }
                 }
             }
@@ -663,7 +686,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
                 isPointHover = isPointHover || this.keyframes.getGrabbingArea(context).isInside(x1, y);
             }
 
-            int kc = frame.getColor() != null ? frame.getColor().getRGBColor() | Colors.A100 : sheet.color;
+            int kc = UIKeyframeDopeSheet.keyframeColor(frame, sheet);
             int c = (sheet.selection.has(i) || isPointHover ? Colors.WHITE : kc) | Colors.A100;
 
             if (toRemove)
@@ -701,7 +724,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
 
             int c = sheet.selection.has(j) ? Colors.ACTIVE : 0;
             int mx = this.keyframes.toGraphX(frame.getTick());
-            int mc = c | Colors.A100;
+            int mc = UIKeyframeDopeSheet.keyframeCoreColor(frame, sheet, sheet.selection.has(j));
             IKeyframeShapeRenderer shapeResult = UIKeyframeDopeSheet.renderShape(frame, context, builder, matrix, mx, y, 2, mc);
 
             shapeResult.renderKeyframeBackground(context, builder, matrix, mx, y, 2, mc);

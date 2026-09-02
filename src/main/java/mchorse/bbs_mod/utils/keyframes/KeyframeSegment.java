@@ -29,6 +29,11 @@ public class KeyframeSegment <T>
         this.fill(a, b);
     }
 
+    public KeyframeSegment(Keyframe<T> a, Keyframe<T> b, int index)
+    {
+        this.fill(a, b, index);
+    }
+
     public void setup(Keyframe<T> a, Keyframe<T> b, float ticks)
     {
         this.fill(a, b);
@@ -37,11 +42,22 @@ public class KeyframeSegment <T>
 
     public void fill(Keyframe<T> a, Keyframe<T> b)
     {
+        KeyframeChannel<T> channel = (KeyframeChannel<T>) a.getParent();
+
+        this.fill(a, b, channel.indexOf(a));
+    }
+
+    /**
+     * Fill with the index of {@code a} already in hand. The binary search that finds a segment
+     * knows this index; taking it here keeps the neighbour lookup O(1) instead of re-scanning
+     * the channel for a keyframe the caller just pulled out of it.
+     */
+    public void fill(Keyframe<T> a, Keyframe<T> b, int index)
+    {
         this.a = a;
         this.b = b;
 
         KeyframeChannel<T> channel = (KeyframeChannel<T>) a.getParent();
-        int index = channel.getKeyframes().indexOf(a);
 
         if (index >= 0)
         {

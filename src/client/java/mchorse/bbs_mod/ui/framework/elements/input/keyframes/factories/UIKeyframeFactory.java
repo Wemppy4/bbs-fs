@@ -9,22 +9,18 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragStartEvent;
-import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.IUIKeyframeGraph;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
 import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.StringUtils;
-import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
-import mchorse.bbs_mod.utils.keyframes.KeyframeShape;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
@@ -43,20 +39,24 @@ public abstract class UIKeyframeFactory <T> extends UIElement
      */
     private static final Map<String, IUIKeyframeFactoryFactory> PROPERTIES = new HashMap<>();
 
-    private static final Map<IKeyframeFactory, Integer> SCROLLS = new HashMap<>();
+    private static final ScrollMemory<IKeyframeFactory> SCROLLS = new ScrollMemory<>();
 
     public UIScrollView scroll;
     public UITrackpad tick;
     public UITrackpad duration;
     public UIIcon interp;
 
-    public UIIcon shape;
-    public UIColor color;
-
     protected Keyframe<T> keyframe;
     protected UIKeyframes editor;
 
-    static
+    /**
+     * Fills the registry. Called by BBS while it initialises, and followed by the event that
+     * lets addons add to it.
+     *
+     * <p>This used to be a static initialiser, which ran whenever something first touched the
+     * class — a moment nobody chose and an addon could not aim at.</p>
+     */
+    public static void setup()
     {
         register(KeyframeFactories.ANCHOR, UIAnchorKeyframeFactory::new);
         register(KeyframeFactories.BOOLEAN, UIBooleanKeyframeFactory::new);
@@ -70,6 +70,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         register(KeyframeFactories.PHYSICS, UIPhysicsKeyframeFactory::new);
         register(KeyframeFactories.WIND, UIWindKeyframeFactory::new);
         register(KeyframeFactories.POSE_TRANSFORM, UIPoseTransformKeyframeFactory::new);
+        register(KeyframeFactories.BONE_CONSTRAINT, UIBoneConstraintKeyframeFactory::new);
         register(KeyframeFactories.STRING, UIStringKeyframeFactory::new);
         register(KeyframeFactories.TRANSFORM, UITransformKeyframeFactory::new);
         register(KeyframeFactories.VECTOR3F, UIVector3fKeyframeFactory::new);
@@ -98,17 +99,13 @@ public abstract class UIKeyframeFactory <T> extends UIElement
     {
         if (editor != null)
         {
-            SCROLLS.put(editor.keyframe.getFactory(), (int) editor.scroll.scroll.getScroll());
+            SCROLLS.save(editor.keyframe.getFactory(), editor.scroll);
         }
     }
 
-    /**
-     * Restore the scroll saved for this keyframe factory. Must be called after the panel
-     * was laid out, otherwise the scroll gets clamped to 0 against an empty area.
-     */
     public void restoreScroll()
     {
-        this.scroll.scroll.setScroll(SCROLLS.getOrDefault(this.keyframe.getFactory(), 0));
+        SCROLLS.restore(this.keyframe.getFactory(), this.scroll);
     }
 
     public static <T> UIKeyframeFactory createPanel(Keyframe<T> keyframe, UIKeyframes editor)
@@ -166,58 +163,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         this.interp.tooltip(new InterpolationTooltip(0F, 0.5F, () -> this.keyframe.getInterpolation()));
         this.interp.keys().register(Keys.KEYFRAMES_INTERP, this.interp::clickItself).category(UIKeys.KEYFRAMES_KEYS_CATEGORY);
 
-        this.color = new UIColor((c) ->
-        {
-            for (UIKeyframeSheet sheet : this.editor.getGraph().getSheets())
-            {
-                for (Keyframe kf : sheet.selection.getSelected()) kf.setColor(new Color().set(c));
-            }
-        });
-        this.color.setColor(keyframe.getColor() == null ? 0 : keyframe.getColor().getRGBColor());
-        this.color.tooltip(UIKeys.KEYFRAMES_CHANGE_COLOR);
-        this.color.context((menu) ->
-        {
-            menu.action(Icons.COLOR, UIKeys.KEYFRAMES_RESET_COLOR, () ->
-            {
-                for (UIKeyframeSheet sheet : this.editor.getGraph().getSheets())
-                {
-                    for (Keyframe kf : sheet.selection.getSelected()) kf.setColor(null);
-                }
-
-                this.color.setColor(0);
-            });
-        });
-
-        this.shape = new UIIcon(Icons.SHAPES, (b) ->
-        {
-            KeyframeShape currentShape = keyframe.getShape() == null ? KeyframeShape.SQUARE : keyframe.getShape();
-
-            this.getContext().replaceContextMenu((menu) ->
-            {
-                for (KeyframeShape shape : KeyframeShape.values())
-                {
-                    IKeyframeShapeRenderer shapeRenderer = KeyframeShapeRenderers.SHAPES.get(shape);
-
-                    menu.action(shapeRenderer.getIcon(), shapeRenderer.getLabel(), shape == currentShape, () ->
-                    {
-                        for (UIKeyframeSheet sheet : this.editor.getGraph().getSheets())
-                        {
-                            for (Keyframe kf : sheet.selection.getSelected())
-                            {
-                                kf.setShape(shape);
-                            }
-                        }
-                    });
-                }
-            });
-        });
-        this.shape.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-        this.shape.tooltip(UIKeys.KEYFRAMES_CHANGE_SHAPE);
-
-        this.scroll.add(UI.column(0, 0, 0,
-            UI.row(UIConstants.MARGIN, 0, 0, this.interp, this.tick, this.duration),
-            UI.row(UIConstants.MARGIN, 0, 0, this.shape, this.color).marginTop(UIConstants.SECTION_GAP)
-        ));
+        this.scroll.add(UI.row(UIConstants.MARGIN, 0, 0, this.interp, this.tick, this.duration));
 
         this.add(this.scroll);
 
@@ -229,6 +175,47 @@ public abstract class UIKeyframeFactory <T> extends UIElement
     public Keyframe<T> getKeyframe()
     {
         return this.keyframe;
+    }
+
+    /**
+     * The keyframe an edit made in this panel should land on: the one the panel was opened for,
+     * or &mdash; with auto-keyframing on &mdash; the keyframe of the same track at the playhead,
+     * made from the track's interpolated value if there is none there yet.
+     */
+    public Keyframe<T> getEditTarget()
+    {
+        return this.editor.getGraph().getEditTarget(this.keyframe);
+    }
+
+    /**
+     * Whether this panel's fields should follow the playhead rather than the keyframe they were
+     * opened for. They have to when auto-keyframing, because that is where the next edit lands:
+     * a field showing a keyframe at another tick would start a drag from the wrong number.
+     */
+    protected boolean followsPlayhead()
+    {
+        return this.editor.getGraph().getAutoKeyframeTick() != null;
+    }
+
+    /**
+     * What the fields should show: the edited keyframe's value, or what the track reads at the
+     * playhead while {@link #followsPlayhead()}. Read-only &mdash; a keyframe is only brought into
+     * being once something is actually edited.
+     */
+    protected T getDisplayValue()
+    {
+        IUIKeyframeGraph graph = this.editor.getGraph();
+        Integer tick = graph.getAutoKeyframeTick();
+        UIKeyframeSheet sheet = tick == null ? null : graph.getSheet(this.keyframe);
+
+        if (sheet == null || sheet.channel.isEmpty())
+        {
+            return this.keyframe.getValue();
+        }
+
+        T value = (T) sheet.channel.interpolate(tick);
+
+        return value == null ? this.keyframe.getValue() : value;
     }
 
     public void setTick(double tick)
@@ -245,7 +232,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
 
     public void setValue(Object value)
     {
-        this.editor.getGraph().setValue(value, true);
+        this.editor.getGraph().setValue(value, true, true);
     }
 
     public void update()

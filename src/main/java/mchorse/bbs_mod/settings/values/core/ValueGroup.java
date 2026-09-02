@@ -17,6 +17,20 @@ public class ValueGroup extends BaseValueGroup
 {
     private Map<String, BaseValue> children = new LinkedHashMap<>();
 
+    /**
+     * Namespaced keys read out of the data that no child of this group claimed, kept so they
+     * can be written back untouched.
+     *
+     * <p>They belong to an addon that is not loaded right now. Dropping them would mean that
+     * starting the game once without the addon quietly rewrites every scene that used it — so
+     * the round trip preserves them instead.</p>
+     *
+     * <p>Only keys carrying a namespace ({@code myaddon:something}) are kept. BBS's own
+     * properties never do, which is what lets a removed property still disappear on save
+     * instead of trailing after the data forever.</p>
+     */
+    private Map<String, BaseType> foreign;
+
     public Icon icon;
 
     public ValueGroup(String id)
@@ -52,6 +66,12 @@ public class ValueGroup extends BaseValueGroup
     public List<BaseValue> getAll()
     {
         return new ArrayList<>(this.children.values());
+    }
+
+    /** One child by id, if it is a basic value — the per-lookup shape of {@link #getAllMap()}. */
+    public BaseValueBasic getBasic(String id)
+    {
+        return this.children.get(id) instanceof BaseValueBasic<?> basic ? basic : null;
     }
 
     public Map<String, BaseValueBasic> getAllMap()
@@ -120,6 +140,17 @@ public class ValueGroup extends BaseValueGroup
             }
         }
 
+        if (this.foreign != null)
+        {
+            for (Map.Entry<String, BaseType> entry : this.foreign.entrySet())
+            {
+                if (!data.has(entry.getKey()))
+                {
+                    data.put(entry.getKey(), entry.getValue().copy());
+                }
+            }
+        }
+
         return data;
     }
 
@@ -136,6 +167,8 @@ public class ValueGroup extends BaseValueGroup
             return;
         }
 
+        this.foreign = null;
+
         for (Map.Entry<String, BaseType> entry : data.asMap())
         {
             BaseValue value = this.children.get(entry.getKey());
@@ -144,6 +177,15 @@ public class ValueGroup extends BaseValueGroup
             {
                 value.setParent(this);
                 value.fromData(entry.getValue());
+            }
+            else if (entry.getKey().indexOf(':') >= 0)
+            {
+                if (this.foreign == null)
+                {
+                    this.foreign = new LinkedHashMap<>();
+                }
+
+                this.foreign.put(entry.getKey(), entry.getValue().copy());
             }
         }
     }

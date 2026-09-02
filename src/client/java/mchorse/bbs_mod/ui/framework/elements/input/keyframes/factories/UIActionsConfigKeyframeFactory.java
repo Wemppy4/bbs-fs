@@ -16,6 +16,10 @@ public class UIActionsConfigKeyframeFactory extends UIKeyframeFactory<ActionsCon
 {
     public UIActionsConfigEditor actionsEditor;
 
+    /* Which arrangement the fields are in (null until the first layout), so a resize
+     * that stays on the same side of the threshold doesn't rebuild the subtree */
+    private Boolean wide;
+
     public UIActionsConfigKeyframeFactory(Keyframe<ActionsConfig> keyframe, UIKeyframes editor)
     {
         super(keyframe, editor);
@@ -39,9 +43,22 @@ public class UIActionsConfigKeyframeFactory extends UIKeyframeFactory<ActionsCon
     @Override
     public void resize()
     {
+        boolean wide = this.getFlex().getW() > 240;
+
+        if (this.wide == null || this.wide != wide)
+        {
+            this.wide = wide;
+            this.rebuild(wide);
+        }
+
+        super.resize();
+    }
+
+    private void rebuild(boolean wide)
+    {
         this.actionsEditor.removeAll();
 
-        if (this.getFlex().getW() > 240)
+        if (wide)
         {
             this.actionsEditor.add(UI.row(
                 UI.column(
@@ -64,7 +81,5 @@ public class UIActionsConfigKeyframeFactory extends UIKeyframeFactory<ActionsCon
             this.actionsEditor.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_FADE, this.actionsEditor.fade));
             this.actionsEditor.add(UI.labelRow(UIKeys.FORMS_EDITORS_ACTIONS_TICK, this.actionsEditor.tick));
         }
-
-        super.resize();
     }
 }

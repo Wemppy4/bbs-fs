@@ -16,7 +16,7 @@ public class AudioClip extends CameraClip
 
     public ValueLink audio = new ValueLink("audio", null);
     public ValueInt offset = new ValueInt("offset", 0, Integer.MIN_VALUE, Integer.MAX_VALUE);
-    public ValueFloat volume = new ValueFloat("volume", 1F, 0F,1F);
+    public ValueFloat volume = new ValueFloat("volume", 1F, 0F, 2F);
 
     public AudioClip()
     {
