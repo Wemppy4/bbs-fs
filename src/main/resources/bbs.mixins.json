@@ -5,6 +5,7 @@
     "mixins": [
         "PlayerEntityMixin",
         "PlayerEntityMorphMixin",
+        "PlayerLikeEntityMixin",
         "ServerPlayNetworkHandlerMixin",
         "BlockItemMixin",
         "ServerWorldMixin",

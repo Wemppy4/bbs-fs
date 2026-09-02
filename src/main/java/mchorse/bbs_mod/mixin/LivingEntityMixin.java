@@ -3,8 +3,7 @@ package mchorse.bbs_mod.mixin;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.actions.types.AttackActionClip;
 import mchorse.bbs_mod.actions.types.item.ReleaseUseItemActionClip;
-import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.morphing.IMorphProvider;
+import mchorse.bbs_mod.morphing.MorphHitbox;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityDimensions;
@@ -46,25 +45,11 @@ public class LivingEntityMixin
     @Inject(method = "getBaseDimensions", at = @At("RETURN"), cancellable = true)
     public void onGetBaseDimensions(CallbackInfoReturnable<EntityDimensions> info)
     {
-        if (this instanceof IMorphProvider provider)
+        EntityDimensions dimensions = MorphHitbox.override((LivingEntity) (Object) this, info.getReturnValue());
+
+        if (dimensions != null)
         {
-            Form form = provider.getMorph().getForm();
-
-            if (form != null && form.hitbox.get())
-            {
-                LivingEntity entity = (LivingEntity) (Object) this;
-                EntityDimensions dimensions = info.getReturnValue();
-                float height = form.hitboxHeight.get() * (entity.isSneaking() ? form.hitboxSneakMultiplier.get() : 1F);
-
-                if (dimensions.fixed())
-                {
-                    info.setReturnValue(EntityDimensions.fixed(form.hitboxWidth.get(), height));
-                }
-                else
-                {
-                    info.setReturnValue(EntityDimensions.changing(form.hitboxWidth.get(), height));
-                }
-            }
+            info.setReturnValue(dimensions);
         }
     }
 
