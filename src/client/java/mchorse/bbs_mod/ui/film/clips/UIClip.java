@@ -50,6 +50,7 @@ import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueDouble;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
@@ -179,9 +180,9 @@ public abstract class UIClip <T extends Clip> extends UIElement
         this.editor = editor;
 
         this.enabled = this.toggle(UIKeys.CAMERA_PANELS_ENABLED, clip.enabled);
-        this.title = new UITextbox(1000, (t) -> this.clip.title.set(t));
+        this.title = this.textbox(1000, this.clip.title);
         this.title.tooltip(UIKeys.CAMERA_PANELS_TITLE_TOOLTIP);
-        this.layer = new UITrackpad((v) -> this.editor.editMultiple(this.clip.layer, v.intValue()));
+        this.layer = this.bind(new UITrackpad((v) -> this.editor.editMultiple(this.clip.layer, v.intValue())), () -> this.layer.setValue(this.clip.layer.get()));
         this.layer.limit(0, Integer.MAX_VALUE, true).tooltip(UIKeys.CAMERA_PANELS_LAYER);
         this.tick = new UITrackpad((v) -> this.editor.editMultiple(this.clip.tick, (int) TimeUtils.fromTime(v)));
         this.tick.limit(0, Integer.MAX_VALUE, true).tooltip(UIKeys.CAMERA_PANELS_TICK);
@@ -244,11 +245,26 @@ public abstract class UIClip <T extends Clip> extends UIElement
     }
 
     /**
-     * Bind a widget to a clip property: the widget is remembered so {@link #fillData()} reads the
-     * value back into it, which is why the helpers below are all a panel needs to spend on a
-     * property. Use this directly for a widget the typed helpers don't cover.
+     * Bind a widget to a clip property: the widget reads the value back by itself, on every frame
+     * it is drawn, which is why the helpers below are all a panel needs to spend on a property.
+     * Use this directly for a widget the typed helpers don't cover.
+     *
+     * <p>This is the same binding form panels use — see
+     * {@link mchorse.bbs_mod.ui.framework.elements.UIElement#valueBinding(Runnable)}.</p>
      */
-    protected <T> T bind(T element, Runnable filler)
+    protected <T extends UIElement> T bind(T element, Runnable filler)
+    {
+        element.valueBinding(filler);
+
+        return element;
+    }
+
+    /**
+     * The same, for a widget that must not be re-read on every frame: one that rebuilds a group of
+     * sub-fields, allocates on each read, or holds a gesture of its own. Such a widget is filled
+     * when {@link #fillData()} runs instead — on selection, on undo, on an edit landing.
+     */
+    protected <T> T bindOnDemand(T element, Runnable filler)
     {
         this.fillers.add(filler);
 
@@ -285,6 +301,13 @@ public abstract class UIClip <T extends Clip> extends UIElement
         return this.bind(trackpad, () -> trackpad.setValue(value.get()));
     }
 
+    protected UITextbox textbox(int maxLength, ValueString value)
+    {
+        UITextbox textbox = new UITextbox(maxLength, (t) -> this.editor.editMultiple(value, (v) -> v.set(t)));
+
+        return this.bind(textbox, () -> textbox.setText(value.get()));
+    }
+
     protected UIColor color(ValueInt value)
     {
         UIColor color = new UIColor((c) -> this.editor.editMultiple(value, (v) -> v.set(c)));
@@ -296,14 +319,16 @@ public abstract class UIClip <T extends Clip> extends UIElement
     {
         UIItemStack itemStack = new UIItemStack((stack) -> this.editor.editMultiple(value, (v) -> v.set(stack)));
 
-        return this.bind(itemStack, () -> itemStack.setStack(value.get()));
+        /* Reading copies the stack, so it is not something to do sixty times a second. */
+        return this.bindOnDemand(itemStack, () -> itemStack.setStack(value.get()));
     }
 
     protected UIPlacement placement(ValuePlacement value, Placement defaultPlacement)
     {
         UIPlacement placement = new UIPlacement(defaultPlacement, (p) -> this.editor.editMultiple(value, (v) -> v.set(p.copy())));
 
-        return this.bind(placement, () -> placement.setPlacement(value.get()));
+        /* Reading refills eight sub-fields and recomputes the grid. */
+        return this.bindOnDemand(placement, () -> placement.setPlacement(value.get()));
     }
 
     protected UIPropTransform transform(ValueTransform value)
@@ -319,7 +344,10 @@ public abstract class UIClip <T extends Clip> extends UIElement
             })
         );
 
-        return this.bind(transform, () -> transform.setTransform(value.get()));
+        /* The transform holds a gesture of its own: read on every frame it would pull the gizmo
+         * back from under the hand dragging it. Bound per frame once the transform widget can say
+         * it is being worked in. */
+        return this.bindOnDemand(transform, () -> transform.setTransform(value.get()));
     }
 
     public void handleUndo(IUndo<ValueGroup> undo, boolean redo)
@@ -340,9 +368,7 @@ public abstract class UIClip <T extends Clip> extends UIElement
         TimeUtilsClient.configure(this.tick, 0);
         TimeUtilsClient.configure(this.duration, 1);
 
-        this.title.setText(this.clip.title.get());
         this.title.placeholder(IKey.constant(this.editor.getClipDisplayName(this.clip)));
-        this.layer.setValue(this.clip.layer.get());
         this.tick.setValue(TimeUtils.toTime(this.clip.tick.get()));
         this.duration.setValue(TimeUtils.toTime(this.clip.duration.get()));
         this.envelope.fillData();

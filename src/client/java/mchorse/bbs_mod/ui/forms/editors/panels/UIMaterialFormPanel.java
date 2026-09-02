@@ -299,7 +299,6 @@ public class UIMaterialFormPanel extends UIFormPanel
             this.overlay.setColor(this.form.overlayColor.get().getARGBColor());
             this.lighting.setValue(this.form.lighting.get());
             this.layer.setValue(this.form.renderLayer.get());
-            this.shaderShadow.setValue(this.form.shaderShadow.get());
         }
 
         /* PBR edits go to the selected material, or the model's default material at form level. */

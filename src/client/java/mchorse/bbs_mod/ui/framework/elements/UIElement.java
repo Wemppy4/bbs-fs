@@ -84,6 +84,15 @@ public class UIElement implements IUIElement, IUndoElement
     private List<Consumer<ContextMenuManager>> contextOptions;
 
     /**
+     * Reads the property this element edits back into it — see
+     * {@link mchorse.bbs_mod.ui.utils.values.UIValues}. Run on every frame the element is drawn,
+     * so a field shows what its property holds now rather than what someone last poured into it.
+     *
+     * <p>Null for an element bound to nothing, which is most of them.</p>
+     */
+    private Runnable valueBinding;
+
+    /**
      * Whether this element can be culled if it's out of viewport
      */
     public boolean culled = true;
@@ -1500,9 +1509,39 @@ public class UIElement implements IUIElement, IUndoElement
         return !this.culled || viewport.intersects(this.area);
     }
 
+    /**
+     * Bind this element to the property it edits: the given step reads that property into the
+     * widget, and runs on every frame the element is drawn.
+     *
+     * <p>Writing was always the easy half — a widget is handed a callback and writes through it.
+     * This is the other half, and without it every panel had to pour values into its widgets by
+     * hand whenever the thing being edited changed underneath.</p>
+     */
+    public UIElement valueBinding(Runnable valueBinding)
+    {
+        this.valueBinding = valueBinding;
+
+        return this;
+    }
+
+    /**
+     * Whether the user is working inside this element right now, in which case
+     * {@link #valueBinding(Runnable)} leaves it alone: re-reading the property under a half-typed
+     * number or a drag in progress would fight the very input about to write it.
+     */
+    public boolean isUserEditing()
+    {
+        return this instanceof IFocusedUIElement focused && focused.isFocused();
+    }
+
     @Override
     public void render(UIContext context)
     {
+        if (this.valueBinding != null && !this.isUserEditing())
+        {
+            this.valueBinding.run();
+        }
+
         if (this.keybinds != null && this.isEnabled())
         {
             this.keybinds.add(context, this.area.isInside(context));

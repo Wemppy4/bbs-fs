@@ -37,15 +37,15 @@ public class UIDollyClip extends UIClip<DollyClip>
     {
         super.registerUI();
 
-        this.point = new UIPointModule(editor);
-        this.angle = new UIAngleModule(editor);
-        this.distance = new UITrackpad((value) -> this.clip.distance.set(value.floatValue()));
+        this.point = this.bindOnDemand(new UIPointModule(editor), () -> this.point.fill(this.clip.position.getPoint()));
+        this.angle = this.bindOnDemand(new UIAngleModule(editor), () -> this.angle.fill(this.clip.position.getAngle()));
+        this.distance = this.trackpad(this.clip.distance);
         this.distance.tooltip(UIKeys.CAMERA_PANELS_DOLLY_DISTANCE);
         this.reverse = new UIIcon(Icons.REVERSE, (b) -> this.reverse());
         this.reverse.tooltip(UIKeys.CAMERA_PANELS_DOLLY_REVERSE);
-        this.yaw = new UITrackpad((value) -> this.clip.yaw.set(value.floatValue()));
+        this.yaw = this.trackpad(this.clip.yaw);
         this.yaw.tooltip(UIKeys.CAMERA_PANELS_DOLLY_YAW);
-        this.pitch = new UITrackpad((value) -> this.clip.pitch.set(value.floatValue()));
+        this.pitch = this.trackpad(this.clip.pitch);
         this.pitch.tooltip(UIKeys.CAMERA_PANELS_DOLLY_PITCH);
 
         this.interp = new UIButton(UIKeys.CAMERA_PANELS_INTERPOLATION, (b) ->
@@ -84,18 +84,5 @@ public class UIDollyClip extends UIClip<DollyClip>
         this.clip.pitch.set(position.angle.pitch);
 
         super.editClip(position);
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.point.fill(this.clip.position.getPoint());
-        this.angle.fill(this.clip.position.getAngle());
-
-        this.yaw.setValue(this.clip.yaw.get());
-        this.pitch.setValue(this.clip.pitch.get());
-        this.distance.setValue(this.clip.distance.get());
     }
 }

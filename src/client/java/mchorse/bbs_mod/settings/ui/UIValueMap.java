@@ -100,7 +100,7 @@ public class UIValueMap
                         panel.refresh();
                     }
                 };
-                button.setValue(value.get());
+                button.valueBinding(() -> button.setValue(value.get()));
                 button.w(90);
 
                 return Arrays.asList(UIValueFactory.column(button, value));
@@ -124,7 +124,7 @@ public class UIValueMap
                 }
 
                 button.callback = (b) -> value.set(button.getValue());
-                button.setValue(value.get());
+                button.valueBinding(() -> button.setValue(value.get()));
                 button.w(90);
 
                 return Arrays.asList(UIValueFactory.column(button, value));

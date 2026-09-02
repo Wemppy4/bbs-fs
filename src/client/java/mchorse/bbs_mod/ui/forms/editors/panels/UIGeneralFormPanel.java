@@ -144,9 +144,10 @@ public class UIGeneralFormPanel extends UIFormPanel
     {
         super.startEdit(form);
 
+        /* Everything built through UIValues reads its own property — only the controls that
+         * aren't bound to one are filled here. */
         this.hotkey.setKeyCombo(new KeyCombo(IKey.EMPTY, form.hotkey.get()));
 
-        this.visible.setValue(form.visible.get());
         if (form instanceof ModelForm m)
         {
             this.boneTracks.setValue(m.boneTracks.get());
@@ -156,20 +157,11 @@ public class UIGeneralFormPanel extends UIFormPanel
         {
             this.boneTracks.setVisible(false);
         }
-        this.trackName.setText(form.trackName.get());
-        this.uiScale.setValue(form.uiScale.get());
-        this.name.setText(form.name.get());
+
         this.transform.setTransform(form.transform.get());
 
-        this.hitbox.setValue(form.hitbox.get());
-        this.hitboxWidth.setValue(form.hitboxWidth.get());
-        this.hitboxHeight.setValue(form.hitboxHeight.get());
         this.hitboxSneakMultiplier.setValue(form.hitboxSneakMultiplier.get());
         this.hitboxEyeHeight.setValue(form.hitboxEyeHeight.get());
-
-        this.hp.setValue(form.hp.get());
-        this.speed.setValue(form.speed.get());
-        this.stepHeight.setValue(form.stepHeight.get());
 
         this.options.resize();
     }

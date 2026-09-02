@@ -972,8 +972,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         UITextbox poseGroup = UIValues.textbox(10000, () -> this.data.poseGroup);
 
-        poseGroup.setText(config.poseGroup.get());
-
         UIBonePicker anchor = this.bonePicker(config.anchor::get, config.anchor::set, () -> {});
 
         UIValues.resettable(anchor, () -> this.data.anchor, anchor::refresh);

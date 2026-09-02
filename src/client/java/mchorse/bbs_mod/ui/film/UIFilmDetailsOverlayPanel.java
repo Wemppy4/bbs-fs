@@ -48,7 +48,7 @@ public class UIFilmDetailsOverlayPanel extends UIOverlayPanel
 
         /* Description */
         this.description = new UITextarea<>((t) -> this.film.description.set(t));
-        this.description.setText(film.description.get());
+        this.description.valueBinding(() -> this.description.setText(this.film.description.get()));
         this.description.background().wrap(true).padding(8);
         /* The one field that grows with the panel — the stats below it are single lines */
         this.description.h(88).expand();

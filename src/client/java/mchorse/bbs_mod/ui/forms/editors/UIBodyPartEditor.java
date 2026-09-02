@@ -76,6 +76,13 @@ public class UIBodyPartEditor extends UIScrollView
         {
             this.part.useTarget.set(b.getValue());
         });
+        this.useTarget.valueBinding(() ->
+        {
+            if (this.part != null)
+            {
+                this.useTarget.setValue(this.part.useTarget.get());
+            }
+        });
 
         this.bone = new UIBonePicker((b) ->
         {
@@ -170,7 +177,6 @@ public class UIBodyPartEditor extends UIScrollView
 
         this.removeAll();
 
-        this.useTarget.setValue(part.useTarget.get());
         this.bone.setLabel(this.boneLabel(part.bone.get()));
 
         /* The inheritance toggles filter the attachment bone's matrix, so they are offered only
