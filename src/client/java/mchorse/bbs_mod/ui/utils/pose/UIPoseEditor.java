@@ -55,6 +55,9 @@ public class UIPoseEditor extends UIElement
 
     private String group = "";
     private boolean hasBones = true;
+
+    /** Only the bone list and the transform: for a pose whose material and fix never show (a model's sneaking pose). */
+    private boolean poseOnly;
     private Pose pose;
     protected IBoneHierarchy model;
     protected Map<String, String> flippedParts;
@@ -167,7 +170,7 @@ public class UIPoseEditor extends UIElement
 
         /* Every row rides the same labelRow grid, so the trackpads and colour swatches pin to one
          * divider column and the names never truncate. */
-        UIElement[] fields = {
+        UIElement[] fields = this.poseOnly ? new UIElement[] {this.transform} : new UIElement[] {
             UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.fix),
             this.transform,
             this.material
@@ -186,6 +189,15 @@ public class UIPoseEditor extends UIElement
             this.add(this.groups);
             this.add(fields);
         }
+    }
+
+    /** Drop the fix row and the material section: a pose whose host shows neither (see {@link #poseOnly}). */
+    public UIPoseEditor poseOnly()
+    {
+        this.poseOnly = true;
+        this.buildLayout(false);
+
+        return this;
     }
 
     private void applyChildren(Consumer<PoseTransform> consumer)
@@ -659,7 +671,7 @@ public class UIPoseEditor extends UIElement
 
     private void toggleFix()
     {
-        if (this.groups.list.getCurrent().isEmpty())
+        if (this.poseOnly || this.groups.list.getCurrent().isEmpty())
         {
             return;
         }

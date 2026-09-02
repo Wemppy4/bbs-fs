@@ -12,6 +12,7 @@ import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
@@ -31,6 +32,7 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -58,9 +60,9 @@ import java.util.function.Supplier;
  * <li>A pick stencil over the model — so a bone lights up under the cursor and under the
  * cursor of a row that names it ({@link #highlight}), the bone pickers' eyedropper works
  * ({@link UIBonePicker.Viewport}), and a click on a bone reports it to the panel.</li>
- * <li>The transform gizmo on the picked attachment slot ({@link #target}): drawn in the
- * frame the renderer applies the slot's transform in, so dragging a handle moves the item
- * exactly as the numbers would.</li>
+ * <li>The transform gizmo on the picked attachment slot or pose bone ({@link #target}): drawn
+ * in the frame the renderer applies the transform in, so dragging a handle moves the item
+ * (or the bone) exactly as the numbers would.</li>
  * <li>A first-person view ({@link #setFirstPerson}): the game's own hand frame and lens,
  * showing the first-person slots the way {@code ModelFormRenderer#renderArm} does in play —
  * the only way those slots were ever visible before.</li>
@@ -79,6 +81,9 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
     /** The bone matrices of the frame being drawn, as the slots' frames are built on them. */
     private MatrixCache bones;
+
+    /** The transition they were drawn at, for the fresh samples a pose drag takes. */
+    private float transition;
 
     private Supplier<ModelSlotTarget> target = () -> null;
     private Predicate<String> onBoneClick;
@@ -257,9 +262,34 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
     private Matrix4f boneMatrix(ModelSlotTarget target)
     {
-        String bone = target.slot().group.get();
+        MatrixCacheEntry entry = this.boneEntry(target.bone());
 
-        return this.bones != null && this.bones.has(bone) ? this.bones.get(bone).matrix() : null;
+        return entry == null ? null : entry.matrix();
+    }
+
+    /** The bone's frames of the frame being drawn. */
+    private MatrixCacheEntry boneEntry(String bone)
+    {
+        return this.bones != null && this.bones.has(bone) ? this.bones.get(bone) : null;
+    }
+
+    /**
+     * The bone's frames evaluated right now, off the pose as it currently is — what a pose drag's
+     * samplers need: they nudge the pose and read back where the bone went. The channel cache is
+     * dropped first, since the sneaking pose isn't part of its key (only the form's pose is).
+     */
+    private MatrixCacheEntry sampleBone(String bone)
+    {
+        FormRenderer renderer = FormUtilsClient.getRenderer(this.form);
+
+        if (renderer instanceof ModelFormRenderer model && model.getModel() != null)
+        {
+            model.getModel().clearChannels();
+        }
+
+        MatrixCache bones = renderer == null ? null : renderer.collectMatrices(this.entity, this.transition);
+
+        return bones != null && bones.has(bone) ? bones.get(bone) : null;
     }
 
     /**
@@ -270,7 +300,8 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     {
         FormRenderer renderer = FormUtilsClient.getRenderer(this.form);
 
-        this.bones = renderer == null ? null : renderer.collectMatrices(this.entity, context.getTransition());
+        this.transition = context.getTransition();
+        this.bones = renderer == null ? null : renderer.collectMatrices(this.entity, this.transition);
     }
 
     /**
@@ -334,6 +365,15 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
                     frame.set(bone);
                 }
             }
+            case POSE ->
+            {
+                MatrixCacheEntry entry = this.boneEntry(target.bone());
+
+                if (entry != null)
+                {
+                    frame.set(entry.origin());
+                }
+            }
         }
 
         return frame;
@@ -341,10 +381,27 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
     /**
      * Where the gizmo sits for {@code space}: on the slot's own frame for LOCAL, at the slot's
-     * position on the parent frame otherwise — the form editor's placement convention.
+     * position on the parent frame otherwise — the form editor's placement convention. A pose
+     * bone is placed the way the form editor places a bone: its full matrix for LOCAL, the frame
+     * before its own rotation for every other space.
+     *
+     * @param fresh re-evaluate the bones instead of reading the drawn frame's — for a drag's
+     *              samplers, which need to see the pose they just nudged
      */
-    private Matrix4f origin(ModelSlotTarget target, TransformSpace space)
+    private Matrix4f origin(ModelSlotTarget target, TransformSpace space, boolean fresh)
     {
+        if (target.kind() == ModelSlotKind.POSE)
+        {
+            MatrixCacheEntry entry = fresh ? this.sampleBone(target.bone()) : this.boneEntry(target.bone());
+
+            if (entry == null)
+            {
+                return new Matrix4f();
+            }
+
+            return new Matrix4f(space.placesOnOwnFrame() ? entry.matrix() : entry.origin());
+        }
+
         Transform transform = target.editor().getTransform();
         Matrix4f origin = this.parentFrame(target);
 
@@ -395,14 +452,38 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         Transform transform = target.editor().getTransform();
 
         drag.setGlobalAxes(this.getSceneAxes());
-        drag.setJacobian(GizmoDrag.computeTranslateJacobian(transform, () -> this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL)).getTranslation(new Vector3f())));
-        drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform, () -> MatrixStackUtils.stripScale(this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL)))));
+        drag.setJacobian(GizmoDrag.computeTranslateJacobian(transform, () -> this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL, true)).getTranslation(new Vector3f())));
+        drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform, () -> MatrixStackUtils.stripScale(this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL, true)))));
+        drag.setAdditiveRotationBase(this.poseRotationBase(target));
         drag.setFrameAxes(
-            this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL)),
-            this.toSceneMatrix(this.origin(target, TransformSpace.PARENT))
+            this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL, true)),
+            this.toSceneMatrix(this.origin(target, TransformSpace.PARENT, true))
         );
 
         return drag;
+    }
+
+    /**
+     * The additive euler base under a pose bone's channels — the bone's evaluated rotation (rest,
+     * actions, the sneaking pose) minus the pose's own contribution, so gizmo deltas compose at the
+     * effective angles; the form editor's rule ({@code FormUtils#additivePoseRotationBase}). Null
+     * for the slots and for a pose that merges multiplicatively (a quaternion, a fix weight).
+     */
+    private Vector3f poseRotationBase(ModelSlotTarget target)
+    {
+        if (target.kind() != ModelSlotKind.POSE || !(target.editor().getTransform() instanceof PoseTransform pose))
+        {
+            return null;
+        }
+
+        if (pose.rotationMode == Transform.RotationMode.QUATERNION || pose.fix != 0F)
+        {
+            return null;
+        }
+
+        MatrixCacheEntry entry = this.sampleBone(target.bone());
+
+        return entry == null || entry.evaluatedRotation() == null ? null : new Vector3f(entry.evaluatedRotation()).sub(pose.rotate);
     }
 
     /** Move the stack to the gizmo's placement, reoriented into the editor's active space. */
@@ -410,7 +491,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     {
         TransformSpace space = target.editor().getSpace();
 
-        MatrixStackUtils.multiply(stack, MatrixStackUtils.stripScale(this.origin(target, space)));
+        MatrixStackUtils.multiply(stack, MatrixStackUtils.stripScale(this.origin(target, space, false)));
         Gizmo.INSTANCE.reorientForSpace(stack, space, this.camera.view, this.getSceneAxes());
     }
 
