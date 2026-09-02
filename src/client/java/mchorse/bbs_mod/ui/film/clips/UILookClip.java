@@ -52,13 +52,13 @@ public class UILookClip extends UIClip<LookClip>
         });
         this.selector.tooltip(UIKeys.CAMERA_PANELS_TARGET_TOOLTIP);
 
-        this.block = this.bindOnDemand(new UIPointModule(editor, UIKeys.CAMERA_PANELS_BLOCK).contextMenu(), () -> this.block.fill(this.clip.block));
+        this.block = this.bind(new UIPointModule(editor, UIKeys.CAMERA_PANELS_BLOCK).contextMenu(), () -> this.block.fill(this.clip.block));
         this.block.context((menu) ->
         {
             menu.action(Icons.VISIBLE, UIKeys.CAMERA_PANELS_CONTEXT_LOOK_COORDS, () -> this.rayTrace(false));
             menu.action(Icons.BLOCK, UIKeys.CAMERA_PANELS_CONTEXT_LOOK_BLOCK, () -> this.rayTrace(true));
         });
-        this.offset = this.bindOnDemand(new UIPointModule(editor, UIKeys.CAMERA_PANELS_OFFSET).contextMenu(), () -> this.offset.fill(this.clip.offset));
+        this.offset = this.bind(new UIPointModule(editor, UIKeys.CAMERA_PANELS_OFFSET).contextMenu(), () -> this.offset.fill(this.clip.offset));
 
         this.relative = this.toggle(UIKeys.CAMERA_PANELS_RELATIVE, this.clip.relative);
         this.relative.tooltip(UIKeys.CAMERA_PANELS_RELATIVE_TOOLTIP);

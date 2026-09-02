@@ -37,8 +37,8 @@ public class UIDollyClip extends UIClip<DollyClip>
     {
         super.registerUI();
 
-        this.point = this.bindOnDemand(new UIPointModule(editor), () -> this.point.fill(this.clip.position.getPoint()));
-        this.angle = this.bindOnDemand(new UIAngleModule(editor), () -> this.angle.fill(this.clip.position.getAngle()));
+        this.point = this.bind(new UIPointModule(editor), () -> this.point.fill(this.clip.position.getPoint()));
+        this.angle = this.bind(new UIAngleModule(editor), () -> this.angle.fill(this.clip.position.getAngle()));
         this.distance = this.trackpad(this.clip.distance);
         this.distance.tooltip(UIKeys.CAMERA_PANELS_DOLLY_DISTANCE);
         this.reverse = new UIIcon(Icons.REVERSE, (b) -> this.reverse());

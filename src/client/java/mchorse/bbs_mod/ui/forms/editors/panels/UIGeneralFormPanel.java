@@ -79,6 +79,7 @@ public class UIGeneralFormPanel extends UIFormPanel
 
         this.transform = new UIPropTransform().callbacks(() -> this.form.transform).barBackground();
         this.transform.enableHotkeys();
+        this.transform.valueBinding(() -> this.transform.setTransform(this.form == null ? null : this.form.transform.get()));
 
         this.hitbox = UIValues.toggle(UIKeys.CAMERA_PANELS_ENABLED, () -> this.form.hitbox);
         this.hitboxWidth = UIValues.trackpad(() -> this.form.hitboxWidth);
@@ -157,8 +158,6 @@ public class UIGeneralFormPanel extends UIFormPanel
         {
             this.boneTracks.setVisible(false);
         }
-
-        this.transform.setTransform(form.transform.get());
 
         this.hitboxSneakMultiplier.setValue(form.hitboxSneakMultiplier.get());
         this.hitboxEyeHeight.setValue(form.hitboxEyeHeight.get());

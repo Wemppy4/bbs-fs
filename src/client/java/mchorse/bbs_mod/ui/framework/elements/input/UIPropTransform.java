@@ -71,6 +71,14 @@ public class UIPropTransform extends UITransform
     private Transform cache = new Transform();
     private Timer checker = new Timer(30);
 
+    /* What the field rows currently show. The editor is bound to its property and re-read on
+     * every frame, so the common call to setTransform changes nothing — this is what lets it
+     * cost nothing instead of reformatting thirteen text fields and re-deciding the uniform
+     * scale row sixty times a second. Compared by value and not by reference: the transform is
+     * edited in place, so holding on to it would only ever compare it against itself. */
+    private final Transform filled = new Transform();
+    private boolean hasFilled;
+
     private boolean model;
 
     /** The reference frame the gizmo and constrained edits operate in. Replaces
@@ -408,6 +416,19 @@ public class UIPropTransform extends UITransform
         return this.editing;
     }
 
+    /**
+     * A gesture owns the transform for as long as it runs — the gizmo drag, a G/S/R operation, a
+     * typed amount — so a host bound to its property must not read it back underneath. This is the
+     * one thing the editor could not say before, and the reason it was filled on demand instead of
+     * bound like every other field. The value rows answer for themselves through the base's walk
+     * over the subtree.
+     */
+    @Override
+    public boolean isUserEditing()
+    {
+        return this.editing || super.isUserEditing();
+    }
+
     public Axis getAxis()
     {
         return this.axis;
@@ -566,6 +587,8 @@ public class UIPropTransform extends UITransform
 
         if (transform == null)
         {
+            this.hasFilled = false;
+
             this.disable();
             this.fillT(0, 0, 0);
             this.fillS(1, 1, 1);
@@ -573,6 +596,18 @@ public class UIPropTransform extends UITransform
 
             return;
         }
+
+        /* Nothing moved since the last fill, so there is nothing to restate. Beyond the saved
+         * work this is what keeps the per-frame read from undoing a deliberate click: expanding
+         * an equal-scale row by hand would otherwise be collapsed again by the auto-sync below
+         * on the very next frame. */
+        if (this.hasFilled && this.filled.equals(transform))
+        {
+            return;
+        }
+
+        this.hasFilled = true;
+        this.filled.copy(transform);
 
         /* The uniform-scale auto-sync restructures the scale row (removeAll/add), and a
          * scale trackpad applies its drag from inside render() (through the delta editor
@@ -1112,6 +1147,13 @@ public class UIPropTransform extends UITransform
         this.drag = null;
         this.fineCursor.forget();
         this.numeric.clear();
+
+        /* Force the next read through the full path: the uniform-scale row sync is deferred past
+         * a live gesture, and the end of one is exactly when it owes a run — which the
+         * "nothing moved" shortcut would otherwise swallow, since the drag filled the fields with
+         * these very values a frame ago. */
+        this.hasFilled = false;
+
         Gizmo.INSTANCE.clearTrackedTransform(this);
 
         if (this.handler.hasParent())

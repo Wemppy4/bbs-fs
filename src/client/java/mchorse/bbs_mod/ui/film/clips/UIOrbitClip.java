@@ -51,7 +51,7 @@ public class UIOrbitClip extends UIClip<OrbitClip>
         this.pitch = this.trackpad(this.clip.pitch);
         this.pitch.tooltip(UIKeys.CAMERA_PANELS_PITCH);
 
-        this.offset = this.bindOnDemand(new UIPointModule(editor, UIKeys.CAMERA_PANELS_OFFSET).contextMenu(), () -> this.offset.fill(this.clip.offset));
+        this.offset = this.bind(new UIPointModule(editor, UIKeys.CAMERA_PANELS_OFFSET).contextMenu(), () -> this.offset.fill(this.clip.offset));
         this.distance = this.trackpad(this.clip.distance);
     }
 

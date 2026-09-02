@@ -1528,10 +1528,29 @@ public class UIElement implements IUIElement, IUndoElement
      * Whether the user is working inside this element right now, in which case
      * {@link #valueBinding(Runnable)} leaves it alone: re-reading the property under a half-typed
      * number or a drag in progress would fight the very input about to write it.
+     *
+     * <p>The question is asked of the whole subtree, not of this element alone. A composite widget
+     * is bound as one piece — a transform, a point, an angle — so the field the user is actually
+     * working in is never the element holding the binding, and only the group's own read can be
+     * held off. For a bound leaf (which is all the binding had until now) the walk finds nothing
+     * and the answer is unchanged.
      */
     public boolean isUserEditing()
     {
-        return this instanceof IFocusedUIElement focused && focused.isFocused();
+        if (this instanceof IFocusedUIElement focused && focused.isFocused())
+        {
+            return true;
+        }
+
+        for (IUIElement child : this.children)
+        {
+            if (child instanceof UIElement element && element.isUserEditing())
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     @Override

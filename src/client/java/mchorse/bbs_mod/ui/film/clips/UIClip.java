@@ -260,9 +260,13 @@ public abstract class UIClip <T extends Clip> extends UIElement
     }
 
     /**
-     * The same, for a widget that must not be re-read on every frame: one that rebuilds a group of
-     * sub-fields, allocates on each read, or holds a gesture of its own. Such a widget is filled
-     * when {@link #fillData()} runs instead — on selection, on undo, on an edit landing.
+     * The same, for a widget whose read is too expensive to make sixty times a second: one that
+     * allocates on each read, or rebuilds a group of sub-fields. Such a widget is filled when
+     * {@link #fillData()} runs instead — on selection, on undo, on an edit landing.
+     *
+     * <p>Holding a gesture is no longer a reason to be here: a widget that is being worked in says
+     * so through {@link mchorse.bbs_mod.ui.framework.elements.UIElement#isUserEditing()}, and the
+     * binding leaves it alone for as long as that lasts.</p>
      */
     protected <T> T bindOnDemand(T element, Runnable filler)
     {
@@ -344,10 +348,7 @@ public abstract class UIClip <T extends Clip> extends UIElement
             })
         );
 
-        /* The transform holds a gesture of its own: read on every frame it would pull the gizmo
-         * back from under the hand dragging it. Bound per frame once the transform widget can say
-         * it is being worked in. */
-        return this.bindOnDemand(transform, () -> transform.setTransform(value.get()));
+        return this.bind(transform, () -> transform.setTransform(value.get()));
     }
 
     public void handleUndo(IUndo<ValueGroup> undo, boolean redo)

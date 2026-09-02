@@ -163,6 +163,7 @@ public class UIBodyPartEditor extends UIScrollView
         this.transform = new UIPropTransform().callbacks(() -> this.part.transform).barBackground();
         this.transform.enableHotkeys(this.editor::isBodyPartGizmoMode);
         this.transform.hotkeyDrag(() -> this.editor.buildHotkeyDrag(this.transform));
+        this.transform.valueBinding(() -> this.transform.setTransform(this.part == null ? null : this.part.transform.get()));
 
         this.pick.keys().register(Keys.FORMS_EDIT, this.pick::clickItself);
 
@@ -189,8 +190,6 @@ public class UIBodyPartEditor extends UIScrollView
         {
             this.add(this.pick, this.useTarget, this.transform);
         }
-
-        this.transform.setTransform(part.transform.get());
 
         this.scroll.setScroll(0);
         this.resize();

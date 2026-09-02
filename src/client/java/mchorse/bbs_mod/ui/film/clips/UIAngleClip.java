@@ -19,7 +19,7 @@ public class UIAngleClip extends UIClip<AngleClip>
     {
         super.registerUI();
 
-        this.angle = this.bindOnDemand(new UIAngleModule(this.editor).contextMenu(), () -> this.angle.fill(this.clip.angle));
+        this.angle = this.bind(new UIAngleModule(this.editor).contextMenu(), () -> this.angle.fill(this.clip.angle));
         this.active = this.bind(new UIBitToggle((value) -> this.clip.active.set(value)).angles(), () -> this.active.setValue(this.clip.active.get()));
     }
 
