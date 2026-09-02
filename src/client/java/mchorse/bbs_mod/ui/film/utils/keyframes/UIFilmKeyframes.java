@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.utils.keyframes;
 
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.film.Film;
@@ -127,7 +128,7 @@ public class UIFilmKeyframes extends UIKeyframes
             this.markers.render(context, this.graphArea, this.getXAxis(), (int) this.getClipOffset());
 
             context.batcher.clip(this.graphArea, context);
-            UIClips.renderCursor(context, label, this.area, cx - 1);
+            UITimelineCanvas.renderCursor(context, label, this.area, cx - 1);
             context.batcher.unclip(context);
         }
 
