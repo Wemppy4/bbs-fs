@@ -1,13 +1,10 @@
 package mchorse.bbs_mod.ui.forms.categories;
 
 import mchorse.bbs_mod.BBSModClient;
-import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.categories.FormCategory;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.sections.UserFormSection;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.UIFormList;
@@ -44,23 +41,13 @@ public class UIUserFormCategory extends UIFormCategory
                 UIOverlay.addOverlay(this.getContext(), panel);
             });
 
-            try
-            {
-                MapType data = Window.getClipboardMap();
-                Form form = FormUtils.fromData(data);
+            this.pasteFormAction(menu);
 
-                menu.action(Icons.PASTE, UIKeys.FORMS_CATEGORIES_CONTEXT_PASTE_FORM, () -> this.category.addForm(form));
-            }
-            catch (Exception e)
-            {}
+            Form form = this.getContextForm();
 
-            if (this.selected != null)
+            if (form != null)
             {
-                menu.action(Icons.REMOVE, UIKeys.FORMS_CATEGORIES_CONTEXT_REMOVE_FORM, () ->
-                {
-                    this.category.removeForm(this.selected);
-                    this.select(null, false);
-                });
+                this.removeFormAction(menu, form);
             }
             else
             {

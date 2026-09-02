@@ -1,10 +1,13 @@
 package mchorse.bbs_mod.film;
 
+import mchorse.bbs_mod.data.migration.FilmStableIds;
+import mchorse.bbs_mod.data.migration.IDataMigration;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.utils.manager.BaseManager;
 import mchorse.bbs_mod.utils.manager.storage.CompressedDataStorage;
 
 import java.io.File;
+import java.util.List;
 import java.util.function.Supplier;
 
 public class FilmManager extends BaseManager<Film>
@@ -15,6 +18,12 @@ public class FilmManager extends BaseManager<Film>
 
         this.backUps = true;
         this.storage = new CompressedDataStorage();
+    }
+
+    @Override
+    protected List<IDataMigration> getMigrations()
+    {
+        return List.of(new FilmStableIds());
     }
 
     @Override

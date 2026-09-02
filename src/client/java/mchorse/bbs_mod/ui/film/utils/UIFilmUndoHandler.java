@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.film.utils;
 
 import mchorse.bbs_mod.BBSMod;
-import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
@@ -10,8 +9,6 @@ import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.clips.Clips;
 
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 
 public class UIFilmUndoHandler extends UIFormUndoHandler
@@ -77,22 +74,21 @@ public class UIFilmUndoHandler extends UIFormUndoHandler
     {
         String path = value.getPath().toString();
 
+        /* Every recorded channel, not a hand-written list of them: the server drives the actor's
+         * body from these, and the list of channels keeps growing (swimming, gliding, roll and the
+         * rest arrived long after this was written). What was named here were positions and items,
+         * so rotations and states simply never reached the server - the actor in the world kept
+         * turning the way it turned before the edit. */
         if (
             path.endsWith("/replays") ||
-            path.endsWith("/keyframes") ||
-            path.contains("/keyframes/x") ||
-            path.contains("/keyframes/y") ||
-            path.contains("/keyframes/z") ||
-            path.contains("/keyframes/item_slot_") ||
-            path.contains("/keyframes/item_off_hand") ||
-            path.contains("/keyframes/item_head") ||
-            path.contains("/keyframes/item_chest") ||
-            path.contains("/keyframes/item_legs") ||
-            path.contains("/keyframes/item_feet") ||
+            path.contains("/keyframes") ||
             path.contains("/properties/") ||
             path.endsWith("/properties") ||
             path.endsWith("/actor") ||
+            path.endsWith("/actor_pickup") ||
+            path.endsWith("/fp") ||
             path.endsWith("/enabled") ||
+            path.endsWith("/looping") ||
             path.endsWith("/form")
         ) {
             return true;

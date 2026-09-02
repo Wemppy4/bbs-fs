@@ -112,7 +112,7 @@ public class ExtrudedFormRenderer extends FormRenderer<ExtrudedForm>
             Color color = Colors.COLOR.set(overlayColor, true);
             Color formColor = this.form.color.get();
 
-            FormColorBlend.blend(color, formColor, this.form.additiveColor.get());
+            FormColorBlend.blend(color, formColor);
 
             Texture textureObject = BBSModClient.getTextures().getTexture(texture);
 

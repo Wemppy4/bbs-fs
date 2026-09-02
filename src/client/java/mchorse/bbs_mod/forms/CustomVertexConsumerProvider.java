@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms;
 
+import mchorse.bbs_mod.utils.colors.Color;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -15,6 +16,7 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
 
     private Function<VertexConsumer, VertexConsumer> substitute;
     private Function<RenderLayer, RenderLayer> layerMapper;
+    private Color overlay;
     private boolean ui;
 
     public static void drawLayer(RenderLayer layer)
@@ -53,6 +55,16 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
     public void setLayerMapper(Function<RenderLayer, RenderLayer> layerMapper)
     {
         this.layerMapper = layerMapper;
+    }
+
+    /**
+     * The color overlay a deferred layer has to be drawn with. A layer that defers is drawn from
+     * the translucent queue long after the renderer's per-layer hook unbound the overlay texture,
+     * so the color travels with the command instead. Null while nothing sets one.
+     */
+    public void setOverlay(Color overlay)
+    {
+        this.overlay = overlay;
     }
 
     public void setUI(boolean ui)
@@ -100,7 +112,9 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
         /* TODO(1.21.11 render): the deferred branch that used to live here retained the built
          * geometry in a VertexBuffer and handed it to FormTranslucentQueue. Both the buffer type
          * and the replay draw were removed by the GPU-pipeline rewrite, so the queue is disabled
-         * on this branch (see FormTranslucentQueue) and every layer draws immediately. */
+         * on this branch (see FormTranslucentQueue) and every layer draws immediately — which also
+         * leaves {@link #setOverlay} inert: the color only ever travelled with a deferred command,
+         * and an immediate draw already has the overlay texture bound by the renderer itself. */
         super.draw(layer);
     }
 

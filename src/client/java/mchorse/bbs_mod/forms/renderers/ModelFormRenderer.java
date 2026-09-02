@@ -8,6 +8,7 @@ import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.client.renderer.ItemPredicateDonor;
 import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
@@ -37,9 +38,11 @@ import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
+import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.ui.utils.pose.PoseBones;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.math.Operation;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
@@ -52,6 +55,7 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -87,9 +91,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     private ActionsConfig lastConfigs;
     private IAnimator animator;
     private ModelInstance lastModel;
-    private boolean ikAppliedThisRender;
-    private boolean physicsAppliedThisRender;
-    private boolean constraintsAppliedThisRender;
     private boolean renderingArm;
 
     private IEntity entity = new StubEntity();
@@ -165,8 +166,18 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         return getModel(this.form);
     }
 
+    @Override
+    public IBoneHierarchy getBoneHierarchy()
+    {
+        ModelInstance model = this.getModel();
+
+        return model == null ? null : model.model;
+    }
+
     public Pose getPose()
     {
+        BBSProfiler.count(BBSProfiler.Section.POSE_COPY);
+
         Pose pose = this.form.pose.get().copy();
         Pose overlay = this.form.poseOverlay.get();
 
@@ -184,7 +195,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     {
         for (Map.Entry<String, PoseTransform> entry : pose.transforms.entrySet())
         {
-            PoseTransform poseTransform = targetPose.get(entry.getKey());
+            PoseTransform poseTransform = targetPose.getOrCreate(entry.getKey());
             PoseTransform value = entry.getValue();
 
             if (!Operation.equals(value.fix, 0))
@@ -212,14 +223,43 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
      * The channels phase of the bone pipeline (rest &rarr; actions &rarr; pose): resets every bone
      * to its bind pose, applies the animator's actions, then the form's pose stack. After this the
      * channels are the FK truth; the constraint stages (IK &rarr; physics &rarr; limits) run on top
-     * of it separately (render: the apply*Once trio; matrix capture: its explicit IK solve) and
+     * of it separately (render: the apply* trio; matrix capture: its explicit IK solve) and
      * write only evaluated orientations, never the channels.
      */
     private void evaluateChannels(IEntity entity, ModelInstance model, float transition)
     {
+        /* The asset already holds this exact evaluation (same form, entity, transition, frame
+         * and pose version) — every render pass of a frame used to redo it: the main render,
+         * the shadow displacement's two samples, the stencil pass, the Iris shadow pass.
+         * Skipping rewinds the constraint stack's orient/offset writes to the channels-phase
+         * snapshot, because IK/physics blend FROM the evaluated state and must not stack on
+         * their own previous output. Both skeleton flavours keep such a snapshot. */
+        boolean cacheable = this.form != null && model.model != null && RenderFrame.isEnabled();
+
+        if (cacheable && model.matchesChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion()))
+        {
+            BBSProfiler.count(BBSProfiler.Section.CHANNELS_SKIPPED);
+
+            model.model.restoreChannels();
+
+            return;
+        }
+
+        BBSProfiler.count(BBSProfiler.Section.EVALUATE_CHANNELS);
+
         model.model.resetPose();
         this.animator.applyActions(entity, model, transition);
         model.model.applyPose(this.getPose());
+
+        if (cacheable)
+        {
+            model.model.snapshotChannels();
+            model.stampChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion());
+        }
+        else
+        {
+            model.clearChannels();
+        }
     }
 
     public void ensureAnimator(float transition)
@@ -367,13 +407,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
     private void renderModel(IEntity target, MatrixStack stack, ModelInstance model, int light, int overlay, Color contextColor, Color formColor, boolean additive, boolean ui, StencilMap stencilMap, float transition, MatrixStack world)
     {
-        this.ikAppliedThisRender = false;
-        this.physicsAppliedThisRender = false;
-        this.constraintsAppliedThisRender = false;
-
         Color finalColor = contextColor.copy();
-        FormColorBlend.BlendMode blendMode = additive ? FormColorBlend.BlendMode.BRIGHTEN : FormColorBlend.BlendMode.MULTIPLY;
-        FormColorBlend.blend(finalColor, formColor, blendMode);
+        FormColorBlend.blend(finalColor, formColor);
 
         /* The GL state this method used to set around the draw is encoded per-pipeline now: blend and
          * the lightmap/overlay samplers by the model RenderLayer, and model.culling by the choice
@@ -398,9 +433,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
          * honest answer, so they run model-local, as they do in the UI. */
         Matrix4f baseTransform = ui || world == null ? null : new Matrix4f(world.peek().getPositionMatrix());
 
-        this.applyIKOnce(model, baseTransform);
-        this.applyPhysicsOnce(target, model, transition, baseTransform);
-        this.applyConstraintsOnce(model);
+        this.applyIK(model, baseTransform);
+        this.applyPhysics(target, model, transition, baseTransform);
+        this.applyConstraints(model);
 
         /* Default texture for materials without their own: the form's texture override, else the
          * model's default. Per-material textures (folder defaults now, animation tracks later)
@@ -448,22 +483,27 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return model.getMaterialTexture(material, materialFallback);
         });
 
-        if (stencilMap == null && !this.renderingArm && this.form != null && this.form.ik.get() instanceof MapType ikMap)
+        if (stencilMap == null && !this.renderingArm && this.form != null)
         {
-            ModelIKDebug.render(newStack, model.model, ikMap, "");
+            ModelIKDebug.render(newStack, model.model, this.form, "");
         }
 
         /* Same debug-layer path the IK overlay above already rides (the 1.21.1 lightmap/overlay/
          * blend/cull teardown is pipeline-encoded now, nothing to tear down). */
         if (stencilMap == null && !this.renderingArm && this.form != null && this.form.physics.get() instanceof MapType physicsMap)
         {
-            ModelPhysicsDebug.render(newStack, model.model, physicsMap, target.getAge(), "");
+            ModelPhysicsDebug.render(newStack, model.model, this.form, target.getAge(), "");
         }
 
         /* Render items */
         this.captureMatrices(model);
 
-        if (stencilMap == null)
+        if (hasBodyParts || (stencilMap == null && hasEquipment))
+        {
+            this.captureMatrices(model);
+        }
+
+        if (stencilMap == null && hasEquipment)
         {
             this.renderItems(target, model, stack, EquipmentSlot.MAINHAND, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, model.getItemsMain(), finalColor, overlay, light);
             this.renderItems(target, model, stack, EquipmentSlot.OFFHAND, ItemDisplayContext.THIRD_PERSON_LEFT_HAND, model.getItemsOff(), finalColor, overlay, light);
@@ -475,14 +515,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
     }
 
-    private void applyIKOnce(ModelInstance model, Matrix4f baseTransform)
+    private void applyIK(ModelInstance model, Matrix4f baseTransform)
     {
-        if (this.ikAppliedThisRender)
-        {
-            return;
-        }
-
-        this.ikAppliedThisRender = true;
         model.form = this.form;
 
         boolean hasOverrides = baseTransform != null && this.form != null
@@ -530,7 +564,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         return local;
     }
 
-    private void applyPhysicsOnce(IEntity target, ModelInstance model, float transition, Matrix4f baseTransform)
+    private void applyPhysics(IEntity target, ModelInstance model, float transition, Matrix4f baseTransform)
     {
         if (this.physicsAppliedThisRender)
         {
@@ -542,14 +576,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         ModelPhysicsRuntime.apply(target, model, transition, baseTransform);
     }
 
-    private void applyConstraintsOnce(ModelInstance model)
+    private void applyConstraints(ModelInstance model)
     {
-        if (this.constraintsAppliedThisRender)
-        {
-            return;
-        }
-
-        this.constraintsAppliedThisRender = true;
         ModelConstraintsRuntime.apply(model);
     }
 
@@ -658,6 +686,42 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     @Override
     public boolean renderArm(MatrixStack matrices, int light, AbstractClientPlayerEntity player, Hand hand)
     {
+        if (this.renderFirstPersonHand(matrices, light, hand))
+        {
+            return true;
+        }
+
+        return super.renderArm(matrices, light, player, hand);
+    }
+
+    /**
+     * Vanilla's frame for an empty first-person hand — {@code HeldItemRenderer#renderArmHoldingItem}
+     * with no swing and no equip progress, up to where {@code PlayerEntityRenderer#renderArm} (and so
+     * {@link #renderArm} above) is entered. This is what the model editor's first-person preview
+     * multiplies before {@link #renderFirstPersonHand}, so the preview matches the game. The main hand
+     * is the right arm; a left-handed player is not modelled here.
+     */
+    public static void applyFirstPersonArm(MatrixStack stack, boolean mainHand)
+    {
+        float f = mainHand ? 1F : -1F;
+
+        stack.translate(f * 0.64F, -0.6F, -0.72F);
+        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f * 45F));
+        stack.translate(f * -1F, 3.6F, 3.5F);
+        stack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(f * 120F));
+        stack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(200F));
+        stack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f * -135F));
+        stack.translate(f * 5.6F, 0F, 0F);
+    }
+
+    /**
+     * The model's first-person hand: only the branch under the slot's bone, placed by the slot's
+     * transform in the arm frame the caller has set up (the game's own, or
+     * {@link #applyFirstPersonArm}). Shared by the in-game arm and the model editor's preview.
+     * Returns false when the model has no slot for that hand.
+     */
+    public boolean renderFirstPersonHand(MatrixStack matrices, int light, Hand hand)
+    {
         ModelInstance model = this.getModel();
 
         if (this.animator != null && model != null)
@@ -700,11 +764,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             matrices.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
             MatrixStackUtils.applyTransform(matrices, slot.transform);
 
-            BBSModClient.getTextures().bindTexture(texture);
+            BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, BBSModClient.getTextures().getTexture(texture)));
 
             /* TODO(1.21.11 render): depth-test/blend now pipeline-encoded. */
-
-            boolean additive = this.form.additiveColor.get();
 
             this.renderingArm = true;
 
@@ -732,7 +794,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return true;
         }
 
-        return super.renderArm(matrices, light, player, hand);
+        return false;
     }
 
     @Override
@@ -748,13 +810,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             Link texture = link == null ? model.getTexture() : link;
             Color contextColor = new Color().set(context.color, true);
             Color formColor = this.form.color.get();
-            boolean additive = this.form.additiveColor.get();
 
             if (context.isPicking())
             {
                 contextColor.mul(formColor);
                 formColor = Color.white();
-                additive = false;
             }
             this.evaluateChannels(context.entity, model, context.getTransition());
 
@@ -816,14 +876,14 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         model.fillStencilMap(context.stencilMap, this.form);
 
-        if (this.form != null && this.form.ik.get() instanceof MapType ikMap)
+        if (this.form != null)
         {
-            ModelIKDebug.renderStencil(context.stack, model.model, ikMap, context.stencilMap, this.form);
+            ModelIKDebug.renderStencil(context.stack, model.model, this.form, context.stencilMap, this.form);
         }
 
-        if (this.form != null && this.form.physics.get() instanceof MapType physicsMap)
+        if (this.form != null)
         {
-            ModelPhysicsDebug.renderStencil(context.stack, model.model, physicsMap, context.stencilMap, this.form);
+            ModelPhysicsDebug.renderStencil(context.stack, model.model, this.form, context.stencilMap, this.form);
         }
     }
 
@@ -844,7 +904,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         for (BodyPart part : this.form.parts.getAllTyped())
         {
-            Matrix4f matrix = this.bones.get(part.bone.get()).matrix();
+            Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
 
             context.stack.push();
             if (context.world != null)
@@ -940,8 +1000,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             matrices.put(StringUtils.combinePaths(prefix, entry.getKey()), matrix, o, entry.getValue().evaluatedRotation());
         }
 
-        int i = 0;
-
         /* Recursively do the same thing with body parts */
         for (BodyPart part : this.form.parts.getAllTyped())
         {
@@ -949,7 +1007,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             if (form != null)
             {
-                Matrix4f matrix = this.bones.get(part.bone.get()).matrix();
+                Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
 
                 stack.push();
 
@@ -964,12 +1022,10 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
                 MatrixStackUtils.applyTransform(stack, part.transform.get());
 
-                FormUtilsClient.getRenderer(form).collectMatrices(part.getRenderEntity(entity), stack, matrices, StringUtils.combinePaths(prefix, String.valueOf(i)), transition);
+                FormUtilsClient.getRenderer(form).collectMatrices(part.getRenderEntity(entity), stack, matrices, StringUtils.combinePaths(prefix, part.getId()), transition);
 
                 stack.pop();
             }
-
-            i += 1;
         }
 
         stack.pop();

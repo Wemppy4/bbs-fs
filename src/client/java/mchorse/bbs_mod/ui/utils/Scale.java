@@ -86,16 +86,6 @@ public class Scale
         this.lockViewport = false;
     }
 
-    public double getLockMin()
-    {
-        return this.lockMin;
-    }
-
-    public double getLockMax()
-    {
-        return this.lockMax;
-    }
-
     public void calculateMultiplier()
     {
         this.mult = this.recalcMultiplier(this.getZoom());

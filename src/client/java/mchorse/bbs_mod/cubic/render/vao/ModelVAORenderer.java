@@ -17,6 +17,13 @@ import org.joml.Vector3f;
 
 public class ModelVAORenderer
 {
+    /** Sampler uniform names — setupUniforms runs per draw call, no string building there. */
+    private static final String[] SAMPLERS =
+    {
+        "Sampler0", "Sampler1", "Sampler2", "Sampler3", "Sampler4", "Sampler5",
+        "Sampler6", "Sampler7", "Sampler8", "Sampler9", "Sampler10", "Sampler11"
+    };
+
     /**
     /**
      * The full model-view a draw issued right now would use. Kept from 1.21.1 because callers still

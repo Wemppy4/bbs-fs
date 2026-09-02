@@ -3,6 +3,7 @@ package mchorse.bbs_mod.forms.renderers;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.client.render.special.BbsFormGuiElementRenderState;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
@@ -18,6 +19,8 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Lerps;
+import mchorse.bbs_mod.forms.renderers.utils.FormPreviewCache;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.ScreenRect;
@@ -51,15 +54,20 @@ public abstract class FormRenderer <T extends Form>
         return Collections.emptyList();
     }
 
+    /**
+     * The shape of this form's skeleton, or null when it has none. The one question the bone
+     * widgets ask a form - the tree list, the pose editor's bone column, the bone picker menus -
+     * so they no longer have to know whether they are looking at a cubic model, a BOBJ armature or
+     * a vanilla entity model.
+     */
+    public IBoneHierarchy getBoneHierarchy()
+    {
+        return null;
+    }
+
     public final void renderUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        /* The diffuse-light directions the old setupLevelDiffuseLighting bound here (lightA=(0,1,-0.2),
-         * lightB=(-0.85,0.85,1)) are now bound per model-form thumbnail in BbsFormGuiElementRenderer.lights():
-         * the UI form preview renders off-screen during the GUI prepare phase (two-phase GUI), so the lights
-         * must be set there at draw time, not here in the record phase. Other form types render flat 2D and
-         * need no diffuse lighting. */
-
-        this.renderInUI(context, x1, y1, x2, y2);
+        FormPreviewCache.render(this, context, x1, y1, x2, y2);
 
         FontRenderer font = context.batcher.getFont();
         String name = this.form.name.get();
@@ -84,6 +92,27 @@ public abstract class FormRenderer <T extends Form>
 
             context.batcher.textCard(name, (x2 + x1 - w) / 2, y2 - 6 - font.getHeight(), Colors.WHITE, Colors.A50);
         }
+    }
+
+    /**
+     * The form alone, without the name and hotkey cards {@link #renderUI} lays over it — for a
+     * host that draws its own captions around the picture.
+     */
+    public final void renderPreview(UIContext context, int x1, int y1, int x2, int y2)
+    {
+        FormPreviewCache.render(this, context, x1, y1, x2, y2);
+    }
+
+    /** The picture drawn right now, bypassing the preview cache — what the cache itself renders from. */
+    public final void renderLive(UIContext context, int x1, int y1, int x2, int y2)
+    {
+        /* The diffuse-light directions the old setupLevelDiffuseLighting bound here (lightA=(0,1,-0.2),
+         * lightB=(-0.85,0.85,1)) are now bound per model-form thumbnail in BbsFormGuiElementRenderer.lights():
+         * the UI form preview renders off-screen during the GUI prepare phase (two-phase GUI), so the lights
+         * must be set there at draw time, not here in the record phase. Other form types render flat 2D and
+         * need no diffuse lighting. */
+
+        this.renderInUI(context, x1, y1, x2, y2);
     }
 
     protected abstract void renderInUI(UIContext context, int x1, int y1, int x2, int y2);
@@ -161,6 +190,8 @@ public abstract class FormRenderer <T extends Form>
             return;
         }
 
+        BBSProfiler.count(BBSProfiler.Section.FORM_RENDER);
+
         this.form.applyStates(context.transition);
 
         int light = context.light;
@@ -230,7 +261,13 @@ public abstract class FormRenderer <T extends Form>
         matrix.mul(this.createTransform().createMatrix());
     }
 
-    protected Transform createTransform()
+    /**
+     * The form's own transform as it is actually rendered: its transform, its overlay and
+     * whatever else was hung on it. Public because the film's orbit camera attaches to this
+     * frame - what the camera follows has to be what the eye sees, not just where the replay
+     * stands.
+     */
+    public Transform createTransform()
     {
         Transform transform = new Transform();
 
@@ -335,6 +372,8 @@ public abstract class FormRenderer <T extends Form>
 
     public MatrixCache collectMatrices(IEntity entity, float transition)
     {
+        BBSProfiler.count(BBSProfiler.Section.COLLECT_MATRICES);
+
         MatrixCache map = new MatrixCache();
         MatrixStack stack = new MatrixStack();
 
@@ -359,8 +398,6 @@ public abstract class FormRenderer <T extends Form>
 
         matrices.put(prefix, mm, oo);
 
-        int i = 0;
-
         for (BodyPart part : this.form.parts.getAllTyped())
         {
             Form form = part.getForm();
@@ -370,12 +407,10 @@ public abstract class FormRenderer <T extends Form>
                 stack.push();
                 MatrixStackUtils.applyTransform(stack, part.transform.get());
 
-                FormUtilsClient.getRenderer(form).collectMatrices(entity, stack, matrices, StringUtils.combinePaths(prefix, String.valueOf(i)), transition);
+                FormUtilsClient.getRenderer(form).collectMatrices(entity, stack, matrices, StringUtils.combinePaths(prefix, part.getId()), transition);
 
                 stack.pop();
             }
-
-            i += 1;
         }
 
         stack.pop();

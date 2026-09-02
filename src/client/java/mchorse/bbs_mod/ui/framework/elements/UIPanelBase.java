@@ -1,30 +1,28 @@
 package mchorse.bbs_mod.ui.framework.elements;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
-import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.resizers.Flex;
 import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Panel base GUI
- * 
- * With this base class, you can add multi panel elements which could be 
+ *
+ * With this base class, you can add multi panel elements which could be
  * switched between using buttons.
  */
 public class UIPanelBase <T extends UIElement> extends UIElement
 {
     public T view;
-    public UIScrollView buttons;
+    public UITabStrip buttons;
     public List<T> panels = new ArrayList<>();
     public Direction direction;
 
@@ -38,69 +36,58 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         super();
 
         this.direction = direction == null ? Direction.BOTTOM : direction;
-        this.buttons = new UIScrollView();
-        this.buttons.scroll.cancelScrolling().noScrollbar();
+        this.buttons = new UITabStrip(ScrollDirection.HORIZONTAL);
+        this.buttons.scroll.cancelScrolling();
         this.buttons.scroll.scrollSpeed = 5;
-        this.buttons.preRender((context) ->
-        {
-            for (int i = 0, c = this.panels.size(); i < c; i++)
-            {
-                if (this.view == this.panels.get(i))
-                {
-                    Area area = ((UIIcon) this.buttons.getChildren().get(i)).area;
-
-                    area.render(context.batcher, Colors.A75 | BBSSettings.primaryColor.get());
-                }
-            }
-        });
+        this.buttons.active(() -> this.panels.indexOf(this.view));
+        this.buttons.onSelect((index) -> this.setPanel(this.panels.get(index)));
 
         this.setButtonsPlacement();
 
         this.add(new UIRenderable(this::renderOverlay), this.buttons);
     }
 
-    public void changeDirection(Direction direction)
+    /**
+     * The bar is a 20px strip on the {@link #direction} side; LEFT/RIGHT run it down the side,
+     * BOTTOM/RIGHT put it at the far edge. Everything below derives from these two facts.
+     */
+    private boolean isSideBar()
     {
-        this.direction = direction == null ? Direction.BOTTOM : direction;
+        return this.direction.isHorizontal();
+    }
 
-        this.setButtonsPlacement();
-
-        if (this.view != null)
-        {
-            this.setPanelPlacement(this.view);
-        }
-
-        for (UIElement element : this.buttons.getChildren(UIElement.class))
-        {
-            if (element.tooltip != null)
-            {
-                element.tooltip(element.tooltip.getLabel(), this.direction.opposite());
-            }
-        }
-
-        this.resize();
+    private boolean isFarBar()
+    {
+        return this.direction == Direction.BOTTOM || this.direction == Direction.RIGHT;
     }
 
     private void setButtonsPlacement()
     {
-        this.buttons.scroll.direction = this.direction.factorX == 0 ? ScrollDirection.HORIZONTAL : ScrollDirection.VERTICAL;
-        this.buttons.resetFlex();
+        boolean side = this.isSideBar();
+        boolean far = this.isFarBar();
 
-        if (this.direction == Direction.TOP)
+        this.buttons.resetFlex().relative(this);
+        this.buttons.direction(side ? ScrollDirection.VERTICAL : ScrollDirection.HORIZONTAL);
+        /* The mark sits on the side facing the panel, the same way the tooltips point away from it. */
+        this.buttons.activeEdge(this.direction.opposite());
+
+        if (side)
         {
-            this.buttons.relative(this).w(1F).h(20).column(0).scroll();
-        }
-        else if (this.direction == Direction.LEFT)
-        {
-            this.buttons.relative(this).w(20).h(1F).column(0).scroll().vertical();
-        }
-        else if (this.direction == Direction.BOTTOM)
-        {
-            this.buttons.relative(this).y(1F, -20).w(1F).h(20).column(0).scroll();
+            this.buttons.w(20).h(1F);
+
+            if (far)
+            {
+                this.buttons.x(1F, -20);
+            }
         }
         else
         {
-            this.buttons.relative(this).x(1F, -20).w(20).h(1F).column(0).scroll().vertical();
+            this.buttons.w(1F).h(20);
+
+            if (far)
+            {
+                this.buttons.y(1F, -20);
+            }
         }
     }
 
@@ -116,29 +103,23 @@ public class UIPanelBase <T extends UIElement> extends UIElement
         flex.w.reset();
         flex.h.reset();
 
-        if (this.direction == Direction.TOP)
-        {
-            panel.relative(this).y(20).w(1F).h(1F, -20);
-        }
-        else if (this.direction == Direction.LEFT)
-        {
-            panel.relative(this).x(20).w(1F, -20).h(1F);
-        }
-        else if (this.direction == Direction.RIGHT)
-        {
-            panel.relative(this).w(1F, -20).h(1F);
-        }
-        else
-        {
-            panel.relative(this).w(1F).h(1F, -20);
-        }
-    }
+        boolean side = this.isSideBar();
+        boolean far = this.isFarBar();
 
-    public UIIcon getButton(T panel)
-    {
-        int index = this.panels.indexOf(panel);
+        /* The panel takes what the bar leaves; a near bar also pushes it off the origin */
+        panel.relative(this).w(1F, side ? -20 : 0).h(1F, side ? 0 : -20);
 
-        return index < 0 ? null : (UIIcon) this.buttons.getChildren().get(index);
+        if (!far)
+        {
+            if (side)
+            {
+                panel.x(20);
+            }
+            else
+            {
+                panel.y(20);
+            }
+        }
     }
 
     /**
@@ -146,7 +127,7 @@ public class UIPanelBase <T extends UIElement> extends UIElement
      */
     public UIIcon registerPanel(T panel, IKey tooltip, Icon icon)
     {
-        UIIcon button = new UIIcon(icon, (b) -> this.setPanel(panel));
+        UIIcon button = new UIIcon(icon, (b) -> this.buttons.select(b));
 
         if (tooltip != null && !tooltip.get().isEmpty())
         {
@@ -155,7 +136,7 @@ public class UIPanelBase <T extends UIElement> extends UIElement
 
         panel.markContainer();
         this.panels.add(panel);
-        this.buttons.add(button);
+        this.buttons.addTab(button);
 
         return button;
     }
@@ -183,22 +164,12 @@ public class UIPanelBase <T extends UIElement> extends UIElement
 
     protected void renderOverlay(UIContext context)
     {
-        if (this.direction == Direction.TOP)
-        {
-            this.renderBackground(context, this.area.x, this.area.y, this.area.w, 20);
-        }
-        else if (this.direction == Direction.BOTTOM)
-        {
-            this.renderBackground(context, this.area.x, this.area.ey() - 20, this.area.w, 20);
-        }
-        else if (this.direction == Direction.LEFT)
-        {
-            this.renderBackground(context, this.area.x, this.area.y, 20, this.area.h);
-        }
-        else
-        {
-            this.renderBackground(context, this.area.ex() - 20, this.area.y, 20, this.area.h);
-        }
+        boolean side = this.isSideBar();
+        boolean far = this.isFarBar();
+        int x = side && far ? this.area.ex() - 20 : this.area.x;
+        int y = !side && far ? this.area.ey() - 20 : this.area.y;
+
+        this.renderBackground(context, x, y, side ? 20 : this.area.w, side ? this.area.h : 20);
     }
 
     protected void renderBackground(UIContext context, int x, int y, int w, int h)

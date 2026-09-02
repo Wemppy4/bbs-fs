@@ -11,6 +11,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.particles.sections.UIParticleSchemeSection;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Color;
@@ -40,12 +41,8 @@ public class UIGradientEditor extends UIElement
 
         this.context((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.SNOWSTORM_LIGHTING_CONTEXT_ADD_STOP, this::addColorStop);
-
-            if (this.gradient.stops.size() > 1)
-            {
-                menu.action(Icons.REMOVE, UIKeys.SNOWSTORM_LIGHTING_CONTEXT_REMOVE_STOP, this::removeColorStop);
-            }
+            menu.icon(MenuVerb.ADD, this::addColorStop).label(UIKeys.SNOWSTORM_LIGHTING_CONTEXT_ADD_STOP);
+            menu.icon(MenuVerb.REMOVE, this::removeColorStop).label(UIKeys.SNOWSTORM_LIGHTING_CONTEXT_REMOVE_STOP).enabled(this.gradient.stops.size() > 1);
         });
 
         this.h(UIConstants.CONTROL_HEIGHT);

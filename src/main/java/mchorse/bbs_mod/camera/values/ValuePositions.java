@@ -76,6 +76,7 @@ public class ValuePositions extends ValueList<ValuePosition>
         this.postNotify();
     }
 
+    @Override
     public void reset()
     {
         this.preNotify();

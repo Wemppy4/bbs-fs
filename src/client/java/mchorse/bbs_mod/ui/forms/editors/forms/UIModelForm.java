@@ -15,9 +15,9 @@ import mchorse.bbs_mod.ui.forms.editors.panels.UIModelFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelIKFormPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.UIModelPhysicsFormPanel;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
 import mchorse.bbs_mod.utils.StringUtils;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -40,7 +40,7 @@ public class UIModelForm extends UIForm<ModelForm>
         });
         this.defaultPanel = this.modelPanel;
 
-        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_MODEL_POSE, Icons.POSE);
+        this.registerPanel(this.defaultPanel, UIKeys.FORMS_EDITORS_MODEL_POSE, ModelForm.ICON);
         this.registerPanel(new UIModelIKFormPanel(this), UIKeys.FORMS_EDITORS_MODEL_IK, Icons.IK);
         this.registerPanel(new UIModelPhysicsFormPanel(this), UIKeys.FORMS_EDITORS_MODEL_PHYSICS_TITLE, Icons.PHYSICS);
         this.registerPanel(new UIModelConstraintsFormPanel(this), UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_TITLE, Icons.LOCKED);
@@ -59,9 +59,9 @@ public class UIModelForm extends UIForm<ModelForm>
     }
 
     @Override
-    public UIPropTransform getEditableTransform()
+    public UIPoseEditor getPoseEditor()
     {
-        return this.modelPanel.poseEditor.transform;
+        return this.modelPanel.poseEditor;
     }
 
     @Override
@@ -83,64 +83,4 @@ public class UIModelForm extends UIForm<ModelForm>
         }
     }
 
-    @Override
-    public Matrix4f getOrigin(float transition)
-    {
-        return this.getOrigin(transition, this.bonePath(), this.modelPanel.poseEditor.transform.isLocal());
-    }
-
-    @Override
-    public Matrix4f getOriginMatrix(float transition)
-    {
-        return this.getOrigin(transition, this.bonePath(), true);
-    }
-
-    @Override
-    public TransformSpace getGizmoSpace()
-    {
-        return this.modelPanel.poseEditor.transform.getSpace();
-    }
-
-    private String bonePath()
-    {
-        return StringUtils.combinePaths(FormUtils.getPath(this.form), this.modelPanel.poseEditor.groups.list.getCurrentFirst());
-    }
-
-    /**
-     * The additive euler base under the pose editor's channels for the picked
-     * bone ({@link FormUtils#additivePoseRotationBase}): the total comes from
-     * the bone's EVALUATED channels in the capture (rest + actions + the whole
-     * pose stack) with the pose track's own contribution subtracted, so gizmo
-     * deltas compose at the bone's effective angles. {@code null} for any other
-     * transform editor — only the pose panel edits a pose-stacked track.
-     */
-    public Vector3f poseRotationBase(UIPropTransform transform, float transition)
-    {
-        if (transform != this.modelPanel.poseEditor.transform)
-        {
-            return null;
-        }
-
-        String bone = this.modelPanel.poseEditor.groups.list.getCurrentFirst();
-
-        if (bone == null)
-        {
-            return null;
-        }
-
-        return FormUtils.additivePoseRotationBase(this.form.pose, bone, this.getEvaluatedRotation(transition, this.bonePath()));
-    }
-
-    @Override
-    public boolean toggleBoneSelection(String bone)
-    {
-        if (!this.modelPanel.poseEditor.hasBone(bone))
-        {
-            return false;
-        }
-
-        this.modelPanel.poseEditor.selectBone(bone, true);
-
-        return true;
-    }
 }

@@ -2,11 +2,12 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.replays.FormProperties;
-import mchorse.bbs_mod.film.replays.PerLimbService;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -17,6 +18,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UINumericInput;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.KeyframeType;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.tooltips.ITooltip;
+import mchorse.bbs_mod.ui.framework.tooltips.TooltipPlacement;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -138,18 +140,13 @@ public class UIKeyframePreviewTooltip implements ITooltip
     /* Layout */
 
     /**
-     * Compute the preview window's area near the cursor (clamped to the screen)
-     * and render a semi-transparent backdrop for it.
+     * Compute the preview window's area near the cursor (above and to the right of
+     * it, flipped/clamped to stay on screen) and render a semi-transparent backdrop
+     * for it.
      */
     private Area start(UIContext context, int w, int h)
     {
-        int x = context.mouseX + CURSOR_OFFSET;
-        int y = context.mouseY - h - CURSOR_OFFSET;
-
-        x = MathUtils.clamp(x, 6, context.menu.width - w - 6);
-        y = MathUtils.clamp(y, 6, context.menu.height - h - 6);
-
-        AREA.set(x, y, w, h);
+        TooltipPlacement.nearMouse(context, w, h, CURSOR_OFFSET, false, 6, AREA);
 
         AREA.offset(3);
 
@@ -250,10 +247,10 @@ public class UIKeyframePreviewTooltip implements ITooltip
         }
 
         FontRenderer font = context.batcher.getFont();
-        PerLimbService.PoseBonePath path = keyframe.getFactory() == KeyframeFactories.POSE_TRANSFORM
-            ? PerLimbService.parsePoseBonePath(sheet.id)
+        TrackId path = keyframe.getFactory() == KeyframeFactories.POSE_TRANSFORM
+            ? TrackId.parse(sheet.id, TrackKind.BONE)
             : null;
-        String label = path == null ? null : path.bone();
+        String label = path == null ? null : path.subject();
 
         int w = FORM_SIZE;
         int h = FORM_SIZE;
@@ -350,20 +347,20 @@ public class UIKeyframePreviewTooltip implements ITooltip
 
         /* Bone track: the keyframe's transform stacks onto the base pose's bone,
          * matching FormProperties.applyProperty */
-        PerLimbService.PoseBonePath path = PerLimbService.parsePoseBonePath(sheet.id);
+        TrackId path = TrackId.parse(sheet.id, TrackKind.BONE);
 
-        if (path == null || !(copy instanceof ModelForm modelForm) || !(value instanceof Transform boneValue))
+        if (path == null || !(copy instanceof IPosedForm posedForm) || !(value instanceof Transform boneValue))
         {
             return null;
         }
 
-        Pose pose = modelForm.pose.get();
-        PoseTransform transform = pose.transforms.get(path.bone());
+        Pose pose = posedForm.getPose().get();
+        PoseTransform transform = pose.transforms.get(path.subject());
 
         if (transform == null)
         {
             transform = new PoseTransform();
-            pose.transforms.put(path.bone(), transform);
+            pose.transforms.put(path.subject(), transform);
         }
 
         transform.add(boneValue);

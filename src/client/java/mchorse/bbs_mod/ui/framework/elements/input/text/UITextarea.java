@@ -513,17 +513,6 @@ public class UITextarea <T extends TextLine> extends UIElement implements IFocus
         }
     }
 
-    public void pasteText(String text)
-    {
-        TextEditUndo undo = new TextEditUndo(this);
-
-        this.deleteSelection();
-        this.writeString(text);
-
-        undo.ready().post(text, this.cursor, this.selection);
-        this.undo.pushUndo(undo);
-    }
-
     public String deleteCharacter()
     {
         if (this.hasLine(this.cursor.line))
@@ -936,16 +925,6 @@ public class UITextarea <T extends TextLine> extends UIElement implements IFocus
         this.recalculateSizes();
         this.horizontal.clamp();
         this.vertical.clamp();
-    }
-
-    public void recalculate()
-    {
-        for (T textLine : this.text)
-        {
-            this.calculateWrappedLine(textLine);
-        }
-
-        this.recalculateSizes();
     }
 
     protected void recalculateWrapping()

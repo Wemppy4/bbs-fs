@@ -1,0 +1,42 @@
+{
+    "film_layout": {
+        "type": "splitter",
+        "dir": "v",
+        "first": {
+            "type": "splitter",
+            "dir": "h",
+            "first": {
+                "type": "splitter",
+                "dir": "v",
+                "first": {
+                    "type": "splitter",
+                    "dir": "v",
+                    "first": {
+                        "id": "replaysList",
+                        "type": "panel"
+                    },
+                    "ratio": 0.49258164,
+                    "second": {
+                        "id": "replayProps",
+                        "type": "panel"
+                    }
+                },
+                "ratio": 0.47801417,
+                "second": {
+                    "id": "editArea",
+                    "type": "panel"
+                }
+            },
+            "ratio": 0.30390143,
+            "second": {
+                "id": "main",
+                "type": "panel"
+            }
+        },
+        "ratio": 0.70957446,
+        "second": {
+            "id": "preview",
+            "type": "panel"
+        }
+    }
+}

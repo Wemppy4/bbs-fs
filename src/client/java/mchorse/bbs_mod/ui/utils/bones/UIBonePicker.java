@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.utils.bones;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
@@ -11,6 +10,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * The bone-valued control: a button that shows the current bone and opens the
@@ -30,11 +30,21 @@ public class UIBonePicker extends UIElement
     public final UIButton button;
     public final UIIcon eyedropper;
 
-    private final Consumer<String> callback;
+    private Consumer<String> callback;
 
     private Consumer<UIBonePickerContextMenu> menu;
     private Viewport viewport;
     private boolean picking;
+
+    /** What {@link #bind} reads the label from; null for a picker whose host labels it itself. */
+    private Supplier<String> bound;
+    private IKey emptyLabel;
+
+    /** A picker to be {@link #bind}-ed to a bone value. */
+    public UIBonePicker()
+    {
+        this((Consumer<String>) null);
+    }
 
     public UIBonePicker(Consumer<String> callback)
     {
@@ -51,7 +61,7 @@ public class UIBonePicker extends UIElement
             {
                 if (UIBonePicker.this.picking)
                 {
-                    UIDashboardPanels.renderHighlight(context.batcher, this.area, Direction.BOTTOM);
+                    context.batcher.highlight(this.area, Direction.BOTTOM);
                 }
 
                 super.renderSkin(context);
@@ -60,11 +70,10 @@ public class UIBonePicker extends UIElement
         /* UIIcon defaults to 20x20 which is taller than the control row — that
          * padded the whole picker out; the glyph is 16x16, so match it exactly. */
         this.eyedropper.wh(16, 16);
-        this.eyedropper.setVisible(false);
 
         this.h(UIConstants.CONTROL_HEIGHT);
         this.row(UIConstants.MARGIN).preferred(0);
-        this.add(this.button, this.eyedropper);
+        this.add(this.button);
     }
 
     /** How to fill the popup when the button is clicked; an empty fill means "nothing to pick" and no popup opens. */
@@ -75,13 +84,59 @@ public class UIBonePicker extends UIElement
         return this;
     }
 
-    /** Eyedropper backend; the icon only appears once a viewport is provided. */
+    /**
+     * Eyedropper backend; the icon only appears once a viewport is provided. It is
+     * added to / removed from the row rather than hidden: the row lays out hidden
+     * children too, so a merely invisible icon would still cost the button its
+     * 16px + margin at the right edge.
+     */
     public UIBonePicker viewport(Viewport viewport)
     {
         this.viewport = viewport;
-        this.eyedropper.setVisible(viewport != null);
+
+        boolean shown = this.eyedropper.getParent() != null;
+
+        if (viewport != null && !shown)
+        {
+            this.add(this.eyedropper);
+        }
+        else if (viewport == null && shown)
+        {
+            this.eyedropper.removeFromParent();
+        }
 
         return this;
+    }
+
+    /**
+     * Tie the picker to a bone value: a pick writes through {@code set}, and the label is read
+     * back through {@code get} — {@code empty} standing in for no bone — here and on every
+     * {@link #refresh}. Replaces the host relabelling the button by hand after each pick.
+     */
+    public UIBonePicker bind(Supplier<String> get, Consumer<String> set, IKey empty)
+    {
+        this.bound = get;
+        this.emptyLabel = empty;
+        this.callback = (bone) ->
+        {
+            set.accept(bone);
+            this.refresh();
+        };
+
+        this.refresh();
+
+        return this;
+    }
+
+    /** Re-read the bound bone into the label, for a value changed behind the picker's back (undo). */
+    public void refresh()
+    {
+        if (this.bound != null)
+        {
+            String bone = this.bound.get();
+
+            this.setLabel(bone == null || bone.isEmpty() ? this.emptyLabel : IKey.raw(bone));
+        }
     }
 
     public void setLabel(IKey label)

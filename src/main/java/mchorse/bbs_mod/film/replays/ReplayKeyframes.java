@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.film.replays;
 
 import mchorse.bbs_mod.data.types.ListType;
+import mchorse.bbs_mod.forms.entities.EntityState;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
@@ -17,7 +18,9 @@ import org.joml.Vector2d;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 public class ReplayKeyframes extends ValueGroup
 {
@@ -28,7 +31,6 @@ public class ReplayKeyframes extends ValueGroup
     public static final String GROUP_TRIGGERS = "triggers";
     public static final String GROUP_EXTRA1 = "extra1";
     public static final String GROUP_EXTRA2 = "extra2";
-    public static final String GROUP_TRANSFORM = "transform";
 
     /**
      * Vanilla's per-tick gravity step (0.08 damped by 0.98). A grounded entity in
@@ -58,7 +60,26 @@ public class ReplayKeyframes extends ValueGroup
         return "item_slot_" + slot;
     }
 
-    public static final List<String> CURATED_CHANNELS = Arrays.asList("x", "y", "z", "pitch", "yaw", "headYaw", "bodyYaw", "sneaking", "sprinting", "item_slot_0", "item_slot_1", "item_slot_2", "item_slot_3", "item_slot_4", "item_slot_5", "item_slot_6", "item_slot_7", "item_slot_8", "item_off_hand", "item_head", "item_chest", "item_legs", "item_feet", "selected_slot", "stick_lx", "stick_ly", "stick_rx", "stick_ry", "trigger_l", "trigger_r", "extra1_x", "extra1_y", "extra2_x", "extra2_y", "grounded", "damage", "vX", "vY", "vZ");
+    public static final List<String> CURATED_CHANNELS = buildCuratedChannels();
+
+    /**
+     * The states sit together in one run rather than scattered through the list, so the timeline
+     * groups them the way {@link EntityState} does - and so adding a state doesn't mean
+     * remembering to name it here as well.
+     */
+    private static List<String> buildCuratedChannels()
+    {
+        List<String> channels = new ArrayList<>(Arrays.asList("x", "y", "z", "pitch", "yaw", "headYaw", "bodyYaw"));
+
+        for (EntityState state : EntityState.values())
+        {
+            channels.add(state.id);
+        }
+
+        channels.addAll(Arrays.asList("item_slot_0", "item_slot_1", "item_slot_2", "item_slot_3", "item_slot_4", "item_slot_5", "item_slot_6", "item_slot_7", "item_slot_8", "item_off_hand", "item_head", "item_chest", "item_legs", "item_feet", "selected_slot", "stick_lx", "stick_ly", "stick_rx", "stick_ry", "trigger_l", "trigger_r", "extra1_x", "extra1_y", "extra2_x", "extra2_y", "damage", "vX", "vY", "vZ"));
+
+        return channels;
+    }
 
     public final KeyframeChannel<Double> x = new KeyframeChannel<>("x", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<Double> y = new KeyframeChannel<>("y", KeyframeFactories.DOUBLE);
@@ -73,11 +94,26 @@ public class ReplayKeyframes extends ValueGroup
     public final KeyframeChannel<Double> headYaw = new KeyframeChannel<>("headYaw", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<Double> bodyYaw = new KeyframeChannel<>("bodyYaw", KeyframeFactories.DOUBLE);
 
-    public final KeyframeChannel<Double> sneaking = new KeyframeChannel<>("sneaking", KeyframeFactories.DOUBLE);
-    public final KeyframeChannel<Double> sprinting = new KeyframeChannel<>("sprinting", KeyframeFactories.DOUBLE);
-    public final KeyframeChannel<Double> grounded = new KeyframeChannel<>("grounded", KeyframeFactories.DOUBLE);
+    /**
+     * One channel per {@link EntityState}, keyed by the state and named after it. The fields
+     * below are the same channels under the names the rest of the mod already asks for.
+     */
+    public final Map<EntityState, KeyframeChannel<Double>> states = new EnumMap<>(EntityState.class);
+
+    public final KeyframeChannel<Double> sneaking = this.state(EntityState.SNEAKING);
+    public final KeyframeChannel<Double> sprinting = this.state(EntityState.SPRINTING);
+    public final KeyframeChannel<Double> grounded = this.state(EntityState.GROUNDED);
     public final KeyframeChannel<Double> fall = new KeyframeChannel<>("fall", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<Double> damage = new KeyframeChannel<>("damage", KeyframeFactories.DOUBLE);
+
+    /**
+     * Two states vanilla counts up a tick at a time rather than switching: how far the body has
+     * leant into a swim, and how long a glide or a riptide has been going (which ramps the
+     * elytra's dive). A timeline is random access - scrub into the middle of a swim and there
+     * were no ticks to count - so they are written down like everything else instead of derived.
+     */
+    public final KeyframeChannel<Double> leaning = new KeyframeChannel<>("leaning", KeyframeFactories.DOUBLE);
+    public final KeyframeChannel<Double> roll = new KeyframeChannel<>("roll", KeyframeFactories.DOUBLE);
 
     public final KeyframeChannel<Double> stickLeftX = new KeyframeChannel<>("stick_lx", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<Double> stickLeftY = new KeyframeChannel<>("stick_ly", KeyframeFactories.DOUBLE);
@@ -115,11 +151,16 @@ public class ReplayKeyframes extends ValueGroup
         this.add(this.pitch);
         this.add(this.headYaw);
         this.add(this.bodyYaw);
-        this.add(this.sneaking);
-        this.add(this.sprinting);
-        this.add(this.grounded);
+
+        for (EntityState state : EntityState.values())
+        {
+            this.add(this.state(state));
+        }
+
         this.add(this.fall);
         this.add(this.damage);
+        this.add(this.leaning);
+        this.add(this.roll);
         this.add(this.stickLeftX);
         this.add(this.stickLeftY);
         this.add(this.stickRightX);
@@ -145,6 +186,12 @@ public class ReplayKeyframes extends ValueGroup
         this.add(this.armorLegs);
         this.add(this.armorFeet);
         this.add(this.selectedSlot);
+    }
+
+    /** The channel a state is recorded into, created on first ask. */
+    public KeyframeChannel<Double> state(EntityState state)
+    {
+        return this.states.computeIfAbsent(state, (s) -> new KeyframeChannel<>(s.id, KeyframeFactories.DOUBLE));
     }
 
     public List<KeyframeChannel<?>> getChannels()
@@ -352,10 +399,14 @@ public class ReplayKeyframes extends ValueGroup
             this.fall.insert(tick, (double) entity.getFallDistance());
         }
 
-        this.sneaking.insert(tick, entity.isSneaking() ? 1D : 0D);
-        this.sprinting.insert(tick, entity.isSprinting() ? 1D : 0D);
-        this.grounded.insert(tick, entity.isOnGround() ? 1D : 0D);
+        for (EntityState state : EntityState.values())
+        {
+            this.state(state).insert(tick, state.get(entity) ? 1D : 0D);
+        }
+
         this.damage.insert(tick, (double) entity.getHurtTimer());
+        this.leaning.insert(tick, (double) entity.getLeaningPitch(1F));
+        this.roll.insert(tick, (double) entity.getRoll());
 
         if (rotation)
         {
@@ -473,10 +524,14 @@ public class ReplayKeyframes extends ValueGroup
         }
 
         /* Motion and fall distance */
-        entity.setSneaking(this.sneaking.interpolate(tick) != 0D);
-        entity.setSprinting(this.sprinting.interpolate(tick) != 0D);
-        entity.setOnGround(this.grounded.interpolate(tick) != 0D);
+        for (EntityState state : EntityState.values())
+        {
+            state.set(entity, EntityState.isOn(this.state(state).interpolate(tick)));
+        }
+
         entity.setHurtTimer(this.damage.interpolate(tick).intValue());
+        entity.setLeaningPitch(this.leaning.interpolate(tick).floatValue());
+        entity.setRoll(this.roll.interpolate(tick).intValue());
 
         float[] sticks = entity.getExtraVariables();
 

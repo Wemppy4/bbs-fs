@@ -9,7 +9,12 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.QueueDispatch;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.BodyPart;
+import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.MobForm;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
+import mchorse.bbs_mod.forms.renderers.mob.MobRig;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.mixin.LimbAnimatorAccessor;
@@ -33,7 +38,6 @@ import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.PlayerLikeEntity;
@@ -50,13 +54,8 @@ import net.minecraft.world.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
@@ -80,6 +79,8 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 
     public static final GameProfile WIDE = new GameProfile(UUID.fromString("b99a2400-28a8-4288-92dc-924beafbf756"), "McHorseYT");
     public static final GameProfile SLIM = new GameProfile(UUID.fromString("5477bd28-e672-4f87-a209-c03cf75f3606"), "osmiq");
+
+    private final MatrixCache bones = new MatrixCache();
 
     private Entity entity;
 
@@ -183,59 +184,182 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
     @Override
     public List<String> getBones()
     {
+        MobRig rig = this.getRig();
+
+        return rig == null ? super.getBones() : rig.getGroupKeysInHierarchyOrder();
+    }
+
+    @Override
+    public IBoneHierarchy getBoneHierarchy()
+    {
+        return this.getRig();
+    }
+
+    /**
+     * The skeleton of the vanilla model this form renders through, or null while there is no
+     * entity yet or the entity does not render through a living entity renderer.
+     */
+    public MobRig getRig()
+    {
         this.ensureEntity();
 
-        if (this.entity != null)
+        if (this.entity != null && MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(this.entity) instanceof LivingEntityRenderer renderer)
         {
-            Map<String, ModelPart> stringModelPartMap = parts.get(this.entity.getClass());
-
-            if (stringModelPartMap == null)
-            {
-                stringModelPartMap = new HashMap<>();
-
-                if (MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(this.entity) instanceof LivingEntityRenderer renderer)
-                {
-                    EntityModel model = renderer.getModel();
-                    Set<Field> fields = new HashSet<>();
-                    Class aClass = model.getClass();
-
-                    while (aClass != Object.class)
-                    {
-                        for (Field field : aClass.getDeclaredFields())
-                        {
-                            fields.add(field);
-                        }
-
-                        aClass = aClass.getSuperclass();
-                    }
-
-                    for (Field declaredField : fields)
-                    {
-                        if (declaredField.getType().equals(ModelPart.class))
-                        {
-                            try
-                            {
-                                declaredField.setAccessible(true);
-
-                                ModelPart part = (ModelPart) declaredField.get(model);
-
-                                stringModelPartMap.put(declaredField.getName(), part);
-                            }
-                            catch (Exception e)
-                            {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-
-                parts.put(this.entity.getClass(), stringModelPartMap);
-            }
-
-            return new ArrayList<>(stringModelPartMap.keySet());
+            return MobRigs.of(renderer.getModel());
         }
 
-        return super.getBones();
+        return null;
+    }
+
+    /**
+     * Claims one pick id for the form and one per bone, in the order the parts drew with (see
+     * {@code MobRenderContext.partLight}). Same contract as the model form's
+     * {@code ModelInstance.fillStencilMap}: the shader adds the part's offset to the form's base
+     * id, so the registration order here IS the decoding table.
+     */
+    @Override
+    protected void updateStencilMap(FormRenderingContext context)
+    {
+        MobRig rig = this.getRig();
+
+        context.stencilMap.addPicking(this.form, "");
+
+        if (rig != null)
+        {
+            for (ModelPart part : rig.ordered())
+            {
+                context.stencilMap.addPicking(this.form, rig.name(part));
+            }
+        }
+    }
+
+    private boolean hasBoundBodyParts()
+    {
+        for (BodyPart part : this.form.parts.getAllTyped())
+        {
+            if (!part.bone.get().isEmpty())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Body parts bound to a bone ride that bone's frame; the rest stay exactly where they were,
+     * in the form's own space. Only parts that name a bone the model actually has move, so nothing
+     * that was authored before mob bones existed shifts underfoot.
+     */
+    @Override
+    public void renderBodyParts(FormRenderingContext context)
+    {
+        for (BodyPart part : this.form.parts.getAllTyped())
+        {
+            Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
+
+            if (matrix == null)
+            {
+                this.renderBodyPart(part, context);
+
+                continue;
+            }
+
+            context.stack.push();
+            if (context.world != null)
+            {
+                context.world.push();
+            }
+
+            MatrixStackUtils.multiply(context.stack, matrix);
+            if (context.world != null)
+            {
+                MatrixStackUtils.multiply(context.world, matrix);
+            }
+
+            this.renderBodyPart(part, context);
+
+            context.stack.pop();
+            if (context.world != null)
+            {
+                context.world.pop();
+            }
+        }
+
+        this.bones.clear();
+    }
+
+    /**
+     * The same bones, asked for outside a render - what the gizmo, the anchor system, trackers and
+     * the motion path read. Body parts recurse through their bone's frame, so a form anchored to a
+     * mob's head resolves under {@code <path>/head} the way a model form's bones do.
+     */
+    @Override
+    public void collectMatrices(IEntity entity, MatrixStack stack, MatrixCache matrices, String prefix, float transition)
+    {
+        this.ensureEntity();
+
+        Matrix4f mm = new Matrix4f();
+        Matrix4f oo = new Matrix4f();
+
+        stack.push();
+        this.applyTransforms(stack, true, transition);
+        oo.set(stack.peek().getPositionMatrix());
+        stack.pop();
+
+        stack.push();
+        this.applyTransforms(stack, false, transition);
+        mm.set(stack.peek().getPositionMatrix());
+
+        matrices.put(prefix, mm, oo);
+
+        MatrixCache collected = new MatrixCache();
+
+        MobRigMatrices.evaluate(this.entity, this.getRig(), this.form.pose.get(), this.form.poseOverlay.get(), transition, collected);
+
+        for (Map.Entry<String, MatrixCacheEntry> entry : collected.entrySet())
+        {
+            Matrix4f matrix = new Matrix4f();
+            Matrix4f o = new Matrix4f();
+
+            stack.push();
+            MatrixStackUtils.multiply(stack, entry.getValue().matrix());
+            matrix.set(stack.peek().getPositionMatrix());
+            stack.pop();
+
+            stack.push();
+            MatrixStackUtils.multiply(stack, entry.getValue().origin());
+            o.set(stack.peek().getPositionMatrix());
+            stack.pop();
+
+            matrices.put(StringUtils.combinePaths(prefix, entry.getKey()), matrix, o);
+        }
+
+        for (BodyPart part : this.form.parts.getAllTyped())
+        {
+            Form form = part.getForm();
+
+            if (form == null)
+            {
+                continue;
+            }
+
+            Matrix4f matrix = part.filterBoneMatrix(collected.get(part.bone.get()).matrix());
+
+            stack.push();
+
+            if (matrix != null)
+            {
+                MatrixStackUtils.multiply(stack, matrix);
+            }
+
+            MatrixStackUtils.applyTransform(stack, part.transform.get());
+            FormUtilsClient.getRenderer(form).collectMatrices(entity, stack, matrices, StringUtils.combinePaths(prefix, part.getId()), transition);
+
+            stack.pop();
+        }
+
+        stack.pop();
     }
 
     private void bindTexture()
@@ -585,7 +709,11 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
             this.entity.setOnGround(entity.isOnGround());
             this.entity.setSneaking(entity.isSneaking());
             this.entity.setSprinting(entity.isSprinting());
-            this.entity.setPose(entity.isSneaking() ? EntityPose.CROUCHING : EntityPose.STANDING);
+            this.entity.setSwimming(entity.isSwimming());
+            ((EntityInvoker) this.entity).bbs$setFlag(EntityState.FALL_FLYING_FLAG, entity.isFallFlying());
+            this.entity.setPose(EntityState.pose(entity));
+
+            /* Since 1.21.1 equipStack belongs to LivingEntity, not Entity */
             if (this.entity instanceof LivingEntity living)
             {
                 living.equipStack(EquipmentSlot.MAINHAND, entity.getEquipmentStack(EquipmentSlot.MAINHAND));

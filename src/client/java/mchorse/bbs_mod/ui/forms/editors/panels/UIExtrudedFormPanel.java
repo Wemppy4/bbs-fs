@@ -7,7 +7,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
-import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 public class UIExtrudedFormPanel extends UIFormPanel<ExtrudedForm>
 {
@@ -24,10 +24,10 @@ public class UIExtrudedFormPanel extends UIFormPanel<ExtrudedForm>
         {
             UITexturePicker.open(this.getContext(), this.form.texture.get(), (l) -> this.form.texture.set(l));
         });
-        this.color = new UIColor((c) -> this.form.color.set(Color.rgba(c)));
+        this.color = UIValues.color(() -> this.form.color);
         this.color.withAlpha();
-        this.billboard = new UIToggle(UIKeys.FORMS_EDITORS_BILLBOARD_TITLE, false, (b) -> this.form.billboard.set(b.getValue()));
-        this.shading = new UIToggle(UIKeys.FORMS_EDITORS_BILLBOARD_SHADING, false, (b) -> this.form.shading.set(b.getValue()));
+        this.billboard = UIValues.toggle(UIKeys.FORMS_EDITORS_BILLBOARD_TITLE, () -> this.form.billboard);
+        this.shading = UIValues.toggle(UIKeys.FORMS_EDITORS_BILLBOARD_SHADING, () -> this.form.shading);
 
         this.options.add(this.pick, this.color, this.billboard, this.shading);
     }

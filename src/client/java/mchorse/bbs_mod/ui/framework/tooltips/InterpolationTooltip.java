@@ -4,6 +4,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.renderers.InterpolationRenderer;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.interps.IInterp;
 
 import java.util.function.Supplier;
@@ -45,15 +46,21 @@ public class InterpolationTooltip implements ITooltip
     @Override
     public void renderTooltip(UIContext context)
     {
-        Area area = context.tooltip.area;
         IInterp interpolation = this.interpolation == null ? null : this.interpolation.get();
+
+        if (interpolation == null)
+        {
+            return;
+        }
+
         int duration = this.duration == null ? 40 : this.duration.get();
 
-        float fx = (this.ax - 0.5F) * 2;
+        /* The preview sits beside the element, vertically centred on it: ax picks the side */
+        Direction direction = this.ax < 0.5F ? Direction.LEFT : Direction.RIGHT;
+        int w = InterpolationRenderer.PREVIEW_WIDTH;
+        int h = InterpolationRenderer.PREVIEW_HEIGHT;
 
-        int x = area.x(this.ax) + (int) (this.margin * fx);
-        int y = area.y(this.ay);
-
-        InterpolationRenderer.renderInterpolationPreview(interpolation, context, x, y, 1 - this.ax, this.ay, duration);
+        TooltipPlacement.place(context, context.tooltip.area, w, h, direction, this.margin, 0, Area.SHARED);
+        InterpolationRenderer.renderInterpolationPreview(interpolation, context, Area.SHARED, duration);
     }
 }

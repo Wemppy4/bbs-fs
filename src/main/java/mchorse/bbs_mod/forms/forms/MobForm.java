@@ -1,13 +1,18 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.utils.pose.Pose;
 
-public class MobForm extends Form
+public class MobForm extends Form implements IPosedForm
 {
+    /** Also what its main tab in the form editor wears — see {@link Form#getIcon()}. */
+    public static final Icon ICON = Icons.MORPH;
+
     public final ValueString mobID = new ValueString("mobId", "minecraft:chicken");
     public final ValueString mobNBT = new ValueString("mobNbt", "");
 
@@ -17,9 +22,12 @@ public class MobForm extends Form
     public final ValuePose pose = new ValuePose("pose", new Pose());
     public final ValuePose poseOverlay = new ValuePose("pose_overlay", new Pose());
 
+    public final ValueBoolean boneTracks = new ValueBoolean("bone_tracks", true);
+
     public MobForm()
     {
         this.slim.invisible();
+        this.boneTracks.invisible();
 
         this.add(this.mobID);
         this.add(this.mobNBT);
@@ -27,6 +35,25 @@ public class MobForm extends Form
         this.add(this.poseOverlay);
         this.add(this.texture);
         this.add(this.slim);
+        this.add(this.boneTracks);
+    }
+
+    @Override
+    public ValuePose getPose()
+    {
+        return this.pose;
+    }
+
+    @Override
+    public ValuePose getPoseOverlay()
+    {
+        return this.poseOverlay;
+    }
+
+    @Override
+    public boolean hasBoneTracks()
+    {
+        return this.boneTracks.get();
     }
 
     @Override
@@ -39,4 +66,11 @@ public class MobForm extends Form
     {
         return this.mobID.get().equals("minecraft:player");
     }
+
+    @Override
+    public Icon getIcon()
+    {
+        return ICON;
+    }
+
 }

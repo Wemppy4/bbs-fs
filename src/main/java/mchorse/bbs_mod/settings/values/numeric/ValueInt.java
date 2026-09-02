@@ -112,4 +112,10 @@ public class ValueInt extends BaseValueNumber<Integer>
         COLOR_ALPHA,
         MODES
     }
+
+    @Override
+    public void setNumber(double value)
+    {
+        this.set((int) Math.round(value));
+    }
 }

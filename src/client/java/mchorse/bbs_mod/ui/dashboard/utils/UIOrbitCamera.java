@@ -5,7 +5,6 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.utils.Area;
 
-import java.util.function.Supplier;
 
 public class UIOrbitCamera implements IUIElement
 {
@@ -84,31 +83,9 @@ public class UIOrbitCamera implements IUIElement
     /* Unimplemented GUI element methods */
 
     @Override
-    public void resize()
-    {}
-
-    @Override
     public boolean isEnabled()
     {
         return this.enabled;
-    }
-
-    @Override
-    public boolean isVisible()
-    {
-        return true;
-    }
-
-    @Override
-    public IUIElement keyPressed(UIContext context)
-    {
-        return null;
-    }
-
-    @Override
-    public IUIElement textInput(UIContext context)
-    {
-        return null;
     }
 
     @Override

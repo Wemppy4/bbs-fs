@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.client.renderer.entity;
 
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.renderer.DeathPose;
 import mchorse.bbs_mod.cubic.render.vanilla.ArmorRenderer;
@@ -54,7 +55,9 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, ActorEntity
             ctx.getEquipmentModelLoader()
         );
 
-        this.shadowRadius = 0.5F;
+        /* The film draws an actor's shadow itself, sized and offset by the replay. A vanilla shadow
+         * underneath would be a second one, at a fixed size nobody asked for. */
+        this.shadowRadius = 0F;
     }
 
     @Override
@@ -85,9 +88,17 @@ public class ActorEntityRenderer extends EntityRenderer<ActorEntity, ActorEntity
     @Override
     public void render(ActorRenderState state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState)
     {
-        super.render(state, matrices, queue, cameraState);
-
         ActorEntity entity = state.entity;
+
+        /* A film running on this client draws its own actors, from their keyframes — drawing them
+         * here as well would be a second body, a frame behind the first. This is for everyone else:
+         * a player who happens to be standing in someone else's scene still sees the cast. */
+        if (entity != null && BBSModClient.getFilms().isActorDrawn(entity.getId()))
+        {
+            return;
+        }
+
+        super.render(state, matrices, queue, cameraState);
 
         if (entity == null || !this.isVisible(state))
         {

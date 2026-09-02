@@ -20,6 +20,32 @@ public class ValueKeyCombo extends BaseValueBasic<KeyCombo>
         this.postNotify(flag);
     }
 
+    /**
+     * The combo is edited in place — {@link #set} writes through to the live
+     * object the keybind widget holds — so the default has to be a combo of its
+     * own or it would follow every rebind.
+     */
+    @Override
+    protected KeyCombo copyValue(KeyCombo value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        KeyCombo combo = new KeyCombo(value.label);
+
+        combo.copy(value);
+
+        return combo;
+    }
+
+    @Override
+    protected boolean compareValue(KeyCombo a, KeyCombo b)
+    {
+        return a == b || (a != null && b != null && a.keys.equals(b.keys));
+    }
+
     @Override
     public BaseType toData()
     {

@@ -5,6 +5,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.BBSShaders.ModelVariant;
 import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
@@ -341,6 +342,30 @@ public class FormTranslucentQueue
         protected DrawCommand(Vector3f cameraSpaceOrigin)
         {
             this.distanceSq = cameraSpaceOrigin.lengthSquared();
+        }
+
+        /** The color overlay captured at enqueue time (see {@link mchorse.bbs_mod.forms.renderers.utils.FormOverlay}); null = none. */
+        private Color overlayColor;
+
+        public DrawCommand overlayColor(Color overlay)
+        {
+            this.overlayColor = overlay == null ? null : overlay.copy();
+
+            return this;
+        }
+
+        /** Re-bind the captured overlay for the replayed draw; the enqueue-time binding is long gone at flush. */
+        protected int bindOverlay()
+        {
+            return this.overlayColor != null ? FormOverlay.bind(this.overlayColor) : 0;
+        }
+
+        protected void unbindOverlay(int previous)
+        {
+            if (this.overlayColor != null)
+            {
+                FormOverlay.unbind(previous);
+            }
         }
 
         public abstract void draw();

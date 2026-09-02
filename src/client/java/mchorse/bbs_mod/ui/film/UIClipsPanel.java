@@ -6,11 +6,14 @@ import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.clips.UIClip;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelinePanel;
 import mchorse.bbs_mod.utils.DataPath;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
@@ -20,17 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public class UIClipsPanel extends UIElement implements IUIClipsDelegate
+public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
 {
     public UIClips clips;
     public UIFilmPanel filmPanel;
 
     private UIClip panel;
     private boolean hasClips;
-    private boolean timelineVisible = true;
-    private boolean propertiesVisible = true;
-
-    private UIElement target;
 
     public UIClipsPanel(UIFilmPanel panel, IFactory<Clip, ClipFactoryData> factory)
     {
@@ -40,23 +39,43 @@ public class UIClipsPanel extends UIElement implements IUIClipsDelegate
         this.add(this.clips.full(this));
     }
 
-    /** The clip panel is parented to {@link #target}, so it has to be taken down together with this. */
     @Override
-    public void removeFromParent()
+    protected UIElement getPropertiesPanel()
     {
-        super.removeFromParent();
+        return this.panel;
+    }
 
-        if (this.panel != null)
-        {
-            this.panel.removeFromParent();
-        }
+    @Override
+    protected UIElement getTimeline()
+    {
+        return this.clips;
     }
 
     public UIClipsPanel target(UIElement target)
     {
-        this.target = target;
+        this.setTarget(target);
+        this.setEmptyState(this::getEmptyLabel);
 
         return this;
+    }
+
+    /**
+     * An empty timeline and an empty pick are different problems, and the way out of each is a
+     * different gesture. With no clips at all there is nothing to explain — the timeline itself
+     * is gone, and the tab belongs to whatever put it away.
+     */
+    private IKey getEmptyLabel()
+    {
+        if (!this.hasClips)
+        {
+            return null;
+        }
+
+        Clips clips = this.clips.getClips();
+
+        return clips == null || clips.get().isEmpty()
+            ? UIKeys.CAMERA_TIMELINE_EMPTY_ADD
+            : UIKeys.CAMERA_TIMELINE_EMPTY_PICK;
     }
 
     public void setClips(Clips clips)
@@ -66,20 +85,12 @@ public class UIClipsPanel extends UIElement implements IUIClipsDelegate
         this.clips.setVisible(this.hasClips && this.timelineVisible);
     }
 
+    /** Gated on there being clips at all, unlike the parent version. */
+    @Override
     public void setTimelineVisible(boolean visible)
     {
         this.timelineVisible = visible;
         this.clips.setVisible(this.hasClips && visible);
-    }
-
-    public void setPropertiesVisible(boolean visible)
-    {
-        this.propertiesVisible = visible;
-
-        if (this.panel != null)
-        {
-            this.panel.setVisible(visible);
-        }
     }
 
     public void editClip(Position position)
@@ -184,18 +195,7 @@ public class UIClipsPanel extends UIElement implements IUIClipsDelegate
             this.panel = UIClip.createPanel(clip, this);
             this.panel.setUndoId("clip_panel");
 
-            if (this.target == null)
-            {
-                this.panel.relative(this).x(1F, -160).w(160).h(1F);
-            }
-            else
-            {
-                this.panel.relative(this.target).x(0).y(0).w(1F).h(1F);
-            }
-
-            /* The panel lives in whichever element it is laid out over, so it stays visible when
-             * the timeline is hidden behind another dock tab. */
-            (this.target == null ? this : this.target).add(this.panel);
+            this.attachPropertiesPanel(this.panel, 160);
             this.resize();
             this.resizeTarget();
             this.panel.fillData();
@@ -302,9 +302,18 @@ public class UIClipsPanel extends UIElement implements IUIClipsDelegate
     {
         DataPath path = property.getRelativePath(this.getClip());
 
+        if (path == null)
+        {
+            /* The property doesn't belong to the edited clip — apply it as is */
+            consumer.accept(property);
+
+            return;
+        }
+
         for (Clip clip : this.clips.getClipsFromSelection())
         {
-            BaseValue value = clip.getRecursively(path);
+            /* Clips of other types simply have no such property */
+            BaseValue value = clip.findRecursively(path);
 
             if (value != null && value.getClass() == property.getClass())
             {

@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.forms.editors.utils;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.entities.IEntity;

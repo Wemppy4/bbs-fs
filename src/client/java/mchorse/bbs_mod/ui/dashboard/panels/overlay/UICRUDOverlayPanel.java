@@ -5,6 +5,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.list.UIDataPathList;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
@@ -33,17 +34,7 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
 
         this.callback = callback;
 
-        this.add = new UIIcon(Icons.ADD, (b) ->
-        {
-            if (Window.isShiftPressed())
-            {
-                this.addNewData(this.getNextAutoId(), null);
-            }
-            else
-            {
-                this.addNewData(null);
-            }
-        });
+        this.add = new UIIcon(Icons.ADD, (b) -> this.addNewData(this.getContext()));
         this.add.context((menu) -> menu.action(Icons.FOLDER, UIKeys.PANELS_MODALS_ADD_FOLDER_TITLE, this::addNewFolder));
         this.dupe = new UIIcon(Icons.DUPE, this::dupeData);
         this.rename = new UIIcon(Icons.EDIT, this::renameData);
@@ -69,12 +60,30 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
 
     /**
      * Whether create/duplicate/rename/remove are offered. Asset-backed panels (e.g. the model editor)
-     * turn this off, leaving the overlay as a pure picker — mirroring the same hook on the selection
-     * screen. The buttons still exist as fields, they're just never mounted. Default true.
+     * turn this off, leaving the overlay as a pure picker; the landing screen asks the same question
+     * before offering "new". The buttons still exist as fields, they're just never mounted. Default true.
      */
-    protected boolean showActionButtons()
+    public boolean showActionButtons()
     {
         return true;
+    }
+
+    /**
+     * Ask for a name and create a document with it; with Shift held the name is picked automatically.
+     *
+     * <p>The context is passed in rather than taken from this panel: the landing screen asks for a
+     * new document while the data manager itself is not on screen, and an unmounted panel has none.</p>
+     */
+    public void addNewData(UIContext context)
+    {
+        if (Window.isShiftPressed())
+        {
+            this.addNewData(context, this.getNextAutoId(), null);
+        }
+        else
+        {
+            this.addNewData(context, null);
+        }
     }
 
     private String getNextAutoId()
@@ -107,20 +116,20 @@ public abstract class UICRUDOverlayPanel extends UIOverlayPanel
 
     /* CRUD */
 
-    protected void addNewData(MapType data)
+    protected void addNewData(UIContext context, MapType data)
     {
         UIPromptOverlayPanel panel = new UIPromptOverlayPanel(
             UIKeys.GENERAL_ADD,
             UIKeys.PANELS_MODALS_ADD,
-            (str) -> this.addNewData(this.namesList.getPath(str).toString(), data)
+            (str) -> this.addNewData(context, this.namesList.getPath(str).toString(), data)
         );
 
         panel.text.filename();
 
-        UIOverlay.addOverlay(this.getContext(), panel);
+        UIOverlay.addOverlay(context, panel);
     }
 
-    protected abstract void addNewData(String name, MapType data);
+    protected abstract void addNewData(UIContext context, String name, MapType data);
 
     protected void addNewFolder()
     {

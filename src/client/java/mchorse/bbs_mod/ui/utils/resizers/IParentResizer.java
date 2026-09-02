@@ -4,5 +4,6 @@ import mchorse.bbs_mod.ui.utils.Area;
 
 public interface IParentResizer
 {
-    public void apply(Area area, IResizer resizer, ChildResizer child);
+    public default void apply(Area area, IResizer resizer, ChildResizer child)
+    {}
 }

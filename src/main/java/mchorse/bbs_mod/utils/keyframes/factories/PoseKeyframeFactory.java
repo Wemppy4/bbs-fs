@@ -8,11 +8,36 @@ import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class PoseKeyframeFactory implements IKeyframeFactory<Pose>
 {
+    @Override
+    public int contentHash(Pose value)
+    {
+        int hash = 1;
+
+        for (Map.Entry<String, PoseTransform> entry : value.transforms.entrySet())
+        {
+            hash += entry.getKey().hashCode() ^ entry.getValue().contentHash();
+        }
+
+        return hash;
+    }
+
     private static Set<String> keys = new HashSet<>();
+
+    /**
+     * Stands in for a bone one of the four keyframes says nothing about. The keys are the
+     * UNION of all four poses, so most of them are missing from most of the poses, and
+     * interpolating against the rest transform is what "silent about this bone" means.
+     *
+     * <p>Read-only by contract: it is only ever passed in as a source. Reading a pose used
+     * to insert, so interpolation silently grew every keyframe it played through — a pose
+     * ended up holding every bone any of its neighbours mentioned.
+     */
+    private static final PoseTransform REST = new PoseTransform();
 
     private Pose i = new Pose();
 
@@ -67,7 +92,7 @@ public class PoseKeyframeFactory implements IKeyframeFactory<Pose>
 
             for (String key : keys)
             {
-                this.i.get(key).autoLerp(preAp.get(key), ap.get(key), bp.get(key), postBp.get(key), pt, at, bt, qt, clamped, x);
+                this.i.getOrCreate(key).autoLerp(at(preAp, key), at(ap, key), at(bp, key), at(postBp, key), pt, at, bt, qt, clamped, x);
             }
 
             return this.i;
@@ -83,10 +108,18 @@ public class PoseKeyframeFactory implements IKeyframeFactory<Pose>
 
         for (String key : keys)
         {
-            this.i.get(key).lerp(preA.get(key), a.get(key), b.get(key), postB.get(key), interpolation, x);
+            this.i.getOrCreate(key).lerp(at(preA, key), at(a, key), at(b, key), at(postB, key), interpolation, x);
         }
 
         return this.i;
+    }
+
+    /** The bone's transform in that pose, or the rest one when the pose is silent about it. */
+    private static PoseTransform at(Pose pose, String key)
+    {
+        PoseTransform transform = pose == null ? null : pose.get(key);
+
+        return transform == null ? REST : transform;
     }
 
     private void collect(Pose preA, Pose a, Pose b, Pose postB)

@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.utils.pose;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -55,9 +54,11 @@ public class UIBoneList extends UIElement
         this.search.h(20);
 
         this.mirror = new UIIcon(Icons.CONVERT, (b) -> this.toggleMirrorEdit());
+        this.mirror.highlight(BBSSettings.poseMirrorEdit::get, Direction.BOTTOM);
         this.mirror.tooltip(UIKeys.TRANSFORMS_MIRROR_EDIT);
         this.mirror.wh(20, 20);
         this.invert = new UIIcon(Icons.REVERSE, (b) -> this.toggleAlternateInvert());
+        this.invert.highlight(BBSSettings.poseAlternateInvert::get, Direction.BOTTOM);
         this.invert.tooltip(UIKeys.TRANSFORMS_ALTERNATE_INVERT);
         this.invert.wh(20, 20);
 
@@ -136,16 +137,6 @@ public class UIBoneList extends UIElement
     @Override
     public void render(UIContext context)
     {
-        if (BBSSettings.poseMirrorEdit.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.mirror.area, Direction.BOTTOM);
-        }
-
-        if (BBSSettings.poseAlternateInvert.get())
-        {
-            UIDashboardPanels.renderHighlight(context.batcher, this.invert.area, Direction.BOTTOM);
-        }
-
         super.render(context);
     }
 }

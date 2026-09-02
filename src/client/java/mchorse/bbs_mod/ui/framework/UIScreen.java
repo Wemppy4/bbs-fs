@@ -67,11 +67,6 @@ public class UIScreen extends Screen implements IFileDropListener
         this.menu.context.setup(this.context);
     }
 
-    public UIBaseMenu getMenu()
-    {
-        return this.menu;
-    }
-
     public void update()
     {
         this.menu.update();
@@ -174,7 +169,32 @@ public class UIScreen extends Screen implements IFileDropListener
     @Override
     public boolean mouseClicked(Click click, boolean doubled)
     {
-        return this.menu.mouseClicked((int) click.x(), (int) click.y(), click.button());
+        try
+        {
+            return this.menu.mouseClicked((int) click.x(), (int) click.y(), click.button());
+        }
+        catch (RuntimeException | Error e)
+        {
+            return this.report("mouse click", e);
+        }
+    }
+
+    /**
+     * Log a failure of an input handler before Minecraft wraps it into a crash report: building
+     * that report can itself fail (a mixin of another mod loading a class mid-transformation),
+     * and then the original stack is gone with it.
+     */
+    private boolean report(String action, Throwable e)
+    {
+        System.err.println("[BBS UI] Unhandled exception on " + action + " in " + this.menu.getClass().getSimpleName());
+        e.printStackTrace();
+
+        if (e instanceof RuntimeException runtime)
+        {
+            throw runtime;
+        }
+
+        throw (Error) e;
     }
 
     @Override
@@ -186,13 +206,27 @@ public class UIScreen extends Screen implements IFileDropListener
     @Override
     public boolean mouseReleased(Click click)
     {
-        return this.menu.mouseReleased((int) click.x(), (int) click.y(), click.button());
+        try
+        {
+            return this.menu.mouseReleased((int) click.x(), (int) click.y(), click.button());
+        }
+        catch (RuntimeException | Error e)
+        {
+            return this.report("mouse release", e);
+        }
     }
 
     @Override
     public boolean keyPressed(KeyInput input)
     {
-        return this.menu.handleKey(input.key(), input.scancode(), BBSRendering.lastAction, input.modifiers());
+        try
+        {
+            return this.menu.handleKey(input.key(), input.scancode(), BBSRendering.lastAction, input.modifiers());
+        }
+        catch (RuntimeException | Error e)
+        {
+            return this.report("key press", e);
+        }
     }
 
     @Override

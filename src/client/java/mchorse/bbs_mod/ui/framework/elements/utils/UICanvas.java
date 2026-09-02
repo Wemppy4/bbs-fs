@@ -34,19 +34,9 @@ public abstract class UICanvas extends UIElement
         return (int) Math.round(this.scaleX.to(x));
     }
 
-    public double fromX(int mouseX)
-    {
-        return this.scaleX.from(mouseX);
-    }
-
     public int toY(double y)
     {
         return (int) Math.round(this.scaleY.to(y));
-    }
-
-    public double fromY(int mouseY)
-    {
-        return this.scaleY.from(mouseY);
     }
 
     @Override

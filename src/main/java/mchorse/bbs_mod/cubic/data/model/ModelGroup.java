@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.cubic.data.model;
 
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -14,7 +15,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ModelGroup implements IMapSerializable
+public class ModelGroup implements IMapSerializable, RigBone
 {
     public final String id;
     public Model owner;
@@ -27,6 +28,8 @@ public class ModelGroup implements IMapSerializable
 
     public float lighting = 0F;
     public Color color = new Color().set(1F, 1F, 1F);
+    /* The bone's color overlay from the pose (RGB = color, A = strength); neutral at zero strength. */
+    public Color overlay = new Color(1F, 1F, 1F, 0F);
     public Transform initial = new Transform();
     public Transform current = new Transform();
 
@@ -53,15 +56,64 @@ public class ModelGroup implements IMapSerializable
      * orient, never a channel; null when the bone has no shift this frame. */
     public Vector3f offset;
 
+    /* Snapshot of orient/offset as they stood at the END of the channels phase, so a skipped
+     * re-evaluation (see ModelFormRenderer#evaluateChannels) can rewind the constraint stack's
+     * writes: IK/physics blend FROM evaluatedRotation(), and running them on top of their own
+     * previous output would double-apply. Holders are lazy and reused; the booleans say whether
+     * the snapshot value was present (null is a meaningful state for both fields). */
+    private Quaternionf channelOrient;
+    private Vector3f channelOffset;
+    private boolean channelOrientSet;
+    private boolean channelOffsetSet;
+
     public ModelGroup(String id)
     {
         this.id = id;
+    }
+
+    /** Record the channels-phase orient/offset (called right after the channels evaluate). */
+    public void snapshotChannels()
+    {
+        this.channelOrientSet = this.orient != null;
+
+        if (this.channelOrientSet)
+        {
+            if (this.channelOrient == null)
+            {
+                this.channelOrient = new Quaternionf();
+            }
+
+            this.channelOrient.set(this.orient);
+        }
+
+        this.channelOffsetSet = this.offset != null;
+
+        if (this.channelOffsetSet)
+        {
+            if (this.channelOffset == null)
+            {
+                this.channelOffset = new Vector3f();
+            }
+
+            this.channelOffset.set(this.offset);
+        }
+    }
+
+    /**
+     * Rewind orient/offset to the channels-phase snapshot. Fresh instances are handed out where
+     * a value existed — constraint stages mutate what they find in place.
+     */
+    public void restoreChannels()
+    {
+        this.orient = this.channelOrientSet ? new Quaternionf(this.channelOrient) : null;
+        this.offset = this.channelOffsetSet ? new Vector3f(this.channelOffset) : null;
     }
 
     public void reset()
     {
         this.lighting = 0F;
         this.color.set(1F, 1F, 1F);
+        this.overlay.set(1F, 1F, 1F, 0F);
         this.current.copy(this.initial);
         this.orient = null;
         this.offset = null;
@@ -74,6 +126,8 @@ public class ModelGroup implements IMapSerializable
      * bases, twist references, clamp inputs all start from this, so stages stack instead of overwriting
      * each other. Returns a fresh instance safe to mutate.
      */
+    @Override
+
     public Quaternionf evaluatedRotation()
     {
         if (this.orient != null)
@@ -96,6 +150,64 @@ public class ModelGroup implements IMapSerializable
      * layer multiplies its delta as a quaternion, so stacked layers compose without the euler-pole flip.
      * Call this AFTER the layer has applied its additive euler readback to {@code current.rotate}.
      */
+    @Override
+    public String getBoneName()
+    {
+        return this.id;
+    }
+
+    @Override
+    public RigBone getParentBone()
+    {
+        return this.parent;
+    }
+
+    /** The cubic group's editable transform is {@code current}. */
+    @Override
+    public Transform getBoneTransform()
+    {
+        return this.current;
+    }
+
+    /** A cubic group rests where its bind transform puts it. */
+    @Override
+    public Vector3f getRestTranslation()
+    {
+        return this.initial.translate;
+    }
+
+    /** Cubic channels are degrees. */
+    @Override
+    public boolean isRotationInDegrees()
+    {
+        return true;
+    }
+
+    @Override
+    public Quaternionf getOrient()
+    {
+        return this.orient;
+    }
+
+    @Override
+    public void setOrient(Quaternionf orient)
+    {
+        this.orient = orient;
+    }
+
+    @Override
+    public Vector3f getOffset()
+    {
+        return this.offset;
+    }
+
+    @Override
+    public void setOffset(Vector3f offset)
+    {
+        this.offset = offset;
+    }
+
+    @Override
     public void composeOrient(Quaternionf delta)
     {
         if (this.orient == null)

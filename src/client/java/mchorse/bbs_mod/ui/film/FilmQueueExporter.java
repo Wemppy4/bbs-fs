@@ -183,7 +183,7 @@ public class FilmQueueExporter
         /* The recorder re-enables main on each stop(); re-disable so the user
          * cannot interact (tab switching, button presses) between films. */
         this.setMainInteractive(false);
-        this.panel.switchTab(tabIndex);
+        this.panel.tabs.switchTab(tabIndex);
     }
 
     private void beginRecordingCurrent(UIContext context)
@@ -266,7 +266,7 @@ public class FilmQueueExporter
 
                 if (idx >= 0)
                 {
-                    this.panel.switchTab(idx);
+                    this.panel.tabs.switchTab(idx);
                 }
             }
         }

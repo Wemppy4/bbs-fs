@@ -339,6 +339,67 @@ public class Transform implements IMapSerializable
         return matrix;
     }
 
+    /**
+     * THE inverse of {@link #setupMatrix(Matrix4f)}: read a matrix back into these channels.
+     * Exact for anything of that shape ({@code translate · rotation · scale}), which is what a
+     * composition of transforms is as long as no non-uniform scale sits above a rotation — such a
+     * matrix carries shear, has no TRS decomposition at all, and lands on the nearest one here.
+     *
+     * <p>A mirrored matrix (negative determinant, the one flip a column's length cannot show) puts
+     * the sign on X, the same axis {@link #mirrorX()} works on.</p>
+     *
+     * <p>In euler mode the angles land on the branch nearest the current ones, the way
+     * {@link #setModeEuler()} does it — a channel sitting at 350&deg; stays there instead of
+     * jumping to -10&deg; and dragging a keyframe curve across a whole turn with it.</p>
+     */
+    public void fromMatrix(Matrix4f matrix)
+    {
+        Matrix3f basis = matrix.get3x3(new Matrix3f());
+        Vector3f axis = new Vector3f();
+
+        this.translate.set(matrix.m30(), matrix.m31(), matrix.m32());
+        this.scale.set(
+            basis.getColumn(0, axis).length(),
+            basis.getColumn(1, axis).length(),
+            basis.getColumn(2, axis).length()
+        );
+
+        if (basis.determinant() < 0F)
+        {
+            this.scale.x = -this.scale.x;
+        }
+
+        /* Divide the scale out of the basis rather than normalizing it — normalizing would lose the
+         * mirror above, and a column with no length left has no direction to keep, so its axis is
+         * restored instead of turned into NaN (as in Matrices.compose). */
+        for (int i = 0; i < 3; i++)
+        {
+            float length = i == 0 ? this.scale.x : (i == 1 ? this.scale.y : this.scale.z);
+
+            if (Math.abs(length) < 1E-6F)
+            {
+                axis.set(i == 0 ? 1F : 0F, i == 1 ? 1F : 0F, i == 2 ? 1F : 0F);
+            }
+            else
+            {
+                basis.getColumn(i, axis).div(length);
+            }
+
+            basis.setColumn(i, axis);
+        }
+
+        Quaternionf rotation = new Quaternionf().setFromNormalized(basis);
+
+        if (this.rotationMode == RotationMode.QUATERNION)
+        {
+            this.quat.set(rotation);
+        }
+        else
+        {
+            Matrices.toCompatibleEulerZYXRadians(rotation, this.rotate, this.rotate);
+        }
+    }
+
     @Override
     public boolean equals(Object obj)
     {
@@ -364,6 +425,23 @@ public class Transform implements IMapSerializable
         }
 
         return false;
+    }
+
+    /**
+     * Content hash: changes whenever any stored component changes. Cheap (pure field mixing, no
+     * allocation), for signature checks that run per frame — unlike serializing to data and
+     * hashing the string.
+     */
+    public int contentHash()
+    {
+        int hash = this.translate.hashCode();
+
+        hash = 31 * hash + this.scale.hashCode();
+        hash = 31 * hash + this.rotate.hashCode();
+        hash = 31 * hash + this.quat.hashCode();
+        hash = 31 * hash + this.rotationMode.ordinal();
+
+        return hash;
     }
 
     public Transform copy()

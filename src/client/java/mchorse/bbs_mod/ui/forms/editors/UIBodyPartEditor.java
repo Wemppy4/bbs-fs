@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.forms.editors;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.forms.FormUtils;
+import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -13,10 +14,12 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIconToggles;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Pair;
 
 import java.util.ArrayList;
@@ -28,6 +31,7 @@ public class UIBodyPartEditor extends UIScrollView
     public UIButton pick;
     public UIToggle useTarget;
     public UIBonePicker bone;
+    public UIIconToggles inherit;
     public UIPropTransform transform;
 
     private final UIFormEditor editor;
@@ -100,11 +104,20 @@ public class UIBodyPartEditor extends UIScrollView
             }
             else
             {
-                /* Bones without a model tree (mob forms' model parts) list flat. */
-                List<String> bones = new ArrayList<>(FormUtilsClient.getBones(this.owner));
+                IBoneHierarchy hierarchy = FormUtilsClient.getBoneHierarchy(this.owner);
 
-                bones.sort(String::compareToIgnoreCase);
-                picker.list(bones);
+                if (hierarchy == null)
+                {
+                    /* Bones without any tree behind them list flat. */
+                    List<String> bones = new ArrayList<>(FormUtilsClient.getBones(this.owner));
+
+                    bones.sort(String::compareToIgnoreCase);
+                    picker.list(bones);
+                }
+                else
+                {
+                    picker.bones(hierarchy, null);
+                }
             }
 
             picker.none().set(this.part.bone.get());
@@ -131,6 +144,15 @@ public class UIBodyPartEditor extends UIScrollView
             }
         });
 
+        /* Which components of the bone's frame the part rides, as one strip: the same three icons
+         * the gizmo uses for the same three ideas. Bound to the part's own values, so it neither
+         * needs filling in when the part changes nor writing back when a cell is clicked. */
+        this.inherit = new UIIconToggles(null)
+            .add(Icons.ALL_DIRECTIONS, UIKeys.INHERIT_POSITION, () -> this.part.inheritPosition)
+            .add(Icons.ORBIT, UIKeys.INHERIT_ROTATION, () -> this.part.inheritRotation)
+            .add(Icons.SCALE, UIKeys.INHERIT_SCALE, () -> this.part.inheritScale)
+            .resettable();
+
         this.transform = new UIPropTransform().callbacks(() -> this.part.transform).barBackground();
         this.transform.enableHotkeys(this.editor::isBodyPartGizmoMode);
         this.transform.hotkeyDrag(() -> this.editor.buildHotkeyDrag(this.transform));
@@ -151,9 +173,11 @@ public class UIBodyPartEditor extends UIScrollView
         this.useTarget.setValue(part.useTarget.get());
         this.bone.setLabel(this.boneLabel(part.bone.get()));
 
+        /* The inheritance toggles filter the attachment bone's matrix, so they are offered only
+         * where there is a bone to attach to at all — the same condition the picker has. */
         if (!FormUtilsClient.getBones(form).isEmpty())
         {
-            this.add(this.pick, this.bone, this.useTarget, this.transform);
+            this.add(this.pick, this.bone, this.inherit.labelRow(UIKeys.INHERIT_TITLE), this.useTarget, this.transform);
         }
         else
         {

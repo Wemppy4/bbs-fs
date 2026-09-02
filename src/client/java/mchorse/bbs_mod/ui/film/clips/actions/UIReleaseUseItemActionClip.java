@@ -25,12 +25,12 @@ public class UIReleaseUseItemActionClip extends UIActionClip<ReleaseUseItemActio
     {
         super.registerUI();
 
-        this.hand = new UIToggle(UIKeys.ACTIONS_ITEM_MAIN_HAND, (b) -> this.editor.editMultiple(this.clip.hand, (hand) -> hand.set(b.getValue())));
-        this.charge = new UITrackpad((v) -> this.editor.editMultiple(this.clip.charge, (charge) -> charge.set(v.intValue())));
+        this.hand = this.toggle(UIKeys.ACTIONS_ITEM_MAIN_HAND, this.clip.hand);
+        this.charge = this.trackpad(this.clip.charge);
         this.charge.limit(this.clip.charge);
-        this.itemStack = new UIItemStack((stack) -> this.editor.editMultiple(this.clip.itemStack, (itemStack) -> itemStack.set(stack)));
-        this.projectile = new UIItemStack((stack) -> this.editor.editMultiple(this.clip.projectile, (projectile) -> projectile.set(stack)));
-        this.riptide = new UIToggle(UIKeys.ACTIONS_ITEM_RIPTIDE, (b) -> this.editor.editMultiple(this.clip.riptide, (riptide) -> riptide.set(b.getValue())));
+        this.itemStack = this.itemStack(this.clip.itemStack);
+        this.projectile = this.itemStack(this.clip.projectile);
+        this.riptide = this.toggle(UIKeys.ACTIONS_ITEM_RIPTIDE, this.clip.riptide);
     }
 
     @Override
@@ -43,17 +43,5 @@ public class UIReleaseUseItemActionClip extends UIActionClip<ReleaseUseItemActio
         this.panels.add(this.section(UIKeys.ACTIONS_ITEM_CHARGE, this.charge));
         this.panels.add(this.section(UIKeys.ACTIONS_ITEM_STACK, this.itemStack));
         this.panels.add(this.section(UIKeys.ACTIONS_ITEM_PROJECTILE, this.projectile));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.hand.setValue(this.clip.hand.get());
-        this.riptide.setValue(this.clip.riptide.get());
-        this.charge.setValue(this.clip.charge.get());
-        this.itemStack.setStack(this.clip.itemStack.get());
-        this.projectile.setStack(this.clip.projectile.get());
     }
 }

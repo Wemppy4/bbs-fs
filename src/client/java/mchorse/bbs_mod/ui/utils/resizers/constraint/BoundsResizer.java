@@ -52,28 +52,4 @@ public class BoundsResizer extends DecoratedResizer
 
         this.viewport.reset();
     }
-
-    @Override
-    public int getX()
-    {
-        return 0;
-    }
-
-    @Override
-    public int getY()
-    {
-        return 0;
-    }
-
-    @Override
-    public int getW()
-    {
-        return 0;
-    }
-
-    @Override
-    public int getH()
-    {
-        return 0;
-    }
 }

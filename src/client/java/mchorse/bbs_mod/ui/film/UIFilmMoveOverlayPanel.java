@@ -57,6 +57,8 @@ public class UIFilmMoveOverlayPanel extends UIMessageOverlayPanel
         this.secondBar.relative(this.content).x(6).y(1F, -6).w(1F, -12).anchor(0, 1F);
 
         this.content.add(this.secondBar);
+
+        this.bottom = this.secondBar;
     }
 
     /**

@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.cubic.model.bobj;
 
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.bobj.BOBJArmature;
 import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.bobj.BOBJLoader;
@@ -14,7 +15,6 @@ import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -112,7 +112,7 @@ public class BOBJModel implements IModel
 
         for (String key : this.getAllGroupKeys())
         {
-            PoseTransform poseTransform = pose.get(key);
+            PoseTransform poseTransform = pose.getOrCreate(key);
             BOBJBone group = this.armature.bones.get(key);
 
             poseTransform.copy(group.transform);
@@ -127,6 +127,24 @@ public class BOBJModel implements IModel
         for (BOBJBone orderedBone : this.armature.orderedBones)
         {
             orderedBone.reset();
+        }
+    }
+
+    @Override
+    public void snapshotChannels()
+    {
+        for (BOBJBone orderedBone : this.armature.orderedBones)
+        {
+            orderedBone.snapshotChannels();
+        }
+    }
+
+    @Override
+    public void restoreChannels()
+    {
+        for (BOBJBone orderedBone : this.armature.orderedBones)
+        {
+            orderedBone.restoreChannels();
         }
     }
 
@@ -238,6 +256,25 @@ public class BOBJModel implements IModel
     public Collection<ModelGroup> getAllGroups()
     {
         return Collections.emptyList();
+    }
+
+    /** BOBJ armatures are authored facing the other way. */
+    @Override
+    public boolean isFacingFlipped()
+    {
+        return true;
+    }
+
+    @Override
+    public Collection<? extends RigBone> getRigBones()
+    {
+        return this.getArmature().orderedBones;
+    }
+
+    @Override
+    public RigBone getBone(String name)
+    {
+        return this.getArmature().bones.get(name);
     }
 
     @Override

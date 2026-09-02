@@ -1,91 +1,111 @@
 package mchorse.bbs_mod.cubic.ik;
 
 import mchorse.bbs_mod.cubic.IModel;
-import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.cubic.ik.JointDoF;
+import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
 
+/**
+ * Compiles the form's IK chain TOPOLOGY against a model: which bones each chain spans, with the
+ * dead references validated away. Only the structure is compiled — the animatable scalars are
+ * read live from the bone's {@code ik} property at solve time, so a film track or an edit shows
+ * up without any cache to invalidate. (The old compiler baked the scalars in and cached by the
+ * identity of the config blob; with the blob gone there is nothing to parse and nothing to key
+ * a cache by — the walk over a handful of chains is cheap enough to run per frame.)
+ */
 final class ModelIKCache
 {
     private ModelIKCache()
     {
     }
 
-    public record CompiledChain(String tip, String target, boolean pole, String poleTarget, float poleAngle, float softness, float weight, boolean tipRotation, boolean stretch, boolean classic, List<String> chainRootToEffector)
+    /** One chain's structure: its tip, what it reaches for, and the bones it spans root-to-tip. */
+    public record CompiledChain(String tip, String target, String poleTarget, boolean tipRotation, boolean stretch, boolean classic, List<String> chainRootToEffector)
     {
     }
 
-    public record Compiled(List<CompiledChain> chains, Map<String, ModelIKConfig.JointDoF> bones)
+    public record Compiled(List<CompiledChain> chains, Map<String, JointDoF> bones)
     {
     }
 
-    private static final WeakHashMap<MapType, EmbeddedCompiled> EMBEDDED = new WeakHashMap<>();
+    /* One-slot per-frame memo: the walk is cheap once, but it used to run 2-4 times per form
+     * per frame (render's IK, the matrix collection's IK, the debug overlay). Same frame, same
+     * form, same model - same topology; a config edit lands next frame via the epoch. */
+    private static IModel lastModel;
+    private static ModelForm lastForm;
+    private static long lastEpoch;
+    private static Compiled lastCompiled;
 
-    private record EmbeddedCompiled(IModel model, List<CompiledChain> chains, Map<String, ModelIKConfig.JointDoF> bones)
+    public static Compiled compile(IModel model, ModelForm form)
     {
-    }
-
-    public static void clear()
-    {
-        EMBEDDED.clear();
-    }
-
-    public static Compiled getFromData(IModel model, MapType data)
-    {
-        if (model == null || data == null)
+        if (model == null || form == null)
         {
             return null;
         }
 
-        EmbeddedCompiled cached = EMBEDDED.get(data);
-
-        if (cached != null && cached.model == model)
+        if (RenderFrame.isEnabled() && lastModel == model && lastForm == form && lastEpoch == RenderFrame.getEpoch())
         {
-            return new Compiled(cached.chains, cached.bones);
+            return lastCompiled;
         }
 
-        ModelIKConfig config = ModelIKIO.fromData(data);
-        List<CompiledChain> compiled = compile(model, config);
-        Map<String, ModelIKConfig.JointDoF> bones = config == null || config.bones().isEmpty()
-            ? Collections.emptyMap() : Map.copyOf(config.bones());
+        Compiled compiled = compileFresh(model, form);
 
-        EmbeddedCompiled next = new EmbeddedCompiled(model, compiled, bones);
-        EMBEDDED.put(data, next);
+        lastModel = model;
+        lastForm = form;
+        lastEpoch = RenderFrame.getEpoch();
+        lastCompiled = compiled;
 
-        return new Compiled(compiled, bones);
+        return compiled;
     }
 
-    private static List<CompiledChain> compile(IModel model, ModelIKConfig config)
+    private static Compiled compileFresh(IModel model, ModelForm form)
     {
-        if (config == null || config.chains() == null || config.chains().isEmpty())
+        List<CompiledChain> chains = null;
+        Map<String, JointDoF> joints = null;
+
+        for (BaseValue value : form.bones.getAll())
         {
-            return Collections.emptyList();
-        }
-
-        List<CompiledChain> out = new ArrayList<>(config.chains().size());
-
-        for (ModelIKConfig.Chain chain : config.chains())
-        {
-            if (chain == null)
+            if (!(value instanceof FormBone bone))
             {
                 continue;
             }
 
-            if (!chain.enabled())
+            JointDoF joint = bone.joint.get();
+
+            if (!joint.isFree())
+            {
+                if (joints == null)
+                {
+                    joints = new HashMap<>();
+                }
+
+                joints.put(bone.getId(), joint);
+            }
+
+            if (!bone.hasChain())
             {
                 continue;
             }
 
-            if (!model.getAllGroupKeys().contains(chain.tip()) || !model.getAllGroupKeys().contains(chain.target()))
+            String tip = bone.getId();
+            String target = bone.ikTarget.get();
+
+            /* An enabled=false chain still compiles: enabled is an animatable scalar now, so a
+             * film track may switch the chain on mid-shot — the solve gates on it per frame. */
+            if (!model.getAllGroupKeys().contains(tip) || !model.getAllGroupKeys().contains(target))
             {
                 continue;
             }
 
-            List<String> chainIds = buildChainIds(model, chain.tip(), chain.chainLength());
+            List<String> chainIds = buildChainIds(model, tip, bone.ikChainLength.get());
 
             if (chainIds.size() < 2)
             {
@@ -99,7 +119,7 @@ final class ModelIKCache
              * legal and deterministic: frames are collected from the FK pose
              * (orient resets every frame), so the goal is the target's FK spot,
              * never last frame's solve — there is no feedback loop to forbid. */
-            if (chainIds.contains(chain.target()))
+            if (chainIds.contains(target))
             {
                 continue;
             }
@@ -108,18 +128,29 @@ final class ModelIKCache
              * chain bone itself (the same absurdity, steering the bend from a
              * point the bend moves) — falls back to the empty pole target: the
              * rest-side virtual pole. */
-            String poleTarget = chain.poleTarget();
+            String poleTarget = bone.ikPoleTarget.get();
 
-            if (poleTarget != null && !poleTarget.isEmpty()
+            if (!poleTarget.isEmpty()
                 && (!model.getAllGroupKeys().contains(poleTarget) || chainIds.contains(poleTarget)))
             {
                 poleTarget = "";
             }
 
-            out.add(new CompiledChain(chain.tip(), chain.target(), chain.pole(), poleTarget, chain.poleAngle(), chain.softness(), chain.weight(), chain.tipRotation(), chain.stretch(), chain.classic(), chainIds));
+            if (chains == null)
+            {
+                chains = new ArrayList<>();
+            }
+
+            chains.add(new CompiledChain(tip, target, poleTarget, bone.ikTipRotation.get(), bone.ikStretch.get(), bone.ikClassic.get(), chainIds));
         }
 
-        return out;
+        if (chains == null && joints == null)
+        {
+            return null;
+        }
+
+        return new Compiled(chains == null ? Collections.emptyList() : chains,
+            joints == null ? Collections.emptyMap() : joints);
     }
 
     /** The chain ids the given tip/length setting spans — for the panel's cycle check. */

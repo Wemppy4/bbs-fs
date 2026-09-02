@@ -16,6 +16,7 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeybindManager;
+import mchorse.bbs_mod.ui.utils.resizers.ChildResizer;
 import mchorse.bbs_mod.ui.utils.resizers.Flex;
 import mchorse.bbs_mod.ui.utils.resizers.IResizer;
 import mchorse.bbs_mod.ui.utils.resizers.Margin;
@@ -28,9 +29,7 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.undo.IUndoElement;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -47,6 +46,12 @@ public class UIElement implements IUIElement, IUndoElement
      * Element's margin (it's used only by layout resizers)
      */
     public final Margin margin = new Margin();
+
+    /**
+     * Whether this element grows into the space its parent's layout has left over
+     * (it's used only by layout resizers), see {@link #expand()}
+     */
+    protected boolean expand;
 
     /**
      * Flex resizer of this class
@@ -109,6 +114,16 @@ public class UIElement implements IUIElement, IUndoElement
     private List<IUIElement> children = new ArrayList<>();
 
     /**
+     * Whether this element or anything under it listens to tree events. {@link #onAdd} and
+     * {@link #onRemove} used to walk the WHOLE subtree of every element being attached, looking
+     * for {@link IUITreeEventListener}s — with exactly one implementor in the codebase, that
+     * made building a large screen O(n²) of pure nothing. The flag rides up the ancestors when
+     * a listener-carrying child is attached; a removal may leave it stale at {@code true},
+     * which only costs the walk it would have done anyway.
+     */
+    private boolean treeListeners = this instanceof IUITreeEventListener;
+
+    /**
      * Whether this element is enabled (can handle any input) 
      */
     protected boolean enabled = true;
@@ -123,8 +138,6 @@ public class UIElement implements IUIElement, IUndoElement
     /**
      * Custom data that can be stored within this UI element
      */
-    private Map<String, Object> customData;
-
     public EventManager getEvents()
     {
         return this.events;
@@ -163,6 +176,28 @@ public class UIElement implements IUIElement, IUndoElement
         while (element != null)
         {
             if (element.getClass() == clazz)
+            {
+                return (T) element;
+            }
+
+            element = element.getParent();
+        }
+
+        return null;
+    }
+
+    /**
+     * The nearest ancestor of the given type. Unlike {@link #getParent(Class)}, which matches the
+     * exact class, this accepts subclasses and interfaces — so an element can ask for a role
+     * ("whoever owns the bone selection") instead of naming a widget class.
+     */
+    public <T> T getAncestor(Class<T> clazz)
+    {
+        UIElement element = this.getParent();
+
+        while (element != null)
+        {
+            if (clazz.isInstance(element))
             {
                 return (T) element;
             }
@@ -229,7 +264,9 @@ public class UIElement implements IUIElement, IUndoElement
 
             if (element instanceof UIElement)
             {
-                ((UIElement) element).getChildren(clazz, list, includeItself);
+                /* Never with includeItself: this loop has already considered the
+                 * child, and passing the flag down would list it a second time. */
+                ((UIElement) element).getChildren(clazz, list, false);
             }
         }
 
@@ -257,7 +294,9 @@ public class UIElement implements IUIElement, IUndoElement
 
             if (element instanceof UIElement)
             {
-                ((UIElement) element).visitChildren(clazz, includeItself, consumer);
+                /* See getChildren: the flag must not travel down, or every
+                 * descendant is handed over twice. */
+                ((UIElement) element).visitChildren(clazz, false, consumer);
             }
         }
     }
@@ -330,12 +369,23 @@ public class UIElement implements IUIElement, IUndoElement
             UIElement child = (UIElement) element;
 
             child.parent = this;
+
+            if (child.treeListeners)
+            {
+                for (UIElement ancestor = this; ancestor != null && !ancestor.treeListeners; ancestor = ancestor.parent)
+                {
+                    ancestor.treeListeners = true;
+                }
+            }
+
             child.onAdd(this);
 
             if (this.resizer != null)
             {
                 this.resizer.add(this, child);
             }
+
+            this.invalidateLayout();
         }
     }
 
@@ -358,6 +408,7 @@ public class UIElement implements IUIElement, IUndoElement
         }
 
         this.children.clear();
+        this.invalidateLayout();
     }
 
     public void removeFromParent()
@@ -384,16 +435,49 @@ public class UIElement implements IUIElement, IUndoElement
 
             element.onRemove(element.parent);
             element.parent = null;
+
+            this.invalidateLayout();
         }
+    }
+
+    /**
+     * Mark this element's layout stale: it gets resized once before the next frame (see
+     * {@link UIContext#flushLayout()}). Nothing happens while detached — attaching to a
+     * tree resizes anyway.
+     */
+    public void invalidateLayout()
+    {
+        UIContext context = this.getContext();
+
+        if (context == null)
+        {
+            return;
+        }
+
+        UIElement target = this;
+
+        /* An element placed by its parent's row/column/grid can't be laid out alone: that
+         * pass owns the running cursor, and resizing one child reads it where the last full
+         * pass left it, throwing the child to the end of the row. Climb to the first element
+         * that owns its own placement. */
+        while (target.resizer instanceof ChildResizer && target.parent != null)
+        {
+            target = target.parent;
+        }
+
+        context.invalidateLayout(target);
     }
 
     protected void onAdd(UIElement parent)
     {
         this.events.emit(new UIAddedEvent(this));
 
-        for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+        if (this.treeListeners)
         {
-            listener.onAddedToTree(this);
+            for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+            {
+                listener.onAddedToTree(this);
+            }
         }
     }
 
@@ -401,9 +485,12 @@ public class UIElement implements IUIElement, IUndoElement
     {
         this.events.emit(new UIRemovedEvent(this));
 
-        for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+        if (this.treeListeners)
         {
-            listener.onRemovedFromTree(this);
+            for (IUITreeEventListener listener : this.getChildren(IUITreeEventListener.class))
+            {
+                listener.onRemovedFromTree(this);
+            }
         }
     }
 
@@ -427,21 +514,6 @@ public class UIElement implements IUIElement, IUndoElement
     }
 
     /* Custom data */
-
-    public Object getCustomValue(String key)
-    {
-        return this.customData == null ? null : this.customData.get(key);
-    }
-
-    public void setCustomValue(String key, Object value)
-    {
-        if (this.customData == null)
-        {
-            this.customData = new HashMap<>();
-        }
-
-        this.customData.put(key, value);
-    }
 
     /* Setters */
 
@@ -517,11 +589,6 @@ public class UIElement implements IUIElement, IUndoElement
         }
 
         return element;
-    }
-
-    public void resetContext()
-    {
-        this.contextOptions = null;
     }
 
     public UIElement context(Supplier<UIContextMenu> supplier)
@@ -766,6 +833,40 @@ public class UIElement implements IUIElement, IUndoElement
         return this;
     }
 
+    /* Expansion */
+
+    /**
+     * Grow into whatever vertical space the parent layout has left over.
+     *
+     * <p>A marker rather than a size, because how much is left over is only known while the parent
+     * lays itself out: {@link ColumnResizer} hands every child marked this way an equal share of
+     * the height it did not spend on the others, and {@link RowResizer} gives it the full height of
+     * the row. The height the element asks for on its own ({@link #h(int)} and friends) stays as
+     * its minimum &mdash; the share is added on top of it, and when there is nothing left over
+     * (the content already overflows, e.g. a scroll view scrolls) it keeps exactly that height.</p>
+     *
+     * <p>Expansion does not pass through a layer that hasn't asked for it: to let a list at the
+     * bottom of a nested column fill a scroll view, every element on the way down &mdash; the
+     * column and the list &mdash; has to be marked. That is what keeps the marker local: an element
+     * can only ever take space its own parent had spare.</p>
+     */
+    public UIElement expand()
+    {
+        return this.expand(true);
+    }
+
+    public UIElement expand(boolean expand)
+    {
+        this.expand = expand;
+
+        return this;
+    }
+
+    public boolean isExpanding()
+    {
+        return this.expand;
+    }
+
     /* Other variations */
 
     public UIElement xy(int x, int y)
@@ -813,13 +914,6 @@ public class UIElement implements IUIElement, IUndoElement
     public UIElement minW(int max)
     {
         this.flex.w.min = max;
-
-        return this;
-    }
-
-    public UIElement minH(int max)
-    {
-        this.flex.h.min = max;
 
         return this;
     }
@@ -962,23 +1056,9 @@ public class UIElement implements IUIElement, IUndoElement
         return this;
     }
 
-    public UIElement marginLeft(int left)
-    {
-        this.margin.left(left);
-
-        return this;
-    }
-
     public UIElement marginTop(int top)
     {
         this.margin.top(top);
-
-        return this;
-    }
-
-    public UIElement marginRight(int right)
-    {
-        this.margin.right(right);
 
         return this;
     }
@@ -1011,12 +1091,23 @@ public class UIElement implements IUIElement, IUndoElement
 
     public void setVisible(boolean visible)
     {
+        if (this.visible == visible)
+        {
+            return;
+        }
+
         this.visible = visible;
+
+        /* Layout resizers skip hidden children, so the parent's layout is what changed */
+        if (this.parent != null)
+        {
+            this.parent.invalidateLayout();
+        }
     }
 
     public void toggleVisible()
     {
-        this.visible = !this.visible;
+        this.setVisible(!this.visible);
     }
 
     /**

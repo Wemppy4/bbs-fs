@@ -10,6 +10,8 @@ import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
+import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -33,14 +35,14 @@ import org.joml.Vector4f;
 
 import java.util.function.Supplier;
 
-public class BillboardFormRenderer extends FormRenderer<BillboardForm>
+public class BillboardFormRenderer <T extends BillboardForm> extends FormRenderer<T>
 {
     private static final Quad quad = new Quad();
     private static final Quad uvQuad = new Quad();
 
     private static final Matrix4f matrix = new Matrix4f();
 
-    public BillboardFormRenderer(BillboardForm form)
+    public BillboardFormRenderer(T form)
     {
         super(form);
     }
@@ -134,16 +136,25 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         this.renderModel(format, layer, null, shading, context.stack, context.overlay, context.light, context.color, context.getTransition());
     }
 
-    private void renderModel(VertexFormat format, Supplier<RenderLayer> shader, RenderPipeline picker, boolean deferrable, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
+    /**
+     * The texture the quad wears. The video form's renderer swaps this for a
+     * decoded video frame; everything else about the quad stays shared.
+     */
+    protected Texture getTexture()
     {
         Link t = this.form.texture.get();
 
-        if (t == null)
+        return t == null ? null : BBSModClient.getTextures().getTexture(t);
+    }
+
+    private void renderModel(VertexFormat format, Supplier<RenderLayer> shader, RenderPipeline picker, boolean deferrable, MatrixStack matrices, int overlay, int light, int overlayColor, float transition)
+    {
+        Texture texture = this.getTexture();
+
+        if (texture == null)
         {
             return;
         }
-
-        Texture texture = BBSModClient.getTextures().getTexture(t);
 
         float w = texture.width;
         float h = texture.height;
@@ -216,7 +227,7 @@ public class BillboardFormRenderer extends FormRenderer<BillboardForm>
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         MatrixStack.Entry entry = matrices.peek();
 
-        FormColorBlend.blend(color, this.form.color.get(), this.form.additiveColor.get());
+        FormColorBlend.blend(color, this.form.color.get());
 
         if (this.form.billboard.get())
         {

@@ -10,7 +10,18 @@ import java.util.stream.Collectors;
 
 public class FontRenderer
 {
+    /** What the interface has always stepped lines by with the default font. */
+    public static final int DEFAULT_LINE_HEIGHT = 12;
+
     private TextRenderer renderer;
+
+    /**
+     * {@link TextRenderer#fontHeight} is a constant 9 whichever font is drawing, so
+     * a custom font has to bring its own metrics along - see
+     * {@link mchorse.bbs_mod.fonts.FontManager}.
+     */
+    private int height;
+    private int lineHeight = DEFAULT_LINE_HEIGHT;
 
     public static List<String> wrap(TextRenderer renderer, String string, int width)
     {
@@ -77,7 +88,14 @@ public class FontRenderer
 
     public void setRenderer(TextRenderer renderer)
     {
+        this.setRenderer(renderer, renderer.fontHeight - 2, DEFAULT_LINE_HEIGHT);
+    }
+
+    public void setRenderer(TextRenderer renderer, int height, int lineHeight)
+    {
         this.renderer = renderer;
+        this.height = height;
+        this.lineHeight = lineHeight;
     }
 
     public TextRenderer getRenderer()
@@ -92,7 +110,13 @@ public class FontRenderer
 
     public int getHeight()
     {
-        return this.renderer.fontHeight - 2;
+        return this.height;
+    }
+
+    /** How far apart the baselines of two lines of this font sit. */
+    public int getLineHeight()
+    {
+        return this.lineHeight;
     }
 
     public List<String> wrap(String string, int width)

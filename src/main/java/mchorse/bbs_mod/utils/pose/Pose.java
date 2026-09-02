@@ -143,7 +143,21 @@ public class Pose implements IMapSerializable
         return name;
     }
 
+    /**
+     * The bone's transform, or {@code null} when this pose says nothing about it.
+     *
+     * <p>Reading does NOT insert: a pose holds exactly the bones somebody posed, and
+     * "this pose is silent about that bone" is a real answer that callers act on —
+     * interpolation substitutes the rest transform, a bone track adds onto it. Reading
+     * used to create, so every reader quietly grew the pose it was only looking at.
+     */
     public PoseTransform get(String name)
+    {
+        return this.transforms.get(name);
+    }
+
+    /** The bone's transform, inserting a rest one when the pose has none — for writers. */
+    public PoseTransform getOrCreate(String name)
     {
         PoseTransform transform = this.transforms.get(name);
 

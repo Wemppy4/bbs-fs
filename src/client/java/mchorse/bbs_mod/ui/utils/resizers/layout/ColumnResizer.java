@@ -16,6 +16,19 @@ public class ColumnResizer extends AutomaticResizer
     private int w;
 
     /**
+     * Visible children marked with {@link UIElement#expand()} in the current pass
+     */
+    private int expanders;
+
+    /**
+     * Height each of them gets on top of the one it asked for, and the remainder of that
+     * division, handed out a pixel at a time so the column fills exactly. Negative until the
+     * first expanding child asks for it, see {@link #expand()}
+     */
+    private int share = -1;
+    private int remainder;
+
+    /**
      * Default width
      */
     private int width;
@@ -101,11 +114,33 @@ public class ColumnResizer extends AutomaticResizer
         this.x = 0;
         this.y = 0;
         this.w = 0;
+
+        this.share = -1;
+        this.remainder = 0;
+        this.expanders = 0;
+
+        for (ChildResizer child : this.getResizers())
+        {
+            if (child.element.isVisible() && child.element.isExpanding())
+            {
+                this.expanders ++;
+            }
+        }
     }
 
     @Override
     public void apply(Area area, IResizer resizer, ChildResizer child)
     {
+        /* A child hidden with setVisible(false) must not keep its slot — it used to leave a
+         * blank row (the "Tracks" section of a non-model form showed a 20px hole where the
+         * bone-tracks toggle would be). */
+        if (!child.element.isVisible())
+        {
+            area.set(this.parent.area.x, this.parent.area.y, 0, 0);
+
+            return;
+        }
+
         Margin margin = child.element.margin;
         int w = resizer == null ? this.width : resizer.getW();
         int h = resizer == null ? this.height : resizer.getH();
@@ -118,6 +153,13 @@ public class ColumnResizer extends AutomaticResizer
         if (h == 0)
         {
             h = this.height;
+        }
+
+        /* The height the child asked for is its minimum; the leftover of the column is added on
+         * top of it. Only in vertical mode: a wrapping column has no single leftover to share. */
+        if (this.vertical && child.element.isExpanding())
+        {
+            h += this.expand();
         }
 
         if (this.stretch)
@@ -164,21 +206,65 @@ public class ColumnResizer extends AutomaticResizer
         }
     }
 
+    /**
+     * Height an expanding child gets on top of the one it asked for: an equal share of what this
+     * column has left over after the others.
+     *
+     * <p>Measured on the first such child rather than in {@link #apply(Area)}, because a column
+     * that is itself laid out by another one only learns its own height when that parent places
+     * it &mdash; which happens after its own {@code apply(Area)} has already run. By the time a
+     * child is being placed, {@code this.parent.area} is this pass' area.</p>
+     */
+    private int expand()
+    {
+        if (this.share < 0)
+        {
+            int extra = this.parent.area.h - this.contentH();
+
+            this.share = extra > 0 ? extra / this.expanders : 0;
+            this.remainder = extra > 0 ? extra % this.expanders : 0;
+        }
+
+        int share = this.share;
+
+        if (this.remainder > 0)
+        {
+            share ++;
+            this.remainder --;
+        }
+
+        return share;
+    }
+
+    /**
+     * How tall this column is before anything expands, i.e. the sum of the heights its visible
+     * children asked for
+     */
+    private int contentH()
+    {
+        int y = this.padding * 2;
+
+        for (ChildResizer child : this.getResizers())
+        {
+            if (!child.element.isVisible())
+            {
+                continue;
+            }
+
+            int h = child.resizer == null ? 0 : child.resizer.getH();
+
+            y += (h == 0 ? this.height : h) + this.margin + child.element.margin.vertical();
+        }
+
+        return y - this.margin;
+    }
+
     @Override
     public int getH()
     {
         if (this.vertical && !this.scroll)
         {
-            int y = this.padding * 2;
-
-            for (ChildResizer child : this.getResizers())
-            {
-                int h = child.resizer == null ? 0 : child.resizer.getH();
-
-                y += (h == 0 ? this.height : h) + this.margin + child.element.margin.vertical();
-            }
-
-            return y - this.margin;
+            return this.contentH();
         }
 
         return super.getH();

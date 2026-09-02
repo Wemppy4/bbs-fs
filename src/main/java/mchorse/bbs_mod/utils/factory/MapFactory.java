@@ -24,7 +24,7 @@ public class MapFactory <T, D> implements IFactory<T, D>
 
         for (Map.Entry<Link, Class<? extends T>> entry : this.factory.entrySet())
         {
-            factory.register(entry.getKey(), entry.getValue(), this.data.get(entry.getValue()));
+            factory.register(entry.getKey(), entry.getValue(), this.data.get(entry.getKey()));
         }
 
         return factory;
@@ -44,25 +44,32 @@ public class MapFactory <T, D> implements IFactory<T, D>
         return this;
     }
 
-    public MapFactory<T, D> unregister(String key)
+    public MapFactory<T, D> unregister(Link type)
     {
-        Class<? extends T> clazz = this.factory.remove(key);
+        Class<? extends T> clazz = this.factory.remove(type);
 
         this.factoryInverse.remove(clazz);
-        this.data.remove(clazz);
+        this.data.remove(type);
 
         return this;
     }
 
     public Link getTypeSilent(T object)
     {
+        /* A stand-in answers for the type it stands in for, so saving one writes back the type
+         * the data named rather than failing over a class this factory never registered. */
+        if (object instanceof IUnknownType unknown)
+        {
+            return unknown.getUnknownType();
+        }
+
         return this.factoryInverse.get(object.getClass());
     }
 
     @Override
     public Link getType(T object)
     {
-        Link type = this.factoryInverse.get(object.getClass());
+        Link type = this.getTypeSilent(object);
 
         if (type != null)
         {

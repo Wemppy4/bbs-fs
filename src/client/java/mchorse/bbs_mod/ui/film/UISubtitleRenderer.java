@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film;
 
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.camera.clips.misc.Subtitle;
+import mchorse.bbs_mod.camera.data.Placement;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -44,9 +45,14 @@ public class UISubtitleRenderer
         }
 
         MinecraftClient mc = MinecraftClient.getInstance();
-        int width = mc.getWindow().getScaledWidth();
-        int height = mc.getWindow().getScaledHeight();
-        FontRenderer font = Batcher2D.getDefaultTextRenderer();
+
+        /* Overlay placement is authored on a virtual frame Placement.HEIGHT units tall (see
+         * UIImageRenderer#getUnitWidth). 1.21.1 gave that canvas its own ortho projection; the
+         * recorded GUI has no projection to set, so the unit canvas is mapped onto the GUI by a
+         * single scale on the 2D stack instead. */
+        float width = UIImageRenderer.getUnitWidth();
+        float height = Placement.HEIGHT;
+        float unitScale = mc.getWindow().getScaledHeight() / height;
 
         for (Subtitle subtitle : subtitles)
         {
@@ -58,10 +64,25 @@ public class UISubtitleRenderer
             }
 
             String label = StringUtils.processColoredText(subtitle.label);
+            /* The framebuffer is the subtitle's own size times its scale, so that scale is
+             * exactly how many pixels a unit of the layout below covers. */
+            FontRenderer font = BBSModClient.getFonts().get(subtitle.font, subtitle.fontSize, subtitle.placement.scaleX);
+
+            if (font == null)
+            {
+                font = Batcher2D.getDefaultTextRenderer();
+            }
+
+            /* Line spacing of 0 has always drawn every line on top of the previous one,
+             * so nothing out there means it - it's free to stand for "ask the font". */
+            int lineHeight = subtitle.lineHeight > 0 ? subtitle.lineHeight : font.getLineHeight();
+            Placement placement = subtitle.placement;
             int w = 0;
             int h;
-            float x = width * subtitle.windowX + subtitle.x;
-            float y = height * subtitle.windowY + subtitle.y;
+            float x = width * placement.windowX + placement.offsetX;
+            float y = height * placement.windowY + placement.offsetY;
+            float scaleX = placement.scaleX;
+            float scaleY = placement.scaleY;
             int subColor = subtitle.color;
 
             List<String> strings = subtitle.maxWidth <= 10 ? Arrays.asList(label) : font.wrap(label, subtitle.maxWidth);
@@ -71,7 +92,7 @@ public class UISubtitleRenderer
                 w = Math.max(w, font.getWidth(string.trim()));
             }
 
-            h = (strings.size() - 1) * subtitle.lineHeight + font.getHeight();
+            h = (strings.size() - 1) * lineHeight + font.getHeight();
 
             Texture imgTex = null;
             float gap = 6F;
@@ -84,7 +105,7 @@ public class UISubtitleRenderer
 
                 if (imgTex != BBSModClient.getTextures().getError())
                 {
-                    int base = subtitle.lineHeight > 0 ? subtitle.lineHeight : font.getHeight();
+                    int base = lineHeight;
 
                     imgH = base * subtitle.imageScale;
 
@@ -107,7 +128,7 @@ public class UISubtitleRenderer
 
             /* The subtitle's animated pose. The GUI stack is a 2D affine, so the transform's
              * translate.x/y, scale.x/y and rotate.z apply — the components subtitle animations
-             * actually drive. subtitle.size folds into the same scale. */
+             * actually drive. The placement's own scale folds into the same scale. */
             Transform transform = new Transform();
 
             transform.lerp(subtitle.transform, 1F - subtitle.factor);
@@ -115,6 +136,7 @@ public class UISubtitleRenderer
             Matrix3x2fStack matrices = batcher.getContext().getMatrices();
 
             matrices.pushMatrix();
+            matrices.scale(unitScale, unitScale);
             matrices.translate(x + transform.translate.x, y + transform.translate.y);
 
             if (transform.rotate.z != 0)
@@ -122,10 +144,10 @@ public class UISubtitleRenderer
                 matrices.rotate(MathUtils.toRad(transform.rotate.z));
             }
 
-            matrices.scale(subtitle.size * transform.scale.x, subtitle.size * transform.scale.y);
+            matrices.scale(transform.scale.x * scaleX, transform.scale.y * scaleY);
 
             /* Anchor: the content box hangs off the anchor point the way the 1.21.1 composite did. */
-            matrices.translate(-fw * subtitle.anchorX, -fh * subtitle.anchorY);
+            matrices.translate(-fw * placement.anchorX, -fh * placement.anchorY);
 
             float baseX = 5F;
             float baseY = 5F;
@@ -148,18 +170,30 @@ public class UISubtitleRenderer
                 batcher.texturedBox(imgTex, Colors.mulA(Colors.WHITE, alpha), imgX, imgY, imgW, imgH, 0, 0, imgTex.width, imgTex.height, imgTex.width, imgTex.height);
             }
 
-            for (String string : strings)
+            FontRenderer previousFont = batcher.setFont(font);
+
+            try
             {
-                string = string.trim();
+                for (String string : strings)
+                {
+                    string = string.trim();
 
-                int xx = (int) (textLeft + (textAreaW - font.getWidth(string)) / 2F);
+                    int xx = (int) (textLeft + (textAreaW - font.getWidth(string)) / 2F);
 
-                batcher.text(string, xx, (int) yy, Colors.mulA(subColor, alpha), subtitle.textShadow);
+                    batcher.text(string, xx, (int) yy, Colors.mulA(subColor, alpha), subtitle.textShadow);
 
-                yy += subtitle.lineHeight;
+                    yy += lineHeight;
+                }
+            }
+            finally
+            {
+                batcher.setFont(previousFont);
             }
 
             matrices.popMatrix();
+
+            /* Where the overlay ended up, in unit space — what the placement editor drags. */
+            subtitle.box.set(x - fw * scaleX * placement.anchorX, y - fh * scaleY * placement.anchorY, fw * scaleX, fh * scaleY, width);
         }
     }
 }

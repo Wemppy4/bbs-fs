@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.forms;
 
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
@@ -8,6 +10,9 @@ import mchorse.bbs_mod.utils.colors.Color;
 
 public class ExtrudedForm extends Form
 {
+    /** Also what its main tab in the form editor wears — see {@link Form#getIcon()}. */
+    public static final Icon ICON = Icons.MATERIAL;
+
     public final ValueLink texture = new ValueLink("texture", null);
     public final ValueColor color = new ValueColor("color", Color.white());
     public final ValueBoolean billboard = new ValueBoolean("billboard", false);
@@ -30,4 +35,11 @@ public class ExtrudedForm extends Form
 
         return link == null ? "none" : link.toString();
     }
+
+    @Override
+    public Icon getIcon()
+    {
+        return ICON;
+    }
+
 }

@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -36,11 +37,14 @@ public class UIPointsModule extends UIAbstractModule
 
         this.scroll.direction = ScrollDirection.HORIZONTAL;
         this.scroll.cancelScrolling();
+        /* The strip is all buttons, so a handle has nowhere to sit: the edge
+         * shadows tell that there's more to either side */
+        this.scroll.noScrollbar();
 
         this.context((menu) ->
         {
-            menu.action(Icons.ADD, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_ADD, this::addPoint);
-            menu.action(Icons.REMOVE, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_REMOVE, this::removePoint);
+            menu.icon(MenuVerb.ADD, this::addPoint).label(UIKeys.CAMERA_PANELS_POINTS_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removePoint).label(UIKeys.CAMERA_PANELS_POINTS_CONTEXT_REMOVE);
             menu.action(Icons.SHIFT_BACKWARD, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_MOVE_BACK, this::moveBack);
             menu.action(Icons.SHIFT_FORWARD, UIKeys.CAMERA_PANELS_POINTS_CONTEXT_MOVE_FORWARD, this::moveForward);
         });
@@ -224,27 +228,7 @@ public class UIPointsModule extends UIAbstractModule
 
         context.batcher.unclip(context);
 
-        /* Display scroll bar */
-        int mw = this.area.w;
-        int scroll = this.scroll.getScrollbar();
-
-        if (scroll != 0)
-        {
-            int bx = this.area.x + (int) (this.scroll.getScroll() / (float) (this.scroll.scrollSize - this.area.w) * (mw - scroll));
-            int by = y + this.area.h + 2;
-
-            context.batcher.box(bx, by, bx + scroll, by + 2, Colors.A50);
-        }
-
-        if (this.scroll.getScroll() > 0 && this.scroll.scrollSize >= this.area.w - 40)
-        {
-            context.batcher.gradientHBox(x, y, x + 4, y + this.area.h, Colors.A50, 0);
-        }
-
-        if (this.scroll.getScroll() < this.scroll.scrollSize - this.area.w && this.scroll.scrollSize >= this.area.w)
-        {
-            context.batcher.gradientHBox(x + this.area.w - 4, y, x + this.area.w, y + this.area.h, 0, Colors.A50);
-        }
+        this.scroll.renderScrollbar(context.batcher);
 
         super.render(context);
     }

@@ -8,26 +8,30 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.camera.clips.misc.CurveClip;
-import mchorse.bbs_mod.camera.clips.misc.SubtitleClip;
 import mchorse.bbs_mod.camera.controller.CameraWorkCameraController;
 import mchorse.bbs_mod.camera.controller.PlayCameraController;
+import mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback;
 import mchorse.bbs_mod.client.renderer.MorphRenderer;
-import mchorse.bbs_mod.events.ModelBlockEntityUpdateCallback;
 import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
+import mchorse.bbs_mod.forms.structure.StructureWand;
 import mchorse.bbs_mod.utils.sodium.SodiumUtils;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureFormat;
 import mchorse.bbs_mod.mixin.client.FogRendererAccessor;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
+import mchorse.bbs_mod.ui.film.FrameOverlays;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
-import mchorse.bbs_mod.ui.film.UISubtitleRenderer;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.cubic.model.ModelSetupQueue;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
+import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.utils.iris.IrisUtils;
 import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.loader.api.FabricLoader;
@@ -491,6 +495,19 @@ public class BBSRendering
          * renderWorld: a HEAD reset would wipe the freshly armed flag before anything reads it (that
          * exact inversion made the whole ortho toggle a no-op). The reset lives in onWorldRenderEnd. */
         MinecraftClient mc = MinecraftClient.getInstance();
+
+        /* The frame boundary the profiler's counters roll over on; the flag is mirrored here
+         * so the hot-path checks read a plain static boolean. */
+        BBSProfiler.enabled = BBSSettings.profilerOverlay != null && BBSSettings.profilerOverlay.get();
+        BBSProfiler.frame();
+        RenderFrame.nextFrame();
+        Gizmo.INSTANCE.forgetPlacement();
+
+        /* The budgeted tail of model loading: VAO bakes for whatever the background loader
+         * finished, a few milliseconds' worth per frame instead of all of them at once. */
+        ModelSetupQueue.drain();
+
+        BBSModClient.getVideos().startFrame();
         BBSModClient.getFilms().startRenderFrame(mc.getRenderTickCounter().getTickProgress(false));
 
         UIBaseMenu menu = UIScreen.getCurrentMenu();
@@ -546,9 +563,9 @@ public class BBSRendering
              * export is the export framebuffer: subtitles belong in the film. */
             Batcher2D batcher = new Batcher2D(ImmediateGui.begin());
 
-            /* 1.21.11: UISubtitleRenderer.renderSubtitles takes a 3D MatrixStack (context.getMatrices() is now a
-             * 2D Matrix3x2fStack). The subtitle renderer manages its own transform stack, so feed a fresh one. */
-            UISubtitleRenderer.renderSubtitles(new MatrixStack(), batcher, SubtitleClip.getSubtitles(controller.getContext()));
+            /* 1.21.11: FrameOverlays takes a 3D MatrixStack (batcher.getContext().getMatrices() is now
+             * a 2D Matrix3x2fStack). The overlays manage their own transform stack, so feed a fresh one. */
+            FrameOverlays.render(new MatrixStack(), batcher, controller.getContext());
             ImmediateGui.end();
         }
 
@@ -567,12 +584,12 @@ public class BBSRendering
             {
                 /* Same ImmediateGui flush as the playback branch above: the menu's context here
                  * still points at the PREVIOUS frame's already-composited DrawContext, so recording
-                 * into it dropped the subtitles on the floor. Flushing immediately also lands them
+                 * into it dropped the overlays on the floor. Flushing immediately also lands them
                  * in mc.framebuffer — the film preview/export framebuffer during this phase — so
                  * they show in the panel preview and in the exported file, like on 1.21.1. */
                 Batcher2D batcher = new Batcher2D(ImmediateGui.begin());
 
-                UISubtitleRenderer.renderSubtitles(new MatrixStack(), batcher, SubtitleClip.getSubtitles(panel.getRunner().getContext()));
+                FrameOverlays.render(new MatrixStack(), batcher, panel.getRunner().getContext());
                 ImmediateGui.end();
             }
         }
@@ -779,6 +796,7 @@ public class BBSRendering
         Batcher2D batcher2D = new Batcher2D(drawContext);
 
         BBSModClient.getFilms().renderHud(batcher2D, tickDelta);
+        StructureWand.renderHud(batcher2D);
     }
 
     /**

@@ -30,4 +30,10 @@ public class ValuePoint extends BaseValueBasic<Point>
     {
         this.value.fromData(data.asMap());
     }
+
+    @Override
+    protected Point copyValue(Point value)
+    {
+        return value == null ? null : value.copy();
+    }
 }

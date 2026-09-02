@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.film.controller;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;

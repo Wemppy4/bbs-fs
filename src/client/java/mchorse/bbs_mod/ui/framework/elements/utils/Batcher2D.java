@@ -10,7 +10,9 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
@@ -66,7 +68,6 @@ public class Batcher2D
     /** How far a lit edge is pulled towards white, see {@link #surfaceBox}. */
     private static final float HIGHLIGHT_STRENGTH = 0.15F;
 
-
     private static FontRenderer fontRenderer = new FontRenderer();
 
     private DrawContext context;
@@ -98,6 +99,16 @@ public class Batcher2D
 
         return pipeline == null ? RenderPipelines.GUI_TEXTURED : pipeline;
     }
+
+    /* 1.21.1 collected solid quads into one dedicated buffer and drew it once at endBatch(). The
+     * 1.21.6+ two-phase GUI already records and composites every draw itself, so the batch scope is
+     * kept only as the API its call sites still use, and does nothing of its own. */
+    public void beginBatch()
+    {}
+
+    /** Close the scope opened by {@link #beginBatch()}. */
+    public void endBatch()
+    {}
 
     public Batcher2D(DrawContext context)
     {
@@ -176,6 +187,19 @@ public class Batcher2D
     private Matrix3x2fc matrix()
     {
         return this.context.getMatrices();
+    }
+
+    /**
+     * Swap the font every text call of this batcher goes through, handing back the
+     * previous one so the caller can put it back. A null restores the default one.
+     */
+    public FontRenderer setFont(FontRenderer font)
+    {
+        FontRenderer previous = this.font;
+
+        this.font = font == null ? getDefaultTextRenderer() : font;
+
+        return previous;
     }
 
     /* Screen space clipping */
@@ -295,6 +319,30 @@ public class Batcher2D
         }
     }
 
+    /**
+     * One colour above the diagonal, the other below — the colour picker's alpha swatch.
+     *
+     * <p>1.21.11: recorded as a {@link GuiQuadMesh} (each triangle rides as a quad with its last
+     * corner doubled), because the two-phase GUI composites recorded quads and overpaints an
+     * immediate draw.</p>
+     */
+    public void splitBox(float x1, float y1, float x2, float y2, int topLeft, int bottomRight)
+    {
+        Matrix3x2fc matrix = this.matrix();
+        GuiQuadMesh mesh = new GuiQuadMesh();
+
+        mesh.vertex(matrix, x1, y1).color(topLeft);
+        mesh.vertex(matrix, x1, y2).color(topLeft);
+        mesh.vertex(matrix, x2, y1).color(topLeft);
+        mesh.vertex(matrix, x2, y1).color(topLeft);
+
+        mesh.vertex(matrix, x2, y1).color(bottomRight);
+        mesh.vertex(matrix, x1, y2).color(bottomRight);
+        mesh.vertex(matrix, x2, y2).color(bottomRight);
+        mesh.vertex(matrix, x2, y2).color(bottomRight);
+
+        this.drawQuadMesh(mesh);
+    }
     public void fillRect(VertexConsumer builder, Matrix3x2fc matrix, float x, float y, float w, float h, int color1, int color2, int color3, int color4)
     {
         /* c1 ---- c2
@@ -337,6 +385,13 @@ public class Batcher2D
         }
     }
 
+    /**
+     * A soft glow radiating out of a rectangle, with the rectangle itself filled
+     * by the opaque colour. Every glow in the interface comes through here, so
+     * the one toggle that turns them off is read here rather than at each
+     * caller: every caller paints its own background over this rectangle right
+     * after, which is what makes skipping the whole thing safe.
+     */
     public void dropShadow(int left, int top, int right, int bottom, int offset, int opaque, int shadow)
     {
         /* The original feathered drop shadow was a custom POSITION_COLOR gradient mesh (opaque centre
@@ -363,6 +418,48 @@ public class Batcher2D
     }
 
     /* Gradients */
+
+    /**
+     * Draw a selection highlight over an area: a solid bar of the primary color along the
+     * {@code edge}, fading into a gradient towards the opposite side. This is what marks the
+     * chosen tab, mode or tool everywhere in the UI.
+     */
+    public void highlight(Area area, Direction edge)
+    {
+        this.highlight(area, edge, BBSSettings.primaryColor.get());
+    }
+
+    /**
+     * The same mark in a colour of its own — what a destructive button wears, so that "this one
+     * is not like the others" is said the same way as "this one is the active one".
+     */
+    public void highlight(Area area, Direction edge, int color)
+    {
+        int bar = Colors.A100 | color;
+        int near = Colors.A75 | color;
+        int far = color;
+        int t = 2;
+
+        switch (edge)
+        {
+            case TOP:
+                this.box(area.x, area.y, area.ex(), area.y + t, bar);
+                this.gradientVBox(area.x, area.y + t, area.ex(), area.ey(), near, far);
+                break;
+            case BOTTOM:
+                this.box(area.x, area.ey() - t, area.ex(), area.ey(), bar);
+                this.gradientVBox(area.x, area.y, area.ex(), area.ey() - t, far, near);
+                break;
+            case LEFT:
+                this.box(area.x, area.y, area.x + t, area.ey(), bar);
+                this.gradientHBox(area.x + t, area.y, area.ex(), area.ey(), near, far);
+                break;
+            case RIGHT:
+                this.box(area.ex() - t, area.y, area.ex(), area.ey(), bar);
+                this.gradientHBox(area.x, area.y, area.ex() - t, area.ey(), far, near);
+                break;
+        }
+    }
 
     public void gradientHBox(float x1, float y1, float x2, float y2, int leftColor, int rightColor)
     {
@@ -507,7 +604,7 @@ public class Batcher2D
             return;
         }
 
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             color = darkenWhite(color);
         }
@@ -518,6 +615,26 @@ public class Batcher2D
         this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, icon.w, icon.h, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
     }
 
+    /**
+     * An icon scaled to a square of {@code size}, for the few places where an icon stands in
+     * for a picture and grows with its cell (a folder in a texture grid). Buttons never come
+     * through here — their icons keep their own size.
+     */
+    public void scaledIcon(Icon icon, int color, float x, float y, float size)
+    {
+        if (icon.texture == null)
+        {
+            return;
+        }
+
+        if (BBSSettings.lightSurfaces())
+        {
+            color = darkenWhite(color);
+        }
+
+        this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, size, size, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
+    }
+
     public void iconArea(Icon icon, float x, float y, float w, float h)
     {
         this.iconArea(icon, Colors.WHITE, x, y, w, h);
@@ -525,7 +642,7 @@ public class Batcher2D
 
     public void iconArea(Icon icon, int color, float x, float y, float w, float h)
     {
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             color = darkenWhite(color);
         }
@@ -730,7 +847,7 @@ public class Batcher2D
 
     public void text(String label, float x, float y, int color, boolean shadow)
     {
-        if (BBSSettings.isLightTheme())
+        if (BBSSettings.lightSurfaces())
         {
             shadow = false;
             color = darkenWhite(color);
@@ -742,11 +859,13 @@ public class Batcher2D
     /** Actual text draw (theming is applied by the public text() before calling this). */
     private void drawTextDirect(String label, float x, float y, int color, boolean shadow)
     {
+
         if (Colors.getA(color) <= 0F)
         {
             color = Colors.opaque(color);
         }
 
+        BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
         this.context.drawText(this.font.getRenderer(), label, (int) x, (int) y, color, shadow);
     }
 
@@ -808,7 +927,7 @@ public class Batcher2D
 
         if (a != 0)
         {
-            if (BBSSettings.isLightTheme() && (background & 0xFFFFFF) == 0)
+            if (BBSSettings.lightSurfaces() && (background & 0xFFFFFF) == 0)
             {
                 background = (background & 0xFF000000) | 0xFFFFFF;
             }

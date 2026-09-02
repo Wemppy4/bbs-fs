@@ -424,12 +424,6 @@ public abstract class UITransform extends UIElement
         return this;
     }
 
-    /** The world-matrix source wired by the host, or {@code null} (see {@link #worldTransform}). */
-    protected IWorldTransformProvider getWorldProvider()
-    {
-        return this.worldProvider;
-    }
-
     /** Capture the element's current full world matrix into the shared world clipboard. */
     private void copyWorldTransform()
     {
@@ -482,14 +476,17 @@ public abstract class UITransform extends UIElement
             return;
         }
 
-        Supplier<Matrix4f> sampler = () ->
+        /* Fresh: this solve writes the transform's raw fields and re-reads the world matrix each
+         * pass, which the frame pose cache would otherwise answer from before the write (see
+         * GizmoDrag#freshSampler). */
+        Supplier<Matrix4f> sampler = GizmoDrag.freshSampler(() ->
         {
             Matrix4f matrix = new Matrix4f();
 
             this.worldProvider.getWorldMatrix(matrix);
 
             return matrix;
-        };
+        });
 
         Vector3f startTranslate = new Vector3f(transform.translate);
         Vector3f startRotate = new Vector3f(transform.rotate);

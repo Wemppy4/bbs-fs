@@ -1,0 +1,38 @@
+package mchorse.bbs_mod.ui.textures;
+
+import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
+
+/**
+ * What a {@link UIFolderTree} needs from whoever shows it: where clicks go, which folder is
+ * the current one, and — for a host that lets textures be dragged — the drag whose target the
+ * tree reports while painting.
+ */
+public interface IFolderTreeHost
+{
+    public void navigate(Link folder);
+
+    public boolean isCurrentFolder(Link folder);
+
+    /** Whether a pinned texture is the one on show, so the tree can mark its row. */
+    public default boolean isCurrentTexture(Link link)
+    {
+        return false;
+    }
+
+    /** A pinned texture was clicked. Entering its folder is the least a host can do with it. */
+    public default void openPinned(Link link)
+    {
+        this.navigate(TextureEntry.folderLink(link.parent()));
+    }
+
+    /** The drag in progress, or null for a host without one (a save dialog). */
+    public default ItemDrag<TextureEntry> getDrag()
+    {
+        return null;
+    }
+
+    /** The button went up over the tree. */
+    public default void release()
+    {}
+}

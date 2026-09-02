@@ -6,7 +6,9 @@ import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -18,9 +20,44 @@ import java.util.List;
 
 public interface IUIKeyframeGraph
 {
-    public static final int TOP_MARGIN = 25;
+    /** The first track starts right under the ruler - no gap left where a divider used to sit. */
+    public static final int TOP_MARGIN = TimelineRulerRenderer.RULER_BLOCK_HEIGHT;
 
     public void resetView();
+
+    /** The timeline this graph draws, so a graph can ask the editor about the playhead. */
+    public UIKeyframes getKeyframes();
+
+    /**
+     * The tick auto-keyframing writes at, or {@code null} when edits land on the keyframes they
+     * were made on. See {@link UIKeyframes#getAutoKeyframeTick()}.
+     */
+    public default Integer getAutoKeyframeTick()
+    {
+        UIKeyframes keyframes = this.getKeyframes();
+
+        return keyframes == null ? null : keyframes.getAutoKeyframeTick();
+    }
+
+    /**
+     * The keyframe an edit made on {@code keyframe} should actually land on: itself normally, or
+     * the keyframe of its own track at the playhead when auto-keyframing &mdash; brought into
+     * being from the track's interpolated value if there is none there yet.
+     */
+    public default <T> Keyframe<T> getEditTarget(Keyframe<T> keyframe)
+    {
+        Integer tick = this.getAutoKeyframeTick();
+        UIKeyframeSheet sheet = tick == null ? null : this.getSheet(keyframe);
+
+        if (sheet == null || sheet.header)
+        {
+            return keyframe;
+        }
+
+        Keyframe<T> target = sheet.ensureKeyframe(tick);
+
+        return target == null ? keyframe : target;
+    }
 
     public UIKeyframeSheet getLastSheet();
 
@@ -114,10 +151,48 @@ public interface IUIKeyframeGraph
 
     public UIKeyframeSheet getSheet(int mouseY);
 
+    /**
+     * The row under the cursor that is a <em>track</em> — something holding a value that can be
+     * keyed, pasted into, curve-edited and restyled. A body part's section is a heading, not a track:
+     * it names a part, holds no value, and its channel belongs to no replay, so anything written
+     * into it would be dropped on save without a word.
+     *
+     * <p>Every operation that acts on a track resolves its target through this and not through
+     * {@link #getSheet(int)}, which answers the plainer question of which row the cursor is over —
+     * that one is still what hit-testing and folding need.</p>
+     */
+    public default UIKeyframeSheet getTrackSheet(int mouseY)
+    {
+        UIKeyframeSheet sheet = this.getSheet(mouseY);
+
+        return sheet != null && sheet.header ? null : sheet;
+    }
+
+    /** The first row that is a track, for operations that must land somewhere when the cursor is over nothing. */
+    public default UIKeyframeSheet getFirstTrackSheet()
+    {
+        for (UIKeyframeSheet sheet : this.getSheets())
+        {
+            if (!sheet.header)
+            {
+                return sheet;
+            }
+        }
+
+        return null;
+    }
+
     public boolean addKeyframe(int mouseX, int mouseY);
 
     public default Keyframe addKeyframe(UIKeyframeSheet sheet, float tick, Object value)
     {
+        if (sheet.header)
+        {
+            /* A header names a body part; there is no value to key. Its channel belongs to no
+             * replay, so a keyframe placed here would vanish on save without a word. */
+            return null;
+        }
+
         KeyframeSegment segment = sheet.channel.find(tick);
         Keyframe extra = null;
         BaseValueBasic property = sheet.property;
@@ -129,13 +204,16 @@ public interface IUIKeyframeGraph
                 value = segment.createInterpolated();
                 extra = segment.a;
             }
+            else if (sheet.seed != null)
+            {
+                /* Before the property: a sheet with both uses the seed to IMPROVE on the raw
+                 * property value (the color overlay seeds at full strength so a fresh keyframe
+                 * is visible; the property's default is fully transparent). */
+                value = sheet.seed.get();
+            }
             else if (property != null)
             {
                 value = sheet.channel.getFactory().copy(property.get());
-            }
-            else if (sheet.seed != null)
-            {
-                value = sheet.seed.get();
             }
             else
             {
@@ -215,7 +293,10 @@ public interface IUIKeyframeGraph
     public default void onCallback(Keyframe keyframe)
     {}
 
-    public void pickKeyframe(Keyframe keyframe);
+    public default void pickKeyframe(Keyframe keyframe)
+    {
+        this.getKeyframes().pickKeyframe(keyframe);
+    }
 
     public void selectKeyframe(Keyframe keyframe);
 
@@ -269,6 +350,17 @@ public interface IUIKeyframeGraph
      */
     public default void setValue(Object value, boolean unmergeable)
     {
+        this.setValue(value, unmergeable, false);
+    }
+
+    /**
+     * @param fromEditor the edit came from the keyframe's editor panel rather than from dragging
+     *                   the keyframe itself, so auto-keyframing may move it onto the playhead.
+     *                   Dragging a keyframe in the graph is direct manipulation of that keyframe
+     *                   and must always land on it, wherever the playhead stands.
+     */
+    public default void setValue(Object value, boolean unmergeable, boolean fromEditor)
+    {
         Keyframe selected = this.getSelected();
 
         if (selected == null)
@@ -277,13 +369,46 @@ public interface IUIKeyframeGraph
         }
 
         IKeyframeFactory factory = selected.getFactory();
-        Object keyframe = factory.copy(selected.getValue());
+
+        this.applyValue(factory, value, selected, unmergeable, fromEditor);
+    }
+
+    /**
+     * Fan a value edit out over every track taking part in it: the selected keyframes normally, or
+     * the keyframe at the playhead of every track with a selection when auto-keyframing an edit
+     * made in the editor panel.
+     *
+     * @param primary the keyframe the edit was made on, whose value before the edit the numeric
+     *                delta of the other keyframes is measured against
+     */
+    public default void applyValue(IKeyframeFactory factory, Object value, Keyframe primary, boolean unmergeable, boolean fromEditor)
+    {
+        Integer tick = fromEditor ? this.getAutoKeyframeTick() : null;
+
+        /* The value the edit is measured against is the one on the keyframe it actually lands on,
+         * which auto-keyframing moves to the playhead. Reading it off the selected keyframe would
+         * measure the delta against a keyframe at another tick and land the change twice. */
+        Object before = factory.copy((tick == null ? primary : this.getEditTarget(primary)).getValue());
 
         for (UIKeyframeSheet sheet : this.getSheets())
         {
-            if (sheet.channel.getFactory() == factory)
+            if (sheet.channel.getFactory() != factory || sheet.header)
             {
-                sheet.setValue(value, keyframe, unmergeable);
+                continue;
+            }
+
+            if (tick == null)
+            {
+                sheet.setValue(value, before, unmergeable);
+            }
+            else if (!sheet.selection.getSelected().isEmpty())
+            {
+                Keyframe target = sheet.ensureKeyframe(tick);
+
+                if (target != null)
+                {
+                    sheet.setValueOn(target, value, before, unmergeable);
+                }
             }
         }
     }

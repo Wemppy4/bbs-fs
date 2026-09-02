@@ -14,13 +14,12 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
-import mchorse.bbs_mod.ui.utils.presets.UIPresetContextMenu;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.presets.PresetManager;
+import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 import java.util.Arrays;
 import java.util.function.Consumer;
@@ -72,7 +71,8 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
 
                 return map;
             })
-            .canCopy(() -> !this.list.isDeselected());
+            .canCopy(() -> !this.list.isDeselected())
+            .labels(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_COPY, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_PASTE);
 
         this.states = states;
         this.callback = consumer;
@@ -80,28 +80,24 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         this.list = new UIAnimationStateList((l) -> this.pickItem(l.get(0), false));
         this.list.context((menu) ->
         {
-            menu.custom(new UIPresetContextMenu(this.copyPasteController)
-                .labels(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_COPY, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_PASTE));
-            menu.action(Icons.ADD, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_ADD, this::addState);
+            this.copyPasteController.install(menu, this.getContext());
 
-            if (!this.list.getList().isEmpty())
-            {
-                menu.action(Icons.REMOVE, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_REMOVE, Colors.NEGATIVE, this::removeState);
-            }
+            menu.icon(MenuVerb.ADD, this::addState).label(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_ADD);
+            menu.icon(MenuVerb.REMOVE, this::removeState).label(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_REMOVE).enabled(!this.list.getList().isEmpty());
         });
         this.list.background();
 
-        this.id = new UITextbox((t) -> this.state.customId.set(t));
-        this.main = new UIToggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_MAIN, (b) -> this.state.main.set(b.getValue()));
+        this.id = UIValues.textbox(() -> this.state.customId);
+        this.main = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_MAIN, () -> this.state.main);
         this.keybind = new UIKeybind((keybind) -> this.state.keybind.set(keybind.getMainKey()));
         this.keybind.single();
-        this.duration = new UITrackpad((v) -> this.state.duration.set(v.intValue())).integer().limit(0D);
-        this.fadeIn = new UITrackpad((v) -> this.state.fadeIn.set(v.intValue())).integer().limit(0D);
+        this.duration = UIValues.trackpad(() -> this.state.duration).integer().limit(0D);
+        this.fadeIn = UIValues.trackpad(() -> this.state.fadeIn).integer().limit(0D);
         this.fadeIn.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_START_D);
-        this.fadeOut = new UITrackpad((v) -> this.state.fadeOut.set(v.intValue())).integer().limit(0D);
+        this.fadeOut = UIValues.trackpad(() -> this.state.fadeOut).integer().limit(0D);
         this.fadeOut.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_END_D);
-        this.looping = new UIToggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_LOOPING, (b) -> this.state.looping.set(b.getValue()));
-        this.offset = new UITrackpad((v) -> this.state.offset.set(v.intValue())).integer().limit(0D);
+        this.looping = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_LOOPING, () -> this.state.looping);
+        this.offset = UIValues.trackpad(() -> this.state.offset).integer().limit(0D);
         this.offset.tooltip(UIKeys.FORMS_EDITOR_STATES_MANAGER_OFFSET);
 
         this.editor = UI.scrollView(

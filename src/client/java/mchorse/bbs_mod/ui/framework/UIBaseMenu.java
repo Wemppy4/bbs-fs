@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.ui.framework.elements.IFocusedUIElement;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.IViewport;
@@ -10,9 +11,9 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.IViewportStack;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Gizmo;
+import mchorse.bbs_mod.ui.utils.InterfaceBlur;
 import mchorse.bbs_mod.ui.utils.renderers.InputRenderer;
 import mchorse.bbs_mod.utils.MathUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.glfw.GLFW;
@@ -303,11 +304,6 @@ public abstract class UIBaseMenu
         this.closeMenu();
     }
 
-    public void renderDefaultBackground()
-    {
-        this.context.batcher.box(0, 0, this.width, this.height, Colors.A50);
-    }
-
     public void renderMenu(UIRenderingContext context, int mouseX, int mouseY)
     {
         // TODO(1.21.11 render): RenderSystem.depthFunc removed (1.21.5); depth state now lives in the RenderPipeline.
@@ -315,15 +311,20 @@ public abstract class UIBaseMenu
         this.context.resetMatrix();
         this.context.setMouse(mouseX, mouseY);
         this.context.resetCursor();
+        InterfaceBlur.beginFrame();
 
         this.preRenderMenu(context);
+
+        this.context.flushLayout();
 
         if (this.root.isVisible())
         {
             this.context.reset();
             this.context.pushViewport(this.viewport);
 
+            BBSProfiler.begin(BBSProfiler.Timer.UI_TOTAL);
             this.root.render(this.context);
+            BBSProfiler.end(BBSProfiler.Timer.UI_TOTAL);
 
             this.context.popViewport();
             this.context.postRender();

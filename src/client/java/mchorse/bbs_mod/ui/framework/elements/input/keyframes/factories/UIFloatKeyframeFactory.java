@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.TrackpadRecorder;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 
@@ -18,14 +17,8 @@ public class UIFloatKeyframeFactory extends UINumericKeyframeFactory<Float>
     }
 
     @Override
-    protected void setKeyframeValue(double value)
+    protected void setKeyframeValue(Keyframe<Float> keyframe, double value)
     {
-        this.keyframe.setValue((float) value);
-    }
-    
-    @Override
-    protected TrackpadRecorder.ValueConverter createValueConverter()
-    {
-        return (value) -> (float) value;
+        keyframe.setValue((float) value);
     }
 }

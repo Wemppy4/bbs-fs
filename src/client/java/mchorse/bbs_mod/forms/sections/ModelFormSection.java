@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.sections;
 
+import mchorse.bbs_mod.ui.utils.icons.Icon;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.cubic.model.ModelManager;
@@ -20,6 +22,12 @@ import java.util.Objects;
 
 public class ModelFormSection extends SubFormSection
 {
+    @Override
+    protected Icon getIcon()
+    {
+        return Icons.POSE;
+    }
+
     public ModelFormSection(FormCategories parent)
     {
         super(parent);
@@ -59,7 +67,7 @@ public class ModelFormSection extends SubFormSection
     @Override
     protected FormCategory createCategory(IKey uiKey, String id)
     {
-        return new ModelFormCategory(uiKey, this.parent.visibility.get("models_" + id));
+        return new ModelFormCategory(uiKey, this.parent.preferences.visible("models_" + id));
     }
 
     @Override
@@ -70,6 +78,9 @@ public class ModelFormSection extends SubFormSection
         return Objects.equals(modelForm.model.get(), key);
     }
 
+    /** When the models tree was last rescanned — one full rescan per event burst, not per event. */
+    private long lastStructureScan;
+
     @Override
     public void accept(Path path, WatchDogEvent event)
     {
@@ -78,10 +89,19 @@ public class ModelFormSection extends SubFormSection
 
         if (file.isDirectory())
         {
-            this.initiate();
+            /* A batch of directory events (the model loader making material folders) arrives
+             * within one flush; the rescan walks the whole tree anyway, so once covers them all. */
+            long now = System.currentTimeMillis();
+
+            if (now - this.lastStructureScan > 100)
+            {
+                this.initiate();
+            }
+
+            this.lastStructureScan = now;
             this.parent.markDirty();
         }
-        else if (link.path.startsWith(ModelManager.MODELS_PREFIX))
+        else if (link != null && link.path.startsWith(ModelManager.MODELS_PREFIX))
         {
             String extension = this.getExtension(link);
 

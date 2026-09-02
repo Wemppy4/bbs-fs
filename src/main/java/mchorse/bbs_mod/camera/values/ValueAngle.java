@@ -30,4 +30,10 @@ public class ValueAngle extends BaseValueBasic<Angle>
     {
         this.value.fromData(data.asMap());
     }
+
+    @Override
+    protected Angle copyValue(Angle value)
+    {
+        return value == null ? null : value.copy();
+    }
 }

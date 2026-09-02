@@ -4,6 +4,7 @@ import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.cubic.CubicModelAnimator;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.MolangHelper;
+import mchorse.bbs_mod.cubic.RigBone;
 import mchorse.bbs_mod.cubic.data.animation.Animation;
 import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.ListType;
@@ -15,7 +16,6 @@ import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -88,6 +88,18 @@ public class Model implements IMapSerializable, IModel
         return this.orderedGroups;
     }
 
+    @Override
+    public Collection<? extends RigBone> getRigBones()
+    {
+        return this.orderedGroups;
+    }
+
+    @Override
+    public RigBone getBone(String name)
+    {
+        return this.getGroup(name);
+    }
+
     public ModelGroup getGroup(String id)
     {
         return this.namedGroups.get(id);
@@ -102,7 +114,7 @@ public class Model implements IMapSerializable, IModel
 
         for (String key : this.getAllGroupKeys())
         {
-            PoseTransform poseTransform = pose.get(key);
+            PoseTransform poseTransform = pose.getOrCreate(key);
             ModelGroup group = this.getGroup(key);
 
             poseTransform.copy(group.current);
@@ -123,6 +135,26 @@ public class Model implements IMapSerializable, IModel
         for (ModelGroup orderedGroup : this.orderedGroups)
         {
             orderedGroup.reset();
+        }
+    }
+
+    /** Record every group's channels-phase orient/offset — see {@link ModelGroup#snapshotChannels()}. */
+    @Override
+    public void snapshotChannels()
+    {
+        for (ModelGroup orderedGroup : this.orderedGroups)
+        {
+            orderedGroup.snapshotChannels();
+        }
+    }
+
+    /** Rewind every group's orient/offset to the channels-phase snapshot. */
+    @Override
+    public void restoreChannels()
+    {
+        for (ModelGroup orderedGroup : this.orderedGroups)
+        {
+            orderedGroup.restoreChannels();
         }
     }
 
@@ -155,6 +187,7 @@ public class Model implements IMapSerializable, IModel
 
             group.lighting = transform.lighting;
             group.color.copy(transform.color);
+            group.overlay.copy(transform.overlay);
             group.current.translate.add(transform.translate);
             group.current.scale.add(transform.scale).sub(1, 1, 1);
 

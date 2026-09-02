@@ -64,7 +64,9 @@ final class ClassicLimbSolver
      */
     static boolean apply(IModel model, List<String> workIds, Map<String, PivotFrame> frames, Vector3f target, Quaternionf tipTarget, Vector3f polePoint, float poleAngle, float softness, float weight, boolean stretch)
     {
-        if (!eligible(workIds) || !(model instanceof Model || model instanceof BOBJModel))
+        IKRig rig = IKRig.of(model);
+
+        if (!eligible(workIds) || rig == null)
         {
             return false;
         }
@@ -140,14 +142,7 @@ final class ClassicLimbSolver
             }
         }
 
-        if (model instanceof Model cubic)
-        {
-            buildChainOrientations(cubic, workIds, positions, rootParentRotation, weight, tipTarget, stretchGap, bendSeed);
-        }
-        else
-        {
-            buildChainOrientationsBobj((BOBJModel) model, workIds, positions, rootParentRotation, weight, tipTarget, stretchGap, bendSeed);
-        }
+        rig.buildChainOrientations(workIds, positions, rootParentRotation, weight, tipTarget, stretchGap, bendSeed);
 
         return true;
     }
@@ -393,7 +388,7 @@ final class ClassicLimbSolver
      * advancing by each bone's rendered (blended) orientation so children inherit
      * the same frame the renderer establishes.
      */
-    private static void buildChainOrientations(Model model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float weight, Quaternionf tipTarget, Vector3f stretchGap, Vector3f bendSeed)
+    static void buildChainOrientations(Model model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float weight, Quaternionf tipTarget, Vector3f stretchGap, Vector3f bendSeed)
     {
         int bones = chainIds.size() - 1;
         Vector3f[] restDir = new Vector3f[bones];
@@ -502,7 +497,7 @@ final class ClassicLimbSolver
      * in world, so at rest the two frames coincide and the orientation is identity
      * — no baseline twist. Same X-mirror as cubic ({@link Matrices#orientMirroredX}).
      */
-    private static void buildChainOrientationsBobj(BOBJModel model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float weight, Quaternionf tipTarget, Vector3f stretchGap, Vector3f bendSeed)
+    static void buildChainOrientationsBobj(BOBJModel model, List<String> chainIds, List<Vector3f> solved, Quaternionf rootParentRotation, float weight, Quaternionf tipTarget, Vector3f stretchGap, Vector3f bendSeed)
     {
         int bones = chainIds.size() - 1;
         Map<String, BOBJBone> bonesMap = model.getArmature().bones;
@@ -730,36 +725,37 @@ final class ClassicLimbSolver
      */
     private static Vector3f restDirection(IModel model, List<String> chainIds, int i)
     {
-        String id = chainIds.get(i);
-        String childId = chainIds.get(i + 1);
+        IKRig rig = IKRig.of(model);
 
-        if (model instanceof Model cubic)
+        return rig == null ? null : rig.restDirection(chainIds, i);
+    }
+
+    /** See {@link IKRig.CubicIKRig#restDirection}. */
+    static Vector3f cubicRestDirection(Model model, List<String> chainIds, int i)
+    {
+        ModelGroup bone = model.getGroup(chainIds.get(i));
+        ModelGroup child = model.getGroup(chainIds.get(i + 1));
+
+        if (bone == null || child == null)
         {
-            ModelGroup bone = cubic.getGroup(id);
-            ModelGroup child = cubic.getGroup(childId);
-
-            if (bone == null || child == null)
-            {
-                return null;
-            }
-
-            return normalizeRest(new Vector3f(child.initial.translate).sub(bone.initial.translate));
+            return null;
         }
 
-        if (model instanceof BOBJModel bobj)
+        return normalizeRest(new Vector3f(child.initial.translate).sub(bone.initial.translate));
+    }
+
+    /** See {@link IKRig.BobjIKRig#restDirection}. */
+    static Vector3f bobjRestDirection(BOBJModel model, List<String> chainIds, int i)
+    {
+        BOBJBone bone = model.getArmature().bones.get(chainIds.get(i));
+        BOBJBone child = model.getArmature().bones.get(chainIds.get(i + 1));
+
+        if (bone == null)
         {
-            BOBJBone bone = bobj.getArmature().bones.get(id);
-            BOBJBone child = bobj.getArmature().bones.get(childId);
-
-            if (bone == null)
-            {
-                return null;
-            }
-
-            return normalizeRest(ModelRotationBlender.getBobjRestDirection(bobj, bone, child, chainIds, i));
+            return null;
         }
 
-        return null;
+        return normalizeRest(ModelRotationBlender.getBobjRestDirection(model, bone, child, chainIds, i));
     }
 
     private static Vector3f normalizeRest(Vector3f restDir)

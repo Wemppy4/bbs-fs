@@ -11,6 +11,12 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 public class LongKeyframeFactory implements IKeyframeFactory<Long>
 {
     @Override
+    public int contentHash(Long value)
+    {
+        return value.hashCode();
+    }
+
+    @Override
     public Long fromData(BaseType data)
     {
         return data.isNumeric() ? data.asNumeric().longValue() : 0L;

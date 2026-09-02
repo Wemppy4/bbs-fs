@@ -78,6 +78,14 @@ public class GridResizer extends AutomaticResizer
     @Override
     public void apply(Area area, IResizer resizer, ChildResizer child)
     {
+        /* Same as in the column: a hidden child keeps no cell in the grid */
+        if (!child.element.isVisible())
+        {
+            area.set(this.parent.area.x, this.parent.area.y, 0, 0);
+
+            return;
+        }
+
         int w;
         int h;
         int x;
@@ -159,6 +167,11 @@ public class GridResizer extends AutomaticResizer
             {
                 for (ChildResizer child : this.getResizers())
                 {
+                    if (!child.element.isVisible())
+                    {
+                        continue;
+                    }
+
                     if (x + this.width > width - this.padding * 2)
                     {
                         y += maxH + this.margin;
@@ -187,6 +200,11 @@ public class GridResizer extends AutomaticResizer
             {
                 for (ChildResizer child : this.getResizers())
                 {
+                    if (!child.element.isVisible())
+                    {
+                        continue;
+                    }
+
                     if (i != 0 && i % this.items == 0)
                     {
                         y += maxH + this.margin;

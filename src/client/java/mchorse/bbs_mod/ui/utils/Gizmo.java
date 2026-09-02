@@ -436,7 +436,7 @@ public class Gizmo
 
     public boolean isSphereInteractive()
     {
-        if (!BBSSettings.gizmos.get() || !BBSSettings.rotate3dSphere.get())
+        if (!BBSSettings.gizmos.get())
         {
             return false;
         }
@@ -701,7 +701,7 @@ public class Gizmo
                     transform.enableScreenTranslate(drag);
                     break;
                 case TRACKBALL:
-                    if (BBSSettings.rotate3dSphere.get()) transform.enableSphereRotate(drag);
+                    transform.enableSphereRotate(drag);
                     break;
                 case VIEW:
                     transform.enableViewRotate(drag);
@@ -1126,7 +1126,7 @@ public class Gizmo
          * GpuBufferSlice accessor remains), so the perspective FOV can no longer be derived from the
          * live projection. Fall back to the configured FOV until the projection is threaded through
          * the new pipeline. The viewport scale (merged from 1.21.1) still applies. */
-        return BBSSettings.getAxesDistanceScale(cameraRelative.length()) * this.viewportScale;
+        return BBSSettings.getScreenSizeScale(cameraRelative.length()) * this.viewportScale;
     }
 
     private void drawInfiniteLine(MatrixStack stack)
@@ -1539,7 +1539,7 @@ public class Gizmo
      */
     private float combinedInnerScale()
     {
-        return this.mode == Mode.COMBINED && !BBSSettings.rotateHideRings.get() ? COMBINED_INNER_SCALE : 1F;
+        return this.mode == Mode.COMBINED ? COMBINED_INNER_SCALE : 1F;
     }
 
     private void drawRotateHandles(MatrixStack stack, Handle active)
@@ -1566,7 +1566,8 @@ public class Gizmo
         /* Always-on-top depth (original RenderSystem.depthFunc(GL_ALWAYS)) is encoded by the gizmo
          * pipeline's NO_DEPTH_TEST. Draw.arc3D applies the same per-axis orientation the cached ring
          * used (X → rotateZ 90°, Z → rotateX 90°, Y → none). */
-        if (!BBSSettings.rotateHideRings.get())
+        /* The "hide rotation rings" toggle went away with the gizmo mode rework — rings are always drawn. */
+        if (true)
         {
             if (active == null || active == Handle.ROTATE_Z) this.drawOccludedRing(stack, Axis.Z, radius, thicknessRing, dimmed(Colors.getR(Colors.BLUE), constrained), dimmed(Colors.getG(Colors.BLUE), constrained), dimmed(Colors.getB(Colors.BLUE), constrained));
             if (active == null || active == Handle.ROTATE_X) this.drawOccludedRing(stack, Axis.X, radius, thicknessRing, dimmed(Colors.getR(Colors.RED), constrained), dimmed(Colors.getG(Colors.RED), constrained), dimmed(Colors.getB(Colors.RED), constrained));
@@ -1928,7 +1929,8 @@ public class Gizmo
         float radius = 0.22F * scale;
         float thicknessRing = 0.02F * scale * thickness;
 
-        if (!BBSSettings.rotateHideRings.get())
+        /* The "hide rotation rings" toggle went away with the gizmo mode rework — rings are always drawn. */
+        if (true)
         {
             /* Cut the far half of each ring away, exactly as the visual does (drawOccludedRing). Drawing
              * FULL rings here made the pick disagree with what is on screen: the hidden half still claimed

@@ -25,7 +25,7 @@ public class WorldFilmController extends BaseFilmController
 
         this.createEntities();
 
-        this.duration = film.camera.calculateDuration();
+        this.duration = film.calculateDuration();
         this.context = new CameraClipContext();
         this.context.clips = film.camera;
     }

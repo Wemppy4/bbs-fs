@@ -154,14 +154,25 @@ public class StencilFormFramebuffer
         return this.index;
     }
 
-    public Map<Integer, Pair<Form, String>> getIndexMap()
-    {
-        return this.indexMap;
-    }
-
     public Pair<Form, String> getPicked()
     {
         return this.indexMap.get(this.index);
+    }
+
+    /** The id the last pass drew {@code bone} of {@code form} with, or 0 when it wasn't drawn. */
+    public int indexOf(Form form, String bone)
+    {
+        for (Map.Entry<Integer, Pair<Form, String>> entry : this.indexMap.entrySet())
+        {
+            Pair<Form, String> pair = entry.getValue();
+
+            if (pair.a == form && pair.b.equals(bone))
+            {
+                return entry.getKey();
+            }
+        }
+
+        return 0;
     }
 
     public void setup(Link id)
@@ -466,6 +477,12 @@ public class StencilFormFramebuffer
     {
         this.index = 0;
         this.indexMap.clear();
+    }
+
+    /** Nothing under the cursor, while what the pass drew stays known (for {@link #indexOf}). */
+    public void clearIndex()
+    {
+        this.index = 0;
     }
 
     public boolean hasPicked()

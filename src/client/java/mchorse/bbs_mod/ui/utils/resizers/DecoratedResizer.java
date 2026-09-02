@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.ui.utils.resizers;
 
-public abstract class DecoratedResizer extends BaseResizer
+public abstract class DecoratedResizer implements IResizer, IParentResizer
 {
     public IResizer resizer;
 

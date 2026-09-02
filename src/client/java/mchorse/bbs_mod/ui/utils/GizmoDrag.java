@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.utils;
 
 import mchorse.bbs_mod.camera.Camera;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.camera.CameraUtils;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.utils.Axis;
@@ -17,14 +18,11 @@ import org.joml.Vector4f;
 import java.util.function.Supplier;
 
 /**
- * Snapshot of camera, viewport and gizmo placement captured at the start
- * of a drag. Used by the gizmo to translate raw cursor motion into a
- * proper world-space delta via ray/plane intersections.
- *
- * The whole math lives in a single frame: the one in which the supplied
- * camera observes the scene. The gizmo origin must be expressed in the
- * same frame (i.e. for film/world rendering it is a world position, for
- * the form editor it is a model-space position).
+ * Snapshot of camera, viewport and gizmo placement captured at the start of a drag;
+ * turns cursor motion into a world-space delta via ray/plane intersections.
+ * All the math lives in ONE frame — the one the supplied camera observes — so the
+ * gizmo origin must be expressed in it too (world for the film, model space for the
+ * form editor).
  */
 public class GizmoDrag
 {
@@ -41,61 +39,49 @@ public class GizmoDrag
 
     public final Vector3d gizmoOrigin = new Vector3d();
 
-    /**
-     * Linear map from a unit change of {@code transform.translate} (the value
-     * the user is editing) to the resulting world-space displacement of the
-     * gizmo origin. Defaults to identity, which is correct for editors where
-     * one local unit equals one world unit (e.g. BOBJ bones, root transforms).
-     *
-     * For cubic groups the model space is in pixels (1/16 block), so the
-     * Jacobian's columns end up scaled by 1/16 and the drag math automatically
-     * compensates for that without callers having to know the model type.
-     */
+    /** Linear map from a unit change of {@code transform.translate} to the resulting
+     *  world displacement of the gizmo origin. Identity where one local unit is one
+     *  world unit; for cubic groups (pixels, 1/16 block) its columns come out scaled by
+     *  1/16, so the drag math compensates without knowing the model type. */
     public final Matrix3f translateJacobian = new Matrix3f();
 
-    /**
-     * Unit-length world-space directions of the gizmo's X/Y/Z handles, as
-     * actually rendered. Populated from {@link Gizmo#computeWorldAxes} when
-     * the drag is created via {@link #fromRenderedGizmo}; defaults to identity
-     * otherwise so callers without a rendered gizmo still get sensible
-     * world-aligned axes.
-     */
+    /** Unit world directions of the gizmo's X/Y/Z handles AS RENDERED, from
+     *  {@link Gizmo#computeWorldAxes}; identity without a rendered gizmo. */
     public final Matrix3f gizmoWorldAxes = new Matrix3f();
 
-    /**
-     * World-space rotation axes used by the renderer when {@code transform.rotate}
-     * components are mutated. For BOBJ models these match {@link #gizmoWorldAxes};
-     * for cubic models they can differ by a sign because the renderer applies a
-     * post-multiplied {@code Ry(180°)} that flips bone-local X and Z while leaving
-     * Y unchanged. Editors fill this via {@link #computeRotateAxes} so the gizmo
-     * doesn't have to know which model type it's editing.
-     */
+    /** World axes the renderer actually turns about when {@code transform.rotate} is
+     *  mutated. Matches {@link #gizmoWorldAxes} for BOBJ; for cubic it can differ in
+     *  SIGN — the renderer post-multiplies {@code Ry(180°)}, flipping bone-local X/Z.
+     *  Filled via {@link #computeRotateAxes}. */
     public final Matrix3f rotateAxes = new Matrix3f();
 
-    /**
-     * World-space orthonormal basis {@link TransformSpace#GLOBAL} aligns to.
-     * Identity &mdash; the plain world axes &mdash; unless a host sets it, which
-     * is what the editors without a scene of their own (form editor, model
-     * blocks, animation states) leave it at. The film viewport instead fills it
-     * with the edited replay's own facing
-     * ({@code BaseFilmController.getReplayWorldAxes}), so "global" there means
-     * the actor's world rather than the map's: it stays flat and axis-aligned,
-     * it just turns with the replay. Read through {@link #frameBasis}, and drawn
-     * by the twin {@link #stackBasisForSpace}.
-     */
+    /** The basis {@link TransformSpace#GLOBAL} aligns to: plain world axes unless a
+     *  host sets it. The film fills it with the replay's own facing, so "global" there
+     *  is the actor's world, not the map's. Drawn by the twin {@link #stackBasisForSpace}. */
     public final Matrix3f globalWorldAxes = new Matrix3f();
 
     /**
-     * Euler rotation (ZYX radians) the renderer SUMS UNDER the edited transform's
-     * rotate channels — non-zero when the edited value is an additive layer, like
-     * a pose overlay stacked per-channel onto the base pose. The renderer then
-     * shows {@code ZYX(base + rotate)}, so the drag's euler frame recovery and
-     * write composition must run on the effective angles and subtract the base
-     * back out of the written channels ({@code RotationDragMath}); with a zero
-     * base (a plain transform) both collapse to the classic math. Quaternion
-     * transforms never need it — their layers compose multiplicatively, which
-     * the parent-frame recovery already absorbs.
+     * World-space basis of the bone's OWN frame ({@link TransformSpace#LOCAL}), carried
+     * explicitly: LOCAL and {@link TransformSpace#PARENT} both used to read
+     * {@link #gizmoWorldAxes} &mdash; the axes of the DRAWN handles &mdash; so a
+     * snapshot could only answer for the frame the gesture started in, and an edit
+     * walked into the other frame kept running on the old one. Filled through
+     * {@link #setFrameAxes}; not every host does, hence {@link #hasFrameAxes}.
      */
+    public final Matrix3f localWorldAxes = new Matrix3f();
+
+    /** World-space basis of the frame the bone's channels compose in — its parent's.
+     *  The twin of {@link #localWorldAxes}. */
+    public final Matrix3f parentWorldAxes = new Matrix3f();
+
+    /** Whether {@link #localWorldAxes}/{@link #parentWorldAxes} were filled in. */
+    private boolean hasFrameAxes;
+
+    /** Euler (ZYX radians) the renderer SUMS UNDER the edited rotate channels — non-zero
+     *  for an additive layer like a pose overlay, where it shows {@code ZYX(base + rotate)}.
+     *  The drag must then work at the effective angles and subtract the base back out
+     *  ({@code RotationDragMath}); zero base collapses to the classic math. Quaternions
+     *  never need it. */
     public final Vector3f additiveRotationBase = new Vector3f();
 
     public GizmoDrag setup(Camera camera, Area viewport, Vector3f gizmoOrigin)
@@ -135,6 +121,11 @@ public class GizmoDrag
 
     public GizmoDrag setup(Camera camera, Area viewport, double gx, double gy, double gz)
     {
+        /* The SCENE camera, deliberately — never GizmoLens, though the handles are drawn
+         * through it: the lens's narrow frustum is also a zoom, so solving a drag through
+         * it reads a cursor move as a much smaller world step and the model crawls. Only
+         * the pick stencil goes through the lens ("which handle is under the cursor" is a
+         * question about the picture; "where does it end up" is about the world). */
         this.projection.set(camera.projection);
         this.view.set(camera.view);
         this.cameraOrigin.set(camera.position);
@@ -162,17 +153,11 @@ public class GizmoDrag
     }
 
     /**
-     * Project a world-space point onto viewport pixel coordinates, matching the
-     * mouse-coordinate convention used by {@link #rayDirection} (origin at the
-     * viewport's top-left corner, Y growing downward).
+     * Project a world point to viewport pixels, in {@link #rayDirection}'s convention
+     * (top-left origin, Y down). {@link #view} is rotation-only, so the point is taken
+     * relative to {@link #cameraOrigin} first.
      *
-     * <p>The {@link #view} matrix is rotation-only &mdash; the camera translation
-     * lives in {@link #cameraOrigin} &mdash; so the point is expressed relative to
-     * the camera before being run through {@code projection * view}, mirroring the
-     * inverse mapping in {@link CameraUtils#getMouseDirection}.</p>
-     *
-     * @return {@code false} when the point is on or behind the camera plane, in
-     *         which case {@code out} is left untouched.
+     * @return {@code false} when the point is on or behind the camera plane.
      */
     public boolean projectToScreen(double wx, double wy, double wz, Vector2f out)
     {
@@ -271,34 +256,16 @@ public class GizmoDrag
     }
 
     /**
-     * The world-space orthonormal basis a {@link TransformSpace} aligns the gizmo
-     * GEOMETRY to: the frame its handles are drawn and picked in, and the world
-     * directions a constrained translate slides along or a scale levers along.
-     * {@link TransformSpace#LOCAL} is the bone's rendered frame ({@link #gizmoWorldAxes},
-     * the visible arrows); {@link TransformSpace#GLOBAL} is {@link #globalWorldAxes}
-     * (the world axes, turned by the replay's facing in the film viewport);
-     * {@link TransformSpace#WORLD} is the world identity, container and all
-     * ignored;
-     * {@link TransformSpace#VIEW} is the camera's right/up/forward
-     * ({@link #cameraBasis}, world axes when the view is degenerate);
-     * {@link TransformSpace#PARENT} is {@link #gizmoWorldAxes} as well &mdash;
-     * in that space the gizmo is PLACED on the cache's origin-flavour matrix
-     * (the bone's frame before its own rotation, i.e. the parent frame), so the
-     * drawn arrows already are the parent axes.
+     * The world basis a {@link TransformSpace} aligns the gizmo GEOMETRY to: the frame
+     * its handles are drawn and picked in, and the directions a constrained translate
+     * slides or a scale levers along.
      *
-     * <p>Rotation rings in LOCAL/GLOBAL/VIEW both DRAW and TURN about these
-     * axes: a ring gesture composes a delta rotation about the drawn axis
-     * (mapped into the bone's parent frame via
-     * {@link mchorse.bbs_mod.ui.framework.elements.input.drag.RotationDragMath#parentInverse}),
-     * so the bone always follows the ring the user grabbed. PARENT rings
-     * instead bump the driven channel directly — the deliberate pre-spaces
-     * behaviour (see {@link TransformSpace#PARENT}). The MEASURED
-     * {@link #rotateAxes} (the renderer's response to the euler channels, which
-     * folds in the cubic {@code Ry(180°)} post-flip AND the euler stack's gimbal
-     * skew) is deliberately NOT a gesture basis anymore &mdash; a LOCAL ring
-     * driven by it turned about the channel's intermediate gimbal axis, not the
-     * bone's own drawn axis, drifting off the visual as the inner channels tilt.
-     * It remains the ground truth for recovering the parent frame.
+     * <p>Rotation rings in EVERY frame both DRAW and TURN about these axes (the delta is
+     * mapped into the bone's parent frame by {@code RotationDragMath#parentInverse}), so
+     * the bone follows the ring the user grabbed. The MEASURED {@link #rotateAxes} is
+     * deliberately NOT a gesture basis: it carries the euler stack's gimbal skew, so a
+     * LOCAL ring driven by it drifted off the visual as inner channels tilted. It stays
+     * the ground truth for recovering the parent frame.
      */
     public Matrix3f frameBasis(TransformSpace space)
     {
@@ -316,23 +283,22 @@ public class GizmoDrag
                 /* Constrained drags need axes whatever happens, so a degenerate
                  * view falls back to the world frame. */
                 return camera == null ? new Matrix3f() : camera;
+            case LOCAL:
+                /* Each frame carried in its own right (see localWorldAxes), so a gesture
+                 * moved between them mid-edit gets the axes it asked for. */
+                return new Matrix3f(this.hasFrameAxes ? this.localWorldAxes : this.gizmoWorldAxes);
             default:
-                /* LOCAL and PARENT: the frame the gizmo was drawn in IS the
-                 * space frame — the placement matrix carries the bone's own
-                 * frame in LOCAL and the origin/parent frame in PARENT. */
-                return new Matrix3f(this.gizmoWorldAxes);
+                /* PARENT; hosts that fill no pair fall back to the drawn axes. */
+                return new Matrix3f(this.hasFrameAxes ? this.parentWorldAxes : this.gizmoWorldAxes);
         }
     }
 
     /**
-     * The camera's world-space right/up/forward as the columns of an orthonormal
-     * basis &mdash; the single source of the screen frame. {@link #view} is the
-     * rotation-only world&rarr;camera map, so its inverse takes the camera's own
-     * axes back into world space. This is {@link #frameBasis}'s VIEW frame, and
-     * the inherently screen-relative gestures (the screen translate, the sphere's
-     * trackball/arcball tumble) read their right/up axes from here instead of
-     * re-inverting the view matrix themselves. Returns {@code null} when the view
-     * is degenerate; those gestures then don't start.
+     * The camera's right/up/forward as an orthonormal basis — the single source of the
+     * screen frame, used by VIEW and by the screen-relative gestures (screen translate,
+     * trackball/arcball) instead of each re-inverting the view matrix. The SCENE
+     * camera's, not the lens's (see {@link #setup}). {@code null} on a degenerate view;
+     * those gestures then don't start.
      */
     public Matrix3f cameraBasis()
     {
@@ -347,23 +313,14 @@ public class GizmoDrag
     }
 
     /**
-     * The 3&times;3 the gizmo's view-space drawing frame gets for a
-     * {@link TransformSpace} ({@link Gizmo#reorientForSpace}). The drawing stack
-     * already carries world&rarr;view, so this is {@code view · frameBasis(space)}
-     * spelled out: {@link TransformSpace#GLOBAL} is {@code view · globalAxes},
-     * {@link TransformSpace#WORLD} the view rotation itself
-     * ({@code view · identity}) and {@link TransformSpace#VIEW} the identity
-     * ({@code view · view⁻¹}) &mdash; whose third column the draw passes then lay
-     * on the eye ray so the handles face the screen instead of merely paralleling
-     * it ({@link Gizmo#applyViewShear}); the frame returned here, and everything
-     * the drags read from it, stays orthonormal.
-     * {@code globalAxes} is the drawn twin of {@link #globalWorldAxes} and must
-     * come from the same source the drag's does &mdash; {@code null} means the
-     * plain world axes. {@link TransformSpace#LOCAL} and
-     * {@link TransformSpace#PARENT} never reach this &mdash; the reorient keeps
-     * the placement frame for them (bone frame / origin-flavour parent frame).
-     * Keeping it here ties the drawn frame to the same space&rarr;basis mapping
-     * the drags read.
+     * The drawn twin of {@link #frameBasis}: the 3&times;3 the gizmo's view-space
+     * drawing frame gets ({@link Gizmo#reorientForSpace}). The stack already carries
+     * world&rarr;view, so this is {@code view · frameBasis(space)} — GLOBAL becomes
+     * {@code view · globalAxes}, WORLD the view rotation, VIEW the identity. LOCAL and
+     * PARENT never reach here: the reorient keeps their placement frame.
+     *
+     * <p>🔴 {@code globalAxes} must come from the same source the drag's does, or the
+     * handles are drawn off the frame they slide in ({@code null} = plain world axes).
      */
     public static Matrix3f stackBasisForSpace(TransformSpace space, Matrix4f view, Matrix3f globalAxes)
     {
@@ -404,11 +361,70 @@ public class GizmoDrag
         return this;
     }
 
+    /** Diagnostic: whether a host actually measured the rotate axes, as opposed to the
+     *  identity they default to. An unset drag turns the bone in the wrong frame. */
+    public boolean hasRotateAxes;
+
     public GizmoDrag setRotateAxes(Matrix3f axes)
     {
         this.rotateAxes.set(axes);
+        this.hasRotateAxes = true;
 
         return this;
+    }
+
+    /**
+     * Both bone frames at once, each as the matrix the gizmo WOULD be placed on in that
+     * frame (the host's origin matrix with and without the bone's own rotation).
+     * 🔴 Pass them in the space the gizmo's origin is read back in — lift host-frame
+     * matrices through the renderer first, exactly as the rotate axes are.
+     *
+     * <p>A {@code null} in either leaves BOTH unset: half a pair would answer for one
+     * frame and quietly lie about the other.
+     */
+    public GizmoDrag setFrameAxes(Matrix4f local, Matrix4f parent)
+    {
+        if (local == null || parent == null)
+        {
+            return this;
+        }
+
+        this.localWorldAxes.set(basisOf(local));
+        this.parentWorldAxes.set(basisOf(parent));
+        this.hasFrameAxes = true;
+
+        return this;
+    }
+
+    /** Whether {@link #setFrameAxes} was given a pair of frames. */
+    public boolean hasFrameAxes()
+    {
+        return this.hasFrameAxes;
+    }
+
+    /** A matrix's rotation as an orthonormal basis, so residual scale cannot leak into
+     *  an axis direction. A degenerate column falls back to the identity's. */
+    private static Matrix3f basisOf(Matrix4f matrix)
+    {
+        Matrix3f basis = matrix.get3x3(new Matrix3f());
+
+        for (int i = 0; i < 3; i++)
+        {
+            Vector3f column = basis.getColumn(i, new Vector3f());
+
+            if (column.lengthSquared() < 1.0E-8F)
+            {
+                column.set(i == 0 ? 1F : 0F, i == 1 ? 1F : 0F, i == 2 ? 1F : 0F);
+            }
+            else
+            {
+                column.normalize();
+            }
+
+            basis.setColumn(i, column);
+        }
+
+        return basis;
     }
 
     /** See {@link #additiveRotationBase}; {@code null} clears it to zero. */
@@ -427,17 +443,38 @@ public class GizmoDrag
     }
 
     /**
-     * Numerically estimate how the gizmo's world position responds to changes
-     * of {@code transform.translate}. Calls the sampler four times: at the
-     * origin and at each unit basis vector. The differences become the columns
-     * of the Jacobian, which encodes both the orientation and the scale of the
-     * local-to-world mapping (including effects like the cubic /16 conversion).
-     *
-     * Restores the original translate value before returning so the caller is
-     * free to keep using the {@code Transform} as is.
+     * Numerically estimate how the gizmo's world position responds to
+     * {@code transform.translate}: four samples (origin plus each unit axis), the
+     * differences become the Jacobian's columns, carrying both the orientation and the
+     * scale of the local-to-world mapping. Restores the original value before returning.
      */
-    public static Matrix3f computeTranslateJacobian(Transform transform, Supplier<Vector3f> worldPositionSampler)
+    /**
+     * Wrap a pose sampler so every read re-evaluates the form instead of being answered from
+     * this frame's pose cache ({@link RenderFrame}).
+     *
+     * <p>Required by every probe below, and by any other measurement built the same way. The
+     * probes work by writing raw fields of a {@link Transform} and re-reading the matrices that
+     * come out; those writes are plain {@code Vector3f} assignments, so they do NOT bubble a
+     * value notification and do NOT bump {@link mchorse.bbs_mod.forms.forms.Form#getPoseVersion}.
+     * The frame cache is keyed on that version, so without this every probe of a gesture is
+     * answered with the same unperturbed matrix: the measured response is zero, the rotate axes
+     * collapse to the identity and the translate Jacobian to zero, and the gesture then turns
+     * and slides the bone in a frame that has nothing to do with the one on screen. This is
+     * exactly the out-of-band mutation {@link RenderFrame#invalidate} exists for.
+     */
+    public static <T> Supplier<T> freshSampler(Supplier<T> sampler)
     {
+        return () ->
+        {
+            RenderFrame.invalidate();
+
+            return sampler.get();
+        };
+    }
+
+    public static Matrix3f computeTranslateJacobian(Transform transform, Supplier<Vector3f> sampler)
+    {
+        Supplier<Vector3f> worldPositionSampler = freshSampler(sampler);
         Vector3f saved = new Vector3f(transform.translate);
 
         try
@@ -467,46 +504,28 @@ public class GizmoDrag
     }
 
     /**
-     * Numerically estimate the world-space axis around which each component of
-     * {@code transform.rotate} actually rotates the bone. Perturbs each axis
-     * by a small angle on top of the current {@code rotate} (NOT from zero) and
-     * extracts the relative rotation from the antisymmetric part of
-     * {@code R_perturbed · R_current⁻¹}.
+     * Numerically estimate the world axis each component of {@code transform.rotate}
+     * actually turns the bone about: perturb it slightly ON TOP OF the current rotation
+     * (never from zero — the renderer composes eulers, so a bumped X turns about
+     * {@code Rz·Ry·(1,0,0)}) and read the axis off the antisymmetric part of
+     * {@code R_perturbed · R_current⁻¹}. This is also what recovers the cubic
+     * {@code Ry(180°)} flip, which points the drawn X/Z arrows opposite the real axes.
      *
-     * <p>Sampling around the current pose &mdash; rather than at identity &mdash;
-     * matters because the renderer composes Euler angles. Perturbing
-     * {@code rotate.x} on top of a non-trivial {@code (ry, rz)} rotates around
-     * {@code parent · Rz(rz) · Ry(ry) · (1,0,0)}, not just {@code parent · (1,0,0)}.
-     * Bones in a rest pose often have non-zero rotation, so a fixed-at-zero
-     * sample would feed the gizmo a wrong axis and the user's drag would map
-     * to the wrong direction.</p>
-     *
-     * <p>It also handles the cubic-model case: those models post-multiply by
-     * {@code Ry(180°)} after the bone's own rotation, which flips bone-local X
-     * and Z in world space (Y is preserved). The visible gizmo arrows for X
-     * and Z therefore point opposite to the actual rotation axes; this method
-     * recovers the correct axes the renderer rotates around.</p>
-     *
-     * <p>The {@code matrixSampler} must return a matrix whose linear part
-     * reflects the bone's current rotation &mdash; for editors that distinguish
-     * between &quot;origin&quot; (rotation-stripped) and &quot;matrix&quot;
-     * (full) variants, always pass the latter. Returned columns correspond to
-     * the rotation axes for {@code rotate.x}, {@code rotate.y} and
-     * {@code rotate.z}, unit-length. Original {@code rotate} values are
-     * restored before returning.</p>
+     * <p>🔴 {@code matrixSampler} must return the ROTATION-BEARING matrix: hand it an
+     * origin (rotation-stripped) one and the perturbation leaves no trace, so the axes
+     * silently collapse to identity. Columns are the unit axes of x/y/z; the original
+     * values are restored before returning.
      */
-    public static Matrix3f computeRotateAxes(Transform transform, Supplier<Matrix4f> matrixSampler)
+    public static Matrix3f computeRotateAxes(Transform transform, Supplier<Matrix4f> sampler)
     {
+        Supplier<Matrix4f> matrixSampler = freshSampler(sampler);
         boolean quat = transform.rotationMode == Transform.RotationMode.QUATERNION;
         Vector3f savedRotate = new Vector3f(transform.rotate);
         Quaternionf savedQuat = new Quaternionf(transform.quat);
 
-        /* In quaternion mode the euler channels don't drive the render, so
-         * perturbing transform.rotate leaves no trace and the axes collapse to
-         * identity — losing the model's flips (e.g. the cubic Ry(180)). Instead
-         * perturb the QUATERNION with the euler-bumped equivalent of its own ZYX
-         * angles, which reproduces the euler perturbation exactly, so the axes
-         * (and their signs) match the euler path. */
+        /* In quaternion mode the euler channels don't drive the render, so perturbing
+         * them collapses the axes to identity. Perturb the QUATERNION with the bumped
+         * equivalent of its own ZYX angles instead, matching the euler path sign for sign. */
         Vector3f source = quat ? Matrices.toEulerZYXRadians(transform.quat, new Vector3f()) : savedRotate;
         float delta = 0.05F;
 
@@ -544,10 +563,8 @@ public class GizmoDrag
                 matrixSampler.get().get3x3(perturbed);
                 relative.set(perturbed).mul(baseInverse);
 
-                /* Antisymmetric part of a rotation matrix is sin(θ)·[axis]_skew.
-                 * In JOML's column-major layout that translates to the formula
-                 * below; normalize to drop the sin(θ) magnitude and we get the
-                 * unit world-space axis around which the renderer rotates. */
+                /* The antisymmetric part is sin(θ)·[axis]_skew (JOML column-major);
+                 * normalising drops sin(θ) and leaves the unit world axis. */
                 col.set(
                     relative.m12 - relative.m21,
                     relative.m20 - relative.m02,

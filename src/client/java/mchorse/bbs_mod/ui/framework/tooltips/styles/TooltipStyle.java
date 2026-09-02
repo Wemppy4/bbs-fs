@@ -9,19 +9,13 @@ public abstract class TooltipStyle
     public static final TooltipStyle LIGHT = new LightTooltipStyle();
     public static final TooltipStyle DARK = new DarkTooltipStyle();
 
+    /**
+     * Tooltips follow the surfaces they sit on: a light interface gets the
+     * light tooltip. Nothing picks this by hand any more.
+     */
     public static TooltipStyle get()
     {
-        return get(BBSSettings.theme.get());
-    }
-
-    public static TooltipStyle get(int style)
-    {
-        if (style == 0)
-        {
-            return LIGHT;
-        }
-
-        return DARK;
+        return BBSSettings.lightSurfaces() ? LIGHT : DARK;
     }
 
     public abstract void renderBackground(UIContext context, Area area);
