@@ -7,13 +7,10 @@ import org.joml.Matrix4fc;
 
 public class RecolorVertexConsumer implements VertexConsumer
 {
-    public static Color newColor;
-
     /**
-     * Apply {@link #newColor} to one packed vertex color for the writers that bypass this
-     * consumer's own {@link #color(int, int, int, int)} — Sodium's, and Iris' Sodium-compatible
-     * entity format — where the tint has to be folded into the packed int the writer is about to
-     * store. Returns it untouched while no tint is set.
+     * Apply a tint to one packed vertex color, for the writers that bypass this consumer's own
+     * {@link #color(int, int, int, int)} — Sodium's intrinsic ones — where the tint has to be
+     * folded into the packed int the writer is about to store. Returns it untouched with no tint.
      *
      * <p>That int is <b>ABGR</b>, not the ARGB every other packed color in BBS is: the attribute
      * is four bytes in RGBA order, so reading them back as one little-endian int puts red in the
@@ -21,10 +18,8 @@ public class RecolorVertexConsumer implements VertexConsumer
      * and back — which mirrors a tint across the hue wheel (yellow painting cyan, orange painting
      * azure) while leaving green and magenta looking right.</p>
      */
-    public static int tintPackedABGR(int color)
+    public static int tintPackedABGR(int color, Color tint)
     {
-        Color tint = newColor;
-
         if (tint == null)
         {
             return color;
