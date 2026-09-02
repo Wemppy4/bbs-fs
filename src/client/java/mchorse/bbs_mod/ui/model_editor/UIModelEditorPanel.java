@@ -16,7 +16,6 @@ import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtilsClient;
-import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -34,9 +33,9 @@ import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
+import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPoseEditor;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.onboarding.TourAnchors;
-import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -66,11 +65,12 @@ import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.pose.UIPoseEditor;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.Pose;
-import mchorse.bbs_mod.utils.pose.PoseManager;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Vector3f;
@@ -82,32 +82,67 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
  * Model Editor — a proper data panel (tabs, right icon bar, save) over models. Each tab is an open model;
- * the picker in the icon bar chooses one. The editor area is split into a resizable settings pane on the
- * left (binding straight to the live model's {@link ModelConfig}, so edits show in the preview at once)
+ * the picker in the icon bar chooses one. The editor area is a resizable settings pane on the left
+ * (binding straight to the live model's {@link ModelConfig}, so edits show in the preview at once)
  * and the preview on the right. Models are assets, so create/rename/delete are intentionally off.
  *
- * <p>The sections themselves are built exactly once, in the constructor; opening a model only refills
- * their bodies. That's what keeps the fold state, the scroll position and the focused control alive
- * across an edit — a list add/remove refills just that list's container, never the whole pane.</p>
+ * <p>The settings pane is a strip of icon tabs over one page at a time ({@link Tab}): the general
+ * settings, the bones, the welds, the armor, the held items, the first-person hands, the poses.
+ * The page that's open decides what the preview shows — the armor is worn on the armor page, the
+ * items held on the items page, the first-person view is the first-person page, the model sneaks
+ * on the poses page — so there is nothing to toggle by hand.</p>
  *
- * <p>The preview ({@link UIModelEditorRenderer}) shows what the config describes: items and armor in
- * the slots, the first-person hands in a first-person view, the active slot's transform on a gizmo,
- * the bone a row names lit up under the cursor. Every bone picker has the viewport eyedropper, and
- * every plain field answers a right click with "reset".</p>
+ * <p>The pages are built exactly once, in the constructor; opening a model only refills their
+ * bodies. That's what keeps the fold state, the scroll position and the focused control alive
+ * across an edit — a list add/remove refills just that list's container, never the whole page.</p>
+ *
+ * <p>The preview ({@link UIModelEditorRenderer}) shows what the config describes, with the picked
+ * slot's transform on a gizmo and the bone a row names lit up under the cursor. Every bone picker
+ * has the viewport eyedropper, and every plain field answers a right click with "reset".</p>
  */
 public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 {
-    public UIScrollView general;
+    /** The pages of the settings pane, in the order of their tabs. */
+    public enum Tab
+    {
+        GENERAL(Icons.GEAR, UIKeys.FORMS_EDITORS_GENERAL),
+        BONES(Icons.LIMB, UIKeys.MODEL_EDITOR_BONES),
+        WELDS(Icons.LINK, UIKeys.MODEL_EDITOR_WELDS),
+        ARMOR(Icons.ARMOR_CHESTPLATE, UIKeys.MODEL_EDITOR_ARMOR),
+        ITEMS(Icons.HOTBAR, UIKeys.MODEL_EDITOR_ITEMS),
+        FIRST_PERSON(Icons.LOOKING, UIKeys.MODEL_EDITOR_FIRST_PERSON),
+        POSES(Icons.POSE, UIKeys.MODEL_EDITOR_POSES);
+
+        public final Icon icon;
+        public final IKey label;
+
+        Tab(Icon icon, IKey label)
+        {
+            this.icon = icon;
+            this.label = label;
+        }
+    }
+
+    private static final Tab[] TABS = Tab.values();
+
+    /** The tab strip's height — the dock stacks' one, since the strip is drawn like theirs. */
+    private static final int TABS_HEIGHT = 20;
+
+    /** The page that was open last; kept across models and across leaving and re-entering the panel. */
+    private static Tab lastTab = Tab.GENERAL;
+
+    /** The settings pane: the tab strip over the open page. */
+    public UIElement pane;
+    public UITabStrip tabs;
     public UIModelEditorRenderer renderer;
     public UISplitter splitter;
 
-    /** The pane on the right: the bones and the welds, each a list with the picked entry's settings under it. */
-    public UIScrollView bonesPane;
-    public UISplitter bonesSplitter;
+    private final UIScrollView[] pages = new UIScrollView[TABS.length];
 
     private final ModelForm form = new ModelForm();
 
@@ -116,49 +151,35 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private static final CubeFace[] FACES = CubeFace.values();
 
-    /** The live model instance the sections are bound to; null until it loads. */
+    /** The live model instance the pages are bound to; null until it loads. */
     private ModelInstance bound;
 
-    /** The armor section shows one region at a time. */
-    private static final ArmorType[][] ARMOR_REGIONS =
-    {
-        {ArmorType.HELMET},
-        {ArmorType.CHEST, ArmorType.LEFT_ARM, ArmorType.RIGHT_ARM},
-        {ArmorType.LEGGINGS, ArmorType.LEFT_LEG, ArmorType.RIGHT_LEG},
-        {ArmorType.LEFT_BOOT, ArmorType.RIGHT_BOOT}
-    };
-
-    private int armorRegion;
-
-    /** Which hand the held items section shows. */
+    /** Which hand the held items page shows. */
     private boolean offHand;
 
-    /* Sections, built once. */
+    /* The general page's sections, built once. */
     private UISection generalSection;
-    private UISection itemsSection;
-    private UISection armorSection;
-    private UISection firstPersonSection;
+    private UISection renderSection;
+    private UISection sizeSection;
     private UISection lookAtSection;
-    private UISection sneakingSection;
-    private UISection weldsSection;
     private UISection[] sections;
 
-    /* Their bodies, refilled per model or per list change. Every body made by body() is listed here. */
+    /* The bodies refilled per model or per list change. Every body made by body() is listed here. */
     private final List<UIElement> bodies = new ArrayList<>();
     private UIElement generalBody;
-    private UIElement itemPanel;
-    private UIElement armorBody;
-    private UIElement firstPersonBody;
+    private UIElement renderBody;
+    private UIElement sizeBody;
     private UIElement lookAtBody;
-    private UIElement sneakingBody;
 
     /** The picked bone's / weld's settings, under their lists. */
     private UIElement bonePanel;
     private UIElement weldPanel;
 
-    /* The "list + settings" blocks: held items, welds. The bone tree is one too, with its own list class. */
+    /* The "list + settings" blocks: the attachment slots, the welds. The bone tree is one too, with its own list class. */
+    private SlotBlock armor;
+    private SlotBlock items;
+    private SlotBlock firstPerson;
     private UITabStrip itemsTabs;
-    private UIEntryList<ArmorSlotValue> itemList;
     private UIIcon dupeItem;
     private UIIcon removeItem;
     private UIModelBoneList bones;
@@ -167,15 +188,19 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     private UIIcon dupeWeld;
     private UIIcon removeWeld;
 
+    /** The poses page: the poses the config holds (the sneaking one, for now) over the editor of the picked one. */
+    private UIStringList poseList;
+    private UIModelPoseEditor poseEditor;
+
+    /** Whether the pose editor is in its two-column arrangement, which the pane's width decides. */
+    private boolean wide;
+
     /* The role dots of the bone tree: rightmost, a mirror bone is set; next to it, a picking override. */
     private static final int MARKER_MIRROR = Colors.A100 | Colors.CYAN;
     private static final int MARKER_PICKING = Colors.A100 | Colors.ORANGE;
 
-    /** Set while fillSections() refills everything, so the bodies don't each trigger a re-layout. */
+    /** Set while fillAll() refills everything, so the bodies don't each trigger a re-layout. */
     private boolean bulkFill;
-
-    /** The config the bodies were last filled from, to tell a new model from a refill of the same one. */
-    private ModelConfig filled;
 
     /** Thumbnail in the preview's corner showing the model as it appears in UI slots (form pickers). */
     private UIElement miniPreview;
@@ -183,12 +208,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     private UIIcon folderIcon;
     private UIIcon historyIcon;
     private UIIcon animationIcon;
-    private UIIcon equipmentIcon;
-    private UIIcon firstPersonIcon;
-
-    /** The slot the viewport gizmo edits, and the widgets currently standing for each slot. */
-    private ArmorSlotValue activeSlot;
-    private final Map<ArmorSlotValue, ModelSlotTarget> targets = new IdentityHashMap<>();
 
     /** Undo/redo: one handler for the panel's lifetime, its stack cleared per tab switch. */
     private UIFormUndoHandler undoHandler;
@@ -205,39 +224,27 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         super(dashboard);
 
-        /* What the tour of this panel points at; the panes are built further down */
-        TourAnchors.register("model_editor.preview", () -> this.renderer);
-        TourAnchors.register("model_editor.settings", () -> this.general);
-        TourAnchors.register("model_editor.bones", () -> this.bonesPane);
+        this.pane = new UIElement();
 
-        this.general = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
+        /* What the tour of this panel points at; the pane's parts are built further down */
+        TourAnchors.register("model_editor.preview", () -> this.renderer);
+        TourAnchors.register("model_editor.settings", () -> this.pane);
+        TourAnchors.register("model_editor.bones", () -> this.tabs.getTab(Tab.BONES.ordinal()));
 
         this.renderer = new UIModelEditorRenderer()
-            .target(() -> this.activeSlot == null ? null : this.targets.get(this.activeSlot))
-            .onBoneClick(this::selectBone)
-            .onViewChange(() ->
-            {
-                this.layoutPanes();
-                this.resize();
-            });
+            .target(this::shownTarget)
+            .onBoneClick(this::selectBone);
         this.renderer.form = this.form;
 
-        /* Three panes: settings, the preview, the bones. The outer two keep at least 160px each, and
-         * so does the preview between them — each splitter's range follows the editor's width and
-         * the other pane. */
-        Runnable relayout = () ->
+        /* Two panes: the settings and the preview, each keeping at least 160px. */
+        this.splitter = new UISplitter("model_editor.split", false, 280);
+        this.splitter.measure(this.editor).range(160, () -> (float) (this.editor.area.w - 160)).onChange(() ->
         {
             this.layoutPanes();
             this.resize();
-        };
+        });
 
-        this.splitter = new UISplitter("model_editor.split", false, 200);
-        this.splitter.measure(this.editor).range(160, () -> (float) (this.editor.area.w - 160 - this.bonesSplitter.getPixels())).onChange(relayout);
-
-        this.bonesSplitter = new UISplitter("model_editor.bones_split", false, 180).fromEnd();
-        this.bonesSplitter.measure(this.editor).range(160, () -> (float) (this.editor.area.w - 160 - this.splitter.getPixels())).onChange(relayout);
-
-        this.bonesPane = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
+        this.createTabs();
         this.layoutPanes();
 
         this.miniPreview = new UIElement()
@@ -267,9 +274,10 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.miniPreview.relative(this.renderer).x(1F, -6).y(6).wh(64, 64).anchor(1F, 0F);
         this.renderer.add(this.miniPreview);
 
-        this.editor.add(this.general, this.renderer, this.bonesPane, this.splitter, this.bonesSplitter);
+        this.editor.add(this.pane, this.renderer, this.splitter);
 
-        this.createSections();
+        this.createPages();
+        this.showTab(lastTab);
 
         this.openOverlay.tooltip(UIKeys.FORMS_EDITOR_MODEL_PICK_MODEL);
 
@@ -282,18 +290,10 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.animationIcon = new UIIcon(Icons.PLAY, (b) -> this.openAnimations());
         this.animationIcon.tooltip(UIKeys.MODEL_EDITOR_ANIMATION_PLAY);
 
-        this.firstPersonIcon = new UIIcon(Icons.LOOKING, (b) -> this.renderer.setFirstPerson(!this.renderer.isFirstPerson()));
-        this.firstPersonIcon.tooltip(UIKeys.MODEL_EDITOR_FIRST_PERSON_SHOW);
-
-        this.equipmentIcon = new UIIcon(Icons.ARMOR_CHESTPLATE, (b) -> this.renderer.setEquipment(!this.renderer.hasEquipment()));
-        this.equipmentIcon.tooltip(UIKeys.MODEL_EDITOR_PREVIEW_EQUIPMENT);
-
         this.actions()
             .action(this.folderIcon)
             .action(this.historyIcon)
-            .action(this.animationIcon)
-            .action(this.equipmentIcon, this.renderer::hasEquipment)
-            .action(this.firstPersonIcon, this.renderer::isFirstPerson);
+            .action(this.animationIcon);
 
         this.mountLanding();
 
@@ -304,28 +304,104 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.fill(null);
     }
 
+    /* Tabs. The strip is the dock stacks' one — square icons, the name on a card under the cursor, the
+     * open one marked by the bar at its bottom edge. */
+
+    private void createTabs()
+    {
+        this.tabs = new UITabStrip(ScrollDirection.HORIZONTAL)
+        {
+            @Override
+            protected boolean pressTab(int index, UIContext context)
+            {
+                UIModelEditorPanel.this.openTab(TABS[index]);
+
+                return true;
+            }
+        };
+        this.tabs.fixed();
+        this.tabs.background(BBSSettings::chromeSurface);
+        this.tabs.activeEdge(Direction.BOTTOM);
+        this.tabs.active(() -> lastTab.ordinal());
+        this.tabs.hoverLabels((index) -> TABS[index].label);
+
+        for (Tab tab : TABS)
+        {
+            UIIcon icon = new UIIcon(tab.icon, null);
+
+            /* Stays white under the cursor: the label card is the hover cue here */
+            icon.hoverColor(Colors.WHITE).wh(TABS_HEIGHT, TABS_HEIGHT);
+            this.tabs.addTab(icon);
+        }
+
+        this.tabs.relative(this.pane).x(0).y(0).w(1F).h(TABS_HEIGHT);
+        this.pane.add(this.tabs);
+
+        for (Tab tab : TABS)
+        {
+            UIScrollView page = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
+
+            page.relative(this.pane).x(0).y(TABS_HEIGHT).w(1F).h(1F, -TABS_HEIGHT);
+            this.pages[tab.ordinal()] = page;
+            this.pane.add(page);
+        }
+    }
+
+    private UIScrollView page(Tab tab)
+    {
+        return this.pages[tab.ordinal()];
+    }
+
+    /** Open a page: it's the one shown, and the preview follows it. */
+    private void openTab(Tab tab)
+    {
+        this.showTab(tab);
+        this.layoutPanes();
+        this.resize();
+    }
+
     /**
-     * Three panes in the orbit view. In the first-person view the bones pane steps aside and the preview
-     * becomes the game's frame: a rectangle of the game window's proportions, letterboxed into the room
-     * past the settings — the hand sits where the game puts it (the lower right of the window), which a
-     * narrower frame would cut off, and a wider one would misplace.
+     * The page decides the preview: the armor is worn only on the armor page and the items held only
+     * on the items page (so each is seen against the bare model), the first-person page is the
+     * first-person view, and the model sneaks on the poses page — so the sneaking pose is what's
+     * being edited, the way the animator applies it in play.
+     */
+    private void showTab(Tab tab)
+    {
+        lastTab = tab;
+
+        for (Tab other : TABS)
+        {
+            this.page(other).setVisible(other == tab);
+        }
+
+        this.renderer.setFirstPerson(tab == Tab.FIRST_PERSON);
+        this.renderer.setEquipment(tab == Tab.ARMOR, tab == Tab.ITEMS);
+        this.renderer.getEntity().setSneaking(tab == Tab.POSES);
+    }
+
+    private void cycleTab(int direction)
+    {
+        this.openTab(TABS[Math.floorMod(lastTab.ordinal() + direction, TABS.length)]);
+        UIUtils.playClick();
+    }
+
+    /**
+     * Two panes in the orbit view. In the first-person view the preview becomes the game's frame:
+     * a rectangle of the game window's proportions, letterboxed into the room past the settings —
+     * the hand sits where the game puts it (the lower right of the window), which a narrower frame
+     * would cut off, and a wider one would misplace.
      */
     private void layoutPanes()
     {
         int splitWidth = this.splitter.getPixels();
-        boolean firstPerson = this.renderer.isFirstPerson();
-        int bonesWidth = firstPerson ? 0 : this.bonesSplitter.getPixels();
 
-        this.general.relative(this.editor).x(0).y(0).w(splitWidth).h(1F);
+        this.pane.relative(this.editor).x(0).y(0).w(splitWidth).h(1F);
         this.splitter.relative(this.editor).x(splitWidth).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
-        this.bonesPane.relative(this.editor).x(1F, -bonesWidth).y(0).w(bonesWidth).h(1F);
-        this.bonesSplitter.relative(this.editor).x(1F, -bonesWidth).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
-        this.bonesPane.setVisible(!firstPerson);
-        this.bonesSplitter.setVisible(!firstPerson);
 
-        if (!firstPerson)
+        if (!this.renderer.isFirstPerson())
         {
-            this.renderer.relative(this.editor).x(splitWidth).y(0).w(1F, -splitWidth - bonesWidth).h(1F);
+            this.renderer.relative(this.editor).x(splitWidth).y(0).w(1F, -splitWidth).h(1F);
 
             return;
         }
@@ -346,10 +422,22 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.renderer.relative(this.editor).x(splitWidth + (roomW - w) / 2).y((roomH - h) / 2).w(w).h(h);
     }
 
-    /** The first-person frame is sized in pixels off the editor's area, so it's laid out again after every pass. */
+    /**
+     * The pose editor's arrangement follows the pane's width (two columns once it's wide enough, the
+     * form editor's rule), and the first-person frame is sized in pixels off the editor's area, so
+     * it's laid out again after every pass.
+     */
     @Override
     public void resize()
     {
+        boolean wide = this.splitter.getPixels() > UIPoseEditor.WIDE_WIDTH;
+
+        if (this.wide != wide)
+        {
+            this.wide = wide;
+            this.poseEditor.buildLayout(wide);
+        }
+
         super.resize();
 
         if (this.renderer.isFirstPerson())
@@ -359,12 +447,13 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
     }
 
-
     private void registerKeybinds()
     {
         IKey category = UIKeys.MODEL_EDITOR_TITLE;
         Supplier<Boolean> open = () -> this.data != null;
 
+        this.keys().register(Keys.MODEL_EDITOR_NEXT_TAB, () -> this.cycleTab(1)).active(open).category(category);
+        this.keys().register(Keys.MODEL_EDITOR_PREV_TAB, () -> this.cycleTab(-1)).active(open).category(category);
         this.keys().register(Keys.MODEL_EDITOR_EXPAND_ALL, () -> this.setAllExpanded(true)).active(open).category(category);
         this.keys().register(Keys.MODEL_EDITOR_COLLAPSE_ALL, () -> this.setAllExpanded(false)).active(open).category(category);
         this.keys().register(Keys.MODEL_EDITOR_FIND_BONE, this::findBone).active(open).category(category);
@@ -378,14 +467,14 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             section.setExpanded(expanded);
         }
 
-        this.resizeGeneral();
-        this.resizeBones();
+        this.resizePage(Tab.GENERAL);
         UIUtils.playClick();
     }
 
-    /** Ctrl+F: drop the caret straight into the bone tree's search box. */
+    /** Ctrl+F: the bones page, with the caret in the tree's search box. */
     private void findBone()
     {
+        this.openTab(Tab.BONES);
         this.getContext().focus(this.bonesSearch.search);
         UIUtils.playClick();
     }
@@ -519,11 +608,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
 
         this.setupUndo(data);
-        this.fillSections(data);
+        this.fillAll(data);
 
         boolean open = data != null;
 
-        for (UIIcon icon : new UIIcon[] {this.folderIcon, this.historyIcon, this.animationIcon, this.equipmentIcon, this.firstPersonIcon})
+        for (UIIcon icon : new UIIcon[] {this.folderIcon, this.historyIcon, this.animationIcon})
         {
             if (icon != null)
             {
@@ -592,14 +681,14 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     /**
      * An undo/redo restores config values straight through {@code fromData}, which the static widgets and
-     * baked geometry don't track. Re-derive the config's caches, re-bake the instance and refill the sections
+     * baked geometry don't track. Re-derive the config's caches, re-bake the instance and refill the pages
      * so the whole editor reflects the restored state.
      */
     private void afterUndo()
     {
         this.data.rebuild();
         this.refresh();
-        this.fillSections(this.data);
+        this.fillAll(this.data);
     }
 
     private void openModelFolder()
@@ -656,121 +745,45 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
     }
 
-    /** The slot the viewport gizmo is on; a first-person slot switches the preview to the first-person view, any other back. */
-    private void activate(ArmorSlotValue slot, ModelSlotKind kind)
-    {
-        this.activeSlot = slot;
-        this.renderer.setFirstPerson(kind.firstPerson);
-    }
+    /* Page scaffolding. Built once here; only the bodies below get refilled. */
 
-    /* Section scaffolding. Built once here; only the bodies below get refilled. */
-
-    private void createSections()
+    private void createPages()
     {
+        /* General: the plain settings in a few folded sections. */
         this.generalSection = this.section(UIKeys.FORMS_EDITORS_GENERAL, true);
         this.generalBody = this.body();
         this.generalSection.fields.add(this.generalBody);
 
-        /* Held items: one list at a time, the hand picked by a tab strip. */
-        this.itemsSection = this.section(UIKeys.MODEL_EDITOR_ITEMS, false);
-        this.itemsTabs = new UITabStrip(ScrollDirection.HORIZONTAL)
-        {
-            @Override
-            protected boolean pressTab(int index, UIContext context)
-            {
-                this.select(index);
+        this.renderSection = this.section(UIKeys.MODEL_EDITOR_RENDER, true);
+        this.renderBody = this.body();
+        this.renderSection.fields.add(this.renderBody);
 
-                return true;
-            }
-        };
-        this.itemsTabs.fixed();
-        this.itemsTabs.active(() -> this.offHand ? 1 : 0);
-        this.itemsTabs.onSelect((index) ->
-        {
-            this.offHand = index == 1;
-            this.itemList.deselect();
-            this.fillItems();
-        });
-        this.itemsTabs.addTab(new UITextTab(UIKeys.MODEL_EDITOR_ITEMS_MAIN)).w(70).h(UIConstants.CONTROL_HEIGHT);
-        this.itemsTabs.addTab(new UITextTab(UIKeys.MODEL_EDITOR_ITEMS_OFF)).w(70).h(UIConstants.CONTROL_HEIGHT);
-        this.itemsTabs.h(UIConstants.CONTROL_HEIGHT);
-
-        /* The slots of the shown hand as a list — the same shape as the welds — with the picked slot's
-         * bone and transform under it; picking a slot also puts it on the viewport gizmo. */
-        this.itemList = new UIEntryList<>((list) -> this.pickItem(), (slot) -> slot.isActive() ? slot.group.get() : "?");
-        this.itemList.h(UIStringList.DEFAULT_HEIGHT * 4);
-        this.itemList.context((menu) ->
-        {
-            ArmorSlotValue slot = this.itemList.getAtCursor(this.getContext());
-
-            if (slot != null)
-            {
-                this.itemList.setCurrent(slot);
-                this.pickItem();
-                menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_ITEM_DUPLICATE, () -> this.duplicateItem(slot));
-                menu.icon(MenuVerb.REMOVE, () -> this.removeItem(slot)).label(UIKeys.MODEL_EDITOR_ITEM_REMOVE);
-            }
-        });
-
-        UIIcon addItem = new UIIcon(Icons.ADD, (b) -> this.addItem());
-
-        addItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_ADD);
-        this.dupeItem = new UIIcon(Icons.DUPE, (b) -> this.duplicateItem(this.itemList.getCurrentFirst()));
-        this.dupeItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_DUPLICATE);
-        this.removeItem = new UIIcon(Icons.REMOVE, (b) -> this.removeItem(this.itemList.getCurrentFirst()));
-        this.removeItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_REMOVE);
-
-        this.itemPanel = this.body();
-        this.itemsSection.fields.add(this.itemsTabs, this.strip(addItem, this.dupeItem, this.removeItem), this.itemList, this.itemPanel);
-
-        /* Armor: one region at a time, its pieces below. */
-        this.armorSection = this.section(UIKeys.MODEL_EDITOR_ARMOR, false);
-        this.armorBody = this.body();
-
-        UIIcons regions = new UIIcons((b) ->
-        {
-            this.armorRegion = b.getValue();
-            this.fillArmor();
-        });
-
-        regions.add(Icons.ARMOR_HELMET, UIKeys.MODEL_EDITOR_ARMOR_HELMET);
-        regions.add(Icons.ARMOR_CHESTPLATE, UIKeys.MODEL_EDITOR_ARMOR_CHEST);
-        regions.add(Icons.ARMOR_LEGGINGS, UIKeys.MODEL_EDITOR_ARMOR_LEGGINGS);
-        regions.add(Icons.ARMOR_BOOTS, UIKeys.MODEL_EDITOR_ARMOR_BOOTS);
-        regions.setValue(this.armorRegion);
-
-        this.armorSection.fields.add(regions, this.armorBody);
-
-        this.firstPersonSection = this.section(UIKeys.MODEL_EDITOR_FIRST_PERSON, false);
-        this.firstPersonBody = this.body();
-        this.firstPersonSection.fields.add(this.firstPersonBody);
+        this.sizeSection = this.section(UIKeys.MODEL_EDITOR_SIZE, true);
+        this.sizeBody = this.body();
+        this.sizeSection.fields.add(this.sizeBody);
 
         this.lookAtSection = this.section(UIKeys.MODEL_EDITOR_LOOK_AT, false);
         this.lookAtBody = this.body();
         this.lookAtSection.fields.add(this.lookAtBody);
 
-        this.sneakingSection = this.section(UIKeys.MODEL_EDITOR_SNEAKING, false);
-        this.sneakingBody = this.body();
-        this.sneakingSection.fields.add(this.sneakingBody);
+        this.sections = new UISection[] {this.generalSection, this.renderSection, this.sizeSection, this.lookAtSection};
+        this.page(Tab.GENERAL).add(this.sections);
 
-        this.general.add(this.generalSection, this.itemsSection, this.armorSection, this.firstPersonSection, this.lookAtSection, this.sneakingSection);
-
-        /* The right pane: the bone tree with the picked bone's settings under it — no header, it IS the
-         * pane — and the welds section below. The tree takes whatever height the pane has left after the
-         * rest; the ask is a floor, not the wish (a tall floor would refuse to give the welds their room). */
+        /* Bones: the tree with the picked bone's settings under it — no header, it IS the page. The tree
+         * takes whatever height the page has left after the rest; the ask is a floor, not the wish. */
         this.bones = new UIModelBoneList((list) -> this.fillBone(), () -> this.data == null ? null : this.data.disabledBones, this::fillBone);
         this.bones.markers(this::boneMarkers, UIKeys.MODEL_EDITOR_BONES_LEGEND);
         this.bonesSearch = new UISearchList<>(this.bones);
         this.bonesSearch.label(UIKeys.GENERAL_SEARCH);
         this.bonesSearch.h(UIStringList.DEFAULT_HEIGHT * 8 - 8).expand();
         this.bonePanel = this.body();
+        this.page(Tab.BONES).add(this.bonesSearch, this.bonePanel);
 
         /* Welds: the add/duplicate/remove strip over the list, the replay list's idiom — now that a weld
          * is picked rather than edited inline, the strip's verbs have something to act on. The add icon
          * pastes a copied weld as a new one on right click. */
-        this.weldsSection = this.section(UIKeys.MODEL_EDITOR_WELDS, false);
         this.weldList = new UIEntryList<>((list) -> this.fillWeld(), UIModelEditorPanel::weldName).broken((weld) -> this.diagnoseWeld(weld) != null);
-        this.weldList.h(120);
+        this.weldList.h(UIStringList.DEFAULT_HEIGHT * 4).expand();
         this.weldList.context((menu) ->
         {
             WeldValue weld = this.weldList.getAtCursor(this.getContext());
@@ -793,20 +806,91 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.removeWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_REMOVE);
 
         this.weldPanel = this.body();
-        this.weldsSection.fields.add(this.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldPanel);
+        this.page(Tab.WELDS).add(this.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldPanel);
 
-        this.bonesPane.add(this.bonesSearch, this.bonePanel, this.weldsSection);
+        /* Armor: every piece the config can place, one row each, named by the piece. */
+        this.armor = new SlotBlock((slot) -> ModelSlotKind.ARMOR, (slot) -> this.armorTypeLabel(this.armorTypeOf(slot)), () -> this.armorSlots());
+        this.page(Tab.ARMOR).add(this.armor.list, this.armor.panel);
 
-        this.sections = new UISection[]
+        /* Held items: one hand at a time, picked by a tab strip, its slots editable. */
+        this.itemsTabs = new UITabStrip(ScrollDirection.HORIZONTAL)
         {
-            this.generalSection,
-            this.itemsSection,
-            this.armorSection,
-            this.firstPersonSection,
-            this.lookAtSection,
-            this.sneakingSection,
-            this.weldsSection
+            @Override
+            protected boolean pressTab(int index, UIContext context)
+            {
+                this.select(index);
+
+                return true;
+            }
         };
+        this.itemsTabs.fixed();
+        this.itemsTabs.active(() -> this.offHand ? 1 : 0);
+        this.itemsTabs.onSelect((index) ->
+        {
+            this.offHand = index == 1;
+            this.items.list.deselect();
+            this.fillItems();
+        });
+        this.itemsTabs.addTab(new UITextTab(UIKeys.MODEL_EDITOR_ITEMS_MAIN)).w(70).h(UIConstants.CONTROL_HEIGHT);
+        this.itemsTabs.addTab(new UITextTab(UIKeys.MODEL_EDITOR_ITEMS_OFF)).w(70).h(UIConstants.CONTROL_HEIGHT);
+        this.itemsTabs.h(UIConstants.CONTROL_HEIGHT);
+
+        this.items = new SlotBlock((slot) -> this.itemsKind(), null, () -> this.itemsList().getAllTyped());
+        this.items.list.context((menu) ->
+        {
+            ArmorSlotValue slot = this.items.list.getAtCursor(this.getContext());
+
+            if (slot != null)
+            {
+                this.items.list.setCurrent(slot);
+                this.items.fill();
+                menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_ITEM_DUPLICATE, () -> this.duplicateItem(slot));
+                menu.icon(MenuVerb.REMOVE, () -> this.removeItem(slot)).label(UIKeys.MODEL_EDITOR_ITEM_REMOVE);
+            }
+        });
+
+        UIIcon addItem = new UIIcon(Icons.ADD, (b) -> this.addItem());
+
+        addItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_ADD);
+        this.dupeItem = new UIIcon(Icons.DUPE, (b) -> this.duplicateItem(this.items.list.getCurrentFirst()));
+        this.dupeItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_DUPLICATE);
+        this.removeItem = new UIIcon(Icons.REMOVE, (b) -> this.removeItem(this.items.list.getCurrentFirst()));
+        this.removeItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_REMOVE);
+        this.items.onFill = () ->
+        {
+            boolean picked = this.items.list.getCurrentFirst() != null;
+
+            this.dupeItem.setEnabled(picked);
+            this.removeItem.setEnabled(picked);
+        };
+
+        this.page(Tab.ITEMS).add(this.itemsTabs, this.strip(addItem, this.dupeItem, this.removeItem), this.items.list, this.items.panel);
+
+        /* First person: the two hands as two rows. */
+        this.firstPerson = new SlotBlock(
+            (slot) -> slot == this.data.fpMain ? ModelSlotKind.FIRST_PERSON_MAIN : ModelSlotKind.FIRST_PERSON_OFF,
+            (slot) -> slot == this.data.fpMain ? UIKeys.MODEL_EDITOR_ITEMS_MAIN : UIKeys.MODEL_EDITOR_ITEMS_OFF,
+            () -> List.of(this.data.fpMain, this.data.fpOffhand)
+        );
+        this.firstPerson.list.h(UIStringList.DEFAULT_HEIGHT * 2).expand(false);
+        this.page(Tab.FIRST_PERSON).add(this.firstPerson.list, this.firstPerson.panel);
+
+        /* Poses: the config's poses (the sneaking one, for now) over the form editor's pose editor, bound
+         * to the picked one. The presets menu of the editor's bone list is where a pose is loaded from
+         * and saved to; the row's own menu clears it. */
+        this.poseList = new UIStringList(null);
+        this.poseList.background();
+        this.poseList.h(UIStringList.DEFAULT_HEIGHT * 2);
+        this.poseList.context((menu) ->
+        {
+            if (this.data != null)
+            {
+                menu.icon(MenuVerb.REMOVE, this::clearPose).label(UIKeys.MODEL_EDITOR_SNEAKING_CLEAR);
+            }
+        });
+        this.poseEditor = new UIModelPoseEditor();
+        this.poseEditor.transform.barBackground();
+        this.page(Tab.POSES).add(this.poseList, this.poseEditor);
     }
 
     private UISection section(IKey title, boolean defaultExpanded)
@@ -818,7 +902,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         return section;
     }
 
-    /** A vertical container inside a section that gets emptied and refilled on its own; registered for clearBodies(). */
+    /** A vertical container that gets emptied and refilled on its own; registered for clearBodies(). */
     private UIElement body()
     {
         UIElement body = new UIElement();
@@ -858,23 +942,15 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         return face.isEmpty() ? name : name + "/" + face;
     }
 
-    /* Filling. fillSections() is the "a different model is open" path; the individual fillX() methods are
+    /* Filling. fillAll() is the "a different model is open" path; the individual fillX() methods are
      * what a list mutation calls, so an add or a remove only touches its own container. */
 
-    private void fillSections(ModelConfig config)
+    private void fillAll(ModelConfig config)
     {
-        this.targets.clear();
-
-        if (config != this.filled)
-        {
-            this.filled = config;
-            this.activeSlot = null;
-        }
-
         if (config == null)
         {
             /* The base class hides the whole editor pane when no model is open; empty the bodies too so
-             * the sections don't keep the closed model's config (and its widgets) alive. */
+             * the pages don't keep the closed model's config (and its widgets) alive. */
             this.clearBodies();
 
             return;
@@ -885,21 +961,20 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         try
         {
             this.fillGeneral();
+            this.fillLookAt();
             this.fillItems();
             this.fillArmor();
             this.fillFirstPerson();
-            this.fillLookAt();
-            this.fillSneaking();
             this.fillWelds();
             this.fillBones();
+            this.fillPoses();
         }
         finally
         {
             this.bulkFill = false;
         }
 
-        this.resizeGeneral();
-        this.resizeBones();
+        this.resizePages();
     }
 
     private void clearBodies()
@@ -915,60 +990,52 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
             this.bones.fill(null);
             this.weldList.clear();
-            this.itemList.clear();
+            this.armor.set(Collections.emptyList());
+            this.items.set(Collections.emptyList());
+            this.firstPerson.set(Collections.emptyList());
+            this.poseList.clear();
+            this.poseEditor.setPose(new Pose(), "");
+            this.poseEditor.fillGroups(null, null, true, null);
             this.fillBone();
             this.fillWeld();
-            this.fillItem();
         }
         finally
         {
             this.bulkFill = false;
         }
 
-        this.general.resize();
-        this.bonesPane.resize();
+        this.resizePages();
+    }
+
+    private void resizePages()
+    {
+        for (UIScrollView page : this.pages)
+        {
+            page.resize();
+            page.scroll.clamp();
+        }
     }
 
     /**
-     * Re-layout the settings pane after a body changed height, keeping the scroll inside its new bounds.
-     * Suppressed while every section is being refilled at once, so that costs one layout pass, not nine.
+     * Re-layout a page after a body changed height, keeping the scroll inside its new bounds.
+     * Suppressed while every page is being refilled at once, so that costs one layout pass, not nine.
      */
-    private void resizeGeneral()
+    private void resizePage(Tab tab)
     {
         if (this.bulkFill)
         {
             return;
         }
 
-        this.general.resize();
-        this.general.scroll.clamp();
-    }
+        UIScrollView page = this.page(tab);
 
-    /** Same, for the right pane. */
-    private void resizeBones()
-    {
-        if (this.bulkFill)
-        {
-            return;
-        }
-
-        this.bonesPane.resize();
-        this.bonesPane.scroll.clamp();
-    }
-
-    /** {@code base} with a "(n)" suffix when non-zero, so a folded section still shows how much it holds. */
-    private void countTitle(UISection section, IKey base, int count)
-    {
-        section.title(count > 0 ? IKey.constant(base.get() + " (" + count + ")") : base);
+        page.resize();
+        page.scroll.clamp();
     }
 
     private void fillGeneral()
     {
         ModelConfig config = this.data;
-
-        UITrackpad uiScale = this.trackpad(() -> this.data.uiScale, null);
-
-        uiScale.limit(config.uiScale).delayedInput();
 
         UITextbox poseGroup = UIValues.textbox(10000, () -> this.data.poseGroup);
 
@@ -982,17 +1049,29 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.generalBody.removeAll();
         this.generalBody.add(
-            this.toggle(UIKeys.MODEL_EDITOR_PROCEDURAL, () -> this.data.procedural, this::refresh),
-            this.toggle(UIKeys.MODEL_EDITOR_CULLING, () -> this.data.culling, null),
-            this.toggle(UIKeys.MODEL_EDITOR_ON_CPU, () -> this.data.onCpu, this::refresh),
-            UI.labelRow(UIKeys.MODEL_EDITOR_UI_SCALE, uiScale),
-            UI.label(UIKeys.MODEL_EDITOR_SCALE), UI.row(this.component(config.scale, 0), this.component(config.scale, 1), this.component(config.scale, 2)),
             UI.labelRow(UIKeys.MODEL_EDITOR_POSE_GROUP, poseGroup),
             UI.labelRow(UIKeys.MODEL_EDITOR_ANCHOR, anchor),
             UI.labelRow(UIKeys.MODEL_EDITOR_TEXTURE, texture)
         );
 
-        this.resizeGeneral();
+        this.renderBody.removeAll();
+        this.renderBody.add(
+            this.toggle(UIKeys.MODEL_EDITOR_PROCEDURAL, () -> this.data.procedural, this::refresh),
+            this.toggle(UIKeys.MODEL_EDITOR_CULLING, () -> this.data.culling, null),
+            this.toggle(UIKeys.MODEL_EDITOR_ON_CPU, () -> this.data.onCpu, this::refresh)
+        );
+
+        UITrackpad uiScale = this.trackpad(() -> this.data.uiScale, null);
+
+        uiScale.limit(config.uiScale).delayedInput();
+
+        this.sizeBody.removeAll();
+        this.sizeBody.add(
+            UI.labelRow(UIKeys.MODEL_EDITOR_UI_SCALE, uiScale),
+            UI.label(UIKeys.MODEL_EDITOR_SCALE), UI.row(this.component(config.scale, 0), this.component(config.scale, 1), this.component(config.scale, 2))
+        );
+
+        this.resizePage(Tab.GENERAL);
     }
 
     private void fillLookAt()
@@ -1019,86 +1098,135 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             UI.labelRow(UIKeys.MODEL_EDITOR_LOOK_AT_LIMIT, limit)
         );
 
-        this.countTitle(this.lookAtSection, UIKeys.MODEL_EDITOR_LOOK_AT, config.lookAt.isActive() ? 1 : 0);
-        this.resizeGeneral();
+        this.resizePage(Tab.GENERAL);
     }
 
     /* Attachment slots (items in hand, armor, first-person) — a bone plus a transform, the transform on the
-     * viewport gizmo when the slot is the active one. */
+     * viewport gizmo when the slot is the picked one of the open page. */
 
-    private ModelConfig.ItemSlotList itemsList()
+    /**
+     * A "list + settings" block over attachment slots — what the armor, the held items and the
+     * first-person pages are, told apart only by where their slots come from: a fixed set with a
+     * name per slot (the armor pieces, the two hands) or the editable list of a hand (the items).
+     * The picked slot's bone and transform sit under the list; with nothing picked the same fields
+     * stand empty and disabled, so the page keeps its height and the scroll doesn't jump on a pick.
+     */
+    private class SlotBlock
     {
-        return this.data == null ? null : this.offHand ? this.data.itemsOff : this.data.itemsMain;
-    }
+        public final UIEntryList<ArmorSlotValue> list;
+        public final UIElement panel;
 
-    private ModelSlotKind itemsKind()
-    {
-        return this.offHand ? ModelSlotKind.ITEM_OFF : ModelSlotKind.ITEM_MAIN;
-    }
+        /** The picked slot on the viewport gizmo; null with nothing picked. */
+        public ModelSlotTarget target;
 
-    /** The shown hand's slots; the list keeps its pick across a refill (slots are compared by identity). */
-    private void fillItems()
-    {
-        ModelConfig config = this.data;
+        /** Runs after every fill, for whatever the host keeps in step with the pick (the items' verb strip). */
+        public Runnable onFill;
 
-        if (config == null)
+        private final Function<ArmorSlotValue, ModelSlotKind> kinds;
+        private final Function<ArmorSlotValue, IKey> labels;
+        private final Supplier<List<ArmorSlotValue>> source;
+
+        /**
+         * @param kinds  what kind of attachment a slot is
+         * @param labels the name a row carries besides the bone, null for rows that are the bone alone
+         * @param source the slots to list, asked again on every refill
+         */
+        public SlotBlock(Function<ArmorSlotValue, ModelSlotKind> kinds, Function<ArmorSlotValue, IKey> labels, Supplier<List<ArmorSlotValue>> source)
         {
-            return;
+            this.kinds = kinds;
+            this.labels = labels;
+            this.source = source;
+
+            this.list = new UIEntryList<>((picked) -> this.fill(), this::name);
+            this.list.h(UIStringList.DEFAULT_HEIGHT * 4).expand();
+            this.panel = UIModelEditorPanel.this.body();
         }
 
-        ArmorSlotValue picked = this.itemList.getCurrentFirst();
-
-        this.itemList.setList(new ArrayList<>(this.itemsList().getAllTyped()));
-
-        if (picked != null)
+        /** How a row reads: the bone, or "?" until one is picked, after the slot's own name when it has one. */
+        private String name(ArmorSlotValue slot)
         {
-            this.itemList.setCurrent(picked);
+            String bone = slot.isActive() ? slot.group.get() : "?";
+
+            return this.labels == null ? bone : this.labels.apply(slot).get() + ": " + bone;
         }
 
-        this.countTitle(this.itemsSection, UIKeys.MODEL_EDITOR_ITEMS, config.getItemsMain().size() + config.getItemsOff().size());
-        this.fillItem();
-    }
-
-    /** A slot picked in the list goes on the viewport gizmo, and its settings come up. */
-    private void pickItem()
-    {
-        ArmorSlotValue slot = this.itemList.getCurrentFirst();
-
-        if (slot != null)
+        /** Re-list the slots from the source, keeping the pick (slots are compared by identity). */
+        public void refill()
         {
-            this.activate(slot, this.itemsKind());
+            this.set(this.source.get());
         }
 
-        this.fillItem();
-    }
+        public void set(List<ArmorSlotValue> slots)
+        {
+            ArmorSlotValue picked = this.list.getCurrentFirst();
 
-    /** The picked slot's settings — its bone and transform; empty and disabled with nothing picked. */
-    private void fillItem()
-    {
-        ArmorSlotValue picked = this.data == null ? null : this.itemList.getCurrentFirst();
-        ArmorSlotValue slot = picked == null ? new ArmorSlotValue("") : picked;
+            this.list.setList(new ArrayList<>(slots));
 
-        this.dupeItem.setEnabled(picked != null);
-        this.removeItem.setEnabled(picked != null);
-
-        this.itemPanel.removeAll();
-        this.itemPanel.add(
-            this.bonePicker(slot.group::get, slot.group::set, () ->
+            if (picked != null)
             {
-                this.data.rebuild();
-                this.fillItems();
-            }),
-            this.slotTransform(slot, this.itemsKind())
-        );
-        this.setEnabledDeep(this.itemPanel, picked != null);
+                this.list.setCurrent(picked);
+            }
 
-        this.resizeGeneral();
+            this.fill();
+        }
+
+        /** The picked slot's settings — its bone and transform. */
+        public void fill()
+        {
+            ArmorSlotValue picked = UIModelEditorPanel.this.data == null ? null : this.list.getCurrentFirst();
+            ArmorSlotValue slot = picked == null ? new ArmorSlotValue("") : picked;
+            ModelSlotKind kind = picked == null ? ModelSlotKind.ARMOR : this.kinds.apply(picked);
+            UIPropTransform transform = UIModelEditorPanel.this.slotTransform(slot, kind);
+
+            this.target = picked == null ? null : new ModelSlotTarget(slot, kind, transform);
+
+            this.panel.removeAll();
+            this.panel.add(
+                UIModelEditorPanel.this.bonePicker(slot.group::get, slot.group::set, () ->
+                {
+                    UIModelEditorPanel.this.data.rebuild();
+                    this.refill();
+                }),
+                transform
+            );
+            UIModelEditorPanel.this.setEnabledDeep(this.panel, picked != null);
+
+            if (this.onFill != null)
+            {
+                this.onFill.run();
+            }
+
+            UIModelEditorPanel.this.resizePage(UIModelEditorPanel.this.tabOf(this));
+        }
+    }
+
+    /** The block on the open page, if it's a slot page; its picked slot is the one on the gizmo. */
+    private SlotBlock shownBlock()
+    {
+        return switch (lastTab)
+        {
+            case ARMOR -> this.armor;
+            case ITEMS -> this.items;
+            case FIRST_PERSON -> this.firstPerson;
+            default -> null;
+        };
+    }
+
+    private ModelSlotTarget shownTarget()
+    {
+        SlotBlock block = this.shownBlock();
+
+        return block == null ? null : block.target;
+    }
+
+    private Tab tabOf(SlotBlock block)
+    {
+        return block == this.armor ? Tab.ARMOR : block == this.items ? Tab.ITEMS : Tab.FIRST_PERSON;
     }
 
     /**
      * A slot's transform editor: edits go through the value's notify, so the undo handler catches them,
-     * and the runtime reads a copy of the transform, so it's rebuilt after every step of a drag. Registered
-     * as the slot's gizmo target — the viewport asks for the active slot's editor by the slot.
+     * and the runtime reads a copy of the transform, so it's rebuilt after every step of a drag.
      */
     private UIPropTransform slotTransform(ArmorSlotValue slot, ModelSlotKind kind)
     {
@@ -1115,67 +1243,38 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         );
         transform.setTransform(slot.transform.get());
 
-        ModelSlotTarget target = new ModelSlotTarget(slot, kind, transform);
-
-        /* G/R/S start a gesture on the active slot without touching a handle — the way the arrows are
+        /* G/R/S start a gesture on the shown slot without touching a handle — the way the arrows are
          * used everywhere else, with the handles hidden in the settings. Only the slot the viewport is
          * showing listens, or the keys would edit a slot that isn't on screen. */
-        transform.hotkeyDrag(() -> this.renderer.buildGizmoDrag(target));
-        transform.enableHotkeys(() -> this.activeSlot == slot && this.renderer.isFirstPerson() == kind.firstPerson);
-        this.targets.put(slot, target);
+        transform.hotkeyDrag(() ->
+        {
+            ModelSlotTarget target = this.shownTarget();
+
+            return target == null ? null : this.renderer.buildGizmoDrag(target);
+        });
+        transform.enableHotkeys(() ->
+        {
+            ModelSlotTarget target = this.shownTarget();
+
+            return target != null && target.editor() == transform && this.renderer.isFirstPerson() == kind.firstPerson;
+        });
 
         return transform;
     }
 
-    /**
-     * A slot's row: its head (the bone picker) and, once it has a bone, its transform. A click anywhere in
-     * it makes the slot the active one — the one on the viewport gizmo — marked by a bar on the left; hovering
-     * it lights the slot's bone up in the preview.
-     */
-    private UIElement slotEntry(ArmorSlotValue slot, ModelSlotKind kind, UIElement head)
+    private ModelConfig.ItemSlotList itemsList()
     {
-        UIElement entry = new UIElement()
-        {
-            @Override
-            protected IUIElement childrenMouseClicked(UIContext context)
-            {
-                if (context.mouseButton == 0 && this.area.isInside(context))
-                {
-                    UIModelEditorPanel.this.activate(slot, kind);
-                }
+        return this.offHand ? this.data.itemsOff : this.data.itemsMain;
+    }
 
-                return super.childrenMouseClicked(context);
-            }
+    private ModelSlotKind itemsKind()
+    {
+        return this.offHand ? ModelSlotKind.ITEM_OFF : ModelSlotKind.ITEM_MAIN;
+    }
 
-            @Override
-            public void render(UIContext context)
-            {
-                if (UIModelEditorPanel.this.activeSlot == slot)
-                {
-                    context.batcher.box(this.area.x - 3, this.area.y, this.area.x - 1, this.area.ey(), BBSSettings.primaryColor(Colors.A100));
-                }
-
-                if (this.area.isInside(context))
-                {
-                    UIModelEditorPanel.this.renderer.highlight(slot.group.get());
-                }
-
-                super.render(context);
-            }
-        };
-
-        entry.column(UIConstants.MARGIN).vertical().stretch();
-        entry.add(head);
-
-        if (slot.isActive())
-        {
-            entry.add(this.slotTransform(slot, kind));
-
-            /* A block of fields wants air after it; a bare bone row reads as a list line and doesn't. */
-            entry.marginBottom(6);
-        }
-
-        return entry;
+    private void fillItems()
+    {
+        this.items.refill();
     }
 
     private void addItem()
@@ -1216,9 +1315,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         });
 
         this.data.rebuild();
-        this.itemList.setCurrent(slot);
         this.fillItems();
-        this.pickItem();
+        this.items.list.setCurrent(slot);
+        this.items.fill();
     }
 
     private void removeItem(ArmorSlotValue slot)
@@ -1236,13 +1335,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             list.sync();
         });
 
-        if (this.activeSlot == slot)
-        {
-            this.activeSlot = null;
-        }
-
         this.data.rebuild();
-        this.itemList.deselect();
+        this.items.list.deselect();
         this.fillItems();
     }
 
@@ -1254,36 +1348,34 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         return data.isMap() ? data.asMap() : null;
     }
 
-    private void fillArmor()
+    private List<ArmorSlotValue> armorSlots()
     {
-        ModelConfig config = this.data;
+        List<ArmorSlotValue> slots = new ArrayList<>();
 
-        if (config == null)
+        for (ArmorType type : ArmorType.values())
         {
-            return;
+            slots.add(this.data.armorSlots.slot(type));
         }
 
-        this.armorBody.removeAll();
-
-        for (ArmorType type : ARMOR_REGIONS[this.armorRegion])
-        {
-            ArmorSlotValue slot = config.armorSlots.slot(type);
-
-            this.armorBody.add(this.slotEntry(slot, ModelSlotKind.ARMOR, this.slotHead(this.armorTypeLabel(type), slot, this::fillArmor)));
-        }
-
-        this.countTitle(this.armorSection, UIKeys.MODEL_EDITOR_ARMOR, config.getArmorSlots().size());
-        this.resizeGeneral();
+        return slots;
     }
 
-    /** A labelled bone picker for a fixed slot; a pick rebuilds the config and refills the section, so the transform row follows the bone. */
-    private UIElement slotHead(IKey label, ArmorSlotValue slot, Runnable refill)
+    private ArmorType armorTypeOf(ArmorSlotValue slot)
     {
-        return UI.labelRow(label, this.bonePicker(slot.group::get, slot.group::set, () ->
+        for (ArmorType type : ArmorType.values())
         {
-            this.data.rebuild();
-            refill.run();
-        }));
+            if (this.data.armorSlots.slot(type) == slot)
+            {
+                return type;
+            }
+        }
+
+        return ArmorType.HELMET;
+    }
+
+    private void fillArmor()
+    {
+        this.armor.refill();
     }
 
     private IKey armorTypeLabel(ArmorType type)
@@ -1304,76 +1396,30 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void fillFirstPerson()
     {
-        ModelConfig config = this.data;
-
-        this.firstPersonBody.removeAll();
-        this.firstPersonBody.add(
-            this.slotEntry(config.fpMain, ModelSlotKind.FIRST_PERSON_MAIN, this.slotHead(UIKeys.MODEL_EDITOR_ITEMS_MAIN, config.fpMain, this::fillFirstPerson)),
-            this.slotEntry(config.fpOffhand, ModelSlotKind.FIRST_PERSON_OFF, this.slotHead(UIKeys.MODEL_EDITOR_ITEMS_OFF, config.fpOffhand, this::fillFirstPerson))
-        );
-
-        this.countTitle(this.firstPersonSection, UIKeys.MODEL_EDITOR_FIRST_PERSON,
-            (config.fpMain.isActive() ? 1 : 0) + (config.fpOffhand.isActive() ? 1 : 0));
-        this.resizeGeneral();
+        this.firstPerson.refill();
     }
 
-    /* The sneaking pose is picked from the model's pose presets rather than edited here. */
+    /* Poses: the sneaking pose is edited in place, on the model the animator applies it to in the preview. */
 
-    private void fillSneaking()
+    private void fillPoses()
     {
         ModelConfig config = this.data;
-        boolean has = !config.sneakingPose.get().isEmpty();
-        IEntity entity = this.renderer.getEntity();
 
-        this.sneakingBody.removeAll();
-        this.sneakingBody.add(new UIButton(has ? UIKeys.MODEL_EDITOR_SNEAKING_SET : UIKeys.MODEL_EDITOR_SNEAKING_PICK, (b) -> this.openPosePicker(config)));
+        this.poseList.setList(new ArrayList<>(List.of(UIKeys.MODEL_EDITOR_SNEAKING.get())));
+        this.poseList.setIndex(0);
 
-        if (has)
-        {
-            this.sneakingBody.add(new UIButton(UIKeys.MODEL_EDITOR_SNEAKING_CLEAR, (b) ->
-            {
-                config.sneakingPose.set(new Pose());
-                this.fillSneaking();
-            }));
-        }
+        this.poseEditor.setValuePose(config.sneakingPose);
+        this.poseEditor.setPose(config.sneakingPose.get(), this.bound.getPoseGroup());
+        this.poseEditor.fillGroups(this.bound.getModel(), this.bound.getFlippedParts(), true, this.bound.getDisabledBones());
 
-        /* Preview only: the entity sneaks, so the animator applies the pose the way it does in play. */
-        this.sneakingBody.add(new UIToggle(UIKeys.MODEL_EDITOR_SNEAKING_TRY, entity.isSneaking(), (t) -> entity.setSneaking(t.getValue())));
-
-        this.countTitle(this.sneakingSection, UIKeys.MODEL_EDITOR_SNEAKING, has ? 1 : 0);
-        this.resizeGeneral();
+        this.resizePage(Tab.POSES);
     }
 
-    private void openPosePicker(ModelConfig config)
+    /** Empty the pose; the editor is re-bound, since it holds the pose object itself. */
+    private void clearPose()
     {
-        if (this.bound == null)
-        {
-            return;
-        }
-
-        String group = config.poseGroup.get();
-
-        if (group.isEmpty())
-        {
-            group = this.form.model.get();
-        }
-
-        MapType poses = PoseManager.INSTANCE.getData(group);
-
-        this.getContext().replaceContextMenu((menu) ->
-        {
-            for (String name : poses.keys())
-            {
-                menu.action(Icons.POSE, IKey.constant(name), () ->
-                {
-                    Pose pose = new Pose();
-
-                    pose.fromData(poses.getMap(name));
-                    config.sneakingPose.set(pose);
-                    this.fillSneaking();
-                });
-            }
-        });
+        this.data.sneakingPose.set(new Pose());
+        this.fillPoses();
     }
 
     /* Bones: the tree keeps its pick across a refill; the panel under it is the picked bone's settings. */
@@ -1392,17 +1438,27 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.fillBone();
     }
 
-    /** A bone clicked in the preview: pick it in the tree. */
-    private void selectBone(String bone)
+    /**
+     * A bone clicked in the preview picks it in the tree — on the bones page, where the tree is; anywhere
+     * else the click is left alone (a bone is given to a slot through its picker or the eyedropper).
+     */
+    private boolean selectBone(String bone)
     {
+        if (lastTab != Tab.BONES)
+        {
+            return false;
+        }
+
         this.bonesSearch.filter("", true);
         this.bones.setCurrentScroll(bone);
         this.fillBone();
+
+        return true;
     }
 
     /**
      * The picked bone's settings; refilled after every change to them, from either the panel or the tree's
-     * menu. With nothing picked the same fields stand empty and disabled, so the pane keeps its height and
+     * menu. With nothing picked the same fields stand empty and disabled, so the page keeps its height and
      * the scroll doesn't jump on every pick.
      */
     private void fillBone()
@@ -1436,7 +1492,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         );
         this.setEnabledDeep(this.bonePanel, picked != null);
 
-        this.resizeBones();
+        this.resizePage(Tab.BONES);
     }
 
     /** Enable or disable every control in a settings panel — the panel stands, only its fields go quiet. */
@@ -1544,13 +1600,12 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             this.weldList.setCurrent(picked);
         }
 
-        this.countTitle(this.weldsSection, UIKeys.MODEL_EDITOR_WELDS, config.welds.getList().size());
         this.fillWeld();
     }
 
     /**
      * The picked weld's settings. With nothing picked the same fields stand empty and disabled (bound to a
-     * throwaway weld), so the pane keeps its height; the issue line is always there too, blank when the
+     * throwaway weld), so the page keeps its height; the issue line is always there too, blank when the
      * weld resolves.
      */
     private void fillWeld()
@@ -1577,7 +1632,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         );
         this.setEnabledDeep(this.weldPanel, picked != null);
 
-        this.resizeBones();
+        this.resizePage(Tab.WELDS);
     }
 
     /**

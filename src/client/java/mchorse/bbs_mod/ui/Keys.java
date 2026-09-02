@@ -206,6 +206,8 @@ public class Keys
     public static final KeyCombo MODEL_BLOCKS_TELEPORT_ORBIT = new KeyCombo("teleport_orbit_block", UIKeys.MODEL_BLOCKS_KEYS_TELEPORT_ORBIT, GLFW.GLFW_KEY_C).categoryKey("model_blocks");
 
     /* Model editor */
+    public static final KeyCombo MODEL_EDITOR_NEXT_TAB = new KeyCombo("next_tab", UIKeys.MODEL_EDITOR_KEYS_CYCLE_TABS, GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("model_editor");
+    public static final KeyCombo MODEL_EDITOR_PREV_TAB = new KeyCombo("prev_tab", UIKeys.MODEL_EDITOR_KEYS_CYCLE_TABS, GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("model_editor");
     public static final KeyCombo MODEL_EDITOR_EXPAND_ALL = new KeyCombo("expand_all", UIKeys.MODEL_EDITOR_KEYS_EXPAND_ALL, GLFW.GLFW_KEY_E, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("model_editor");
     public static final KeyCombo MODEL_EDITOR_COLLAPSE_ALL = new KeyCombo("collapse_all", UIKeys.MODEL_EDITOR_KEYS_COLLAPSE_ALL, GLFW.GLFW_KEY_E, GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("model_editor");
     public static final KeyCombo MODEL_EDITOR_FIND_BONE = new KeyCombo("find_bone", UIKeys.MODEL_EDITOR_KEYS_FIND_BONE, GLFW.GLFW_KEY_F, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("model_editor");

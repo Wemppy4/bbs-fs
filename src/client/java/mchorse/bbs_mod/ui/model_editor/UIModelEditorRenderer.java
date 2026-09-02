@@ -47,6 +47,7 @@ import org.joml.Vector3f;
 
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -57,12 +58,14 @@ import java.util.function.Supplier;
  * <li>A pick stencil over the model — so a bone lights up under the cursor and under the
  * cursor of a row that names it ({@link #highlight}), the bone pickers' eyedropper works
  * ({@link UIBonePicker.Viewport}), and a click on a bone reports it to the panel.</li>
- * <li>The transform gizmo on the active attachment slot ({@link #target}): drawn in the
+ * <li>The transform gizmo on the picked attachment slot ({@link #target}): drawn in the
  * frame the renderer applies the slot's transform in, so dragging a handle moves the item
  * exactly as the numbers would.</li>
  * <li>A first-person view ({@link #setFirstPerson}): the game's own hand frame and lens,
  * showing the first-person slots the way {@code ModelFormRenderer#renderArm} does in play —
  * the only way those slots were ever visible before.</li>
+ * <li>The armor and the held items ({@link #setEquipment}), worn while the page that edits
+ * them is open, so each is seen against the bare model.</li>
  * </ul>
  */
 public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewport, UIBonePicker.Viewport
@@ -78,8 +81,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     private MatrixCache bones;
 
     private Supplier<ModelSlotTarget> target = () -> null;
-    private Consumer<String> onBoneClick;
-    private Runnable onViewChange;
+    private Predicate<String> onBoneClick;
 
     /** The armed eyedropper; null when idle. */
     private Consumer<String> bonePicking;
@@ -107,26 +109,14 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         EquipmentSlot.FEET, Items.NETHERITE_BOOTS
     );
 
-    private boolean equipment = true;
-
-    public UIModelEditorRenderer()
+    /** What the preview wears: the armor pieces, the items in the hands — each only while its page is open. */
+    public void setEquipment(boolean armor, boolean items)
     {
-        this.setEquipment(true);
-    }
-
-    public boolean hasEquipment()
-    {
-        return this.equipment;
-    }
-
-    /** Whether the preview wears the items and armor — off to see the bare model. */
-    public void setEquipment(boolean equipment)
-    {
-        this.equipment = equipment;
-
         for (Map.Entry<EquipmentSlot, Item> entry : EQUIPMENT.entrySet())
         {
-            this.entity.setEquipmentStack(entry.getKey(), equipment ? new ItemStack(entry.getValue()) : ItemStack.EMPTY);
+            boolean worn = entry.getKey().getType() == EquipmentSlot.Type.ARMOR ? armor : items;
+
+            this.entity.setEquipmentStack(entry.getKey(), worn ? new ItemStack(entry.getValue()) : ItemStack.EMPTY);
         }
     }
 
@@ -138,18 +128,10 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         return this;
     }
 
-    /** A bone clicked in the viewport (outside of an eyedropper pick). */
-    public UIModelEditorRenderer onBoneClick(Consumer<String> callback)
+    /** A bone clicked in the viewport (outside of an eyedropper pick); answers whether it took the click. */
+    public UIModelEditorRenderer onBoneClick(Predicate<String> callback)
     {
         this.onBoneClick = callback;
-
-        return this;
-    }
-
-    /** The view switched between orbit and first person — the host lays its panes out differently for each. */
-    public UIModelEditorRenderer onViewChange(Runnable callback)
-    {
-        this.onViewChange = callback;
 
         return this;
     }
@@ -190,11 +172,6 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
         this.gizmo.stop();
         this.stencil.clearPicking();
-
-        if (this.onViewChange != null)
-        {
-            this.onViewChange.run();
-        }
     }
 
     /* Eyedropper */
@@ -257,12 +234,12 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     {
         if (this.onBoneClick != null && form == this.form && bone != null && !bone.isEmpty())
         {
-            this.onBoneClick.accept(bone);
+            this.onBoneClick.test(bone);
         }
     }
 
     /**
-     * The slot whose gizmo is drawn: the active one, when this view shows it — the held items
+     * The slot whose gizmo is drawn: the picked one, when this view shows it — the held items
      * and armor in the orbit view, the first-person hands in the first-person view — and its
      * bone was actually rendered.
      */
@@ -589,7 +566,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     }
 
     /**
-     * The hand the active first-person slot is for (the main hand when none is active), placed
+     * The hand the picked first-person slot is for (the main hand when none is picked), placed
      * where the game places an empty first-person hand. Remembers whether anything was drawn,
      * so the view can say why it's empty.
      */
@@ -733,15 +710,13 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         }
 
         /* A left click on a bone picks it in the panel's tree, the way the form editor picks a bone;
-         * the click is spent, so it doesn't start an orbit as well. */
+         * when the panel takes it, the click is spent, so it doesn't start an orbit as well. */
         if (context.mouseButton == 0 && this.stencil.hasPicked() && this.onBoneClick != null)
         {
             Pair<Form, String> pair = this.stencil.getPicked();
 
-            if (pair != null && pair.a == this.form && !pair.b.isEmpty())
+            if (pair != null && pair.a == this.form && !pair.b.isEmpty() && this.onBoneClick.test(pair.b))
             {
-                this.onBoneClick.accept(pair.b);
-
                 return true;
             }
         }
