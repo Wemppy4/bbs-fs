@@ -134,7 +134,10 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
     public UIReplayList(Consumer<List<Replay>> callback, Consumer<Form> formConsumer, UIFilmPanel panel)
     {
-        super((entries) -> callback.accept(replaysFromEntries(entries)));
+        /* Rows are rebuilt wrappers over stable data, so "the same row" is the same replay (or
+         * the same category name) — that is what lets a pick survive every list rebuild. */
+        super((entries) -> callback.accept(replaysFromEntries(entries)), (a, b) ->
+            a.kind == b.kind && (a.isReplay() ? a.replay == b.replay : a.folderName.equals(b.folderName)));
 
         this.formConsumer = formConsumer;
         this.panel = panel;
@@ -289,22 +292,18 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        this.current.clear();
+        List<ReplayListEntry> replays = new ArrayList<>();
 
-        for (int i = 0; i < this.list.size(); i++)
+        for (ReplayListEntry e : this.list)
         {
-            ReplayListEntry e = this.list.get(i);
-
             if (e.isReplay())
             {
-                this.current.add(i);
+                replays.add(e);
             }
         }
 
-        if (this.callback != null && !this.current.isEmpty())
-        {
-            this.callback.accept(this.getCurrent());
-        }
+        this.selection.setAll(replays);
+        this.fireSelectionCallback();
     }
 
     @Override
@@ -417,67 +416,17 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
     }
 
-    private void restoreReplaySelection(List<Replay> replays)
-    {
-        this.current.clear();
-
-        for (Replay r : replays)
-        {
-            for (int i = 0; i < this.list.size(); i++)
-            {
-                ReplayListEntry e = this.list.get(i);
-
-                if (e.isReplay() && e.replay == r)
-                {
-                    this.addIndex(i);
-
-                    break;
-                }
-            }
-        }
-
-        if (this.callback != null && !this.current.isEmpty())
-        {
-            this.callback.accept(this.getCurrent());
-        }
-    }
-
+    /** The picked replays, in the order they were picked. */
     public List<Replay> getSelectedReplays()
     {
-        List<Replay> out = new ArrayList<>();
-
-        for (int i : this.current)
-        {
-            if (this.exists(i))
-            {
-                ReplayListEntry e = this.list.get(i);
-
-                if (e.isReplay())
-                {
-                    out.add(e.replay);
-                }
-            }
-        }
-
-        return out;
+        return replaysFromEntries(this.selection.getItems());
     }
 
     public Replay getSelectedReplayFirst()
     {
-        for (int i : this.current)
-        {
-            if (this.exists(i))
-            {
-                ReplayListEntry e = this.list.get(i);
+        List<Replay> replays = this.getSelectedReplays();
 
-                if (e.isReplay())
-                {
-                    return e.replay;
-                }
-            }
-        }
-
-        return null;
+        return replays.isEmpty() ? null : replays.get(0);
     }
 
     public boolean hasReplaySelection()
@@ -492,16 +441,9 @@ public class UIReplayList extends UIList<ReplayListEntry>
     {
         List<Replay> out = new ArrayList<>();
 
-        for (int i = 0; i < this.list.size(); i++)
+        for (ReplayListEntry e : this.list)
         {
-            if (!this.current.contains(i))
-            {
-                continue;
-            }
-
-            ReplayListEntry e = this.list.get(i);
-
-            if (e.isReplay())
+            if (e.isReplay() && this.selection.contains(e))
             {
                 out.add(e.replay);
             }
@@ -553,7 +495,24 @@ public class UIReplayList extends UIList<ReplayListEntry>
             }
         }
 
+        /* Carry the pick over the rebuild: fresh rows that mean the same replay or category
+         * (the constructor's sameness) replace their stale twins; rows that vanished — a
+         * deleted replay, a collapsed category's replays — drop out. This is the ONE place
+         * selection survival lives, for every rebuild caller alike. */
+        List<ReplayListEntry> keep = new ArrayList<>();
+
+        for (ReplayListEntry picked : this.selection.getItems())
+        {
+            int index = this.selection.indexOf(entries, picked);
+
+            if (index != -1)
+            {
+                keep.add(entries.get(index));
+            }
+        }
+
         this.setList(entries);
+        this.selection.setAll(keep);
     }
 
     /**
@@ -705,8 +664,18 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
 
         this.refreshReplayList();
-        this.restoreReplaySelection(selected);
+        this.fireSelectionCallback();
         this.updateFilmEditor();
+    }
+
+    /** Tell the host what is picked now (the rebuild itself keeps the pick, but the host's
+     *  panels follow the callback). */
+    private void fireSelectionCallback()
+    {
+        if (this.callback != null && !this.selection.isEmpty())
+        {
+            this.callback.accept(this.getCurrent());
+        }
     }
 
     @Override
@@ -755,9 +724,8 @@ public class UIReplayList extends UIList<ReplayListEntry>
                         this.collapsedCategories.add(name);
                     }
 
-                    List<Replay> keep = new ArrayList<>(this.getSelectedReplays());
                     this.refreshReplayList();
-                    this.restoreReplaySelection(keep);
+                    this.fireSelectionCallback();
                     this.update();
 
                     return true;
