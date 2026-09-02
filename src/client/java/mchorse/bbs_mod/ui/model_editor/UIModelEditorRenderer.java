@@ -1,8 +1,8 @@
 package mchorse.bbs_mod.ui.model_editor;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -509,7 +509,10 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         }
 
         FormRenderingContext formContext = new FormRenderingContext()
-            .set(FormRenderType.PREVIEW, this.entity, context.batcher.getContext().getMatrices(), LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV, context.getTransition())
+            /* 1.21.11: the GUI stack is 2D, and the preview pass leaves the global model-view identity,
+             * so every draw bakes `camera.view * translate(-camera.pos)` into its own vertices — which is
+             * exactly what createCameraStack() hands back. Same seed UIFormRenderer already uses. */
+            .set(FormRenderType.PREVIEW, this.entity, this.createCameraStack(), LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV, context.getTransition())
             .camera(this.camera)
             .modelRenderer(context.getTick());
 
@@ -557,7 +560,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
             if (shown != null && !UIBaseMenu.isHideGizmoHeld())
             {
-                MatrixStack stack = context.render.batcher.getContext().getMatrices();
+                MatrixStack stack = this.createCameraStack();
 
                 stack.push();
                 this.placeGizmo(stack, shown);
@@ -576,8 +579,8 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
             this.stencil.unbind(this.stencilMap);
 
-            MinecraftClient.getInstance().getFramebuffer().beginWrite(true);
-
+            /* 1.21.11: Framebuffer.beginWrite(boolean) is gone — a render pass binds its own target, so
+             * there is nothing left to rebind after the off-screen pick. Scissor still is global state. */
             GlStateManager._enableScissorTest();
         }
         else
@@ -605,7 +608,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
         ModelSlotTarget target = this.target.get();
         boolean mainHand = target == null || !target.kind().firstPerson || !target.kind().offHand;
-        MatrixStack stack = context.batcher.getContext().getMatrices();
+        MatrixStack stack = this.createCameraStack();
 
         renderer.ensureAnimator(context.getTransition());
 
@@ -619,16 +622,15 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
     private void renderAxes(UIContext context, ModelSlotTarget target)
     {
-        MatrixStack stack = context.render.batcher.getContext().getMatrices();
+        MatrixStack stack = this.createCameraStack();
 
         stack.push();
         this.placeGizmo(stack, target);
 
         if (UIBaseMenu.shouldRenderAxes())
         {
-            RenderSystem.disableDepthTest();
+            /* The depth bracket is the gizmo pipeline's own state now — it never depth-tests. */
             Gizmo.INSTANCE.render(stack);
-            RenderSystem.enableDepthTest();
         }
 
         stack.pop();
@@ -654,7 +656,19 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
         if (index > 0)
         {
-            this.stencil.renderPreview(context, this.area, index);
+            /* 1.21.11: StencilFormFramebuffer.renderPreview went with the picker_preview ShaderProgram
+             * it drove. The highlight is recoloured into an off-screen target and composited through
+             * the recorded GUI blit — the same path UIPickableFormRenderer takes. */
+            if (BBSPickerRenderer.drawHighlight(this.stencil.getPickColorView(),
+                this.stencil.ensureHighlightTarget(this.stencil.getPickWidth(), this.stencil.getPickHeight()),
+                this.stencil.getPickWidth(), this.stencil.getPickHeight(), index, BBSSettings.stencilHighlightColor.get()))
+            {
+                int vw = this.stencil.getHighlightWidth();
+                int vh = this.stencil.getHighlightHeight();
+
+                context.batcher.texturedBox(this.stencil.getHighlightGlId(), Colors.WHITE,
+                    this.area.x, this.area.y, this.area.w, this.area.h, 0, vh, vw, 0, vw, vh);
+            }
         }
 
         if (this.stencil.hasPicked())

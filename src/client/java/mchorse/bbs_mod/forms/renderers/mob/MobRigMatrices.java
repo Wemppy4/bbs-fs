@@ -8,10 +8,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.model.EntityModel;
+import net.minecraft.client.render.entity.state.EntityRenderState;
+import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 
@@ -83,8 +84,21 @@ public class MobRigMatrices
     public static void evaluate(Entity entity, MobRig rig, Pose pose, Pose poseOverlay, float transition, MatrixCache cache)
     {
         if (rig == null || MobRenderContext.current() != null
-            || !(entity instanceof LivingEntity living)
+            || !(entity instanceof LivingEntity)
             || !(MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(entity) instanceof LivingEntityRenderer renderer))
+        {
+            return;
+        }
+
+        /* Since 1.21.2 the model is posed from a render STATE rather than from the entity: setAngles
+         * takes one, and everything the 1.21.1 call assembled by hand — hand swing, riding, baby, the
+         * limb swing, the interpolated yaws and pitch, the scale attribute — is a field on it.
+         * getAndUpdateRenderState is the one supported way to fill one, and it is what
+         * MobFormRenderer's own draw already uses, so the rig walks exactly the pose the entity is
+         * drawn in rather than a second, hand-built approximation of it. */
+        EntityRenderState renderState = MinecraftClient.getInstance().getEntityRenderDispatcher().getAndUpdateRenderState(entity, transition);
+
+        if (!(renderState instanceof LivingEntityRenderState state))
         {
             return;
         }
@@ -93,40 +107,25 @@ public class MobRigMatrices
         LivingEntityRendererInvoker invoker = (LivingEntityRendererInvoker) renderer;
         Map<ModelPart, Transform> saved = new IdentityHashMap<>();
 
-        model.handSwingProgress = invoker.bbs$getHandSwingProgress(living, transition);
-        model.riding = living.hasVehicle();
-        model.child = living.isBaby();
-
-        float bodyYaw = MathHelper.lerpAngleDegrees(transition, living.lastBodyYaw, living.bodyYaw);
-        float headYaw = MathHelper.lerpAngleDegrees(transition, living.lastHeadYaw, living.headYaw);
-        float pitch = MathHelper.lerp(transition, living.lastPitch, living.getPitch());
-        float animationProgress = invoker.bbs$getAnimationCounter(living, transition);
-        float limbDistance = 0F;
-        float limbAngle = 0F;
-
-        if (!living.hasVehicle() && living.isAlive())
-        {
-            limbDistance = Math.min(living.limbAnimator.getSpeed(transition), 1F);
-            limbAngle = living.limbAnimator.getAnimationProgress(transition) * (living.isBaby() ? 3F : 1F);
-        }
+        float animationProgress = invoker.bbs$getAnimationCounter(state);
 
         try
         {
-            model.animateModel(living, limbAngle, limbDistance, transition);
-            model.setAngles(living, limbAngle, limbDistance, animationProgress, headYaw - bodyYaw, pitch);
+            model.setAngles(state);
 
             MobPoseApplier.apply(rig, MobPoseApplier.merge(pose, poseOverlay), saved);
 
             MatrixStack stack = new MatrixStack();
 
             /* Since 1.21.1 the entity carries a scale attribute: vanilla scales the stack by it
-             * and hands it to setupTransforms, so the rig has to walk the same chain. */
-            float entityScale = living.getScale();
+             * and hands it to setupTransforms, so the rig has to walk the same chain. The state
+             * carries that scale now, and setupTransforms reads the rest off it too. */
+            float entityScale = state.baseScale;
 
             stack.scale(entityScale, entityScale, entityScale);
-            invoker.bbs$setupTransforms(living, stack, animationProgress, bodyYaw, transition, entityScale);
+            invoker.bbs$setupTransforms(state, stack, animationProgress, state.bodyYaw);
             stack.scale(-1F, -1F, 1F);
-            invoker.bbs$scale(living, stack, transition);
+            invoker.bbs$scale(state, stack);
             stack.translate(0F, -1.501F, 0F);
 
             Matrix4f baseInverse = new Matrix4f();
@@ -169,7 +168,8 @@ public class MobRigMatrices
         }
 
         stack.push();
-        part.rotate(stack);
+        /* 1.21.11: ModelPart.rotate(MatrixStack) is applyTransform now; rotate() takes a quaternion. */
+        part.applyTransform(stack);
 
         for (ModelPart child : children.values())
         {

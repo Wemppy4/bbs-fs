@@ -412,7 +412,9 @@ public class FilmEntityRenderer
 
         matrices.push();
         matrices.translate(0F, hitboxH, 0F);
-        matrices.multiply(MinecraftClient.getInstance().getEntityRenderDispatcher().getRotation());
+        /* 1.21.11: EntityRenderManager.getRotation() is gone — the dispatcher carries the camera
+         * itself now, and the camera's rotation is the same billboard turn it used to hand out. */
+        matrices.multiply(MinecraftClient.getInstance().gameRenderer.getCamera().getRotation());
         matrices.scale(-0.025F, -0.025F, 0.025F);
 
         Matrix4f matrix4f = matrices.peek().getPositionMatrix();

@@ -9,9 +9,13 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.Font;
 import net.minecraft.client.font.FontFilterType;
 import net.minecraft.client.font.FreeTypeUtil;
+import net.minecraft.client.font.EffectGlyph;
 import net.minecraft.client.font.FontStorage;
+import net.minecraft.client.font.GlyphBaker;
+import net.minecraft.client.font.GlyphProvider;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.font.TrueTypeFont;
+import net.minecraft.text.StyleSpriteSource;
 import net.minecraft.util.Identifier;
 import org.lwjgl.util.freetype.FT_Face;
 import org.lwjgl.util.freetype.FreeType;
@@ -237,15 +241,35 @@ public class FontManager implements IWatchDogListener
 
             adopted = true;
 
-            FontStorage storage = new FontStorage(MinecraftClient.getInstance().getTextureManager(), this.getStorageId(key));
+            /* 1.21.11 split the atlas baking out of the storage: the texture manager and the storage's
+             * own identifier now belong to a GlyphBaker, which the storage closes along with itself —
+             * so the FontEntry still owns everything through the one storage it holds. */
+            FontStorage storage = new FontStorage(new GlyphBaker(MinecraftClient.getInstance().getTextureManager(), this.getStorageId(key)));
 
             storage.setFonts(Collections.singletonList(new Font.FontFilterPair(ttf, FontFilterType.FilterMap.NO_FILTER)), Collections.emptySet());
 
             FontRenderer font = new FontRenderer();
 
-            /* Every identifier resolves to the one storage: the font is picked by which
-             * renderer is drawing, not by the style of the text being drawn. */
-            font.setRenderer(new TextRenderer((id) -> storage, false), metrics.height, metrics.lineHeight);
+            /* Every style resolves to the one storage: the font is picked by which renderer is
+             * drawing, not by the style of the text being drawn.
+             *
+             * The (Function<Identifier, FontStorage>, validateAdvance) pair the constructor used to
+             * take is a GlyphsProvider now, and the flag moved onto getGlyphs — false being the
+             * plain renderer, as before (vanilla's advance-validating one passes true). */
+            font.setRenderer(new TextRenderer(new TextRenderer.GlyphsProvider()
+            {
+                @Override
+                public GlyphProvider getGlyphs(StyleSpriteSource source)
+                {
+                    return storage.getGlyphs(false);
+                }
+
+                @Override
+                public EffectGlyph getRectangleGlyph()
+                {
+                    return storage.getRectangleBakedGlyph();
+                }
+            }), metrics.height, metrics.lineHeight);
 
             return new FontEntry(font, storage);
         }

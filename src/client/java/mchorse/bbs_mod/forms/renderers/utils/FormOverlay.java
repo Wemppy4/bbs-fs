@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.forms.renderers.utils;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
@@ -96,13 +95,23 @@ public class FormOverlay
     }
 
     /**
-     * Bind the overlay's texture into unit 1 for the upcoming draw. Returns the unit's previous
-     * texture id to pass to {@link #unbind(int)} after the draw.
+     * Build the overlay swatch for the upcoming draw and return its GL id.
+     *
+     * <p>TODO(1.21.11 render): it is no longer BOUND. The channel used to arrive through texture
+     * unit 1 — bound here behind the layer's back, read by the entity shaders' UV1 attribute — and
+     * 1.21.11 has no texture units to bind into: {@code RenderSystem.get/setShaderTexture} are gone
+     * and a render pass binds exactly the textures its {@link net.minecraft.client.render.RenderLayer}
+     * names. Restoring the overlay means handing the draw a LAYER whose overlay texture is this
+     * swatch — the same "swap the layer" shape the translucent-cull hole already needed — rather
+     * than binding one underneath it. Until that exists, a structure or block form draws in its own
+     * colours and the overlay setting shows nothing.
+     *
+     * <p>The swatch itself is kept live (and cached by colour, so it costs an upload only when the
+     * colour moves): it is exactly what that layer will want, mip-complete filter and all.
      */
     public static int bind(Color overlay)
     {
         int pixel = OverlayBlend.toTexturePixel(overlay);
-        int previous = RenderSystem.getShaderTexture(1);
 
         if (texture == null)
         {
@@ -139,14 +148,10 @@ public class FormOverlay
             uploaded = true;
         }
 
-        RenderSystem.setShaderTexture(1, texture.id);
-
-        return previous;
+        return texture.id;
     }
 
-    /** Restore unit 1 to what it held before {@link #bind(Color)} (vanilla's real overlay texture). */
+    /** Was restoring unit 1 to vanilla's real overlay texture; nothing is displaced any more. */
     public static void unbind(int previous)
-    {
-        RenderSystem.setShaderTexture(1, previous);
-    }
+    {}
 }

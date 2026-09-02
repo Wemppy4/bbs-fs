@@ -7,7 +7,6 @@ import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
-import mchorse.bbs_mod.utils.iris.IrisUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -94,8 +93,14 @@ public class FormPbr
             return texture;
         }
 
-        IrisUtils.trackPbrVariant(variant, link, smoothness, metallic, sss, emission, relief);
-
+        /* TODO(1.21.11 Iris): the variant is made, but nothing is told about its PBR maps yet, so a
+         * shaderpack sees a plain albedo copy. Registering them meant handing Iris a generated
+         * normal/specular texture through its PBRTextureConsumer (IrisPbrConstLoader + the
+         * IrisTextureWrapper pair) — and Iris is detached on this branch, so that path has no other
+         * end to attach to. It also wants a GpuTexture: 1.21.11's AbstractTexture exposes
+         * getGlTexture()/getGlTextureView() instead of a GL id, while our own Texture is still a raw
+         * name. Wire this back up together with Iris itself. The variant copy stays either way — it
+         * is what keeps two forms with different sliders off one shared texture. */
         return variant;
     }
 

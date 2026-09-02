@@ -6,6 +6,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.QueueDispatch;
 import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
@@ -25,7 +26,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.block.entity.BlockEntityRenderDispatcher;
+import net.minecraft.client.render.block.entity.BlockEntityRenderManager;
+import net.minecraft.client.render.block.entity.BlockEntityRenderer;
+import net.minecraft.client.render.block.entity.state.BlockEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
@@ -252,7 +255,8 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             return;
         }
 
-        BlockEntityRenderDispatcher dispatcher = MinecraftClient.getInstance().getBlockEntityRenderDispatcher();
+        /* Renamed in 1.21.11: BlockEntityRenderDispatcher is BlockEntityRenderManager. */
+        BlockEntityRenderManager dispatcher = MinecraftClient.getInstance().getBlockEntityRenderDispatcher();
 
         for (BlockEntity blockEntity : this.blockEntities)
         {
@@ -278,7 +282,29 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
 
             try
             {
-                dispatcher.renderEntity(blockEntity, local, consumers, light, overlay);
+                /* Block entity renderers only submit commands since 1.21.2, so they go through the
+                 * BBS queue and are flushed here — the same path the block form's own entity takes.
+                 * The state is built by hand rather than through manager.getRenderState(), which
+                 * refuses anything past the renderer's render distance from the camera: a structure
+                 * sits wherever the form does, and its chests must not stop opening far from spawn.
+                 * The form's own light replaces the light at that position. */
+                BlockEntityRenderer renderer = dispatcher.get(blockEntity);
+
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                BlockEntityRenderState renderState = renderer.createRenderState();
+
+                renderer.updateRenderState(blockEntity, renderState,
+                    MinecraftClient.getInstance().getRenderTickCounter().getTickProgress(false),
+                    MinecraftClient.getInstance().gameRenderer.getCamera().getCameraPos(), null);
+
+                renderState.lightmapCoordinates = light;
+
+                dispatcher.render(renderState, local, QueueDispatch.queue(), QueueDispatch.cameraState());
+                QueueDispatch.flush();
             }
             catch (Exception ex)
             {
@@ -294,20 +320,27 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
     {
         this.ensureData();
 
+        /* 1.21.11: the list draws each cell in the GUI RECORD phase, where an immediate 3D draw
+         * cannot composite (two-phase GUI) — getContext().draw() is gone and getMatrices() is 2D.
+         * So the thumbnail is submitted as a vanilla special GUI element like every other 3D form
+         * type, and the work happens in renderUIPreview inside the off-screen pass. */
+        this.submitUIPreview(context, x1, y1, x2, y2);
+    }
+
+    @Override
+    public void renderUIPreview(MatrixStack matrices, float angle, float transition, int x1, int y1, int x2, int y2)
+    {
         if (this.world == null)
         {
             /* No structure picked (or not loadable) — render a structure block as the
              * placeholder, the same way the block form renders its preview */
-            this.renderPlaceholderBlock(context, x1, y1, x2, y2);
+            this.renderPlaceholderBlock(matrices, angle, y1, y2);
 
             return;
         }
 
-        context.batcher.getContext().draw();
-
         CustomVertexConsumerProvider consumers = FormUtilsClient.getProvider();
-        MatrixStack matrices = context.batcher.getContext().getMatrices();
-        Matrix4f uiMatrix = ModelFormRenderer.getUIMatrix(context, x1, y1, x2, y2);
+        Matrix4f uiMatrix = getUIPreviewMatrix(angle, y1, y2);
 
         Color overlay = this.form.overlayColor.get();
         boolean overlayActive = OverlayBlend.isActive(overlay);
@@ -370,13 +403,10 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
         }
     }
 
-    private void renderPlaceholderBlock(UIContext context, int x1, int y1, int x2, int y2)
+    private void renderPlaceholderBlock(MatrixStack matrices, float angle, int y1, int y2)
     {
-        context.batcher.getContext().draw();
-
         CustomVertexConsumerProvider consumers = FormUtilsClient.getProvider();
-        MatrixStack matrices = context.batcher.getContext().getMatrices();
-        Matrix4f uiMatrix = ModelFormRenderer.getUIMatrix(context, x1, y1, x2, y2);
+        Matrix4f uiMatrix = getUIPreviewMatrix(angle, y1, y2);
 
         matrices.push();
 
@@ -445,8 +475,9 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             {
                 CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
                 {
-                    this.setupTarget(context, BBSShaders.getPickerModelsProgram());
-                    /* TODO(1.21.11 render): RenderSystem.setShader() was removed by the GPU-pipeline rewrite; this state is now encoded by the RenderLayer/RenderPipeline. */
+                    /* The picker program is a RenderPipeline chosen at the draw now, so setupTarget
+                     * only carries the picking index (the BBSPicker UBO). */
+                    this.setupTarget(context);
                 });
 
                 this.baked.render(context.stack.peek(), consumers, context.light, 0xFFFFFFFF);

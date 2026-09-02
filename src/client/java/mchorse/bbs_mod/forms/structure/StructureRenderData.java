@@ -62,38 +62,44 @@ public class StructureRenderData
 
     public static StructureRenderData parse(String id, NbtCompound root)
     {
-        NbtList sizeList = root.getList("size", NbtElement.INT_TYPE);
-        Vec3i size = new Vec3i(sizeList.getInt(0), sizeList.getInt(1), sizeList.getInt(2));
+        /* 1.21.11 rebuilt the NBT getters: getList/getCompound/getInt take no element type any more
+         * and return an Optional, each with a plain twin (getListOrEmpty / getCompoundOrEmpty /
+         * getInt(key, default)). The type argument used to be the guard against a wrong-typed tag;
+         * the empty/default value is that guard now, so the reads below keep their old outcome on a
+         * malformed structure file. */
+        NbtList sizeList = root.getListOrEmpty("size");
+        Vec3i size = new Vec3i(sizeList.getInt(0, 0), sizeList.getInt(1, 0), sizeList.getInt(2, 0));
 
         NbtList paletteNbt;
 
-        if (root.contains("palette", NbtElement.LIST_TYPE))
+        if (root.contains("palette"))
         {
-            paletteNbt = root.getList("palette", NbtElement.COMPOUND_TYPE);
+            paletteNbt = root.getListOrEmpty("palette");
         }
         else
         {
             /* "palettes" variant: several random palettes, the first one is good enough */
-            NbtList palettes = root.getList("palettes", NbtElement.LIST_TYPE);
+            NbtList palettes = root.getListOrEmpty("palettes");
 
-            paletteNbt = palettes.isEmpty() ? new NbtList() : palettes.getList(0);
+            paletteNbt = palettes.isEmpty() ? new NbtList() : palettes.getListOrEmpty(0);
         }
 
         BlockState[] palette = new BlockState[paletteNbt.size()];
 
         for (int i = 0; i < palette.length; i++)
         {
-            palette[i] = NbtHelper.toBlockState(Registries.BLOCK.getReadOnlyWrapper(), paletteNbt.getCompound(i));
+            /* Registry implements RegistryEntryLookup itself now — getReadOnlyWrapper() is gone. */
+            palette[i] = NbtHelper.toBlockState(Registries.BLOCK, paletteNbt.getCompoundOrEmpty(i));
         }
 
         Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
         Map<BlockPos, NbtCompound> blockEntities = new LinkedHashMap<>();
-        NbtList blocksNbt = root.getList("blocks", NbtElement.COMPOUND_TYPE);
+        NbtList blocksNbt = root.getListOrEmpty("blocks");
 
         for (int i = 0; i < blocksNbt.size(); i++)
         {
-            NbtCompound block = blocksNbt.getCompound(i);
-            int stateIndex = block.getInt("state");
+            NbtCompound block = blocksNbt.getCompoundOrEmpty(i);
+            int stateIndex = block.getInt("state", 0);
 
             if (stateIndex < 0 || stateIndex >= palette.length)
             {
@@ -107,15 +113,12 @@ public class StructureRenderData
                 continue;
             }
 
-            NbtList posList = block.getList("pos", NbtElement.INT_TYPE);
-            BlockPos pos = new BlockPos(posList.getInt(0), posList.getInt(1), posList.getInt(2));
+            NbtList posList = block.getListOrEmpty("pos");
+            BlockPos pos = new BlockPos(posList.getInt(0, 0), posList.getInt(1, 0), posList.getInt(2, 0));
 
             blocks.put(pos, state);
 
-            if (block.contains("nbt", NbtElement.COMPOUND_TYPE))
-            {
-                blockEntities.put(pos, block.getCompound("nbt"));
-            }
+            block.getCompound("nbt").ifPresent((nbt) -> blockEntities.put(pos, nbt));
         }
 
         return new StructureRenderData(id, size, blocks, blockEntities);

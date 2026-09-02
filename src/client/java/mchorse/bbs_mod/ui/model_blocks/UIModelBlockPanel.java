@@ -629,7 +629,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
         matrices.push();
         matrices.translate(transform.translate.x, transform.translate.y, transform.translate.z);
 
-        if (this.transform.isLocal())
+        if (this.transform.getSpace().isLocal())
         {
             MatrixStackUtils.multiply(matrices, new Matrix4f().set(transform.createRotationMatrix()));
         }

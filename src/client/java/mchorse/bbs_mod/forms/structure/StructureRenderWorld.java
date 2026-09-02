@@ -65,7 +65,9 @@ public class StructureRenderWorld implements BlockRenderView
             return null;
         }
 
-        Registry<Biome> registry = mc.world.getRegistryManager().get(RegistryKeys.BIOME);
+        /* 1.21.11: DynamicRegistryManager.get() is gone; getOrThrow is the direct replacement here
+         * (the biome registry is always present on a loaded client world). */
+        Registry<Biome> registry = mc.world.getRegistryManager().getOrThrow(RegistryKeys.BIOME);
         Identifier identifier = Identifier.tryParse(id == null ? "" : id);
         Biome biome = identifier == null ? null : registry.get(identifier);
 

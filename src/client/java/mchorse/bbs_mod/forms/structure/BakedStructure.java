@@ -12,6 +12,8 @@ import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.BlockRenderLayer;
+import net.minecraft.client.render.BlockRenderLayers;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.TexturedRenderLayers;
@@ -20,8 +22,9 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.render.block.BlockRenderManager;
-import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
+import net.minecraft.client.render.model.BlockModelPart;
+import net.minecraft.client.render.model.BlockStateModel;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.util.math.MatrixStack;
@@ -72,7 +75,7 @@ public class BakedStructure
      * the same per-layer hook that binds the overlay texture: the pass composites rather than
      * replaces, and a plant's double-sided cross must not be painted twice.</p>
      */
-    public static final RenderLayer OVERLAY_LAYER = RenderLayer.getEntityCutoutNoCull(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, false);
+    public static final RenderLayer OVERLAY_LAYER = RenderLayers.entityCutoutNoCull(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, false);
 
     private static int globalGeneration;
 
@@ -88,7 +91,9 @@ public class BakedStructure
     private final StructureRenderWorld world;
     private final int generation;
 
-    private record BakedLayer(RenderLayer layer, ByteBuffer data, int vertexCount) {}
+    /* 1.21.11: terrain layers are the BlockRenderLayer enum (each carrying a RenderPipeline), not
+     * RenderLayer objects — RenderLayer.getSolid/getCutout/getTranslucent are gone. */
+    private record BakedLayer(BlockRenderLayer layer, ByteBuffer data, int vertexCount) {}
 
     private BakedStructure(StructureRenderWorld world)
     {
@@ -120,9 +125,9 @@ public class BakedStructure
             result.collectSprites(manager, world, e.getKey(), e.getValue(), random);
         }
 
-        for (RenderLayer layer : RenderLayer.getBlockLayers())
+        for (BlockRenderLayer layer : BlockRenderLayer.values())
         {
-            BufferBuilder builder = beginBuffer(layer.getDrawMode(), layer.getVertexFormat());
+            BufferBuilder builder = beginBuffer(layer.getPipeline().getVertexFormatMode(), layer.getPipeline().getVertexFormat());
 
             for (Map.Entry<BlockPos, BlockState> e : data.getBlocks().entrySet())
             {
@@ -130,17 +135,19 @@ public class BakedStructure
                 BlockState state = e.getValue();
                 FluidState fluid = state.getFluidState();
 
-                if (!fluid.isEmpty() && RenderLayers.getFluidLayer(fluid) == layer)
+                if (!fluid.isEmpty() && BlockRenderLayers.getFluidLayer(fluid) == layer)
                 {
                     fluidConsumer.target(builder, pos.getX() & ~15, pos.getY() & ~15, pos.getZ() & ~15);
                     manager.renderFluid(pos, world, fluidConsumer, state, fluid);
                 }
 
-                if (state.getRenderType() == BlockRenderType.MODEL && RenderLayers.getBlockLayer(state) == layer)
+                if (state.getRenderType() == BlockRenderType.MODEL && BlockRenderLayers.getBlockLayer(state) == layer)
                 {
                     matrices.push();
                     matrices.translate(pos.getX(), pos.getY(), pos.getZ());
-                    manager.renderBlock(state, pos, world, matrices, builder, true, random);
+                    /* 1.21.11 takes the model's parts rather than the seeded Random: the model
+                     * picks its variant from the random itself, and renderBlock draws what it got. */
+                    manager.renderBlock(state, pos, world, matrices, builder, true, manager.getModel(state).getParts(random));
                     matrices.pop();
                 }
             }
@@ -179,21 +186,27 @@ public class BakedStructure
     {
         if (state.getRenderType() == BlockRenderType.MODEL)
         {
-            BakedModel model = manager.getModel(state);
+            BlockStateModel model = manager.getModel(state);
 
             random.setSeed(state.getRenderingSeed(pos));
 
-            for (Direction direction : DIRECTIONS)
+            /* 1.21.11: a state's model is a list of parts, and each part answers getQuads(direction)
+             * — the (state, direction, random) triple the old BakedModel took is split across the
+             * two calls. Null is still the "no particular face" bucket. */
+            for (BlockModelPart part : model.getParts(random))
             {
-                for (BakedQuad quad : model.getQuads(state, direction, random))
+                for (Direction direction : DIRECTIONS)
                 {
-                    this.sprites.add(quad.getSprite());
+                    for (BakedQuad quad : part.getQuads(direction))
+                    {
+                        this.sprites.add(quad.sprite());
+                    }
                 }
-            }
 
-            for (BakedQuad quad : model.getQuads(state, null, random))
-            {
-                this.sprites.add(quad.getSprite());
+                for (BakedQuad quad : part.getQuads(null))
+                {
+                    this.sprites.add(quad.sprite());
+                }
             }
         }
 
@@ -233,9 +246,9 @@ public class BakedStructure
     }
 
     /** Layers whose per-vertex alpha is real opacity; everything else is opaque (alpha ignorable). */
-    private static boolean isTranslucent(RenderLayer layer)
+    private static boolean isTranslucent(BlockRenderLayer layer)
     {
-        return layer == RenderLayer.getTranslucent() || layer == RenderLayer.getTripwire();
+        return layer == BlockRenderLayer.TRANSLUCENT || layer == BlockRenderLayer.TRIPWIRE;
     }
 
     /**
@@ -258,10 +271,15 @@ public class BakedStructure
      */
     public static boolean usesEntityLayers()
     {
-        return BBSRendering.isIrisShadersEnabled();
+        /* Always, since 1.21.11: the terrain layers a VertexConsumerProvider could be handed are
+         * gone (see {@link #render}), so there is no branch left where the second overlay pass
+         * would be the only way to get a colour. Kept as a method because the callers read it as
+         * the question "does the geometry already have an overlay channel", and the answer is what
+         * changed, not the question. */
+        return true;
     }
 
-    private static RenderLayer getEntityLayer(RenderLayer blockLayer)
+    private static RenderLayer getEntityLayer(BlockRenderLayer blockLayer)
     {
         if (isTranslucent(blockLayer))
         {
@@ -292,7 +310,6 @@ public class BakedStructure
         Matrix3f normalMatrix = entry.getNormalMatrix();
         int contextBlock = contextLight & 0xFFFF;
         int contextSky = (contextLight >> 16) & 0xFFFF;
-        boolean shaders = usesEntityLayers();
 
         /* Transparency only needs the right draw ORDER against the shared depth buffer: opaque must
          * be flushed (writing depth) before translucent draws over it. We exploit that while also
@@ -311,20 +328,12 @@ public class BakedStructure
          * whole structure is fed through entity layers instead (no double-diffuse there). */
         for (BakedLayer baked : this.layers)
         {
-            RenderLayer target;
-
-            if (shaders)
-            {
-                target = getEntityLayer(baked.layer());
-            }
-            else if (isTranslucent(baked.layer()))
-            {
-                target = TexturedRenderLayers.getBlockTranslucentCull();
-            }
-            else
-            {
-                target = baked.layer();
-            }
+            /* 1.21.11: there is no terrain RenderLayer left to hand the provider — chunks draw
+             * through the BlockRenderLayer enum's own pipelines, which a VertexConsumerProvider
+             * cannot serve. So the opaque half takes the route the shaders branch always did, and
+             * the whole structure goes through entity layers: cutout first, translucent-cull last,
+             * which is what keeps glass and water compositing over the blocks behind them. */
+            RenderLayer target = getEntityLayer(baked.layer());
 
             replay(consumers.getBuffer(target), baked, pose, normalMatrix, contextBlock, contextSky, tint);
         }
@@ -448,7 +457,7 @@ public class BakedStructure
      */
     private static ByteBuffer normalize(ByteBuffer source, VertexFormat format, int count)
     {
-        int stride = format.getVertexSizeByte();
+        int stride = format.getVertexSize();
         int base = source.position();
         ByteBuffer copy = ByteBuffer.allocate(count * BakedBuffer.STRIDE).order(ByteOrder.nativeOrder());
 
@@ -463,8 +472,8 @@ public class BakedStructure
          * hands out their offsets itself (-1 when it has no such element). */
         int posOffset = format.getOffset(VertexFormatElement.POSITION);
         int colorOffset = format.getOffset(VertexFormatElement.COLOR);
-        int uvOffset = format.getOffset(VertexFormatElement.UV_0);
-        int lightOffset = format.getOffset(VertexFormatElement.UV_2);
+        int uvOffset = format.getOffset(VertexFormatElement.UV0);
+        int lightOffset = format.getOffset(VertexFormatElement.UV2);
         int normalOffset = format.getOffset(VertexFormatElement.NORMAL);
 
         if (posOffset < 0 || colorOffset < 0 || uvOffset < 0 || lightOffset < 0 || normalOffset < 0)

@@ -490,13 +490,16 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         /* Same debug-layer path the IK overlay above already rides (the 1.21.1 lightmap/overlay/
          * blend/cull teardown is pipeline-encoded now, nothing to tear down). */
-        if (stencilMap == null && !this.renderingArm && this.form != null && this.form.physics.get() instanceof MapType physicsMap)
+        if (stencilMap == null && !this.renderingArm && this.form != null)
         {
             ModelPhysicsDebug.render(newStack, model.model, this.form, target.getAge(), "");
         }
 
-        /* Render items */
-        this.captureMatrices(model);
+        /* Render items. The capture allocates ~4 matrices per bone, and its only readers here
+         * are the item/armor block right below (skipped in the picking pass entirely) and
+         * renderBodyParts afterwards - so a model with neither pays for neither. */
+        boolean hasEquipment = !model.getItemsMain().isEmpty() || !model.getItemsOff().isEmpty() || !model.getArmorSlots().isEmpty();
+        boolean hasBodyParts = this.form != null && !this.form.parts.getAllTyped().isEmpty();
 
         if (hasBodyParts || (stencilMap == null && hasEquipment))
         {
@@ -566,12 +569,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
     private void applyPhysics(IEntity target, ModelInstance model, float transition, Matrix4f baseTransform)
     {
-        if (this.physicsAppliedThisRender)
-        {
-            return;
-        }
-
-        this.physicsAppliedThisRender = true;
         model.form = this.form;
         ModelPhysicsRuntime.apply(target, model, transition, baseTransform);
     }
@@ -768,6 +765,8 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             /* TODO(1.21.11 render): depth-test/blend now pipeline-encoded. */
 
+            boolean additive = this.form.additiveColor.get();
+
             this.renderingArm = true;
 
             /* Vanilla's renderArm zeroes the arm's pitch: the first person arm
@@ -810,11 +809,13 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             Link texture = link == null ? model.getTexture() : link;
             Color contextColor = new Color().set(context.color, true);
             Color formColor = this.form.color.get();
+            boolean additive = this.form.additiveColor.get();
 
             if (context.isPicking())
             {
                 contextColor.mul(formColor);
                 formColor = Color.white();
+                additive = false;
             }
             this.evaluateChannels(context.entity, model, context.getTransition());
 

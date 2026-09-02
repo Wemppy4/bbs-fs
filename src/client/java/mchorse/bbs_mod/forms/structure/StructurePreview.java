@@ -8,6 +8,8 @@ import net.minecraft.structure.StructureTemplate;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
 
+import java.util.List;
+
 /**
  * The wand's region as a structure before it is saved: read out of the client world through the
  * same {@link StructureTemplate} the server will use, so every block in the dialog is the block
@@ -35,7 +37,8 @@ public class StructurePreview
 
         StructureTemplate template = new StructureTemplate();
 
-        template.saveFromWorld(world, min, size, false, Blocks.STRUCTURE_VOID);
+        /* 1.21.11 takes a list of blocks to leave out, not a single one. */
+        template.saveFromWorld(world, min, size, false, List.of(Blocks.STRUCTURE_VOID));
 
         return StructureRenderData.parse(id, template.writeNbt(new NbtCompound()));
     }

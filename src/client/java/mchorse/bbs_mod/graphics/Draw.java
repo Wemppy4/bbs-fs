@@ -139,6 +139,16 @@ public class Draw
         flush(builder, getPositionColorLayer());
     }
 
+    /**
+     * Same, through the pipeline that does not depth-test — the replacement for wrapping a draw in
+     * {@code RenderSystem.disableDepthTest()}, which the GPU rewrite removed. For world overlays that
+     * have to read through terrain, like the structure wand's selection.
+     */
+    public static void flushTrianglesNoDepth(BufferBuilder builder)
+    {
+        flush(builder, getPositionColorNoDepthLayer());
+    }
+
     /** Finish a buffer and submit it through the given layer (no-op on an empty buffer). */
     private static void flush(BufferBuilder builder, RenderLayer layer)
     {
@@ -164,14 +174,26 @@ public class Draw
 
     public static void renderBox(MatrixStack stack, double x, double y, double z, double w, double h, double d, float r, float g, float b, float a)
     {
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+
+        renderBox(builder, stack, x, y, z, w, h, d, r, g, b, a);
+
+        flush(builder, getPositionColorLayer());
+    }
+
+    /**
+     * The wireframe box written into a batch of the caller's own, for a caller that has more to draw
+     * into it or wants it submitted through a different layer — the structure wand builds its whole
+     * selection this way and flushes it without depth testing, so it reads through terrain.
+     */
+    public static void renderBox(BufferBuilder builder, MatrixStack stack, double x, double y, double z, double w, double h, double d, float r, float g, float b, float a)
+    {
         stack.push();
         stack.translate(x, y, z);
         float fw = (float) w;
         float fh = (float) h;
         float fd = (float) d;
         float t = 1 / 96F + (float) (Math.sqrt(w * w + h + h + d + d) / 2000);
-
-        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
         /* Pillars: fillBox(builder, -t, -t, -t, t, t, t, r, g, b, a); */
         fillBox(builder, stack, -t, -t, -t, t, t + fh, t, r, g, b, a);
@@ -190,8 +212,6 @@ public class Draw
         fillBox(builder, stack, -t, -t, -t + fd, t + fw, t, t + fd, r, g, b, a);
         fillBox(builder, stack, -t, -t, -t, t, t, t + fd, r, g, b, a);
         fillBox(builder, stack, -t + fw, -t, -t, t + fw, t, t + fd, r, g, b, a);
-
-        flush(builder, getPositionColorLayer());
 
         stack.pop();
     }

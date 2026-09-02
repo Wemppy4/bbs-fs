@@ -2,6 +2,7 @@ package mchorse.bbs_mod.client.renderer;
 
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.BaseFilmController;
+import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -246,7 +247,7 @@ public class MorphRenderer
      *
      * <p>The matrices arrive shadow-ready — the submission stack carries the shadow camera's model-view
      * with the entity's position already translated in — so only the body rotation is missing, the one
-     * piece {@link BaseFilmController#getMatrixForRenderWithRotation} adds on top of position in the main
+     * piece {@link FilmMatrices#getMatrixForRenderWithRotation} adds on top of position in the main
      * path. The world-forms span matters as much as the draw: it hands the form the world pipeline
      * variant, which is the one that carries a shadow-pass program assignment (see
      * {@code BBSRendering#mirrorIrisPipeline}). Without the span the form would draw with BBS's own
@@ -337,7 +338,7 @@ public class MorphRenderer
         {
             for (Queued queued : QUEUE)
             {
-                Matrix4f target = BaseFilmController.getMatrixForRenderWithRotation(queued.entity, cx, cy, cz, queued.tickDelta);
+                Matrix4f target = FilmMatrices.getMatrixForRenderWithRotation(queued.entity, cx, cy, cz, queued.tickDelta);
 
                 stack.push();
                 MatrixStackUtils.multiply(stack, target);

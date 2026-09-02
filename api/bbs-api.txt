@@ -198,7 +198,7 @@ public interface mchorse.bbs_mod.api.client.events.FilmEvents$Created {
 }
 
 public interface mchorse.bbs_mod.api.client.events.FilmEvents$Render {
-    public abstract void onFilmRender(mchorse.bbs_mod.film.BaseFilmController, net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext);
+    public abstract void onFilmRender(mchorse.bbs_mod.film.BaseFilmController, net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext);
 }
 
 public interface mchorse.bbs_mod.api.client.events.FilmEvents$Shutdown {

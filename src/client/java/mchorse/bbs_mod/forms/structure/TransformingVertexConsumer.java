@@ -91,4 +91,22 @@ public class TransformingVertexConsumer implements VertexConsumer
 
         return this;
     }
+
+    /* Both abstract in 1.21.11 where 1.21.1 had defaults; neither is transformed here. */
+
+    @Override
+    public VertexConsumer color(int argb)
+    {
+        this.delegate.color(argb);
+
+        return this;
+    }
+
+    @Override
+    public VertexConsumer lineWidth(float width)
+    {
+        this.delegate.lineWidth(width);
+
+        return this;
+    }
 }

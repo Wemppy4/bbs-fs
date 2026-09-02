@@ -93,7 +93,8 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
 
         if (world != null)
         {
-            for (Identifier id : world.getRegistryManager().get(RegistryKeys.BIOME).getIds())
+            /* 1.21.11: DynamicRegistryManager.get() is gone — getOrThrow is the direct replacement. */
+            for (Identifier id : world.getRegistryManager().getOrThrow(RegistryKeys.BIOME).getIds())
             {
                 ids.add(id.toString());
             }

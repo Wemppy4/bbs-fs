@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.forms.structure;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
@@ -23,8 +22,6 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
@@ -229,7 +226,7 @@ public class StructureWand
             return blockHit.getBlockPos();
         }
 
-        float tickDelta = mc.getRenderTickCounter().getTickDelta(false);
+        float tickDelta = mc.getRenderTickCounter().getTickProgress(false);
         Vec3d eye = mc.player.getCameraPosVec(tickDelta);
         Vec3d look = mc.player.getRotationVec(tickDelta);
         /* Since 1.21.1 the reach is an attribute of the player, not the interaction manager */
@@ -351,14 +348,14 @@ public class StructureWand
 
         MatrixStack stack = context.matrices();
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.disableDepthTest();
-        RenderSystem.disableCull();
+        /* One batch for the whole selection, submitted without depth testing — the blend/cull/depth
+         * bracket that used to wrap this is pipeline state now, and reading through terrain is the
+         * point of a selection: the box and its corners have to be visible from outside the build. */
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
         if (box != null)
         {
-            renderBox(stack, camera, box);
+            renderBox(builder, stack, camera, box);
         }
 
         BlockPos a = StructureSelection.getA();
@@ -366,22 +363,20 @@ public class StructureWand
 
         if (a != null)
         {
-            renderCorner(stack, camera, a, COLOR_A);
+            renderCorner(builder, stack, camera, a, COLOR_A);
         }
 
         if (b != null)
         {
-            renderCorner(stack, camera, b, COLOR_B);
+            renderCorner(builder, stack, camera, b, COLOR_B);
         }
 
         if (!pick.equals(a) && !pick.equals(b))
         {
-            renderGhost(stack, camera, pick);
+            renderGhost(builder, stack, camera, pick);
         }
 
-        RenderSystem.enableCull();
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableBlend();
+        Draw.flushTrianglesNoDepth(builder);
     }
 
     /**
@@ -440,7 +435,7 @@ public class StructureWand
         return tNear > 0 ? near : far;
     }
 
-    private static void renderBox(MatrixStack stack, Vec3d camera, Box box)
+    private static void renderBox(BufferBuilder builder, MatrixStack stack, Vec3d camera, Box box)
     {
         float w = (float) box.getLengthX();
         float h = (float) box.getLengthY();
@@ -455,14 +450,10 @@ public class StructureWand
          * makes the one filled face unmistakable */
         if (face != null)
         {
-
-            RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-            BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
             fillFace(builder, stack, face, w, h, d, COLOR.r, COLOR.g, COLOR.b, FACE_HOVER);
-            BufferRenderer.drawWithGlobalProgram(builder.end());
         }
 
-        Draw.renderBox(stack, 0, 0, 0, w, h, d, COLOR.r, COLOR.g, COLOR.b, 1F);
+        Draw.renderBox(builder, stack, 0, 0, 0, w, h, d, COLOR.r, COLOR.g, COLOR.b, 1F);
 
         /* The face the wheel would push gets a white rim: a flat box, its thickness along the normal zero */
         if (face != null)
@@ -473,7 +464,7 @@ public class StructureWand
             float y = axis == Direction.Axis.Y && positive ? h : 0;
             float z = axis == Direction.Axis.Z && positive ? d : 0;
 
-            Draw.renderBox(stack, x, y, z, axis == Direction.Axis.X ? 0 : w, axis == Direction.Axis.Y ? 0 : h, axis == Direction.Axis.Z ? 0 : d, 1F, 1F, 1F, 0.9F);
+            Draw.renderBox(builder, stack, x, y, z, axis == Direction.Axis.X ? 0 : w, axis == Direction.Axis.Y ? 0 : h, axis == Direction.Axis.Z ? 0 : d, 1F, 1F, 1F, 0.9F);
         }
 
         stack.pop();
@@ -494,7 +485,7 @@ public class StructureWand
     }
 
     /** A corner block: filled in its own color, so A and B are told apart at a glance. */
-    private static void renderCorner(MatrixStack stack, Vec3d camera, BlockPos pos, int color)
+    private static void renderCorner(BufferBuilder builder, MatrixStack stack, Vec3d camera, BlockPos pos, int color)
     {
         float r = Colors.getR(color);
         float g = Colors.getG(color);
@@ -504,22 +495,18 @@ public class StructureWand
         stack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
 
 
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
         Draw.fillBox(builder, stack, 0, 0, 0, 1, 1, 1, r, g, b, CORNER_FILL);
-        BufferRenderer.drawWithGlobalProgram(builder.end());
-
-        Draw.renderBox(stack, 0, 0, 0, 1, 1, 1, r, g, b, 1F);
+        Draw.renderBox(builder, stack, 0, 0, 0, 1, 1, 1, r, g, b, 1F);
 
         stack.pop();
     }
 
     /** The block the next click would take, as a faint white frame. */
-    private static void renderGhost(MatrixStack stack, Vec3d camera, BlockPos pos)
+    private static void renderGhost(BufferBuilder builder, MatrixStack stack, Vec3d camera, BlockPos pos)
     {
         stack.push();
         stack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
-        Draw.renderBox(stack, 0, 0, 0, 1, 1, 1, 1F, 1F, 1F, GHOST);
+        Draw.renderBox(builder, stack, 0, 0, 0, 1, 1, 1, 1F, 1F, 1F, GHOST);
         stack.pop();
     }
 

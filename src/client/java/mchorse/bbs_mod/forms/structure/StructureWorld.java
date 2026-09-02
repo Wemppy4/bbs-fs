@@ -9,6 +9,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.component.type.MapIdComponent;
+import net.minecraft.item.FuelRegistry;
+import net.minecraft.world.attribute.WorldEnvironmentAttributeAccess;
 import net.minecraft.item.map.MapState;
 import net.minecraft.recipe.BrewingRecipeRegistry;
 import net.minecraft.recipe.RecipeManager;
@@ -18,11 +20,21 @@ import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.border.WorldBorder;
+import net.minecraft.entity.boss.dragon.EnderDragonPart;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.particle.BlockParticleEffect;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.util.collection.WeightedPool;
 import net.minecraft.world.LightType;
 import net.minecraft.world.MutableWorldProperties;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldProperties;
+import net.minecraft.world.explosion.ExplosionBehavior;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkManager;
 import net.minecraft.world.entity.EntityLookup;
@@ -32,6 +44,7 @@ import net.minecraft.world.tick.TickManager;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -68,7 +81,8 @@ public class StructureWorld extends World
             delegate.getRegistryKey(),
             delegate.getRegistryManager(),
             delegate.getDimensionEntry(),
-            delegate.getProfilerSupplier(),
+            /* 1.21.11: the profiler supplier left the World constructor — profiling goes through
+             * the global Profilers now, so there is nothing to hand down. */
             true,  /* client side */
             false, /* not a debug world */
             0L,    /* biome-zoomer seed; unused, biome comes from the structure view */
@@ -222,21 +236,87 @@ public class StructureWorld extends World
         return null;
     }
 
-    @Override
-    public void putMapState(MapIdComponent id, MapState state)
-    {
-    }
+    /* putMapState and increaseAndGetMapId left World in 1.21.11 — a world that only feeds a
+     * structure preview had nothing to say through them anyway. */
 
+    /** Moved down to WorldAccess and takes a plain Entity now, not the excluded PlayerEntity. */
     @Override
-    public MapIdComponent increaseAndGetMapId()
+    public void syncWorldEvent(@Nullable Entity player, int eventId, BlockPos pos, int data)
     {
-        return new MapIdComponent(0);
     }
 
     @Override
     public BrewingRecipeRegistry getBrewingRecipeRegistry()
     {
         return this.delegate.getBrewingRecipeRegistry();
+    }
+
+    /* Both new abstracts in 1.21.11; the real world's answers serve the preview as well as anything. */
+
+    @Override
+    public FuelRegistry getFuelRegistry()
+    {
+        return this.delegate.getFuelRegistry();
+    }
+
+    @Override
+    public WorldEnvironmentAttributeAccess getEnvironmentAttributes()
+    {
+        return this.delegate.getEnvironmentAttributes();
+    }
+
+    /* Four more abstracts World grew in 1.21.11. A world that only backs a structure preview has
+     * nothing of its own to say through any of them: the two spawn ones and the dragon parts come
+     * from the real world, and an explosion is simply not something a preview can be asked for. */
+
+    /* Four more that World stopped implementing in 1.21.11 and left to its subclasses. */
+
+    @Override
+    public int getSeaLevel()
+    {
+        return this.delegate.getSeaLevel();
+    }
+
+    @Override
+    public WorldBorder getWorldBorder()
+    {
+        return this.delegate.getWorldBorder();
+    }
+
+    /** Every chunk of a structure is present by construction — it IS the structure. */
+    @Override
+    public boolean isChunkLoaded(int chunkX, int chunkZ)
+    {
+        return true;
+    }
+
+    /** No entities live in a structure view, so nothing of theirs can be collided with. */
+    @Override
+    public List<VoxelShape> getEntityCollisions(@Nullable Entity entity, Box box)
+    {
+        return List.of();
+    }
+
+    @Override
+    public Collection<EnderDragonPart> getEnderDragonParts()
+    {
+        return this.delegate.getEnderDragonParts();
+    }
+
+    @Override
+    public WorldProperties.SpawnPoint getSpawnPoint()
+    {
+        return this.delegate.getSpawnPoint();
+    }
+
+    @Override
+    public void setSpawnPoint(WorldProperties.SpawnPoint spawnPoint)
+    {
+    }
+
+    @Override
+    public void createExplosion(@Nullable Entity entity, @Nullable DamageSource damageSource, @Nullable ExplosionBehavior behavior, double x, double y, double z, float power, boolean createFire, World.ExplosionSourceType explosionSourceType, ParticleEffect smallParticle, ParticleEffect largeParticle, WeightedPool<BlockParticleEffect> blockParticles, RegistryEntry<SoundEvent> sound)
+    {
     }
 
     @Override
@@ -249,18 +329,15 @@ public class StructureWorld extends World
     {
     }
 
+    /* Both take a plain Entity as the excluded listener since 1.21.11, not a PlayerEntity. */
+
     @Override
-    public void playSound(@Nullable PlayerEntity except, double x, double y, double z, RegistryEntry<SoundEvent> sound, SoundCategory category, float volume, float pitch, long seed)
+    public void playSound(@Nullable Entity except, double x, double y, double z, RegistryEntry<SoundEvent> sound, SoundCategory category, float volume, float pitch, long seed)
     {
     }
 
     @Override
-    public void playSoundFromEntity(@Nullable PlayerEntity except, Entity entity, RegistryEntry<SoundEvent> sound, SoundCategory category, float volume, float pitch, long seed)
-    {
-    }
-
-    @Override
-    public void syncWorldEvent(@Nullable PlayerEntity player, int eventId, BlockPos pos, int data)
+    public void playSoundFromEntity(@Nullable Entity except, Entity entity, RegistryEntry<SoundEvent> sound, SoundCategory category, float volume, float pitch, long seed)
     {
     }
 
