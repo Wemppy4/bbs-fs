@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.IWorldTransformProvider;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.WorldTransformClipboard;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Axis;
@@ -185,6 +186,15 @@ public abstract class UITransform extends UIElement
          * that don't support it (they just never capture/apply anything there). */
         this.keys().register(Keys.TRANSFORMATIONS_COPY_WORLD, this::copyWorldTransform).inside().label(UIKeys.TRANSFORMS_CONTEXT_COPY_WORLD);
         this.keys().register(Keys.TRANSFORMATIONS_PASTE_WORLD, this::pasteWorldTransform).inside().label(UIKeys.TRANSFORMS_CONTEXT_PASTE_WORLD);
+    }
+
+    /**
+     * Whether the rotation row can be touched. Off where the gesture in hand is only about position
+     * — a host editing several things at once, where each one's rotation is its own.
+     */
+    public void setRotationEnabled(boolean enabled)
+    {
+        UIUtils.setEnabledDeep(this.rotateRow, enabled);
     }
 
     /**

@@ -29,6 +29,7 @@ import org.joml.Matrix3f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -362,12 +363,25 @@ public class UIPropTransform extends UITransform implements TransformGesture.Hos
 
     public UIPropTransform enableHotkeys(Supplier<Boolean> enabled)
     {
+        return this.enableHotkeys(enabled, (op) -> true);
+    }
+
+    /**
+     * As above, but only for the operations {@code ops} answers for — the hotkey twin of the gizmo's
+     * handle mask, for a host whose target can't take all three (a rest has no scale; a rest shared
+     * by several picked bones has no rotation either).
+     */
+    public UIPropTransform enableHotkeys(Supplier<Boolean> enabled, Predicate<TransformOp> ops)
+    {
         IKey category = UIKeys.TRANSFORMS_KEYS_CATEGORY;
         Supplier<Boolean> active = () -> enabled.get() && this.gesture.isEditing();
+        Supplier<Boolean> translate = () -> enabled.get() && ops.test(TransformOp.TRANSLATE);
+        Supplier<Boolean> scale = () -> enabled.get() && ops.test(TransformOp.SCALE);
+        Supplier<Boolean> rotate = () -> enabled.get() && ops.test(TransformOp.ROTATE);
 
-        this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, () -> this.gesture.enableMode(TransformOp.TRANSLATE)).active(enabled).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_SCALE, () -> this.gesture.enableMode(TransformOp.SCALE)).active(enabled).category(category);
-        this.keys().register(Keys.TRANSFORMATIONS_ROTATE, () -> this.gesture.enableMode(TransformOp.ROTATE)).active(enabled).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, () -> this.gesture.enableMode(TransformOp.TRANSLATE)).active(translate).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_SCALE, () -> this.gesture.enableMode(TransformOp.SCALE)).active(scale).category(category);
+        this.keys().register(Keys.TRANSFORMATIONS_ROTATE, () -> this.gesture.enableMode(TransformOp.ROTATE)).active(rotate).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_X, () -> this.gesture.setAxis(Axis.X)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Y, () -> this.gesture.setAxis(Axis.Y)).active(active).category(category);
         this.keys().register(Keys.TRANSFORMATIONS_Z, () -> this.gesture.setAxis(Axis.Z)).active(active).category(category);

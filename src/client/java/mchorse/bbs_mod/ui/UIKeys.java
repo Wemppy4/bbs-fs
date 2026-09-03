@@ -1027,6 +1027,7 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_MODEL_GROUP_CENTER_ANCHOR = L10n.lang("bbs.ui.model_editor.model.group.center_anchor");
     public static final IKey MODEL_EDITOR_MODEL_GROUP_IK_BONES = L10n.lang("bbs.ui.model_editor.model.group.ik_bones");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_TRANSFORM = L10n.lang("bbs.ui.model_editor.model.undo.transform");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_TRANSFORM_MANY = L10n.lang("bbs.ui.model_editor.model.undo.transform_many");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_ADD = L10n.lang("bbs.ui.model_editor.model.undo.add");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_DUPLICATE = L10n.lang("bbs.ui.model_editor.model.undo.duplicate");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_DUPLICATE_MANY = L10n.lang("bbs.ui.model_editor.model.undo.duplicate_many");
@@ -1035,6 +1036,7 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_MODEL_UNDO_RENAME = L10n.lang("bbs.ui.model_editor.model.undo.rename");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_MOVE = L10n.lang("bbs.ui.model_editor.model.undo.move");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_CENTER_ANCHOR = L10n.lang("bbs.ui.model_editor.model.undo.center_anchor");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_CENTER_ANCHOR_MANY = L10n.lang("bbs.ui.model_editor.model.undo.center_anchor_many");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_IK_BONES = L10n.lang("bbs.ui.model_editor.model.undo.ik_bones");
     public static final IKey MODEL_EDITOR_PROCEDURAL = L10n.lang("bbs.ui.model_editor.procedural");
     public static final IKey MODEL_EDITOR_CULLING = L10n.lang("bbs.ui.model_editor.culling");

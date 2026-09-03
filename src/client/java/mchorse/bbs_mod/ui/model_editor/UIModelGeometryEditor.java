@@ -12,11 +12,13 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -24,11 +26,13 @@ import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,9 +51,11 @@ import java.util.Set;
  * stand-in and re-evaluates the model through it.</p>
  *
  * <p>Several groups can be picked at once (ctrl / shift, as in every list here): the verbs — copy,
- * remove — then work on all of them as one undo step. The fields below the tree, the viewport's
- * marker and the gizmo belong to a single group, so they stand empty and disabled while more than
- * one is picked, rather than pretending to edit the first of them.</p>
+ * remove — then work on all of them as one undo step, and so does moving them. The fields, the
+ * viewport's marker and the gizmo sit on the FIRST of the pick, and what the pivot is moved by is
+ * added to every other picked pivot — they travel together, keeping the distances between them.
+ * Only the pivot: a name and a rest rotation are each bone's own, so those two go dead while more
+ * than one is picked rather than pretending to edit the first of them.</p>
  *
  * <p>Bound per fill: the tree keeps its pick across one by name, since a save reloads the model
  * and every group object with it — and so does every edit of the structure, which settles the
@@ -59,6 +65,22 @@ public class UIModelGeometryEditor extends UIElement
 {
     /** How close a group's rest already is to the stand-in's numbers to be left alone — the round trip through radians isn't exact. */
     private static final float EPSILON = 1E-4F;
+
+    /** What a group's rest can take: moving and turning, no scale. */
+    private static final Gizmo.HandleMask ANCHOR_MASK = Gizmo.HandleMask.of(
+        EnumSet.of(Gizmo.Op.MOVE, Gizmo.Op.SCREEN, Gizmo.Op.ROTATE, Gizmo.Op.VIEW, Gizmo.Op.TRACKBALL),
+        EnumSet.allOf(Axis.class)
+    );
+
+    /**
+     * What a pick of several can take: moving only. Pivots are points, and one step added to all of
+     * them is exact; a rest rotation is each bone's own, and a ring dragged over a pick of them has
+     * no one answer — so those handles aren't offered rather than quietly turning only the first.
+     */
+    private static final Gizmo.HandleMask ANCHOR_MANY_MASK = Gizmo.HandleMask.of(
+        EnumSet.of(Gizmo.Op.MOVE, Gizmo.Op.SCREEN),
+        EnumSet.noneOf(Axis.class)
+    );
 
     private final UIModelEditorPanel modelPanel;
 
@@ -118,7 +140,9 @@ public class UIModelGeometryEditor extends UIElement
 
             return target == null ? null : this.modelPanel.renderer.buildGizmoDrag(target);
         });
-        this.transform.enableHotkeys(() -> this.shownTarget() != null);
+        /* The hotkeys answer to the same rule as the gizmo's handles: a rest never scales, and it
+         * only turns while one group is picked. */
+        this.transform.enableHotkeys(() -> this.shownTarget() != null, (op) -> op == TransformOp.TRANSLATE || (op == TransformOp.ROTATE && this.single()));
         this.transform.translateAction(UIKeys.MODEL_EDITOR_MODEL_GROUP_CENTER_ANCHOR, this::centerAnchor);
 
         this.body = new UIElement();
@@ -139,12 +163,36 @@ public class UIModelGeometryEditor extends UIElement
         return this.model == null || this.groups.getCurrent().size() != 1 ? null : this.groups.getCurrentFirst();
     }
 
-    /** What the viewport gizmo is on: the picked group's rest, through the stand-in. */
+    /** What the viewport gizmo is on: the leading group's rest, through the stand-in. */
     public ModelSlotTarget shownTarget()
     {
-        String id = this.getSelected();
+        String id = this.leader();
 
-        return id == null ? null : new ModelSlotTarget(id, ModelSlotKind.ANCHOR, this.transform, this::applyAnchor);
+        if (id == null)
+        {
+            return null;
+        }
+
+        return new ModelSlotTarget(id, ModelSlotKind.ANCHOR, this.transform, this::applyAnchor, this.single() ? ANCHOR_MASK : ANCHOR_MANY_MASK);
+    }
+
+    /** The group the fields and the gizmo sit on: the first of the pick, which the rest follows. */
+    private String leader()
+    {
+        return this.model == null ? null : this.groups.getCurrentFirst();
+    }
+
+    /** Whether the pick is one group — what a name and a rest rotation need to mean anything. */
+    private boolean single()
+    {
+        return this.getSelected() != null;
+    }
+
+    private ModelGroup leadGroup()
+    {
+        String id = this.leader();
+
+        return id == null ? null : this.model.getGroup(id);
     }
 
     /** Bind to a model (null for none); the tree keeps its pick by name. */
@@ -229,22 +277,27 @@ public class UIModelGeometryEditor extends UIElement
     }
 
     /**
-     * The picked group under the tree: its name and its rest. With nothing picked the fields stand
+     * The leading group under the tree: its name and its rest. With nothing picked the fields stand
      * empty and disabled, so the page keeps its height and the scroll doesn't jump on every pick.
+     * With several picked the pivot stays live — it moves the whole pick — while the name and the
+     * rotation, which belong to one bone each, go dead.
      */
     private void fillGroup()
     {
-        ModelGroup group = this.picked();
+        ModelGroup group = this.leadGroup();
 
         boolean any = !this.groups.getCurrent().isEmpty();
+        boolean single = this.single();
 
         this.name.setText(group == null ? "" : group.id);
         this.loadAnchor(group);
         this.transform.setTransform(this.anchor);
-        UIUtils.setEnabledDeep(this.body, group != null);
+        UIUtils.setEnabledDeep(this.body, any);
+        this.transform.setRotationEnabled(single);
+        this.name.setEnabled(single);
         this.dupe.setEnabled(any);
         this.remove.setEnabled(any);
-        this.ikBones.setEnabled(group != null);
+        this.ikBones.setEnabled(single);
 
         this.page.resize();
         this.page.scroll.clamp();
@@ -298,12 +351,17 @@ public class UIModelGeometryEditor extends UIElement
     }
 
     /**
-     * The group takes the stand-in's numbers. A rest already within a hair of them is left alone:
-     * the round trip through radians isn't exact, and the file must not pick up the noise.
+     * The leading group takes the stand-in's numbers, and the rest of the pick takes the same STEP
+     * rather than the leader's pivot — several picked pivots move together and keep the distances
+     * between them, which is what makes a controller stay on the tip it was created on.
+     *
+     * <p>A rest already within a hair of the numbers is left alone: the round trip through radians
+     * isn't exact, and the file must not pick up the noise. The rotation is the leader's alone —
+     * with several picked, neither the gizmo nor the row offers it (see {@link #ANCHOR_MANY_MASK}).</p>
      */
     private void applyAnchor()
     {
-        ModelGroup group = this.picked();
+        ModelGroup group = this.leadGroup();
 
         if (group == null)
         {
@@ -315,6 +373,16 @@ public class UIModelGeometryEditor extends UIElement
 
         if (!group.initial.translate.equals(this.anchor.translate, EPSILON))
         {
+            Vector3f step = new Vector3f(this.anchor.translate).sub(group.initial.translate);
+
+            for (ModelGroup other : this.pickedGroups())
+            {
+                if (other != group)
+                {
+                    other.initial.translate.add(step);
+                }
+            }
+
             group.initial.translate.set(this.anchor.translate);
         }
 
@@ -325,38 +393,64 @@ public class UIModelGeometryEditor extends UIElement
     }
 
     /**
-     * The pivot to the middle of what the group draws, the translate row's icon. Only the pivot
-     * moves: cube and mesh coordinates are absolute in the model, so the geometry stays exactly
-     * where it stands and what changes is the point the bone turns about.
+     * Every picked group's pivot to the middle of what that group draws — each on its own geometry,
+     * not on the pick's — as the translate row's icon. Only the pivot moves: cube and mesh
+     * coordinates are absolute in the model, so the geometry stays exactly where it stands and what
+     * changes is the point the bone turns about. A group with no geometry at all is passed over.
      *
-     * <p>It goes through the stand-in rather than into the group, since the stand-in is what
+     * <p>The leader goes through the stand-in rather than into the group, since the stand-in is what
      * {@link #render} writes back every frame — the group would take the new pivot and lose it
-     * again on the very next one.</p>
+     * again on the very next one. The others have no stand-in and take it directly.</p>
      */
     private void centerAnchor()
     {
-        ModelGroup group = this.picked();
-        Vector3f min = new Vector3f();
-        Vector3f max = new Vector3f();
+        ModelGroup leader = this.leadGroup();
+        List<ModelGroup> picked = this.pickedGroups();
 
-        if (group == null || !group.getGeometryBounds(min, max))
-        {
-            return;
-        }
-
-        Vector3f center = min.add(max).mul(0.5F);
-
-        if (this.anchor.translate.equals(center, EPSILON))
+        if (leader == null)
         {
             return;
         }
 
         MapType before = this.snapshot();
+        int centered = 0;
 
-        this.anchor.translate.set(center);
-        this.applyAnchor();
+        for (ModelGroup group : picked)
+        {
+            Vector3f min = new Vector3f();
+            Vector3f max = new Vector3f();
 
-        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, UIKeys.MODEL_EDITOR_MODEL_UNDO_CENTER_ANCHOR.format(group.id).get(), null, before, this.snapshot()));
+            if (!group.getGeometryBounds(min, max))
+            {
+                continue;
+            }
+
+            Vector3f center = min.add(max).mul(0.5F);
+            Vector3f pivot = group == leader ? this.anchor.translate : group.initial.translate;
+
+            if (pivot.equals(center, EPSILON))
+            {
+                continue;
+            }
+
+            pivot.set(center);
+            centered++;
+        }
+
+        if (centered == 0)
+        {
+            return;
+        }
+
+        /* The leader's new pivot is in the stand-in; the step it just took must not drag the others,
+         * which have already been centred on their own geometry. */
+        leader.initial.translate.set(this.anchor.translate);
+
+        IKey label = picked.size() > 1
+            ? UIKeys.MODEL_EDITOR_MODEL_UNDO_CENTER_ANCHOR_MANY.format(picked.size())
+            : UIKeys.MODEL_EDITOR_MODEL_UNDO_CENTER_ANCHOR.format(leader.id);
+
+        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, label.get(), null, before, this.snapshot()));
         this.modelPanel.closeModelEdit();
     }
 
@@ -392,10 +486,14 @@ public class UIModelGeometryEditor extends UIElement
             return;
         }
 
-        String id = this.getSelected();
+        String id = this.leader();
+        int picked = this.groups.getCurrent().size();
+        IKey label = picked > 1
+            ? UIKeys.MODEL_EDITOR_MODEL_UNDO_TRANSFORM_MANY.format(picked)
+            : UIKeys.MODEL_EDITOR_MODEL_UNDO_TRANSFORM.format(id);
 
         this.applyAnchor();
-        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, UIKeys.MODEL_EDITOR_MODEL_UNDO_TRANSFORM.format(id).get(), "transform:" + id, this.before, this.snapshot()));
+        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, label.get(), "transform:" + id, this.before, this.snapshot()));
         this.before = null;
     }
 
@@ -498,8 +596,12 @@ public class UIModelGeometryEditor extends UIElement
     /**
      * The tip inside the picked bone, the controller under {@code parentId} (the root for no bone) and
      * the pole inside the controller, as one undo step. All three rest at the picked bone's pivot — they
-     * start on the joint they were asked about and are dragged out from there — and the controller
-     * becomes the pick.
+     * start on the joint they were asked about and are dragged out from there.
+     *
+     * <p>The tip and the controller become the pick, in that order, so the very next drag moves the two
+     * of them together: they have to sit on the same point for the chain to switch on without a jump,
+     * and picked together they can no longer drift apart. The pole is left out — where it goes is the
+     * chain's business, not the tip's.</p>
      */
     private void addIKBones(String id, String parentId)
     {
@@ -522,7 +624,7 @@ public class UIModelGeometryEditor extends UIElement
             this.addBone(end, group, pivot);
             this.addBone(pole, this.addBone(controller, parent, pivot), pivot);
         });
-        this.select(controller);
+        this.selectAll(List.of(end, controller));
     }
 
     /**
