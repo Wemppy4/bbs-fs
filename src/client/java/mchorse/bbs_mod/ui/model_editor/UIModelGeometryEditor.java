@@ -2,29 +2,42 @@ package mchorse.bbs_mod.ui.model_editor;
 
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.data.model.ModelCube;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
+import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
-import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Vector3f;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * The model editor of the model panel: the model itself rather than its configuration. Its groups
- * as a tree, and for the picked one its rest — the pivot it turns about and the rotation it rests
- * at — on the viewport gizmo and in a transform editor. Edits land in the live model (the preview
- * shows them at once: a rest is a matrix, nothing is re-baked), go on the panel's undo stack as
- * snapshots of the model ({@link ModelEditUndo}), and the panel writes the file on save.
+ * as a tree — added, duplicated, removed, renamed, dragged among their siblings or into another
+ * group — and for the picked one its rest, the pivot it turns about and the rotation it rests at,
+ * on the viewport gizmo and in a transform editor. Edits land in the live model (the preview shows
+ * them at once), go on the panel's undo stack as snapshots of the model ({@link ModelEditUndo}),
+ * and the panel writes the file on save.
  *
  * <p>The transform editor works in radians on a stand-in transform; the group rests in degrees.
  * The stand-in is loaded from the group on every fill and pushed back into the group after every
@@ -32,7 +45,8 @@ import org.joml.Vector3f;
  * stand-in and re-evaluates the model through it.</p>
  *
  * <p>Bound per fill: the tree keeps its pick across one by name, since a save reloads the model
- * and every group object with it.</p>
+ * and every group object with it — and so does every edit of the structure, which settles the
+ * model again through the panel.</p>
  */
 public class UIModelGeometryEditor extends UIElement
 {
@@ -42,9 +56,12 @@ public class UIModelGeometryEditor extends UIElement
     private final UIModelEditorPanel modelPanel;
 
     private final UIScrollView page;
-    private final UIBoneTreeList groups;
+    private final UIModelGroupList groups;
     private final UISearchList<String> search;
+    private final UIIcon dupe;
+    private final UIIcon remove;
     private final UIElement body;
+    private final UITextbox name;
 
     /** The picked group's rest, edited through the stand-in. */
     private final UIPropTransform transform;
@@ -60,11 +77,26 @@ public class UIModelGeometryEditor extends UIElement
     {
         this.modelPanel = panel;
 
-        this.groups = new UIBoneTreeList((list) -> this.fillGroup());
-        this.groups.background();
+        this.groups = new UIModelGroupList((list) -> this.fillGroup(), () -> this.model)
+            .onReorder(this::reorderGroup)
+            .onReparent(this::reparentGroup);
+        this.groups.context(this::fillGroupMenu);
         this.search = new UISearchList<>(this.groups);
         this.search.label(UIKeys.GENERAL_SEARCH);
         this.search.h(UIStringList.DEFAULT_HEIGHT * 8 - 8).expand();
+
+        /* The verbs over the tree, the list idiom of the panel: add goes under the picked group */
+        UIIcon add = new UIIcon(Icons.ADD, (b) -> this.addGroup());
+
+        add.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD);
+        this.dupe = new UIIcon(Icons.DUPE, (b) -> this.duplicateGroup(this.picked()));
+        this.dupe.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE);
+        this.remove = new UIIcon(Icons.REMOVE, (b) -> this.askRemoveGroup(this.picked()));
+        this.remove.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
+
+        /* The name is committed as a whole (enter, leaving the field): every keystroke would be a rename. */
+        this.name = new UITextbox(64, this::renameGroup);
+        this.name.delayedInput();
 
         /* A group's rest has no scale. G/R start a gesture on the picked group without touching a
          * handle, the way every transform editor of the panel does. */
@@ -80,9 +112,9 @@ public class UIModelGeometryEditor extends UIElement
 
         this.body = new UIElement();
         this.body.column(UIConstants.MARGIN).vertical().stretch();
-        this.body.add(this.transform);
+        this.body.add(UI.labelRow(UIKeys.MODEL_EDITOR_MODEL_GROUP_NAME, this.name), this.transform);
 
-        this.page = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, this.search, this.body);
+        this.page = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, UI.strip(add, this.dupe, this.remove), this.search, this.body);
         this.page.full(this);
         this.add(this.page);
     }
@@ -127,10 +159,15 @@ public class UIModelGeometryEditor extends UIElement
         }
 
         this.search.filter("", true);
-        this.groups.setCurrentScroll(bone);
-        this.fillGroup();
+        this.select(bone);
 
         return true;
+    }
+
+    private void select(String id)
+    {
+        this.groups.setCurrentScroll(id);
+        this.fillGroup();
     }
 
     private ModelGroup picked()
@@ -141,20 +178,43 @@ public class UIModelGeometryEditor extends UIElement
     }
 
     /**
-     * The picked group's rest in the transform editor. With nothing picked the editor stands empty
-     * and disabled, so the page keeps its height and the scroll doesn't jump on every pick.
+     * The picked group under the tree: its name and its rest. With nothing picked the fields stand
+     * empty and disabled, so the page keeps its height and the scroll doesn't jump on every pick.
      */
     private void fillGroup()
     {
         ModelGroup group = this.picked();
 
+        this.name.setText(group == null ? "" : group.id);
         this.loadAnchor(group);
         this.transform.setTransform(this.anchor);
         UIUtils.setEnabledDeep(this.body, group != null);
+        this.dupe.setEnabled(group != null);
+        this.remove.setEnabled(group != null);
 
         this.page.resize();
         this.page.scroll.clamp();
     }
+
+    /** The row's menu picks the row and offers the verbs of the strip on it. */
+    private void fillGroupMenu(ContextMenuManager menu)
+    {
+        String id = this.model == null ? null : this.groups.atCursor(this.getContext());
+        ModelGroup group = id == null ? null : this.model.getGroup(id);
+
+        if (group == null)
+        {
+            return;
+        }
+
+        this.select(id);
+
+        menu.action(Icons.ADD, UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD, this::addGroup);
+        menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE, () -> this.duplicateGroup(group));
+        menu.icon(MenuVerb.REMOVE, () -> this.askRemoveGroup(group)).label(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
+    }
+
+    /* The rest: the stand-in between the transform editor and the group */
 
     /** The stand-in takes the group's rest: the pivot as it is, the rotation in radians. */
     private void loadAnchor(ModelGroup group)
@@ -239,5 +299,201 @@ public class UIModelGeometryEditor extends UIElement
     private void endEdit()
     {
         this.modelPanel.closeModelEdit();
+    }
+
+    /* The structure: groups added, copied, removed, renamed, moved — each one undo step, settled
+     * and shown through the panel right after. */
+
+    /** An edit of the model's structure: snapshot, change, push, settle. */
+    private void edit(IKey label, Runnable mutation)
+    {
+        MapType before = this.snapshot();
+
+        mutation.run();
+        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, label.get(), null, before, this.snapshot()));
+        this.modelPanel.modelStructureChanged();
+    }
+
+    /** Where a group sits among its siblings: its parent's children, or the model's roots. */
+    private List<ModelGroup> siblings(ModelGroup group)
+    {
+        return group.parent == null ? this.model.topGroups : group.parent.children;
+    }
+
+    /** A name no group has, from {@code base}: the base itself, else with a number after it; {@code taken} holds the names given out before the model knows them. */
+    private String uniqueName(String base, Set<String> taken)
+    {
+        String name = base;
+
+        for (int i = 2; this.model.getGroup(name) != null || taken.contains(name); i++)
+        {
+            name = base + "_" + i;
+        }
+
+        taken.add(name);
+
+        return name;
+    }
+
+    /** A new, empty group under the picked one (at its pivot), or at the root with nothing picked. */
+    private void addGroup()
+    {
+        if (this.model == null)
+        {
+            return;
+        }
+
+        ModelGroup parent = this.picked();
+        String name = this.uniqueName("group", new HashSet<>());
+
+        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_ADD.format(name), () ->
+        {
+            ModelGroup group = new ModelGroup(name);
+
+            if (parent == null)
+            {
+                this.model.topGroups.add(group);
+            }
+            else
+            {
+                group.initial.translate.set(parent.initial.translate);
+                parent.children.add(group);
+            }
+        });
+        this.select(name);
+    }
+
+    /** A copy of the group and everything in it, right after it among its siblings. */
+    private void duplicateGroup(ModelGroup group)
+    {
+        if (group == null)
+        {
+            return;
+        }
+
+        ModelGroup copy = this.copy(group, new HashSet<>());
+
+        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_DUPLICATE.format(group.id), () ->
+        {
+            List<ModelGroup> siblings = this.siblings(group);
+
+            siblings.add(siblings.indexOf(group) + 1, copy);
+        });
+        this.select(copy.id);
+    }
+
+    /** A group and its subtree as new groups under new names, the cubes rebuilt from their data. */
+    private ModelGroup copy(ModelGroup group, Set<String> taken)
+    {
+        ModelGroup copy = new ModelGroup(this.uniqueName(group.id, taken));
+
+        copy.fromData(group.toData());
+
+        for (ModelCube cube : copy.cubes)
+        {
+            cube.generateQuads(this.model.textureWidth, this.model.textureHeight);
+        }
+
+        for (ModelGroup child : group.children)
+        {
+            copy.children.add(this.copy(child, taken));
+        }
+
+        return copy;
+    }
+
+    /** Removing takes the subtree and its cubes with it, so it's asked about first. */
+    private void askRemoveGroup(ModelGroup group)
+    {
+        if (group == null)
+        {
+            return;
+        }
+
+        UIOverlay.addOverlay(this.getContext(), new UIConfirmOverlayPanel(
+            UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE,
+            UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE_CONFIRM.format(group.id),
+            (confirm) ->
+            {
+                if (confirm)
+                {
+                    this.removeGroup(group);
+                }
+            }
+        ));
+    }
+
+    private void removeGroup(ModelGroup group)
+    {
+        this.groups.deselect();
+        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_REMOVE.format(group.id), () -> this.siblings(group).remove(group));
+        this.fillGroup();
+    }
+
+    /**
+     * Rename the picked group everywhere the model's folder knows it, as one undo step that carries
+     * the config along. A name that's empty, unchanged or taken is refused, and the field goes back
+     * to the name the group has.
+     */
+    private void renameGroup(String to)
+    {
+        ModelGroup group = this.picked();
+        String from = group == null ? null : group.id;
+
+        to = to.trim();
+
+        if (from == null || to.isEmpty() || to.equals(from) || this.model.getGroup(to) != null)
+        {
+            this.name.setText(from == null ? "" : from);
+
+            return;
+        }
+
+        MapType modelBefore = this.snapshot();
+        MapType configBefore = this.modelPanel.getData().toData().asMap();
+
+        this.modelPanel.renameBone(from, to);
+        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, UIKeys.MODEL_EDITOR_MODEL_UNDO_RENAME.format(from, to).get(), null, modelBefore, this.snapshot(), configBefore, this.modelPanel.getData().toData().asMap(), from, to));
+        this.modelPanel.modelStructureChanged();
+        this.select(to);
+    }
+
+    /** A group dragged among its siblings goes to {@code index} among the others. */
+    private void reorderGroup(String id, int index)
+    {
+        ModelGroup group = this.model == null ? null : this.model.getGroup(id);
+
+        if (group == null)
+        {
+            return;
+        }
+
+        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_MOVE.format(id), () ->
+        {
+            List<ModelGroup> siblings = this.siblings(group);
+
+            siblings.remove(group);
+            siblings.add(Math.min(index, siblings.size()), group);
+        });
+        this.select(id);
+    }
+
+    /** A group dropped onto another goes inside it, last. */
+    private void reparentGroup(String id, String parentId)
+    {
+        ModelGroup group = this.model == null ? null : this.model.getGroup(id);
+        ModelGroup parent = this.model == null ? null : this.model.getGroup(parentId);
+
+        if (group == null || parent == null || group == parent)
+        {
+            return;
+        }
+
+        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_MOVE.format(id), () ->
+        {
+            this.siblings(group).remove(group);
+            parent.children.add(group);
+        });
+        this.select(id);
     }
 }

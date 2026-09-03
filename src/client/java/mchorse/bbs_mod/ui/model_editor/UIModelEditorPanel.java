@@ -7,6 +7,7 @@ import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.animation.Animation;
 import mchorse.bbs_mod.cubic.data.animation.AnimationPart;
 import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.ModelManager;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.data.types.MapType;
@@ -600,10 +601,44 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         super.forceSave();
 
-        if (this.modelDirty && this.bound != null && BBSModClient.getModels().saveModel(this.bound))
+        if (this.modelDirty && this.bound != null && BBSModClient.getModels().saveModel(this.bound, this.renames))
         {
             this.modelDirty = false;
+            this.renames.clear();
         }
+    }
+
+    /** The model's structure changed — a group came, went, moved or was renamed: settle it, re-bake, refill. */
+    public void modelStructureChanged()
+    {
+        if (this.bound != null && this.bound.getModel() instanceof Model model)
+        {
+            model.initialize();
+        }
+
+        this.refresh();
+        this.fillEditors();
+    }
+
+    /** Rename a group everywhere the model's folder knows it: the group itself, the config, the animations. */
+    public void renameBone(String from, String to)
+    {
+        if (this.bound == null || !(this.bound.getModel() instanceof Model model))
+        {
+            return;
+        }
+
+        ModelGroup group = model.getGroup(from);
+
+        if (group == null)
+        {
+            return;
+        }
+
+        group.id = to;
+        model.initialize();
+        this.data.renameBone(from, to);
+        this.renameAnimations(from, to);
     }
 
     /** The model editor changed the model: the next save writes the model's file too. */

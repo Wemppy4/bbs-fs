@@ -13,6 +13,7 @@ import mchorse.bbs_mod.cubic.model.loaders.GeoCubicModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.IModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.VoxModelLoader;
 import mchorse.bbs_mod.data.DataToString;
+import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.math.molang.MolangParser;
 import mchorse.bbs_mod.resources.AssetProvider;
@@ -229,7 +230,7 @@ public class ModelManager implements IWatchDogListener
      * the exporter's version stamp. Only for a model the editor may edit
      * ({@link ModelInstance#getModelFile()}); returns whether the file was written.
      */
-    public boolean saveModel(ModelInstance instance)
+    public boolean saveModel(ModelInstance instance, List<String[]> renames)
     {
         Link link = instance.getModelFile();
         File file = link == null ? null : this.provider.getFile(link);
@@ -243,7 +244,37 @@ public class ModelManager implements IWatchDogListener
 
         data.put("model", model.toData());
 
+        if (!renames.isEmpty() && data.has("animations"))
+        {
+            renameAnimationBones(data.getMap("animations"), renames);
+        }
+
         return DataToString.writeSilently(file, data, true);
+    }
+
+    /** Move the bone keys of every animation in the file along the renames, oldest first. */
+    private static void renameAnimationBones(MapType animations, List<String[]> renames)
+    {
+        for (Map.Entry<String, BaseType> entry : animations)
+        {
+            if (!entry.getValue().isMap() || !entry.getValue().asMap().has("groups"))
+            {
+                continue;
+            }
+
+            MapType groups = entry.getValue().asMap().getMap("groups");
+
+            for (String[] rename : renames)
+            {
+                if (groups.has(rename[0]))
+                {
+                    BaseType part = groups.get(rename[0]);
+
+                    groups.remove(rename[0]);
+                    groups.put(rename[1], part);
+                }
+            }
+        }
     }
 
     /** The file as it stands, to be written over in place; an empty ordered map when it can't be read. */

@@ -6,6 +6,7 @@ import mchorse.bbs_mod.cubic.model.View;
 import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
+import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
@@ -230,6 +231,147 @@ public class ModelConfig extends ValueGroup
     public Link getTexture()
     {
         return this.texture.get();
+    }
+
+    /**
+     * Point every reference to bone {@code from} at {@code to} — the anchor, the hidden bones, the
+     * look-at head, the two poses, the welds, the held-item, armor and first-person slots, the flip
+     * pairs and the picking overrides — the way the model editor renames a group. Done on the data
+     * rather than the values, so the value system has no edits to record: a rename is one undo step
+     * of the model editor's, config included.
+     */
+    public void renameBone(String from, String to)
+    {
+        MapType data = this.toData().asMap();
+
+        renameBone(data, from, to);
+        this.fromData(data);
+        this.rebuild();
+    }
+
+    private static void renameBone(MapType data, String from, String to)
+    {
+        renameString(data, "anchor", from, to);
+        renameStrings(data, "disabledBones", from, to);
+        renameString(map(data, "look_at"), "head", from, to);
+        renameKey(map(map(data, "sneaking_pose"), "pose"), from, to);
+        renameKey(map(map(data, "default_pose"), "pose"), from, to);
+        renameSlots(list(data, "items_main"), from, to);
+        renameSlots(list(data, "items_off"), from, to);
+        renameString(map(data, "fp_main"), "group", from, to);
+        renameString(map(data, "fp_offhand"), "group", from, to);
+        renamePairs(map(data, "flipped_parts"), from, to);
+        renamePairs(map(data, "picking_overrides"), from, to);
+
+        MapType armor = map(data, "armor_slots");
+
+        if (armor != null)
+        {
+            for (String key : new ArrayList<>(armor.keys()))
+            {
+                renameString(map(armor, key), "group", from, to);
+            }
+        }
+
+        ListType welds = list(data, "welds");
+
+        if (welds != null)
+        {
+            for (BaseType weld : welds)
+            {
+                if (weld.isMap())
+                {
+                    renameString(weld.asMap(), "source_bone", from, to);
+                    renameString(weld.asMap(), "target_bone", from, to);
+                }
+            }
+        }
+    }
+
+    private static MapType map(MapType data, String key)
+    {
+        return data != null && data.has(key) && data.get(key).isMap() ? data.get(key).asMap() : null;
+    }
+
+    private static ListType list(MapType data, String key)
+    {
+        return data != null && data.has(key) && data.get(key).isList() ? data.get(key).asList() : null;
+    }
+
+    private static void renameString(MapType map, String key, String from, String to)
+    {
+        if (map != null && map.has(key) && from.equals(map.getString(key)))
+        {
+            map.putString(key, to);
+        }
+    }
+
+    /** A map keyed by bone: the entry moves to the new key. */
+    private static void renameKey(MapType map, String from, String to)
+    {
+        if (map != null && map.has(from))
+        {
+            BaseType value = map.get(from);
+
+            map.remove(from);
+            map.put(to, value);
+        }
+    }
+
+    /** A list of bone names. */
+    private static void renameStrings(MapType data, String key, String from, String to)
+    {
+        ListType list = list(data, key);
+
+        if (list == null)
+        {
+            return;
+        }
+
+        ListType fresh = new ListType();
+
+        for (BaseType element : list)
+        {
+            fresh.addString(from.equals(element.asString()) ? to : element.asString());
+        }
+
+        data.put(key, fresh);
+    }
+
+    /** A bone-to-bone map: both the keys and the values name bones. */
+    private static void renamePairs(MapType map, String from, String to)
+    {
+        if (map == null)
+        {
+            return;
+        }
+
+        for (String key : new ArrayList<>(map.keys()))
+        {
+            if (from.equals(map.getString(key)))
+            {
+                map.putString(key, to);
+            }
+        }
+
+        renameKey(map, from, to);
+    }
+
+    /** A list of slots, each on a bone. */
+    private static void renameSlots(ListType slots, String from, String to)
+    {
+        if (slots == null)
+        {
+            return;
+        }
+
+        for (BaseType slot : slots)
+        {
+            if (slot.isMap())
+            {
+                renameString(slot.asMap(), "group", from, to);
+            }
+        }
     }
 
     public static class WeldList extends ValueList<WeldValue>

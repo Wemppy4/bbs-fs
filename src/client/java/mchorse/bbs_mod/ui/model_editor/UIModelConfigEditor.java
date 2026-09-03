@@ -404,7 +404,7 @@ public class UIModelConfigEditor extends UIElement
         this.removeWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_REMOVE);
 
         this.weldPanel = this.body();
-        this.page(Tab.WELDS).add(this.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldPanel);
+        this.page(Tab.WELDS).add(UI.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldPanel);
 
         /* Armor: every piece the config can place, one row each, named by the piece. */
         this.armor = new SlotBlock((slot) -> ModelSlotKind.ARMOR, (slot) -> this.armorTypeLabel(this.armorTypeOf(slot)), () -> this.armorSlots());
@@ -446,7 +446,7 @@ public class UIModelConfigEditor extends UIElement
             this.removeItem.setEnabled(picked);
         };
 
-        this.page(Tab.ITEMS).add(this.itemsTabs, this.strip(addItem, this.dupeItem, this.removeItem), this.items.list, this.items.panel);
+        this.page(Tab.ITEMS).add(this.itemsTabs, UI.strip(addItem, this.dupeItem, this.removeItem), this.items.list, this.items.panel);
 
         /* First person: the hand picked by the same tab strip as the items, its one slot under it. */
         this.fpTabs = this.handTabs(() -> this.firstPerson.fill());
@@ -541,22 +541,6 @@ public class UIModelConfigEditor extends UIElement
         this.bodies.add(body);
 
         return body;
-    }
-
-    /** The verbs of a list — add, duplicate, remove — as a row of compact icons over it (the replay list's idiom). */
-    private UIElement strip(UIIcon... icons)
-    {
-        UIElement strip = new UIElement();
-
-        strip.row(0).height(UIConstants.CONTROL_HEIGHT);
-
-        for (UIIcon icon : icons)
-        {
-            icon.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-            strip.add(icon);
-        }
-
-        return strip;
     }
 
     /** What a weld joins, as its row reads: {@code bone/face → bone/face}, a "?" for a bone not picked yet. */

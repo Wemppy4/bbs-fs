@@ -1018,7 +1018,17 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_OPEN_CONFIG_EDITOR = L10n.lang("bbs.ui.model_editor.open_config_editor");
     public static final IKey MODEL_EDITOR_OPEN_MODEL_EDITOR = L10n.lang("bbs.ui.model_editor.open_model_editor");
     public static final IKey MODEL_EDITOR_OPEN_MODEL_EDITOR_UNAVAILABLE = L10n.lang("bbs.ui.model_editor.open_model_editor.unavailable");
+    public static final IKey MODEL_EDITOR_MODEL_GROUP_NAME = L10n.lang("bbs.ui.model_editor.model.group.name");
+    public static final IKey MODEL_EDITOR_MODEL_GROUP_ADD = L10n.lang("bbs.ui.model_editor.model.group.add");
+    public static final IKey MODEL_EDITOR_MODEL_GROUP_DUPLICATE = L10n.lang("bbs.ui.model_editor.model.group.duplicate");
+    public static final IKey MODEL_EDITOR_MODEL_GROUP_REMOVE = L10n.lang("bbs.ui.model_editor.model.group.remove");
+    public static final IKey MODEL_EDITOR_MODEL_GROUP_REMOVE_CONFIRM = L10n.lang("bbs.ui.model_editor.model.group.remove_confirm");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_TRANSFORM = L10n.lang("bbs.ui.model_editor.model.undo.transform");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_ADD = L10n.lang("bbs.ui.model_editor.model.undo.add");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_DUPLICATE = L10n.lang("bbs.ui.model_editor.model.undo.duplicate");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_REMOVE = L10n.lang("bbs.ui.model_editor.model.undo.remove");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_RENAME = L10n.lang("bbs.ui.model_editor.model.undo.rename");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_MOVE = L10n.lang("bbs.ui.model_editor.model.undo.move");
     public static final IKey MODEL_EDITOR_PROCEDURAL = L10n.lang("bbs.ui.model_editor.procedural");
     public static final IKey MODEL_EDITOR_CULLING = L10n.lang("bbs.ui.model_editor.culling");
     public static final IKey MODEL_EDITOR_ON_CPU = L10n.lang("bbs.ui.model_editor.on_cpu");

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.utils;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -141,5 +142,21 @@ public class UI
         scrollView.add(elements);
 
         return scrollView;
+    }
+
+    /** The verbs of a list — add, duplicate, remove — as a row of compact icons over it (the replay list's idiom). */
+    public static UIElement strip(UIIcon... icons)
+    {
+        UIElement strip = new UIElement();
+
+        strip.row(0).height(UIConstants.CONTROL_HEIGHT);
+
+        for (UIIcon icon : icons)
+        {
+            icon.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
+            strip.add(icon);
+        }
+
+        return strip;
     }
 }
