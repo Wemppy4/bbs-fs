@@ -120,6 +120,22 @@ public class UIModelConfigEditor extends UIElement
 
     private static final CubeFace[] FACES = CubeFace.values();
 
+    /* How a cube's side reads in the UI: the side picker's buttons, and the icon a weld row draws in
+     * place of the side's name. Both are indexed by {@link CubeFace}, so the order is the enum's. */
+    private static final Icon[] FACE_ICONS = {Icons.FORWARD, Icons.BACKWARD, Icons.ARROW_RIGHT, Icons.ARROW_LEFT, Icons.ARROW_UP, Icons.ARROW_DOWN};
+    private static final IKey[] FACE_LABELS = {
+        UIKeys.MODEL_EDITOR_FACE_FRONT, UIKeys.MODEL_EDITOR_FACE_BACK, UIKeys.MODEL_EDITOR_FACE_RIGHT,
+        UIKeys.MODEL_EDITOR_FACE_LEFT, UIKeys.MODEL_EDITOR_FACE_TOP, UIKeys.MODEL_EDITOR_FACE_BOTTOM
+    };
+
+    /** The icon a side is shown by; null when the name doesn't name a side (an unset face). */
+    static Icon faceIcon(String face)
+    {
+        CubeFace value = CubeFace.fromName(face);
+
+        return value == null ? null : FACE_ICONS[value.ordinal()];
+    }
+
     /* The role dots of the bone tree: rightmost, a mirror bone is set; next to it, a picking override. */
     private static final int MARKER_MIRROR = Colors.A100 | Colors.CYAN;
     private static final int MARKER_PICKING = Colors.A100 | Colors.ORANGE;
@@ -165,7 +181,7 @@ public class UIModelConfigEditor extends UIElement
     private UIIcon removeItem;
     private UIModelBoneList bones;
     private UISearchList<String> bonesSearch;
-    private UIEntryList<WeldValue> weldList;
+    private UIWeldList weldList;
     private UIIcon dupeWeld;
     private UIIcon removeWeld;
 
@@ -380,8 +396,9 @@ public class UIModelConfigEditor extends UIElement
         /* Welds: the add/duplicate/remove strip over the list, the replay list's idiom — now that a weld
          * is picked rather than edited inline, the strip's verbs have something to act on. The add icon
          * pastes a copied weld as a new one on right click. */
-        this.weldList = new UIEntryList<>((list) -> this.fillWeld(), UIModelConfigEditor::weldName).broken((weld) -> this.diagnoseWeld(weld) != null);
-        this.weldList.h(UIStringList.DEFAULT_HEIGHT * 4).expand();
+        this.weldList = new UIWeldList((list) -> this.fillWeld());
+        this.weldList.broken((weld) -> this.diagnoseWeld(weld) != null);
+        this.weldList.h(UIWeldList.ROW_HEIGHT * 4).expand();
         this.weldList.context((menu) ->
         {
             WeldValue weld = this.weldList.getAtCursor(this.getContext());
@@ -541,19 +558,6 @@ public class UIModelConfigEditor extends UIElement
         this.bodies.add(body);
 
         return body;
-    }
-
-    /** What a weld joins, as its row reads: {@code bone/face → bone/face}, a "?" for a bone not picked yet. */
-    private static String weldName(WeldValue weld)
-    {
-        return weldEnd(weld.sourceBone.get(), weld.sourceFace.get()) + " → " + weldEnd(weld.targetBone.get(), weld.targetFace.get());
-    }
-
-    private static String weldEnd(String bone, String face)
-    {
-        String name = bone.isEmpty() ? "?" : bone;
-
-        return face.isEmpty() ? name : name + "/" + face;
     }
 
     /* Filling. fill() is the "a different model is open" path; the individual fillX() methods are
@@ -1365,12 +1369,10 @@ public class UIModelConfigEditor extends UIElement
             onChange.run();
         });
 
-        icons.add(Icons.FORWARD, UIKeys.MODEL_EDITOR_FACE_FRONT);
-        icons.add(Icons.BACKWARD, UIKeys.MODEL_EDITOR_FACE_BACK);
-        icons.add(Icons.ARROW_RIGHT, UIKeys.MODEL_EDITOR_FACE_RIGHT);
-        icons.add(Icons.ARROW_LEFT, UIKeys.MODEL_EDITOR_FACE_LEFT);
-        icons.add(Icons.ARROW_UP, UIKeys.MODEL_EDITOR_FACE_TOP);
-        icons.add(Icons.ARROW_DOWN, UIKeys.MODEL_EDITOR_FACE_BOTTOM);
+        for (int i = 0; i < FACES.length; i++)
+        {
+            icons.add(FACE_ICONS[i], FACE_LABELS[i]);
+        }
 
         CubeFace current = CubeFace.fromName(value.get());
 
