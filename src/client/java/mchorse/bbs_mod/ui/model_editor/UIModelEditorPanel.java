@@ -94,7 +94,12 @@ import java.util.function.Supplier;
  * (binding straight to the live model's {@link ModelConfig}, so edits show in the preview at once)
  * and the preview on the right. Models are assets, so create/rename/delete are intentionally off.
  *
- * <p>The settings pane is a strip of icon tabs over one page at a time ({@link Tab}): the general
+ * <p>The pane holds one of the panel's two editors ({@link Editor}), picked by the first buttons of
+ * the action bar the way the film panel picks between its camera and replay editors: the config
+ * editor over everything the model's {@link ModelConfig} says, and the model editor over the model
+ * itself. They share the one preview.</p>
+ *
+ * <p>The config editor is a strip of icon tabs over one page at a time ({@link Tab}): the general
  * settings, the bones, the welds, the armor, the held items, the first-person hands, the poses.
  * The page that's open decides what the preview shows — the armor is worn on the armor page, the
  * items held on the items page, the first-person view is the first-person page, the model sneaks
@@ -111,7 +116,23 @@ import java.util.function.Supplier;
  */
 public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 {
-    /** The pages of the settings pane, in the order of their tabs. */
+    /** What the pane is showing: the config of the model, or the model itself. */
+    public enum Editor
+    {
+        CONFIG(Icons.SETTINGS, UIKeys.MODEL_EDITOR_OPEN_CONFIG_EDITOR),
+        MODEL(Icons.SHAPES, UIKeys.MODEL_EDITOR_OPEN_MODEL_EDITOR);
+
+        public final Icon icon;
+        public final IKey label;
+
+        Editor(Icon icon, IKey label)
+        {
+            this.icon = icon;
+            this.label = label;
+        }
+    }
+
+    /** The pages of the config editor, in the order of their tabs. */
     public enum Tab
     {
         GENERAL(Icons.GEAR, UIKeys.FORMS_EDITORS_GENERAL),
@@ -132,19 +153,27 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
     }
 
+    private static final Editor[] EDITORS = Editor.values();
     private static final Tab[] TABS = Tab.values();
 
     /** The tab strip's height — the dock stacks' one, since the strip is drawn like theirs. */
     private static final int TABS_HEIGHT = 20;
 
+    /** The editor that was open last; kept across models and across leaving and re-entering the panel. */
+    private static Editor lastEditor = Editor.CONFIG;
+
     /** The page that was open last; kept across models and across leaving and re-entering the panel. */
     private static Tab lastTab = Tab.GENERAL;
 
-    /** The settings pane: the tab strip over the open page. */
+    /** The pane beside the preview, holding whichever editor is open. */
     public UIElement pane;
     public UITabStrip tabs;
     public UIModelEditorRenderer renderer;
     public UISplitter splitter;
+
+    /** The editors themselves, in the order of their buttons: the config's tab strip over its pages, the model's own. */
+    private final UIElement[] editors = new UIElement[EDITORS.length];
+    private final UIIcon[] editorIcons = new UIIcon[EDITORS.length];
 
     private final UIScrollView[] pages = new UIScrollView[TABS.length];
 
@@ -252,6 +281,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             this.resize();
         });
 
+        this.createEditors();
         this.createTabs();
         this.layoutPanes();
 
@@ -285,6 +315,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.editor.add(this.pane, this.renderer, this.splitter);
 
         this.createPages();
+        this.showEditor(lastEditor);
         this.showTab(lastTab);
 
         this.openOverlay.tooltip(UIKeys.FORMS_EDITOR_MODEL_PICK_MODEL);
@@ -298,6 +329,15 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.animationIcon = new UIIcon(Icons.PLAY, (b) -> this.openAnimations());
         this.animationIcon.tooltip(UIKeys.MODEL_EDITOR_ANIMATION_PLAY);
 
+        for (Editor pick : EDITORS)
+        {
+            UIIcon icon = new UIIcon(pick.icon, (b) -> this.openEditor(pick));
+
+            icon.tooltip(pick.label);
+            this.editorIcons[pick.ordinal()] = icon;
+            this.actions().editor(icon, () -> lastEditor == pick);
+        }
+
         this.actions()
             .action(this.folderIcon)
             .action(this.historyIcon)
@@ -310,6 +350,47 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.registerKeybinds();
 
         this.fill(null);
+    }
+
+    /* Editors. Both fill the pane and only one is shown, the way the film panel switches between its
+     * camera and replay editors; the preview beside them is shared. */
+
+    /** The panes of the two editors, one over the other; the config's contents are built into its own. */
+    private void createEditors()
+    {
+        for (Editor pick : EDITORS)
+        {
+            UIElement element = new UIElement();
+
+            element.full(this.pane);
+            this.editors[pick.ordinal()] = element;
+            this.pane.add(element);
+        }
+    }
+
+    private UIElement editorPane(Editor editor)
+    {
+        return this.editors[editor.ordinal()];
+    }
+
+    /** Open an editor: it's the one shown, and the preview follows it. */
+    private void openEditor(Editor editor)
+    {
+        this.showEditor(editor);
+        this.layoutPanes();
+        this.resize();
+    }
+
+    private void showEditor(Editor editor)
+    {
+        lastEditor = editor;
+
+        for (Editor pick : EDITORS)
+        {
+            this.editorPane(pick).setVisible(pick == editor);
+        }
+
+        this.syncPreview();
     }
 
     /* Tabs. The strip is the dock stacks' one — square icons, the name on a card under the cursor, the
@@ -342,16 +423,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             this.tabs.addTab(icon);
         }
 
-        this.tabs.relative(this.pane).x(0).y(0).w(1F).h(TABS_HEIGHT);
-        this.pane.add(this.tabs);
+        UIElement config = this.editorPane(Editor.CONFIG);
+
+        this.tabs.relative(config).x(0).y(0).w(1F).h(TABS_HEIGHT);
+        config.add(this.tabs);
 
         for (Tab tab : TABS)
         {
             UIScrollView page = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING);
 
-            page.relative(this.pane).x(0).y(TABS_HEIGHT).w(1F).h(1F, -TABS_HEIGHT);
+            page.relative(config).x(0).y(TABS_HEIGHT).w(1F).h(1F, -TABS_HEIGHT);
             this.pages[tab.ordinal()] = page;
-            this.pane.add(page);
+            config.add(page);
         }
     }
 
@@ -368,12 +451,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.resize();
     }
 
-    /**
-     * The page decides the preview: the armor is worn only on the armor page and the items held only
-     * on the items page (so each is seen against the bare model), the first-person page is the
-     * first-person view, and the model sneaks on the poses page — so the sneaking pose is what's
-     * being edited, the way the animator applies it in play.
-     */
     private void showTab(Tab tab)
     {
         lastTab = tab;
@@ -383,9 +460,25 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             this.page(other).setVisible(other == tab);
         }
 
-        this.renderer.setFirstPerson(tab == Tab.FIRST_PERSON);
-        this.renderer.setEquipment(tab == Tab.ARMOR, tab == Tab.ITEMS);
-        this.renderer.getEntity().setSneaking(tab == Tab.POSES && !this.defaultPose);
+        this.syncPreview();
+    }
+
+    /**
+     * What the preview shows follows the open config page: the armor is worn only on the armor page
+     * and the items held only on the items page (so each is seen against the bare model), the
+     * first-person page is the first-person view, and the model sneaks on the poses page — so the
+     * sneaking pose is what's being edited, the way the animator applies it in play.
+     *
+     * <p>The model editor is about the model itself, so it gets the plain model: nothing worn, nothing
+     * held, the orbit view.</p>
+     */
+    private void syncPreview()
+    {
+        boolean config = lastEditor == Editor.CONFIG;
+
+        this.renderer.setFirstPerson(config && lastTab == Tab.FIRST_PERSON);
+        this.renderer.setEquipment(config && lastTab == Tab.ARMOR, config && lastTab == Tab.ITEMS);
+        this.renderer.getEntity().setSneaking(config && lastTab == Tab.POSES && !this.defaultPose);
     }
 
     private void cycleTab(int direction)
@@ -459,11 +552,13 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         IKey category = UIKeys.MODEL_EDITOR_TITLE;
         Supplier<Boolean> open = () -> this.data != null;
+        /* The tab keys belong to the config editor's tabs — they'd otherwise act on a hidden page. */
+        Supplier<Boolean> config = () -> this.data != null && lastEditor == Editor.CONFIG;
 
-        this.keys().register(Keys.MODEL_EDITOR_NEXT_TAB, () -> this.cycleTab(1)).active(open).category(category);
-        this.keys().register(Keys.MODEL_EDITOR_PREV_TAB, () -> this.cycleTab(-1)).active(open).category(category);
-        this.keys().register(Keys.MODEL_EDITOR_EXPAND_ALL, () -> this.setAllExpanded(true)).active(open).category(category);
-        this.keys().register(Keys.MODEL_EDITOR_COLLAPSE_ALL, () -> this.setAllExpanded(false)).active(open).category(category);
+        this.keys().register(Keys.MODEL_EDITOR_NEXT_TAB, () -> this.cycleTab(1)).active(config).category(category);
+        this.keys().register(Keys.MODEL_EDITOR_PREV_TAB, () -> this.cycleTab(-1)).active(config).category(category);
+        this.keys().register(Keys.MODEL_EDITOR_EXPAND_ALL, () -> this.setAllExpanded(true)).active(config).category(category);
+        this.keys().register(Keys.MODEL_EDITOR_COLLAPSE_ALL, () -> this.setAllExpanded(false)).active(config).category(category);
         this.keys().register(Keys.MODEL_EDITOR_FIND_BONE, this::findBone).active(open).category(category);
         this.keys().register(Keys.MODEL_EDITOR_OPEN_HISTORY, this::openHistory).active(open).category(category);
     }
@@ -479,9 +574,10 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         UIUtils.playClick();
     }
 
-    /** Ctrl+F: the bones page, with the caret in the tree's search box. */
+    /** Ctrl+F: the config editor's bones page, with the caret in the tree's search box. */
     private void findBone()
     {
+        this.showEditor(Editor.CONFIG);
         this.openTab(Tab.BONES);
         this.getContext().focus(this.bonesSearch.search);
         UIUtils.playClick();
@@ -630,6 +726,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.fillAll(data);
 
         boolean open = data != null;
+
+        for (UIIcon icon : this.editorIcons)
+        {
+            icon.setEnabled(open);
+        }
 
         for (UIIcon icon : new UIIcon[] {this.folderIcon, this.historyIcon, this.animationIcon})
         {
@@ -1297,9 +1398,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         };
     }
 
-    /** What the viewport gizmo is on: the open slot page's picked slot, or the poses page's picked bone. */
+    /**
+     * What the viewport gizmo is on: the open slot page's picked slot, or the poses page's picked bone.
+     * Nothing outside the config editor — a slot and a pose are config, and the model editor has its own
+     * things to put on the gizmo.
+     */
     private ModelSlotTarget shownTarget()
     {
+        if (lastEditor != Editor.CONFIG)
+        {
+            return null;
+        }
+
         if (lastTab == Tab.POSES)
         {
             return this.poseTarget();
@@ -1553,6 +1663,11 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
      */
     private boolean selectBone(String bone)
     {
+        if (lastEditor != Editor.CONFIG)
+        {
+            return false;
+        }
+
         if (lastTab == Tab.POSES)
         {
             if (!this.poseEditor.hasBone(bone))

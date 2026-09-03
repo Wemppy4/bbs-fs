@@ -1368,6 +1368,8 @@
 	"bbs.ui.model_blocks.title": "Model blocks",
 	"bbs.ui.model_editor.title": "Model editor",
 	"bbs.ui.model_editor.landing.list": "Model list",
+	"bbs.ui.model_editor.open_config_editor": "Configuration",
+	"bbs.ui.model_editor.open_model_editor": "Model",
 	"bbs.ui.model_editor.procedural": "Procedural",
 	"bbs.ui.model_editor.culling": "Culling",
 	"bbs.ui.model_editor.on_cpu": "Compute on CPU",

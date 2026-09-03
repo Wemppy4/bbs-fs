@@ -1362,6 +1362,8 @@
 	"bbs.ui.model_blocks.title": "Блок-модели",
 	"bbs.ui.model_editor.title": "Редактор моделей",
 	"bbs.ui.model_editor.landing.list": "Список моделей",
+	"bbs.ui.model_editor.open_config_editor": "Конфигурация",
+	"bbs.ui.model_editor.open_model_editor": "Модель",
 	"bbs.ui.model_editor.procedural": "Процедурная",
 	"bbs.ui.model_editor.culling": "Отсечение граней",
 	"bbs.ui.model_editor.on_cpu": "Считать на CPU",

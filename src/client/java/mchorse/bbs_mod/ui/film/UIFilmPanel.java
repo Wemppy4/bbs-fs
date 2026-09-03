@@ -226,8 +226,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         TourAnchors.register("film.export", () -> this.preview.recordVideo);
 
         this.actions()
-            .action(this.openCameraEditor, this.cameraEditor::isVisible)
-            .action(this.openReplayEditor, this.replayEditor::isVisible)
+            .editor(this.openCameraEditor, this.cameraEditor::isVisible)
+            .editor(this.openReplayEditor, this.replayEditor::isVisible)
             .layout(this.layoutLock, () -> this.dock.isLocked())
             .menu(this.openFilmMenu);
 
