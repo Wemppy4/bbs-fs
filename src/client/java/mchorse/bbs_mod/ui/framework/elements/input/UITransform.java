@@ -187,6 +187,19 @@ public abstract class UITransform extends UIElement
         this.keys().register(Keys.TRANSFORMATIONS_PASTE_WORLD, this::pasteWorldTransform).inside().label(UIKeys.TRANSFORMS_CONTEXT_PASTE_WORLD);
     }
 
+    /**
+     * Give the translate row's icon something to do. It is decorative by default — the space
+     * picker took its old click over — and only a host with one obvious thing to offer there
+     * turns it into a button (the model editor centres the group's pivot with it). Follows the
+     * rotation row's toggle: same box, same colours, only the tooltip and the callback differ.
+     */
+    public void translateAction(IKey tooltip, Runnable action)
+    {
+        this.iconT.callback = (b) -> action.run();
+        this.iconT.tooltip(tooltip);
+        this.iconT.setEnabled(true);
+    }
+
     protected void toggleUniformScale()
     {
         this.uniformScale = !this.uniformScale;

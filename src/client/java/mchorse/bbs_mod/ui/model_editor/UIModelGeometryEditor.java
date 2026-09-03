@@ -115,6 +115,7 @@ public class UIModelGeometryEditor extends UIElement
             return target == null ? null : this.modelPanel.renderer.buildGizmoDrag(target);
         });
         this.transform.enableHotkeys(() -> this.shownTarget() != null);
+        this.transform.translateAction(UIKeys.MODEL_EDITOR_MODEL_GROUP_CENTER_ANCHOR, this::centerAnchor);
 
         this.body = new UIElement();
         this.body.column(UIConstants.MARGIN).vertical().stretch();
@@ -265,7 +266,7 @@ public class UIModelGeometryEditor extends UIElement
 
         List<ModelGroup> picked = this.pickedGroups();
 
-        menu.action(Icons.ADD, UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD, this::addGroup);
+        menu.icon(MenuVerb.ADD, this::addGroup).label(UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD);
         menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE, () -> this.duplicateGroups(picked));
         menu.icon(MenuVerb.REMOVE, () -> this.askRemoveGroups(picked)).label(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
     }
@@ -311,6 +312,42 @@ public class UIModelGeometryEditor extends UIElement
         {
             group.initial.rotate.set(degrees);
         }
+    }
+
+    /**
+     * The pivot to the middle of what the group draws, the translate row's icon. Only the pivot
+     * moves: cube and mesh coordinates are absolute in the model, so the geometry stays exactly
+     * where it stands and what changes is the point the bone turns about.
+     *
+     * <p>It goes through the stand-in rather than into the group, since the stand-in is what
+     * {@link #render} writes back every frame — the group would take the new pivot and lose it
+     * again on the very next one.</p>
+     */
+    private void centerAnchor()
+    {
+        ModelGroup group = this.picked();
+        Vector3f min = new Vector3f();
+        Vector3f max = new Vector3f();
+
+        if (group == null || !group.getGeometryBounds(min, max))
+        {
+            return;
+        }
+
+        Vector3f center = min.add(max).mul(0.5F);
+
+        if (this.anchor.translate.equals(center, EPSILON))
+        {
+            return;
+        }
+
+        MapType before = this.snapshot();
+
+        this.anchor.translate.set(center);
+        this.applyAnchor();
+
+        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, UIKeys.MODEL_EDITOR_MODEL_UNDO_CENTER_ANCHOR.format(group.id).get(), null, before, this.snapshot()));
+        this.modelPanel.closeModelEdit();
     }
 
     /** The stand-in is the truth of the picked group's rest for as long as it's picked — see the class. */

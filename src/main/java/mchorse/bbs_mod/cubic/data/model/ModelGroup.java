@@ -121,6 +121,115 @@ public class ModelGroup implements IMapSerializable, RigBone
     }
 
     /**
+     * The box the group's geometry stands in, in the model's pixel space — the very frame
+     * {@link #initial}'s pivot lives in, so the box's middle can be handed straight to it.
+     *
+     * <p>What counts is the group's OWN cubes and meshes: a bone turns about the mass it carries.
+     * A bare organising group carries none of its own and takes its whole branch's box instead, so
+     * the question has an answer wherever there is geometry below it at all. Returns false — and
+     * leaves both vectors untouched — when there is none.</p>
+     */
+    public boolean getGeometryBounds(Vector3f min, Vector3f max)
+    {
+        Vector3f a = new Vector3f(Float.POSITIVE_INFINITY);
+        Vector3f b = new Vector3f(Float.NEGATIVE_INFINITY);
+        boolean any = this.collectOwnBounds(a, b);
+
+        if (!any)
+        {
+            for (ModelGroup child : this.children)
+            {
+                any |= child.collectBranchBounds(a, b);
+            }
+        }
+
+        if (any)
+        {
+            min.set(a);
+            max.set(b);
+        }
+
+        return any;
+    }
+
+    /** This group's box and every box below it. */
+    private boolean collectBranchBounds(Vector3f min, Vector3f max)
+    {
+        boolean any = this.collectOwnBounds(min, max);
+
+        for (ModelGroup child : this.children)
+        {
+            any |= child.collectBranchBounds(min, max);
+        }
+
+        return any;
+    }
+
+    /**
+     * The group's own cubes and meshes into the box, each turned about its own pivot the way the
+     * renderer turns it — a rotated cube reaches further than its raw corners say.
+     */
+    private boolean collectOwnBounds(Vector3f min, Vector3f max)
+    {
+        Vector3f point = new Vector3f();
+        boolean any = false;
+
+        for (ModelCube cube : this.cubes)
+        {
+            Quaternionf rotation = boxRotation(cube.rotate);
+
+            for (int i = 0; i < 8; i++)
+            {
+                point.set(
+                    (i & 1) == 0 ? cube.origin.x - cube.inflate : cube.origin.x + cube.size.x + cube.inflate,
+                    (i & 2) == 0 ? cube.origin.y - cube.inflate : cube.origin.y + cube.size.y + cube.inflate,
+                    (i & 4) == 0 ? cube.origin.z - cube.inflate : cube.origin.z + cube.size.z + cube.inflate
+                );
+
+                extendBounds(min, max, point, rotation, cube.pivot);
+            }
+
+            any = true;
+        }
+
+        for (ModelMesh mesh : this.meshes)
+        {
+            Quaternionf rotation = boxRotation(mesh.rotate);
+
+            for (Vector3f vertex : mesh.baseData.vertices)
+            {
+                /* Mesh vertices are in blocks, and this box — like every pivot here — is in pixels. */
+                point.set(vertex).mul(16F);
+                extendBounds(min, max, point, rotation, mesh.origin);
+
+                any = true;
+            }
+        }
+
+        return any;
+    }
+
+    /** A cube's or a mesh's own rotation, or null when it has none — which is the common case. */
+    private static Quaternionf boxRotation(Vector3f rotate)
+    {
+        return rotate.x == 0F && rotate.y == 0F && rotate.z == 0F
+            ? null
+            : Matrices.toLocalRotationZYXDegrees(rotate);
+    }
+
+    /** Grow the box by one corner, turned about {@code pivot} first when there is a rotation. */
+    private static void extendBounds(Vector3f min, Vector3f max, Vector3f point, Quaternionf rotation, Vector3f pivot)
+    {
+        if (rotation != null)
+        {
+            rotation.transform(point.sub(pivot)).add(pivot);
+        }
+
+        min.min(point);
+        max.max(point);
+    }
+
+    /**
      * The bone's evaluated local rotation as of this point in the pipeline — {@link #orient} when a layer
      * or constraint stage has composed one, otherwise the rotation the renderer would reconstruct from the
      * channels (mode-aware; cubic channels are degrees). THE read for every constraint-stack stage: blend
