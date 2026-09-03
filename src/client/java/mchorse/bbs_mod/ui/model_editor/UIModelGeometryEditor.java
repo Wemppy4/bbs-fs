@@ -27,6 +27,7 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +44,11 @@ import java.util.Set;
  * The stand-in is loaded from the group on every fill and pushed back into the group after every
  * edit — and every frame while the group is picked, since a gizmo drag's sampling nudges the
  * stand-in and re-evaluates the model through it.</p>
+ *
+ * <p>Several groups can be picked at once (ctrl / shift, as in every list here): the verbs — copy,
+ * remove — then work on all of them as one undo step. The fields below the tree, the viewport's
+ * marker and the gizmo belong to a single group, so they stand empty and disabled while more than
+ * one is picked, rather than pretending to edit the first of them.</p>
  *
  * <p>Bound per fill: the tree keeps its pick across one by name, since a save reloads the model
  * and every group object with it — and so does every edit of the structure, which settles the
@@ -78,7 +84,7 @@ public class UIModelGeometryEditor extends UIElement
         this.modelPanel = panel;
 
         this.groups = new UIModelGroupList((list) -> this.fillGroup(), () -> this.model)
-            .onReorder(this::reorderGroup)
+            .onMove(this::moveGroup)
             .onReparent(this::reparentGroup);
         this.groups.context(this::fillGroupMenu);
         this.search = new UISearchList<>(this.groups);
@@ -89,9 +95,9 @@ public class UIModelGeometryEditor extends UIElement
         UIIcon add = new UIIcon(Icons.ADD, (b) -> this.addGroup());
 
         add.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD);
-        this.dupe = new UIIcon(Icons.DUPE, (b) -> this.duplicateGroup(this.picked()));
+        this.dupe = new UIIcon(Icons.DUPE, (b) -> this.duplicateGroups(this.pickedGroups()));
         this.dupe.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE);
-        this.remove = new UIIcon(Icons.REMOVE, (b) -> this.askRemoveGroup(this.picked()));
+        this.remove = new UIIcon(Icons.REMOVE, (b) -> this.askRemoveGroups(this.pickedGroups()));
         this.remove.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
 
         /* The name is committed as a whole (enter, leaving the field): every keystroke would be a rename. */
@@ -119,10 +125,13 @@ public class UIModelGeometryEditor extends UIElement
         this.add(this.page);
     }
 
-    /** The picked group, by name — what the viewport marks; null with nothing picked. */
+    /**
+     * The picked group, by name — what the viewport marks and the fields edit; null with nothing
+     * picked, and null with several, which belong to no single group.
+     */
     public String getSelected()
     {
-        return this.model == null ? null : this.groups.getCurrentFirst();
+        return this.model == null || this.groups.getCurrent().size() != 1 ? null : this.groups.getCurrentFirst();
     }
 
     /** What the viewport gizmo is on: the picked group's rest, through the stand-in. */
@@ -170,11 +179,41 @@ public class UIModelGeometryEditor extends UIElement
         this.fillGroup();
     }
 
+    /** Pick several groups at once — what a verb on several leaves behind. */
+    private void selectAll(List<String> ids)
+    {
+        this.groups.setCurrent(ids);
+        this.fillGroup();
+    }
+
     private ModelGroup picked()
     {
         String id = this.getSelected();
 
         return id == null ? null : this.model.getGroup(id);
+    }
+
+    /** Every picked group, in the order the tree lists them; empty with nothing picked. */
+    private List<ModelGroup> pickedGroups()
+    {
+        List<ModelGroup> groups = new ArrayList<>();
+
+        if (this.model == null)
+        {
+            return groups;
+        }
+
+        for (String id : this.groups.getCurrent())
+        {
+            ModelGroup group = this.model.getGroup(id);
+
+            if (group != null)
+            {
+                groups.add(group);
+            }
+        }
+
+        return groups;
     }
 
     /**
@@ -185,18 +224,23 @@ public class UIModelGeometryEditor extends UIElement
     {
         ModelGroup group = this.picked();
 
+        boolean any = !this.groups.getCurrent().isEmpty();
+
         this.name.setText(group == null ? "" : group.id);
         this.loadAnchor(group);
         this.transform.setTransform(this.anchor);
         UIUtils.setEnabledDeep(this.body, group != null);
-        this.dupe.setEnabled(group != null);
-        this.remove.setEnabled(group != null);
+        this.dupe.setEnabled(any);
+        this.remove.setEnabled(any);
 
         this.page.resize();
         this.page.scroll.clamp();
     }
 
-    /** The row's menu picks the row and offers the verbs of the strip on it. */
+    /**
+     * The row's menu offers the verbs of the strip. A row outside the pick becomes the pick; a row
+     * already in it leaves the pick alone, so a menu opened on several groups acts on all of them.
+     */
     private void fillGroupMenu(ContextMenuManager menu)
     {
         String id = this.model == null ? null : this.groups.atCursor(this.getContext());
@@ -207,11 +251,16 @@ public class UIModelGeometryEditor extends UIElement
             return;
         }
 
-        this.select(id);
+        if (!this.groups.getCurrent().contains(id))
+        {
+            this.select(id);
+        }
+
+        List<ModelGroup> picked = this.pickedGroups();
 
         menu.action(Icons.ADD, UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD, this::addGroup);
-        menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE, () -> this.duplicateGroup(group));
-        menu.icon(MenuVerb.REMOVE, () -> this.askRemoveGroup(group)).label(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
+        menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE, () -> this.duplicateGroups(picked));
+        menu.icon(MenuVerb.REMOVE, () -> this.askRemoveGroups(picked)).label(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
     }
 
     /* The rest: the stand-in between the transform editor and the group */
@@ -343,7 +392,8 @@ public class UIModelGeometryEditor extends UIElement
             return;
         }
 
-        ModelGroup parent = this.picked();
+        String first = this.groups.getCurrentFirst();
+        ModelGroup parent = first == null ? null : this.model.getGroup(first);
         String name = this.uniqueName("group", new HashSet<>());
 
         this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_ADD.format(name), () ->
@@ -363,23 +413,43 @@ public class UIModelGeometryEditor extends UIElement
         this.select(name);
     }
 
-    /** A copy of the group and everything in it, right after it among its siblings. */
-    private void duplicateGroup(ModelGroup group)
+    /**
+     * A copy of every picked group and everything in it, each right after its original among the
+     * siblings, as one undo step; the copies become the pick. A group inside another picked one is
+     * left out: its copy already comes along inside that one.
+     */
+    private void duplicateGroups(List<ModelGroup> picked)
     {
-        if (group == null)
+        List<ModelGroup> groups = outermost(picked);
+
+        if (groups.isEmpty())
         {
             return;
         }
 
-        ModelGroup copy = this.copy(group, new HashSet<>());
+        Set<String> taken = new HashSet<>();
+        List<ModelGroup> copies = new ArrayList<>();
+        List<String> names = new ArrayList<>();
 
-        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_DUPLICATE.format(group.id), () ->
+        for (ModelGroup group : groups)
         {
-            List<ModelGroup> siblings = this.siblings(group);
+            ModelGroup copy = this.copy(group, taken);
 
-            siblings.add(siblings.indexOf(group) + 1, copy);
+            copies.add(copy);
+            names.add(copy.id);
+        }
+
+        this.edit(label(UIKeys.MODEL_EDITOR_MODEL_UNDO_DUPLICATE, UIKeys.MODEL_EDITOR_MODEL_UNDO_DUPLICATE_MANY, groups), () ->
+        {
+            for (int i = 0; i < groups.size(); i++)
+            {
+                ModelGroup group = groups.get(i);
+                List<ModelGroup> siblings = this.siblings(group);
+
+                siblings.add(siblings.indexOf(group) + 1, copies.get(i));
+            }
         });
-        this.select(copy.id);
+        this.selectAll(names);
     }
 
     /** A group and its subtree as new groups under new names, the cubes rebuilt from their data. */
@@ -402,32 +472,76 @@ public class UIModelGeometryEditor extends UIElement
         return copy;
     }
 
-    /** Removing takes the subtree and its cubes with it, so it's asked about first. */
-    private void askRemoveGroup(ModelGroup group)
+    /** Removing takes the subtrees and their cubes with them, so it's asked about first. */
+    private void askRemoveGroups(List<ModelGroup> picked)
     {
-        if (group == null)
+        List<ModelGroup> groups = outermost(picked);
+
+        if (groups.isEmpty())
         {
             return;
         }
 
+        IKey question = groups.size() == 1
+            ? UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE_CONFIRM.format(groups.get(0).id)
+            : UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE_CONFIRM_MANY.format(groups.size());
+
         UIOverlay.addOverlay(this.getContext(), new UIConfirmOverlayPanel(
             UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE,
-            UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE_CONFIRM.format(group.id),
+            question,
             (confirm) ->
             {
                 if (confirm)
                 {
-                    this.removeGroup(group);
+                    this.removeGroups(groups);
                 }
             }
         ));
     }
 
-    private void removeGroup(ModelGroup group)
+    private void removeGroups(List<ModelGroup> groups)
     {
         this.groups.deselect();
-        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_REMOVE.format(group.id), () -> this.siblings(group).remove(group));
+        this.edit(label(UIKeys.MODEL_EDITOR_MODEL_UNDO_REMOVE, UIKeys.MODEL_EDITOR_MODEL_UNDO_REMOVE_MANY, groups), () ->
+        {
+            for (ModelGroup group : groups)
+            {
+                this.siblings(group).remove(group);
+            }
+        });
         this.fillGroup();
+    }
+
+    /**
+     * The picked groups with the ones inside another of them left out: a verb on a group is a verb
+     * on its whole subtree, so acting on an ancestor and its descendant both would do it twice.
+     */
+    private static List<ModelGroup> outermost(List<ModelGroup> groups)
+    {
+        List<ModelGroup> outer = new ArrayList<>();
+
+        for (ModelGroup group : groups)
+        {
+            boolean inside = false;
+
+            for (ModelGroup parent = group.parent; parent != null && !inside; parent = parent.parent)
+            {
+                inside = groups.contains(parent);
+            }
+
+            if (!inside)
+            {
+                outer.add(group);
+            }
+        }
+
+        return outer;
+    }
+
+    /** The undo label for a verb on one group (its name) or on several (how many). */
+    private static IKey label(IKey one, IKey many, List<ModelGroup> groups)
+    {
+        return groups.size() == 1 ? one.format(groups.get(0).id) : many.format(groups.size());
     }
 
     /**
@@ -458,24 +572,52 @@ public class UIModelGeometryEditor extends UIElement
         this.select(to);
     }
 
-    /** A group dragged among its siblings goes to {@code index} among the others. */
-    private void reorderGroup(String id, int index)
+    /**
+     * A group dropped between rows becomes the sibling right before {@code before} — at whatever
+     * depth that row sits, since changing a parent is allowed here; {@code before} null sends it
+     * to the end of the roots. A drop inside the group's own subtree is refused: it would take the
+     * group out of the model with it.
+     */
+    private void moveGroup(String id, String before)
     {
         ModelGroup group = this.model == null ? null : this.model.getGroup(id);
+        ModelGroup target = before == null || this.model == null ? null : this.model.getGroup(before);
 
-        if (group == null)
+        if (group == null || (before != null && target == null) || (target != null && inside(target, group)))
         {
             return;
         }
 
         this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_MOVE.format(id), () ->
         {
-            List<ModelGroup> siblings = this.siblings(group);
+            this.siblings(group).remove(group);
 
-            siblings.remove(group);
-            siblings.add(Math.min(index, siblings.size()), group);
+            if (target == null)
+            {
+                this.model.topGroups.add(group);
+            }
+            else
+            {
+                List<ModelGroup> destination = target.parent == null ? this.model.topGroups : target.parent.children;
+
+                destination.add(destination.indexOf(target), group);
+            }
         });
         this.select(id);
+    }
+
+    /** Whether {@code group} is {@code ancestor} itself or sits somewhere under it. */
+    private static boolean inside(ModelGroup group, ModelGroup ancestor)
+    {
+        for (ModelGroup parent = group; parent != null; parent = parent.parent)
+        {
+            if (parent == ancestor)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** A group dropped onto another goes inside it, last. */

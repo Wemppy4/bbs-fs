@@ -141,8 +141,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.renderer = new UIModelEditorRenderer()
             .target(this::shownTarget)
-            .onBoneClick(this::selectBone)
-            .marker(this::markedBone);
+            .onBoneClick(this::selectBone);
         this.renderer.form = this.form;
 
         /* Two panes: the preview and, to its right, the settings — each keeping at least 160px. */
@@ -335,12 +334,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     private boolean selectBone(String bone)
     {
         return lastEditor == Editor.CONFIG ? this.configEditor.selectBone(bone) : this.modelEditor.selectBone(bone);
-    }
-
-    /** The bone whose pivot the viewport marks with a dot: the model editor's picked group, while it's the one open. */
-    private String markedBone()
-    {
-        return lastEditor == Editor.MODEL ? this.modelEditor.getSelected() : null;
     }
 
     /** Whether the open model is one the model editor may edit — see {@link ModelInstance#isEditable()}. */

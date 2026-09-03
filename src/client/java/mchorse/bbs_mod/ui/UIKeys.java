@@ -1023,10 +1023,13 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_MODEL_GROUP_DUPLICATE = L10n.lang("bbs.ui.model_editor.model.group.duplicate");
     public static final IKey MODEL_EDITOR_MODEL_GROUP_REMOVE = L10n.lang("bbs.ui.model_editor.model.group.remove");
     public static final IKey MODEL_EDITOR_MODEL_GROUP_REMOVE_CONFIRM = L10n.lang("bbs.ui.model_editor.model.group.remove_confirm");
+    public static final IKey MODEL_EDITOR_MODEL_GROUP_REMOVE_CONFIRM_MANY = L10n.lang("bbs.ui.model_editor.model.group.remove_confirm_many");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_TRANSFORM = L10n.lang("bbs.ui.model_editor.model.undo.transform");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_ADD = L10n.lang("bbs.ui.model_editor.model.undo.add");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_DUPLICATE = L10n.lang("bbs.ui.model_editor.model.undo.duplicate");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_DUPLICATE_MANY = L10n.lang("bbs.ui.model_editor.model.undo.duplicate_many");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_REMOVE = L10n.lang("bbs.ui.model_editor.model.undo.remove");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_REMOVE_MANY = L10n.lang("bbs.ui.model_editor.model.undo.remove_many");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_RENAME = L10n.lang("bbs.ui.model_editor.model.undo.rename");
     public static final IKey MODEL_EDITOR_MODEL_UNDO_MOVE = L10n.lang("bbs.ui.model_editor.model.undo.move");
     public static final IKey MODEL_EDITOR_PROCEDURAL = L10n.lang("bbs.ui.model_editor.procedural");

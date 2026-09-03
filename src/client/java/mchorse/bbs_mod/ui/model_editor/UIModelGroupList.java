@@ -5,23 +5,27 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * The model editor's group tree: the bone tree with its groups draggable — among their siblings
- * with the caret, and into another group by dropping onto it. The caret only ever stands where the
- * group can go among its own siblings (the body part list's rule): the slot under the cursor is
- * pulled to the nearest of those, so it never sits inside a subtree the drop would then skip.
+ * The model editor's group tree: the bone tree with its groups draggable, folding and pickable
+ * several at a time.
+ *
+ * <p>A group can be dragged anywhere, because in this tree — unlike the body part list — changing
+ * a group's parent is allowed. So the caret means what it looks like: dropped between two rows,
+ * the group becomes the SIBLING OF THE ROW BELOW, right before it, whatever depth that row sits
+ * at; dropped past the last row it goes to the end of the roots. Dropped ONTO a row (its middle
+ * quarter, the base list's rule) it goes inside that group, last. Nothing snaps and nothing is
+ * refused except a drop into the group's own subtree, which would unhook it from the model.</p>
  */
 public class UIModelGroupList extends UIBoneTreeList
 {
     private final Supplier<Model> model;
 
-    private BiConsumer<String, Integer> onReorder;
+    private BiConsumer<String, String> onMove;
     private BiConsumer<String, String> onReparent;
 
     public UIModelGroupList(Consumer<List<String>> callback, Supplier<Model> model)
@@ -32,12 +36,17 @@ public class UIModelGroupList extends UIBoneTreeList
 
         this.background();
         this.sorting();
+        this.multi();
+        this.collapsible();
     }
 
-    /** What to do with a group dragged among its siblings: the group, and its place among the others. */
-    public UIModelGroupList onReorder(BiConsumer<String, Integer> callback)
+    /**
+     * What to do with a group dropped between rows: the group, and the group it now comes right
+     * before — null for the end of the roots.
+     */
+    public UIModelGroupList onMove(BiConsumer<String, String> callback)
     {
-        this.onReorder = callback;
+        this.onMove = callback;
 
         return this;
     }
@@ -97,110 +106,25 @@ public class UIModelGroupList extends UIBoneTreeList
     }
 
     @Override
-    protected void reportDropTarget(int x, int y)
-    {
-        super.reportDropTarget(x, y);
-
-        /* A caret: pulled to the nearest slot among the dragged group's siblings — or dropped
-         * altogether when it has none to be reordered against. */
-        if (this.drag.getTarget() != this)
-        {
-            return;
-        }
-
-        List<Integer> slots = this.siblingSlots(this.dragged());
-
-        if (slots.isEmpty())
-        {
-            this.drag.clearTarget();
-
-            return;
-        }
-
-        int raw = this.drag.getInsertion();
-        int nearest = slots.get(0);
-
-        for (int slot : slots)
-        {
-            if (Math.abs(slot - raw) < Math.abs(nearest - raw))
-            {
-                nearest = slot;
-            }
-        }
-
-        this.drag.setTarget(this, nearest);
-    }
-
-    /**
-     * The slots the dragged group may land in, as rows of the list: before each of its siblings
-     * but itself, and past the last of them — past that one's whole subtree, not between its
-     * children. In sibling order, so a slot's place in the list is the group's place among them.
-     */
-    private List<Integer> siblingSlots(String dragged)
-    {
-        List<Integer> slots = new ArrayList<>();
-        ModelGroup group = this.group(dragged);
-
-        if (group == null)
-        {
-            return slots;
-        }
-
-        List<ModelGroup> siblings = group.parent == null ? this.model.get().topGroups : group.parent.children;
-        List<String> rows = this.getList();
-        ModelGroup last = null;
-
-        for (ModelGroup sibling : siblings)
-        {
-            int row = sibling == group ? -1 : rows.indexOf(sibling.id);
-
-            if (row >= 0)
-            {
-                slots.add(row);
-                last = sibling;
-            }
-        }
-
-        if (last == null)
-        {
-            return slots;
-        }
-
-        int end = rows.indexOf(last.id) + 1;
-
-        while (end < rows.size())
-        {
-            ModelGroup below = this.group(rows.get(end));
-
-            if (below == null || !isInside(below, last.id))
-            {
-                break;
-            }
-
-            end++;
-        }
-
-        slots.add(end);
-
-        return slots;
-    }
-
-    @Override
     protected void reorder(List<String> items, int insertion)
     {
         String dragged = items.isEmpty() ? null : items.get(0);
 
-        if (dragged == null || this.onReorder == null)
+        if (dragged == null || this.onMove == null)
         {
             return;
         }
 
-        int index = this.siblingSlots(dragged).indexOf(insertion);
+        List<String> rows = this.visible();
+        String before = insertion >= 0 && insertion < rows.size() ? rows.get(insertion) : null;
 
-        if (index >= 0)
+        /* The caret above the dragged row itself means "stay where you are". */
+        if (dragged.equals(before))
         {
-            this.onReorder.accept(dragged, index);
+            return;
         }
+
+        this.onMove.accept(dragged, before);
     }
 
     @Override
