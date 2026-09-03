@@ -285,6 +285,10 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
      */
     public void syncPreview()
     {
+        /* The model editor is about the model itself: the thumbnail of how it looks in a form
+         * picker has nothing to say there, so its corner of the preview stays clear. */
+        this.miniPreview.setVisible(lastEditor != Editor.MODEL);
+
         ModelFormRenderer renderer = this.formRenderer();
 
         if (renderer != null)
