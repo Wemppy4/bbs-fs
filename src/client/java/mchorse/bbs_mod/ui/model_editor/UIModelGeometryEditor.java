@@ -20,6 +20,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.bones.UIBonePickerContextMenu;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -66,6 +67,7 @@ public class UIModelGeometryEditor extends UIElement
     private final UISearchList<String> search;
     private final UIIcon dupe;
     private final UIIcon remove;
+    private final UIIcon ikBones;
     private final UIElement body;
     private final UITextbox name;
 
@@ -99,6 +101,8 @@ public class UIModelGeometryEditor extends UIElement
         this.dupe.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE);
         this.remove = new UIIcon(Icons.REMOVE, (b) -> this.askRemoveGroups(this.pickedGroups()));
         this.remove.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
+        this.ikBones = new UIIcon(Icons.IK, (b) -> this.pickIKParent());
+        this.ikBones.tooltip(UIKeys.MODEL_EDITOR_MODEL_GROUP_IK_BONES);
 
         /* The name is committed as a whole (enter, leaving the field): every keystroke would be a rename. */
         this.name = new UITextbox(64, this::renameGroup);
@@ -121,7 +125,7 @@ public class UIModelGeometryEditor extends UIElement
         this.body.column(UIConstants.MARGIN).vertical().stretch();
         this.body.add(UI.labelRow(UIKeys.MODEL_EDITOR_MODEL_GROUP_NAME, this.name), this.transform);
 
-        this.page = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, UI.strip(add, this.dupe, this.remove), this.search, this.body);
+        this.page = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, UI.strip(add, this.dupe, this.remove, this.ikBones), this.search, this.body);
         this.page.full(this);
         this.add(this.page);
     }
@@ -240,6 +244,7 @@ public class UIModelGeometryEditor extends UIElement
         UIUtils.setEnabledDeep(this.body, group != null);
         this.dupe.setEnabled(any);
         this.remove.setEnabled(any);
+        this.ikBones.setEnabled(group != null);
 
         this.page.resize();
         this.page.scroll.clamp();
@@ -269,6 +274,11 @@ public class UIModelGeometryEditor extends UIElement
         menu.icon(MenuVerb.ADD, this::addGroup).label(UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD);
         menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE, () -> this.duplicateGroups(picked));
         menu.icon(MenuVerb.REMOVE, () -> this.askRemoveGroups(picked)).label(UIKeys.MODEL_EDITOR_MODEL_GROUP_REMOVE);
+
+        if (this.getSelected() != null)
+        {
+            menu.action(Icons.IK, UIKeys.MODEL_EDITOR_MODEL_GROUP_IK_BONES, this::pickIKParent);
+        }
     }
 
     /* The rest: the stand-in between the transform editor and the group */
@@ -440,21 +450,79 @@ public class UIModelGeometryEditor extends UIElement
         ModelGroup parent = first == null ? null : this.model.getGroup(first);
         String name = this.uniqueName("group", new HashSet<>());
 
-        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_ADD.format(name), () ->
-        {
-            ModelGroup group = new ModelGroup(name);
-
-            if (parent == null)
-            {
-                this.model.topGroups.add(group);
-            }
-            else
-            {
-                group.initial.translate.set(parent.initial.translate);
-                parent.children.add(group);
-            }
-        });
+        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_ADD.format(name), () -> this.addBone(name, parent, parent == null ? null : parent.initial.translate));
         this.select(name);
+    }
+
+    /** A new, empty group under {@code parent} (at the root with none), resting at {@code pivot} — the model's origin for none. */
+    private ModelGroup addBone(String name, ModelGroup parent, Vector3f pivot)
+    {
+        ModelGroup group = new ModelGroup(name);
+
+        if (pivot != null)
+        {
+            group.initial.translate.set(pivot);
+        }
+
+        (parent == null ? this.model.topGroups : parent.children).add(group);
+
+        return group;
+    }
+
+    /**
+     * The IK shortcut: ask what the controls should hang off, then make the three bones an IK chain
+     * wants around the picked one. Bones only — what actually solves lives on the FORM (its bones'
+     * IK), which this panel doesn't hold, so the chain is still switched on there; the names are a
+     * convention of the rigger's, nothing in BBS reads them.
+     *
+     * <p>The picked bone and everything under it are refused as the parent: a controller inside the
+     * chain it drives is the one arrangement IK can't solve.</p>
+     */
+    private void pickIKParent()
+    {
+        String id = this.getSelected();
+
+        if (id == null)
+        {
+            return;
+        }
+
+        Set<String> inside = new HashSet<>(this.model.getAllChildrenKeys(id));
+        UIBonePickerContextMenu picker = new UIBonePickerContextMenu((parent) -> this.addIKBones(id, parent));
+
+        inside.add(id);
+        picker.bones(this.model, null).none().disabled(inside::contains);
+        this.getContext().replaceContextMenu(picker);
+    }
+
+    /**
+     * The tip inside the picked bone, the controller under {@code parentId} (the root for no bone) and
+     * the pole inside the controller, as one undo step. All three rest at the picked bone's pivot — they
+     * start on the joint they were asked about and are dragged out from there — and the controller
+     * becomes the pick.
+     */
+    private void addIKBones(String id, String parentId)
+    {
+        ModelGroup group = this.model == null ? null : this.model.getGroup(id);
+
+        if (group == null)
+        {
+            return;
+        }
+
+        ModelGroup parent = parentId == null || parentId.isEmpty() ? null : this.model.getGroup(parentId);
+        Set<String> taken = new HashSet<>();
+        String end = this.uniqueName(id + "_end", taken);
+        String controller = this.uniqueName("controller_" + id, taken);
+        String pole = this.uniqueName("pole_" + id, taken);
+        Vector3f pivot = new Vector3f(group.initial.translate);
+
+        this.edit(UIKeys.MODEL_EDITOR_MODEL_UNDO_IK_BONES.format(id), () ->
+        {
+            this.addBone(end, group, pivot);
+            this.addBone(pole, this.addBone(controller, parent, pivot), pivot);
+        });
+        this.select(controller);
     }
 
     /**
