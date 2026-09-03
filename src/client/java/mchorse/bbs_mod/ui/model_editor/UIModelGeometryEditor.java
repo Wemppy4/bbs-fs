@@ -6,6 +6,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelCube;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -36,6 +37,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * The model editor of the model panel: the model itself rather than its configuration. Its groups
@@ -152,6 +154,34 @@ public class UIModelGeometryEditor extends UIElement
         this.page = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, UI.strip(add, this.dupe, this.remove, this.ikBones), this.search, this.body);
         this.page.full(this);
         this.add(this.page);
+
+        this.registerKeybinds();
+    }
+
+    /**
+     * The tree's verbs on the keyboard. Registered on the tree rather than on the editor, and only
+     * while the cursor is over it — the same keys mean other things elsewhere in the panel, and
+     * Delete would otherwise reach the tree from anywhere. Each key answers to the same rule as its
+     * icon, so a verb with nothing to act on simply isn't there.
+     */
+    private void registerKeybinds()
+    {
+        IKey category = UIKeys.MODEL_EDITOR_TITLE;
+        Supplier<Boolean> open = () -> this.model != null;
+        Supplier<Boolean> any = () -> this.model != null && !this.groups.getCurrent().isEmpty();
+        Supplier<Boolean> single = this::single;
+
+        this.groups.keys().register(Keys.MODEL_EDITOR_GROUP_ADD, this::addGroup).inside().active(open).category(category);
+        this.groups.keys().register(Keys.MODEL_EDITOR_GROUP_DUPE, () -> this.duplicateGroups(this.pickedGroups())).inside().active(any).category(category);
+        this.groups.keys().register(Keys.DELETE, () -> this.askRemoveGroups(this.pickedGroups())).inside().active(any).category(category);
+        this.groups.keys().register(Keys.MODEL_EDITOR_GROUP_RENAME, this::editName).inside().active(single).category(category);
+        this.groups.keys().register(Keys.MODEL_EDITOR_GROUP_IK_BONES, this::pickIKParent).inside().active(single).category(category);
+    }
+
+    /** F2: the name field takes the caret, since the tree renames through it rather than in place. */
+    private void editName()
+    {
+        this.getContext().focus(this.name);
     }
 
     /**
