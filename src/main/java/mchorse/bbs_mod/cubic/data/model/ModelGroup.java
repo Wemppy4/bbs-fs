@@ -17,7 +17,8 @@ import java.util.List;
 
 public class ModelGroup implements IMapSerializable, RigBone
 {
-    public final String id;
+    /** The group's name; the model's maps of it are rebuilt by {@link Model#initialize()} after a rename. */
+    public String id;
     public Model owner;
     public ModelGroup parent;
     public List<ModelGroup> children = new ArrayList<>();

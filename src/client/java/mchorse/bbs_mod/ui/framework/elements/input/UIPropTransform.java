@@ -208,6 +208,15 @@ public class UIPropTransform extends UITransform implements TransformGesture.Hos
         this.model = true;
     }
 
+    /** Drop the scale row — for a target that has no scale to speak of, such as a group's rest in the model editor. */
+    public UIPropTransform noScale()
+    {
+        this.scaleRow.setVisible(false);
+        this.h(3 * UIConstants.CONTROL_HEIGHT);
+
+        return this;
+    }
+
     @Override
     public boolean isModel()
     {

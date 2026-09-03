@@ -1018,7 +1018,7 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_OPEN_CONFIG_EDITOR = L10n.lang("bbs.ui.model_editor.open_config_editor");
     public static final IKey MODEL_EDITOR_OPEN_MODEL_EDITOR = L10n.lang("bbs.ui.model_editor.open_model_editor");
     public static final IKey MODEL_EDITOR_OPEN_MODEL_EDITOR_UNAVAILABLE = L10n.lang("bbs.ui.model_editor.open_model_editor.unavailable");
-    public static final IKey MODEL_EDITOR_MODEL_PIVOT = L10n.lang("bbs.ui.model_editor.model.pivot");
+    public static final IKey MODEL_EDITOR_MODEL_UNDO_TRANSFORM = L10n.lang("bbs.ui.model_editor.model.undo.transform");
     public static final IKey MODEL_EDITOR_PROCEDURAL = L10n.lang("bbs.ui.model_editor.procedural");
     public static final IKey MODEL_EDITOR_CULLING = L10n.lang("bbs.ui.model_editor.culling");
     public static final IKey MODEL_EDITOR_ON_CPU = L10n.lang("bbs.ui.model_editor.on_cpu");

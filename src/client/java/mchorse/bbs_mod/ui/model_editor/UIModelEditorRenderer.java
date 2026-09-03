@@ -29,6 +29,7 @@ import mchorse.bbs_mod.ui.utils.GizmoInteraction;
 import mchorse.bbs_mod.ui.utils.GizmoViewport;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
+import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
@@ -54,6 +55,7 @@ import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -106,6 +108,12 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
     /** The bone whose pivot gets a dot in the viewport, asked every frame; null for none. */
     private Supplier<String> marker;
+
+    /** What a group's rest can take: moving and turning, no scale. */
+    private static final Gizmo.HandleMask ANCHOR_MASK = Gizmo.HandleMask.of(
+        EnumSet.of(Gizmo.Op.MOVE, Gizmo.Op.SCREEN, Gizmo.Op.ROTATE, Gizmo.Op.VIEW, Gizmo.Op.TRACKBALL),
+        EnumSet.allOf(Axis.class)
+    );
 
     private boolean firstPerson;
     private boolean firstPersonShown;
@@ -386,7 +394,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
                     frame.set(bone);
                 }
             }
-            case POSE ->
+            case POSE, ANCHOR ->
             {
                 MatrixCacheEntry entry = this.boneEntry(target.bone());
 
@@ -400,6 +408,12 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         return frame;
     }
 
+    /** A group's rest has no scale; every other target is a full transform. */
+    private static Gizmo.HandleMask maskOf(ModelSlotTarget target)
+    {
+        return target.kind() == ModelSlotKind.ANCHOR ? ANCHOR_MASK : Gizmo.HandleMask.ALL;
+    }
+
     /**
      * Where the gizmo sits for {@code space}: on the slot's own frame for LOCAL, at the slot's
      * position on the parent frame otherwise — the form editor's placement convention. A pose
@@ -411,8 +425,15 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
      */
     private Matrix4f origin(ModelSlotTarget target, TransformSpace space, boolean fresh)
     {
-        if (target.kind() == ModelSlotKind.POSE)
+        if (target.kind() == ModelSlotKind.POSE || target.kind() == ModelSlotKind.ANCHOR)
         {
+            /* A drag's samplers nudge the editor's transform and read the bone back: an editor over a
+             * stand-in has to land the nudge in the model first. */
+            if (fresh && target.apply() != null)
+            {
+                target.apply().run();
+            }
+
             MatrixCacheEntry entry = fresh ? this.sampleBone(target.bone()) : this.boneEntry(target.bone());
 
             if (entry == null)
@@ -641,7 +662,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
                 stack.push();
                 this.placeGizmo(stack, shown);
-                Gizmo.INSTANCE.renderStencil(stack);
+                Gizmo.INSTANCE.renderStencil(stack, maskOf(shown));
                 stack.pop();
             }
 
@@ -739,7 +760,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         if (UIBaseMenu.shouldRenderAxes())
         {
             RenderSystem.disableDepthTest();
-            Gizmo.INSTANCE.render(stack);
+            Gizmo.INSTANCE.render(stack, maskOf(target));
             RenderSystem.enableDepthTest();
         }
 

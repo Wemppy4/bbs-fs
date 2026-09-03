@@ -1365,7 +1365,7 @@
 	"bbs.ui.model_editor.open_config_editor": "Конфигурация",
 	"bbs.ui.model_editor.open_model_editor": "Модель",
 	"bbs.ui.model_editor.open_model_editor.unavailable": "Редактировать можно только cubic-модель из папки assets",
-	"bbs.ui.model_editor.model.pivot": "Якорная точка",
+	"bbs.ui.model_editor.model.undo.transform": "Якорь и поворот: %s",
 	"bbs.ui.model_editor.procedural": "Процедурная",
 	"bbs.ui.model_editor.culling": "Отсечение граней",
 	"bbs.ui.model_editor.on_cpu": "Считать на CPU",

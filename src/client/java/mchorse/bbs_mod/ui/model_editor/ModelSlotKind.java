@@ -15,7 +15,10 @@ public enum ModelSlotKind
     FIRST_PERSON_OFF(true, true),
 
     /** A bone of the sneaking pose: the transform IS the bone's, not something hung on it. */
-    POSE(false, false);
+    POSE(false, false),
+
+    /** A group's own rest in the model editor — the pivot it turns about and the rotation it rests at. */
+    ANCHOR(false, false);
 
     public final boolean firstPerson;
     public final boolean offHand;

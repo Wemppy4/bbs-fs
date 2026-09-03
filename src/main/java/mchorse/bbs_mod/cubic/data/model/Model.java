@@ -49,6 +49,18 @@ public class Model implements IMapSerializable, IModel
         this.parser = parser;
     }
 
+    /**
+     * Replace the groups with the ones in {@code data} — a snapshot from {@link #toData()}, the way
+     * the model editor's undo keeps them — and settle the hierarchy again. Every group object is a
+     * new one: whatever held one now holds a dead one.
+     */
+    public void reload(MapType data)
+    {
+        this.topGroups.clear();
+        this.fromData(data);
+        this.initialize();
+    }
+
     public void initialize()
     {
         this.nextIndex = 0;

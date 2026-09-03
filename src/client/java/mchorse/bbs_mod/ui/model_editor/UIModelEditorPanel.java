@@ -5,8 +5,11 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.animation.Animation;
+import mchorse.bbs_mod.cubic.data.animation.AnimationPart;
+import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.model.ModelManager;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
+import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
@@ -96,6 +99,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     /** Whether the model itself was edited since its file was last written; the config saves on its own. */
     private boolean modelDirty;
+
+    /** Bone renames not yet written into the file's animations, oldest first. */
+    private final List<String[]> renames = new ArrayList<>();
 
     private final ModelForm form = new ModelForm();
 
@@ -311,10 +317,10 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         return this.bound;
     }
 
-    /** What the viewport gizmo is on — the config editor's, and nothing while the model editor is up. */
+    /** What the viewport gizmo is on: the open editor's. */
     private ModelSlotTarget shownTarget()
     {
-        return lastEditor == Editor.CONFIG ? this.configEditor.shownTarget() : null;
+        return lastEditor == Editor.CONFIG ? this.configEditor.shownTarget() : this.modelEditor.shownTarget();
     }
 
     /**
@@ -552,6 +558,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         /* Whatever was edited belonged to the model that was open; a fill starts clean. */
         this.modelDirty = false;
+        this.renames.clear();
 
         boolean open = data != null;
         boolean editable = this.isModelEditable();
@@ -603,6 +610,68 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     public void markModelEdited()
     {
         this.modelDirty = true;
+    }
+
+    /** An edit of the model itself goes on the same stack as the config's edits, in order. */
+    public void pushModelEdit(ModelEditUndo undo)
+    {
+        if (this.undoHandler != null)
+        {
+            this.undoHandler.getUndoManager().pushUndo(undo);
+        }
+
+        this.markModelEdited();
+    }
+
+    /** A gesture on the model ended: the next edit is a step of its own. */
+    public void closeModelEdit()
+    {
+        if (this.undoHandler != null)
+        {
+            this.undoHandler.getUndoManager().markLastUndoNoMerging();
+        }
+    }
+
+    /**
+     * Put the model back to a snapshot, and the config too when one comes along — an undo or a
+     * redo of a model edit; the panel re-bakes and refills right after, as after any undo.
+     */
+    public void restoreModel(MapType model, MapType config)
+    {
+        if (this.bound != null && this.bound.getModel() instanceof Model live)
+        {
+            live.reload(model);
+        }
+
+        if (config != null && this.data != null)
+        {
+            this.data.fromData(config);
+            this.data.rebuild();
+        }
+
+        this.markModelEdited();
+    }
+
+    /** Move a bone's keys in the animations — in memory now, in the file at the next save. */
+    public void renameAnimations(String from, String to)
+    {
+        if (this.bound == null)
+        {
+            return;
+        }
+
+        for (Animation animation : this.bound.animations.getAll())
+        {
+            AnimationPart part = animation.parts.remove(from);
+
+            if (part != null)
+            {
+                animation.parts.put(to, part);
+            }
+        }
+
+        this.renames.add(new String[] {from, to});
+        this.markModelEdited();
     }
 
     private void openHistory()
