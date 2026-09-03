@@ -218,7 +218,7 @@ public class Keys
     public static final KeyCombo MODEL_EDITOR_GROUP_ADD = new KeyCombo("group_add", UIKeys.MODEL_EDITOR_MODEL_GROUP_ADD, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("model_editor");
     public static final KeyCombo MODEL_EDITOR_GROUP_DUPE = new KeyCombo("group_dupe", UIKeys.MODEL_EDITOR_MODEL_GROUP_DUPLICATE, GLFW.GLFW_KEY_D, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("model_editor");
     public static final KeyCombo MODEL_EDITOR_GROUP_RENAME = new KeyCombo("group_rename", UIKeys.MODEL_EDITOR_MODEL_GROUP_RENAME, GLFW.GLFW_KEY_F2).categoryKey("model_editor");
-    public static final KeyCombo MODEL_EDITOR_GROUP_IK_BONES = new KeyCombo("group_ik_bones", UIKeys.MODEL_EDITOR_MODEL_KEYS_IK_BONES, GLFW.GLFW_KEY_I, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("model_editor");
+    public static final KeyCombo MODEL_EDITOR_GROUP_IK_BONES = new KeyCombo("group_ik_bones", UIKeys.MODEL_EDITOR_MODEL_GROUP_IK_BONES, GLFW.GLFW_KEY_I, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("model_editor");
 
     /* Texture picker */
     public static final KeyCombo TEXTURE_PICKER_FIND = new KeyCombo("find", UIKeys.TEXTURE_KEYS_FIND_ALL, GLFW.GLFW_KEY_F, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("texture_picker");
