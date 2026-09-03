@@ -10,6 +10,7 @@ import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.ContentType;
 import mchorse.bbs_mod.ui.Keys;
@@ -29,6 +30,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 
@@ -59,8 +61,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     /** What the pane is showing: the config of the model, or the model itself. */
     public enum Editor
     {
-        CONFIG(Icons.SETTINGS, UIKeys.MODEL_EDITOR_OPEN_CONFIG_EDITOR),
-        MODEL(Icons.SHAPES, UIKeys.MODEL_EDITOR_OPEN_MODEL_EDITOR);
+        CONFIG(Icons.GEAR, UIKeys.MODEL_EDITOR_OPEN_CONFIG_EDITOR),
+        MODEL(Icons.POSE, UIKeys.MODEL_EDITOR_OPEN_MODEL_EDITOR);
 
         public final Icon icon;
         public final IKey label;
@@ -250,6 +252,13 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
     }
 
+    /** The tilde walks the editors, the same key that walks the film editor's and the form editor's. */
+    private void cycleEditor()
+    {
+        this.openEditor(EDITORS[MathUtils.cycler(lastEditor.ordinal() + (Window.isShiftPressed() ? -1 : 1), 0, EDITORS.length - 1)]);
+        UIUtils.playClick();
+    }
+
     /**
      * What the preview shows follows the open editor: the config editor has an opinion per page, and
      * the model editor is about the model itself, so it gets the plain model — nothing worn, nothing
@@ -356,6 +365,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         IKey category = UIKeys.MODEL_EDITOR_TITLE;
         Supplier<Boolean> open = () -> this.data != null;
 
+        this.keys().register(Keys.FILM_CONTROLLER_CYCLE_EDITORS, this::cycleEditor).active(open).category(category);
         this.keys().register(Keys.MODEL_EDITOR_FIND_BONE, this::findBone).active(open).category(category);
         this.keys().register(Keys.MODEL_EDITOR_OPEN_HISTORY, this::openHistory).active(open).category(category);
     }
