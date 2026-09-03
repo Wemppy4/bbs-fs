@@ -630,6 +630,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         menu.action(Icons.LIST, UIKeys.FILM_OPEN_HISTORY, () ->
         {
+            this.flushUndo();
+
             UIOverlay.addOverlay(this.getContext(), new UIUndoHistoryOverlay(UIKeys.FILM_HISTORY_TITLE, this.getUndoHandler().getUndoManager(), this::getData, null), 200, 0.6F);
         });
 
@@ -1496,12 +1498,28 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     public void undo()
     {
+        this.flushUndo();
+
         if (this.data != null && this.undoHandler.getUndoManager().undo(this.data)) UIUtils.playClick();
     }
 
     public void redo()
     {
+        this.flushUndo();
+
         if (this.data != null && this.undoHandler.getUndoManager().redo(this.data)) UIUtils.playClick();
+    }
+
+    /**
+     * Put a recording that is still being collected into the history before the history is walked
+     * or shown — a take in flight is one entry, but it is not in the list until it is sealed.
+     */
+    public void flushUndo()
+    {
+        if (this.undoHandler != null)
+        {
+            this.undoHandler.submitUndo(true);
+        }
     }
 
     public boolean isFlying()
