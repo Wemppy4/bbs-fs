@@ -74,6 +74,16 @@ public class UIColor extends UIElement
         this.picker.setColor(color);
     }
 
+    /**
+     * The swatch is being worked in while its picker stands open: the picker holds the colour
+     * being dragged, and a bound swatch re-reading the property would keep pulling it back.
+     */
+    @Override
+    public boolean isUserEditing()
+    {
+        return this.picker.hasParent();
+    }
+
     @Override
     public boolean subMouseClicked(UIContext context)
     {

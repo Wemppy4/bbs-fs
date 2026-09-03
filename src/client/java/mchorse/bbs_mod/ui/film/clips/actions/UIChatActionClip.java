@@ -18,7 +18,7 @@ public class UIChatActionClip extends UIActionClip<ChatActionClip>
     {
         super.registerUI();
 
-        this.message = new UITextbox(1000, (t) -> this.clip.message.set(t));
+        this.message = this.textbox(1000, this.clip.message);
     }
 
     @Override
@@ -27,13 +27,5 @@ public class UIChatActionClip extends UIActionClip<ChatActionClip>
         super.registerPanels();
 
         this.panels.add(this.section(UIKeys.ACTIONS_CHAT_MESSAGE, this.message));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.message.setText(this.clip.message.get());
     }
 }

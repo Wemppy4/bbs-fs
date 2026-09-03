@@ -21,13 +21,16 @@ import java.util.function.BooleanSupplier;
  * only say <em>which</em> buttons they have and, for toggles, <em>when</em> those read as active.</p>
  *
  * <p>Buttons sit in fixed slots, always laid out in the same order so that the same thing is in
- * the same place in every panel: {@link #action panel actions}, then a separator, then
- * {@link #layout what acts on the panel's own layout}, then {@link #common the buttons every
- * panel shares} — the list of what the panel edits, then save — and finally {@link #menu the
- * panel's menu} at the very end.</p>
+ * the same place in every panel: {@link #editor which of the panel's editors is open}, then
+ * {@link #action panel actions}, then a separator, then {@link #layout what acts on the panel's
+ * own layout}, then {@link #common the buttons every panel shares} — the list of what the panel
+ * edits, then save — and finally {@link #menu the panel's menu} at the very end.</p>
  *
  * <p>Past the separator is everything that is <em>about</em> the panel rather than about what it
  * edits, which is why the layout lock sits there rather than among the actions.</p>
+ *
+ * <p>The three blocks — the editors, the actions, the rest — are told apart by a separator each,
+ * and an empty block simply lets the two around it share one.</p>
  */
 public class UIPanelActionBar extends UIElement
 {
@@ -40,9 +43,11 @@ public class UIPanelActionBar extends UIElement
      */
     private static final Direction EDGE = Direction.BOTTOM;
 
+    private final List<UIIcon> editors = new ArrayList<>();
     private final List<UIIcon> actions = new ArrayList<>();
     private final List<UIIcon> layout = new ArrayList<>();
     private final List<UIIcon> common = new ArrayList<>();
+    private final UIElement editorSeparator = new UIElement();
     private final UIElement separator = new UIElement();
 
     private UIIcon menu;
@@ -50,10 +55,27 @@ public class UIPanelActionBar extends UIElement
 
     public UIPanelActionBar()
     {
+        this.editorSeparator.wh(SEPARATOR_WIDTH, BUTTON_SIZE);
         this.separator.wh(SEPARATOR_WIDTH, BUTTON_SIZE);
 
         this.row(0);
         this.sync();
+    }
+
+    /**
+     * Add a button that opens one of the panel's own editors, staying highlighted while its editor
+     * is the one on screen — the film panel's camera and replay editors, the model panel's config
+     * and model ones.
+     *
+     * <p>First in the bar and set apart from the actions: these say what the panel is showing,
+     * where an action does something to what it shows.</p>
+     */
+    public UIPanelActionBar editor(UIIcon icon, BooleanSupplier active)
+    {
+        this.editors.add(this.adopt(icon, active));
+        this.sync();
+
+        return this;
     }
 
     /** Add a panel specific button. */
@@ -132,7 +154,16 @@ public class UIPanelActionBar extends UIElement
     {
         this.removeAll();
 
-        int width = this.addSlot(this.actions, 0);
+        int width = this.addSlot(this.editors, 0);
+
+        if (width > 0 && this.hasVisible(this.actions))
+        {
+            this.add(this.editorSeparator);
+
+            width += SEPARATOR_WIDTH;
+        }
+
+        width = this.addSlot(this.actions, width);
 
         if (width > 0 && (this.hasVisible(this.layout) || this.hasVisible(this.common) || this.isVisible(this.menu)))
         {
@@ -197,6 +228,7 @@ public class UIPanelActionBar extends UIElement
     @Override
     public void render(UIContext context)
     {
+        this.renderHover(context, this.editors);
         this.renderHover(context, this.actions);
         this.renderHover(context, this.layout);
         this.renderHover(context, this.common);
@@ -206,15 +238,24 @@ public class UIPanelActionBar extends UIElement
             this.renderHover(context, this.menu);
         }
 
-        if (this.separator.getParent() == this)
-        {
-            Area area = this.separator.area;
-            int x = area.mx();
-
-            context.batcher.box(x, area.y + 3, x + 1, area.ey() - 3, BBSSettings.dividerColor());
-        }
+        this.renderSeparator(context, this.editorSeparator);
+        this.renderSeparator(context, this.separator);
 
         super.render(context);
+    }
+
+    /** The divider between two blocks of buttons, drawn only while that block boundary is in the bar. */
+    private void renderSeparator(UIContext context, UIElement separator)
+    {
+        if (separator.getParent() != this)
+        {
+            return;
+        }
+
+        Area area = separator.area;
+        int x = area.mx();
+
+        context.batcher.box(x, area.y + 3, x + 1, area.ey() - 3, BBSSettings.dividerColor());
     }
 
     private void renderHover(UIContext context, List<UIIcon> slot)

@@ -21,6 +21,7 @@ import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -117,6 +118,19 @@ public class CubicModelLoader implements IModelLoader
         }
 
         newModel.model = theModel;
+
+        /* The model editor writes back only what it fully owns: a cubic model that is a real file in
+         * the user's assets (a pack's model resolves to a path that isn't there), with nothing compiled
+         * in from OBJ meshes — serialising those would bake them into the .bbs.json. */
+        if (compile.isEmpty())
+        {
+            File file = models.provider.getFile(modelBBS);
+
+            if (file != null && file.isFile())
+            {
+                newModel.setModelFile(modelBBS);
+            }
+        }
 
         for (Animation animation : this.tryLoadingExternalAnimations(models, config).getAll())
         {

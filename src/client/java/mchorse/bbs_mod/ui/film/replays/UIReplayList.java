@@ -3,22 +3,16 @@ package mchorse.bbs_mod.ui.film.replays;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
-import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.Camera;
-import mchorse.bbs_mod.camera.clips.CameraClipContext;
-import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.replays.Replay;
-import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.film.replays.Replays;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
-import mchorse.bbs_mod.forms.forms.AnchorForm;
-import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -30,7 +24,6 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueForm;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.ui.Keys;
-import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.structure.StructureCut;
 import mchorse.bbs_mod.forms.structure.StructureSelection;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -38,43 +31,26 @@ import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.forms.UIFormPalette;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.UIPanelBase;
 import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
-import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UILabelList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIFolderOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
-import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.model_blocks.UIModelBlockEntityList;
-import mchorse.bbs_mod.ui.utils.Label;
-import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.CollectionUtils;
-import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.NaturalOrderComparator;
 import mchorse.bbs_mod.utils.RayTracing;
-import mchorse.bbs_mod.utils.clips.Clip;
-import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
-import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
-import mchorse.bbs_mod.utils.pose.Transform;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
@@ -84,11 +60,8 @@ import net.minecraft.util.math.Vec3i;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -102,8 +75,8 @@ import java.util.function.Consumer;
  */
 public class UIReplayList extends UIList<ReplayListEntry>
 {
+    /** What the time-offset dialog remembers between openings. */
     private static String LAST_OFFSET = "0";
-    private static final ProcessReplaysState PROCESS_STATE = new ProcessReplaysState();
 
     public UIFilmPanel panel;
     private final Consumer<Form> formConsumer;
@@ -116,25 +89,12 @@ public class UIReplayList extends UIList<ReplayListEntry>
     /** Set while building the context menu when the cursor is on a category folder row. */
     private String contextFolderCategoryName;
 
-    private static class ProcessReplaysState
-    {
-        public String expression = "v";
-        public List<String> properties = new ArrayList<>(Arrays.asList("x"));
-        public boolean advanced;
-        public boolean fill = false;
-        public int lookAtTarget = -1;
-
-        public NormalOperation operation = NormalOperation.RANDOM;
-        public double randomMin = -1;
-        public double randomMax = 1;
-        public double lineOffset = 1;
-        public double size = 3;
-        public double shift = 1;
-    }
-
     public UIReplayList(Consumer<List<Replay>> callback, Consumer<Form> formConsumer, UIFilmPanel panel)
     {
-        super((entries) -> callback.accept(replaysFromEntries(entries)));
+        /* Rows are rebuilt wrappers over stable data, so "the same row" is the same replay (or
+         * the same category name) — that is what lets a pick survive every list rebuild. */
+        super((entries) -> callback.accept(replaysFromEntries(entries)), (a, b) ->
+            a.kind == b.kind && (a.isReplay() ? a.replay == b.replay : a.folderName.equals(b.folderName)));
 
         this.formConsumer = formConsumer;
         this.panel = panel;
@@ -289,22 +249,18 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        this.current.clear();
+        List<ReplayListEntry> replays = new ArrayList<>();
 
-        for (int i = 0; i < this.list.size(); i++)
+        for (ReplayListEntry e : this.list)
         {
-            ReplayListEntry e = this.list.get(i);
-
             if (e.isReplay())
             {
-                this.current.add(i);
+                replays.add(e);
             }
         }
 
-        if (this.callback != null && !this.current.isEmpty())
-        {
-            this.callback.accept(this.getCurrent());
-        }
+        this.selection.setAll(replays);
+        this.fireSelectionCallback();
     }
 
     @Override
@@ -417,67 +373,17 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
     }
 
-    private void restoreReplaySelection(List<Replay> replays)
-    {
-        this.current.clear();
-
-        for (Replay r : replays)
-        {
-            for (int i = 0; i < this.list.size(); i++)
-            {
-                ReplayListEntry e = this.list.get(i);
-
-                if (e.isReplay() && e.replay == r)
-                {
-                    this.addIndex(i);
-
-                    break;
-                }
-            }
-        }
-
-        if (this.callback != null && !this.current.isEmpty())
-        {
-            this.callback.accept(this.getCurrent());
-        }
-    }
-
+    /** The picked replays, in the order they were picked. */
     public List<Replay> getSelectedReplays()
     {
-        List<Replay> out = new ArrayList<>();
-
-        for (int i : this.current)
-        {
-            if (this.exists(i))
-            {
-                ReplayListEntry e = this.list.get(i);
-
-                if (e.isReplay())
-                {
-                    out.add(e.replay);
-                }
-            }
-        }
-
-        return out;
+        return replaysFromEntries(this.selection.getItems());
     }
 
     public Replay getSelectedReplayFirst()
     {
-        for (int i : this.current)
-        {
-            if (this.exists(i))
-            {
-                ReplayListEntry e = this.list.get(i);
+        List<Replay> replays = this.getSelectedReplays();
 
-                if (e.isReplay())
-                {
-                    return e.replay;
-                }
-            }
-        }
-
-        return null;
+        return replays.isEmpty() ? null : replays.get(0);
     }
 
     public boolean hasReplaySelection()
@@ -492,16 +398,9 @@ public class UIReplayList extends UIList<ReplayListEntry>
     {
         List<Replay> out = new ArrayList<>();
 
-        for (int i = 0; i < this.list.size(); i++)
+        for (ReplayListEntry e : this.list)
         {
-            if (!this.current.contains(i))
-            {
-                continue;
-            }
-
-            ReplayListEntry e = this.list.get(i);
-
-            if (e.isReplay())
+            if (e.isReplay() && this.selection.contains(e))
             {
                 out.add(e.replay);
             }
@@ -553,7 +452,24 @@ public class UIReplayList extends UIList<ReplayListEntry>
             }
         }
 
+        /* Carry the pick over the rebuild: fresh rows that mean the same replay or category
+         * (the constructor's sameness) replace their stale twins; rows that vanished — a
+         * deleted replay, a collapsed category's replays — drop out. This is the ONE place
+         * selection survival lives, for every rebuild caller alike. */
+        List<ReplayListEntry> keep = new ArrayList<>();
+
+        for (ReplayListEntry picked : this.selection.getItems())
+        {
+            int index = this.selection.indexOf(entries, picked);
+
+            if (index != -1)
+            {
+                keep.add(entries.get(index));
+            }
+        }
+
         this.setList(entries);
+        this.selection.setAll(keep);
     }
 
     /**
@@ -705,8 +621,18 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
 
         this.refreshReplayList();
-        this.restoreReplaySelection(selected);
+        this.fireSelectionCallback();
         this.updateFilmEditor();
+    }
+
+    /** Tell the host what is picked now (the rebuild itself keeps the pick, but the host's
+     *  panels follow the callback). */
+    private void fireSelectionCallback()
+    {
+        if (this.callback != null && !this.selection.isEmpty())
+        {
+            this.callback.accept(this.getCurrent());
+        }
     }
 
     @Override
@@ -755,9 +681,8 @@ public class UIReplayList extends UIList<ReplayListEntry>
                         this.collapsedCategories.add(name);
                     }
 
-                    List<Replay> keep = new ArrayList<>(this.getSelectedReplays());
                     this.refreshReplayList();
-                    this.restoreReplaySelection(keep);
+                    this.fireSelectionCallback();
                     this.update();
 
                     return true;
@@ -1088,688 +1013,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        UIProcessReplaysPanel panel = new UIProcessReplaysPanel(first);
-
-        UIOverlay.addOverlay(this.getContext(), panel, 320, 320);
-    }
-
-    private static List<String> collectProcessChannelIds(Replay replay)
-    {
-        ArrayList<String> out = new ArrayList<>();
-        HashSet<String> added = new HashSet<>();
-
-        for (String id : ReplayKeyframes.CURATED_CHANNELS)
-        {
-            BaseValue baseValue = replay.keyframes.get(id);
-
-            if (baseValue instanceof KeyframeChannel<?> channel && KeyframeFactories.isNumeric(channel.getFactory()))
-            {
-                out.add(id);
-                added.add(id);
-            }
-        }
-
-        for (KeyframeChannel<?> channel : replay.keyframes.getChannels())
-        {
-            if (!KeyframeFactories.isNumeric(channel.getFactory()) || added.contains(channel.getId()))
-            {
-                continue;
-            }
-
-            out.add(channel.getId());
-        }
-
-        return out;
-    }
-
-    private class UIProcessReplaysPanel extends UIConfirmOverlayPanel
-    {
-        private final UIStringList properties = new UIStringList(null)
-        {
-            @Override
-            protected void renderElementPart(UIContext context, String element, int i, int x, int y, boolean hover, boolean selected)
-            {
-                int h = this.scroll.scrollItemSize;
-                int color = UIReplaysEditor.getColor(element);
-                Icon icon = UIReplaysEditor.getIcon(element);
-
-                context.batcher.box(x, y, x + 2, y + h, Colors.A100 | color);
-                context.batcher.gradientHBox(x + 2, y, x + 24, y + h, Colors.A25 | color, color);
-                context.batcher.icon(icon, x + 2, y + h / 2F, 0F, 0.5F);
-                context.batcher.textShadow(this.elementToString(context, i, element), x + 24, y + (h - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
-            }
-        };
-
-        private final UIPanelBase<UIElement> modes = new UIPanelBase<>(Direction.TOP);
-        private final UINormalProcessView normal = new UINormalProcessView();
-        private final UIAdvancedProcessView advanced = new UIAdvancedProcessView();
-
-        public UIProcessReplaysPanel(Replay first)
-        {
-            super(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_TITLE, IKey.EMPTY, null);
-
-            this.message.setVisible(false);
-
-            this.properties.scroll.scrollItemSize = 16;
-
-            for (String id : collectProcessChannelIds(first))
-            {
-                this.properties.add(id);
-            }
-
-            this.properties.background().multi();
-            this.properties.update();
-
-            if (!PROCESS_STATE.properties.isEmpty())
-            {
-                this.properties.setCurrentScroll(PROCESS_STATE.properties.get(0));
-            }
-
-            for (String property : PROCESS_STATE.properties)
-            {
-                this.properties.addIndex(this.properties.getList().indexOf(property));
-            }
-
-            this.modes.registerPanel(this.normal, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_MODE_NORMAL, Icons.SHAPES);
-            this.modes.registerPanel(this.advanced, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_MODE_ADVANCED, Icons.CODE);
-            this.modes.setPanel(PROCESS_STATE.advanced ? this.advanced : this.normal);
-
-            UIElement body = new UIElement();
-            body.relative(this.content).xy(6, 6).w(1F, -12).h(1F, -40);
-
-            this.modes.relative(body).x(0).y(0).w(1F, -126).h(1F);
-
-            this.properties.relative(body).x(1F, -120).y(20).w(120).h(1F, -20);
-
-            this.confirm.w(1F, -10);
-            this.content.add(body);
-            body.add(this.modes, this.properties);
-        }
-
-        @Override
-        public void confirm()
-        {
-            if (this.apply())
-            {
-                super.confirm();
-            }
-        }
-
-        private boolean apply()
-        {
-            UIContext context = this.getContext();
-
-            if (context == null)
-            {
-                context = UIReplayList.this.getContext();
-            }
-
-            if (context == null)
-            {
-                return false;
-            }
-
-            List<String> selectedProperties = new ArrayList<>(this.properties.getCurrent());
-
-            List<ReplayBatchProcessor.VisibleReplay> visible = this.collectVisibleReplays();
-
-            if (visible.isEmpty())
-            {
-                return false;
-            }
-
-            boolean isAdvanced = this.modes.view == this.advanced;
-
-            PROCESS_STATE.advanced = isAdvanced;
-
-            if (isAdvanced)
-            {
-                if (selectedProperties.isEmpty())
-                {
-                    context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NO_CHANNELS);
-
-                    return false;
-                }
-
-                PROCESS_STATE.properties = new ArrayList<>(selectedProperties);
-
-                if (!this.applyAdvanced(context, visible, selectedProperties))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                NormalOperation operation = this.normal.getSelectedOperation();
-
-                if (operation == null)
-                {
-                    operation = NormalOperation.RANDOM;
-                }
-
-                if (operation != NormalOperation.LOOK_AT && selectedProperties.isEmpty())
-                {
-                    context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NO_CHANNELS);
-
-                    return false;
-                }
-
-                if (operation == NormalOperation.FIT_HEIGHT && !selectedProperties.contains("y"))
-                {
-                    context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NEED_Y_CHANNEL);
-
-                    return false;
-                }
-
-                PROCESS_STATE.properties = new ArrayList<>(selectedProperties);
-
-                if (!this.applyNormal(context, visible, selectedProperties))
-                {
-                    return false;
-                }
-            }
-
-            UIReplayList.this.updateFilmEditor();
-
-            return true;
-        }
-
-        private List<ReplayBatchProcessor.VisibleReplay> collectVisibleReplays()
-        {
-            /* The stagger is ordered by the film's own replay list, not by visible rows: a
-             * selected replay whose folder is collapsed has no row, and indexing by rows used
-             * to silently drop it from the batch (and shift everyone else's offset).
-             *
-             * The index is taken by identity: ValueGroup compares by content, so List.indexOf
-             * hands back the first replay that merely looks the same - and a batch is usually
-             * made of duplicates, which all reported index 0 and landed in one spot. */
-            List<Replay> selected = UIReplayList.this.getSelectedReplaysInViewOrder();
-            List<Replay> all = UIReplayList.this.panel.getData().replays.getList();
-            int min = Integer.MAX_VALUE;
-
-            for (Replay replay : selected)
-            {
-                int index = CollectionUtils.getIndex(all, replay);
-
-                if (index >= 0)
-                {
-                    min = Math.min(min, index);
-                }
-            }
-
-            if (min == Integer.MAX_VALUE)
-            {
-                return new ArrayList<>();
-            }
-
-            List<ReplayBatchProcessor.VisibleReplay> out = new ArrayList<>();
-
-            for (Replay replay : selected)
-            {
-                int index = CollectionUtils.getIndex(all, replay);
-
-                if (index >= 0)
-                {
-                    out.add(new ReplayBatchProcessor.VisibleReplay(replay, index, index - min));
-                }
-            }
-
-            return out;
-        }
-
-        private boolean applyAdvanced(UIContext context, List<ReplayBatchProcessor.VisibleReplay> selected, List<String> selectedProperties)
-        {
-            String expressionText = this.advanced.expression.getText();
-            ReplayBatchProcessor.Error error = ReplayBatchProcessor.applyAdvanced(selected, selectedProperties, expressionText);
-
-            if (error == ReplayBatchProcessor.Error.INVALID_EXPRESSION)
-            {
-                context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_INVALID_EXPRESSION);
-                return false;
-            }
-
-            return error == null;
-        }
-
-        private boolean applyNormal(UIContext context, List<ReplayBatchProcessor.VisibleReplay> selected, List<String> selectedProperties)
-        {
-            NormalOperation operation = this.normal.getSelectedOperation();
-
-            if (operation == null)
-            {
-                operation = NormalOperation.RANDOM;
-            }
-
-            PROCESS_STATE.operation = operation;
-
-            if (operation == NormalOperation.RANDOM)
-            {
-                PROCESS_STATE.randomMin = this.normal.randomMin.getValue();
-                PROCESS_STATE.randomMax = this.normal.randomMax.getValue();
-            }
-            else if (operation == NormalOperation.LINE)
-            {
-                PROCESS_STATE.lineOffset = this.normal.lineOffset.getValue();
-            }
-            else if (operation == NormalOperation.SQUARE || operation == NormalOperation.SQUARE_OUTLINE || operation == NormalOperation.CUBE || operation == NormalOperation.CIRCLE || operation == NormalOperation.CIRCLE_OUTLINE || operation == NormalOperation.SPHERE)
-            {
-                PROCESS_STATE.size = this.normal.size.getValue();
-            }
-            else if (operation == NormalOperation.SHIFT)
-            {
-                PROCESS_STATE.shift = this.normal.shift.getValue();
-            }
-            ReplayBatchProcessor.NormalParams params = new ReplayBatchProcessor.NormalParams();
-            params.randomMin = PROCESS_STATE.randomMin;
-            params.randomMax = PROCESS_STATE.randomMax;
-            params.lineOffset = PROCESS_STATE.lineOffset;
-            params.size = PROCESS_STATE.size;
-            params.shift = PROCESS_STATE.shift;
-            params.fill = PROCESS_STATE.fill;
-            params.lookAtTarget = this.resolveLookAtTargetReplay();
-            params.groundProvider = operation == NormalOperation.FIT_HEIGHT ? this.createGroundProvider() : null;
-
-            ReplayBatchProcessor.Error error = ReplayBatchProcessor.applyNormal(selected, selectedProperties, operation.op, params);
-
-            if (error == ReplayBatchProcessor.Error.NEED_TWO_CHANNELS)
-            {
-                context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NEED_TWO_CHANNELS);
-                return false;
-            }
-            else if (error == ReplayBatchProcessor.Error.NEED_THREE_CHANNELS)
-            {
-                context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NEED_THREE_CHANNELS);
-                return false;
-            }
-            else if (error == ReplayBatchProcessor.Error.NEED_Y_CHANNEL)
-            {
-                context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NEED_Y_CHANNEL);
-                return false;
-            }
-            else if (error == ReplayBatchProcessor.Error.NEED_TARGET)
-            {
-                context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NO_TARGET);
-                return false;
-            }
-            else if (error == ReplayBatchProcessor.Error.NO_WORLD)
-            {
-                context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NO_WORLD);
-                return false;
-            }
-            else if (error == ReplayBatchProcessor.Error.NEED_POSITION_CHANNELS)
-            {
-                context.notifyError(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_ERROR_NEED_THREE_CHANNELS);
-                return false;
-            }
-
-            return error == null;
-        }
-
-        private ReplayBatchProcessor.GroundProvider createGroundProvider()
-        {
-            MinecraftClient mc = MinecraftClient.getInstance();
-            World world = mc.world;
-
-            if (world == null)
-            {
-                return null;
-            }
-
-            HashMap<Long, Double> cache = new HashMap<>();
-
-            return (x, z) ->
-            {
-                int bx = (int) Math.floor(x);
-                int bz = (int) Math.floor(z);
-                long key = (((long) bx) << 32) ^ (bz & 0xffffffffL);
-
-                Double cached = cache.get(key);
-
-                if (cached != null)
-                {
-                    return cached;
-                }
-
-                double top = world.getTopY() + 5;
-                Vec3d pos = new Vec3d(x, top, z);
-                BlockHitResult result = RayTracing.rayTrace(world, pos, new Vec3d(0D, -1D, 0D), top - world.getBottomY() + 5D);
-
-                double y = Double.NaN;
-
-                if (result != null && result.getType() != HitResult.Type.MISS)
-                {
-                    y = result.getPos().y;
-                }
-
-                cache.put(key, y);
-
-                return y;
-            };
-        }
-
-        private Replay resolveLookAtTargetReplay()
-        {
-            if (PROCESS_STATE.operation != NormalOperation.LOOK_AT)
-            {
-                return null;
-            }
-
-            Film film = UIReplayList.this.panel.getData();
-
-            if (film == null)
-            {
-                return null;
-            }
-
-            List<Replay> replays = film.replays.getList();
-            int index = PROCESS_STATE.lookAtTarget;
-
-            if (index < 0 || index >= replays.size())
-            {
-                return null;
-            }
-
-            return replays.get(index);
-        }
-
-        private class UINormalProcessView extends UIElement
-        {
-            private final UILabelList<NormalOperation> operations;
-
-            private final UITrackpad randomMin;
-            private final UITrackpad randomMax;
-            private final UITrackpad lineOffset;
-            private final UITrackpad size;
-            private final UITrackpad shift;
-            private final UIToggle fill;
-            private final UIButton lookAtTarget;
-
-            private final UIElement params = new UIElement();
-            private final UIText hint = new UIText(IKey.EMPTY).padding(0, 0).lineHeight(10);
-
-            public UINormalProcessView()
-            {
-                super();
-
-                this.operations = new UILabelList<>((l) -> this.updateOperation())
-                {
-                    @Override
-                    protected void renderElementPart(UIContext context, Label<NormalOperation> element, int i, int x, int y, boolean hover, boolean selected)
-                    {
-                        int h = this.scroll.scrollItemSize;
-                        Icon icon = element.value.icon;
-
-                        context.batcher.icon(icon, x + 3, y + (h - 16) / 2F);
-                        context.batcher.textShadow(element.title.get(), x + 22, y + (h - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
-                    }
-                };
-                this.operations.background();
-                this.operations.scroll.scrollItemSize = UIConstants.CONTROL_HEIGHT;
-
-                for (NormalOperation operation : NormalOperation.values())
-                {
-                    this.operations.add(operation.title, operation);
-                }
-
-                this.randomMin = new UITrackpad();
-                this.randomMin.limit(-10000, 10000, false);
-                this.randomMin.setValue(PROCESS_STATE.randomMin);
-
-                this.randomMax = new UITrackpad();
-                this.randomMax.limit(-10000, 10000, false);
-                this.randomMax.setValue(PROCESS_STATE.randomMax);
-
-                this.lineOffset = new UITrackpad();
-                this.lineOffset.limit(-10000, 10000, false);
-                this.lineOffset.setValue(PROCESS_STATE.lineOffset);
-
-                this.size = new UITrackpad();
-                this.size.limit(0, 10000, false);
-                this.size.setValue(PROCESS_STATE.size);
-
-                this.shift = new UITrackpad();
-                this.shift.limit(-10000, 10000, false);
-                this.shift.setValue(PROCESS_STATE.shift);
-
-                this.fill = new UIToggle(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_FILL, PROCESS_STATE.fill, (b) -> PROCESS_STATE.fill = b.getValue());
-                this.fill.tooltip(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_FILL_TOOLTIP);
-
-                this.lookAtTarget = new UIButton(IKey.EMPTY, (b) -> this.openLookAtTargetMenu());
-                this.lookAtTarget.tooltip(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_LOOK_AT_TARGET_TOOLTIP);
-
-                int opsHeight = UIConstants.CONTROL_HEIGHT * NormalOperation.values().length;
-
-                this.operations.relative(this).xy(0, 0).w(1F).h(opsHeight);
-                this.params.relative(this.operations).y(1F, UIConstants.MARGIN * 2).w(1F).h(UIConstants.CONTROL_HEIGHT * 2 + UIConstants.MARGIN);
-                this.hint.relative(this.params).y(1F, UIConstants.MARGIN).w(1F);
-
-                this.add(this.operations, this.params, this.hint);
-
-                this.operations.setCurrentValue(PROCESS_STATE.operation);
-                this.updateOperation();
-            }
-
-            private void updateOperation()
-            {
-                NormalOperation operation = null;
-                Label<NormalOperation> operationLabel = this.operations.getCurrentFirst();
-
-                if (operationLabel != null)
-                {
-                    operation = operationLabel.value;
-                }
-
-                this.params.removeAll();
-                int rows = 0;
-
-                if (operation == NormalOperation.RANDOM)
-                {
-                    UILabel minLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_MIN, 36);
-                    UILabel maxLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_MAX, 36);
-                    UIElement row = UI.row(minLabel, this.randomMin, maxLabel, this.randomMax);
-                    row.relative(this.params).w(1F).h(UIConstants.CONTROL_HEIGHT).resize();
-                    this.params.add(row);
-                    rows = 1;
-                    this.hint.text(operation.hint);
-                }
-                else if (operation == NormalOperation.LINE)
-                {
-                    UILabel offsetLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_OFFSET, 56);
-                    UIElement row = UI.row(offsetLabel, this.lineOffset);
-                    row.relative(this.params).w(1F).h(UIConstants.CONTROL_HEIGHT).resize();
-                    this.params.add(row);
-                    rows = 1;
-                    this.hint.text(operation.hint);
-                }
-                else if (operation == NormalOperation.SQUARE || operation == NormalOperation.SQUARE_OUTLINE)
-                {
-                    UILabel sizeLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_SIZE, 56);
-                    UIElement row1 = UI.row(sizeLabel, this.size);
-                    row1.relative(this.params).w(1F).h(UIConstants.CONTROL_HEIGHT).resize();
-                    this.params.add(row1);
-                    rows = 1;
-                    this.hint.text(operation.hint);
-                }
-                else if (operation == NormalOperation.CUBE || operation == NormalOperation.SPHERE)
-                {
-                    UILabel sizeLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_SIZE, 56);
-                    UIElement row = UI.row(sizeLabel, this.size);
-                    row.relative(this.params).w(1F).h(UIConstants.CONTROL_HEIGHT).resize();
-                    this.params.add(row);
-                    rows = 1;
-                    this.hint.text(operation.hint);
-                }
-                else if (operation == NormalOperation.CIRCLE || operation == NormalOperation.CIRCLE_OUTLINE)
-                {
-                    UILabel sizeLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_SIZE, 56);
-                    UIElement row = UI.row(sizeLabel, this.size);
-                    row.relative(this.params).w(1F).h(UIConstants.CONTROL_HEIGHT).resize();
-                    this.params.add(row);
-                    rows = 1;
-                    this.hint.text(operation.hint);
-                }
-                else if (operation == NormalOperation.FIT_HEIGHT)
-                {
-                    this.hint.text(operation.hint);
-                }
-                else if (operation == NormalOperation.LOOK_AT)
-                {
-                    UILabel targetLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_LOOK_AT_TARGET, 56);
-                    this.updateLookAtTargetLabel();
-                    UIElement row = UI.row(targetLabel, this.lookAtTarget);
-                    row.relative(this.params).w(1F).h(UIConstants.CONTROL_HEIGHT).resize();
-                    this.params.add(row);
-                    rows = 1;
-                    this.hint.text(operation.hint);
-                }
-                else if (operation == NormalOperation.SHIFT)
-                {
-                    UILabel shiftLabel = this.paramLabel(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_PARAM_SHIFT, 56);
-                    UIElement row = UI.row(shiftLabel, this.shift);
-                    row.relative(this.params).w(1F).h(UIConstants.CONTROL_HEIGHT).resize();
-                    this.params.add(row);
-                    rows = 1;
-                    this.hint.text(operation.hint);
-                }
-                else
-                {
-                    this.hint.text(IKey.EMPTY);
-                }
-
-                int y = UIConstants.CONTROL_HEIGHT + UIConstants.MARGIN;
-                boolean showFill = operation == NormalOperation.CUBE || operation == NormalOperation.SPHERE;
-
-                if (showFill)
-                {
-                    this.fill.relative(this.params).x(0).y(y).w(1F).h(UIConstants.CONTROL_HEIGHT);
-                    this.params.add(this.fill);
-                    rows += 1;
-                }
-
-                int height = rows <= 0 ? 0 : rows * UIConstants.CONTROL_HEIGHT + (rows - 1) * UIConstants.MARGIN;
-                this.params.h(height);
-                this.resize();
-            }
-
-            private NormalOperation getSelectedOperation()
-            {
-                Label<NormalOperation> operationLabel = this.operations.getCurrentFirst();
-
-                return operationLabel == null ? null : operationLabel.value;
-            }
-
-            private void updateLookAtTargetLabel()
-            {
-                Film film = UIReplayList.this.panel.getData();
-
-                if (film == null)
-                {
-                    this.lookAtTarget.label = IKey.constant("-");
-                    return;
-                }
-
-                List<Replay> replays = film.replays.getList();
-                int index = PROCESS_STATE.lookAtTarget;
-
-                if (index < 0 || index >= replays.size())
-                {
-                    this.lookAtTarget.label = IKey.constant("-");
-                    return;
-                }
-
-                this.lookAtTarget.label = IKey.constant(replays.get(index).getName());
-            }
-
-            private void openLookAtTargetMenu()
-            {
-                UIContext context = this.getContext();
-
-                if (context == null)
-                {
-                    return;
-                }
-
-                Film film = UIReplayList.this.panel.getData();
-
-                if (film == null)
-                {
-                    return;
-                }
-
-                context.replaceContextMenu((manager) ->
-                {
-                    manager.autoKeys();
-
-                    List<Replay> replays = film.replays.getList();
-
-                    for (int i = 0; i < replays.size(); i++)
-                    {
-                        int index = i;
-                        Replay replay = replays.get(i);
-                        manager.action(Icons.FILM, IKey.constant(replay.getName()), () ->
-                        {
-                            PROCESS_STATE.lookAtTarget = index;
-                            this.updateLookAtTargetLabel();
-                        });
-                    }
-                });
-            }
-
-            private UILabel paramLabel(IKey key, int width)
-            {
-                UILabel label = UI.label(key, UIConstants.CONTROL_HEIGHT);
-                label.w(width);
-
-                return label.labelAnchor(0F, 0.5F);
-            }
-
-        }
-
-        private class UIAdvancedProcessView extends UIElement
-        {
-            private final UITextbox expression = new UITextbox((t) -> PROCESS_STATE.expression = t);
-            private final UIText description = new UIText(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_DESCRIPTION).padding(0, 0);
-
-            public UIAdvancedProcessView()
-            {
-                super();
-
-                this.expression.setText(PROCESS_STATE.expression);
-                this.expression.tooltip(UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_EXPRESSION_TOOLTIP);
-                this.expression.relative(this).xy(0, 0).w(1F).h(20);
-                this.description.relative(this.expression).y(1F, 6).w(1F);
-
-                this.add(this.expression, this.description);
-            }
-        }
-    }
-
-    private enum NormalOperation
-    {
-        RANDOM(ReplayBatchProcessor.Operation.RANDOM, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_RANDOM, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_RANDOM, Icons.SIX_STAR),
-        LINE(ReplayBatchProcessor.Operation.LINE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_LINE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_LINE, Icons.LINE),
-        SQUARE(ReplayBatchProcessor.Operation.SQUARE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_SQUARE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_SHAPES, Icons.SQUARE),
-        SQUARE_OUTLINE(ReplayBatchProcessor.Operation.SQUARE_OUTLINE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_SQUARE_OUTLINE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_SHAPES, Icons.OUTLINE),
-        CUBE(ReplayBatchProcessor.Operation.CUBE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_CUBE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_CUBE, Icons.BLOCK),
-        CIRCLE(ReplayBatchProcessor.Operation.CIRCLE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_CIRCLE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_SHAPES, Icons.CIRCLE),
-        CIRCLE_OUTLINE(ReplayBatchProcessor.Operation.CIRCLE_OUTLINE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_CIRCLE_OUTLINE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_SHAPES, Icons.OUTLINE_SPHERE),
-        SPHERE(ReplayBatchProcessor.Operation.SPHERE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_SPHERE, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_SPHERE, Icons.SPHERE),
-        FIT_HEIGHT(ReplayBatchProcessor.Operation.FIT_HEIGHT, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_FIT_HEIGHT, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_FIT_HEIGHT, Icons.ARROW_DOWN),
-        LOOK_AT(ReplayBatchProcessor.Operation.LOOK_AT, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_LOOK_AT, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_LOOK_AT, Icons.LOOKING),
-        SHIFT(ReplayBatchProcessor.Operation.SHIFT, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_OP_SHIFT, UIKeys.SCENE_REPLAYS_CONTEXT_PROCESS_HINT_SHIFT, Icons.SHIFT_TO);
-
-        public final ReplayBatchProcessor.Operation op;
-        public final IKey title;
-        public final IKey hint;
-        public final Icon icon;
-
-        NormalOperation(ReplayBatchProcessor.Operation op, IKey title, IKey hint, Icon icon)
-        {
-            this.op = op;
-            this.title = title;
-            this.hint = hint;
-            this.icon = icon;
-        }
+        UIOverlay.addOverlay(this.getContext(), new UIProcessReplaysPanel(this.panel, this.getSelectedReplaysInViewOrder()), 320, 320);
     }
 
     private void offsetTimeReplays()
@@ -1908,11 +1152,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         if (last != null)
         {
-            this.refreshReplayList();
-            this.update();
-            this.panel.replayEditor.setReplay(last);
-            this.scrollToReplay(last);
-            this.updateFilmEditor();
+            this.showNewReplay(last);
         }
     }
 
@@ -1966,46 +1206,9 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
     private void fromCamera(int duration)
     {
-        Position position = new Position();
-        Clips camera = this.panel.getData().camera;
-        CameraClipContext context = new CameraClipContext();
+        Replay replay = ReplayFactory.fromCamera(this.panel.getData(), duration);
 
-        Film film = this.panel.getData();
-        Replay replay = film.replays.addReplay();
-
-        replay.category.set("");
-
-        context.clips = camera;
-
-        for (int i = 0; i < duration; i++)
-        {
-            context.clipData.clear();
-            context.setup(i, 0F);
-
-            for (Clip clip : context.clips.getClips(i))
-            {
-                context.apply(clip, position);
-            }
-
-            context.currentLayer = 0;
-
-            float yaw = position.angle.yaw - 180;
-
-            replay.keyframes.x.insert(i, position.point.x);
-            replay.keyframes.y.insert(i, position.point.y);
-            replay.keyframes.z.insert(i, position.point.z);
-            replay.keyframes.yaw.insert(i, (double) yaw);
-            replay.keyframes.headYaw.insert(i, (double) yaw);
-            replay.keyframes.bodyYaw.insert(i, (double) yaw);
-            replay.keyframes.pitch.insert(i, (double) position.angle.pitch);
-        }
-
-        this.refreshReplayList();
-        this.update();
-        this.panel.replayEditor.setReplay(replay);
-        this.scrollToReplay(replay);
-        this.updateFilmEditor();
-
+        this.showNewReplay(replay);
         this.openFormEditor(replay.form, false, null);
     }
 
@@ -2039,61 +1242,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
     private void fromModelBlock(ModelBlockEntity modelBlock)
     {
-        Film film = this.panel.getData();
-        Replay replay = film.replays.addReplay();
-
-        replay.category.set("");
-
-        BlockPos blockPos = modelBlock.getPos();
-        ModelProperties properties = modelBlock.getProperties();
-        Transform transform = properties.getTransform().copy();
-        double x = blockPos.getX() + transform.translate.x + 0.5D;
-        double y = blockPos.getY() + transform.translate.y;
-        double z = blockPos.getZ() + transform.translate.z + 0.5D;
-
-        transform.translate.set(0, 0, 0);
-
-        replay.shadow.set(properties.isShadow());
-        replay.form.set(FormUtils.copy(properties.getForm()));
-        replay.keyframes.x.insert(0, x);
-        replay.keyframes.y.insert(0, y);
-        replay.keyframes.z.insert(0, z);
-
-        /* Mode-aware read: on a quaternion-mode transform the euler channels are
-         * stale zeros — reading them raw would take the yaw-only path with yaw 0
-         * and silently drop the block's whole rotation. */
-        Vector3f rotation = transform.getEulerRotation(new Vector3f());
-
-        if (!transform.isDefault())
-        {
-            if (
-                rotation.x == 0 && rotation.z == 0 &&
-                transform.scale.x == 1 && transform.scale.y == 1 && transform.scale.z == 1
-            ) {
-                double yaw = -Math.toDegrees(rotation.y);
-
-                replay.keyframes.yaw.insert(0, yaw);
-                replay.keyframes.headYaw.insert(0, yaw);
-                replay.keyframes.bodyYaw.insert(0, yaw);
-            }
-            else
-            {
-                AnchorForm form = new AnchorForm();
-                BodyPart part = new BodyPart("");
-
-                part.setForm(replay.form.get());
-                form.transform.set(transform);
-                form.parts.addBodyPart(part);
-
-                replay.form.set(form);
-            }
-        }
-
-        this.refreshReplayList();
-        this.update();
-        this.panel.replayEditor.setReplay(replay);
-        this.scrollToReplay(replay);
-        this.updateFilmEditor();
+        this.showNewReplay(ReplayFactory.fromModelBlock(this.panel.getData(), modelBlock));
     }
 
     /**
@@ -2141,27 +1290,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        StructureForm form = new StructureForm();
-
-        form.structure.set(id);
-        form.name.set(id.substring(id.lastIndexOf('/') + 1));
-
-        Replay replay = film.replays.addReplay();
-
-        replay.category.set("");
-        replay.form.set(form);
-
-        /* The form centres its footprint and stands on its lowest layer, so this is the one
-         * position at which the structure covers the blocks it was made from */
-        replay.keyframes.x.insert(0, min.getX() + size.getX() / 2D);
-        replay.keyframes.y.insert(0, (double) min.getY());
-        replay.keyframes.z.insert(0, min.getZ() + size.getZ() / 2D);
-
-        this.refreshReplayList();
-        this.update();
-        this.panel.replayEditor.setReplay(replay);
-        this.scrollToReplay(replay);
-        this.updateFilmEditor();
+        this.showNewReplay(ReplayFactory.fromStructure(film, id, min, size));
     }
 
     public void addReplay(Vector3d position, float pitch, float yaw)
@@ -2173,26 +1302,20 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        Replay replay = film.replays.addReplay();
+        Replay replay = ReplayFactory.atPosition(film, position, pitch, yaw);
 
-        replay.category.set("");
+        this.showNewReplay(replay);
+        this.openFormEditor(replay.form, false, null);
+    }
 
-        replay.keyframes.x.insert(0, position.x);
-        replay.keyframes.y.insert(0, position.y);
-        replay.keyframes.z.insert(0, position.z);
-
-        replay.keyframes.pitch.insert(0, (double) pitch);
-        replay.keyframes.yaw.insert(0, (double) yaw);
-        replay.keyframes.headYaw.insert(0, (double) yaw);
-        replay.keyframes.bodyYaw.insert(0, (double) yaw);
-
+    /** The tail every way of adding a replay shares: rebuild the rows, focus the newcomer. */
+    private void showNewReplay(Replay replay)
+    {
         this.refreshReplayList();
         this.update();
         this.panel.replayEditor.setReplay(replay);
         this.scrollToReplay(replay);
         this.updateFilmEditor();
-
-        this.openFormEditor(replay.form, false, null);
     }
 
     private void updateFilmEditor()
@@ -2222,11 +1345,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         if (last != null)
         {
-            this.refreshReplayList();
-            this.update();
-            this.panel.replayEditor.setReplay(last);
-            this.scrollToReplay(last);
-            this.updateFilmEditor();
+            this.showNewReplay(last);
         }
     }
 

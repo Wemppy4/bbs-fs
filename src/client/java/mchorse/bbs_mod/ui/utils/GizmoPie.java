@@ -2,8 +2,8 @@ package mchorse.bbs_mod.ui.utils;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.DragStrategy;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGesture;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -43,7 +43,7 @@ public class GizmoPie
      * @param ringGesture the axis drag's own gesture, whose anchored turn axis decides which
      *                    way the wedge sweeps; ignored for the view ring.
      */
-    public static void draw(MatrixStack stack, UIPropTransform transform, DragStrategy ringGesture)
+    public static void draw(MatrixStack stack, TransformGesture transform, DragStrategy ringGesture)
     {
         if (transform == null || !transform.isEditing() || transform.getOp() != TransformOp.ROTATE)
         {
@@ -76,7 +76,7 @@ public class GizmoPie
      * starts exactly under the grab, its leading edge follows the cursor, and — being in the
      * gizmo's own (distance-scaled) frame — its radius rides the ring at any FOV.
      */
-    private static void drawView(MatrixStack stack, UIPropTransform transform)
+    private static void drawView(MatrixStack stack, TransformGesture transform)
     {
         float sweepRad = transform.getViewScreenSweepRad();
 
@@ -174,18 +174,18 @@ public class GizmoPie
     }
 
     /** Sweep pie for one of the three axis rings, drawn in the ring's own plane. */
-    private static void drawAxis(MatrixStack stack, UIPropTransform transform, DragStrategy ringGesture, Axis axis)
+    private static void drawAxis(MatrixStack stack, TransformGesture transform, DragStrategy ringGesture, Axis axis)
     {
-        if (transform.getDrag() == null) return;
+        if (transform.drag() == null) return;
 
         float scale = BBSSettings.axesScale.get();
         float radius = 0.22F * scale;
 
         Vector3f initialVec = transform.getInitialDragRingVec();
 
-        Vector3f axisX = transform.getDrag().gizmoWorldAxes.getColumn(0, new Vector3f());
-        Vector3f axisY = transform.getDrag().gizmoWorldAxes.getColumn(1, new Vector3f());
-        Vector3f axisZ = transform.getDrag().gizmoWorldAxes.getColumn(2, new Vector3f());
+        Vector3f axisX = transform.drag().gizmoWorldAxes.getColumn(0, new Vector3f());
+        Vector3f axisY = transform.drag().gizmoWorldAxes.getColumn(1, new Vector3f());
+        Vector3f axisZ = transform.drag().gizmoWorldAxes.getColumn(2, new Vector3f());
         /* The ring's actual world rotation axis in the active space — the same
          * basis the ring is drawn in (Gizmo.reorientForSpace) and the drag turns
          * about. The axis comes from the GESTURE itself (its anchored turn axis),
@@ -196,7 +196,7 @@ public class GizmoPie
 
         if (dragAxisDir == null)
         {
-            dragAxisDir = transform.getDrag().frameBasis(transform.getSpace()).getColumn(axis.ordinal(), new Vector3f());
+            dragAxisDir = transform.drag().frameBasis(transform.space()).getColumn(axis.ordinal(), new Vector3f());
         }
 
         float gx = initialVec.dot(axisX);

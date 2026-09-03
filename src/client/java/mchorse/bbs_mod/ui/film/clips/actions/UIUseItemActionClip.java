@@ -20,8 +20,8 @@ public class UIUseItemActionClip extends UIActionClip<UseItemActionClip>
     {
         super.registerUI();
 
-        this.hand = new UIToggle(UIKeys.ACTIONS_ITEM_MAIN_HAND, (b) -> this.clip.hand.set(b.getValue()));
-        this.itemStack = new UIItemStack((stack) -> this.clip.itemStack.set(stack));
+        this.hand = this.toggle(UIKeys.ACTIONS_ITEM_MAIN_HAND, this.clip.hand);
+        this.itemStack = this.itemStack(this.clip.itemStack);
     }
 
     @Override
@@ -31,14 +31,5 @@ public class UIUseItemActionClip extends UIActionClip<UseItemActionClip>
 
         this.panels.add(this.hand);
         this.panels.add(this.section(UIKeys.ACTIONS_ITEM_STACK, this.itemStack));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.hand.setValue(this.clip.hand.get());
-        this.itemStack.setStack(this.clip.itemStack.get());
     }
 }

@@ -18,7 +18,7 @@ public class UIDollyZoomClip extends UIClip<DollyZoomClip>
     {
         super.registerUI();
 
-        this.focus = new UITrackpad((value) -> this.clip.focus.set(value.floatValue()));
+        this.focus = this.trackpad(this.clip.focus);
         this.focus.tooltip(UIKeys.CAMERA_PANELS_FOCUS_DISTANCE);
     }
 
@@ -28,13 +28,5 @@ public class UIDollyZoomClip extends UIClip<DollyZoomClip>
         super.registerPanels();
 
         this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:dolly_zoom"), this.focus));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.focus.setValue(this.clip.focus.get());
     }
 }

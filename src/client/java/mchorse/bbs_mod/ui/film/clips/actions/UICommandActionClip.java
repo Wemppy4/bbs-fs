@@ -18,7 +18,7 @@ public class UICommandActionClip extends UIActionClip<CommandActionClip>
     {
         super.registerUI();
 
-        this.command = new UITextarea<>((t) -> this.clip.command.set(t));
+        this.command = this.bind(new UITextarea<>((t) -> this.clip.command.set(t)), () -> this.command.setText(this.clip.command.get()));
         this.command.background().wrap().padding(6).h(90);
     }
 
@@ -28,13 +28,5 @@ public class UICommandActionClip extends UIActionClip<CommandActionClip>
         super.registerPanels();
 
         this.panels.add(this.section(UIKeys.ACTIONS_COMMAND_COMMAND, this.command));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.command.setText(this.clip.command.get());
     }
 }

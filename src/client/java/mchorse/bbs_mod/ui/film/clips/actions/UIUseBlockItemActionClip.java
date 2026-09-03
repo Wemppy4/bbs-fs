@@ -24,7 +24,7 @@ public class UIUseBlockItemActionClip extends UIActionClip<UseBlockItemActionCli
         super.registerUI();
 
         this.hit = new UIBlockHitResult(this.editor);
-        this.hand = new UIToggle(UIKeys.ACTIONS_ITEM_MAIN_HAND, (b) -> this.clip.hand.set(b.getValue()));
+        this.hand = this.toggle(UIKeys.ACTIONS_ITEM_MAIN_HAND, this.clip.hand);
         this.itemStack = this.itemStack(this.clip.itemStack);
     }
 
@@ -45,6 +45,5 @@ public class UIUseBlockItemActionClip extends UIActionClip<UseBlockItemActionCli
         super.fillData();
 
         this.hit.fill(this.clip.hit);
-        this.hand.setValue(this.clip.hand.get());
     }
 }

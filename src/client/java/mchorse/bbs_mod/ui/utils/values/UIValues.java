@@ -122,6 +122,30 @@ public class UIValues
     /* Widgets bound to a value */
 
     /**
+     * A widget bound to its value in both directions: it writes through its callback, and the
+     * step handed here reads the value back into it on every frame the widget is drawn.
+     *
+     * <p>The reading step is not new — it was already written for the reset verb above, and was
+     * simply never run except on a reset. Panels poured values into their widgets by hand
+     * instead, which is why a field could sit showing what the property held some time ago.</p>
+     *
+     * <p>Only the factories below bind. {@link #resettable} deliberately does not: panels hand it
+     * refresh steps of their own, and some of those rebuild a whole section — running that on
+     * every frame is a different thing entirely.</p>
+     *
+     * <p>Every reading step must survive a supplier answering null (a property that does not
+     * exist on this object) and must leave the widget alone when nothing changed — it runs
+     * hundreds of times a second.</p>
+     */
+    private static <T extends UIElement> T bound(T element, Supplier<? extends BaseValue> value, Runnable read)
+    {
+        resettable(element, value, read);
+        element.valueBinding(read);
+
+        return element;
+    }
+
+    /**
      * A numeric field writing straight into the value it is pointed at. Range,
      * step and the rest stay the caller's business — chain them onto the field
      * as before.
@@ -132,21 +156,59 @@ public class UIValues
 
         trackpad.callback = (v) -> value.get().setNumber(v);
 
-        return resettable(trackpad, value, () -> trackpad.setValue(value.get().get().doubleValue()));
+        return bound(trackpad, value, () ->
+        {
+            BaseValueNumber<?> number = value.get();
+
+            if (number == null)
+            {
+                return;
+            }
+
+            double current = number.get().doubleValue();
+
+            if (current != trackpad.getValue())
+            {
+                trackpad.setValue(current);
+            }
+        });
     }
 
     public static UIToggle toggle(IKey label, Supplier<ValueBoolean> value)
     {
         UIToggle toggle = new UIToggle(label, false, (b) -> value.get().set(b.getValue()));
 
-        return resettable(toggle, value, () -> toggle.setValue(value.get().get()));
+        return bound(toggle, value, () ->
+        {
+            ValueBoolean current = value.get();
+
+            if (current != null && current.get() != toggle.getValue())
+            {
+                toggle.setValue(current.get());
+            }
+        });
     }
 
     public static UIColor color(Supplier<ValueColor> value)
     {
         UIColor color = new UIColor((v) -> value.get().set(Color.rgba(v)));
 
-        return resettable(color, value, () -> color.setColor(value.get().get().getARGBColor()));
+        return bound(color, value, () ->
+        {
+            ValueColor current = value.get();
+
+            if (current == null)
+            {
+                return;
+            }
+
+            int argb = current.get().getARGBColor();
+
+            if (argb != color.picker.color.getARGBColor())
+            {
+                color.setColor(argb);
+            }
+        });
     }
 
     public static UITextbox textbox(Supplier<ValueString> value)
@@ -163,6 +225,14 @@ public class UIValues
     {
         textbox.callback = (s) -> value.get().set(s);
 
-        return resettable(textbox, value, () -> textbox.setText(value.get().get()));
+        return bound(textbox, value, () ->
+        {
+            ValueString current = value.get();
+
+            if (current != null && !current.get().equals(textbox.getText()))
+            {
+                textbox.setText(current.get());
+            }
+        });
     }
 }

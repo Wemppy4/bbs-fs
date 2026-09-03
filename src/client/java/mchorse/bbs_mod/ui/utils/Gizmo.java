@@ -14,6 +14,7 @@ import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.DragStrategy;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGesture;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.utils.Axis;
@@ -111,7 +112,10 @@ public class Gizmo
     private int mouseX;
     private int mouseY;
 
-    private UIPropTransform currentTransform;
+    /** The edit session a gizmo interaction is currently running, or {@code null}. The gizmo
+     *  holds the GESTURE, not the editor widget: every question it asks is a gesture question,
+     *  and the widget that owns the session may well not be drawn at all. */
+    private TransformGesture currentGesture;
 
     /* Snapshot of the matrix stack at the moment the gizmo is rendered.
      * Combined with a camera (whose view matrix matches the one applied to
@@ -248,10 +252,10 @@ public class Gizmo
 
     /** The active drag's on-screen readout (angle / offset / scale delta), or
      *  {@code null} when nothing is being dragged. See
-     *  {@link UIPropTransform#getDragReadout()}. */
+     *  {@link TransformGesture#getReadout()}. */
     public String getDragReadout()
     {
-        return this.currentTransform == null ? null : this.currentTransform.getDragReadout();
+        return this.currentGesture == null ? null : this.currentGesture.getReadout();
     }
 
 
@@ -278,7 +282,7 @@ public class Gizmo
             return false;
         }
 
-        if (this.currentTransform != null && this.currentTransform.isEditing() && !this.currentTransform.isSphereRotate())
+        if (this.currentGesture != null && this.currentGesture.isEditing() && !this.currentGesture.isSphereRotate())
         {
             return false;
         }
@@ -288,7 +292,7 @@ public class Gizmo
 
     public boolean isSphereDragging()
     {
-        return this.currentTransform != null && this.currentTransform.isEditing() && this.currentTransform.isSphereRotate();
+        return this.currentGesture != null && this.currentGesture.isEditing() && this.currentGesture.isSphereRotate();
     }
 
     /** World-space radius of the rotate sphere as the CAMERA sizes it ({@code 0} until
@@ -605,28 +609,30 @@ public class Gizmo
         this.mouseX = mouseX;
         this.mouseY = mouseY;
 
-        this.currentTransform = transform;
+        this.currentGesture = transform == null ? null : transform.getGesture();
 
-        if (transform != null)
+        if (this.currentGesture != null)
         {
+            TransformGesture gesture = this.currentGesture;
+
             switch (handle.op)
             {
                 case MOVE:
                 case SCALE:
                 case ROTATE:
-                    transform.enableMode(handle.op.transformOp, handle.axis, handle.axis2, drag);
+                    gesture.enableMode(handle.op.transformOp, handle.axis, handle.axis2, drag);
                     break;
                 case SCALE_ALL:
-                    transform.enableUniformScale(drag);
+                    gesture.enableUniformScale(drag);
                     break;
                 case SCREEN:
-                    transform.enableScreenTranslate(drag);
+                    gesture.enableScreenTranslate(drag);
                     break;
                 case TRACKBALL:
-                    if (Element.SPHERE.isVisible()) transform.enableSphereRotate(drag);
+                    if (Element.SPHERE.isVisible()) gesture.enableSphereRotate(drag);
                     break;
                 case VIEW:
-                    transform.enableViewRotate(drag);
+                    gesture.enableViewRotate(drag);
                     break;
             }
         }
@@ -634,24 +640,24 @@ public class Gizmo
         return true;
     }
 
-    public void trackTransform(UIPropTransform transform)
+    public void trackGesture(TransformGesture gesture)
     {
-        this.currentTransform = transform;
+        this.currentGesture = gesture;
     }
 
-    /** The transform a gesture is currently running on, or {@code null}. Its owner may
+    /** The session a gesture is currently running in, or {@code null}. Its owner may
      *  well be off screen (the replay-root gizmo has no fields at all), which is why
      *  {@link GizmoInteraction#update} drives it from here rather than from a render. */
-    public UIPropTransform getTrackedTransform()
+    public TransformGesture getTrackedGesture()
     {
-        return this.currentTransform;
+        return this.currentGesture;
     }
 
-    public void clearTrackedTransform(UIPropTransform transform)
+    public void clearTrackedGesture(TransformGesture gesture)
     {
-        if (this.currentTransform == transform)
+        if (this.currentGesture == gesture)
         {
-            this.currentTransform = null;
+            this.currentGesture = null;
             this.bakedGesture = null;
 
             if (this.index < STENCIL_X || this.index > STENCIL_MAX)
@@ -665,12 +671,12 @@ public class Gizmo
     {
         this.index = -1;
 
-        if (this.currentTransform != null)
+        if (this.currentGesture != null)
         {
-            this.currentTransform.acceptChanges();
+            this.currentGesture.accept();
         }
 
-        this.currentTransform = null;
+        this.currentGesture = null;
     }
 
     public void render(MatrixStack stack)
@@ -989,7 +995,7 @@ public class Gizmo
         RenderSystem.depthMask(false);
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
         RenderSystem.setShaderColor(1F, 1F, 1F, opacity);
-        GizmoPie.draw(stack, this.currentTransform, this.ringDragGesture());
+        GizmoPie.draw(stack, this.currentGesture, this.ringDragGesture());
         RenderSystem.depthMask(true);
 
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
@@ -1011,9 +1017,9 @@ public class Gizmo
     {
         int debugIndex = this.index;
 
-        if ((debugIndex < STENCIL_X || debugIndex > STENCIL_ZY) && this.currentTransform != null)
+        if ((debugIndex < STENCIL_X || debugIndex > STENCIL_ZY) && this.currentGesture != null)
         {
-            debugIndex = this.currentTransform.getDebugLineStencilIndex();
+            debugIndex = this.currentGesture.getDebugLineStencilIndex();
         }
 
         if (debugIndex < STENCIL_X || debugIndex > STENCIL_ZY)
@@ -1065,20 +1071,20 @@ public class Gizmo
      */
     private Handle activeDragHandle()
     {
-        UIPropTransform transform = this.currentTransform;
+        TransformGesture gesture = this.currentGesture;
 
-        if (!BBSSettings.hideInactiveHandles.get() || transform == null || !transform.isEditing())
+        if (!BBSSettings.hideInactiveHandles.get() || gesture == null || !gesture.isEditing())
         {
             return null;
         }
 
-        TransformOp op = transform.getOp();
-        Axis axis = transform.getAxis();
+        TransformOp op = gesture.getOp();
+        Axis axis = gesture.getAxis();
 
         if (op == TransformOp.ROTATE)
         {
-            if (transform.isSphereRotate()) return Handle.TRACKBALL;
-            if (transform.isViewRotate()) return Handle.VIEW;
+            if (gesture.isSphereRotate()) return Handle.TRACKBALL;
+            if (gesture.isViewRotate()) return Handle.VIEW;
             if (axis == Axis.X) return Handle.ROTATE_X;
             if (axis == Axis.Y) return Handle.ROTATE_Y;
             if (axis == Axis.Z) return Handle.ROTATE_Z;
@@ -1086,18 +1092,18 @@ public class Gizmo
             return null;
         }
 
-        if (op == TransformOp.TRANSLATE && transform.isScreenTranslate())
+        if (op == TransformOp.TRANSLATE && gesture.isScreenTranslate())
         {
             return Handle.SCREEN;
         }
 
-        if (op == TransformOp.SCALE && transform.isScaleAll())
+        if (op == TransformOp.SCALE && gesture.isScaleAll())
         {
             return Handle.SCALE_ALL;
         }
 
         Op handleOp = op == TransformOp.SCALE ? Op.SCALE : Op.MOVE;
-        Axis axis2 = transform.getAxis2();
+        Axis axis2 = gesture.getAxis2();
 
         for (Handle handle : Handle.values())
         {
@@ -1353,18 +1359,18 @@ public class Gizmo
      */
     private DragStrategy ringDragGesture()
     {
-        UIPropTransform transform = this.currentTransform;
+        TransformGesture gesture = this.currentGesture;
 
-        if (transform == null
-            || !transform.isEditing()
-            || transform.getOp() != TransformOp.ROTATE
-            || transform.isSphereRotate()
-            || transform.isViewRotate())
+        if (gesture == null
+            || !gesture.isEditing()
+            || gesture.getOp() != TransformOp.ROTATE
+            || gesture.isSphereRotate()
+            || gesture.isViewRotate())
         {
             return null;
         }
 
-        return transform.getStrategy();
+        return gesture.getStrategy();
     }
 
     /**
@@ -1556,7 +1562,7 @@ public class Gizmo
             /* IK owns this bone's rotation: the rings render washed-out as the visible "not
              * yours to turn" cue, matching the rotation strategies' refusal to start there
              * (the pads still edit the FK channels). */
-            boolean constrained = this.currentTransform != null && this.currentTransform.isRotationConstrained();
+            boolean constrained = this.currentGesture != null && this.currentGesture.rotationConstrained();
 
             /* Depth state is owned by the caller ({@link #drawOccludedGizmo}) so the handles
              * sort against each other. */

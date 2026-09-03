@@ -25,13 +25,13 @@ public class UIShakeClip extends UIClip<ShakeClip>
     {
         super.registerUI();
 
-        this.shake = new UITrackpad((value) -> this.clip.shake.set(value.floatValue()));
+        this.shake = this.trackpad(this.clip.shake);
         this.shake.tooltip(UIKeys.CAMERA_PANELS_SHAKE, Direction.BOTTOM);
 
-        this.shakeAmount = new UITrackpad((value) -> this.clip.shakeAmount.set(value.floatValue()));
+        this.shakeAmount = this.trackpad(this.clip.shakeAmount);
         this.shakeAmount.tooltip(UIKeys.CAMERA_PANELS_SHAKE_AMOUNT, Direction.BOTTOM);
 
-        this.active = new UIBitToggle((value) -> this.clip.active.set(value)).all();
+        this.active = this.bind(new UIBitToggle((value) -> this.clip.active.set(value)).all(), () -> this.active.setValue(this.clip.active.get()));
     }
 
     @Override
@@ -41,15 +41,5 @@ public class UIShakeClip extends UIClip<ShakeClip>
 
         this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:shake"), UI.row(UIConstants.MARGIN, 0, 20, this.shake, this.shakeAmount)));
         this.panels.add(this.active);
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.shake.setValue(this.clip.shake.get());
-        this.shakeAmount.setValue(this.clip.shakeAmount.get());
-        this.active.setValue(this.clip.active.get());
     }
 }

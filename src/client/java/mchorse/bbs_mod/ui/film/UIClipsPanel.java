@@ -354,7 +354,7 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
 
         List<Integer> selection = DataStorageUtils.intListFromData(data.getList("selection"));
 
-        this.clips.scale.view(data.getDouble("x_min"), data.getDouble("x_max"));
+        this.clips.getXAxis().view(data.getDouble("x_min"), data.getDouble("x_max"));
         this.clips.vertical.setScroll(data.getDouble("scroll"));
         this.clips.vertical.updateTarget();
 
@@ -368,8 +368,8 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
         super.collectUndoData(data);
 
         data.put("selection", DataStorageUtils.intListToData(this.clips.getSelection()));
-        data.putDouble("x_min", this.clips.scale.getMinValue());
-        data.putDouble("x_max", this.clips.scale.getMaxValue());
+        data.putDouble("x_min", this.clips.getXAxis().getMinValue());
+        data.putDouble("x_max", this.clips.getXAxis().getMaxValue());
         data.putDouble("scroll", this.clips.vertical.getScroll());
     }
 }

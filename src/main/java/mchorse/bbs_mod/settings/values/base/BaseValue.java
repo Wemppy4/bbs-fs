@@ -17,6 +17,7 @@ public abstract class BaseValue implements IDataSerializable<BaseType>, IValueNo
     protected BaseValue parent;
 
     private boolean visible = true;
+    private boolean synced;
     private List<IValueListener> preCallbacks;
     private List<IValueListener> postCallbacks;
 
@@ -55,6 +56,37 @@ public abstract class BaseValue implements IDataSerializable<BaseType>, IValueNo
         this.visible = false;
 
         return this;
+    }
+
+    /**
+     * Declare that edits to this value (and everything under it) must reach the server's copy
+     * of the data. The declaration lives with the value, next to where it is defined — the code
+     * that ships edits asks {@link #isSynced()} instead of pattern-matching path strings, which
+     * is how whole channels used to silently miss the server when the list fell behind the data.
+     */
+    public BaseValue synced()
+    {
+        this.synced = true;
+
+        return this;
+    }
+
+    /** Whether this value is inside a subtree declared {@link #synced()}. */
+    public boolean isSynced()
+    {
+        BaseValue value = this;
+
+        while (value != null)
+        {
+            if (value.synced)
+            {
+                return true;
+            }
+
+            value = value.getParent();
+        }
+
+        return false;
     }
 
     public BaseValue preCallback(IValueListener callback)

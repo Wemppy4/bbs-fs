@@ -12,6 +12,7 @@ import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
@@ -31,8 +32,10 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.util.math.MatrixStack;
@@ -47,6 +50,7 @@ import org.joml.Vector3f;
 
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -57,12 +61,14 @@ import java.util.function.Supplier;
  * <li>A pick stencil over the model — so a bone lights up under the cursor and under the
  * cursor of a row that names it ({@link #highlight}), the bone pickers' eyedropper works
  * ({@link UIBonePicker.Viewport}), and a click on a bone reports it to the panel.</li>
- * <li>The transform gizmo on the active attachment slot ({@link #target}): drawn in the
- * frame the renderer applies the slot's transform in, so dragging a handle moves the item
- * exactly as the numbers would.</li>
+ * <li>The transform gizmo on the picked attachment slot or pose bone ({@link #target}): drawn
+ * in the frame the renderer applies the transform in, so dragging a handle moves the item
+ * (or the bone) exactly as the numbers would.</li>
  * <li>A first-person view ({@link #setFirstPerson}): the game's own hand frame and lens,
  * showing the first-person slots the way {@code ModelFormRenderer#renderArm} does in play —
  * the only way those slots were ever visible before.</li>
+ * <li>The armor and the held items ({@link #setEquipment}), worn while the page that edits
+ * them is open, so each is seen against the bare model.</li>
  * </ul>
  */
 public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewport, UIBonePicker.Viewport
@@ -77,9 +83,11 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     /** The bone matrices of the frame being drawn, as the slots' frames are built on them. */
     private MatrixCache bones;
 
+    /** The transition they were drawn at, for the fresh samples a pose drag takes. */
+    private float transition;
+
     private Supplier<ModelSlotTarget> target = () -> null;
-    private Consumer<String> onBoneClick;
-    private Runnable onViewChange;
+    private Predicate<String> onBoneClick;
 
     /** The armed eyedropper; null when idle. */
     private Consumer<String> bonePicking;
@@ -100,33 +108,23 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
      */
     private static final Map<EquipmentSlot, Item> EQUIPMENT = Map.of(
         EquipmentSlot.MAINHAND, Items.DIAMOND_SWORD,
-        EquipmentSlot.OFFHAND, Items.SHIELD,
+        EquipmentSlot.OFFHAND, Items.NETHERITE_SWORD,
         EquipmentSlot.HEAD, Items.TURTLE_HELMET,
         EquipmentSlot.CHEST, Items.GOLDEN_CHESTPLATE,
         EquipmentSlot.LEGS, Items.DIAMOND_LEGGINGS,
         EquipmentSlot.FEET, Items.NETHERITE_BOOTS
     );
 
-    private boolean equipment = true;
-
-    public UIModelEditorRenderer()
+    /** What the preview wears: the armor pieces, the items in the hands — each only while its page is open. */
+    public void setEquipment(boolean armor, boolean items)
     {
-        this.setEquipment(true);
-    }
-
-    public boolean hasEquipment()
-    {
-        return this.equipment;
-    }
-
-    /** Whether the preview wears the items and armor — off to see the bare model. */
-    public void setEquipment(boolean equipment)
-    {
-        this.equipment = equipment;
-
         for (Map.Entry<EquipmentSlot, Item> entry : EQUIPMENT.entrySet())
         {
-            this.entity.setEquipmentStack(entry.getKey(), equipment ? new ItemStack(entry.getValue()) : ItemStack.EMPTY);
+            /* Not by an ARMOR type: 1.21.1 split it into HUMANOID_ARMOR and ANIMAL_ARMOR, so
+             * "everything that is not a hand" is the reading that survives the split. */
+            boolean worn = entry.getKey().getType() != EquipmentSlot.Type.HAND ? armor : items;
+
+            this.entity.setEquipmentStack(entry.getKey(), worn ? new ItemStack(entry.getValue()) : ItemStack.EMPTY);
         }
     }
 
@@ -138,18 +136,10 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         return this;
     }
 
-    /** A bone clicked in the viewport (outside of an eyedropper pick). */
-    public UIModelEditorRenderer onBoneClick(Consumer<String> callback)
+    /** A bone clicked in the viewport (outside of an eyedropper pick); answers whether it took the click. */
+    public UIModelEditorRenderer onBoneClick(Predicate<String> callback)
     {
         this.onBoneClick = callback;
-
-        return this;
-    }
-
-    /** The view switched between orbit and first person — the host lays its panes out differently for each. */
-    public UIModelEditorRenderer onViewChange(Runnable callback)
-    {
-        this.onViewChange = callback;
 
         return this;
     }
@@ -190,11 +180,6 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
         this.gizmo.stop();
         this.stencil.clearPicking();
-
-        if (this.onViewChange != null)
-        {
-            this.onViewChange.run();
-        }
     }
 
     /* Eyedropper */
@@ -257,12 +242,12 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     {
         if (this.onBoneClick != null && form == this.form && bone != null && !bone.isEmpty())
         {
-            this.onBoneClick.accept(bone);
+            this.onBoneClick.test(bone);
         }
     }
 
     /**
-     * The slot whose gizmo is drawn: the active one, when this view shows it — the held items
+     * The slot whose gizmo is drawn: the picked one, when this view shows it — the held items
      * and armor in the orbit view, the first-person hands in the first-person view — and its
      * bone was actually rendered.
      */
@@ -280,9 +265,34 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
     private Matrix4f boneMatrix(ModelSlotTarget target)
     {
-        String bone = target.slot().group.get();
+        MatrixCacheEntry entry = this.boneEntry(target.bone());
 
-        return this.bones != null && this.bones.has(bone) ? this.bones.get(bone).matrix() : null;
+        return entry == null ? null : entry.matrix();
+    }
+
+    /** The bone's frames of the frame being drawn. */
+    private MatrixCacheEntry boneEntry(String bone)
+    {
+        return this.bones != null && this.bones.has(bone) ? this.bones.get(bone) : null;
+    }
+
+    /**
+     * The bone's frames evaluated right now, off the pose as it currently is — what a pose drag's
+     * samplers need: they nudge the pose and read back where the bone went. The channel cache is
+     * dropped first, since the sneaking pose isn't part of its key (only the form's pose is).
+     */
+    private MatrixCacheEntry sampleBone(String bone)
+    {
+        FormRenderer renderer = FormUtilsClient.getRenderer(this.form);
+
+        if (renderer instanceof ModelFormRenderer model && model.getModel() != null)
+        {
+            model.getModel().clearChannels();
+        }
+
+        MatrixCache bones = renderer == null ? null : renderer.collectMatrices(this.entity, this.transition);
+
+        return bones != null && bones.has(bone) ? bones.get(bone) : null;
     }
 
     /**
@@ -293,7 +303,8 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     {
         FormRenderer renderer = FormUtilsClient.getRenderer(this.form);
 
-        this.bones = renderer == null ? null : renderer.collectMatrices(this.entity, context.getTransition());
+        this.transition = context.getTransition();
+        this.bones = renderer == null ? null : renderer.collectMatrices(this.entity, this.transition);
     }
 
     /**
@@ -357,17 +368,56 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
                     frame.set(bone);
                 }
             }
+            case POSE, ANCHOR ->
+            {
+                MatrixCacheEntry entry = this.boneEntry(target.bone());
+
+                if (entry != null)
+                {
+                    frame.set(entry.origin());
+                }
+            }
         }
 
         return frame;
     }
 
+    /** What the target lets the gizmo offer; everything, for a target with nothing to say about it. */
+    private static Gizmo.HandleMask maskOf(ModelSlotTarget target)
+    {
+        return target.mask() == null ? Gizmo.HandleMask.ALL : target.mask();
+    }
+
     /**
      * Where the gizmo sits for {@code space}: on the slot's own frame for LOCAL, at the slot's
-     * position on the parent frame otherwise — the form editor's placement convention.
+     * position on the parent frame otherwise — the form editor's placement convention. A pose
+     * bone is placed the way the form editor places a bone: its full matrix for LOCAL, the frame
+     * before its own rotation for every other space.
+     *
+     * @param fresh re-evaluate the bones instead of reading the drawn frame's — for a drag's
+     *              samplers, which need to see the pose they just nudged
      */
-    private Matrix4f origin(ModelSlotTarget target, TransformSpace space)
+    private Matrix4f origin(ModelSlotTarget target, TransformSpace space, boolean fresh)
     {
+        if (target.kind() == ModelSlotKind.POSE || target.kind() == ModelSlotKind.ANCHOR)
+        {
+            /* A drag's samplers nudge the editor's transform and read the bone back: an editor over a
+             * stand-in has to land the nudge in the model first. */
+            if (fresh && target.apply() != null)
+            {
+                target.apply().run();
+            }
+
+            MatrixCacheEntry entry = fresh ? this.sampleBone(target.bone()) : this.boneEntry(target.bone());
+
+            if (entry == null)
+            {
+                return new Matrix4f();
+            }
+
+            return new Matrix4f(space.placesOnOwnFrame() ? entry.matrix() : entry.origin());
+        }
+
         Transform transform = target.editor().getTransform();
         Matrix4f origin = this.parentFrame(target);
 
@@ -418,14 +468,38 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         Transform transform = target.editor().getTransform();
 
         drag.setGlobalAxes(this.getSceneAxes());
-        drag.setJacobian(GizmoDrag.computeTranslateJacobian(transform, () -> this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL)).getTranslation(new Vector3f())));
-        drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform, () -> MatrixStackUtils.stripScale(this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL)))));
+        drag.setJacobian(GizmoDrag.computeTranslateJacobian(transform, () -> this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL, true)).getTranslation(new Vector3f())));
+        drag.setRotateAxes(GizmoDrag.computeRotateAxes(transform, () -> MatrixStackUtils.stripScale(this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL, true)))));
+        drag.setAdditiveRotationBase(this.poseRotationBase(target));
         drag.setFrameAxes(
-            this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL)),
-            this.toSceneMatrix(this.origin(target, TransformSpace.PARENT))
+            this.toSceneMatrix(this.origin(target, TransformSpace.LOCAL, true)),
+            this.toSceneMatrix(this.origin(target, TransformSpace.PARENT, true))
         );
 
         return drag;
+    }
+
+    /**
+     * The additive euler base under a pose bone's channels — the bone's evaluated rotation (rest,
+     * actions, the sneaking pose) minus the pose's own contribution, so gizmo deltas compose at the
+     * effective angles; the form editor's rule ({@code FormUtils#additivePoseRotationBase}). Null
+     * for the slots and for a pose that merges multiplicatively (a quaternion, a fix weight).
+     */
+    private Vector3f poseRotationBase(ModelSlotTarget target)
+    {
+        if (target.kind() != ModelSlotKind.POSE || !(target.editor().getTransform() instanceof PoseTransform pose))
+        {
+            return null;
+        }
+
+        if (pose.rotationMode == Transform.RotationMode.QUATERNION || pose.fix != 0F)
+        {
+            return null;
+        }
+
+        MatrixCacheEntry entry = this.sampleBone(target.bone());
+
+        return entry == null || entry.evaluatedRotation() == null ? null : new Vector3f(entry.evaluatedRotation()).sub(pose.rotate);
     }
 
     /** Move the stack to the gizmo's placement, reoriented into the editor's active space. */
@@ -433,7 +507,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     {
         TransformSpace space = target.editor().getSpace();
 
-        MatrixStackUtils.multiply(stack, MatrixStackUtils.stripScale(this.origin(target, space)));
+        MatrixStackUtils.multiply(stack, MatrixStackUtils.stripScale(this.origin(target, space, false)));
         Gizmo.INSTANCE.reorientForSpace(stack, space, this.camera.view, this.getSceneAxes());
     }
 
@@ -561,7 +635,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
                 stack.push();
                 this.placeGizmo(stack, shown);
-                Gizmo.INSTANCE.renderStencil(stack);
+                Gizmo.INSTANCE.renderStencil(stack, maskOf(shown));
                 stack.pop();
             }
 
@@ -589,7 +663,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     }
 
     /**
-     * The hand the active first-person slot is for (the main hand when none is active), placed
+     * The hand the picked first-person slot is for (the main hand when none is picked), placed
      * where the game places an empty first-person hand. Remembers whether anything was drawn,
      * so the view can say why it's empty.
      */
@@ -627,7 +701,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         if (UIBaseMenu.shouldRenderAxes())
         {
             RenderSystem.disableDepthTest();
-            Gizmo.INSTANCE.render(stack);
+            Gizmo.INSTANCE.render(stack, maskOf(target));
             RenderSystem.enableDepthTest();
         }
 
@@ -733,15 +807,13 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         }
 
         /* A left click on a bone picks it in the panel's tree, the way the form editor picks a bone;
-         * the click is spent, so it doesn't start an orbit as well. */
+         * when the panel takes it, the click is spent, so it doesn't start an orbit as well. */
         if (context.mouseButton == 0 && this.stencil.hasPicked() && this.onBoneClick != null)
         {
             Pair<Form, String> pair = this.stencil.getPicked();
 
-            if (pair != null && pair.a == this.form && !pair.b.isEmpty())
+            if (pair != null && pair.a == this.form && !pair.b.isEmpty() && this.onBoneClick.test(pair.b))
             {
-                this.onBoneClick.accept(pair.b);
-
                 return true;
             }
         }

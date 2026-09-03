@@ -19,8 +19,8 @@ public class UITranslateClip extends UIClip<TranslateClip>
     {
         super.registerUI();
 
-        this.point = new UIPointModule(this.editor);
-        this.active = new UIBitToggle((value) -> this.clip.active.set(value)).point();
+        this.point = this.bind(new UIPointModule(this.editor), () -> this.point.fill(this.clip.translate));
+        this.active = this.bind(new UIBitToggle((value) -> this.clip.active.set(value)).point(), () -> this.active.setValue(this.clip.active.get()));
     }
 
     @Override
@@ -29,14 +29,5 @@ public class UITranslateClip extends UIClip<TranslateClip>
         super.registerPanels();
 
         this.panels.add(this.point, this.active);
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.point.fill(this.clip.translate);
-        this.active.setValue(this.clip.active.get());
     }
 }

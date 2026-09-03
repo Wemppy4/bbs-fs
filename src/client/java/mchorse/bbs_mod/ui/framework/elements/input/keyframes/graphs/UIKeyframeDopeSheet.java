@@ -15,7 +15,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeSha
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -719,9 +718,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     {
         if (context.mouseWheelHorizontal != 0)
         {
-            double offsetX = (25F * BBSSettings.scrollingSensitivityHorizontal.get() * context.mouseWheelHorizontal) / this.keyframes.getXAxis().getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offsetX);
+            this.keyframes.panTime(context.mouseWheelHorizontal);
         }
         else if (Window.isShiftPressed())
         {
@@ -741,7 +738,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
         else if (context.mouseWheel != 0D)
         {
-            this.keyframes.getXAxis().zoomAnchor(Scale.getAnchorX(context, this.keyframes.graphArea), Math.copySign(this.keyframes.getXAxis().getZoomFactor(), context.mouseWheel));
+            this.keyframes.zoomTimeAt(context, context.mouseWheel);
         }
     }
 
@@ -752,12 +749,8 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
         if (this.keyframes.isNavigating())
         {
-            int mouseX = context.mouseX;
-            int mouseY = context.mouseY;
-            double offset = (mouseX - lastX) / this.keyframes.getXAxis().getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offset);
-            this.dopeSheet.scrollBy(-(mouseY - lastY));
+            this.keyframes.dragTimeBy(context.mouseX - lastX);
+            this.dopeSheet.scrollBy(-(context.mouseY - lastY));
         }
     }
 

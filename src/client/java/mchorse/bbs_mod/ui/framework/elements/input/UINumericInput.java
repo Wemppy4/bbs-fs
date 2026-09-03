@@ -300,6 +300,16 @@ public abstract class UINumericInput <T extends UINumericInput<T>> extends UIBas
         return this.isDragging() && System.currentTimeMillis() - this.dragTime > DRAG_DELAY;
     }
 
+    /**
+     * A numeric field is also being worked in while its value is dragged, not only while its text
+     * is focused — a bound field re-read mid-drag would snap back under the cursor.
+     */
+    @Override
+    public boolean isUserEditing()
+    {
+        return super.isUserEditing() || this.isDragging();
+    }
+
     public double getValue()
     {
         return this.value;

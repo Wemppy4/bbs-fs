@@ -167,16 +167,14 @@ public class UIReplayPropTransform extends UIPropTransform
 
     /**
      * Name the record in the drag readout. This editor draws nothing of its own — the chip
-     * row that names a bone drag's operation and axis lives in {@link #render}, which never
-     * runs here — so the readout floating over the gizmo is the only place that can say
-     * which of the two things under the cursor is being moved.
+     * row that names a bone drag's operation and axis lives in the editor's render, which
+     * never runs here — so the readout floating over the gizmo is the only place that can
+     * say which of the two things under the cursor is being moved.
      */
     @Override
-    public String getDragReadout()
+    public String readoutPrefix()
     {
-        String readout = super.getDragReadout();
-
-        return readout == null || this.replay == null ? readout : this.replay.getName() + ": " + readout;
+        return this.replay == null ? null : this.replay.getName() + ": ";
     }
 
     @Override

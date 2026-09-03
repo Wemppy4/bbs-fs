@@ -52,20 +52,20 @@ public class UILookClip extends UIClip<LookClip>
         });
         this.selector.tooltip(UIKeys.CAMERA_PANELS_TARGET_TOOLTIP);
 
-        this.block = new UIPointModule(editor, UIKeys.CAMERA_PANELS_BLOCK).contextMenu();
+        this.block = this.bind(new UIPointModule(editor, UIKeys.CAMERA_PANELS_BLOCK).contextMenu(), () -> this.block.fill(this.clip.block));
         this.block.context((menu) ->
         {
             menu.action(Icons.VISIBLE, UIKeys.CAMERA_PANELS_CONTEXT_LOOK_COORDS, () -> this.rayTrace(false));
             menu.action(Icons.BLOCK, UIKeys.CAMERA_PANELS_CONTEXT_LOOK_BLOCK, () -> this.rayTrace(true));
         });
-        this.offset = new UIPointModule(editor, UIKeys.CAMERA_PANELS_OFFSET).contextMenu();
+        this.offset = this.bind(new UIPointModule(editor, UIKeys.CAMERA_PANELS_OFFSET).contextMenu(), () -> this.offset.fill(this.clip.offset));
 
-        this.relative = new UIToggle(UIKeys.CAMERA_PANELS_RELATIVE, false, (b) -> this.clip.relative.set(b.getValue()));
+        this.relative = this.toggle(UIKeys.CAMERA_PANELS_RELATIVE, this.clip.relative);
         this.relative.tooltip(UIKeys.CAMERA_PANELS_RELATIVE_TOOLTIP);
 
-        this.atBlock = new UIToggle(UIKeys.CAMERA_PANELS_AT_BLOCK, false, (b) -> this.clip.atBlock.set(b.getValue()));
+        this.atBlock = this.toggle(UIKeys.CAMERA_PANELS_AT_BLOCK, this.clip.atBlock);
 
-        this.forward = new UIToggle(UIKeys.CAMERA_PANELS_FORWARD, false, (b) -> this.clip.forward.set(b.getValue()));
+        this.forward = this.toggle(UIKeys.CAMERA_PANELS_FORWARD, this.clip.forward);
         this.forward.tooltip(UIKeys.CAMERA_PANELS_FORWARD_TOOLTIP);
     }
 
@@ -79,18 +79,6 @@ public class UILookClip extends UIClip<LookClip>
         this.panels.add(this.atBlock);
         this.panels.add(this.block);
         this.panels.add(this.forward);
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.block.fill(this.clip.block);
-        this.offset.fill(this.clip.offset);
-        this.relative.setValue(this.clip.relative.get());
-        this.atBlock.setValue(this.clip.atBlock.get());
-        this.forward.setValue(this.clip.forward.get());
     }
 
     private void rayTrace(boolean center)

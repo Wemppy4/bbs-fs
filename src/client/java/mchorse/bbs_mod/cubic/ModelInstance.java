@@ -117,6 +117,14 @@ public class ModelInstance implements IModelInstance
     public Link baseTexture;
 
     /**
+     * The {@code .bbs.json} this model was read from, when the model editor may write it back: a
+     * cubic model that is a real file in the user's own assets, with nothing compiled in from other
+     * files. Null for every other model — one from the jar or a pack, an OBJ, a VOX — and those the
+     * editor only configures.
+     */
+    private Link modelFile;
+
+    /**
      * Per-material default textures, loaded from the model's {@code textures/<material>/}
      * folders (or synthesized as a 1x1 swatch for flat-color materials). Keyed by material
      * name; the empty key is the model's default texture. Used as the static fallback for a
@@ -166,10 +174,32 @@ public class ModelInstance implements IModelInstance
         return this.model;
     }
 
+    /** The file the model editor writes this model to, or null for a model it may only configure. */
+    public Link getModelFile()
+    {
+        return this.modelFile;
+    }
+
+    public void setModelFile(Link modelFile)
+    {
+        this.modelFile = modelFile;
+    }
+
+    /** Whether the model editor may edit the model itself — see {@link #getModelFile()}. */
+    public boolean isEditable()
+    {
+        return this.modelFile != null;
+    }
+
     @Override
     public Pose getSneakingPose()
     {
         return this.config.getSneakingPose();
+    }
+
+    public Pose getDefaultPose()
+    {
+        return this.config.getDefaultPose();
     }
 
     @Override

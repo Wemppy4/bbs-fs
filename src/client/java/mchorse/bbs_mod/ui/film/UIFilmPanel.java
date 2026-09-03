@@ -226,8 +226,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         TourAnchors.register("film.export", () -> this.preview.recordVideo);
 
         this.actions()
-            .action(this.openCameraEditor, this.cameraEditor::isVisible)
-            .action(this.openReplayEditor, this.replayEditor::isVisible)
+            .editor(this.openCameraEditor, this.cameraEditor::isVisible)
+            .editor(this.openReplayEditor, this.replayEditor::isVisible)
             .layout(this.layoutLock, () -> this.dock.isLocked())
             .menu(this.openFilmMenu);
 
@@ -630,6 +630,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         menu.action(Icons.LIST, UIKeys.FILM_OPEN_HISTORY, () ->
         {
+            this.flushUndo();
+
             UIOverlay.addOverlay(this.getContext(), new UIUndoHistoryOverlay(UIKeys.FILM_HISTORY_TITLE, this.getUndoHandler().getUndoManager(), this::getData, null), 200, 0.6F);
         });
 
@@ -976,8 +978,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     {
         if (panel == this.cameraEditor)
         {
-            this.timelineXMin = this.cameraEditor.clips.scale.getMinValue();
-            this.timelineXMax = this.cameraEditor.clips.scale.getMaxValue();
+            this.timelineXMin = this.cameraEditor.clips.getXAxis().getMinValue();
+            this.timelineXMax = this.cameraEditor.clips.getXAxis().getMaxValue();
         }
         else if (panel == this.replayEditor && this.replayEditor.keyframeEditor != null)
         {
@@ -995,7 +997,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         if (panel == this.cameraEditor)
         {
-            this.cameraEditor.clips.scale.view(this.timelineXMin, this.timelineXMax);
+            this.cameraEditor.clips.getXAxis().view(this.timelineXMin, this.timelineXMax);
         }
         else if (panel == this.replayEditor && this.replayEditor.keyframeEditor != null)
         {
@@ -1496,12 +1498,28 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     public void undo()
     {
+        this.flushUndo();
+
         if (this.data != null && this.undoHandler.getUndoManager().undo(this.data)) UIUtils.playClick();
     }
 
     public void redo()
     {
+        this.flushUndo();
+
         if (this.data != null && this.undoHandler.getUndoManager().redo(this.data)) UIUtils.playClick();
+    }
+
+    /**
+     * Put a recording that is still being collected into the history before the history is walked
+     * or shown — a take in flight is one entry, but it is not in the list until it is sealed.
+     */
+    public void flushUndo()
+    {
+        if (this.undoHandler != null)
+        {
+            this.undoHandler.submitUndo(true);
+        }
     }
 
     public boolean isFlying()
@@ -1955,7 +1973,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         if (this.runner.isRunning())
         {
-            this.cameraEditor.clips.scale.shiftIntoMiddle(this.getCursor());
+            this.cameraEditor.clips.getXAxis().shiftIntoMiddle(this.getCursor());
 
             if (this.replayEditor.keyframeEditor != null)
             {

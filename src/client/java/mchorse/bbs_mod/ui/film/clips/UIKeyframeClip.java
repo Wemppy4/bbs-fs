@@ -34,10 +34,7 @@ public class UIKeyframeClip extends UIClip<KeyframeClip>
     {
         super.addEnvelopes();
 
-        this.additive = new UIToggle(UIKeys.CAMERA_PANELS_ADDITIVE, (b) ->
-        {
-            this.clip.additive.set(b.getValue());
-        });
+        this.additive = this.toggle(UIKeys.CAMERA_PANELS_ADDITIVE, this.clip.additive);
 
         this.panels.add(this.additive);
     }
@@ -122,7 +119,6 @@ public class UIKeyframeClip extends UIClip<KeyframeClip>
 
         this.updateDuration(this.clip.duration.get());
         this.keyframes.setClip(this.clip);
-        this.additive.setValue(this.clip.additive.get());
     }
 
     @Override
