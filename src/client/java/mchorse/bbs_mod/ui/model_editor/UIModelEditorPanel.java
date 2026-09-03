@@ -91,6 +91,12 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     /** The config editor, the first of them — kept by its own type for what the panel asks of it. */
     private UIModelConfigEditor configEditor;
 
+    /** The model editor, the second: it edits the model itself, and the panel writes what it edited. */
+    private UIModelGeometryEditor modelEditor;
+
+    /** Whether the model itself was edited since its file was last written; the config saves on its own. */
+    private boolean modelDirty;
+
     private final ModelForm form = new ModelForm();
 
     /** The model id waiting for its instance to load (models load asynchronously). */
@@ -128,7 +134,8 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.renderer = new UIModelEditorRenderer()
             .target(this::shownTarget)
-            .onBoneClick(this::selectBone);
+            .onBoneClick(this::selectBone)
+            .marker(this::markedBone);
         this.renderer.form = this.form;
 
         /* Two panes: the preview and, to its right, the settings — each keeping at least 160px. */
@@ -188,8 +195,15 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         for (Editor pick : EDITORS)
         {
             UIIcon icon = new UIIcon(pick.icon, (b) -> this.openEditor(pick));
+            IKey label = pick.label;
 
-            icon.tooltip(pick.label);
+            /* The model editor's button says why it's dark: only a model of the user's own can be edited. */
+            if (pick == Editor.MODEL)
+            {
+                label = () -> (this.isModelEditable() ? pick.label : UIKeys.MODEL_EDITOR_OPEN_MODEL_EDITOR_UNAVAILABLE).get();
+            }
+
+            icon.tooltip(label);
             this.editorIcons[pick.ordinal()] = icon;
             this.actions().editor(icon, () -> lastEditor == pick);
         }
@@ -211,15 +225,13 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     /* Editors. Both fill the pane and only one is shown, the way the film panel switches between its
      * camera and replay editors; the preview beside them is shared. */
 
-    /**
-     * The two editors, one over the other in the pane. The model editor is an empty pane for now —
-     * the model's own things (its groups, its anchor) are what goes into it next.
-     */
+    /** The two editors, one over the other in the pane. */
     private void createEditors()
     {
         this.configEditor = new UIModelConfigEditor(this);
+        this.modelEditor = new UIModelGeometryEditor(this);
         this.editors[Editor.CONFIG.ordinal()] = this.configEditor;
-        this.editors[Editor.MODEL.ordinal()] = new UIElement();
+        this.editors[Editor.MODEL.ordinal()] = this.modelEditor;
 
         for (Editor pick : EDITORS)
         {
@@ -261,11 +273,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     /**
      * What the preview shows follows the open editor: the config editor has an opinion per page, and
-     * the model editor is about the model itself, so it gets the plain model — nothing worn, nothing
-     * held, the orbit view.
+     * the model editor is about the model itself, so it gets the plain model in its bind pose —
+     * nothing worn, nothing held, no animation and no pose, the orbit view.
      */
     public void syncPreview()
     {
+        ModelFormRenderer renderer = this.formRenderer();
+
+        if (renderer != null)
+        {
+            renderer.setRest(lastEditor == Editor.MODEL);
+        }
+
         if (lastEditor == Editor.CONFIG)
         {
             this.configEditor.applyPreview();
@@ -299,12 +318,24 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     }
 
     /**
-     * A bone clicked in the viewport goes to the config editor, which picks it where a bone is picked;
-     * outside of it the click is left alone, so the orbit starts.
+     * A bone clicked in the viewport goes to the open editor, which picks it where a bone is picked;
+     * where nothing picks it the click is left alone, so the orbit starts.
      */
     private boolean selectBone(String bone)
     {
-        return lastEditor == Editor.CONFIG && this.configEditor.selectBone(bone);
+        return lastEditor == Editor.CONFIG ? this.configEditor.selectBone(bone) : this.modelEditor.selectBone(bone);
+    }
+
+    /** The bone whose pivot the viewport marks with a dot: the model editor's picked group, while it's the one open. */
+    private String markedBone()
+    {
+        return lastEditor == Editor.MODEL ? this.modelEditor.getSelected() : null;
+    }
+
+    /** Whether the open model is one the model editor may edit — see {@link ModelInstance#isEditable()}. */
+    private boolean isModelEditable()
+    {
+        return this.bound != null && this.bound.isEditable();
     }
 
     /**
@@ -517,13 +548,24 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         }
 
         this.setupUndo(data);
-        this.configEditor.fill(data);
+        this.fillEditors();
+
+        /* Whatever was edited belonged to the model that was open; a fill starts clean. */
+        this.modelDirty = false;
 
         boolean open = data != null;
+        boolean editable = this.isModelEditable();
 
-        for (UIIcon icon : this.editorIcons)
+        /* A model the editor may only configure has no model editor: its button goes dark, and a tab
+         * that lands on such a model while the model editor is up falls back to the config editor. */
+        if (open && !editable && lastEditor == Editor.MODEL)
         {
-            icon.setEnabled(open);
+            this.openEditor(Editor.CONFIG);
+        }
+
+        for (Editor pick : EDITORS)
+        {
+            this.editorIcons[pick.ordinal()].setEnabled(open && (pick != Editor.MODEL || editable));
         }
 
         for (UIIcon icon : new UIIcon[] {this.folderIcon, this.historyIcon, this.animationIcon})
@@ -533,6 +575,34 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
                 icon.setEnabled(open);
             }
         }
+    }
+
+    /** Bind both editors to what's open: the config, and the live instance behind it. */
+    private void fillEditors()
+    {
+        this.configEditor.fill(this.data);
+        this.modelEditor.fill(this.bound);
+    }
+
+    /**
+     * The config goes through the repository like any document. The model's own file is written
+     * only when the model editor changed something, since every write of it reloads the model.
+     */
+    @Override
+    public void forceSave()
+    {
+        super.forceSave();
+
+        if (this.modelDirty && this.bound != null && BBSModClient.getModels().saveModel(this.bound))
+        {
+            this.modelDirty = false;
+        }
+    }
+
+    /** The model editor changed the model: the next save writes the model's file too. */
+    public void markModelEdited()
+    {
+        this.modelDirty = true;
     }
 
     private void openHistory()
@@ -602,7 +672,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
     {
         this.data.rebuild();
         this.refresh();
-        this.configEditor.fill(this.data);
+        this.fillEditors();
     }
 
     private void openModelFolder()
@@ -653,10 +723,18 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void playAnimation(String name)
     {
-        if (FormUtilsClient.getRenderer(this.form) instanceof ModelFormRenderer renderer && renderer.getAnimator() != null)
+        ModelFormRenderer renderer = this.formRenderer();
+
+        if (renderer != null && renderer.getAnimator() != null)
         {
             renderer.getAnimator().playAnimation(name);
         }
+    }
+
+    /** The preview form's renderer, made on the first ask. */
+    private ModelFormRenderer formRenderer()
+    {
+        return FormUtilsClient.getRenderer(this.form) instanceof ModelFormRenderer renderer ? renderer : null;
     }
 
     /**
@@ -680,7 +758,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     private void resetAnimator()
     {
-        if (FormUtilsClient.getRenderer(this.form) instanceof ModelFormRenderer renderer)
+        ModelFormRenderer renderer = this.formRenderer();
+
+        if (renderer != null)
         {
             renderer.resetAnimator();
         }

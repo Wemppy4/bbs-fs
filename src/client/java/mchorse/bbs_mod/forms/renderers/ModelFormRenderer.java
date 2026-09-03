@@ -98,6 +98,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
     private IEntity entity = new StubEntity();
 
+    /**
+     * Render the bind pose alone — no actions, no default pose, no form pose: what the model editor
+     * edits the model's geometry against.
+     */
+    private boolean rest;
+
     @Override
     protected void applyTransforms(MatrixStack stack, boolean origin, float transition)
     {
@@ -222,6 +228,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         this.lastModel = null;
     }
 
+    public void setRest(boolean rest)
+    {
+        this.rest = rest;
+    }
+
     /**
      * The channels phase of the bone pipeline (rest &rarr; actions &rarr; pose): resets every bone
      * to its bind pose, applies the animator's actions, then the form's pose stack. After this the
@@ -237,6 +248,15 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
          * Skipping rewinds the constraint stack's orient/offset writes to the channels-phase
          * snapshot, because IK/physics blend FROM the evaluated state and must not stack on
          * their own previous output. Both skeleton flavours keep such a snapshot. */
+        if (this.rest)
+        {
+            /* Nothing stamped: the cached evaluation is of the posed model, and leaving rest must not restore it. */
+            model.model.resetPose();
+            model.clearChannels();
+
+            return;
+        }
+
         boolean cacheable = this.form != null && model.model != null && RenderFrame.isEnabled();
 
         if (cacheable && model.matchesChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion()))

@@ -13,6 +13,7 @@ import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
+import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIFormRenderer;
@@ -35,8 +36,14 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.Item;
@@ -94,6 +101,12 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     /** A bone a row asked to light up this frame; consumed by {@link #render}. */
     private String highlighted;
 
+    /** The dot on a marked pivot, in the preview's units — a bit under a pixel of a 16-pixel model. */
+    private static final float MARKER_RADIUS = 0.035F;
+
+    /** The bone whose pivot gets a dot in the viewport, asked every frame; null for none. */
+    private Supplier<String> marker;
+
     private boolean firstPerson;
     private boolean firstPersonShown;
 
@@ -137,6 +150,14 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     public UIModelEditorRenderer onBoneClick(Predicate<String> callback)
     {
         this.onBoneClick = callback;
+
+        return this;
+    }
+
+    /** Mark a bone's pivot with a dot — the model editor's picked group, whose pivot is what it edits. */
+    public UIModelEditorRenderer marker(Supplier<String> marker)
+    {
+        this.marker = marker;
 
         return this;
     }
@@ -583,6 +604,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
             FormUtilsClient.render(this.form, formContext);
             FormTranslucentQueue.flush();
             this.captureBones(context);
+            this.renderMarker(context);
         }
 
         /* Keep the gizmo the same on-screen size as in the film preview; set before both the
@@ -673,6 +695,38 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         stack.pop();
 
         this.captureFirstPersonBones(renderer);
+    }
+
+    /** A dot at the marked bone's pivot, drawn through the geometry so it shows from inside a cube too. */
+    private void renderMarker(UIContext context)
+    {
+        String bone = this.marker == null ? null : this.marker.get();
+        MatrixCacheEntry entry = bone == null ? null : this.boneEntry(bone);
+
+        if (entry == null)
+        {
+            return;
+        }
+
+        MatrixStack stack = context.render.batcher.getContext().getMatrices();
+        int color = BBSSettings.primaryColor.get();
+
+        stack.push();
+        MatrixStackUtils.multiply(stack, MatrixStackUtils.stripScale(entry.origin()));
+
+        RenderSystem.disableDepthTest();
+        RenderSystem.disableCull();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+
+        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        Draw.sphere(builder, stack, MARKER_RADIUS, 12, 12, Colors.getR(color), Colors.getG(color), Colors.getB(color), 1F);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+
+        RenderSystem.enableCull();
+        RenderSystem.enableDepthTest();
+        stack.pop();
     }
 
     private void renderAxes(UIContext context, ModelSlotTarget target)

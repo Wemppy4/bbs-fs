@@ -418,33 +418,30 @@ public class Model implements IMapSerializable, IModel
         texture.addInt(this.textureWidth);
         texture.addInt(this.textureHeight);
 
-        Map<String, String> parents = new HashMap<>();
-        Collection<ModelGroup> allGroups = this.getAllGroups();
+        /* The groups go out in tree order — parents before children, siblings as they stand — into an
+         * ordered map: the file's order is the order they come back in, so a save must not shuffle
+         * the tree. */
+        MapType groups = new MapType(false);
 
-        for (ModelGroup parent : allGroups)
-        {
-            for (ModelGroup child : parent.children)
-            {
-                parents.put(child.id, parent.id);
-            }
-        }
-
-        MapType groups = new MapType();
-
-        for (ModelGroup group : allGroups)
-        {
-            MapType groupData = group.toData();
-            String parentId = parents.get(group.id);
-
-            if (parentId != null)
-            {
-                groupData.putString("parent", parentId);
-            }
-
-            groups.put(group.id, groupData);
-        }
+        this.writeGroups(this.topGroups, null, groups);
 
         data.put("texture", texture);
         data.put("groups", groups);
+    }
+
+    private void writeGroups(List<ModelGroup> list, ModelGroup parent, MapType groups)
+    {
+        for (ModelGroup group : list)
+        {
+            MapType groupData = group.toData();
+
+            if (parent != null)
+            {
+                groupData.putString("parent", parent.id);
+            }
+
+            groups.put(group.id, groupData);
+            this.writeGroups(group.children, group, groups);
+        }
     }
 }

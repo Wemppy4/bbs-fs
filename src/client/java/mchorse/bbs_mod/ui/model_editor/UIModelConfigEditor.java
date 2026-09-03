@@ -855,7 +855,7 @@ public class UIModelConfigEditor extends UIElement
                 }),
                 transform
             );
-            UIModelConfigEditor.this.setEnabledDeep(this.panel, picked != null);
+            UIUtils.setEnabledDeep(this.panel, picked != null);
 
             if (this.onFill != null)
             {
@@ -1195,18 +1195,9 @@ public class UIModelConfigEditor extends UIElement
             UI.labelRow(UIKeys.MODEL_EDITOR_BONE_MIRROR, this.bonePicker(() -> picked == null ? "" : this.mirrorOf(bone), (other) -> this.setMirror(bone, other), this::fillBone)),
             UI.labelRow(UIKeys.MODEL_EDITOR_BONE_PICKING, this.bonePicker(() -> picked == null ? "" : config.pickingOverrides.get().getOrDefault(bone, ""), (other) -> this.setPickingOverride(bone, other), this::fillBone))
         );
-        this.setEnabledDeep(this.bonePanel, picked != null);
+        UIUtils.setEnabledDeep(this.bonePanel, picked != null);
 
         this.resizePage(Tab.BONES);
-    }
-
-    /** Enable or disable every control in a settings panel — the panel stands, only its fields go quiet. */
-    private void setEnabledDeep(UIElement panel, boolean enabled)
-    {
-        for (UIElement element : panel.getChildren(UIElement.class, new ArrayList<>(), false))
-        {
-            element.setEnabled(enabled);
-        }
     }
 
     private UIBoneTreeList.Marker[] boneMarkers(String bone)
@@ -1339,7 +1330,7 @@ public class UIModelConfigEditor extends UIElement
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_PARENT_SHARE, this.weldShare(weld)),
             this.weldTwist(weld)
         );
-        this.setEnabledDeep(this.weldPanel, picked != null);
+        UIUtils.setEnabledDeep(this.weldPanel, picked != null);
 
         this.resizePage(Tab.WELDS);
     }
