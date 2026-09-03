@@ -175,7 +175,8 @@ public class UIModelGeometryEditor extends UIElement
 
     private void select(String id)
     {
-        this.groups.setCurrentScroll(id);
+        this.groups.setCurrent(id);
+        this.groups.reveal(id);
         this.fillGroup();
     }
 
@@ -183,6 +184,12 @@ public class UIModelGeometryEditor extends UIElement
     private void selectAll(List<String> ids)
     {
         this.groups.setCurrent(ids);
+
+        if (!ids.isEmpty())
+        {
+            this.groups.reveal(ids.get(0));
+        }
+
         this.fillGroup();
     }
 

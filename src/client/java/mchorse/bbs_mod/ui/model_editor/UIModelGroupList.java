@@ -73,6 +73,21 @@ public class UIModelGroupList extends UIBoneTreeList
         return items.isEmpty() ? null : items.get(0);
     }
 
+    /**
+     * Bring a group's row into view, and only as far as that. The list's own setCurrentScroll puts
+     * the picked row at the very top instead, which reads as the list jumping under the cursor when
+     * the pick follows a drag or an edit the eye is already watching.
+     */
+    public void reveal(String id)
+    {
+        int index = this.getList().indexOf(id);
+
+        if (index >= 0)
+        {
+            this.scrollIntoView(index);
+        }
+    }
+
     /** The group whose row is under the cursor, for a row's menu; null off the rows. */
     public String atCursor(UIContext context)
     {
