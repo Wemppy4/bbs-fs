@@ -153,6 +153,8 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_ROLL = L10n.lang("bbs.ui.camera.panels.roll");
     public static final IKey CAMERA_PANELS_SHAKE = L10n.lang("bbs.ui.camera.panels.shake");
     public static final IKey CAMERA_PANELS_SHAKE_AMOUNT = L10n.lang("bbs.ui.camera.panels.shake_amount");
+    public static final IKey CAMERA_PANELS_SHAKE_NOISE = L10n.lang("bbs.ui.camera.panels.shake_noise");
+    public static final IKey CAMERA_PANELS_SHAKE_NOISE_TOOLTIP = L10n.lang("bbs.ui.camera.panels.shake_noise_tooltip");
     public static final IKey CAMERA_PANELS_SUBTITLE_BACKGROUND = L10n.lang("bbs.ui.camera.panels.subtitle.background");
     public static final IKey CAMERA_PANELS_SUBTITLE_CONSTRAINT = L10n.lang("bbs.ui.camera.panels.subtitle.constraints");
     public static final IKey CAMERA_PANELS_SUBTITLE_FONT = L10n.lang("bbs.ui.camera.panels.subtitle.font");

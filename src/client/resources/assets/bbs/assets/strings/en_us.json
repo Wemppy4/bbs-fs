@@ -595,6 +595,8 @@
 	"bbs.ui.camera.panels.roll": "Roll",
 	"bbs.ui.camera.panels.shake": "Shake",
 	"bbs.ui.camera.panels.shake_amount": "Shake amount",
+	"bbs.ui.camera.panels.shake_noise": "Noise",
+	"bbs.ui.camera.panels.shake_noise_tooltip": "Shake with smooth noise instead of a sine wave. Every enabled component wanders on a channel of its own, which reads as a handheld camera rather than a sway. Deterministic — the same tick always shakes the same way.",
 	"bbs.ui.camera.panels.subtitle.background": "Background",
 	"bbs.ui.camera.panels.subtitle.constraints": "Constraints",
 	"bbs.ui.camera.panels.subtitle.font": "Font",

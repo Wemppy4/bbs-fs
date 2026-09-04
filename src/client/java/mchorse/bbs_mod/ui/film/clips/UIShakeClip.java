@@ -4,6 +4,7 @@ import mchorse.bbs_mod.camera.clips.modifiers.ShakeClip;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIBitToggle;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -13,6 +14,7 @@ public class UIShakeClip extends UIClip<ShakeClip>
 {
     public UITrackpad shake;
     public UITrackpad shakeAmount;
+    public UIToggle noise;
     public UIBitToggle active;
 
     public UIShakeClip(ShakeClip modifier, IUIClipsDelegate editor)
@@ -31,6 +33,9 @@ public class UIShakeClip extends UIClip<ShakeClip>
         this.shakeAmount = this.trackpad(this.clip.shakeAmount);
         this.shakeAmount.tooltip(UIKeys.CAMERA_PANELS_SHAKE_AMOUNT, Direction.BOTTOM);
 
+        this.noise = this.toggle(UIKeys.CAMERA_PANELS_SHAKE_NOISE, this.clip.noise);
+        this.noise.tooltip(UIKeys.CAMERA_PANELS_SHAKE_NOISE_TOOLTIP, Direction.BOTTOM);
+
         this.active = this.bind(new UIBitToggle((value) -> this.clip.active.set(value)).all(), () -> this.active.setValue(this.clip.active.get()));
     }
 
@@ -39,7 +44,7 @@ public class UIShakeClip extends UIClip<ShakeClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:shake"), UI.row(UIConstants.MARGIN, 0, 20, this.shake, this.shakeAmount)));
+        this.panels.add(this.section(UIKeys.C_CLIP.get("bbs:shake"), UI.row(UIConstants.MARGIN, 0, 20, this.shake, this.shakeAmount), this.noise));
         this.panels.add(this.active);
     }
 }
