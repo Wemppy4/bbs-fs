@@ -25,6 +25,7 @@ import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCameraKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIRenderingContext;
+import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
@@ -262,6 +263,12 @@ public class UIDashboard extends UIBaseMenu
     }
 
     @Override
+    public IUIElement getPointerOwner()
+    {
+        return this.orbitUI.isFreeLook() ? this.orbitUI : null;
+    }
+
+    @Override
     public void onClose(UIBaseMenu nextMenu)
     {
         super.onClose(nextMenu);
@@ -272,6 +279,11 @@ public class UIDashboard extends UIBaseMenu
         }
 
         this.orbit.reset();
+
+        /* The mouse goes back to being a cursor while the dashboard is away — the flight is
+         * kept, and the panel takes the mouse again on the frame it's back on screen. */
+        this.orbitUI.setFreeLook(false);
+
         BBSModClient.getCameraController().remove(this.camera);
 
         MinecraftClient.getInstance().options.setPerspective(this.lastPerspective);

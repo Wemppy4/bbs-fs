@@ -263,6 +263,7 @@ public class UIKeys
     public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL = L10n.lang("bbs.rotate_3d_sphere_mode.trackball");
     public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL = L10n.lang("bbs.rotate_3d_sphere_mode.arcball");
     public static final IKey FILM_CONTROLLER_CONTROL_MODE_TOOLTIP = L10n.lang("bbs.ui.film.controller.control_mode-tooltip");
+    public static final IKey FILM_CONTROLLER_FREE_LOOK_TOOLTIP = L10n.lang("bbs.ui.film.controller.free_look-tooltip");
     public static final IKey FILM_CONTROLLER_INSERT_FRAME_DESCRIPTION = L10n.lang("bbs.ui.film.controller.insert_frame-description");
     public static final IKey FILM_CONTROLLER_INSERT_FRAME_TITLE = L10n.lang("bbs.ui.film.controller.insert_frame-title");
     public static final IKey FILM_CONTROLLER_KEYS_CATEGORY = L10n.lang("bbs.ui.film.controller.keys.category");

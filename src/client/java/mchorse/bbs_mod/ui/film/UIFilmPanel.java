@@ -1684,7 +1684,17 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             }
         }
 
-        if (this.controller.isControlling())
+        /* The mouse is the flight camera's while free look is on: only in flight, and only
+         * when nothing else needs it - an overlay that has to be clicked through, or an actor
+         * whose head that very same movement would be turning. */
+        this.dashboard.orbitUI.setFreeLook(this.isFlying()
+            && BBSSettings.editorFlightFreeLook.get()
+            && !this.controller.isControlling()
+            && !UIOverlay.has(context));
+
+        /* Both hide the pointer, so there is no cursor for the interface to answer to - a
+         * button lighting up under a mouse that isn't there reads as a ghost. */
+        if (this.controller.isControlling() || this.dashboard.orbitUI.isFreeLook())
         {
             context.mouseX = context.mouseY = -1;
         }
