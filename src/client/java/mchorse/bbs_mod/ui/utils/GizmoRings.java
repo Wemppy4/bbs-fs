@@ -7,8 +7,8 @@ import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -75,6 +75,11 @@ public class GizmoRings
     /** Scratch for the CPU transform of a cached vertex, so an emit allocates nothing. */
     private final Vector4f vertexScratch = new Vector4f();
 
+    /* Backing store for {@link #tessellate}: a full 64x12 torus is 4608 POSITION_COLOR vertices of
+     * 16 bytes, sized for two so a rebuild never grows it. Lives as long as the gizmo does, which
+     * is the app's lifetime — there is no dispose path to hang a close on. */
+    private final BufferAllocator scratchAllocator = new BufferAllocator(4608 * 16 * 2);
+
     private static class ArcSlot
     {
         float[] geometry;
@@ -116,10 +121,19 @@ public class GizmoRings
         }
     }
 
-    /** Open a batch to tessellate cached geometry into. Never submitted — {@link #capture} eats it. */
-    private static BufferBuilder tessellate()
+    /**
+     * Open a batch to tessellate cached geometry into. Never submitted — {@link #capture} eats it.
+     *
+     * <p>Built on the rings' OWN allocator, never the shared tessellator's. A cache miss happens
+     * mid-pass, while the caller already holds an open builder on {@code Tessellator.getInstance()},
+     * and {@code BufferAllocator.getAllocated()} hands back everything allocated since the last call
+     * by ANY builder on it — so a nested batch there swallowed the outer pass' vertices: the ring
+     * came out a second time far away with the wrong stencil id, and the outer batch lost its
+     * axes. A private allocator keeps the scratch geometry out of the caller's batch entirely.</p>
+     */
+    private BufferBuilder tessellate()
     {
-        return Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
+        return new BufferBuilder(this.scratchAllocator, VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
     }
 
     /**

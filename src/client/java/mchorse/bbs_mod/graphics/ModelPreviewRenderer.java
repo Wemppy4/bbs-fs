@@ -49,6 +49,14 @@ public class ModelPreviewRenderer
     /** Set true by the orchestrator around {@code renderUserModel} so the cubic path draws into a vanilla layer. */
     public static boolean ACTIVE = false;
 
+    /**
+     * The projection {@link #begin} bound, or null outside a preview. The GPU rewrite left no global
+     * projection to read back, so anything that must know the matrix it is drawn through (the gizmo
+     * lens) reads it here instead of falling back to the world's, which describes a different frame.
+     * A copy, so the caller may keep mutating its own camera matrix after {@link #begin} returns.
+     */
+    public static Matrix4f PROJECTION = null;
+
     /** Adopted {@link net.minecraft.util.Identifier} of the current model texture (set by {@code ModelFormRenderer}). */
     public static net.minecraft.util.Identifier TEXTURE = null;
 
@@ -101,6 +109,8 @@ public class ModelPreviewRenderer
         RenderSystem.backupProjectionMatrix();
         RenderSystem.setProjectionMatrix(this.projection.set(projectionMatrix), ProjectionType.PERSPECTIVE);
 
+        PROJECTION = new Matrix4f(projectionMatrix);
+
         /* Keep the GLOBAL model-view identity: the camera model-view is baked into the per-vertex
          * MatrixStack (UIModelRenderer.createCameraStack) so positions reach the shader already in view
          * space. This matches vanilla entity rendering (ModelViewMat ~identity, camera in the position
@@ -129,6 +139,8 @@ public class ModelPreviewRenderer
     {
         RenderSystem.outputColorTextureOverride = null;
         RenderSystem.outputDepthTextureOverride = null;
+
+        PROJECTION = null;
 
         if (this.previousLights != null)
         {

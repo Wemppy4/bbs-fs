@@ -20,6 +20,7 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.render.OffscreenTarget;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.graphics.Draw;
+import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
@@ -300,11 +301,18 @@ public class Gizmo
         }
         else if (projectionOverride != null)
         {
+            /* The engine's own passes honour RenderSystem's output override — that is how the model
+             * preview (ModelPreviewRenderer.begin) redirects a form's draws into its off-screen
+             * textures. A manual pass gets no such courtesy, so it must follow the same redirect
+             * itself; binding the main framebuffer here put the lensed gizmo UNDER the GUI, where the
+             * preview's blit painted over it and the handles simply never showed in the form editor. */
             Framebuffer framebuffer = MinecraftClient.getInstance().getFramebuffer();
+            boolean redirected = RenderSystem.outputColorTextureOverride != null;
+            GpuTextureView color = redirected ? RenderSystem.outputColorTextureOverride : framebuffer.getColorAttachmentView();
+            GpuTextureView depth = redirected ? RenderSystem.outputDepthTextureOverride
+                : (framebuffer.useDepthAttachment ? framebuffer.getDepthAttachmentView() : null);
 
-            drawManual(built, framebuffer.getColorAttachmentView(),
-                framebuffer.useDepthAttachment ? framebuffer.getDepthAttachmentView() : null,
-                projectionOverride, OptionalInt.empty());
+            drawManual(built, color, depth, projectionOverride, OptionalInt.empty());
         }
         else
         {
@@ -1023,10 +1031,25 @@ public class Gizmo
      * the port's stand-in — the matrix of the world's UBO upload, captured by
      * {@code GameRendererMixin#onSetWorldProjection} — and it is the right one here because the
      * gizmo's world pass draws inside the same frame that upload describes.</p>
+     *
+     * <p>Inside a model preview the bound projection is the preview camera's, not the world's:
+     * {@link ModelPreviewRenderer#begin} pushes its own, and the world's UBO matrix describes a
+     * frame the preview never draws in. Reading the wrong one made the lens frame the handles
+     * against the world's FOV and aspect, so the form editor's gizmo landed off its bone.</p>
      */
     private static Matrix4f currentProjection()
     {
-        return interfacePass && interfaceProjection != null ? interfaceProjection : BBSRendering.getWorldProjection();
+        if (interfacePass && interfaceProjection != null)
+        {
+            return interfaceProjection;
+        }
+
+        if (ModelPreviewRenderer.ACTIVE && ModelPreviewRenderer.PROJECTION != null)
+        {
+            return ModelPreviewRenderer.PROJECTION;
+        }
+
+        return BBSRendering.getWorldProjection();
     }
 
     /**
@@ -1174,7 +1197,11 @@ public class Gizmo
      * editor it carries the world camera, so omitting it left the rings adrift. */
     private static Matrix4f modelView(MatrixStack stack)
     {
-        return new Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.peek().getPositionMatrix());
+        Matrix4f pose = new Matrix4f(stack.peek().getPositionMatrix());
+
+        /* In the interface pass the stack is seeded from the CAPTURED full model-view, and the
+         * global one holds whatever the UI left there — folding it in would double the camera. */
+        return interfacePass ? pose : new Matrix4f(RenderSystem.getModelViewMatrix()).mul(pose);
     }
 
     /**
