@@ -26,6 +26,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
@@ -39,6 +40,7 @@ import net.minecraft.client.MinecraftClient;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
@@ -524,6 +526,10 @@ public class ModelInstance implements IModelInstance
 
     public void render(MatrixStack stack, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Texture> textureResolver)
     {
+        /* The colour overlay is off while the pick buffer is being filled (it draws ids, not colours)
+         * and while the entity is flashing red — the hurt flash owns the channel then, and it wins. */
+        boolean tintable = stencilMap == null && overlay == OverlayTexture.DEFAULT_UV && this.form instanceof ModelForm;
+
         if (this.model instanceof Model model)
         {
             List<WeldBinding> bindings = this.getWeldBindings();
@@ -568,6 +574,17 @@ public class ModelInstance implements IModelInstance
 
                 renderProcessor.setMaterialFilter(material);
 
+                /* The overlay is authored on three levels — the form, the material, the bone — and
+                 * they collapse into one colour per bone. A palette in the swatch carries them all
+                 * through a single draw: each bone's colour claims a texel and its vertices address
+                 * it. */
+                ModelForm modelForm = tintable ? (ModelForm) this.form : null;
+                String tintMaterial = material == null ? "" : material;
+
+                FormOverlay.beginPalette();
+                renderProcessor.setOverlayPalette(modelForm == null ? null
+                    : (group) -> FormOverlay.slot(FormOverlay.combine(modelForm, tintMaterial, group)));
+
                 /* TODO(1.21.11 render): RenderSystem.setShader(...) + BufferRenderer.drawWithGlobalProgram(...)
                  * were removed in 1.21.5+. The immediate (non-VAO) cube geometry is built into a BufferBuilder
                  * in QUADS mode (CubicCubeRenderer now emits 4 verts/face) so it can be drawn through a vanilla
@@ -578,6 +595,14 @@ public class ModelInstance implements IModelInstance
                 CubicRenderer.processRenderModel(renderProcessor, builder, stack, model);
 
                 BuiltBuffer built = builder.endNullable();
+
+                /* Claimed while the geometry was written, so the upload comes after it. */
+                boolean tinted = FormOverlay.hasPalette();
+
+                if (tinted)
+                {
+                    FormOverlay.commitPalette();
+                }
 
                 if (built != null)
                 {
@@ -600,7 +625,7 @@ public class ModelInstance implements IModelInstance
                          * the bottom of the alpha slider). The BBS model layer blends, so the form's colour
                          * alpha fades the preview exactly like the world; same entity vertex format, and the
                          * layer keyed on the SAME adopted texture the cutout branch used. */
-                        BBSShaders.getBoundModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(this.isCulling())).draw(built);
+                        FormOverlay.withOverlay(BBSShaders.getBoundModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(this.isCulling())), tinted).draw(built);
                     }
                     else
                     {
@@ -612,7 +637,7 @@ public class ModelInstance implements IModelInstance
                         FormTranslucentQueue.submit(built,
                             new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, this.isCulling()),
                             BBSModClient.getTextures().getLastBound(), color.a, stencilMap,
-                            ModelVAORenderer.captureModelView(stack).getTranslation(new Vector3f()));
+                            ModelVAORenderer.captureModelView(stack).getTranslation(new Vector3f()), tinted);
                     }
                 }
             }
@@ -643,8 +668,17 @@ public class ModelInstance implements IModelInstance
                         }
                     }
 
+                    /* Per mesh, because a BOBJ mesh IS its material — same level the cubic path
+                     * tints at, and the form's own overlay is folded in by combine(). */
+                    Color tint = tintable ? FormOverlay.combine((ModelForm) this.form, vao.data.mesh.name, null) : null;
+
+                    if (tint != null)
+                    {
+                        FormOverlay.swatch(tint);
+                    }
+
                     vao.updateMesh(stencilMap);
-                    vao.render(stack, color.r, color.g, color.b, color.a, stencilMap, light, overlay, this.isCulling());
+                    vao.render(stack, color.r, color.g, color.b, color.a, stencilMap, light, overlay, this.isCulling(), tint);
                 }
 
                 stack.pop();

@@ -37,7 +37,6 @@ import mchorse.bbs_mod.forms.renderers.StructureFormRenderer;
 import mchorse.bbs_mod.forms.renderers.TrailFormRenderer;
 import mchorse.bbs_mod.forms.renderers.VanillaParticleFormRenderer;
 import mchorse.bbs_mod.forms.renderers.VideoFormRenderer;
-import mchorse.bbs_mod.forms.structure.BakedStructure;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.TexturedRenderLayers;
@@ -85,9 +84,6 @@ public class FormUtilsClient
          * optimisation, so this only costs the pre-sizing until the terrain path is ported. */
         assignAllocator(layers, TexturedRenderLayers.getItemTranslucentCull());
         assignAllocator(layers, TexturedRenderLayers.getBlockTranslucentCull());
-        /* Right behind the layer it stands in for while a block form carries a color overlay,
-         * so the swap does not move when the geometry draws. */
-        assignAllocator(layers, BlockFormRenderer.OVERLAY_TRANSLUCENT_LAYER);
         assignAllocator(layers, TexturedRenderLayers.getShieldPatterns());
         assignAllocator(layers, TexturedRenderLayers.getBeds());
         assignAllocator(layers, TexturedRenderLayers.getShulkerBoxes());
@@ -102,10 +98,6 @@ public class FormUtilsClient
         {
             assignAllocator(layers, layer);
         }
-
-        /* Last: the structure form's color overlay is a second pass over the whole structure,
-         * so it has to flush after every layer the structure itself drew into. */
-        assignAllocator(layers, BakedStructure.OVERLAY_LAYER);
 
         return new CustomVertexConsumerProvider(new BufferAllocator(1536), layers);
     }
@@ -159,7 +151,19 @@ public class FormUtilsClient
         return customVertexConsumerProvider;
     }
 
+    /**
+     * Give a layer its own buffer, and its colour-overlay twin one right behind it: a form drawing
+     * with an overlay uses the twin instead (see {@link mchorse.bbs_mod.forms.renderers.utils.FormOverlay}),
+     * and a layer that is not in this map falls into the shared buffer, which {@code Immediate.draw()}
+     * flushes FIRST — which would put a structure's translucent blocks under its opaque ones.
+     */
     private static void assignAllocator(SequencedMap<RenderLayer, BufferAllocator> layers, RenderLayer layer)
+    {
+        assign(layers, layer);
+        assign(layers, mchorse.bbs_mod.forms.renderers.utils.FormOverlay.withOverlay(layer));
+    }
+
+    private static void assign(SequencedMap<RenderLayer, BufferAllocator> layers, RenderLayer layer)
     {
         layers.put(layer, new BufferAllocator(layer.getExpectedBufferSize()));
     }

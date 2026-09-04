@@ -171,10 +171,22 @@ public class FormTranslucentQueue
      */
     public static void submit(BuiltBuffer built, ModelVariant variant, Texture texture, float alpha, StencilMap stencilMap, Vector3f origin)
     {
+        submit(built, variant, texture, alpha, stencilMap, origin, false);
+    }
+
+    /**
+     * {@link #submit(BuiltBuffer, ModelVariant, Texture, float, StencilMap, Vector3f)} with the
+     * colour overlay on: the layers resolve to their overlay twins, and a deferred command takes a
+     * copy of the swatch — by flush time it holds whatever was drawn last.
+     */
+    public static void submit(BuiltBuffer built, ModelVariant variant, Texture texture, float alpha, StencilMap stencilMap, Vector3f origin, boolean tinted)
+    {
         if (built == null)
         {
             return;
         }
+
+        int[] overlay = tinted ? FormOverlay.snapshot() : null;
 
         if (needsSplit(stencilMap, texture, alpha))
         {
@@ -182,17 +194,17 @@ public class FormTranslucentQueue
              * The layer must be resolved HERE, while this form's texture is still the bound one — at
              * flush time the binding belongs to whoever drew last. */
             FormRenderCapture.Captured captured = FormRenderCapture.copy(built);
-            RenderLayer deferred = BBSShaders.getBoundModelLayer(variant.withPass(PASS_TRANSLUCENT));
+            RenderLayer deferred = layer(variant.withPass(PASS_TRANSLUCENT), tinted);
 
             /* The opaque half always writes depth, even for a flat form whose deferred half does not:
              * writing depth is the entire point of drawing it now — it is what lets the solid part of
              * the texture occlude properly instead of waiting for the sort. On 1.21.1 this fell out of
              * the global depth mask being on during the immediate draw; the flag only ever applied to
              * the replay. */
-            RenderLayer opaque = BBSShaders.getBoundModelLayer(variant.withPass(PASS_OPAQUE).withDepthWrite(true));
+            RenderLayer opaque = layer(variant.withPass(PASS_OPAQUE).withDepthWrite(true), tinted);
 
             opaque.draw(built);
-            add(new BufferCommand(deferred, captured, origin));
+            add(new BufferCommand(deferred, captured, origin).overlay(overlay));
         }
         else if (needsWholeDefer(stencilMap, alpha))
         {
@@ -212,22 +224,33 @@ public class FormTranslucentQueue
             {
                 /* No shading texels to layer — the single blended pass is already exact,
                  * and the translucent half of the pair would rasterise nothing. */
-                add(new BufferCommand(BBSShaders.getBoundModelLayer(variant), captured, origin));
+                add(new BufferCommand(layer(variant, tinted), captured, origin).overlay(overlay));
             }
             else
             {
-                add(new BufferCommand(BBSShaders.getBoundModelLayer(variant.withPass(PASS_TEX_OPAQUE)), captured, origin));
-                add(new BufferCommand(BBSShaders.getBoundModelLayer(variant.withPass(PASS_TEX_TRANSLUCENT)), captured, new Vector3f(origin)));
+                add(new BufferCommand(layer(variant.withPass(PASS_TEX_OPAQUE), tinted), captured, origin).overlay(overlay));
+                add(new BufferCommand(layer(variant.withPass(PASS_TEX_TRANSLUCENT), tinted), captured, new Vector3f(origin)).overlay(overlay));
             }
 
             built.close();
         }
         else
         {
-            RenderLayer layer = BBSShaders.getBoundModelLayer(variant);
+            RenderLayer layer = layer(variant, tinted);
 
             layer.draw(built);
         }
+    }
+
+    /**
+     * The layer for this pass, drawing through the colour overlay when the form has one — its twin
+     * with BBS's swatch as the overlay texture (see {@code FormOverlay}).
+     */
+    private static RenderLayer layer(ModelVariant variant, boolean tinted)
+    {
+        RenderLayer layer = BBSShaders.getBoundModelLayer(variant);
+
+        return tinted ? FormOverlay.withOverlay(layer) : layer;
     }
 
     public static void add(DrawCommand command)
@@ -345,27 +368,26 @@ public class FormTranslucentQueue
             this.distanceSq = cameraSpaceOrigin.lengthSquared();
         }
 
-        /** The color overlay captured at enqueue time (see {@link mchorse.bbs_mod.forms.renderers.utils.FormOverlay}); null = none. */
-        private Color overlayColor;
+        /** The colour overlay swatch as it stood at enqueue time; null = the draw is not tinted. */
+        private int[] overlay;
 
-        public DrawCommand overlayColor(Color overlay)
+        public <T extends DrawCommand> T overlay(int[] overlay)
         {
-            this.overlayColor = overlay == null ? null : overlay.copy();
+            this.overlay = overlay;
 
-            return this;
+            return (T) this;
         }
 
-        /** Re-bind the captured overlay for the replayed draw; the enqueue-time binding is long gone at flush. */
-        protected int bindOverlay()
+        /**
+         * Put the captured swatch back before the replayed draw: the layer was resolved to its
+         * overlay twin at enqueue time, but the swatch itself holds whatever the last draw of the
+         * frame put there.
+         */
+        protected void applyOverlay()
         {
-            return this.overlayColor != null ? FormOverlay.bind(this.overlayColor) : 0;
-        }
-
-        protected void unbindOverlay(int previous)
-        {
-            if (this.overlayColor != null)
+            if (this.overlay != null)
             {
-                FormOverlay.unbind(previous);
+                FormOverlay.restore(this.overlay);
             }
         }
 
@@ -393,6 +415,8 @@ public class FormTranslucentQueue
         @Override
         public void draw()
         {
+            this.applyOverlay();
+
             BufferBuilder builder = Tessellator.getInstance().begin(this.captured.params().mode(), this.captured.params().format());
 
             /* Same mode in and out, so emit() copies the vertices straight through; it is shared with

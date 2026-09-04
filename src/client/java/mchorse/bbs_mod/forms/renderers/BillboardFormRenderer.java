@@ -248,8 +248,24 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
          * global GL binding still pointed at it — deferred through the item command queue, that
          * binding is long gone by execution time and the billboard samples whatever is left.
          * Picking has no layer: the picker pipeline is driven by BBSPickerRenderer, which binds
-         * Sampler0 itself from the same texture. */
-        RenderLayer layer = picker == null ? shader.get() : null;
+         * Sampler0 itself from the same texture.
+         *
+         * The colour overlay rides the overlay channel, so it needs the shaded format (the
+         * no-shading one has no overlay UV) and steps aside for a hurt flash; the layer a tinted
+         * billboard draws through is the twin that samples BBS's swatch. Picking never tints: it
+         * draws ids, not colours. */
+        Color formOverlay = this.form.overlayColor.get();
+        boolean tinted = picker == null
+            && format == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
+            && overlay == OverlayTexture.DEFAULT_UV
+            && OverlayBlend.isActive(formOverlay);
+
+        if (tinted)
+        {
+            FormOverlay.swatch(formOverlay);
+        }
+
+        RenderLayer layer = picker == null ? FormOverlay.withOverlay(shader.get(), tinted) : null;
 
         if (picker != null)
         {
@@ -310,7 +326,7 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
                 FormTranslucentQueue.submit(built,
                     new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, depthWrite, true),
                     texture, color.a, null,
-                    new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(matrix.getTranslation(new Vector3f())));
+                    new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(matrix.getTranslation(new Vector3f())), tinted);
             }
             else
             {

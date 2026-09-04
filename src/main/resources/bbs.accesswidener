@@ -47,3 +47,19 @@ accessible field net/minecraft/entity/LivingEntity riptideTicks I
 # same Sampler0 the visible draw used, or a mob's UVs sampled against the block atlas punch
 # holes in its silhouette
 accessible field net/minecraft/client/render/RenderLayer renderSetup Lnet/minecraft/client/render/RenderSetup;
+
+# The setup behind a render layer, for the colour overlay: a form's draw needs the layer it would
+# have used with ONE texture swapped (its overlay), and the only way to build that twin is to read
+# what the original was made of
+accessible field net/minecraft/client/render/RenderSetup pipeline Lcom/mojang/blaze3d/pipeline/RenderPipeline;
+accessible field net/minecraft/client/render/RenderSetup textures Ljava/util/Map;
+accessible field net/minecraft/client/render/RenderSetup textureTransform Lnet/minecraft/client/render/TextureTransform;
+accessible field net/minecraft/client/render/RenderSetup outputTarget Lnet/minecraft/client/render/OutputTarget;
+accessible field net/minecraft/client/render/RenderSetup outlineMode Lnet/minecraft/client/render/RenderSetup$OutlineMode;
+accessible field net/minecraft/client/render/RenderSetup useLightmap Z
+accessible field net/minecraft/client/render/RenderSetup useOverlay Z
+accessible field net/minecraft/client/render/RenderSetup hasCrumbling Z
+accessible field net/minecraft/client/render/RenderSetup translucent Z
+accessible field net/minecraft/client/render/RenderSetup expectedBufferSize I
+accessible field net/minecraft/client/render/RenderSetup layeringTransform Lnet/minecraft/client/render/LayeringTransform;
+accessible class net/minecraft/client/render/RenderSetup$TextureSpec

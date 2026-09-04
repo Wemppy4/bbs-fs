@@ -27,13 +27,10 @@ import net.minecraft.client.render.BlockRenderLayers;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderLayers;
-import net.minecraft.client.render.TexturedRenderLayers;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.entity.BlockEntityRenderManager;
 import net.minecraft.client.render.block.entity.BlockEntityRenderer;
 import net.minecraft.client.render.block.entity.state.BlockEntityRenderState;
-import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.item.ItemDisplayContext;
@@ -47,20 +44,6 @@ import java.util.Map;
 
 public class BlockFormRenderer extends FormRenderer<BlockForm>
 {
-    /**
-     * Stand-in for the translucent layers while a color overlay is on. A block form already draws
-     * through entity layers, whose shader mixes the bound overlay into the fragment — except the
-     * two translucent ones: vanilla's {@code entity_translucent_cull} and
-     * {@code item_entity_translucent_cull} take the UV1 attribute and then never read the overlay
-     * texture at all, so glass, ice and water would be the only blocks the overlay skips.
-     *
-     * <p>{@code entity_translucent} is the same layer with the channel kept — the one difference
-     * left is that it draws back faces, which the renderer's per-layer hook culls back out. The
-     * swap only happens while an overlay is actually set, so a plain block form keeps the exact
-     * layer it always had.</p>
-     */
-    public static final RenderLayer OVERLAY_TRANSLUCENT_LAYER = RenderLayers.entityTranslucent(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, false);
-
     public static final Color color = new Color();
 
     private final SingleBlockRenderView fluidView = new SingleBlockRenderView();
@@ -71,38 +54,6 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
     public BlockFormRenderer(BlockForm form)
     {
         super(form);
-    }
-
-    /**
-     * The provider the block draws through while a color overlay is on: the two translucent
-     * layers that drop the overlay channel are swapped for {@link #OVERLAY_TRANSLUCENT_LAYER},
-     * everything else is left exactly where vanilla put it. Both swapped layers are the block
-     * atlas ones, so the stand-in samples the same texture.
-     */
-    /* 1.21.11: fed to CustomVertexConsumerProvider#setLayerMapper rather than wrapping the provider —
-     * the block path calls draw() on it, which a bare VertexConsumerProvider lambda cannot answer, and
-     * the mapper is the port's own hook for exactly this swap. Null keeps the original layer. */
-    private static RenderLayer overlayLayer(RenderLayer layer)
-    {
-        return layer == TexturedRenderLayers.getItemTranslucentCull() || layer == TexturedRenderLayers.getBlockTranslucentCull()
-            ? OVERLAY_TRANSLUCENT_LAYER
-            : null;
-    }
-
-    /**
-     * Bind the color overlay for the layer that is about to draw. The hook fires right after the
-     * layer applied its own phases, which is where it bound vanilla's hurt-flash texture over
-     * unit 1 — so this has to come after them.
-     */
-    private static void setupOverlay(RenderLayer layer, Color overlay)
-    {
-        if (layer == OVERLAY_TRANSLUCENT_LAYER)
-        {
-            /* The stand-in draws back faces where the layer it replaces did not */
-            /* TODO(1.21.11 render): RenderSystem.enableCull() was removed by the GPU-pipeline rewrite; this state is now encoded by the RenderLayer/RenderPipeline. */
-        }
-
-        FormOverlay.bind(overlay);
     }
 
     @Override
@@ -137,31 +88,20 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
 
         Color overlay = this.form.overlayColor.get();
         boolean overlayActive = OverlayBlend.isActive(overlay);
-        int previousOverlayTexture = 0;
 
         if (overlayActive)
         {
-            /* Bound up front for the id it hands back: the per-layer binding below cannot restore
-             * the unit itself, and not every layer has an overlay phase whose teardown would */
-            previousOverlayTexture = FormOverlay.bind(overlay);
-
-            CustomVertexConsumerProvider.hijackVertexFormat((layer) -> setupOverlay(layer, overlay));
+            FormOverlay.swatch(overlay);
         }
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(set));
         consumers.setUI(true);
-        consumers.setLayerMapper(overlayActive ? BlockFormRenderer::overlayLayer : null);
+        consumers.setLayerMapper(overlayActive ? FormOverlay::withOverlay : null);
         this.renderBlock(stack, consumers, LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV, false);
         consumers.setLayerMapper(null);
         consumers.draw();
         consumers.setUI(false);
         consumers.setSubstitute(null);
-
-        if (overlayActive)
-        {
-            CustomVertexConsumerProvider.clearRunnables();
-            FormOverlay.unbind(previousOverlayTexture);
-        }
 
         stack.pop();
     }
@@ -185,9 +125,11 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
 
         Color overlay = this.form.overlayColor.get();
         boolean overlayActive = !context.isPicking() && OverlayBlend.isActive(overlay);
-        /* Bound up front for the id it hands back: the per-layer binding below cannot restore the
-         * unit itself, and not every layer has an overlay phase whose teardown would */
-        int previousOverlayTexture = overlayActive ? FormOverlay.bind(overlay) : 0;
+
+        if (overlayActive)
+        {
+            FormOverlay.swatch(overlay);
+        }
 
         if (context.isPicking())
         {
@@ -222,16 +164,6 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
             return;
         }
 
-        /* RenderSystem.enableBlend() is gone in 1.21.11 — blend state lives in each RenderLayer's
-         * RenderPipeline, so only the overlay layer swap is left to install here. */
-        CustomVertexConsumerProvider.hijackVertexFormat((l) ->
-        {
-            if (overlayActive)
-            {
-                setupOverlay(l, overlay);
-            }
-        });
-
         color.set(context.color);
         FormColorBlend.blend(color, this.form.color.get());
 
@@ -246,23 +178,12 @@ public class BlockFormRenderer extends FormRenderer<BlockForm>
         }
 
         consumers.setSubstitute(BBSRendering.getColorConsumer(color));
-        /* The block's translucent layer opts into the deferred pass above, and that draw happens
-         * after the per-layer hook is gone — so the overlay travels with the command instead. */
-        consumers.setOverlay(overlayActive ? overlay : null);
-        consumers.setLayerMapper(overlayActive ? BlockFormRenderer::overlayLayer : null);
+        consumers.setLayerMapper(overlayActive ? FormOverlay::withOverlay : null);
         this.renderBlock(context.stack, consumers, light, context.overlay, context.isPicking());
         consumers.setLayerMapper(null);
         consumers.draw();
         consumers.setSubstitute(null);
-        consumers.setOverlay(null);
         FormTranslucentQueue.setSortOrigin(null);
-
-        CustomVertexConsumerProvider.clearRunnables();
-
-        if (overlayActive)
-        {
-            FormOverlay.unbind(previousOverlayTexture);
-        }
 
         context.stack.pop();
         if (context.world != null)

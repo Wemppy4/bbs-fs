@@ -23,6 +23,7 @@ import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 import java.util.Map;
 
 public class CubicCubeRenderer implements ICubicRenderer
@@ -76,6 +77,12 @@ public class CubicCubeRenderer implements ICubicRenderer
 
     /** Which material's geometry this pass draws; null draws all of it. See {@link #setMaterialFilter}. */
     private String materialFilter;
+
+    /** Where each group takes its colour overlay from, or null while the draw is not tinted. */
+    private ToIntFunction<ModelGroup> overlayPalette;
+
+    /** The overlay UV of the group being written right now (see {@link #setOverlayPalette}). */
+    private int groupOverlay;
 
     /* A welded cube's faces bend within a band near the seam; drawn as two flat triangles their texture warps
      * unevenly, so the edge running ALONG the bone is split into this many segments and the bend is resolved
@@ -205,9 +212,21 @@ public class CubicCubeRenderer implements ICubicRenderer
         this.materialFilter = materialFilter;
     }
 
+    /**
+     * Tint the geometry with the colour overlay, one texel per bone: the function claims a texel of
+     * the overlay swatch for the group's own overlay (see {@code FormOverlay#slot}) and its UV rides
+     * on the vertices. Null draws untinted, with the context's own overlay UV — the hurt flash.
+     */
+    public void setOverlayPalette(ToIntFunction<ModelGroup> overlayPalette)
+    {
+        this.overlayPalette = overlayPalette;
+    }
+
     @Override
     public boolean renderGroup(BufferBuilder builder, MatrixStack stack, ModelGroup group, Model model)
     {
+        this.groupOverlay = this.overlayPalette == null ? this.overlay : this.overlayPalette.applyAsInt(group);
+
         /* Cubes belong to the model's own material — they have no material of their own and take
          * the base texture, the way they did before materials existed. */
         if (this.materialFilter == null || this.materialFilter.isEmpty())
@@ -481,7 +500,7 @@ public class CubicCubeRenderer implements ICubicRenderer
         builder.vertex(x, y, z)
             .color(this.r * group.color.r, this.g * group.color.g, this.b * group.color.b, this.a * group.color.a)
             .texture(u, v)
-            .overlay(this.cpuOverlayActive ? 0 : this.overlay);
+            .overlay(this.cpuOverlayActive ? 0 : this.groupOverlay);
 
         if (this.stencilMap != null)
         {

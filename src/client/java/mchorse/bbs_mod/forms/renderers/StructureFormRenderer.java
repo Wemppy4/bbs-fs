@@ -132,35 +132,6 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
         );
     }
 
-    /**
-     * Bind the color overlay for the layer that is about to draw. The hook fires right after the
-     * layer applied its own phases — which is where it bound vanilla's hurt-flash texture over
-     * unit 1 — so this has to come after them, not before.
-     *
-     * <p>The overlay pass gets the color at full strength: its fragments take the color from the
-     * texture outright and carry the strength in their vertex alpha instead. Every other layer
-     * gets the overlay as it is and mixes it into what it draws — that is what colors the block
-     * entities standing inside the structure, and the structure itself under a shaderpack. Layers
-     * whose shader has no overlay channel (the terrain ones) ignore the binding.</p>
-     */
-    private static void setupOverlay(RenderLayer layer, Color overlay)
-    {
-        if (layer == BakedStructure.OVERLAY_LAYER)
-        {
-            /* A cutout layer with culling off: blend the pass in instead of letting it replace
-             * what is already drawn, and cull, so a plant's double-sided cross is not painted
-             * twice at doubled strength. The layer's own teardown puts both back. */
-            /* TODO(1.21.11 render): RenderSystem.enableBlend() was removed by the GPU-pipeline rewrite; this state is now encoded by the RenderLayer/RenderPipeline. */
-            /* TODO(1.21.11 render): RenderSystem.blendFuncSeparate() was removed by the GPU-pipeline rewrite; this state is now encoded by the RenderLayer/RenderPipeline. */
-            /* TODO(1.21.11 render): RenderSystem.enableCull() was removed by the GPU-pipeline rewrite; this state is now encoded by the RenderLayer/RenderPipeline. */
-
-            FormOverlay.bind(OVERLAY.set(overlay.r, overlay.g, overlay.b, 1F));
-        }
-        else
-        {
-            FormOverlay.bind(overlay);
-        }
-    }
 
     /** Drop everything derived from the structure file: it is gone, replaced, or stale. */
     private void reset()
@@ -344,13 +315,10 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
 
         Color overlay = this.form.overlayColor.get();
         boolean overlayActive = OverlayBlend.isActive(overlay);
-        int previousOverlayTexture = 0;
 
         if (overlayActive)
         {
-            previousOverlayTexture = FormOverlay.bind(overlay);
-
-            CustomVertexConsumerProvider.hijackVertexFormat((layer) -> setupOverlay(layer, overlay));
+            FormOverlay.swatch(overlay);
         }
 
         matrices.push();
@@ -376,12 +344,8 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
             FormColorBlend.blend(set, this.form.color.get());
 
             consumers.setUI(true);
+            consumers.setLayerMapper(overlayActive ? FormOverlay::withOverlay : null);
             this.baked.render(matrices.peek(), consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, set.getARGBColor());
-
-            if (overlayActive && !BakedStructure.usesEntityLayers())
-            {
-                this.baked.renderOverlay(matrices.peek(), consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, overlay.a * set.a);
-            }
 
             consumers.setSubstitute(BBSRendering.getColorConsumer(set));
             this.renderBlockEntities(matrices, consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
@@ -392,12 +356,8 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
         {
             consumers.setSubstitute(null);
             consumers.setUI(false);
+            consumers.setLayerMapper(null);
             CustomVertexConsumerProvider.clearRunnables();
-
-            if (overlayActive)
-            {
-                FormOverlay.unbind(previousOverlayTexture);
-            }
 
             matrices.pop();
         }
@@ -446,9 +406,11 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
 
         Color overlay = this.form.overlayColor.get();
         boolean overlayActive = !context.isPicking() && OverlayBlend.isActive(overlay);
-        /* Bound up front for the id it hands back: the per-layer binding below cannot restore the
-         * unit itself, and the terrain layers have no overlay phase whose teardown would */
-        int previousOverlayTexture = overlayActive ? FormOverlay.bind(overlay) : 0;
+
+        if (overlayActive)
+        {
+            FormOverlay.swatch(overlay);
+        }
 
         context.stack.push();
         if (context.world != null)
@@ -491,25 +453,13 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
                  * blocks (glass/water) still blend through their own entity translucent-cull layer. */
                 boolean faded = COLOR.a < 1F;
 
-                CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
+                if (faded)
                 {
-                    if (faded)
-                    {
-                        /* TODO(1.21.11 render): RenderSystem.enableBlend() was removed by the GPU-pipeline rewrite; this state is now encoded by the RenderLayer/RenderPipeline. */
-                    }
-
-                    if (overlayActive)
-                    {
-                        setupOverlay(layer, overlay);
-                    }
-                });
-
-                this.baked.render(context.stack.peek(), consumers, context.light, COLOR.getARGBColor());
-
-                if (overlayActive && !BakedStructure.usesEntityLayers())
-                {
-                    this.baked.renderOverlay(context.stack.peek(), consumers, context.light, overlay.a * COLOR.a);
+                    /* TODO(1.21.11 render): RenderSystem.enableBlend() was removed by the GPU-pipeline rewrite; this state is now encoded by the RenderLayer/RenderPipeline. */
                 }
+
+                consumers.setLayerMapper(overlayActive ? FormOverlay::withOverlay : null);
+                this.baked.render(context.stack.peek(), consumers, context.light, COLOR.getARGBColor());
 
                 /* Block entities still go through the consumer interface — tint them via substitute */
                 consumers.setSubstitute(BBSRendering.getColorConsumer(COLOR));
@@ -521,12 +471,8 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
         finally
         {
             consumers.setSubstitute(null);
+            consumers.setLayerMapper(null);
             CustomVertexConsumerProvider.clearRunnables();
-
-            if (overlayActive)
-            {
-                FormOverlay.unbind(previousOverlayTexture);
-            }
 
             context.stack.pop();
             if (context.world != null)

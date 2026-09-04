@@ -9,8 +9,10 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
+import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
+import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.render.BufferBuilder;
@@ -224,6 +226,12 @@ public class BOBJModelVAO
      */
     public void render(MatrixStack stack, float r, float g, float b, float a, StencilMap stencilMap, int light, int overlay, boolean cull)
     {
+        this.render(stack, r, g, b, a, stencilMap, light, overlay, cull, null);
+    }
+
+    /** The same draw with a colour overlay on it (null = none); see {@code FormOverlay}. */
+    public void render(MatrixStack stack, float r, float g, float b, float a, StencilMap stencilMap, int light, int overlay, boolean cull, Color tint)
+    {
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
 
         Matrix4f position = stack.peek().getPositionMatrix();
@@ -283,7 +291,7 @@ public class BOBJModelVAO
                  * textureResolver bind). Draws through the BBS model layer, not vanilla entityCutoutNoCull: CUTOUT
                  * has no blending, so the form's colour alpha read as "lighter" instead of transparent and cliffed
                  * into invisibility at the 0.1 discard — see the matching branch in ModelInstance.render. */
-                BBSShaders.getBoundModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(cull)).draw(built);
+                FormOverlay.withOverlay(BBSShaders.getBoundModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(cull)), tint != null).draw(built);
             }
             else
             {
@@ -292,7 +300,7 @@ public class BOBJModelVAO
                 FormTranslucentQueue.submit(built,
                     new BBSShaders.ModelVariant(FormTranslucentQueue.PASS_SINGLE, true, cull),
                     BBSModClient.getTextures().getLastBound(), a, stencilMap,
-                    ModelVAORenderer.captureModelView(stack).getTranslation(new Vector3f()));
+                    ModelVAORenderer.captureModelView(stack).getTranslation(new Vector3f()), tint != null);
             }
         }
     }
