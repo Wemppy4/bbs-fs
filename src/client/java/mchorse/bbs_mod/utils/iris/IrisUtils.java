@@ -2,12 +2,20 @@ package mchorse.bbs_mod.utils.iris;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.logging.LogUtils;
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.graphics.texture.TextureManager;
+import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.DataPath;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.api.v0.IrisProgram;
 import net.irisshaders.iris.gl.uniform.UniformUpdateFrequency;
+import net.irisshaders.iris.pbr.TextureTracker;
+import net.irisshaders.iris.pbr.loader.PBRTextureLoaderRegistry;
+import net.irisshaders.iris.pbr.texture.PBRTextureManager;
 import net.irisshaders.iris.pipeline.IrisPipelines;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shaderpack.LanguageMap;
@@ -29,8 +37,10 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Everything BBS asks of Iris, in one class that is only ever touched when the Iris mod is actually
@@ -38,9 +48,10 @@ import java.util.Map;
  * caller has to go through {@link mchorse.bbs_mod.client.BBSRendering}, which gates on that flag —
  * class loading is lazy, so a gated call site never resolves these names on a plain install.
  *
- * <p>Deliberately thin. The 1.21.1 integration also carried PBR texture wrappers, which lean on Iris
- * internals the 1.21.5+ rewrite reshaped and stay decoupled for now. Shader curves — the pack's own
- * {@code #define} options driven by a camera clip — are back; see {@link ShaderCurves}.
+ * <p>Shader curves — the pack's own {@code #define} options driven by a camera clip — are here; see
+ * {@link ShaderCurves}. So is the PBR bridge: BBS textures are raw GL names of its own making, and a
+ * pack looks its normal/specular maps up by GL name, so every bound texture is announced to Iris'
+ * tracker and answered by one of the two loaders {@link #setup()} registers.
  */
 public class IrisUtils
 {
@@ -57,6 +68,12 @@ public class IrisUtils
     private static ShaderProperties properties;
 
     private static boolean warnedNoProperties;
+
+    /** BBS textures already announced to Iris' tracker; announcing one twice would only churn holders. */
+    private static final Set<Texture> textureSet = new HashSet<>();
+
+    /** The slider snapshot each tracked variant was last registered with, by GL name. */
+    private static final Map<Integer, String> trackedPbrVariants = new HashMap<>();
 
     public static void setShaderProperties(ShaderProperties shaderProperties)
     {
@@ -195,6 +212,80 @@ public class IrisUtils
             {
                 list.add(new FloatCachedUniform(value.uniformName, UniformUpdateFrequency.PER_FRAME, value::getValue));
             }
+        }
+    }
+
+    /**
+     * Register what answers a pack's PBR lookups. The registry keys loaders by the EXACT class of
+     * the tracked texture, so the two wrappers get one loader each: an ordinary BBS texture is
+     * answered with the {@code _n} / {@code _s} files next to it, a material-tab slider variant
+     * with maps baked from the sliders themselves.
+     */
+    public static void setup()
+    {
+        PBRTextureLoaderRegistry.INSTANCE.register(IrisTextureWrapper.class, new IrisTextureWrapperLoader());
+        PBRTextureLoaderRegistry.INSTANCE.register(IrisPbrConstWrapper.class, new IrisPbrConstLoader());
+    }
+
+    /**
+     * Register a PBR-slider albedo variant with Iris' texture tracker, so the pack's
+     * normal/specular lookups for that albedo land in {@link IrisPbrConstLoader} with this
+     * slider snapshot. A CHANGED snapshot (a slider edit, or an animated slider track)
+     * re-tracks the wrapper and invalidates Iris' PBR holder for the id — the maps then
+     * regenerate lazily on the pack's next lookup, with no new albedo copy. That's what makes
+     * the sliders keyframable at a sane cost: per change it's a 1x1 specular re-bake (and a
+     * relief re-derive only when relief itself moved).
+     */
+    public static void trackPbrVariant(Texture variant, Link albedo, float smoothness, float metallic, float sss, float emission, float relief)
+    {
+        String snapshot = Math.round(smoothness * 255F) + ":" + Math.round(metallic * 255F)
+            + ":" + Math.round(sss * 255F) + ":" + Math.round(emission * 255F) + ":" + Math.round(relief * 255F);
+        String last = trackedPbrVariants.put(variant.id, snapshot);
+
+        if (!snapshot.equals(last))
+        {
+            TextureTracker.INSTANCE.trackTexture(variant.id, new IrisPbrConstWrapper(albedo, variant.id, smoothness, metallic, sss, emission, relief));
+
+            if (last != null)
+            {
+                PBRTextureManager.INSTANCE.onDeleteTexture(variant.id);
+                PBRTextureManager.notifyPBRTexturesChanged();
+            }
+        }
+    }
+
+    /**
+     * Announce a BBS texture to Iris under its GL name, once. Iris caches a holder per name, and an
+     * untracked one gets the flat default cached against it — which is what a pack sees for every
+     * form until this runs.
+     */
+    public static void trackTexture(Texture texture)
+    {
+        TextureManager textures = BBSModClient.getTextures();
+        Texture error = textures.getError();
+
+        if (texture != error && !textureSet.contains(texture))
+        {
+            Link key = CollectionUtils.getKey(textures.textures, texture);
+
+            if (key == null && texture.getParent() != null)
+            {
+                key = CollectionUtils.getKey(textures.animatedTextures, texture.getParent());
+            }
+
+            if (key != null)
+            {
+                int index = -1;
+
+                if (texture.getParent() != null)
+                {
+                    index = texture.getParent().textures.indexOf(texture);
+                }
+
+                TextureTracker.INSTANCE.trackTexture(texture.id, new IrisTextureWrapper(key, index));
+            }
+
+            textureSet.add(texture);
         }
     }
 

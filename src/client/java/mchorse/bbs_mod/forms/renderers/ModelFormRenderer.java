@@ -364,7 +364,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         /* Route cubic geometry through the BBS model layer keyed on the bound texture, exactly like
          * render3D — the flag is what makes ModelInstance.render take the preview branch, and the bind
          * is what that branch resolves its layer from (per material, once the model has several). */
-        BBSModClient.getTextures().bindTexture(texture);
+        BBSModClient.getTextures().bindTexture(this.albedo("", texture));
 
         ModelPreviewRenderer.TEXTURE = AdoptedTexture.identifier(BBSModClient.getTextures().getTexture(texture));
 
@@ -453,28 +453,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         model.render(newStack, finalColor, light, overlay, stencilMap, this.form.shapeKeys.get(), (material) ->
         {
-            if (ignoreMaterials)
-            {
-                return resolvedDefault;
-            }
-
-            /* Resolution order: animated per-material track > editor-picked static per-material
-             * texture > the material's loaded default (folder/Kd) > the model base texture. */
-            Link override = this.form.materialTextureOverrides.get(material);
-
-            if (override != null)
-            {
-                return override;
-            }
-
-            Link picked = this.form.materialTextures.getLink(material);
-
-            if (picked != null)
-            {
-                return picked;
-            }
-
-            return model.getMaterialTexture(material, materialFallback);
+            return this.albedo(material, this.materialLink(model, material, ignoreMaterials, resolvedDefault, materialFallback));
         });
 
         if (stencilMap == null && !this.renderingArm && this.form != null)
@@ -755,7 +734,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             matrices.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
             MatrixStackUtils.applyTransform(matrices, slot.transform);
 
-            BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, BBSModClient.getTextures().getTexture(texture)));
+            BBSModClient.getTextures().bindTexture(this.albedo("", texture));
 
             /* TODO(1.21.11 render): depth-test/blend now pipeline-encoded. */
 
@@ -819,7 +798,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 context.world.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
             }
 
-            BBSModClient.getTextures().bindTexture(texture);
+            BBSModClient.getTextures().bindTexture(this.albedo("", texture));
 
             if (ModelPreviewRenderer.ACTIVE)
             {
@@ -857,6 +836,45 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
              * translucent model again. */
             this.renderModel(context.entity, context.stack, model, context.light, context.overlay, contextColor, formColor, additive, false, context.stencilMap, context.getTransition(), context.world);
         }
+    }
+
+    /**
+     * Which texture this material draws with. Resolution order: animated per-material track >
+     * editor-picked static per-material texture > the material's loaded default (folder/Kd) > the
+     * model base texture.
+     */
+    private Link materialLink(ModelInstance model, String material, boolean ignoreMaterials, Link resolvedDefault, Link materialFallback)
+    {
+        if (ignoreMaterials)
+        {
+            return resolvedDefault;
+        }
+
+        Link override = this.form.materialTextureOverrides.get(material);
+
+        if (override != null)
+        {
+            return override;
+        }
+
+        Link picked = this.form.materialTextures.getLink(material);
+
+        if (picked != null)
+        {
+            return picked;
+        }
+
+        return model.getMaterialTexture(material, materialFallback);
+    }
+
+    /**
+     * The texture to actually bind for a material: its own, or the PBR copy carrying this
+     * material's sliders when a shaderpack is up (see {@link FormPbr}). Every bind of a model
+     * texture goes through here, so the sliders reach the pack from every draw path.
+     */
+    private Texture albedo(String material, Link link)
+    {
+        return FormPbr.resolveAlbedo(this.form, material, link, BBSModClient.getTextures().getTexture(link));
     }
 
     @Override

@@ -146,6 +146,16 @@ public final class AdoptedTexture extends AbstractTexture
     }
 
     /**
+     * Adopt a raw GL id as a vanilla GPU texture, registering nothing: for handing a BBS texture to
+     * an API that speaks {@link GpuTexture} rather than drawing it (Iris' PBR maps, which it reads
+     * the GL name back out of). BBS still owns the id — the wrapper never frees it.
+     */
+    public static GpuTexture adopt(int glId, String label, int width, int height)
+    {
+        return new AdoptedGlTexture(glId, label, width, height);
+    }
+
+    /**
      * Shared constructor for both entry points: adopt the existing GL id {@code glId} (zero-copy) into
      * a vanilla {@link GlTexture}/{@link GlTextureView} pair with a clamping sampler.
      */

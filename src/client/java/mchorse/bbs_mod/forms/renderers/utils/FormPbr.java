@@ -93,14 +93,11 @@ public class FormPbr
             return texture;
         }
 
-        /* TODO(1.21.11 Iris): the variant is made, but nothing is told about its PBR maps yet, so a
-         * shaderpack sees a plain albedo copy. Registering them meant handing Iris a generated
-         * normal/specular texture through its PBRTextureConsumer (IrisPbrConstLoader + the
-         * IrisTextureWrapper pair) — and Iris is detached on this branch, so that path has no other
-         * end to attach to. It also wants a GpuTexture: 1.21.11's AbstractTexture exposes
-         * getGlTexture()/getGlTextureView() instead of a GL id, while our own Texture is still a raw
-         * name. Wire this back up together with Iris itself. The variant copy stays either way — it
-         * is what keeps two forms with different sliders off one shared texture. */
+        /* Tell Iris what this copy's maps are: it keys PBR holders by GL name, so the copy is what
+         * carries this material's sliders. That is also why the copy exists at all — two forms
+         * sharing one texture with different sliders need different names. */
+        BBSRendering.trackPbrVariant(variant, link, smoothness, metallic, sss, emission, relief);
+
         return variant;
     }
 

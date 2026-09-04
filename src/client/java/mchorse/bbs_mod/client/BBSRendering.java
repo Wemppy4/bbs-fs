@@ -16,6 +16,7 @@ import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
 import mchorse.bbs_mod.forms.structure.StructureWand;
 import mchorse.bbs_mod.utils.sodium.SodiumUtils;
 import mchorse.bbs_mod.graphics.ScreenPixelProbe;
+import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureFormat;
 import mchorse.bbs_mod.mixin.client.FogRendererAccessor;
@@ -284,12 +285,19 @@ public class BBSRendering
     public static void setup()
     {
         /* Iris is coupled again — see the field, which resolves itself, plus the pipeline assignment in
-         * BBSShaders. Enough for a shaderpack to draw BBS forms and for the shadow pass to be told
-         * apart; the rest of the 1.21.1 integration (PBR textures, shader-curve uniforms, the pack's
-         * option menus inside BBS's UI) stays decoupled.
+         * BBSShaders. A shaderpack draws BBS forms, the shadow pass is told apart, and PBR maps reach
+         * it; the pack's option menus inside BBS's UI are what stays decoupled.
          *
          * Sodium still is: nothing in BBS asks it anything except the ortho frame's point-camera
          * culling relaxation, which is a nicety. */
+
+        if (iris)
+        {
+            /* The PBR bridge: BBS textures are raw GL names Iris knows nothing about, so it is told
+             * about them (trackTexture) and given loaders that answer with their _n/_s files or with
+             * the material tab's generated maps. */
+            IrisUtils.setup();
+        }
 
         LOGGER.info("[BBS shaders] Iris integration {}", iris ? "on" : "off (mod not present)");
         optifine = FabricLoader.getInstance().isModLoaded("optifabric");
@@ -1253,8 +1261,49 @@ public class BBSRendering
         }
     }
 
+    /**
+     * Tell Iris that this albedo copy carries a material's PBR sliders, so a pack asking it for
+     * normal/specular maps gets the ones baked from those sliders (see {@code IrisPbrConstLoader}).
+     */
+    public static void trackPbrVariant(Texture variant, Link albedo, float smoothness, float metallic, float sss, float emission, float relief)
+    {
+        if (!iris)
+        {
+            return;
+        }
+
+        try
+        {
+            IrisUtils.trackPbrVariant(variant, albedo, smoothness, metallic, sss, emission, relief);
+        }
+        catch (Throwable e)
+        {
+            LOGGER.error("[BBS shaders] failed to track a PBR variant with Iris", e);
+        }
+    }
+
+    /**
+     * Tell Iris which of its own texture a BBS GL name is, so a shaderpack asking that albedo for
+     * its PBR maps reaches {@link IrisUtils} instead of the pack's flat defaults. Called for every
+     * texture the manager binds; Iris keys its holders by GL name, and an untracked name gets the
+     * default holder cached against it.
+     */
     public static void trackTexture(Texture texture)
-    {}
+    {
+        if (!iris)
+        {
+            return;
+        }
+
+        try
+        {
+            IrisUtils.trackTexture(texture);
+        }
+        catch (Throwable e)
+        {
+            LOGGER.error("[BBS shaders] failed to track a texture with Iris", e);
+        }
+    }
 
     /**
      * Options the loaded shaderpack declares as sliders. {@link mchorse.bbs_mod.utils.iris.ShaderCurves}

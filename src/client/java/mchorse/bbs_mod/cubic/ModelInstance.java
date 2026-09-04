@@ -21,6 +21,7 @@ import mchorse.bbs_mod.cubic.render.vao.ModelVAORenderer;
 import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.graphics.ModelPreviewRenderer;
+import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -499,7 +500,7 @@ public class ModelInstance implements IModelInstance
      * bound" — for a model that has no materials to tell apart. The empty name comes first: it is
      * the model's own geometry, drawn with the texture the caller bound.
      */
-    private List<String> renderPasses(Function<String, Link> textureResolver)
+    private List<String> renderPasses(Function<String, Texture> textureResolver)
     {
         if (textureResolver == null || this.materials.size() <= 1)
         {
@@ -521,7 +522,7 @@ public class ModelInstance implements IModelInstance
         return passes;
     }
 
-    public void render(MatrixStack stack, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
+    public void render(MatrixStack stack, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Texture> textureResolver)
     {
         if (this.model instanceof Model model)
         {
@@ -550,7 +551,7 @@ public class ModelInstance implements IModelInstance
             {
                 if (material != null && !material.isEmpty())
                 {
-                    Link materialTexture = textureResolver.apply(material);
+                    Texture materialTexture = textureResolver.apply(material);
 
                     if (materialTexture != null)
                     {
@@ -560,7 +561,7 @@ public class ModelInstance implements IModelInstance
                          * otherwise a material's UVs would be judged against the form's sheet. */
                         if (stencilMap != null)
                         {
-                            BBSPickerRenderer.setSampler0(BBSModClient.getTextures().getTexture(materialTexture));
+                            BBSPickerRenderer.setSampler0(materialTexture);
                         }
                     }
                 }
@@ -634,11 +635,11 @@ public class ModelInstance implements IModelInstance
                 {
                     if (textureResolver != null)
                     {
-                        Link link = textureResolver.apply(vao.data.mesh.name);
+                        Texture meshTexture = textureResolver.apply(vao.data.mesh.name);
 
-                        if (link != null)
+                        if (meshTexture != null)
                         {
-                            BBSModClient.getTextures().bindTexture(link);
+                            BBSModClient.getTextures().bindTexture(meshTexture);
                         }
                     }
 
