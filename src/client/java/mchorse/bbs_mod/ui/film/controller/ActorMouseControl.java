@@ -1,12 +1,12 @@
 package mchorse.bbs_mod.ui.film.controller;
 
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.utils.MathUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * The mouse while an actor is being driven by hand: either it looks around, the way it does in
@@ -25,6 +25,9 @@ public class ActorMouseControl
 {
     /** How many screen pixels a stick needs to travel its full range. */
     private static final float STICK_SENSITIVITY = 100F;
+
+    /** The key the driven actor holds the pointer by - see {@link Window#setCursorHidden}. */
+    private static final String POINTER = "actor";
 
     private static final int MODES = 6;
 
@@ -125,8 +128,6 @@ public class ActorMouseControl
     /** Hides the cursor while driving, so the mouse can travel without hitting the screen edge. */
     public static void togglePointer(boolean disable)
     {
-        net.minecraft.client.util.Window window = MinecraftClient.getInstance().getWindow();
-
-        GLFW.glfwSetInputMode(window.getHandle(), GLFW.GLFW_CURSOR, disable ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL);
+        Window.setCursorHidden(POINTER, disable);
     }
 }

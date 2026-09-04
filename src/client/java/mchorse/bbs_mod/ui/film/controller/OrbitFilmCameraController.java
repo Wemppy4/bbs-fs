@@ -1,22 +1,22 @@
 package mchorse.bbs_mod.ui.film.controller;
 
+import java.util.Map;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
-import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
-import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.FormFrameCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -24,7 +24,6 @@ import mchorse.bbs_mod.ui.utils.camera.OrbitViewportController;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.interps.Lerps;
-import mchorse.bbs_mod.utils.joml.Vectors;
 
 /**
  * The film's orbit: what it turns around is the selected replay, and — while attached — the
@@ -232,10 +231,15 @@ public class OrbitFilmCameraController extends OrbitViewportController
     }
 
     /**
-     * Where the replay's model actually is: the point its anchor bone stands at (so a form
-     * hung off another replay is found where it is drawn), raised to the middle of the
-     * picking hitbox. The bone alone is usually at the actor's feet, and an orbit around the
-     * feet swings the whole body through the frame.
+     * Where the replay's model actually is: the middle of the pose it is standing in, carried
+     * into the world by the replay's own frame (so a form hung off another replay is found
+     * where it is drawn).
+     *
+     * <p>The middle is read from the frames themselves and from nothing else - not from the
+     * picking hitbox, which is a separate number the author sets by hand and which says nothing
+     * about a form that never declared one, and not from the anchor bone, whose pivot sits
+     * wherever the model editor left it (for a rig anchored at the waist, already half way up).
+     * The pose is the one thing that always describes the form as it is right now.</p>
      */
     private Vector3d getOrbitTarget(float transition)
     {
@@ -247,7 +251,6 @@ public class OrbitFilmCameraController extends OrbitViewportController
         }
 
         Form form = entity.getForm();
-        double h = entity.getPickingHitbox().h / 2;
         double x = Lerps.lerp(entity.getPrevX(), entity.getX(), transition);
         double y = Lerps.lerp(entity.getPrevY(), entity.getY(), transition);
         double z = Lerps.lerp(entity.getPrevZ(), entity.getZ(), transition);
@@ -258,23 +261,9 @@ public class OrbitFilmCameraController extends OrbitViewportController
              * anchored within its own tree would otherwise evaluate the same pose twice. */
             FormFrameCache frame = new FormFrameCache();
             MatrixCache map = FormFrameCache.collect(frame, form, entity, transition);
-            String group = "anchor";
+            Vector3f center = this.getPoseCenter(map);
 
-            if (form instanceof ModelForm modelForm)
-            {
-                ModelInstance model = ModelFormRenderer.getModel(modelForm);
-
-                if (model != null)
-                {
-                    String anchor = model.getAnchor();
-
-                    group = anchor.isEmpty() ? group : anchor;
-                }
-            }
-
-            Matrix4f anchor = map.get(group).matrix();
-
-            if (anchor != null)
+            if (center != null)
             {
                 Anchor v = form.anchor.get();
                 Matrix4f defaultMatrix = FilmMatrices.getMatrixForRenderWithRotation(entity, x, y, z, transition);
@@ -285,16 +274,52 @@ public class OrbitFilmCameraController extends OrbitViewportController
                     defaultMatrix = totalMatrix.a;
                 }
 
-                defaultMatrix.mul(anchor);
+                defaultMatrix.transformPosition(center);
 
-                Vector3f translate = defaultMatrix.getTranslation(Vectors.TEMP_3F);
-
-                x += translate.x;
-                y += translate.y;
-                z += translate.z;
+                x += center.x;
+                y += center.y;
+                z += center.z;
             }
         }
 
-        return new Vector3d(x, y + h, z);
+        return new Vector3d(x, y, z);
+    }
+
+    private Vector3f getPoseCenter(MatrixCache map)
+    {
+        Vector3f min = null;
+        Vector3f max = null;
+
+        for (Map.Entry<String, MatrixCacheEntry> entry : map.entrySet())
+        {
+            Matrix4f matrix = entry.getValue().matrix();
+
+            if (matrix == null || entry.getKey().isEmpty())
+            {
+                continue;
+            }
+
+            Vector3f point = matrix.getTranslation(new Vector3f());
+
+            if (min == null)
+            {
+                min = new Vector3f(point);
+                max = new Vector3f(point);
+            }
+            else
+            {
+                min.min(point);
+                max.max(point);
+            }
+        }
+
+        if (min == null)
+        {
+            Matrix4f root = map.get("").matrix();
+
+            return root == null ? null : root.getTranslation(new Vector3f());
+        }
+
+        return min.add(max).mul(0.5F);
     }
 }

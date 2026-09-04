@@ -118,6 +118,30 @@ public abstract class UIBaseMenu
         return true;
     }
 
+    /**
+     * Who has taken the mouse over - the flight camera, while it flies itself around with the
+     * pointer hidden. Null when nobody has, which is the usual case.
+     *
+     * <p>While it is set, every mouse event goes to that element and to nothing else: the
+     * cursor is somewhere the user can't see, so a click let through to the interface would
+     * land on whatever the turning happened to sweep the cursor over - a context menu in the
+     * timeline, opened by a look downwards.</p>
+     */
+    public IUIElement getPointerOwner()
+    {
+        return null;
+    }
+
+    /**
+     * Whether the pointer is hidden, so there is no cursor on screen to draw anything beside -
+     * the tutorial mouse is drawn at the pointer, and a mouse floating around a cursor that
+     * isn't there is worse than no mouse at all.
+     */
+    public boolean isPointerHidden()
+    {
+        return this.getPointerOwner() != null;
+    }
+
     public boolean canRefresh()
     {
         return true;
@@ -155,6 +179,15 @@ public abstract class UIBaseMenu
         boolean result = false;
 
         this.context.setMouse(mouseX, mouseY, mouseButton);
+
+        IUIElement owner = this.getPointerOwner();
+
+        if (owner != null)
+        {
+            owner.mouseClicked(this.context);
+
+            return true;
+        }
 
         if (this.root.isEnabled())
         {
@@ -221,6 +254,15 @@ public abstract class UIBaseMenu
 
         this.context.setMouseWheel(x, y, v, h);
 
+        IUIElement owner = this.getPointerOwner();
+
+        if (owner != null)
+        {
+            owner.mouseScrolled(this.context);
+
+            return true;
+        }
+
         if (this.root.isEnabled())
         {
             this.context.pushViewport(this.viewport);
@@ -240,6 +282,15 @@ public abstract class UIBaseMenu
         boolean result = false;
 
         this.context.setMouse(mouseX, mouseY, mouseButton);
+
+        IUIElement owner = this.getPointerOwner();
+
+        if (owner != null)
+        {
+            owner.mouseReleased(this.context);
+
+            return true;
+        }
 
         if (this.root.isEnabled())
         {

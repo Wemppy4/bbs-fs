@@ -210,10 +210,15 @@ public class UIOverlay extends UIElement
     {
         int background = this.background == null ? BBSSettings.overlayBackground() : this.background;
 
+        /* An overlay that asked for no background of its own gets no blur either; the setting
+         * turned down to zero is a different thing — that is the dimming off, not the glass */
+        if (this.background == null || Colors.getA(this.background) > 0F)
+        {
+            InterfaceBlur.apply();
+        }
+
         if (Colors.getA(background) > 0F)
         {
-            /* Blur goes with the dimming: an overlay that asked for no background gets neither */
-            InterfaceBlur.apply();
             this.area.render(context.batcher, background);
         }
 

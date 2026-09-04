@@ -78,6 +78,7 @@ import mchorse.bbs_mod.resources.packs.URLSourcePack;
 import mchorse.bbs_mod.resources.packs.URLTextureErrorCallback;
 import mchorse.bbs_mod.selectors.EntitySelectors;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.DashboardWarmup;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
@@ -277,10 +278,30 @@ public class BBSModClient implements ClientModInitializer
     /** Returns the dashboard without creating it. Used to avoid creating UI when handling keys (e.g. F6) before user has opened BBS. */
     public static UIDashboard getDashboardIfCreated()
     {
+        if (dashboard != null)
+        {
+            dashboard.finishBuilding();
+        }
+
         return dashboard;
     }
 
     public static UIDashboard getDashboard()
+    {
+        UIDashboard dashboard = getUnfinishedDashboard();
+
+        dashboard.finishBuilding();
+
+        return dashboard;
+    }
+
+    /**
+     * The dashboard, created if it wasn't there, but not necessarily built in full.
+     *
+     * <p>Only {@link DashboardWarmup}, which is what finishes it a step at a time, has any
+     * business with a half built dashboard — everybody else wants {@link #getDashboard()}.</p>
+     */
+    public static UIDashboard getUnfinishedDashboard()
     {
         if (dashboard == null)
         {
@@ -684,6 +705,7 @@ public class BBSModClient implements ClientModInitializer
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
         {
             dashboard = null;
+            DashboardWarmup.reset();
             worldExportSession.stop();
             videos.delete();
 
@@ -756,6 +778,10 @@ public class BBSModClient implements ClientModInitializer
             }
 
             worldExportSession.update();
+
+            /* Build the dashboard while nothing is asking for it, so that the key below
+             * opens one that is already there */
+            DashboardWarmup.tick(mc);
 
             while (keyDashboard.wasPressed()) UIScreen.open(getDashboard());
             while (keyItemEditor.wasPressed()) this.keyOpenModelBlockEditor(mc);

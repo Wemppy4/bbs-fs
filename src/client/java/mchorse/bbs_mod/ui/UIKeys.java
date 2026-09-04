@@ -153,6 +153,8 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_ROLL = L10n.lang("bbs.ui.camera.panels.roll");
     public static final IKey CAMERA_PANELS_SHAKE = L10n.lang("bbs.ui.camera.panels.shake");
     public static final IKey CAMERA_PANELS_SHAKE_AMOUNT = L10n.lang("bbs.ui.camera.panels.shake_amount");
+    public static final IKey CAMERA_PANELS_SHAKE_NOISE = L10n.lang("bbs.ui.camera.panels.shake_noise");
+    public static final IKey CAMERA_PANELS_SHAKE_NOISE_TOOLTIP = L10n.lang("bbs.ui.camera.panels.shake_noise_tooltip");
     public static final IKey CAMERA_PANELS_SUBTITLE_BACKGROUND = L10n.lang("bbs.ui.camera.panels.subtitle.background");
     public static final IKey CAMERA_PANELS_SUBTITLE_CONSTRAINT = L10n.lang("bbs.ui.camera.panels.subtitle.constraints");
     public static final IKey CAMERA_PANELS_SUBTITLE_FONT = L10n.lang("bbs.ui.camera.panels.subtitle.font");
@@ -261,6 +263,7 @@ public class UIKeys
     public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL = L10n.lang("bbs.rotate_3d_sphere_mode.trackball");
     public static final IKey ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL = L10n.lang("bbs.rotate_3d_sphere_mode.arcball");
     public static final IKey FILM_CONTROLLER_CONTROL_MODE_TOOLTIP = L10n.lang("bbs.ui.film.controller.control_mode-tooltip");
+    public static final IKey FILM_CONTROLLER_FREE_LOOK_TOOLTIP = L10n.lang("bbs.ui.film.controller.free_look-tooltip");
     public static final IKey FILM_CONTROLLER_INSERT_FRAME_DESCRIPTION = L10n.lang("bbs.ui.film.controller.insert_frame-description");
     public static final IKey FILM_CONTROLLER_INSERT_FRAME_TITLE = L10n.lang("bbs.ui.film.controller.insert_frame-title");
     public static final IKey FILM_CONTROLLER_KEYS_CATEGORY = L10n.lang("bbs.ui.film.controller.keys.category");
