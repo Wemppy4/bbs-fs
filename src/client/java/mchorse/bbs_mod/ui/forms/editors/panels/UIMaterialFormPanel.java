@@ -5,11 +5,11 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
-import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
@@ -18,11 +18,13 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
@@ -31,14 +33,24 @@ import java.util.function.Consumer;
  * The "Material" tab: the form's appearance — tint, color overlay, glow, render layer — plus,
  * for models with a real material set, the same properties per material and the PBR sliders.
  *
- * <p>The selector at the top picks the level: "Whole form" edits the form's own properties
+ * <p>The list at the top picks the level: "Whole form" edits the form's own properties
  * (which every renderer applies), a material edits its {@link FormMaterial} (layered on top by
  * the model renderer per draw). Bones are NOT here by design — the pose editor owns them, with
  * their selection, gizmo and pose-track channels.</p>
  */
 public class UIMaterialFormPanel extends UIFormPanel
 {
-    public UIButton materialSelector;
+    /** How many level rows are shown before the list starts scrolling. */
+    private static final int MAX_VISIBLE_LEVELS = 8;
+
+    /**
+     * The row standing for the whole-form level. A null row would do, but the selection drops
+     * nulls (a picked null is "nothing picked"), so the level gets a row object of its own —
+     * an instance nothing else can be, since rows are told apart by identity.
+     */
+    private static final String WHOLE_FORM = new String("whole_form");
+
+    public UILevelList materialList;
 
     public UIColor color;
     public UIColor overlay;
@@ -74,7 +86,8 @@ public class UIMaterialFormPanel extends UIFormPanel
     {
         super(editor);
 
-        this.materialSelector = new UIButton(UIKeys.FORMS_EDITORS_MATERIAL_WHOLE_FORM, (b) -> this.openMaterialSelector());
+        this.materialList = new UILevelList((l) -> this.pickMaterial(l.isEmpty() || l.get(0) == WHOLE_FORM ? null : l.get(0)));
+        this.materialList.background();
 
         this.color = new UIColor((c) -> this.applyColor(new Color().set(c))).withAlpha();
         this.overlay = new UIColor((c) -> this.applyOverlay(new Color().set(c))).withAlpha();
@@ -217,20 +230,27 @@ public class UIMaterialFormPanel extends UIFormPanel
         }
     }
 
-    private void openMaterialSelector()
+    /**
+     * Refill the level list from the model: "Whole form" first, then the materials in the
+     * model's own order, and keep the current level picked.
+     */
+    private void fillLevels()
     {
-        this.getContext().replaceContextMenu((menu) ->
-        {
-            menu.action(Icons.SPHERE, UIKeys.FORMS_EDITORS_MATERIAL_WHOLE_FORM, () -> this.pickMaterial(null));
+        List<String> levels = new ArrayList<>();
 
-            for (String material : this.materials())
+        levels.add(WHOLE_FORM);
+
+        for (String material : this.materials())
+        {
+            if (material != null && !material.isEmpty())
             {
-                if (material != null && !material.isEmpty())
-                {
-                    menu.action(Icons.MATERIAL, IKey.constant(material), () -> this.pickMaterial(material));
-                }
+                levels.add(material);
             }
-        });
+        }
+
+        this.materialList.setList(levels);
+        this.materialList.setIndex(this.material == null ? 0 : Math.max(levels.indexOf(this.material), 0));
+        this.materialList.h(UIStringList.DEFAULT_HEIGHT * Math.min(levels.size(), MAX_VISIBLE_LEVELS));
     }
 
     private void pickMaterial(String material)
@@ -280,7 +300,7 @@ public class UIMaterialFormPanel extends UIFormPanel
         boolean materialLevel = this.material != null;
         ModelForm modelForm = this.modelForm();
 
-        this.materialSelector.label = materialLevel ? IKey.constant(this.material) : UIKeys.FORMS_EDITORS_MATERIAL_WHOLE_FORM;
+        this.fillLevels();
 
         if (materialLevel)
         {
@@ -311,7 +331,7 @@ public class UIMaterialFormPanel extends UIFormPanel
         this.relief.setValue(pbr == null ? 0F : pbr.relief.get());
 
         /* Reassemble the tree for the level */
-        this.materialSelector.removeFromParent();
+        this.materialList.removeFromParent();
         this.colorSection.removeFromParent();
         this.textureSection.removeFromParent();
         this.renderSection.removeFromParent();
@@ -342,7 +362,7 @@ public class UIMaterialFormPanel extends UIFormPanel
 
         if (this.hasMaterials())
         {
-            this.options.add(this.materialSelector);
+            this.options.add(this.materialList);
         }
 
         this.options.add(this.colorSection);
@@ -369,5 +389,25 @@ public class UIMaterialFormPanel extends UIFormPanel
 
         this.material = null;
         this.fill();
+    }
+
+    /**
+     * The level list: {@link #WHOLE_FORM} on top, then the model's materials in the model's own
+     * order (rows are kept as they come, so the list reads like the model does).
+     */
+    public static class UILevelList extends UIList<String>
+    {
+        public UILevelList(Consumer<List<String>> callback)
+        {
+            super(callback);
+
+            this.scroll.scrollItemSize = UIStringList.DEFAULT_HEIGHT;
+        }
+
+        @Override
+        protected String elementToString(UIContext context, int i, String element)
+        {
+            return element == WHOLE_FORM ? UIKeys.FORMS_EDITORS_MATERIAL_WHOLE_FORM.get() : element;
+        }
     }
 }
