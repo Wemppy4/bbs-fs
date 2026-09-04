@@ -214,7 +214,7 @@ public class UIOverlay extends UIElement
          * turned down to zero is a different thing — that is the dimming off, not the glass */
         if (this.background == null || Colors.getA(this.background) > 0F)
         {
-            InterfaceBlur.apply();
+            InterfaceBlur.apply(context.batcher);
         }
 
         if (Colors.getA(background) > 0F)

@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.utils;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.PostEffectPipeline;
 import net.minecraft.client.gl.PostEffectProcessor;
@@ -18,9 +19,20 @@ import java.util.Set;
 
 /**
  * Blurs what is on screen under an overlay panel, on top of the dimming — the way the game's
- * own menus do it from 1.21 on. Two passes of a box blur over the main framebuffer, run at the
- * moment the first overlay of the frame is about to paint its dim: everything drawn so far,
- * world and interface alike, is what gets blurred, and the overlay lands sharp on top.
+ * own menus do it from 1.21 on. Two passes of a box blur over the main framebuffer, with the
+ * overlay landing sharp on top.
+ *
+ * <p>The GUI in 1.21.11 is deferred: {@code Batcher2D} only records into the
+ * {@link net.minecraft.client.gui.render.state.GuiRenderState}, and nothing reaches the
+ * framebuffer until {@code GuiRenderer.render()} composites it after {@code Screen.render}
+ * returns. Blurring the framebuffer at the moment an overlay paints would therefore blur the
+ * bare world and leave every panel drawn so far sharp on top of it. So this class works the
+ * way vanilla's own {@code DrawContext.applyBlur()} does — as a marker: {@link #apply} opens a
+ * fresh root layer and records the blur there, and {@code GuiRenderer.renderPreparedDraws}
+ * composites the layers before the marker, runs the blur (its call to
+ * {@code GameRenderer.renderBlur} is redirected into {@link #render}), then draws the rest.
+ * Everything recorded before the call ends up under the glass, the caller's own dim and
+ * chrome on top.</p>
  *
  * <p>The effect is built in code rather than read from a json, so the radius is a live value
  * from the settings. 1.21.1 could load a bare json and add the passes by hand afterwards; in
@@ -29,9 +41,9 @@ import java.util.Set;
  * the pipeline here keeps the setting, at the cost of rebuilding when it changes — which is
  * exactly as often as the user drags the slider.</p>
  *
- * <p>Once per frame, with one exception: a second overlay over the first would only blur the
- * blur, but the world under a panel and the panel under an overlay are two different pictures,
- * and each gets its own pass — see {@link #applyUnder()}.</p>
+ * <p>Once per frame, and this time without exception: the render state holds a single blur
+ * layer, and {@code GuiRenderState.applyBlur} throws on a second one. A panel that blurred the
+ * world under itself and an overlay that comes up over that panel share one pass.</p>
  */
 public class InterfaceBlur
 {
@@ -52,8 +64,8 @@ public class InterfaceBlur
     /** The radius baked into the built effect; a different one means a rebuild. */
     private static float builtRadius = Float.NaN;
 
-    /** Whether this frame was blurred already. */
-    private static boolean applied;
+    /** Whether this frame's render state carries our blur marker, waiting for {@link #render}. */
+    private static boolean marked;
 
     /** Set when the effect failed to build, so a broken shader costs one stack trace, not one per frame. */
     private static boolean broken;
@@ -61,18 +73,52 @@ public class InterfaceBlur
     /** Called where the frame's interface rendering starts. */
     public static void beginFrame()
     {
-        applied = false;
+        marked = false;
     }
 
-    /** Blur the screen as it stands, unless it was blurred this frame already or the setting is off. */
-    public static void apply()
+    /**
+     * Mark the blur layer: everything recorded before lands under the blur, the caller's own
+     * draws (its dim, its chrome) go into the fresh root layer on top. Does nothing when the
+     * frame is marked already, the effect is broken or the setting is off.
+     */
+    public static void apply(Batcher2D batcher)
     {
-        if (applied || broken || !BBSSettings.interfaceBlur.get())
+        if (marked || broken || !BBSSettings.interfaceBlur.get())
         {
             return;
         }
 
-        applied = true;
+        marked = true;
+
+        batcher.newRootLayer();
+        batcher.applyBlur();
+    }
+
+    /**
+     * The world under a panel that paints its own background over it (morphing, the texture
+     * manager). Same marker as {@link #apply}: vanilla allows one blur per frame, so an overlay
+     * that comes up over the panel later rides this one rather than getting a pass of its own.
+     */
+    public static void applyUnder(Batcher2D batcher)
+    {
+        apply(batcher);
+    }
+
+    /**
+     * {@code GuiRenderer}'s blur slot, reached from the redirect in {@code GuiRendererMixin} when
+     * it composites up to the marked layer. The framebuffer holds the world and every layer
+     * before the marker at this point, which is exactly the picture to blur.
+     *
+     * @return false when this frame has no BBS blur, so vanilla's own {@code renderBlur} runs instead.
+     */
+    public static boolean render()
+    {
+        if (!marked)
+        {
+            return false;
+        }
+
+        marked = false;
 
         MinecraftClient mc = MinecraftClient.getInstance();
         float radius = BBSSettings.interfaceBlurRadius.get();
@@ -81,7 +127,7 @@ public class InterfaceBlur
         {
             if (!rebuild(mc, radius))
             {
-                return;
+                return true;
             }
         }
 
@@ -89,18 +135,8 @@ public class InterfaceBlur
          * it, so the blend/framebuffer/texture-unit restoration 1.21.1 had to do by hand afterwards
          * has nothing left to undo — a render pass owns its own state now. */
         processor.render(mc.getFramebuffer(), ObjectAllocator.TRIVIAL);
-    }
 
-    /**
-     * The world under a panel that paints its own background over it (morphing, the texture
-     * manager). Blurred before the panel is drawn, and the frame is left open: an overlay that
-     * comes up over the panel later blurs the panel in its turn — that is a different picture,
-     * not the same one twice.
-     */
-    public static void applyUnder()
-    {
-        apply();
-        applied = false;
+        return true;
     }
 
     private static boolean rebuild(MinecraftClient mc, float radius)

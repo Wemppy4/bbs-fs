@@ -179,6 +179,16 @@ public class Batcher2D
         this.context.createNewRootLayer();
     }
 
+    /**
+     * Mark the current root layer as the one the screen is blurred under: the layers recorded before
+     * it are composited, the framebuffer is blurred, and this layer and everything after it lands on
+     * top of the glass. The render state holds one such mark per frame — a second call throws.
+     */
+    public void applyBlur()
+    {
+        this.context.applyBlur();
+    }
+
     public FontRenderer getFont()
     {
         return this.font;

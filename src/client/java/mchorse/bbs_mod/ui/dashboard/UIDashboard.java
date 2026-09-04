@@ -412,7 +412,7 @@ public class UIDashboard extends UIBaseMenu
          * layer's own RenderPipeline encodes it. */
         if (background != null || Colors.getA(color) < 1F)
         {
-            InterfaceBlur.applyUnder();
+            InterfaceBlur.applyUnder(context.batcher);
         }
 
         if (background == null)

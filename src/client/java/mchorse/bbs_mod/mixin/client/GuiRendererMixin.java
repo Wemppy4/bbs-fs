@@ -4,10 +4,12 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.render.special.BbsFormGuiElementRenderer;
+import mchorse.bbs_mod.ui.utils.InterfaceBlur;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.gui.render.SpecialGuiElementRenderer;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.ProjectionMatrix2;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.Window;
@@ -78,6 +80,22 @@ public class GuiRendererMixin
         Window window = MinecraftClient.getInstance().getWindow();
 
         return matrix.set(window.getFramebufferWidth() / scale, window.getFramebufferHeight() / scale);
+    }
+
+    /**
+     * The blur slot of the deferred GUI: vanilla composites the layers up to the one
+     * {@code DrawContext.applyBlur()} marked, blurs the framebuffer here, then draws the rest.
+     * BBS marks that layer under its overlays and dashboard tint ({@link InterfaceBlur#apply}),
+     * so its own box blur with the live radius runs in the slot; frames without a BBS mark
+     * (vanilla screens, pause menu) keep vanilla's blur.
+     */
+    @Redirect(method = "renderPreparedDraws", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/GameRenderer;renderBlur()V"))
+    private void bbs$interfaceBlur(GameRenderer renderer)
+    {
+        if (!InterfaceBlur.render())
+        {
+            renderer.renderBlur();
+        }
     }
 
     @Inject(method = "enableScissor", at = @At("HEAD"), cancellable = true)
