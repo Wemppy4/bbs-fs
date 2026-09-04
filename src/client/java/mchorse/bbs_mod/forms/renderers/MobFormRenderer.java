@@ -3,7 +3,9 @@ package mchorse.bbs_mod.forms.renderers;
 import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.client.render.picker.PickingReplay;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
+import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.ITickable;
@@ -26,6 +28,7 @@ import mchorse.bbs_mod.mixin.EntityInvoker;
 import mchorse.bbs_mod.mixin.LimbAnimatorAccessor;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
@@ -35,6 +38,7 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.entity.EntityRenderManager;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
@@ -395,7 +399,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
         stack.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
         stack.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
 
-        this.renderEntity(stack, transition, LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
+        this.renderEntity(stack, transition, LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV, null);
 
         stack.pop();
     }
@@ -412,11 +416,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 
         if (context.isPicking())
         {
-            /* Vanilla-rendered forms (mob, label, block, item) aren't pickable on this branch:
-             * 1.21.1 picked them by swapping the GLOBAL shader for the picker program, and the
-             * 1.21.5+ pipeline system has no global program to swap. The mob simply draws nothing
-             * into the picking stencil. */
-            return;
+            this.setupTarget(context);
         }
 
         Matrix4f cached = new Matrix4f(RenderSystem.getModelViewMatrix());
@@ -447,15 +447,41 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
             entity.hurtTime = v != 10 ? 100 : 0;
         }
 
-        /* Publishing the form's camera-space origin opts its translucent layers (slime
-         * bodies, ghost textures) into the deferred sorted pass. */
-        Vector3f origin = context.stack.peek().getPositionMatrix().getTranslation(new Vector3f());
+        if (context.isPicking())
+        {
+            /* The same draw, captured off its vanilla layers and replayed through the picker
+             * pipeline (see PickingReplay) — 1.21.1 picked these forms by swapping the global
+             * shader, and the pipeline system has no global program to swap. The parts write
+             * their own bone ids into the light channel while the context says it is picking
+             * (ModelPartMixin), which is what makes a mob pickable limb by limb; the light
+             * argument therefore goes in clean. */
+            FormRenderCapture.begin();
 
-        FormTranslucentQueue.setSortOrigin(new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(origin));
+            Map<RenderLayer, List<FormRenderCapture.Captured>> captured;
 
-        this.renderEntity(context.stack, context.getTransition(), context.light, context.overlay);
+            try
+            {
+                this.renderEntity(context.stack, context.getTransition(), 0, context.overlay, context.stencilMap);
+            }
+            finally
+            {
+                captured = FormRenderCapture.end();
+            }
 
-        FormTranslucentQueue.setSortOrigin(null);
+            PickingReplay.draw(captured);
+        }
+        else
+        {
+            /* Publishing the form's camera-space origin opts its translucent layers (slime
+             * bodies, ghost textures) into the deferred sorted pass. */
+            Vector3f origin = context.stack.peek().getPositionMatrix().getTranslation(new Vector3f());
+
+            FormTranslucentQueue.setSortOrigin(new Matrix4f(RenderSystem.getModelViewMatrix()).transformPosition(origin));
+
+            this.renderEntity(context.stack, context.getTransition(), context.light, context.overlay, null);
+
+            FormTranslucentQueue.setSortOrigin(null);
+        }
 
         context.stack.pop();
 
@@ -474,7 +500,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
      * command queue and flush the queue synchronously through the BBS provider. See
      * {@link QueueDispatch} for why the private queue exists at all.
      */
-    private void renderEntity(MatrixStack stack, float transition, int light, int overlay)
+    private void renderEntity(MatrixStack stack, float transition, int light, int overlay, StencilMap stencilMap)
     {
         CustomVertexConsumerProvider consumers = FormUtilsClient.getProvider();
         EntityRenderManager manager = MinecraftClient.getInstance().getEntityRenderDispatcher();
@@ -499,7 +525,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
         /* Publish the rig and the pose for the length of this flush: the parts take their final
          * vanilla angles inside ModelCommandRenderer, at flush time, so the pose can only be added
          * there (see ModelCommandRendererMixin). */
-        MobRenderContext mob = MobRenderContext.push(this.getRig(), this.form.pose.get(), this.form.poseOverlay.get());
+        MobRenderContext mob = MobRenderContext.push(this.getRig(), this.form.pose.get(), this.form.poseOverlay.get()).picking(stencilMap);
 
         /* The custom-texture feature: 1.21.1 GL-bound the texture over the first drawn layer
          * (the body). Textures are per-layer now, so the first requested layer of this flush is

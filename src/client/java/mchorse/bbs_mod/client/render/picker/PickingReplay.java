@@ -10,6 +10,7 @@ import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderSetup;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
@@ -22,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Picking for the vanilla-rendered forms (item, block).
+ * Picking for the vanilla-rendered forms (item, block, mob).
  *
  * <p>1.21.1 picked them by swapping the GLOBAL shader for the picker program while the vanilla
  * renderer drew — the 1.21.5 pipeline system has no global program to swap, which is why these
@@ -35,7 +36,12 @@ import java.util.Map;
  * format for item quads, POSITION_TEXTURE for glint, ...), while the picker pipeline wants the
  * entity format. Each vertex is decoded by element usage with defaults for anything the source
  * lacks, so every layer replays: position is what matters, colour is overwritten by the picker
- * anyway, and UV0 feeds the alpha cutout against the block atlas ({@code Sampler0}).
+ * anyway, UV0 feeds the alpha cutout and UV2 carries the bone id a mob form wrote there.
+ *
+ * <p>Replayed one layer at a time, each with the texture that layer draws with: the cutout has to
+ * be judged against the same picture the visible pass used, or a mob's UVs read against the block
+ * atlas punch holes through its silhouette. A layer without a Sampler0 of its own falls back to
+ * the block atlas, where item and block geometry points anyway.
  */
 public class PickingReplay
 {
@@ -51,28 +57,45 @@ public class PickingReplay
             return;
         }
 
-        /* The alpha cutout samples the block atlas: item and block geometry UVs point there
-         * (glint UVs don't, but glint duplicates geometry the base layer already wrote). */
-        AbstractTexture atlas = MinecraftClient.getInstance().getTextureManager().getTexture(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
-
-        BBSPickerRenderer.setSampler0(atlas.getGlTextureView(), atlas.getSampler());
-
-        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
-
-        for (List<FormRenderCapture.Captured> list : captured.values())
+        for (Map.Entry<RenderLayer, List<FormRenderCapture.Captured>> entry : captured.entrySet())
         {
-            for (FormRenderCapture.Captured single : list)
+            RenderSetup.Texture texture = sampler0(entry.getKey());
+
+            BBSPickerRenderer.setSampler0(texture.textureView(), texture.sampler());
+
+            BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
+
+            for (FormRenderCapture.Captured single : entry.getValue())
             {
                 emit(single, builder);
             }
+
+            BuiltBuffer built = builder.endNullable();
+
+            if (built != null)
+            {
+                BBSPickerRenderer.draw(BBSShaders.getPickerModelsProgram(), built, RenderSystem.getModelViewMatrix());
+            }
         }
+    }
 
-        BuiltBuffer built = builder.endNullable();
+    /**
+     * What the layer's own Sampler0 is, or the block atlas when it has none — item and block
+     * geometry points there, and a layer that samples nothing of its own (glint) only duplicates
+     * geometry the base layer has already written.
+     */
+    private static RenderSetup.Texture sampler0(RenderLayer layer)
+    {
+        RenderSetup.Texture texture = layer.renderSetup.resolveTextures().get("Sampler0");
 
-        if (built != null)
+        if (texture != null)
         {
-            BBSPickerRenderer.draw(BBSShaders.getPickerModelsProgram(), built, RenderSystem.getModelViewMatrix());
+            return texture;
         }
+
+        AbstractTexture atlas = MinecraftClient.getInstance().getTextureManager().getTexture(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
+
+        return new RenderSetup.Texture(atlas.getGlTextureView(), atlas.getSampler());
     }
 
     /** Re-emit one captured buffer as QUADS, doubling the last vertex of each triangle. */
@@ -135,6 +158,13 @@ public class PickingReplay
                         u = data.getFloat(offset);
                         v = data.getFloat(offset + 4);
                     }
+                    else if (element.index() == 2)
+                    {
+                        /* The light channel, where a mob form's parts wrote their bone ids (see
+                         * MobRenderContext.partLight) — dropping it would flatten every bone back
+                         * onto the form's own id. */
+                        light = Short.toUnsignedInt(data.getShort(offset)) | Short.toUnsignedInt(data.getShort(offset + 2)) << 16;
+                    }
                 }
                 default ->
                 {}
@@ -142,7 +172,7 @@ public class PickingReplay
         }
 
         /* Colour is replaced by the picker's Target index in the shader; light.x carries the
-         * per-vertex bone sub-index for models — vanilla-rendered forms have no bones, so 0. */
+         * per-vertex bone sub-index, which stays 0 for everything without a rig. */
         consumer.vertex(x, y, z)
             .color(255, 255, 255, 255)
             .texture(u, v)

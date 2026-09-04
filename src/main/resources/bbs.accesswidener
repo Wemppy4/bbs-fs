@@ -43,3 +43,7 @@ accessible method net/minecraft/entity/LivingEntity setLivingFlag (IZ)V
 # own method, and an actor is not a player - it sets the two fields by hand
 accessible field net/minecraft/entity/LivingEntity riptideTicks I
 
+# The layer's own textures, for the picking replay: the pick pass has to cut out against the
+# same Sampler0 the visible draw used, or a mob's UVs sampled against the block atlas punch
+# holes in its silhouette
+accessible field net/minecraft/client/render/RenderLayer renderSetup Lnet/minecraft/client/render/RenderSetup;
