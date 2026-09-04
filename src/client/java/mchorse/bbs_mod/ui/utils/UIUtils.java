@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.utils;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.utils.OS;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -10,6 +11,7 @@ import net.minecraft.sound.SoundEvents;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class UIUtils
 {
@@ -121,6 +123,15 @@ public class UIUtils
      * this branch any more — every off-screen pass here is a render pass that carries its own
      * viewport. RenderSystem.viewport() is gone too, so the pair could not be expressed even if a
      * caller wanted it. */
+
+    /** Enable or disable every control in a container — the container stands, only its fields go quiet. */
+    public static void setEnabledDeep(UIElement container, boolean enabled)
+    {
+        for (UIElement element : container.getChildren(UIElement.class, new ArrayList<>(), false))
+        {
+            element.setEnabled(enabled);
+        }
+    }
 
     public static void playClick()
     {

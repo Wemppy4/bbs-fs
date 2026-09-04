@@ -24,6 +24,7 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.IUIKeyframeGraph;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.KeyframeType;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
@@ -34,10 +35,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UITrackSty
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.Marquee;
-import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.Scroll;
-import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -54,12 +52,10 @@ import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import mchorse.bbs_mod.utils.keyframes.factories.Vector3fKeyframeFactory;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 
-public class UIKeyframes extends UIElement
+public class UIKeyframes extends UITimelineCanvas
 {
     /* Editing states */
 
-    private final Marquee marquee = new Marquee();
-    private boolean navigating;
     private int dragging = -1;
     private Pair<Keyframe, KeyframeType> draggingData;
     private boolean scaling;
@@ -70,10 +66,6 @@ public class UIKeyframes extends UIElement
     private boolean stacking;
     private float stackOffset;
 
-    private int lastX;
-    private int lastY;
-    private int originalX;
-    private int originalY;
     private float originalT;
     private Object originalV;
 
@@ -86,7 +78,6 @@ public class UIKeyframes extends UIElement
     private final UIKeyframeDopeSheet dopeSheet = new UIKeyframeDopeSheet(this);
     private IUIKeyframeGraph currentGraph = this.dopeSheet;
 
-    private final Scale xAxis = new Scale(this.graphArea, ScrollDirection.HORIZONTAL);
 
     private final Consumer<Keyframe> callback;
     private Consumer<UIContext> backgroundRender;
@@ -104,6 +95,10 @@ public class UIKeyframes extends UIElement
 
     public UIKeyframes(Consumer<Keyframe> callback)
     {
+        /* The time strip excludes the dope sheet's label column, so the axis maps pixels
+         * over the graph area rather than the whole element. */
+        this.xAxis.area = this.graphArea;
+
         this.callback = callback;
         this.tooltip = new UIKeyframePreviewTooltip(this);
 
@@ -526,8 +521,8 @@ public class UIKeyframes extends UIElement
         this.scaling = true;
         this.scaleTicks.clear();
         this.scalingAnchor = Integer.MAX_VALUE;
-        this.originalX = context.mouseX;
-        this.originalY = context.mouseY;
+        this.initialX = context.mouseX;
+        this.initialY = context.mouseY;
 
         for (UIKeyframeSheet sheet : this.currentGraph.getSheets())
         {
@@ -969,11 +964,6 @@ public class UIKeyframes extends UIElement
         return this.currentGraph;
     }
 
-    public Scale getXAxis()
-    {
-        return this.xAxis;
-    }
-
     public int getDuration()
     {
         return this.duration == null ? 0 : this.duration.get();
@@ -1001,11 +991,6 @@ public class UIKeyframes extends UIElement
     public boolean isSelecting()
     {
         return this.marquee.isPressed();
-    }
-
-    public boolean isNavigating()
-    {
-        return this.navigating;
     }
 
     /** Whether the user is in the middle of any mouse interaction (dragging, selecting, navigating, scaling or stacking). */
@@ -1051,16 +1036,6 @@ public class UIKeyframes extends UIElement
     }
 
     /* Graphing */
-
-    public int toGraphX(double tick)
-    {
-        return (int) this.xAxis.to(tick);
-    }
-
-    public double fromGraphX(int mouseX)
-    {
-        return this.xAxis.from(mouseX);
-    }
 
     public void resetView()
     {
@@ -1178,8 +1153,8 @@ public class UIKeyframes extends UIElement
 
         if (this.graphArea.isInside(context))
         {
-            this.lastX = this.originalX = context.mouseX;
-            this.lastY = this.originalY = context.mouseY;
+            this.lastX = this.initialX = context.mouseX;
+            this.lastY = this.initialY = context.mouseY;
 
             if (Window.isCtrlPressed() && context.mouseButton == 0)
             {
@@ -1378,11 +1353,7 @@ public class UIKeyframes extends UIElement
         this.renderBackground(context);
         this.currentGraph.render(context);
 
-        if (this.marquee.isPressed())
-        {
-            this.marquee.update(context.mouseX, context.mouseY);
-            this.marquee.render(context, 0, 0);
-        }
+        this.renderMarquee(context);
 
         this.currentGraph.postRender(context);
         this.renderOverlay(context);
@@ -1421,12 +1392,12 @@ public class UIKeyframes extends UIElement
 
         int mouseX = context.mouseX;
         int mouseY = context.mouseY;
-        boolean mouseHasMoved = Math.abs(mouseX - this.originalX) > 2 || Math.abs(mouseY - this.originalY) > 2;
+        boolean mouseHasMoved = Math.abs(mouseX - this.initialX) > 2 || Math.abs(mouseY - this.initialY) > 2;
 
         if (this.scaling)
         {
             float tick = (float) this.fromGraphX(context.mouseX);
-            float originalTick = (float) this.fromGraphX(this.originalX);
+            float originalTick = (float) this.fromGraphX(this.initialX);
             float ratio = (tick - this.scalingAnchor) / (originalTick - this.scalingAnchor);
 
             for (Map.Entry<Keyframe, Float> entry : this.scaleTicks.entrySet())
@@ -1451,7 +1422,7 @@ public class UIKeyframes extends UIElement
         {
             if (this.currentGraph.getSelected() != null)
             {
-                this.currentGraph.dragKeyframes(context, this.draggingData, this.originalX, this.originalY, this.originalT, this.originalV);
+                this.currentGraph.dragKeyframes(context, this.draggingData, this.initialX, this.initialY, this.originalT, this.originalV);
             }
             else
             {

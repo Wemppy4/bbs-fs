@@ -28,7 +28,6 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
     private static List<String> mobIDs;
 
     public UIButton pick;
-    public UIToggle slim;
     public UIModelPoseEditor poseEditor;
     public UISearchList<String> mobID;
     public UITextarea<TextLine> mobNBT;
@@ -55,8 +54,9 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
 
             UITexturePicker.open(this.getContext(), link, (l) -> this.form.texture.set(l));
         });
-        this.slim = UIValues.toggle(UIKeys.FORMS_EDITOR_SLIM, () -> this.form.slim);
-        this.slim.tooltip(UIKeys.FORMS_EDITOR_SLIM_TOOLTIP);
+        UIToggle slim = UIValues.toggle(UIKeys.FORMS_EDITOR_SLIM, () -> this.form.slim);
+
+        slim.tooltip(UIKeys.FORMS_EDITOR_SLIM_TOOLTIP);
 
         this.poseEditor = new UIModelPoseEditor();
         this.poseEditor.transform.barBackground();
@@ -69,7 +69,7 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
         this.mobNBT.background().h(160);
         this.mobNBT.wrap();
 
-        this.options.add(this.pick, this.slim, this.poseEditor, this.mobID, this.mobNBT);
+        this.options.add(this.pick, slim, this.poseEditor, this.mobID, this.mobNBT);
     }
 
     @Override
@@ -77,7 +77,6 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
     {
         super.startEdit(form);
 
-        this.slim.setValue(this.form.slim.get());
         this.mobID.list.setCurrentScroll(this.form.mobID.get());
         this.mobNBT.setText(this.form.mobNBT.get());
 

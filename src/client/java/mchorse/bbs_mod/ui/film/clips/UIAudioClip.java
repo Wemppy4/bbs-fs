@@ -67,10 +67,10 @@ public class UIAudioClip <T extends AudioClip> extends UIClip<T>
         this.extendDuration = new UIIcon(Icons.RIGHTLOAD, (b) -> this.extendToMediaDuration());
         this.extendDuration.tooltip(UIKeys.CAMERA_PANELS_AUDIO_EXTEND_DURATION);
 
-        this.offset = new UITrackpad((v) -> this.clip.offset.set(v.intValue()));
+        this.offset = this.trackpad(this.clip.offset);
         this.offset.integer();
 
-        this.volume = new UISliderTrackpad((v) -> this.clip.volume.set(v.floatValue()));
+        this.volume = this.bind(new UISliderTrackpad((v) -> this.clip.volume.set(v.floatValue())), () -> this.volume.setValue(this.clip.volume.get()));
         this.volume.limit(this.clip.volume).values(0.05F, 0.01F, 0.2F).increment(0.1F).tooltip(UIKeys.CAMERA_PANELS_AUDIO_VOLUME);
     }
 
@@ -110,14 +110,5 @@ public class UIAudioClip <T extends AudioClip> extends UIClip<T>
             UI.labelRow(UIKeys.CAMERA_PANELS_AUDIO_OFFSET, this.offset).marginTop(UIConstants.SECTION_GAP),
             UI.labelRow(UIKeys.CAMERA_PANELS_AUDIO_VOLUME, this.volume)
         ));
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.offset.setValue(this.clip.offset.get());
-        this.volume.setValue(this.clip.volume.get());
     }
 }

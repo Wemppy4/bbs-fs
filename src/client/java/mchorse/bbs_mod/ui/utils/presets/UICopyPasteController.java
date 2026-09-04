@@ -25,6 +25,8 @@ public class UICopyPasteController
     private IKey copyLabel = UIKeys.GENERAL_COPY;
     private IKey pasteLabel = UIKeys.GENERAL_PASTE;
 
+    /** The manager may be {@code null} for a clipboard-only controller (one that installs
+     *  through {@link #installClipboard} and never offers presets). */
     public UICopyPasteController(PresetManager manager, String copyPrefix)
     {
         this.manager = manager;

@@ -76,6 +76,13 @@ public class UIBodyPartEditor extends UIScrollView
         {
             this.part.useTarget.set(b.getValue());
         });
+        this.useTarget.valueBinding(() ->
+        {
+            if (this.part != null)
+            {
+                this.useTarget.setValue(this.part.useTarget.get());
+            }
+        });
 
         this.bone = new UIBonePicker((b) ->
         {
@@ -156,6 +163,7 @@ public class UIBodyPartEditor extends UIScrollView
         this.transform = new UIPropTransform().callbacks(() -> this.part.transform).barBackground();
         this.transform.enableHotkeys(this.editor::isBodyPartGizmoMode);
         this.transform.hotkeyDrag(() -> this.editor.buildHotkeyDrag(this.transform));
+        this.transform.valueBinding(() -> this.transform.setTransform(this.part == null ? null : this.part.transform.get()));
 
         this.pick.keys().register(Keys.FORMS_EDIT, this.pick::clickItself);
 
@@ -170,7 +178,6 @@ public class UIBodyPartEditor extends UIScrollView
 
         this.removeAll();
 
-        this.useTarget.setValue(part.useTarget.get());
         this.bone.setLabel(this.boneLabel(part.bone.get()));
 
         /* The inheritance toggles filter the attachment bone's matrix, so they are offered only
@@ -183,8 +190,6 @@ public class UIBodyPartEditor extends UIScrollView
         {
             this.add(this.pick, this.useTarget, this.transform);
         }
-
-        this.transform.setTransform(part.transform.get());
 
         this.scroll.setScroll(0);
         this.resize();

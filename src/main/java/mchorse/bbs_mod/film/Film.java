@@ -55,6 +55,13 @@ public class Film extends ValueGroup
     {
         super("");
 
+        /* The server drives the actors from the replays — their keyframes, properties, action
+         * clips and flags — so any edit in that subtree has to reach its copy of the film. One
+         * declaration on the subtree replaces the hand-written list of path endings that used to
+         * decide this (and kept falling behind as channels were added). The camera stays
+         * client-side: the server never plays it, and saving ships the whole film anyway. */
+        this.replays.synced();
+
         this.add(this.camera);
         this.add(this.replays);
         this.add(this.replayCategoryNames);

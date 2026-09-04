@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.line.LineBuilder;
@@ -286,9 +285,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
     {
         if (context.mouseWheelHorizontal != 0)
         {
-            double offsetX = (25F * BBSSettings.scrollingSensitivityHorizontal.get() * context.mouseWheelHorizontal) / this.keyframes.getXAxis().getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offsetX);
+            this.keyframes.panTime(context.mouseWheelHorizontal);
         }
         else if (Window.isAltPressed() && context.mouseWheel != 0D && this.getSelected() != null)
         {
@@ -306,7 +303,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
             {
                 if (context.mouseWheel != 0D)
                 {
-                    this.keyframes.getXAxis().zoomAnchor(Scale.getAnchorX(context, this.keyframes.area), Math.copySign(this.keyframes.getXAxis().getZoomFactor(), context.mouseWheel));
+                    this.keyframes.zoomTimeAt(context, context.mouseWheel);
                 }
             }
 
@@ -326,13 +323,8 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
     {
         if (this.keyframes.isNavigating())
         {
-            int mouseX = context.mouseX;
-            int mouseY = context.mouseY;
-            double offsetX = (mouseX - lastX) / this.keyframes.getXAxis().getZoom();
-            double offsetY = -(mouseY - lastY) / this.yAxis.getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offsetX);
-            this.yAxis.setShift(this.yAxis.getShift() - offsetY);
+            this.keyframes.dragTimeBy(context.mouseX - lastX);
+            this.yAxis.setShift(this.yAxis.getShift() + (context.mouseY - lastY) / this.yAxis.getZoom());
         }
     }
 

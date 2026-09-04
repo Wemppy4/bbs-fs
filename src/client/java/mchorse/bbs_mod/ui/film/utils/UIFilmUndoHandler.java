@@ -1,12 +1,10 @@
 package mchorse.bbs_mod.ui.film.utils;
 
-import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
 import mchorse.bbs_mod.utils.Timer;
-import mchorse.bbs_mod.utils.clips.Clips;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -39,7 +37,10 @@ public class UIFilmUndoHandler extends UIFormUndoHandler
     {
         super.handleValue(value);
 
-        if (this.isReplayActions(value))
+        /* The value itself declares whether the server's copy needs it (Film marks the replays
+         * subtree) — this used to be a hand-written list of path endings that kept falling
+         * behind the data model, silently keeping new channels off the server. */
+        if (value.isSynced())
         {
             /* TODO: Variant A for the lazy-channel desync — if 'value' is a keyframe
              * inside a channel, promote it to its parent KeyframeChannel here so the
@@ -70,47 +71,4 @@ public class UIFilmUndoHandler extends UIFormUndoHandler
         }
     }
 
-    private boolean isReplayActions(BaseValue value)
-    {
-        String path = value.getPath().toString();
-
-        /* Every recorded channel, not a hand-written list of them: the server drives the actor's
-         * body from these, and the list of channels keeps growing (swimming, gliding, roll and the
-         * rest arrived long after this was written). What was named here were positions and items,
-         * so rotations and states simply never reached the server - the actor in the world kept
-         * turning the way it turned before the edit. */
-        if (
-            path.endsWith("/replays") ||
-            path.contains("/keyframes") ||
-            path.contains("/properties/") ||
-            path.endsWith("/properties") ||
-            path.endsWith("/actor") ||
-            path.endsWith("/actor_pickup") ||
-            path.endsWith("/fp") ||
-            path.endsWith("/enabled") ||
-            path.endsWith("/looping") ||
-            path.endsWith("/form")
-        ) {
-            return true;
-        }
-
-        /* Specifically for overwriting full replay like what's done when recording
-         * data in the world! */
-        if (value.getParent() != null && value.getParent().getId().equals("replays"))
-        {
-            return true;
-        }
-
-        while (value != null)
-        {
-            if (value instanceof Clips clips && clips.getFactory() == BBSMod.getFactoryActionClips())
-            {
-                return true;
-            }
-
-            value = value.getParent();
-        }
-
-        return false;
-    }
 }

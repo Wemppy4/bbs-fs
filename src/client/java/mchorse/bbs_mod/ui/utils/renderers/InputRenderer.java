@@ -107,7 +107,12 @@ public class InputRenderer
             return;
         }
 
-        this.renderMouse(menu.context.batcher, mouseX, mouseY);
+        /* The keys are still worth showing while the pointer is gone - flying is a keyboard
+         * thing - but the mouse has nothing left to sit beside. */
+        if (!menu.isPointerHidden())
+        {
+            this.renderMouse(menu.context.batcher, mouseX, mouseY);
+        }
 
         if (BBSSettings.enableKeystrokeRendering.get())
         {

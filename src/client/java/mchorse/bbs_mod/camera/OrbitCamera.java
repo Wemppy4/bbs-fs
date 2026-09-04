@@ -62,9 +62,25 @@ public class OrbitCamera
 
     protected boolean fovRoll = true;
 
+    /**
+     * Whether the camera turns with the mouse without a button held down. Flight's free look
+     * asks for it, and while it lasts the mouse is the camera's rather than the cursor's.
+     */
+    protected boolean freeLook;
+
     public void setFovRoll(boolean fovRoll)
     {
         this.fovRoll = fovRoll;
+    }
+
+    public void setFreeLook(boolean freeLook)
+    {
+        this.freeLook = freeLook;
+    }
+
+    public boolean isFreeLook()
+    {
+        return this.freeLook;
     }
 
     public void reset()
@@ -246,7 +262,11 @@ public class OrbitCamera
     {
         float angleFactor = this.getAngleSpeed();
 
-        if (this.dragging == 0)
+        /* Free look turns the camera as though the left button were held down, but a button
+         * that is actually held still speaks for itself - roll and FOV stay where they are. */
+        int dragging = this.dragging < 0 && this.freeLook ? 0 : this.dragging;
+
+        if (dragging == 0)
         {
             int x = mouseX - this.lastX;
             int y = mouseY - this.lastY;
@@ -264,7 +284,7 @@ public class OrbitCamera
         }
         else if (this.fovRoll)
         {
-            if (this.dragging == 1)
+            if (dragging == 1)
             {
                 int x = mouseX - this.lastX;
 
@@ -278,7 +298,7 @@ public class OrbitCamera
 
                 return true;
             }
-            else if (this.dragging == 2)
+            else if (dragging == 2)
             {
                 int y = mouseY - this.lastY;
 

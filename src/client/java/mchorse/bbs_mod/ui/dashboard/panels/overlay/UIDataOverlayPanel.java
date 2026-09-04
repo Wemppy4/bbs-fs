@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.dashboard.panels.overlay;
 
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -9,6 +8,7 @@ import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 
 import java.io.File;
 import java.util.function.Consumer;
@@ -17,11 +17,20 @@ public class UIDataOverlayPanel <T extends ValueGroup> extends UICRUDOverlayPane
 {
     protected UIDataDashboardPanel<T> panel;
 
+    /** Clipboard-only (no presets): the panel's saved files are already its "presets". */
+    protected UICopyPasteController copyPasteController;
+
     public UIDataOverlayPanel(IKey title, UIDataDashboardPanel<T> panel, Consumer<String> callback)
     {
         super(title, callback);
 
         this.panel = panel;
+
+        this.copyPasteController = new UICopyPasteController(null, "_ContentType_" + panel.getType().getId())
+            .labels(UIKeys.PANELS_CONTEXT_COPY, UIKeys.PANELS_CONTEXT_PASTE)
+            .supplier(() -> this.panel.getData() == null ? null : this.panel.getData().toData().asMap())
+            .canCopy(() -> this.panel.getData() != null)
+            .consumer((data, mouseX, mouseY) -> this.addNewData(this.getContext(), data));
 
         this.namesList.context((menu) ->
         {
@@ -34,22 +43,17 @@ public class UIDataOverlayPanel <T extends ValueGroup> extends UICRUDOverlayPane
                 menu.action(Icons.FOLDER, UIKeys.PANELS_MODALS_ADD_FOLDER_TITLE, this::addNewFolder);
             }
 
-            if (this.panel.getData() != null)
+            /* Copying stays available even in a pure picker; pasting creates data, so it is
+             * offered only where the panel can create. The controller supplies the standard
+             * labels and the greying-out other editors' menus already have. */
+            if (editable)
             {
-                menu.action(Icons.COPY, UIKeys.PANELS_CONTEXT_COPY, this::copy);
+                this.copyPasteController.installClipboard(menu, 0, 0);
             }
-
-            try
+            else
             {
-                MapType data = editable ? Window.getClipboardMap("_ContentType_" + this.panel.getType().getId()) : null;
-
-                if (data != null)
-                {
-                    menu.action(Icons.PASTE, UIKeys.PANELS_CONTEXT_PASTE, () -> this.paste(data));
-                }
+                menu.action(Icons.COPY, UIKeys.PANELS_CONTEXT_COPY, this.copyPasteController::copy);
             }
-            catch (Exception e)
-            {}
 
             File folder = this.panel.getType().getRepository().getFolder();
 
@@ -61,16 +65,6 @@ public class UIDataOverlayPanel <T extends ValueGroup> extends UICRUDOverlayPane
                 });
             }
         });
-    }
-
-    private void copy()
-    {
-        Window.setClipboard(this.panel.getData().toData().asMap(), "_ContentType_" + this.panel.getType().getId());
-    }
-
-    private void paste(MapType data)
-    {
-        this.addNewData(this.getContext(), data);
     }
 
     /* CRUD */

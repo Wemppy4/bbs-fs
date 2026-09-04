@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 
@@ -78,6 +79,16 @@ public abstract class UIList <T> extends UIItems<T>
     public UIList(Consumer<List<T>> callback)
     {
         super(callback, (a, b) -> a == b);
+    }
+
+    /**
+     * A list whose rows are rebuilt wrappers around stable data says here what "the same row"
+     * means (the replay list's rows wrap replays and category names), so a pick survives the
+     * rebuild instead of clinging to row identity.
+     */
+    public UIList(Consumer<List<T>> callback, BiPredicate<T, T> same)
+    {
+        super(callback, same);
     }
 
     /**

@@ -52,14 +52,25 @@ public class UIEntryList<T> extends UIList<T>
         return this.names.apply(element);
     }
 
+    /** What a row is painted in: red when the entry is broken, else the list's usual hover/idle pair. */
+    protected int rowColor(T element, boolean hover)
+    {
+        return this.broken.test(element) ? Colors.NEGATIVE : hover ? Colors.HIGHLIGHT : Colors.WHITE;
+    }
+
+    /** Where a row's content has to stop: the scrollbar and a margin aren't the row's to draw in. */
+    protected int rowContentEnd(int x)
+    {
+        return x + this.area.w - 4 - this.scroll.getScrollbarArea().w;
+    }
+
     @Override
     protected void renderElementPart(UIContext context, T element, int i, int x, int y, boolean hover, boolean selected)
     {
         FontRenderer font = context.batcher.getFont();
         int textX = x + this.rowContentX(element);
-        int color = this.broken.test(element) ? Colors.NEGATIVE : hover ? Colors.HIGHLIGHT : Colors.WHITE;
-        String label = font.limitToWidth(this.elementToString(context, i, element), x + this.area.w - textX - 4 - this.scroll.getScrollbarArea().w);
+        String label = font.limitToWidth(this.elementToString(context, i, element), this.rowContentEnd(x) - textX);
 
-        context.batcher.textShadow(label, textX, y + (this.scroll.scrollItemSize - font.getHeight()) / 2, color);
+        context.batcher.textShadow(label, textX, y + (this.scroll.scrollItemSize - font.getHeight()) / 2, this.rowColor(element, hover));
     }
 }

@@ -253,6 +253,17 @@ public class UIKeyframeSheet
      */
     public <T> Keyframe<T> ensureKeyframe(float tick)
     {
+        /* Bringing a keyframe into being changes the track itself, not a value inside it: seal the
+         * channel's before-state so undo takes the keyframe away again instead of only putting back
+         * whatever the edit wrote into it.
+         *
+         * This is also auto-keyframing's only way into a track, so it is where the history is told
+         * that a recording is running (FLAG_BATCH) — without it a take over a playing film would
+         * seal an entry per tick and bury everything else in the history. Raised before the lookup,
+         * because a second take recorded over the first one writes into keyframes that are already
+         * there and would otherwise flood the history exactly the same way. */
+        this.channel.preNotify(IValueListener.FLAG_UNMERGEABLE | IValueListener.FLAG_BATCH);
+
         for (Keyframe<T> keyframe : (List<Keyframe<T>>) this.channel.getKeyframes())
         {
             if (keyframe.getTick() == tick)
@@ -282,12 +293,6 @@ public class UIKeyframeSheet
         {
             value = (T) this.channel.getFactory().createEmpty();
         }
-
-        /* Bringing a keyframe into being changes the track itself, not a value inside it: seal the
-         * channel's before-state so undo takes the keyframe away again instead of only putting back
-         * whatever the edit wrote into it. Only on a real insertion — sealing on every edit would
-         * make each drag frame its own undo entry. */
-        this.channel.preNotify(IValueListener.FLAG_UNMERGEABLE);
 
         int index = this.channel.insert(tick, value);
         Keyframe<T> keyframe = (Keyframe<T>) this.channel.get(index);

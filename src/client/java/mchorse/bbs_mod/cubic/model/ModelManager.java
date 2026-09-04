@@ -1,8 +1,10 @@
 package mchorse.bbs_mod.cubic.model;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.cubic.CubicLoader;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.MolangHelper;
+import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.cubic.model.loaders.BOBJModelLoader;
@@ -11,6 +13,7 @@ import mchorse.bbs_mod.cubic.model.loaders.GeoCubicModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.IModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.VoxModelLoader;
 import mchorse.bbs_mod.data.DataToString;
+import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.math.molang.MolangParser;
 import mchorse.bbs_mod.resources.AssetProvider;
@@ -23,6 +26,8 @@ import mchorse.bbs_mod.utils.watchdog.IWatchDogListener;
 import mchorse.bbs_mod.utils.watchdog.WatchDogEvent;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -216,6 +221,77 @@ public class ModelManager implements IWatchDogListener
         file.getParentFile().mkdirs();
 
         return DataToString.writeSilently(file, data, true);
+    }
+
+    /**
+     * Write a model's groups back to the file it was read from, over the file as it stands: its
+     * animations stay as they are (the instance's list also holds the ones the config pulls in from
+     * other files, and those must not end up baked in), and so does anything else in it, such as
+     * the exporter's version stamp. Only for a model the editor may edit
+     * ({@link ModelInstance#getModelFile()}); returns whether the file was written.
+     */
+    public boolean saveModel(ModelInstance instance, List<String[]> renames)
+    {
+        Link link = instance.getModelFile();
+        File file = link == null ? null : this.provider.getFile(link);
+
+        if (file == null || !(instance.getModel() instanceof Model model))
+        {
+            return false;
+        }
+
+        MapType data = this.readModelFile(file);
+
+        data.put("model", model.toData());
+
+        if (!renames.isEmpty() && data.has("animations"))
+        {
+            renameAnimationBones(data.getMap("animations"), renames);
+        }
+
+        return DataToString.writeSilently(file, data, true);
+    }
+
+    /** Move the bone keys of every animation in the file along the renames, oldest first. */
+    private static void renameAnimationBones(MapType animations, List<String[]> renames)
+    {
+        for (Map.Entry<String, BaseType> entry : animations)
+        {
+            if (!entry.getValue().isMap() || !entry.getValue().asMap().has("groups"))
+            {
+                continue;
+            }
+
+            MapType groups = entry.getValue().asMap().getMap("groups");
+
+            for (String[] rename : renames)
+            {
+                if (groups.has(rename[0]))
+                {
+                    BaseType part = groups.get(rename[0]);
+
+                    groups.remove(rename[0]);
+                    groups.put(rename[1], part);
+                }
+            }
+        }
+    }
+
+    /** The file as it stands, to be written over in place; an empty ordered map when it can't be read. */
+    private MapType readModelFile(File file)
+    {
+        MapType data = null;
+
+        try
+        {
+            data = CubicLoader.loadFile(new FileInputStream(file));
+        }
+        catch (IOException e)
+        {
+            System.err.println("Failed to read the model file before saving it: " + file);
+        }
+
+        return data == null ? new MapType(false) : data;
     }
 
     public void reload()

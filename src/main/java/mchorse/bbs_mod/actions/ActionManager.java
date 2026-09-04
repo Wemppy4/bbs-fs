@@ -274,6 +274,27 @@ public class ActionManager
         }
     }
 
+    /**
+     * Put a world back the way its snapshot remembers it WITHOUT letting go of anyone's hold.
+     * The film editor's restart rewinds a LIVING playback (stopping and starting again blinked
+     * the whole cast), and the stop/start restart used to put the world back by dying — the
+     * rewind keeps everything alive, so the world reset has to be asked for out loud.
+     *
+     * <p>The snapshot steps out of the registry for the walk — putting a block back is itself a
+     * block change and would be captured into the very snapshot being restored — and steps back
+     * in, emptied, to keep recording from here on with the same holders.
+     */
+    public void restoreDamage(ServerWorld world)
+    {
+        DamageControl damageControl = this.dc.remove(world);
+
+        if (damageControl != null)
+        {
+            damageControl.restore();
+            this.dc.put(world, damageControl);
+        }
+    }
+
     public void changedBlock(BlockPos pos, BlockState state, NbtCompound blockEntity)
     {
         for (DamageControl control : this.dc.values())

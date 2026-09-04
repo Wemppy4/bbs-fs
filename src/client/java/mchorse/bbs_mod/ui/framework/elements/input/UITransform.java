@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.ui.utils.IWorldTransformProvider;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.WorldTransformClipboard;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Axis;
@@ -185,6 +186,28 @@ public abstract class UITransform extends UIElement
          * that don't support it (they just never capture/apply anything there). */
         this.keys().register(Keys.TRANSFORMATIONS_COPY_WORLD, this::copyWorldTransform).inside().label(UIKeys.TRANSFORMS_CONTEXT_COPY_WORLD);
         this.keys().register(Keys.TRANSFORMATIONS_PASTE_WORLD, this::pasteWorldTransform).inside().label(UIKeys.TRANSFORMS_CONTEXT_PASTE_WORLD);
+    }
+
+    /**
+     * Whether the rotation row can be touched. Off where the gesture in hand is only about position
+     * — a host editing several things at once, where each one's rotation is its own.
+     */
+    public void setRotationEnabled(boolean enabled)
+    {
+        UIUtils.setEnabledDeep(this.rotateRow, enabled);
+    }
+
+    /**
+     * Give the translate row's icon something to do. It is decorative by default — the space
+     * picker took its old click over — and only a host with one obvious thing to offer there
+     * turns it into a button (the model editor centres the group's pivot with it). Follows the
+     * rotation row's toggle: same box, same colours, only the tooltip and the callback differ.
+     */
+    public void translateAction(IKey tooltip, Runnable action)
+    {
+        this.iconT.callback = (b) -> action.run();
+        this.iconT.tooltip(tooltip);
+        this.iconT.setEnabled(true);
     }
 
     protected void toggleUniformScale()

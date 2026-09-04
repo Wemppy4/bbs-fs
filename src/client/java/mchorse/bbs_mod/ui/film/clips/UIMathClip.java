@@ -28,7 +28,13 @@ public class UIMathClip extends UIClip<MathClip>
         });
         this.expression.link("https://github.com/mchorse/aperture/wiki/Math-Expressions").tooltip(UIKeys.CAMERA_PANELS_MATH);
 
-        this.active = new UIBitToggle((value) -> this.clip.active.set(value)).all();
+        this.bindOnDemand(this.expression, () ->
+        {
+            this.expression.setText(this.clip.expression.toString());
+            this.expression.setColor(Colors.WHITE);
+        });
+
+        this.active = this.bind(new UIBitToggle((value) -> this.clip.active.set(value)).all(), () -> this.active.setValue(this.clip.active.get()));
     }
 
     @Override
@@ -38,15 +44,5 @@ public class UIMathClip extends UIClip<MathClip>
 
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_EXPRESSION, this.expression));
         this.panels.add(this.active);
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.expression.setText(this.clip.expression.toString());
-        this.expression.setColor(Colors.WHITE);
-        this.active.setValue(this.clip.active.get());
     }
 }
