@@ -86,24 +86,31 @@ public class BbsFormGuiElementRenderer extends SpecialGuiElementRenderer<BbsForm
 
         Target target = this.acquire(state.renderer(), w, h);
 
-        RenderSystem.outputColorTextureOverride = target.colorView;
-        RenderSystem.outputDepthTextureOverride = target.depthView;
-        RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(target.color, 0, target.depth, 1.0);
-        RenderSystem.setProjectionMatrix(this.projection.set(w, h), ProjectionType.ORTHOGRAPHIC);
+        /* Throttled by FormPreviewCache: a picture that isn't due on this frame keeps the one it has
+         * and is only composited again. A texture nobody has drawn into yet has nothing to composite,
+         * so the first frame of a cell always draws. */
+        if (state.refresh() || !target.rendered)
+        {
+            RenderSystem.outputColorTextureOverride = target.colorView;
+            RenderSystem.outputDepthTextureOverride = target.depthView;
+            RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(target.color, 0, target.depth, 1.0);
+            RenderSystem.setProjectionMatrix(this.projection.set(w, h), ProjectionType.ORTHOGRAPHIC);
 
-        MatrixStack matrices = new MatrixStack();
+            MatrixStack matrices = new MatrixStack();
 
-        matrices.translate(w / 2.0F, this.getYOffset(h, windowScaleFactor), 0.0F);
+            matrices.translate(w / 2.0F, this.getYOffset(h, windowScaleFactor), 0.0F);
 
-        float f = windowScaleFactor * state.scale();
+            float f = windowScaleFactor * state.scale();
 
-        matrices.scale(f, f, -f);
+            matrices.scale(f, f, -f);
 
-        this.render(state, matrices);
-        this.vertexConsumers.draw();
+            this.render(state, matrices);
+            this.vertexConsumers.draw();
 
-        RenderSystem.outputColorTextureOverride = null;
-        RenderSystem.outputDepthTextureOverride = null;
+            RenderSystem.outputColorTextureOverride = null;
+            RenderSystem.outputDepthTextureOverride = null;
+            target.rendered = true;
+        }
 
         /* Composite THIS form's texture into the cell (V-flipped 0,1,1,0 + premultiplied alpha, exactly like
          * the base's renderElement). The pose carries the list's scroll translate. addSimpleElementToCurrentLayer
@@ -256,5 +263,8 @@ public class BbsFormGuiElementRenderer extends SpecialGuiElementRenderer<BbsForm
         private GpuTextureView colorView;
         private GpuTexture depth;
         private GpuTextureView depthView;
+
+        /** Nothing has been drawn into a fresh texture yet, so it cannot be composited on its own. */
+        private boolean rendered;
     }
 }

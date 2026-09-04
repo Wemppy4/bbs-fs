@@ -332,40 +332,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     @Override
     public void renderInUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        context.batcher.flush();
-
-        /* List/icon form preview: submit a vanilla special GUI element so the form's model renders off-screen
-         * and the deferred GUI composites it into this cell. The list draws each cell in the GUI record phase,
-         * where a direct immediate 3D draw can't composite (two-phase GUI), so we reuse the mechanism vanilla
-         * uses for entity/item thumbnails. BbsFormGuiElementRenderer.render then calls back into renderUIPreview
-         * during the GUI prepare phase (with ModelPreviewRenderer.ACTIVE so the model draws into the FBO). The
-         * cursor-driven yaw is computed here (same as the original getUIMatrix) since render() has no context. */
-        float angle = MathUtils.toRad(context.mouseX - (x1 + x2) / 2) + MathUtils.PI;
-
-        if (BBSSettings.freezeModels.get())
-        {
-            angle = -MathUtils.PI + MathUtils.PI / 8;
-        }
-
-        net.minecraft.client.gui.DrawContext bbs$dc = context.batcher.getContext();
-
-        /* Capture the live 2D GUI matrix (carries the list's scroll translate) so the thumbnail composites at
-         * the scrolled cell position — faithful to the original, which rendered onto getMatrices() directly. */
-        org.joml.Matrix3x2f bbs$pose = new org.joml.Matrix3x2f(bbs$dc.getMatrices());
-
-        /* Read the live GUI scissor (set by the caller's batcher.clip, e.g. UIReplayList clips the form preview
-         * to the row's square) and carry it as the composite quad's scissorArea — without it the model renders
-         * full-size and overflows the cell instead of being cropped. Faithful to the original, where renderUI
-         * was bracketed by batcher.clip/unclip and the immediate 3D draw respected the GL scissor.
-         *
-         * The scissor here is now correct under scroll: Batcher2D.clip neutralises the GUI matrix pose around
-         * DrawContext.enableScissor (which on 1.21.11 transforms the rect by that pose, double-shifting it by the
-         * scroll), so the stored scissor is shifted by the scroll exactly once (to y - S) — in lock-step with the
-         * geometry placed by bbs$pose. */
-        net.minecraft.client.gui.ScreenRect bbs$scissor = bbs$dc.scissorStack.peekLast();
-
-        bbs$dc.state.addSpecialElement(new mchorse.bbs_mod.client.render.special.BbsFormGuiElementRenderState(
-            this, angle, context.getTransition(), bbs$pose, x1, y1, x2, y2, 1.0F, bbs$scissor));
+        this.submitUIPreview(context, x1, y1, x2, y2);
     }
 
     /**

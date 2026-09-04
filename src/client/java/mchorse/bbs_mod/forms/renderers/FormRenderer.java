@@ -67,7 +67,7 @@ public abstract class FormRenderer <T extends Form>
 
     public final void renderUI(UIContext context, int x1, int y1, int x2, int y2)
     {
-        FormPreviewCache.render(this, context, x1, y1, x2, y2);
+        this.renderLive(context, x1, y1, x2, y2);
 
         FontRenderer font = context.batcher.getFont();
         String name = this.form.name.get();
@@ -100,10 +100,10 @@ public abstract class FormRenderer <T extends Form>
      */
     public final void renderPreview(UIContext context, int x1, int y1, int x2, int y2)
     {
-        FormPreviewCache.render(this, context, x1, y1, x2, y2);
+        this.renderLive(context, x1, y1, x2, y2);
     }
 
-    /** The picture drawn right now, bypassing the preview cache — what the cache itself renders from. */
+    /** The picture of the form itself, without the cards {@link #renderUI} lays over it. */
     public final void renderLive(UIContext context, int x1, int y1, int x2, int y2)
     {
         /* The diffuse-light directions the old setupLevelDiffuseLighting bound here (lightA=(0,1,-0.2),
@@ -140,10 +140,22 @@ public abstract class FormRenderer <T extends Form>
 
         DrawContext dc = context.batcher.getContext();
         Matrix3x2f pose = new Matrix3x2f(dc.getMatrices());
+
+        /* The live GUI scissor (set by the caller's batcher.clip — UIReplayList clips the preview to the
+         * row's square) rides along as the composite quad's scissorArea; without it the model renders
+         * full-size and overflows the cell instead of being cropped. It is correct under scroll because
+         * Batcher2D.clip neutralises the GUI matrix pose around DrawContext.enableScissor (which on
+         * 1.21.11 transforms the rect by that pose, double-shifting it by the scroll), so the stored
+         * scissor is shifted by the scroll exactly once — in lock-step with the geometry placed by pose. */
         ScreenRect scissor = dc.scissorStack.peekLast();
 
+        /* Whether the picture is drawn again this frame or the previous one is composited once more
+         * (see FormPreviewCache): the element carries the decision, because the drawing itself only
+         * happens later, in the GUI prepare phase. */
+        boolean refresh = FormPreviewCache.claimRefresh(this, x2 - x1, y2 - y1);
+
         dc.state.addSpecialElement(new BbsFormGuiElementRenderState(
-            this, angle, context.getTransition(), pose, x1, y1, x2, y2, 1.0F, scissor));
+            this, angle, context.getTransition(), refresh, pose, x1, y1, x2, y2, 1.0F, scissor));
     }
 
     /**

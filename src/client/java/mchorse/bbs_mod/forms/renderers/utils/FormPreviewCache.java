@@ -1,51 +1,41 @@
 package mchorse.bbs_mod.forms.renderers.utils;
 
-import com.mojang.blaze3d.opengl.GlStateManager;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.client.render.special.BbsFormGuiElementRenderer;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.FormRenderer;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
-import mchorse.bbs_mod.graphics.Framebuffer;
-import mchorse.bbs_mod.graphics.Renderbuffer;
-import mchorse.bbs_mod.graphics.texture.Texture;
-import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.Window;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL30;
 
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 /**
- * The little 3D pictures of forms in lists, palettes and the HUD, kept as textures.
+ * How often the little 3D picture of a form in a list, palette or the HUD is drawn again.
  *
- * <p>Each visible list row used to be a full model render every frame — channels, IK, physics,
- * one draw call per bone and material — fifteen rows, fifteen models. Now a form's picture is
- * rendered once into its own framebuffer and blitted; it is re-rendered when the form changed
- * (its pose version or the box size) and otherwise refreshed in rotation, a settings-bound
- * number of pictures per frame, so the pictures still turn with the mouse and play their idle
- * animations — at a fraction of the rate, for a fraction of the cost.</p>
+ * <p>Each visible row used to be a full model render every frame — channels, IK, physics, one draw
+ * call per bone and material — fifteen rows, fifteen models. Now a form's picture lives in its own
+ * off-screen texture and is re-drawn when the form changed (its pose version or the box size) and
+ * otherwise in rotation, a settings-bound number of pictures per frame, so the pictures still turn
+ * with the mouse and play their idle animations — at a fraction of the rate, for a fraction of the
+ * cost.</p>
  *
- * <p>The re-render happens inside the normal UI pass with the screen's own projection and
- * matrix stack: only the viewport moves, placed so the box's on-screen rectangle lands on the
- * framebuffer. Nothing about how a form draws itself changes, which is what keeps every form
- * type (models, mobs, billboards, blocks) on the same path.</p>
+ * <p>1.21.11: the picture cannot be captured here, because a form's UI preview does not draw when
+ * it is asked to — it records a special GUI element, and vanilla renders it later, in the GUI
+ * prepare phase, into a texture {@link BbsFormGuiElementRenderer} keeps for exactly this form and
+ * size. So this class holds no framebuffers of its own: it decides which pictures are due, and the
+ * decision rides along with the element. Everything a form does to draw itself stays untouched,
+ * which is what keeps every form type (models, mobs, billboards, blocks) on the same path.</p>
  */
 public class FormPreviewCache
 {
-    /** The largest a picture is rendered at, per side, whatever the GUI scale. */
-    private static final int MAX_PIXELS = 512;
-
     private static final long SWEEP_EVERY = 120L;
     private static final long KEEP_EPOCHS = 600L;
 
-    /* Forms compare by identity, so a plain map keys them right; entries are swept by last use. */
-    private static final Map<Form, Entry> ENTRIES = new HashMap<>();
+    /* A form keeps one renderer for its lifetime (FormUtilsClient#getRenderer), so the renderer is
+     * the identity of the picture; entries are swept by last use. */
+    private static final Map<FormRenderer<?>, Entry> ENTRIES = new IdentityHashMap<>();
 
     private static long epoch = -1L;
     private static long lastSweep;
@@ -55,12 +45,8 @@ public class FormPreviewCache
 
     private static class Entry
     {
-        Framebuffer framebuffer;
-        Texture texture;
         int width;
         int height;
-        int pixelWidth;
-        int pixelHeight;
         int poseVersion;
         long renderedEpoch = -1L;
         long usedEpoch;
@@ -69,19 +55,18 @@ public class FormPreviewCache
         boolean modelPending;
     }
 
-    /** Draw the form's picture into the box — from the cache when it can, live when it cannot. */
-    public static void render(FormRenderer<?> renderer, UIContext context, int x1, int y1, int x2, int y2)
+    /**
+     * Whether this form's picture is drawn again on this frame, or the one it already has is
+     * composited into the cell once more.
+     */
+    public static boolean claimRefresh(FormRenderer<?> renderer, int w, int h)
     {
         int budget = BBSSettings.previewRefreshBudget == null ? 0 : BBSSettings.previewRefreshBudget.get();
-        int w = x2 - x1;
-        int h = y2 - y1;
         Form form = renderer.getForm();
 
         if (budget <= 0 || w <= 0 || h <= 0 || form == null || !RenderFrame.isEnabled())
         {
-            renderer.renderLive(context, x1, y1, x2, y2);
-
-            return;
+            return true;
         }
 
         long now = RenderFrame.getEpoch();
@@ -102,25 +87,19 @@ public class FormPreviewCache
 
         requestedThisFrame += 1;
 
-        Entry entry = ENTRIES.get(form);
-
-        if (entry == null)
-        {
-            entry = new Entry();
-            ENTRIES.put(form, entry);
-        }
+        Entry entry = ENTRIES.computeIfAbsent(renderer, (key) -> new Entry());
 
         entry.usedEpoch = now;
 
-        /* A changed form (or box) re-renders at once, budget or not — a stale picture of an edit is
+        /* A changed form (or box) draws again at once, budget or not — a stale picture of an edit is
          * wrong, an unrefreshed idle animation is merely late. Rotation: with N pictures on screen
          * and K renders a frame, each one comes round every N/K frames. */
         boolean fresh = entry.renderedEpoch < 0 || entry.width != w || entry.height != h || entry.poseVersion != form.getPoseVersion();
 
-        /* A cell drawn while its model was still in the loader's queue holds an empty picture;
-         * the moment the model lands, it retakes ahead of the rotation — an empty cell that
-         * waits its turn reads as a much longer load than it was. */
-        if (!fresh && entry.modelPending && renderer instanceof ModelFormRenderer modelRenderer && modelRenderer.getModel() != null)
+        /* A cell drawn while its model was still in the loader's queue holds an empty picture; the
+         * moment the model lands, it redraws ahead of the rotation — an empty cell that waits its
+         * turn reads as a much longer load than it was. */
+        if (!fresh && entry.modelPending && !isModelPending(renderer))
         {
             fresh = true;
         }
@@ -128,147 +107,37 @@ public class FormPreviewCache
         int interval = Math.max(1, (requestedLastFrame + budget - 1) / budget);
         boolean due = rendersThisFrame < budget && now - entry.renderedEpoch >= interval;
 
-        if (fresh || due)
+        if (!fresh && !due)
         {
-            if (!renderInto(entry, renderer, context, x1, y1, x2, y2))
-            {
-                renderer.renderLive(context, x1, y1, x2, y2);
+            BBSProfiler.count(BBSProfiler.Section.UI_PREVIEWS_CACHED);
 
-                return;
-            }
-
-            entry.width = w;
-            entry.height = h;
-            entry.poseVersion = form.getPoseVersion();
-            entry.renderedEpoch = now;
-            entry.modelPending = renderer instanceof ModelFormRenderer modelRenderer && modelRenderer.getModel() == null;
-            rendersThisFrame += 1;
-        }
-
-        BBSProfiler.count(BBSProfiler.Section.UI_PREVIEWS_CACHED);
-
-        context.batcher.texturedBox(entry.texture.id, Colors.WHITE, x1, y1, w, h, 0, entry.pixelHeight, entry.pixelWidth, 0, entry.pixelWidth, entry.pixelHeight);
-    }
-
-    /**
-     * Render the form into the entry's framebuffer. The screen projection and matrix stack stay as
-     * they are; the viewport is offset so the box's on-screen rectangle maps onto the framebuffer.
-     */
-    private static boolean renderInto(Entry entry, FormRenderer<?> renderer, UIContext context, int x1, int y1, int x2, int y2)
-    {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        Window window = mc.getWindow();
-        int menuW = context.menu.width;
-        int menuH = context.menu.height;
-
-        if (menuW <= 0 || menuH <= 0)
-        {
             return false;
         }
 
-        int w = x2 - x1;
-        int h = y2 - y1;
-        float scaleX = window.getFramebufferWidth() / (float) menuW;
-        float scaleY = window.getFramebufferHeight() / (float) menuH;
-        int pw = Math.max(1, Math.min(MAX_PIXELS, Math.round(w * scaleX)));
-        int ph = Math.max(1, Math.min(MAX_PIXELS, Math.round(h * scaleY)));
-
-        /* If the cap bit, the picture is rendered smaller than the screen would: scale the whole
-         * mapping down with it, so the box still fills the framebuffer edge to edge. */
-        scaleX = pw / (float) w;
-        scaleY = ph / (float) h;
-
-        ensureFramebuffer(entry, pw, ph);
-
-        boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-
-        context.batcher.flush();
-
-        if (scissor)
-        {
-            GlStateManager._disableScissorTest();
-        }
-
-        entry.framebuffer.bind();
-        entry.framebuffer.clear();
-
-        /* The box's coordinates are local to a scrolled element (the scroll rides the matrix
-         * stack via UIContext#shiftY), so where it actually lands on screen is the global
-         * position — that is what the viewport has to be placed by. GUI y runs down, GL y runs
-         * up: the box's bottom-left corner has to land at the framebuffer's origin. */
-        int screenX = context.globalX(x1);
-        int screenY = context.globalY(y1);
-
-        GL11.glViewport(
-            Math.round(-screenX * scaleX),
-            Math.round(-(menuH - screenY - h) * scaleY),
-            Math.round(menuW * scaleX),
-            Math.round(menuH * scaleY)
-        );
-
-        try
-        {
-            renderer.renderLive(context, x1, y1, x2, y2);
-            context.batcher.flush();
-        }
-        finally
-        {
-            /* 1.21.11: Framebuffer.beginWrite(boolean) is gone — a render pass binds its own target,
-             * so there is no bound framebuffer left to put back. Scissor still is global state. */
-            if (scissor)
-            {
-                GlStateManager._enableScissorTest();
-            }
-        }
+        entry.width = w;
+        entry.height = h;
+        entry.poseVersion = form.getPoseVersion();
+        entry.renderedEpoch = now;
+        entry.modelPending = isModelPending(renderer);
+        rendersThisFrame += 1;
 
         return true;
     }
 
-    private static void ensureFramebuffer(Entry entry, int pw, int ph)
+    private static boolean isModelPending(FormRenderer<?> renderer)
     {
-        if (entry.framebuffer == null)
-        {
-            Texture texture = new Texture();
-
-            texture.setSize(pw, ph);
-            texture.setFilter(GL11.GL_LINEAR);
-            texture.setWrap(GL13.GL_CLAMP_TO_EDGE);
-
-            Renderbuffer renderbuffer = new Renderbuffer();
-
-            renderbuffer.resize(pw, ph);
-
-            entry.framebuffer = new Framebuffer();
-            entry.framebuffer.deleteTextures().attach(texture, GL30.GL_COLOR_ATTACHMENT0);
-            entry.framebuffer.attach(renderbuffer);
-            entry.framebuffer.unbind();
-            entry.texture = texture;
-        }
-        else if (entry.pixelWidth != pw || entry.pixelHeight != ph)
-        {
-            entry.framebuffer.resize(pw, ph);
-        }
-
-        entry.pixelWidth = pw;
-        entry.pixelHeight = ph;
+        return renderer instanceof ModelFormRenderer modelRenderer && modelRenderer.getModel() == null;
     }
 
-    /** Free the pictures of forms nobody asked about for a while (a closed film, a scrolled-away palette). */
+    /** Forget the forms nobody asked about for a while (a closed film, a scrolled-away palette). */
     private static void sweep(long now)
     {
-        Iterator<Map.Entry<Form, Entry>> it = ENTRIES.entrySet().iterator();
+        Iterator<Map.Entry<FormRenderer<?>, Entry>> it = ENTRIES.entrySet().iterator();
 
         while (it.hasNext())
         {
-            Entry entry = it.next().getValue();
-
-            if (now - entry.usedEpoch > KEEP_EPOCHS)
+            if (now - it.next().getValue().usedEpoch > KEEP_EPOCHS)
             {
-                if (entry.framebuffer != null)
-                {
-                    entry.framebuffer.delete();
-                }
-
                 it.remove();
             }
         }
