@@ -283,7 +283,7 @@ public class BOBJModelVAO
                  * textureResolver bind). Draws through the BBS model layer, not vanilla entityCutoutNoCull: CUTOUT
                  * has no blending, so the form's colour alpha read as "lighter" instead of transparent and cliffed
                  * into invisibility at the 0.1 discard — see the matching branch in ModelInstance.render. */
-                BBSShaders.getModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(cull), ModelPreviewRenderer.TEXTURE).draw(built);
+                BBSShaders.getBoundModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(cull)).draw(built);
             }
             else
             {

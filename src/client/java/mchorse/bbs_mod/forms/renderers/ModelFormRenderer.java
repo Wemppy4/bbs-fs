@@ -361,8 +361,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         Color formColor = this.form.color.get();
         float scale = this.form.uiScale.get() * model.getUiScale();
 
-        /* Route cubic geometry through the vanilla entity layer keyed on this model's (adopted) texture,
-         * exactly like render3D — this is what makes ModelInstance.render take the entityCutoutNoCull branch. */
+        /* Route cubic geometry through the BBS model layer keyed on the bound texture, exactly like
+         * render3D — the flag is what makes ModelInstance.render take the preview branch, and the bind
+         * is what that branch resolves its layer from (per material, once the model has several). */
+        BBSModClient.getTextures().bindTexture(texture);
+
         ModelPreviewRenderer.TEXTURE = AdoptedTexture.identifier(BBSModClient.getTextures().getTexture(texture));
 
         model.model.resetPose();

@@ -120,6 +120,9 @@ public class ModelInstance implements IModelInstance
     /** Ordered, distinct list of material names present on the model (for the editor and resolution). */
     public List<String> materials = new ArrayList<>();
 
+    /** The pass list of a model with nothing to tell apart: draw it all, with whatever is bound. */
+    private static final List<String> SINGLE_PASS = java.util.Collections.singletonList(null);
+
     /** The model's {@code config.json} as an editable value tree; the instance reads every setting from here. */
     public final ModelConfig config;
 
@@ -491,6 +494,33 @@ public class ModelInstance implements IModelInstance
         }
     }
 
+    /**
+     * The materials to draw in turn, or a single null pass — "draw everything, with whatever is
+     * bound" — for a model that has no materials to tell apart. The empty name comes first: it is
+     * the model's own geometry, drawn with the texture the caller bound.
+     */
+    private List<String> renderPasses(Function<String, Link> textureResolver)
+    {
+        if (textureResolver == null || this.materials.size() <= 1)
+        {
+            return SINGLE_PASS;
+        }
+
+        List<String> passes = new ArrayList<>(this.materials.size() + 1);
+
+        passes.add("");
+
+        for (String material : this.materials)
+        {
+            if (!material.isEmpty())
+            {
+                passes.add(material);
+            }
+        }
+
+        return passes;
+    }
+
     public void render(MatrixStack stack, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
     {
         if (this.model instanceof Model model)
@@ -511,7 +541,32 @@ public class ModelInstance implements IModelInstance
             renderProcessor.setColor(color.r, color.g, color.b, color.a);
             renderProcessor.setWelds(bindings);
 
+            /* One pass per material, each with that material's texture bound: the draw takes its
+             * texture from whatever the manager bound last, and an OBJ normalises every material's
+             * UVs into ITS OWN texture (the model sheet stays 1x1, see CubicModelLoader), so a
+             * single pass would sample every material against one sheet. A model with at most one
+             * material keeps its single unfiltered pass. */
+            for (String material : this.renderPasses(textureResolver))
             {
+                if (material != null && !material.isEmpty())
+                {
+                    Link materialTexture = textureResolver.apply(material);
+
+                    if (materialTexture != null)
+                    {
+                        BBSModClient.getTextures().bindTexture(materialTexture);
+
+                        /* The pick pass cuts out against Sampler0, so it follows the same texture —
+                         * otherwise a material's UVs would be judged against the form's sheet. */
+                        if (stencilMap != null)
+                        {
+                            BBSPickerRenderer.setSampler0(BBSModClient.getTextures().getTexture(materialTexture));
+                        }
+                    }
+                }
+
+                renderProcessor.setMaterialFilter(material);
+
                 /* TODO(1.21.11 render): RenderSystem.setShader(...) + BufferRenderer.drawWithGlobalProgram(...)
                  * were removed in 1.21.5+. The immediate (non-VAO) cube geometry is built into a BufferBuilder
                  * in QUADS mode (CubicCubeRenderer now emits 4 verts/face) so it can be drawn through a vanilla
@@ -544,7 +599,7 @@ public class ModelInstance implements IModelInstance
                          * the bottom of the alpha slider). The BBS model layer blends, so the form's colour
                          * alpha fades the preview exactly like the world; same entity vertex format, and the
                          * layer keyed on the SAME adopted texture the cutout branch used. */
-                        BBSShaders.getModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(this.isCulling()), ModelPreviewRenderer.TEXTURE).draw(built);
+                        BBSShaders.getBoundModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(this.isCulling())).draw(built);
                     }
                     else
                     {

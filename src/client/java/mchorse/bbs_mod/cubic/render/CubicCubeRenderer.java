@@ -74,6 +74,9 @@ public class CubicCubeRenderer implements ICubicRenderer
      * It only touches welded cubes and only their welded face's four corners — not every vertex of the model. */
     private boolean captureOnly;
 
+    /** Which material's geometry this pass draws; null draws all of it. See {@link #setMaterialFilter}. */
+    private String materialFilter;
+
     /* A welded cube's faces bend within a band near the seam; drawn as two flat triangles their texture warps
      * unevenly, so the edge running ALONG the bone is split into this many segments and the bend is resolved
      * across them (the cross-bone edge stays linear, so it needs no split). Kept fairly high so a narrow falloff
@@ -191,17 +194,36 @@ public class CubicCubeRenderer implements ICubicRenderer
         this.captureOnly = captureOnly;
     }
 
+    /**
+     * Draw only the geometry of one material: the empty name is the model's own (cubes, and meshes
+     * that name no material), null is everything at once. A model with several materials draws once
+     * per material, each with that material's texture bound — an OBJ keeps every material's UVs
+     * normalised into ITS OWN texture, so one draw with one texture would sample the wrong sheet.
+     */
+    public void setMaterialFilter(String materialFilter)
+    {
+        this.materialFilter = materialFilter;
+    }
+
     @Override
     public boolean renderGroup(BufferBuilder builder, MatrixStack stack, ModelGroup group, Model model)
     {
-        for (ModelCube cube : group.cubes)
+        /* Cubes belong to the model's own material — they have no material of their own and take
+         * the base texture, the way they did before materials existed. */
+        if (this.materialFilter == null || this.materialFilter.isEmpty())
         {
-            this.renderCube(builder, stack, group, cube);
+            for (ModelCube cube : group.cubes)
+            {
+                this.renderCube(builder, stack, group, cube);
+            }
         }
 
         for (ModelMesh mesh : group.meshes)
         {
-            this.renderMesh(builder, stack, model, group, mesh);
+            if (this.materialFilter == null || this.materialFilter.equals(mesh.material))
+            {
+                this.renderMesh(builder, stack, model, group, mesh);
+            }
         }
 
         return false;
