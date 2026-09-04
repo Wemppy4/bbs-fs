@@ -294,7 +294,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
         {
             Matrix4f matrix = entry.getValue().matrix();
 
-            if (matrix == null)
+            if (matrix == null || entry.getKey().isEmpty())
             {
                 continue;
             }
@@ -313,6 +313,13 @@ public class OrbitFilmCameraController extends OrbitViewportController
             }
         }
 
-        return min == null ? null : min.add(max).mul(0.5F);
+        if (min == null)
+        {
+            Matrix4f root = map.get("").matrix();
+
+            return root == null ? null : root.getTranslation(new Vector3f());
+        }
+
+        return min.add(max).mul(0.5F);
     }
 }
