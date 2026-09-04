@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.mixin.client;
 
-import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
+import mchorse.bbs_mod.forms.renderers.mob.MobRenderContext;
 import net.minecraft.client.render.OutlineVertexConsumerProvider;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -22,8 +22,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * overwritten. This hook fires right after that setAngles and restores the parts when the
  * command is done, so the shared vanilla model instances stay clean.
  *
- * <p>Active only while {@code MobFormRenderer} is mid-flush ({@code currentPose != null});
- * the world's own dispatcher never runs inside that window, so vanilla mobs are unaffected.
+ * <p>Active only while a mob form is mid-flush (it publishes itself in {@link MobRenderContext});
+ * the world's own dispatcher never runs inside that window, so vanilla mobs are unaffected. Parts
+ * outside the form's rig — armor, a held item, a model built outside the named-children path —
+ * are not in the rig and pass through untouched.
  */
 @Mixin(ModelCommandRenderer.class)
 public class ModelCommandRendererMixin
@@ -34,7 +36,12 @@ public class ModelCommandRendererMixin
     )
     private void bbs$applyMobPose(OrderedRenderCommandQueueImpl.ModelCommand<?> command, RenderLayer layer, VertexConsumer consumer, OutlineVertexConsumerProvider outline, VertexConsumerProvider.Immediate crumbling, CallbackInfo info)
     {
-        MobFormRenderer.applyCurrentPose();
+        MobRenderContext context = MobRenderContext.current();
+
+        if (context != null)
+        {
+            context.applyPose();
+        }
     }
 
     @Inject(
@@ -43,6 +50,11 @@ public class ModelCommandRendererMixin
     )
     private void bbs$restoreMobPose(OrderedRenderCommandQueueImpl.ModelCommand<?> command, RenderLayer layer, VertexConsumer consumer, OutlineVertexConsumerProvider outline, VertexConsumerProvider.Immediate crumbling, CallbackInfo info)
     {
-        MobFormRenderer.restorePosedParts();
+        MobRenderContext context = MobRenderContext.current();
+
+        if (context != null)
+        {
+            context.restorePose();
+        }
     }
 }

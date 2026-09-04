@@ -29,6 +29,9 @@ public class MobRenderContext
     private StencilMap stencilMap;
     private MobRenderContext previous;
 
+    /** The pose stack, merged once — {@link #applyPose} runs per model command, several times a flush. */
+    private Pose merged;
+
     public static MobRenderContext current()
     {
         return current;
@@ -107,7 +110,12 @@ public class MobRenderContext
             return;
         }
 
-        MobPoseApplier.apply(this.rig, MobPoseApplier.merge(this.pose, this.poseOverlay), this.saved);
+        if (this.merged == null)
+        {
+            this.merged = MobPoseApplier.merge(this.pose, this.poseOverlay);
+        }
+
+        MobPoseApplier.apply(this.rig, this.merged, this.saved);
     }
 
     /**

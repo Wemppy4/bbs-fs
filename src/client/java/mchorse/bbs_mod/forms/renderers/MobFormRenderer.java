@@ -14,6 +14,7 @@ import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.cubic.IBoneHierarchy;
+import mchorse.bbs_mod.forms.renderers.mob.MobRenderContext;
 import mchorse.bbs_mod.forms.renderers.mob.MobRig;
 import mchorse.bbs_mod.forms.renderers.mob.MobRigMatrices;
 import mchorse.bbs_mod.forms.renderers.mob.MobRigs;
@@ -29,9 +30,6 @@ import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.joml.Vectors;
-import mchorse.bbs_mod.utils.pose.Pose;
-import mchorse.bbs_mod.utils.pose.PoseTransform;
-import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.network.OtherClientPlayerEntity;
@@ -60,30 +58,12 @@ import net.minecraft.world.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 {
-    /** Per entity class, its model's ModelParts by field name — resolved reflectively once in {@link #getBones}. */
-    private static final Map<Class, Map<String, ModelPart>> parts = new HashMap<>();
-
-    /**
-     * Original transforms of the ModelParts the current pose touched, keyed by part. Filled by
-     * {@link #applyCurrentPose} (called from the ModelCommandRenderer mixin right after the
-     * model's {@code setAngles}) and drained by {@link #restorePosedParts} at that command's end,
-     * so the shared vanilla model instances never keep BBS pose residue.
-     */
-    private static final Map<ModelPart, Transform> cache = new HashMap<>();
-
-    /** The merged pose (base + overlay) of the mob form being flushed right now, or null. */
-    private static Pose currentPose;
-
-    /** The posed entity's part map — resolved once per render, read by {@link #applyCurrentPose}. */
-    private static Map<String, ModelPart> currentParts;
-
     public static final GameProfile WIDE = new GameProfile(UUID.fromString("b99a2400-28a8-4288-92dc-924beafbf756"), "McHorseYT");
     public static final GameProfile SLIM = new GameProfile(UUID.fromString("5477bd28-e672-4f87-a209-c03cf75f3606"), "osmiq");
 
@@ -109,90 +89,6 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
     public MobFormRenderer(MobForm form)
     {
         super(form);
-    }
-
-    /**
-     * Apply the current mob form's pose on top of the freshly set model angles. Runs from
-     * {@code ModelCommandRendererMixin} at flush time — the 1.21.2+ queue calls
-     * {@code Model.setAngles(state)} when the command RENDERS, not when it is submitted, so this
-     * is the only moment the parts hold their final vanilla angles. The 1.21.1 equivalent hooked
-     * {@code LivingEntityRenderer.render} after its (immediate) setAngles.
-     *
-     * <p>Only parts of the posed entity's own model match (identity through {@link #getParts}),
-     * so armor/held-item model commands flushed in the same cycle pass through untouched. That
-     * also means armor no longer inherits the pose the way 1.21.1's copy-angles chain did — the
-     * queue re-derives armor angles from the render state, out of BBS's reach.
-     */
-    public static void applyCurrentPose()
-    {
-        Pose pose = currentPose;
-        Map<String, ModelPart> partMap = currentParts;
-
-        if (pose == null || partMap == null)
-        {
-            return;
-        }
-
-        for (Map.Entry<String, ModelPart> entry : partMap.entrySet())
-        {
-            ModelPart value = entry.getValue();
-            PoseTransform poseTransform = pose.transforms.get(entry.getKey());
-
-            if (poseTransform == null)
-            {
-                continue;
-            }
-
-            Transform transform = new Transform();
-
-            transform.translate.x = value.originX;
-            transform.translate.y = value.originY;
-            transform.translate.z = value.originZ;
-            transform.rotate.x = value.pitch;
-            transform.rotate.y = value.yaw;
-            transform.rotate.z = value.roll;
-            transform.scale.x = value.xScale;
-            transform.scale.y = value.yScale;
-            transform.scale.z = value.zScale;
-
-            /* Vanilla ModelPart holds euler pitch/yaw/roll only, so a quaternion pose bone is
-             * decomposed to its euler equivalent instead of reading the stale rotate triple. */
-            Vector3f rotation = poseTransform.getEulerRotation(new Vector3f());
-
-            value.originX += poseTransform.translate.x;
-            value.originY += poseTransform.translate.y;
-            value.originZ += poseTransform.translate.z;
-            value.pitch += rotation.x;
-            value.yaw += rotation.y;
-            value.roll += rotation.z;
-            value.xScale += poseTransform.scale.x - 1F;
-            value.yScale += poseTransform.scale.y - 1F;
-            value.zScale += poseTransform.scale.z - 1F;
-
-            cache.put(value, transform);
-        }
-    }
-
-    /** Undo {@link #applyCurrentPose} — the model instances are shared with the whole game. */
-    public static void restorePosedParts()
-    {
-        for (Map.Entry<ModelPart, Transform> entry : cache.entrySet())
-        {
-            Transform transform = entry.getValue();
-            ModelPart value = entry.getKey();
-
-            value.originX = transform.translate.x;
-            value.originY = transform.translate.y;
-            value.originZ = transform.translate.z;
-            value.pitch = transform.rotate.x;
-            value.yaw = transform.rotate.y;
-            value.roll = transform.rotate.z;
-            value.xScale = transform.scale.x;
-            value.yScale = transform.scale.y;
-            value.zScale = transform.scale.z;
-        }
-
-        cache.clear();
     }
 
     @Override
@@ -268,6 +164,14 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
     @Override
     public void renderBodyParts(FormRenderingContext context)
     {
+        /* Where the bones are, for the parts that ride one. Asked for only when something is bound,
+         * because it walks the whole part tree; the mob's own draw is over by now (bodies render
+         * after render3D), so the evaluation is free to write and restore the shared model. */
+        if (this.hasBoundBodyParts())
+        {
+            MobRigMatrices.evaluate(this.entity, this.getRig(), this.form.pose.get(), this.form.poseOverlay.get(), context.getTransition(), this.bones);
+        }
+
         for (BodyPart part : this.form.parts.getAllTyped())
         {
             Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
@@ -592,8 +496,10 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
         state.leashDatas = null;
         state.outlineColor = 0;
 
-        currentPose = this.mergedPose();
-        currentParts = parts.get(this.entity.getClass());
+        /* Publish the rig and the pose for the length of this flush: the parts take their final
+         * vanilla angles inside ModelCommandRenderer, at flush time, so the pose can only be added
+         * there (see ModelCommandRendererMixin). */
+        MobRenderContext mob = MobRenderContext.push(this.getRig(), this.form.pose.get(), this.form.poseOverlay.get());
 
         /* The custom-texture feature: 1.21.1 GL-bound the texture over the first drawn layer
          * (the body). Textures are per-layer now, so the first requested layer of this flush is
@@ -628,47 +534,8 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
         finally
         {
             consumers.setLayerMapper(null);
-            currentPose = null;
-            currentParts = null;
+            mob.pop();
         }
-    }
-
-    /** The form's pose with its overlay folded in — the merge the 1.21.1 mixin did per render. */
-    private Pose mergedPose()
-    {
-        Pose pose = this.form.pose.get();
-        Pose poseOverlay = this.form.poseOverlay.get();
-
-        if (pose == null)
-        {
-            return null;
-        }
-
-        pose = pose.copy();
-
-        if (poseOverlay != null)
-        {
-            for (Map.Entry<String, PoseTransform> transformEntry : poseOverlay.transforms.entrySet())
-            {
-                PoseTransform poseTransform = pose.get(transformEntry.getKey());
-                PoseTransform value = transformEntry.getValue();
-
-                if (value.fix != 0)
-                {
-                    poseTransform.translate.lerp(value.translate, value.fix);
-                    poseTransform.scale.lerp(value.scale, value.fix);
-                    poseTransform.lerpRotation(value, value.fix);
-                }
-                else
-                {
-                    poseTransform.translate.add(value.translate);
-                    poseTransform.scale.add(value.scale).sub(1, 1, 1);
-                    poseTransform.addRotation(value);
-                }
-            }
-        }
-
-        return pose;
     }
 
     @Override
