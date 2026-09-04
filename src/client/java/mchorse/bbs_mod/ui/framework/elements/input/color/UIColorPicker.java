@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.framework.elements.input.color;
 
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.graphics.ScreenPixelProbe;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -21,10 +23,7 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.glfw.GLFW;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.system.MemoryStack;
 
-import java.nio.FloatBuffer;
 import java.util.function.Consumer;
 
 /**
@@ -402,40 +401,45 @@ public class UIColorPicker extends UIElement
     /* Eyedropper */
 
     /**
-     * What the pixel under the cursor is, out of what's already been painted this frame.
+     * What the pixel under the cursor is.
      *
-     * <p>The read happens at the top of this element's own painting, which is the moment
-     * everything under the popup is on screen and the popup itself is not — so the dropper
-     * sees the viewport, the panels and other people's colors, right through its own window.</p>
+     * <p>Asked for here and answered by {@link ScreenPixelProbe} once the frame's interface has
+     * been composited, because that is the only moment it exists: the interface is deferred, so
+     * while this popup paints, nothing of it — or of the panels under it — has reached the
+     * framebuffer yet. The answer is a frame old, which the cursor does not outrun.</p>
+     *
+     * <p>Seeing through its own window is over with that: the dropper reads the finished picture,
+     * popup included. The sample patch is drawn beside the cursor, never under it, so what is
+     * taken is what the cursor is on.</p>
      */
     private int readPixelUnderCursor(UIContext context)
     {
         MinecraftClient mc = MinecraftClient.getInstance();
-        int width = mc.getWindow().getWidth();
-        int height = mc.getWindow().getHeight();
+        int width = mc.getWindow().getFramebufferWidth();
+        int height = mc.getWindow().getFramebufferHeight();
 
-        if (width <= 0 || height <= 0 || context.menu.width <= 0)
+        if (width <= 0 || height <= 0)
         {
             return this.color.getARGBColor();
         }
 
-        /* Nothing may still be sitting in a buffer: the read is of the framebuffer, not of the queue */
-        context.batcher.flush();
-
         /* The interface is drawn at its own scale; the framebuffer is in real pixels and upside down */
-        float scale = width / (float) context.menu.width;
+        float scale = BBSModClient.getGUIScale();
         int x = MathUtils.clamp(Math.round(context.globalX(context.mouseX) * scale), 0, width - 1);
         int y = MathUtils.clamp(height - 1 - Math.round(context.globalY(context.mouseY) * scale), 0, height - 1);
 
-        try (MemoryStack stack = MemoryStack.stackPush())
+        ScreenPixelProbe.request(x, y);
+
+        if (!ScreenPixelProbe.hasSample())
         {
-            FloatBuffer floats = stack.mallocFloat(4);
-
-            GL11.glReadPixels(x, y, 1, 1, GL11.GL_RGBA, GL11.GL_FLOAT, floats);
-
-            /* Whatever is on screen is opaque; the alpha being edited is the picker's own */
-            return this.sampledColor.set(floats.get(0), floats.get(1), floats.get(2), this.color.a).getARGBColor();
+            return this.color.getARGBColor();
         }
+
+        /* Whatever is on screen is opaque; the alpha being edited is the picker's own */
+        this.sampledColor.set(ScreenPixelProbe.getSample(), false);
+        this.sampledColor.a = this.color.a;
+
+        return this.sampledColor.getARGBColor();
     }
 
     /** Take the sampled color and put the dropper away. */
@@ -765,7 +769,7 @@ public class UIColorPicker extends UIElement
 
         this.handleDragging(context);
 
-        /* Before anything of this popup is painted: what the dropper sees is what's under it */
+        /* What the dropper sees: asked for here, answered off the composited frame (see the probe) */
         if (this.picking)
         {
             this.sampled = this.readPixelUnderCursor(context);

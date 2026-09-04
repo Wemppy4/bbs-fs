@@ -15,6 +15,7 @@ import mchorse.bbs_mod.client.renderer.MorphRenderer;
 import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
 import mchorse.bbs_mod.forms.structure.StructureWand;
 import mchorse.bbs_mod.utils.sodium.SodiumUtils;
+import mchorse.bbs_mod.graphics.ScreenPixelProbe;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureFormat;
 import mchorse.bbs_mod.mixin.client.FogRendererAccessor;
@@ -629,6 +630,10 @@ public class BBSRendering
      */
     public static void onRenderAfterInterface()
     {
+        /* The one moment in the frame where the interface is actually on the framebuffer, so this is
+         * where a read-back of it belongs (the colour picker's eyedropper). */
+        ScreenPixelProbe.fulfill();
+
         if (!deferredCapture)
         {
             return;
