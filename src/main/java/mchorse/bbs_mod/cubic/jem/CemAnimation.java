@@ -10,19 +10,23 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
- * A live, procedural OptiFine CEM animation: an ordered list of {@code variable = expression}
+ * A live, procedural OptiFine CEM animation program: an ordered list of {@code variable = expression}
  * statements that are evaluated every frame and written into the model's bones.
  *
  * <p>Unlike BBS's keyframe {@link mchorse.bbs_mod.cubic.data.animation.Animation}, this is not
- * interpolated — it's a per-frame script. Each frame it (1) feeds render/entity parameters into the
- * {@link CemParser}, (2) resets every bone's model variables ({@code <bone>.tx/rx/sx/...}) to their
- * rest defaults, (3) evaluates the statements in order (assignments mutate the shared variables, so
- * later statements see earlier results — including cross-bone references), then (4) writes the bone
- * variables back into each bone's transform. The {@code var.*}/{@code varb.*} entity variables are NOT
- * reset, so they persist between frames (CEM uses them for smoothing/drag state).</p>
+ * interpolated — it's a per-frame script. The program (parser, statements, bone bindings) is shared by
+ * every instance of the model; what persists between frames for one instance lives in a
+ * {@link CemState}, which the owning {@link CemAnimator} keeps. Each frame {@link #apply} (1) loads the
+ * state's {@code var.*}/{@code varb.*} values into the shared variables, (2) feeds render/entity
+ * parameters into the {@link CemParser}, (3) resets every bone's model variables
+ * ({@code <bone>.tx/rx/sx/...}) to their rest defaults, (4) evaluates the statements in order
+ * (assignments mutate the shared variables, so later statements see earlier results — including
+ * cross-bone references), (5) writes the bone variables back into each bone's transform, and (6) stores
+ * the entity variables back into the state (CEM uses them for smoothing/drag state).</p>
  *
  * <p>The variable-to-transform mapping matches Blockbench's CEM animation editor (the reference
  * implementation, {@code blockbench-plugins/.../cem_template_loader.js}). For every bone the rotation
@@ -58,11 +62,11 @@ public class CemAnimation
     private final List<Statement> statements = new ArrayList<>();
     private final List<Binding> bindings = new ArrayList<>();
 
-    /** Per-frame timestamp (entity age in ticks) of the last advanced frame; NaN until the first. */
-    private double lastFrameStamp = Double.NaN;
-    /** Wall-clock fallback timestamp for when there is no entity clock (e.g. a UI preview). */
-    private long lastNanos;
-    private int frameCounter;
+    /**
+     * The {@code var.*}/{@code varb.*} entity variables in a fixed order — the persistent slots of a
+     * {@link CemState}. Collected once in {@link #setup}, after every statement has been parsed.
+     */
+    private final List<Variable> entityVariables = new ArrayList<>();
 
     public CemAnimation()
     {
@@ -80,7 +84,7 @@ public class CemAnimation
         this.statements.add(new Statement(this.parser.getOrCreateVariable(target), this.parser.parseExpression(expression)));
     }
 
-    /** Build the per-bone variable bindings once the model hierarchy is known. */
+    /** Build the per-bone variable bindings and the entity variable list once the model hierarchy is known. */
     public void setup(Model model)
     {
         this.bindings.clear();
@@ -89,6 +93,25 @@ public class CemAnimation
         {
             this.bindings.add(new Binding(group, kind(group)));
         }
+
+        this.entityVariables.clear();
+
+        for (Variable variable : this.parser.variables.values())
+        {
+            if (isEntityVariable(variable.getName()))
+            {
+                this.entityVariables.add(variable);
+            }
+        }
+
+        /* A fixed order, so a state's slots mean the same thing however the parser's map iterates. */
+        this.entityVariables.sort(Comparator.comparing(Variable::getName));
+    }
+
+    /** CEM's entity variables: the only ones that persist between frames. */
+    private static boolean isEntityVariable(String name)
+    {
+        return name.startsWith("var.") || name.startsWith("varb.");
     }
 
     /** Classify a bone by its depth in the (flat-rooted) hierarchy — see {@link #TOP}/{@link #SUB1}/{@link #SUBN}. */
@@ -102,15 +125,22 @@ public class CemAnimation
         return group.parent.parent == null ? SUB1 : SUBN;
     }
 
-    /** Evaluate the animation for this frame and apply it to the model's bones. */
-    public void apply(IEntity target, float transition)
+    /** A fresh per-instance state for this program; sized by the entity variables, so call it after {@link #setup}. */
+    public CemState createState()
+    {
+        return new CemState(this.entityVariables.size());
+    }
+
+    /** Evaluate the animation for this frame on the given instance state and apply it to the model's bones. */
+    public void apply(CemState state, IEntity target, float transition)
     {
         if (!ENABLED || this.statements.isEmpty())
         {
             return;
         }
 
-        this.setParameters(target, transition);
+        state.load(this.entityVariables);
+        this.setParameters(state, target, transition);
 
         for (Binding binding : this.bindings)
         {
@@ -126,9 +156,11 @@ public class CemAnimation
         {
             binding.writeback();
         }
+
+        state.store(this.entityVariables);
     }
 
-    private void setParameters(IEntity target, float transition)
+    private void setParameters(CemState state, IEntity target, float transition)
     {
         /* Advance the procedural clock once per RENDERED FRAME, not once per render pass. A model can
          * be drawn several times per frame (main pass, stencil/picking, ...); the entity's age (ticks)
@@ -142,15 +174,15 @@ public class CemAnimation
         {
             double stamp = target.getAge() + transition;
 
-            if (stamp != this.lastFrameStamp)
+            if (stamp != state.lastFrameStamp)
             {
-                if (!Double.isNaN(this.lastFrameStamp))
+                if (!Double.isNaN(state.lastFrameStamp))
                 {
-                    frameTime = Math.max(0D, Math.min(0.5D, (stamp - this.lastFrameStamp) / 20D));
+                    frameTime = Math.max(0D, Math.min(0.5D, (stamp - state.lastFrameStamp) / 20D));
                 }
 
-                this.lastFrameStamp = stamp;
-                this.frameCounter = (this.frameCounter + 1) % 27720;
+                state.lastFrameStamp = stamp;
+                state.frameCounter = (state.frameCounter + 1) % 27720;
             }
         }
         else
@@ -158,13 +190,13 @@ public class CemAnimation
             /* No entity clock: fall back to wall time and treat every call as its own frame. */
             long now = System.nanoTime();
 
-            frameTime = this.lastNanos == 0 ? 0 : Math.min(0.5D, (now - this.lastNanos) / 1.0e9D);
-            this.lastNanos = now;
-            this.frameCounter = (this.frameCounter + 1) % 27720;
+            frameTime = state.lastNanos == 0 ? 0 : Math.min(0.5D, (now - state.lastNanos) / 1.0e9D);
+            state.lastNanos = now;
+            state.frameCounter = (state.frameCounter + 1) % 27720;
         }
 
         this.parser.setValue("frame_time", frameTime);
-        this.parser.setValue("frame_counter", this.frameCounter);
+        this.parser.setValue("frame_counter", state.frameCounter);
 
         if (target == null)
         {

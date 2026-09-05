@@ -18,6 +18,7 @@ import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
+import mchorse.bbs_mod.cubic.jem.CemAnimator;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
@@ -308,12 +309,26 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return;
         }
 
-        this.animator = model.isProcedural() ? new ProceduralAnimator() : new Animator();
+        this.animator = createAnimator(model);
         this.animator.setup(model, actionsConfig, false);
 
         this.lastConfigs = new ActionsConfig();
         this.lastConfigs.copy(actionsConfig);
         this.lastModel = model;
+    }
+
+    /**
+     * The animator stage for a model: a .jem's live CEM program drives it, otherwise the config's
+     * choice between vanilla-like procedural and keyframe actions.
+     */
+    private static IAnimator createAnimator(ModelInstance model)
+    {
+        if (model.cemAnimation != null)
+        {
+            return new CemAnimator(model.cemAnimation);
+        }
+
+        return model.isProcedural() ? new ProceduralAnimator() : new Animator();
     }
 
     @Override
@@ -422,7 +437,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
          * honest answer, so they run model-local, as they do in the UI. */
         Matrix4f baseTransform = ui || world == null ? null : new Matrix4f(world.peek().getPositionMatrix());
 
-        this.applyCem(target, model, transition);
         this.applyIK(model, baseTransform);
         this.applyPhysics(target, model, transition, baseTransform);
         this.applyConstraints(model);
@@ -512,19 +526,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             {
                 this.renderArmor(target, stack, entry.getKey(), entry.getValue(), finalColor, overlay, light);
             }
-        }
-    }
-
-    /**
-     * Apply the model's live procedural CEM animation (for .jem models), the same "post-pose runtime"
-     * stage as IK/physics/constraints. Unlike them it writes every bone's transform outright, so it
-     * runs first — the constraint stages then resolve on top of what CEM produced.
-     */
-    private void applyCem(IEntity target, ModelInstance model, float transition)
-    {
-        if (model.cemAnimation != null)
-        {
-            model.cemAnimation.apply(target, transition);
         }
     }
 
