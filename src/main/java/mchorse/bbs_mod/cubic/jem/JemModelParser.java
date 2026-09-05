@@ -97,7 +97,7 @@ public class JemModelParser
                 continue;
             }
 
-            JsonObject entry = resolveEntry(element.getAsJsonObject(), resolver);
+            JsonObject entry = resolveEntry(element.getAsJsonObject(), resolver, parse);
             String id = getString(entry, "id", getString(entry, "part", null));
 
             if (id == null)
@@ -264,18 +264,26 @@ public class JemModelParser
     /**
      * Merge an external .jpm part model (referenced via {@code "model"}) into the entry, letting the
      * entry's own keys win.
+     *
+     * <p>A reference that resolves to nothing leaves the entry as it stands — a bone with no boxes and
+     * no animation — and says so. It is the one quirk that costs a whole limb rather than a detail, and
+     * it looks exactly like a model that was drawn that way: the {@code player cem+} pack asks for a
+     * {@code player_face.jpm} it does not ship, and the face simply was not there.</p>
      */
-    private static JsonObject resolveEntry(JsonObject entry, JpmResolver resolver)
+    private static JsonObject resolveEntry(JsonObject entry, JpmResolver resolver, Parse parse)
     {
         if (!entry.has("model") || resolver == null)
         {
             return entry;
         }
 
-        JsonObject jpm = resolver.apply(entry.get("model").getAsString());
+        String reference = entry.get("model").getAsString();
+        JsonObject jpm = resolver.apply(reference);
 
         if (jpm == null)
         {
+            parse.warn("part model \"" + reference + "\" was not found - the part it belongs to is empty");
+
             return entry;
         }
 
