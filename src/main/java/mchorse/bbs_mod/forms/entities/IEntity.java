@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.entities;
 
+import mchorse.bbs_mod.cubic.jem.CemVariables;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.utils.AABB;
 import net.minecraft.entity.EntityPose;
@@ -85,6 +86,19 @@ public interface IEntity
     public float getHandSwingProgress(float tickDelta);
 
     public int getAge();
+
+    /**
+     * The CEM variables of this entity, or null when this implementation keeps none (every CEM model on
+     * it then animates on its own, the way they all did before).
+     *
+     * <p>OptiFine scopes a pack's {@code var.*}/{@code varb.*} to the entity, so its models can read each
+     * other — see {@link CemVariables}. Created on first use: an entity that never renders a .jem never
+     * allocates one.</p>
+     */
+    public default CemVariables getCemVariables()
+    {
+        return null;
+    }
 
     public void setAge(int ticks);
 

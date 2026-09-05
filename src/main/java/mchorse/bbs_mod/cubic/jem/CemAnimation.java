@@ -28,11 +28,11 @@ import java.util.Set;
  * {@link CemState}, which the owning {@link CemAnimator} keeps. Each frame {@link #apply} (1) advances
  * the state's clock (which may re-seed the state — see {@link CemState#advance}), (2) loads the state's
  * {@code var.*}/{@code varb.*} values into the shared variables, (3) feeds render/entity parameters into
- * the {@link CemParser}, (4) resets every bone's model variables ({@code <bone>.tx/rx/sx/...}) to their
- * rest defaults, (5) evaluates the statements in order (assignments mutate the shared variables, so
+ * the {@link CemParser}, (4) seeds every bone's model variables ({@code <bone>.tx/rx/sx/...}) from the pose the
+ * vanilla stage left on it, (5) evaluates the statements in order (assignments mutate the shared variables, so
  * later statements see earlier results — including cross-bone references), (6) writes the bone
- * variables back into each bone's transform, and (7) stores the entity variables back into the state
- * (CEM uses them for smoothing/drag state).</p>
+ * variables back into each bone's transform, and (7) stores the entity variables back (they are the entity's,
+ * shared with its other CEM models — see {@link CemVariables}).</p>
  *
  * <p>The variable-to-transform mapping matches Blockbench's CEM animation editor (the reference
  * implementation, {@code blockbench-plugins/.../cem_template_loader.js}). For every bone the rotation
@@ -47,8 +47,8 @@ import java.util.Set;
  *     <li><b>Direct submodel of a top-level part:</b> {@code translate = (-tx, -ty, tz)}.</li>
  *     <li><b>Deeper submodel:</b> {@code translate = (Op.x - tx, Op.y - ty, Op.z + tz)}.</li>
  * </ul>
- * The rest defaults are the inverse of each writeback, so an un-driven (or only cross-referenced) bone
- * reproduces its rest pose exactly.
+ * The seeds are the inverse of each writeback, so an un-driven (or only cross-referenced) bone writes back
+ * exactly the pose it came in with.
  */
 public class CemAnimation
 {
@@ -148,10 +148,14 @@ public class CemAnimation
         return group.parent.parent == null ? SUB1 : SUBN;
     }
 
-    /** A fresh per-instance state for this program; sized by the entity variables, so call it after {@link #setup}. */
+    /**
+     * A state with a store of its own — for an instance with no entity to share one with (a UI preview,
+     * a probe). On an entity the animator binds the state to {@link mchorse.bbs_mod.forms.entities.IEntity#getCemVariables()}
+     * instead, so the entity's models see each other's variables.
+     */
     public CemState createState()
     {
-        return new CemState(this.entityVariables.size());
+        return new CemState(new CemVariables());
     }
 
     /** Evaluate the animation for this frame on the given instance state and apply it to the model's bones. */

@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.entities;
 
+import mchorse.bbs_mod.cubic.jem.CemVariables;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.utils.AABB;
@@ -230,6 +231,24 @@ public class StubEntity implements IEntity
     public float getHandSwingProgress(float tickDelta)
     {
         return this.armSwing <= 0 ? 0F : 1F - (this.armSwing - tickDelta) / 6F;
+    }
+
+    /** Lazily made: an entity that never renders a CEM model never allocates one. */
+    private CemVariables cemVariables;
+
+    /**
+     * The CEM variables of this entity, made on first use — every CEM model rendered on it shares them,
+     * which is how a pack's cape follows its body. See {@link CemVariables}.
+     */
+    @Override
+    public CemVariables getCemVariables()
+    {
+        if (this.cemVariables == null)
+        {
+            this.cemVariables = new CemVariables();
+        }
+
+        return this.cemVariables;
     }
 
     @Override

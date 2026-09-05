@@ -25,6 +25,11 @@ import java.util.List;
  * names ({@code head}, {@code body}, {@code right_arm}…) the packs use, so it is the one to run. With
  * no entity there is no vanilla frame either, and the program evaluates over the rest pose.</p>
  *
+ * <p>The program's {@code var.*}/{@code varb.*} are not the animator's: they belong to the entity, so
+ * every CEM model on it reads what the others wrote — that is how a pack's cape follows its body (see
+ * {@link CemVariables}). The frame clock in {@link CemState} does stay here, per model, and the state is
+ * rebuilt whenever the entity under it changes.</p>
+ *
  * <p>There are no named actions: a .jem carries no keyframe animations.</p>
  */
 public class CemAnimator implements IAnimator
@@ -32,12 +37,16 @@ public class CemAnimator implements IAnimator
     private final ProceduralAnimator vanilla = new ProceduralAnimator();
 
     private final CemAnimation program;
-    private final CemState state;
+
+    /** The store for an instance with no entity to share one with — a UI preview. */
+    private final CemVariables own = new CemVariables();
+
+    private CemState state;
+    private CemVariables bound;
 
     public CemAnimator(CemAnimation program)
     {
         this.program = program;
-        this.state = program.createState();
     }
 
     @Override
@@ -56,7 +65,30 @@ public class CemAnimator implements IAnimator
     public void applyActions(IEntity entity, IModelInstance cubicModel, float transition)
     {
         this.vanilla.applyActions(entity, cubicModel, transition);
-        this.program.apply(this.state, entity, transition);
+        this.program.apply(this.state(entity), entity, transition);
+    }
+
+    /**
+     * This model's clock, bound to the store it draws its variables from: the entity's, or this
+     * animator's own without one. A new store means a different entity, and a clock that says nothing
+     * about it — so the state starts over rather than carrying a stranger's frame stamp.
+     */
+    private CemState state(IEntity entity)
+    {
+        CemVariables variables = entity == null ? null : entity.getCemVariables();
+
+        if (variables == null)
+        {
+            variables = this.own;
+        }
+
+        if (this.state == null || this.bound != variables)
+        {
+            this.state = new CemState(variables);
+            this.bound = variables;
+        }
+
+        return this.state;
     }
 
     @Override

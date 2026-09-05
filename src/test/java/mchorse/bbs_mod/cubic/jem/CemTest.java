@@ -1,5 +1,10 @@
 package mchorse.bbs_mod.cubic.jem;
 
+import mchorse.bbs_mod.math.Variable;
+
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Standalone manual sanity test for the CEM expression engine ({@link CemParser}) and the instance
  * clock ({@link CemState}).
@@ -12,6 +17,8 @@ package mchorse.bbs_mod.cubic.jem;
  */
 public class CemTest
 {
+    private static final String SHARED_HEADER = System.lineSeparator() + "--- entity variables are shared between models (CemVariables) ---";
+
     private static final CemParser PARSER = new CemParser();
     private static int fails = 0;
 
@@ -53,25 +60,68 @@ public class CemTest
         parses("var.r +age/(11.5-2*random(id))");
 
         System.out.println("\n--- instance clock (CemState.advance) ---");
-        CemState state = new CemState(1);
+        CemVariables variables = new CemVariables();
+        CemState state = new CemState(variables);
+        List<Variable> slots = Collections.singletonList(new Variable("var.drag", 0));
 
-        state.values[0] = 7;
+        put(state, slots, 7);
         clock("first sight", state.advance(10.0), 0);
         clock("one tick forward", state.advance(11.0), 0.05);
         clock("same frame again", state.advance(11.0), 0);
         clock("same tick, earlier partial (a resample)", state.advance(10.5), 0);
-        flag("resample keeps the state", state.values[0] == 7 && state.frameCounter == 2);
+        flag("resample keeps the state", get(state, slots) == 7 && state.frameCounter == 2);
         clock("next tick, stepped from the real last frame", state.advance(12.0), 0.05);
         clock("scrub back", state.advance(5.0), 0);
-        flag("scrub back re-seeds", state.values[0] == 0 && state.frameCounter == 1);
-        state.values[0] = 3;
+        flag("scrub back re-seeds", get(state, slots) == 0 && state.frameCounter == 1);
+        put(state, slots, 3);
         clock("jump forward past the catch-up limit", state.advance(20.0), 0);
-        flag("jump re-seeds", state.values[0] == 0 && state.frameCounter == 1);
+        flag("jump re-seeds", get(state, slots) == 0 && state.frameCounter == 1);
         clock("quarter tick", state.advance(20.25), 0.0125);
         clock("a whole catch-up window is still stepped", state.advance(24.25), 0.2);
 
+        System.out.println(SHARED_HEADER);
+
+        CemVariables entity = new CemVariables();
+        CemState bodyClock = new CemState(entity);
+        CemState capeClock = new CemState(entity);
+
+        /* Two programs, each with its own Variable object for the same name: a body publishing a value
+         * and a cape of the same entity reading it, which is all Fresh Moves' cape has to go on. */
+        List<Variable> body = Collections.singletonList(new Variable("var.player_body_rx", 0));
+        List<Variable> cape = Collections.singletonList(new Variable("var.player_body_rx", 0));
+
+        put(bodyClock, body, 0.42);
+        capeClock.load(cape);
+        flag("a model reads what another model of the entity wrote", cape.get(0).doubleValue() == 0.42);
+
+        CemState alone = new CemState(new CemVariables());
+        List<Variable> stranger = Collections.singletonList(new Variable("var.player_body_rx", 0));
+
+        alone.load(stranger);
+        flag("a store of its own stays empty", stranger.get(0).doubleValue() == 0);
+
+        bodyClock.advance(5.0);
+        bodyClock.advance(1.0);
+        capeClock.load(cape);
+        flag("a re-seed clears the whole entity, cape included", cape.get(0).doubleValue() == 0);
+
         System.out.println(fails == 0 ? "\n=== ALL PASS ===" : "\n=== " + fails + " FAILED ===");
     }
+
+    /** Write a value into the state's store, the way a frame's statements leave one behind. */
+    private static void put(CemState state, List<Variable> slots, double value)
+    {
+        slots.get(0).set(value);
+        state.store(slots);
+    }
+
+    private static double get(CemState state, List<Variable> slots)
+    {
+        state.load(slots);
+
+        return slots.get(0).doubleValue();
+    }
+
 
     private static void check(String expr, double expected)
     {

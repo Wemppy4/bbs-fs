@@ -2,18 +2,20 @@ package mchorse.bbs_mod.cubic.jem;
 
 import mchorse.bbs_mod.math.Variable;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
- * The per-instance half of a CEM animation: what persists between frames for ONE animated instance
- * (a form renderer — a replay, a mob, a UI preview), while the {@link CemAnimation} program (parser,
- * statements, bone bindings) is shared by every instance of the model. The program loads these slots
- * into its {@code var.*}/{@code varb.*} variables before evaluating a frame and stores them back after,
- * so two instances of the same model never see each other's smoothing/drag state, and a UI preview never
- * bleeds into the film.
+ * The frame clock of ONE animated instance (a form renderer — a replay, a mob, a UI preview), plus the
+ * {@link CemVariables} that instance reads and writes, while the {@link CemAnimation} program (parser,
+ * statements, bone bindings) is shared by every instance of the model.
  *
- * <p>The instance clock lives here too — see {@link #advance}.</p>
+ * <p>The two halves have deliberately different scopes. The variables belong to the <em>entity</em>, so
+ * every CEM model on it sees the same values — OptiFine's contract, and what carries Fresh Moves' cape
+ * along with the body. The clock stays per instance: a shared one would hand the frame's real {@code
+ * frame_time} to whichever model rendered first and leave the rest integrating against zero, so the body
+ * would freeze whenever the cape happened to be drawn ahead of it.</p>
+ *
+ * <p>See {@link #advance} for the clock's rules.</p>
  */
 public class CemState
 {
@@ -26,8 +28,8 @@ public class CemState
     /** {@code frame_counter} wraps here — OptiFine's period, divisible by every small cycle length. */
     private static final int FRAME_COUNTER_PERIOD = 27720;
 
-    /** {@code var.*}/{@code varb.*} values, indexed like the program's entity variable list. */
-    final double[] values;
+    /** Where this instance's {@code var.*}/{@code varb.*} live — the entity's store, shared with its other CEM models. */
+    private final CemVariables variables;
 
     /** Entity clock (age + partial tick) of the last advanced frame; NaN until the first. */
     double lastFrameStamp = Double.NaN;
@@ -37,9 +39,9 @@ public class CemState
 
     int frameCounter;
 
-    CemState(int variables)
+    public CemState(CemVariables variables)
     {
-        this.values = new double[variables];
+        this.variables = variables;
     }
 
     /**
@@ -98,28 +100,26 @@ public class CemState
         return frameTime;
     }
 
-    /** Forget everything the animation accumulated: the next frame starts the way the first one did. */
+    /**
+     * Forget everything the animation accumulated: the next frame starts the way the first one did.
+     * It clears the entity's whole store, so every CEM model on it restarts together — which is right,
+     * they animate one timeline.
+     */
     void reseed()
     {
-        Arrays.fill(this.values, 0D);
+        this.variables.clear();
         this.frameCounter = 0;
     }
 
-    /** Push the persisted values into the program's shared variables before a frame is evaluated. */
+    /** Push the persisted values into the program's variables before a frame is evaluated. */
     void load(List<Variable> variables)
     {
-        for (int i = 0; i < this.values.length; i++)
-        {
-            variables.get(i).set(this.values[i]);
-        }
+        this.variables.load(variables);
     }
 
-    /** Pull the values the frame left in the shared variables back into this instance. */
+    /** Pull the values the frame left in the program's variables back into the store. */
     void store(List<Variable> variables)
     {
-        for (int i = 0; i < this.values.length; i++)
-        {
-            this.values[i] = variables.get(i).doubleValue();
-        }
+        this.variables.store(variables);
     }
 }
