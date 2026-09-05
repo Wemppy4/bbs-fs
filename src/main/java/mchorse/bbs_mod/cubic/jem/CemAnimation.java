@@ -20,13 +20,14 @@ import java.util.List;
  * <p>Unlike BBS's keyframe {@link mchorse.bbs_mod.cubic.data.animation.Animation}, this is not
  * interpolated — it's a per-frame script. The program (parser, statements, bone bindings) is shared by
  * every instance of the model; what persists between frames for one instance lives in a
- * {@link CemState}, which the owning {@link CemAnimator} keeps. Each frame {@link #apply} (1) loads the
- * state's {@code var.*}/{@code varb.*} values into the shared variables, (2) feeds render/entity
- * parameters into the {@link CemParser}, (3) resets every bone's model variables
- * ({@code <bone>.tx/rx/sx/...}) to their rest defaults, (4) evaluates the statements in order
- * (assignments mutate the shared variables, so later statements see earlier results — including
- * cross-bone references), (5) writes the bone variables back into each bone's transform, and (6) stores
- * the entity variables back into the state (CEM uses them for smoothing/drag state).</p>
+ * {@link CemState}, which the owning {@link CemAnimator} keeps. Each frame {@link #apply} (1) advances
+ * the state's clock (which may re-seed the state — see {@link CemState#advance}), (2) loads the state's
+ * {@code var.*}/{@code varb.*} values into the shared variables, (3) feeds render/entity parameters into
+ * the {@link CemParser}, (4) resets every bone's model variables ({@code <bone>.tx/rx/sx/...}) to their
+ * rest defaults, (5) evaluates the statements in order (assignments mutate the shared variables, so
+ * later statements see earlier results — including cross-bone references), (6) writes the bone
+ * variables back into each bone's transform, and (7) stores the entity variables back into the state
+ * (CEM uses them for smoothing/drag state).</p>
  *
  * <p>The variable-to-transform mapping matches Blockbench's CEM animation editor (the reference
  * implementation, {@code blockbench-plugins/.../cem_template_loader.js}). For every bone the rotation
@@ -139,8 +140,19 @@ public class CemAnimation
             return;
         }
 
+        /* The entity clock is the frame id: constant across the passes of one frame, growing between
+         * frames. Without an entity (a UI preview) the state falls back to wall time. */
+        double frameTime = state.advance(target == null ? Double.NaN : target.getAge() + transition);
+
         state.load(this.entityVariables);
-        this.setParameters(state, target, transition);
+
+        this.parser.setValue("frame_time", frameTime);
+        this.parser.setValue("frame_counter", state.frameCounter);
+
+        if (target != null)
+        {
+            this.setParameters(target, transition);
+        }
 
         for (Binding binding : this.bindings)
         {
@@ -160,49 +172,9 @@ public class CemAnimation
         state.store(this.entityVariables);
     }
 
-    private void setParameters(CemState state, IEntity target, float transition)
+    /** Feed the entity's render parameters into the parser for this frame. */
+    private void setParameters(IEntity target, float transition)
     {
-        /* Advance the procedural clock once per RENDERED FRAME, not once per render pass. A model can
-         * be drawn several times per frame (main pass, stencil/picking, ...); the entity's age (ticks)
-         * plus the partial tick is constant across those passes but strictly grows between frames, so
-         * it is the right "frame id". On a repeated pass frame_time is 0 and frame_counter is frozen,
-         * which (together with the animations' own frame_counter == var.pre_frame_counter guard) makes
-         * the re-evaluation reproduce the exact same pose instead of double-stepping the var.* drags. */
-        double frameTime = 0;
-
-        if (target != null)
-        {
-            double stamp = target.getAge() + transition;
-
-            if (stamp != state.lastFrameStamp)
-            {
-                if (!Double.isNaN(state.lastFrameStamp))
-                {
-                    frameTime = Math.max(0D, Math.min(0.5D, (stamp - state.lastFrameStamp) / 20D));
-                }
-
-                state.lastFrameStamp = stamp;
-                state.frameCounter = (state.frameCounter + 1) % 27720;
-            }
-        }
-        else
-        {
-            /* No entity clock: fall back to wall time and treat every call as its own frame. */
-            long now = System.nanoTime();
-
-            frameTime = state.lastNanos == 0 ? 0 : Math.min(0.5D, (now - state.lastNanos) / 1.0e9D);
-            state.lastNanos = now;
-            state.frameCounter = (state.frameCounter + 1) % 27720;
-        }
-
-        this.parser.setValue("frame_time", frameTime);
-        this.parser.setValue("frame_counter", state.frameCounter);
-
-        if (target == null)
-        {
-            return;
-        }
-
         float headYaw = Lerps.lerp(target.getPrevHeadYaw(), target.getHeadYaw(), transition);
         float bodyYaw = Lerps.lerp(target.getPrevBodyYaw(), target.getBodyYaw(), transition);
         float pitch = Lerps.lerp(target.getPrevPitch(), target.getPitch(), transition);

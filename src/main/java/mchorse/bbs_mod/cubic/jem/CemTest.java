@@ -44,7 +44,40 @@ public class CemTest
         parses("is_swinging_right_arm && is_using_item &&( is_blocking || ( is_right_handed&&nbt(SelectedItem.id, raw:iregex:.*shield.*)) )");
         parses("var.r +age/(11.5-2*random(id))");
 
+        System.out.println("\n--- instance clock (CemState.advance) ---");
+        CemState state = new CemState(1);
+
+        state.values[0] = 7;
+        clock("first sight", state.advance(10.0), 0);
+        clock("one tick forward", state.advance(11.0), 0.05);
+        clock("same frame again", state.advance(11.0), 0);
+        clock("same tick, earlier partial (a resample)", state.advance(10.5), 0);
+        flag("resample keeps the state", state.values[0] == 7 && state.frameCounter == 2);
+        clock("next tick, stepped from the real last frame", state.advance(12.0), 0.05);
+        clock("scrub back", state.advance(5.0), 0);
+        flag("scrub back re-seeds", state.values[0] == 0 && state.frameCounter == 1);
+        state.values[0] = 3;
+        clock("jump forward past the catch-up limit", state.advance(20.0), 0);
+        flag("jump re-seeds", state.values[0] == 0 && state.frameCounter == 1);
+        clock("quarter tick", state.advance(20.25), 0.0125);
+        clock("a whole catch-up window is still stepped", state.advance(24.25), 0.2);
+
         System.out.println(fails == 0 ? "\n=== ALL PASS ===" : "\n=== " + fails + " FAILED ===");
+    }
+
+    private static void clock(String label, double frameTime, double expected)
+    {
+        flag(String.format("%s: frame_time %.4f (want %.4f)", label, frameTime, expected), Math.abs(frameTime - expected) < 1e-9);
+    }
+
+    private static void flag(String label, boolean ok)
+    {
+        if (!ok)
+        {
+            fails += 1;
+        }
+
+        System.out.printf("%s  %s%n", ok ? "OK  " : "FAIL", label);
     }
 
     private static void check(String expr, double expected)
