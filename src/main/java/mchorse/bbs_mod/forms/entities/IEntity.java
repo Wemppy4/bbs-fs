@@ -146,6 +146,77 @@ public interface IEntity
         return false;
     }
 
+    /**
+     * Vanilla's health for an entity that declares none: a whole one. Zero is not a neutral stand-in
+     * for "unknown" — a CEM pack reads health as a fraction of the maximum and poses the entity by it,
+     * so Fresh Animations' iron golem, whose whole file is written around {@code if(health<=15, ...)},
+     * spent every frame in its dying posture, and its magma cube divided by {@code sqrt(max_health)}.
+     */
+    public static final float FULL_HEALTH = 20F;
+
+    /** Health left, in half-hearts, as CEM's {@code health}. */
+    public default float getHealth()
+    {
+        return FULL_HEALTH;
+    }
+
+    /** Health at full, in half-hearts, as CEM's {@code max_health}. Never zero: packs divide by it. */
+    public default float getMaxHealth()
+    {
+        return FULL_HEALTH;
+    }
+
+    /** On fire, as CEM's {@code is_burning}. */
+    public default boolean isBurning()
+    {
+        return false;
+    }
+
+    /** Standing in lava, as CEM's {@code is_in_lava}. */
+    public default boolean isInLava()
+    {
+        return false;
+    }
+
+    /** Holding onto a ladder or a vine, as CEM's {@code is_climbing}. */
+    public default boolean isClimbing()
+    {
+        return false;
+    }
+
+    /** Crawling under a low ceiling, as CEM's {@code is_crawling}. */
+    public default boolean isCrawling()
+    {
+        return false;
+    }
+
+    /**
+     * Sitting down, as CEM's {@code is_sitting} — a tamed pet ordered to stay, a fox asleep, a roosting
+     * bat. It is a pose the entity holds, not a posture the animation passes through.
+     */
+    public default boolean isSitting()
+    {
+        return false;
+    }
+
+    /** Tamed by a player, as CEM's {@code is_tamed}. */
+    public default boolean isTamed()
+    {
+        return false;
+    }
+
+    /** Attacking or angered, as CEM's {@code is_aggressive}. */
+    public default boolean isAggressive()
+    {
+        return false;
+    }
+
+    /** Riding a player's shoulder, as CEM's {@code is_on_shoulder} — a parrot, and nothing else in vanilla. */
+    public default boolean isOnShoulder()
+    {
+        return false;
+    }
+
     public double getX();
 
     public double getPrevX();

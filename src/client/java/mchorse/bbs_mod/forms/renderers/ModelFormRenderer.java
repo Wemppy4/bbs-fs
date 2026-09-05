@@ -272,6 +272,14 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         BBSProfiler.count(BBSProfiler.Section.EVALUATE_CHANNELS);
 
         model.model.resetPose();
+
+        /* The states a CEM pack asks about that only the form can answer — sitting, tamed, angry. Read
+         * here rather than kept in sync, so a keyframe on one of them lands the frame it changes. */
+        if (this.animator instanceof CemAnimator cem)
+        {
+            cem.status.read(this.form);
+        }
+
         this.animator.applyActions(entity, model, transition);
 
         /* The config's default pose sits under the form's, the same additive layer: the posture the

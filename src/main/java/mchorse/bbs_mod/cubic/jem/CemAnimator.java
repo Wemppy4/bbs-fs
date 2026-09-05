@@ -54,6 +54,13 @@ public class CemAnimator implements IAnimator
      */
     private final StubEntity preview = new StubEntity();
 
+    /**
+     * The states the form sets by hand, refilled by the renderer each frame — see {@link CemStatus}.
+     * It lives on the animator rather than on the program because a program is shared by every form
+     * using that model, while an animator is one form's.
+     */
+    public final CemStatus status = new CemStatus();
+
     /** The preview clock, in ticks, off wall time — a preview has no entity age to follow. */
     private double previewTicks;
     private long previewNanos;
@@ -86,7 +93,7 @@ public class CemAnimator implements IAnimator
         }
 
         this.vanilla.applyActions(entity, cubicModel, transition);
-        this.program.apply(this.state(entity), entity, transition, inGui);
+        this.program.apply(this.state(entity), entity, transition, inGui, this.status);
     }
 
     /** The stand-in entity, its clock stepped to now. */

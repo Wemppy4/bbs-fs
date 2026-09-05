@@ -113,6 +113,12 @@ public class CemAnimation
     public CemAnimation()
     {
         this.parser = new CemParser();
+
+        /* Health is the one pair a pack may not read as zero (see setParameters), and a program can be
+         * evaluated with no entity at all - a probe, or the 3-argument apply. Seeded once here rather
+         * than branched on every frame: with an entity, setParameters writes over it. */
+        this.parser.setValue("health", IEntity.FULL_HEALTH);
+        this.parser.setValue("max_health", IEntity.FULL_HEALTH);
     }
 
     /** Note a bone as positioned relative to its parent's pivot — call before {@link #setup}. */
@@ -194,15 +200,18 @@ public class CemAnimation
     /** Evaluate the animation for this frame on the given instance state and apply it to the model's bones. */
     public void apply(CemState state, IEntity target, float transition)
     {
-        this.apply(state, target, transition, target == null);
+        this.apply(state, target, transition, target == null, null);
     }
 
     /**
      * The same, told explicitly whether this is a preview rather than the world — CEM's {@code is_in_gui}.
      * A preview has no entity of its own, so the caller hands one over that stands in for it; without the
      * flag the two would be the same question and a stand-in would read as the world.
+     *
+     * <p>{@code status} carries the states the form sets by hand over the entity's own, and may be null
+     * for a caller that has no form behind it — a probe, or a model rendered outside a form.</p>
      */
-    public void apply(CemState state, IEntity target, float transition, boolean inGui)
+    public void apply(CemState state, IEntity target, float transition, boolean inGui, CemStatus status)
     {
         if (this.statements.isEmpty())
         {
@@ -225,12 +234,12 @@ public class CemAnimation
             {
                 for (int ticksAgo = WARM_UP_TICKS; ticksAgo > 0; ticksAgo -= WARM_UP_STEP)
                 {
-                    this.evaluate(state, target, transition, inGui, WARM_UP_STEP / 20D, -ticksAgo);
+                    this.evaluate(state, target, transition, inGui, status, WARM_UP_STEP / 20D, -ticksAgo);
                 }
             }
         }
 
-        this.evaluate(state, target, transition, inGui, frameTime, 0);
+        this.evaluate(state, target, transition, inGui, status, frameTime, 0);
 
         state.store(this.entityVariables);
     }
@@ -239,7 +248,7 @@ public class CemAnimation
      * One pass of the program: parameters in, bones out. {@code ticksAgo} is 0 for the frame being
      * rendered and negative for a warm-up pass, which stands that many ticks before it.
      */
-    private void evaluate(CemState state, IEntity target, float transition, boolean inGui, double frameTime, int ticksAgo)
+    private void evaluate(CemState state, IEntity target, float transition, boolean inGui, CemStatus status, double frameTime, int ticksAgo)
     {
         this.parser.setValue("frame_time", frameTime);
 
@@ -251,7 +260,7 @@ public class CemAnimation
 
         if (target != null)
         {
-            this.setParameters(target, transition, ticksAgo);
+            this.setParameters(target, transition, status, ticksAgo);
         }
 
         for (Binding binding : this.bindings)
@@ -271,7 +280,7 @@ public class CemAnimation
     }
 
     /** Feed the entity's render parameters into the parser for this frame. */
-    private void setParameters(IEntity target, float transition, int ticksAgo)
+    private void setParameters(IEntity target, float transition, CemStatus status, int ticksAgo)
     {
         float headYaw = Lerps.lerp(target.getPrevHeadYaw(), target.getHeadYaw(), transition);
         float bodyYaw = Lerps.lerp(target.getPrevBodyYaw(), target.getBodyYaw(), transition);
@@ -325,6 +334,24 @@ public class CemAnimation
         this.parser.setValue("is_ridden", target.isRidden() ? 1 : 0);
         this.parser.setValue("is_child", target.isChild() ? 1 : 0);
 
+        /* A name the program does not know reads as zero, and zero is a state of its own, not "unknown":
+         * an iron golem written around if(health<=15, ...) posed as dying in every frame, a magma cube
+         * divided by sqrt(max_health), and a cat could never sit. Measured over Fresh Animations and its
+         * extensions, 56 of their 158 models read at least one of the ten below.
+         *
+         * The form's own states lie over the entity's rather than replacing them - see CemStatus - so a
+         * caller with no form behind it (a probe) is exactly today's behaviour. */
+        this.parser.setValue("health", target.getHealth() * (status == null ? 1F : status.health));
+        this.parser.setValue("max_health", target.getMaxHealth());
+        this.parser.setValue("is_burning", flag(target.isBurning(), status != null && status.burning));
+        this.parser.setValue("is_in_lava", flag(target.isInLava(), status != null && status.inLava));
+        this.parser.setValue("is_climbing", flag(target.isClimbing(), status != null && status.climbing));
+        this.parser.setValue("is_crawling", flag(target.isCrawling(), status != null && status.crawling));
+        this.parser.setValue("is_sitting", flag(target.isSitting(), status != null && status.sitting));
+        this.parser.setValue("is_tamed", flag(target.isTamed(), status != null && status.tamed));
+        this.parser.setValue("is_aggressive", flag(target.isAggressive(), status != null && status.aggressive));
+        this.parser.setValue("is_on_shoulder", flag(target.isOnShoulder(), status != null && status.onShoulder));
+
         /* BBS has no CEM rules (.properties), so the matched rule is always the first one. */
         this.parser.setValue("rule_index", 0);
 
@@ -351,6 +378,12 @@ public class CemAnimation
             this.parser.setValue("player_rot_x", Math.toRadians(pitch));
             this.parser.setValue("player_rot_y", Math.toRadians(yaw));
         }
+    }
+
+    /** A state the entity is in, or the form says it is in. */
+    private static int flag(boolean entity, boolean form)
+    {
+        return entity || form ? 1 : 0;
     }
 
     private record Statement(Variable target, IExpression expression)
