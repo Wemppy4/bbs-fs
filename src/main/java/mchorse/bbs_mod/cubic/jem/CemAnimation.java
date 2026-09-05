@@ -7,6 +7,9 @@ import mchorse.bbs_mod.math.IExpression;
 import mchorse.bbs_mod.math.Variable;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.pose.Transform;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -178,6 +181,7 @@ public class CemAnimation
         float headYaw = Lerps.lerp(target.getPrevHeadYaw(), target.getHeadYaw(), transition);
         float bodyYaw = Lerps.lerp(target.getPrevBodyYaw(), target.getBodyYaw(), transition);
         float pitch = Lerps.lerp(target.getPrevPitch(), target.getPitch(), transition);
+        float yaw = Lerps.lerp(target.getPrevYaw(), target.getYaw(), transition);
         double age = target.getAge() + transition;
 
         this.parser.setValue("limb_swing", target.getLimbPos(transition));
@@ -192,15 +196,53 @@ public class CemAnimation
         this.parser.setValue("pos_y", target.getY());
         this.parser.setValue("pos_z", target.getZ());
         this.parser.setValue("rot_x", pitch);
-        this.parser.setValue("rot_y", Lerps.lerp(target.getPrevYaw(), target.getYaw(), transition));
+        this.parser.setValue("rot_y", yaw);
+
+        int hurtTime = target.getHurtTimer();
+        int deathTime = target.getDeathTime();
+
+        this.parser.setValue("id", target.getId());
+        this.parser.setValue("hurt_time", hurtTime);
+        this.parser.setValue("is_hurt", hurtTime > 0 ? 1 : 0);
+        this.parser.setValue("death_time", deathTime);
+        this.parser.setValue("is_alive", deathTime == 0 ? 1 : 0);
 
         this.parser.setValue("is_sneaking", target.isSneaking() ? 1 : 0);
         this.parser.setValue("is_sprinting", target.isSprinting() ? 1 : 0);
         this.parser.setValue("is_on_ground", target.isOnGround() ? 1 : 0);
         this.parser.setValue("is_in_water", target.isTouchingWater() ? 1 : 0);
-        this.parser.setValue("is_riding", 0);
-        this.parser.setValue("is_child", 0);
-        this.parser.setValue("is_alive", 1);
+        this.parser.setValue("is_swimming", target.isSwimming() ? 1 : 0);
+        this.parser.setValue("is_gliding", target.isFallFlying() ? 1 : 0);
+        this.parser.setValue("is_riding", target.isRiding() ? 1 : 0);
+        this.parser.setValue("is_ridden", target.isRidden() ? 1 : 0);
+        this.parser.setValue("is_child", target.isChild() ? 1 : 0);
+
+        /* BBS has no CEM rules (.properties), so the matched rule is always the first one. */
+        this.parser.setValue("rule_index", 0);
+
+        /* OptiFine's "player" is the viewer. The nearest player is exactly that in singleplayer and the
+         * sensible stand-in otherwise; with no one around the entity looks at itself. */
+        World world = target.getWorld();
+        PlayerEntity player = world == null ? null : world.getClosestPlayer(target.getX(), target.getY(), target.getZ(), -1D, false);
+
+        if (player != null)
+        {
+            Vec3d position = player.getLerpedPos(transition);
+
+            this.parser.setValue("player_pos_x", position.x);
+            this.parser.setValue("player_pos_y", position.y);
+            this.parser.setValue("player_pos_z", position.z);
+            this.parser.setValue("player_rot_x", player.getPitch(transition));
+            this.parser.setValue("player_rot_y", player.getYaw(transition));
+        }
+        else
+        {
+            this.parser.setValue("player_pos_x", target.getX());
+            this.parser.setValue("player_pos_y", target.getY());
+            this.parser.setValue("player_pos_z", target.getZ());
+            this.parser.setValue("player_rot_x", pitch);
+            this.parser.setValue("player_rot_y", yaw);
+        }
     }
 
     private record Statement(Variable target, IExpression expression)

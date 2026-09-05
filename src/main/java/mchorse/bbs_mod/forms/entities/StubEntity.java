@@ -31,6 +31,11 @@ public class StubEntity implements IEntity
     private float fallDistance;
     private int hurtTimer;
 
+    /** Hands every stub its own {@link #getId()}: a number that stays put for the life of the instance. */
+    private static int nextId;
+
+    private final int id = nextId++;
+
     private float prevLeaningPitch;
     private float leaningPitch;
     private int roll;
@@ -261,6 +266,12 @@ public class StubEntity implements IEntity
     public void setHurtTimer(int hurtTimer)
     {
         this.hurtTimer = hurtTimer;
+    }
+
+    @Override
+    public int getId()
+    {
+        return this.id;
     }
 
     @Override

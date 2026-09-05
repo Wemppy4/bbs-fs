@@ -96,6 +96,30 @@ public interface IEntity
 
     public void setHurtTimer(int hurtTimer);
 
+    /** A stable identity for per-entity variety (CEM's {@code id}): the MC entity id, or a per-instance number for a stub. */
+    public default int getId()
+    {
+        return 0;
+    }
+
+    /** Ticks since the entity died (vanilla {@code LivingEntity.deathTime}); 0 while alive. */
+    public default int getDeathTime()
+    {
+        return 0;
+    }
+
+    /** Whether something rides this entity — the opposite of {@link #isRiding()}. */
+    public default boolean isRidden()
+    {
+        return false;
+    }
+
+    /** Whether this is the baby variant of its kind. */
+    public default boolean isChild()
+    {
+        return false;
+    }
+
     public double getX();
 
     public double getPrevX();

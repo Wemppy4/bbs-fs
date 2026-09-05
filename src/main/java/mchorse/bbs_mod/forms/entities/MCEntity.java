@@ -283,6 +283,30 @@ public class MCEntity implements IEntity
     }
 
     @Override
+    public int getId()
+    {
+        return this.mcEntity.getId();
+    }
+
+    @Override
+    public int getDeathTime()
+    {
+        return this.mcEntity instanceof LivingEntity living ? living.deathTime : 0;
+    }
+
+    @Override
+    public boolean isRidden()
+    {
+        return this.mcEntity.hasPassengers();
+    }
+
+    @Override
+    public boolean isChild()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.isBaby();
+    }
+
+    @Override
     public double getX()
     {
         return this.mcEntity.getX();
