@@ -381,6 +381,32 @@ public class ModelManager implements IWatchDogListener
         }
     }
 
+    /**
+     * Drop every model of a folder, so the next request loads them again. For a source BBS does not
+     * watch — the models a resource pack serves — where a change arrives as one event for all of them
+     * rather than as a file the watchdog saw.
+     */
+    public void forgetFolder(String prefix)
+    {
+        for (String key : new ArrayList<>(this.models.keySet()))
+        {
+            if (key.startsWith(prefix))
+            {
+                this.forget(key);
+            }
+        }
+
+        /* A model that failed to load is remembered as requested and never retried, so it has to go
+         * too, or a pack that arrives later can never be picked up. */
+        for (String key : new ArrayList<>(this.requested))
+        {
+            if (key.startsWith(prefix))
+            {
+                this.requested.remove(key);
+            }
+        }
+    }
+
     /** Drop a model from the cache so the next request loads it from disk again. */
     private void forget(String key)
     {
