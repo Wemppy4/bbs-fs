@@ -39,6 +39,23 @@ public class VanillaRigs
     /** The layer an entity's own model is registered under; the rest dress it (armour, saddles, hats). */
     private static final String MAIN = "main";
 
+    /**
+     * What OptiFine calls a vanilla part when the two disagree, so a rig read off the game reaches the
+     * parts a {@code .jem} actually has.
+     *
+     * <p>Both names are recorded against the same parent rather than one replacing the other: a pack may
+     * use either, and a name no model has costs nothing. Measured over Fresh Animations and its
+     * extensions, {@code headwear} is a top-level part in 37 of their models, {@code headwear2} and
+     * {@code bodywear} in nine each, so these three carry the whole humanoid family. Names the two
+     * vocabularies already share — {@code nose} in twenty models, {@code arms} in thirteen — need
+     * nothing.</p>
+     */
+    private static final Map<String, String> ALIASES = Map.of(
+        "hat", "headwear",
+        "hat_rim", "headwear2",
+        "jacket", "bodywear"
+    );
+
     private static Map<String, CemHierarchy> rigs;
 
     /** The vanilla rig of an entity by name, or {@link CemHierarchy#NONE} for one the game has no model for. */
@@ -99,7 +116,9 @@ public class VanillaRigs
      * get no entry: they are top level in the file too, which is where they should stay.
      *
      * <p>A name is taken the first time it is seen. Vanilla may use one twice in different branches,
-     * and a CEM file addresses parts by name alone, so there is nothing better to go on either way.</p>
+     * and a CEM file addresses parts by name alone, so there is nothing better to go on either way.
+     * Every part is also noted under the name OptiFine gives it, where that differs — see
+     * {@link #ALIASES}.</p>
      */
     private static void collect(ModelPart part, String name, Map<String, String> parents)
     {
@@ -107,7 +126,17 @@ public class VanillaRigs
         {
             if (name != null)
             {
-                parents.putIfAbsent(entry.getKey(), name);
+                String child = entry.getKey();
+                String alias = ALIASES.get(child);
+
+                parents.putIfAbsent(child, name);
+
+                /* A pack that renamed the child renamed its parent the same way, so the alias is
+                 * recorded against the parent's alias where there is one. */
+                if (alias != null)
+                {
+                    parents.putIfAbsent(alias, ALIASES.getOrDefault(name, name));
+                }
             }
 
             collect(entry.getValue(), entry.getKey(), parents);
