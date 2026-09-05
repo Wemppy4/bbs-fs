@@ -94,6 +94,7 @@ import mchorse.bbs_mod.utils.ScreenshotRecorder;
 import mchorse.bbs_mod.utils.VideoRecorder;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.resources.CemSourcePack;
 import mchorse.bbs_mod.utils.resources.MinecraftSourcePack;
 import mchorse.bbs_mod.utils.resources.PlayerSkinSourcePack;
 import mchorse.bbs_mod.utils.resources.PlayerSkins;
@@ -174,6 +175,14 @@ public class BBSModClient implements ClientModInitializer
 
     private static float originalFramebufferScale;
     private static boolean customGUIScale;
+
+    /** The OptiFine CEM models of the installed resource packs; null until the client has started. */
+    private static CemSourcePack cemSourcePack;
+
+    public static CemSourcePack getCemSourcePack()
+    {
+        return cemSourcePack;
+    }
 
     public static TextureManager getTextures()
     {
@@ -841,6 +850,12 @@ public class BBSModClient implements ClientModInitializer
         {
             BBSRendering.setupFramebuffer();
             provider.register(new MinecraftSourcePack());
+
+            /* Last under "assets", so the user's own folder and the jar win over a resource pack's
+             * models - which is what lets a pack model be given a config.json or replaced outright. */
+            cemSourcePack = new CemSourcePack();
+
+            provider.register(cemSourcePack);
 
             Window window = MinecraftClient.getInstance().getWindow();
 
