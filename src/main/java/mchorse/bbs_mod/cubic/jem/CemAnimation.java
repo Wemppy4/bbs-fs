@@ -55,6 +55,18 @@ public class CemAnimation
     /** The vertical offset CEM applies to top-level parts (entity model origin height). */
     private static final float Y_OFFSET = 24F;
 
+    /**
+     * Ticks added to a stand-in's age so a pack does not read it as freshly spawned.
+     *
+     * <p>Packs gate spawn behaviour on a small age: Fresh Animations' player drives its landing off
+     * {@code age < 9}, and its cow waits for {@code age > 60} before it may leave the ground. A stand-in
+     * starts counting at zero every time a film loads or a panel opens, so without this every film began
+     * with the actor landing and every form editor showed it falling. Past the largest gate the packs
+     * use, with room to spare. A real entity keeps its own age, so a mob that truly spawns still settles
+     * the way its pack intends.</p>
+     */
+    private static final int SPAWN_SETTLED = 100;
+
     /** Bone hierarchy kinds, which select the position mapping (see the class javadoc). */
     private static final int TOP = 0;
     private static final int SUB1 = 1;
@@ -217,7 +229,7 @@ public class CemAnimation
         float bodyYaw = Lerps.lerp(target.getPrevBodyYaw(), target.getBodyYaw(), transition);
         float pitch = Lerps.lerp(target.getPrevPitch(), target.getPitch(), transition);
         float yaw = Lerps.lerp(target.getPrevYaw(), target.getYaw(), transition);
-        double age = target.getAge() + transition;
+        double age = target.getAge() + transition + (target.isStandIn() ? SPAWN_SETTLED : 0);
 
         this.parser.setValue("limb_swing", target.getLimbPos(transition));
         this.parser.setValue("limb_speed", target.getLimbSpeed(transition));

@@ -233,6 +233,13 @@ public class StubEntity implements IEntity
         return this.armSwing <= 0 ? 0F : 1F - (this.armSwing - tickDelta) / 6F;
     }
 
+    /** This one stands in for an actor; it never spawned. See {@link IEntity#isStandIn()}. */
+    @Override
+    public boolean isStandIn()
+    {
+        return true;
+    }
+
     /** Lazily made: an entity that never renders a CEM model never allocates one. */
     private CemVariables cemVariables;
 

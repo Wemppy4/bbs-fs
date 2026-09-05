@@ -88,6 +88,18 @@ public interface IEntity
     public int getAge();
 
     /**
+     * Whether this stands in for an actor rather than wrapping a Minecraft entity that actually spawned.
+     *
+     * <p>It is the age that makes the difference. A stand-in's age counts from the moment BBS made the
+     * object — a film loading, a panel opening — not from a spawn in the world, and an animation that
+     * treats a small age as "just spawned" then replays a spawn every time.</p>
+     */
+    public default boolean isStandIn()
+    {
+        return false;
+    }
+
+    /**
      * The CEM variables of this entity, or null when this implementation keeps none (every CEM model on
      * it then animates on its own, the way they all did before).
      *
