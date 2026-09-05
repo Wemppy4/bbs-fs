@@ -61,10 +61,11 @@ public class JemModelParser
 
     public static Result parse(JsonObject jem, JpmResolver resolver, MolangParser parser)
     {
-        return parse(jem, resolver, parser, null);
+        return parse(jem, resolver, parser, CemHierarchy.NONE);
     }
 
-    public static Result parse(JsonObject jem, JpmResolver resolver, MolangParser parser, Map<String, String> parentOverrides)
+    /** @param hierarchy what the file leaves to the vanilla model: reparenting and pivot overrides, see {@link CemHierarchy}. */
+    public static Result parse(JsonObject jem, JpmResolver resolver, MolangParser parser, CemHierarchy hierarchy)
     {
         Parse parse = new Parse(new Model(parser), new CemAnimation());
         Model model = parse.model;
@@ -127,7 +128,7 @@ public class JemModelParser
             model.topGroups.add(info.group);
         }
 
-        reparent(model, parentOverrides);
+        applyHierarchy(parse, hierarchy);
 
         model.initialize();
         parse.animation.setup(model);
@@ -136,34 +137,48 @@ public class JemModelParser
     }
 
     /**
-     * Reparent flat top-level parts onto their vanilla parent (see {@link CemHierarchy}). Geometry is
-     * unaffected — BBS composes child bones from their absolute pivots, and a parent with no rest
-     * rotation contributes nothing at rest — so a part keeps its rest position while now following the
-     * parent's animation and dropping the top-level entity-origin offset.
+     * Lay the vanilla rig over the flat file (see {@link CemHierarchy}): replace the pivots the file got
+     * wrong, then reparent flat top-level parts onto their vanilla parent. Geometry is unaffected — BBS
+     * composes child bones from their absolute pivots, and a parent with no rest rotation contributes
+     * nothing at rest — so a part keeps its rest position while now following the parent's animation.
+     * A reparented part is told to the animation as parent-relative: the pack positions it against the
+     * parent's rotation point, the way OptiFine composes vanilla children.
      */
-    private static void reparent(Model model, Map<String, String> parentOverrides)
+    private static void applyHierarchy(Parse parse, CemHierarchy hierarchy)
     {
-        if (parentOverrides == null || parentOverrides.isEmpty())
+        if (hierarchy == null || hierarchy.isEmpty())
         {
             return;
         }
 
         Map<String, ModelGroup> byId = new LinkedHashMap<>();
 
-        for (ModelGroup group : model.topGroups)
+        for (ModelGroup group : parse.model.topGroups)
         {
             byId.put(group.id, group);
         }
 
-        for (Map.Entry<String, String> entry : parentOverrides.entrySet())
+        for (Map.Entry<String, Vector3f> entry : hierarchy.pivots.entrySet())
+        {
+            ModelGroup group = byId.get(entry.getKey());
+
+            if (group != null)
+            {
+                group.initial.translate.set(entry.getValue());
+                group.current.copy(group.initial);
+            }
+        }
+
+        for (Map.Entry<String, String> entry : hierarchy.parents.entrySet())
         {
             ModelGroup child = byId.get(entry.getKey());
             ModelGroup parent = byId.get(entry.getValue());
 
             if (child != null && parent != null && child != parent)
             {
-                model.topGroups.remove(child);
+                parse.model.topGroups.remove(child);
                 parent.children.add(child);
+                parse.animation.markParentRelative(child);
             }
         }
     }

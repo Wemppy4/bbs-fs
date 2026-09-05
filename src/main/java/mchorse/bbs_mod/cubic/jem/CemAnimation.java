@@ -14,7 +14,9 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A live, procedural OptiFine CEM animation program: an ordered list of {@code variable = expression}
@@ -69,9 +71,21 @@ public class CemAnimation
      */
     private final List<Variable> entityVariables = new ArrayList<>();
 
+    /**
+     * Parts the vanilla rig reparented (see {@link CemHierarchy}): the pack positions them against the
+     * parent's rotation point, so they take the deeper-submodel mapping whatever their depth.
+     */
+    private final Set<ModelGroup> parentRelative = new HashSet<>();
+
     public CemAnimation()
     {
         this.parser = new CemParser();
+    }
+
+    /** Note a bone as positioned relative to its parent's pivot — call before {@link #setup}. */
+    public void markParentRelative(ModelGroup group)
+    {
+        this.parentRelative.add(group);
     }
 
     public boolean isEmpty()
@@ -115,12 +129,20 @@ public class CemAnimation
         return name.startsWith("var.") || name.startsWith("varb.");
     }
 
-    /** Classify a bone by its depth in the (flat-rooted) hierarchy — see {@link #TOP}/{@link #SUB1}/{@link #SUBN}. */
-    private static int kind(ModelGroup group)
+    /**
+     * Classify a bone by its place in the (flat-rooted) hierarchy — see {@link #TOP}/{@link #SUB1}/
+     * {@link #SUBN}. A reparented part is parent-relative regardless of depth.
+     */
+    private int kind(ModelGroup group)
     {
         if (group.parent == null)
         {
             return TOP;
+        }
+
+        if (this.parentRelative.contains(group))
+        {
+            return SUBN;
         }
 
         return group.parent.parent == null ? SUB1 : SUBN;
@@ -329,30 +351,37 @@ public class CemAnimation
         public void writeback()
         {
             Transform current = this.group.current;
+            Vector3f pivot = this.group.initial.translate;
+            float x, y, z;
 
             switch (this.kind)
             {
-                case SUB1 -> current.translate.set(
-                    safe(-this.tx.doubleValue()),
-                    safe(-this.ty.doubleValue()),
-                    safe(this.tz.doubleValue())
-                );
+                case SUB1 ->
+                {
+                    x = safe(-this.tx.doubleValue());
+                    y = safe(-this.ty.doubleValue());
+                    z = safe(this.tz.doubleValue());
+                }
                 case SUBN ->
                 {
                     Vector3f parent = this.group.parent.initial.translate;
 
-                    current.translate.set(
-                        safe(parent.x - this.tx.doubleValue()),
-                        safe(parent.y - this.ty.doubleValue()),
-                        safe(parent.z + this.tz.doubleValue())
-                    );
+                    x = safe(parent.x - this.tx.doubleValue());
+                    y = safe(parent.y - this.ty.doubleValue());
+                    z = safe(parent.z + this.tz.doubleValue());
                 }
-                default -> current.translate.set(
-                    safe(-this.tx.doubleValue()),
-                    safe(Y_OFFSET - this.ty.doubleValue()),
-                    safe(this.tz.doubleValue())
-                );
+                default ->
+                {
+                    x = safe(-this.tx.doubleValue());
+                    y = safe(Y_OFFSET - this.ty.doubleValue());
+                    z = safe(this.tz.doubleValue());
+                }
             }
+
+            /* BBS lays a bone's X offset down mirrored (ICubicRenderer.translateGroup negates
+             * translate.x - pivot.x), so the bone lands at X only when written as X's reflection
+             * about the pivot. Y and Z go down as they are; the rest pose is unaffected either way. */
+            current.translate.set(2F * pivot.x - x, y, z);
 
             current.rotate.set(
                 safe(-Math.toDegrees(this.rx.doubleValue())),
