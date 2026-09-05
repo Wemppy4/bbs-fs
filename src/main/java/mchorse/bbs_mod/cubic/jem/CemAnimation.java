@@ -7,7 +7,9 @@ import mchorse.bbs_mod.math.IExpression;
 import mchorse.bbs_mod.math.Variable;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.pose.Transform;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Vector3f;
@@ -352,6 +354,8 @@ public class CemAnimation
         this.parser.setValue("is_aggressive", flag(target.isAggressive(), status != null && status.aggressive));
         this.parser.setValue("is_on_shoulder", flag(target.isOnShoulder(), status != null && status.onShoulder));
 
+        this.setHands(target);
+
         /* BBS has no CEM rules (.properties), so the matched rule is always the first one. */
         this.parser.setValue("rule_index", 0);
 
@@ -378,6 +382,47 @@ public class CemAnimation
             this.parser.setValue("player_rot_x", Math.toRadians(pitch));
             this.parser.setValue("player_rot_y", Math.toRadians(yaw));
         }
+    }
+
+    /**
+     * The hands, which CEM asks about by arm rather than by hand. Vanilla thinks in a main hand and an
+     * off hand and remembers which arm the main one is; a pack thinks in a left arm and a right one, so
+     * the two swap for a left-handed entity — and Fresh Animations' player leans on that all the way
+     * through, reading {@code is_right_handed} twenty times to decide which arm anything belongs to.
+     */
+    private void setHands(IEntity target)
+    {
+        boolean right = target.isRightHanded();
+        boolean swingingMain = target.isSwinging() && !target.isSwingingOffHand();
+        boolean swingingOff = target.isSwinging() && target.isSwingingOffHand();
+
+        this.parser.setValue("is_right_handed", right ? 1 : 0);
+        this.parser.setValue("is_using_item", target.isUsingItem() ? 1 : 0);
+        this.parser.setValue("is_blocking", target.isBlocking() ? 1 : 0);
+        this.parser.setValue("is_swinging_right_arm", arm(right, swingingMain, swingingOff));
+        this.parser.setValue("is_swinging_left_arm", arm(!right, swingingMain, swingingOff));
+
+        boolean main = held(target, EquipmentSlot.MAINHAND);
+        boolean off = held(target, EquipmentSlot.OFFHAND);
+
+        this.parser.setValue("is_holding_item_right", arm(right, main, off));
+        this.parser.setValue("is_holding_item_left", arm(!right, main, off));
+
+        this.parser.setValue("move_forward", target.getForwardSpeed());
+        this.parser.setValue("move_strafing", target.getSidewaysSpeed());
+    }
+
+    /** What is true of an arm: the main hand's when that is the arm, the off hand's otherwise. */
+    private static int arm(boolean isMainArm, boolean mainHand, boolean offHand)
+    {
+        return (isMainArm ? mainHand : offHand) ? 1 : 0;
+    }
+
+    private static boolean held(IEntity target, EquipmentSlot slot)
+    {
+        ItemStack stack = target.getEquipmentStack(slot);
+
+        return stack != null && !stack.isEmpty();
     }
 
     /** A state the entity is in, or the form says it is in. */

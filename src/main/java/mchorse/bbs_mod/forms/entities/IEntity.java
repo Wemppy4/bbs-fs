@@ -217,6 +217,52 @@ public interface IEntity
         return false;
     }
 
+    /**
+     * Which arm the main hand is, as CEM's {@code is_right_handed}. Vanilla's default, and not a detail:
+     * Fresh Animations' player asks it twenty times over and hands every idle sway, every equipment pose
+     * and every block to one arm or the other by the answer, so a false one mirrors the whole model.
+     */
+    public default boolean isRightHanded()
+    {
+        return true;
+    }
+
+    /** Eating, drinking, drawing a bow, raising a shield — as CEM's {@code is_using_item}. */
+    public default boolean isUsingItem()
+    {
+        return false;
+    }
+
+    /** Holding a shield up, as CEM's {@code is_blocking}. */
+    public default boolean isBlocking()
+    {
+        return false;
+    }
+
+    /** Mid-swing — which arm is {@link #isSwingingOffHand()}'s business. */
+    public default boolean isSwinging()
+    {
+        return false;
+    }
+
+    /** Whether the swing belongs to the off hand rather than the main one. */
+    public default boolean isSwingingOffHand()
+    {
+        return false;
+    }
+
+    /** How hard the entity walks forward, as CEM's {@code move_forward}: its own input, not its velocity. */
+    public default float getForwardSpeed()
+    {
+        return 0F;
+    }
+
+    /** The same sideways, as CEM's {@code move_strafing}. */
+    public default float getSidewaysSpeed()
+    {
+        return 0F;
+    }
+
     public double getX();
 
     public double getPrevX();

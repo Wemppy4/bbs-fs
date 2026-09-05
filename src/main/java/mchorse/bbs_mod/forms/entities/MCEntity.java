@@ -17,6 +17,7 @@ import net.minecraft.entity.passive.FoxEntity;
 import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -398,6 +399,48 @@ public class MCEntity implements IEntity
     public boolean isAggressive()
     {
         return this.mcEntity instanceof MobEntity mob && mob.isAttacking();
+    }
+
+    @Override
+    public boolean isRightHanded()
+    {
+        return !(this.mcEntity instanceof LivingEntity living) || living.getMainArm() == Arm.RIGHT;
+    }
+
+    @Override
+    public boolean isUsingItem()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.isUsingItem();
+    }
+
+    @Override
+    public boolean isBlocking()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.isBlocking();
+    }
+
+    @Override
+    public boolean isSwinging()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.handSwinging;
+    }
+
+    @Override
+    public boolean isSwingingOffHand()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.preferredHand == Hand.OFF_HAND;
+    }
+
+    @Override
+    public float getForwardSpeed()
+    {
+        return this.mcEntity instanceof LivingEntity living ? living.forwardSpeed : 0F;
+    }
+
+    @Override
+    public float getSidewaysSpeed()
+    {
+        return this.mcEntity instanceof LivingEntity living ? living.sidewaysSpeed : 0F;
     }
 
     @Override
