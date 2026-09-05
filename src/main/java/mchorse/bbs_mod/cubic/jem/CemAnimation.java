@@ -149,6 +149,9 @@ public class CemAnimation
         this.parser.setValue("frame_time", frameTime);
         this.parser.setValue("frame_counter", state.frameCounter);
 
+        /* No entity means a UI preview - which is what CEM's is_in_gui asks about. */
+        this.parser.setValue("is_in_gui", target == null ? 1 : 0);
+
         if (target != null)
         {
             this.setParameters(target, transition);

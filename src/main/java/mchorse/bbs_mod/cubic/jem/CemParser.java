@@ -22,6 +22,9 @@ import mchorse.bbs_mod.math.MathBuilder;
 import mchorse.bbs_mod.math.Variable;
 import mchorse.bbs_mod.math.functions.classic.Ln;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Expression parser for OptiFine CEM animations.
  *
@@ -102,19 +105,62 @@ public class CemParser extends MathBuilder
      *     <li>Unary plus (e.g. {@code torad(+12*...)}) — stripped, since the engine only understands
      *     unary minus.</li>
      *     <li>{@code nbt(...)} — OptiFine's entity-NBT query function takes a non-math string DSL
-     *     (regex/paths). It is stubbed to 0 for now (proper entity-NBT support is a later stage), so
-     *     the rest of the expression still evaluates instead of failing wholesale.</li>
+     *     (paths, regexes — with parentheses of their own). Every call is cut out whole, parentheses
+     *     balanced, and replaced by 0 (proper entity-NBT support is a later stage), so the rest of the
+     *     expression still evaluates instead of failing wholesale.</li>
      * </ul>
      */
     private String preprocess(String expression)
     {
-        /* nbt(...) -> 0 (the arguments aren't math; assumes no nested parens inside the call). */
-        expression = expression.replaceAll("nbt\\s*\\([^()]*\\)", "0");
+        expression = stripNbtCalls(expression);
 
         /* Drop unary plus right after the start, an opening paren, a comma or another operator. */
         expression = expression.replaceAll("(^|[-+*/%^&|<>=!(,])\\s*\\+", "$1");
 
         return expression;
+    }
+
+    /** The head of an {@code nbt(} call: the name must not be the tail of a longer identifier. */
+    private static final Pattern NBT_CALL = Pattern.compile("(?<![A-Za-z0-9_.])nbt\\s*\\(");
+
+    /** Replace every {@code nbt(...)} call by {@code 0}, its parentheses balanced — the DSL inside has its own. */
+    static String stripNbtCalls(String expression)
+    {
+        Matcher matcher = NBT_CALL.matcher(expression);
+        StringBuilder out = new StringBuilder(expression.length());
+        int from = 0;
+
+        while (matcher.find(from))
+        {
+            int close = closingParen(expression, matcher.end() - 1);
+
+            out.append(expression, from, matcher.start()).append('0');
+            from = close < 0 ? expression.length() : close + 1;
+        }
+
+        return out.append(expression, from, expression.length()).toString();
+    }
+
+    /** Index of the parenthesis closing the one at {@code open}, or -1 when the expression ends first. */
+    private static int closingParen(String expression, int open)
+    {
+        int depth = 0;
+
+        for (int i = open; i < expression.length(); i++)
+        {
+            char c = expression.charAt(i);
+
+            if (c == '(')
+            {
+                depth += 1;
+            }
+            else if (c == ')' && --depth == 0)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     public Variable getOrCreateVariable(String name)

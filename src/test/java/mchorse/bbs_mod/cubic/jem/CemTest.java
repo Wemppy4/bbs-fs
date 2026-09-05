@@ -1,12 +1,14 @@
 package mchorse.bbs_mod.cubic.jem;
 
 /**
- * Standalone manual sanity test for the CEM expression engine ({@link CemParser}).
+ * Standalone manual sanity test for the CEM expression engine ({@link CemParser}) and the instance
+ * clock ({@link CemState}).
  *
- * <p>It needs no Minecraft — just run this class's {@link #main(String[])} from your IDE. It is a
- * throwaway developer aid (not used by the mod at runtime); feel free to add your own expressions or
- * delete the file. Add value checks with {@link #check}, parse-only checks with {@link #parses}, and
- * set variables (as the animation runtime will each frame) with {@code parser.setValue(name, value)}.</p>
+ * <p>It needs no Minecraft — run {@link #main(String[])} from your IDE, or after a build:
+ * {@code java -cp "build/classes/java/main;build/classes/java/test" mchorse.bbs_mod.cubic.jem.CemTest}.
+ * It lives in the test source set so it never ships in the jar. Add value checks with {@link #check},
+ * parse-only checks with {@link #parses}, and set variables (as the animation runtime will each frame)
+ * with {@code parser.setValue(name, value)}.</p>
  */
 public class CemTest
 {
@@ -37,6 +39,12 @@ public class CemTest
         check("2 ^ 10", 1024);
         check("wraprad(pi*3)", Math.PI);
 
+        System.out.println("\n--- nbt() is cut out whole, parentheses balanced ---");
+        check("1 + nbt(SelectedItem.id, raw:iregex:.*(shield).*) * 5", 1);
+        check("nbt(a, (b, (c))) + 2", 2);
+        check("if(nbt(x), 7, 3)", 3);
+        check("nbt(unterminated, (oops", 0);
+
         System.out.println("\n--- real Fresh Animations expressions (must parse, finite) ---");
         parses("if(varb.21_2_plus,var.root_ty-(root.sy-1)*24,0)");
         parses("torad( +12*sin( var.headpitch_drag/180*pi ) +sin(var.Bt) )*var.idle");
@@ -65,21 +73,6 @@ public class CemTest
         System.out.println(fails == 0 ? "\n=== ALL PASS ===" : "\n=== " + fails + " FAILED ===");
     }
 
-    private static void clock(String label, double frameTime, double expected)
-    {
-        flag(String.format("%s: frame_time %.4f (want %.4f)", label, frameTime, expected), Math.abs(frameTime - expected) < 1e-9);
-    }
-
-    private static void flag(String label, boolean ok)
-    {
-        if (!ok)
-        {
-            fails += 1;
-        }
-
-        System.out.printf("%s  %s%n", ok ? "OK  " : "FAIL", label);
-    }
-
     private static void check(String expr, double expected)
     {
         double value = PARSER.parseExpression(expr).get().doubleValue();
@@ -104,5 +97,20 @@ public class CemTest
         }
 
         System.out.printf("%s  %.4f  %s%n", ok ? "OK  " : "FAIL", value, expr.length() > 60 ? expr.substring(0, 60) + "..." : expr);
+    }
+
+    private static void clock(String label, double frameTime, double expected)
+    {
+        flag(String.format("%s: frame_time %.4f (want %.4f)", label, frameTime, expected), Math.abs(frameTime - expected) < 1e-9);
+    }
+
+    private static void flag(String label, boolean ok)
+    {
+        if (!ok)
+        {
+            fails += 1;
+        }
+
+        System.out.printf("%s  %s%n", ok ? "OK  " : "FAIL", label);
     }
 }
