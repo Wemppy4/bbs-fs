@@ -214,9 +214,17 @@ public class CemAnimation
         this.parser.setValue("head_pitch", pitch);
         this.parser.setValue("swing_progress", target.getHandSwingProgress(transition));
 
-        this.parser.setValue("pos_x", target.getX());
-        this.parser.setValue("pos_y", target.getY());
-        this.parser.setValue("pos_z", target.getZ());
+        /* The position of THIS frame, like the angles above, not the tick's: the packs read it every
+         * frame - Fresh Animations' cow takes its vertical speed from pos_y (var.vs = var.position - pos_y)
+         * and detects falling by pos_y < var.pre_posy - and the jump/fall pose hangs off that. The tick
+         * position stepped twenty times a second, so the pose sawtoothed with it. */
+        double x = Lerps.lerp(target.getPrevX(), target.getX(), transition);
+        double y = Lerps.lerp(target.getPrevY(), target.getY(), transition);
+        double z = Lerps.lerp(target.getPrevZ(), target.getZ(), transition);
+
+        this.parser.setValue("pos_x", x);
+        this.parser.setValue("pos_y", y);
+        this.parser.setValue("pos_z", z);
 
         /* The entity rotation is in RADIANS, unlike head_yaw/head_pitch (degrees, the packs torad() them):
          * Fresh Animations unwraps rot_y jumps of ±2π (villager's var.yrot_offset) and turns it into
@@ -250,7 +258,7 @@ public class CemAnimation
         /* OptiFine's "player" is the viewer. The nearest player is exactly that in singleplayer and the
          * sensible stand-in otherwise; with no one around the entity looks at itself. */
         World world = target.getWorld();
-        PlayerEntity player = world == null ? null : world.getClosestPlayer(target.getX(), target.getY(), target.getZ(), -1D, false);
+        PlayerEntity player = world == null ? null : world.getClosestPlayer(x, y, z, -1D, false);
 
         if (player != null)
         {
@@ -264,9 +272,9 @@ public class CemAnimation
         }
         else
         {
-            this.parser.setValue("player_pos_x", target.getX());
-            this.parser.setValue("player_pos_y", target.getY());
-            this.parser.setValue("player_pos_z", target.getZ());
+            this.parser.setValue("player_pos_x", x);
+            this.parser.setValue("player_pos_y", y);
+            this.parser.setValue("player_pos_z", z);
             this.parser.setValue("player_rot_x", Math.toRadians(pitch));
             this.parser.setValue("player_rot_y", Math.toRadians(yaw));
         }
