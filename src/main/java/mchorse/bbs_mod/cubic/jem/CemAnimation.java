@@ -217,8 +217,13 @@ public class CemAnimation
         this.parser.setValue("pos_x", target.getX());
         this.parser.setValue("pos_y", target.getY());
         this.parser.setValue("pos_z", target.getZ());
-        this.parser.setValue("rot_x", pitch);
-        this.parser.setValue("rot_y", yaw);
+
+        /* The entity rotation is in RADIANS, unlike head_yaw/head_pitch (degrees, the packs torad() them):
+         * Fresh Animations unwraps rot_y jumps of ±2π (villager's var.yrot_offset) and turns it into
+         * degrees itself (cow's var.tq = todeg(rot_y - var.tr)). Degrees here made a 2° turn read as 115°
+         * and every turn reaction slam into its clamp. */
+        this.parser.setValue("rot_x", Math.toRadians(pitch));
+        this.parser.setValue("rot_y", Math.toRadians(yaw));
 
         int hurtTime = target.getHurtTimer();
         int deathTime = target.getDeathTime();
@@ -254,16 +259,16 @@ public class CemAnimation
             this.parser.setValue("player_pos_x", position.x);
             this.parser.setValue("player_pos_y", position.y);
             this.parser.setValue("player_pos_z", position.z);
-            this.parser.setValue("player_rot_x", player.getPitch(transition));
-            this.parser.setValue("player_rot_y", player.getYaw(transition));
+            this.parser.setValue("player_rot_x", Math.toRadians(player.getPitch(transition)));
+            this.parser.setValue("player_rot_y", Math.toRadians(player.getYaw(transition)));
         }
         else
         {
             this.parser.setValue("player_pos_x", target.getX());
             this.parser.setValue("player_pos_y", target.getY());
             this.parser.setValue("player_pos_z", target.getZ());
-            this.parser.setValue("player_rot_x", pitch);
-            this.parser.setValue("player_rot_y", yaw);
+            this.parser.setValue("player_rot_x", Math.toRadians(pitch));
+            this.parser.setValue("player_rot_y", Math.toRadians(yaw));
         }
     }
 
