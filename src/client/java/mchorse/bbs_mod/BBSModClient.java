@@ -99,6 +99,7 @@ import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.util.Identifier;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
+import mchorse.bbs_mod.cubic.jem.VanillaRigs;
 import mchorse.bbs_mod.utils.resources.CemSourcePack;
 import mchorse.bbs_mod.utils.resources.MinecraftSourcePack;
 import mchorse.bbs_mod.utils.resources.PlayerSkinSourcePack;
@@ -207,6 +208,7 @@ public class BBSModClient implements ClientModInitializer
 
         minecraftSourcePack.setupPaths();
         cemSourcePack.reindex();
+        VanillaRigs.clear();
 
         getModels().forgetFolder(CemSourcePack.NAME + "/");
         getFormCategories().setup();

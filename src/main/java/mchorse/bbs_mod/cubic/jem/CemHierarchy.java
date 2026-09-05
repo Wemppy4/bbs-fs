@@ -75,6 +75,26 @@ public final class CemHierarchy
         };
     }
 
+    /**
+     * This hierarchy with another laid over it: where both name a part, the other wins. Used to put the
+     * hand-checked table over what the vanilla rig says, since the table is there to correct it.
+     */
+    public CemHierarchy with(CemHierarchy over)
+    {
+        if (over.isEmpty())
+        {
+            return this;
+        }
+
+        Map<String, String> parents = new LinkedHashMap<>(this.parents);
+        Map<String, Vector3f> pivots = new LinkedHashMap<>(this.pivots);
+
+        parents.putAll(over.parents);
+        pivots.putAll(over.pivots);
+
+        return new CemHierarchy(parents, pivots);
+    }
+
     /** This hierarchy with the given child &rarr; parent entries laid over its own (a model's {@code cem_parents}). */
     public CemHierarchy withParents(Map<String, String> overrides)
     {
