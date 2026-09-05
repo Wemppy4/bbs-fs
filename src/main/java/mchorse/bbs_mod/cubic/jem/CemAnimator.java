@@ -5,6 +5,7 @@ import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
 import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.entities.StubEntity;
 
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +45,19 @@ public class CemAnimator implements IAnimator
     private CemState state;
     private CemVariables bound;
 
+    /**
+     * The entity a preview stands on. A form editor or a palette icon renders without one, and a CEM pack
+     * asked about an entity that is not there reads every parameter as zero: not on the ground, not alive,
+     * at the world origin. Fresh Animations' player poses exactly that — arms up, as if falling. This one
+     * stands still, alive, on the ground, and its clock follows the preview's own frames so the idle
+     * animation still breathes.
+     */
+    private final StubEntity preview = new StubEntity();
+
+    /** The preview clock, in ticks, off wall time — a preview has no entity age to follow. */
+    private double previewTicks;
+    private long previewNanos;
+
     public CemAnimator(CemAnimation program)
     {
         this.program = program;
@@ -64,8 +78,33 @@ public class CemAnimator implements IAnimator
     @Override
     public void applyActions(IEntity entity, IModelInstance cubicModel, float transition)
     {
+        boolean inGui = entity == null;
+
+        if (inGui)
+        {
+            entity = this.preview();
+        }
+
         this.vanilla.applyActions(entity, cubicModel, transition);
-        this.program.apply(this.state(entity), entity, transition);
+        this.program.apply(this.state(entity), entity, transition, inGui);
+    }
+
+    /** The stand-in entity, its clock stepped to now. */
+    private IEntity preview()
+    {
+        long now = System.nanoTime();
+
+        if (this.previewNanos != 0)
+        {
+            /* Capped like the animation clock is: a preview that was off screen for a minute should
+             * resume, not fast-forward a minute of idle. */
+            this.previewTicks += Math.min(CemState.MAX_FRAME_TIME, (now - this.previewNanos) / 1.0e9D) * 20D;
+        }
+
+        this.previewNanos = now;
+        this.preview.setAge((int) this.previewTicks);
+
+        return this.preview;
     }
 
     /**

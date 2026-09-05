@@ -161,6 +161,16 @@ public class CemAnimation
     /** Evaluate the animation for this frame on the given instance state and apply it to the model's bones. */
     public void apply(CemState state, IEntity target, float transition)
     {
+        this.apply(state, target, transition, target == null);
+    }
+
+    /**
+     * The same, told explicitly whether this is a preview rather than the world — CEM's {@code is_in_gui}.
+     * A preview has no entity of its own, so the caller hands one over that stands in for it; without the
+     * flag the two would be the same question and a stand-in would read as the world.
+     */
+    public void apply(CemState state, IEntity target, float transition, boolean inGui)
+    {
         if (this.statements.isEmpty())
         {
             return;
@@ -175,8 +185,7 @@ public class CemAnimation
         this.parser.setValue("frame_time", frameTime);
         this.parser.setValue("frame_counter", state.frameCounter);
 
-        /* No entity means a UI preview - which is what CEM's is_in_gui asks about. */
-        this.parser.setValue("is_in_gui", target == null ? 1 : 0);
+        this.parser.setValue("is_in_gui", inGui ? 1 : 0);
 
         if (target != null)
         {
