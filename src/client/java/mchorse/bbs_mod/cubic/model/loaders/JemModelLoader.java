@@ -43,12 +43,24 @@ public class JemModelLoader implements IModelLoader
             return null;
         }
 
+        Link chosen = this.pickJem(modelJem, model);
+
+        for (Link ignored : modelJem)
+        {
+            if (ignored != chosen)
+            {
+                System.err.println("OptiFine CEM model " + model + ": " + ignored.path + " is ignored, a folder is one model - "
+                    + "loading " + chosen.path + ". Give the other .jem its own model folder (an entity's cape or armour "
+                    + "is a separate model in CEM too, and it can then carry its own texture).");
+            }
+        }
+
         Map<String, JsonObject> jpms = this.loadJpms(recursiveLinks);
 
-        try (InputStream stream = BBSMod.getProvider().getAsset(modelJem.get(0)))
+        try (InputStream stream = BBSMod.getProvider().getAsset(chosen))
         {
             JsonObject jem = JsonParser.parseString(IOUtils.readText(stream)).getAsJsonObject();
-            String entity = StringUtils.removeExtension(StringUtils.fileName(modelJem.get(0).path));
+            String entity = StringUtils.removeExtension(StringUtils.fileName(chosen.path));
             JemModelParser.Result result = JemModelParser.parse(jem, jpms::get, models.parser, this.hierarchy(entity, config));
             Model modelModel = result.model();
 
@@ -82,6 +94,28 @@ public class JemModelLoader implements IModelLoader
         }
 
         return null;
+    }
+
+    /**
+     * Which .jem a folder holding several stands for: the one named after the folder, else the first by
+     * name. A CEM pack ships an entity as a set of models — {@code wolf.jem} beside {@code wolf_armor.jem},
+     * {@code player.jem} beside {@code player_cape.jem} — and BBS loads a folder as one model, so one of
+     * them has to win. Naming settles it, and the base model wins by name in the packs seen so far
+     * (a variant carries a suffix), rather than whichever file the filesystem happened to answer first.
+     */
+    private Link pickJem(List<Link> jems, Link model)
+    {
+        String folder = StringUtils.fileName(model.path);
+
+        for (Link link : jems)
+        {
+            if (StringUtils.removeExtension(StringUtils.fileName(link.path)).equals(folder))
+            {
+                return link;
+            }
+        }
+
+        return jems.get(0);
     }
 
     /**
