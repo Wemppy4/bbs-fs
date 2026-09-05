@@ -15,6 +15,7 @@ import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.utils.categories.CategoryPath;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
 import net.minecraft.entity.LivingEntity;
@@ -30,7 +31,8 @@ public class Replay extends ValueGroup
 
     public final ValueBoolean enabled = new ValueBoolean("enabled", true);
     /**
-     * Single-level folder name for the replay list (empty = root). No {@code /} — see {@link #normalizeCategory(String)}.
+     * Path of the folder this replay sits in for the replay list, {@code "Crowd/Guards"};
+     * empty is the root. See {@link CategoryPath} for why the path itself is the address.
      */
     public final ValueString category = new ValueString("category", "");
     public final ValueString label = new ValueString("label", "");
@@ -101,30 +103,11 @@ public class Replay extends ValueGroup
 
 
     /**
-     * Normalizes a user-supplied category: trim, single segment (no {@code /}), empty = root.
+     * Normalizes a user-supplied folder path; see {@link CategoryPath#normalize(String)}.
      */
     public static String normalizeCategory(String raw)
     {
-        if (raw == null)
-        {
-            return "";
-        }
-
-        String s = raw.trim();
-
-        if (s.isEmpty())
-        {
-            return "";
-        }
-
-        int slash = s.indexOf('/');
-
-        if (slash >= 0)
-        {
-            s = s.substring(0, slash).trim();
-        }
-
-        return s.isEmpty() ? "" : s;
+        return CategoryPath.normalize(raw);
     }
 
     public String getName()
