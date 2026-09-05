@@ -15,10 +15,13 @@ import net.minecraft.util.Identifier;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -92,7 +95,7 @@ public class CemSourcePack implements ISourcePack
     public void reindex()
     {
         Map<String, Identifier> assets = new TreeMap<>();
-        Map<String, Identifier> textures = this.entityTextures();
+        Textures textures = this.textures();
 
         for (Identifier jem : this.manager.findResources(CEM, (id) -> isMinecraft(id) && id.getPath().endsWith(".jem")).keySet())
         {
@@ -107,12 +110,7 @@ public class CemSourcePack implements ISourcePack
 
             this.collectParts(jem, folder, assets);
 
-            Identifier texture = textures.get(name);
-
-            if (texture == null)
-            {
-                texture = textures.get(stripVariant(name));
-            }
+            Identifier texture = this.resolveTexture(textures, name);
 
             if (texture != null)
             {
@@ -225,31 +223,134 @@ public class CemSourcePack implements ISourcePack
     }
 
     /**
-     * Entity texture by file name. A .jem never says which texture it wears — OptiFine dresses it in
-     * the vanilla one — so the name is all there is to go on, and a pack's own repaint wins by
-     * sitting at the same path. Names are kept in order so a duplicate resolves the same way twice.
+     * Where a model's texture is looked for. A .jem never says which one it wears - OptiFine dresses it
+     * in the vanilla one - so the entity's name is all there is to go on, and a pack's own repaint wins
+     * by sitting at the same path. Paths are relative to {@link #TEXTURES}.
      */
-    private Map<String, Identifier> entityTextures()
+    private static final class Textures
     {
-        Map<String, Identifier> textures = new LinkedHashMap<>();
+        final Map<String, Identifier> byPath = new LinkedHashMap<>();
+        final Map<String, Identifier> byName = new LinkedHashMap<>();
+        final Map<String, List<Identifier>> byFolder = new LinkedHashMap<>();
+    }
 
+    /** Variant prefixes a pack puts on an entity that wears the plain one's texture. */
+    private static final String[] PREFIXES = {"cold_", "warm_"};
+
+    /**
+     * Suffixes naming a layer over an entity rather than an entity: the wool over a sheep, the armour
+     * over a horse, the outer skin of a stray. Stripped one after another, so {@code sheep_wool_undercoat}
+     * comes back to {@code sheep}.
+     */
+    private static final String[] LAYERS = {
+        "_outer", "_saddle", "_armor", "_decor", "_patch", "_collar", "_wool", "_charge",
+        "_undercoat", "_harness", "_ropes", "_big", "_medium", "_small", "_pattern_a", "_pattern_b",
+        "_a", "_b", "_left", "_right"
+    };
+
+    /**
+     * Entities whose texture no rule can find, because vanilla files it under another name entirely.
+     * Kept small on purpose: everything a rule can reach is left to the rules.
+     */
+    private static final Map<String, String> ALIASES = Map.ofEntries(
+        Map.entry("chest", "chest/normal.png"),
+        Map.entry("chest_large", "chest/normal_left.png"),
+        Map.entry("ender_chest", "chest/ender.png"),
+        Map.entry("trapped_chest", "chest/trapped.png"),
+        Map.entry("trapped_chest_large", "chest/trapped_left.png"),
+        Map.entry("elder_guardian", "guardian_elder.png"),
+        Map.entry("giant", "zombie/zombie.png"),
+        Map.entry("magma_cube", "slime/magmacube.png"),
+        Map.entry("mooshroom", "cow/red_mooshroom.png"),
+        Map.entry("player", "player/wide/steve.png"),
+        Map.entry("player_slim", "player/slim/steve.png"),
+        Map.entry("puffer_fish", "fish/pufferfish.png"),
+        Map.entry("raft", "boat/bamboo.png"),
+        Map.entry("sheep_wool", "sheep/sheep_fur.png"),
+        Map.entry("shulker_box", "shulker/shulker.png"),
+        Map.entry("skeleton_horse", "horse/horse_skeleton.png"),
+        Map.entry("tropical_fish", "fish/tropical_a.png"),
+        Map.entry("zombie_horse", "horse/horse_zombie.png")
+    );
+
+    private Textures textures()
+    {
+        Textures textures = new Textures();
+
+        /* Sorted, so a name two packs both answer resolves the same way twice. */
         for (Identifier id : new TreeMap<>(this.manager.findResources(TEXTURES, (l) -> isMinecraft(l) && l.getPath().endsWith(".png"))).keySet())
         {
-            String name = id.getPath().substring(id.getPath().lastIndexOf('/') + 1);
+            String path = id.getPath().substring(TEXTURES.length() + 1);
+            String name = path.substring(path.lastIndexOf('/') + 1, path.length() - 4);
 
-            textures.putIfAbsent(name.substring(0, name.length() - 4), id);
+            textures.byPath.putIfAbsent(path, id);
+            textures.byName.putIfAbsent(name, id);
+
+            for (int slash = path.indexOf('/'); slash >= 0; slash = path.indexOf('/', slash + 1))
+            {
+                textures.byFolder.computeIfAbsent(path.substring(0, slash), (k) -> new ArrayList<>()).add(id);
+            }
         }
 
         return textures;
     }
 
     /**
-     * A pack's variants share the base entity's texture: {@code cow_baby}, {@code cold_cow} and
-     * {@code creeper2} all wear the cow's and the creeper's.
+     * The texture an entity wears, in the order the answers are trusted: the table for the ones vanilla
+     * files under another name, then a file called after the entity, then the entity's own folder for
+     * the ones that come in variants (a cat, a horse, a boat). A variant's default is a guess by
+     * definition - the point is that the model arrives wearing something rather than the missing-texture
+     * checkerboard, and the form's own texture overrides it either way.
      */
-    private static String stripVariant(String name)
+    private Identifier resolveTexture(Textures textures, String entity)
     {
-        for (String prefix : new String[] {"cold_", "warm_"})
+        Collection<String> names = variants(entity);
+
+        for (String name : names)
+        {
+            Identifier id = textures.byPath.get(ALIASES.getOrDefault(name, ""));
+
+            if (id != null)
+            {
+                return id;
+            }
+        }
+
+        for (String name : names)
+        {
+            Identifier id = textures.byName.get(name);
+
+            if (id != null)
+            {
+                return id;
+            }
+        }
+
+        for (String name : names)
+        {
+            Identifier id = pickFromFolder(textures, name);
+
+            if (id != null)
+            {
+                return id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The names to look an entity up under: itself, then without the variant prefix, the baby suffix and
+     * a trailing number, then without the layer suffixes as well.
+     */
+    private static Collection<String> variants(String entity)
+    {
+        Set<String> names = new LinkedHashSet<>();
+        String name = entity;
+
+        names.add(name);
+
+        for (String prefix : PREFIXES)
         {
             if (name.startsWith(prefix))
             {
@@ -262,6 +363,111 @@ public class CemSourcePack implements ISourcePack
             name = name.substring(0, name.length() - 5);
         }
 
+        names.add(name = stripDigits(name));
+
+        for (boolean stripped = true; stripped; )
+        {
+            stripped = false;
+
+            for (String suffix : LAYERS)
+            {
+                if (name.endsWith(suffix) && name.length() > suffix.length())
+                {
+                    name = name.substring(0, name.length() - suffix.length());
+                    stripped = true;
+                }
+            }
+        }
+
+        if (name.startsWith("head_"))
+        {
+            name = name.substring(5);
+        }
+
+        names.add(name = stripDigits(name));
+
+        /* Every minecart is drawn on the one texture, whatever it carries. */
+        if (name.endsWith("_minecart"))
+        {
+            names.add("minecart");
+        }
+
+        return names;
+    }
+
+    /**
+     * One texture out of an entity's folder: the one named after it, else one named after it with
+     * something appended that is not a layer ({@code horse_black} but not {@code cat_collar}), else the
+     * first. Files sitting straight in the folder are preferred over a nested {@code armor/} and such.
+     */
+    private static Identifier pickFromFolder(Textures textures, String folder)
+    {
+        List<Identifier> all = textures.byFolder.get(folder);
+
+        if (all == null)
+        {
+            return null;
+        }
+
+        int depth = folder.length() - folder.replace("/", "").length();
+        List<Identifier> direct = new ArrayList<>();
+
+        for (Identifier id : all)
+        {
+            String path = id.getPath().substring(TEXTURES.length() + 1);
+
+            if (path.length() - path.replace("/", "").length() == depth + 1)
+            {
+                direct.add(id);
+            }
+        }
+
+        List<Identifier> pool = direct.isEmpty() ? all : direct;
+        String name = folder.substring(folder.lastIndexOf('/') + 1);
+
+        for (Identifier id : pool)
+        {
+            if (fileName(id).equals(name))
+            {
+                return id;
+            }
+        }
+
+        for (Identifier id : pool)
+        {
+            String file = fileName(id);
+
+            if (file.startsWith(name) && !isLayer(file))
+            {
+                return id;
+            }
+        }
+
+        return pool.get(0);
+    }
+
+    private static String fileName(Identifier id)
+    {
+        String path = id.getPath();
+
+        return path.substring(path.lastIndexOf('/') + 1, path.length() - 4);
+    }
+
+    private static boolean isLayer(String name)
+    {
+        for (String suffix : LAYERS)
+        {
+            if (name.endsWith(suffix))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static String stripDigits(String name)
+    {
         int end = name.length();
 
         while (end > 0 && Character.isDigit(name.charAt(end - 1)))
