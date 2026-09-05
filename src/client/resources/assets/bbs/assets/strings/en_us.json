@@ -1400,6 +1400,7 @@
 	"bbs.ui.model_editor.procedural": "Procedural",
 	"bbs.ui.model_editor.culling": "Culling",
 	"bbs.ui.model_editor.on_cpu": "Compute on CPU",
+	"bbs.ui.model_editor.cem_animation": "CEM animation",
 	"bbs.ui.model_editor.pose_group": "Pose group",
 	"bbs.ui.model_editor.anchor": "Anchor",
 	"bbs.ui.model_editor.texture": "Texture",

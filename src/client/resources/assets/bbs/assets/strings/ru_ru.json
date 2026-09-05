@@ -1394,6 +1394,7 @@
 	"bbs.ui.model_editor.procedural": "Процедурная",
 	"bbs.ui.model_editor.culling": "Отсечение граней",
 	"bbs.ui.model_editor.on_cpu": "Считать на CPU",
+	"bbs.ui.model_editor.cem_animation": "Анимация CEM",
 	"bbs.ui.model_editor.pose_group": "Группа поз",
 	"bbs.ui.model_editor.anchor": "Якорь",
 	"bbs.ui.model_editor.texture": "Текстура",

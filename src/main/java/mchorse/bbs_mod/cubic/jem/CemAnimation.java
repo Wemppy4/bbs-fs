@@ -50,9 +50,6 @@ import java.util.List;
  */
 public class CemAnimation
 {
-    /** Debug switch: set false to render CEM models at rest (no procedural animation). */
-    public static boolean ENABLED = true;
-
     /** The vertical offset CEM applies to top-level parts (entity model origin height). */
     private static final float Y_OFFSET = 24F;
 
@@ -138,7 +135,7 @@ public class CemAnimation
     /** Evaluate the animation for this frame on the given instance state and apply it to the model's bones. */
     public void apply(CemState state, IEntity target, float transition)
     {
-        if (!ENABLED || this.statements.isEmpty())
+        if (this.statements.isEmpty())
         {
             return;
         }

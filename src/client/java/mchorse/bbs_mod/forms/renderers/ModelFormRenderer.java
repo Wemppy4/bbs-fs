@@ -325,7 +325,16 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     {
         if (model.cemAnimation != null)
         {
-            return new CemAnimator(model.cemAnimation);
+            if (model.config.cemAnimation.get())
+            {
+                return new CemAnimator(model.cemAnimation);
+            }
+
+            /* CEM drove the bones' visibility and nothing else resets it: switched off, every bone shows again. */
+            for (ModelGroup group : model.model.getAllGroups())
+            {
+                group.visible = true;
+            }
         }
 
         return model.isProcedural() ? new ProceduralAnimator() : new Animator();

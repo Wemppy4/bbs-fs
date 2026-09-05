@@ -17,6 +17,7 @@ import mchorse.bbs_mod.utils.StringUtils;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,7 +49,7 @@ public class JemModelLoader implements IModelLoader
         {
             JsonObject jem = JsonParser.parseString(IOUtils.readText(stream)).getAsJsonObject();
             String entity = StringUtils.removeExtension(StringUtils.fileName(modelJem.get(0).path));
-            JemModelParser.Result result = JemModelParser.parse(jem, jpms::get, models.parser, CemHierarchy.forEntity(entity));
+            JemModelParser.Result result = JemModelParser.parse(jem, jpms::get, models.parser, this.parentOverrides(entity, config));
             Model modelModel = result.model();
 
             for (String warning : result.warnings())
@@ -81,6 +82,29 @@ public class JemModelLoader implements IModelLoader
         }
 
         return null;
+    }
+
+    /**
+     * The child part &rarr; parent part reparenting for this model: the built-in vanilla table for the
+     * entity (the .jem's file name), with the {@code config.json}'s {@code cem_parents} laid over it —
+     * so any entity can be fixed with data. Read straight off the map: the config is applied to the
+     * instance after parsing, and the parser needs the parents before.
+     */
+    private Map<String, String> parentOverrides(String entity, MapType config)
+    {
+        Map<String, String> parents = new LinkedHashMap<>(CemHierarchy.forEntity(entity));
+
+        if (config != null)
+        {
+            MapType overrides = config.getMap("cem_parents");
+
+            for (String child : overrides.keys())
+            {
+                parents.put(child, overrides.getString(child));
+            }
+        }
+
+        return parents;
     }
 
     /**
