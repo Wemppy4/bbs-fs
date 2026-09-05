@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
@@ -121,7 +122,9 @@ public class UIForms extends UIList<UIForms.FormEntry>
     @Override
     protected List<FormEntry> dragPayload(FormEntry item)
     {
-        return item.part == null ? null : super.dragPayload(item);
+        /* One part at a time: a body part's slot is worked out from its own siblings, so a group
+         * dragged at once would need a slot each, and parts of different parents have none in common. */
+        return item.part == null || super.dragPayload(item) == null ? null : Collections.singletonList(item);
     }
 
     /**

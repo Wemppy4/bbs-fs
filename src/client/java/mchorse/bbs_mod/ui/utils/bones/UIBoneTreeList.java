@@ -45,7 +45,6 @@ public class UIBoneTreeList extends UIStringList
 {
     public static final int INDENT = 8;
 
-    private static final int GUIDE_COLOR = Colors.A25 | 0xFFFFFF;
 
     private static final int MARKER = 4;
     private static final int MARKER_GAP = 2;
@@ -378,7 +377,7 @@ public class UIBoneTreeList extends UIStringList
             /* This node's connector column keeps its vertical running through the
              * whole subtree unless the node closed the level as its last sibling.
              * Roots have no column, so nothing to continue. */
-            int childLines = !last && depth > 0 ? lines | (1 << (depth - 1)) : lines;
+            int childLines = childGuideLines(lines, depth, last);
 
             this.emit(node.children, depth + 1, childLines, fill && !folded);
         }
@@ -474,6 +473,12 @@ public class UIBoneTreeList extends UIStringList
     }
 
     @Override
+    protected int indentStep()
+    {
+        return INDENT;
+    }
+
+    @Override
     protected void renderElementPart(UIContext context, String element, int i, int x, int y, boolean hover, boolean selected)
     {
         boolean filtering = this.flat || this.isFiltering();
@@ -481,26 +486,9 @@ public class UIBoneTreeList extends UIStringList
         int depth = meta == null ? 0 : meta.depth;
         int h = this.scroll.scrollItemSize;
 
-        if (meta != null && depth > 0)
+        if (meta != null)
         {
-            int mid = y + h / 2;
-            int textX = x + this.rowContentX(element) + this.arrowSlot();
-
-            for (int level = 0; level < depth - 1; level++)
-            {
-                if ((meta.lines & (1 << level)) != 0)
-                {
-                    int lx = columnX(x, level);
-
-                    context.batcher.box(lx, y, lx + 1, y + h, GUIDE_COLOR);
-                }
-            }
-
-            /* The connector: a tee for a middle child, a corner for the last one. */
-            int lx = columnX(x, depth - 1);
-
-            context.batcher.box(lx, y, lx + 1, meta.last ? mid + 1 : y + h, GUIDE_COLOR);
-            context.batcher.box(lx + 1, mid, textX - 2, mid + 1, GUIDE_COLOR);
+            this.renderTreeGuides(context, x, y, depth, meta.lines, meta.last, x + this.rowContentX(element) + this.arrowSlot());
         }
 
         String label = meta == null
@@ -560,11 +548,6 @@ public class UIBoneTreeList extends UIStringList
         }
 
         return this.laneX;
-    }
-
-    private static int columnX(int x, int level)
-    {
-        return x + ROW_PADDING + level * INDENT + 2;
     }
 
     /** The dot legend, gated on the cursor actually being in the dot column. */
