@@ -316,47 +316,61 @@ public class CemAnimation
         }
 
         /**
-         * Reset this bone's model variables to the values that reproduce its rest pose, so an
-         * un-driven or only cross-referenced bone stays put. These are the exact inverse of
-         * {@link #writeback()}.
+         * Seed this bone's model variables from the pose standing in {@code current} — the vanilla
+         * animation stage {@link CemAnimator} ran just before, or the rest pose when there was none.
+         *
+         * <p>This is what makes a statement that reads its own bone work: OptiFine evaluates CEM on
+         * top of the vanilla frame, so {@code head.ry} arrives holding the vanilla head yaw. Fresh
+         * Moves is written that way throughout — {@code head.ry = wraprad(head.ry)}, {@code
+         * right_arm.rx = wraprad(right_arm.rx)} — and against a rest-pose seed those are the identity
+         * on zero, which left the player's head and arms frozen. Seeded from {@code current} they
+         * carry the vanilla angle through, and a bone no statement mentions writes back exactly what
+         * it came in with, because these are the exact inverse of {@link #writeback()}.</p>
          */
         public void reset()
         {
-            Transform initial = this.group.initial;
-            Vector3f pivot = initial.translate;
+            Transform current = this.group.current;
+            Vector3f translate = current.translate;
+            Vector3f pivot = this.group.initial.translate;
+
+            /* The writeback lays X down mirrored about the pivot; undo that first, then the split by
+             * kind below is the plain inverse of the one there. */
+            float x = 2F * pivot.x - translate.x;
 
             switch (this.kind)
             {
                 case SUB1 ->
                 {
-                    this.tx.set(-pivot.x);
-                    this.ty.set(-pivot.y);
-                    this.tz.set(pivot.z);
+                    this.tx.set(-x);
+                    this.ty.set(-translate.y);
+                    this.tz.set(translate.z);
                 }
                 case SUBN ->
                 {
                     Vector3f parent = this.group.parent.initial.translate;
 
-                    this.tx.set(parent.x - pivot.x);
-                    this.ty.set(parent.y - pivot.y);
-                    this.tz.set(pivot.z - parent.z);
+                    this.tx.set(parent.x - x);
+                    this.ty.set(parent.y - translate.y);
+                    this.tz.set(translate.z - parent.z);
                 }
                 default ->
                 {
-                    this.tx.set(-pivot.x);
-                    this.ty.set(Y_OFFSET - pivot.y);
-                    this.tz.set(pivot.z);
+                    this.tx.set(-x);
+                    this.ty.set(Y_OFFSET - translate.y);
+                    this.tz.set(translate.z);
                 }
             }
 
-            /* Rotation defaults invert the writeback so a bone with a rest CEM rotation keeps it. */
-            this.rx.set(-Math.toRadians(initial.rotate.x));
-            this.ry.set(-Math.toRadians(initial.rotate.y));
-            this.rz.set(Math.toRadians(initial.rotate.z));
+            this.rx.set(-Math.toRadians(current.rotate.x));
+            this.ry.set(-Math.toRadians(current.rotate.y));
+            this.rz.set(Math.toRadians(current.rotate.z));
 
-            this.sx.set(initial.scale.x);
-            this.sy.set(initial.scale.y);
-            this.sz.set(initial.scale.z);
+            this.sx.set(current.scale.x);
+            this.sy.set(current.scale.y);
+            this.sz.set(current.scale.z);
+
+            /* Visibility has no vanilla stage to inherit from, and nothing resets what the last frame
+             * wrote, so every frame starts from shown. */
             this.visible.set(1);
             this.visibleBoxes.set(1);
         }
