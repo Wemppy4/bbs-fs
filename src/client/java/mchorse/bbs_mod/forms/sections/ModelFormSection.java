@@ -13,6 +13,7 @@ import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.watchdog.WatchDogEvent;
 
 import java.io.File;
@@ -87,10 +88,20 @@ public class ModelFormSection extends SubFormSection
         File file = path.toFile();
         Link link = BBSMod.getProvider().getLink(file);
 
-        if (file.isDirectory())
+        if (link == null || !link.path.startsWith(ModelManager.MODELS_PREFIX))
         {
-            /* A batch of directory events (the model loader making material folders) arrives
-             * within one flush; the rescan walks the whole tree anyway, so once covers them all. */
+            return;
+        }
+
+        boolean reloadable = BBSModClient.getModels().isRelodable(link);
+
+        /* A folder appearing rearranges the tree, and so does a delete that is not one of a model's
+         * files: a removed model folder arrives here as a path that is no longer a directory, so it
+         * would otherwise fall through every branch and the model would sit in the palette until the
+         * next world load. A batch of such events lands within one flush and the rescan walks the whole
+         * tree anyway, so once covers them all. */
+        if (file.isDirectory() || (event == WatchDogEvent.DELETED && !reloadable))
+        {
             long now = System.currentTimeMillis();
 
             if (now - this.lastStructureScan > 100)
@@ -100,40 +111,55 @@ public class ModelFormSection extends SubFormSection
 
             this.lastStructureScan = now;
             this.parent.markDirty();
+
+            return;
         }
-        else if (link != null && link.path.startsWith(ModelManager.MODELS_PREFIX))
+
+        if (!reloadable)
         {
-            String extension = this.getExtension(link);
-
-            if (extension == null)
-            {
-                return;
-            }
-
-            String key = link.path.substring(ModelManager.MODELS_PREFIX.length());
-
-            key = key.substring(0, key.length() - extension.length());
-
-            if (event == WatchDogEvent.DELETED)
-            {
-                this.remove(key);
-            }
-            else
-            {
-                this.add(key);
-            }
-
-            this.parent.markDirty();
+            return;
         }
+
+        /* A model is the FOLDER, not the file in it: a .jem sits beside its .jpm, an .obj beside its
+         * .mtl, and the palette lists one entry per folder - the key getAvailableKeys builds. Taking the
+         * file name off the path instead left a trailing slash on the key, which filed the model under a
+         * category of its own name and gave the entry a model id nothing could load. Formats whose
+         * loader makes texture folders hid it: those folder events triggered the rescan above, which
+         * rebuilds the list correctly. A .jem folder makes no folders, so nothing ever corrected it. */
+        String key = StringUtils.parentPath(link.path.substring(ModelManager.MODELS_PREFIX.length()));
+
+        if (key.isEmpty())
+        {
+            return;
+        }
+
+        /* One deleted file of several is not a deleted model, and one saved file may be the first of a
+         * model that is only now appearing - so ask the folder rather than the event. */
+        if (this.hasModel(key))
+        {
+            this.add(key);
+        }
+        else
+        {
+            this.remove(key);
+        }
+
+        this.parent.markDirty();
     }
 
-    private String getExtension(Link link)
+    /** Whether that model folder still holds a file some loader would read. */
+    private boolean hasModel(String key)
     {
-        if (BBSModClient.getModels().isRelodable(link))
+        ModelManager models = BBSModClient.getModels();
+
+        for (Link link : BBSMod.getProvider().getLinksFromPath(Link.assets(ModelManager.MODELS_PREFIX + key), true))
         {
-            return link.path.substring(link.path.lastIndexOf('/') + 1);
+            if (models.isRelodable(link))
+            {
+                return true;
+            }
         }
 
-        return null;
+        return false;
     }
 }

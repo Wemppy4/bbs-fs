@@ -351,19 +351,53 @@ public class ModelManager implements IWatchDogListener
             return;
         }
 
+        if (!link.path.startsWith(MODELS_PREFIX))
+        {
+            return;
+        }
+
+        String modelPath = link.path.substring(MODELS_PREFIX.length());
+
         if (this.isRelodable(link))
         {
-            String key = StringUtils.parentPath(link.path.substring(MODELS_PREFIX.length()));
-            ModelInstance model = this.models.remove(key);
+            /* A model is the folder the file sits in. */
+            this.forget(StringUtils.parentPath(modelPath));
 
-            /* Un-mark it too, or the next getModel would treat the key as already queued and
-             * the edited model would never reload. */
-            this.requested.remove(key);
+            return;
+        }
 
-            if (model != null)
+        /* Not a file a loader reads. A deleted model folder arrives exactly this way - by the time the
+         * event is handled the path is no longer a directory, so it names the model itself - and without
+         * this a model deleted and put back under the same name came back as the copy still in memory,
+         * which is what made a rejoin the only way to see it change. */
+        this.forget(modelPath);
+
+        for (String key : new ArrayList<>(this.models.keySet()))
+        {
+            if (key.startsWith(modelPath + "/"))
             {
-                model.delete();
+                this.forget(key);
             }
+        }
+    }
+
+    /** Drop a model from the cache so the next request loads it from disk again. */
+    private void forget(String key)
+    {
+        if (key.isEmpty())
+        {
+            return;
+        }
+
+        ModelInstance model = this.models.remove(key);
+
+        /* Un-mark it too, or the next getModel would treat the key as already queued and
+         * the edited model would never reload. */
+        this.requested.remove(key);
+
+        if (model != null)
+        {
+            model.delete();
         }
     }
 }
