@@ -12,9 +12,13 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -30,13 +34,20 @@ import java.util.function.Function;
  *     submodels nested two or more levels deep); its boxes use {@code coordinates + the submodel's
  *     pivot}. A submodel does NOT inherit its parent PART's translate.</li>
  *     <li>{@code invertAxis} is assumed to be the standard {@code "xy"} and is not applied (Blockbench
- *     does the same); rotations are taken as-is; X is not mirrored.</li>
+ *     does the same) — anything else is reported as a warning; rotations are taken as-is; X is not
+ *     mirrored.</li>
  * </ul>
  * Boxes are stored with <b>per-face</b> UV ({@link ModelUV}); CEM's box-format {@code textureOffset}
- * is expanded into the six faces by {@link ModelCube#setupBoxUV}.
+ * is expanded into the six faces by {@link ModelCube#setupBoxUV}, honouring the part's
+ * {@code mirrorTexture "u"}. A uniform {@code sizeAdd} becomes the cube's inflate; a per-axis
+ * {@code sizesAdd} is baked into the geometry.
  *
  * <p>Animations (the {@code "animations"} block) are collected separately into a {@link CemAnimation}
  * — they are a per-frame procedural expression system, not keyframes.</p>
+ *
+ * <p>Whatever the parser had to work around (an unsupported attribute, a duplicate bone id, a box
+ * without coordinates) is reported once per quirk in {@link Result#warnings()}, for the loader to
+ * print against the model's name.</p>
  */
 public class JemModelParser
 {
@@ -44,8 +55,8 @@ public class JemModelParser
     public interface JpmResolver extends Function<String, JsonObject>
     {}
 
-    /** Result of parsing a .jem: the geometry model plus its (possibly empty) procedural CEM animation. */
-    public record Result(Model model, CemAnimation animation)
+    /** Result of parsing a .jem: the geometry model, its (possibly empty) procedural CEM animation, and the quirks met on the way. */
+    public record Result(Model model, CemAnimation animation, Collection<String> warnings)
     {}
 
     public static Result parse(JsonObject jem, JpmResolver resolver, MolangParser parser)
@@ -55,8 +66,8 @@ public class JemModelParser
 
     public static Result parse(JsonObject jem, JpmResolver resolver, MolangParser parser, Map<String, String> parentOverrides)
     {
-        Model model = new Model(parser);
-        CemAnimation animation = new CemAnimation();
+        Parse parse = new Parse(new Model(parser), new CemAnimation());
+        Model model = parse.model;
 
         model.textureWidth = 64;
         model.textureHeight = 64;
@@ -71,7 +82,7 @@ public class JemModelParser
 
         if (!jem.has("models"))
         {
-            return new Result(model, animation);
+            return parse.result();
         }
 
         /* Collect entries, merging the multiple model entries that target the same bone (e.g. the
@@ -94,8 +105,11 @@ public class JemModelParser
             }
 
             infos.computeIfAbsent(id, GroupInfo::new).defs.add(entry);
-            collectAnimations(entry, animation);
+            collectAnimations(entry, parse.animation);
         }
+
+        /* The parts' ids are taken before any submodel is named, so a submodel can never shadow a part. */
+        parse.ids.addAll(infos.keySet());
 
         /* Each model entry is a top-level bone (Blockbench keeps the part list flat). */
         for (GroupInfo info : infos.values())
@@ -107,7 +121,7 @@ public class JemModelParser
 
             for (JsonObject def : info.defs)
             {
-                readContent(model, info.group, def, ZERO, pivot, 0);
+                readContent(parse, info.group, def, ZERO, pivot, 0);
             }
 
             model.topGroups.add(info.group);
@@ -116,9 +130,9 @@ public class JemModelParser
         reparent(model, parentOverrides);
 
         model.initialize();
-        animation.setup(model);
+        parse.animation.setup(model);
 
-        return new Result(model, animation);
+        return parse.result();
     }
 
     /**
@@ -163,13 +177,27 @@ public class JemModelParser
      *                    the submodel's own pivot for a submodel).
      * @param groupOrigin this bone's pivot, accumulated into its submodels' translates when depth >= 1.
      */
-    private static void readContent(Model model, ModelGroup group, JsonObject def, Vector3f boxOffset, Vector3f groupOrigin, int depth)
+    private static void readContent(Parse parse, ModelGroup group, JsonObject def, Vector3f boxOffset, Vector3f groupOrigin, int depth)
     {
+        boolean geometry = def.has("boxes") || def.has("sprites");
+
+        if (geometry)
+        {
+            checkInvertAxis(parse, def);
+        }
+
+        boolean mirror = mirrorTexture(parse, def);
+
         if (def.has("boxes"))
         {
             for (JsonElement element : def.getAsJsonArray("boxes"))
             {
-                group.cubes.add(parseBox(model, element.getAsJsonObject(), boxOffset));
+                ModelCube cube = parseBox(parse, element.getAsJsonObject(), boxOffset, mirror);
+
+                if (cube != null)
+                {
+                    group.cubes.add(cube);
+                }
             }
         }
 
@@ -177,7 +205,12 @@ public class JemModelParser
         {
             for (JsonElement element : def.getAsJsonArray("sprites"))
             {
-                group.cubes.add(parseSprite(model, element.getAsJsonObject(), boxOffset));
+                ModelCube cube = parseSprite(parse, element.getAsJsonObject(), boxOffset);
+
+                if (cube != null)
+                {
+                    group.cubes.add(cube);
+                }
             }
         }
 
@@ -185,17 +218,17 @@ public class JemModelParser
         {
             for (JsonElement element : def.getAsJsonArray("submodels"))
             {
-                parseSubmodel(model, group, element.getAsJsonObject(), groupOrigin, depth);
+                parseSubmodel(parse, group, element.getAsJsonObject(), groupOrigin, depth);
             }
         }
 
         if (def.has("submodel"))
         {
-            parseSubmodel(model, group, def.getAsJsonObject("submodel"), groupOrigin, depth);
+            parseSubmodel(parse, group, def.getAsJsonObject("submodel"), groupOrigin, depth);
         }
     }
 
-    private static void parseSubmodel(Model model, ModelGroup parent, JsonObject def, Vector3f parentOrigin, int depth)
+    private static void parseSubmodel(Parse parse, ModelGroup parent, JsonObject def, Vector3f parentOrigin, int depth)
     {
         Vector3f origin = translate(def);
 
@@ -206,11 +239,11 @@ public class JemModelParser
             origin.add(parentOrigin);
         }
 
-        ModelGroup group = new ModelGroup(uniqueId(model, parent, getString(def, "id", null)));
+        ModelGroup group = new ModelGroup(uniqueId(parse, parent, getString(def, "id", null)));
 
         parent.children.add(group);
         setupBone(group, def, origin);
-        readContent(model, group, def, origin, origin, depth + 1);
+        readContent(parse, group, def, origin, origin, depth + 1);
     }
 
     /**
@@ -255,9 +288,42 @@ public class JemModelParser
         group.current.copy(group.initial);
     }
 
-    private static ModelCube parseBox(Model model, JsonObject object, Vector3f offset)
+    /**
+     * The coordinate handling assumes the standard {@code "xy"} inversion (see the class javadoc). A
+     * definition that declares anything else — or nothing at all, which OptiFine reads as no inversion
+     * — is laid out in a different convention and may come out flipped; say so instead of guessing.
+     */
+    private static void checkInvertAxis(Parse parse, JsonObject def)
     {
-        JsonArray coords = object.getAsJsonArray("coordinates");
+        String invert = getString(def, "invertAxis", "");
+
+        if (!invert.equalsIgnoreCase("xy"))
+        {
+            parse.warn("invertAxis \"" + invert + "\" is read as the standard \"xy\" - the part may come out flipped");
+        }
+    }
+
+    /** Whether the definition mirrors its box UV horizontally ({@code mirrorTexture "u"}); a vertical mirror has no counterpart here. */
+    private static boolean mirrorTexture(Parse parse, JsonObject def)
+    {
+        String mirror = getString(def, "mirrorTexture", "").toLowerCase();
+
+        if (mirror.contains("v"))
+        {
+            parse.warn("mirrorTexture \"" + mirror + "\": only \"u\" is mirrored, the vertical mirror is ignored");
+        }
+
+        return mirror.contains("u");
+    }
+
+    private static ModelCube parseBox(Parse parse, JsonObject object, Vector3f offset, boolean mirror)
+    {
+        JsonArray coords = coordinates(parse, object, "box");
+
+        if (coords == null)
+        {
+            return null;
+        }
 
         Vector3f size = new Vector3f(coords.get(3).getAsFloat(), coords.get(4).getAsFloat(), coords.get(5).getAsFloat());
 
@@ -267,21 +333,48 @@ public class JemModelParser
         cube.origin.set(coords.get(0).getAsFloat() + offset.x, coords.get(1).getAsFloat() + offset.y, coords.get(2).getAsFloat() + offset.z);
         cube.pivot.set(cube.origin);
 
+        /* The UV is laid out from the box's authored size - growth never changes it. */
+        setupBoxUV(cube, object, mirror);
+
         if (object.has("sizeAdd"))
         {
             cube.inflate = object.get("sizeAdd").getAsFloat();
         }
 
-        setupBoxUV(cube, object, size);
-        cube.generateQuads(model.textureWidth, model.textureHeight);
+        if (object.has("sizesAdd"))
+        {
+            grow(cube, object.getAsJsonArray("sizesAdd"));
+        }
+
+        cube.generateQuads(parse.model.textureWidth, parse.model.textureHeight);
 
         return cube;
     }
 
-    /** CEM sprites are flat textured quads (a box of depth 1) using a single texture offset. */
-    private static ModelCube parseSprite(Model model, JsonObject object, Vector3f offset)
+    /**
+     * Per-axis growth ({@code sizesAdd}) has no native counterpart - the cube's inflate is uniform - so
+     * it is baked into the geometry: the box grows by the amount on both sides of every axis.
+     */
+    private static void grow(ModelCube cube, JsonArray sizesAdd)
     {
-        JsonArray coords = object.getAsJsonArray("coordinates");
+        float x = sizesAdd.get(0).getAsFloat();
+        float y = sizesAdd.get(1).getAsFloat();
+        float z = sizesAdd.get(2).getAsFloat();
+
+        cube.origin.sub(x, y, z);
+        cube.pivot.set(cube.origin);
+        cube.size.add(x * 2, y * 2, z * 2);
+    }
+
+    /** CEM sprites are flat textured quads (a box of depth 1) using a single texture offset. */
+    private static ModelCube parseSprite(Parse parse, JsonObject object, Vector3f offset)
+    {
+        JsonArray coords = coordinates(parse, object, "sprite");
+
+        if (coords == null)
+        {
+            return null;
+        }
 
         Vector3f size = new Vector3f(coords.get(3).getAsFloat(), coords.get(4).getAsFloat(), coords.get(5).getAsFloat());
 
@@ -301,22 +394,38 @@ public class JemModelParser
             cube.back = ModelUV.fromXY(u + size.x, v, u, v + size.y);
         }
 
-        cube.generateQuads(model.textureWidth, model.textureHeight);
+        cube.generateQuads(parse.model.textureWidth, parse.model.textureHeight);
 
         return cube;
     }
 
+    /** A box's/sprite's six {@code coordinates}, or null (with a warning) when they are missing or short - one bad box must not cost the model. */
+    private static JsonArray coordinates(Parse parse, JsonObject object, String what)
+    {
+        JsonArray coords = object.has("coordinates") && object.get("coordinates").isJsonArray() ? object.getAsJsonArray("coordinates") : null;
+
+        if (coords == null || coords.size() < 6)
+        {
+            parse.warn("a " + what + " without six coordinates was skipped");
+
+            return null;
+        }
+
+        return coords;
+    }
+
     /**
      * Build the six per-face {@link ModelUV}s for a box: either the box-format {@code textureOffset}
-     * (the standard MC unwrap, handled by {@link ModelCube#setupBoxUV}) or the individual face UVs.
+     * (the standard MC unwrap, handled by {@link ModelCube#setupBoxUV}, mirrored on request) or the
+     * individual face UVs, which are taken as authored.
      */
-    private static void setupBoxUV(ModelCube cube, JsonObject object, Vector3f size)
+    private static void setupBoxUV(ModelCube cube, JsonObject object, boolean mirror)
     {
         if (object.has("textureOffset"))
         {
             JsonArray uv = object.getAsJsonArray("textureOffset");
 
-            cube.setupBoxUV(new Vector2f(uv.get(0).getAsFloat(), uv.get(1).getAsFloat()), false);
+            cube.setupBoxUV(new Vector2f(uv.get(0).getAsFloat(), uv.get(1).getAsFloat()), mirror);
 
             return;
         }
@@ -387,19 +496,30 @@ public class JemModelParser
         return new Vector3f(t.get(0).getAsFloat(), t.get(1).getAsFloat(), t.get(2).getAsFloat());
     }
 
-    private static String uniqueId(Model model, ModelGroup parent, String id)
+    /**
+     * A bone id no other bone of this parse has: a duplicate gets underscores appended. Animations
+     * address bones by id, so a renamed duplicate is out of their reach - hence the warning.
+     */
+    private static String uniqueId(Parse parse, ModelGroup parent, String id)
     {
         if (id == null)
         {
             id = parent.id + "_sub" + parent.children.size();
         }
 
-        while (model.getGroup(id) != null)
+        String unique = id;
+
+        while (!parse.ids.add(unique))
         {
-            id = id + "_";
+            unique = unique + "_";
         }
 
-        return id;
+        if (!unique.equals(id))
+        {
+            parse.warn("duplicate bone id \"" + id + "\" renamed to \"" + unique + "\" - animations addressing it drive the first one");
+        }
+
+        return unique;
     }
 
     private static String getString(JsonObject object, String key, String fallback)
@@ -416,6 +536,32 @@ public class JemModelParser
         public GroupInfo(String id)
         {
             this.group = new ModelGroup(id);
+        }
+    }
+
+    /** One parse's working state: the model being built, its animation, the bone ids taken so far and the quirks met. */
+    private static class Parse
+    {
+        public final Model model;
+        public final CemAnimation animation;
+        public final Set<String> ids = new HashSet<>();
+        public final Set<String> warnings = new LinkedHashSet<>();
+
+        public Parse(Model model, CemAnimation animation)
+        {
+            this.model = model;
+            this.animation = animation;
+        }
+
+        /** Note a quirk once - a pack repeats the same one on every part. */
+        public void warn(String message)
+        {
+            this.warnings.add(message);
+        }
+
+        public Result result()
+        {
+            return new Result(this.model, this.animation, this.warnings);
         }
     }
 }

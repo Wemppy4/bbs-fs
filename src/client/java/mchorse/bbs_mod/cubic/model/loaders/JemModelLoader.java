@@ -51,6 +51,11 @@ public class JemModelLoader implements IModelLoader
             JemModelParser.Result result = JemModelParser.parse(jem, jpms::get, models.parser, CemHierarchy.forEntity(entity));
             Model modelModel = result.model();
 
+            for (String warning : result.warnings())
+            {
+                System.err.println("OptiFine CEM model " + model + ": " + warning);
+            }
+
             if (modelModel.topGroups.isEmpty())
             {
                 return null;
