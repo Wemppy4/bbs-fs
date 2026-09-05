@@ -14,10 +14,12 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.resources.CemSourcePack;
 import mchorse.bbs_mod.utils.watchdog.WatchDogEvent;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -68,6 +70,18 @@ public class ModelFormSection extends SubFormSection
     @Override
     protected FormCategory createCategory(IKey uiKey, String id)
     {
+        String folder = this.getKey(id);
+
+        /* The folder a resource pack's models sit in is an id, not a word - it is what gets written
+         * into saved forms - so the palette shows what it means instead of showing "cem". A model the
+         * pack files away in a subfolder keeps that subfolder's name after it. */
+        if (folder.equals(CemSourcePack.NAME) || folder.startsWith(CemSourcePack.NAME + "/"))
+        {
+            String rest = folder.substring(CemSourcePack.NAME.length());
+
+            uiKey = IKey.comp(Arrays.asList(this.getTitle(), IKey.constant(" ("), UIKeys.FORMS_CATEGORIES_MODELS_PACKS, IKey.constant(rest + ")")));
+        }
+
         return new ModelFormCategory(uiKey, this.parent.preferences.visible("models_" + id));
     }
 

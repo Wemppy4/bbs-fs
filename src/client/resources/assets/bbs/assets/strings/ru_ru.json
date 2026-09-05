@@ -931,6 +931,7 @@
 	"bbs.ui.forms.categories.mobs_misc": "Mobs (прочие)",
 	"bbs.ui.forms.categories.mobs_neutral": "Мобы (нейтральные)",
 	"bbs.ui.forms.categories.models": "Модели",
+	"bbs.ui.forms.categories.models_packs": "из паков",
 	"bbs.ui.forms.categories.particles": "Частицы",
 	"bbs.ui.forms.categories.recent": "Недавние",
 	"bbs.ui.forms.categories.remove_category-description": "Вы уверены что хотите удалить данную категорию?",

@@ -935,6 +935,7 @@
 	"bbs.ui.forms.categories.mobs_misc": "Mobs (miscellaneous)",
 	"bbs.ui.forms.categories.mobs_neutral": "Mobs (neutral)",
 	"bbs.ui.forms.categories.models": "Models",
+	"bbs.ui.forms.categories.models_packs": "from packs",
 	"bbs.ui.forms.categories.particles": "Particles",
 	"bbs.ui.forms.categories.recent": "Recent forms",
 	"bbs.ui.forms.categories.remove_category-description": "Are you sure you want to remove this category?",

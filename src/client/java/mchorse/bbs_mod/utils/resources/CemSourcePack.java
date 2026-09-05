@@ -54,8 +54,15 @@ import java.util.TreeMap;
  */
 public class CemSourcePack implements ISourcePack
 {
-    /** Where a pack model lands, so its id reads {@code cem/<entity>}. */
-    public static final String FOLDER = "models/cem/";
+    /**
+     * The folder every pack model lands in, so its id reads {@code cem/<entity>}. It is an id, not a
+     * word: what the palette shows instead is {@link mchorse.bbs_mod.ui.UIKeys#FORMS_CATEGORIES_MODELS_PACKS}.
+     * Changing it would change every id, and ids are saved inside forms and films.
+     */
+    public static final String NAME = "cem";
+
+    /** Where a pack model lands. */
+    public static final String FOLDER = "models/" + NAME + "/";
 
     /** Where OptiFine keeps entity models inside a resource pack. */
     private static final String CEM = "optifine/cem";
