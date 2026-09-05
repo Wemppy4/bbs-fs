@@ -422,6 +422,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
          * honest answer, so they run model-local, as they do in the UI. */
         Matrix4f baseTransform = ui || world == null ? null : new Matrix4f(world.peek().getPositionMatrix());
 
+        this.applyCem(target, model, transition);
         this.applyIK(model, baseTransform);
         this.applyPhysics(target, model, transition, baseTransform);
         this.applyConstraints(model);
@@ -511,6 +512,19 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             {
                 this.renderArmor(target, stack, entry.getKey(), entry.getValue(), finalColor, overlay, light);
             }
+        }
+    }
+
+    /**
+     * Apply the model's live procedural CEM animation (for .jem models), the same "post-pose runtime"
+     * stage as IK/physics/constraints. Unlike them it writes every bone's transform outright, so it
+     * runs first — the constraint stages then resolve on top of what CEM produced.
+     */
+    private void applyCem(IEntity target, ModelInstance model, float transition)
+    {
+        if (model.cemAnimation != null)
+        {
+            model.cemAnimation.apply(target, transition);
         }
     }
 
