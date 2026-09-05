@@ -67,6 +67,27 @@ public class CemAnimation
      */
     private static final int SPAWN_SETTLED = 100;
 
+    /**
+     * Ticks of animation run off screen whenever a stand-in's state starts from zero.
+     *
+     * <p>A pack's {@code var.*} are a running simulation, and zero is not what they hold once an entity
+     * has been standing around: Fresh Animations' player keeps {@code var.t_land} at 1 when settled, and
+     * from 0 that timer sweeps its landing curve — the actor visibly crouched every time a film was
+     * scrubbed and played, because a scrub re-seeds the state. Rather than guess a settled value for each
+     * of a pack's hundreds of variables, run the pack's own arithmetic forward until it settles. Two
+     * seconds covers the timers that matter ({@code var.t_land} climbs at 1.4 a second, the fall and run
+     * drags at 3 to 6); the slow ones settle at zero, which is where they start.</p>
+     */
+    private static final int WARM_UP_TICKS = 40;
+
+    /**
+     * Ticks one warm-up pass covers. Coarser than a frame because a settle only has to arrive, not be
+     * watched: the drags are linear in {@code frame_time} and reach the same place, and the followers
+     * converge sooner with a longer step. It halves what the warm-up costs, and that cost lands on the
+     * frame a film is scrubbed to.
+     */
+    private static final int WARM_UP_STEP = 2;
+
     /** Bone hierarchy kinds, which select the position mapping (see the class javadoc). */
     private static final int TOP = 0;
     private static final int SUB1 = 1;
@@ -194,14 +215,43 @@ public class CemAnimation
 
         state.load(this.entityVariables);
 
+        /* Values that just started from zero are not what a settled entity holds - see WARM_UP_TICKS.
+         * Only a stand-in: an entity that really spawned should play its pack's spawn animation. */
+        if (!state.warmed)
+        {
+            state.warmed = true;
+
+            if (target != null && target.isStandIn())
+            {
+                for (int ticksAgo = WARM_UP_TICKS; ticksAgo > 0; ticksAgo -= WARM_UP_STEP)
+                {
+                    this.evaluate(state, target, transition, inGui, WARM_UP_STEP / 20D, -ticksAgo);
+                }
+            }
+        }
+
+        this.evaluate(state, target, transition, inGui, frameTime, 0);
+
+        state.store(this.entityVariables);
+    }
+
+    /**
+     * One pass of the program: parameters in, bones out. {@code ticksAgo} is 0 for the frame being
+     * rendered and negative for a warm-up pass, which stands that many ticks before it.
+     */
+    private void evaluate(CemState state, IEntity target, float transition, boolean inGui, double frameTime, int ticksAgo)
+    {
         this.parser.setValue("frame_time", frameTime);
-        this.parser.setValue("frame_counter", state.frameCounter);
+
+        /* A warm-up pass must not look like a repeat of the frame before it, or a pack's own
+         * "same frame" guard would hold every drag exactly where it started. */
+        this.parser.setValue("frame_counter", state.frameCounter + ticksAgo);
 
         this.parser.setValue("is_in_gui", inGui ? 1 : 0);
 
         if (target != null)
         {
-            this.setParameters(target, transition);
+            this.setParameters(target, transition, ticksAgo);
         }
 
         for (Binding binding : this.bindings)
@@ -218,18 +268,16 @@ public class CemAnimation
         {
             binding.writeback();
         }
-
-        state.store(this.entityVariables);
     }
 
     /** Feed the entity's render parameters into the parser for this frame. */
-    private void setParameters(IEntity target, float transition)
+    private void setParameters(IEntity target, float transition, int ticksAgo)
     {
         float headYaw = Lerps.lerp(target.getPrevHeadYaw(), target.getHeadYaw(), transition);
         float bodyYaw = Lerps.lerp(target.getPrevBodyYaw(), target.getBodyYaw(), transition);
         float pitch = Lerps.lerp(target.getPrevPitch(), target.getPitch(), transition);
         float yaw = Lerps.lerp(target.getPrevYaw(), target.getYaw(), transition);
-        double age = target.getAge() + transition + (target.isStandIn() ? SPAWN_SETTLED : 0);
+        double age = target.getAge() + transition + ticksAgo + (target.isStandIn() ? SPAWN_SETTLED : 0);
 
         this.parser.setValue("limb_swing", target.getLimbPos(transition));
         this.parser.setValue("limb_speed", target.getLimbSpeed(transition));

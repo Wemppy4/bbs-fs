@@ -39,6 +39,12 @@ public class CemState
 
     int frameCounter;
 
+    /**
+     * Whether the animation has been run forward from these values yet — see the warm-up in
+     * {@link CemAnimation#apply}. Cleared with the values themselves.
+     */
+    boolean warmed;
+
     public CemState(CemVariables variables)
     {
         this.variables = variables;
@@ -109,6 +115,7 @@ public class CemState
     {
         this.variables.clear();
         this.frameCounter = 0;
+        this.warmed = false;
     }
 
     /** Push the persisted values into the program's variables before a frame is evaluated. */
