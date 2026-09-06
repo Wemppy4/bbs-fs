@@ -1087,6 +1087,8 @@
 	"bbs.ui.forms.editors.label.shadow_color": "Цвет тени",
 	"bbs.ui.forms.editors.label.shadow_offset": "Смещение тени",
 	"bbs.ui.forms.editors.label.title": "Настройки текста",
+	"bbs.ui.forms.editors.mob.mob_id": "Тип моба",
+	"bbs.ui.forms.editors.mob.nbt": "NBT моба",
 	"bbs.ui.forms.editors.mob.title": "Моб",
 	"bbs.ui.forms.editors.model.actions": "Действия",
 	"bbs.ui.forms.editors.model.ik": "IK-цепочки",

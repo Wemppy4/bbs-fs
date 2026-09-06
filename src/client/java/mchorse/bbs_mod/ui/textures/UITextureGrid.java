@@ -9,7 +9,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.items.UIItemGrid;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.GridLayout;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -76,25 +75,6 @@ public class UITextureGrid extends UIItemGrid<TextureEntry>
     protected boolean showsCaption(UIContext context, TextureEntry item, int cellWidth)
     {
         return TextureCellRenderer.showsWholeName(context, item, cellWidth);
-    }
-
-    @Override
-    protected CellAction[] actions(TextureEntry item)
-    {
-        return this.browser.getActions(item);
-    }
-
-    @Override
-    protected void onAction(TextureEntry item, CellAction action)
-    {
-        this.browser.runAction(item, action);
-    }
-
-    @Override
-    protected void hoveredAction(CellAction action, int x, int y)
-    {
-        /* The browser draws the label after all of its parts, so the info column can't cover it */
-        this.browser.setHoveredAction(action, x, y);
     }
 
     @Override
@@ -299,7 +279,7 @@ public class UITextureGrid extends UIItemGrid<TextureEntry>
         state.selected = item.link().equals(this.browser.getCurrent()) || (item.folder() && this.browser.isCurrentFolder(item.link()));
         state.dropTarget = item.folder() && this.drag.isTarget(item.link());
 
-        TextureCellRenderer.render(context, item, x, y, w, h, state, this.actions(item));
+        TextureCellRenderer.render(context, item, x, y, w, h, state);
     }
 
     @Override

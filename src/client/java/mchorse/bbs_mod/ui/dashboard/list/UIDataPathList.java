@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.dashboard.list;
 
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.DataPath;
@@ -314,7 +315,7 @@ public class UIDataPathList extends UIList<DataPath>
     @Override
     protected void renderElementPart(UIContext context, DataPath element, int i, int x, int y, boolean hover, boolean selected)
     {
-        context.batcher.icon(element.folder ? Icons.FOLDER : this.fileIcon, x, y);
+        context.batcher.icon(element.folder ? Icons.FOLDER : this.fileIcon, RowStyle.iconColor(hover || selected), x, y + this.rowHeight() / 2F, 0F, 0.5F);
 
         super.renderElementPart(context, element, i, x + 12, y, hover, selected);
     }

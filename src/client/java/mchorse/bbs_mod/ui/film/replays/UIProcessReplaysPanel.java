@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UILabelList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -26,7 +27,6 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.RayTracing;
-import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import mchorse.bbs_mod.ui.utils.Label;
@@ -66,10 +66,9 @@ public class UIProcessReplaysPanel extends UIConfirmOverlayPanel
             int color = UIReplaysEditor.getColor(element);
             Icon icon = UIReplaysEditor.getIcon(element);
 
-            context.batcher.box(x, y, x + 2, y + h, Colors.A100 | color);
-            context.batcher.gradientHBox(x + 2, y, x + 24, y + h, Colors.A25 | color, color);
-            context.batcher.icon(icon, x + 2, y + h / 2F, 0F, 0.5F);
-            context.batcher.textShadow(this.elementToString(context, i, element), x + 24, y + (h - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+            RowStyle.swatch(context.batcher, x, y, h, color);
+            context.batcher.icon(icon, RowStyle.iconColor(hover || selected), x + 2, y + h / 2F, 0F, 0.5F);
+            context.batcher.textShadow(this.elementToString(context, i, element), x + 24, y + (h - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
         }
     };
 
@@ -476,8 +475,8 @@ public class UIProcessReplaysPanel extends UIConfirmOverlayPanel
                     int h = this.scroll.scrollItemSize;
                     Icon icon = element.value.icon;
 
-                    context.batcher.icon(icon, x + 3, y + (h - 16) / 2F);
-                    context.batcher.textShadow(element.title.get(), x + 22, y + (h - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+                    context.batcher.icon(icon, RowStyle.iconColor(hover || selected), x + 3, y + (h - 16) / 2F);
+                    context.batcher.textShadow(element.title.get(), x + 22, y + (h - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
                 }
             };
             this.operations.background();

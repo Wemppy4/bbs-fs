@@ -9,12 +9,9 @@ import mchorse.bbs_mod.ui.framework.tooltips.TooltipPlacement;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.GridLayout;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import java.util.function.BiPredicate;
@@ -54,12 +51,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 
     /* What's under the cursor, refreshed every frame */
     protected int hoverIndex = -1;
-    protected int hoverAction = -1;
-
-    /* The label of the hovered quick action, drawn after everything else so nothing clips or covers it */
-    private CellAction labelAction;
-    private int labelX;
-    private int labelY;
 
     /* The name of the hovered cell when the cell itself doesn't say it whole */
     private String hoverCaption;
@@ -139,16 +130,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         return null;
     }
 
-    /** The quick actions a cell offers on hover. */
-    protected CellAction[] actions(T item)
-    {
-        return CellAction.none();
-    }
-
-    /** A quick action was pressed on a cell. */
-    protected void onAction(T item, CellAction action)
-    {}
-
     /**
      * Something under a point that takes a drop of its own (a folder cell), instead of a
      * slot between cells; null when the drop would only reorder.
@@ -172,14 +153,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
     protected boolean showsCaption(UIContext context, T item, int cellWidth)
     {
         return true;
-    }
-
-    /** Where the hovered action's label goes; the default draws it itself after painting. */
-    protected void hoveredAction(CellAction action, int x, int y)
-    {
-        this.labelAction = action;
-        this.labelX = x;
-        this.labelY = y;
     }
 
     /* Layout */
@@ -326,21 +299,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
     @Override
     protected boolean pressItem(int index, UIContext context)
     {
-        T item = this.visible().get(index);
-        CellAction[] actions = this.actions(item);
-
-        if (index == this.hoverIndex && actions.length > 0 && CellActionBar.fits(this.layout.getCellWidth()))
-        {
-            int action = CellActionBar.getAction(this.layout.getX(index), this.layout.getY(index), this.layout.getCellWidth(), actions.length, this.contentX(context), this.contentY(context));
-
-            if (action != -1)
-            {
-                this.onAction(item, actions[action]);
-
-                return true;
-            }
-        }
-
         return super.pressItem(index, context);
     }
 
@@ -366,8 +324,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         int y = this.contentY(context);
 
         this.hoverIndex = inside ? this.indexAt(x, y) : -1;
-        this.hoverAction = -1;
-        this.labelAction = null;
         this.hoverCaption = null;
 
         if (this.hoverIndex == -1)
@@ -376,27 +332,10 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         }
 
         T item = this.visible().get(this.hoverIndex);
-        CellAction[] actions = this.actions(item);
         int width = this.layout.getCellWidth();
 
-        if (actions.length > 0 && CellActionBar.fits(width))
-        {
-            int cx = this.layout.getX(this.hoverIndex);
-            int cy = this.layout.getY(this.hoverIndex);
-
-            this.hoverAction = CellActionBar.getAction(cx, cy, width, actions.length, x, y);
-
-            if (this.hoverAction != -1)
-            {
-                int ax = this.originX() + CellActionBar.getActionX(cx, width, actions.length, this.hoverAction);
-                int ay = this.originY() + cy + CellActionBar.HEIGHT;
-
-                this.hoveredAction(actions[this.hoverAction], context.globalX(ax), context.globalY(ay));
-            }
-        }
-
-        /* An action has its own label, and a band being stretched is drawing rather than pointing */
-        if (this.hoverAction == -1 && !this.marquee.isActive() && !this.showsCaption(context, item, width))
+        /* A band being stretched is drawing rather than pointing */
+        if (!this.marquee.isActive() && !this.showsCaption(context, item, width))
         {
             this.hoverCaption = this.caption(item);
         }
@@ -411,16 +350,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         this.relayout();
 
         super.render(context);
-
-        if (this.labelAction != null)
-        {
-            CellActionBar.renderLabel(context, this.labelAction, this.labelX, this.labelY);
-        }
-
-        if (this.hoverAction != -1)
-        {
-            context.requestCursor(GLFW.GLFW_HAND_CURSOR);
-        }
     }
 
     /**
@@ -501,7 +430,6 @@ public abstract class UIItemGrid<T> extends UIItems<T>
             this.state.selected = this.state.picked && !this.selection.isGroup();
             this.state.dragged = this.drag.isDragging(item);
             this.state.dropTarget = this.drag.isTarget(item);
-            this.state.hoveredAction = this.state.hover ? this.hoverAction : -1;
 
             this.renderCell(context, item, cx, cy, cellW, cellH, this.state);
         }

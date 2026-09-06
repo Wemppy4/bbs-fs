@@ -5,6 +5,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.utils.DataPath;
@@ -123,7 +124,7 @@ public class UIRecentDataList extends UIList<Entry>
             }
 
             this.setIndex(next);
-            this.scroll.scrollIntoView(next * ROW);
+            this.scroll.scrollIntoView(next * this.rowHeight());
 
             return true;
         }
@@ -146,17 +147,18 @@ public class UIRecentDataList extends UIList<Entry>
         String ago = ago(element.time);
 
         int muted = Colors.setA(Colors.WHITE, 0.5F);
-        int textY = y + (ROW - font.getHeight()) / 2 + 1;
+        int h = this.rowHeight();
+        int textY = y + (h - font.getHeight()) / 2 + 1;
         int right = x + this.area.w - RIGHT_PADDING - (this.scroll.hasScrollbar() ? this.scroll.getScrollbarWidth() : 0);
         int agoW = font.getWidth(ago);
         int textX = x + TEXT_X;
 
-        context.batcher.icon(this.icons.apply(element.id), x + ICON_X, y + ROW / 2, 0F, 0.5F);
+        context.batcher.icon(this.icons.apply(element.id), RowStyle.iconColor(hover || selected), x + ICON_X, y + h / 2, 0F, 0.5F);
         context.batcher.text(ago, right - agoW, textY, muted, false);
 
         String name = font.limitToWidth(path.getLast(), right - agoW - GAP - textX);
 
-        context.batcher.text(name, textX, textY, hover ? Colors.HIGHLIGHT : Colors.WHITE, false);
+        context.batcher.text(name, textX, textY, RowStyle.textColor(hover || selected), false);
 
         if (!folder.isEmpty())
         {

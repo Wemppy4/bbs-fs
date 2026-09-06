@@ -6,6 +6,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.items.UIItems;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.renderers.EmptyStateRenderer;
@@ -43,10 +44,52 @@ public abstract class UIList <T> extends UIItems<T>
     public static final int ROW_PADDING = 4;
 
     /** Width of the fold arrow's slot at the start of a branch row. */
-    public static final int ARROW_SLOT = 12;
+    public static final int ARROW_SLOT = 10;
+
+    /**
+     * The rest of a row's grid: the icon's slot, and the gap between it and the row's text. One
+     * place, so a folder tree, a morph category and anything else with an icon line their names up
+     * on the same column instead of each picking its own.
+     */
+    public static final int ICON_SLOT = 16;
+    public static final int ICON_GAP = 3;
+
+    /** Where a row's text starts when the row carries an icon after its arrow. */
+    public static int iconRowTextX(int contentX)
+    {
+        return contentX + ARROW_SLOT + ICON_SLOT + ICON_GAP;
+    }
 
     /** The tree guides: a hairline, so the shape of the tree reads without competing with the rows. */
     private static final int GUIDE_COLOR = Colors.A25 | 0xFFFFFF;
+
+    /** Nothing shorter than this, whatever the scale — a row still has to fit a line of text. */
+    private static final int ROW_MIN_HEIGHT = 10;
+
+    private static final float ROW_SCALE_MIN = 0.6F;
+    private static final float ROW_SCALE_MAX = 3F;
+    private static final float ROW_SCALE_STEP = 0.1F;
+
+    /**
+     * How tall rows are drawn against the height their list was built with — Alt+wheel over any
+     * list, the gesture the timeline already uses for its track height.
+     *
+     * <p>One number for every list rather than one per list: panels here are rebuilt from scratch
+     * on all sorts of actions, and a size that lived in the list would be lost every time. Held as
+     * a multiplier, not a height, because lists are built at different sizes on purpose — a row of
+     * text is 16, a row with a preview is taller — and a single height would flatten that.</p>
+     */
+    private static float rowScale = 1F;
+
+    public static void setRowScale(float scale)
+    {
+        rowScale = MathUtils.clamp(scale, ROW_SCALE_MIN, ROW_SCALE_MAX);
+    }
+
+    public static float getRowScale()
+    {
+        return rowScale;
+    }
 
     /**
      * List of elements
@@ -65,6 +108,19 @@ public abstract class UIList <T> extends UIItems<T>
     public List<Integer> current = new CurrentIndices();
 
     private String filter = "";
+
+    /** The height this list was built with, which {@link #rowScale} multiplies; 0 until first drawn. */
+    private int baseRowHeight;
+
+    /**
+     * How tall a row is <em>right now</em>. Rows are resizable (Alt+wheel), so the height a list
+     * was built with is a starting point, not a fact — draw against this, never against the
+     * constant a list happened to be constructed with.
+     */
+    public int rowHeight()
+    {
+        return this.scroll.scrollItemSize;
+    }
 
     /**
      * A row pressed inside a group pick, waiting to see what the press becomes: a drag of the whole
@@ -160,6 +216,36 @@ public abstract class UIList <T> extends UIItems<T>
         return this;
     }
 
+    /* Row appearance */
+
+    /**
+     * The row's own colour — a category's, a track's — or 0 when it has none. It tints the bar
+     * down the row's left edge and the row's hover, so a coloured row keeps its colour instead of
+     * being washed over by the accent. See {@link RowStyle}.
+     */
+    protected int rowColor(T element)
+    {
+        return 0;
+    }
+
+    /**
+     * Whether the row names other rows rather than being one, which lights it permanently — the
+     * way a body part heading separates itself from the tracks it holds.
+     */
+    protected boolean isHeader(T element)
+    {
+        return false;
+    }
+
+    /**
+     * Whether Alt+wheel may resize this list's rows. A context menu says no: its row height is cut
+     * to its 16px icons and its label, and it is read at a glance rather than worked in.
+     */
+    protected boolean canScaleRows()
+    {
+        return true;
+    }
+
     /* Tree support */
 
     /** How far a row is pushed right, in pixels; 0 for a flat list. */
@@ -247,14 +333,17 @@ public abstract class UIList <T> extends UIItems<T>
         return !last && depth > 0 ? lines | (1 << (depth - 1)) : lines;
     }
 
-    /** Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. */
-    protected void renderArrow(UIContext context, T element, int x, int y)
+    /**
+     * Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. It
+     * rests and lifts with the rest of the row, so a row reads as one thing.
+     */
+    protected void renderArrow(UIContext context, T element, int x, int y, boolean lit)
     {
         Boolean expanded = this.branch(element);
 
         if (expanded != null)
         {
-            UISection.renderArrow(context, x + this.rowContentX(element) + ARROW_SLOT / 2, y + this.scroll.scrollItemSize / 2, expanded);
+            UISection.renderArrow(context, x + this.rowContentX(element) + ARROW_SLOT / 2, y + this.scroll.scrollItemSize / 2, expanded, RowStyle.iconColor(lit));
         }
     }
 
@@ -776,6 +865,57 @@ public abstract class UIList <T> extends UIItems<T>
         this.scroll.clamp();
     }
 
+    /**
+     * Alt+wheel resizes the rows — the same gesture, and the same direction, the timeline's track
+     * height answers to. The list under the cursor handles it, but the size it sets is everyone's.
+     */
+    @Override
+    public boolean subMouseScrolled(UIContext context)
+    {
+        if (this.canScaleRows() && Window.isAltPressed() && context.mouseWheel != 0D && this.area.isInside(context))
+        {
+            setRowScale(rowScale - (float) Math.signum(context.mouseWheel) * ROW_SCALE_STEP);
+
+            return true;
+        }
+
+        return super.subMouseScrolled(context);
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        this.applyRowScale();
+
+        super.render(context);
+    }
+
+    /**
+     * Bring the row height in line with {@link #rowScale}. The height the list was built with is
+     * caught the first time this runs — by then every constructor has had its say — and is what
+     * the scale multiplies from then on, so scaling back to 1 lands exactly where the list started.
+     */
+    private void applyRowScale()
+    {
+        if (!this.canScaleRows())
+        {
+            return;
+        }
+
+        if (this.baseRowHeight == 0)
+        {
+            this.baseRowHeight = this.scroll.scrollItemSize;
+        }
+
+        int height = Math.max(ROW_MIN_HEIGHT, Math.round(this.baseRowHeight * rowScale));
+
+        if (height != this.scroll.scrollItemSize)
+        {
+            this.scroll.scrollItemSize = height;
+            this.update();
+        }
+    }
+
     public boolean exists(int index)
     {
         return this.exists(this.list, index);
@@ -1116,21 +1256,14 @@ public abstract class UIList <T> extends UIItems<T>
      */
     public void renderListElement(UIContext context, T element, int i, int x, int y, boolean hover, boolean selected)
     {
-        if (selected)
-        {
-            context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A50 | BBSSettings.primaryColor.get());
-        }
-        else if (hover)
-        {
-            /* The same accent wash a hovered section header lifts with, so a row says it answers to
-             * the cursor before it is clicked. A hint, not a pick — hence half the selection's alpha. */
-            context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A25 | BBSSettings.primaryColor.get());
-        }
+        int h = this.scroll.scrollItemSize;
+
+        RowStyle.row(context.batcher, x, y, this.area.w, h, this.rowColor(element), this.isHeader(element), hover, selected);
 
         /* Where a drop would land inside this row, said the way the caret says "between" */
         if (this.drag.isTarget(element))
         {
-            context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A25 | BBSSettings.primaryColor.get());
+            RowStyle.dropTarget(context.batcher, x, y, this.area.w, h);
         }
 
         this.renderElementPart(context, element, i, x, y, hover, selected);
@@ -1143,8 +1276,8 @@ public abstract class UIList <T> extends UIItems<T>
     {
         int textX = x + this.rowContentX(element) + (this.branch(element) != null ? ARROW_SLOT : 0);
 
-        this.renderArrow(context, element, x, y);
-        context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+        this.renderArrow(context, element, x, y, hover || selected);
+        context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
     }
 
     /**

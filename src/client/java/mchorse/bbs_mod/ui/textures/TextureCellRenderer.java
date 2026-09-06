@@ -4,8 +4,6 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.cells.CellPainter;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -49,33 +47,34 @@ public class TextureCellRenderer
         return hasName(entry, w) && CellPainter.captionFits(context, entry.caption(), w);
     }
 
-    public static void render(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, CellAction[] actions)
+    public static void render(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state)
     {
         context.batcher.clip(x, y, w, h, context);
 
-        CellPainter.ground(context, x, y, w, h, state);
 
         float alpha = isReadOnly(entry) ? READ_ONLY_ALPHA : 1F;
 
+        CellPainter.marks(context, x, y, w, h, state);
+
         if (entry.folder())
         {
-            renderFolder(context, entry, x, y, w, h, state, alpha);
+            renderFolder(context, entry, x, y, w, h, state);
         }
         else
         {
-            renderTexture(context, entry, x, y, w, h, state, alpha);
+            renderTexture(context, entry, x, y, w, h, state);
         }
 
         CellPainter.dim(context, x, y, w, h, state);
 
-        if (state.hover && !state.dragged && CellActionBar.fits(w) && actions.length > 0)
+        if (entry.folder() || hasName(entry, w))
         {
-            CellActionBar.render(context, x, y, w, actions, state.hoveredAction);
+            CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected, alpha);
         }
 
         renderMarks(context, entry, x, y);
 
-        CellPainter.frames(context, x, y, w, h, state);
+        CellPainter.bar(context, x, y, w, h, state);
 
         context.batcher.unclip(context);
     }
@@ -98,7 +97,7 @@ public class TextureCellRenderer
         return entry.folder() ? TextureFiles.isReadOnly(entry.link()) : !TextureFiles.canModify(entry.link());
     }
 
-    private static void renderFolder(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, float alpha)
+    private static void renderFolder(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state)
     {
         /* The icon grows with the cell and sits in the space above the name strip */
         int room = h - CellPainter.CAPTION_HEIGHT;
@@ -106,18 +105,16 @@ public class TextureCellRenderer
         int cy = y + room / 2;
 
         context.batcher.scaledIcon(Icons.FOLDER, state.hover ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + (w - size) / 2, cy - size / 2, size);
-        CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected, alpha);
     }
 
-    private static void renderTexture(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, float alpha)
+    private static void renderTexture(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state)
     {
         Batcher2D batcher = context.batcher;
         Texture texture = BBSModClient.getTextures().getTexture(entry.link());
-        boolean name = hasName(entry, w);
         int px = x + PADDING;
         int py = y + PADDING;
         int pw = w - PADDING * 2;
-        int ph = h - PADDING * 2 - (name ? CellPainter.CAPTION_HEIGHT - PADDING : 0);
+        int ph = h - PADDING * 2 - (hasName(entry, w) ? CellPainter.CAPTION_HEIGHT - PADDING : 0);
 
         if (texture == null || texture == BBSModClient.getTextures().getError())
         {
@@ -137,9 +134,5 @@ public class TextureCellRenderer
             batcher.fullTexturedBox(texture, fx, fy, fw, fh);
         }
 
-        if (name)
-        {
-            CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected, alpha);
-        }
     }
 }

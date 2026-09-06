@@ -11,6 +11,7 @@ import mchorse.bbs_mod.graphics.window.ImageClipboard;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -249,14 +250,13 @@ public class UILayerElement extends UIElement
     public void render(UIContext context)
     {
         boolean active = this.panel.currentEditor.getDocument().activeLayerIndex == this.index;
-        int color = active ? BBSSettings.primaryColor(Colors.A50) : Colors.A25;
-        
-        if (this.area.isInside(context))
-        {
-            color = active ? BBSSettings.primaryColor(Colors.A75): Colors.A50;
-        }
+        boolean hover = this.area.isInside(context);
 
-        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), color);
+        /* A layer row is a strip of its own rather than a line of a list with a background behind
+         * it, so it lays its own ground before wearing the marks every row wears. */
+        context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), Colors.A25);
+
+        RowStyle.row(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h, 0, false, hover, active);
 
         super.render(context);
     }
