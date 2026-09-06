@@ -174,6 +174,16 @@ public class JemModelParser
             ModelGroup child = byId.get(entry.getKey());
             ModelGroup parent = byId.get(entry.getValue());
 
+            /* A part the pack places itself keeps the top level the file gave it — see
+             * CemAnimation#drivesPlacement for why a parent would land on it twice. Measured over
+             * the installed packs this spares exactly the two player.jem files, whose second layer
+             * is driven channel by channel; the other thirty-four (villagers, piglins, skeletons)
+             * say nothing about theirs and are reparented as before. */
+            if (parse.animation.drivesPlacement(entry.getKey()))
+            {
+                continue;
+            }
+
             if (child != null && parent != null && child != parent)
             {
                 parse.model.topGroups.remove(child);

@@ -129,6 +129,43 @@ public class CemAnimation
         this.parentRelative.add(group);
     }
 
+    /** The channels that say the pack places the bone itself, rather than letting a parent carry it. */
+    private static final Set<String> PLACEMENT = Set.of("tx", "ty", "tz", "rx", "ry", "rz");
+
+    /**
+     * Whether the pack drives this part's own placement — a statement writing any of its position or
+     * rotation channels.
+     *
+     * <p>Such a part is placed in the entity's own space, and the vanilla rig must NOT also hang it on
+     * a bone: the parent's motion would land on it twice, and the reparenting swaps the top-level
+     * position mapping for the parent-relative one under numbers written for the first (see
+     * {@link mchorse.bbs_mod.cubic.jem.JemModelParser#applyHierarchy}).</p>
+     *
+     * <p>This is the same split OptiFine's own model makes. Vanilla's "second layer" — the hat, the
+     * jacket, the sleeves and the pants — used to be top-level parts that vanilla COPIED their base
+     * part's transform onto; 1.21.11 re-expressed that as real children of the base part, and the rig
+     * is read off the running game, so those parents appeared where OptiFine has none. A pack that
+     * drives the layer itself (the player's) is doing the copying by hand and wants no parent; one
+     * that says nothing about it (the villager's headwear, the piglin's sleeves) needs the rig to
+     * carry it, and still gets it.</p>
+     */
+    public boolean drivesPlacement(String part)
+    {
+        String prefix = part + ".";
+
+        for (Statement statement : this.statements)
+        {
+            String name = statement.target().getName();
+
+            if (name.startsWith(prefix) && PLACEMENT.contains(name.substring(prefix.length())))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public boolean isEmpty()
     {
         return this.statements.isEmpty();
