@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -167,13 +168,13 @@ public class UISection extends UIElement
     {
         context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.raisedSurface());
 
-        /* The header is clickable and nothing said so; it lifts under the cursor with the same
-         * accent wash a hovered context menu row uses, just lighter — this is a hint, not a pick. */
+        /* The header is clickable and nothing said so; it lifts under the cursor the way every row
+         * that answers to the cursor does — a hint, not a pick. See {@link RowStyle}. */
         if (this.headerArea().isInside(context))
         {
             Area header = this.headerArea();
 
-            context.batcher.box(header.x, header.y, header.ex(), header.ey(), Colors.A25 | BBSSettings.primaryColor.get());
+            RowStyle.hover(context.batcher, header.x, header.y, header.w, header.h, 0);
         }
 
         /* The block is the raised (light) surface, so inputs inside it drop to the deep surface to

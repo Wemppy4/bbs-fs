@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UILabelList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -66,8 +67,7 @@ public class UIProcessReplaysPanel extends UIConfirmOverlayPanel
             int color = UIReplaysEditor.getColor(element);
             Icon icon = UIReplaysEditor.getIcon(element);
 
-            context.batcher.box(x, y, x + 2, y + h, Colors.A100 | color);
-            context.batcher.gradientHBox(x + 2, y, x + 24, y + h, Colors.A25 | color, color);
+            RowStyle.swatch(context.batcher, x, y, h, color);
             context.batcher.icon(icon, x + 2, y + h / 2F, 0F, 0.5F);
             context.batcher.textShadow(this.elementToString(context, i, element), x + 24, y + (h - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
         }

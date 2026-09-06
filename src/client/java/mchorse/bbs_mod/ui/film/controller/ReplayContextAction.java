@@ -6,6 +6,7 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.context.ContextAction;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -29,8 +30,7 @@ public class ReplayContextAction extends ContextAction
 
         if (this.color != 0)
         {
-            context.batcher.box(x, y, x + 2, y + h, Colors.A100 | this.color);
-            context.batcher.gradientHBox(x + 2, y, x + 24, y + h, Colors.A25 | this.color, this.color);
+            RowStyle.swatch(context.batcher, x, y, h, this.color);
         }
     }
 

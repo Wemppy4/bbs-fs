@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.textures;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -11,6 +10,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.NaturalOrderComparator;
@@ -91,12 +91,6 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     /** Whether a folder has folders inside — asked once per listing, not per frame. */
     private final Map<Link, Boolean> branches = new HashMap<>();
 
-    /**
-     * How many rows the pins take, their title included: where the divider goes, and where
-     * the tree itself starts. Zero when nothing is pinned — no title, no divider.
-     */
-    private int pinRows;
-
     /** Whether the pins are listed under their title. Folded, only the title is left. */
     private boolean pinsExpanded = true;
 
@@ -160,8 +154,6 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
                 }
             }
         }
-
-        this.pinRows = pinned.isEmpty() ? 0 : (this.pinsExpanded ? pinned.size() + 1 : 1);
 
         List<String> sources = new ArrayList<>(BBSMod.getProvider().getSourceKeys());
 
@@ -396,12 +388,11 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     @Override
     public void renderListElement(UIContext context, Node node, int i, int x, int y, boolean hover, boolean selected)
     {
+        int h = this.rowHeight();
+
         if (node.header())
         {
-            if (hover)
-            {
-                context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A12 | 0xffffff);
-            }
+            RowStyle.row(context.batcher, x, y, this.area.w, h, 0, false, hover, false);
 
             this.renderHeader(context, node, x, y, hover);
         }
@@ -418,23 +409,15 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
                 target = true;
             }
 
-            if (current || target)
+            /* Where the browser currently is, which is this tree's idea of the pick */
+            RowStyle.row(context.batcher, x, y, this.area.w, h, 0, false, hover, current);
+
+            if (target)
             {
-                context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A25 | BBSSettings.primaryColor.get());
-            }
-            else if (hover)
-            {
-                context.batcher.box(x, y, x + this.area.w, y + ROW, Colors.A12 | 0xffffff);
+                RowStyle.dropTarget(context.batcher, x, y, this.area.w, h);
             }
 
             this.renderElementPart(context, node, i, x, y, hover, selected);
-        }
-
-        /* The pins are their own group: a divider says where the tree itself begins. Folded,
-         * the title is the group's last row and carries the divider itself. */
-        if (this.pinRows > 0 && i == this.pinRows - 1)
-        {
-            context.batcher.box(x, y + ROW - 1, x + this.area.w, y + ROW, BBSSettings.dividerColor());
         }
     }
 
@@ -443,9 +426,10 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     {
         FontRenderer font = context.batcher.getFont();
         int ix = x + this.rowContentX(node);
-        int my = y + ROW / 2;
+        int h = this.rowHeight();
+        int my = y + h / 2;
         boolean missing = node.pin() && this.isMissing(node);
-        int color = missing ? Colors.GRAY : (hover ? Colors.LIGHTEST_GRAY : Colors.WHITE);
+        int color = missing ? Colors.GRAY : (hover ? Colors.A100 | Colors.HIGHLIGHT : Colors.WHITE);
 
         /* A folder of the mod's own can't be changed, and its name says so by going faint -
          * the same fade the grid gives such a cell's name. What a pin is, its title says. */
@@ -453,25 +437,28 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
             ? Colors.mulA(color, TextureCellRenderer.READ_ONLY_ALPHA)
             : color;
 
+        int iconX = ix + ARROW_SLOT;
+        int textX = iconRowTextX(ix);
+
         this.renderArrow(context, node, x, y);
 
         if (node.folder())
         {
-            context.batcher.icon(Icons.FOLDER, color, ix + 12, my - 8);
+            context.batcher.icon(Icons.FOLDER, color, iconX, my - 8);
         }
         else if (missing)
         {
             /* Nothing to show, and nothing to ask the texture manager for either */
-            context.batcher.icon(Icons.IMAGE, color, ix + 12, my - 8);
+            context.batcher.icon(Icons.IMAGE, color, iconX, my - 8);
         }
         else
         {
-            this.renderThumbnail(context, node.link(), ix + 12, my - 8, color);
+            this.renderThumbnail(context, node.link(), iconX, my - 8, color);
         }
 
-        String name = font.limitToWidth(this.nameOf(node), this.area.ex() - 4 - (ix + 32));
+        String name = font.limitToWidth(this.nameOf(node), this.area.ex() - 4 - textX);
 
-        context.batcher.textShadow(name, ix + 32, y + (ROW - font.getHeight()) / 2 + 1, nameColor);
+        context.batcher.textShadow(name, textX, y + (h - font.getHeight()) / 2 + 1, nameColor);
     }
 
     /**
@@ -485,15 +472,18 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
     {
         FontRenderer font = context.batcher.getFont();
         int ix = x + this.rowContentX(node);
-        int my = y + ROW / 2;
-        int color = hover ? Colors.LIGHTEST_GRAY : Colors.WHITE;
+        int h = this.rowHeight();
+        int my = y + h / 2;
+        int color = hover ? Colors.A100 | Colors.HIGHLIGHT : Colors.WHITE;
+
+        int textX = iconRowTextX(ix);
 
         this.renderArrow(context, node, x, y);
-        context.batcher.icon(Icons.BOOKMARK, color, ix + 12, my - 8);
+        context.batcher.icon(Icons.BOOKMARK, color, ix + ARROW_SLOT, my - 8);
 
-        String title = font.limitToWidth(UIKeys.TEXTURES_BROWSER_PINNED.get(), this.area.ex() - 4 - (ix + 32));
+        String title = font.limitToWidth(UIKeys.TEXTURES_BROWSER_PINNED.get(), this.area.ex() - 4 - textX);
 
-        context.batcher.textShadow(title, ix + 32, y + (ROW - font.getHeight()) / 2 + 1, color);
+        context.batcher.textShadow(title, textX, y + (h - font.getHeight()) / 2 + 1, color);
     }
 
     /** A pinned texture shows itself, fitted into the icon's place, so it's told apart at a glance. */

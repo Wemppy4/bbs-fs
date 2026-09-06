@@ -5,6 +5,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIClickable;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -60,10 +61,7 @@ public class UILandingRow extends UIClickable<UILandingRow>
 
         if (this.accent)
         {
-            int color = BBSSettings.primaryColor.get() & Colors.RGB;
-
-            context.batcher.box(area.x, area.y, area.x + 2, area.ey(), Colors.A100 | color);
-            context.batcher.gradientHBox(area.x + 2, area.y, area.x + 24, area.ey(), Colors.A25 | color, color);
+            RowStyle.swatch(context.batcher, area.x, area.y, area.h, BBSSettings.primaryColor.get() & Colors.RGB);
         }
 
         String text = font.limitToWidth(this.label.get(), area.w - TEXT_X - 2);

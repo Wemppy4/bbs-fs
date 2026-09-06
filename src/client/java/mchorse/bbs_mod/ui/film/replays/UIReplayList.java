@@ -87,8 +87,8 @@ public class UIReplayList extends UIList<ReplayListEntry>
     /** How far one folder of nesting shifts a row. */
     private static final int INDENT = 10;
 
-    /** Width of a coloured folder's stripe down the left of its rows. */
-    private static final int STRIPE = 2;
+    /** The box a row's form is drawn in, centred on the row however tall the row is. */
+    private static final int PREVIEW = 40;
 
     /** Set while building the context menu when the cursor is on a folder row. */
     private String contextFolderPath;
@@ -1847,23 +1847,13 @@ public class UIReplayList extends UIList<ReplayListEntry>
     }
 
     /**
-     * The folder's stripe goes down first, under the pick and the hover: it says which folder the
-     * row belongs to, which is a quieter thing than which row the cursor or the pick is on.
+     * The folder's colour. The list lays it down under the pick and the hover — belonging is a
+     * quieter thing than which row the cursor or the pick is on — and tints the hover with it.
      */
     @Override
-    public void renderListElement(UIContext context, ReplayListEntry element, int i, int x, int y, boolean hover, boolean selected)
+    protected int rowColor(ReplayListEntry element)
     {
-        if (element.color != 0)
-        {
-            /* The mark an active icon wears — a solid edge with its colour fading out of it — with
-             * a softer wash, since a row carries text over it and there are many rows. */
-            int h = this.scroll.scrollItemSize;
-
-            context.batcher.box(x, y, x + STRIPE, y + h, Colors.A100 | element.color);
-            context.batcher.gradientHBox(x + STRIPE, y, x + this.area.w, y + h, Colors.A50 | element.color, element.color);
-        }
-
-        super.renderListElement(context, element, i, x, y, hover, selected);
+        return element.color;
     }
 
     @Override
@@ -1875,11 +1865,12 @@ public class UIReplayList extends UIList<ReplayListEntry>
         if (element.isFolder())
         {
             int iconX = x + this.rowContentX(element) + ARROW_SLOT;
+            int textX = x + iconRowTextX(this.rowContentX(element));
 
             this.renderTreeGuides(context, x, y, element.depth, element.lines, element.last, iconX);
             this.renderArrow(context, element, x, y);
             context.batcher.icon(Icons.FOLDER, iconX, y + (rowHeight - 16) / 2);
-            context.batcher.textShadow(this.elementToString(context, i, element), iconX + 18, textY, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+            context.batcher.textShadow(this.elementToString(context, i, element), textX, textY, hover ? Colors.HIGHLIGHT : Colors.WHITE);
 
             /* How much is in there, which a closed folder cannot say any other way. */
             String count = String.valueOf(element.count);
@@ -1907,20 +1898,21 @@ public class UIReplayList extends UIList<ReplayListEntry>
         if (form != null)
         {
             int formX = this.area.x + this.area.w - 30;
-            int formY = y - 10;
+            int my = y + rowHeight / 2;
+            int formY = my - PREVIEW / 2;
 
             if (BBSSettings.listModelPreview.get())
             {
-                context.batcher.clip(formX, y, 40, 20, context);
+                context.batcher.clip(formX, y, PREVIEW, rowHeight, context);
 
-                FormUtilsClient.renderUI(form, context, formX, formY, formX + 40, formY + 40);
+                FormUtilsClient.renderUI(form, context, formX, formY, formX + PREVIEW, formY + PREVIEW);
 
                 context.batcher.unclip(context);
             }
 
             if (replay.fp.get())
             {
-                context.batcher.outlinedIcon(Icons.ARROW_UP, formX, formY + 20, 0.5F, 0.5F);
+                context.batcher.outlinedIcon(Icons.ARROW_UP, formX, my, 0.5F, 0.5F);
             }
         }
     }

@@ -26,14 +26,15 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.items.ItemDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.items.UIItemGrid;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
@@ -752,23 +753,25 @@ public class UIFormCategory extends UIItemGrid<Form>
          * world when the palette has no background of its own */
         batcher.box(x, y, ex, ey, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50));
 
-        if (this.hoverHeader)
-        {
-            batcher.box(x, y, ex, ey, CellActionBar.ink(Colors.A6));
-        }
+        /* A category holding the chosen form wears the pick itself: folded or scrolled away, the
+         * form cannot say where it lives, and its category is the only thing left that can. */
+        RowStyle.row(batcher, x, y, this.area.w, FormGridLayout.HEADER, 0, false, this.hoverHeader, this.selected != null);
 
         int textColor = dragged ? Colors.GRAY : Colors.WHITE;
         int my = y + FormGridLayout.HEADER / 2;
 
-        batcher.icon(this.category.icon, this.hoverHeader ? Colors.LIGHTEST_GRAY : Colors.WHITE, x + 12, my, 0.5F, 0.5F);
-        UISection.renderArrow(context, x + 23, my, expanded);
+        int ix = x + UIList.ROW_PADDING;
+        int textX = x + UIList.iconRowTextX(UIList.ROW_PADDING);
+
+        UISection.renderArrow(context, ix + UIList.ARROW_SLOT / 2F, my, expanded);
+        batcher.icon(this.category.icon, this.hoverHeader ? Colors.LIGHTEST_GRAY : Colors.WHITE, ix + UIList.ARROW_SLOT + UIList.ICON_SLOT / 2F, my, 0.5F, 0.5F);
 
         String title = this.category.getProcessedTitle();
         String count = String.valueOf(this.category.getForms().size());
         int textY = y + (FormGridLayout.HEADER - font.getHeight()) / 2 + 1;
 
-        batcher.textShadow(title, x + 32, textY, textColor);
-        batcher.text(count, x + 32 + font.getWidth(title) + 6, textY, Colors.GRAY);
+        batcher.textShadow(title, textX, textY, textColor);
+        batcher.text(count, textX + font.getWidth(title) + 6, textY, Colors.GRAY);
 
         this.renderSortButton(context, ex - SORT_BUTTON - 2, y);
     }

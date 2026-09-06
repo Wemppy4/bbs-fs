@@ -14,6 +14,13 @@ public class UIActionList extends UIList<ContextAction>
         super(callback);
     }
 
+    /** A menu row is cut to its icon and its label; there is nothing in it to make room for. */
+    @Override
+    protected boolean canScaleRows()
+    {
+        return false;
+    }
+
     @Override
     public void renderListElement(UIContext context, ContextAction element, int i, int x, int y, boolean hover, boolean selected)
     {
