@@ -429,7 +429,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         int h = this.rowHeight();
         int my = y + h / 2;
         boolean missing = node.pin() && this.isMissing(node);
-        int color = missing ? Colors.GRAY : (hover ? Colors.A100 | Colors.HIGHLIGHT : Colors.WHITE);
+        int color = missing ? RowStyle.textColor(hover, Colors.GRAY) : RowStyle.textColor(hover);
 
         /* A folder of the mod's own can't be changed, and its name says so by going faint -
          * the same fade the grid gives such a cell's name. What a pin is, its title says. */
@@ -474,7 +474,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         int ix = x + this.rowContentX(node);
         int h = this.rowHeight();
         int my = y + h / 2;
-        int color = hover ? Colors.A100 | Colors.HIGHLIGHT : Colors.WHITE;
+        int color = RowStyle.textColor(hover);
 
         int textX = iconRowTextX(ix);
 

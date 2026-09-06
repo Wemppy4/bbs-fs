@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -142,8 +143,8 @@ public class UIModelBlockEntityList extends UIList<ModelBlockEntity>
 
         /* A block that is off is greyed the way a disabled replay is in the film's list. */
         int nameColor = element.getProperties().isEnabled()
-            ? (hover ? Colors.HIGHLIGHT : Colors.WHITE)
-            : (hover ? Colors.mulRGB(Colors.HIGHLIGHT, 0.75F) : Colors.GRAY);
+            ? RowStyle.textColor(hover || selected)
+            : RowStyle.textColor(hover || selected, Colors.GRAY);
 
         context.batcher.icon(icon, x + ICON_X, y + h / 2, 0F, 0.5F);
         context.batcher.text(far, right - farW, textY, muted, false);

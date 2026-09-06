@@ -62,6 +62,30 @@ public class RowStyle
     private static final int SWATCH = 24;
     private static final float SWATCH_NEAR = 0.25F;
 
+    /** How loud a row's text is while nothing is happening to it. */
+    private static final float REST_TEXT = 0.75F;
+
+    /**
+     * What a row's text is drawn with. A row nothing is happening to speaks a little quieter, so
+     * the one under the cursor and the one that is picked stand out by more than a tint — the way
+     * the timeline's track names have always read.
+     *
+     * @param lit whether the cursor is on the row or the row is the pick
+     */
+    public static int textColor(boolean lit)
+    {
+        return lit ? Colors.A100 | Colors.HIGHLIGHT : Colors.setA(Colors.WHITE, REST_TEXT);
+    }
+
+    /**
+     * The same quieting for a row whose text has a colour of its own to say something — broken,
+     * disabled, missing. It keeps saying it, just as quietly as everything else at rest.
+     */
+    public static int textColor(boolean lit, int color)
+    {
+        return lit ? Colors.A100 | color : Colors.mulA(Colors.A100 | color, REST_TEXT);
+    }
+
     /**
      * Lay a row's marks down in order, so no caller has to remember it: what the row belongs to
      * first, then what it is, then what the cursor and the pick are doing to it — and the bar over

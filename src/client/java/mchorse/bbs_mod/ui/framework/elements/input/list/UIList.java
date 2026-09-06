@@ -1274,7 +1274,7 @@ public abstract class UIList <T> extends UIItems<T>
         int textX = x + this.rowContentX(element) + (this.branch(element) != null ? ARROW_SLOT : 0);
 
         this.renderArrow(context, element, x, y);
-        context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+        context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
     }
 
     /**

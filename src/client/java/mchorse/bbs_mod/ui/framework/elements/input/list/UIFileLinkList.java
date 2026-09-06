@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.input.list;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.NaturalOrderComparator;
 import mchorse.bbs_mod.utils.StringUtils;
@@ -158,7 +159,7 @@ public class UIFileLinkList extends UIList<UIFileLinkList.FileLink>
         int h = this.rowHeight();
 
         context.batcher.icon(element.folder ? Icons.FOLDER : Icons.IMAGE, Colors.setA(Colors.WHITE, hover ? 0.75F : 0.6F), x + 2, y + h / 2F, 0F, 0.5F);
-        context.batcher.textShadow(element.title, x + 20, y + (h - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+        context.batcher.textShadow(element.title, x + 20, y + (h - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
     }
 
     public static class FileLink

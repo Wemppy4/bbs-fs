@@ -17,6 +17,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.context.ContextAction;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -660,7 +661,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
 
             String title = font.limitToWidth(this.labelFor(element), maxW);
             String idLine = font.limitToWidth(element, maxW);
-            int colorTitle = hover ? Colors.HIGHLIGHT : Colors.WHITE;
+            int colorTitle = RowStyle.textColor(hover || selected);
             int colorId = hover ? Colors.LIGHTER_GRAY : Colors.GRAY;
 
             int padY = (this.scroll.scrollItemSize - (lineH * 2 + 2)) / 2;

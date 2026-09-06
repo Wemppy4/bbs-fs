@@ -9,6 +9,7 @@ import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.tooltips.ITooltip;
 import mchorse.bbs_mod.ui.framework.tooltips.LabelTooltip;
 import mchorse.bbs_mod.utils.Direction;
@@ -494,7 +495,7 @@ public class UIBoneTreeList extends UIStringList
         String label = meta == null
             ? (filtering ? this.elementToString(context, i, element) : element)
             : meta.treeLabel;
-        int color = this.isDisabled(element) ? Colors.GRAY : (hover ? Colors.HIGHLIGHT : Colors.WHITE);
+        int color = this.isDisabled(element) ? RowStyle.textColor(hover, Colors.GRAY) : RowStyle.textColor(hover);
         int textX = x + this.rowContentX(element) + this.arrowSlot();
         int right = this.renderMarkers(context, element, x, y, h);
 

@@ -41,6 +41,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIConfirmOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIFolderOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.model_blocks.UIModelBlockEntityList;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -1870,7 +1871,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             this.renderTreeGuides(context, x, y, element.depth, element.lines, element.last, iconX);
             this.renderArrow(context, element, x, y);
             context.batcher.icon(Icons.FOLDER, iconX, y + (rowHeight - 16) / 2);
-            context.batcher.textShadow(this.elementToString(context, i, element), textX, textY, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+            context.batcher.textShadow(this.elementToString(context, i, element), textX, textY, RowStyle.textColor(hover || selected));
 
             /* How much is in there, which a closed folder cannot say any other way. */
             String count = String.valueOf(element.count);
@@ -1890,7 +1891,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
         }
         else
         {
-            context.batcher.textShadow(this.elementToString(context, i, element), x + this.rowContentX(element), textY, hover ? Colors.mulRGB(Colors.HIGHLIGHT, 0.75F) : Colors.GRAY);
+            context.batcher.textShadow(this.elementToString(context, i, element), x + this.rowContentX(element), textY, RowStyle.textColor(hover || selected, Colors.GRAY));
         }
 
         Form form = replay.form.get();

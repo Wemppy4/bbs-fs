@@ -5,6 +5,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.utils.DataPath;
@@ -157,7 +158,7 @@ public class UIRecentDataList extends UIList<Entry>
 
         String name = font.limitToWidth(path.getLast(), right - agoW - GAP - textX);
 
-        context.batcher.text(name, textX, textY, hover ? Colors.HIGHLIGHT : Colors.WHITE, false);
+        context.batcher.text(name, textX, textY, RowStyle.textColor(hover || selected), false);
 
         if (!folder.isEmpty())
         {
