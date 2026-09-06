@@ -56,6 +56,8 @@ public class TextureCellRenderer
 
         float alpha = isReadOnly(entry) ? READ_ONLY_ALPHA : 1F;
 
+        CellPainter.marks(context, x, y, w, h, state);
+
         if (entry.folder())
         {
             renderFolder(context, entry, x, y, w, h, state);
@@ -66,7 +68,6 @@ public class TextureCellRenderer
         }
 
         CellPainter.dim(context, x, y, w, h, state);
-        CellPainter.marks(context, x, y, w, h, state);
 
         if (entry.folder() || hasName(entry, w))
         {

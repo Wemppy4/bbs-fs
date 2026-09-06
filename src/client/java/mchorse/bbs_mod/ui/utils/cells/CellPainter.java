@@ -23,9 +23,11 @@ public class CellPainter
 
     /**
      * What state the cell is in, said the way a row says it — only turned a quarter, so the wash
-     * climbs from the bottom edge instead of running in from the side. Goes over the picture but
-     * under the caption: by the top of the cell it has all but gone, so the picture is still the
-     * picture, and the caption keeps its own dark backing over the strongest part of it.
+     * climbs from the bottom edge instead of running in from the side.
+     *
+     * <p>Goes down before the thing the cell is about, so a form keeps its own colours and a
+     * texture is shown as it is; the mark reads in the margins around the picture and along the
+     * caption strip, which is where a cell has room to say anything at all.</p>
      */
     public static void marks(UIContext context, int x, int y, int w, int h, CellState state)
     {
