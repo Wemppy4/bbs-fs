@@ -232,9 +232,19 @@ public class IrisUtils
      * normal/specular lookups for that albedo land in {@link IrisPbrConstLoader} with this
      * slider snapshot. A CHANGED snapshot (a slider edit, or an animated slider track)
      * re-tracks the wrapper and invalidates Iris' PBR holder for the id — the maps then
-     * regenerate lazily on the pack's next lookup, with no new albedo copy. That's what makes
-     * the sliders keyframable at a sane cost: per change it's a 1x1 specular re-bake (and a
-     * relief re-derive only when relief itself moved).
+     * regenerate on the spot, with no new albedo copy. That's what makes the sliders keyframable at
+     * a sane cost: per change it's a 1x1 specular re-bake (and a relief re-derive only when relief
+     * itself moved).
+     *
+     * <p><b>The rebuild is driven here rather than left to Iris.</b> Dropping the holder alone is not
+     * enough: {@code PBRTextureManager.getOrLoadHolder} answers a missing holder with the FLAT DEFAULT
+     * and only queues the real one for the next frame ("will return next frame if there isn't any!").
+     * So every frame in which a slider moved drew the material with no PBR at all, and the frame after
+     * it drew with the new maps — which is why a slider dragged from 0 to 1 landed correct but flickered
+     * the whole way there, alternating between the maps and nothing. Queueing the id and running Iris'
+     * own {@code onNewFrame} immediately builds it before anything can ask, so no frame is ever left
+     * looking at the default. It is the same call Iris makes at the top of every frame, only earlier,
+     * and it drains whatever else was queued — which that frame would have drawn flat regardless.</p>
      */
     public static void trackPbrVariant(Texture variant, Link albedo, float smoothness, float metallic, float sss, float emission, float relief)
     {
@@ -248,7 +258,16 @@ public class IrisUtils
 
             if (last != null)
             {
+                /* Closes the old holder's maps as it removes it — the queue-and-load below overwrites
+                 * the map entry without closing anything, so the drop has to come first or a dragged
+                 * slider would leak two GL textures a frame. */
                 PBRTextureManager.INSTANCE.onDeleteTexture(variant.id);
+
+                /* Queue, then build: getOrLoadHolder is the only way in, and it only queues when the
+                 * holder is missing — which is exactly what the drop just made true. */
+                PBRTextureManager.INSTANCE.getOrLoadHolder(variant.id);
+                PBRTextureManager.INSTANCE.onNewFrame();
+
                 PBRTextureManager.notifyPBRTexturesChanged();
             }
         }

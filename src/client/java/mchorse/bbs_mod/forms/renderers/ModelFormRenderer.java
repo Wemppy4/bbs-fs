@@ -428,6 +428,23 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV,
             contextColor, formColor, additive, true, null, transition, null);
 
+        /* The attached body parts, on the model that was just drawn. They ride the world path through
+         * FormRenderer#render, which the thumbnail never goes through — it calls renderUIPreview
+         * directly — so without this a cell shows the bare form and none of what is pinned to it.
+         *
+         * The normal matrix takes the same Y flip the model's own draw does (see renderModel's ui
+         * branch): the preview frame is mirrored in Y, and a part drawn without it is lit from the
+         * wrong side. */
+        stack.push();
+        stack.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
+        stack.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
+
+        this.renderBodyParts(new FormRenderingContext()
+            .set(FormRenderType.ENTITY, this.entity, stack, LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV, transition)
+            .inUI());
+
+        stack.pop();
+
         stack.pop();
     }
 
