@@ -63,3 +63,8 @@ accessible field net/minecraft/client/render/RenderSetup translucent Z
 accessible field net/minecraft/client/render/RenderSetup expectedBufferSize I
 accessible field net/minecraft/client/render/RenderSetup layeringTransform Lnet/minecraft/client/render/LayeringTransform;
 accessible class net/minecraft/client/render/RenderSetup$TextureSpec
+
+# The frame's single blur mark. Vanilla lets exactly one caller set it and keeps the FIRST one,
+# which hands the frame's only blur to the dashboard's tint rather than to the overlay panel that
+# comes up over it. InterfaceBlur clears the mark so the topmost claimant wins.
+accessible field net/minecraft/client/gui/render/state/GuiRenderState blurLayer I

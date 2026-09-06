@@ -79,13 +79,27 @@ public class InterfaceBlur
     /**
      * Mark the blur layer: everything recorded before lands under the blur, the caller's own
      * draws (its dim, its chrome) go into the fresh root layer on top. Does nothing when the
-     * frame is marked already, the effect is broken or the setting is off.
+     * effect is broken or the setting is off.
+     *
+     * <p>A second caller in the same frame TAKES the mark over rather than being turned away.
+     * Vanilla allows exactly one blur per frame ("Can only blur once per frame") and would keep
+     * the first claimant — which is the dashboard's tint, recorded long before the overlay panel
+     * that comes up over it, so the overlay ended up with no glass behind it at all. The topmost
+     * claimant is the right owner: the pass blurs everything recorded UNDER the mark, so moving
+     * the mark up still covers what the earlier claimant wanted blurred.</p>
      */
     public static void apply(Batcher2D batcher)
     {
-        if (marked || broken || !BBSSettings.interfaceBlur.get())
+        if (broken || !BBSSettings.interfaceBlur.get())
         {
             return;
+        }
+
+        if (marked)
+        {
+            /* Vanilla's "nothing marked yet" sentinel; the field is private, so the constant it
+             * compares against is unmapped and cannot be named here. */
+            batcher.getContext().state.blurLayer = Integer.MAX_VALUE;
         }
 
         marked = true;
@@ -96,8 +110,8 @@ public class InterfaceBlur
 
     /**
      * The world under a panel that paints its own background over it (morphing, the texture
-     * manager). Same marker as {@link #apply}: vanilla allows one blur per frame, so an overlay
-     * that comes up over the panel later rides this one rather than getting a pass of its own.
+     * manager). The same mark as {@link #apply}, and an overlay that comes up over the panel
+     * later takes it over — one pass, owned by whatever is on top.
      */
     public static void applyUnder(Batcher2D batcher)
     {
