@@ -78,6 +78,7 @@ import mchorse.bbs_mod.resources.packs.URLSourcePack;
 import mchorse.bbs_mod.resources.packs.URLTextureErrorCallback;
 import mchorse.bbs_mod.selectors.EntitySelectors;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.DashboardWarmup;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
@@ -93,6 +94,13 @@ import mchorse.bbs_mod.utils.ScreenshotRecorder;
 import mchorse.bbs_mod.utils.VideoRecorder;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.minecraft.util.Identifier;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
+import mchorse.bbs_mod.cubic.jem.VanillaRigs;
+import mchorse.bbs_mod.utils.resources.CemSourcePack;
 import mchorse.bbs_mod.utils.resources.MinecraftSourcePack;
 import mchorse.bbs_mod.utils.resources.PlayerSkinSourcePack;
 import mchorse.bbs_mod.utils.resources.PlayerSkins;
@@ -173,6 +181,38 @@ public class BBSModClient implements ClientModInitializer
 
     private static float originalFramebufferScale;
     private static boolean customGUIScale;
+
+    /** The OptiFine CEM models of the installed resource packs; null until the client has started. */
+    private static CemSourcePack cemSourcePack;
+
+    /** Minecraft's own textures; null until the client has started. */
+    private static MinecraftSourcePack minecraftSourcePack;
+
+    public static CemSourcePack getCemSourcePack()
+    {
+        return cemSourcePack;
+    }
+
+    /**
+     * Read the resource packs again and drop everything built on what they said before. A pack going
+     * on or off changes which models and textures exist, and nothing else would notice: the watchdog
+     * watches BBS's own folder, and a link a pack serves has no file behind it to watch.
+     */
+    private static void reloadFromResourcePacks()
+    {
+        /* The first reload runs before the client has started; both packs index themselves when made. */
+        if (cemSourcePack == null)
+        {
+            return;
+        }
+
+        minecraftSourcePack.setupPaths();
+        cemSourcePack.reindex();
+        VanillaRigs.clear();
+
+        getModels().forgetFolder(CemSourcePack.NAME + "/");
+        getFormCategories().setup();
+    }
 
     public static TextureManager getTextures()
     {
@@ -277,10 +317,30 @@ public class BBSModClient implements ClientModInitializer
     /** Returns the dashboard without creating it. Used to avoid creating UI when handling keys (e.g. F6) before user has opened BBS. */
     public static UIDashboard getDashboardIfCreated()
     {
+        if (dashboard != null)
+        {
+            dashboard.finishBuilding();
+        }
+
         return dashboard;
     }
 
     public static UIDashboard getDashboard()
+    {
+        UIDashboard dashboard = getUnfinishedDashboard();
+
+        dashboard.finishBuilding();
+
+        return dashboard;
+    }
+
+    /**
+     * The dashboard, created if it wasn't there, but not necessarily built in full.
+     *
+     * <p>Only {@link DashboardWarmup}, which is what finishes it a step at a time, has any
+     * business with a half built dashboard — everybody else wants {@link #getDashboard()}.</p>
+     */
+    public static UIDashboard getUnfinishedDashboard()
     {
         if (dashboard == null)
         {
@@ -412,6 +472,23 @@ public class BBSModClient implements ClientModInitializer
     @Override
     public void onInitializeClient()
     {
+        /* Every resource reload: the pack list changed, or the user pressed F3+T. It fires before the
+         * client has started too, which reloadFromResourcePacks sits out. */
+        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener()
+        {
+            @Override
+            public Identifier getFabricId()
+            {
+                return new Identifier(BBSMod.MOD_ID, "resource_pack_models");
+            }
+
+            @Override
+            public void reload(ResourceManager manager)
+            {
+                reloadFromResourcePacks();
+            }
+        });
+
         /* The client half of the addons, picked up before anything client side is posted. Their
          * common half is registered by BBSMod, from the "bbs-addon" entrypoint. */
         FabricLoader.getInstance()
@@ -685,6 +762,7 @@ public class BBSModClient implements ClientModInitializer
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
         {
             dashboard = null;
+            DashboardWarmup.reset();
             worldExportSession.stop();
             videos.delete();
 
@@ -758,6 +836,10 @@ public class BBSModClient implements ClientModInitializer
 
             worldExportSession.update();
 
+            /* Build the dashboard while nothing is asking for it, so that the key below
+             * opens one that is already there */
+            DashboardWarmup.tick(mc);
+
             while (keyDashboard.wasPressed()) UIScreen.open(getDashboard());
             while (keyItemEditor.wasPressed()) this.keyOpenModelBlockEditor(mc);
             while (keyPlayFilm.wasPressed()) this.keyPlayFilm();
@@ -814,7 +896,16 @@ public class BBSModClient implements ClientModInitializer
         ClientLifecycleEvents.CLIENT_STARTED.register((e) ->
         {
             BBSRendering.setupFramebuffer();
-            provider.register(new MinecraftSourcePack());
+
+            minecraftSourcePack = new MinecraftSourcePack();
+
+            provider.register(minecraftSourcePack);
+
+            /* Last under "assets", so the user's own folder and the jar win over a resource pack's
+             * models - which is what lets a pack model be given a config.json or replaced outright. */
+            cemSourcePack = new CemSourcePack();
+
+            provider.register(cemSourcePack);
 
             Window window = MinecraftClient.getInstance().getWindow();
 

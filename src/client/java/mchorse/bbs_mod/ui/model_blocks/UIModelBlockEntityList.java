@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -132,7 +133,8 @@ public class UIModelBlockEntityList extends UIList<ModelBlockEntity>
         boolean preview = form != null && BBSSettings.listModelPreview.get();
         Icon icon = form == null ? Icons.BLOCK : form.getIcon();
         int muted = Colors.setA(Colors.WHITE, 0.5F);
-        int textY = y + (ROW - font.getHeight()) / 2 + 1;
+        int h = this.rowHeight();
+        int textY = y + (h - font.getHeight()) / 2 + 1;
         int right = x + this.area.w - RIGHT_PADDING
             - (this.scroll.hasScrollbar() ? this.scroll.getScrollbarWidth() : 0)
             - (preview ? PREVIEW : 0);
@@ -141,10 +143,10 @@ public class UIModelBlockEntityList extends UIList<ModelBlockEntity>
 
         /* A block that is off is greyed the way a disabled replay is in the film's list. */
         int nameColor = element.getProperties().isEnabled()
-            ? (hover ? Colors.HIGHLIGHT : Colors.WHITE)
-            : (hover ? Colors.mulRGB(Colors.HIGHLIGHT, 0.75F) : Colors.GRAY);
+            ? RowStyle.textColor(hover || selected)
+            : RowStyle.textColor(hover || selected, Colors.GRAY);
 
-        context.batcher.icon(icon, x + ICON_X, y + ROW / 2, 0F, 0.5F);
+        context.batcher.icon(icon, RowStyle.iconColor(hover || selected), x + ICON_X, y + h / 2, 0F, 0.5F);
         context.batcher.text(far, right - farW, textY, muted, false);
 
         String limited = font.limitToWidth(name, right - farW - GAP - textX);
@@ -167,9 +169,11 @@ public class UIModelBlockEntityList extends UIList<ModelBlockEntity>
             int previewX = x + this.area.w - PREVIEW
                 - (this.scroll.hasScrollbar() ? this.scroll.getScrollbarWidth() : 0);
 
-            context.batcher.clip(previewX, y, PREVIEW, ROW, context);
+            int previewY = y + h / 2 - PREVIEW / 2;
 
-            FormUtilsClient.renderUI(form, context, previewX, y - 10, previewX + PREVIEW, y + 30);
+            context.batcher.clip(previewX, y, PREVIEW, h, context);
+
+            FormUtilsClient.renderUI(form, context, previewX, previewY, previewX + PREVIEW, previewY + PREVIEW);
 
             context.batcher.unclip(context);
         }

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.utils;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.utils.OS;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -10,6 +11,7 @@ import net.minecraft.sound.SoundEvents;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class UIUtils
 {
@@ -112,6 +114,15 @@ public class UIUtils
         RenderSystem.viewport(vx, vy, vw, vh);
 
         return new int[] {vx, vy, vw, vh};
+    }
+
+    /** Enable or disable every control in a container — the container stands, only its fields go quiet. */
+    public static void setEnabledDeep(UIElement container, boolean enabled)
+    {
+        for (UIElement element : container.getChildren(UIElement.class, new ArrayList<>(), false))
+        {
+            element.setEnabled(enabled);
+        }
     }
 
     public static void playClick()

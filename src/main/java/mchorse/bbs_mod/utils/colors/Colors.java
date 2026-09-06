@@ -171,6 +171,16 @@ public class Colors
         throw new Exception("Given color \"" + color + "\" can't be parsed!");
     }
 
+    /**
+     * A colour to tell one thing from another by — a marker on the ruler, a folder in a list. The
+     * hue is random while saturation and value are pinned high, so whatever it lands on reads on
+     * the dark surfaces everything here is drawn on.
+     */
+    public static int randomBright()
+    {
+        return HSVtoRGB((float) Math.random(), 0.75F, 1F).getRGBColor();
+    }
+
     public static Color HSVtoRGB(float h, float s, float v)
     {
         return HSVtoRGB(new Color(), h, s, v);

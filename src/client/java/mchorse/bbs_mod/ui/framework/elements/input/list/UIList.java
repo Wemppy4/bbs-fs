@@ -6,6 +6,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.items.UIItems;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.renderers.EmptyStateRenderer;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 
@@ -42,7 +44,52 @@ public abstract class UIList <T> extends UIItems<T>
     public static final int ROW_PADDING = 4;
 
     /** Width of the fold arrow's slot at the start of a branch row. */
-    public static final int ARROW_SLOT = 12;
+    public static final int ARROW_SLOT = 10;
+
+    /**
+     * The rest of a row's grid: the icon's slot, and the gap between it and the row's text. One
+     * place, so a folder tree, a morph category and anything else with an icon line their names up
+     * on the same column instead of each picking its own.
+     */
+    public static final int ICON_SLOT = 16;
+    public static final int ICON_GAP = 3;
+
+    /** Where a row's text starts when the row carries an icon after its arrow. */
+    public static int iconRowTextX(int contentX)
+    {
+        return contentX + ARROW_SLOT + ICON_SLOT + ICON_GAP;
+    }
+
+    /** The tree guides: a hairline, so the shape of the tree reads without competing with the rows. */
+    private static final int GUIDE_COLOR = Colors.A25 | 0xFFFFFF;
+
+    /** Nothing shorter than this, whatever the scale — a row still has to fit a line of text. */
+    private static final int ROW_MIN_HEIGHT = 10;
+
+    private static final float ROW_SCALE_MIN = 0.6F;
+    private static final float ROW_SCALE_MAX = 3F;
+    private static final float ROW_SCALE_STEP = 0.1F;
+
+    /**
+     * How tall rows are drawn against the height their list was built with — Alt+wheel over any
+     * list, the gesture the timeline already uses for its track height.
+     *
+     * <p>One number for every list rather than one per list: panels here are rebuilt from scratch
+     * on all sorts of actions, and a size that lived in the list would be lost every time. Held as
+     * a multiplier, not a height, because lists are built at different sizes on purpose — a row of
+     * text is 16, a row with a preview is taller — and a single height would flatten that.</p>
+     */
+    private static float rowScale = 1F;
+
+    public static void setRowScale(float scale)
+    {
+        rowScale = MathUtils.clamp(scale, ROW_SCALE_MIN, ROW_SCALE_MAX);
+    }
+
+    public static float getRowScale()
+    {
+        return rowScale;
+    }
 
     /**
      * List of elements
@@ -61,6 +108,25 @@ public abstract class UIList <T> extends UIItems<T>
     public List<Integer> current = new CurrentIndices();
 
     private String filter = "";
+
+    /** The height this list was built with, which {@link #rowScale} multiplies; 0 until first drawn. */
+    private int baseRowHeight;
+
+    /**
+     * How tall a row is <em>right now</em>. Rows are resizable (Alt+wheel), so the height a list
+     * was built with is a starting point, not a fact — draw against this, never against the
+     * constant a list happened to be constructed with.
+     */
+    public int rowHeight()
+    {
+        return this.scroll.scrollItemSize;
+    }
+
+    /**
+     * A row pressed inside a group pick, waiting to see what the press becomes: a drag of the whole
+     * group, or a plain click, which narrows the pick to that row. -1 when there is none.
+     */
+    private int pendingNarrow = -1;
     private List<Pair<T, Integer>> filtered = new ArrayList<>();
 
     /* The filtered rows without their indices, for the geometry that only wants items */
@@ -78,6 +144,16 @@ public abstract class UIList <T> extends UIItems<T>
     public UIList(Consumer<List<T>> callback)
     {
         super(callback, (a, b) -> a == b);
+    }
+
+    /**
+     * A list whose rows are rebuilt wrappers around stable data says here what "the same row"
+     * means (the replay list's rows wrap replays and category names), so a pick survives the
+     * rebuild instead of clinging to row identity.
+     */
+    public UIList(Consumer<List<T>> callback, BiPredicate<T, T> same)
+    {
+        super(callback, same);
     }
 
     /**
@@ -140,6 +216,36 @@ public abstract class UIList <T> extends UIItems<T>
         return this;
     }
 
+    /* Row appearance */
+
+    /**
+     * The row's own colour — a category's, a track's — or 0 when it has none. It tints the bar
+     * down the row's left edge and the row's hover, so a coloured row keeps its colour instead of
+     * being washed over by the accent. See {@link RowStyle}.
+     */
+    protected int rowColor(T element)
+    {
+        return 0;
+    }
+
+    /**
+     * Whether the row names other rows rather than being one, which lights it permanently — the
+     * way a body part heading separates itself from the tracks it holds.
+     */
+    protected boolean isHeader(T element)
+    {
+        return false;
+    }
+
+    /**
+     * Whether Alt+wheel may resize this list's rows. A context menu says no: its row height is cut
+     * to its 16px icons and its label, and it is read at a glance rather than worked in.
+     */
+    protected boolean canScaleRows()
+    {
+        return true;
+    }
+
     /* Tree support */
 
     /** How far a row is pushed right, in pixels; 0 for a flat list. */
@@ -170,14 +276,74 @@ public abstract class UIList <T> extends UIItems<T>
         return this.branch(element) != null && contentX < this.rowContentX(element) + ARROW_SLOT;
     }
 
-    /** Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. */
-    protected void renderArrow(UIContext context, T element, int x, int y)
+    /** How far one level of nesting shifts a row; the tree guides are drawn on this grid. */
+    protected int indentStep()
+    {
+        return 0;
+    }
+
+    /**
+     * Outliner guides down the left of a nested row: a vertical for every ancestor whose own
+     * branch continues below this row, and a connector into the row itself — a tee, or a corner
+     * when the row is the last thing in its branch.
+     *
+     * @param depth how many levels in the row sits; nothing is drawn at the root
+     * @param lines bit per ancestor level whose vertical still runs past this row
+     * @param last  whether the row is the last of its branch, which corners the connector
+     * @param textX where the row's own content starts, so the connector reaches it
+     */
+    protected void renderTreeGuides(UIContext context, int x, int y, int depth, int lines, boolean last, int textX)
+    {
+        if (depth <= 0)
+        {
+            return;
+        }
+
+        int h = this.scroll.scrollItemSize;
+        int mid = y + h / 2;
+
+        for (int level = 0; level < depth - 1; level++)
+        {
+            if ((lines & (1 << level)) != 0)
+            {
+                int lx = this.guideX(x, level);
+
+                context.batcher.box(lx, y, lx + 1, y + h, GUIDE_COLOR);
+            }
+        }
+
+        int lx = this.guideX(x, depth - 1);
+
+        context.batcher.box(lx, y, lx + 1, last ? mid + 1 : y + h, GUIDE_COLOR);
+        context.batcher.box(lx + 1, mid, textX - 2, mid + 1, GUIDE_COLOR);
+    }
+
+    /** Screen x of the vertical guide of one nesting level. */
+    protected int guideX(int x, int level)
+    {
+        return x + ROW_PADDING + level * this.indentStep() + 2;
+    }
+
+    /**
+     * The mask a row's children inherit: this row's own column keeps running down past them
+     * while the row still has siblings below it.
+     */
+    public static int childGuideLines(int lines, int depth, boolean last)
+    {
+        return !last && depth > 0 ? lines | (1 << (depth - 1)) : lines;
+    }
+
+    /**
+     * Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. It
+     * rests and lifts with the rest of the row, so a row reads as one thing.
+     */
+    protected void renderArrow(UIContext context, T element, int x, int y, boolean lit)
     {
         Boolean expanded = this.branch(element);
 
         if (expanded != null)
         {
-            UISection.renderArrow(context, x + this.rowContentX(element) + ARROW_SLOT / 2, y + this.scroll.scrollItemSize / 2, expanded);
+            UISection.renderArrow(context, x + this.rowContentX(element) + ARROW_SLOT / 2, y + this.scroll.scrollItemSize / 2, expanded, RowStyle.iconColor(lit));
         }
     }
 
@@ -264,6 +430,18 @@ public abstract class UIList <T> extends UIItems<T>
         }
 
         this.filter = filter;
+        this.refilter();
+    }
+
+    /**
+     * Run the query over the rows again. A list that rebuilds its rows while a search is on (the
+     * replay list does it on every change) would otherwise keep showing matches that point at rows
+     * it has already thrown away.
+     */
+    protected void refilter()
+    {
+        String filter = this.filter;
+
         this.filtered.clear();
         this.filteredItems.clear();
 
@@ -651,6 +829,7 @@ public abstract class UIList <T> extends UIItems<T>
         }
 
         this.list = list;
+        this.refilter();
         this.update();
     }
 
@@ -684,6 +863,57 @@ public abstract class UIList <T> extends UIItems<T>
     {
         this.scroll.setSize(this.visible().size());
         this.scroll.clamp();
+    }
+
+    /**
+     * Alt+wheel resizes the rows — the same gesture, and the same direction, the timeline's track
+     * height answers to. The list under the cursor handles it, but the size it sets is everyone's.
+     */
+    @Override
+    public boolean subMouseScrolled(UIContext context)
+    {
+        if (this.canScaleRows() && Window.isAltPressed() && context.mouseWheel != 0D && this.area.isInside(context))
+        {
+            setRowScale(rowScale - (float) Math.signum(context.mouseWheel) * ROW_SCALE_STEP);
+
+            return true;
+        }
+
+        return super.subMouseScrolled(context);
+    }
+
+    @Override
+    public void render(UIContext context)
+    {
+        this.applyRowScale();
+
+        super.render(context);
+    }
+
+    /**
+     * Bring the row height in line with {@link #rowScale}. The height the list was built with is
+     * caught the first time this runs — by then every constructor has had its say — and is what
+     * the scale multiplies from then on, so scaling back to 1 lands exactly where the list started.
+     */
+    private void applyRowScale()
+    {
+        if (!this.canScaleRows())
+        {
+            return;
+        }
+
+        if (this.baseRowHeight == 0)
+        {
+            this.baseRowHeight = this.scroll.scrollItemSize;
+        }
+
+        int height = Math.max(ROW_MIN_HEIGHT, Math.round(this.baseRowHeight * rowScale));
+
+        if (height != this.scroll.scrollItemSize)
+        {
+            this.scroll.scrollItemSize = height;
+            this.update();
+        }
     }
 
     public boolean exists(int index)
@@ -798,9 +1028,37 @@ public abstract class UIList <T> extends UIItems<T>
         {
             this.toggleIndex(index);
         }
-        else
+        else if (!this.selection.contains(this.list.get(index)) || !this.selection.isGroup())
         {
             this.setIndex(index);
+        }
+        else
+        {
+            /* A plain press on one of several picked rows keeps the group for now, so the press can
+             * carry the whole pick off. Narrowing here would throw the group away before the drag
+             * ever started, so it waits for the release to say which the press was. */
+            this.pendingNarrow = index;
+        }
+    }
+
+    /**
+     * The button went up. A press inside a group that carried nothing away was a plain click after
+     * all, and a plain click on a row means the plainest thing it can mean: pick that row alone.
+     */
+    @Override
+    protected void release()
+    {
+        int narrow = this.pendingNarrow;
+        boolean dragged = this.drag.isActive();
+
+        this.pendingNarrow = -1;
+
+        super.release();
+
+        if (narrow != -1 && !dragged && this.exists(narrow))
+        {
+            this.setIndex(narrow);
+            this.fireCallback();
         }
     }
 
@@ -808,31 +1066,64 @@ public abstract class UIList <T> extends UIItems<T>
     protected List<T> dragPayload(T item)
     {
         /* A filtered view can't be reordered — the gaps between its rows aren't real */
-        if (!this.sorting || this.isFiltering() || this.selection.size() != 1 || !this.selection.contains(item))
+        if (this.isFiltering())
         {
             return null;
         }
 
-        return Collections.singletonList(item);
+        return super.dragPayload(item);
     }
 
+    /**
+     * The dragged rows land at the caret in the order they were shown in, one after another — the
+     * pick is carried as a block, the way the grids of the texture browser and the form palette
+     * have always carried theirs.
+     */
     @Override
     protected void reorder(List<T> items, int insertion)
     {
-        int from = this.indexOfItem(items.get(0));
+        int slot = insertion;
 
-        if (from == -1)
+        for (T item : this.inViewOrder(items))
         {
-            return;
+            int from = this.indexOfItem(item);
+
+            if (from == -1)
+            {
+                continue;
+            }
+
+            /* The caret sits before the row at {@code slot}; taking the row out first shifts what's after it */
+            int to = from < slot ? slot - 1 : slot;
+
+            if (!this.exists(to))
+            {
+                continue;
+            }
+
+            if (to != from)
+            {
+                this.handleSwap(from, to);
+            }
+
+            slot = to + 1;
+        }
+    }
+
+    /** The given rows in the order they are shown, which is the order a group has to move in. */
+    protected List<T> inViewOrder(List<T> items)
+    {
+        List<T> ordered = new ArrayList<>();
+
+        for (T row : this.list)
+        {
+            if (this.selection.indexOf(items, row) != -1)
+            {
+                ordered.add(row);
+            }
         }
 
-        /* The caret sits before the row at {@code insertion}; taking the row out first shifts what's after it */
-        int to = insertion > from ? insertion - 1 : insertion;
-
-        if (to != from && this.exists(to))
-        {
-            this.handleSwap(from, to);
-        }
+        return ordered;
     }
 
     protected void handleSwap(int from, int to)
@@ -861,9 +1152,24 @@ public abstract class UIList <T> extends UIItems<T>
     {
         int index = this.getDraggingIndex();
 
-        if (this.exists(index))
+        if (!this.exists(index))
         {
-            this.renderListElement(context, this.list.get(index), index, context.mouseX + 6, context.mouseY - this.scroll.scrollItemSize / 2, true, true);
+            return;
+        }
+
+        int x = context.mouseX + 6;
+        int y = context.mouseY - this.scroll.scrollItemSize / 2;
+
+        this.renderListElement(context, this.list.get(index), index, x, y, true, true);
+
+        /* How many rows are coming along, said the way the grids' ghost says it. The badge sits at
+         * the leading corner rather than the trailing one: a row is as wide as the list, and the
+         * far end of it is often off the screen. */
+        int carried = this.drag.getItems().size();
+
+        if (carried > 1)
+        {
+            context.batcher.textCard(String.valueOf(carried), x - 4, y - 4, Colors.WHITE, Colors.A100 | BBSSettings.primaryColor.get(), 3);
         }
     }
 
@@ -912,7 +1218,9 @@ public abstract class UIList <T> extends UIItems<T>
         int low = this.area.y;
         int high =this.area.ey();
 
-        if (y + s < low || (!this.isFiltering() && this.isDragging() && this.getDraggingIndex() == i))
+        /* Every row being carried lifts out of the list, not just the one the press went down on:
+         * a group that left one row behind would look like half of it was staying. */
+        if (y + s < low || (!this.isFiltering() && this.drag.isDragging(element)))
         {
             return i + 1;
         }
@@ -948,15 +1256,14 @@ public abstract class UIList <T> extends UIItems<T>
      */
     public void renderListElement(UIContext context, T element, int i, int x, int y, boolean hover, boolean selected)
     {
-        if (selected)
-        {
-            context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A50 | BBSSettings.primaryColor.get());
-        }
+        int h = this.scroll.scrollItemSize;
+
+        RowStyle.row(context.batcher, x, y, this.area.w, h, this.rowColor(element), this.isHeader(element), hover, selected);
 
         /* Where a drop would land inside this row, said the way the caret says "between" */
         if (this.drag.isTarget(element))
         {
-            context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A25 | BBSSettings.primaryColor.get());
+            RowStyle.dropTarget(context.batcher, x, y, this.area.w, h);
         }
 
         this.renderElementPart(context, element, i, x, y, hover, selected);
@@ -969,8 +1276,8 @@ public abstract class UIList <T> extends UIItems<T>
     {
         int textX = x + this.rowContentX(element) + (this.branch(element) != null ? ARROW_SLOT : 0);
 
-        this.renderArrow(context, element, x, y);
-        context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, hover ? Colors.HIGHLIGHT : Colors.WHITE);
+        this.renderArrow(context, element, x, y, hover || selected);
+        context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
     }
 
     /**

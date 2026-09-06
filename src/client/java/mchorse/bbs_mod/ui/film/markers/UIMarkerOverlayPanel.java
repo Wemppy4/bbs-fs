@@ -37,14 +37,14 @@ public class UIMarkerOverlayPanel extends UIOverlayPanel
 
         this.title = new UITextbox(100, (text) -> this.marker.title.set(text));
         this.title.placeholder(UIKeys.FILM_MARKERS_NAME);
-        this.title.setText(this.marker.title.get());
+        this.title.valueBinding(() -> this.title.setText(this.marker.title.get()));
 
         this.color = new UIColor((value) -> this.marker.color.set(value & Colors.RGB));
-        this.color.setColor(this.marker.color.get());
+        this.color.valueBinding(() -> this.color.setColor(this.marker.color.get()));
 
         this.tick = new UITrackpad((value) -> this.marker.tick.set((int) Math.round(value)));
         this.tick.limit(0, Integer.MAX_VALUE, true);
-        this.tick.setValue(this.marker.tick.get());
+        this.tick.valueBinding(() -> this.tick.setValue(this.marker.tick.get()));
 
         this.remove = new UIButton(UIKeys.FILM_MARKERS_REMOVE, (b) ->
         {

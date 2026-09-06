@@ -18,6 +18,7 @@ import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
+import mchorse.bbs_mod.cubic.jem.CemAnimator;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
@@ -97,6 +98,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     private boolean renderingArm;
 
     private IEntity entity = new StubEntity();
+
+    /**
+     * Render the bind pose alone — no actions, no default pose, no form pose: what the model editor
+     * edits the model's geometry against.
+     */
+    private boolean rest;
 
     @Override
     protected void applyTransforms(MatrixStack stack, boolean origin, float transition)
@@ -222,6 +229,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         this.lastModel = null;
     }
 
+    public void setRest(boolean rest)
+    {
+        this.rest = rest;
+    }
+
     /**
      * The channels phase of the bone pipeline (rest &rarr; actions &rarr; pose): resets every bone
      * to its bind pose, applies the animator's actions, then the form's pose stack. After this the
@@ -237,6 +249,15 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
          * Skipping rewinds the constraint stack's orient/offset writes to the channels-phase
          * snapshot, because IK/physics blend FROM the evaluated state and must not stack on
          * their own previous output. Both skeleton flavours keep such a snapshot. */
+        if (this.rest)
+        {
+            /* Nothing stamped: the cached evaluation is of the posed model, and leaving rest must not restore it. */
+            model.model.resetPose();
+            model.clearChannels();
+
+            return;
+        }
+
         boolean cacheable = this.form != null && model.model != null && RenderFrame.isEnabled();
 
         if (cacheable && model.matchesChannels(this.form, entity, transition, RenderFrame.getEpoch(), this.form.getPoseVersion()))
@@ -251,7 +272,19 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         BBSProfiler.count(BBSProfiler.Section.EVALUATE_CHANNELS);
 
         model.model.resetPose();
+
+        /* The states a CEM pack asks about that only the form can answer — sitting, tamed, angry. Read
+         * here rather than kept in sync, so a keyframe on one of them lands the frame it changes. */
+        if (this.animator instanceof CemAnimator cem)
+        {
+            cem.status.read(this.form);
+        }
+
         this.animator.applyActions(entity, model, transition);
+
+        /* The config's default pose sits under the form's, the same additive layer: the posture the
+         * model has before anything of the form is applied, whichever animator drove it. */
+        model.model.applyPose(model.getDefaultPose());
         model.model.applyPose(this.getPose());
 
         if (cacheable)
@@ -284,12 +317,35 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             return;
         }
 
-        this.animator = model.isProcedural() ? new ProceduralAnimator() : new Animator();
+        this.animator = createAnimator(model);
         this.animator.setup(model, actionsConfig, false);
 
         this.lastConfigs = new ActionsConfig();
         this.lastConfigs.copy(actionsConfig);
         this.lastModel = model;
+    }
+
+    /**
+     * The animator stage for a model: a .jem's live CEM program drives it, otherwise the config's
+     * choice between vanilla-like procedural and keyframe actions.
+     */
+    private static IAnimator createAnimator(ModelInstance model)
+    {
+        if (model.cemAnimation != null)
+        {
+            if (model.config.cemAnimation.get())
+            {
+                return new CemAnimator(model.cemAnimation);
+            }
+
+            /* CEM drove the bones' visibility and nothing else resets it: switched off, every bone shows again. */
+            for (ModelGroup group : model.model.getAllGroups())
+            {
+                group.visible = true;
+            }
+        }
+
+        return model.isProcedural() ? new ProceduralAnimator() : new Animator();
     }
 
     @Override
@@ -488,6 +544,54 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 this.renderArmor(target, stack, entry.getKey(), entry.getValue(), finalColor, overlay, light);
             }
         }
+    }
+
+    /**
+     * The channels phase for a reader outside the render: poses the model for the entity the
+     * way the render does (rest &rarr; actions &rarr; pose) and leaves it there — the FK truth
+     * the constraint stack starts from. {@code null} when the form has no model. A reader's
+     * sample is never a repeat of the frame's evaluation, so the frame stamp is dropped first
+     * and the evaluation always runs.
+     */
+    public ModelInstance evaluateChannels(IEntity entity, float transition)
+    {
+        this.ensureAnimator(transition);
+
+        ModelInstance model = this.getModel();
+
+        if (this.animator == null || model == null || model.model == null)
+        {
+            return null;
+        }
+
+        model.clearChannels();
+        this.evaluateChannels(entity, model, transition);
+
+        return model;
+    }
+
+    /**
+     * The IK stage on the model as it stands (see {@link #evaluateChannels(IEntity, float)}):
+     * the form's chains solved onto the bones' orientations, exactly as the render does before
+     * drawing. {@code entityWorld} is the frame the film stands the entity in — what
+     * {@code FilmEntityRenderer} renders it under — so the film's world-space targets are brought
+     * into the model the way the render brings them; {@code null} solves against the model alone.
+     */
+    public void solveIK(ModelInstance model, Matrix4f entityWorld, float transition)
+    {
+        Matrix4f base = null;
+
+        if (entityWorld != null)
+        {
+            /* The model's frame as the render establishes it: the entity's, then the form's own
+             * transform and the model's scale, then the half turn every model renders under. */
+            base = new Matrix4f(entityWorld);
+
+            this.applyTransforms(base, transition);
+            base.rotateY(MathUtils.PI);
+        }
+
+        this.applyIK(model, base);
     }
 
     private void applyIK(ModelInstance model, Matrix4f baseTransform)

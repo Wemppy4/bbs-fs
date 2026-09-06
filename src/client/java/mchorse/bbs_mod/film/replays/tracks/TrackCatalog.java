@@ -628,8 +628,12 @@ public class TrackCatalog
         }
     }
 
-    /** A fully populated IK-controls value seeded from the bones' own `ik` properties, so a fresh keyframe matches what the editor shows instead of an empty container that drifts to defaults. */
-    private static IKControls ikControls(ModelForm modelForm)
+    /**
+     * A fully populated IK-controls value seeded from the bones' own `ik` properties, so a fresh
+     * keyframe matches what the editor shows instead of an empty container that drifts to
+     * defaults. Also what the track reads as before its first keyframe (the IK bake keys off it).
+     */
+    public static IKControls ikControls(ModelForm modelForm)
     {
         IKControls controls = new IKControls();
 

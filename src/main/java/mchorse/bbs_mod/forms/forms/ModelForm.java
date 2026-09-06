@@ -23,6 +23,7 @@ import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.core.ValueWindControl;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
+import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.pose.Pose;
 import org.joml.Vector3f;
@@ -51,6 +52,22 @@ public class ModelForm extends Form implements IPosedForm
 
     /** The global wind of the form's physics — one compound animatable property, not bound to a bone. */
     public final ValueWindControl wind = new ValueWindControl("wind", new WindControl());
+
+    /**
+     * The entity states an OptiFine CEM model asks about and a form cannot know — see
+     * {@link mchorse.bbs_mod.cubic.jem.CemStatus}.
+     * Every one of them lies over what the entity says, so their defaults change nothing, and they only
+     * appear in the editor for a model that carries a CEM program.
+     */
+    public final ValueBoolean cemSitting = new ValueBoolean("cem_sitting", false);
+    public final ValueBoolean cemTamed = new ValueBoolean("cem_tamed", false);
+    public final ValueBoolean cemAggressive = new ValueBoolean("cem_aggressive", false);
+    public final ValueBoolean cemOnShoulder = new ValueBoolean("cem_on_shoulder", false);
+    public final ValueBoolean cemBurning = new ValueBoolean("cem_burning", false);
+    public final ValueBoolean cemInLava = new ValueBoolean("cem_in_lava", false);
+    public final ValueBoolean cemClimbing = new ValueBoolean("cem_climbing", false);
+    public final ValueBoolean cemCrawling = new ValueBoolean("cem_crawling", false);
+    public final ValueFloat cemHealth = new ValueFloat("cem_health", 1F);
 
     public final List<ValuePose> additionalOverlays = new ArrayList<>();
 
@@ -114,6 +131,18 @@ public class ModelForm extends Form implements IPosedForm
         this.add(this.bones);
         this.wind.invisible();
         this.add(this.wind);
+
+        /* Visible, so each is a track of its own: a cat that sits down mid-take is a keyframe like
+         * any other. */
+        this.add(this.cemSitting);
+        this.add(this.cemTamed);
+        this.add(this.cemAggressive);
+        this.add(this.cemOnShoulder);
+        this.add(this.cemBurning);
+        this.add(this.cemInLava);
+        this.add(this.cemClimbing);
+        this.add(this.cemCrawling);
+        this.add(this.cemHealth);
     }
 
     @Override

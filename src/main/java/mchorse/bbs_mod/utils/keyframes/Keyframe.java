@@ -2,15 +2,12 @@ package mchorse.bbs_mod.utils.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.data.types.BaseType;
-import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 public class Keyframe <T> extends BaseValue
@@ -22,11 +19,6 @@ public class Keyframe <T> extends BaseValue
     public float ly;
     public float rx = 5;
     public float ry;
-
-    public List<Float> lx_m;
-    public List<Float> ly_m;
-    public List<Float> rx_m;
-    public List<Float> ry_m;
 
     /** How this keyframe is drawn. Fresh keyframes start from whatever the settings say. */
     private final KeyframeStyle style = BBSSettings.getDefaultKeyframeStyle();
@@ -81,10 +73,6 @@ public class Keyframe <T> extends BaseValue
         hash = 31 * hash + Float.floatToIntBits(this.ly);
         hash = 31 * hash + Float.floatToIntBits(this.rx);
         hash = 31 * hash + Float.floatToIntBits(this.ry);
-        hash = 31 * hash + hashFloats(this.lx_m);
-        hash = 31 * hash + hashFloats(this.ly_m);
-        hash = 31 * hash + hashFloats(this.rx_m);
-        hash = 31 * hash + hashFloats(this.ry_m);
         hash = 31 * hash + System.identityHashCode(this.interp.getInterp());
         hash = 31 * hash + Double.hashCode(this.interp.getV1());
         hash = 31 * hash + Double.hashCode(this.interp.getV2());
@@ -93,11 +81,6 @@ public class Keyframe <T> extends BaseValue
         hash = 31 * hash + (this.value == null || this.factory == null ? 0 : this.factory.contentHash(this.value));
 
         return hash;
-    }
-
-    private static int hashFloats(List<Float> floats)
-    {
-        return floats == null ? 0 : floats.hashCode();
     }
 
     public float getTick()
@@ -136,7 +119,7 @@ public class Keyframe <T> extends BaseValue
         return this.value;
     }
 
-    public double getY(int index)
+    public double getY()
     {
         return this.factory.getY(this.value);
     }
@@ -153,108 +136,6 @@ public class Keyframe <T> extends BaseValue
         this.value = value;
 
         if (dirty) this.postNotify();
-    }
-
-    public float getLx(int axis)
-    {
-        return this.getHandle(this.lx_m, axis, this.lx);
-    }
-
-    public float getLy(int axis)
-    {
-        return this.getHandle(this.ly_m, axis, this.ly);
-    }
-
-    public float getRx(int axis)
-    {
-        return this.getHandle(this.rx_m, axis, this.rx);
-    }
-
-    public float getRy(int axis)
-    {
-        return this.getHandle(this.ry_m, axis, this.ry);
-    }
-
-    public void setLx(int axis, float value)
-    {
-        if (axis < 0)
-        {
-            this.lx = value;
-            return;
-        }
-
-        this.ensureMultiHandles(axis + 1);
-        this.lx_m.set(axis, value);
-    }
-
-    public void setLy(int axis, float value)
-    {
-        if (axis < 0)
-        {
-            this.ly = value;
-            return;
-        }
-
-        this.ensureMultiHandles(axis + 1);
-        this.ly_m.set(axis, value);
-    }
-
-    public void setRx(int axis, float value)
-    {
-        if (axis < 0)
-        {
-            this.rx = value;
-            return;
-        }
-
-        this.ensureMultiHandles(axis + 1);
-        this.rx_m.set(axis, value);
-    }
-
-    public void setRy(int axis, float value)
-    {
-        if (axis < 0)
-        {
-            this.ry = value;
-            return;
-        }
-
-        this.ensureMultiHandles(axis + 1);
-        this.ry_m.set(axis, value);
-    }
-
-    public void ensureMultiHandles(int size)
-    {
-        if (size <= 0)
-        {
-            return;
-        }
-
-        if (this.lx_m == null)
-        {
-            this.lx_m = new ArrayList<>();
-            this.ly_m = new ArrayList<>();
-            this.rx_m = new ArrayList<>();
-            this.ry_m = new ArrayList<>();
-        }
-
-        this.ensureHandleSize(this.lx_m, size, this.lx);
-        this.ensureHandleSize(this.ly_m, size, this.ly);
-        this.ensureHandleSize(this.rx_m, size, this.rx);
-        this.ensureHandleSize(this.ry_m, size, this.ry);
-    }
-
-    private float getHandle(List<Float> list, int axis, float fallback)
-    {
-        return axis >= 0 && list != null && axis < list.size() ? list.get(axis) : fallback;
-    }
-
-    private void ensureHandleSize(List<Float> list, int size, float fallback)
-    {
-        while (list.size() < size)
-        {
-            list.add(fallback);
-        }
     }
 
     public Interpolation getInterpolation()
@@ -291,11 +172,6 @@ public class Keyframe <T> extends BaseValue
         this.ly = keyframe.ly;
         this.rx = keyframe.rx;
         this.ry = keyframe.ry;
-
-        if (keyframe.lx_m != null) this.lx_m = new ArrayList<>(keyframe.lx_m);
-        if (keyframe.ly_m != null) this.ly_m = new ArrayList<>(keyframe.ly_m);
-        if (keyframe.rx_m != null) this.rx_m = new ArrayList<>(keyframe.rx_m);
-        if (keyframe.ry_m != null) this.ry_m = new ArrayList<>(keyframe.ry_m);
     }
 
     @Override
@@ -314,10 +190,6 @@ public class Keyframe <T> extends BaseValue
                 && this.ly == kf.ly
                 && this.rx == kf.rx
                 && this.ry == kf.ry
-                && Objects.equals(this.lx_m, kf.lx_m)
-                && Objects.equals(this.ly_m, kf.ly_m)
-                && Objects.equals(this.rx_m, kf.rx_m)
-                && Objects.equals(this.ry_m, kf.ry_m)
                 && this.duration == kf.duration
                 && Objects.equals(this.interp, kf.interp);
         }
@@ -340,24 +212,6 @@ public class Keyframe <T> extends BaseValue
         if (this.rx != 5F) data.putFloat("rx", this.rx);
         if (this.ry != 0F) data.putFloat("ry", this.ry);
         this.style.toData(data);
-
-        if (this.lx_m != null)
-        {
-            ListType lx = new ListType();
-            ListType ly = new ListType();
-            ListType rx = new ListType();
-            ListType ry = new ListType();
-
-            for (Float f : this.lx_m) lx.addFloat(f);
-            for (Float f : this.ly_m) ly.addFloat(f);
-            for (Float f : this.rx_m) rx.addFloat(f);
-            for (Float f : this.ry_m) ry.addFloat(f);
-
-            data.put("lx_m", lx);
-            data.put("ly_m", ly);
-            data.put("rx_m", rx);
-            data.put("ry_m", ry);
-        }
 
         return data;
     }
@@ -382,24 +236,6 @@ public class Keyframe <T> extends BaseValue
         if (map.has("ly")) this.ly = map.getFloat("ly");
         if (map.has("rx")) this.rx = map.getFloat("rx");
         if (map.has("ry")) this.ry = map.getFloat("ry");
-
-        if (map.has("lx_m"))
-        {
-            this.lx_m = new ArrayList<>();
-            this.ly_m = new ArrayList<>();
-            this.rx_m = new ArrayList<>();
-            this.ry_m = new ArrayList<>();
-
-            ListType lx = map.getList("lx_m");
-            ListType ly = map.getList("ly_m");
-            ListType rx = map.getList("rx_m");
-            ListType ry = map.getList("ry_m");
-
-            for (int i = 0; i < lx.size(); i++) this.lx_m.add(lx.getFloat(i));
-            for (int i = 0; i < ly.size(); i++) this.ly_m.add(ly.getFloat(i));
-            for (int i = 0; i < rx.size(); i++) this.rx_m.add(rx.getFloat(i));
-            for (int i = 0; i < ry.size(); i++) this.ry_m.add(ry.getFloat(i));
-        }
     }
 
     public void copyOverExtra(Keyframe<?> a)
@@ -412,10 +248,5 @@ public class Keyframe <T> extends BaseValue
         this.ly = a.ly;
         this.rx = a.rx;
         this.ry = a.ry;
-
-        if (a.lx_m != null) this.lx_m = new ArrayList<>(a.lx_m);
-        if (a.ly_m != null) this.ly_m = new ArrayList<>(a.ly_m);
-        if (a.rx_m != null) this.rx_m = new ArrayList<>(a.rx_m);
-        if (a.ry_m != null) this.ry_m = new ArrayList<>(a.ry_m);
     }
 }

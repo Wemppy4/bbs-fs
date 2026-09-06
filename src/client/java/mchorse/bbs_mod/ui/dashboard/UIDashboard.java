@@ -25,6 +25,7 @@ import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCameraKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIRenderingContext;
+import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
@@ -49,10 +50,24 @@ import net.minecraft.client.option.Perspective;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 
 public class UIDashboard extends UIBaseMenu
 {
+    /**
+     * The parts of the dashboard that haven't been built yet — the panels, and the add-on
+     * event that follows them.
+     *
+     * <p>Building every panel takes long enough to be felt, and paying for all of it at the
+     * moment the user presses the key is what makes the first open feel stuck. So building is
+     * queued here instead, for {@link DashboardWarmup} to work through a step at a time while
+     * the player is still in the world, and for {@link #finishBuilding()} to flush at once if
+     * the user gets there first.</p>
+     */
+    private final Deque<Runnable> buildSteps = new ArrayDeque<>();
+
     private UIDashboardPanels panels;
 
     public UIIcon settings;
@@ -91,8 +106,6 @@ public class UIDashboard extends UIBaseMenu
         });
         this.panels.full(this.viewport);
         this.registerPanels();
-
-        BBSMod.events.post(new RegisterDashboardPanelsEvent(this));
 
         this.main.add(this.panels);
 
@@ -238,12 +251,21 @@ public class UIDashboard extends UIBaseMenu
         if (oldMenu != this)
         {
             this.panels.open();
-            this.setPanel(this.panels.panel);
+
+            /* Which panel is up is a question about the screen being opened, not about it being
+             * built — the film panel is simply where a dashboard that has never been opened starts */
+            this.setPanel(this.panels.panel == null ? this.getPanel(UIFilmPanel.class) : this.panels.panel);
         }
 
         BBSModClient.getCameraController().add(this.camera);
 
         Onboarding.dashboardOpened(this);
+    }
+
+    @Override
+    public IUIElement getPointerOwner()
+    {
+        return this.orbitUI.isFreeLook() ? this.orbitUI : null;
     }
 
     @Override
@@ -257,6 +279,11 @@ public class UIDashboard extends UIBaseMenu
         }
 
         this.orbit.reset();
+
+        /* The mouse goes back to being a cursor while the dashboard is away — the flight is
+         * kept, and the panel takes the mouse again on the frame it's back on screen. */
+        this.orbitUI.setFreeLook(false);
+
         BBSModClient.getCameraController().remove(this.camera);
 
         MinecraftClient.getInstance().options.setPerspective(this.lastPerspective);
@@ -275,36 +302,59 @@ public class UIDashboard extends UIBaseMenu
 
     protected void registerPanels()
     {
-        /* The first dashboard open builds all of this at once and the user feels every
-         * millisecond of it, so each panel reports what it cost — the log names the panel
-         * to blame instead of leaving a five second mystery. */
-        long start = System.nanoTime();
+        this.buildStep("morphing", () -> this.panels.registerPanel(new UIMorphingPanel(this), UIKeys.MORPHING_TITLE, Icons.MORPH));
+        this.buildStep("film", () -> this.panels.registerPanel(new UIFilmPanel(this), UIKeys.FILM_TITLE, Icons.FILM));
+        this.buildStep("model blocks", () -> this.panels.registerPanel(new UIModelBlockPanel(this), UIKeys.MODEL_BLOCKS_TITLE, Icons.BLOCK));
+        this.buildStep("particles", () -> this.panels.registerPanel(new UIParticleSchemePanel(this), UIKeys.PANELS_PARTICLES, Icons.PARTICLE));
+        this.buildStep("model editor", () -> this.panels.registerPanel(new UIModelEditorPanel(this), UIKeys.MODEL_EDITOR_TITLE, Icons.POSE));
+        this.buildStep("textures", () -> this.panels.registerPanel(new UITextureManagerPanel(this), UIKeys.TEXTURES_TOOLTIP, Icons.MATERIAL));
+        this.buildStep("audio", () -> this.panels.registerPanel(new UIAudioEditorPanel(this), UIKeys.AUDIO_TITLE, Icons.SOUND));
 
-        this.panels.registerPanel(new UIMorphingPanel(this), UIKeys.MORPHING_TITLE, Icons.MORPH);
-        start = logPanelTime(start, "morphing");
-        this.panels.registerPanel(new UIFilmPanel(this), UIKeys.FILM_TITLE, Icons.FILM);
-        start = logPanelTime(start, "film");
-        this.panels.registerPanel(new UIModelBlockPanel(this), UIKeys.MODEL_BLOCKS_TITLE, Icons.BLOCK);
-        start = logPanelTime(start, "model blocks");
-        this.panels.registerPanel(new UIParticleSchemePanel(this), UIKeys.PANELS_PARTICLES, Icons.PARTICLE);
-        start = logPanelTime(start, "particles");
-        this.panels.registerPanel(new UIModelEditorPanel(this), UIKeys.MODEL_EDITOR_TITLE, Icons.POSE);
-        start = logPanelTime(start, "model editor");
-        this.panels.registerPanel(new UITextureManagerPanel(this), UIKeys.TEXTURES_TOOLTIP, Icons.MATERIAL);
-        start = logPanelTime(start, "textures");
-        this.panels.registerPanel(new UIAudioEditorPanel(this), UIKeys.AUDIO_TITLE, Icons.SOUND);
-        logPanelTime(start, "audio");
-
-        this.setPanel(this.getPanel(UIFilmPanel.class));
+        /* Add-on panels go into the bar after ours, so this waits for the last of ours */
+        this.buildStep("add-ons", () -> BBSMod.events.post(new RegisterDashboardPanelsEvent(this)));
     }
 
-    private static long logPanelTime(long start, String name)
+    /** Queue up a part of the dashboard to be built later — see {@link #buildSteps}. */
+    private void buildStep(String name, Runnable step)
     {
-        long now = System.nanoTime();
+        this.buildSteps.add(() ->
+        {
+            long start = System.nanoTime();
 
-        System.out.println(String.format("Dashboard panel \"%s\" built in %.1f ms", name, (now - start) / 1_000_000D));
+            step.run();
 
-        return now;
+            /* Building is spread out now, but it is still the whole cost of the first open —
+             * the log names the part to blame instead of leaving a mystery */
+            System.out.println(String.format("Dashboard panel \"%s\" built in %.1f ms", name, (System.nanoTime() - start) / 1_000_000D));
+        });
+    }
+
+    /**
+     * Build one queued part of the dashboard, if anything is left to build. Returns whether
+     * there is more after this one.
+     */
+    public boolean buildNextStep()
+    {
+        Runnable step = this.buildSteps.poll();
+
+        if (step != null)
+        {
+            step.run();
+        }
+
+        return !this.buildSteps.isEmpty();
+    }
+
+    /** Whether the dashboard is built in full, i.e. nothing is queued any more. */
+    public boolean isFullyBuilt()
+    {
+        return this.buildSteps.isEmpty();
+    }
+
+    /** Build everything that is still queued, right now — the dashboard is needed this frame. */
+    public void finishBuilding()
+    {
+        while (this.buildNextStep());
     }
 
     public <T> T getPanel(Class<T> clazz)

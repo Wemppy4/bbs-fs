@@ -2,6 +2,7 @@ package mchorse.bbs_mod.forms.structure;
 
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
+import mchorse.bbs_mod.utils.MathUtils;
 import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandler;
 import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandlerRegistry;
 import net.minecraft.block.BlockRenderType;
@@ -20,6 +21,7 @@ import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
 import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.util.math.BlockPos;
@@ -51,6 +53,25 @@ import java.util.Set;
  */
 public class BakedStructure
 {
+    /**
+     * Where the color overlay pass draws. What eliminated the alternatives, in order:
+     *
+     * <ul>
+     * <li>its shader must read the overlay channel. The terrain shaders the structure normally
+     * draws through have no such channel at all, and neither does {@code entity_translucent_cull},
+     * the layer its own translucent blocks go to;</li>
+     * <li>its name must not contain "translucent", or the provider defers it into the frame's
+     * sorted translucent queue — which draws it long after the overlay texture was unbound;</li>
+     * <li>it must cut out on the raw texel alpha, so leaves and plants keep their shape at any
+     * overlay strength (a cutout shader tests the texel before the vertex color reaches it).</li>
+     * </ul>
+     *
+     * <p>Blending and back-face culling are turned back on for the draw by the renderer, through
+     * the same per-layer hook that binds the overlay texture: the pass composites rather than
+     * replaces, and a plant's double-sided cross must not be painted twice.</p>
+     */
+    public static final RenderLayer OVERLAY_LAYER = RenderLayer.getEntityCutoutNoCull(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, false);
+
     private static int globalGeneration;
 
     private static final Direction[] DIRECTIONS = Direction.values();
@@ -227,6 +248,18 @@ public class BakedStructure
      * map, so it falls back to the shared buffer that {@code Immediate.draw()} flushes first —
      * which would draw translucent before opaque and bring the bug back.</p>
      */
+    /**
+     * Whether the structure's own geometry is routed through entity layers instead of the terrain
+     * ones (see {@link #render}). The color overlay follows from it: an entity layer's shader
+     * mixes the bound overlay into the fragment in place, so {@link #renderOverlay} would double
+     * it there, while the terrain layers have no overlay channel at all and the pass is the only
+     * way to get one.
+     */
+    public static boolean usesEntityLayers()
+    {
+        return BBSRendering.isIrisShadersEnabled();
+    }
+
     private static RenderLayer getEntityLayer(RenderLayer blockLayer)
     {
         if (isTranslucent(blockLayer))
@@ -258,7 +291,7 @@ public class BakedStructure
         Matrix3f normalMatrix = entry.getNormalMatrix();
         int contextBlock = contextLight & 0xFFFF;
         int contextSky = (contextLight >> 16) & 0xFFFF;
-        boolean shaders = BBSRendering.isIrisShadersEnabled();
+        boolean shaders = usesEntityLayers();
 
         /* Transparency only needs the right draw ORDER against the shared depth buffer: opaque must
          * be flushed (writing depth) before translucent draws over it. We exploit that while also
@@ -293,6 +326,46 @@ public class BakedStructure
             }
 
             replay(consumers.getBuffer(target), baked, pose, normalMatrix, contextBlock, contextSky, tint);
+        }
+    }
+
+    /**
+     * The color overlay pass: the same geometry replayed once more into {@link #OVERLAY_LAYER},
+     * where the fragment takes its color entirely from the overlay texture the caller bound (at
+     * full strength) and {@code strength} rides in the vertex alpha — so the pass composites into
+     * {@code mix(structure, overlay, strength)} over what {@link #render} just drew.
+     *
+     * <p>A second pass is what the overlay costs here: the terrain shaders have no overlay
+     * channel to mix the color in place, and rerouting the structure to an entity layer to get
+     * one would re-shade the whole thing (see {@link #render}). The pass itself is immune to that
+     * re-shading — the overlay texture overwrites the fragment's RGB, so the entity layer's
+     * directional diffuse never reaches it. Only alpha survives, which is why the baked per-vertex
+     * alpha (real opacity on the translucent layer) still scales the strength.</p>
+     */
+    public void renderOverlay(MatrixStack.Entry entry, CustomVertexConsumerProvider consumers, int contextLight, float strength)
+    {
+        int alpha = (int) (MathUtils.clamp(strength, 0F, 1F) * 255F);
+
+        if (alpha <= 0)
+        {
+            return;
+        }
+
+        SodiumSpriteHook.markActive(this.sprites);
+
+        VertexConsumer out = consumers.getBuffer(OVERLAY_LAYER);
+        Matrix4f pose = entry.getPositionMatrix();
+        Matrix3f normalMatrix = entry.getNormalMatrix();
+        int contextBlock = contextLight & 0xFFFF;
+        int contextSky = (contextLight >> 16) & 0xFFFF;
+
+        /* White RGB: this pass carries the strength and nothing else — the color arrives through
+         * the bound overlay texture, which the layer's shader writes over the fragment */
+        int tint = (alpha << 24) | 0xFFFFFF;
+
+        for (BakedLayer baked : this.layers)
+        {
+            replay(out, baked, pose, normalMatrix, contextBlock, contextSky, tint);
         }
     }
 

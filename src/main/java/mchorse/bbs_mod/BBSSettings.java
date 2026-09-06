@@ -153,6 +153,7 @@ public class BBSSettings {
 	public static ValueBoolean editorTimelineGrid;
 	public static ValueInt editorPeriodicSave;
 	public static ValueBoolean editorHorizontalFlight;
+	public static ValueBoolean editorFlightFreeLook;
 	public static ValueBoolean editorOrbitMovementRequiresFlight;
 	public static ValueBoolean editorOrbitCenterMarker;
 	public static ValueBoolean editorOrbitGizmo;
@@ -760,6 +761,7 @@ public class BBSSettings {
 		editorCameraSpeed = builder.getFloat("speed", 1F, 0.1F, 100F);
 		editorCameraAngleSpeed = builder.getFloat("angle_speed", 1F, 0.1F, 100F);
 		editorHorizontalFlight = builder.getBoolean("horizontal_flight", false);
+		editorFlightFreeLook = builder.getBoolean("flight_free_look", false);
 		editorCameraSmoothness = builder.getFloat("camera_smoothness", 0.1F, 0F, 0.95F).slider();
 		editorPlayerFollowsCamera = builder.getBoolean("player_follows_camera", false);
 		editorOrbitMovementRequiresFlight = builder.getBoolean("orbit_movement_requires_flight", true);

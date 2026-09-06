@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.line.LineBuilder;
@@ -76,18 +75,6 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         return Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2) < 25D;
     }
 
-    /** How low this keyframe reaches on the graph — a vector track answers for all of its axes. */
-    protected double lowestValue(Keyframe frame, int index)
-    {
-        return frame.getY(index);
-    }
-
-    /** How high this keyframe reaches on the graph. */
-    protected double highestValue(Keyframe frame, int index)
-    {
-        return frame.getY(index);
-    }
-
     public void resetViewY(UIKeyframeSheet current)
     {
         this.yAxis.set(0, 2);
@@ -105,8 +92,8 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
             {
                 Keyframe frame = keyframes.get(i);
 
-                minY = Math.min(minY, this.lowestValue(frame, i));
-                maxY = Math.max(maxY, this.highestValue(frame, i));
+                minY = Math.min(minY, frame.getY());
+                maxY = Math.max(maxY, frame.getY());
             }
         }
         else
@@ -116,7 +103,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
 
             if (c == 1)
             {
-                minY = maxY = this.lowestValue(channel.get(0), 0);
+                minY = maxY = channel.get(0).getY();
             }
         }
 
@@ -292,9 +279,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
     {
         if (context.mouseWheelHorizontal != 0)
         {
-            double offsetX = (25F * BBSSettings.scrollingSensitivityHorizontal.get() * context.mouseWheelHorizontal) / this.keyframes.getXAxis().getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offsetX);
+            this.keyframes.panTime(context.mouseWheelHorizontal);
         }
         else if (Window.isAltPressed() && context.mouseWheel != 0D && this.getSelected() != null)
         {
@@ -312,7 +297,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
             {
                 if (context.mouseWheel != 0D)
                 {
-                    this.keyframes.getXAxis().zoomAnchor(Scale.getAnchorX(context, this.keyframes.area), Math.copySign(this.keyframes.getXAxis().getZoomFactor(), context.mouseWheel));
+                    this.keyframes.zoomTimeAt(context, context.mouseWheel);
                 }
             }
 
@@ -332,13 +317,8 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
     {
         if (this.keyframes.isNavigating())
         {
-            int mouseX = context.mouseX;
-            int mouseY = context.mouseY;
-            double offsetX = (mouseX - lastX) / this.keyframes.getXAxis().getZoom();
-            double offsetY = -(mouseY - lastY) / this.yAxis.getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offsetX);
-            this.yAxis.setShift(this.yAxis.getShift() - offsetY);
+            this.keyframes.dragTimeBy(context.mouseX - lastX);
+            this.yAxis.setShift(this.yAxis.getShift() + (context.mouseY - lastY) / this.yAxis.getZoom());
         }
     }
 

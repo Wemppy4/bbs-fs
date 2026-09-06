@@ -87,17 +87,17 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         });
         this.list.background();
 
-        this.id = UIValues.textbox(() -> this.state.customId);
-        this.main = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_MAIN, () -> this.state.main);
+        this.id = UIValues.textbox(() -> this.state == null ? null : this.state.customId);
+        this.main = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_MAIN, () -> this.state == null ? null : this.state.main);
         this.keybind = new UIKeybind((keybind) -> this.state.keybind.set(keybind.getMainKey()));
         this.keybind.single();
-        this.duration = UIValues.trackpad(() -> this.state.duration).integer().limit(0D);
-        this.fadeIn = UIValues.trackpad(() -> this.state.fadeIn).integer().limit(0D);
+        this.duration = UIValues.trackpad(() -> this.state == null ? null : this.state.duration).integer().limit(0D);
+        this.fadeIn = UIValues.trackpad(() -> this.state == null ? null : this.state.fadeIn).integer().limit(0D);
         this.fadeIn.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_START_D);
-        this.fadeOut = UIValues.trackpad(() -> this.state.fadeOut).integer().limit(0D);
+        this.fadeOut = UIValues.trackpad(() -> this.state == null ? null : this.state.fadeOut).integer().limit(0D);
         this.fadeOut.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_END_D);
-        this.looping = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_LOOPING, () -> this.state.looping);
-        this.offset = UIValues.trackpad(() -> this.state.offset).integer().limit(0D);
+        this.looping = UIValues.toggle(UIKeys.FORMS_EDITOR_STATES_MANAGER_LOOPING, () -> this.state == null ? null : this.state.looping);
+        this.offset = UIValues.trackpad(() -> this.state == null ? null : this.state.offset).integer().limit(0D);
         this.offset.tooltip(UIKeys.FORMS_EDITOR_STATES_MANAGER_OFFSET);
 
         this.editor = UI.scrollView(
@@ -162,16 +162,10 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         }
     }
 
+    /** Only the keybind is filled here: every other field reads its own property. */
     protected void fillData(AnimationState state)
     {
-        this.id.setText(state.customId.get());
-        this.main.setValue(state.main.get());
         this.keybind.setKeyCombo(new KeyCombo(IKey.EMPTY, state.keybind.get()));
-        this.duration.setValue(state.duration.get());
-        this.fadeIn.setValue(state.fadeIn.get());
-        this.fadeOut.setValue(state.fadeOut.get());
-        this.looping.setValue(state.looping.get());
-        this.offset.setValue(state.offset.get());
     }
 
     @Override

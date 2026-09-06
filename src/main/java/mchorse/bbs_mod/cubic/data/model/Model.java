@@ -49,6 +49,18 @@ public class Model implements IMapSerializable, IModel
         this.parser = parser;
     }
 
+    /**
+     * Replace the groups with the ones in {@code data} — a snapshot from {@link #toData()}, the way
+     * the model editor's undo keeps them — and settle the hierarchy again. Every group object is a
+     * new one: whatever held one now holds a dead one.
+     */
+    public void reload(MapType data)
+    {
+        this.topGroups.clear();
+        this.fromData(data);
+        this.initialize();
+    }
+
     public void initialize()
     {
         this.nextIndex = 0;
@@ -418,33 +430,30 @@ public class Model implements IMapSerializable, IModel
         texture.addInt(this.textureWidth);
         texture.addInt(this.textureHeight);
 
-        Map<String, String> parents = new HashMap<>();
-        Collection<ModelGroup> allGroups = this.getAllGroups();
+        /* The groups go out in tree order — parents before children, siblings as they stand — into an
+         * ordered map: the file's order is the order they come back in, so a save must not shuffle
+         * the tree. */
+        MapType groups = new MapType(false);
 
-        for (ModelGroup parent : allGroups)
-        {
-            for (ModelGroup child : parent.children)
-            {
-                parents.put(child.id, parent.id);
-            }
-        }
-
-        MapType groups = new MapType();
-
-        for (ModelGroup group : allGroups)
-        {
-            MapType groupData = group.toData();
-            String parentId = parents.get(group.id);
-
-            if (parentId != null)
-            {
-                groupData.putString("parent", parentId);
-            }
-
-            groups.put(group.id, groupData);
-        }
+        this.writeGroups(this.topGroups, null, groups);
 
         data.put("texture", texture);
         data.put("groups", groups);
+    }
+
+    private void writeGroups(List<ModelGroup> list, ModelGroup parent, MapType groups)
+    {
+        for (ModelGroup group : list)
+        {
+            MapType groupData = group.toData();
+
+            if (parent != null)
+            {
+                groupData.putString("parent", parent.id);
+            }
+
+            groups.put(group.id, groupData);
+            this.writeGroups(group.children, group, groups);
+        }
     }
 }

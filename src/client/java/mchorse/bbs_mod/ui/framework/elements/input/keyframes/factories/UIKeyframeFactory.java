@@ -73,8 +73,6 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         register(KeyframeFactories.BONE_CONSTRAINT, UIBoneConstraintKeyframeFactory::new);
         register(KeyframeFactories.STRING, UIStringKeyframeFactory::new);
         register(KeyframeFactories.TRANSFORM, UITransformKeyframeFactory::new);
-        register(KeyframeFactories.VECTOR3F, UIVector3fKeyframeFactory::new);
-        register(KeyframeFactories.VECTOR3F_SCALE, UIVector3fKeyframeFactory::new);
         register(KeyframeFactories.VECTOR4F, UIVector4fKeyframeFactory::new);
         register(KeyframeFactories.BLOCK_STATE, UIBlockStateKeyframeFactory::new);
         register(KeyframeFactories.ITEM_STACK, UIItemStackKeyframeFactory::new);

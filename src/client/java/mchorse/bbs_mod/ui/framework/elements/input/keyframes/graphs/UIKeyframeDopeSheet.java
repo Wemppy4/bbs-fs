@@ -14,8 +14,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.IKeyframeShapeRenderer;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.shapes.KeyframeShapeRenderers;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -719,9 +719,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     {
         if (context.mouseWheelHorizontal != 0)
         {
-            double offsetX = (25F * BBSSettings.scrollingSensitivityHorizontal.get() * context.mouseWheelHorizontal) / this.keyframes.getXAxis().getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offsetX);
+            this.keyframes.panTime(context.mouseWheelHorizontal);
         }
         else if (Window.isShiftPressed())
         {
@@ -741,7 +739,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         }
         else if (context.mouseWheel != 0D)
         {
-            this.keyframes.getXAxis().zoomAnchor(Scale.getAnchorX(context, this.keyframes.graphArea), Math.copySign(this.keyframes.getXAxis().getZoomFactor(), context.mouseWheel));
+            this.keyframes.zoomTimeAt(context, context.mouseWheel);
         }
     }
 
@@ -752,12 +750,8 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
         if (this.keyframes.isNavigating())
         {
-            int mouseX = context.mouseX;
-            int mouseY = context.mouseY;
-            double offset = (mouseX - lastX) / this.keyframes.getXAxis().getZoom();
-
-            this.keyframes.getXAxis().setShift(this.keyframes.getXAxis().getShift() - offset);
-            this.dopeSheet.scrollBy(-(mouseY - lastY));
+            this.keyframes.dragTimeBy(context.mouseX - lastX);
+            this.dopeSheet.scrollBy(-(context.mouseY - lastY));
         }
     }
 
@@ -1098,16 +1092,10 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         int my = y + height / 2;
         int lx = area.x;
 
-        /* A header wears the hover lighting permanently: it is a heading, and reading as "always
-         * about to be clicked" is exactly how it separates itself from the tracks it holds. */
-        int rowColor = sheet.getRowColor();
-
-        if (hover || sheet.header)
-        {
-            context.batcher.gradientHBox(lx, y, lx + w, y + height, Colors.setA(rowColor, 0.2F), Colors.setA(rowColor, 0.04F));
-        }
-
-        context.batcher.box(lx, y, lx + 2, y + height, rowColor | Colors.A100);
+        /* The row's own colour, and the standing light a header wears: it is a heading, and reading
+         * as "always about to be clicked" is exactly how it separates itself from the tracks it
+         * holds. The track has no pick of its own — keyframes are what gets picked here. */
+        RowStyle.row(context.batcher, lx, y, w, height, sheet.getRowColor(), sheet.header, hover, false);
 
         /* A row that has children keeps its own icon and gets a fold arrow next to it. */
         Icon icon = sheet.getIcon();

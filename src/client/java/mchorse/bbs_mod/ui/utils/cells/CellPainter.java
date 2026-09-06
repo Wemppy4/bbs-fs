@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
@@ -21,16 +22,16 @@ public class CellPainter
     public static final int CAPTION_PADDING = 3;
 
     /**
-     * Under the picture: the accent for a chosen cell, and nothing at all under the cursor.
-     * Hovering is said with the frame instead — a wash over the ground shifted every picture's
-     * colours with it, and in a grid of pictures that reads as the picture changing.
+     * What state the cell is in, said the way a row says it — only turned a quarter, so the wash
+     * climbs from the bottom edge instead of running in from the side.
+     *
+     * <p>Goes down before the thing the cell is about, so a form keeps its own colours and a
+     * texture is shown as it is; the mark reads in the margins around the picture and along the
+     * caption strip, which is where a cell has room to say anything at all.</p>
      */
-    public static void ground(UIContext context, int x, int y, int w, int h, CellState state)
+    public static void marks(UIContext context, int x, int y, int w, int h, CellState state)
     {
-        if (state.isLit())
-        {
-            context.batcher.box(x, y, x + w, y + h, Colors.A25 | BBSSettings.primaryColor.get());
-        }
+        RowStyle.cellWash(context.batcher, x, y, w, h, state.hover, state.isLit() || state.picked);
     }
 
     /** Over the picture of a cell being dragged, so the grid shows where it came from without shouting. */
@@ -43,21 +44,15 @@ public class CellPainter
     }
 
     /**
-     * Frames go last so nothing paints over them. Solid for the cell that's chosen or under
-     * the cursor, lighter for one of a pick — the cursor reads as strongly as the choice
-     * does, since that's the whole of what says where it is.
+     * The bar along the bottom edge, last so nothing paints over it. Only the cell that is
+     * <em>the</em> chosen one wears it; one of a multi-selection has the wash and no bar, which is
+     * the same difference the bar draws between a picked row and a hovered one.
      */
-    public static void frames(UIContext context, int x, int y, int w, int h, CellState state)
+    public static void bar(UIContext context, int x, int y, int w, int h, CellState state)
     {
-        int primary = BBSSettings.primaryColor.get();
-
-        if (state.isLit() || state.hover)
+        if (state.isLit())
         {
-            context.batcher.outline(x, y, x + w, y + h, Colors.A100 | primary, 1);
-        }
-        else if (state.picked)
-        {
-            context.batcher.outline(x, y, x + w, y + h, Colors.A75 | primary, 1);
+            RowStyle.cellBar(context.batcher, x, y, w, h);
         }
     }
 
@@ -73,16 +68,18 @@ public class CellPainter
         return context.batcher.getFont().getWidth(label) < w - CAPTION_PADDING * 2;
     }
 
-    /** A caption along the bottom of a cell, on a gradient so it reads over any picture. */
+    /** A caption along the bottom of a cell, in the strip kept clear for it. */
     public static void caption(UIContext context, String label, int x, int y, int w, int h, boolean bright)
     {
         caption(context, label, x, y, w, h, bright, 1F);
     }
 
     /**
-     * The same caption, faded along with the picture above it. The gradient behind it keeps its
-     * own strength - it is there so the words read over whatever is under them, and a cell that
-     * is faint needs that as much as a solid one.
+     * The same caption, faded along with the picture above it.
+     *
+     * <p>Nothing is drawn behind it: cells keep {@link #CAPTION_HEIGHT} clear of their picture, so
+     * the words have the strip to themselves and the darkening that used to buy them contrast was
+     * only shading the cell's own ground.</p>
      */
     public static void caption(UIContext context, String label, int x, int y, int w, int h, boolean bright, float alpha)
     {
@@ -91,7 +88,6 @@ public class CellPainter
 
         label = font.limitToWidth(label, w - CAPTION_PADDING * 2);
 
-        batcher.gradientVBox(x, y + h - CAPTION_HEIGHT - 8, x + w, y + h, 0, Colors.A75);
         batcher.textShadow(label, x + (w - font.getWidth(label)) / 2, y + h - CAPTION_HEIGHT + (CAPTION_HEIGHT - font.getHeight()) / 2 + 1, Colors.mulA(bright ? Colors.WHITE : Colors.LIGHTEST_GRAY, alpha));
     }
 }

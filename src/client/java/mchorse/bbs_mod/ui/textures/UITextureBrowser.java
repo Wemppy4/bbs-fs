@@ -27,8 +27,6 @@ import mchorse.bbs_mod.ui.utils.UIStrip;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.cells.DragGhost;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
@@ -69,17 +67,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     private static final int MIN_SIDE = 100;
     private static final int MAX_SIDE = 400;
 
-    /**
-     * The four sets of quick actions a texture cell can show — the shared ones with the pin
-     * button in front, kept whole rather than built per cell per frame.
-     */
-    private static final CellAction[] PIN_MODIFIABLE = CellAction.with(CellAction.PIN, CellAction.of(true));
-    private static final CellAction[] UNPIN_MODIFIABLE = CellAction.with(CellAction.UNPIN, CellAction.of(true));
-    private static final CellAction[] PIN_DELETABLE = CellAction.with(CellAction.PIN, CellAction.of(false, true));
-    private static final CellAction[] UNPIN_DELETABLE = CellAction.with(CellAction.UNPIN, CellAction.of(false, true));
-    private static final CellAction[] PIN_READ_ONLY = CellAction.with(CellAction.PIN, CellAction.of(false));
-    private static final CellAction[] UNPIN_READ_ONLY = CellAction.with(CellAction.UNPIN, CellAction.of(false));
-
     /* Side panel widths, dragged by the user; each is capped by what the other leaves of the row */
     private final UISplitter leftHandle = UISplitter.pixels("texture_browser.left", 140, MIN_SIDE, MAX_SIDE);
     private final UISplitter infoHandle = UISplitter.pixels("texture_browser.info", 150, MIN_SIDE, MAX_SIDE);
@@ -104,7 +91,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     public UIFolderTree tree;
     public UITextureGrid grid;
     public UITextureInfoPanel info;
-
 
     /* Files taken by Ctrl+C / Ctrl+X, put down by Ctrl+V; shown on the status line until then */
     private final List<Link> clipboard = new ArrayList<>();
@@ -250,10 +236,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
 
     private int seenVersion = -1;
     private TextureEntry contextEntry;
-
-    private CellAction hoveredAction;
-    private int hoveredActionX;
-    private int hoveredActionY;
 
     /* Type-to-pick, the way the old list did it */
     private final Timer lastTyped = new Timer(1000);
@@ -968,48 +950,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.contextEntry = entry;
     }
 
-    public void setHoveredAction(CellAction action, int x, int y)
-    {
-        this.hoveredAction = action;
-        this.hoveredActionX = x;
-        this.hoveredActionY = y;
-    }
-
-    public CellAction[] getActions(TextureEntry entry)
-    {
-        if (entry.folder())
-        {
-            return CellAction.none();
-        }
-
-        boolean pinned = TexturePins.isPinned(entry.link());
-
-        if (TextureFiles.canModify(entry.link()))
-        {
-            return pinned ? UNPIN_MODIFIABLE : PIN_MODIFIABLE;
-        }
-
-        if (TextureFiles.canDelete(entry.link()))
-        {
-            return pinned ? UNPIN_DELETABLE : PIN_DELETABLE;
-        }
-
-        return pinned ? UNPIN_READ_ONLY : PIN_READ_ONLY;
-    }
-
-    public void runAction(TextureEntry entry, CellAction action)
-    {
-        switch (action)
-        {
-            case EDIT -> this.openInEditor(entry.link());
-            case DUPLICATE -> this.duplicate(this.group(entry.link()));
-            case REMOVE -> this.confirmDelete(this.group(entry.link()));
-            /* The button says what it does to the cell it sits on, so it acts on that one
-             * alone — a group goes through the context menu, where the label counts them */
-            case PIN, UNPIN -> this.togglePins(Collections.singletonList(entry.link()));
-        }
-    }
-
     /** Make a {@code _copy} of each beside the original — those that live on disk. */
     private void duplicate(List<Link> links)
     {
@@ -1668,7 +1608,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             this.hidePathEditor();
         }
 
-        this.hoveredAction = null;
         this.back.setEnabled(!this.path.source.isEmpty());
 
         int strip = BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50);
@@ -1691,11 +1630,6 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             int y = this.grid.area.y + 6;
 
             context.batcher.textCard(this.typed, x + 2, y + 2, Colors.WHITE, Colors.A50 | BBSSettings.primaryColor.get(), 2);
-        }
-
-        if (this.hoveredAction != null && !this.grid.drag.isActive())
-        {
-            CellActionBar.renderLabel(context, this.hoveredAction, this.hoveredActionX, this.hoveredActionY);
         }
 
         if (this.grid.drag.isActive())
@@ -1762,7 +1696,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
 
         this.grid.drag.renderGhost(context, size, size, landing, (ctx, x, y, w, h) ->
         {
-            TextureCellRenderer.render(ctx, front, x, y, w, h, plain, CellAction.none());
+            TextureCellRenderer.render(ctx, front, x, y, w, h, plain);
         });
 
         if (copy)

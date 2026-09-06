@@ -27,8 +27,8 @@ public class UIIdleClip extends UIClip<IdleClip>
     {
         super.registerUI();
 
-        this.point = new UIPointModule(this.editor);
-        this.angle = new UIAngleModule(this.editor);
+        this.point = this.bind(new UIPointModule(this.editor), () -> this.point.fill(this.clip.position.getPoint()));
+        this.angle = this.bind(new UIAngleModule(this.editor), () -> this.angle.fill(this.clip.position.getAngle()));
     }
 
     @Override
@@ -46,14 +46,5 @@ public class UIIdleClip extends UIClip<IdleClip>
         this.clip.position.set(position);
 
         super.editClip(position);
-    }
-
-    @Override
-    public void fillData()
-    {
-        super.fillData();
-
-        this.point.fill(clip.position.getPoint());
-        this.angle.fill(clip.position.getAngle());
     }
 }

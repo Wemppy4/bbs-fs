@@ -7,11 +7,13 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class AssetProvider
 {
@@ -37,6 +39,28 @@ public class AssetProvider
         List<ISourcePack> sourcePacks = this.sourcePacks.get(source);
 
         return sourcePacks == null ? Collections.emptyList() : sourcePacks;
+    }
+
+    /**
+     * Whether any pack can answer for this link. Asking first is how a caller tells "there is no
+     * such file" from "the file is broken" — {@link #getAsset(Link)} throws for both.
+     */
+    public boolean hasAsset(Link link)
+    {
+        if (link == null)
+        {
+            return false;
+        }
+
+        for (ISourcePack pack : this.getPacks(link.source))
+        {
+            if (pack.hasAsset(link))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public InputStream getAsset(Link link) throws IOException
@@ -101,7 +125,11 @@ public class AssetProvider
 
     public Collection<Link> getLinksFromPath(Link link, boolean recursive)
     {
-        Set<Link> links = new HashSet<>();
+        /* Sorted, not hashed: loaders pick "the first .obj/.geo.json/.jem" out of this, and with a
+         * HashSet which file that was came down to hash order - a folder holding player.jem and
+         * player_cape.jem loaded whichever one landed first, and the same folder could answer
+         * differently on another machine. */
+        Set<Link> links = new TreeSet<>(Comparator.comparing(Link::toString));
         List<ISourcePack> packs = this.getPacks(link.source);
 
         for (ISourcePack pack : packs)

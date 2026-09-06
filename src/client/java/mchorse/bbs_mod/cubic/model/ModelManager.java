@@ -1,16 +1,20 @@
 package mchorse.bbs_mod.cubic.model;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.cubic.CubicLoader;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.MolangHelper;
+import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
 import mchorse.bbs_mod.cubic.model.loaders.BOBJModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.CubicModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.GeoCubicModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.IModelLoader;
+import mchorse.bbs_mod.cubic.model.loaders.JemModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.VoxModelLoader;
 import mchorse.bbs_mod.data.DataToString;
+import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.math.molang.MolangParser;
 import mchorse.bbs_mod.resources.AssetProvider;
@@ -23,6 +27,8 @@ import mchorse.bbs_mod.utils.watchdog.IWatchDogListener;
 import mchorse.bbs_mod.utils.watchdog.WatchDogEvent;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -86,6 +92,7 @@ public class ModelManager implements IWatchDogListener
         loaders.add(new BOBJModelLoader());
         loaders.add(new CubicModelLoader());
         loaders.add(new GeoCubicModelLoader());
+        loaders.add(new JemModelLoader());
         loaders.add(new VoxModelLoader());
 
         for (Supplier<IModelLoader> extra : EXTRA_LOADERS)
@@ -218,6 +225,77 @@ public class ModelManager implements IWatchDogListener
         return DataToString.writeSilently(file, data, true);
     }
 
+    /**
+     * Write a model's groups back to the file it was read from, over the file as it stands: its
+     * animations stay as they are (the instance's list also holds the ones the config pulls in from
+     * other files, and those must not end up baked in), and so does anything else in it, such as
+     * the exporter's version stamp. Only for a model the editor may edit
+     * ({@link ModelInstance#getModelFile()}); returns whether the file was written.
+     */
+    public boolean saveModel(ModelInstance instance, List<String[]> renames)
+    {
+        Link link = instance.getModelFile();
+        File file = link == null ? null : this.provider.getFile(link);
+
+        if (file == null || !(instance.getModel() instanceof Model model))
+        {
+            return false;
+        }
+
+        MapType data = this.readModelFile(file);
+
+        data.put("model", model.toData());
+
+        if (!renames.isEmpty() && data.has("animations"))
+        {
+            renameAnimationBones(data.getMap("animations"), renames);
+        }
+
+        return DataToString.writeSilently(file, data, true);
+    }
+
+    /** Move the bone keys of every animation in the file along the renames, oldest first. */
+    private static void renameAnimationBones(MapType animations, List<String[]> renames)
+    {
+        for (Map.Entry<String, BaseType> entry : animations)
+        {
+            if (!entry.getValue().isMap() || !entry.getValue().asMap().has("groups"))
+            {
+                continue;
+            }
+
+            MapType groups = entry.getValue().asMap().getMap("groups");
+
+            for (String[] rename : renames)
+            {
+                if (groups.has(rename[0]))
+                {
+                    BaseType part = groups.get(rename[0]);
+
+                    groups.remove(rename[0]);
+                    groups.put(rename[1], part);
+                }
+            }
+        }
+    }
+
+    /** The file as it stands, to be written over in place; an empty ordered map when it can't be read. */
+    private MapType readModelFile(File file)
+    {
+        MapType data = null;
+
+        try
+        {
+            data = CubicLoader.loadFile(new FileInputStream(file));
+        }
+        catch (IOException e)
+        {
+            System.err.println("Failed to read the model file before saving it: " + file);
+        }
+
+        return data == null ? new MapType(false) : data;
+    }
+
     public void reload()
     {
         for (ModelInstance model : this.models.values())
@@ -253,6 +331,8 @@ public class ModelManager implements IWatchDogListener
             || link.path.endsWith(".bobj")
             || link.path.endsWith(".obj")
             || link.path.endsWith(".animation.json")
+            || link.path.endsWith(".jem")
+            || link.path.endsWith(".jpm")
             || link.path.endsWith(".vox")
             || link.path.endsWith("/config.json");
     }
@@ -271,19 +351,79 @@ public class ModelManager implements IWatchDogListener
             return;
         }
 
+        if (!link.path.startsWith(MODELS_PREFIX))
+        {
+            return;
+        }
+
+        String modelPath = link.path.substring(MODELS_PREFIX.length());
+
         if (this.isRelodable(link))
         {
-            String key = StringUtils.parentPath(link.path.substring(MODELS_PREFIX.length()));
-            ModelInstance model = this.models.remove(key);
+            /* A model is the folder the file sits in. */
+            this.forget(StringUtils.parentPath(modelPath));
 
-            /* Un-mark it too, or the next getModel would treat the key as already queued and
-             * the edited model would never reload. */
-            this.requested.remove(key);
+            return;
+        }
 
-            if (model != null)
+        /* Not a file a loader reads. A deleted model folder arrives exactly this way - by the time the
+         * event is handled the path is no longer a directory, so it names the model itself - and without
+         * this a model deleted and put back under the same name came back as the copy still in memory,
+         * which is what made a rejoin the only way to see it change. */
+        this.forget(modelPath);
+
+        for (String key : new ArrayList<>(this.models.keySet()))
+        {
+            if (key.startsWith(modelPath + "/"))
             {
-                model.delete();
+                this.forget(key);
             }
+        }
+    }
+
+    /**
+     * Drop every model of a folder, so the next request loads them again. For a source BBS does not
+     * watch — the models a resource pack serves — where a change arrives as one event for all of them
+     * rather than as a file the watchdog saw.
+     */
+    public void forgetFolder(String prefix)
+    {
+        for (String key : new ArrayList<>(this.models.keySet()))
+        {
+            if (key.startsWith(prefix))
+            {
+                this.forget(key);
+            }
+        }
+
+        /* A model that failed to load is remembered as requested and never retried, so it has to go
+         * too, or a pack that arrives later can never be picked up. */
+        for (String key : new ArrayList<>(this.requested))
+        {
+            if (key.startsWith(prefix))
+            {
+                this.requested.remove(key);
+            }
+        }
+    }
+
+    /** Drop a model from the cache so the next request loads it from disk again. */
+    private void forget(String key)
+    {
+        if (key.isEmpty())
+        {
+            return;
+        }
+
+        ModelInstance model = this.models.remove(key);
+
+        /* Un-mark it too, or the next getModel would treat the key as already queued and
+         * the edited model would never reload. */
+        this.requested.remove(key);
+
+        if (model != null)
+        {
+            model.delete();
         }
     }
 }

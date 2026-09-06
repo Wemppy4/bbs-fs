@@ -41,19 +41,24 @@ public class UIFilmPlayerSettingsOverlayPanel extends UIMessageBarOverlayPanel
         this.message.removeFromParent();
 
         this.hp = new UISliderTrackpad((v) -> BaseValue.edit(this.film.hp, (value) -> value.set(v.floatValue())));
-        this.hp.limit(1, 20, true).setValue(this.film.hp.get());
+        this.hp.limit(1, 20, true);
+        this.hp.valueBinding(() -> this.hp.setValue(this.film.hp.get()));
 
         this.hunger = new UISliderTrackpad((v) -> BaseValue.edit(this.film.hunger, (value) -> value.set(v.floatValue())));
-        this.hunger.limit(1, 20, true).setValue(this.film.hunger.get());
+        this.hunger.limit(1, 20, true);
+        this.hunger.valueBinding(() -> this.hunger.setValue(this.film.hunger.get()));
 
         this.xpLevel = new UITrackpad((v) -> BaseValue.edit(this.film.xpLevel, (value) -> value.set(v.intValue())));
-        this.xpLevel.limit(0).integer().setValue(this.film.xpLevel.get());
+        this.xpLevel.limit(0).integer();
+        this.xpLevel.valueBinding(() -> this.xpLevel.setValue(this.film.xpLevel.get()));
 
         this.xpProgress = new UISliderTrackpad((v) -> BaseValue.edit(this.film.xpProgress, (value) -> value.set(v.floatValue())));
-        this.xpProgress.limit(0, 1).increment(0.01D).setValue(this.film.xpProgress.get());
+        this.xpProgress.limit(0, 1).increment(0.01D);
+        this.xpProgress.valueBinding(() -> this.xpProgress.setValue(this.film.xpProgress.get()));
 
         this.mobRecordingRadius = new UITrackpad((v) -> BaseValue.edit(this.film.mobRecordingRadius, (value) -> value.set(v.floatValue())));
-        this.mobRecordingRadius.limit(0).integer().setValue(this.film.mobRecordingRadius.get());
+        this.mobRecordingRadius.limit(0).integer();
+        this.mobRecordingRadius.valueBinding(() -> this.mobRecordingRadius.setValue(this.film.mobRecordingRadius.get()));
         this.mobRecordingRadius.tooltip(UIKeys.FILM_PLAYER_SETTINGS_MOB_RECORDING_RADIUS_TOOLTIP);
 
         this.recordHotbar = new UIButton(UIKeys.FILM_RECORD_HOTBAR, (b) -> this.recordHotbar());

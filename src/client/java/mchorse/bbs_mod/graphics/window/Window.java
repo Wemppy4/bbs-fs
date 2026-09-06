@@ -14,7 +14,9 @@ import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class Window
 {
@@ -164,6 +166,51 @@ public class Window
     public static void moveCursor(int x, int y)
     {
         GLFW.glfwSetCursorPos(getWindow(), x, y);
+    }
+
+    /**
+     * Who is holding the pointer hidden. The mouse is an input rather than a cursor for more
+     * than one thing - a driven actor, the flight camera's free look - and they can want it at
+     * the same time, so each asks by its own key and the pointer only comes back once the last
+     * of them has let go.
+     */
+    private static final Set<Object> cursorHolders = new HashSet<>();
+
+    /**
+     * Hide or show the pointer on behalf of the given holder. Hidden is how the game itself
+     * holds the mouse: no cursor drawn, and the travel isn't stopped by the edge of the screen.
+     *
+     * <p>Safe to call every frame, and worth calling every frame while it's needed: the mode
+     * only reaches GLFW when it actually differs, and Minecraft shows the pointer again
+     * whenever a screen opens, so a holder that outlives that puts it back on the next frame.</p>
+     */
+    public static void setCursorHidden(Object holder, boolean hidden)
+    {
+        if (hidden)
+        {
+            cursorHolders.add(holder);
+        }
+        else
+        {
+            cursorHolders.remove(holder);
+        }
+
+        boolean hide = !cursorHolders.isEmpty();
+
+        /* Without a screen up the pointer is Minecraft's, hidden for the game - showing it
+         * again is only ever this code's business over a screen. */
+        if (!hide && MinecraftClient.getInstance().currentScreen == null)
+        {
+            return;
+        }
+
+        long window = getWindow();
+        int mode = hide ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL;
+
+        if (GLFW.glfwGetInputMode(window, GLFW.GLFW_CURSOR) != mode)
+        {
+            GLFW.glfwSetInputMode(window, GLFW.GLFW_CURSOR, mode);
+        }
     }
 
     public static void setStandardCursor(int shape)

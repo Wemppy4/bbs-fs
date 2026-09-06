@@ -7,10 +7,10 @@ import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.Replays;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueString;
-import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.settings.values.numeric.ValueLong;
+import mchorse.bbs_mod.utils.categories.Categories;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 
@@ -26,10 +26,11 @@ public class Film extends ValueGroup
     public final Clips camera = new Clips("camera", BBSMod.getFactoryCameraClips());
     public final Replays replays = new Replays("replays");
     /**
-     * Names of replay categories that exist even with no replay assigned (empty groups).
-     * Union with {@link Replay#category} on each replay defines all categories in the UI.
+     * The replay list's folders: their order, whether they are open, and the empty ones that
+     * would otherwise not exist at all. What folder a replay is in is on the replay
+     * ({@link Replay#category}), so this list is free to know nothing about most of them.
      */
-    public final ValueStringKeys replayCategoryNames = new ValueStringKeys("replay_categories");
+    public final Categories replayCategories = new Categories("replay_categories");
 
     /** Author's notes pinned to ticks, drawn on every timeline's ruler. */
     public final FilmMarkers markers = new FilmMarkers("markers");
@@ -55,9 +56,16 @@ public class Film extends ValueGroup
     {
         super("");
 
+        /* The server drives the actors from the replays — their keyframes, properties, action
+         * clips and flags — so any edit in that subtree has to reach its copy of the film. One
+         * declaration on the subtree replaces the hand-written list of path endings that used to
+         * decide this (and kept falling behind as channels were added). The camera stays
+         * client-side: the server never plays it, and saving ships the whole film anyway. */
+        this.replays.synced();
+
         this.add(this.camera);
         this.add(this.replays);
-        this.add(this.replayCategoryNames);
+        this.add(this.replayCategories);
         this.add(this.markers);
 
         this.add(this.hp);

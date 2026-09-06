@@ -40,6 +40,6 @@ public class FilmMarker extends ValueGroup
      */
     public static int randomBrightColor()
     {
-        return Colors.HSVtoRGB((float) Math.random(), 0.75F, 1F).getRGBColor();
+        return Colors.randomBright();
     }
 }

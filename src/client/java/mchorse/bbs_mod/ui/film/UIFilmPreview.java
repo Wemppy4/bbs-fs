@@ -562,6 +562,14 @@ public class UIFilmPreview extends UIElement
 
             this.hud.label(context, PreviewHud.Anchor.BOTTOM_CENTER, s, Colors.WHITE, Colors.A50);
         }
+        /* Free look holds the mouse the same way control mode does, so it owes the same line -
+         * the pointer is gone, and this is what says how to get it back. */
+        else if (this.panel.dashboard.orbitUI.isFreeLook())
+        {
+            String s = UIKeys.FILM_CONTROLLER_FREE_LOOK_TOOLTIP.format(KeyCodes.getName(Keys.FLIGHT.getMainKey())).get();
+
+            this.hud.label(context, PreviewHud.Anchor.BOTTOM_CENTER, s, Colors.WHITE, Colors.A50);
+        }
 
         /* Everything the corners collected this frame goes down here, each zone's wash first. */
         this.hud.flush(context);

@@ -36,6 +36,7 @@ import mchorse.bbs_mod.forms.renderers.StructureFormRenderer;
 import mchorse.bbs_mod.forms.renderers.TrailFormRenderer;
 import mchorse.bbs_mod.forms.renderers.VanillaParticleFormRenderer;
 import mchorse.bbs_mod.forms.renderers.VideoFormRenderer;
+import mchorse.bbs_mod.forms.structure.BakedStructure;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.RenderLayer;
@@ -87,6 +88,9 @@ public class FormUtilsClient
             assignBufferBuilder(map, RenderLayer.getCutout());
             assignBufferBuilder(map, RenderLayer.getCutoutMipped());
             map.put(TexturedRenderLayers.getEntityTranslucentCull(), storage.get(RenderLayer.getTranslucent()));
+            /* Right behind the layer it stands in for while a block form carries a color overlay,
+             * so the swap does not move when the geometry draws. */
+            assignBufferBuilder(map, BlockFormRenderer.OVERLAY_TRANSLUCENT_LAYER);
             assignBufferBuilder(map, TexturedRenderLayers.getShieldPatterns());
             assignBufferBuilder(map, TexturedRenderLayers.getBeds());
             assignBufferBuilder(map, TexturedRenderLayers.getShulkerBoxes());
@@ -102,6 +106,9 @@ public class FormUtilsClient
             assignBufferBuilder(map, RenderLayer.getDirectEntityGlint());
             assignBufferBuilder(map, RenderLayer.getWaterMask());
             ModelLoader.BLOCK_DESTRUCTION_RENDER_LAYERS.forEach(renderLayer -> assignBufferBuilder(map, renderLayer));
+            /* Last: the structure form's color overlay is a second pass over the whole structure,
+             * so it has to flush after every layer the structure itself drew into. */
+            assignBufferBuilder(map, BakedStructure.OVERLAY_LAYER);
         });
 
         return new CustomVertexConsumerProvider(new BufferBuilder(1536), sortedMap);

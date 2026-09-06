@@ -101,7 +101,7 @@ public class UITexturePickGrid extends UIItemGrid<TextureEntry>
 
         state.selected = link != null && link.equals(item.link());
 
-        TextureCellRenderer.render(context, item, x, y, w, h, state, this.actions(item));
+        TextureCellRenderer.render(context, item, x, y, w, h, state);
     }
 
     @Override

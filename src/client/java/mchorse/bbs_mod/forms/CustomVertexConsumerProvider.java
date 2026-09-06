@@ -3,6 +3,7 @@ package mchorse.bbs_mod.forms;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
+import mchorse.bbs_mod.utils.colors.Color;
 import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.RenderLayer;
@@ -23,6 +24,7 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
     private static Consumer<RenderLayer> runnables;
 
     private Function<VertexConsumer, VertexConsumer> substitute;
+    private Color overlay;
     private boolean ui;
 
     public static void drawLayer(RenderLayer layer)
@@ -56,6 +58,16 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
         {
             RecolorVertexConsumer.newColor = null;
         }
+    }
+
+    /**
+     * The color overlay a deferred layer has to be drawn with. A layer that defers is drawn from
+     * the translucent queue long after the renderer's per-layer hook unbound the overlay texture,
+     * so the color travels with the command instead. Null while nothing sets one.
+     */
+    public void setOverlay(Color overlay)
+    {
+        this.overlay = overlay;
     }
 
     public void setUI(boolean ui)
@@ -134,7 +146,7 @@ public class CustomVertexConsumerProvider extends VertexConsumerProvider.Immedia
                 BBSRendering.endIrisBufferUpload(extended);
             }
 
-            FormTranslucentQueue.add(new FormTranslucentQueue.RenderLayerCommand(layer, buffer, new Matrix4f(RenderSystem.getModelViewMatrix()), new Vector3f(origin)));
+            FormTranslucentQueue.add(new FormTranslucentQueue.RenderLayerCommand(layer, buffer, new Matrix4f(RenderSystem.getModelViewMatrix()), new Vector3f(origin)).overlayColor(this.overlay));
         }
 
         if (current)

@@ -18,6 +18,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -341,8 +342,8 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
     }
 
     /**
-     * A clickable section row in the left list — icon plus localized title,
-     * highlighted with the menu gradient when it's the active section.
+     * A clickable section row in the left list — icon plus localized title, wearing the marks
+     * every row wears: see {@link RowStyle}.
      */
     public static class UISectionButton extends UIClickable<UISectionButton>
     {
@@ -372,22 +373,16 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         protected void renderSkin(UIContext context)
         {
             Icon icon = this.category.icon != null ? this.category.icon : this.panel.settings.icon;
+            boolean current = this.panel.isCurrent(this.category);
 
-            if (this.panel.isCurrent(this.category))
-            {
-                context.batcher.highlight(this.area, Direction.LEFT);
-            }
-            else if (this.hover)
-            {
-                this.area.render(context.batcher, Colors.setA(Colors.WHITE, 0.1F));
-            }
+            RowStyle.row(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h, 0, false, this.hover, current);
 
-            context.batcher.icon(icon, Colors.WHITE, this.area.x + 5, this.area.my(), 0F, 0.5F);
+            context.batcher.icon(icon, RowStyle.iconColor(this.hover || current), this.area.x + 5, this.area.my(), 0F, 0.5F);
 
             FontRenderer font = context.batcher.getFont();
             String label = font.limitToWidth(this.label.get(), this.area.w - 28);
 
-            context.batcher.text(label, this.area.x + 23, this.area.my(font.getHeight()), Colors.WHITE, true);
+            context.batcher.text(label, this.area.x + 23, this.area.my(font.getHeight()), RowStyle.textColor(this.hover || current), true);
         }
     }
 

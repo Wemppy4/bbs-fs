@@ -13,6 +13,7 @@ import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.IKBake;
 import mchorse.bbs_mod.film.replays.tracks.TrackCatalog;
 import mchorse.bbs_mod.film.replays.tracks.TrackDescriptor;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
@@ -36,6 +37,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.overlays.UIAnimationToPoseOverlayPanel;
+import mchorse.bbs_mod.ui.film.replays.overlays.UIBakeIKOverlayPanel;
 import mchorse.bbs_mod.ui.film.replays.overlays.UIKeyframeSheetFilterOverlayPanel;
 import mchorse.bbs_mod.ui.film.utils.keyframes.UIFilmKeyframes;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -76,6 +78,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -731,13 +734,42 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 
                 if (this.replay.form.get() instanceof ModelForm modelForm)
                 {
-                    List<String> controllers = ModelIKRuntime.getControllers(ModelFormRenderer.getModel(modelForm));
+                    ModelInstance instance = ModelFormRenderer.getModel(modelForm);
+                    List<String> controllers = ModelIKRuntime.getControllers(instance);
                     if (!controllers.isEmpty())
                     {
                         menu.action(Icons.CLOSE, UIKeys.FILM_REPLAY_CONTEXT_CLEAR_IK, () ->
                         {
                             UIReplaysEditorUtils.clearIKTracks(this.replay, modelForm);
                             this.updateChannelsList();
+                        });
+                    }
+
+                    Map<String, List<String>> chains = instance == null
+                        ? Collections.emptyMap()
+                        : ModelIKRuntime.getChains(instance.model, modelForm);
+
+                    if (!chains.isEmpty())
+                    {
+                        menu.action(Icons.KEY, UIKeys.FILM_REPLAY_CONTEXT_BAKE_IK, () ->
+                        {
+                            /* The range on offer ends where the replay's own motion ends — past its
+                             * last keyframe the solve only repeats itself, and a film is usually
+                             * longer than any one replay in it. A replay without keyframes gets the film. */
+                            int lastTick = (int) Math.ceil(this.replay.getLastKeyframeTick());
+
+                            if (lastTick < 0)
+                            {
+                                lastTick = Math.max(0, this.film.calculateDuration() - 1);
+                            }
+
+                            UIOverlay.addOverlay(this.getContext(), new UIBakeIKOverlayPanel(chains.keySet(), lastTick, (tips, start, end, step, disable) ->
+                            {
+                                if (IKBake.bake(this.film, this.replay, tips, start, end, step, disable))
+                                {
+                                    this.updateChannelsList();
+                                }
+                            }), 240, 240);
                         });
                     }
                 }

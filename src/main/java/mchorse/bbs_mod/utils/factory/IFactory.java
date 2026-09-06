@@ -58,6 +58,12 @@ public interface IFactory <T, D>
         }
 
         Link type = Link.create(data.getString(this.getTypeKey()));
+
+        if (type.path.isEmpty())
+        {
+            return null;
+        }
+
         T object;
 
         try

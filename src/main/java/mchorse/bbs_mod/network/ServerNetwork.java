@@ -470,6 +470,13 @@ public class ServerNetwork
 
                     actionPlayer = film == null ? null : actions.play(player, player.getServerWorld(), film, tick, PlayerType.FILM_EDITOR);
                 }
+                else
+                {
+                    /* The rewind path keeps the playback alive, so the world reset the stop/start
+                     * restart got from dying has to be done in place: blocks the film placed go
+                     * away, and the walk below puts back exactly what belongs up to the cursor. */
+                    actions.restoreDamage(actionPlayer.getWorld());
+                }
 
                 if (actionPlayer != null)
                 {

@@ -6,7 +6,6 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemStack;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
-import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
@@ -14,7 +13,6 @@ import net.minecraft.client.render.model.json.ModelTransformationMode;
 
 public class UIItemFormPanel extends UIFormPanel<ItemForm>
 {
-    public UIColor color;
     public UIButton modelTransform;
     public UIItemStack itemStackEditor;
 
@@ -22,7 +20,6 @@ public class UIItemFormPanel extends UIFormPanel<ItemForm>
     {
         super(editor);
 
-        this.color = UIValues.color(() -> this.form.color).withAlpha();
         this.modelTransform = new UIButton(IKey.EMPTY, (b) ->
         {
             this.getContext().replaceContextMenu((menu) ->
@@ -43,7 +40,7 @@ public class UIItemFormPanel extends UIFormPanel<ItemForm>
 
         this.itemStackEditor = new UIItemStack((itemStack) -> this.form.stack.set(itemStack.copy()));
 
-        this.options.add(this.color, UI.labelRow(UIKeys.FORMS_EDITORS_ITEM_TRANSFORMS, this.modelTransform), this.itemStackEditor);
+        this.options.add(UIValues.color(() -> this.form.color).withAlpha(), UI.labelRow(UIKeys.FORMS_EDITORS_ITEM_TRANSFORMS, this.modelTransform), this.itemStackEditor);
     }
 
     private void setModelTransform(ModelTransformationMode value)
@@ -58,7 +55,6 @@ public class UIItemFormPanel extends UIFormPanel<ItemForm>
     {
         super.startEdit(form);
 
-        this.color.setColor(form.color.get().getARGBColor());
         this.modelTransform.label = IKey.constant(form.modelTransform.get().asString());
         this.itemStackEditor.setStack(form.stack.get());
     }

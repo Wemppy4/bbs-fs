@@ -34,7 +34,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -61,8 +60,10 @@ import java.util.List;
  * exactly while lining a region up. The hint above the hotbar always names what the buttons do
  * right now.</p>
  *
- * <p>Only useful in singleplayer — the save it leads to runs against the integrated server's
- * template manager, and the structure form reads that same save folder.</p>
+ * <p>The save it leads to writes into BBS's {@code structures} assets folder, so a build captured
+ * here is a form in every world, not only in this one. Only useful in singleplayer all the same:
+ * the region is read by the server, and a dedicated one would write the file onto its own disk,
+ * where this client cannot see it.</p>
  */
 public class StructureWand
 {
@@ -268,22 +269,23 @@ public class StructureWand
     }
 
     /**
-     * From the dialog: hand the box to the server. The selection stays — the same structure can be
-     * re-saved after a tweak — and the reply ends the job, see {@link #onSaved}.
+     * From the dialog: hand the box to the server, which writes it into BBS's structures folder.
+     * The selection stays — the same structure can be re-saved after a tweak — and the reply ends
+     * the job, see {@link #onSaved}.
+     *
+     * @param name path under the structures folder, without the extension
      */
     public static void save(String name, boolean toRecent)
     {
-        Identifier id = Identifier.tryParse(name);
-
-        if (id == null || !StructureSelection.isReady())
+        if (name.isEmpty() || !StructureSelection.isReady())
         {
             return;
         }
 
         lastName = name;
-        pendingRecent = toRecent ? id.toString() : null;
+        pendingRecent = toRecent ? name : null;
 
-        ClientNetwork.sendSaveStructure(id.toString(), StructureSelection.getMin(), StructureSelection.getMax());
+        ClientNetwork.sendSaveStructure(name, StructureSelection.getMin(), StructureSelection.getMax());
     }
 
     /**
@@ -310,13 +312,13 @@ public class StructureWand
         pendingRecent = null;
     }
 
-    private static void addRecentForm(String id)
+    private static void addRecentForm(String path)
     {
         StructureForm form = new StructureForm();
-        String path = id.substring(id.indexOf(':') + 1);
 
-        form.structure.set(id);
-        form.name.set(path.substring(path.lastIndexOf('/') + 1));
+        /* No name of its own: the form is named after the structure it holds, and a name set here
+         * would stick to it even after the structure was swapped for another. */
+        form.structure.set(StructureManager.assetId(path));
 
         BBSModClient.getFormCategories().getRecentForms().getCategories().get(0).addForm(form);
     }
