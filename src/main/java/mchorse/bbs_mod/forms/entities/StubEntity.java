@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.entities;
 
+import mchorse.bbs_mod.cubic.jem.CemVariables;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.utils.AABB;
@@ -30,6 +31,11 @@ public class StubEntity implements IEntity
     private boolean fallFlying;
     private float fallDistance;
     private int hurtTimer;
+
+    /** Hands every stub its own {@link #getId()}: a number that stays put for the life of the instance. */
+    private static int nextId;
+
+    private final int id = nextId++;
 
     private float prevLeaningPitch;
     private float leaningPitch;
@@ -227,6 +233,31 @@ public class StubEntity implements IEntity
         return this.armSwing <= 0 ? 0F : 1F - (this.armSwing - tickDelta) / 6F;
     }
 
+    /** This one stands in for an actor; it never spawned. See {@link IEntity#isStandIn()}. */
+    @Override
+    public boolean isStandIn()
+    {
+        return true;
+    }
+
+    /** Lazily made: an entity that never renders a CEM model never allocates one. */
+    private CemVariables cemVariables;
+
+    /**
+     * The CEM variables of this entity, made on first use — every CEM model rendered on it shares them,
+     * which is how a pack's cape follows its body. See {@link CemVariables}.
+     */
+    @Override
+    public CemVariables getCemVariables()
+    {
+        if (this.cemVariables == null)
+        {
+            this.cemVariables = new CemVariables();
+        }
+
+        return this.cemVariables;
+    }
+
     @Override
     public int getAge()
     {
@@ -261,6 +292,12 @@ public class StubEntity implements IEntity
     public void setHurtTimer(int hurtTimer)
     {
         this.hurtTimer = hurtTimer;
+    }
+
+    @Override
+    public int getId()
+    {
+        return this.id;
     }
 
     @Override

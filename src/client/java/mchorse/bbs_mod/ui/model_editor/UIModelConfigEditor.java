@@ -680,6 +680,14 @@ public class UIModelConfigEditor extends UIElement
             this.toggle(UIKeys.MODEL_EDITOR_ON_CPU, () -> this.data.onCpu, this.modelPanel::refresh)
         );
 
+        ModelInstance instance = this.instance();
+
+        /* Only a .jem carries a CEM program to switch; for any other model the toggle would switch nothing. */
+        if (instance != null && instance.cemAnimation != null)
+        {
+            this.renderBody.add(this.toggle(UIKeys.MODEL_EDITOR_CEM_ANIMATION, () -> this.data.cemAnimation, this.modelPanel::refresh));
+        }
+
         UITrackpad uiScale = this.trackpad(() -> this.data.uiScale, null);
 
         uiScale.limit(config.uiScale).delayedInput();

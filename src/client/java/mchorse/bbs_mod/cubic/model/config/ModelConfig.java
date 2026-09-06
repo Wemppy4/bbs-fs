@@ -59,6 +59,12 @@ public class ModelConfig extends ValueGroup
     public final ArmorSlotsValue armorSlots = new ArmorSlotsValue("armor_slots");
     public final ValueStringMap flippedParts = new ValueStringMap("flipped_parts");
     public final ValueStringMap pickingOverrides = new ValueStringMap("picking_overrides");
+
+    /** For a .jem model: whether its OptiFine CEM program drives the bones; off, the model is posed like any other. */
+    public final ValueBoolean cemAnimation = new ValueBoolean("cem_animation", true);
+
+    /** For a .jem model: child part &rarr; parent part, laid over the built-in vanilla hierarchy table (see {@code CemHierarchy}). */
+    public final ValueStringMap cemParents = new ValueStringMap("cem_parents");
     public final ArmorSlotValue fpMain = new ArmorSlotValue("fp_main");
     public final ArmorSlotValue fpOffhand = new ArmorSlotValue("fp_offhand");
 
@@ -92,6 +98,8 @@ public class ModelConfig extends ValueGroup
         this.add(this.armorSlots);
         this.add(this.flippedParts);
         this.add(this.pickingOverrides);
+        this.add(this.cemAnimation);
+        this.add(this.cemParents);
         this.add(this.fpMain);
         this.add(this.fpOffhand);
 

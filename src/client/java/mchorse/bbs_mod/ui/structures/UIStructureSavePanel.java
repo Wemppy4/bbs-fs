@@ -24,7 +24,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.colors.Colors;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
 import org.lwjgl.glfw.GLFW;
@@ -220,28 +219,33 @@ public class UIStructureSavePanel extends UIOverlayPanel
     }
 
     /**
-     * What the user typed, as a structure id: lower case, spaces as underscores, anything an
-     * {@link Identifier} refuses dropped — a name like "My House" shouldn't be an error.
+     * What the user typed, as a file path: lower case, spaces as underscores, anything that has no
+     * business in a path dropped — a name like "My House" shouldn't be an error.
      */
     private static String sanitize(String name)
     {
-        return name.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replaceAll("[^a-z0-9/._:-]", "");
+        return name.trim().toLowerCase(Locale.ROOT).replace(' ', '_').replaceAll("[^a-z0-9/._-]", "");
+    }
+
+    /** Whether this is a name a file can be written under, and read back by the id it becomes. */
+    private static boolean isValid(String path)
+    {
+        return !path.isEmpty() && !path.contains("..") && !path.startsWith("/") && !path.endsWith("/");
     }
 
     /**
      * The line under the field: the id the name will actually become, or why it can't become one.
      *
-     * <p>A structure is addressed by an {@link Identifier}, and those hold nothing but
-     * {@code a-z 0-9 _ - . /} — a Cyrillic name has no id to turn into, and no amount of our
-     * cleverness changes that. So it is said plainly, as it is typed, instead of the field
-     * quietly emptying itself on save.</p>
+     * <p>The name is a path under BBS's structures folder, so it holds {@code a-z 0-9 _ - . /} —
+     * a Cyrillic name has nothing to turn into here. Said plainly, as it is typed, instead of the
+     * field quietly emptying itself on save.</p>
      */
     private void updateHint()
     {
-        String id = sanitize(this.name.getText());
-        boolean ok = !id.isEmpty() && Identifier.tryParse(id) != null;
+        String path = sanitize(this.name.getText());
+        boolean ok = isValid(path);
 
-        this.hint.label = ok ? IKey.constant(id) : UIKeys.STRUCTURE_WAND_SAVE_INVALID;
+        this.hint.label = ok ? IKey.constant(StructureManager.assetId(path)) : UIKeys.STRUCTURE_WAND_SAVE_INVALID;
         this.hint.color = ok ? Colors.LIGHTER_GRAY : Colors.NEGATIVE;
     }
 
@@ -249,7 +253,7 @@ public class UIStructureSavePanel extends UIOverlayPanel
     {
         String name = sanitize(this.name.getText());
 
-        if (name.isEmpty() || Identifier.tryParse(name) == null)
+        if (!isValid(name))
         {
             /* What they typed stays: it is theirs, and the hint below already says what is wrong */
             this.getContext().notifyError(UIKeys.STRUCTURE_WAND_SAVE_INVALID);

@@ -15,7 +15,7 @@ import mchorse.bbs_mod.utils.pose.Transform;
  * while the audio track rides the inherited audio clip machinery (the {@link #audio}
  * link points at the video file itself).
  */
-public class VideoClip extends AudioClip
+public class VideoClip extends AudioClip implements IPlaceableClip
 {
     public ValuePlacement placement = new ValuePlacement("placement", new Placement());
     public ValueInt color = new ValueInt("color", Colors.WHITE);
@@ -29,6 +29,19 @@ public class VideoClip extends AudioClip
     public VideoOverlay getOverlay()
     {
         return this.overlay;
+    }
+
+    @Override
+    public ValuePlacement getPlacement()
+    {
+        /* Nothing to move while it covers the frame. */
+        return this.fullscreen.get() ? null : this.placement;
+    }
+
+    @Override
+    public OverlayBox getOverlayBox()
+    {
+        return this.overlay.box;
     }
 
     public VideoClip()

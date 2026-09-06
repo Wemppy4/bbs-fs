@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 import mchorse.bbs_mod.BBSSettings;
@@ -29,7 +28,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.IUIKeyframeG
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.KeyframeType;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeGraph;
-import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIVector3KeyframeGraph;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UIKeyframeStyleOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.overlays.UITrackStyleOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
@@ -49,7 +47,6 @@ import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
-import mchorse.bbs_mod.utils.keyframes.factories.Vector3fKeyframeFactory;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 
 public class UIKeyframes extends UITimelineCanvas
@@ -330,29 +327,13 @@ public class UIKeyframes extends UITimelineCanvas
             Keyframe kf = selected.get(index);
             Keyframe prevKf = selected.get(previous);
 
-            if (factory instanceof Vector3fKeyframeFactory)
+            double difference = factory.getY(kf.getValue()) - factory.getY(prevKf.getValue());
+
+            selected.remove(index);
+
+            for (Keyframe keyframe : selected)
             {
-                Vector3f v1 = (Vector3f) kf.getValue();
-                Vector3f v2 = (Vector3f) prevKf.getValue();
-                Vector3f diff = new Vector3f(v1).sub(v2);
-
-                selected.remove(index);
-
-                for (Keyframe keyframe : selected)
-                {
-                    keyframe.setValue(new Vector3f((Vector3f) keyframe.getValue()).add(diff));
-                }
-            }
-            else
-            {
-                double difference = factory.getY(kf.getValue()) - factory.getY(prevKf.getValue());
-
-                selected.remove(index);
-
-                for (Keyframe keyframe : selected)
-                {
-                    keyframe.setValue(factory.yToValue(factory.getY(keyframe.getValue()) + difference));
-                }
+                keyframe.setValue(factory.yToValue(factory.getY(keyframe.getValue()) + difference));
             }
 
             sheet.channel.postNotify();
@@ -726,14 +707,7 @@ public class UIKeyframes extends UITimelineCanvas
             this.dopeSheet.clearSelection();
             this.dopeSheet.pickSelected();
 
-            if (sheet.channel.getFactory() instanceof Vector3fKeyframeFactory)
-            {
-                this.currentGraph = new UIVector3KeyframeGraph(this, sheet);
-            }
-            else
-            {
-                this.currentGraph = new UIKeyframeGraph(this, sheet);
-            }
+            this.currentGraph = new UIKeyframeGraph(this, sheet);
 
             this.resetView();
         }

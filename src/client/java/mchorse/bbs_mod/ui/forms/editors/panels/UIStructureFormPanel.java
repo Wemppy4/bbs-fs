@@ -7,10 +7,13 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIStringOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -18,18 +21,21 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import org.joml.Vector3f;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Main properties panel for {@link StructureForm}: structure file picker (scans the world's
- * {@code generated} folder), biome picker (client world's biome registry) and the origin
- * offset. The tint is not repeated here — the "Material" tab picks it up from the form's
- * {@code color} value like it does for every other form.
+ * Main properties panel for {@link StructureForm}: structure file picker (the world's
+ * {@code generated} folder plus BBS's own {@code structures} assets folder, which the icon next
+ * to it opens), biome picker (client world's biome registry) and the anchor offset. The tint is
+ * not repeated here — the "Material" tab picks it up from the form's {@code color} value like it
+ * does for every other form.
  */
 public class UIStructureFormPanel extends UIFormPanel<StructureForm>
 {
     public UIButton structure;
+    public UIIcon openFolder;
     public UIButton biome;
     public UITrackpad originX;
     public UITrackpad originY;
@@ -40,13 +46,21 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
         super(editor);
 
         this.structure = new UIButton(L10n.lang("bbs.ui.forms.editors.structure.pick_structure"), (b) -> this.openStructurePicker());
+        this.openFolder = new UIIcon(Icons.FOLDER, (b) ->
+        {
+            File folder = StructureManager.getAssetsFolder();
+
+            folder.mkdirs();
+            UIUtils.openFolder(folder);
+        });
+        this.openFolder.tooltip(L10n.lang("bbs.ui.forms.editors.structure.open_folder"));
         this.biome = new UIButton(L10n.lang("bbs.ui.forms.editors.structure.pick_biome"), (b) -> this.openBiomePicker());
         this.originX = this.createOriginTrackpad(Colors.RED, UIKeys.GENERAL_X);
         this.originY = this.createOriginTrackpad(Colors.GREEN, UIKeys.GENERAL_Y);
         this.originZ = this.createOriginTrackpad(Colors.BLUE, UIKeys.GENERAL_Z);
 
         /* Both buttons name what they pick, so they carry no label of their own */
-        this.options.add(this.structure, this.biome);
+        this.options.add(UI.row(this.structure, this.openFolder), this.biome);
         this.options.add(UI.label(L10n.lang("bbs.ui.forms.editors.structure.origin")), UI.row(this.originX, this.originY, this.originZ));
     }
 
