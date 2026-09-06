@@ -16,8 +16,17 @@ public class StructureForm extends Form
 {
     public static final Link FORM_ID = Link.bbs("structure");
 
-    /** Structure id, {@code namespace:name}, resolved against {@code world/generated}. */
-    public final ValueString structure = new ValueString("structure", "");
+    /** What a new structure form shows: the portal that ships in BBS's own structures folder. */
+    public static final String DEFAULT_STRUCTURE = "assets:portal";
+
+    /**
+     * Structure id: {@code assets:path} for one of BBS's own, {@code namespace:name} for one the
+     * world's {@code generated} folder holds.
+     *
+     * <p>Starts on the portal BBS ships, so a fresh structure form is something rather than an
+     * empty spot waiting for the picker.</p>
+     */
+    public final ValueString structure = new ValueString("structure", DEFAULT_STRUCTURE);
 
     /** Biome id used for tint colors (grass/foliage/water), e.g. {@code minecraft:plains}. */
     public final ValueString biome = new ValueString("biome", "minecraft:plains");
