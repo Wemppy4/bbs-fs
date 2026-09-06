@@ -241,6 +241,25 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
     }
 
     /**
+     * {@link #insert}, and a keyframe born between two others takes the left one's interpolation,
+     * style, duration and handles — the way a hand-placed keyframe does, so a value laid onto a
+     * shaped curve keeps the curve's shape. Returns the keyframe at the tick.
+     */
+    public Keyframe<T> insertInheriting(float tick, T value)
+    {
+        KeyframeSegment<T> segment = this.find(tick);
+        Keyframe<T> template = segment == null ? null : segment.a;
+        Keyframe<T> keyframe = this.get(this.insert(tick, value));
+
+        if (template != null && template != keyframe)
+        {
+            keyframe.copyOverExtra(template);
+        }
+
+        return keyframe;
+    }
+
+    /**
      * Insert a keyframe at given tick with given value
      *
      * This method is useful as it's not creating keyframes every time you

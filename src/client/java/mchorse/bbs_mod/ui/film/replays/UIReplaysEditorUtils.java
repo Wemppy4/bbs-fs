@@ -146,14 +146,7 @@ public class UIReplaysEditorUtils
                 : channel.getFactory().createEmpty();
         }
 
-        int index = channel.insert(tick, pose);
-        Keyframe<Pose> keyframe = channel.get(index);
-        Keyframe<Pose> template = segment != null ? segment.a : null;
-
-        if (template != null && template != keyframe)
-        {
-            keyframe.copyOverExtra(template);
-        }
+        channel.insertInheriting(tick, pose);
     }
 
     /**
@@ -268,14 +261,7 @@ public class UIReplaysEditorUtils
             ? segment != null ? segment.createInterpolated() : new PoseTransform()
             : (PoseTransform) value.copy();
 
-        int index = channel.insert(tick, poseTransform);
-        Keyframe<PoseTransform> keyframe = channel.get(index);
-        Keyframe<PoseTransform> template = segment != null ? segment.a : null;
-
-        if (template != null && template != keyframe)
-        {
-            keyframe.copyOverExtra(template);
-        }
+        channel.insertInheriting(tick, poseTransform);
     }
 
     public static UIPropTransform getEditableTransform(UIKeyframeEditor editor)

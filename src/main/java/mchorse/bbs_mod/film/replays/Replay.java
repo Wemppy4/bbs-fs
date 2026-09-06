@@ -18,6 +18,8 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.utils.categories.CategoryPath;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
+import mchorse.bbs_mod.utils.keyframes.Keyframe;
+import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import net.minecraft.entity.LivingEntity;
 
 import java.util.List;
@@ -134,6 +136,34 @@ public class Replay extends ValueGroup
         this.keyframes.shift(tick);
         this.properties.shift(tick);
         this.actions.shift(tick);
+    }
+
+    /**
+     * The tick of the replay's last keyframe over its own channels and every property track —
+     * where its authored motion ends; {@code -1} when it has no keyframes at all.
+     */
+    public float getLastKeyframeTick()
+    {
+        float last = -1F;
+
+        for (KeyframeChannel<?> channel : this.keyframes.getChannels())
+        {
+            last = Math.max(last, lastTick(channel));
+        }
+
+        for (KeyframeChannel<?> channel : this.properties.tracks.values())
+        {
+            last = Math.max(last, lastTick(channel));
+        }
+
+        return last;
+    }
+
+    private static float lastTick(KeyframeChannel<?> channel)
+    {
+        List<?> keyframes = channel.getKeyframes();
+
+        return keyframes.isEmpty() ? -1F : ((Keyframe<?>) keyframes.get(keyframes.size() - 1)).getTick();
     }
 
     public void applyActions(LivingEntity actor, SuperFakePlayer fakePlayer, Film film, int tick)
