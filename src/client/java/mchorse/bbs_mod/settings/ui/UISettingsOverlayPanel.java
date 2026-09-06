@@ -373,15 +373,16 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         protected void renderSkin(UIContext context)
         {
             Icon icon = this.category.icon != null ? this.category.icon : this.panel.settings.icon;
+            boolean current = this.panel.isCurrent(this.category);
 
-            RowStyle.row(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h, 0, false, this.hover, this.panel.isCurrent(this.category));
+            RowStyle.row(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h, 0, false, this.hover, current);
 
             context.batcher.icon(icon, Colors.WHITE, this.area.x + 5, this.area.my(), 0F, 0.5F);
 
             FontRenderer font = context.batcher.getFont();
             String label = font.limitToWidth(this.label.get(), this.area.w - 28);
 
-            context.batcher.text(label, this.area.x + 23, this.area.my(font.getHeight()), this.hover ? Colors.A100 | Colors.HIGHLIGHT : Colors.WHITE, true);
+            context.batcher.text(label, this.area.x + 23, this.area.my(font.getHeight()), RowStyle.textColor(this.hover || current), true);
         }
     }
 
