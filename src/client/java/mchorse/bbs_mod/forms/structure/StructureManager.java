@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.structure;
 
+import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.resources.Link;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
@@ -7,11 +9,12 @@ import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.WorldSavePath;
 
+import java.io.File;
+import java.io.InputStream;
 import java.lang.ref.SoftReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -20,10 +23,17 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Lists and loads structure NBT files from the current world's {@code generated} folder
- * ({@code <world>/generated/<namespace>/structures/**.nbt}, written by vanilla structure
- * blocks). Works only with an integrated server (singleplayer) — on a dedicated server the
- * client has no access to the save, so the list is empty.
+ * Lists and loads structure NBT files from the two places they can live.
+ *
+ * <p>A world's own, under {@code <world>/generated/<namespace>/structures/**.nbt} — what a vanilla
+ * structure block writes. Those carry the id the block gave them, {@code namespace:path/name}, and
+ * exist only while an integrated server does: on a dedicated server the client cannot reach the
+ * save, so that half of the list is empty.</p>
+ *
+ * <p>And BBS's own, under {@code <assets>/structures/**.nbt}, asked of the asset provider so a
+ * source pack can carry them too. Those are addressed as {@code assets:path/name} and follow BBS
+ * rather than the world — the same structure is there in every save, which is the point of them.
+ * The {@code assets} namespace is therefore taken: a world folder by that name is shadowed.</p>
  *
  * <p>Loaded structures are cached per id; the cache is dropped when the server instance
  * changes (world switch) or via {@link #invalidate()} (the structure picker calls it so
@@ -49,6 +59,14 @@ public class StructureManager
 
     /** Ids under this prefix are memory-only and never looked for on disk. */
     private static final String PREVIEW_PREFIX = "bbs:preview/";
+
+    /** The folder BBS's own structures live in, within the assets folder. */
+    public static final String ASSETS_FOLDER = "structures";
+
+    /** Ids under this prefix come from {@link #ASSETS_FOLDER} rather than from the world. */
+    private static final String ASSETS_PREFIX = Link.ASSETS + Link.SOURCE_SEPARATOR;
+
+    private static final String EXTENSION = ".nbt";
 
     private static int previews;
 
@@ -109,19 +127,62 @@ public class StructureManager
         return server == null ? null : server.getSavePath(WorldSavePath.GENERATED);
     }
 
-    /** @return ids like {@code namespace:path/name} for every *.nbt under generated structures. */
+    /** The folder BBS's own structures are read from and dropped into. */
+    public static File getAssetsFolder()
+    {
+        return BBSMod.getAssetsPath(ASSETS_FOLDER);
+    }
+
+    /** {@code assets:path/name} for the file this link points at. */
+    private static String toAssetId(Link link)
+    {
+        String path = link.path.substring(ASSETS_FOLDER.length() + 1);
+
+        return ASSETS_PREFIX + path.substring(0, path.length() - EXTENSION.length());
+    }
+
+    /** The file {@code assets:path/name} names, for the provider to look up. */
+    private static Link toAssetLink(String id)
+    {
+        return Link.assets(ASSETS_FOLDER + "/" + id.substring(ASSETS_PREFIX.length()) + EXTENSION);
+    }
+
+    /**
+     * @return ids for every structure BBS can reach: {@code assets:path/name} for its own,
+     *         {@code namespace:path/name} for the world's.
+     */
     public static List<String> getStructureIds()
     {
         checkServer();
 
+        List<String> ids = new ArrayList<>();
+
+        collectAssetIds(ids);
+        collectWorldIds(ids);
+
+        return ids;
+    }
+
+    /** BBS's own structures, from every source pack that answers to {@code assets}. */
+    private static void collectAssetIds(List<String> ids)
+    {
+        for (Link link : BBSMod.getProvider().getLinksFromPath(Link.assets(ASSETS_FOLDER)))
+        {
+            if (link.path.endsWith(EXTENSION))
+            {
+                ids.add(toAssetId(link));
+            }
+        }
+    }
+
+    private static void collectWorldIds(List<String> ids)
+    {
         Path generated = getGeneratedPath();
 
         if (generated == null || !Files.isDirectory(generated))
         {
-            return Collections.emptyList();
+            return;
         }
-
-        List<String> ids = new ArrayList<>();
 
         try (Stream<Path> namespaces = Files.list(generated))
         {
@@ -136,11 +197,11 @@ public class StructureManager
 
                 try (Stream<Path> files = Files.walk(structures))
                 {
-                    files.filter((p) -> p.getFileName().toString().endsWith(".nbt")).forEach((file) ->
+                    files.filter((p) -> p.getFileName().toString().endsWith(EXTENSION)).forEach((file) ->
                     {
                         String relative = structures.relativize(file).toString().replace('\\', '/');
 
-                        relative = relative.substring(0, relative.length() - ".nbt".length());
+                        relative = relative.substring(0, relative.length() - EXTENSION.length());
                         ids.add(namespace.getFileName() + ":" + relative);
                     });
                 }
@@ -154,11 +215,9 @@ public class StructureManager
         {
             e.printStackTrace();
         }
-
-        return ids;
     }
 
-    /** @return parsed structure for the id, or null (missing/broken file, empty id, no server). */
+    /** @return parsed structure for the id, or null (missing/broken file, empty id, no source). */
     public static StructureRenderData get(String id)
     {
         checkServer();
@@ -183,30 +242,16 @@ public class StructureManager
             return data;
         }
 
-        Path generated = getGeneratedPath();
-
-        if (generated == null)
-        {
-            return null;
-        }
-
-        int colon = id.indexOf(':');
-        String namespace = colon < 0 ? "minecraft" : id.substring(0, colon);
-        String path = colon < 0 ? id : id.substring(colon + 1);
-
-        Path file = generated.resolve(namespace).resolve("structures").resolve(path + ".nbt").normalize();
-
-        /* No escaping the generated folder via weird ids */
-        if (!file.startsWith(generated.normalize()) || !Files.isRegularFile(file))
-        {
-            FAILED.add(id);
-
-            return null;
-        }
-
         try
         {
-            NbtCompound root = NbtIo.readCompressed(file, NbtTagSizeTracker.ofUnlimitedBytes());
+            NbtCompound root = id.startsWith(ASSETS_PREFIX) ? readAsset(id) : readGenerated(id);
+
+            if (root == null)
+            {
+                FAILED.add(id);
+
+                return null;
+            }
 
             data = StructureRenderData.parse(id, root);
             CACHE.put(id, new SoftReference<>(data));
@@ -220,5 +265,47 @@ public class StructureManager
 
             return null;
         }
+    }
+
+    /** BBS's own structure, wherever the provider finds it — the assets folder or a source pack. */
+    private static NbtCompound readAsset(String id) throws Exception
+    {
+        Link link = toAssetLink(id);
+
+        /* No climbing out of the structures folder with an id full of ".." */
+        if (link.path.contains("..") || !BBSMod.getProvider().hasAsset(link))
+        {
+            return null;
+        }
+
+        try (InputStream stream = BBSMod.getProvider().getAsset(link))
+        {
+            return NbtIo.readCompressed(stream, NbtTagSizeTracker.ofUnlimitedBytes());
+        }
+    }
+
+    /** The world's own structure, as a vanilla structure block wrote it. */
+    private static NbtCompound readGenerated(String id) throws Exception
+    {
+        Path generated = getGeneratedPath();
+
+        if (generated == null)
+        {
+            return null;
+        }
+
+        int colon = id.indexOf(':');
+        String namespace = colon < 0 ? "minecraft" : id.substring(0, colon);
+        String path = colon < 0 ? id : id.substring(colon + 1);
+
+        Path file = generated.resolve(namespace).resolve(ASSETS_FOLDER).resolve(path + EXTENSION).normalize();
+
+        /* No escaping the generated folder via weird ids */
+        if (!file.startsWith(generated.normalize()) || !Files.isRegularFile(file))
+        {
+            return null;
+        }
+
+        return NbtIo.readCompressed(file, NbtTagSizeTracker.ofUnlimitedBytes());
     }
 }

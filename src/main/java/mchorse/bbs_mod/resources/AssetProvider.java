@@ -41,6 +41,28 @@ public class AssetProvider
         return sourcePacks == null ? Collections.emptyList() : sourcePacks;
     }
 
+    /**
+     * Whether any pack can answer for this link. Asking first is how a caller tells "there is no
+     * such file" from "the file is broken" — {@link #getAsset(Link)} throws for both.
+     */
+    public boolean hasAsset(Link link)
+    {
+        if (link == null)
+        {
+            return false;
+        }
+
+        for (ISourcePack pack : this.getPacks(link.source))
+        {
+            if (pack.hasAsset(link))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public InputStream getAsset(Link link) throws IOException
     {
         List<ISourcePack> packs = this.getPacks(link.source);

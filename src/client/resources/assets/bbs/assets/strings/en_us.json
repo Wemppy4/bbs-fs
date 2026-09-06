@@ -1194,6 +1194,7 @@
 	"bbs.ui.structure_wand.save.invalid": "Latin only: a-z, 0-9, _ - . / — a Minecraft limit on structure ids",
 	"bbs.ui.forms.editors.structure.title": "Structure",
 	"bbs.ui.forms.editors.structure.pick_structure": "Pick structure...",
+	"bbs.ui.forms.editors.structure.open_folder": "Open BBS's structures folder",
 	"bbs.ui.forms.editors.structure.pick_biome": "Pick biome...",
 	"bbs.ui.forms.editors.structure.origin": "Anchor",
 	"bbs.ui.forms.editors.trail.length": "Length",
