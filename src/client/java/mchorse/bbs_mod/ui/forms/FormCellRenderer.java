@@ -39,9 +39,9 @@ public class FormCellRenderer
     {
         context.batcher.clip(x, y, w, h, context);
 
-        CellPainter.ground(context, x, y, w, h, state);
         FormUtilsClient.renderPreview(form, context, x, y, x + w, y + h);
         CellPainter.dim(context, x, y, w, h, state);
+        CellPainter.marks(context, x, y, w, h, state);
 
         if (hasName(w))
         {
@@ -57,7 +57,7 @@ public class FormCellRenderer
             renderHotkey(context, form, x, y, w);
         }
 
-        CellPainter.frames(context, x, y, w, h, state);
+        CellPainter.bar(context, x, y, w, h, state);
 
         context.batcher.unclip(context);
     }

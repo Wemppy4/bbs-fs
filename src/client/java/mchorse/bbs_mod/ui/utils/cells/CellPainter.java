@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
@@ -21,16 +22,14 @@ public class CellPainter
     public static final int CAPTION_PADDING = 3;
 
     /**
-     * Under the picture: the accent for a chosen cell, and nothing at all under the cursor.
-     * Hovering is said with the frame instead — a wash over the ground shifted every picture's
-     * colours with it, and in a grid of pictures that reads as the picture changing.
+     * What state the cell is in, said the way a row says it — only turned a quarter, so the wash
+     * climbs from the bottom edge instead of running in from the side. Goes over the picture but
+     * under the caption: by the top of the cell it has all but gone, so the picture is still the
+     * picture, and the caption keeps its own dark backing over the strongest part of it.
      */
-    public static void ground(UIContext context, int x, int y, int w, int h, CellState state)
+    public static void marks(UIContext context, int x, int y, int w, int h, CellState state)
     {
-        if (state.isLit())
-        {
-            context.batcher.box(x, y, x + w, y + h, Colors.A25 | BBSSettings.primaryColor.get());
-        }
+        RowStyle.cellWash(context.batcher, x, y, w, h, state.hover, state.isLit() || state.picked);
     }
 
     /** Over the picture of a cell being dragged, so the grid shows where it came from without shouting. */
@@ -43,21 +42,15 @@ public class CellPainter
     }
 
     /**
-     * Frames go last so nothing paints over them. Solid for the cell that's chosen or under
-     * the cursor, lighter for one of a pick — the cursor reads as strongly as the choice
-     * does, since that's the whole of what says where it is.
+     * The bar along the bottom edge, last so nothing paints over it. Only the cell that is
+     * <em>the</em> chosen one wears it; one of a multi-selection has the wash and no bar, which is
+     * the same difference the bar draws between a picked row and a hovered one.
      */
-    public static void frames(UIContext context, int x, int y, int w, int h, CellState state)
+    public static void bar(UIContext context, int x, int y, int w, int h, CellState state)
     {
-        int primary = BBSSettings.primaryColor.get();
-
-        if (state.isLit() || state.hover)
+        if (state.isLit())
         {
-            context.batcher.outline(x, y, x + w, y + h, Colors.A100 | primary, 1);
-        }
-        else if (state.picked)
-        {
-            context.batcher.outline(x, y, x + w, y + h, Colors.A75 | primary, 1);
+            RowStyle.cellBar(context.batcher, x, y, w, h);
         }
     }
 

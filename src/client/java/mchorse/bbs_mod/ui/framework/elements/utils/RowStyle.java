@@ -154,6 +154,37 @@ public class RowStyle
         bar(batcher, x, y, h, color);
     }
 
+    /**
+     * The same vocabulary for a grid cell, turned a quarter: the bar runs along the bottom edge
+     * and the wash climbs from it. A cell is mostly picture and the picture has to stay the
+     * picture, so the mark comes up from the caption end rather than lying over its face — by the
+     * top of the cell it has all but gone.
+     *
+     * <p>Drawn in two parts because a cell has a caption between them: this goes under it, so the
+     * words keep their own dark backing, and {@link #cellBar} goes over everything.</p>
+     */
+    public static void cellWash(Batcher2D batcher, int x, int y, int w, int h, boolean hover, boolean lit)
+    {
+        if (lit)
+        {
+            washUp(batcher, x, y, w, h, accent(), hover ? PICK_HOVER_NEAR : PICK_NEAR, PICK_FAR);
+        }
+        else if (hover)
+        {
+            washUp(batcher, x, y, w, h, accent(), HOVER_NEAR, HOVER_FAR);
+        }
+    }
+
+    /**
+     * The bar along a cell's bottom edge, over the caption and everything else — the same edge the
+     * pick wears in a row, and the same thing it says. Only the cell that is <em>the</em> pick gets
+     * it: one of a multi-selection wears the wash alone, the way a hovered row does.
+     */
+    public static void cellBar(Batcher2D batcher, int x, int y, int w, int h)
+    {
+        batcher.box(x, y + h - STRIPE, x + w, y + h, Colors.A100 | accent());
+    }
+
     /** Where a drop would land inside this row. */
     public static void dropTarget(Batcher2D batcher, int x, int y, int w, int h)
     {
@@ -173,6 +204,12 @@ public class RowStyle
     private static void wash(Batcher2D batcher, int x, int y, int w, int h, int color, float near, float far)
     {
         batcher.gradientHBox(x, y, x + w, y + h, Colors.setA(color, near), Colors.setA(color, far));
+    }
+
+    /** The same gradient climbing from the bottom edge, for cells. */
+    private static void washUp(Batcher2D batcher, int x, int y, int w, int h, int color, float near, float far)
+    {
+        batcher.gradientVBox(x, y, x + w, y + h, Colors.setA(color, far), Colors.setA(color, near));
     }
 
     /** A row's own colour where it has one, the accent where it has not. */

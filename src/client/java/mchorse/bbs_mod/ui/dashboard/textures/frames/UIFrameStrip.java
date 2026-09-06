@@ -248,7 +248,6 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
 
         batcher.clip(x, y, w, h, context);
 
-        CellPainter.ground(context, x, y, w, h, state);
 
         if (document != null && animation != null)
         {
@@ -275,6 +274,7 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
             }
 
             CellPainter.dim(context, x, y, w, h, state);
+            CellPainter.marks(context, x, y, w, h, state);
 
             if (state.hover && !state.dragged && CellActionBar.fits(w))
             {
@@ -298,7 +298,7 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
             }
         }
 
-        CellPainter.frames(context, x, y, w, h, state);
+        CellPainter.bar(context, x, y, w, h, state);
 
         batcher.unclip(context);
     }
