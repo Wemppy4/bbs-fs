@@ -13,8 +13,8 @@ import mchorse.bbs_mod.utils.colors.Colors;
  * The strip of quick actions along the top edge of a hovered grid cell, and the label of the
  * one under the cursor.
  *
- * <p>Icons follow the rest of BBS: their own size, white, lighter under the cursor — outlined,
- * so they read over whatever the cell is showing without a band of shade behind them.</p>
+ * <p>Icons follow the rest of BBS: their own size, white, lighter under the cursor, and nothing
+ * behind them — the cell is a picture, and a band of shade over it costs more than it buys.</p>
  */
 public class CellActionBar
 {
@@ -91,9 +91,7 @@ public class CellActionBar
             int ax = bx + i * BUTTON;
             int color = hovered == first + i ? Colors.LIGHTEST_GRAY : Colors.WHITE;
 
-            /* Outlined rather than laid on a dark strip: the cell is a picture, and an icon that
-             * carries its own contrast costs the picture nothing. */
-            batcher.outlinedIcon(actions[first + i].icon, ax + BUTTON / 2, y + HEIGHT / 2, color, 0.5F, 0.5F);
+            batcher.icon(actions[first + i].icon, color, ax + BUTTON / 2, y + HEIGHT / 2, 0.5F, 0.5F);
         }
     }
 
