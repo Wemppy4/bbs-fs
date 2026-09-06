@@ -13,8 +13,8 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import java.util.function.Consumer;
 
 /**
- * One line of the landing screen's menu: an icon and a label. Hovering tints the label the way
- * every list in the mod does; there is no box, the hand cursor and the tint are the answer.
+ * One line of the landing screen's menu: an icon and a label, answering to the cursor the way
+ * every row in the mod does — see {@link RowStyle}.
  */
 public class UILandingRow extends UIClickable<UILandingRow>
 {
@@ -59,6 +59,13 @@ public class UILandingRow extends UIClickable<UILandingRow>
         FontRenderer font = context.batcher.getFont();
         boolean lit = this.hover && this.isEnabled();
 
+        if (lit)
+        {
+            RowStyle.hover(context.batcher, area.x, area.y, area.w, area.h, 0);
+        }
+
+        /* Over the hover, not under it: the tag is short and bright, and it says what this entry
+         * is — which outranks the cursor merely being on it. */
         if (this.accent)
         {
             RowStyle.swatch(context.batcher, area.x, area.y, area.h, BBSSettings.primaryColor.get() & Colors.RGB);
