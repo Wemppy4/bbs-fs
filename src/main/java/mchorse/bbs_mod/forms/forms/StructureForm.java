@@ -30,6 +30,9 @@ public class StructureForm extends Form
      * middle of the footprint at its lowest layer (X/Z centered, Y at the bottom). Raising a
      * component pushes the pivot that way through the structure, so the structure itself renders
      * the other way and the form's transform rotates it around the new point.
+     *
+     * <p>Shown as "Anchor" and not animatable: it says where the structure is held, and moving the
+     * structure over time is what the form's own transform is for.</p>
      */
     public final ValueVector3f origin = new ValueVector3f("origin", new Vector3f());
 
