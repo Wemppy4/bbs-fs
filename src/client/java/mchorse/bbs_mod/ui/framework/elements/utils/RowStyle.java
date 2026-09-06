@@ -67,14 +67,18 @@ public class RowStyle
 
     /**
      * What a row's text is drawn with. A row nothing is happening to speaks a little quieter, so
-     * the one under the cursor and the one that is picked stand out by more than a tint — the way
-     * the timeline's track names have always read.
+     * the one under the cursor and the one that is picked stand out — the way the timeline's track
+     * names have always read.
+     *
+     * <p>Plain white when lit, not a tint. A row used to lift by turning faintly blue, which was
+     * all it had to say with; now that resting is quieter, the tint only put the text out of step
+     * with the icon beside it, which lifts to white.</p>
      *
      * @param lit whether the cursor is on the row or the row is the pick
      */
     public static int textColor(boolean lit)
     {
-        return lit ? Colors.A100 | Colors.HIGHLIGHT : Colors.setA(Colors.WHITE, REST_TEXT);
+        return lit ? Colors.WHITE : Colors.setA(Colors.WHITE, REST_TEXT);
     }
 
     /**
@@ -87,13 +91,13 @@ public class RowStyle
     }
 
     /**
-     * What a row's icon is drawn with — the same quieting as its text, so the whole row rises and
-     * falls as one thing rather than a bright icon dragging a faint name around. White rather than
-     * the text's tint: a tinted icon reads as a differently-coloured icon, not as a lit one.
+     * What a row's icon is drawn with. The same as its text — the whole row rises and falls as one
+     * thing, rather than a bright icon dragging a faint name around. Kept as its own name because
+     * an icon and a word are asked for in different places, and one of them may yet want to differ.
      */
     public static int iconColor(boolean lit)
     {
-        return lit ? Colors.WHITE : Colors.setA(Colors.WHITE, REST_TEXT);
+        return textColor(lit);
     }
 
     /**
