@@ -495,11 +495,12 @@ public class UIBoneTreeList extends UIStringList
         String label = meta == null
             ? (filtering ? this.elementToString(context, i, element) : element)
             : meta.treeLabel;
-        int color = this.isDisabled(element) ? RowStyle.textColor(hover, Colors.GRAY) : RowStyle.textColor(hover);
+        boolean lit = hover || selected;
+        int color = this.isDisabled(element) ? RowStyle.textColor(lit, Colors.GRAY) : RowStyle.textColor(lit);
         int textX = x + this.rowContentX(element) + this.arrowSlot();
         int right = this.renderMarkers(context, element, x, y, h);
 
-        this.renderArrow(context, element, x, y, hover || selected);
+        this.renderArrow(context, element, x, y, lit);
 
         if (right < x + this.area.w)
         {

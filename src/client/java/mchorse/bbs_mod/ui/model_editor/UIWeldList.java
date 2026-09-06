@@ -47,7 +47,7 @@ public class UIWeldList extends UIEntryList<WeldValue>
     protected void renderElementPart(UIContext context, WeldValue element, int i, int x, int y, boolean hover, boolean selected)
     {
         FontRenderer font = context.batcher.getFont();
-        int color = this.rowColor(element, hover);
+        int color = this.rowColor(element, hover || selected);
         int textY = y + (this.scroll.scrollItemSize - font.getHeight()) / 2;
         int iconY = y + this.scroll.scrollItemSize / 2;
         int arrow = font.getWidth(ARROW);
