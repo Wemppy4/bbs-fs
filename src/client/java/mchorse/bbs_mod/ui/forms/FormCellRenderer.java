@@ -4,8 +4,6 @@ import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.cells.CellPainter;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
@@ -35,7 +33,7 @@ public class FormCellRenderer
         return hasName(w) && CellPainter.captionFits(context, form.getDisplayName(), w);
     }
 
-    public static void render(UIContext context, Form form, int x, int y, int w, int h, CellState state, CellAction[] actions)
+    public static void render(UIContext context, Form form, int x, int y, int w, int h, CellState state)
     {
         context.batcher.clip(x, y, w, h, context);
 
@@ -48,14 +46,7 @@ public class FormCellRenderer
             CellPainter.caption(context, form.getDisplayName(), x, y, w, h, state.hover || state.selected);
         }
 
-        if (state.hover && !state.dragged && CellActionBar.fits(w) && actions.length > 0)
-        {
-            CellActionBar.render(context, x, y, w, actions, state.hoveredAction);
-        }
-        else
-        {
-            renderHotkey(context, form, x, y, w);
-        }
+        renderHotkey(context, form, x, y, w);
 
         CellPainter.bar(context, x, y, w, h, state);
 

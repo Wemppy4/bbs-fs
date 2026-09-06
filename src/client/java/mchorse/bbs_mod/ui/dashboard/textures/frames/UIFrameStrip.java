@@ -11,8 +11,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.items.UIItemGrid;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.GridLayout;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.cells.CellPainter;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
@@ -39,7 +37,6 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
     public static final int MIN_CELL = 24;
 
     private static final int PADDING = 3;
-    private static final CellAction[] ACTIONS = {CellAction.DUPLICATE, CellAction.REMOVE};
     private static final List<TextureAnimation.Frame> NONE = Collections.emptyList();
 
     private final UIFramesPanel panel;
@@ -86,25 +83,6 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
     }
 
     /* Hooks */
-
-    @Override
-    protected CellAction[] actions(TextureAnimation.Frame item)
-    {
-        return ACTIONS;
-    }
-
-    @Override
-    protected void onAction(TextureAnimation.Frame item, CellAction action)
-    {
-        if (action == CellAction.DUPLICATE)
-        {
-            this.panel.duplicate(this.group(item));
-        }
-        else if (action == CellAction.REMOVE)
-        {
-            this.panel.remove(this.group(item));
-        }
-    }
 
     @Override
     protected boolean onDelete(List<TextureAnimation.Frame> items)
@@ -276,11 +254,6 @@ public class UIFrameStrip extends UIItemGrid<TextureAnimation.Frame>
             }
 
             CellPainter.dim(context, x, y, w, h, state);
-
-            if (state.hover && !state.dragged && CellActionBar.fits(w))
-            {
-                CellActionBar.render(context, x, y, w, ACTIONS, state.hoveredAction);
-            }
 
             /* The number in one corner; a duration of the frame's own in the other */
             batcher.textShadow(String.valueOf(position + 1), x + 3, y + 3, Colors.LIGHTEST_GRAY);

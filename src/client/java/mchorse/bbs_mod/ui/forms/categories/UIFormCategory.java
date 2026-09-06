@@ -34,7 +34,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIUtils;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
@@ -421,12 +420,6 @@ public class UIFormCategory extends UIItemGrid<Form>
     /* Cell hooks */
 
     @Override
-    protected CellAction[] actions(Form form)
-    {
-        return CellAction.of(this.category.canModify(null));
-    }
-
-    @Override
     protected String caption(Form form)
     {
         return form.getDisplayName();
@@ -437,12 +430,6 @@ public class UIFormCategory extends UIItemGrid<Form>
     protected boolean showsCaption(UIContext context, Form form, int cellWidth)
     {
         return FormCellRenderer.showsWholeName(context, form, cellWidth);
-    }
-
-    @Override
-    protected void onAction(Form form, CellAction action)
-    {
-        this.list.runAction(this, form, action);
     }
 
     @Override
@@ -470,13 +457,6 @@ public class UIFormCategory extends UIItemGrid<Form>
         this.list.removeSelection();
 
         return true;
-    }
-
-    /** The label is the list's to draw, after every category — nothing below may cover or clip it. */
-    @Override
-    protected void hoveredAction(CellAction action, int x, int y)
-    {
-        this.list.setHoveredAction(action, x, y);
     }
 
     /* Input */
@@ -693,7 +673,6 @@ public class UIFormCategory extends UIItemGrid<Form>
         if (this.list.categoryDrag.isActive())
         {
             this.hoverIndex = -1;
-            this.hoverAction = -1;
             this.hoverHeader = false;
             this.hoverSort = false;
 
@@ -798,7 +777,7 @@ public class UIFormCategory extends UIItemGrid<Form>
         /* The chosen form keeps its frame inside a group too — it's the one the editor edits */
         state.selected = form == this.selected;
 
-        FormCellRenderer.render(context, form, x, y, w, h, state, this.actions(form));
+        FormCellRenderer.render(context, form, x, y, w, h, state);
     }
 
     /** The whole category lights up under a drop, with the caret between cells on top. */

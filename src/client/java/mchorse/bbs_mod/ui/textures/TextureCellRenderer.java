@@ -4,8 +4,6 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.cells.CellPainter;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -49,7 +47,7 @@ public class TextureCellRenderer
         return hasName(entry, w) && CellPainter.captionFits(context, entry.caption(), w);
     }
 
-    public static void render(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state, CellAction[] actions)
+    public static void render(UIContext context, TextureEntry entry, int x, int y, int w, int h, CellState state)
     {
         context.batcher.clip(x, y, w, h, context);
 
@@ -72,11 +70,6 @@ public class TextureCellRenderer
         if (entry.folder() || hasName(entry, w))
         {
             CellPainter.caption(context, entry.caption(), x, y, w, h, state.hover || state.selected, alpha);
-        }
-
-        if (state.hover && !state.dragged && CellActionBar.fits(w) && actions.length > 0)
-        {
-            CellActionBar.render(context, x, y, w, actions, state.hoveredAction);
         }
 
         renderMarks(context, entry, x, y);

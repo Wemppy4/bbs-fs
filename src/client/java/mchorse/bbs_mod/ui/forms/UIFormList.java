@@ -33,8 +33,6 @@ import mchorse.bbs_mod.ui.utils.UIStrip;
 import mchorse.bbs_mod.ui.utils.cells.DragGhost;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.cells.CellAction;
-import mchorse.bbs_mod.ui.utils.cells.CellActionBar;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
 import mchorse.bbs_mod.utils.Direction;
@@ -101,11 +99,6 @@ public class UIFormList extends UIElement
 
     /** A header pressed but not yet released: a release without a drag collapses it. */
     private UIFormCategory pressedHeader;
-
-    /* The quick action under the cursor this frame, and where its label goes */
-    private CellAction hoveredAction;
-    private int hoveredActionX;
-    private int hoveredActionY;
 
     public UIFormList(IUIFormList palette)
     {
@@ -576,52 +569,6 @@ public class UIFormList extends UIElement
         }
     }
 
-    public void runAction(UIFormCategory category, Form form, CellAction action)
-    {
-        boolean group = this.selection.isGroup() && this.selection.contains(form);
-
-        switch (action)
-        {
-            case EDIT ->
-            {
-                this.selection.set(form, category.category);
-                category.select(form, true);
-                this.palette.toggleEditor();
-            }
-            case DUPLICATE ->
-            {
-                for (Form f : group ? new ArrayList<>(this.selection.getItems()) : Collections.singletonList(form))
-                {
-                    FormCategory from = this.categoryOf(f);
-
-                    if (from != null && from.canModify(f))
-                    {
-                        from.insertForm(this.selection.indexOf(from.getForms(), f) + 1, FormUtils.copy(f));
-                    }
-                }
-            }
-            case REMOVE ->
-            {
-                if (group)
-                {
-                    this.removeSelection();
-                }
-                else
-                {
-                    category.category.removeForm(form);
-                    this.reconcile();
-                }
-            }
-        }
-    }
-
-    public void setHoveredAction(CellAction action, int x, int y)
-    {
-        this.hoveredAction = action;
-        this.hoveredActionX = x;
-        this.hoveredActionY = y;
-    }
-
     public UIFormCategory getPressedHeader()
     {
         return this.pressedHeader;
@@ -817,7 +764,6 @@ public class UIFormList extends UIElement
         this.applyMarquee();
         this.categoryDrag.update(context.mouseX, context.mouseY);
         this.categoryDrag.clearTarget();
-        this.hoveredAction = null;
         this.autoScroll(context);
 
         context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.y + BAR_HEIGHT, BBSSettings.color(BBSSettings.chromeSurface(), Colors.A50));
@@ -841,11 +787,6 @@ public class UIFormList extends UIElement
             context.batcher.clip(this.forms.area, context);
             this.marquee.render(context, this.forms.area.x, this.forms.area.y - (int) this.forms.scroll.getScroll());
             context.batcher.unclip(context);
-        }
-
-        if (this.hoveredAction != null && !this.drag.isActive())
-        {
-            CellActionBar.renderLabel(context, this.hoveredAction, this.hoveredActionX, this.hoveredActionY);
         }
 
         if (this.drag.isActive() || this.categoryDrag.isActive())
