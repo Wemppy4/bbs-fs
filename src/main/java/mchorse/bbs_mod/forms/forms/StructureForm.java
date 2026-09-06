@@ -53,9 +53,18 @@ public class StructureForm extends Form
         this.add(this.origin);
     }
 
+    /**
+     * The structure's own name — the last part of its id, without the source and the folders it
+     * sits in. Every structure form used to read "Structure", which told a list of them nothing
+     * about which was which; the film's cut structures, all numbered under a folder of the film's,
+     * were the worst of it.
+     */
     @Override
     protected String getDefaultDisplayName()
     {
-        return "Structure";
+        String id = this.structure.get();
+        int start = Math.max(id.lastIndexOf('/'), id.lastIndexOf(':')) + 1;
+
+        return start >= id.length() ? "Structure" : id.substring(start);
     }
 }

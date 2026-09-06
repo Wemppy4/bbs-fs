@@ -316,8 +316,9 @@ public class StructureWand
     {
         StructureForm form = new StructureForm();
 
+        /* No name of its own: the form is named after the structure it holds, and a name set here
+         * would stick to it even after the structure was swapped for another. */
         form.structure.set(StructureManager.assetId(path));
-        form.name.set(path.substring(path.lastIndexOf('/') + 1));
 
         BBSModClient.getFormCategories().getRecentForms().getCategories().get(0).addForm(form);
     }
