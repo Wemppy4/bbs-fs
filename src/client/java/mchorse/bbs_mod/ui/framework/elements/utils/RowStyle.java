@@ -63,7 +63,7 @@ public class RowStyle
     private static final float SWATCH_NEAR = 0.25F;
 
     /** How loud a row's text is while nothing is happening to it. */
-    private static final float REST_TEXT = 0.75F;
+    private static final float REST_TEXT = 0.85F;
 
     /**
      * What a row's text is drawn with. A row nothing is happening to speaks a little quieter, so
