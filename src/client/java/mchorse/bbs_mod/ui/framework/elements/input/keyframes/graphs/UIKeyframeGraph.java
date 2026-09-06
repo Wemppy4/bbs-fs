@@ -75,18 +75,6 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         return Math.pow(mouseX - x, 2) + Math.pow(mouseY - y, 2) < 25D;
     }
 
-    /** How low this keyframe reaches on the graph — a vector track answers for all of its axes. */
-    protected double lowestValue(Keyframe frame, int index)
-    {
-        return frame.getY(index);
-    }
-
-    /** How high this keyframe reaches on the graph. */
-    protected double highestValue(Keyframe frame, int index)
-    {
-        return frame.getY(index);
-    }
-
     public void resetViewY(UIKeyframeSheet current)
     {
         this.yAxis.set(0, 2);
@@ -104,8 +92,8 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
             {
                 Keyframe frame = keyframes.get(i);
 
-                minY = Math.min(minY, this.lowestValue(frame, i));
-                maxY = Math.max(maxY, this.highestValue(frame, i));
+                minY = Math.min(minY, frame.getY());
+                maxY = Math.max(maxY, frame.getY());
             }
         }
         else
@@ -115,7 +103,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
 
             if (c == 1)
             {
-                minY = maxY = this.lowestValue(channel.get(0), 0);
+                minY = maxY = channel.get(0).getY();
             }
         }
 

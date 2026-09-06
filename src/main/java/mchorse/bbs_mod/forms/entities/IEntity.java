@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.entities;
 
+import mchorse.bbs_mod.cubic.jem.CemVariables;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.utils.AABB;
 import net.minecraft.entity.EntityPose;
@@ -86,6 +87,31 @@ public interface IEntity
 
     public int getAge();
 
+    /**
+     * Whether this stands in for an actor rather than wrapping a Minecraft entity that actually spawned.
+     *
+     * <p>It is the age that makes the difference. A stand-in's age counts from the moment BBS made the
+     * object — a film loading, a panel opening — not from a spawn in the world, and an animation that
+     * treats a small age as "just spawned" then replays a spawn every time.</p>
+     */
+    public default boolean isStandIn()
+    {
+        return false;
+    }
+
+    /**
+     * The CEM variables of this entity, or null when this implementation keeps none (every CEM model on
+     * it then animates on its own, the way they all did before).
+     *
+     * <p>OptiFine scopes a pack's {@code var.*}/{@code varb.*} to the entity, so its models can read each
+     * other — see {@link CemVariables}. Created on first use: an entity that never renders a .jem never
+     * allocates one.</p>
+     */
+    public default CemVariables getCemVariables()
+    {
+        return null;
+    }
+
     public void setAge(int ticks);
 
     public float getFallDistance();
@@ -95,6 +121,147 @@ public interface IEntity
     public int getHurtTimer();
 
     public void setHurtTimer(int hurtTimer);
+
+    /** A stable identity for per-entity variety (CEM's {@code id}): the MC entity id, or a per-instance number for a stub. */
+    public default int getId()
+    {
+        return 0;
+    }
+
+    /** Ticks since the entity died (vanilla {@code LivingEntity.deathTime}); 0 while alive. */
+    public default int getDeathTime()
+    {
+        return 0;
+    }
+
+    /** Whether something rides this entity — the opposite of {@link #isRiding()}. */
+    public default boolean isRidden()
+    {
+        return false;
+    }
+
+    /** Whether this is the baby variant of its kind. */
+    public default boolean isChild()
+    {
+        return false;
+    }
+
+    /**
+     * Vanilla's health for an entity that declares none: a whole one. Zero is not a neutral stand-in
+     * for "unknown" — a CEM pack reads health as a fraction of the maximum and poses the entity by it,
+     * so Fresh Animations' iron golem, whose whole file is written around {@code if(health<=15, ...)},
+     * spent every frame in its dying posture, and its magma cube divided by {@code sqrt(max_health)}.
+     */
+    public static final float FULL_HEALTH = 20F;
+
+    /** Health left, in half-hearts, as CEM's {@code health}. */
+    public default float getHealth()
+    {
+        return FULL_HEALTH;
+    }
+
+    /** Health at full, in half-hearts, as CEM's {@code max_health}. Never zero: packs divide by it. */
+    public default float getMaxHealth()
+    {
+        return FULL_HEALTH;
+    }
+
+    /** On fire, as CEM's {@code is_burning}. */
+    public default boolean isBurning()
+    {
+        return false;
+    }
+
+    /** Standing in lava, as CEM's {@code is_in_lava}. */
+    public default boolean isInLava()
+    {
+        return false;
+    }
+
+    /** Holding onto a ladder or a vine, as CEM's {@code is_climbing}. */
+    public default boolean isClimbing()
+    {
+        return false;
+    }
+
+    /** Crawling under a low ceiling, as CEM's {@code is_crawling}. */
+    public default boolean isCrawling()
+    {
+        return false;
+    }
+
+    /**
+     * Sitting down, as CEM's {@code is_sitting} — a tamed pet ordered to stay, a fox asleep, a roosting
+     * bat. It is a pose the entity holds, not a posture the animation passes through.
+     */
+    public default boolean isSitting()
+    {
+        return false;
+    }
+
+    /** Tamed by a player, as CEM's {@code is_tamed}. */
+    public default boolean isTamed()
+    {
+        return false;
+    }
+
+    /** Attacking or angered, as CEM's {@code is_aggressive}. */
+    public default boolean isAggressive()
+    {
+        return false;
+    }
+
+    /** Riding a player's shoulder, as CEM's {@code is_on_shoulder} — a parrot, and nothing else in vanilla. */
+    public default boolean isOnShoulder()
+    {
+        return false;
+    }
+
+    /**
+     * Which arm the main hand is, as CEM's {@code is_right_handed}. Vanilla's default, and not a detail:
+     * Fresh Animations' player asks it twenty times over and hands every idle sway, every equipment pose
+     * and every block to one arm or the other by the answer, so a false one mirrors the whole model.
+     */
+    public default boolean isRightHanded()
+    {
+        return true;
+    }
+
+    /** Eating, drinking, drawing a bow, raising a shield — as CEM's {@code is_using_item}. */
+    public default boolean isUsingItem()
+    {
+        return false;
+    }
+
+    /** Holding a shield up, as CEM's {@code is_blocking}. */
+    public default boolean isBlocking()
+    {
+        return false;
+    }
+
+    /** Mid-swing — which arm is {@link #isSwingingOffHand()}'s business. */
+    public default boolean isSwinging()
+    {
+        return false;
+    }
+
+    /** Whether the swing belongs to the off hand rather than the main one. */
+    public default boolean isSwingingOffHand()
+    {
+        return false;
+    }
+
+    /** How hard the entity walks forward, as CEM's {@code move_forward}: its own input, not its velocity. */
+    public default float getForwardSpeed()
+    {
+        return 0F;
+    }
+
+    /** The same sideways, as CEM's {@code move_strafing}. */
+    public default float getSidewaysSpeed()
+    {
+        return 0F;
+    }
 
     public double getX();
 

@@ -9,6 +9,7 @@ import mchorse.bbs_mod.cubic.data.animation.Animations;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.data.model.ModelMesh;
+import mchorse.bbs_mod.cubic.jem.CemAnimation;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.View;
@@ -74,6 +75,9 @@ public class ModelInstance implements IModelInstance
     public final String id;
     public IModel model;
     public Animations animations;
+
+    /** Live procedural OptiFine CEM animation, when this model was loaded from a .jem; null otherwise. */
+    public CemAnimation cemAnimation;
 
     /* The channels token: which (form, entity, transition, frame, pose version) the asset's
      * pose currently holds. The instance is one globally cached asset per model id, so the

@@ -457,12 +457,21 @@ public abstract class BaseFilmController
      */
     private Vector3f resolveAnchor(Anchor anchor, float transition)
     {
-        if (this.entities.get(anchor.replay) == null)
+        return resolveAnchor(this.entities, anchor, transition);
+    }
+
+    /**
+     * The same resolution over any set of entities — the live ones above, or a headless sample's
+     * (see {@link IKBake}). The position comes back in a shared holder, good until the next call.
+     */
+    public static Vector3f resolveAnchor(Map<String, IEntity> entities, Anchor anchor, float transition)
+    {
+        if (entities.get(anchor.replay) == null)
         {
             return null;
         }
 
-        Pair<Matrix4f, Float> matrix = FilmMatrices.getTotalMatrix(this.entities, anchor, IDENTITY, 0D, 0D, 0D, transition, 0, true);
+        Pair<Matrix4f, Float> matrix = FilmMatrices.getTotalMatrix(entities, anchor, IDENTITY, 0D, 0D, 0D, transition, 0, true);
 
         return (matrix.a != null ? matrix.a : IDENTITY).getTranslation(TEMP_VECTOR);
     }

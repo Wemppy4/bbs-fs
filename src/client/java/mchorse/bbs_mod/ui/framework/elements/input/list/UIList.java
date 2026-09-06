@@ -45,6 +45,9 @@ public abstract class UIList <T> extends UIItems<T>
     /** Width of the fold arrow's slot at the start of a branch row. */
     public static final int ARROW_SLOT = 12;
 
+    /** The tree guides: a hairline, so the shape of the tree reads without competing with the rows. */
+    private static final int GUIDE_COLOR = Colors.A25 | 0xFFFFFF;
+
     /**
      * List of elements
      */
@@ -62,6 +65,12 @@ public abstract class UIList <T> extends UIItems<T>
     public List<Integer> current = new CurrentIndices();
 
     private String filter = "";
+
+    /**
+     * A row pressed inside a group pick, waiting to see what the press becomes: a drag of the whole
+     * group, or a plain click, which narrows the pick to that row. -1 when there is none.
+     */
+    private int pendingNarrow = -1;
     private List<Pair<T, Integer>> filtered = new ArrayList<>();
 
     /* The filtered rows without their indices, for the geometry that only wants items */
@@ -181,6 +190,63 @@ public abstract class UIList <T> extends UIItems<T>
         return this.branch(element) != null && contentX < this.rowContentX(element) + ARROW_SLOT;
     }
 
+    /** How far one level of nesting shifts a row; the tree guides are drawn on this grid. */
+    protected int indentStep()
+    {
+        return 0;
+    }
+
+    /**
+     * Outliner guides down the left of a nested row: a vertical for every ancestor whose own
+     * branch continues below this row, and a connector into the row itself — a tee, or a corner
+     * when the row is the last thing in its branch.
+     *
+     * @param depth how many levels in the row sits; nothing is drawn at the root
+     * @param lines bit per ancestor level whose vertical still runs past this row
+     * @param last  whether the row is the last of its branch, which corners the connector
+     * @param textX where the row's own content starts, so the connector reaches it
+     */
+    protected void renderTreeGuides(UIContext context, int x, int y, int depth, int lines, boolean last, int textX)
+    {
+        if (depth <= 0)
+        {
+            return;
+        }
+
+        int h = this.scroll.scrollItemSize;
+        int mid = y + h / 2;
+
+        for (int level = 0; level < depth - 1; level++)
+        {
+            if ((lines & (1 << level)) != 0)
+            {
+                int lx = this.guideX(x, level);
+
+                context.batcher.box(lx, y, lx + 1, y + h, GUIDE_COLOR);
+            }
+        }
+
+        int lx = this.guideX(x, depth - 1);
+
+        context.batcher.box(lx, y, lx + 1, last ? mid + 1 : y + h, GUIDE_COLOR);
+        context.batcher.box(lx + 1, mid, textX - 2, mid + 1, GUIDE_COLOR);
+    }
+
+    /** Screen x of the vertical guide of one nesting level. */
+    protected int guideX(int x, int level)
+    {
+        return x + ROW_PADDING + level * this.indentStep() + 2;
+    }
+
+    /**
+     * The mask a row's children inherit: this row's own column keeps running down past them
+     * while the row still has siblings below it.
+     */
+    public static int childGuideLines(int lines, int depth, boolean last)
+    {
+        return !last && depth > 0 ? lines | (1 << (depth - 1)) : lines;
+    }
+
     /** Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. */
     protected void renderArrow(UIContext context, T element, int x, int y)
     {
@@ -275,6 +341,18 @@ public abstract class UIList <T> extends UIItems<T>
         }
 
         this.filter = filter;
+        this.refilter();
+    }
+
+    /**
+     * Run the query over the rows again. A list that rebuilds its rows while a search is on (the
+     * replay list does it on every change) would otherwise keep showing matches that point at rows
+     * it has already thrown away.
+     */
+    protected void refilter()
+    {
+        String filter = this.filter;
+
         this.filtered.clear();
         this.filteredItems.clear();
 
@@ -662,6 +740,7 @@ public abstract class UIList <T> extends UIItems<T>
         }
 
         this.list = list;
+        this.refilter();
         this.update();
     }
 
@@ -809,9 +888,37 @@ public abstract class UIList <T> extends UIItems<T>
         {
             this.toggleIndex(index);
         }
-        else
+        else if (!this.selection.contains(this.list.get(index)) || !this.selection.isGroup())
         {
             this.setIndex(index);
+        }
+        else
+        {
+            /* A plain press on one of several picked rows keeps the group for now, so the press can
+             * carry the whole pick off. Narrowing here would throw the group away before the drag
+             * ever started, so it waits for the release to say which the press was. */
+            this.pendingNarrow = index;
+        }
+    }
+
+    /**
+     * The button went up. A press inside a group that carried nothing away was a plain click after
+     * all, and a plain click on a row means the plainest thing it can mean: pick that row alone.
+     */
+    @Override
+    protected void release()
+    {
+        int narrow = this.pendingNarrow;
+        boolean dragged = this.drag.isActive();
+
+        this.pendingNarrow = -1;
+
+        super.release();
+
+        if (narrow != -1 && !dragged && this.exists(narrow))
+        {
+            this.setIndex(narrow);
+            this.fireCallback();
         }
     }
 
@@ -819,31 +926,64 @@ public abstract class UIList <T> extends UIItems<T>
     protected List<T> dragPayload(T item)
     {
         /* A filtered view can't be reordered — the gaps between its rows aren't real */
-        if (!this.sorting || this.isFiltering() || this.selection.size() != 1 || !this.selection.contains(item))
+        if (this.isFiltering())
         {
             return null;
         }
 
-        return Collections.singletonList(item);
+        return super.dragPayload(item);
     }
 
+    /**
+     * The dragged rows land at the caret in the order they were shown in, one after another — the
+     * pick is carried as a block, the way the grids of the texture browser and the form palette
+     * have always carried theirs.
+     */
     @Override
     protected void reorder(List<T> items, int insertion)
     {
-        int from = this.indexOfItem(items.get(0));
+        int slot = insertion;
 
-        if (from == -1)
+        for (T item : this.inViewOrder(items))
         {
-            return;
+            int from = this.indexOfItem(item);
+
+            if (from == -1)
+            {
+                continue;
+            }
+
+            /* The caret sits before the row at {@code slot}; taking the row out first shifts what's after it */
+            int to = from < slot ? slot - 1 : slot;
+
+            if (!this.exists(to))
+            {
+                continue;
+            }
+
+            if (to != from)
+            {
+                this.handleSwap(from, to);
+            }
+
+            slot = to + 1;
+        }
+    }
+
+    /** The given rows in the order they are shown, which is the order a group has to move in. */
+    protected List<T> inViewOrder(List<T> items)
+    {
+        List<T> ordered = new ArrayList<>();
+
+        for (T row : this.list)
+        {
+            if (this.selection.indexOf(items, row) != -1)
+            {
+                ordered.add(row);
+            }
         }
 
-        /* The caret sits before the row at {@code insertion}; taking the row out first shifts what's after it */
-        int to = insertion > from ? insertion - 1 : insertion;
-
-        if (to != from && this.exists(to))
-        {
-            this.handleSwap(from, to);
-        }
+        return ordered;
     }
 
     protected void handleSwap(int from, int to)
@@ -872,9 +1012,24 @@ public abstract class UIList <T> extends UIItems<T>
     {
         int index = this.getDraggingIndex();
 
-        if (this.exists(index))
+        if (!this.exists(index))
         {
-            this.renderListElement(context, this.list.get(index), index, context.mouseX + 6, context.mouseY - this.scroll.scrollItemSize / 2, true, true);
+            return;
+        }
+
+        int x = context.mouseX + 6;
+        int y = context.mouseY - this.scroll.scrollItemSize / 2;
+
+        this.renderListElement(context, this.list.get(index), index, x, y, true, true);
+
+        /* How many rows are coming along, said the way the grids' ghost says it. The badge sits at
+         * the leading corner rather than the trailing one: a row is as wide as the list, and the
+         * far end of it is often off the screen. */
+        int carried = this.drag.getItems().size();
+
+        if (carried > 1)
+        {
+            context.batcher.textCard(String.valueOf(carried), x - 4, y - 4, Colors.WHITE, Colors.A100 | BBSSettings.primaryColor.get(), 3);
         }
     }
 
@@ -923,7 +1078,9 @@ public abstract class UIList <T> extends UIItems<T>
         int low = this.area.y;
         int high =this.area.ey();
 
-        if (y + s < low || (!this.isFiltering() && this.isDragging() && this.getDraggingIndex() == i))
+        /* Every row being carried lifts out of the list, not just the one the press went down on:
+         * a group that left one row behind would look like half of it was staying. */
+        if (y + s < low || (!this.isFiltering() && this.drag.isDragging(element)))
         {
             return i + 1;
         }
@@ -962,6 +1119,12 @@ public abstract class UIList <T> extends UIItems<T>
         if (selected)
         {
             context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A50 | BBSSettings.primaryColor.get());
+        }
+        else if (hover)
+        {
+            /* The same accent wash a hovered section header lifts with, so a row says it answers to
+             * the cursor before it is clicked. A hint, not a pick — hence half the selection's alpha. */
+            context.batcher.box(x, y, x + this.area.w, y + this.scroll.scrollItemSize, Colors.A25 | BBSSettings.primaryColor.get());
         }
 
         /* Where a drop would land inside this row, said the way the caret says "between" */

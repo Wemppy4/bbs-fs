@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.forms.entities;
 
+import mchorse.bbs_mod.cubic.jem.CemVariables;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.mixin.EntityInvoker;
 import mchorse.bbs_mod.mixin.LivingEntityRollAccessor;
@@ -10,8 +11,13 @@ import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LimbAnimator;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.passive.BatEntity;
+import net.minecraft.entity.passive.FoxEntity;
+import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -238,6 +244,24 @@ public class MCEntity implements IEntity
         return 0F;
     }
 
+    /** Lazily made: an entity that never renders a CEM model never allocates one. */
+    private CemVariables cemVariables;
+
+    /**
+     * The CEM variables of this entity, made on first use — every CEM model rendered on it shares them,
+     * which is how a pack's cape follows its body. See {@link CemVariables}.
+     */
+    @Override
+    public CemVariables getCemVariables()
+    {
+        if (this.cemVariables == null)
+        {
+            this.cemVariables = new CemVariables();
+        }
+
+        return this.cemVariables;
+    }
+
     @Override
     public int getAge()
     {
@@ -280,6 +304,143 @@ public class MCEntity implements IEntity
         {
             living.hurtTime = hurtTimer;
         }
+    }
+
+    @Override
+    public int getId()
+    {
+        return this.mcEntity.getId();
+    }
+
+    @Override
+    public int getDeathTime()
+    {
+        return this.mcEntity instanceof LivingEntity living ? living.deathTime : 0;
+    }
+
+    @Override
+    public boolean isRidden()
+    {
+        return this.mcEntity.hasPassengers();
+    }
+
+    @Override
+    public boolean isChild()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.isBaby();
+    }
+
+    @Override
+    public float getHealth()
+    {
+        return this.mcEntity instanceof LivingEntity living ? living.getHealth() : IEntity.FULL_HEALTH;
+    }
+
+    @Override
+    public float getMaxHealth()
+    {
+        /* An attribute can read zero on an entity whose attributes have not arrived from the server yet,
+         * and a pack divides by this one. */
+        float max = this.mcEntity instanceof LivingEntity living ? living.getMaxHealth() : 0F;
+
+        return max > 0F ? max : IEntity.FULL_HEALTH;
+    }
+
+    @Override
+    public boolean isBurning()
+    {
+        return this.mcEntity.isOnFire();
+    }
+
+    @Override
+    public boolean isInLava()
+    {
+        return this.mcEntity.isInLava();
+    }
+
+    @Override
+    public boolean isClimbing()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.isClimbing();
+    }
+
+    @Override
+    public boolean isCrawling()
+    {
+        return this.mcEntity.isCrawling();
+    }
+
+    /**
+     * Vanilla has no one word for it: a pet holds the pose through {@link TameableEntity}, while a fox
+     * and a bat each keep their own flag, and those three are the whole of it in 1.20.4.
+     */
+    @Override
+    public boolean isSitting()
+    {
+        if (this.mcEntity instanceof TameableEntity tameable)
+        {
+            return tameable.isInSittingPose();
+        }
+        else if (this.mcEntity instanceof FoxEntity fox)
+        {
+            return fox.isSitting();
+        }
+
+        return this.mcEntity instanceof BatEntity bat && bat.isRoosting();
+    }
+
+    @Override
+    public boolean isTamed()
+    {
+        return this.mcEntity instanceof TameableEntity tameable && tameable.isTamed();
+    }
+
+    @Override
+    public boolean isAggressive()
+    {
+        return this.mcEntity instanceof MobEntity mob && mob.isAttacking();
+    }
+
+    @Override
+    public boolean isRightHanded()
+    {
+        return !(this.mcEntity instanceof LivingEntity living) || living.getMainArm() == Arm.RIGHT;
+    }
+
+    @Override
+    public boolean isUsingItem()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.isUsingItem();
+    }
+
+    @Override
+    public boolean isBlocking()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.isBlocking();
+    }
+
+    @Override
+    public boolean isSwinging()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.handSwinging;
+    }
+
+    @Override
+    public boolean isSwingingOffHand()
+    {
+        return this.mcEntity instanceof LivingEntity living && living.preferredHand == Hand.OFF_HAND;
+    }
+
+    @Override
+    public float getForwardSpeed()
+    {
+        return this.mcEntity instanceof LivingEntity living ? living.forwardSpeed : 0F;
+    }
+
+    @Override
+    public float getSidewaysSpeed()
+    {
+        return this.mcEntity instanceof LivingEntity living ? living.sidewaysSpeed : 0F;
     }
 
     @Override

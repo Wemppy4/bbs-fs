@@ -94,6 +94,13 @@ import mchorse.bbs_mod.utils.ScreenshotRecorder;
 import mchorse.bbs_mod.utils.VideoRecorder;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.minecraft.util.Identifier;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
+import mchorse.bbs_mod.cubic.jem.VanillaRigs;
+import mchorse.bbs_mod.utils.resources.CemSourcePack;
 import mchorse.bbs_mod.utils.resources.MinecraftSourcePack;
 import mchorse.bbs_mod.utils.resources.PlayerSkinSourcePack;
 import mchorse.bbs_mod.utils.resources.PlayerSkins;
@@ -174,6 +181,38 @@ public class BBSModClient implements ClientModInitializer
 
     private static float originalFramebufferScale;
     private static boolean customGUIScale;
+
+    /** The OptiFine CEM models of the installed resource packs; null until the client has started. */
+    private static CemSourcePack cemSourcePack;
+
+    /** Minecraft's own textures; null until the client has started. */
+    private static MinecraftSourcePack minecraftSourcePack;
+
+    public static CemSourcePack getCemSourcePack()
+    {
+        return cemSourcePack;
+    }
+
+    /**
+     * Read the resource packs again and drop everything built on what they said before. A pack going
+     * on or off changes which models and textures exist, and nothing else would notice: the watchdog
+     * watches BBS's own folder, and a link a pack serves has no file behind it to watch.
+     */
+    private static void reloadFromResourcePacks()
+    {
+        /* The first reload runs before the client has started; both packs index themselves when made. */
+        if (cemSourcePack == null)
+        {
+            return;
+        }
+
+        minecraftSourcePack.setupPaths();
+        cemSourcePack.reindex();
+        VanillaRigs.clear();
+
+        getModels().forgetFolder(CemSourcePack.NAME + "/");
+        getFormCategories().setup();
+    }
 
     public static TextureManager getTextures()
     {
@@ -433,6 +472,23 @@ public class BBSModClient implements ClientModInitializer
     @Override
     public void onInitializeClient()
     {
+        /* Every resource reload: the pack list changed, or the user pressed F3+T. It fires before the
+         * client has started too, which reloadFromResourcePacks sits out. */
+        ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener()
+        {
+            @Override
+            public Identifier getFabricId()
+            {
+                return Identifier.of(BBSMod.MOD_ID, "resource_pack_models");
+            }
+
+            @Override
+            public void reload(ResourceManager manager)
+            {
+                reloadFromResourcePacks();
+            }
+        });
+
         /* The client half of the addons, picked up before anything client side is posted. Their
          * common half is registered by BBSMod, from the "bbs-addon" entrypoint. */
         FabricLoader.getInstance()
@@ -839,7 +895,16 @@ public class BBSModClient implements ClientModInitializer
         ClientLifecycleEvents.CLIENT_STARTED.register((e) ->
         {
             BBSRendering.setupFramebuffer();
-            provider.register(new MinecraftSourcePack());
+
+            minecraftSourcePack = new MinecraftSourcePack();
+
+            provider.register(minecraftSourcePack);
+
+            /* Last under "assets", so the user's own folder and the jar win over a resource pack's
+             * models - which is what lets a pack model be given a config.json or replaced outright. */
+            cemSourcePack = new CemSourcePack();
+
+            provider.register(cemSourcePack);
 
             Window window = MinecraftClient.getInstance().getWindow();
 

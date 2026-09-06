@@ -181,6 +181,7 @@ public class ProceduralAnimator implements IAnimator
             ModelGroup leftLeg = null;
             ModelGroup rightLeg = null;
             ModelGroup torso = null;
+            ModelGroup body = null;
             ModelGroup headGroup = null;
 
             for (ModelGroup group : model.getAllGroups())
@@ -271,6 +272,10 @@ public class ProceduralAnimator implements IAnimator
                 {
                     torso = group;
                 }
+                else if (group.id.equals("body"))
+                {
+                    body = group;
+                }
                 else if (group.id.equals("right_leg"))
                 {
                     group.current.rotate.x = MathUtils.toDeg(MathHelper.cos(limbPhase * 0.6662F + 3.1415927F) * 1.4F * limbSpeed / coefficient);
@@ -283,6 +288,15 @@ public class ProceduralAnimator implements IAnimator
 
                     leftLeg = group;
                 }
+            }
+
+            /* The bone a swing twists is vanilla's "body"; BBS's own rigs name it "torso". A model
+             * built on the vanilla rig - every CEM model is - carries the vanilla name, and without this
+             * the swing below found no bone to turn and was skipped whole, so the arm never swung.
+             * "torso" wins where a rig has both, being the name BBS's own models use. */
+            if (torso == null)
+            {
+                torso = body;
             }
 
             /* Vanilla seats a rider right here, after the base angles and before the arms are

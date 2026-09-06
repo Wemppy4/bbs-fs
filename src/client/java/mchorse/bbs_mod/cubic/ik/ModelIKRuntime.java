@@ -8,6 +8,7 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Collections;
 import java.util.List;
@@ -175,6 +176,30 @@ public final class ModelIKRuntime
         }
 
         return false;
+    }
+
+    /**
+     * The chains the form's config compiles to on this model — the bones each one spans, root
+     * to tip, keyed by the tip bone that names it, in the config's order. For tools that act on
+     * a chain as a whole (the bake) without re-deriving the topology the solver uses.
+     */
+    public static Map<String, List<String>> getChains(IModel model, ModelForm form)
+    {
+        ModelIKCache.Compiled compiled = ModelIKCache.compile(model, form);
+
+        if (compiled == null || compiled.chains() == null || compiled.chains().isEmpty())
+        {
+            return Collections.emptyMap();
+        }
+
+        Map<String, List<String>> chains = new LinkedHashMap<>();
+
+        for (ModelIKCache.CompiledChain chain : compiled.chains())
+        {
+            chains.put(chain.tip(), List.copyOf(chain.chainRootToEffector()));
+        }
+
+        return chains;
     }
 
     public static List<String> getControllers(ModelInstance instance)

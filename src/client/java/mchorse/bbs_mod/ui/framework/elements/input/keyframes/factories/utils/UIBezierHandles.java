@@ -19,22 +19,15 @@ public class UIBezierHandles
     private UITrackpad ry;
 
     private Keyframe<?> keyframe;
-    private int index = -1;
 
     public UIBezierHandles(Keyframe<?> keyframe)
     {
-        this(keyframe, -1);
-    }
-
-    public UIBezierHandles(Keyframe<?> keyframe, int index)
-    {
         this.keyframe = keyframe;
-        this.index = index;
 
-        this.lx = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.setLx(this.index, (float) TimeUtils.fromTime(v.floatValue()))));
-        this.ly = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.setLy(this.index, v.floatValue())));
-        this.rx = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.setRx(this.index, (float) TimeUtils.fromTime(v.floatValue()))));
-        this.ry = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.setRy(this.index, v.floatValue())));
+        this.lx = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.lx = (float) TimeUtils.fromTime(v.floatValue())));
+        this.ly = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.ly = v.floatValue()));
+        this.rx = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.rx = (float) TimeUtils.fromTime(v.floatValue())));
+        this.ry = new UITrackpad((v) -> BaseValue.edit(this.keyframe, (kf) -> kf.ry = v.floatValue()));
         
         this.update();
     }
@@ -56,9 +49,9 @@ public class UIBezierHandles
 
     public void update()
     {
-        this.lx.setValue(TimeUtils.toTime(this.keyframe.getLx(this.index)));
-        this.ly.setValue(this.keyframe.getLy(this.index));
-        this.rx.setValue(TimeUtils.toTime(this.keyframe.getRx(this.index)));
-        this.ry.setValue(this.keyframe.getRy(this.index));
+        this.lx.setValue(TimeUtils.toTime(this.keyframe.lx));
+        this.ly.setValue(this.keyframe.ly);
+        this.rx.setValue(TimeUtils.toTime(this.keyframe.rx));
+        this.ry.setValue(this.keyframe.ry);
     }
 }

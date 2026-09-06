@@ -6,68 +6,97 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate;
-import net.minecraft.structure.StructureTemplateManager;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.InvalidIdentifierException;
 import net.minecraft.util.math.BlockPos;
 
+import java.io.File;
+
 /**
- * Writes a region of the world out as a structure NBT file, the same one the {@code bbs:structure}
- * form later reads back out of {@code world/generated}.
+ * Writes a region of the world out as a structure NBT file, the one the {@code bbs:structure} form
+ * later reads back.
  *
- * <p>Both ways in end up here: the {@code /bbs structures save} command, which is handed typed
- * coordinates, and the structure wand, which sends the corners it picked in the world. Neither
- * goes through the vanilla structure block, whose 48-block-per-axis cap this deliberately
- * sidesteps.</p>
+ * <p>Every way in — the {@code /bbs structures save} command, the structure wand, the film's cut —
+ * writes into the same place: BBS's {@code structures} assets folder. Nothing BBS saves goes into
+ * the world's own {@code generated} folder any more; structures written there by vanilla structure
+ * blocks are still read, but they are the world's, not ours. None of this goes through the vanilla
+ * structure block either, whose 48-block-per-axis cap is deliberately sidestepped.</p>
  */
 public class StructureSaver
 {
     /**
-     * @param name structure id ({@code namespace:path}, plain names land in {@code minecraft:})
-     * @param from either corner of the region, inclusive
-     * @param to the opposite corner, inclusive
+     * The folder BBS's own structures live in, under the assets folder. Declared here, on the
+     * common side, because the writer is here and the reader ({@code StructureManager}) is on
+     * the client.
+     */
+    public static final String ASSETS_FOLDER = "structures";
+
+    /**
+     * Write the region into BBS's {@code structures} folder, where it is addressed as
+     * {@code assets:path} and is there in every world.
+     *
+     * @param path file path under the structures folder, without the extension
      * @return whether the file was written
      */
-    public static boolean save(ServerWorld world, String name, BlockPos from, BlockPos to)
+    public static boolean save(ServerWorld world, String path, BlockPos from, BlockPos to)
     {
-        StructureTemplateManager manager = world.getStructureTemplateManager();
-        Identifier id;
-        StructureTemplate template;
+        File folder = BBSMod.getAssetsPath(ASSETS_FOLDER);
+        File file = new File(folder, path + ".nbt");
 
-        try
-        {
-            id = Identifier.of(name);
-            template = manager.getTemplateOrBlank(id);
-        }
-        catch (InvalidIdentifierException e)
+        /* No writing outside the folder through a path full of ".." */
+        if (!file.toPath().normalize().startsWith(folder.toPath().normalize()))
         {
             return false;
         }
 
-        BlockPos min = new BlockPos(
+        try
+        {
+            StructureTemplate template = new StructureTemplate();
+            NbtCompound nbt = new NbtCompound();
+
+            template.saveFromWorld(world, min(from, to), size(from, to), true, Blocks.STRUCTURE_VOID);
+            template.writeNbt(nbt);
+
+            /* Stamped the way the vanilla manager stamps its own, so a file written here is the
+             * same file a structure block would have written and reads back everywhere. */
+            NbtHelper.putDataVersion(nbt);
+
+            file.getParentFile().mkdirs();
+            NbtIo.writeCompressed(nbt, file.toPath());
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+
+            return false;
+        }
+    }
+
+    private static BlockPos min(BlockPos from, BlockPos to)
+    {
+        return new BlockPos(
             Math.min(from.getX(), to.getX()),
             Math.min(from.getY(), to.getY()),
             Math.min(from.getZ(), to.getZ())
         );
+    }
+
+    private static BlockPos size(BlockPos from, BlockPos to)
+    {
+        BlockPos min = min(from, to);
         BlockPos max = new BlockPos(
             Math.max(from.getX(), to.getX()),
             Math.max(from.getY(), to.getY()),
             Math.max(from.getZ(), to.getZ())
         );
 
-        template.saveFromWorld(world, min, max.subtract(min).add(1, 1, 1), true, Blocks.STRUCTURE_VOID);
-
-        try
-        {
-            return manager.saveTemplate(id);
-        }
-        catch (InvalidIdentifierException e)
-        {
-            return false;
-        }
+        return max.subtract(min).add(1, 1, 1);
     }
 
     /**

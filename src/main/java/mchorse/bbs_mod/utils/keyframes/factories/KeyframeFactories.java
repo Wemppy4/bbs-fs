@@ -1,7 +1,5 @@
 package mchorse.bbs_mod.utils.keyframes.factories;
 
-import org.joml.Vector3f;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,8 +21,6 @@ public class KeyframeFactories
     public static final IntegerKeyframeFactory INTEGER = new IntegerKeyframeFactory();
     public static final LongKeyframeFactory LONG = new LongKeyframeFactory();
     public static final LinkKeyframeFactory LINK = new LinkKeyframeFactory();
-    public static final Vector3fKeyframeFactory VECTOR3F = new Vector3fKeyframeFactory(new Vector3f());
-    public static final Vector3fKeyframeFactory VECTOR3F_SCALE = new Vector3fKeyframeFactory(new Vector3f(1F, 1F, 1F));
     public static final Vector4fKeyframeFactory VECTOR4F = new Vector4fKeyframeFactory();
     public static final AnchorKeyframeFactory ANCHOR = new AnchorKeyframeFactory();
     public static final BlockStateKeyframeFactory BLOCK_STATE = new BlockStateKeyframeFactory();
@@ -39,8 +35,7 @@ public class KeyframeFactories
         return factory instanceof DoubleKeyframeFactory
             || factory instanceof FloatKeyframeFactory
             || factory instanceof IntegerKeyframeFactory
-            || factory instanceof LongKeyframeFactory
-            || factory instanceof Vector3fKeyframeFactory;
+            || factory instanceof LongKeyframeFactory;
     }
 
     /**
@@ -66,8 +61,6 @@ public class KeyframeFactories
         FACTORIES.put("integer", INTEGER);
         FACTORIES.put("long", LONG);
         FACTORIES.put("link", LINK);
-        FACTORIES.put("vector3f", VECTOR3F);
-        FACTORIES.put("vector3f_scale", VECTOR3F_SCALE);
         FACTORIES.put("vector4f", VECTOR4F);
         FACTORIES.put("anchor", ANCHOR);
         FACTORIES.put("block_state", BLOCK_STATE);

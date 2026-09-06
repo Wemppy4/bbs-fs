@@ -29,6 +29,13 @@ public class UIFilmUndoHandler extends UIFormUndoHandler
             return;
         }
 
+        /* Opening and closing a category of the replay list is a way of looking at the film, not a
+         * change to it; it is saved with the film all the same, but Ctrl+Z has nothing to say to it. */
+        if (baseValue.getPath().getLast().equals("expanded") && baseValue.getPath().strings.contains("replay_categories"))
+        {
+            return;
+        }
+
         super.handlePreValues(baseValue, flag);
     }
 

@@ -11,6 +11,7 @@ import mchorse.bbs_mod.cubic.model.loaders.BOBJModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.CubicModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.GeoCubicModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.IModelLoader;
+import mchorse.bbs_mod.cubic.model.loaders.JemModelLoader;
 import mchorse.bbs_mod.cubic.model.loaders.VoxModelLoader;
 import mchorse.bbs_mod.data.DataToString;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -91,6 +92,7 @@ public class ModelManager implements IWatchDogListener
         loaders.add(new BOBJModelLoader());
         loaders.add(new CubicModelLoader());
         loaders.add(new GeoCubicModelLoader());
+        loaders.add(new JemModelLoader());
         loaders.add(new VoxModelLoader());
 
         for (Supplier<IModelLoader> extra : EXTRA_LOADERS)
@@ -329,6 +331,8 @@ public class ModelManager implements IWatchDogListener
             || link.path.endsWith(".bobj")
             || link.path.endsWith(".obj")
             || link.path.endsWith(".animation.json")
+            || link.path.endsWith(".jem")
+            || link.path.endsWith(".jpm")
             || link.path.endsWith(".vox")
             || link.path.endsWith("/config.json");
     }
@@ -347,19 +351,79 @@ public class ModelManager implements IWatchDogListener
             return;
         }
 
+        if (!link.path.startsWith(MODELS_PREFIX))
+        {
+            return;
+        }
+
+        String modelPath = link.path.substring(MODELS_PREFIX.length());
+
         if (this.isRelodable(link))
         {
-            String key = StringUtils.parentPath(link.path.substring(MODELS_PREFIX.length()));
-            ModelInstance model = this.models.remove(key);
+            /* A model is the folder the file sits in. */
+            this.forget(StringUtils.parentPath(modelPath));
 
-            /* Un-mark it too, or the next getModel would treat the key as already queued and
-             * the edited model would never reload. */
-            this.requested.remove(key);
+            return;
+        }
 
-            if (model != null)
+        /* Not a file a loader reads. A deleted model folder arrives exactly this way - by the time the
+         * event is handled the path is no longer a directory, so it names the model itself - and without
+         * this a model deleted and put back under the same name came back as the copy still in memory,
+         * which is what made a rejoin the only way to see it change. */
+        this.forget(modelPath);
+
+        for (String key : new ArrayList<>(this.models.keySet()))
+        {
+            if (key.startsWith(modelPath + "/"))
             {
-                model.delete();
+                this.forget(key);
             }
+        }
+    }
+
+    /**
+     * Drop every model of a folder, so the next request loads them again. For a source BBS does not
+     * watch — the models a resource pack serves — where a change arrives as one event for all of them
+     * rather than as a file the watchdog saw.
+     */
+    public void forgetFolder(String prefix)
+    {
+        for (String key : new ArrayList<>(this.models.keySet()))
+        {
+            if (key.startsWith(prefix))
+            {
+                this.forget(key);
+            }
+        }
+
+        /* A model that failed to load is remembered as requested and never retried, so it has to go
+         * too, or a pack that arrives later can never be picked up. */
+        for (String key : new ArrayList<>(this.requested))
+        {
+            if (key.startsWith(prefix))
+            {
+                this.requested.remove(key);
+            }
+        }
+    }
+
+    /** Drop a model from the cache so the next request loads it from disk again. */
+    private void forget(String key)
+    {
+        if (key.isEmpty())
+        {
+            return;
+        }
+
+        ModelInstance model = this.models.remove(key);
+
+        /* Un-mark it too, or the next getModel would treat the key as already queued and
+         * the edited model would never reload. */
+        this.requested.remove(key);
+
+        if (model != null)
+        {
+            model.delete();
         }
     }
 }

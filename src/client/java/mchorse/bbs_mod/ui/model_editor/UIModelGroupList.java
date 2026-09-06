@@ -5,6 +5,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.bones.UIBoneTreeList;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -118,6 +119,14 @@ public class UIModelGroupList extends UIBoneTreeList
         ModelGroup target = this.group(element);
 
         return dragged != null && target != null && !dragged.equals(element) && !isInside(target, dragged);
+    }
+
+    @Override
+    protected List<String> dragPayload(String item)
+    {
+        /* One group at a time: the move is told as "this one, before that one", which says nothing
+         * about where the rest of a pick would go. */
+        return super.dragPayload(item) == null ? null : Collections.singletonList(item);
     }
 
     @Override
