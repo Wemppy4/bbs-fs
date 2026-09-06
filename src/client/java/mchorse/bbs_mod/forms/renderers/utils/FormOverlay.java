@@ -61,7 +61,17 @@ public class FormOverlay
     /** The texel every untinted vertex of a tinted draw addresses: alpha 1 is "leave the colour alone". */
     private static final int NEUTRAL = 0xFFFFFFFF;
 
-    private static final int NEUTRAL_UV = OverlayTexture.packUv(0, 0);
+    /**
+     * The overlay UV an untinted vertex takes. It MUST be vanilla's own default: a draw whose bones
+     * all came back untinted claims no texel, so it keeps its ORIGINAL layer and addresses vanilla's
+     * hurt-flash atlas — where every row below 8 is the red flash. Any other neutral (packUv(0, 0)
+     * among them) paints such a draw red. In the swatch the same texel is neutral too, because
+     * {@link #beginPalette} fills all of it with {@link #NEUTRAL}.
+     */
+    private static final int NEUTRAL_UV = OverlayTexture.DEFAULT_UV;
+
+    /** The swatch texel {@link #NEUTRAL_UV} addresses, which the palette must never hand out. */
+    private static final int NEUTRAL_INDEX = OverlayTexture.getV(false) * SIZE + OverlayTexture.getU(0F);
 
     private static Texture texture;
 
@@ -74,6 +84,9 @@ public class FormOverlay
 
     /** Texel claimed per colour in the palette being built, by that colour's packed pixel. */
     private static final Map<Integer, Integer> palette = new HashMap<>();
+
+    /** The next free texel of the palette being built — not the palette's size, it skips one. */
+    private static int nextIndex = 1;
 
     /** Overlay twins, by the layer they stand in for. */
     private static final Map<RenderLayer, RenderLayer> TWINS = new HashMap<>();
@@ -143,6 +156,7 @@ public class FormOverlay
     public static void swatch(Color overlay)
     {
         palette.clear();
+        nextIndex = 1;
         Arrays.fill(pixels, OverlayBlend.toTexturePixel(overlay));
 
         upload();
@@ -156,6 +170,7 @@ public class FormOverlay
     public static void beginPalette()
     {
         palette.clear();
+        nextIndex = 1;
         Arrays.fill(pixels, NEUTRAL);
     }
 
@@ -179,12 +194,18 @@ public class FormOverlay
             return claimed;
         }
 
-        int index = palette.size() + 1;
+        if (nextIndex == NEUTRAL_INDEX)
+        {
+            /* That texel is what an untinted vertex reads; a colour must not move into it. */
+            nextIndex ++;
+        }
 
-        if (index >= SIZE * SIZE)
+        if (nextIndex >= SIZE * SIZE)
         {
             return NEUTRAL_UV;
         }
+
+        int index = nextIndex ++;
 
         pixels[index] = pixel;
 

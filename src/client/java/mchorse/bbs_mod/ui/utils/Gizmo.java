@@ -1723,13 +1723,13 @@ public class Gizmo
                         dimmed(Colors.getR(color), constrained),
                         dimmed(Colors.getG(color), constrained),
                         dimmed(Colors.getB(color), constrained),
-                        Colors.getA(color) * opacity);
+                        Colors.getOpaqueA(color) * opacity);
                 }
 
                 @Override
                 public void viewRing(Handle handle, int color)
                 {
-                    float alpha = Colors.getA(color) * opacity * (constrained ? 0.35F : 1F);
+                    float alpha = Colors.getOpaqueA(color) * opacity * (constrained ? 0.35F : 1F);
 
                     Gizmo.this.rings.writeBillboard(builder, stack, Colors.getR(color), Colors.getG(color), Colors.getB(color), alpha);
                 }
@@ -1740,7 +1740,7 @@ public class Gizmo
         {
             this.collectHandles(layout, (handle, x1, y1, z1, x2, y2, z2, color) ->
                 Draw.fillBox(builder, stack, x1, y1, z1, x2, y2, z2,
-                    Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color) * opacity));
+                    Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getOpaqueA(color) * opacity));
         }
 
         /* The centre cube is decoration, not a handle, so any filtered drag hides it — but

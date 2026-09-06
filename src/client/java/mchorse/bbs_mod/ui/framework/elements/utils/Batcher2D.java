@@ -414,7 +414,7 @@ public class Batcher2D
          * separate depth-tested pass that runs AFTER opaque geometry, so an interior translucent fill
          * (the old stub) re-emerged wherever opaque content didn't cover it — leaking primary colour
          * around the panel borders. Drawing only the exterior halo avoids that entirely. */
-        if (offset <= 0)
+        if (offset <= 0 || !BBSSettings.hasInterfaceGlow())
         {
             return;
         }
