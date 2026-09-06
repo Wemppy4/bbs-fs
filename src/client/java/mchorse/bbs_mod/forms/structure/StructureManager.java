@@ -2,6 +2,7 @@ package mchorse.bbs_mod.forms.structure;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.utils.StructureSaver;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
@@ -60,10 +61,7 @@ public class StructureManager
     /** Ids under this prefix are memory-only and never looked for on disk. */
     private static final String PREVIEW_PREFIX = "bbs:preview/";
 
-    /** The folder BBS's own structures live in, within the assets folder. */
-    public static final String ASSETS_FOLDER = "structures";
-
-    /** Ids under this prefix come from {@link #ASSETS_FOLDER} rather than from the world. */
+    /** Ids under this prefix come from BBS's own folder rather than from the world. */
     private static final String ASSETS_PREFIX = Link.ASSETS + Link.SOURCE_SEPARATOR;
 
     private static final String EXTENSION = ".nbt";
@@ -130,21 +128,27 @@ public class StructureManager
     /** The folder BBS's own structures are read from and dropped into. */
     public static File getAssetsFolder()
     {
-        return BBSMod.getAssetsPath(ASSETS_FOLDER);
+        return BBSMod.getAssetsPath(StructureSaver.ASSETS_FOLDER);
+    }
+
+    /** The id a structure of BBS's own is addressed by, from its path under the folder. */
+    public static String assetId(String path)
+    {
+        return ASSETS_PREFIX + path;
     }
 
     /** {@code assets:path/name} for the file this link points at. */
     private static String toAssetId(Link link)
     {
-        String path = link.path.substring(ASSETS_FOLDER.length() + 1);
+        String path = link.path.substring(StructureSaver.ASSETS_FOLDER.length() + 1);
 
-        return ASSETS_PREFIX + path.substring(0, path.length() - EXTENSION.length());
+        return assetId(path.substring(0, path.length() - EXTENSION.length()));
     }
 
     /** The file {@code assets:path/name} names, for the provider to look up. */
     private static Link toAssetLink(String id)
     {
-        return Link.assets(ASSETS_FOLDER + "/" + id.substring(ASSETS_PREFIX.length()) + EXTENSION);
+        return Link.assets(StructureSaver.ASSETS_FOLDER + "/" + id.substring(ASSETS_PREFIX.length()) + EXTENSION);
     }
 
     /**
@@ -166,7 +170,7 @@ public class StructureManager
     /** BBS's own structures, from every source pack that answers to {@code assets}. */
     private static void collectAssetIds(List<String> ids)
     {
-        for (Link link : BBSMod.getProvider().getLinksFromPath(Link.assets(ASSETS_FOLDER)))
+        for (Link link : BBSMod.getProvider().getLinksFromPath(Link.assets(StructureSaver.ASSETS_FOLDER)))
         {
             if (link.path.endsWith(EXTENSION))
             {
@@ -298,7 +302,7 @@ public class StructureManager
         String namespace = colon < 0 ? "minecraft" : id.substring(0, colon);
         String path = colon < 0 ? id : id.substring(colon + 1);
 
-        Path file = generated.resolve(namespace).resolve(ASSETS_FOLDER).resolve(path + EXTENSION).normalize();
+        Path file = generated.resolve(namespace).resolve("structures").resolve(path + EXTENSION).normalize();
 
         /* No escaping the generated folder via weird ids */
         if (!file.startsWith(generated.normalize()) || !Files.isRegularFile(file))

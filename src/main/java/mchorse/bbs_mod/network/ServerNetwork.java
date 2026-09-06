@@ -177,7 +177,8 @@ public class ServerNetwork
 
         server.execute(() ->
         {
-            boolean saved = StructureSaver.save(player.getServerWorld(), name, from, to);
+            /* Into BBS's own folder, not the world's: the wand captures builds for films. */
+            boolean saved = StructureSaver.saveToAssets(player.getServerWorld(), name, from, to);
             PacketByteBuf reply = PacketByteBufs.create();
 
             reply.writeBoolean(saved);
