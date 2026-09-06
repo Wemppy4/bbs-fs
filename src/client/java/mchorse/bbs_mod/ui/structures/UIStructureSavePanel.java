@@ -26,7 +26,6 @@ import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.Locale;
 import java.util.function.BiConsumer;
@@ -270,19 +269,6 @@ public class UIStructureSavePanel extends UIOverlayPanel
     public void confirm()
     {
         this.save();
-    }
-
-    @Override
-    public boolean subKeyPressed(UIContext context)
-    {
-        if (context.isPressed(GLFW.GLFW_KEY_ENTER) && this.name.isFocused())
-        {
-            this.save();
-
-            return true;
-        }
-
-        return super.subKeyPressed(context);
     }
 
     @Override

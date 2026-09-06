@@ -269,20 +269,21 @@ public class UIOverlayPanel extends UIElement
     @Override
     public boolean subKeyPressed(UIContext context)
     {
-        if (!context.isFocused())
+        if (!context.isFocused() && context.isPressed(Keys.CLOSE))
         {
-            if (context.isPressed(Keys.CLOSE))
-            {
-                this.close();
+            this.close();
 
-                return true;
-            }
-            else if (context.isPressed(Keys.CONFIRM))
-            {
-                this.confirm();
+            return true;
+        }
 
-                return true;
-            }
+        /* Enter is not gated on focus, unlike the closing escape: children are offered the key
+         * first, so whoever spends it on itself (a text area, a list) has already taken it, and
+         * what reaches the panel is the Enter of someone done filling the dialog in */
+        if (context.isPressed(Keys.CONFIRM) || context.isPressed(GLFW.GLFW_KEY_ENTER) || context.isPressed(GLFW.GLFW_KEY_KP_ENTER))
+        {
+            this.confirm();
+
+            return true;
         }
 
         return super.subKeyPressed(context);

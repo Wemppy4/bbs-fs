@@ -22,7 +22,6 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.NaturalOrderComparator;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
-import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -207,16 +206,9 @@ public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolder
     }
 
     @Override
-    public boolean subKeyPressed(UIContext context)
+    public void confirm()
     {
-        if (context.isPressed(GLFW.GLFW_KEY_ENTER) && this.name.isFocused())
-        {
-            this.trySave();
-
-            return true;
-        }
-
-        return super.subKeyPressed(context);
+        this.trySave();
     }
 
     @Override
