@@ -153,7 +153,7 @@ public class UIRecentDataList extends UIList<Entry>
         int agoW = font.getWidth(ago);
         int textX = x + TEXT_X;
 
-        context.batcher.icon(this.icons.apply(element.id), x + ICON_X, y + h / 2, 0F, 0.5F);
+        context.batcher.icon(this.icons.apply(element.id), RowStyle.iconColor(hover || selected), x + ICON_X, y + h / 2, 0F, 0.5F);
         context.batcher.text(ago, right - agoW, textY, muted, false);
 
         String name = font.limitToWidth(path.getLast(), right - agoW - GAP - textX);

@@ -73,7 +73,7 @@ public class UILandingRow extends UIClickable<UILandingRow>
 
         String text = font.limitToWidth(this.label.get(), area.w - TEXT_X - 2);
 
-        context.batcher.icon(this.icon, area.x + ICON_X, area.my(), 0F, 0.5F);
+        context.batcher.icon(this.icon, RowStyle.iconColor(lit), area.x + ICON_X, area.my(), 0F, 0.5F);
         context.batcher.text(text, area.x + TEXT_X, area.y + (area.h - font.getHeight()) / 2 + 1, RowStyle.textColor(lit), false);
     }
 }

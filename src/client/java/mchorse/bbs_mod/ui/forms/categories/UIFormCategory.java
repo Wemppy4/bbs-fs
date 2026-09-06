@@ -757,14 +757,15 @@ public class UIFormCategory extends UIItemGrid<Form>
          * form cannot say where it lives, and its category is the only thing left that can. */
         RowStyle.row(batcher, x, y, this.area.w, FormGridLayout.HEADER, 0, false, this.hoverHeader, this.selected != null);
 
-        int textColor = dragged ? Colors.GRAY : Colors.WHITE;
+        boolean lit = this.hoverHeader || this.selected != null;
+        int textColor = dragged ? RowStyle.textColor(lit, Colors.GRAY) : RowStyle.textColor(lit);
         int my = y + FormGridLayout.HEADER / 2;
 
         int ix = x + UIList.ROW_PADDING;
         int textX = x + UIList.iconRowTextX(UIList.ROW_PADDING);
 
         UISection.renderArrow(context, ix + UIList.ARROW_SLOT / 2F, my, expanded);
-        batcher.icon(this.category.icon, this.hoverHeader ? Colors.LIGHTEST_GRAY : Colors.WHITE, ix + UIList.ARROW_SLOT + UIList.ICON_SLOT / 2F, my, 0.5F, 0.5F);
+        batcher.icon(this.category.icon, RowStyle.iconColor(lit), ix + UIList.ARROW_SLOT + UIList.ICON_SLOT / 2F, my, 0.5F, 0.5F);
 
         String title = this.category.getProcessedTitle();
         String count = String.valueOf(this.category.getForms().size());

@@ -377,7 +377,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
 
             RowStyle.row(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h, 0, false, this.hover, current);
 
-            context.batcher.icon(icon, Colors.WHITE, this.area.x + 5, this.area.my(), 0F, 0.5F);
+            context.batcher.icon(icon, RowStyle.iconColor(this.hover || current), this.area.x + 5, this.area.my(), 0F, 0.5F);
 
             FontRenderer font = context.batcher.getFont();
             String label = font.limitToWidth(this.label.get(), this.area.w - 28);

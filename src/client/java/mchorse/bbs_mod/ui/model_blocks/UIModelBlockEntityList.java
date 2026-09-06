@@ -146,7 +146,7 @@ public class UIModelBlockEntityList extends UIList<ModelBlockEntity>
             ? RowStyle.textColor(hover || selected)
             : RowStyle.textColor(hover || selected, Colors.GRAY);
 
-        context.batcher.icon(icon, x + ICON_X, y + h / 2, 0F, 0.5F);
+        context.batcher.icon(icon, RowStyle.iconColor(hover || selected), x + ICON_X, y + h / 2, 0F, 0.5F);
         context.batcher.text(far, right - farW, textY, muted, false);
 
         String limited = font.limitToWidth(name, right - farW - GAP - textX);

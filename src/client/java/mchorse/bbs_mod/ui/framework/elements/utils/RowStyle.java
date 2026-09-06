@@ -87,6 +87,16 @@ public class RowStyle
     }
 
     /**
+     * What a row's icon is drawn with — the same quieting as its text, so the whole row rises and
+     * falls as one thing rather than a bright icon dragging a faint name around. White rather than
+     * the text's tint: a tinted icon reads as a differently-coloured icon, not as a lit one.
+     */
+    public static int iconColor(boolean lit)
+    {
+        return lit ? Colors.WHITE : Colors.setA(Colors.WHITE, REST_TEXT);
+    }
+
+    /**
      * Lay a row's marks down in order, so no caller has to remember it: what the row belongs to
      * first, then what it is, then what the cursor and the pick are doing to it — and the bar over
      * all of them.

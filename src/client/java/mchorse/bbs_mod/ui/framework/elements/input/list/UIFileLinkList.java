@@ -7,7 +7,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.NaturalOrderComparator;
 import mchorse.bbs_mod.utils.StringUtils;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.Collection;
 import java.util.function.Consumer;
@@ -158,7 +157,7 @@ public class UIFileLinkList extends UIList<UIFileLinkList.FileLink>
     {
         int h = this.rowHeight();
 
-        context.batcher.icon(element.folder ? Icons.FOLDER : Icons.IMAGE, Colors.setA(Colors.WHITE, hover ? 0.75F : 0.6F), x + 2, y + h / 2F, 0F, 0.5F);
+        context.batcher.icon(element.folder ? Icons.FOLDER : Icons.IMAGE, RowStyle.iconColor(hover || selected), x + 2, y + h / 2F, 0F, 0.5F);
         context.batcher.textShadow(element.title, x + 20, y + (h - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
     }
 

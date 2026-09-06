@@ -1870,7 +1870,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
             this.renderTreeGuides(context, x, y, element.depth, element.lines, element.last, iconX);
             this.renderArrow(context, element, x, y);
-            context.batcher.icon(Icons.FOLDER, iconX, y + (rowHeight - 16) / 2);
+            context.batcher.icon(Icons.FOLDER, RowStyle.iconColor(hover || selected), iconX, y + (rowHeight - 16) / 2);
             context.batcher.textShadow(this.elementToString(context, i, element), textX, textY, RowStyle.textColor(hover || selected));
 
             /* How much is in there, which a closed folder cannot say any other way. */

@@ -430,6 +430,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         int my = y + h / 2;
         boolean missing = node.pin() && this.isMissing(node);
         int color = missing ? RowStyle.textColor(hover, Colors.GRAY) : RowStyle.textColor(hover);
+        int iconColor = missing ? color : RowStyle.iconColor(hover);
 
         /* A folder of the mod's own can't be changed, and its name says so by going faint -
          * the same fade the grid gives such a cell's name. What a pin is, its title says. */
@@ -444,7 +445,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
 
         if (node.folder())
         {
-            context.batcher.icon(Icons.FOLDER, color, iconX, my - 8);
+            context.batcher.icon(Icons.FOLDER, iconColor, iconX, my - 8);
         }
         else if (missing)
         {
@@ -453,7 +454,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         }
         else
         {
-            this.renderThumbnail(context, node.link(), iconX, my - 8, color);
+            this.renderThumbnail(context, node.link(), iconX, my - 8, iconColor);
         }
 
         String name = font.limitToWidth(this.nameOf(node), this.area.ex() - 4 - textX);
@@ -475,11 +476,12 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         int h = this.rowHeight();
         int my = y + h / 2;
         int color = RowStyle.textColor(hover);
+        int iconColor = RowStyle.iconColor(hover);
 
         int textX = iconRowTextX(ix);
 
         this.renderArrow(context, node, x, y);
-        context.batcher.icon(Icons.BOOKMARK, color, ix + ARROW_SLOT, my - 8);
+        context.batcher.icon(Icons.BOOKMARK, iconColor, ix + ARROW_SLOT, my - 8);
 
         String title = font.limitToWidth(UIKeys.TEXTURES_BROWSER_PINNED.get(), this.area.ex() - 4 - textX);
 

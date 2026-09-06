@@ -67,7 +67,7 @@ public class UIProcessReplaysPanel extends UIConfirmOverlayPanel
             Icon icon = UIReplaysEditor.getIcon(element);
 
             RowStyle.swatch(context.batcher, x, y, h, color);
-            context.batcher.icon(icon, x + 2, y + h / 2F, 0F, 0.5F);
+            context.batcher.icon(icon, RowStyle.iconColor(hover || selected), x + 2, y + h / 2F, 0F, 0.5F);
             context.batcher.textShadow(this.elementToString(context, i, element), x + 24, y + (h - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
         }
     };
@@ -475,7 +475,7 @@ public class UIProcessReplaysPanel extends UIConfirmOverlayPanel
                     int h = this.scroll.scrollItemSize;
                     Icon icon = element.value.icon;
 
-                    context.batcher.icon(icon, x + 3, y + (h - 16) / 2F);
+                    context.batcher.icon(icon, RowStyle.iconColor(hover || selected), x + 3, y + (h - 16) / 2F);
                     context.batcher.textShadow(element.title.get(), x + 22, y + (h - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
                 }
             };
