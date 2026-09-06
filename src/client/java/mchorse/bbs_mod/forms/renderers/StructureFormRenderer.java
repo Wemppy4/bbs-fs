@@ -4,7 +4,9 @@ import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.picker.PickingReplay;
 import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
+import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.QueueDispatch;
 import mchorse.bbs_mod.forms.forms.StructureForm;
@@ -435,14 +437,36 @@ public class StructureFormRenderer extends FormRenderer<StructureForm>
 
             if (context.isPicking())
             {
-                CustomVertexConsumerProvider.hijackVertexFormat((layer) ->
-                {
-                    /* The picker program is a RenderPipeline chosen at the draw now, so setupTarget
-                     * only carries the picking index (the BBSPicker UBO). */
-                    this.setupTarget(context);
-                });
+                /* Capture the structure's vanilla-layer geometry and replay it through the
+                 * picker_models pipeline into the stencil, the way every vanilla-rendered form
+                 * picks on this branch (see PickingReplay, BlockFormRenderer).
+                 *
+                 * The 1.21.1 route was a hijack hook that swapped the GLOBAL shader program for the
+                 * picker while the layers below drew; 1.21.5+ has no global program to swap — the
+                 * picker is a RenderPipeline chosen at the draw itself. So the hook was left setting
+                 * nothing but the picking index, the geometry went to the ordinary entity layers and
+                 * the structure never reached the pick buffer at all: it was unpickable outright. */
+                this.setupTarget(context);
 
-                this.baked.render(context.stack.peek(), consumers, context.light, 0xFFFFFFFF);
+                FormRenderCapture.begin();
+
+                Map<RenderLayer, List<FormRenderCapture.Captured>> captured;
+
+                try
+                {
+                    this.baked.render(context.stack.peek(), consumers, context.light, 0xFFFFFFFF);
+
+                    /* The block entities are part of the silhouette the eye sees, so they are part
+                     * of what the cursor may land on. */
+                    this.renderBlockEntities(context.stack, consumers, context.light, context.overlay);
+                    consumers.draw();
+                }
+                finally
+                {
+                    captured = FormRenderCapture.end();
+                }
+
+                PickingReplay.draw(captured);
             }
             else
             {
