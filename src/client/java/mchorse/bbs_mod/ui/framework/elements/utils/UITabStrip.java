@@ -6,6 +6,7 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -34,7 +35,6 @@ public class UITabStrip extends UIScrollView
     private IntSupplier active = () -> -1;
     private IntSupplier activeColor = () -> Colors.A75 | BBSSettings.primaryColor.get();
     private Direction activeEdge = Direction.BOTTOM;
-    private IntSupplier hoverColor;
     private IntSupplier background;
     private IntFunction<IKey> hoverLabels;
     private boolean fixed;
@@ -93,14 +93,6 @@ public class UITabStrip extends UIScrollView
     public UITabStrip activeEdge(Direction edge)
     {
         this.activeEdge = edge;
-
-        return this;
-    }
-
-    /** Fill behind the hovered tab; none by default, since icon tabs hover by tinting themselves. */
-    public UITabStrip hoverColor(IntSupplier color)
-    {
-        this.hoverColor = color;
 
         return this;
     }
@@ -344,9 +336,9 @@ public class UITabStrip extends UIScrollView
                     tab.area.render(context.batcher, this.activeColor.getAsInt());
                 }
             }
-            else if (this.hoverColor != null && tab.area.isInside(context))
+            else if (tab.area.isInside(context))
             {
-                tab.area.render(context.batcher, this.hoverColor.getAsInt());
+                RowStyle.hover(context.batcher, tab.area.x, tab.area.y, tab.area.w, tab.area.h, 0);
             }
         }
 

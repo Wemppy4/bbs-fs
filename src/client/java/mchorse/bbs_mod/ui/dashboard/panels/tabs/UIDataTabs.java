@@ -8,7 +8,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
 
@@ -31,7 +30,6 @@ public class UIDataTabs extends UITabStrip
         this.scroll.scrollSpeed = 20;
         this.background(BBSSettings::chromeSurface);
         this.activeColor(BBSSettings::baseSurface);
-        this.hoverColor(() -> BBSSettings.color(BBSSettings.raisedSurface(), Colors.A25));
         this.active(host::getCurrentTab);
         this.onSelect(host::switchTab);
         this.onClose(host::closeTab);
