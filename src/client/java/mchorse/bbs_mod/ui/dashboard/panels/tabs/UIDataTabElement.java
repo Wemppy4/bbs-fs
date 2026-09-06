@@ -6,11 +6,11 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIClickable;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
  * One document tab: icon, label and a close button. The active and hover fills behind it
@@ -106,12 +106,12 @@ public class UIDataTabElement extends UIClickable<UIDataTabElement>
         this.close.setVisible(showClose);
 
         FontRenderer font = context.batcher.getFont();
-        int iconColor = active ? Colors.WHITE : Colors.setA(Colors.WHITE, 0.7F);
+        int iconColor = RowStyle.iconColor(active || hover);
         context.batcher.icon(this.icon, iconColor, this.area.x + ICON_X, this.area.my(), 0F, 0.5F);
 
         int right = showClose ? CLOSE_ZONE : TEXT_RIGHT_PADDING;
         String text = font.limitToWidth(this.label.get(), this.area.w - RIGHT_GAP - TEXT_X - right);
-        int textColor = active ? Colors.WHITE : Colors.setA(Colors.WHITE, 0.7F);
+        int textColor = RowStyle.textColor(active || hover);
 
         context.batcher.text(text, this.area.x + TEXT_X, this.area.my() - font.getHeight() / 2, textColor);
     }

@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.tooltips.ITooltip;
 import mchorse.bbs_mod.ui.framework.tooltips.LabelTooltip;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -206,7 +207,7 @@ public abstract class UIIconStrip <T> extends UIClickable<T>
             }
             else if (cellHover)
             {
-                context.batcher.box(x1, this.area.y, x2, this.area.ey(), BBSSettings.chromeSurface());
+                RowStyle.hover(context.batcher, x1, this.area.y, cellW, this.area.h, 0);
             }
 
             /* The mark under a cell says which one is active; the icon's own brightness says it

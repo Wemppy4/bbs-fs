@@ -268,18 +268,10 @@ public class UILandingScreen extends UIElement
     {
         int bg = BBSSettings.raisedSurface();
         int border = BBSSettings.color(BBSSettings.dividerColor(), Colors.A12);
-        int accent = BBSSettings.primaryColor.get();
 
         context.batcher.dropShadow(area.x, area.y, area.ex(), area.ey(), 14, Colors.A50, 0);
         context.batcher.box(area.x, area.y, area.ex(), area.ey(), bg);
         context.batcher.outline(area.x, area.y, area.ex(), area.ey(), border);
-
-        /* Accent seam under the banner — brightest at the center, fading toward the card edges */
-        int sepY = area.y + BANNER_H;
-        int mid = area.mx();
-
-        context.batcher.gradientHBox(area.x, sepY, mid, sepY + 2, Colors.setA(accent, 0F), Colors.A100 | accent);
-        context.batcher.gradientHBox(mid, sepY, area.ex(), sepY + 2, Colors.A100 | accent, Colors.setA(accent, 0F));
     }
 
     private void renderEmptyHint(UIContext context)

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.model_editor;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.colors.Colors;
 
@@ -53,9 +54,9 @@ public class UIEntryList<T> extends UIList<T>
     }
 
     /** What a row is painted in: red when the entry is broken, else the list's usual hover/idle pair. */
-    protected int rowColor(T element, boolean hover)
+    protected int rowColor(T element, boolean lit)
     {
-        return this.broken.test(element) ? Colors.NEGATIVE : hover ? Colors.HIGHLIGHT : Colors.WHITE;
+        return this.broken.test(element) ? RowStyle.textColor(lit, Colors.NEGATIVE) : RowStyle.textColor(lit);
     }
 
     /** Where a row's content has to stop: the scrollbar and a margin aren't the row's to draw in. */
@@ -71,6 +72,6 @@ public class UIEntryList<T> extends UIList<T>
         int textX = x + this.rowContentX(element);
         String label = font.limitToWidth(this.elementToString(context, i, element), this.rowContentEnd(x) - textX);
 
-        context.batcher.textShadow(label, textX, y + (this.scroll.scrollItemSize - font.getHeight()) / 2, this.rowColor(element, hover));
+        context.batcher.textShadow(label, textX, y + (this.scroll.scrollItemSize - font.getHeight()) / 2, this.rowColor(element, hover || selected));
     }
 }

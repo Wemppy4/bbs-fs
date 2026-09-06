@@ -16,7 +16,9 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
+import mchorse.bbs_mod.ui.framework.elements.input.text.utils.TextLine;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.context.ContextAction;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -26,12 +28,14 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.BlockItem;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.item.SpawnEggItem;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
@@ -45,6 +49,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
@@ -56,9 +61,11 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
 
     private static final List<String> ITEM_IDS = new ArrayList<>();
     private static final List<String> BLOCK_IDS = new ArrayList<>();
+    private static final List<String> MOB_IDS = new ArrayList<>();
 
     private static final Map<String, String> ITEM_LABEL_CACHE = new HashMap<>();
     private static final Map<String, String> BLOCK_LABEL_CACHE = new HashMap<>();
+    private static final Map<String, String> MOB_LABEL_CACHE = new HashMap<>();
 
     /** Row height: two text lines + vertical padding (see {@link RegistryIdList}). */
     private static final int LIST_ROW_HEIGHT = 32;
@@ -81,8 +88,14 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
             BLOCK_IDS.add(key.getValue().toString());
         }
 
+        for (RegistryKey<EntityType<?>> key : Registries.ENTITY_TYPE.getKeys())
+        {
+            MOB_IDS.add(key.getValue().toString());
+        }
+
         ITEM_IDS.sort(String::compareToIgnoreCase);
         BLOCK_IDS.sort(String::compareToIgnoreCase);
+        MOB_IDS.sort(String::compareToIgnoreCase);
     }
 
     /**
@@ -139,6 +152,24 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         });
     }
 
+    /** The entity type's own translated name, the same one a spawn egg or a name tag shows. */
+    public static String mobLabel(String id)
+    {
+        String cacheKey = minecraftLanguageKey() + "\0" + id;
+
+        return MOB_LABEL_CACHE.computeIfAbsent(cacheKey, (k) ->
+        {
+            try
+            {
+                return Registries.ENTITY_TYPE.get(new Identifier(id)).getName().getString();
+            }
+            catch (Exception e)
+            {
+                return id;
+            }
+        });
+    }
+
     private static ItemStack previewStackFor(PickerMode mode, String id)
     {
         return PREVIEW_STACK_CACHE.computeIfAbsent(mode.name() + "\0" + id, (k) ->
@@ -150,6 +181,15 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
                 if (mode == PickerMode.ITEM)
                 {
                     return new ItemStack(Registries.ITEM.get(rid));
+                }
+
+                if (mode == PickerMode.MOB)
+                {
+                    /* Only the spawnable ones have an egg; arrows, boats and the player fall back
+                     * to the morph icon in the list (see RegistryIdList). */
+                    SpawnEggItem egg = SpawnEggItem.forEntity(Registries.ENTITY_TYPE.get(rid));
+
+                    return egg == null ? ItemStack.EMPTY : new ItemStack(egg);
                 }
 
                 Block block = Registries.BLOCK.get(rid);
@@ -167,46 +207,73 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
     public enum PickerMode
     {
         ITEM,
-        BLOCK
+        BLOCK,
+        MOB
+    }
+
+    private static IKey titleFor(PickerMode mode)
+    {
+        if (mode == PickerMode.ITEM)
+        {
+            return UIKeys.ACTIONS_ITEM_STACK;
+        }
+
+        return mode == PickerMode.MOB ? UIKeys.FORMS_EDITORS_MOB_TITLE : UIKeys.FORMS_EDITORS_BLOCK_TITLE;
     }
 
     private final PickerMode mode;
     private final Consumer<ItemStack> itemCallback;
     private final Consumer<BlockState> blockCallback;
+    private final BiConsumer<String, String> mobCallback;
 
     private final UISearchList<String> list;
     private final UIElement itemPanel;
     private final UIElement blockPanel;
     private final UIElement blockPropertiesWrap;
     private final UIElement blockProperties;
+    private final UIElement mobPanel;
     private final UIItemHotbar hotbar;
     private final UITrackpad itemCount;
     private final UITextbox itemName;
     private final UITextarea itemNbt;
+    private final UITextarea<TextLine> mobNbt;
 
     private ItemStack itemStack = ItemStack.EMPTY;
     private BlockState blockState = Blocks.AIR.getDefaultState();
+    private String mobNbtText = "";
     private String selectedId = "";
 
     public static UIUnifiedPickOverlayPanel forItem(Consumer<ItemStack> callback, ItemStack current)
     {
-        return new UIUnifiedPickOverlayPanel(PickerMode.ITEM, callback, null, current == null ? ItemStack.EMPTY : current.copy(), null);
+        return new UIUnifiedPickOverlayPanel(PickerMode.ITEM, callback, null, null, current == null ? ItemStack.EMPTY : current.copy(), null, "", "");
     }
 
     public static UIUnifiedPickOverlayPanel forBlock(Consumer<BlockState> callback, BlockState current)
     {
-        return new UIUnifiedPickOverlayPanel(PickerMode.BLOCK, null, callback, ItemStack.EMPTY, current == null ? Blocks.AIR.getDefaultState() : current);
+        return new UIUnifiedPickOverlayPanel(PickerMode.BLOCK, null, callback, null, ItemStack.EMPTY, current == null ? Blocks.AIR.getDefaultState() : current, "", "");
     }
 
-    private UIUnifiedPickOverlayPanel(PickerMode mode, Consumer<ItemStack> itemCallback, Consumer<BlockState> blockCallback, ItemStack itemStack, BlockState blockState)
+    /**
+     * Mob picker: the entity type on the left, its spawn NBT on the right. Unlike an item's,
+     * that NBT is authored by hand rather than derived from the pick, so it survives switching
+     * between types.
+     */
+    public static UIUnifiedPickOverlayPanel forMob(BiConsumer<String, String> callback, String mobID, String mobNBT)
     {
-        super(mode == PickerMode.ITEM ? UIKeys.ACTIONS_ITEM_STACK : UIKeys.FORMS_EDITORS_BLOCK_TITLE);
+        return new UIUnifiedPickOverlayPanel(PickerMode.MOB, null, null, callback, ItemStack.EMPTY, Blocks.AIR.getDefaultState(), mobID == null ? "" : mobID, mobNBT == null ? "" : mobNBT);
+    }
+
+    private UIUnifiedPickOverlayPanel(PickerMode mode, Consumer<ItemStack> itemCallback, Consumer<BlockState> blockCallback, BiConsumer<String, String> mobCallback, ItemStack itemStack, BlockState blockState, String mobID, String mobNbt)
+    {
+        super(titleFor(mode));
 
         this.mode = mode;
         this.itemCallback = itemCallback;
         this.blockCallback = blockCallback;
+        this.mobCallback = mobCallback;
         this.itemStack = itemStack;
         this.blockState = blockState;
+        this.mobNbtText = mobNbt;
 
         this.list = new UISearchList<>(new RegistryIdList((values) ->
         {
@@ -227,6 +294,10 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         this.blockPanel = new UIElement();
         this.blockPanel.relative(this.content).xy(PADDING, PADDING).w(1F, -PADDING * 2).h(1F, -PADDING * 2);
         this.blockPanel.setVisible(mode == PickerMode.BLOCK);
+
+        this.mobPanel = new UIElement();
+        this.mobPanel.relative(this.content).xy(PADDING, PADDING).w(1F, -PADDING * 2).h(1F, -PADDING * 2);
+        this.mobPanel.setVisible(mode == PickerMode.MOB);
 
         this.blockPropertiesWrap = new UIElement();
         this.blockPropertiesWrap.relative(this.blockPanel).x(0.5F, GAP).y(0).w(0.5F, -GAP).h(1F);
@@ -291,6 +362,18 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         }).background();
         this.itemNbt.wrap();
 
+        this.mobNbt = new UITextarea<>((v) ->
+        {
+            if (this.mode != PickerMode.MOB)
+            {
+                return;
+            }
+
+            this.mobNbtText = v;
+            this.acceptMob(this.selectedId, this.mobNbtText);
+        });
+        this.mobNbt.background().wrap();
+
         this.blockProperties = UI.scrollView(4, 0);
         this.blockProperties.relative(this.blockPropertiesWrap).xy(0, HEADER_HEIGHT).w(1F).h(1F, -HEADER_HEIGHT);
 
@@ -304,6 +387,19 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
             this.list.relative(this.itemPanel).xy(0, 0).w(0.5F, -GAP).hTo(fields.area, 0F, -GAP);
 
             this.itemPanel.add(this.itemNbt, fields, this.list, this.hotbar);
+        }
+        else if (mode == PickerMode.MOB)
+        {
+            UIElement nbtWrap = new UIElement();
+
+            nbtWrap.relative(this.mobPanel).x(0.5F, GAP).y(0).w(0.5F, -GAP).h(1F);
+            nbtWrap.add(UI.label(UIKeys.FORMS_EDITORS_MOB_NBT).relative(nbtWrap).xy(0, 0).w(1F).h(HEADER_HEIGHT));
+
+            this.mobNbt.relative(nbtWrap).xy(0, HEADER_HEIGHT).w(1F).h(1F, -HEADER_HEIGHT);
+            nbtWrap.add(this.mobNbt);
+
+            this.list.relative(this.mobPanel).xy(0, 0).w(0.5F, -GAP).h(1F);
+            this.mobPanel.add(this.list, nbtWrap);
         }
         else
         {
@@ -319,6 +415,10 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         {
             this.content.add(this.itemPanel);
         }
+        else if (mode == PickerMode.MOB)
+        {
+            this.content.add(this.mobPanel);
+        }
         else
         {
             this.content.add(this.blockPanel);
@@ -330,6 +430,11 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
             this.itemCount.limit(1, this.itemStack.getMaxCount(), true).setValue(this.itemStack.getCount());
             this.itemName.setText(this.itemStack.getName().getString());
             this.updateItemNbt();
+        }
+        else if (mode == PickerMode.MOB)
+        {
+            this.selectedId = mobID;
+            this.mobNbt.setText(this.mobNbtText);
         }
         else
         {
@@ -344,7 +449,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
     {
         this.list.list.clear();
 
-        List<String> source = this.mode == PickerMode.ITEM ? ITEM_IDS : BLOCK_IDS;
+        List<String> source = this.mode == PickerMode.ITEM ? ITEM_IDS : (this.mode == PickerMode.MOB ? MOB_IDS : BLOCK_IDS);
 
         for (String id : source)
         {
@@ -392,6 +497,10 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
             this.itemName.setText(selected.getName().getString());
             this.updateItemNbt();
         }
+        else if (this.mode == PickerMode.MOB)
+        {
+            this.acceptMob(id, this.mobNbtText);
+        }
         else
         {
             Block block = Registries.BLOCK.get(Identifier.of(id));
@@ -424,6 +533,17 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         if (this.blockCallback != null)
         {
             this.blockCallback.accept(this.blockState);
+        }
+    }
+
+    private void acceptMob(String id, String nbt)
+    {
+        this.selectedId = id;
+        this.mobNbtText = nbt;
+
+        if (this.mobCallback != null)
+        {
+            this.mobCallback.accept(this.selectedId, this.mobNbtText);
         }
     }
 
@@ -624,7 +744,12 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
 
         private String labelFor(String id)
         {
-            return this.mode == PickerMode.ITEM ? itemLabel(id) : blockLabel(id);
+            if (this.mode == PickerMode.ITEM)
+            {
+                return itemLabel(id);
+            }
+
+            return this.mode == PickerMode.MOB ? mobLabel(id) : blockLabel(id);
         }
 
         @Override
@@ -659,6 +784,10 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
                 consumers.setUI(false);
                 matrices.pop();
             }
+            else if (this.mode == PickerMode.MOB)
+            {
+                context.batcher.icon(Icons.MORPH, Colors.A50 | Colors.WHITE, iconLeft + 1, iconTop + 1);
+            }
 
             int textX = iconLeft + LIST_ICON_SLOT + LIST_ICON_GAP;
             int maxW = this.area.w - (textX - x) - LIST_ICON_GAP;
@@ -669,7 +798,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
 
             String title = font.limitToWidth(this.labelFor(element), maxW);
             String idLine = font.limitToWidth(element, maxW);
-            int colorTitle = hover ? Colors.HIGHLIGHT : Colors.WHITE;
+            int colorTitle = RowStyle.textColor(hover || selected);
             int colorId = hover ? Colors.LIGHTER_GRAY : Colors.GRAY;
 
             int padY = (this.scroll.scrollItemSize - (lineH * 2 + 2)) / 2;

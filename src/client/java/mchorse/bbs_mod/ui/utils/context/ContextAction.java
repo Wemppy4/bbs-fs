@@ -1,9 +1,9 @@
 package mchorse.bbs_mod.ui.utils.context;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Colors;
 
@@ -62,7 +62,7 @@ public class ContextAction
     {
         if (hover)
         {
-            context.batcher.box(x, y, x + w, y + h, Colors.A50 | BBSSettings.primaryColor.get());
+            RowStyle.hover(context.batcher, x, y, w, h, 0);
         }
     }
 }
