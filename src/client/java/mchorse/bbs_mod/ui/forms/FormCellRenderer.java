@@ -40,7 +40,7 @@ public class FormCellRenderer
         context.batcher.clip(x, y, w, h, context);
 
         CellPainter.marks(context, x, y, w, h, state);
-        FormUtilsClient.renderPreview(form, context, x, y, x + w, y + h);
+        FormUtilsClient.renderPreview(form, context, x, y, x + w, y + h - (hasName(w) ? CellPainter.CAPTION_HEIGHT : 0));
         CellPainter.dim(context, x, y, w, h, state);
 
         if (hasName(w))

@@ -68,16 +68,18 @@ public class CellPainter
         return context.batcher.getFont().getWidth(label) < w - CAPTION_PADDING * 2;
     }
 
-    /** A caption along the bottom of a cell, on a gradient so it reads over any picture. */
+    /** A caption along the bottom of a cell, in the strip kept clear for it. */
     public static void caption(UIContext context, String label, int x, int y, int w, int h, boolean bright)
     {
         caption(context, label, x, y, w, h, bright, 1F);
     }
 
     /**
-     * The same caption, faded along with the picture above it. The gradient behind it keeps its
-     * own strength - it is there so the words read over whatever is under them, and a cell that
-     * is faint needs that as much as a solid one.
+     * The same caption, faded along with the picture above it.
+     *
+     * <p>Nothing is drawn behind it: cells keep {@link #CAPTION_HEIGHT} clear of their picture, so
+     * the words have the strip to themselves and the darkening that used to buy them contrast was
+     * only shading the cell's own ground.</p>
      */
     public static void caption(UIContext context, String label, int x, int y, int w, int h, boolean bright, float alpha)
     {
@@ -86,7 +88,6 @@ public class CellPainter
 
         label = font.limitToWidth(label, w - CAPTION_PADDING * 2);
 
-        batcher.gradientVBox(x, y + h - CAPTION_HEIGHT - 8, x + w, y + h, 0, Colors.A75);
         batcher.textShadow(label, x + (w - font.getWidth(label)) / 2, y + h - CAPTION_HEIGHT + (CAPTION_HEIGHT - font.getHeight()) / 2 + 1, Colors.mulA(bright ? Colors.WHITE : Colors.LIGHTEST_GRAY, alpha));
     }
 }
