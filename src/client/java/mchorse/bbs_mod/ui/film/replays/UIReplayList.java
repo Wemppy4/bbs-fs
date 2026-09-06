@@ -25,6 +25,7 @@ import mchorse.bbs_mod.settings.values.core.ValueForm;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.forms.structure.StructureCut;
+import mchorse.bbs_mod.forms.structure.StructureManager;
 import mchorse.bbs_mod.forms.structure.StructureSelection;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
@@ -1690,8 +1691,9 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
     /**
      * The wand's region as a replay: saved as a structure, cleared out of the world, and added as a
-     * form standing exactly where the blocks did. Destructive, so it asks first — and the message
-     * names the command that puts the build back, because Minecraft has no undo for this.
+     * form standing exactly where the blocks did. Destructive and without an undo, so it asks first
+     * — and the message names the structure the blocks live on as, since that file is all that is
+     * left of them.
      */
     private void cutSelectionIntoReplay()
     {
@@ -1702,7 +1704,8 @@ public class UIReplayList extends UIList<ReplayListEntry>
             return;
         }
 
-        String id = StructureCut.nextId(film.getId());
+        String path = StructureCut.nextPath(film.getId());
+        String id = StructureManager.assetId(path);
         BlockPos min = StructureSelection.getMin();
         BlockPos max = StructureSelection.getMax();
         Vec3i size = StructureSelection.getSize();
@@ -1712,7 +1715,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
         {
             if (confirmed)
             {
-                StructureCut.request(id, min, max, (ok) ->
+                StructureCut.request(path, min, max, (ok) ->
                 {
                     if (ok)
                     {

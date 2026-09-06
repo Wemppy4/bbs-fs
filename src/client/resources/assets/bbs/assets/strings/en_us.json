@@ -1175,7 +1175,7 @@
 	"bbs.ui.forms.editors.model.constraints.context.name": "Name...",
 	"bbs.ui.forms.editors.model.pose": "Pose",
 	"bbs.ui.structure_cut.title": "Build into a form",
-	"bbs.ui.structure_cut.confirm": "Save the region as a structure and clear it out of the world? %s blocks. The build comes back with /place template %s.",
+	"bbs.ui.structure_cut.confirm": "Save the region as a structure and clear it out of the world? %s blocks. There is no undo — the build lives on as the structure «%s».",
 	"bbs.ui.structure_cut.done": "Cut into «%s»",
 	"bbs.ui.structure_cut.failed": "Couldn't cut «%s» — the world is untouched",
 	"bbs.ui.structure_wand.corner_a": "Corner A",

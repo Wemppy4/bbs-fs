@@ -12,22 +12,19 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StructureTemplate;
-import net.minecraft.structure.StructureTemplateManager;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.InvalidIdentifierException;
 import net.minecraft.util.math.BlockPos;
 
 import java.io.File;
 
 /**
- * Writes a region of the world out as a structure NBT file, the same one the {@code bbs:structure}
- * form later reads back out of {@code world/generated}.
+ * Writes a region of the world out as a structure NBT file, the one the {@code bbs:structure} form
+ * later reads back.
  *
- * <p>Both ways in end up here, each with its own destination. The {@code /bbs structures save}
- * command names a world id and writes the world's own file, the one vanilla would. The structure
- * wand writes into BBS's {@code structures} assets folder instead: what it captures is meant for
- * films, and a film outlives the save it was shot in. Neither goes through the vanilla structure
- * block, whose 48-block-per-axis cap this deliberately sidesteps.</p>
+ * <p>Every way in — the {@code /bbs structures save} command, the structure wand, the film's cut —
+ * writes into the same place: BBS's {@code structures} assets folder. Nothing BBS saves goes into
+ * the world's own {@code generated} folder any more; structures written there by vanilla structure
+ * blocks are still read, but they are the world's, not ours. None of this goes through the vanilla
+ * structure block either, whose 48-block-per-axis cap is deliberately sidestepped.</p>
  */
 public class StructureSaver
 {
@@ -39,47 +36,13 @@ public class StructureSaver
     public static final String ASSETS_FOLDER = "structures";
 
     /**
-     * @param name structure id ({@code namespace:path}, plain names land in {@code minecraft:})
-     * @param from either corner of the region, inclusive
-     * @param to the opposite corner, inclusive
-     * @return whether the file was written
-     */
-    public static boolean save(ServerWorld world, String name, BlockPos from, BlockPos to)
-    {
-        StructureTemplateManager manager = world.getStructureTemplateManager();
-        Identifier id;
-        StructureTemplate template;
-
-        try
-        {
-            id = new Identifier(name);
-            template = manager.getTemplateOrBlank(id);
-        }
-        catch (InvalidIdentifierException e)
-        {
-            return false;
-        }
-
-        template.saveFromWorld(world, min(from, to), size(from, to), true, Blocks.STRUCTURE_VOID);
-
-        try
-        {
-            return manager.saveTemplate(id);
-        }
-        catch (InvalidIdentifierException e)
-        {
-            return false;
-        }
-    }
-
-    /**
-     * Write the region into BBS's own {@code structures} folder, where it is addressed as
+     * Write the region into BBS's {@code structures} folder, where it is addressed as
      * {@code assets:path} and is there in every world.
      *
      * @param path file path under the structures folder, without the extension
      * @return whether the file was written
      */
-    public static boolean saveToAssets(ServerWorld world, String path, BlockPos from, BlockPos to)
+    public static boolean save(ServerWorld world, String path, BlockPos from, BlockPos to)
     {
         File folder = BBSMod.getAssetsPath(ASSETS_FOLDER);
         File file = new File(folder, path + ".nbt");
