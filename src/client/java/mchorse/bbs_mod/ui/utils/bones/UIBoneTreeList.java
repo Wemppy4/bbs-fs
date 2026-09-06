@@ -499,7 +499,7 @@ public class UIBoneTreeList extends UIStringList
         int textX = x + this.rowContentX(element) + this.arrowSlot();
         int right = this.renderMarkers(context, element, x, y, h);
 
-        this.renderArrow(context, element, x, y);
+        this.renderArrow(context, element, x, y, hover || selected);
 
         if (right < x + this.area.w)
         {

@@ -764,7 +764,7 @@ public class UIFormCategory extends UIItemGrid<Form>
         int ix = x + UIList.ROW_PADDING;
         int textX = x + UIList.iconRowTextX(UIList.ROW_PADDING);
 
-        UISection.renderArrow(context, ix + UIList.ARROW_SLOT / 2F, my, expanded);
+        UISection.renderArrow(context, ix + UIList.ARROW_SLOT / 2F, my, expanded, RowStyle.iconColor(lit));
         batcher.icon(this.category.icon, RowStyle.iconColor(lit), ix + UIList.ARROW_SLOT + UIList.ICON_SLOT / 2F, my, 0.5F, 0.5F);
 
         String title = this.category.getProcessedTitle();

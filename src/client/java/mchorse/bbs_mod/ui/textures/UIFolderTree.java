@@ -399,7 +399,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         else
         {
             ItemDrag<TextureEntry> drag = this.browser.getDrag();
-            boolean current = node.folder() ? this.browser.isCurrentFolder(node.link()) : this.browser.isCurrentTexture(node.link());
+            boolean current = this.isCurrent(node);
             boolean target = false;
 
             /* A folder can't receive itself; the carried entries are matched by link since the tree has no entries */
@@ -421,6 +421,12 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         }
     }
 
+    /** Where the browser currently is, which is this tree's idea of the pick. */
+    private boolean isCurrent(Node node)
+    {
+        return node.folder() ? this.browser.isCurrentFolder(node.link()) : this.browser.isCurrentTexture(node.link());
+    }
+
     @Override
     protected void renderElementPart(UIContext context, Node node, int i, int x, int y, boolean hover, boolean selected)
     {
@@ -429,8 +435,9 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         int h = this.rowHeight();
         int my = y + h / 2;
         boolean missing = node.pin() && this.isMissing(node);
-        int color = missing ? RowStyle.textColor(hover, Colors.GRAY) : RowStyle.textColor(hover);
-        int iconColor = missing ? color : RowStyle.iconColor(hover);
+        boolean lit = hover || this.isCurrent(node);
+        int color = missing ? RowStyle.textColor(lit, Colors.GRAY) : RowStyle.textColor(lit);
+        int iconColor = missing ? color : RowStyle.iconColor(lit);
 
         /* A folder of the mod's own can't be changed, and its name says so by going faint -
          * the same fade the grid gives such a cell's name. What a pin is, its title says. */
@@ -441,7 +448,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
         int iconX = ix + ARROW_SLOT;
         int textX = iconRowTextX(ix);
 
-        this.renderArrow(context, node, x, y);
+        this.renderArrow(context, node, x, y, lit);
 
         if (node.folder())
         {
@@ -480,7 +487,7 @@ public class UIFolderTree extends UIList<UIFolderTree.Node>
 
         int textX = iconRowTextX(ix);
 
-        this.renderArrow(context, node, x, y);
+        this.renderArrow(context, node, x, y, hover);
         context.batcher.icon(Icons.BOOKMARK, iconColor, ix + ARROW_SLOT, my - 8);
 
         String title = font.limitToWidth(UIKeys.TEXTURES_BROWSER_PINNED.get(), this.area.ex() - 4 - textX);

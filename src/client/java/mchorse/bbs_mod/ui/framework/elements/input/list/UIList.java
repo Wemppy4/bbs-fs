@@ -333,14 +333,17 @@ public abstract class UIList <T> extends UIItems<T>
         return !last && depth > 0 ? lines | (1 << (depth - 1)) : lines;
     }
 
-    /** Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. */
-    protected void renderArrow(UIContext context, T element, int x, int y)
+    /**
+     * Draw the fold arrow of a branch row at screen {@code x}/{@code y}; nothing for a leaf. It
+     * rests and lifts with the rest of the row, so a row reads as one thing.
+     */
+    protected void renderArrow(UIContext context, T element, int x, int y, boolean lit)
     {
         Boolean expanded = this.branch(element);
 
         if (expanded != null)
         {
-            UISection.renderArrow(context, x + this.rowContentX(element) + ARROW_SLOT / 2, y + this.scroll.scrollItemSize / 2, expanded);
+            UISection.renderArrow(context, x + this.rowContentX(element) + ARROW_SLOT / 2, y + this.scroll.scrollItemSize / 2, expanded, RowStyle.iconColor(lit));
         }
     }
 
@@ -1273,7 +1276,7 @@ public abstract class UIList <T> extends UIItems<T>
     {
         int textX = x + this.rowContentX(element) + (this.branch(element) != null ? ARROW_SLOT : 0);
 
-        this.renderArrow(context, element, x, y);
+        this.renderArrow(context, element, x, y, hover || selected);
         context.batcher.textShadow(this.elementToString(context, i, element), textX, y + (this.scroll.scrollItemSize - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
     }
 

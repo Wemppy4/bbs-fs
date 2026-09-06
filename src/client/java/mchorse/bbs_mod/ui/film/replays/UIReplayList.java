@@ -1869,7 +1869,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
             int textX = x + iconRowTextX(this.rowContentX(element));
 
             this.renderTreeGuides(context, x, y, element.depth, element.lines, element.last, iconX);
-            this.renderArrow(context, element, x, y);
+            this.renderArrow(context, element, x, y, hover || selected);
             context.batcher.icon(Icons.FOLDER, RowStyle.iconColor(hover || selected), iconX, y + (rowHeight - 16) / 2);
             context.batcher.textShadow(this.elementToString(context, i, element), textX, textY, RowStyle.textColor(hover || selected));
 

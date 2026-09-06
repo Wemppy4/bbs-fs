@@ -235,7 +235,7 @@ public class UISection extends UIElement
 
         if (expanded != null)
         {
-            renderArrow(context, right - ARROW_SIZE / 2F, area.my(), expanded);
+            renderArrow(context, right - ARROW_SIZE / 2F, area.my(), expanded, color);
             right -= ARROW_SIZE + 2;
         }
 
@@ -249,12 +249,18 @@ public class UISection extends UIElement
      */
     public static void renderArrow(UIContext context, float cx, float cy, boolean expanded)
     {
+        renderArrow(context, cx, cy, expanded, Colors.WHITE);
+    }
+
+    /** The same arrow, at the strength of whatever it belongs to — a resting row's arrow rests too. */
+    public static void renderArrow(UIContext context, float cx, float cy, boolean expanded, int color)
+    {
         MatrixStack matrices = context.batcher.getContext().getMatrices();
 
         matrices.push();
         matrices.translate(cx, cy, 0F);
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(expanded ? 90F : 0F), 0F, 0F, 0F);
-        context.batcher.icon(Icons.ARROW_SMALL, Colors.WHITE, 0, 0, 0.5F, 0.5F);
+        context.batcher.icon(Icons.ARROW_SMALL, color, 0, 0, 0.5F, 0.5F);
         matrices.pop();
     }
 
