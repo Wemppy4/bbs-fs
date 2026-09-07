@@ -25,6 +25,7 @@ import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Vectors;
+import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gl.VertexBuffer;
@@ -97,11 +98,28 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
     }
 
+    /**
+     * How deep in nested framebuffer forms the render currently is. The profiler's timer keeps
+     * a single start per subsystem, so only the outermost framebuffer runs it - an inner one
+     * would restart the clock and the outer one's remainder would be lost.
+     */
+    private static int renderDepth;
+
     @Override
     public void renderBodyParts(FormRenderingContext context)
     {
         FramebufferPool pool = BBSModClient.getFramebuffers().getFormFramebuffers();
         Framebuffer framebuffer = pool.get(MathUtils.clamp(this.form.width.get(), 2, 4096), MathUtils.clamp(this.form.height.get(), 2, 4096));
+        boolean outermost = renderDepth == 0;
+
+        BBSProfiler.count(BBSProfiler.Section.FRAMEBUFFER_RENDERS);
+
+        if (outermost)
+        {
+            BBSProfiler.begin(BBSProfiler.Timer.FRAMEBUFFER_FORMS);
+        }
+
+        renderDepth += 1;
 
         try
         {
@@ -109,7 +127,13 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
         finally
         {
+            renderDepth -= 1;
             pool.release(framebuffer);
+
+            if (outermost)
+            {
+                BBSProfiler.end(BBSProfiler.Timer.FRAMEBUFFER_FORMS);
+            }
         }
     }
 
