@@ -31,6 +31,7 @@ public class StubEntity implements IEntity
     private boolean fallFlying;
     private float fallDistance;
     private int hurtTimer;
+    private int deathTime;
 
     /** Hands every stub its own {@link #getId()}: a number that stays put for the life of the instance. */
     private static int nextId;
@@ -292,6 +293,18 @@ public class StubEntity implements IEntity
     public void setHurtTimer(int hurtTimer)
     {
         this.hurtTimer = hurtTimer;
+    }
+
+    @Override
+    public int getDeathTime()
+    {
+        return this.deathTime;
+    }
+
+    @Override
+    public void setDeathTime(int deathTime)
+    {
+        this.deathTime = deathTime;
     }
 
     @Override
