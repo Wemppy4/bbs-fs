@@ -14,6 +14,7 @@ import mchorse.bbs_mod.resources.packs.URLSourcePack;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.textures.TextureEntry;
+import mchorse.bbs_mod.ui.textures.TextureFiles;
 import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.textures.UITextureBrowser;
 import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelTopBar;
@@ -39,6 +40,7 @@ import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import mchorse.bbs_mod.utils.resources.FilteredLink;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
 import mchorse.bbs_mod.utils.resources.MultiLink;
 import org.apache.commons.io.IOUtils;
@@ -130,21 +132,22 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         {
             String string = link.toString();
 
-            if (string.endsWith(".png") && !string.contains(":textures/banners/")) list.add(string);
+            if (TextureFiles.isTexture(link) && !string.contains(":textures/banners/")) list.add(string);
         }
 
+        /* A URL may go on past the extension */
         for (Link link : BBSMod.getProvider().getLinksFromPath(new Link("http", "")))
         {
             String string = link.toString();
 
-            if (string.contains(".png")) list.add(string);
+            if (string.contains(".png") || string.contains(GifFrames.EXTENSION)) list.add(string);
         }
 
         for (Link link : BBSMod.getProvider().getLinksFromPath(new Link("https", "")))
         {
             String string = link.toString();
 
-            if (string.contains(".png")) list.add(string);
+            if (string.contains(".png") || string.contains(GifFrames.EXTENSION)) list.add(string);
         }
 
         UIListOverlayPanel panel = new UIListOverlayPanel(UIKeys.TEXTURE_FIND_TITLE, callback);

@@ -140,7 +140,7 @@ public class UISaveTextureOverlayPanel extends UIOverlayPanel implements IFolder
         {
             for (Link link : BBSMod.getProvider().getLinksFromPath(this.folder, false))
             {
-                if (link.path.endsWith(".png"))
+                if (TextureFiles.isTexture(link))
                 {
                     entries.add(TextureEntry.of(link));
                 }

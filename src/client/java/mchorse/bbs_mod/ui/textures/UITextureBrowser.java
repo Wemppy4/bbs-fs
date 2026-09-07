@@ -35,6 +35,7 @@ import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
 import mchorse.bbs_mod.utils.resources.PlayerSkins;
 import org.lwjgl.glfw.GLFW;
@@ -540,7 +541,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         {
             for (Link link : BBSMod.getProvider().getLinksFromPath(this.path, false))
             {
-                if (link.path.endsWith("/") || link.path.endsWith(".png"))
+                if (link.path.endsWith("/") || TextureFiles.isTexture(link))
                 {
                     list.add(TextureEntry.of(link));
                 }
@@ -574,7 +575,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         {
             for (Link link : BBSMod.getProvider().getLinksFromPath(root, true))
             {
-                if (!link.path.endsWith(".png") || link.path.contains("textures/banners/"))
+                if (!TextureFiles.isTexture(link) || link.path.contains("textures/banners/"))
                 {
                     continue;
                 }
@@ -926,7 +927,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             return;
         }
 
-        UIFileDialogs.pickFile(UIKeys.TEXTURES_BROWSER_IMPORT_TITLE, into, new String[] {"*.png"}, UIKeys.TEXTURES_BROWSER_IMPORT_FILTER, (file) ->
+        UIFileDialogs.pickFile(UIKeys.TEXTURES_BROWSER_IMPORT_TITLE, into, new String[] {"*.png", "*.gif"}, UIKeys.TEXTURES_BROWSER_IMPORT_FILTER, (file) ->
         {
             if (file == null || !file.isFile())
             {
@@ -1335,8 +1336,8 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             {
                 menu.action(Icons.FILM, UIKeys.TEXTURES_BROWSER_COMBINE.format(String.valueOf(frames.size())), () -> this.promptCombine(frames));
             }
-            /* A texture on disk that isn't animated yet: into the editor with the animation on */
-            else if (file != null && file.isFile() && !TextureAnimation.file(file).isFile())
+            /* A texture on disk that isn't animated yet (a GIF always is): into the editor with the animation on */
+            else if (file != null && file.isFile() && !GifFrames.isGif(link) && !TextureAnimation.file(file).isFile())
             {
                 menu.action(Icons.FILM, UIKeys.TEXTURES_MAKE_ANIMATED, () -> this.picker.openTextureAnimated(link));
             }

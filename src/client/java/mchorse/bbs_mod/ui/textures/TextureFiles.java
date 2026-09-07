@@ -7,6 +7,7 @@ import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
 import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.utils.PNGEncoder;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import mchorse.bbs_mod.utils.resources.Pixels;
 import mchorse.bbs_mod.utils.resources.PlayerSkins;
 
@@ -76,6 +77,12 @@ public class TextureFiles
         File file = file(link);
 
         return file != null && file.isDirectory();
+    }
+
+    /** The picture files a browser lists and a picker offers: PNG, and GIF, which plays as an animation. */
+    public static boolean isTexture(Link link)
+    {
+        return link.path.endsWith(".png") || GifFrames.isGif(link);
     }
 
     public static Link rename(Link link, String newName)
