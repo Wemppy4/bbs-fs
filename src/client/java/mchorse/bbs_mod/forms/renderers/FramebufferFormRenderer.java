@@ -137,6 +137,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         Vector3f light0 = RenderSystem.shaderLightDirections[0];
         Vector3f light1 = RenderSystem.shaderLightDirections[1];
         Matrix4f projectionMatrix = new Matrix4f(RenderSystem.getProjectionMatrix());
+        VertexSorter vertexSorter = RenderSystem.getVertexSorting();
+        int cullFace = GL11.glGetInteger(GL11.GL_CULL_FACE_MODE);
 
         GL30.glCullFace(GL30.GL_FRONT);
         /* Both lights along Z, one each way. The picture in here is meant to be flat, and the
@@ -150,6 +152,12 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         RenderSystem.getModelViewStack().push();
         RenderSystem.getModelViewStack().peek().getPositionMatrix().identity();
         RenderSystem.getModelViewStack().peek().getNormalMatrix().identity();
+
+        /* Pushing the identity is not enough - the programs read the APPLIED matrix, and in the
+         * interface that is the GUI's translate(0, 0, -11000): with our ortho reaching only
+         * 500 units deep, every vertex of the parts landed outside it and the buffer stayed
+         * empty. In the world the applied matrix is the identity already, so nothing changes. */
+        RenderSystem.applyModelViewMatrix();
 
         framebuffer.apply();
 
@@ -197,8 +205,12 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         RenderSystem.setShaderLights(light0, light1);
         RenderSystem.getModelViewStack().pop();
-        RenderSystem.setProjectionMatrix(projectionMatrix, VertexSorter.BY_Z);
-        GL30.glCullFace(GL30.GL_BACK);
+        RenderSystem.applyModelViewMatrix();
+
+        /* As they were, not as they usually are: the world sorts by distance from the camera,
+         * and leaving BY_Z behind would mis-order its translucency for the rest of the frame. */
+        RenderSystem.setProjectionMatrix(projectionMatrix, vertexSorter);
+        GL11.glCullFace(cullFace);
 
         boolean shading = !context.isPicking();
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
