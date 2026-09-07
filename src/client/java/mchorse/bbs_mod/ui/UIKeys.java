@@ -472,10 +472,6 @@ public class UIKeys
     public static final IKey FORMS_CATEGORIES_CONTEXT_MOVE_TO = L10n.lang("bbs.ui.forms.categories.context.move_to");
     public static final IKey FORMS_CATEGORIES_CONTEXT_MOVE_TO_CATEGORY = L10n.lang("bbs.ui.forms.categories.context.move_to_category");
     public static final IKey FORMS_CATEGORIES_CONTEXT_REMOVE_SELECTED = L10n.lang("bbs.ui.forms.categories.context.remove_selected");
-    public static final IKey FORMS_CATEGORIES_SORT = L10n.lang("bbs.ui.forms.categories.sort");
-    public static final IKey FORMS_CATEGORIES_SORT_MANUAL = L10n.lang("bbs.ui.forms.categories.sort.manual");
-    public static final IKey FORMS_CATEGORIES_SORT_NAME = L10n.lang("bbs.ui.forms.categories.sort.name");
-    public static final IKey FORMS_CATEGORIES_SORT_TYPE = L10n.lang("bbs.ui.forms.categories.sort.type");
     public static final IKey FORMS_CATEGORIES_CONTEXT_EXPORT_MODEL = L10n.lang("bbs.ui.forms.categories.context.export_model");
     public static final IKey FORMS_CATEGORIES_CONTEXT_EXPORT_MODEL_DESCRIPTION = L10n.lang("bbs.ui.forms.categories.context.export_model-description");
     public static final IKey FORMS_CATEGORIES_CONTEXT_EXPORT_MODEL_TITLE = L10n.lang("bbs.ui.forms.categories.context.export_model-title");

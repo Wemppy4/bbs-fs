@@ -634,19 +634,15 @@ public class UIFormList extends UIElement
         }
 
         boolean copy = Window.isCtrlPressed();
-        boolean rearrangeable = into.getSort().isRearrangeable();
 
         for (Form form : forms)
         {
             FormCategory from = this.categoryOf(form);
-            int index = before == null || !rearrangeable ? into.getForms().size() : this.selection.indexOf(into.getForms(), before);
+            int index = before == null ? into.getForms().size() : this.selection.indexOf(into.getForms(), before);
 
             if (from == into && !copy)
             {
-                if (rearrangeable)
-                {
-                    into.moveForm(form, index);
-                }
+                into.moveForm(form, index);
 
                 continue;
             }

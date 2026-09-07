@@ -4,7 +4,6 @@ import mchorse.bbs_mod.data.IMapSerializable;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.forms.FormSort;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -29,11 +28,10 @@ public class FormCategory implements IMapSerializable
     public Icon icon = Icons.FOLDER;
 
     private final List<Form> forms = new ArrayList<>();
-    private FormSort sort = FormSort.MANUAL;
 
     /**
-     * Bumped on every change to {@link #forms} or {@link #sort}, so a view over them (sorted,
-     * searched) can tell when it's stale without comparing lists.
+     * Bumped on every change to {@link #forms}, so a view over them (searched) can tell when
+     * it's stale without comparing lists.
      */
     private int modCount;
 
@@ -59,17 +57,6 @@ public class FormCategory implements IMapSerializable
     public boolean canModify(Form form)
     {
         return false;
-    }
-
-    public FormSort getSort()
-    {
-        return this.sort;
-    }
-
-    public void setSort(FormSort sort)
-    {
-        this.sort = sort == null ? FormSort.MANUAL : sort;
-        this.modCount += 1;
     }
 
     public int getModCount()
