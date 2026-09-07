@@ -546,6 +546,7 @@
 	"bbs.ui.camera.panels.curve.remove": "Удалить кривую",
 	"bbs.ui.camera.panels.curves.brightness": "Яркость",
 	"bbs.ui.camera.panels.curves.sun_rotation": "Вращение солнца",
+	"bbs.ui.camera.panels.curves.sun_horizontal_rotation": "Вращение солнца по горизонтали (градусы)",
 	"bbs.ui.camera.panels.curves.weather": "Погода",
 	"bbs.ui.camera.panels.curves.chroma_sky_color": "Цвет хрома неба",
 	"bbs.ui.camera.panels.deterministic": "Детерминированный",
