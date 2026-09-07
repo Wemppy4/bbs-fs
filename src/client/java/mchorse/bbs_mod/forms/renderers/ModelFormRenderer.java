@@ -37,7 +37,6 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
-import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.ui.utils.pose.PoseBones;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
@@ -978,20 +977,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             try
             {
-                if (FramebufferDebug.logging)
-                {
-                    FramebufferDebug.log("model", "shader=" + FramebufferDebug.shader(shader.get())
-                        + " cutout=" + cutout + " noBlend=" + noBlend + " irisWorld=" + irisWorld
-                        + " light=" + context.light + " overlay=" + context.overlay
-                        + " contextColor=rgba(" + contextColor.r + ", " + contextColor.g + ", " + contextColor.b + ", " + contextColor.a + ")"
-                        + " formColor=rgba(" + formColor.r + ", " + formColor.g + ", " + formColor.b + ", " + formColor.a + ")");
-                    FramebufferDebug.log("model", FramebufferDebug.lights());
-                    FramebufferDebug.log("model", FramebufferDebug.glState());
-                    FramebufferDebug.log("model", FramebufferDebug.fog());
-                    FramebufferDebug.log("model", FramebufferDebug.modelView());
-                    FramebufferDebug.log("model", FramebufferDebug.samplers());
-                }
-
                 this.renderModel(context.entity, shader, context.stack, model, context.light, context.overlay, contextColor, formColor, false, context.stencilMap, context.getTransition(), context.world);
             }
             finally
