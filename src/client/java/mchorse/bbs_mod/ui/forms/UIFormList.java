@@ -237,6 +237,12 @@ public class UIFormList extends UIElement
             category.setCellSize(this.getCellSize());
         }
 
+        /* Two passes: a category can only measure itself once it has been placed (it needs its
+         * real width), and it reports the new height as a layout to run later rather than
+         * resizing this list from inside the pass. The second pass places them at those
+         * heights, so whoever reads a category's area right after this — scrollToSelectedForm()
+         * — reads final offsets. */
+        this.resize();
         this.resize();
     }
 
