@@ -14,9 +14,8 @@ import mchorse.bbs_mod.forms.forms.FramebufferForm;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.Framebuffer;
-import mchorse.bbs_mod.graphics.Renderbuffer;
+import mchorse.bbs_mod.graphics.FramebufferPool;
 import mchorse.bbs_mod.graphics.texture.Texture;
-import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -44,7 +43,6 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
@@ -56,9 +54,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 {
     private static final Quad quad = new Quad();
     private static final Quad uvQuad = new Quad();
-
-    /* Nested framebuffer forms must each render into their own framebuffer */
-    private static int depth;
 
     private IEntity entity = new StubEntity();
 
@@ -100,23 +95,21 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
     @Override
     public void renderBodyParts(FormRenderingContext context)
     {
-        Framebuffer framebuffer = BBSModClient.getFramebuffers().getFramebuffer(Link.bbs("framebuffer_form_" + depth), (f) ->
+        FramebufferPool pool = BBSModClient.getFramebuffers().getFormFramebuffers();
+        Framebuffer framebuffer = pool.get(MathUtils.clamp(this.form.width.get(), 2, 4096), MathUtils.clamp(this.form.height.get(), 2, 4096));
+
+        try
         {
-            Texture texture = new Texture();
+            this.renderFramebuffer(context, framebuffer);
+        }
+        finally
+        {
+            pool.release(framebuffer);
+        }
+    }
 
-            texture.setSize(2, 2);
-            texture.setFilter(GL11.GL_NEAREST);
-            texture.setWrap(GL13.GL_CLAMP_TO_EDGE);
-
-            Renderbuffer renderbuffer = new Renderbuffer();
-
-            renderbuffer.resize(2, 2);
-
-            f.deleteTextures().attach(texture, GL30.GL_COLOR_ATTACHMENT0);
-            f.attach(renderbuffer);
-            f.unbind();
-        });
-
+    private void renderFramebuffer(FormRenderingContext context, Framebuffer framebuffer)
+    {
         int width;
         int height;
 
@@ -130,9 +123,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             height = viewport.get(3);
         }
 
-        Texture mainTexture = framebuffer.getMainTexture();
-        int w = MathUtils.clamp(this.form.width.get(), 2, 4096);
-        int h = MathUtils.clamp(this.form.height.get(), 2, 4096);
         int prevDraw = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int prevRead = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
         boolean scissorEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
@@ -153,11 +143,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         framebuffer.apply();
 
-        if (w != mainTexture.width || h != mainTexture.height)
-        {
-            framebuffer.resize(w, h);
-        }
-
         /* Whoever was drawing before us may have left a scissor box — the UI clips its
          * viewport that way — and it would clip this framebuffer's own pixels too. */
         RenderSystem.disableScissor();
@@ -170,8 +155,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         context.stack.peek().getNormalMatrix().identity();
         context.stack.scale(scale, scale, scale);
 
-        depth += 1;
-
         /* The nested forms render under an ortho projection into this framebuffer — deferring
          * their translucent pixels into the world's queue would replay them with the wrong
          * projection, so they render single-pass as before. */
@@ -183,8 +166,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
         finally
         {
-            depth -= 1;
-
             FormTranslucentQueue.restore(queueWasActive);
         }
 
@@ -266,7 +247,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         RenderSystem.setShader(shader);
 
         texture.bind();
-        texture.setFilterMipmap(false, false);
         builder.begin(VertexFormat.DrawMode.TRIANGLES, format);
 
         /* Front */
@@ -294,9 +274,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         {
             /* The framebuffer's content is transparent-background by nature, so the whole quad
              * defers into the sorted translucent pass. The command binds the framebuffer's live
-             * texture at flush — with several framebuffer forms at the same nesting depth they
-             * share one framebuffer, so their deferred quads would all show the last-rendered
-             * content; a known trade-off of the shared framebuffer scheme. */
+             * texture at flush — and the pool hands the same buffer to the next form of the
+             * same size, so several deferred quads would all show the last-rendered content;
+             * a known trade-off of the pooled framebuffer scheme. */
             ShaderProgram finalShader = RenderSystem.getShader();
             VertexBuffer buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
 
