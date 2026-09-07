@@ -15,6 +15,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorK
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 import java.util.function.Consumer;
 
@@ -150,7 +151,7 @@ public class UIReplayPropertiesPanel extends UIElement
                     this.edit((r) -> r.axesPreviewBone.set(s));
                 });
             }
-        });
+        }).icon(Icons.LIMB);
 
         UISection shadowSection = new UISection(UIKeys.FILM_REPLAY_SHADOW);
 

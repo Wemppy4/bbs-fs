@@ -9,6 +9,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -96,7 +97,7 @@ public class UIMaterialFormPanel extends UIFormPanel
         this.lighting.limit(0D, 1D);
         this.lighting.tooltip(UIKeys.FORMS_EDITORS_GENERAL_LIGHTING_TOOLTIP);
 
-        this.pickTexture = new UIButton(UIKeys.FORMS_EDITOR_MODEL_PICK_TEXTURE, (b) -> this.openTexturePicker());
+        this.pickTexture = new UIButton(UIKeys.FORMS_EDITOR_MODEL_PICK_TEXTURE, (b) -> this.openTexturePicker()).icon(Icons.MATERIAL);
 
         this.layer = new UICirculate((b) -> this.form.renderLayer.set(b.getValue()));
         this.layer.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_LAYER_AUTO);

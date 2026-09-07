@@ -62,7 +62,7 @@ public class UIParticleSchemeGeneralSection extends UIParticleSchemeSection
                 this.scheme.texture = link;
                 this.editor.dirty();
             });
-        });
+        }).icon(Icons.MATERIAL);
 
         this.material = new UIIcons((b) ->
         {

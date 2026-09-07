@@ -70,7 +70,7 @@ public class UIBodyPartEditor extends UIScrollView
                 this.editor.refreshFormList();
                 this.editor.switchEditor(partForm);
             });
-        });
+        }).icon(Icons.MORPH);
 
         this.useTarget = new UIToggle(UIKeys.FORMS_EDITOR_USE_TARGET, (b) ->
         {

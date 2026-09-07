@@ -10,6 +10,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIImageClip extends UIClip<ImageClip>
 {
@@ -33,7 +34,7 @@ public class UIImageClip extends UIClip<ImageClip>
         this.pickTexture = new UIButton(UIKeys.CAMERA_PANELS_IMAGE_PICK, (b) ->
         {
             UITexturePicker.open(this.getContext(), this.clip.texture.get(), (l) -> this.editor.editMultiple(this.clip.texture, (value) -> value.set(l)));
-        });
+        }).icon(Icons.MATERIAL);
         this.fullscreen = this.toggle(UIKeys.CAMERA_PANELS_IMAGE_FULLSCREEN, this.clip.fullscreen);
         this.smooth = this.toggle(UIKeys.CAMERA_PANELS_IMAGE_SMOOTH, this.clip.smooth);
         this.color = this.color(this.clip.color).withAlpha();

@@ -9,6 +9,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIStringOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 public class UIVideoFormPanel extends UIFormPanel<VideoForm>
@@ -22,7 +23,7 @@ public class UIVideoFormPanel extends UIFormPanel<VideoForm>
             UIStringOverlayPanel panel = UIStringOverlayPanel.links(UIKeys.CAMERA_PANELS_VIDEO_PICK, UIVideoClip.getVideoLinks(), (l) -> this.form.video.set(l));
 
             UIOverlay.addOverlay(this.getContext(), panel.set(this.form.video.get()));
-        });
+        }).icon(Icons.VIDEO_CAMERA);
 
         this.options.add(pickVideo);
         this.options.add(

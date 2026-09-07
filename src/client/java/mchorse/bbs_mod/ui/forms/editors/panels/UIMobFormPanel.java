@@ -12,6 +12,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
 
 public class UIMobFormPanel extends UIFormPanel<MobForm>
@@ -29,7 +30,7 @@ public class UIMobFormPanel extends UIFormPanel<MobForm>
             Link link = this.form.texture.get();
 
             UITexturePicker.open(this.getContext(), link, (l) -> this.form.texture.set(l));
-        });
+        }).icon(Icons.MATERIAL);
         UIToggle slim = UIValues.toggle(UIKeys.FORMS_EDITOR_SLIM, () -> this.form.slim);
 
         slim.tooltip(UIKeys.FORMS_EDITOR_SLIM_TOOLTIP);

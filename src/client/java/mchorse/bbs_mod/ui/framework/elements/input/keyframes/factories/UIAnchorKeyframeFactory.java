@@ -100,11 +100,11 @@ public class UIAnchorKeyframeFactory extends UIKeyframeFactory<Anchor>
     {
         super(keyframe, editor);
 
-        this.actor = new UIButton(UIKeys.GENERIC_KEYFRAMES_ANCHOR_PICK_ACTOR, (b) -> this.displayActors());
+        this.actor = new UIButton(UIKeys.GENERIC_KEYFRAMES_ANCHOR_PICK_ACTOR, (b) -> this.displayActors()).icon(Icons.PLAYER);
         this.attachment = new UIButton(UIKeys.GENERIC_KEYFRAMES_ANCHOR_PICK_ATTACHMENT, (b) ->
         {
             displayAttachments(this.getPanel(), this.keyframe.getValue().replay, this.keyframe.getValue().attachment, this::setAttachment);
-        });
+        }).icon(Icons.LIMB);
         /* Which components of the target's frame the form rides, as one strip: the same three icons
          * the gizmo and the body part editor use for the same three ideas. The anchor's flags are
          * plain fields rather than values, so the cells are bound by getter and setter. */

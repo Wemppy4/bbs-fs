@@ -71,7 +71,7 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
             });
 
             UIOverlay.addOverlay(this.getContext(), panel.set(this.clip.font.get()));
-        });
+        }).icon(Icons.FONT);
         this.openFontFolder = new UIIcon(Icons.FOLDER, (b) ->
         {
             File folder = FontManager.getFolder();
@@ -88,7 +88,7 @@ public class UISubtitleClip extends UIClip<SubtitleClip>
         this.pickImage = new UIButton(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE_PICK, (b) ->
         {
             UITexturePicker.open(this.getContext(), this.clip.image.get(), (l) -> this.editor.editMultiple(this.clip.image, (value) -> value.set(l)));
-        });
+        }).icon(Icons.MATERIAL);
         this.imageRight = this.toggle(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE_RIGHT, this.clip.imageRight);
         this.imageScale = this.trackpad(this.clip.imageScale).limit(0);
         this.imageScale.tooltip(UIKeys.CAMERA_PANELS_SUBTITLE_IMAGE_SIZE, Direction.BOTTOM);
