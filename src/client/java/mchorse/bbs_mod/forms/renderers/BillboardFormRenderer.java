@@ -7,6 +7,7 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -225,6 +226,19 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
         }
 
         ShaderProgram finalShader = shader.get();
+
+        if (FramebufferDebug.logging)
+        {
+            FramebufferDebug.log("billboard", "shader=" + FramebufferDebug.shader(finalShader)
+                + " format=" + (format == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL ? "SHADED" : "UNLIT")
+                + " color=rgba(" + color.r + ", " + color.g + ", " + color.b + ", " + color.a + ")"
+                + " light=" + light + " overlay=" + overlay + " overlayActive=" + overlayActive
+                + " billboardFlag=" + this.form.billboard.get());
+            FramebufferDebug.log("billboard", "normalMatrix=" + normal
+                + " texture=" + FramebufferDebug.texture(texture));
+            FramebufferDebug.log("billboard", FramebufferDebug.lights());
+            FramebufferDebug.log("billboard", FramebufferDebug.glState());
+        }
 
         BBSModClient.getTextures().bindTexture(texture);
         RenderSystem.setShader(() -> finalShader);

@@ -11,6 +11,7 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.Framebuffer;
@@ -163,6 +164,21 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
          * projection, so they render single-pass as before. */
         boolean queueWasActive = FormTranslucentQueue.suspend();
 
+        if (FramebufferDebug.begin())
+        {
+            Texture main = framebuffer.getMainTexture();
+
+            FramebufferDebug.log("buffer", main.width + "x" + main.height
+                + " scale=" + this.form.scale.get()
+                + " parts=" + this.form.parts.getAll().size()
+                + " picking=" + context.isPicking()
+                + " light=" + context.light + " overlay=" + context.overlay
+                + " contextColor=" + Integer.toHexString(context.color));
+            FramebufferDebug.log("buffer", FramebufferDebug.iris());
+            FramebufferDebug.log("buffer", FramebufferDebug.lights());
+            FramebufferDebug.log("buffer", FramebufferDebug.glState());
+        }
+
         try
         {
             BBSRendering.renderOffscreen(() -> super.renderBodyParts(context));
@@ -170,6 +186,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         finally
         {
             FormTranslucentQueue.restore(queueWasActive);
+        }
+
+        if (FramebufferDebug.logging)
+        {
+            FramebufferDebug.log("buffer", "after parts, " + FramebufferDebug.readCentre(framebuffer));
         }
 
         context.stack.pop();
@@ -196,7 +217,18 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
         Supplier<ShaderProgram> shader = shading ? GameRenderer::getRenderTypeEntityTranslucentProgram : GameRenderer::getPositionTexLightmapColorProgram;
 
+        if (FramebufferDebug.logging)
+        {
+            FramebufferDebug.log("quad", "shader=" + FramebufferDebug.shader(shader.get())
+                + " shading=" + shading
+                + " texture=" + FramebufferDebug.texture(framebuffer.getMainTexture()));
+            FramebufferDebug.log("quad", FramebufferDebug.lights());
+            FramebufferDebug.log("quad", FramebufferDebug.glState());
+        }
+
         this.renderModel(framebuffer.getMainTexture(), format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+
+        FramebufferDebug.end();
     }
 
     private void renderModel(Texture texture, VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
