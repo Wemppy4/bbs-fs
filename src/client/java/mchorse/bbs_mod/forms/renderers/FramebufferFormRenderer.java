@@ -110,6 +110,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
     private void renderFramebuffer(FormRenderingContext context, Framebuffer framebuffer)
     {
+        int x;
+        int y;
         int width;
         int height;
 
@@ -119,6 +121,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
             GL30.glGetIntegerv(GL30.GL_VIEWPORT, viewport);
 
+            x = viewport.get(0);
+            y = viewport.get(1);
             width = viewport.get(2);
             height = viewport.get(3);
         }
@@ -176,7 +180,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
-        GL30.glViewport(0, 0, width, height);
+        /* All four: whoever called us may have placed the viewport off the origin - the preview
+         * cache does, sliding it so a list cell's on-screen box lands at its own framebuffer's
+         * corner. Putting it back at (0, 0) drew the quad off that framebuffer and the cell
+         * showed nothing. */
+        GL30.glViewport(x, y, width, height);
 
         if (scissorEnabled)
         {
