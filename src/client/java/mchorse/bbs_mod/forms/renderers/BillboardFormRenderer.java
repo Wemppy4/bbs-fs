@@ -238,6 +238,9 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
                 + " texture=" + FramebufferDebug.texture(texture));
             FramebufferDebug.log("billboard", FramebufferDebug.lights());
             FramebufferDebug.log("billboard", FramebufferDebug.glState());
+            FramebufferDebug.log("billboard", FramebufferDebug.fog());
+            FramebufferDebug.log("billboard", FramebufferDebug.modelView());
+            FramebufferDebug.log("billboard", FramebufferDebug.samplers());
         }
 
         BBSModClient.getTextures().bindTexture(texture);

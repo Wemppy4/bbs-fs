@@ -6,8 +6,10 @@ import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import net.minecraft.client.gl.ShaderProgram;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
@@ -82,6 +84,103 @@ public class FramebufferDebug
             + "/" + name(GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA)) + "," + name(GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA))
             + " depth=" + GL11.glIsEnabled(GL11.GL_DEPTH_TEST) + "/" + name(GL11.glGetInteger(GL11.GL_DEPTH_FUNC))
             + " depthMask=" + GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+    }
+
+    /** The vanilla fog uniforms as the program will read them: a fog that starts at zero paints the fragment FogColor. */
+    public static String fog()
+    {
+        float[] color = RenderSystem.getShaderFogColor();
+
+        return "fogStart=" + RenderSystem.getShaderFogStart() + " fogEnd=" + RenderSystem.getShaderFogEnd()
+            + " fogColor=[" + color[0] + ", " + color[1] + ", " + color[2] + ", " + color[3] + "]"
+            + " fogShape=" + RenderSystem.getShaderFogShape();
+    }
+
+    /** The model-view the program will get. Ours never applies one, so this is whatever the world left. */
+    public static String modelView()
+    {
+        Matrix4f m = RenderSystem.getModelViewMatrix();
+
+        return "modelView=[" + m.m00() + " " + m.m01() + " " + m.m02() + " " + m.m03()
+            + " | " + m.m10() + " " + m.m11() + " " + m.m12() + " " + m.m13()
+            + " | " + m.m20() + " " + m.m21() + " " + m.m22() + " " + m.m23()
+            + " | " + m.m30() + " " + m.m31() + " " + m.m32() + " " + m.m33() + "]";
+    }
+
+    /**
+     * What Sampler0..2 will be bound to, and the texel each program reads from the overlay
+     * (unit 1, at the default overlay UV) and from the lightmap (unit 2, at full brightness).
+     * Either one being dark is the whole story.
+     */
+    public static String samplers()
+    {
+        int active = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        StringBuilder out = new StringBuilder("activeUnit=" + (active - GL13.GL_TEXTURE0));
+
+        for (int unit = 0; unit < 3; unit++)
+        {
+            int shaderTexture = RenderSystem.getShaderTexture(unit);
+
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+
+            int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+
+            out.append(" unit").append(unit).append("={shaderTexture=").append(shaderTexture).append(" bound=").append(bound).append("}");
+        }
+
+        GL13.glActiveTexture(active);
+
+        out.append(" overlayTexel(0,10)=").append(texel(RenderSystem.getShaderTexture(1), 0, 10));
+        out.append(" lightmapTexel(15,15)=").append(texel(RenderSystem.getShaderTexture(2), 15, 15));
+
+        return out.toString();
+    }
+
+    /** One texel of a 2D texture by GL id, read back whole (they are all tiny here). */
+    private static String texel(int id, int x, int y)
+    {
+        if (id <= 0)
+        {
+            return "(no texture)";
+        }
+
+        int active = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+
+        int previous = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, id);
+
+        int width = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_WIDTH);
+        int height = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_HEIGHT);
+        String result;
+
+        if (width <= 0 || height <= 0 || x >= width || y >= height || width * height > 4096)
+        {
+            result = "(" + width + "x" + height + ", not read)";
+        }
+        else
+        {
+            try (MemoryStack stack = MemoryStack.stackPush())
+            {
+                ByteBuffer pixels = stack.malloc(width * height * 4);
+
+                GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+                GL30.glPixelStorei(GL30.GL_PACK_ROW_LENGTH, 0);
+                GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixels);
+
+                int i = (y * width + x) * 4;
+
+                result = "rgba(" + (pixels.get(i) & 0xFF) + ", " + (pixels.get(i + 1) & 0xFF) + ", "
+                    + (pixels.get(i + 2) & 0xFF) + ", " + (pixels.get(i + 3) & 0xFF) + ") of " + width + "x" + height;
+            }
+        }
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
+        GL13.glActiveTexture(active);
+
+        return result;
     }
 
     public static String shader(ShaderProgram program)
