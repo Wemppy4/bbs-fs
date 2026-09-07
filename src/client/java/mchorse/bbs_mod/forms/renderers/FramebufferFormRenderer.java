@@ -135,7 +135,13 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         Matrix4f projectionMatrix = new Matrix4f(RenderSystem.getProjectionMatrix());
 
         GL30.glCullFace(GL30.GL_FRONT);
-        RenderSystem.setShaderLights(new Vector3f(0F, 0F, 1F), new Vector3f(0F, 0F, 1F));
+        /* Both lights along Z, one each way. The picture in here is meant to be flat, and the
+         * two vanilla lights are what a flat one is made of - but pointing both at the camera
+         * lights only the faces that happen to look back at it. The framebuffer renders under a
+         * Y-flipped ortho with front faces culled, so a two-sided quad (a billboard draws both
+         * of its sides) keeps the side whose normal points away, and that side came out at
+         * MINECRAFT_AMBIENT_LIGHT alone - 40% - while a one-sided model next to it stayed lit. */
+        RenderSystem.setShaderLights(new Vector3f(0F, 0F, 1F), new Vector3f(0F, 0F, -1F));
         RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(-1F, 1F, 1F, -1F, -500F, 500F), VertexSorter.BY_Z);
         RenderSystem.getModelViewStack().push();
         RenderSystem.getModelViewStack().peek().getPositionMatrix().identity();
