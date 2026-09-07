@@ -397,7 +397,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, BBSModClient.getTextures().getTexture(texture)));
             RenderSystem.depthFunc(GL11.GL_LEQUAL);
 
-            Supplier<ShaderProgram> mainShader = (BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld()) || !model.isVAORendered()
+            Supplier<ShaderProgram> mainShader = BBSRendering.isIrisWorldShadersEnabled() || !model.isVAORendered()
                 ? GameRenderer::getRenderTypeEntityTranslucentCullProgram
                 : BBSShaders::getModel;
 
@@ -850,7 +850,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, BBSModClient.getTextures().getTexture(texture)));
 
-            Supplier<ShaderProgram> mainShader = (BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld()) || !model.isVAORendered()
+            Supplier<ShaderProgram> mainShader = BBSRendering.isIrisWorldShadersEnabled() || !model.isVAORendered()
                 ? GameRenderer::getRenderTypeEntityTranslucentCullProgram
                 : BBSShaders::getModel;
 
@@ -917,7 +917,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, textureObject));
 
-            boolean irisWorld = BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld();
+            boolean irisWorld = BBSRendering.isIrisWorldShadersEnabled();
 
             /* Under shaders we can't split opaque/translucent per pixel (Iris strips our PassMode),
              * so a texture with semi-transparent texels would either hide what's behind it or drop

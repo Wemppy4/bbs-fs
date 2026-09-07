@@ -172,11 +172,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         depth += 1;
 
-        if (depth == 1)
-        {
-            BBSRendering.setIrisMainBound(false);
-        }
-
         /* The nested forms render under an ortho projection into this framebuffer — deferring
          * their translucent pixels into the world's queue would replay them with the wrong
          * projection, so they render single-pass as before. */
@@ -184,16 +179,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         try
         {
-            super.renderBodyParts(context);
+            BBSRendering.renderOffscreen(() -> super.renderBodyParts(context));
         }
         finally
         {
             depth -= 1;
-
-            if (depth == 0)
-            {
-                BBSRendering.setIrisMainBound(true);
-            }
 
             FormTranslucentQueue.restore(queueWasActive);
         }
