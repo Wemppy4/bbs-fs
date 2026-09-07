@@ -5,9 +5,14 @@ import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
+import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
+import mchorse.bbs_mod.forms.forms.BodyPart;
+import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.Renderbuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -17,6 +22,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Quad;
+import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
@@ -43,6 +49,7 @@ import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
@@ -315,5 +322,70 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
 
         return consumer.vertex(matrix, x, y, 0F).color(color.r, color.g, color.b, color.a).texture(u, v).overlay(overlay).light(light).normal(normal, 0F, 0F, nz);
+    }
+
+    @Override
+    public void collectMatrices(IEntity entity, MatrixStack stack, MatrixCache matrices, String prefix, float transition)
+    {
+        stack.push();
+        this.applyTransforms(stack, true, transition);
+        Matrix4f origin = new Matrix4f(stack.peek().getPositionMatrix());
+        stack.pop();
+
+        stack.push();
+        this.applyTransforms(stack, false, transition);
+        matrices.put(prefix, new Matrix4f(stack.peek().getPositionMatrix()), origin);
+
+        float width = MathUtils.clamp(this.form.width.get(), 2, 4096);
+        float height = MathUtils.clamp(this.form.height.get(), 2, 4096);
+        float scale = this.form.scale.get();
+
+        Matrix4f parent = new Matrix4f(stack.peek().getPositionMatrix());
+        MatrixStack childStack = new MatrixStack();
+        MatrixCache children = new MatrixCache();
+
+        /* The body parts live in the framebuffer's ortho box (-1..1 across the whole
+         * texture), scaled by the form's scale, and the quad that shows the texture is
+         * half a unit wide times the aspect ratio — so one ortho unit lands on half a
+         * scaled quad unit. */
+        float scaleX = scale * 0.5F * (height > width ? width / height : 1F);
+        float scaleY = scale * 0.5F * (width > height ? height / width : 1F);
+
+        for (BodyPart part : this.form.parts.getAllTyped())
+        {
+            Form form = part.getForm();
+
+            if (form != null)
+            {
+                childStack.push();
+                MatrixStackUtils.applyTransform(childStack, part.transform.get());
+
+                FormUtilsClient.getRenderer(form).collectMatrices(entity, childStack, children, StringUtils.combinePaths(prefix, part.getId()), transition);
+
+                childStack.pop();
+            }
+        }
+
+        stack.pop();
+
+        for (Map.Entry<String, MatrixCacheEntry> entry : children.entrySet())
+        {
+            MatrixCacheEntry child = entry.getValue();
+
+            matrices.put(entry.getKey(), this.projectOrigin(parent, child.matrix(), scaleX, scaleY), this.projectOrigin(parent, child.origin(), scaleX, scaleY));
+        }
+    }
+
+    private Matrix4f projectOrigin(Matrix4f parent, Matrix4f child, float scaleX, float scaleY)
+    {
+        if (child == null)
+        {
+            return null;
+        }
+
+        /* Flatten positions only: gizmo orientation and rotation sampling need a full basis. */
+        Matrix4f projected = new Matrix4f(child).setTranslation(child.m30() * scaleX, child.m31() * scaleY, 0F);
+
+        return new Matrix4f(parent).mul(projected);
     }
 }

@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.framework.elements.input.drag;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
+import mchorse.bbs_mod.ui.utils.GizmoJacobian;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Matrix3f;
@@ -41,23 +42,6 @@ public class TranslateDrag extends DragStrategy
         super(ctx, TransformOp.TRANSLATE, axis, axis2);
     }
 
-    /** Guarded inverse of the translate Jacobian: identity when degenerate. */
-    protected static Matrix3f invertedJacobian(Matrix3f jacobian)
-    {
-        Matrix3f inverse = new Matrix3f(jacobian);
-
-        if (Math.abs(inverse.determinant()) < 1.0E-8F)
-        {
-            inverse.identity();
-        }
-        else
-        {
-            inverse.invert();
-        }
-
-        return inverse;
-    }
-
     @Override
     public void begin(int mouseX, int mouseY)
     {
@@ -86,7 +70,7 @@ public class TranslateDrag extends DragStrategy
          * user wasn't shown. The drawn frame is always the truth on screen. */
         Matrix3f basis = drag.frameBasis(this.ctx.space());
 
-        this.translateBasis.set(invertedJacobian(jacobian)).mul(basis);
+        this.translateBasis.set(GizmoJacobian.inverse(jacobian)).mul(basis);
         this.worldBasis.set(basis);
 
         if (this.axis2 == null)
