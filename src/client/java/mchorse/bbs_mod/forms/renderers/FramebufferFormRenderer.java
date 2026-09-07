@@ -23,6 +23,7 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Quad;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
@@ -67,7 +68,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
     {
         if (this.form.parts.getAll().isEmpty())
         {
-            context.batcher.icon(Icons.CAMERA, (x1 + x2) / 2, (y1 + y2) / 2, 0.5F, 0.5F);
+            /* Nothing in it yet, so there is no picture to show - stand a figure in the cell
+             * instead, at the size the video form draws its own placeholder at. */
+            int size = 32;
+
+            context.batcher.scaledIcon(Icons.PLAYER, Colors.WHITE, (x1 + x2 - size) / 2F, (y1 + y2 - size) / 2F, size);
         }
         else
         {
