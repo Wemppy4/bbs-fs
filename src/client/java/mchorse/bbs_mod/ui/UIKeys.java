@@ -700,6 +700,11 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_VANILLA_PARTICLE_VERTICAL = L10n.lang("bbs.ui.forms.editors.vanilla_particle.vertical");
     public static final IKey FORMS_EDITOR_BODY_PART_GIZMO = L10n.lang("bbs.ui.forms.editor.body_part_gizmo");
     public static final IKey FORMS_EDITOR_BONE = L10n.lang("bbs.ui.forms.editor.bone");
+    public static final IKey FORMS_EDITOR_CONTEXT_SETUP_FACE = L10n.lang("bbs.ui.forms.editor.context.setup_face");
+    public static final IKey FORMS_EDITOR_SETUP_FACE_TITLE = L10n.lang("bbs.ui.forms.editor.setup_face.title");
+    public static final IKey FORMS_EDITOR_SETUP_FACE_EYES_RIG = L10n.lang("bbs.ui.forms.editor.setup_face.eyes_rig");
+    public static final IKey FORMS_EDITOR_SETUP_FACE_VERTICAL_OFFSET = L10n.lang("bbs.ui.forms.editor.setup_face.vertical_offset");
+    public static final IKey FORMS_EDITOR_SETUP_FACE_VERTICAL_OFFSET_HINT = L10n.lang("bbs.ui.forms.editor.setup_face.vertical_offset_hint");
     public static final IKey FORMS_EDITOR_CONTEXT_ADD = L10n.lang("bbs.ui.forms.editor.context.add");
     public static final IKey FORMS_EDITOR_CONTEXT_COPY = L10n.lang("bbs.ui.forms.editor.context.copy");
     public static final IKey FORMS_EDITOR_CONTEXT_MOVE_DOWN = L10n.lang("bbs.ui.forms.editor.context.move_down");

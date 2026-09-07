@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.AnchorForm;
@@ -20,8 +21,11 @@ import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.forms.TrailForm;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.forms.forms.VideoForm;
+import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.states.AnimationState;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.ICursor;
@@ -47,6 +51,7 @@ import mchorse.bbs_mod.ui.forms.editors.forms.UIVideoForm;
 import mchorse.bbs_mod.ui.forms.editors.states.UIAnimationStatesOverlayPanel;
 import mchorse.bbs_mod.ui.forms.editors.states.keyframes.UIAnimationStateEditor;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
+import mchorse.bbs_mod.ui.forms.editors.utils.UISetupFaceOverlayPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -75,8 +80,11 @@ import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.presets.PresetManager;
+import mchorse.bbs_mod.utils.resources.FilteredLink;
+import mchorse.bbs_mod.utils.resources.MultiLink;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.HashMap;
 import java.util.List;
@@ -723,6 +731,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         if (current.part != null)
         {
+            if (current.getForm() instanceof FramebufferForm framebuffer && current.form instanceof ModelForm parent)
+            {
+                menu.action(Icons.CAMERA, UIKeys.FORMS_EDITOR_CONTEXT_SETUP_FACE, () ->
+                {
+                    UIOverlay.addOverlay(this.getContext(), new UISetupFaceOverlayPanel((model, offset) -> this.setupFace(framebuffer, parent, model, offset)), 240, 170);
+                });
+            }
+
             List<BodyPart> all = current.part.getManager().getAllTyped();
 
             if (all.size() > 1)
@@ -733,6 +749,74 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
                 if (index < all.size() - 1) menu.action(Icons.ARROW_DOWN, UIKeys.FORMS_EDITOR_CONTEXT_MOVE_DOWN, () -> this.moveBodyPart(current.part, index + 1));
             }
         }
+    }
+
+    /**
+     * Fill a framebuffer form with the pieces a face is made of: the parent model's own texture
+     * as a flat billboard, its face square erased from the parent so the framebuffer shows
+     * through, and a rig for the eyes on top of it.
+     */
+    private void setupFace(FramebufferForm framebuffer, ModelForm parent, String model, double verticalOffset)
+    {
+        BaseValue.edit(parent, (v) ->
+        {
+            BillboardForm face = new BillboardForm();
+            ModelForm eyes = new ModelForm();
+            BodyPart facePart = new BodyPart("");
+            BodyPart eyesPart = new BodyPart("");
+
+            face.texture.set(parent.texture.get());
+
+            if (face.texture.get() == null)
+            {
+                ModelInstance parentModel = ModelFormRenderer.getModel(parent);
+
+                if (parentModel != null)
+                {
+                    face.texture.set(parentModel.getTexture());
+                }
+            }
+
+            Link texture = face.texture.get();
+
+            if (texture != null)
+            {
+                MultiLink multi = texture instanceof MultiLink existing ? (MultiLink) existing.copy() : new MultiLink();
+
+                if (!(texture instanceof MultiLink))
+                {
+                    multi.children.add(new FilteredLink(texture));
+                }
+
+                FilteredLink erase = new FilteredLink(Link.assets("textures/pixel.png"));
+
+                erase.erase = true;
+                erase.shiftX = 8;
+                erase.shiftY = 8;
+                erase.scale = 8F;
+                multi.children.add(erase);
+                multi.recalculateId();
+                parent.texture.set(multi);
+            }
+
+            face.resizeCrop.set(true);
+            face.crop.set(new Vector4f(8F, 8F, 48F, 48F));
+            facePart.setForm(face);
+            facePart.transform.get().translate.set(0F, -0.5F, 0F);
+
+            eyes.model.set(model);
+            eyesPart.setForm(eyes);
+            eyesPart.transform.get().translate.set(0F, (float) (-1D + verticalOffset / 8D), -0.495F);
+            eyesPart.transform.get().scale.set(2F);
+
+            framebuffer.transform.get().translate.set(0F, 0.5F, 0.25F);
+            framebuffer.parts.addBodyPart(facePart);
+            framebuffer.parts.addBodyPart(eyesPart);
+        });
+
+        this.refreshFormList();
+        this.switchEditor(framebuffer);
+        this.refillState();
     }
 
     /**
