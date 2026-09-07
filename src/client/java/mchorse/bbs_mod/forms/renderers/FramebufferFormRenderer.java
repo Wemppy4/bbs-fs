@@ -148,12 +148,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         RenderSystem.disableScissor();
         framebuffer.clear();
 
-        float scale = this.form.scale.get();
-
         context.stack.push();
         context.stack.peek().getPositionMatrix().identity();
         context.stack.peek().getNormalMatrix().identity();
-        context.stack.scale(scale, scale, scale);
 
         /* The nested forms render under an ortho projection into this framebuffer — deferring
          * their translucent pixels into the world's queue would replay them with the wrong
@@ -213,9 +210,12 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         uvQuad.p3.set(uvTLx, uvBRy, 0);
         uvQuad.p4.set(uvBRx, uvBRy, 0);
 
-        /* Calculate quad's size (vertices, not UV) */
-        float ratioX = w > h ? h / w : 1F;
-        float ratioY = h > w ? w / h : 1F;
+        /* Calculate quad's size (vertices, not UV). The scale sizes the quad the framebuffer is
+         * shown on, not what is drawn into it — the body parts always fill the whole texture,
+         * so raising it can't push them past the framebuffer's own edges. */
+        float scale = this.form.scale.get() * 2F;
+        float ratioX = (w > h ? h / w : 1F) * scale;
+        float ratioY = (h > w ? w / h : 1F) * scale;
         float TLx = (uvTLx - 0.5F) * ratioY;
         float TLy = -(uvTLy - 0.5F) * ratioX;
         float BRx = (uvBRx - 0.5F) * ratioY;
@@ -331,12 +331,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         MatrixStack childStack = new MatrixStack();
         MatrixCache children = new MatrixCache();
 
-        /* The body parts live in the framebuffer's ortho box (-1..1 across the whole
-         * texture), scaled by the form's scale, and the quad that shows the texture is
-         * half a unit wide times the aspect ratio — so one ortho unit lands on half a
-         * scaled quad unit. */
-        float scaleX = scale * 0.5F * (height > width ? width / height : 1F);
-        float scaleY = scale * 0.5F * (width > height ? height / width : 1F);
+        /* The body parts live in the framebuffer's ortho box (-1..1 across the whole texture),
+         * and the quad that shows it is that box times the scale and the aspect ratio. */
+        float scaleX = scale * (height > width ? width / height : 1F);
+        float scaleY = scale * (width > height ? height / width : 1F);
 
         for (BodyPart part : this.form.parts.getAllTyped())
         {
