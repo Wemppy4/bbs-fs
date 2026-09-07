@@ -1,10 +1,8 @@
 package mchorse.bbs_mod.ui.framework.elements.buttons;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -15,8 +13,9 @@ import java.util.function.Predicate;
  * half of {@link UIChoiceMenu}, for choices that are visible all the time rather than hidden
  * behind a hotkey.
  *
- * <p>The label is the active option's name and its icon sits on the left, in plain white —
- * the colour cue, where a set has one, lives in the dropdown, not on the trigger.
+ * <p>The label is the active option's name and its icon is the button's own {@link #icon(java.util.function.Supplier)},
+ * left edge and plain white — the colour cue, where a set has one, lives in the dropdown, not on
+ * the trigger.
  *
  * <p>Where a choice needs no permanent trigger, a plain {@link mchorse.bbs_mod.ui.framework.elements.UIIcon}
  * over {@code UIChoiceMenu.open} is the smaller half of the same pattern (the preview's
@@ -27,7 +26,6 @@ import java.util.function.Predicate;
 public class UIChoiceButton <T> extends UIButton
 {
     private final UIChoiceMenu<T> menu;
-    private final Function<T, Icon> icon;
     private final Function<T, IKey> labels;
 
     private T value;
@@ -37,9 +35,10 @@ public class UIChoiceButton <T> extends UIButton
     {
         super(IKey.EMPTY, (b) -> ((UIChoiceButton<?>) b).open());
 
-        this.icon = icon;
         this.labels = label;
         this.menu = UIChoiceMenu.of(options).icon(icon).label(label);
+
+        this.icon(() -> this.value == null ? null : icon.apply(this.value));
     }
 
     /** @see UIChoiceMenu#unavailable */
@@ -96,17 +95,6 @@ public class UIChoiceButton <T> extends UIButton
         if (this.callback != null)
         {
             this.callback.accept(value);
-        }
-    }
-
-    @Override
-    protected void renderSkin(UIContext context)
-    {
-        super.renderSkin(context);
-
-        if (this.value != null)
-        {
-            context.batcher.icon(this.icon.apply(this.value), Colors.WHITE, this.area.x + 4, this.area.my(), 0F, 0.5F);
         }
     }
 }
