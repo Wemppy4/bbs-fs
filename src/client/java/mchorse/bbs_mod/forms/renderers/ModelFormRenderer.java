@@ -917,7 +917,13 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, textureObject));
 
-            boolean irisWorld = BBSRendering.isIrisWorldShadersEnabled();
+            /* Deliberately the wider question - "is a pack loaded at all" - and not
+             * isIrisWorldShadersEnabled(). What hangs off this below is the alpha handling, and
+             * that has to stay put where a pack can see the result. Inside a framebuffer form
+             * the pack stops shading, but the pixels still end up in its world: dropping the
+             * cutout degrade there turns blending back on, the parts land in the buffer
+             * premultiplied with alpha squared, and the quad multiplies by alpha once more. */
+            boolean irisWorld = BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld();
 
             /* Under shaders we can't split opaque/translucent per pixel (Iris strips our PassMode),
              * so a texture with semi-transparent texels would either hide what's behind it or drop
@@ -940,9 +946,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 || (renderLayer == Form.LAYER_CUTOUT && !irisWorld);
             boolean suspendQueue = irisWorld || renderLayer == Form.LAYER_SOLID || renderLayer == Form.LAYER_CUTOUT;
 
+            /* The program, unlike the alpha handling above, does follow whether the pack is
+             * shading this very draw: off-screen it has stopped, and our own is the better one. */
             Supplier<ShaderProgram> mainShader = cutout
                 ? GameRenderer::getRenderTypeEntityCutoutProgram
-                : (irisWorld || !model.isVAORendered())
+                : (BBSRendering.isIrisWorldShadersEnabled() || !model.isVAORendered())
                     ? GameRenderer::getRenderTypeEntityTranslucentCullProgram
                     : BBSShaders::getModel;
             Supplier<ShaderProgram> shader = this.getShader(context, mainShader, BBSShaders::getPickerModelsProgram);
