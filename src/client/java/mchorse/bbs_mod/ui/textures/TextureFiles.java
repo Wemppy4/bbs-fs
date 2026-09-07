@@ -100,7 +100,19 @@ public class TextureFiles
     /** Move a texture and whatever sits beside it, and hand back the link it now lives at. */
     private static Link moveFile(Link link, File file, File target)
     {
-        return moveFile(link, file, target);
+        try
+        {
+            Files.move(file.toPath(), target.toPath());
+            moveSidecars(file, target);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+
+            return null;
+        }
+
+        return moved(link, done(target, link));
     }
 
     public static Link duplicate(Link link)
@@ -152,19 +164,7 @@ public class TextureFiles
             return null;
         }
 
-        try
-        {
-            Files.move(file.toPath(), target.toPath());
-            moveSidecars(file, target);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-
-            return null;
-        }
-
-        return moved(link, done(target, link));
+        return moveFile(link, file, target);
     }
 
     /**
