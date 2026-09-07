@@ -284,7 +284,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         BBSModClient.getTextures().bindTexture(texture);
         RenderSystem.setShader(shader);
 
-        texture.bind();
+        /* No raw bind here: the draw binds its own samplers, and a bind on whatever unit is
+         * active would land behind GlStateManager's back - see BillboardFormRenderer. */
         builder.begin(VertexFormat.DrawMode.TRIANGLES, format);
 
         /* Front */
