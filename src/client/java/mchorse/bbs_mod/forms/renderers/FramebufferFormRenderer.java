@@ -135,6 +135,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         int h = MathUtils.clamp(this.form.height.get(), 2, 4096);
         int prevDraw = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int prevRead = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        boolean scissorEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        int[] scissorBox = new int[4];
+
+        GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissorBox);
+
         Vector3f light0 = RenderSystem.shaderLightDirections[0];
         Vector3f light1 = RenderSystem.shaderLightDirections[1];
         Matrix4f projectionMatrix = new Matrix4f(RenderSystem.getProjectionMatrix());
@@ -153,6 +158,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             framebuffer.resize(w, h);
         }
 
+        /* Whoever was drawing before us may have left a scissor box — the UI clips its
+         * viewport that way — and it would clip this framebuffer's own pixels too. */
+        RenderSystem.disableScissor();
         framebuffer.clear();
 
         float scale = this.form.scale.get();
@@ -195,6 +203,15 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
         GL30.glViewport(0, 0, width, height);
+
+        if (scissorEnabled)
+        {
+            RenderSystem.enableScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
+        }
+        else
+        {
+            RenderSystem.disableScissor();
+        }
 
         RenderSystem.setShaderLights(light0, light1);
         RenderSystem.getModelViewStack().pop();
