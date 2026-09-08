@@ -30,7 +30,7 @@ public final class BoneConstraintsIO
         {
             for (BaseValue value : bones.getAll())
             {
-                if (value instanceof FormBone bone && bone.constraints.get().enabled)
+                if (value instanceof FormBone bone && bone.constraints.get().isActive())
                 {
                     BoneConstraint neutral = bone.constraints.get().copy();
 
@@ -63,7 +63,11 @@ public final class BoneConstraintsIO
 
             BoneConstraint constraint = new BoneConstraint();
 
-            constraint.enabled = true;
+            /* The exchange format's own "enabled" gate is read above; a preset that
+             * predates the per-axis switches meant all three. */
+            constraint.limitX = entry.getList("limits").getBool(0, true);
+            constraint.limitY = entry.getList("limits").getBool(1, true);
+            constraint.limitZ = entry.getList("limits").getBool(2, true);
             constraint.minX = getFloat(entry.getList("min"), 0, BoneConstraint.DEFAULT_MIN);
             constraint.minY = getFloat(entry.getList("min"), 1, BoneConstraint.DEFAULT_MIN);
             constraint.minZ = getFloat(entry.getList("min"), 2, BoneConstraint.DEFAULT_MIN);
@@ -90,7 +94,7 @@ public final class BoneConstraintsIO
 
             BoneConstraint c = bone.constraints.get();
 
-            if (!c.enabled)
+            if (!c.isActive())
             {
                 continue;
             }
@@ -98,6 +102,13 @@ public final class BoneConstraintsIO
             MapType entry = new MapType();
 
             entry.putBool("enabled", true);
+
+            ListType limits = new ListType();
+
+            limits.addBool(c.limitX);
+            limits.addBool(c.limitY);
+            limits.addBool(c.limitZ);
+            entry.put("limits", limits);
 
             ListType min = new ListType();
 

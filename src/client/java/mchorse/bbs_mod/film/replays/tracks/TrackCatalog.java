@@ -344,7 +344,7 @@ public class TrackCatalog
     private static void boneConstraint(ModelForm modelForm, String path, String bone, TrackId boneTrack, int color, FormProperties properties, List<TrackDescriptor> out)
     {
         FormBone formBone = modelForm.bones.getBone(bone);
-        boolean enabled = formBone != null && formBone.constraints.get().enabled;
+        boolean enabled = formBone != null && formBone.constraints.get().isActive();
         TrackId id = TrackId.boneConstraint(path, bone);
 
         if (!enabled && (properties == null || !properties.has(id)))

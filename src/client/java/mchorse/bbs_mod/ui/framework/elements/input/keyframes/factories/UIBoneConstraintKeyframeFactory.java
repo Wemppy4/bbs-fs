@@ -4,6 +4,7 @@ import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
@@ -12,6 +13,7 @@ import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -21,13 +23,20 @@ import java.util.function.Consumer;
  */
 public class UIBoneConstraintKeyframeFactory extends UIKeyframeFactory<BoneConstraint>
 {
-    public UIToggle enabled;
+    public UIToggle limitX;
+    public UIToggle limitY;
+    public UIToggle limitZ;
     public UISliderTrackpad minX;
     public UISliderTrackpad minY;
     public UISliderTrackpad minZ;
     public UISliderTrackpad maxX;
     public UISliderTrackpad maxY;
     public UISliderTrackpad maxZ;
+
+    /** The angle pairs, shown only for the axes whose switch is on — as in the form editor's tab. */
+    private UIElement limitRowX;
+    private UIElement limitRowY;
+    private UIElement limitRowZ;
 
     private boolean syncing;
 
@@ -37,7 +46,9 @@ public class UIBoneConstraintKeyframeFactory extends UIKeyframeFactory<BoneConst
 
         IKey axis = IKey.constant("%s (%s)");
 
-        this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_ENABLED, (b) -> this.edit((c) -> c.enabled = b.getValue()));
+        this.limitX = this.axisToggle(UIKeys.GENERAL_X, (c, v) -> c.limitX = v);
+        this.limitY = this.axisToggle(UIKeys.GENERAL_Y, (c, v) -> c.limitY = v);
+        this.limitZ = this.axisToggle(UIKeys.GENERAL_Z, (c, v) -> c.limitZ = v);
 
         this.minX = this.axisTrackpad((v) -> this.edit((c) -> c.minX = v.floatValue()), Colors.RED, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_X));
         this.minY = this.axisTrackpad((v) -> this.edit((c) -> c.minY = v.floatValue()), Colors.GREEN, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_Y));
@@ -46,15 +57,17 @@ public class UIBoneConstraintKeyframeFactory extends UIKeyframeFactory<BoneConst
         this.maxY = this.axisTrackpad((v) -> this.edit((c) -> c.maxY = v.floatValue()), Colors.GREEN, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_Y));
         this.maxZ = this.axisTrackpad((v) -> this.edit((c) -> c.maxZ = v.floatValue()), Colors.BLUE, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX, UIKeys.GENERAL_Z));
 
+        this.limitRowX = UI.row(this.minX, this.maxX);
+        this.limitRowY = UI.row(this.minY, this.maxY);
+        this.limitRowZ = UI.row(this.minZ, this.maxZ);
+
         this.scroll.add(UI.column(
-            this.enabled.marginTop(UIConstants.SECTION_GAP),
-            UI.label(IKey.constant("%s / %s").format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX)).marginTop(UIConstants.SECTION_GAP),
-            UI.label(UIKeys.GENERAL_X),
-            UI.row(this.minX, this.maxX),
-            UI.label(UIKeys.GENERAL_Y),
-            UI.row(this.minY, this.maxY),
-            UI.label(UIKeys.GENERAL_Z),
-            UI.row(this.minZ, this.maxZ)
+            this.axisHeader(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_AXIS.format(UIKeys.GENERAL_X), this.limitX).marginTop(UIConstants.SECTION_GAP),
+            this.limitRowX,
+            this.axisHeader(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_AXIS.format(UIKeys.GENERAL_Y), this.limitY),
+            this.limitRowY,
+            this.axisHeader(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_AXIS.format(UIKeys.GENERAL_Z), this.limitZ),
+            this.limitRowZ
         ));
 
         this.display();
@@ -73,7 +86,13 @@ public class UIBoneConstraintKeyframeFactory extends UIKeyframeFactory<BoneConst
 
         try
         {
-            this.enabled.setValue(c.enabled);
+            this.limitX.setValue(c.limitX);
+            this.limitY.setValue(c.limitY);
+            this.limitZ.setValue(c.limitZ);
+            this.limitRowX.setVisible(c.limitX);
+            this.limitRowY.setVisible(c.limitY);
+            this.limitRowZ.setVisible(c.limitZ);
+            this.resize();
             this.minX.setValue(c.minX);
             this.minY.setValue(c.minY);
             this.minZ.setValue(c.minZ);
@@ -107,6 +126,31 @@ public class UIBoneConstraintKeyframeFactory extends UIKeyframeFactory<BoneConst
             consumer.accept(c);
             selected.postNotify();
         });
+    }
+
+    /** One axis' switch: flipping it re-lays the editor, since its angles come and go with it. */
+    private UIToggle axisToggle(IKey axis, BiConsumer<BoneConstraint, Boolean> setter)
+    {
+        UIToggle toggle = new UIToggle(IKey.EMPTY, (b) ->
+        {
+            this.edit((c) -> setter.accept(c, b.getValue()));
+            this.display();
+        });
+
+        toggle.tooltip(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_LIMIT.format(axis));
+
+        return toggle;
+    }
+
+    /** An axis' header: its name on the left, its switch pinned right. */
+    private UIElement axisHeader(IKey label, UIToggle limit)
+    {
+        UIElement row = new UIElement();
+
+        row.row(UIConstants.MARGIN).preferred(0).height(UIConstants.CONTROL_HEIGHT);
+        row.add(UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F), limit.w(26));
+
+        return row;
     }
 
     private UISliderTrackpad axisTrackpad(Consumer<Double> callback, int color, IKey tooltip)
