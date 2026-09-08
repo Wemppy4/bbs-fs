@@ -15,6 +15,7 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
+import org.joml.Vector2i;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.function.Consumer;
@@ -107,6 +108,7 @@ public class UIOverlayPanel extends UIElement
         this.grip = new UIDraggable(this::dragSize);
         this.grip.rendering(this::renderGrip);
         this.grip.cursors(GLFW.GLFW_RESIZE_NWSE_CURSOR, GLFW.GLFW_RESIZE_NWSE_CURSOR);
+        this.grip.reference(() -> new Vector2i(this.area.ex(), this.area.ey()));
         this.grip.relative(this).x(1F, -GRIP).y(1F, -GRIP).wh(GRIP, GRIP);
 
         /* Last child: children are offered the click in reverse, so the grip gets it before the
