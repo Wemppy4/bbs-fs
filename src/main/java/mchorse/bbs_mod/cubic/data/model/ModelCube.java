@@ -20,6 +20,14 @@ public class ModelCube implements IMapSerializable
     public Vector3f rotate = new Vector3f();
     public float inflate;
 
+    /**
+     * The material this cube is drawn with, the same way {@link ModelMesh#material} names a mesh's:
+     * empty for the model's default texture, a name for a texture of its own — a layer over the
+     * entity, the wool over a sheep, drawn from the same bones as the body. Drives the per-material
+     * texture selection at render time.
+     */
+    public String material = "";
+
     /* Texture mapping */
     public ModelUV front;
     public ModelUV right;
@@ -245,6 +253,11 @@ public class ModelCube implements IMapSerializable
             data.put("rotate", DataStorageUtils.vector3fToData(this.rotate));
         }
 
+        if (!this.material.isEmpty())
+        {
+            data.putString("material", this.material);
+        }
+
         MapType uvs = new MapType();
 
         this.saveUVSide(uvs, "front", this.front);
@@ -284,6 +297,8 @@ public class ModelCube implements IMapSerializable
         {
             this.rotate.set(DataStorageUtils.vector3fFromData(data.getList("rotate")));
         }
+
+        this.material = data.getString("material", "");
 
         if (data.has("uvs"))
         {
