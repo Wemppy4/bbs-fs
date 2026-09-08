@@ -1,16 +1,21 @@
 package mchorse.bbs_mod.cubic.jem;
 
+import com.google.gson.JsonParser;
+import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.math.Variable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Standalone manual sanity test for the CEM expression engine ({@link CemParser}) and the instance
- * clock ({@link CemState}).
+ * Standalone manual sanity test for the CEM expression engine ({@link CemParser}), the instance
+ * clock ({@link CemState}) and the bone mapping of a parsed model ({@link JemModelParser} +
+ * {@link CemAnimation}).
  *
  * <p>It needs no Minecraft — run {@link #main(String[])} from your IDE, or after a build:
- * {@code java -cp "build/classes/java/main;build/classes/java/test" mchorse.bbs_mod.cubic.jem.CemTest}.
+ * {@code java -cp "build/classes/java/main;build/classes/java/test;<gson jar>" mchorse.bbs_mod.cubic.jem.CemTest}
+ * (Gson and JOML are the only libraries the model checks pull in; the client's class path has both).
  * It lives in the test source set so it never ships in the jar. Add value checks with {@link #check},
  * parse-only checks with {@link #parses}, and set variables (as the animation runtime will each frame)
  * with {@code parser.setValue(name, value)}.</p>
@@ -104,6 +109,28 @@ public class CemTest
         bodyClock.advance(1.0);
         capeClock.load(cape);
         flag("a re-seed clears the whole entity, cape included", cape.get(0).doubleValue() == 0);
+
+        System.out.println("\n--- a part's direct submodel stays direct once the vanilla rig hangs the part on another ---");
+
+        /* Fresh Animations' allay, boiled down: body holds the geometry, head2 is its direct submodel,
+         * and the vanilla rig hangs body on root. head2's -6.1 is written for the direct mapping; read
+         * as a deeper submodel it would take body's pivot on top and land six pixels too high - which is
+         * exactly what the game showed. */
+        JemModelParser.Result allay = JemModelParser.parse(JsonParser.parseString("{\"textureSize\":[32,32],\"models\":["
+            + "{\"part\":\"root\",\"id\":\"root\"},"
+            + "{\"part\":\"body\",\"id\":\"body\",\"translate\":[0,-6,0],"
+            + "\"boxes\":[{\"coordinates\":[-1.5,2,-1,3,4,2],\"textureOffset\":[0,0]}],"
+            + "\"submodels\":[{\"id\":\"head2\",\"translate\":[0,6,0],\"boxes\":[{\"coordinates\":[-2.5,6,-2.5,5,5,5],\"textureOffset\":[0,0]}]}],"
+            + "\"animations\":[{\"body.ty\":\"-4\",\"head2.ty\":\"-6.1\"}]}]}").getAsJsonObject(),
+            null, null, new CemHierarchy(Map.of("body", "root"), Map.of()));
+        CemAnimation program = allay.animation();
+        ModelGroup allayBody = allay.model().getGroup("body");
+        ModelGroup allayHead = allay.model().getGroup("head2");
+
+        program.apply(program.createState(), null, 0F);
+        flag("the rig hung body on root", allayBody.parent != null && allayBody.parent.id.equals("root"));
+        flag("body.ty = -4 is parent-relative: y = 4", Math.abs(allayBody.current.translate.y - 4) < 1e-4);
+        flag("head2.ty = -6.1 stays direct: y = 6.1, not body's pivot on top", Math.abs(allayHead.current.translate.y - 6.1) < 1e-4);
 
         System.out.println(fails == 0 ? "\n=== ALL PASS ===" : "\n=== " + fails + " FAILED ===");
     }

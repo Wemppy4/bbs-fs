@@ -51,6 +51,12 @@ import java.util.Set;
  * </ul>
  * The seeds are the inverse of each writeback, so an un-driven (or only cross-referenced) bone writes back
  * exactly the pose it came in with.
+ *
+ * <p>A bone's kind is its place in the <em>file</em>, not in the bone tree. The parser accumulates pivots
+ * by file nesting, and the vanilla rig may then hang a part on another part (see
+ * {@link JemModelParser}): that part goes parent-relative, while its direct submodels stay direct — a
+ * pack writes their positions for the direct mapping, and Fresh Animations' allay carried its head six
+ * pixels too high while they were read as deeper ones.</p>
  */
 public class CemAnimation
 {
@@ -107,6 +113,13 @@ public class CemAnimation
     private final List<Variable> entityVariables = new ArrayList<>();
 
     /**
+     * The file's parts — its top-level entries, one bone each — as opposed to the submodels under them.
+     * Which mapping a bone takes is decided against this, so hanging a part on another leaves the
+     * kinds of everything under it alone.
+     */
+    private final Set<ModelGroup> parts = new HashSet<>();
+
+    /**
      * Parts the vanilla rig reparented (see {@link CemHierarchy}): the pack positions them against the
      * parent's rotation point, so they take the deeper-submodel mapping whatever their depth.
      */
@@ -121,6 +134,12 @@ public class CemAnimation
          * than branched on every frame: with an entity, setParameters writes over it. */
         this.parser.setValue("health", IEntity.FULL_HEALTH);
         this.parser.setValue("max_health", IEntity.FULL_HEALTH);
+    }
+
+    /** Note a bone as one of the file's parts — call before {@link #setup}. */
+    public void markPart(ModelGroup group)
+    {
+        this.parts.add(group);
     }
 
     /** Note a bone as positioned relative to its parent's pivot — call before {@link #setup}. */
@@ -171,22 +190,18 @@ public class CemAnimation
     }
 
     /**
-     * Classify a bone by its place in the (flat-rooted) hierarchy — see {@link #TOP}/{@link #SUB1}/
-     * {@link #SUBN}. A reparented part is parent-relative regardless of depth.
+     * Classify a bone by its place in the file — see {@link #TOP}/{@link #SUB1}/{@link #SUBN}: a part,
+     * a part's direct submodel, or anything deeper. A reparented part is parent-relative whatever its
+     * depth; a bone under a part is judged against the part, wherever the rig hung that part.
      */
     private int kind(ModelGroup group)
     {
-        if (group.parent == null)
+        if (this.parts.contains(group))
         {
-            return TOP;
+            return this.parentRelative.contains(group) ? SUBN : TOP;
         }
 
-        if (this.parentRelative.contains(group))
-        {
-            return SUBN;
-        }
-
-        return group.parent.parent == null ? SUB1 : SUBN;
+        return this.parts.contains(group.parent) ? SUB1 : SUBN;
     }
 
     /**

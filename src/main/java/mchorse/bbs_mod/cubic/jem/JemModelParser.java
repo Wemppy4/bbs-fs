@@ -119,6 +119,7 @@ public class JemModelParser
             Vector3f pivot = translate(primary).negate();
 
             setupBone(info.group, primary, pivot);
+            parse.animation.markPart(info.group);
 
             for (JsonObject def : info.defs)
             {
