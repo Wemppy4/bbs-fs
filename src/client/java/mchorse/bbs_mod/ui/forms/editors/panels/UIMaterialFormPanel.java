@@ -60,6 +60,7 @@ public class UIMaterialFormPanel extends UIFormPanel
 
     public UICirculate layer;
     public UICirculate culling;
+    public UIToggle materialVisible;
     public UIToggle shaderShadow;
 
     public UISliderTrackpad smoothness;
@@ -110,6 +111,9 @@ public class UIMaterialFormPanel extends UIFormPanel
         this.culling.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_CULLING_MODEL);
         this.culling.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_CULLING_ON);
         this.culling.addLabel(UIKeys.FORMS_EDITORS_MATERIAL_CULLING_OFF);
+
+        this.materialVisible = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_VISIBLE, true,
+            (toggle) -> this.materialValue().visible.set(toggle.getValue()));
 
         this.shaderShadow = UIValues.toggle(UIKeys.FORMS_EDITORS_GENERAL_SHADER_SHADOW, () -> this.form.shaderShadow);
 
@@ -310,6 +314,7 @@ public class UIMaterialFormPanel extends UIFormPanel
             this.overlay.setColor(value == null ? 0x00ffffff : value.overlayColor.get().getARGBColor());
             this.lighting.setValue(value == null ? 1F : value.lighting.get());
             this.culling.setValue(value == null ? FormMaterial.CULLING_MODEL : value.culling.get());
+            this.materialVisible.setValue(value == null || value.visible.get());
         }
         else
         {
@@ -332,6 +337,7 @@ public class UIMaterialFormPanel extends UIFormPanel
 
         /* Reassemble the tree for the level */
         this.materialList.removeFromParent();
+        this.materialVisible.removeFromParent();
         this.colorSection.removeFromParent();
         this.textureSection.removeFromParent();
         this.renderSection.removeFromParent();
@@ -363,6 +369,11 @@ public class UIMaterialFormPanel extends UIFormPanel
         if (this.hasMaterials())
         {
             this.options.add(this.materialList);
+        }
+
+        if (materialLevel)
+        {
+            this.options.add(this.materialVisible);
         }
 
         this.options.add(this.colorSection);

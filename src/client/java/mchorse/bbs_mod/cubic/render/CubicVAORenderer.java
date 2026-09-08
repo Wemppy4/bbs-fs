@@ -53,6 +53,7 @@ public class CubicVAORenderer extends CubicCubeRenderer
         this.program = program;
         this.model = model;
         this.textureResolver = textureResolver;
+        this.setMaterialVisibility((material) -> FormMaterialLevels.materialVisible(model.form instanceof ModelForm form ? form : null, material));
     }
 
     public void setWeldedGroups(Set<ModelGroup> weldedGroups)
@@ -150,6 +151,12 @@ public class CubicVAORenderer extends CubicCubeRenderer
         for (Map.Entry<String, ModelVAO> entry : groupVaos.entrySet())
         {
             String material = entry.getKey();
+
+            if (!this.materialVisibility.test(material))
+            {
+                continue;
+            }
+
             Texture texture = null;
 
             if (this.textureResolver != null)

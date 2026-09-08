@@ -35,6 +35,7 @@ import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.FormMaterialLevels;
 import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
@@ -721,6 +722,11 @@ public class ModelInstance implements IModelInstance
     {
         long hash = 1125899906842597L;
 
+        for (String material : this.materials)
+        {
+            hash = hash * 31 + (FormMaterialLevels.materialVisible(this.form instanceof ModelForm form ? form : null, material) ? 1 : 0);
+        }
+
         for (ModelGroup group : model.getAllGroups())
         {
             hash = hash * 31 + (group.isVisible() ? 1 : 0);
@@ -891,6 +897,7 @@ public class ModelInstance implements IModelInstance
             else
             {
                 CubicCubeRenderer renderProcessor = new CubicCubeRenderer(light, overlay, stencilMap, keys);
+                renderProcessor.setMaterialVisibility((material) -> FormMaterialLevels.materialVisible(this.form instanceof ModelForm form ? form : null, material));
                 Color cpuOverlay = this.getCpuOverlay(stencilMap, overlay);
 
                 renderProcessor.setCpuOverlayActive(cpuOverlay != null);
@@ -933,6 +940,11 @@ public class ModelInstance implements IModelInstance
 
                 for (BOBJModelVAO vao : vaos)
                 {
+                    if (!FormMaterialLevels.materialVisible(modelForm, vao.data.mesh.name))
+                    {
+                        continue;
+                    }
+
                     Texture texture = null;
 
                     if (textureResolver != null)

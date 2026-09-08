@@ -24,6 +24,7 @@ import org.joml.Vector4f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 public class CubicCubeRenderer implements ICubicRenderer
 {
@@ -49,6 +50,7 @@ public class CubicCubeRenderer implements ICubicRenderer
     protected int light;
     protected int overlay;
     protected StencilMap stencilMap;
+    protected Predicate<String> materialVisibility = (material) -> true;
 
     /* The form-level color overlay texture is bound for the CPU draw (see ModelInstance), so
      * vertices must point at its single texel instead of the vanilla overlay UV. */
@@ -173,6 +175,11 @@ public class CubicCubeRenderer implements ICubicRenderer
         this.cpuOverlayActive = active;
     }
 
+    public void setMaterialVisibility(Predicate<String> visibility)
+    {
+        this.materialVisibility = visibility;
+    }
+
     public void setColor(float r, float g, float b, float a)
     {
         this.r = r;
@@ -213,6 +220,11 @@ public class CubicCubeRenderer implements ICubicRenderer
         {
             this.captureCube(stack, cube);
 
+            return;
+        }
+
+        if (!this.materialVisibility.test(cube.material))
+        {
             return;
         }
 
@@ -328,6 +340,11 @@ public class CubicCubeRenderer implements ICubicRenderer
         if (this.captureOnly)
         {
             /* Meshes carry no welded box faces, so the capture pass has nothing to record from them. */
+            return;
+        }
+
+        if (!this.materialVisibility.test(mesh.material))
+        {
             return;
         }
 
