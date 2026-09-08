@@ -111,10 +111,11 @@ public class FormOverlay
             /* GL's default minification filter is NEAREST_MIPMAP_LINEAR, and only level 0 is ever
              * uploaded here — at any size past 1x1 that leaves the texture mipmap-incomplete, and
              * every fetch from an incomplete texture comes back (0, 0, 0, 1). The overlay would
-             * then read as "no overlay" while the draw it rides on is paid for anyway. The
-             * constructor leaves the texture bound, so the filter lands on this one. */
+             * then read as "no overlay" while the draw it rides on is paid for anyway. Bind it
+             * through RenderSystem (see the upload below) so the filter lands on this texture
+             * with the game's state cache in agreement. */
+            RenderSystem.bindTexture(texture.id);
             texture.setFilter(GL11.GL_NEAREST);
-            texture.unbind();
         }
 
         if (pixel != lastPixel || !uploaded)
@@ -131,9 +132,8 @@ public class FormOverlay
 
             pixels.rewindBuffer();
 
-            texture.bind();
+            RenderSystem.bindTexture(texture.id);
             texture.uploadTexture(pixels);
-            texture.unbind();
 
             lastPixel = pixel;
             uploaded = true;
