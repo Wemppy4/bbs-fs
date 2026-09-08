@@ -175,6 +175,36 @@ public class CemTest
         flag("the empty head turns at the neck vanilla gave it", villagerHead.initial.translate.y == 24F);
         flag("the drawn headwear keeps the pivot its file gave it", villagerHat.initial.translate.y == 24F && villagerHat.parent == villagerHead);
 
+        System.out.println("\n--- an empty part hung on the file's parent rests at vanilla's offset from it, where the vanilla frame puts it too ---");
+
+        /* Fresh Animations' guardian: the spikes are empty shells vanilla hangs on the head, which the
+         * pack calls body and rotates about a point of its own (8 up, not vanilla's 24), and the pack's
+         * own spike geometry is placed from spine1.ty. Rest and vanilla frame must agree, or the spikes
+         * jump sixteen pixels whenever the frame is missing. */
+        JemModelParser.Result guardian = JemModelParser.parse(JsonParser.parseString("{\"textureSize\":[64,32],\"models\":["
+            + "{\"part\":\"body\",\"id\":\"body\",\"translate\":[0,-8,0],\"boxes\":[{\"coordinates\":[-6,2,-8,12,12,16],\"textureOffset\":[0,0]}],"
+            + "\"submodels\":[{\"id\":\"spine_1\",\"translate\":[0,12.5,7],\"boxes\":[{\"coordinates\":[-1,12.5,7,2,4,2],\"textureOffset\":[0,0]}]}],"
+            + "\"animations\":[{\"spine_1.ty\":\"-15.5 + spine1.ty\"}]},"
+            + "{\"part\":\"spine1\",\"id\":\"spine1\"}]}").getAsJsonObject(), null, null,
+            new CemHierarchy(Map.of("spine1", "body"), Map.of("spine1", new Vector3f(0F, 16.08F, 8.08F)), Map.of("spine1", new Vector3f(0F, -7.92F, 8.08F))));
+        ModelGroup spike = guardian.model().getGroup("spine1");
+        ModelGroup faSpike = guardian.model().getGroup("spine_1");
+        CemAnimation guardianProgram = guardian.animation();
+
+        flag("the empty spike rests at the pack's head pivot plus vanilla's offset: y = 8 - 7.92", Math.abs(spike.initial.translate.y - 0.08F) < 1e-3);
+        guardian.model().resetPose();
+        guardianProgram.apply(guardianProgram.createState(), null, 0F, false, null, null);
+        float atRest = faSpike.current.translate.y;
+        CemVanillaSeed guardianFrame = new CemVanillaSeed();
+        CemVanillaSeed.Part vanillaSpike = guardianFrame.part("spine1");
+        vanillaSpike.ty = 7.92F;
+        vanillaSpike.tz = 8.08F;
+        vanillaSpike.sx = vanillaSpike.sy = vanillaSpike.sz = 1F;
+        vanillaSpike.visible = true;
+        guardian.model().resetPose();
+        guardianProgram.apply(guardianProgram.createState(), null, 0F, false, null, guardianFrame);
+        flag("the pack's spike lands in the same place with and without the vanilla frame (-15.5 + 7.92, direct: y = 7.58)", Math.abs(atRest - 7.58F) < 1e-2 && Math.abs(faSpike.current.translate.y - atRest) < 1e-3);
+
         System.out.println("\n--- the vanilla frame seeds the program: its angle and flag outright, its position where vanilla moved the part ---");
 
         CemVanillaSeed frame = new CemVanillaSeed();

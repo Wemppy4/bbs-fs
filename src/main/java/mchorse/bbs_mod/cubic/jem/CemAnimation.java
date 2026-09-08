@@ -135,6 +135,9 @@ public class CemAnimation
      */
     private final Set<ModelGroup> parentRelative = new HashSet<>();
 
+    /** Parts the file draws nothing in — shells the pack only reads, whose position is vanilla's to give. */
+    private final Set<ModelGroup> shells = new HashSet<>();
+
     public CemAnimation()
     {
         this.parser = new CemParser();
@@ -156,6 +159,12 @@ public class CemAnimation
     public void markParentRelative(ModelGroup group)
     {
         this.parentRelative.add(group);
+    }
+
+    /** Note a part as a shell the file draws nothing in — call before {@link #setup}. */
+    public void markShell(ModelGroup group)
+    {
+        this.shells.add(group);
     }
 
     public boolean isEmpty()
@@ -520,6 +529,9 @@ public class CemAnimation
         private final ModelGroup group;
         private final int kind;
 
+        /** A shell the pack only reads — no box on it or under it — whose position is vanilla's to give. */
+        private final boolean empty;
+
         private final Variable tx, ty, tz;
         private final Variable rx, ry, rz;
         private final Variable sx, sy, sz;
@@ -529,6 +541,7 @@ public class CemAnimation
         {
             this.group = group;
             this.kind = kind;
+            this.empty = CemAnimation.this.shells.contains(group);
 
             CemParser p = CemAnimation.this.parser;
             String id = group.id;
@@ -588,14 +601,15 @@ public class CemAnimation
 
         /**
          * The vanilla frame's values for this part — the part's own fields, which is what OptiFine's
-         * variables are. The angle, the scale and the flag are vanilla's outright. The position is
-         * vanilla's where vanilla's animation placed the part this frame (the blaze's rods, the magma
-         * cube's segments) and the rest one — the file's — where it did not; a reparented part is placed
-         * against its vanilla parent, a top-level one against the model.
+         * variables are. The angle, the scale and the flag are vanilla's outright. So is the position of
+         * a shell the pack only reads (the guardian's spikes, the magma cube's segments, the blaze's
+         * rods), and of a part vanilla's animation moved this frame; a part with geometry vanilla left
+         * alone keeps the position its file gave it. A reparented part is placed against its vanilla
+         * parent, a top-level one against the model.
          */
         private void seed(CemVanillaSeed.Part part)
         {
-            if (part.moved)
+            if (this.empty || part.moved)
             {
                 boolean local = this.kind == SUBN;
 

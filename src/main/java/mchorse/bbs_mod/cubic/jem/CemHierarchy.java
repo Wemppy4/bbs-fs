@@ -32,10 +32,23 @@ public final class CemHierarchy
     /** Part &rarr; rest pivot (model pixels, Y up, X mirrored — the parser's convention) for the parts the file leaves empty. */
     public final Map<String, Vector3f> pivots;
 
+    /**
+     * Part &rarr; its rest pivot relative to its vanilla parent's, in the same convention. An empty part
+     * the file hangs on a parent of its own stands this far from the parent's pivot — wherever the file
+     * put that parent, which is how OptiFine composes vanilla children.
+     */
+    public final Map<String, Vector3f> offsets;
+
     public CemHierarchy(Map<String, String> parents, Map<String, Vector3f> pivots)
+    {
+        this(parents, pivots, Collections.emptyMap());
+    }
+
+    public CemHierarchy(Map<String, String> parents, Map<String, Vector3f> pivots, Map<String, Vector3f> offsets)
     {
         this.parents = Collections.unmodifiableMap(new LinkedHashMap<>(parents));
         this.pivots = Collections.unmodifiableMap(new LinkedHashMap<>(pivots));
+        this.offsets = Collections.unmodifiableMap(new LinkedHashMap<>(offsets));
     }
 
     /** This hierarchy with the given child &rarr; parent entries laid over its own (a model's {@code cem_parents}). */
@@ -50,7 +63,7 @@ public final class CemHierarchy
 
         merged.putAll(overrides);
 
-        return new CemHierarchy(merged, this.pivots);
+        return new CemHierarchy(merged, this.pivots, this.offsets);
     }
 
     public boolean isEmpty()

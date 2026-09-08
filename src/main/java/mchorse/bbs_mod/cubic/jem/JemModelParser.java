@@ -128,6 +128,13 @@ public class JemModelParser
 
             checkAttach(parse, info);
             model.topGroups.add(info.group);
+
+            /* A shell: the file draws nothing in it. Noted now, before the rig hangs other parts on it. */
+            if (!hasGeometry(info.group))
+            {
+                parse.shells.add(info.group);
+                parse.animation.markShell(info.group);
+            }
         }
 
         applyHierarchy(parse, hierarchy);
@@ -205,7 +212,10 @@ public class JemModelParser
      * zero translate and reads their positions, and what such a shell holds in OptiFine is vanilla's own
      * rotation point: the villager's head is animated about the neck, the magma cube's layers hang off
      * {@code segment4.ty}, the blaze's body cancels {@code stick1.ty}. A part with geometry is placed
-     * where its file says — a pack that moved the cow's body rotation into a submodel meant it.</p>
+     * where its file says — a pack that moved the cow's body rotation into a submodel meant it. An
+     * empty part hung on a parent stands at vanilla's offset from that parent's pivot, wherever the file
+     * put the parent — the guardian's spikes hang off a head the pack rotates about its own point — and
+     * so agrees with the vanilla frame the program is seeded from.</p>
      */
     private static void applyHierarchy(Parse parse, CemHierarchy hierarchy)
     {
@@ -221,17 +231,6 @@ public class JemModelParser
             byId.put(group.id, group);
         }
 
-        for (Map.Entry<String, Vector3f> entry : hierarchy.pivots.entrySet())
-        {
-            ModelGroup group = byId.get(entry.getKey());
-
-            if (group != null && !hasGeometry(group))
-            {
-                group.initial.translate.set(entry.getValue());
-                group.current.copy(group.initial);
-            }
-        }
-
         for (Map.Entry<String, String> entry : hierarchy.parents.entrySet())
         {
             ModelGroup child = byId.get(entry.getKey());
@@ -243,6 +242,29 @@ public class JemModelParser
                 parent.children.add(child);
                 parse.animation.markParentRelative(child);
             }
+        }
+
+        for (ModelGroup group : parse.model.topGroups)
+        {
+            place(parse, group, null, hierarchy);
+        }
+    }
+
+    /** Give a shell vanilla's pivot — against the parent it hangs on, or the model — parents before children. */
+    private static void place(Parse parse, ModelGroup group, ModelGroup parent, CemHierarchy hierarchy)
+    {
+        Vector3f offset = parent == null ? null : hierarchy.offsets.get(group.id);
+        Vector3f pivot = offset != null ? new Vector3f(parent.initial.translate).add(offset) : hierarchy.pivots.get(group.id);
+
+        if (pivot != null && parse.shells.contains(group))
+        {
+            group.initial.translate.set(pivot);
+            group.current.copy(group.initial);
+        }
+
+        for (ModelGroup child : group.children)
+        {
+            place(parse, child, group, hierarchy);
         }
     }
 
@@ -668,12 +690,15 @@ public class JemModelParser
         }
     }
 
-    /** One parse's working state: the model being built, its animation, the bone ids taken so far and the quirks met. */
+    /** One parse's working state: the model being built, its animation, the bone ids taken so far, the shells and the quirks met. */
     private static class Parse
     {
         public final Model model;
         public final CemAnimation animation;
         public final Set<String> ids = new HashSet<>();
+
+        /** The parts the file draws nothing in — the shells a pack only reads, whose pivots are vanilla's to give. */
+        public final Set<ModelGroup> shells = new HashSet<>();
         public final Set<String> warnings = new LinkedHashSet<>();
 
         public Parse(Model model, CemAnimation animation)

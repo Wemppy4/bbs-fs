@@ -80,10 +80,11 @@ public class VanillaRigs
 
             Map<String, String> parents = new LinkedHashMap<>();
             Map<String, Vector3f> pivots = new LinkedHashMap<>();
+            Map<String, Vector3f> offsets = new LinkedHashMap<>();
 
             try
             {
-                collect(entry.getValue().createModel(), null, parents, pivots, CemPartNames.of(layer.getId().getPath()), new Vector3f());
+                collect(entry.getValue().createModel(), null, parents, pivots, offsets, CemPartNames.of(layer.getId().getPath()), new Vector3f());
             }
             catch (Exception e)
             {
@@ -95,7 +96,7 @@ public class VanillaRigs
 
             if (!pivots.isEmpty())
             {
-                rigs.put(layer.getId().getPath(), new CemHierarchy(parents, pivots));
+                rigs.put(layer.getId().getPath(), new CemHierarchy(parents, pivots, offsets));
             }
         }
 
@@ -115,12 +116,14 @@ public class VanillaRigs
      * the first time it is seen: vanilla may use one twice in different branches, and a CEM file
      * addresses parts by name alone, so there is nothing better to go on either way.</p>
      *
-     * <p>A pivot is the part's absolute rotation point in the model's own coordinates: vanilla's are
-     * local to the parent, Y down from the top of a 24-pixel entity, X to the entity's left; BBS keeps
-     * them absolute, Y up from the ground, X mirrored — the same turn the parser gives a file's
-     * {@code translate}. {@code origin} carries the parent's absolute pivot down the walk.</p>
+     * <p>A pivot is the part's rotation point in the model's own coordinates: vanilla's are local to
+     * the parent, Y down from the top of a 24-pixel entity, X to the entity's left; BBS keeps them
+     * absolute, Y up from the ground, X mirrored — the same turn the parser gives a file's
+     * {@code translate}. Both are recorded: the absolute pivot, for a part the file keeps at the top,
+     * and the offset from the parent's, for one it hangs on a parent of its own (see
+     * {@link CemHierarchy#offsets}). {@code origin} carries the parent's absolute pivot down the walk.</p>
      */
-    private static void collect(ModelPart part, String name, Map<String, String> parents, Map<String, Vector3f> pivots, CemPartNames names, Vector3f origin)
+    private static void collect(ModelPart part, String name, Map<String, String> parents, Map<String, Vector3f> pivots, Map<String, Vector3f> offsets, CemPartNames names, Vector3f origin)
     {
         for (Map.Entry<String, ModelPart> entry : IBBSModelPart.of(part).bbs$children().entrySet())
         {
@@ -128,9 +131,12 @@ public class VanillaRigs
             ModelPart childPart = entry.getValue();
             Vector3f absolute = new Vector3f(origin).add(childPart.pivotX, childPart.pivotY, childPart.pivotZ);
             Vector3f pivot = new Vector3f(-absolute.x, Y_OFFSET - absolute.y, absolute.z);
+            Vector3f offset = new Vector3f(-childPart.pivotX, -childPart.pivotY, childPart.pivotZ);
 
             pivots.putIfAbsent(names.optifine(child), pivot);
             pivots.putIfAbsent(child, pivot);
+            offsets.putIfAbsent(names.optifine(child), offset);
+            offsets.putIfAbsent(child, offset);
 
             if (name != null)
             {
@@ -138,7 +144,7 @@ public class VanillaRigs
                 parents.putIfAbsent(child, name);
             }
 
-            collect(childPart, child, parents, pivots, names, absolute);
+            collect(childPart, child, parents, pivots, offsets, names, absolute);
         }
     }
 }
