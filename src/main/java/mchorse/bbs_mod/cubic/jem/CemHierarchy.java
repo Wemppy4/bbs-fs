@@ -52,17 +52,11 @@ public final class CemHierarchy
 
         return switch (name)
         {
-            /* Allay: the arms are vanilla children of the body (the wings/head geometry already lives
-             * in the body's submodels, so only the arms are flat top-level parts that need reparenting). */
-            case "allay" -> new CemHierarchy(Map.of(
-                "right_arm", "body",
-                "left_arm", "body"
-            ), Collections.emptyMap());
-
             /* Villager: the hat (headwear, with its rim headwear2) and the nose hang off the head, the
              * jacket (bodywear) off the body. The head itself has no boxes and a zero translate in the
-             * packs, while its rotation point is the vanilla neck. */
-            case "villager" -> new CemHierarchy(Map.of(
+             * packs, while its rotation point is the vanilla neck. The wandering trader, the zombie
+             * villager and the witch are drawn the same way, by the same hand. */
+            case "villager", "wandering_trader", "zombie_villager", "witch" -> new CemHierarchy(Map.of(
                 "headwear", "head",
                 "headwear2", "headwear",
                 "nose", "head",

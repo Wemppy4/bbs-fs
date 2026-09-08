@@ -132,6 +132,28 @@ public class CemTest
         flag("body.ty = -4 is parent-relative: y = 4", Math.abs(allayBody.current.translate.y - 4) < 1e-4);
         flag("head2.ty = -6.1 stays direct: y = 6.1, not body's pivot on top", Math.abs(allayHead.current.translate.y - 6.1) < 1e-4);
 
+        System.out.println("\n--- the entity behind a file name (CemNames) ---");
+        flag("cold_cow_baby is a cow", CemNames.entity("cold_cow_baby").equals("cow"));
+        flag("drowned_outer is a drowned", CemNames.entity("drowned_outer").equals("drowned"));
+        flag("pig_baby_saddle is a pig", CemNames.entity("pig_baby_saddle").equals("pig"));
+        flag("sheep_wool_undercoat is a sheep", CemNames.entity("sheep_wool_undercoat").equals("sheep"));
+        flag("villager_baby2 is a villager", CemNames.entity("villager_baby2").equals("villager"));
+        flag("zombie_horse_baby_armor is a zombie_horse", CemNames.entity("zombie_horse_baby_armor").equals("zombie_horse"));
+        flag("puffer_fish_big keeps its size", CemNames.entity("puffer_fish_big").equals("puffer_fish_big"));
+        flag("player_slim stays itself", CemNames.entity("player_slim").equals("player_slim"));
+        flag("head_creeper is a skull, not a creeper", CemNames.entity("head_creeper").equals("head_creeper"));
+
+        System.out.println("\n--- part names, OptiFine to vanilla and back (CemPartNames) ---");
+        flag("horse: neck is head_parts", CemPartNames.of("horse").vanilla("neck").equals("head_parts"));
+        flag("horse: left_hind_leg reads back as back_left_leg", CemPartNames.of("horse").optifine("left_hind_leg").equals("back_left_leg"));
+        flag("cow: leg1 is right_hind_leg", CemPartNames.of("cow").vanilla("leg1").equals("right_hind_leg"));
+        flag("blaze: stick12 is part11", CemPartNames.of("blaze").vanilla("stick12").equals("part11"));
+        flag("magma_cube: core is inside_cube, segment1 is cube0", CemPartNames.of("magma_cube").vanilla("core").equals("inside_cube") && CemPartNames.of("magma_cube").vanilla("segment1").equals("cube0"));
+        flag("bee: body is bone and torso is body", CemPartNames.of("bee").vanilla("body").equals("bone") && CemPartNames.of("bee").vanilla("torso").equals("body"));
+        flag("bee: vanilla body reads back as torso", CemPartNames.of("bee").optifine("body").equals("torso"));
+        flag("guardian: spine12 is spike11, body is head", CemPartNames.of("guardian").vanilla("spine12").equals("spike11") && CemPartNames.of("guardian").vanilla("body").equals("head"));
+        flag("a name nobody mapped is itself", CemPartNames.of("frog").vanilla("croaking_body").equals("croaking_body") && CemPartNames.of("nothing").optifine("x").equals("x"));
+
         System.out.println(fails == 0 ? "\n=== ALL PASS ===" : "\n=== " + fails + " FAILED ===");
     }
 

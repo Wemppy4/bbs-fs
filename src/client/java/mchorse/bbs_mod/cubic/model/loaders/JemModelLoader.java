@@ -7,6 +7,7 @@ import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.data.animation.Animations;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.jem.CemHierarchy;
+import mchorse.bbs_mod.cubic.jem.CemNames;
 import mchorse.bbs_mod.cubic.jem.VanillaRigs;
 import mchorse.bbs_mod.cubic.jem.JemModelParser;
 import mchorse.bbs_mod.cubic.model.ModelManager;
@@ -127,11 +128,12 @@ public class JemModelLoader implements IModelLoader
     /**
      * The vanilla rig for this model, in the order corrections are made: what Minecraft's own model for
      * the entity says ({@link VanillaRigs}), then the hand-checked table for what it cannot answer, then
-     * this model's own {@code config.json} — so any entity can be fixed with data.
+     * this model's own {@code config.json} — so any entity can be fixed with data. The game is asked
+     * about the entity behind the file name ({@link CemNames#entity}): a {@code cold_cow_baby} is a cow.
      * Read straight off the map: the config is applied to the instance after parsing, and the parser
      * needs the hierarchy before.
      */
-    private CemHierarchy hierarchy(String entity, MapType config)
+    private CemHierarchy hierarchy(String file, MapType config)
     {
         Map<String, String> parents = new LinkedHashMap<>();
 
@@ -144,6 +146,8 @@ public class JemModelLoader implements IModelLoader
                 parents.put(child, overrides.getString(child));
             }
         }
+
+        String entity = CemNames.entity(file);
 
         return VanillaRigs.of(entity).with(CemHierarchy.forEntity(entity)).withParents(parents);
     }
