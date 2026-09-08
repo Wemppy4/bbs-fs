@@ -153,8 +153,8 @@ public abstract class EditorLayoutNode
     }
 
     /**
-     * Default particle layout: the section-group tabs stacked across the top, with the bottom split
-     * between the preview (left) and the MoLang editor (right).
+     * Default particle layout: the section-group tabs in a column on the right,
+     * with the preview above the MoLang editor on the left.
      */
     public static EditorLayoutNode defaultParticleLayout()
     {
@@ -166,14 +166,14 @@ public abstract class EditorLayoutNode
 
         return new SplitterNode(
             false,
-            0.22446808F,
-            new StackNode(tabs, "general"),
+            0.77553192F,
             new SplitterNode(
                 true,
                 0.7408994F,
                 new PanelNode("preview"),
                 new PanelNode("molang")
-            )
+            ),
+            new StackNode(tabs, "general")
         );
     }
 
