@@ -62,7 +62,7 @@ final class ClassicLimbSolver
      * touched — when the chain cannot run here (wrong shape, missing frames,
      * degenerate geometry), so the caller can hand it to the core solver.
      */
-    static boolean apply(IModel model, List<String> workIds, Map<String, PivotFrame> frames, Vector3f target, Quaternionf tipTarget, Vector3f polePoint, float poleAngle, float softness, float weight, boolean stretch)
+    static boolean apply(IModel model, List<String> workIds, Map<String, PivotFrame> frames, Vector3f target, Quaternionf tipTarget, Vector3f polePoint, float poleAngle, float softness, float weight, boolean stretch, boolean squash)
     {
         IKRig rig = IKRig.of(model);
 
@@ -98,6 +98,12 @@ final class ClassicLimbSolver
             return false;
         }
 
+        /* Captured BEFORE the solve overwrites the positions: the second bone's
+         * length is what turns the solve's goal point back into the tip the
+         * chain actually reaches, which is what a stretch or a squash measures
+         * its gap from. */
+        float tipLength = positions.get(1).distance(positions.get(2));
+
         Vector3f root = new Vector3f(positions.get(0));
         Vector3f goal = clampReach(root, target, total, softness);
 
@@ -129,14 +135,23 @@ final class ClassicLimbSolver
 
         /* IK stretch, the legacy in-pass flavour: the gap the rotation solve could
          * not close is split among the bones as translations (see the orientation
-         * pass), weighted so it fades with the IK. */
+         * pass), weighted so it fades with the IK. Measured from the tip the chain
+         * REACHES, not from the solve's goal point: the position pass writes the
+         * goal into the last position even when it is out of reach (short) or too
+         * close to fold onto (overshot), and only the reached tip tells the two
+         * apart. Which of the two boxes has to be ticked follows from that side —
+         * a leg keeping its foot planted as the body squats must not turn rubbery
+         * when the body rises again. */
         Vector3f stretchGap = null;
 
-        if (stretch)
+        if (stretch || squash)
         {
-            Vector3f gap = new Vector3f(target).sub(positions.get(2));
+            Vector3f tip = reachedTip(positions, tipLength);
+            Vector3f gap = new Vector3f(target).sub(tip);
+            Vector3f radial = new Vector3f(tip).sub(positions.get(0));
+            boolean shortfall = radial.lengthSquared() < EPS * EPS || gap.dot(radial) >= 0F;
 
-            if (gap.lengthSquared() > EPS * EPS)
+            if (gap.lengthSquared() > EPS * EPS && (shortfall ? stretch : squash))
             {
                 stretchGap = gap.mul(weight);
             }
@@ -220,6 +235,21 @@ final class ClassicLimbSolver
 
         p.get(1).set(root).fma(l1 * cosA, dir).fma(l1 * sinA, bend);
         p.get(2).set(goal);
+    }
+
+    /**
+     * Where the tip actually ENDS UP, as opposed to where the position pass asked
+     * it to go: {@link #solveTwoBone} writes the goal into the last position, but
+     * the second bone keeps its length, so the reached tip sits that far from the
+     * elbow along the elbow-to-goal line. The two coincide on a reachable goal;
+     * they part when the chain falls short of it, or cannot fold close enough onto
+     * it.
+     */
+    private static Vector3f reachedTip(List<Vector3f> p, float tipLength)
+    {
+        Vector3f dir = new Vector3f(p.get(2)).sub(p.get(1));
+
+        return normalize(dir) ? new Vector3f(p.get(1)).fma(tipLength, dir) : new Vector3f(p.get(2));
     }
 
     /**
@@ -423,6 +453,11 @@ final class ClassicLimbSolver
 
         boolean doStretch = stretchGap != null && reach >= 1 && reachTotal > EPS;
 
+        /* Degenerate chain: the ROOT is the only bone with geometry, so there is
+         * no seam below it to open. It takes the whole gap and the limb slides
+         * onto the controller — the seam opens at the root's own joint instead. */
+        boolean rootStretch = stretchGap != null && reach == 0;
+
         Vector3f[] restNormal = transportNormals(restDir, null);
         Vector3f[] solvedNormal = transportNormals(segWorld, bendSeed);
 
@@ -453,6 +488,10 @@ final class ClassicLimbSolver
             if (doStretch && i >= 1 && i <= reach)
             {
                 bone.offset = stretchOffset(stretchGap, solved.get(i - 1).distance(solved.get(i)), reachTotal, parentWorld);
+            }
+            else if (rootStretch && i == 0)
+            {
+                bone.offset = stretchOffset(stretchGap, 1F, 1F, parentWorld);
             }
 
             /* Advance by the orientation the renderer will actually apply (the
@@ -681,7 +720,22 @@ final class ClassicLimbSolver
             reachTotal += solved.get(i).distance(solved.get(i + 1));
         }
 
-        if (reach < 1 || reachTotal <= EPS)
+        /* Degenerate chain: the root is the only bone that deforms mesh, so there
+         * is nothing to stretch BETWEEN — the whole shift goes on the root and its
+         * skin slides onto the controller. */
+        if (reach == 0)
+        {
+            BOBJBone root = bonesMap.get(chainIds.get(0));
+
+            if (root != null)
+            {
+                root.offset = new Vector3f(gap);
+            }
+
+            return;
+        }
+
+        if (reachTotal <= EPS)
         {
             return;
         }

@@ -189,7 +189,7 @@ final class ModelIKApplier
                     continue;
                 }
 
-                if (ClassicLimbSolver.apply(model, r.workIds(), frames, r.target(), r.tipTarget(), r.polePoint(), r.poleAngle(), r.softness(), r.weight(), chain.stretch()))
+                if (ClassicLimbSolver.apply(model, r.workIds(), frames, r.target(), r.tipTarget(), r.polePoint(), r.poleAngle(), r.softness(), r.weight(), chain.stretch(), chain.squash()))
                 {
                     continue;
                 }
@@ -1029,7 +1029,7 @@ final class ModelIKApplier
 
         for (ResolvedChain r : resolved)
         {
-            if (r.chain().stretch())
+            if (r.chain().stretch() || r.chain().squash())
             {
                 stretchToTarget(model, nodes, tree, r, frames, blendedParentOf, blendedWorld);
             }
@@ -1053,7 +1053,9 @@ final class ModelIKApplier
      * <p>The share is distributed only up to the last bone carrying GEOMETRY: a
      * chain ending in a bare end-marker (the auto-tail convention) would
      * otherwise open its last seam BEFORE the marker and leave the last visible
-     * bone short of the controller.
+     * bone short of the controller. When that bone is the chain's ROOT — a single
+     * visible bone reaching for its controller — the seam has nowhere to go but
+     * the root's own joint, so the root takes the whole gap and the limb slides.
      */
     private static void stretchToTarget(IModel model, List<String> nodes, IKTree tree, ResolvedChain r, Map<String, PivotFrame> frames, Quaternionf[] blendedParentOf, Quaternionf[] blendedWorld)
     {
@@ -1100,11 +1102,6 @@ final class ModelIKApplier
 
         int reach = lastGeometryIndex(model, workIds);
 
-        if (reach < 1)
-        {
-            return;
-        }
-
         /* Solved positions along the chain: the nodes from the tree, the effector
          * point for the last id. */
         Vector3f[] solved = new Vector3f[workIds.size()];
@@ -1122,6 +1119,19 @@ final class ModelIKApplier
             }
         }
 
+        /* Which half of the gap this is decides which box has to be ticked: a
+         * chain that fell SHORT of its goal telescopes out only with "stretch",
+         * one that OVERSHOT (the goal sits closer than the chain can fold, so the
+         * tip swings past it) folds in only with "squash". Independent on
+         * purpose: a leg that keeps its foot planted while the body squats must
+         * not turn rubbery when the body rises. */
+        boolean shortfall = fellShort(gap, solved[0], tree.effectors[effectorIndex].position);
+
+        if (!(shortfall ? r.chain().stretch() : r.chain().squash()))
+        {
+            return;
+        }
+
         float total = 0F;
 
         for (int i = 0; i < reach; i++)
@@ -1129,16 +1139,20 @@ final class ModelIKApplier
             total += solved[i].distance(solved[i + 1]);
         }
 
-        if (total < EPS)
+        boolean rootOnly = reach == 0;
+
+        if (!rootOnly && total < EPS)
         {
             return;
         }
 
         Vector3f cumulative = new Vector3f();
 
-        for (int i = 1; i <= reach && i < workIds.size(); i++)
+        for (int i = rootOnly ? 0 : 1; i <= reach && i < workIds.size(); i++)
         {
-            Vector3f share = new Vector3f(gap).mul(solved[i - 1].distance(solved[i]) / total);
+            Vector3f share = rootOnly
+                ? new Vector3f(gap)
+                : new Vector3f(gap).mul(solved[i - 1].distance(solved[i]) / total);
 
             String bone = workIds.get(i);
             int node = indexOf(nodes, bone);
@@ -1147,6 +1161,21 @@ final class ModelIKApplier
             cumulative.add(share);
             writeStretchOffset(model, bone, frames.get(bone), parentFrame, share, cumulative);
         }
+    }
+
+    /**
+     * Which side of the reach a gap sits on: {@code true} when the tip fell SHORT
+     * of the goal (the chain has to telescope OUT to close it), {@code false} when
+     * it overshot — the goal sits closer to the root than the chain can fold, so
+     * the tip swung past it and the chain has to fold IN. Read radially, along the
+     * root-to-tip line the solve already aimed at the goal: an unreachable goal
+     * leaves a purely radial gap, and a reachable one leaves no gap at all.
+     */
+    private static boolean fellShort(Vector3f gap, Vector3f root, Vector3f tip)
+    {
+        Vector3f radial = new Vector3f(tip).sub(root);
+
+        return radial.lengthSquared() < EPS * EPS || gap.dot(radial) >= 0F;
     }
 
     /**

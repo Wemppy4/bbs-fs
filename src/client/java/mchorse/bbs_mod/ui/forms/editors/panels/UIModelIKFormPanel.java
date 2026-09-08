@@ -79,6 +79,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
     public UISliderTrackpad stiffnessY;
     public UISliderTrackpad stiffnessZ;
     public UIToggle stretch;
+    public UIToggle squash;
 
     private final Map<String, UIBoneTreeList.Marker[]> boneMarkers = new HashMap<>();
 
@@ -201,6 +202,10 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
 
         this.tipRotation = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_TIP_ROTATION, (b) -> this.editBone((bone) -> bone.ikTipRotation.set(b.getValue())));
         this.stretch = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_STRETCH, (b) -> this.editBone((bone) -> bone.ikStretch.set(b.getValue())));
+        this.stretch.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_STRETCH_TOOLTIP);
+
+        this.squash = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_SQUASH, (b) -> this.editBone((bone) -> bone.ikSquash.set(b.getValue())));
+        this.squash.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_SQUASH_TOOLTIP);
 
         this.classic = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC, (b) ->
         {
@@ -211,6 +216,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
 
         this.resetBone(this.tipRotation, (bone) -> bone.ikTipRotation);
         this.resetBone(this.stretch, (bone) -> bone.ikStretch);
+        this.resetBone(this.squash, (bone) -> bone.ikSquash);
         this.resetBone(this.classic, (bone) -> bone.ikClassic);
 
         UISection settings = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_SETTINGS, "ik.chain", true);
@@ -236,6 +242,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT, this.weight),
             this.tipRotation,
             this.stretch,
+            this.squash,
             this.classic
         );
 
@@ -396,6 +403,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
         this.weight.setEnabled(enabled);
         this.tipRotation.setEnabled(enabled);
         this.stretch.setEnabled(enabled);
+        this.squash.setEnabled(enabled);
         this.classic.setEnabled(enabled);
         this.setJointEnabled(enabled);
     }
@@ -627,6 +635,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
         this.weight.setValue(control.weight);
         this.tipRotation.setValue(formBone != null && formBone.ikTipRotation.get());
         this.stretch.setValue(formBone != null && formBone.ikStretch.get());
+        this.squash.setValue(formBone != null && formBone.ikSquash.get());
         this.classic.setValue(formBone != null && formBone.ikClassic.get());
 
         /* The classic toggle is loud about its fallback: a classic chain that
@@ -673,6 +682,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
         this.weight.setEnabled(canEdit);
         this.tipRotation.setEnabled(canEdit);
         this.stretch.setEnabled(canEdit);
+        this.squash.setEnabled(canEdit);
         this.classic.setEnabled(canEdit);
     }
 
