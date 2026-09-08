@@ -195,6 +195,28 @@ public class CemTest
         seeded.apply(seeded.createState(), null, 0F, false, null, frame);
         flag("a part vanilla moved four down from the top lands at y = 20", Math.abs(villagerHead.current.translate.y - 20F) < 1e-4 && villagerHead.visible);
 
+        System.out.println("\n--- a layer is folded into its base as a material ---");
+
+        /* A sheep and its wool: the same bones, other boxes. The wool also brings a tuft the sheep has
+         * not, and animates it - which the fold cannot honour, and says. */
+        JemModelParser.Result sheep = JemModelParser.parse(JsonParser.parseString("{\"textureSize\":[64,32],\"models\":["
+            + "{\"part\":\"body\",\"id\":\"body\",\"translate\":[0,-19,0],\"boxes\":[{\"coordinates\":[-4,13,-8,8,16,6],\"textureOffset\":[28,8]}],"
+            + "\"submodels\":[{\"id\":\"head2\",\"translate\":[0,18,-8],\"boxes\":[{\"coordinates\":[-3,16,-14,6,6,8],\"textureOffset\":[0,0]}]}]}]}").getAsJsonObject(), null, null);
+        JemModelParser.Result wool = JemModelParser.parse(JsonParser.parseString("{\"textureSize\":[64,32],\"models\":["
+            + "{\"part\":\"body\",\"id\":\"body\",\"translate\":[0,-19,0],\"boxes\":[{\"coordinates\":[-4,13,-8,8,16,6],\"textureOffset\":[28,8],\"sizeAdd\":1.75}],"
+            + "\"submodels\":[{\"id\":\"head2\",\"translate\":[0,18,-8],\"boxes\":[{\"coordinates\":[-3,16,-14,6,6,8],\"textureOffset\":[0,0],\"sizeAdd\":0.6}]},"
+            + "{\"id\":\"tuft\",\"translate\":[0,29,-6],\"boxes\":[{\"coordinates\":[-1,29,-7,2,2,2],\"textureOffset\":[0,0]}]}],"
+            + "\"animations\":[{\"tuft.rx\":\"sin(age)\"}]}]}").getAsJsonObject(), null, null);
+        java.util.Collection<String> folded = JemModelParser.graft(sheep, wool, "wool");
+        ModelGroup sheepBody = sheep.model().getGroup("body");
+        ModelGroup sheepHead = sheep.model().getGroup("head2");
+        ModelGroup tuft = sheep.model().getGroup("tuft");
+
+        flag("the wool's boxes sit on the sheep's bones, under the wool material", sheepBody.cubes.size() == 2 && sheepBody.cubes.get(1).material.equals("wool") && sheepHead.cubes.size() == 2 && sheepHead.cubes.get(1).material.equals("wool"));
+        flag("the sheep's own boxes keep the default material", sheepBody.cubes.get(0).material.isEmpty());
+        flag("the tuft only the wool has came along under the body, with its pivot", tuft != null && tuft.parent == sheepBody && tuft.initial.translate.y == 29F && tuft.cubes.get(0).material.equals("wool"));
+        flag("the tuft's animation is left out, and said so", folded.size() == 1 && folded.iterator().next().contains("tuft"));
+
         System.out.println("\n--- the entity behind a file name (CemNames) ---");
         flag("cold_cow_baby is a cow", CemNames.entity("cold_cow_baby").equals("cow"));
         flag("drowned_outer is a drowned", CemNames.entity("drowned_outer").equals("drowned"));

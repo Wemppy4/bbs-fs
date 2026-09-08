@@ -163,6 +163,22 @@ public class CemAnimation
         return this.statements.isEmpty();
     }
 
+    /** Whether any statement writes a channel of this bone. */
+    public boolean mentions(String bone)
+    {
+        String prefix = bone + ".";
+
+        for (Statement statement : this.statements)
+        {
+            if (statement.target.getName().startsWith(prefix))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Record a {@code variable = expression} statement, preserving evaluation order. */
     public void addStatement(String target, String expression)
     {
