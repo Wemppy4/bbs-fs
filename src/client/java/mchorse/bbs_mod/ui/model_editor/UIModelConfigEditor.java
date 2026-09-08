@@ -662,7 +662,7 @@ public class UIModelConfigEditor extends UIElement
 
         UIValues.resettable(anchor, () -> this.data.anchor, anchor::refresh);
 
-        UIButton texture = new UIButton(UIKeys.TEXTURE_PICK_TEXTURE, (b) -> UITexturePicker.open(this.getContext(), this.data.texture.get(), this.data.texture::set)).icon(Icons.MATERIAL);
+        UIButton texture = new UIButton(UIKeys.TEXTURE_PICK_TEXTURE, (b) -> UITexturePicker.open(this.getContext(), this.data.texture.get(), this.data.texture::set));
 
         UIValues.resettable(texture, () -> this.data.texture, null);
 

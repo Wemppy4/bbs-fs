@@ -7,7 +7,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 
 /**
@@ -30,7 +29,7 @@ public class UIModelKeyframeFactory extends UIKeyframeFactory<String>
                 this.setValue(model);
                 this.updateModel();
             });
-        }).icon(Icons.POSE);
+        });
 
         this.scroll.add(UI.column(
             UI.label(UIKeys.FORMS_EDITOR_MODEL_MODELS),

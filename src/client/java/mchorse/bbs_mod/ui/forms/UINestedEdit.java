@@ -6,7 +6,6 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 import java.util.function.Consumer;
 
@@ -19,8 +18,8 @@ public class UINestedEdit extends UIElement
     {
         super();
 
-        this.edit = new UIButton(UIKeys.GENERAL_EDIT, (b) -> callback.accept(true)).icon(Icons.EDIT);
-        this.pick = new UIButton(UIKeys.GENERAL_PICK, (b) -> callback.accept(false)).icon(Icons.MORPH);
+        this.edit = new UIButton(UIKeys.GENERAL_EDIT, (b) -> callback.accept(true));
+        this.pick = new UIButton(UIKeys.GENERAL_PICK, (b) -> callback.accept(false));
 
         this.edit.relative(this).h(1F);
         this.pick.relative(this).h(1F);

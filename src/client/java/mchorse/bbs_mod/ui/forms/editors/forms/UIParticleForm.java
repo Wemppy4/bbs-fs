@@ -11,7 +11,6 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIParticleForm extends UIForm<ParticleForm>
 {
@@ -30,7 +29,7 @@ public class UIParticleForm extends UIForm<ParticleForm>
             }
 
             UITexturePicker.open(this.getContext(), texture, (l) -> this.form.texture.set(l));
-        }).icon(Icons.MATERIAL).marginBottom(UIConstants.SECTION_GAP);
+        }).marginBottom(UIConstants.SECTION_GAP);
 
         this.registerDefaultPanels();
 

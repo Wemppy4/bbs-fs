@@ -7,7 +7,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
@@ -40,7 +39,7 @@ public class UIParticleSettings extends UIElement
             overlayPanel.setValue(this.settings.particle.toString());
 
             UIOverlay.addOverlay(this.getContext(), overlayPanel);
-        }).icon(Icons.PARTICLE);
+        });
 
         this.arguments = new UITextbox(1000, this::setArguments);
 

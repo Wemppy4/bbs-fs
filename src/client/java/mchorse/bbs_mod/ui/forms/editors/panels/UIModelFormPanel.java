@@ -58,7 +58,7 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
 
                 this.editor.startEdit(this.form);
             });
-        }).icon(Icons.POSE);
+        });
         this.poseEditor = new UIModelPoseEditor();
         this.poseEditor.transform.barBackground();
         this.shapeKeys = new UIShapeKeys();
@@ -87,7 +87,7 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
                     }
                 });
             }
-        }).icon(Icons.MATERIAL);
+        });
 
         this.options.add(this.pickModel, this.pick, this.poseEditor);
 

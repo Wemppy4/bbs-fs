@@ -64,7 +64,7 @@ public class UIVideoClip extends UIAudioClip<VideoClientClip>
             UIStringOverlayPanel panel = UIStringOverlayPanel.links(UIKeys.CAMERA_PANELS_VIDEO_PICK, getVideoLinks(), (l) -> this.clip.audio.set(l));
 
             UIOverlay.addOverlay(this.getContext(), panel.set(this.clip.audio.get()));
-        }).icon(Icons.VIDEO_CAMERA);
+        });
 
         this.openFolder = new UIIcon(Icons.FOLDER, (b) ->
         {

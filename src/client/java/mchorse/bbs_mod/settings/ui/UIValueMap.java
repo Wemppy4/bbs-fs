@@ -146,9 +146,9 @@ public class UIValueMap
 
                 panel.set(value.get());
                 UIOverlay.addOverlay(ui.getContext(), panel);
-            }).icon(Icons.GLOBE);
+            });
 
-            button.w(130);
+            button.w(90);
 
             UIText credits = new UIText().text(UIKeys.LANGUAGE_CREDITS).updates();
 
@@ -160,9 +160,9 @@ public class UIValueMap
             UIButton pick = new UIButton(UIKeys.TEXTURE_PICK_TEXTURE, (button) ->
             {
                 UITexturePicker.open(ui.getContext(), value.get(), value::set);
-            }).icon(Icons.MATERIAL);
+            });
 
-            pick.w(130);
+            pick.w(90);
 
             return Arrays.asList(UIValueFactory.column(pick, value));
         });

@@ -44,7 +44,7 @@ public class UIAudioClip <T extends AudioClip> extends UIClip<T>
             UISoundOverlayPanel panel = new UISoundOverlayPanel((l) -> this.clip.audio.set(l), this.getContext());
 
             UIOverlay.addOverlay(this.getContext(), panel.set(this.clip.audio.get()));
-        }).icon(Icons.SOUND);
+        });
 
         this.openFolder = new UIIcon(Icons.FOLDER, (b) ->
         {

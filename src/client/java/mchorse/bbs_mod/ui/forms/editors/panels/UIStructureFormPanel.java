@@ -45,7 +45,7 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
     {
         super(editor);
 
-        this.structure = new UIButton(L10n.lang("bbs.ui.forms.editors.structure.pick_structure"), (b) -> this.openStructurePicker()).icon(Icons.STRUCTURE);
+        this.structure = new UIButton(L10n.lang("bbs.ui.forms.editors.structure.pick_structure"), (b) -> this.openStructurePicker());
         this.openFolder = new UIIcon(Icons.FOLDER, (b) ->
         {
             File folder = StructureManager.getAssetsFolder();
@@ -54,7 +54,7 @@ public class UIStructureFormPanel extends UIFormPanel<StructureForm>
             UIUtils.openFolder(folder);
         });
         this.openFolder.tooltip(L10n.lang("bbs.ui.forms.editors.structure.open_folder"));
-        this.biome = new UIButton(L10n.lang("bbs.ui.forms.editors.structure.pick_biome"), (b) -> this.openBiomePicker()).icon(Icons.TREE);
+        this.biome = new UIButton(L10n.lang("bbs.ui.forms.editors.structure.pick_biome"), (b) -> this.openBiomePicker());
         this.originX = this.createOriginTrackpad(Colors.RED, UIKeys.GENERAL_X);
         this.originY = this.createOriginTrackpad(Colors.GREEN, UIKeys.GENERAL_Y);
         this.originZ = this.createOriginTrackpad(Colors.BLUE, UIKeys.GENERAL_Z);
