@@ -6,7 +6,6 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
-import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -20,8 +19,8 @@ import java.util.function.IntSupplier;
 
 /**
  * A strip of tabs: a scrollable row (or column) of tab elements with the active one marked,
- * an optional hover box, an optional label card for icon-only tabs, and hooks for what the
- * owner does when a tab is selected, closed or reordered.
+ * an optional label card for icon-only tabs, and hooks for what the owner does when a tab is
+ * selected, closed or reordered.
  *
  * <p>The strip does not own the model. Owners rebuild the tabs from their own list
  * ({@link #removeAll()}, then {@link #addTab} per tab) and answer {@link #active} on demand,
@@ -316,29 +315,26 @@ public class UITabStrip extends UIScrollView
         this.renderHoverCard(context);
     }
 
+    /**
+     * Only the active tab is marked here. A tab under the cursor answers with itself — its icon
+     * or its word changes tone, and an icon-only strip names it on a card besides — so a fill
+     * behind it said the same thing a second time, on the one strip of the UI where the marks
+     * are already the loudest.
+     */
     @Override
     protected void preRender(UIContext context)
     {
-        int active = this.active.getAsInt();
+        UIElement tab = this.getTab(this.active.getAsInt());
 
-        for (int i = 0; i < this.tabs.size(); i++)
+        if (tab != null)
         {
-            UIElement tab = this.tabs.get(i);
-
-            if (i == active)
+            if (this.activeEdge != null)
             {
-                if (this.activeEdge != null)
-                {
-                    context.batcher.highlight(tab.area, this.activeEdge);
-                }
-                else
-                {
-                    tab.area.render(context.batcher, this.activeColor.getAsInt());
-                }
+                context.batcher.highlight(tab.area, this.activeEdge);
             }
-            else if (tab.area.isInside(context))
+            else
             {
-                RowStyle.hover(context.batcher, tab.area.x, tab.area.y, tab.area.w, tab.area.h, 0);
+                tab.area.render(context.batcher, this.activeColor.getAsInt());
             }
         }
 
