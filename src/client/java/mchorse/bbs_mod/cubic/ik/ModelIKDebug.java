@@ -116,7 +116,8 @@ public final class ModelIKDebug
         }
 
         Map<String, PivotFrame> frames = new HashMap<>(wanted.size() * 2);
-        ModelPivotFrames.collect(model, wanted, frames);
+
+        ModelPivotFrames.collect(model, wanted, frames, null, true);
 
         return frames;
     }
