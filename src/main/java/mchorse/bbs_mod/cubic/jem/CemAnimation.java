@@ -423,7 +423,9 @@ public class CemAnimation
         this.parser.setValue("is_gliding", target.isFallFlying() ? 1 : 0);
         this.parser.setValue("is_riding", target.isRiding() ? 1 : 0);
         this.parser.setValue("is_ridden", target.isRidden() ? 1 : 0);
-        this.parser.setValue("is_child", target.isChild() ? 1 : 0);
+        /* A pack's _baby file is a child by definition, whatever the actor under it says: its timings
+         * (limb_speed >= if(is_child, 0.7, 0.87), age * if(is_child, 1.5, 1)) are written for one. */
+        this.parser.setValue("is_child", target.isChild() || CemNames.baby(this.jem) ? 1 : 0);
 
         /* A name the program does not know reads as zero, and zero is a state of its own, not "unknown":
          * an iron golem written around if(health<=15, ...) posed as dying in every frame, a magma cube

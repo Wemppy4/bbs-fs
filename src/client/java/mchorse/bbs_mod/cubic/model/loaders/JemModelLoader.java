@@ -17,6 +17,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.IOUtils;
 import mchorse.bbs_mod.utils.StringUtils;
+import org.joml.Vector3f;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -122,6 +123,15 @@ public class JemModelLoader implements IModelLoader
             /* CEM models routinely overlap layers (headwear/jacket/sleeves); disable culling by
              * default so inner/overlapping faces don't vanish. A config.json can still override it. */
             newModel.config.culling.set(false);
+
+            /* Vanilla draws the young at half size with the feet on the ground, whatever the model -
+             * AnimalModel and BipedEntityModel scale a child's body parts by 0.5 as they render - and a
+             * pack draws its _baby file at the adult's scale knowing that. The model's own scale carries
+             * it here, and a config.json can still override it. */
+            if (CemNames.baby(entity))
+            {
+                newModel.config.scale.set(new Vector3f(0.5F));
+            }
 
             newModel.applyConfig(config);
 
