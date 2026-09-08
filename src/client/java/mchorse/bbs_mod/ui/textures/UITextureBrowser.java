@@ -322,7 +322,14 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.grid.context(this::buildContextMenu);
         this.markContainer();
 
-        this.navigate(new Link("", ""));
+        this.navigate(defaultFolder());
+    }
+
+    private static Link defaultFolder()
+    {
+        Link textures = Link.assets("textures/");
+
+        return TextureFiles.isFolder(textures) ? textures : new Link("", "");
     }
 
     /** Place the parts for the current side panel widths: the info column reaches up beside the breadcrumbs. */
