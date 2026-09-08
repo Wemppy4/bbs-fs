@@ -100,6 +100,7 @@ public class CemSourcePack implements ISourcePack
     public void reindex()
     {
         Map<String, Identifier> assets = new TreeMap<>();
+        Map<String, Map<String, Identifier>> layers = new TreeMap<>();
         Textures textures = this.textures();
 
         for (Identifier jem : this.manager.findResources(CEM, (id) -> isMinecraft(id) && id.getPath().endsWith(".jem")).keySet())
@@ -115,25 +116,64 @@ public class CemSourcePack implements ISourcePack
             CemNames.Layer layer = CemNames.layer(name);
             String folder = FOLDER + (layer == null ? model : model.substring(0, model.length() - name.length()) + layer.base()) + "/";
             String subfolder = layer == null ? "" : "textures/" + layer.name() + "/";
+            Map<String, Identifier> own = new TreeMap<>();
 
-            assets.put(folder + name + ".jem", jem);
+            own.put(folder + name + ".jem", jem);
 
-            this.collectParts(jem, folder, assets);
+            this.collectParts(jem, folder, own);
 
             Identifier texture = this.resolveTexture(textures, name);
 
             if (texture != null)
             {
-                assets.put(folder + subfolder + TEXTURE, texture);
+                own.put(folder + subfolder + TEXTURE, texture);
 
                 for (Identifier alternative : alternatives(textures, texture))
                 {
-                    assets.put(folder + subfolder + fileName(alternative) + ".png", alternative);
+                    own.put(folder + subfolder + fileName(alternative) + ".png", alternative);
                 }
+            }
+
+            assets.putAll(own);
+
+            if (layer != null)
+            {
+                layers.computeIfAbsent(folder, (key) -> new TreeMap<>()).putAll(own);
             }
         }
 
+        this.dressTheYoung(assets, layers);
+
         this.assets = assets;
+    }
+
+    /**
+     * The young wear the layers of the grown: vanilla draws a drowned's outer layer over a baby drowned
+     * with the same model, and a pack that ships {@code drowned_baby.jem} beside {@code drowned_outer.jem}
+     * means the one to wear the other. So a layer folded into a model's folder is folded into the folder
+     * of its young too, where the pack has one — the layer's own files, under the same names. A layer the
+     * pack draws for the young by name ({@code pig_baby_saddle}) is theirs already.
+     *
+     * @param layers the files every layer brought, by the folder of the model it is a layer of
+     */
+    private void dressTheYoung(Map<String, Identifier> assets, Map<String, Map<String, Identifier>> layers)
+    {
+        for (Map.Entry<String, Map<String, Identifier>> layer : layers.entrySet())
+        {
+            String folder = layer.getKey();
+            String name = folder.substring(folder.lastIndexOf('/', folder.length() - 2) + 1, folder.length() - 1);
+            String babyFolder = folder.substring(0, folder.length() - 1) + BABY + "/";
+
+            if (!assets.containsKey(babyFolder + name + BABY + ".jem"))
+            {
+                continue;
+            }
+
+            for (Map.Entry<String, Identifier> asset : layer.getValue().entrySet())
+            {
+                assets.putIfAbsent(babyFolder + asset.getKey().substring(folder.length()), asset.getValue());
+            }
+        }
     }
 
     /**
@@ -301,6 +341,8 @@ public class CemSourcePack implements ISourcePack
         Map.entry("shulker_box", "shulker/shulker.png"),
         Map.entry("skeleton_horse", "horse/horse_skeleton.png"),
         Map.entry("stray_outer", "skeleton/stray_overlay.png"),
+        Map.entry("trader_llama", "llama/creamy.png"),
+        Map.entry("trader_llama_decor", "llama/decor/trader_llama.png"),
         Map.entry("tropical_fish", "fish/tropical_a.png"),
         Map.entry("zombie_horse", "horse/horse_zombie.png")
     );

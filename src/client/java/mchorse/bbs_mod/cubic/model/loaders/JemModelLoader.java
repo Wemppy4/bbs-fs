@@ -74,7 +74,10 @@ public class JemModelLoader implements IModelLoader
             }
 
             /* The folder's other files: a layer over the entity is folded into its model as a
-             * material, anything else is left out - a folder is one model. */
+             * material, anything else is left out - a folder is one model. The young wear the layers
+             * of the grown (drowned_outer over drowned_baby), so a layer of the entity minus its
+             * _baby is theirs too - see CemSourcePack, which puts it in their folder. */
+            String grown = entity.replace("_baby", "");
             List<String> layers = new ArrayList<>();
 
             for (Link link : modelJem)
@@ -87,7 +90,7 @@ public class JemModelLoader implements IModelLoader
                 String name = StringUtils.removeExtension(StringUtils.fileName(link.path));
                 CemNames.Layer layer = CemNames.layer(name);
 
-                if (layer != null && layer.base().equals(entity))
+                if (layer != null && (layer.base().equals(entity) || layer.base().equals(grown)))
                 {
                     JemModelParser.Result folded = this.parse(link, jpms, models, hierarchy);
 

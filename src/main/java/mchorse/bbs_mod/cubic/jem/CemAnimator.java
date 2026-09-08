@@ -90,7 +90,11 @@ public class CemAnimator implements IAnimator
 
         if (inGui)
         {
+            /* The preview keeps its own clock, and the frame's place in it is its own too: the game's
+             * partial tick belongs to the game's ticks, which the preview's are not in step with, and
+             * mixing the two made the preview's time saw back and forth once a tick. */
             entity = this.preview();
+            transition = (float) (this.previewTicks - Math.floor(this.previewTicks));
         }
 
         CemVanillaSeed seed = this.stage == null ? null : this.stage.seed(entity, transition);
