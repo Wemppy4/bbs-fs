@@ -237,12 +237,17 @@ public class CemSourcePack implements ISourcePack
     private static final class Textures
     {
         final Map<String, Identifier> byPath = new LinkedHashMap<>();
-        final Map<String, Identifier> byName = new LinkedHashMap<>();
+
+        /** Every texture of a file name, in path order: a name is not always one file, see {@link #pickByName}. */
+        final Map<String, List<Identifier>> byName = new LinkedHashMap<>();
         final Map<String, List<Identifier>> byFolder = new LinkedHashMap<>();
     }
 
-    /** Variant prefixes a pack puts on an entity that wears the plain one's texture. */
+    /** Climate prefixes a pack puts on an entity; the plain one's texture is the fallback when the pack draws none of its own. */
     private static final String[] PREFIXES = {"cold_", "warm_"};
+
+    /** The suffix Entity Texture Features gives an emissive overlay: a texture drawn over the entity, not a coat for it. */
+    private static final String EMISSIVE = "_e";
 
     /**
      * The young variant's marker. It sits anywhere in the name, not only at its end: a pack's
@@ -258,7 +263,7 @@ public class CemSourcePack implements ISourcePack
     private static final String[] LAYERS = {
         "_outer", "_saddle", "_armor", "_decor", "_patch", "_collar", "_wool", "_charge",
         "_undercoat", "_harness", "_ropes", "_big", "_medium", "_small", "_pattern_a", "_pattern_b",
-        "_a", "_b", "_left", "_right"
+        "_a", "_b", "_left", "_right", "_layer"
     };
 
     /**
@@ -300,7 +305,7 @@ public class CemSourcePack implements ISourcePack
             String name = path.substring(path.lastIndexOf('/') + 1, path.length() - 4);
 
             textures.byPath.putIfAbsent(path, id);
-            textures.byName.putIfAbsent(name, id);
+            textures.byName.computeIfAbsent(name, (k) -> new ArrayList<>()).add(id);
 
             for (int slash = path.indexOf('/'); slash >= 0; slash = path.indexOf('/', slash + 1))
             {
@@ -334,7 +339,7 @@ public class CemSourcePack implements ISourcePack
 
         for (String name : names)
         {
-            Identifier id = textures.byName.get(name);
+            Identifier id = pickByName(textures, name);
 
             if (id != null)
             {
@@ -356,13 +361,58 @@ public class CemSourcePack implements ISourcePack
     }
 
     /**
+     * The texture called after the entity. A name is not always one file: {@code creeper.png} is a
+     * banner pattern and a shield pattern before it is a creeper, and both sort ahead of the creeper's
+     * own folder - the model came out wearing the pattern. The entity's own folder wins, then a file at
+     * the root of the entity textures, then whichever came first.
+     */
+    private static Identifier pickByName(Textures textures, String name)
+    {
+        List<Identifier> all = textures.byName.get(name);
+
+        if (all == null)
+        {
+            return null;
+        }
+
+        for (Identifier id : all)
+        {
+            if (folderName(id).equals(name))
+            {
+                return id;
+            }
+        }
+
+        for (Identifier id : all)
+        {
+            if (folderName(id).isEmpty())
+            {
+                return id;
+            }
+        }
+
+        return all.get(0);
+    }
+
+    /** The folder a texture sits in, relative to the entity textures - {@code cat} for {@code cat/red.png}; empty at their root. */
+    private static String folderName(Identifier id)
+    {
+        String path = id.getPath().substring(TEXTURES.length() + 1);
+        int slash = path.lastIndexOf('/');
+
+        return slash < 0 ? "" : path.substring(path.lastIndexOf('/', slash - 1) + 1, slash);
+    }
+
+    /**
      * The names to look an entity up under, from itself down to the entity it is a variant of.
      *
-     * <p>The variant's own markers come off first, and all at once - the climate prefix, the baby, a
-     * trailing number - because they sit anywhere in the name and what follows them still means
-     * something: {@code pig_baby_saddle} is a saddled pig before it is a pig, and {@code villager_baby2}
-     * a villager. Then the layers come off one at a time, each a name of its own, so a layer over a
-     * layer is looked up through the layer ({@code sheep_wool_undercoat} finds the wool).</p>
+     * <p>The young and the numbered come off first, because they sit anywhere in the name and what
+     * follows them still means something: {@code pig_baby_saddle} is a saddled pig before it is a pig,
+     * and {@code villager_baby2} a villager. The climate prefix comes off next, and only next: a pack
+     * that draws a cold cow draws it on a texture of its own, and {@code cold_cow_baby} wears
+     * {@code cold_cow}'s, not {@code cow}'s. Then the layers come off one at a time, each a name of its
+     * own, so a layer over a layer is looked up through the layer ({@code sheep_wool_undercoat} finds
+     * the wool).</p>
      */
     private static Collection<String> variants(String entity)
     {
@@ -370,16 +420,15 @@ public class CemSourcePack implements ISourcePack
         String name = entity;
 
         names.add(name);
+        names.add(name = stripDigits(name.replace(BABY, "")));
 
         for (String prefix : PREFIXES)
         {
             if (name.startsWith(prefix))
             {
-                name = name.substring(prefix.length());
+                names.add(name = name.substring(prefix.length()));
             }
         }
-
-        names.add(name = stripDigits(name.replace(BABY, "")));
 
         for (String shorter = peel(name); shorter != null; shorter = peel(name))
         {
@@ -416,6 +465,8 @@ public class CemSourcePack implements ISourcePack
      * picker opens on the texture in effect, so served beside it under their own names the variants
      * are right there in the picker, rather than somewhere under the game's own files. The folder is
      * the unit: a texture sitting at the root of the entity textures has neighbours, not variants.
+     * Nor is everything in the folder a coat: a layer over the entity (the charge over a creeper, the
+     * collar over a cat) and an emissive overlay (the {@code _e} of Entity Texture Features) are left out.
      */
     private static List<Identifier> alternatives(Textures textures, Identifier texture)
     {
@@ -427,9 +478,17 @@ public class CemSourcePack implements ISourcePack
             return Collections.emptyList();
         }
 
-        List<Identifier> alternatives = direct(textures, path.substring(0, slash));
+        List<Identifier> alternatives = new ArrayList<>();
 
-        alternatives.remove(texture);
+        for (Identifier id : direct(textures, path.substring(0, slash)))
+        {
+            String name = fileName(id);
+
+            if (!id.equals(texture) && !isLayer(name) && !name.endsWith(EMISSIVE))
+            {
+                alternatives.add(id);
+            }
+        }
 
         return alternatives;
     }
