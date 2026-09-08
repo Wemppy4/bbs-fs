@@ -121,29 +121,34 @@ public abstract class EditorLayoutNode
         return null;
     }
 
-    /** Default: vertical 0.66 -> main | (horizontal 0.5 -> preview / editArea). */
+    /**
+     * What a fresh install opens the film editor in. The welcome screen offers the very same tree
+     * as its "default" card, so {@code assets/presets/layouts/default.json} has to move with this
+     * one: the record's properties over the record list down the left, the preview over the
+     * timeline in the middle, and the edit area as a column of its own on the right.
+     */
     public static EditorLayoutNode defaultFilmLayout()
     {
         return new SplitterNode(
             false,
-            0.1819149F,
+            0.7916667F,
             new SplitterNode(
-                true,
-                0.28659794F,
-                new PanelNode("replayProps"),
-                new PanelNode("replaysList")
-            ),
-            new SplitterNode(
-                true,
-                0.6659794F,
+                false,
+                0.25294888F,
                 new SplitterNode(
-                    false,
-                    0.793238F,
-                    new PanelNode("preview"),
-                    new PanelNode("editArea")
+                    true,
+                    0.28479657F,
+                    new PanelNode("replayProps"),
+                    new PanelNode("replaysList")
                 ),
-                new PanelNode("main")
-            )
+                new SplitterNode(
+                    true,
+                    0.6167024F,
+                    new PanelNode("preview"),
+                    new PanelNode("main")
+                )
+            ),
+            new PanelNode("editArea")
         );
     }
 
