@@ -279,9 +279,11 @@ public class CemSourcePack implements ISourcePack
      * Kept small on purpose: everything a rule can reach is left to the rules.
      */
     private static final Map<String, String> ALIASES = Map.ofEntries(
+        Map.entry("bogged_outer", "skeleton/bogged_overlay.png"),
         Map.entry("chest", "chest/normal.png"),
         Map.entry("chest_large", "chest/normal_left.png"),
         Map.entry("chest_raft", "chest_boat/bamboo.png"),
+        Map.entry("drowned_outer", "zombie/drowned_outer_layer.png"),
         Map.entry("ender_chest", "chest/ender.png"),
         Map.entry("trapped_chest", "chest/trapped.png"),
         Map.entry("trapped_chest_large", "chest/trapped_left.png"),
@@ -298,6 +300,7 @@ public class CemSourcePack implements ISourcePack
         Map.entry("sheep_wool", "sheep/sheep_fur.png"),
         Map.entry("shulker_box", "shulker/shulker.png"),
         Map.entry("skeleton_horse", "horse/horse_skeleton.png"),
+        Map.entry("stray_outer", "skeleton/stray_overlay.png"),
         Map.entry("tropical_fish", "fish/tropical_a.png"),
         Map.entry("zombie_horse", "horse/horse_zombie.png")
     );
