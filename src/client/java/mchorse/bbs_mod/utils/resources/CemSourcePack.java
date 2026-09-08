@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import mchorse.bbs_mod.cubic.jem.CemNames;
 import mchorse.bbs_mod.resources.ISourcePack;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.IOUtils;
@@ -46,6 +47,8 @@ import java.util.TreeMap;
  * models/cem/&lt;entity&gt;/&lt;name&gt;.jpm     only the part models that .jem refers to
  * models/cem/&lt;entity&gt;/model.png       the entity's texture, when it can be resolved
  * models/cem/&lt;entity&gt;/&lt;variant&gt;.png   the other textures of that one's folder, to pick from
+ * models/cem/&lt;entity&gt;/&lt;entity&gt;_&lt;layer&gt;.jem          a layer over the entity — a material of its model
+ * models/cem/&lt;entity&gt;/textures/&lt;layer&gt;/model.png   that layer's texture, its variants beside it
  * </pre>
  *
  * <p>Everything is read through Minecraft's own {@link ResourceManager}, which is the point: it
@@ -103,10 +106,15 @@ public class CemSourcePack implements ISourcePack
         {
             /* The path under the CEM folder without its extension: "cow", or "boat/bamboo" for the
              * ones a pack files away in a subfolder. The last segment names the model's folder, and
-             * the .jem inside carries the same name so the loader picks it over any sibling. */
+             * the .jem inside carries the same name so the loader picks it over any sibling. A layer
+             * over an entity (sheep_wool, drowned_outer) is not a model of its own: it goes into the
+             * folder of the model it is a layer of, under its own name, with its texture under the
+             * layer's material — see CemNames.layer and the loader. */
             String model = jem.getPath().substring(CEM.length() + 1, jem.getPath().length() - 4);
             String name = model.substring(model.lastIndexOf('/') + 1);
-            String folder = FOLDER + model + "/";
+            CemNames.Layer layer = CemNames.layer(name);
+            String folder = FOLDER + (layer == null ? model : model.substring(0, model.length() - name.length()) + layer.base()) + "/";
+            String subfolder = layer == null ? "" : "textures/" + layer.name() + "/";
 
             assets.put(folder + name + ".jem", jem);
 
@@ -116,11 +124,11 @@ public class CemSourcePack implements ISourcePack
 
             if (texture != null)
             {
-                assets.put(folder + TEXTURE, texture);
+                assets.put(folder + subfolder + TEXTURE, texture);
 
                 for (Identifier alternative : alternatives(textures, texture))
                 {
-                    assets.put(folder + fileName(alternative) + ".png", alternative);
+                    assets.put(folder + subfolder + fileName(alternative) + ".png", alternative);
                 }
             }
         }

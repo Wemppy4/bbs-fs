@@ -1,5 +1,8 @@
 package mchorse.bbs_mod.cubic.jem;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
+
 /**
  * What a {@code .jem}'s file name says about the entity it dresses.
  *
@@ -22,16 +25,58 @@ public final class CemNames
     private static final String[] CLIMATES = {"cold_", "warm_"};
 
     /**
-     * Suffixes naming a layer over an entity rather than an entity: the wool over a sheep, the armour
-     * over a horse, the outer skin of a stray, the charge over a creeper. Taken off one after another,
-     * so {@code sheep_wool_undercoat} comes back to {@code sheep}.
+     * Suffixes naming a layer drawn over the entity from its own bones — the wool over a sheep, the
+     * armour over a horse, the outer skin of a stray — which is to say a material of the entity's
+     * model rather than a model of its own; see {@link #layer}.
      */
-    private static final String[] LAYERS = {
-        "_outer", "_saddle", "_armor", "_decor", "_patch", "_collar", "_wool", "_undercoat", "_harness", "_ropes", "_charge"
+    private static final String[] MATERIAL_LAYERS = {
+        "_outer", "_saddle", "_armor", "_decor", "_patch", "_collar", "_wool", "_undercoat", "_harness", "_ropes"
     };
+
+    /**
+     * Every suffix naming a layer over an entity rather than an entity — the material layers and the
+     * charge over a creeper, which vanilla draws by a rendering of its own and stays a model of its
+     * own. Taken off one after another, so {@code sheep_wool_undercoat} comes back to {@code sheep}.
+     */
+    private static final String[] LAYERS = Stream.concat(Arrays.stream(MATERIAL_LAYERS), Stream.of("_charge")).toArray(String[]::new);
+
+    /** A layer file's place: the model it is a layer of, and the layer's name — its material. */
+    public record Layer(String base, String name)
+    {}
 
     private CemNames()
     {}
+
+    /**
+     * The base model and the material name for a layer file, or null for a model of its own:
+     * {@code sheep_wool} → ({@code sheep}, {@code wool}), {@code sheep_wool_undercoat} →
+     * ({@code sheep}, {@code wool_undercoat}), {@code pig_baby_saddle} → ({@code pig_baby},
+     * {@code saddle}) — the young are a model of their own, so the layer goes to theirs.
+     */
+    public static Layer layer(String file)
+    {
+        String name = file;
+        String layer = null;
+
+        for (boolean stripped = true; stripped; )
+        {
+            stripped = false;
+
+            for (String suffix : MATERIAL_LAYERS)
+            {
+                if (name.endsWith(suffix) && name.length() > suffix.length())
+                {
+                    String part = suffix.substring(1);
+
+                    layer = layer == null ? part : part + "_" + layer;
+                    name = name.substring(0, name.length() - suffix.length());
+                    stripped = true;
+                }
+            }
+        }
+
+        return layer == null ? null : new Layer(name, layer);
+    }
 
     /** The entity a model file dresses: {@code cold_cow_baby} → {@code cow}, {@code drowned_outer} → {@code drowned}, {@code villager2} → {@code villager}. */
     public static String entity(String file)

@@ -205,6 +205,10 @@ public class CemTest
         flag("puffer_fish_big keeps its size", CemNames.entity("puffer_fish_big").equals("puffer_fish_big"));
         flag("player_slim stays itself", CemNames.entity("player_slim").equals("player_slim"));
         flag("head_creeper is a skull, not a creeper", CemNames.entity("head_creeper").equals("head_creeper"));
+        flag("sheep_wool is the sheep's wool material", CemNames.layer("sheep_wool").equals(new CemNames.Layer("sheep", "wool")));
+        flag("sheep_wool_undercoat is the sheep's wool_undercoat", CemNames.layer("sheep_wool_undercoat").equals(new CemNames.Layer("sheep", "wool_undercoat")));
+        flag("pig_baby_saddle is the saddle of the young pig", CemNames.layer("pig_baby_saddle").equals(new CemNames.Layer("pig_baby", "saddle")));
+        flag("creeper_charge stays a model of its own", CemNames.layer("creeper_charge") == null && CemNames.layer("cow") == null);
 
         System.out.println("\n--- part names, OptiFine to vanilla and back (CemPartNames) ---");
         flag("horse: neck is head_parts", CemPartNames.of("horse").vanilla("neck").equals("head_parts"));
