@@ -114,7 +114,7 @@ public class CubicVAORenderer extends CubicCubeRenderer
             }
         }
 
-        if (groupVaos == null || groupVaos.isEmpty() || !group.visible)
+        if (groupVaos == null || groupVaos.isEmpty() || !group.isVisible())
         {
             return false;
         }

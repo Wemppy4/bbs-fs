@@ -208,6 +208,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         {
             PoseTransform poseTransform = targetPose.getOrCreate(entry.getKey());
             PoseTransform value = entry.getValue();
+            poseTransform.visible &= value.visible;
 
             if (!Operation.equals(value.fix, 0))
             {

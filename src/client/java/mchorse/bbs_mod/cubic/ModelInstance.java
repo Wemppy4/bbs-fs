@@ -723,7 +723,7 @@ public class ModelInstance implements IModelInstance
 
         for (ModelGroup group : model.getAllGroups())
         {
-            hash = hash * 31 + (group.visible ? 1 : 0);
+            hash = hash * 31 + (group.isVisible() ? 1 : 0);
             hash = hash * 31 + group.current.contentHash();
             hash = hash * 31 + (group.orient == null ? 0 : group.orient.hashCode());
             hash = hash * 31 + (group.offset == null ? 0 : group.offset.hashCode());
@@ -846,7 +846,7 @@ public class ModelInstance implements IModelInstance
 
         for (ModelGroup group : model.getAllGroups())
         {
-            if (!group.visible || (group.cubes.isEmpty() && group.meshes.isEmpty()))
+            if (!group.isVisible() || (group.cubes.isEmpty() && group.meshes.isEmpty()))
             {
                 continue;
             }

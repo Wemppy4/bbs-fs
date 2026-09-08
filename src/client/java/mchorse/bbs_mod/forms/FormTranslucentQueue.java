@@ -462,6 +462,7 @@ public class FormTranslucentQueue
         private final Supplier<ShaderProgram> shader;
         private final int passMode;
         private final Matrix4f[] armatureSnapshot;
+        private final boolean[] visibilitySnapshot;
         private final int uploadCount;
         private final Texture texture;
         private final Matrix4f modelView;
@@ -484,6 +485,7 @@ public class FormTranslucentQueue
             this.shader = shader;
             this.passMode = passMode;
             this.armatureSnapshot = armatureSnapshot;
+            this.visibilitySnapshot = vao.snapshotVisibility();
             this.uploadCount = uploadCount;
             this.texture = texture;
             this.modelView = modelView;
@@ -508,7 +510,7 @@ public class FormTranslucentQueue
 
             if (this.vao.getUploadCount() != this.uploadCount)
             {
-                this.vao.updateMesh(null, this.armatureSnapshot);
+                this.vao.updateMesh(null, this.armatureSnapshot, this.visibilitySnapshot);
             }
 
             int previousOverlay = this.bindOverlay();

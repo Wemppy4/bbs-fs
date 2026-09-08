@@ -15,6 +15,9 @@ import org.joml.Vector4f;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL30;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class BOBJModelVAO
 {
     public BOBJLoader.CompiledData data;
@@ -22,6 +25,7 @@ public class BOBJModelVAO
 
     private int vao;
     private int count;
+    private List<int[]> visibleRanges;
 
     /* GL buffers */
     public int vertexBuffer;
@@ -134,6 +138,28 @@ public class BOBJModelVAO
         return snapshot;
     }
 
+    /** Null is the common case where every bone is visible. */
+    public boolean[] snapshotVisibility()
+    {
+        boolean[] visible = null;
+
+        for (int i = 0; i < this.armature.orderedBones.size(); i++)
+        {
+            if (!this.armature.orderedBones.get(i).visible)
+            {
+                if (visible == null)
+                {
+                    visible = new boolean[this.armature.orderedBones.size()];
+                    java.util.Arrays.fill(visible, true);
+                }
+
+                visible[i] = false;
+            }
+        }
+
+        return visible;
+    }
+
     /* What the VBO currently holds: the armature pose it was skinned from plus the mode bits
      * that shape the upload (picking bakes bone ids into the light attribute, Iris adds
      * tangents). The VBO is shared by every actor on this model, so two actors alternating
@@ -152,6 +178,11 @@ public class BOBJModelVAO
         for (Matrix4f matrix : armature.matrices)
         {
             key = key * 31 + (matrix == null ? 0 : matrix.hashCode());
+        }
+
+        for (var bone : armature.orderedBones)
+        {
+            key = key * 31 + (bone.visible ? 1 : 0);
         }
 
         return key;
@@ -188,7 +219,13 @@ public class BOBJModelVAO
     /** Skin from an explicit matrix set (a deferred command's snapshot); the VBO's pose is then unknown. */
     public void updateMesh(StencilMap stencilMap, Matrix4f[] matrices)
     {
+        this.updateMesh(stencilMap, matrices, this.snapshotVisibility());
+    }
+
+    public void updateMesh(StencilMap stencilMap, Matrix4f[] matrices, boolean[] visible)
+    {
         this.uploadedKey = NO_KEY;
+        this.updateVisibleRanges(visible);
 
         BBSProfiler.count(BBSProfiler.Section.BOBJ_SKINS);
 
@@ -287,6 +324,48 @@ public class BOBJModelVAO
         }
     }
 
+    private void updateVisibleRanges(boolean[] visible)
+    {
+        this.visibleRanges = null;
+
+        if (visible == null)
+        {
+            return;
+        }
+
+        this.visibleRanges = new ArrayList<>();
+        int start = 0;
+
+        for (int i = 0; i < this.count; i += 3)
+        {
+            boolean shown = true;
+
+            /* Omit the whole triangle if a hidden bone influences any of its vertices. */
+            for (int w = i * 4; w < (i + 3) * 4 && shown; w++)
+            {
+                if (this.data.weightData[w] > 0 && !visible[this.data.boneIndexData[w]])
+                {
+                    shown = false;
+                }
+            }
+
+            if (!shown)
+            {
+                if (start < i)
+                {
+                    this.visibleRanges.add(new int[] {start, i - start});
+                }
+
+                start = i + 3;
+            }
+        }
+
+        if (start < this.count)
+        {
+            this.visibleRanges.add(new int[] {start, this.count - start});
+        }
+    }
+
     protected void processData(float[] newVertices, float[] newNormals, Matrix4f[] matrices)
     {}
 
@@ -320,7 +399,17 @@ public class BOBJModelVAO
         if (hasShaders) GL30.glEnableVertexAttribArray(Attributes.TANGENTS);
         if (hasShaders) GL30.glEnableVertexAttribArray(Attributes.MID_TEXTURE_UV);
 
-        GL30.glDrawArrays(GL30.GL_TRIANGLES, 0, this.count);
+        if (this.visibleRanges == null)
+        {
+            GL30.glDrawArrays(GL30.GL_TRIANGLES, 0, this.count);
+        }
+        else
+        {
+            for (int[] range : this.visibleRanges)
+            {
+                GL30.glDrawArrays(GL30.GL_TRIANGLES, range[0], range[1]);
+            }
+        }
 
         GL30.glDisableVertexAttribArray(Attributes.POSITION);
         GL30.glDisableVertexAttribArray(Attributes.TEXTURE_UV);
