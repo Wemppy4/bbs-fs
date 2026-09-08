@@ -8,7 +8,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
-import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 import java.util.function.BiConsumer;
 
@@ -30,7 +29,7 @@ public class UISetupFaceOverlayPanel extends UIOverlayPanel
         super(UIKeys.FORMS_EDITOR_SETUP_FACE_TITLE);
 
         this.callback = callback;
-        this.eyesRig = new UIButton(IKey.constant(this.model), (b) -> this.pickModel()).icon(Icons.POSE);
+        this.eyesRig = new UIButton(IKey.constant(this.model), (b) -> this.pickModel());
         this.verticalOffset = new UITrackpad();
         this.verticalOffset.setValue(0D);
         this.verticalOffset.tooltip(UIKeys.FORMS_EDITOR_SETUP_FACE_VERTICAL_OFFSET_HINT);
