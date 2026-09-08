@@ -46,6 +46,8 @@ public class ShaderCurves
 
     public static String processSource(String source)
     {
+        source = ShaderSunRotation.processSource(source);
+
         if (!BBSSettings.shaderCurvesEnabled.get())
         {
             return source;
