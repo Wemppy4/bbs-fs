@@ -251,13 +251,15 @@ public class BBSSettings {
 	 *
 	 * How far apart the levels sit came off a screenshot of Essential's
 	 * interface, whose dominant grey and the greys layered over it stand one
-	 * step apart — {@link #DEFAULT_SECONDARY_COLOR} reproduces that ramp
-	 * exactly (#131313, #181818, #1d1d1d, #222222, divider #2a2a2a), with one
-	 * further rung below #131313 for the strips that sit under all of it. The step
+	 * step apart (#131313, #181818, #1d1d1d, #222222, divider #2a2a2a) — the
+	 * ladder below reproduces that spacing exactly, with one further rung under
+	 * the darkest for the strips that sit below all of it.
+	 * {@link #DEFAULT_SECONDARY_COLOR} itself rides that ladder a hair under
+	 * #1d1d1d, tinted faintly blue — a tint every rung carries through. The step
 	 * is deliberately small: depth should be felt rather than announced, and a
 	 * dark interface that stays dark is easier to sit in front of for hours.
 	 */
-	private static final int DEFAULT_SECONDARY_COLOR = 0x1d1d1d;
+	private static final int DEFAULT_SECONDARY_COLOR = 0x171b22;
 	private static final float SURFACE_STEP = 0.022F;
 	private static final float DIVIDER_STEP = 0.054F;
 
@@ -433,12 +435,12 @@ public class BBSSettings {
 
 	public static int getDefaultDuration()
 	{
-		return duration == null ? 30 : duration.get();
+		return duration == null ? 100 : duration.get();
 	}
 
 	public static float getFov()
 	{
-		return BBSSettings.fov == null ? MathUtils.toRad(50) : MathUtils.toRad(BBSSettings.fov.get());
+		return BBSSettings.fov == null ? MathUtils.toRad(70) : MathUtils.toRad(BBSSettings.fov.get());
 	}
 
 	/**
@@ -654,7 +656,7 @@ public class BBSSettings {
 		userIntefaceScale = builder.getFloat("ui_scale", 2F, 0F, 4F).slider(0.25D);
 		pixelArtSmoothing = builder.getBoolean("pixel_art_smoothing", true);
 		taskbarSide = builder.getInt("taskbar_side", 0);
-		fov = builder.getFloat("fov", 40, 0, 180);
+		fov = builder.getFloat("fov", 70, 0, 180);
 		colorPickerHsvTab = builder.getBoolean("hsv_color_picker", true);
 		forceQwerty = builder.getBoolean("force_qwerty", false);
 		morphingFocusSearch = builder.getBoolean("morphing_focus_search", false);
@@ -698,14 +700,14 @@ public class BBSSettings {
 		interfaceBlurRadius = builder.getInt("interface_blur_radius", 12, 1, 30).slider();
 		interfaceShadows = builder.getBoolean("interface_shadows", true);
 		interfaceHighlights = builder.getBoolean("interface_highlights", false);
-		interfaceGlow = builder.getBoolean("interface_glow", false);
+		interfaceGlow = builder.getBoolean("interface_glow", true);
 
 		builder.category("scrollbars", Icons.VERTICAL);
 		scrollbarWidth = builder.getInt("width", 4, 2, 10).slider();
 		scrollingSensitivity = builder.getFloat("sensitivity", 3F, 0F, 10F).slider();
 		scrollingSensitivityHorizontal = builder.getFloat("sensitivity_horizontal", 3F, 0F, 10F).slider();
 		scrollingSmoothness = builder.getBoolean("smoothness", true);
-		scrollingDisableSmoothnessInEditors = builder.getBoolean("disable_smoothness_in_editors", false);
+		scrollingDisableSmoothnessInEditors = builder.getBoolean("disable_smoothness_in_editors", true);
 
 		builder.category("tutorials", Icons.HELP);
 		enableCursorRendering = builder.getBoolean("cursor", false);
@@ -724,7 +726,7 @@ public class BBSSettings {
 		gizmos = builder.getBoolean("gizmos", true);
 		axesScale = builder.getFloat("axes_scale", 2F, 0F, 10F).slider();
 		axesThickness = builder.getFloat("axes_thickness", 0.35F, 0.25F, 3F).slider();
-		gizmoPlaneSize = builder.getFloat("gizmo_plane_size", 1F, 0.25F, 3F).slider();
+		gizmoPlaneSize = builder.getFloat("gizmo_plane_size", 2F, 0.25F, 3F).slider();
 		gizmoKeepScreenSize = builder.getBoolean("gizmo_keep_screen_size", true);
 		gizmoShowTranslate = builder.getBoolean("gizmo_show_translate", true);
 		gizmoShowScale = builder.getBoolean("gizmo_show_scale", true);
@@ -736,7 +738,7 @@ public class BBSSettings {
 		snapTranslate = builder.getFloat("snap_translate", 1F, 0.001F, 100F);
 		snapRotate = builder.getFloat("snap_rotate", 5F, 0.001F, 90F);
 		snapScale = builder.getFloat("snap_scale", 0.1F, 0.001F, 10F);
-		gizmoHoverTolerance = builder.getInt("gizmo_hover_tolerance", 8, 0, 40).slider();
+		gizmoHoverTolerance = builder.getInt("gizmo_hover_tolerance", 4, 0, 40).slider();
 		gizmoOpacity = builder.getFloat("gizmo_opacity", 1F, 0.05F, 1F).slider();
 		/* The frame every transform editor opens in, remembered from the last
 		 * session; picked from the gizmo's own space picker, so it has no row here.
@@ -767,18 +769,18 @@ public class BBSSettings {
 		editorOrbitMovementRequiresFlight = builder.getBoolean("orbit_movement_requires_flight", true);
 		editorOrbitCenterMarker = builder.getBoolean("orbit_center_marker", false);
 		editorOrbitGizmo = builder.getBoolean("orbit_gizmo", true);
-		editorOrbitGizmoScale = builder.getFloat("orbit_gizmo_scale", 1F, 0.5F, 2F).slider();
+		editorOrbitGizmoScale = builder.getFloat("orbit_gizmo_scale", 0.75F, 0.5F, 2F).slider();
 		editorOrbitAxisOrtho = builder.getBoolean("orbit_axis_ortho", true);
 		editorOrbitTeleportOnSwitch = builder.getBoolean("orbit_teleport_on_switch", true);
 		editorCameraMode = builder.getInt("camera_mode", 0, 0, 5);
 		editorCameraMode.invisible();
 
 		builder.category("viewport", Icons.FRUSTUM);
-		editorGuidesColor = builder.getInt("guides_color", 0xcccc0000).colorAlpha();
+		editorGuidesColor = builder.getInt("guides_color", 0x7fffffff).colorAlpha();
 		editorRuleOfThirds = builder.getBoolean("rule_of_thirds", false);
 		editorCenterLines = builder.getBoolean("center_lines", false);
 		editorCrosshair = builder.getBoolean("crosshair", false);
-		editorPreviewSizeMode = builder.getInt("preview_size_mode", 0, 0, 2);
+		editorPreviewSizeMode = builder.getInt("preview_size_mode", 2, 0, 2);
 		editorPreviewCustomWidth = builder.getInt("preview_custom_width", 1280, 2, 16384);
 		editorPreviewCustomHeight = builder.getInt("preview_custom_height", 720, 2, 16384);
 		editorPreviewResolutionScale = builder.getFloat("preview_resolution_scale", 2F, 1F, 3F).slider();
@@ -797,7 +799,7 @@ public class BBSSettings {
 		 * show where the frame goes. */
 		builder.category("performance", Icons.PROCESSOR);
 		listModelPreview = builder.getBoolean("list_model_preview", true);
-		previewRefreshBudget = builder.getInt("preview_refresh_budget", 2, 0, 8).slider();
+		previewRefreshBudget = builder.getInt("preview_refresh_budget", 8, 0, 8).slider();
 		freezeModels = builder.getBoolean("freeze_models", false);
 		translucencyQueue = builder.getBoolean("translucency_queue", false);
 		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
@@ -808,7 +810,7 @@ public class BBSSettings {
 
 		builder.category("background", Icons.IMAGE);
 		backgroundImage = builder.getRL("image", null);
-		backgroundColor = builder.getInt("color", 0x7b000000).colorAlpha();
+		backgroundColor = builder.getInt("color", 0xbf0c0c0c).colorAlpha();
 
 		builder.category("chroma_sky", Icons.GLOBE);
 		chromaSkyEnabled = builder.getBoolean("enabled", false);
@@ -818,13 +820,13 @@ public class BBSSettings {
 
 		/* Editor */
 		builder.category("timeline", Icons.TIME);
-		duration = builder.getInt("duration", 30, 1, 1000);
+		duration = builder.getInt("duration", 100, 1, 1000);
 		editorJump = builder.getInt("jump", 5, 1, 1000);
 		editorLoop = builder.getBoolean("loop", false);
 		autoKeyframe = builder.getBoolean("auto_keyframe", false);
-		anchorKeepTransform = builder.getBoolean("anchor_keep_transform", true);
+		anchorKeepTransform = builder.getBoolean("anchor_keep_transform", false);
 		editorSeconds = builder.getBoolean("seconds", false);
-		editorTimelineGrid = builder.getBoolean("timeline_grid", false);
+		editorTimelineGrid = builder.getBoolean("timeline_grid", true);
 		keyframeDefaultInterpolation = builder.getString("keyframe_default_interpolation", Interpolations.LINEAR.getKey());
 		builder.register(keyframeDefaultStyle = new ValueKeyframeStyle("keyframe_default_style"));
 		keyframePreview = builder.getBoolean("keyframe_preview", true);
