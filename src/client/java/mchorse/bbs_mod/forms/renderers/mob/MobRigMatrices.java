@@ -4,10 +4,8 @@ import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.mixin.client.LivingEntityRendererInvoker;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.Transform;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
-import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -82,38 +80,22 @@ public class MobRigMatrices
      */
     public static void evaluate(Entity entity, MobRig rig, Pose pose, Pose poseOverlay, float transition, MatrixCache cache)
     {
-        if (rig == null || MobRenderContext.current() != null
-            || !(entity instanceof LivingEntity living)
-            || !(MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(entity) instanceof LivingEntityRenderer renderer))
+        LivingEntityRenderer renderer = VanillaPose.renderer(entity);
+
+        if (rig == null || renderer == null)
         {
             return;
         }
 
-        EntityModel model = renderer.getModel();
+        LivingEntity living = (LivingEntity) entity;
         LivingEntityRendererInvoker invoker = (LivingEntityRendererInvoker) renderer;
         Map<ModelPart, Transform> saved = new IdentityHashMap<>();
-
-        model.handSwingProgress = invoker.bbs$getHandSwingProgress(living, transition);
-        model.riding = living.hasVehicle();
-        model.child = living.isBaby();
-
         float bodyYaw = MathHelper.lerpAngleDegrees(transition, living.prevBodyYaw, living.bodyYaw);
-        float headYaw = MathHelper.lerpAngleDegrees(transition, living.prevHeadYaw, living.headYaw);
-        float pitch = MathHelper.lerp(transition, living.prevPitch, living.getPitch());
         float animationProgress = invoker.bbs$getAnimationCounter(living, transition);
-        float limbDistance = 0F;
-        float limbAngle = 0F;
-
-        if (!living.hasVehicle() && living.isAlive())
-        {
-            limbDistance = Math.min(living.limbAnimator.getSpeed(transition), 1F);
-            limbAngle = living.limbAnimator.getPos(transition) * (living.isBaby() ? 3F : 1F);
-        }
 
         try
         {
-            model.animateModel(living, limbAngle, limbDistance, transition);
-            model.setAngles(living, limbAngle, limbDistance, animationProgress, headYaw - bodyYaw, pitch);
+            VanillaPose.animate(renderer, living, transition);
 
             MobPoseApplier.apply(rig, MobPoseApplier.merge(pose, poseOverlay), saved);
 
