@@ -238,9 +238,15 @@ public class CemSourcePack implements ISourcePack
     private static final String[] PREFIXES = {"cold_", "warm_"};
 
     /**
+     * The young variant's marker. It sits anywhere in the name, not only at its end: a pack's
+     * {@code pig_baby_saddle} is the saddle of a pig, and wears the pig's saddle texture.
+     */
+    private static final String BABY = "_baby";
+
+    /**
      * Suffixes naming a layer over an entity rather than an entity: the wool over a sheep, the armour
-     * over a horse, the outer skin of a stray. Stripped one after another, so {@code sheep_wool_undercoat}
-     * comes back to {@code sheep}.
+     * over a horse, the outer skin of a stray. Taken off one at a time, so {@code sheep_wool_undercoat}
+     * comes back to {@code sheep} through {@code sheep_wool}.
      */
     private static final String[] LAYERS = {
         "_outer", "_saddle", "_armor", "_decor", "_patch", "_collar", "_wool", "_charge",
@@ -255,11 +261,14 @@ public class CemSourcePack implements ISourcePack
     private static final Map<String, String> ALIASES = Map.ofEntries(
         Map.entry("chest", "chest/normal.png"),
         Map.entry("chest_large", "chest/normal_left.png"),
+        Map.entry("chest_raft", "chest_boat/bamboo.png"),
         Map.entry("ender_chest", "chest/ender.png"),
         Map.entry("trapped_chest", "chest/trapped.png"),
         Map.entry("trapped_chest_large", "chest/trapped_left.png"),
         Map.entry("elder_guardian", "guardian_elder.png"),
         Map.entry("giant", "zombie/zombie.png"),
+        Map.entry("horse_armor", "horse/armor/horse_armor_iron.png"),
+        Map.entry("llama_decor", "llama/decor/white.png"),
         Map.entry("magma_cube", "slime/magmacube.png"),
         Map.entry("mooshroom", "cow/red_mooshroom.png"),
         Map.entry("player", "player/wide/steve.png"),
@@ -340,8 +349,13 @@ public class CemSourcePack implements ISourcePack
     }
 
     /**
-     * The names to look an entity up under: itself, then without the variant prefix, the baby suffix and
-     * a trailing number, then without the layer suffixes as well.
+     * The names to look an entity up under, from itself down to the entity it is a variant of.
+     *
+     * <p>The variant's own markers come off first, and all at once - the climate prefix, the baby, a
+     * trailing number - because they sit anywhere in the name and what follows them still means
+     * something: {@code pig_baby_saddle} is a saddled pig before it is a pig, and {@code villager_baby2}
+     * a villager. Then the layers come off one at a time, each a name of its own, so a layer over a
+     * layer is looked up through the layer ({@code sheep_wool_undercoat} finds the wool).</p>
      */
     private static Collection<String> variants(String entity)
     {
@@ -358,33 +372,12 @@ public class CemSourcePack implements ISourcePack
             }
         }
 
-        if (name.endsWith("_baby"))
+        names.add(name = stripDigits(name.replace(BABY, "")));
+
+        for (String shorter = peel(name); shorter != null; shorter = peel(name))
         {
-            name = name.substring(0, name.length() - 5);
+            names.add(name = shorter);
         }
-
-        names.add(name = stripDigits(name));
-
-        for (boolean stripped = true; stripped; )
-        {
-            stripped = false;
-
-            for (String suffix : LAYERS)
-            {
-                if (name.endsWith(suffix) && name.length() > suffix.length())
-                {
-                    name = name.substring(0, name.length() - suffix.length());
-                    stripped = true;
-                }
-            }
-        }
-
-        if (name.startsWith("head_"))
-        {
-            name = name.substring(5);
-        }
-
-        names.add(name = stripDigits(name));
 
         /* Every minecart is drawn on the one texture, whatever it carries. */
         if (name.endsWith("_minecart"))
@@ -393,6 +386,20 @@ public class CemSourcePack implements ISourcePack
         }
 
         return names;
+    }
+
+    /** The name with one layer off it - a layer suffix, or the head's prefix - or null once it is down to the entity. */
+    private static String peel(String name)
+    {
+        for (String suffix : LAYERS)
+        {
+            if (name.endsWith(suffix) && name.length() > suffix.length())
+            {
+                return stripDigits(name.substring(0, name.length() - suffix.length()));
+            }
+        }
+
+        return name.startsWith("head_") ? name.substring(5) : null;
     }
 
     /**
