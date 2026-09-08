@@ -15,9 +15,12 @@ import net.minecraft.world.World;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -106,6 +109,10 @@ public class CemAnimation
     private final List<Statement> statements = new ArrayList<>();
     private final List<Binding> bindings = new ArrayList<>();
 
+    /** The bindings by bone, and the model's top-level bones, for the visibility walk — see {@link #show}. */
+    private final Map<ModelGroup, Binding> byGroup = new HashMap<>();
+    private List<ModelGroup> roots = Collections.emptyList();
+
     /**
      * The {@code var.*}/{@code varb.*} entity variables in a fixed order — the persistent slots of a
      * {@link CemState}. Collected once in {@link #setup}, after every statement has been parsed.
@@ -163,10 +170,15 @@ public class CemAnimation
     public void setup(Model model)
     {
         this.bindings.clear();
+        this.byGroup.clear();
+        this.roots = model.topGroups;
 
         for (ModelGroup group : model.getAllGroups())
         {
-            this.bindings.add(new Binding(group, kind(group)));
+            Binding binding = new Binding(group, kind(group));
+
+            this.bindings.add(binding);
+            this.byGroup.put(group, binding);
         }
 
         this.entityVariables.clear();
@@ -293,6 +305,31 @@ public class CemAnimation
         for (Binding binding : this.bindings)
         {
             binding.writeback();
+        }
+
+        for (ModelGroup root : this.roots)
+        {
+            this.show(root, true);
+        }
+    }
+
+    /**
+     * Visibility the way OptiFine reads it: a part written invisible takes its whole subtree with it,
+     * and {@code visible_boxes} hides the part's own boxes alone. BBS's flag is per bone — a hidden
+     * bone's children still draw — so after the statements the tree is walked and every bone's flag is
+     * set from its own two variables and its ancestors'. Fresh Animations' evoker hides {@code arms}
+     * while casting, and the crossed arms sit in a submodel of it: drawn, they were a second pair.
+     */
+    private void show(ModelGroup group, boolean parentShown)
+    {
+        Binding binding = this.byGroup.get(group);
+        boolean shown = parentShown && (binding == null || binding.visible.doubleValue() != 0);
+
+        group.visible = shown && (binding == null || binding.visibleBoxes.doubleValue() != 0);
+
+        for (ModelGroup child : group.children)
+        {
+            this.show(child, shown);
         }
     }
 
@@ -588,7 +625,7 @@ public class CemAnimation
                 safeScale(this.sz.doubleValue())
             );
 
-            this.group.visible = this.visible.doubleValue() != 0 && this.visibleBoxes.doubleValue() != 0;
+            /* Visibility is not written here: it is the tree's, not the bone's — see show(). */
         }
 
         private float safe(double value)

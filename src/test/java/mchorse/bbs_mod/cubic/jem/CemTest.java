@@ -132,6 +132,32 @@ public class CemTest
         flag("body.ty = -4 is parent-relative: y = 4", Math.abs(allayBody.current.translate.y - 4) < 1e-4);
         flag("head2.ty = -6.1 stays direct: y = 6.1, not body's pivot on top", Math.abs(allayHead.current.translate.y - 6.1) < 1e-4);
 
+        System.out.println("\n--- a part written invisible takes its submodels with it; visible_boxes hides its own boxes alone ---");
+
+        /* Fresh Animations' evoker hides "arms" while casting and shows the separate arms instead;
+         * the crossed arms live in a submodel of "arms", so a flag that stopped at the part left a
+         * second pair on screen. */
+        JemModelParser.Result evoker = JemModelParser.parse(JsonParser.parseString("{\"textureSize\":[64,64],\"models\":["
+            + "{\"part\":\"arms\",\"id\":\"arms\",\"translate\":[0,-24,0],"
+            + "\"boxes\":[{\"coordinates\":[-4,16,-2,8,4,4],\"textureOffset\":[0,0]}],"
+            + "\"submodels\":[{\"id\":\"arms_rotation\",\"translate\":[0,22,0],\"boxes\":[{\"coordinates\":[-4,18,-2,8,4,4],\"textureOffset\":[0,0]}]}],"
+            + "\"animations\":[{\"arms.visible\":\"hide == 0\",\"arms.visible_boxes\":\"boxes\"}]}]}").getAsJsonObject(), null, null);
+        CemAnimation hider = evoker.animation();
+        CemState hiderState = hider.createState();
+        ModelGroup arms = evoker.model().getGroup("arms");
+        ModelGroup crossed = evoker.model().getGroup("arms_rotation");
+
+        hider.parser.setValue("boxes", 1);
+        hider.parser.setValue("hide", 1);
+        hider.apply(hiderState, null, 0F);
+        flag("arms hidden: arms and the crossed pair under it are both gone", !arms.visible && !crossed.visible);
+        hider.parser.setValue("hide", 0);
+        hider.apply(hiderState, null, 0F);
+        flag("arms shown again: both are back", arms.visible && crossed.visible);
+        hider.parser.setValue("boxes", 0);
+        hider.apply(hiderState, null, 0F);
+        flag("visible_boxes off: arms' own boxes hidden, the pair under it still drawn", !arms.visible && crossed.visible);
+
         System.out.println("\n--- the entity behind a file name (CemNames) ---");
         flag("cold_cow_baby is a cow", CemNames.entity("cold_cow_baby").equals("cow"));
         flag("drowned_outer is a drowned", CemNames.entity("drowned_outer").equals("drowned"));
