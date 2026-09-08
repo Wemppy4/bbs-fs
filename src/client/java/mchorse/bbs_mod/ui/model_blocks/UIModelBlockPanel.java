@@ -361,19 +361,19 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
         this.editor = UI.column(this.pickEdit, this.enabled, this.shadow, this.global, this.lookAt, this.transform);
 
         this.scrollView = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING, this.modelBlocksSearch, this.editor, this.bodySection, this.equipmentSection);
-        this.scrollView.scroll.opposite().cancelScrolling();
+        this.scrollView.scroll.cancelScrolling();
 
         /* The sidebar resizes like the form editor's options column: a draggable
          * splitter whose share is remembered, double click resets it. */
         this.draggable = UISplitter.fraction("model_blocks.options", 0.2F, 0F, 0.5F);
-        this.draggable.measure(this).onChange(() ->
+        this.draggable.measure(this).fromEnd().onChange(() ->
         {
             this.scrollView.w(this.draggable.getValue()).resize();
             this.draggable.resize();
         });
 
-        this.scrollView.relative(this).w(this.draggable.getValue()).minW(120).h(1F);
-        this.draggable.relative(this.scrollView).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        this.scrollView.relative(this).x(1F).anchorX(1F).w(this.draggable.getValue()).minW(120).h(1F);
+        this.draggable.relative(this.scrollView).x(0F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.fill(null, false);
 
@@ -942,7 +942,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
         String label = UIKeys.FILM_CONTROLLER_SPEED.format(this.dashboard.orbit.speed.getValue()).get();
         FontRenderer font = context.batcher.getFont();
         int w = font.getWidth(label);
-        int x = this.area.w - w - 5;
+        int x = (this.scrollView.isVisible() ? this.scrollView.area.x : this.area.ex()) - w - 5;
         int y = this.area.ey() - font.getHeight() - 5;
 
         context.batcher.textCard(label, x, y, Colors.WHITE, Colors.A50);
