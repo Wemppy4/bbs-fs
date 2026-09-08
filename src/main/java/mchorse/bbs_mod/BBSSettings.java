@@ -1,7 +1,10 @@
 package mchorse.bbs_mod;
 
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueLinkList;
@@ -626,27 +629,20 @@ public class BBSSettings {
 
 	public static void register(SettingsBuilder builder)
 	{
-		HashSet<String> defaultFilters = new HashSet<>();
-
-		defaultFilters.add("item_off_hand");
-		defaultFilters.add("item_head");
-		defaultFilters.add("item_chest");
-		defaultFilters.add("item_legs");
-		defaultFilters.add("item_feet");
-		defaultFilters.add("vX");
-		defaultFilters.add("vY");
-		defaultFilters.add("vZ");
-		defaultFilters.add("grounded");
-		defaultFilters.add("leaning");
-		defaultFilters.add("roll");
-		defaultFilters.add("stick_rx");
-		defaultFilters.add("stick_ry");
-		defaultFilters.add("trigger_l");
-		defaultFilters.add("trigger_r");
-		defaultFilters.add("extra1_x");
-		defaultFilters.add("extra1_y");
-		defaultFilters.add("extra2_x");
-		defaultFilters.add("extra2_y");
+		/* Channels the timeline keeps folded away until they are asked for: the
+		 * inventory past the held slot, the armour, the states the entity is put
+		 * into, the velocity readout, and the gamepad axes nothing binds by default. */
+		HashSet<String> defaultFilters = new HashSet<>(Arrays.asList(
+			"item_slot_1", "item_slot_2", "item_slot_3", "item_slot_4",
+			"item_slot_5", "item_slot_6", "item_slot_7", "item_slot_8",
+			"selected_slot",
+			"item_head", "item_chest", "item_legs", "item_feet",
+			"swimming", "riding", "flying", "gliding",
+			"grounded", "leaning", "yaw", "roll",
+			"vX", "vY", "vZ",
+			"stick_rx", "stick_ry", "trigger_l", "trigger_r",
+			"extra1_x", "extra1_y", "extra2_x", "extra2_y"
+		));
 
 		/* Interface */
 		builder.category("appearance", Icons.LAYOUT);
@@ -663,7 +659,7 @@ public class BBSSettings {
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
 		textureSort = builder.getString("texture_sort", "name");
-		texturePins = new ValueLinkList("texture_pins");
+		texturePins = new ValueLinkList("texture_pins", List.of(Link.assets("textures/")));
 		texturePins.invisible();
 		builder.register(texturePins);
 		recentData = new ValueRecentData("recent_data");
@@ -681,8 +677,7 @@ public class BBSSettings {
 		clickSound = builder.getBoolean("click_sound", false);
 		favoriteColors = new ValueColors("favorite_colors");
 		recentColors = new ValueColors("recent_colors").limit(33);
-		disabledSheets = new ValueStringKeys("disabled_sheets");
-		disabledSheets.set(defaultFilters);
+		disabledSheets = new ValueStringKeys("disabled_sheets", defaultFilters);
 		builder.register(favoriteColors);
 		builder.register(recentColors);
 		builder.register(disabledSheets);

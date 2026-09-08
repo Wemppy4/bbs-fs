@@ -14,6 +14,12 @@ public class ValueStringKeys extends BaseValueBasic<Set<String>>
         super(id, new HashSet<>());
     }
 
+    /** With the keys it starts out holding, so a reset goes back to them rather than to nothing. */
+    public ValueStringKeys(String id, Set<String> defaultKeys)
+    {
+        super(id, new HashSet<>(defaultKeys));
+    }
+
     @Override
     public BaseType toData()
     {
