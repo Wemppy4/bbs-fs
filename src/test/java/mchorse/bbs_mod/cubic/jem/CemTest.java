@@ -3,6 +3,7 @@ package mchorse.bbs_mod.cubic.jem;
 import com.google.gson.JsonParser;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.math.Variable;
+import org.joml.Vector3f;
 
 import java.util.Collections;
 import java.util.List;
@@ -157,6 +158,22 @@ public class CemTest
         hider.parser.setValue("boxes", 0);
         hider.apply(hiderState, null, 0F);
         flag("visible_boxes off: arms' own boxes hidden, the pair under it still drawn", !arms.visible && crossed.visible);
+
+        System.out.println("\n--- an empty part takes vanilla's rotation point; a part with geometry keeps its file's ---");
+
+        /* Fresh Animations' villager: head is an empty shell at a zero translate, animated about the
+         * neck; the face lives in headwear, placed by the file. Vanilla says the head turns at (0, 24, 0)
+         * and, for the test's sake, that headwear sits somewhere else - which a drawn part must ignore. */
+        JemModelParser.Result villager = JemModelParser.parse(JsonParser.parseString("{\"textureSize\":[64,64],\"models\":["
+            + "{\"part\":\"head\",\"id\":\"head\",\"translate\":[0,0,0]},"
+            + "{\"part\":\"headwear\",\"id\":\"headwear\",\"translate\":[0,-24,0],"
+            + "\"boxes\":[{\"coordinates\":[-4,24,-4,8,8,8],\"textureOffset\":[0,0]}]}]}").getAsJsonObject(),
+            null, null, new CemHierarchy(Map.of("headwear", "head"), Map.of("head", new Vector3f(0F, 24F, 0F), "headwear", new Vector3f(0F, 10F, 0F))));
+        ModelGroup villagerHead = villager.model().getGroup("head");
+        ModelGroup villagerHat = villager.model().getGroup("headwear");
+
+        flag("the empty head turns at the neck vanilla gave it", villagerHead.initial.translate.y == 24F);
+        flag("the drawn headwear keeps the pivot its file gave it", villagerHat.initial.translate.y == 24F && villagerHat.parent == villagerHead);
 
         System.out.println("\n--- the entity behind a file name (CemNames) ---");
         flag("cold_cow_baby is a cow", CemNames.entity("cold_cow_baby").equals("cow"));

@@ -139,12 +139,19 @@ public class JemModelParser
     }
 
     /**
-     * Lay the vanilla rig over the flat file (see {@link CemHierarchy}): replace the pivots the file got
-     * wrong, then reparent flat top-level parts onto their vanilla parent. Geometry is unaffected — BBS
-     * composes child bones from their absolute pivots, and a parent with no rest rotation contributes
-     * nothing at rest — so a part keeps its rest position while now following the parent's animation.
-     * A reparented part is told to the animation as parent-relative: the pack positions it against the
-     * parent's rotation point, the way OptiFine composes vanilla children.
+     * Lay the vanilla rig over the flat file (see {@link CemHierarchy}): give the parts the file left
+     * empty vanilla's rotation points, then reparent flat top-level parts onto their vanilla parent.
+     * Geometry is unaffected — BBS composes child bones from their absolute pivots, and a parent with
+     * no rest rotation contributes nothing at rest — so a part keeps its rest position while now
+     * following the parent's animation. A reparented part is told to the animation as parent-relative:
+     * the pack positions it against the parent's rotation point, the way OptiFine composes vanilla
+     * children.
+     *
+     * <p>Only an empty part takes vanilla's pivot. A pack keeps most vanilla parts as empty shells at a
+     * zero translate and reads their positions, and what such a shell holds in OptiFine is vanilla's own
+     * rotation point: the villager's head is animated about the neck, the magma cube's layers hang off
+     * {@code segment4.ty}, the blaze's body cancels {@code stick1.ty}. A part with geometry is placed
+     * where its file says — a pack that moved the cow's body rotation into a submodel meant it.</p>
      */
     private static void applyHierarchy(Parse parse, CemHierarchy hierarchy)
     {
@@ -164,7 +171,7 @@ public class JemModelParser
         {
             ModelGroup group = byId.get(entry.getKey());
 
-            if (group != null)
+            if (group != null && !hasGeometry(group))
             {
                 group.initial.translate.set(entry.getValue());
                 group.current.copy(group.initial);

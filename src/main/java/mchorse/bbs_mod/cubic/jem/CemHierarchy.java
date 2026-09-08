@@ -8,23 +8,19 @@ import java.util.Map;
 
 /**
  * What a .jem does not say about its parts and OptiFine takes from the vanilla model: the part
- * hierarchy and, where the file's own {@code translate} is not the pivot, the pivot.
+ * hierarchy, and the rotation points of the parts the file leaves empty.
  *
  * <p>A {@code .jem} lists every entity {@code part} as a flat top-level entry, but OptiFine attaches
  * each part to the matching <em>vanilla</em> entity bone, so the real parent-child structure comes
  * from the vanilla model — not from the {@code .jem} nesting. That structure matters for animation: a
- * part that is a vanilla child of {@code head} must follow the head. Likewise a part's rotation point is
- * the vanilla one; a file usually writes {@code translate = -pivot} (what Blockbench exports), but not
- * always — Fresh Animations' villager keeps {@code head} at {@code [0, 0, 0]} while animating it about
- * the neck. Fresh Animations authors against exactly this vanilla rig.</p>
+ * part that is a vanilla child of {@code head} must follow the head. Likewise an empty part's rotation
+ * point is the vanilla one: a pack keeps most vanilla parts as empty shells at a zero translate and
+ * reads their positions — Fresh Animations animates the villager's head about a neck it never draws —
+ * and what such a shell holds in OptiFine is vanilla's own pivot. The parser applies the pivots to
+ * empty parts only; a part with geometry stays where its file put it.</p>
  *
- * <p>{@link #forEntity} maps a {@code .jem} file name (the entity id, e.g. {@code villager}) to the
- * parent overrides that reparent flat top-level parts onto their vanilla parent, plus pivot overrides
- * for parts whose translate cannot be trusted. Only what differs from the flat file needs an entry. The
- * data is curated per entity (from OptiFine's {@code ModelAdapter} part maps plus the vanilla model
- * trees) and verified against the animation packs, because the vanilla tree alone does not always
- * match what a pack assumes. A model's {@code config.json} lays its own {@code cem_parents} over the
- * table — see {@link #withParents}.</p>
+ * <p>Read off the game by {@code VanillaRigs}; a model's {@code config.json} lays its own
+ * {@code cem_parents} over it — see {@link #withParents}.</p>
  */
 public final class CemHierarchy
 {
@@ -33,60 +29,13 @@ public final class CemHierarchy
     /** Child part &rarr; parent part. */
     public final Map<String, String> parents;
 
-    /** Part &rarr; pivot (model pixels, Y up) that replaces the one derived from the file's translate. */
+    /** Part &rarr; rest pivot (model pixels, Y up, X mirrored — the parser's convention) for the parts the file leaves empty. */
     public final Map<String, Vector3f> pivots;
 
     public CemHierarchy(Map<String, String> parents, Map<String, Vector3f> pivots)
     {
         this.parents = Collections.unmodifiableMap(new LinkedHashMap<>(parents));
         this.pivots = Collections.unmodifiableMap(new LinkedHashMap<>(pivots));
-    }
-
-    /** The built-in vanilla hierarchy for an entity, or {@link #NONE} when unknown. */
-    public static CemHierarchy forEntity(String name)
-    {
-        if (name == null)
-        {
-            return NONE;
-        }
-
-        return switch (name)
-        {
-            /* Villager: the hat (headwear, with its rim headwear2) and the nose hang off the head, the
-             * jacket (bodywear) off the body. The head itself has no boxes and a zero translate in the
-             * packs, while its rotation point is the vanilla neck. The wandering trader, the zombie
-             * villager and the witch are drawn the same way, by the same hand. */
-            case "villager", "wandering_trader", "zombie_villager", "witch" -> new CemHierarchy(Map.of(
-                "headwear", "head",
-                "headwear2", "headwear",
-                "nose", "head",
-                "bodywear", "body"
-            ), Map.of(
-                "head", new Vector3f(0F, 24F, 0F)
-            ));
-
-            default -> NONE;
-        };
-    }
-
-    /**
-     * This hierarchy with another laid over it: where both name a part, the other wins. Used to put the
-     * hand-checked table over what the vanilla rig says, since the table is there to correct it.
-     */
-    public CemHierarchy with(CemHierarchy over)
-    {
-        if (over.isEmpty())
-        {
-            return this;
-        }
-
-        Map<String, String> parents = new LinkedHashMap<>(this.parents);
-        Map<String, Vector3f> pivots = new LinkedHashMap<>(this.pivots);
-
-        parents.putAll(over.parents);
-        pivots.putAll(over.pivots);
-
-        return new CemHierarchy(parents, pivots);
     }
 
     /** This hierarchy with the given child &rarr; parent entries laid over its own (a model's {@code cem_parents}). */

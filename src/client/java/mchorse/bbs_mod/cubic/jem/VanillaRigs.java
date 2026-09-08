@@ -5,8 +5,8 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.model.TexturedModelData;
 import net.minecraft.client.render.entity.model.EntityModelLayer;
 import net.minecraft.client.render.entity.model.EntityModels;
+import org.joml.Vector3f;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,17 +27,21 @@ import java.util.Map;
  * own model sits under is {@code new EntityModelLayer(new Identifier("cow"), "main")}, so the
  * entity's name is the key with no table to write.</p>
  *
- * <p><b>Only the hierarchy, deliberately.</b> Vanilla knows the rotation points too, and a pack's own
- * are sometimes wrong (Fresh Animations' villager keeps its head at zero and animates it about the
- * neck), but they are also sometimes deliberately different: the same pack's cow puts the body's
- * rotation in a submodel of its own instead of on the body, so vanilla's pivot would move a model
- * that has been correct all along. Pivots stay with the hand-checked table in {@link CemHierarchy},
- * which is where a mistake can be seen and fixed one entity at a time.</p>
+ * <p>The rotation points come along too, but they are for the parts a pack leaves <em>empty</em> (see
+ * {@link JemModelParser}). Fresh Animations keeps most vanilla parts as empty shells at a zero
+ * translate and reads their positions — the villager's head is animated about the neck, the magma
+ * cube's layers hang off {@code segment4.ty}, the blaze's body cancels {@code stick1.ty} — and what
+ * those shells hold in OptiFine is vanilla's own pivot. A part with geometry keeps the pivot its file
+ * gives it: the same pack's cow puts the body's rotation in a submodel of its own instead of on the
+ * body, and vanilla's pivot would move a model that has been right all along.</p>
  */
 public class VanillaRigs
 {
     /** The layer an entity's own model is registered under; the rest dress it (armour, saddles, hats). */
     private static final String MAIN = "main";
+
+    /** The height of an entity model's origin above the ground: vanilla counts pixels down from it, BBS up from the ground. */
+    private static final float Y_OFFSET = 24F;
 
     private static Map<String, CemHierarchy> rigs;
 
@@ -75,10 +79,11 @@ public class VanillaRigs
             }
 
             Map<String, String> parents = new LinkedHashMap<>();
+            Map<String, Vector3f> pivots = new LinkedHashMap<>();
 
             try
             {
-                collect(entry.getValue().createModel(), null, parents, CemPartNames.of(layer.getId().getPath()));
+                collect(entry.getValue().createModel(), null, parents, pivots, CemPartNames.of(layer.getId().getPath()), new Vector3f());
             }
             catch (Exception e)
             {
@@ -88,9 +93,9 @@ public class VanillaRigs
                 continue;
             }
 
-            if (!parents.isEmpty())
+            if (!pivots.isEmpty())
             {
-                rigs.put(layer.getId().getPath(), new CemHierarchy(parents, Collections.emptyMap()));
+                rigs.put(layer.getId().getPath(), new CemHierarchy(parents, pivots));
             }
         }
 
@@ -98,8 +103,9 @@ public class VanillaRigs
     }
 
     /**
-     * Note every part below the root against the part it hangs on. The parts directly under the root
-     * get no entry: they are top level in the file too, which is where they should stay.
+     * Note every part's rest pivot, and every part below the root against the part it hangs on. The
+     * parts directly under the root get no parent: they are top level in the file too, which is where
+     * they should stay.
      *
      * <p>Every part is noted under the name OptiFine gives it ({@link CemPartNames}) and, where it is
      * free, under vanilla's own — a pack sometimes uses the vanilla one ({@code hat} in six of Fresh
@@ -108,20 +114,31 @@ public class VanillaRigs
      * hangs on vanilla's body must be recorded on {@code torso}, not on {@code body}. A name is taken
      * the first time it is seen: vanilla may use one twice in different branches, and a CEM file
      * addresses parts by name alone, so there is nothing better to go on either way.</p>
+     *
+     * <p>A pivot is the part's absolute rotation point in the model's own coordinates: vanilla's are
+     * local to the parent, Y down from the top of a 24-pixel entity, X to the entity's left; BBS keeps
+     * them absolute, Y up from the ground, X mirrored — the same turn the parser gives a file's
+     * {@code translate}. {@code origin} carries the parent's absolute pivot down the walk.</p>
      */
-    private static void collect(ModelPart part, String name, Map<String, String> parents, CemPartNames names)
+    private static void collect(ModelPart part, String name, Map<String, String> parents, Map<String, Vector3f> pivots, CemPartNames names, Vector3f origin)
     {
         for (Map.Entry<String, ModelPart> entry : IBBSModelPart.of(part).bbs$children().entrySet())
         {
+            String child = entry.getKey();
+            ModelPart childPart = entry.getValue();
+            Vector3f absolute = new Vector3f(origin).add(childPart.pivotX, childPart.pivotY, childPart.pivotZ);
+            Vector3f pivot = new Vector3f(-absolute.x, Y_OFFSET - absolute.y, absolute.z);
+
+            pivots.putIfAbsent(names.optifine(child), pivot);
+            pivots.putIfAbsent(child, pivot);
+
             if (name != null)
             {
-                String child = entry.getKey();
-
                 parents.putIfAbsent(names.optifine(child), names.optifine(name));
                 parents.putIfAbsent(child, name);
             }
 
-            collect(entry.getValue(), entry.getKey(), parents, names);
+            collect(childPart, child, parents, pivots, names, absolute);
         }
     }
 }

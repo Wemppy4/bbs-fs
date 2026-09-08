@@ -126,12 +126,11 @@ public class JemModelLoader implements IModelLoader
     }
 
     /**
-     * The vanilla rig for this model, in the order corrections are made: what Minecraft's own model for
-     * the entity says ({@link VanillaRigs}), then the hand-checked table for what it cannot answer, then
-     * this model's own {@code config.json} — so any entity can be fixed with data. The game is asked
-     * about the entity behind the file name ({@link CemNames#entity}): a {@code cold_cow_baby} is a cow.
-     * Read straight off the map: the config is applied to the instance after parsing, and the parser
-     * needs the hierarchy before.
+     * The vanilla rig for this model: what Minecraft's own model for the entity says ({@link VanillaRigs}),
+     * with this model's own {@code config.json} laid over it — so any entity can be fixed with data. The
+     * game is asked about the entity behind the file name ({@link CemNames#entity}): a
+     * {@code cold_cow_baby} is a cow. Read straight off the map: the config is applied to the instance
+     * after parsing, and the parser needs the hierarchy before.
      */
     private CemHierarchy hierarchy(String file, MapType config)
     {
@@ -147,9 +146,7 @@ public class JemModelLoader implements IModelLoader
             }
         }
 
-        String entity = CemNames.entity(file);
-
-        return VanillaRigs.of(entity).with(CemHierarchy.forEntity(entity)).withParents(parents);
+        return VanillaRigs.of(CemNames.entity(file)).withParents(parents);
     }
 
     /**
