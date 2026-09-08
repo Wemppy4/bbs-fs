@@ -519,7 +519,6 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_BILLBOARD_UV_SHIFT = L10n.lang("bbs.ui.forms.editors.billboard.uv_shift");
     public static final IKey FORMS_EDITORS_VIDEO_TITLE = L10n.lang("bbs.ui.forms.editors.video.title");
     public static final IKey FORMS_EDITORS_VIDEO_PLAYBACK = L10n.lang("bbs.ui.forms.editors.video.playback");
-    public static final IKey FORMS_EDITORS_VIDEO_SPEED = L10n.lang("bbs.ui.forms.editors.video.speed");
     public static final IKey FORMS_EDITORS_VIDEO_OFFSET = L10n.lang("bbs.ui.forms.editors.video.offset");
     public static final IKey FORMS_EDITORS_VIDEO_BILLBOARD = L10n.lang("bbs.ui.forms.editors.video.billboard");
     public static final IKey FORMS_EDITORS_BLOCK_PROPERTIES = L10n.lang("bbs.ui.forms.editors.block.title");
