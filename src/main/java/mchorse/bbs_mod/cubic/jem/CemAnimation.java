@@ -106,6 +106,9 @@ public class CemAnimation
 
     public final CemParser parser;
 
+    /** The model file's name without its extension — {@code cold_cow_baby} — what a vanilla stage is made from. Set by the loader. */
+    public String jem = "";
+
     private final List<Statement> statements = new ArrayList<>();
     private final List<Binding> bindings = new ArrayList<>();
 
@@ -242,6 +245,15 @@ public class CemAnimation
      */
     public void apply(CemState state, IEntity target, float transition, boolean inGui, CemStatus status)
     {
+        this.apply(state, target, transition, inGui, status, null);
+    }
+
+    /**
+     * @param seed the vanilla frame the program starts from ({@link CemVanillaSeed}), or null to start
+     *             from the rest pose — a probe, a test, an entity the game has no model for.
+     */
+    public void apply(CemState state, IEntity target, float transition, boolean inGui, CemStatus status, CemVanillaSeed seed)
+    {
         if (this.statements.isEmpty())
         {
             return;
@@ -263,12 +275,12 @@ public class CemAnimation
             {
                 for (int ticksAgo = WARM_UP_TICKS; ticksAgo > 0; ticksAgo -= WARM_UP_STEP)
                 {
-                    this.evaluate(state, target, transition, inGui, status, WARM_UP_STEP / 20D, -ticksAgo);
+                    this.evaluate(state, target, transition, inGui, status, seed, WARM_UP_STEP / 20D, -ticksAgo);
                 }
             }
         }
 
-        this.evaluate(state, target, transition, inGui, status, frameTime, 0);
+        this.evaluate(state, target, transition, inGui, status, seed, frameTime, 0);
 
         state.store(this.entityVariables);
     }
@@ -277,7 +289,7 @@ public class CemAnimation
      * One pass of the program: parameters in, bones out. {@code ticksAgo} is 0 for the frame being
      * rendered and negative for a warm-up pass, which stands that many ticks before it.
      */
-    private void evaluate(CemState state, IEntity target, float transition, boolean inGui, CemStatus status, double frameTime, int ticksAgo)
+    private void evaluate(CemState state, IEntity target, float transition, boolean inGui, CemStatus status, CemVanillaSeed seed, double frameTime, int ticksAgo)
     {
         this.parser.setValue("frame_time", frameTime);
 
@@ -294,7 +306,7 @@ public class CemAnimation
 
         for (Binding binding : this.bindings)
         {
-            binding.reset();
+            binding.reset(seed);
         }
 
         for (Statement statement : this.statements)
@@ -519,25 +531,86 @@ public class CemAnimation
         }
 
         /**
-         * Seed this bone's model variables from the pose standing in {@code current} — the vanilla
-         * animation stage {@link CemAnimator} ran just before, or the rest pose when there was none.
+         * Seed this bone's model variables: from the vanilla frame where it has the part, else from the
+         * pose standing in {@code current} — the rest pose, the exact inverse of {@link #writeback()},
+         * so a bone no statement mentions writes back exactly what it came in with.
          *
-         * <p>This is what makes a statement that reads its own bone work: OptiFine evaluates CEM on
-         * top of the vanilla frame, so {@code head.ry} arrives holding the vanilla head yaw. Fresh
+         * <p>The vanilla frame is what makes a statement that reads its own bone work: OptiFine
+         * evaluates CEM on top of it, so {@code head.ry} arrives holding the vanilla head yaw. Fresh
          * Moves is written that way throughout — {@code head.ry = wraprad(head.ry)}, {@code
          * right_arm.rx = wraprad(right_arm.rx)} — and against a rest-pose seed those are the identity
-         * on zero, which left the player's head and arms frozen. Seeded from {@code current} they
-         * carry the vanilla angle through, and a bone no statement mentions writes back exactly what
-         * it came in with, because these are the exact inverse of {@link #writeback()}.</p>
+         * on zero, which left the player's head and arms frozen; the fox reads the flat body vanilla
+         * gives it, the hoglin the fifty degrees vanilla holds its head at.</p>
          */
-        public void reset()
+        public void reset(CemVanillaSeed seed)
         {
+            CemVanillaSeed.Part part = seed == null ? null : seed.get(this.group.id);
+
+            if (part != null)
+            {
+                this.seed(part);
+
+                return;
+            }
+
             Transform current = this.group.current;
-            Vector3f translate = current.translate;
+
+            this.resetPosition();
+
+            this.rx.set(-Math.toRadians(current.rotate.x));
+            this.ry.set(-Math.toRadians(current.rotate.y));
+            this.rz.set(Math.toRadians(current.rotate.z));
+
+            this.sx.set(current.scale.x);
+            this.sy.set(current.scale.y);
+            this.sz.set(current.scale.z);
+
+            /* Nothing resets what the last frame wrote, so every frame starts from shown. */
+            this.visible.set(1);
+            this.visibleBoxes.set(1);
+        }
+
+        /**
+         * The vanilla frame's values for this part — the part's own fields, which is what OptiFine's
+         * variables are. The angle, the scale and the flag are vanilla's outright. The position is
+         * vanilla's where vanilla's animation placed the part this frame (the blaze's rods, the magma
+         * cube's segments) and the rest one — the file's — where it did not; a reparented part is placed
+         * against its vanilla parent, a top-level one against the model.
+         */
+        private void seed(CemVanillaSeed.Part part)
+        {
+            if (part.moved)
+            {
+                boolean local = this.kind == SUBN;
+
+                this.tx.set(local ? part.tx : part.ax);
+                this.ty.set(local ? part.ty : part.ay);
+                this.tz.set(local ? part.tz : part.az);
+            }
+            else
+            {
+                this.resetPosition();
+            }
+
+            this.rx.set(part.rx);
+            this.ry.set(part.ry);
+            this.rz.set(part.rz);
+
+            this.sx.set(part.sx);
+            this.sy.set(part.sy);
+            this.sz.set(part.sz);
+
+            this.visible.set(part.visible ? 1 : 0);
+            this.visibleBoxes.set(1);
+        }
+
+        /** The position variables from the pose standing in {@code current}: the plain inverse of {@link #writeback()}'s split by kind. */
+        private void resetPosition()
+        {
+            Vector3f translate = this.group.current.translate;
             Vector3f pivot = this.group.initial.translate;
 
-            /* The writeback lays X down mirrored about the pivot; undo that first, then the split by
-             * kind below is the plain inverse of the one there. */
+            /* The writeback lays X down mirrored about the pivot; undo that first. */
             float x = 2F * pivot.x - translate.x;
 
             switch (this.kind)
@@ -563,19 +636,6 @@ public class CemAnimation
                     this.tz.set(translate.z);
                 }
             }
-
-            this.rx.set(-Math.toRadians(current.rotate.x));
-            this.ry.set(-Math.toRadians(current.rotate.y));
-            this.rz.set(Math.toRadians(current.rotate.z));
-
-            this.sx.set(current.scale.x);
-            this.sy.set(current.scale.y);
-            this.sz.set(current.scale.z);
-
-            /* Visibility has no vanilla stage to inherit from, and nothing resets what the last frame
-             * wrote, so every frame starts from shown. */
-            this.visible.set(1);
-            this.visibleBoxes.set(1);
         }
 
         public void writeback()

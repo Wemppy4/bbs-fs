@@ -63,6 +63,12 @@ public final class CemNames
         return name;
     }
 
+    /** Whether the file dresses the young of the entity. */
+    public static boolean baby(String file)
+    {
+        return file.contains(BABY);
+    }
+
     /** The name without a trailing number. */
     public static String stripDigits(String name)
     {

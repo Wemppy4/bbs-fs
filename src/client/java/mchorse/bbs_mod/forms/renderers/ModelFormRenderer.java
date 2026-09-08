@@ -19,6 +19,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.jem.CemAnimator;
+import mchorse.bbs_mod.cubic.jem.CemVanillaStage;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
@@ -335,7 +336,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         {
             if (model.config.cemAnimation.get())
             {
-                return new CemAnimator(model.cemAnimation);
+                return new CemAnimator(model.cemAnimation, new CemVanillaStage(model.cemAnimation.jem));
             }
 
             /* CEM drove the bones' visibility and nothing else resets it: switched off, every bone shows again. */

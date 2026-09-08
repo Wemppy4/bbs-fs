@@ -83,6 +83,7 @@ public class JemModelLoader implements IModelLoader
             ModelInstance newModel = new ModelInstance(id, modelModel, new Animations(models.parser), modelTexture);
 
             newModel.cemAnimation = result.animation();
+            newModel.cemAnimation.jem = entity;
             newModel.warnings.addAll(warnings);
 
             /* CEM models routinely overlap layers (headwear/jacket/sleeves); disable culling by

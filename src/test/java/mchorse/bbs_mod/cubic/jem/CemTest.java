@@ -165,7 +165,7 @@ public class CemTest
          * neck; the face lives in headwear, placed by the file. Vanilla says the head turns at (0, 24, 0)
          * and, for the test's sake, that headwear sits somewhere else - which a drawn part must ignore. */
         JemModelParser.Result villager = JemModelParser.parse(JsonParser.parseString("{\"textureSize\":[64,64],\"models\":["
-            + "{\"part\":\"head\",\"id\":\"head\",\"translate\":[0,0,0]},"
+            + "{\"part\":\"head\",\"id\":\"head\",\"translate\":[0,0,0],\"animations\":[{\"head.rx\":\"head.rx\"}]},"
             + "{\"part\":\"headwear\",\"id\":\"headwear\",\"translate\":[0,-24,0],"
             + "\"boxes\":[{\"coordinates\":[-4,24,-4,8,8,8],\"textureOffset\":[0,0]}]}]}").getAsJsonObject(),
             null, null, new CemHierarchy(Map.of("headwear", "head"), Map.of("head", new Vector3f(0F, 24F, 0F), "headwear", new Vector3f(0F, 10F, 0F))));
@@ -174,6 +174,26 @@ public class CemTest
 
         flag("the empty head turns at the neck vanilla gave it", villagerHead.initial.translate.y == 24F);
         flag("the drawn headwear keeps the pivot its file gave it", villagerHat.initial.translate.y == 24F && villagerHat.parent == villagerHead);
+
+        System.out.println("\n--- the vanilla frame seeds the program: its angle and flag outright, its position where vanilla moved the part ---");
+
+        CemVanillaSeed frame = new CemVanillaSeed();
+        CemVanillaSeed.Part seededHead = frame.part("head");
+        CemAnimation seeded = villager.animation();
+
+        seededHead.rx = 0.5F;
+        seededHead.visible = false;
+        seededHead.sx = seededHead.sy = seededHead.sz = 1F;
+        seeded.apply(seeded.createState(), null, 0F, false, null, frame);
+        flag("the head turns by vanilla's angle", Math.abs(villagerHead.current.rotate.x + Math.toDegrees(0.5)) < 1e-3);
+        flag("vanilla hid the head, and the headwear under it went with it", !villagerHead.visible && !villagerHat.visible);
+        flag("a part vanilla did not move keeps its rest position", villagerHead.current.translate.y == 24F);
+
+        seededHead.visible = true;
+        seededHead.moved = true;
+        seededHead.ty = seededHead.ay = 4F;
+        seeded.apply(seeded.createState(), null, 0F, false, null, frame);
+        flag("a part vanilla moved four down from the top lands at y = 20", Math.abs(villagerHead.current.translate.y - 20F) < 1e-4 && villagerHead.visible);
 
         System.out.println("\n--- the entity behind a file name (CemNames) ---");
         flag("cold_cow_baby is a cow", CemNames.entity("cold_cow_baby").equals("cow"));
