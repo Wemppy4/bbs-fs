@@ -186,7 +186,7 @@ public class UIModelBlockPanel extends UIDashboardPanel implements GizmoViewport
 
         this.modelBlocksSearch = new UISearchList<>(this.modelBlocks);
         this.modelBlocksSearch.label(UIKeys.GENERAL_SEARCH);
-        this.modelBlocksSearch.h(20 + UIModelBlockEntityList.ROW * 9);
+        this.modelBlocksSearch.h(20 + UIModelBlockEntityList.ROW * 4).expand();
 
         /* What the tour of this panel points at; the fields below are built further down */
         TourAnchors.register("model_blocks.list", () -> this.modelBlocksSearch);
