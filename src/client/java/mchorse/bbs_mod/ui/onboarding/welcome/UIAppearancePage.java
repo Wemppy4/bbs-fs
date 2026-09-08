@@ -41,7 +41,7 @@ public class UIAppearancePage extends UIWelcomePage
         colors.add(this.primary, this.secondary);
         swatches.row(6).height(SWATCH_H);
         swatches.add(
-            this.swatch(UIKeys.ONBOARDING_APPEARANCE_SWATCH_DARK, 0x1d1d1d, 0xff3242),
+            this.swatch(UIKeys.ONBOARDING_APPEARANCE_SWATCH_DARK, 0x171b22, 0xff3242),
             this.swatch(UIKeys.ONBOARDING_APPEARANCE_SWATCH_LIGHT, 0xf3f3f3, 0xe0273a),
             this.swatch(UIKeys.ONBOARDING_APPEARANCE_SWATCH_WARM, 0x231d18, 0xf0a030),
             this.swatch(UIKeys.ONBOARDING_APPEARANCE_SWATCH_COOL, 0x171b22, 0x4c9cff)
