@@ -237,14 +237,6 @@ final class ClassicLimbSolver
         p.get(2).set(goal);
     }
 
-    /**
-     * Where the tip actually ENDS UP, as opposed to where the position pass asked
-     * it to go: {@link #solveTwoBone} writes the goal into the last position, but
-     * the second bone keeps its length, so the reached tip sits that far from the
-     * elbow along the elbow-to-goal line. The two coincide on a reachable goal;
-     * they part when the chain falls short of it, or cannot fold close enough onto
-     * it.
-     */
     private static Vector3f reachedTip(List<Vector3f> p, float tipLength)
     {
         Vector3f dir = new Vector3f(p.get(2)).sub(p.get(1));
@@ -453,9 +445,6 @@ final class ClassicLimbSolver
 
         boolean doStretch = stretchGap != null && reach >= 1 && reachTotal > EPS;
 
-        /* Degenerate chain: the ROOT is the only bone with geometry, so there is
-         * no seam below it to open. It takes the whole gap and the limb slides
-         * onto the controller — the seam opens at the root's own joint instead. */
         boolean rootStretch = stretchGap != null && reach == 0;
 
         Vector3f[] restNormal = transportNormals(restDir, null);
@@ -720,9 +709,6 @@ final class ClassicLimbSolver
             reachTotal += solved.get(i).distance(solved.get(i + 1));
         }
 
-        /* Degenerate chain: the root is the only bone that deforms mesh, so there
-         * is nothing to stretch BETWEEN — the whole shift goes on the root and its
-         * skin slides onto the controller. */
         if (reach == 0)
         {
             BOBJBone root = bonesMap.get(chainIds.get(0));
