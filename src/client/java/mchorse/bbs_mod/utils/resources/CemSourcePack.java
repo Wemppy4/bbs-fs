@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -44,6 +45,7 @@ import java.util.TreeMap;
  * models/cem/&lt;entity&gt;/&lt;entity&gt;.jem   the entity model
  * models/cem/&lt;entity&gt;/&lt;name&gt;.jpm     only the part models that .jem refers to
  * models/cem/&lt;entity&gt;/model.png       the entity's texture, when it can be resolved
+ * models/cem/&lt;entity&gt;/&lt;variant&gt;.png   the other textures of that one's folder, to pick from
  * </pre>
  *
  * <p>Everything is read through Minecraft's own {@link ResourceManager}, which is the point: it
@@ -115,6 +117,11 @@ public class CemSourcePack implements ISourcePack
             if (texture != null)
             {
                 assets.put(folder + TEXTURE, texture);
+
+                for (Identifier alternative : alternatives(textures, texture))
+                {
+                    assets.put(folder + fileName(alternative) + ".png", alternative);
+                }
             }
         }
 
@@ -403,6 +410,31 @@ public class CemSourcePack implements ISourcePack
     }
 
     /**
+     * The other textures of the folder the chosen one sits in: the cat's twelve coats beside the one
+     * it arrived in, the horse's other armours. A default for an entity that comes in variants is a
+     * guess by definition, and the guess is not what needs fixing - the choice is. A form's texture
+     * picker opens on the texture in effect, so served beside it under their own names the variants
+     * are right there in the picker, rather than somewhere under the game's own files. The folder is
+     * the unit: a texture sitting at the root of the entity textures has neighbours, not variants.
+     */
+    private static List<Identifier> alternatives(Textures textures, Identifier texture)
+    {
+        String path = texture.getPath().substring(TEXTURES.length() + 1);
+        int slash = path.lastIndexOf('/');
+
+        if (slash < 0)
+        {
+            return Collections.emptyList();
+        }
+
+        List<Identifier> alternatives = direct(textures, path.substring(0, slash));
+
+        alternatives.remove(texture);
+
+        return alternatives;
+    }
+
+    /**
      * One texture out of an entity's folder: the one named after it, else one named after it with
      * something appended that is not a layer ({@code horse_black} but not {@code cat_collar}), else the
      * first. Files sitting straight in the folder are preferred over a nested {@code armor/} and such.
@@ -416,19 +448,7 @@ public class CemSourcePack implements ISourcePack
             return null;
         }
 
-        int depth = folder.length() - folder.replace("/", "").length();
-        List<Identifier> direct = new ArrayList<>();
-
-        for (Identifier id : all)
-        {
-            String path = id.getPath().substring(TEXTURES.length() + 1);
-
-            if (path.length() - path.replace("/", "").length() == depth + 1)
-            {
-                direct.add(id);
-            }
-        }
-
+        List<Identifier> direct = direct(textures, folder);
         List<Identifier> pool = direct.isEmpty() ? all : direct;
         String name = folder.substring(folder.lastIndexOf('/') + 1);
 
@@ -451,6 +471,32 @@ public class CemSourcePack implements ISourcePack
         }
 
         return pool.get(0);
+    }
+
+    /** The textures sitting straight in a folder, not in one nested under it; a fresh list, the caller's to keep. */
+    private static List<Identifier> direct(Textures textures, String folder)
+    {
+        List<Identifier> direct = new ArrayList<>();
+        List<Identifier> all = textures.byFolder.get(folder);
+
+        if (all == null)
+        {
+            return direct;
+        }
+
+        int depth = folder.length() - folder.replace("/", "").length();
+
+        for (Identifier id : all)
+        {
+            String path = id.getPath().substring(TEXTURES.length() + 1);
+
+            if (path.length() - path.replace("/", "").length() == depth + 1)
+            {
+                direct.add(id);
+            }
+        }
+
+        return direct;
     }
 
     private static String fileName(Identifier id)
