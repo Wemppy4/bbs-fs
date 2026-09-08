@@ -16,6 +16,7 @@ import mchorse.bbs_mod.utils.IOUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -45,14 +46,15 @@ public class JemModelLoader implements IModelLoader
         }
 
         Link chosen = this.pickJem(modelJem, model);
+        List<String> warnings = new ArrayList<>();
 
         for (Link ignored : modelJem)
         {
             if (ignored != chosen)
             {
-                System.err.println("OptiFine CEM model " + model + ": " + ignored.path + " is ignored, a folder is one model - "
-                    + "loading " + chosen.path + ". Give the other .jem its own model folder (an entity's cape or armour "
-                    + "is a separate model in CEM too, and it can then carry its own texture).");
+                warnings.add(StringUtils.fileName(ignored.path) + " is left out - a folder is one model, and " + StringUtils.fileName(chosen.path)
+                    + " is the one loaded; give the other .jem a folder of its own (an entity's cape or armour is a separate model "
+                    + "in CEM too, and it can then wear its own texture)");
             }
         }
 
@@ -65,7 +67,9 @@ public class JemModelLoader implements IModelLoader
             JemModelParser.Result result = JemModelParser.parse(jem, jpms::get, models.parser, this.hierarchy(entity, config));
             Model modelModel = result.model();
 
-            for (String warning : result.warnings())
+            warnings.addAll(result.warnings());
+
+            for (String warning : warnings)
             {
                 System.err.println("OptiFine CEM model " + model + ": " + warning);
             }
@@ -78,6 +82,7 @@ public class JemModelLoader implements IModelLoader
             ModelInstance newModel = new ModelInstance(id, modelModel, new Animations(models.parser), modelTexture);
 
             newModel.cemAnimation = result.animation();
+            newModel.warnings.addAll(warnings);
 
             /* CEM models routinely overlap layers (headwear/jacket/sleeves); disable culling by
              * default so inner/overlapping faces don't vanish. A config.json can still override it. */

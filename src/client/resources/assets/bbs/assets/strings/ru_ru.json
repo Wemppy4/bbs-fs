@@ -1429,6 +1429,8 @@
 	"bbs.ui.model_editor.culling": "Отсечение граней",
 	"bbs.ui.model_editor.on_cpu": "Считать на CPU",
 	"bbs.ui.model_editor.cem_animation": "Анимация CEM",
+	"bbs.ui.model_editor.warnings": "Замечания загрузчика (%s)",
+	"bbs.ui.model_editor.warnings_tooltip": "Что загрузчику пришлось обойти, собирая эту модель: не найденная часть, атрибут, который он не поддерживает, файл, который пришлось оставить за бортом. Модель может выглядеть не так, как её нарисовал автор. Те же строки уходят в лог игры вместе с именем модели.",
 	"bbs.ui.model_editor.pose_group": "Группа поз",
 	"bbs.ui.model_editor.anchor": "Якорь",
 	"bbs.ui.model_editor.texture": "Текстура",

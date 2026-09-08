@@ -38,6 +38,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
+import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITextTab;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.UI;
@@ -158,6 +159,7 @@ public class UIModelConfigEditor extends UIElement
     private UISection renderSection;
     private UISection sizeSection;
     private UISection lookAtSection;
+    private UISection warningsSection;
     private UISection[] sections;
 
     /* The bodies refilled per model or per list change. Every body made by body() is listed here. */
@@ -166,6 +168,7 @@ public class UIModelConfigEditor extends UIElement
     private UIElement renderBody;
     private UIElement sizeBody;
     private UIElement lookAtBody;
+    private UIElement warningsBody;
 
     /** The picked bone's / weld's settings, under their lists. */
     private UIElement bonePanel;
@@ -357,7 +360,13 @@ public class UIModelConfigEditor extends UIElement
 
     private void createPages()
     {
-        /* General: the plain settings in a few folded sections. */
+        /* General: what the loader had to work around, first and only when there is any; then the
+         * plain settings in a few folded sections. */
+        this.warningsSection = this.section(UIKeys.MODEL_EDITOR_WARNINGS, true);
+        this.warningsSection.title.tooltip(UIKeys.MODEL_EDITOR_WARNINGS_TOOLTIP);
+        this.warningsBody = this.body();
+        this.warningsSection.fields.add(this.warningsBody);
+
         this.generalSection = this.section(UIKeys.FORMS_EDITORS_GENERAL, true);
         this.generalBody = this.body();
         this.generalSection.fields.add(this.generalBody);
@@ -374,7 +383,7 @@ public class UIModelConfigEditor extends UIElement
         this.lookAtBody = this.body();
         this.lookAtSection.fields.add(this.lookAtBody);
 
-        this.sections = new UISection[] {this.generalSection, this.renderSection, this.sizeSection, this.lookAtSection};
+        this.sections = new UISection[] {this.warningsSection, this.generalSection, this.renderSection, this.sizeSection, this.lookAtSection};
         this.page(Tab.GENERAL).add(this.sections);
 
         /* Bones: the tree with the picked bone's settings under it — no header, it IS the page. The tree
@@ -682,6 +691,8 @@ public class UIModelConfigEditor extends UIElement
             this.renderBody.add(this.toggle(UIKeys.MODEL_EDITOR_CEM_ANIMATION, () -> this.data.cemAnimation, this.modelPanel::refresh));
         }
 
+        this.fillWarnings(instance == null ? List.of() : instance.warnings);
+
         UITrackpad uiScale = this.trackpad(() -> this.data.uiScale, null);
 
         uiScale.limit(config.uiScale).delayedInput();
@@ -693,6 +704,22 @@ public class UIModelConfigEditor extends UIElement
         );
 
         this.resizePage(Tab.GENERAL);
+    }
+
+    /**
+     * The loader's notes on this model (see {@link ModelInstance#warnings}), a line each, in a section
+     * that is there only while there is something to say - the column skips what is not visible.
+     */
+    private void fillWarnings(List<String> warnings)
+    {
+        this.warningsSection.title(UIKeys.MODEL_EDITOR_WARNINGS.format(warnings.size()));
+        this.warningsSection.setVisible(!warnings.isEmpty());
+        this.warningsBody.removeAll();
+
+        for (String warning : warnings)
+        {
+            this.warningsBody.add(new UIText(warning));
+        }
     }
 
     private void fillLookAt()

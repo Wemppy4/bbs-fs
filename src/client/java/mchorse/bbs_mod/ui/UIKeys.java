@@ -1079,6 +1079,8 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_CULLING = L10n.lang("bbs.ui.model_editor.culling");
     public static final IKey MODEL_EDITOR_ON_CPU = L10n.lang("bbs.ui.model_editor.on_cpu");
     public static final IKey MODEL_EDITOR_CEM_ANIMATION = L10n.lang("bbs.ui.model_editor.cem_animation");
+    public static final IKey MODEL_EDITOR_WARNINGS = L10n.lang("bbs.ui.model_editor.warnings");
+    public static final IKey MODEL_EDITOR_WARNINGS_TOOLTIP = L10n.lang("bbs.ui.model_editor.warnings_tooltip");
     public static final IKey MODEL_EDITOR_POSE_GROUP = L10n.lang("bbs.ui.model_editor.pose_group");
     public static final IKey MODEL_EDITOR_ANCHOR = L10n.lang("bbs.ui.model_editor.anchor");
     public static final IKey MODEL_EDITOR_TEXTURE = L10n.lang("bbs.ui.model_editor.texture");

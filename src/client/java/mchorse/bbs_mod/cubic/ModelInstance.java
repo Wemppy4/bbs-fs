@@ -120,6 +120,14 @@ public class ModelInstance implements IModelInstance
     public Link baseTexture;
 
     /**
+     * What the loader had to work around to build this model - a part model it could not find, an
+     * attribute it does not support, a second model file in the folder it had to leave out - worded
+     * by the loader, one line each. A model that came out wrong looks exactly like one drawn that way,
+     * and the console, where the same lines go, is where nobody looks; the model editor shows these.
+     */
+    public final List<String> warnings = new ArrayList<>();
+
+    /**
      * The {@code .bbs.json} this model was read from, when the model editor may write it back: a
      * cubic model that is a real file in the user's own assets, with nothing compiled in from other
      * files. Null for every other model — one from the jar or a pack, an OBJ, a VOX — and those the

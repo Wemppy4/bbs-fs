@@ -125,6 +125,7 @@ public class JemModelParser
                 readContent(parse, info.group, def, ZERO, pivot, 0);
             }
 
+            checkAttach(parse, info);
             model.topGroups.add(info.group);
         }
 
@@ -184,6 +185,49 @@ public class JemModelParser
     }
 
     private static final Vector3f ZERO = new Vector3f();
+
+    /**
+     * A part marked {@code attach} is added to the vanilla part rather than put in its place, so
+     * OptiFine draws it over the vanilla geometry. There is no vanilla geometry here - the pack's own
+     * boxes are all there is of the part. That is fine for the one use every pack makes of the flag,
+     * a signature hung on the root with no boxes at all, and a loss for a part that has some.
+     */
+    private static void checkAttach(Parse parse, GroupInfo info)
+    {
+        for (JsonObject def : info.defs)
+        {
+            if (isTrue(def, "attach") && hasGeometry(info.group))
+            {
+                parse.warn("part \"" + info.group.id + "\" is attached to the vanilla part, whose geometry is not available here - only the pack's own boxes of it are drawn");
+
+                return;
+            }
+        }
+    }
+
+    private static boolean hasGeometry(ModelGroup group)
+    {
+        if (!group.cubes.isEmpty())
+        {
+            return true;
+        }
+
+        for (ModelGroup child : group.children)
+        {
+            if (hasGeometry(child))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** A flag, whether written as a boolean or as the string {@code "true"} - packs do both. */
+    private static boolean isTrue(JsonObject object, String key)
+    {
+        return object.has(key) && object.get(key).isJsonPrimitive() && object.get(key).getAsString().equalsIgnoreCase("true");
+    }
 
     /**
      * Add a definition's boxes/sprites to a bone and recurse into its submodels (as child bones).

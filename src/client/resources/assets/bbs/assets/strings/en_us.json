@@ -1435,6 +1435,8 @@
 	"bbs.ui.model_editor.culling": "Culling",
 	"bbs.ui.model_editor.on_cpu": "Compute on CPU",
 	"bbs.ui.model_editor.cem_animation": "CEM animation",
+	"bbs.ui.model_editor.warnings": "Loader notes (%s)",
+	"bbs.ui.model_editor.warnings_tooltip": "What the loader had to work around while building this model: a part it could not find, an attribute it does not support, a file it had to leave out. The model may not look the way its author drew it. The same lines go to the game's log, with the model's name.",
 	"bbs.ui.model_editor.pose_group": "Pose group",
 	"bbs.ui.model_editor.anchor": "Anchor",
 	"bbs.ui.model_editor.texture": "Texture",
