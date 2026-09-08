@@ -310,12 +310,6 @@ public class UIModelConfigEditor extends UIElement
         return this.pages[tab.ordinal()];
     }
 
-    /** A page's tab button, for what points at one from outside (the tour). */
-    public UIElement getTab(Tab tab)
-    {
-        return this.tabs.getTab(tab.ordinal());
-    }
-
     /** Open a page: it's the one shown, and the preview follows it. */
     private void openTab(Tab tab)
     {

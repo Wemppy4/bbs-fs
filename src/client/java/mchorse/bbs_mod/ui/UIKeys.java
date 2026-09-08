@@ -859,8 +859,8 @@ public class UIKeys
     public static final IKey ONBOARDING_TOUR_MODEL_EDITOR_PREVIEW_TEXT = L10n.lang("bbs.ui.onboarding.tour.model_editor.preview.text");
     public static final IKey ONBOARDING_TOUR_MODEL_EDITOR_SETTINGS_TITLE = L10n.lang("bbs.ui.onboarding.tour.model_editor.settings.title");
     public static final IKey ONBOARDING_TOUR_MODEL_EDITOR_SETTINGS_TEXT = L10n.lang("bbs.ui.onboarding.tour.model_editor.settings.text");
-    public static final IKey ONBOARDING_TOUR_MODEL_EDITOR_BONES_TITLE = L10n.lang("bbs.ui.onboarding.tour.model_editor.bones.title");
-    public static final IKey ONBOARDING_TOUR_MODEL_EDITOR_BONES_TEXT = L10n.lang("bbs.ui.onboarding.tour.model_editor.bones.text");
+    public static final IKey ONBOARDING_TOUR_MODEL_EDITOR_EDITORS_TITLE = L10n.lang("bbs.ui.onboarding.tour.model_editor.editors.title");
+    public static final IKey ONBOARDING_TOUR_MODEL_EDITOR_EDITORS_TEXT = L10n.lang("bbs.ui.onboarding.tour.model_editor.editors.text");
     public static final IKey ONBOARDING_TOUR_TEXTURES_BROWSER_TITLE = L10n.lang("bbs.ui.onboarding.tour.textures.browser.title");
     public static final IKey ONBOARDING_TOUR_TEXTURES_BROWSER_TEXT = L10n.lang("bbs.ui.onboarding.tour.textures.browser.text");
     public static final IKey ONBOARDING_TOUR_TEXTURES_EDIT_TITLE = L10n.lang("bbs.ui.onboarding.tour.textures.edit.title");

@@ -51,7 +51,7 @@ public class Tours
     public static final TourChapter MODEL_EDITOR = new TourChapter("model_editor", 0, List.of(
         new Step("model_editor.preview", UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_PREVIEW_TITLE, UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_PREVIEW_TEXT),
         new Step("model_editor.settings", UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_SETTINGS_TITLE, UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_SETTINGS_TEXT),
-        new Step("model_editor.bones", UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_BONES_TITLE, UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_BONES_TEXT)
+        new Step("model_editor.editors", UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_EDITORS_TITLE, UIKeys.ONBOARDING_TOUR_MODEL_EDITOR_EDITORS_TEXT)
     ));
 
     public static final TourChapter TEXTURES = new TourChapter("textures", 0, List.of(
