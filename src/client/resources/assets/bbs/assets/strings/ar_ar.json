@@ -491,7 +491,6 @@
     "bbs.ui.forms.editor.pick_form": "اختيار نموذج...",
     "bbs.ui.forms.editor.slim": "نحيف",
     "bbs.ui.forms.editor.slim-tooltip": "لنماذج كائنات اللاعب، يسمح لك هذا التبديل بالتبديل بين تنسيقات النموذج النحيف والواسع",
-    "bbs.ui.forms.editor.toggle_tree": "تبديل شجرة النماذج",
     "bbs.ui.forms.editor.use_target": "استخدام الهدف",
     "bbs.ui.forms.editors.actions.animations": "الرسوم المتحركة",
     "bbs.ui.forms.editors.actions.fade": "تعتيم",

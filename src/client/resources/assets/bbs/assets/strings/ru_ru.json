@@ -995,7 +995,6 @@
 	"bbs.ui.forms.editor.states.manager.offset": "Переход зацикливания, когда состояние перемотается в начало, анимаций начнётся с этого тика вместо нулевого тика",
 	"bbs.ui.forms.editor.states.open": "Открыть менеджер состояний анимаций",
 	"bbs.ui.forms.editor.states.toggle": "Переключить редактор состояний анимаций",
-	"bbs.ui.forms.editor.toggle_tree": "Переключить отображаемость списка форм",
 	"bbs.ui.forms.editor.use_target": "Использовать цель",
 	"bbs.ui.forms.editors.actions.animations": "Анимации",
 	"bbs.ui.forms.editors.actions.fade": "Появление",

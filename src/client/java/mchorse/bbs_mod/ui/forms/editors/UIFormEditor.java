@@ -98,8 +98,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
     private static Map<Class, Supplier<UIForm>> panels = new HashMap<>();
 
-    private static boolean TOGGLED = true;
-
     /* Palette for picking a form for body parts */
     public UIFormPalette palette;
 
@@ -131,7 +129,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     /* Sidebar icons */
     public UIElement icons;
     public UIIcon finish;
-    public UIIcon toggleSidebar;
     public UIIcon openStateEditor;
 
     public Form form;
@@ -238,11 +235,11 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         this.forms = new UIElement();
 
-        /* The tree's share is of the whole editor, measured from the tree's own left edge (20px in). */
+        /* The tree's share is of the whole editor, measured from its left edge. */
         UISplitter draggable = UISplitter.fraction("form_editor.tree", 0.1F, 0F, 0.5F);
         draggable.measure(this.forms, this).onChange(() -> this.forms.w(draggable.getValue()).resize());
 
-        this.forms.relative(this).x(20).w(draggable.getValue()).minW(140).h(1F);
+        this.forms.relative(this).w(draggable.getValue()).minW(140).h(1F);
 
         this.formsList = new UIForms((l) ->
         {
@@ -334,7 +331,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         this.statesEditor.full(this);
         this.statesEditor.setVisible(false);
         this.statesKeyframes = new UIAnimationStateEditor(this);
-        this.statesKeyframes.relative(this.statesEditor).x(20).y(1F).w(1F, -20).h(BBSSettings.editorLayoutSettings.getStateEditorSizeV()).anchorY(1F);
+        this.statesKeyframes.relative(this.statesEditor).y(1F).w(1F, -20).h(BBSSettings.editorLayoutSettings.getStateEditorSizeV()).anchorY(1F);
 
         this.openStates = new UIIcon(Icons.MORE, (b) ->
         {
@@ -343,11 +340,11 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             panel.setUndoId("animation_states_overlay_panel");
             UIOverlay.addOverlay(this.getContext(), panel, 280, 0.5F).eventPropagataion(EventPropagation.PASS);
         });
-        this.openStates.relative(this.statesEditor);
-        this.openStates.tooltip(UIKeys.FORMS_EDITOR_STATES_OPEN, Direction.RIGHT);
+        this.openStates.relative(this.statesEditor).x(1F, -20);
+        this.openStates.tooltip(UIKeys.FORMS_EDITOR_STATES_OPEN, Direction.LEFT);
         this.plause = new UIIcon(() -> this.playing ? Icons.PAUSE : Icons.PLAY, (b) -> this.plause());
         this.plause.relative(this.openStates).y(1F);
-        this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE, Direction.RIGHT);
+        this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE, Direction.LEFT);
         this.shiftDuration = new UIIcon(Icons.SHIFT_TO, (b) ->
         {
             AnimationState state = this.statesKeyframes.getState();
@@ -358,21 +355,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             }
         });
         this.shiftDuration.relative(this.plause).y(1F);
-        this.shiftDuration.tooltip(UIKeys.CAMERA_TIMELINE_CONTEXT_SHIFT_DURATION, Direction.RIGHT);
+        this.shiftDuration.tooltip(UIKeys.CAMERA_TIMELINE_CONTEXT_SHIFT_DURATION, Direction.LEFT);
         this.shiftDuration.keys().register(Keys.CLIP_SHIFT, () -> this.shiftDuration.clickItself());
 
         this.renderer = new UIPickableFormRenderer(this);
         this.renderer.full(this);
 
         this.finish = new UIIcon(Icons.IN, (b) -> this.palette.exit());
-        this.finish.tooltip(UIKeys.FORMS_EDITOR_FINISH, Direction.RIGHT).relative(this.formEditor).xy(0, 1F).anchorY(1F);
-        this.toggleSidebar = new UIIcon(() -> this.forms.isVisible() ? Icons.LEFTLOAD : Icons.RIGHTLOAD, (b) ->
-        {
-            this.toggleSidebar();
-
-            TOGGLED = !TOGGLED;
-        });
-        this.toggleSidebar.tooltip(UIKeys.FORMS_EDITOR_TOGGLE_TREE, Direction.RIGHT);
+        this.finish.tooltip(UIKeys.FORMS_EDITOR_FINISH, Direction.LEFT);
         this.openStateEditor = new UIIcon(Icons.GALLERY, (b) -> this.toggleStateEditor())
         {
             @Override
@@ -380,15 +370,15 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             {
                 if (UIFormEditor.this.statesEditor.isVisible())
                 {
-                    context.batcher.highlight(this.area, Direction.LEFT);
+                    context.batcher.highlight(this.area, Direction.RIGHT);
                 }
 
                 super.renderSkin(context);
             }
         };
-        this.openStateEditor.tooltip(UIKeys.FORMS_EDITOR_STATES_TOGGLE, Direction.RIGHT);
-        this.icons = UI.column(this.openStateEditor, this.toggleSidebar, this.finish);
-        this.icons.relative(this).y(1F).w(20).anchorY(1F);
+        this.openStateEditor.tooltip(UIKeys.FORMS_EDITOR_STATES_TOGGLE, Direction.LEFT);
+        this.icons = UI.column(this.openStateEditor, this.finish);
+        this.icons.relative(this).x(1F, -20).y(1F).w(20).anchorY(1F);
 
         UIRenderable background = new UIRenderable((context) ->
         {
@@ -400,7 +390,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         UIRenderable backgroundStates = new UIRenderable((context) ->
         {
-            context.batcher.box(this.area.x, this.area.y, this.area.x + 20, this.area.ey(), BBSSettings.chromeSurface());
+            context.batcher.box(this.area.ex() - 20, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.chromeSurface());
         });
 
         draggable.relative(this.forms).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
@@ -696,11 +686,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     {
         this.formEditor.toggleVisible();
         this.statesEditor.toggleVisible();
-    }
-
-    private void toggleSidebar()
-    {
-        this.forms.toggleVisible();
     }
 
     /**
@@ -1019,11 +1004,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             }
 
             this.pickState(main);
-
-            if (TOGGLED != this.forms.isVisible())
-            {
-                this.toggleSidebar();
-            }
 
             this.palette.accept(form);
             this.renderer.reset();

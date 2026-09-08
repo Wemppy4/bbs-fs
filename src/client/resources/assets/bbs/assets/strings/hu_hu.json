@@ -539,7 +539,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Ismétlési eltolás — amikor az animáció visszateker, ide ugrik vissza a kezdés helyett.",
     "bbs.ui.forms.editor.states.open": "Animációs állapotok kezelő megnyitása",
     "bbs.ui.forms.editor.states.toggle": "Animációs állapotszerkesztő váltása",
-    "bbs.ui.forms.editor.toggle_tree": "Kapcsold be vagy ki a formák fastruktúrát",
     "bbs.ui.forms.editor.use_target": "Célpont használata",
     "bbs.ui.forms.editors.actions.animations": "Animációk",
     "bbs.ui.forms.editors.actions.fade": "Elhalványul",

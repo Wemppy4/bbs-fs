@@ -519,7 +519,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Wiederholungs-Offset, wenn eine Aktion wiederholt wird springt sie zu diesem Tick, statt zum Anfang",
     "bbs.ui.forms.editor.states.open": "Öffne Animation Zustände Manager",
     "bbs.ui.forms.editor.states.toggle": "Animation Zustände Editor umschalten",
-    "bbs.ui.forms.editor.toggle_tree": "Form Baum anzeigen/verstecken",
     "bbs.ui.forms.editor.use_target": "Ziel benutzen",
     "bbs.ui.forms.editors.actions.animations": "Animationen",
     "bbs.ui.forms.editors.actions.fade": "Blenden",

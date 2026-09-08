@@ -749,7 +749,6 @@ public class UIKeys
     public static final IKey FORMS_EDITOR_STATES_MANAGER_TITLE = L10n.lang("bbs.ui.forms.editor.states.manager-title");
     public static final IKey FORMS_EDITOR_STATES_OPEN = L10n.lang("bbs.ui.forms.editor.states.open");
     public static final IKey FORMS_EDITOR_STATES_TOGGLE = L10n.lang("bbs.ui.forms.editor.states.toggle");
-    public static final IKey FORMS_EDITOR_TOGGLE_TREE = L10n.lang("bbs.ui.forms.editor.toggle_tree");
     public static final IKey FORMS_EDITOR_USE_TARGET = L10n.lang("bbs.ui.forms.editor.use_target");
     public static final IKey FORMS_EDITOR_KEYS_CENTER_CAMERA = L10n.lang("bbs.ui.forms.editor.keys.center_camera");
     public static final IKey FORMS_LIST_CONTEXT_FOCUS = L10n.lang("bbs.ui.forms.list.context.focus");

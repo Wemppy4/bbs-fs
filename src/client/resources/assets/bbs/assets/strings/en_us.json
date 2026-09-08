@@ -999,7 +999,6 @@
 	"bbs.ui.forms.editor.states.manager.offset": "Looping offset, when an action gets rewound, it will jump to this tick instead of to beginning",
 	"bbs.ui.forms.editor.states.open": "Open animation states manager",
 	"bbs.ui.forms.editor.states.toggle": "Toggle animation state editor",
-	"bbs.ui.forms.editor.toggle_tree": "Toggle forms tree",
 	"bbs.ui.forms.editor.use_target": "Use target",
 	"bbs.ui.forms.editors.actions.animations": "Animations",
 	"bbs.ui.forms.editors.actions.fade": "Fade",
