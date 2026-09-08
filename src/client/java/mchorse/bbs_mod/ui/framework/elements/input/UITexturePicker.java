@@ -713,17 +713,23 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
     {
         int index = this.multiList.getIndex();
 
-        if (index >= 0 && this.multiList.getList().size() > 1)
+        if (index < 0)
         {
-            this.multiList.getList().remove(index);
-            this.multiList.update();
-            this.multiList.setIndex(index - 1);
-
-            if (this.multiList.getIndex() >= 0)
-            {
-                this.setFilteredLink(this.multiList.getCurrent().get(0));
-            }
+            return;
         }
+
+        if (this.multiList.getList().size() == 1)
+        {
+            /* A multiskin of one skin is just that texture: taking out the last one ends the multiskin */
+            this.setMulti(this.multiList.getList().get(0).path, true);
+
+            return;
+        }
+
+        this.multiList.getList().remove(index);
+        this.multiList.update();
+        this.multiList.setIndex(Math.min(index, this.multiList.getList().size() - 1));
+        this.setFilteredLink(this.multiList.getCurrent().get(0));
     }
 
     private void setFilteredLink(FilteredLink location)
@@ -746,6 +752,15 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         if (this.editor.isVisible())
         {
             this.editor.resetView();
+        }
+    }
+
+    /** Put the skin's editor away, if it's open: it has nothing to stand on without the multiskin column. */
+    public void closeEditor()
+    {
+        if (this.editor.isVisible())
+        {
+            this.toggleEditor();
         }
     }
 
@@ -825,10 +840,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
     protected void setMulti(Link skin, boolean notify, boolean scroll)
     {
-        if (this.editor.isVisible())
-        {
-            this.toggleEditor();
-        }
+        this.closeEditor();
 
         boolean show = skin instanceof MultiLink;
 

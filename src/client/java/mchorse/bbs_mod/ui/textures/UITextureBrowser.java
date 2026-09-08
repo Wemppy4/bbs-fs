@@ -93,6 +93,9 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     public UITextureGrid grid;
     public UITextureInfoPanel info;
 
+    /** Which of the two the side panel shows. It's a view, not the choice: the tree doesn't end a multiskin. */
+    private boolean multiskin;
+
     /* Files taken by Ctrl+C / Ctrl+X, put down by Ctrl+V; shown on the status line until then */
     private final List<Link> clipboard = new ArrayList<>();
     private boolean cut;
@@ -249,24 +252,22 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.bar = new UIStrip(BAR_HEIGHT);
         this.back = new UIIcon(Icons.ARROW_LEFT, (b) -> this.up());
         this.back.tooltip(UIKeys.TEXTURES_BROWSER_BACK, Direction.BOTTOM);
-        this.treeToggle = new UIIcon(Icons.TREE, (b) ->
-        {
-            if (picker.multiLink != null)
-            {
-                picker.toggleMulti();
-            }
-        });
+        this.treeToggle = new UIIcon(Icons.TREE, (b) -> this.setMultiskin(false));
         this.treeToggle.tooltip(UIKeys.TEXTURES_BROWSER_TREE, Direction.BOTTOM);
-        this.treeToggle.highlight(() -> picker.multiLink == null, Direction.BOTTOM);
+        this.treeToggle.highlight(() -> !this.multiskin, Direction.BOTTOM);
         this.multiToggle = new UIIcon(Icons.GALLERY, (b) ->
         {
             if (picker.multiLink == null)
             {
                 picker.toggleMulti();
             }
+            else
+            {
+                this.setMultiskin(true);
+            }
         });
         this.multiToggle.tooltip(UIKeys.TEXTURE_MULTISKIN, Direction.BOTTOM);
-        this.multiToggle.highlight(() -> picker.multiLink != null, Direction.BOTTOM);
+        this.multiToggle.highlight(() -> this.multiskin, Direction.BOTTOM);
         this.search = new UITextbox(100, this::onSearch).placeholder(UIKeys.TEXTURES_BROWSER_SEARCH);
         this.sort = new UIIcon(Icons.LIST, (b) -> this.openSortMenu());
         this.sort.tooltip(UIKeys.TEXTURES_BROWSER_SORT, Direction.BOTTOM);
@@ -348,9 +349,17 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     /** Which the side panel shows: the multiskin's skins while one is edited, the folder tree otherwise. */
     public void setMultiskin(boolean multiskin)
     {
-        this.tree.setVisible(!multiskin);
-        this.picker.multiList.setVisible(multiskin);
-        this.picker.buttons.setVisible(multiskin);
+        this.multiskin = multiskin && this.picker.multiLink != null;
+
+        if (!this.multiskin)
+        {
+            /* The skin's own editor stands where the grid does, so it goes together with the column */
+            this.picker.closeEditor();
+        }
+
+        this.tree.setVisible(!this.multiskin);
+        this.picker.multiList.setVisible(this.multiskin);
+        this.picker.buttons.setVisible(this.multiskin);
     }
 
     /** The multiskin editor takes the place of the grid, the breadcrumbs and the info column. */
