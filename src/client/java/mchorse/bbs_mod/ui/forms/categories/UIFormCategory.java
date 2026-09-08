@@ -17,6 +17,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.forms.FormCellRenderer;
 import mchorse.bbs_mod.ui.forms.FormGridLayout;
 import mchorse.bbs_mod.ui.forms.UIFormList;
@@ -31,6 +32,8 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
+import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
+import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
@@ -181,6 +184,8 @@ public class UIFormCategory extends UIItemGrid<Form>
             {
                 UIUtils.openFolder(BBSMod.getAssetsPath(ModelManager.MODELS_PREFIX + modelForm.model.get() + "/"));
             });
+
+            this.openModelEditorAction(menu, modelForm);
         }
 
         menu.icon(MenuVerb.ADD, () ->
@@ -253,6 +258,26 @@ public class UIFormCategory extends UIItemGrid<Form>
                 });
             }
         }
+    }
+
+    private void openModelEditorAction(ContextMenuManager menu, ModelForm form)
+    {
+        UIMorphingPanel morphing = this.getParent(UIMorphingPanel.class);
+        String model = form.model.get();
+
+        if (morphing == null || model.isEmpty())
+        {
+            return;
+        }
+
+        menu.action(Icons.POSE, UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_EDITOR, () ->
+        {
+            UIDashboard dashboard = morphing.dashboard;
+            UIModelEditorPanel panel = dashboard.getPanel(UIModelEditorPanel.class);
+
+            dashboard.setPanel(panel);
+            panel.pickData(model);
+        });
     }
 
     private void buildGroupContextMenu(ContextMenuManager menu, UserFormSection userForms)

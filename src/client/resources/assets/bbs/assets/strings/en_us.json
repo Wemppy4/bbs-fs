@@ -922,6 +922,7 @@
 	"bbs.ui.forms.categories.context.export_model": "Export model to .bbs.json",
 	"bbs.ui.forms.categories.context.export_model-description": "The model was exported to .bbs.json. You can click folder icon on the right to open the folder to which model was generated.",
 	"bbs.ui.forms.categories.context.export_model-title": "Model exported",
+	"bbs.ui.forms.categories.context.open_model_editor": "Open in model editor",
 	"bbs.ui.forms.categories.context.open_model_form": "Open model's folder...",
 	"bbs.ui.forms.categories.context.paste_form": "Paste form",
 	"bbs.ui.forms.categories.context.remove_all_form": "Remove all forms",

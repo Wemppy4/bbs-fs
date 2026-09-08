@@ -918,6 +918,7 @@
 	"bbs.ui.forms.categories.context.export_model": "Экспортировать в формате .bbs.json",
 	"bbs.ui.forms.categories.context.export_model-description": "Модель была экспортирована в .bbs.json формате. Вы можете нажать на иконку папки чтобы открыть папку куда модель была сохранена",
 	"bbs.ui.forms.categories.context.export_model-title": "Модель экспортирована",
+	"bbs.ui.forms.categories.context.open_model_editor": "Открыть в редакторе модели",
 	"bbs.ui.forms.categories.context.open_model_form": "Открыть папку модели",
 	"bbs.ui.forms.categories.context.paste_form": "Вставить форму",
 	"bbs.ui.forms.categories.context.remove_all_form": "Удалить все формы",
