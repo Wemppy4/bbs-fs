@@ -205,7 +205,7 @@ public class CemTest
         guardianProgram.apply(guardianProgram.createState(), null, 0F, false, null, guardianFrame);
         flag("the pack's spike lands in the same place with and without the vanilla frame (-15.5 + 7.92, direct: y = 7.58)", Math.abs(atRest - 7.58F) < 1e-2 && Math.abs(faSpike.current.translate.y - atRest) < 1e-3);
 
-        System.out.println("\n--- the vanilla frame seeds the program: its angle and flag outright, its position where vanilla moved the part ---");
+        System.out.println("\n--- the vanilla frame seeds the program: its position, angle and flag outright ---");
 
         CemVanillaSeed frame = new CemVanillaSeed();
         CemVanillaSeed.Part seededHead = frame.part("head");
@@ -217,13 +217,12 @@ public class CemTest
         seeded.apply(seeded.createState(), null, 0F, false, null, frame);
         flag("the head turns by vanilla's angle", Math.abs(villagerHead.current.rotate.x + Math.toDegrees(0.5)) < 1e-3);
         flag("vanilla hid the head, and the headwear under it went with it", !villagerHead.visible && !villagerHat.visible);
-        flag("a part vanilla did not move keeps its rest position", villagerHead.current.translate.y == 24F);
+        flag("a part vanilla holds at its rest pivot stays at its rest position", villagerHead.current.translate.y == 24F);
 
         seededHead.visible = true;
-        seededHead.moved = true;
         seededHead.ty = seededHead.ay = 4F;
         seeded.apply(seeded.createState(), null, 0F, false, null, frame);
-        flag("a part vanilla moved four down from the top lands at y = 20", Math.abs(villagerHead.current.translate.y - 20F) < 1e-4 && villagerHead.visible);
+        flag("a part vanilla holds four down from the top lands at y = 20", Math.abs(villagerHead.current.translate.y - 20F) < 1e-4 && villagerHead.visible);
 
         System.out.println("\n--- a layer is folded into its base as a material ---");
 

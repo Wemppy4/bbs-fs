@@ -379,7 +379,11 @@ public class CemAnimation
         float yaw = Lerps.lerp(target.getPrevYaw(), target.getYaw(), transition);
         double age = target.getAge() + transition + ticksAgo + (target.isStandIn() ? SPAWN_SETTLED : 0);
 
-        this.parser.setValue("limb_swing", target.getLimbPos(transition));
+        boolean child = target.isChild() || CemNames.baby(this.jem);
+
+        /* Vanilla hands its models a child's limb swing three times over (LivingEntityRenderer: the
+         * young take quicker steps), and the swing OptiFine gives a pack is that one. */
+        this.parser.setValue("limb_swing", target.getLimbPos(transition) * (child ? 3F : 1F));
         this.parser.setValue("limb_speed", target.getLimbSpeed(transition));
         this.parser.setValue("age", age);
         this.parser.setValue("time", age);
@@ -425,7 +429,7 @@ public class CemAnimation
         this.parser.setValue("is_ridden", target.isRidden() ? 1 : 0);
         /* A pack's _baby file is a child by definition, whatever the actor under it says: its timings
          * (limb_speed >= if(is_child, 0.7, 0.87), age * if(is_child, 1.5, 1)) are written for one. */
-        this.parser.setValue("is_child", target.isChild() || CemNames.baby(this.jem) ? 1 : 0);
+        this.parser.setValue("is_child", child ? 1 : 0);
 
         /* A name the program does not know reads as zero, and zero is a state of its own, not "unknown":
          * an iron golem written around if(health<=15, ...) posed as dying in every frame, a magma cube
@@ -603,26 +607,26 @@ public class CemAnimation
 
         /**
          * The vanilla frame's values for this part — the part's own fields, which is what OptiFine's
-         * variables are. The angle, the scale and the flag are vanilla's outright. So is the position of
-         * a shell the pack only reads (the guardian's spikes, the magma cube's segments, the blaze's
-         * rods), and of a part vanilla's animation moved this frame; a part with geometry vanilla left
-         * alone keeps the position its file gave it. A reparented part is placed against its vanilla
-         * parent, a top-level one against the model.
+         * variables are: the position, the angle, the scale and the flag, vanilla's outright. A
+         * reparented part is placed against its vanilla parent, a top-level one against the model.
+         *
+         * <p>The position is vanilla's whatever the file says, because that is what the file's
+         * {@code translate} means in OptiFine: a part of the file hangs inside vanilla's part of the same
+         * name, and its translate is a fixed offset within — the part's geometry follows vanilla's pivot
+         * around, and turns about it. Fresh Animations' fox is the proof: its body sits in the file at
+         * (0, 16.5, 3.5), vanilla holds the body at (0, 8, -6) and pitches it ninety degrees, and the
+         * pack's head and tail are placed for the frame that gives — read the body's position off the
+         * file instead, and the fox comes apart on the ground. Where a pack draws a part in the model's
+         * own coordinates its translate is the vanilla pivot's negation (the evoker's arms), and the two
+         * readings agree.</p>
          */
         private void seed(CemVanillaSeed.Part part)
         {
-            if (this.empty || part.moved)
-            {
-                boolean local = this.kind == SUBN;
+            boolean local = this.kind == SUBN;
 
-                this.tx.set(local ? part.tx : part.ax);
-                this.ty.set(local ? part.ty : part.ay);
-                this.tz.set(local ? part.tz : part.az);
-            }
-            else
-            {
-                this.resetPosition();
-            }
+            this.tx.set(local ? part.tx : part.ax);
+            this.ty.set(local ? part.ty : part.ay);
+            this.tz.set(local ? part.tz : part.az);
 
             this.rx.set(part.rx);
             this.ry.set(part.ry);

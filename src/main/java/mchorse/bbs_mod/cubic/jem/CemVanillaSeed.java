@@ -12,9 +12,7 @@ import java.util.Map;
  * frame. These are those numbers as the {@code ModelPart} fields hold them — pivots in pixels down from
  * the model's origin and local to the vanilla parent, angles in radians — keyed by the name the pack
  * uses. A part also carries its absolute pivot, for a part the file keeps at top level while vanilla
- * hangs it on a parent the file lacks, and whether vanilla's animation moved it off its rest pivot this
- * frame: a part vanilla places (the blaze's rods, the magma cube's segments) reads as vanilla placed it,
- * one vanilla leaves alone reads as its file placed it.</p>
+ * hangs it on a parent the file lacks.</p>
  *
  * <p>Filled by the stage every frame and read by the program in the same frame; the slots persist, so a
  * frame allocates nothing.</p>
@@ -35,9 +33,6 @@ public class CemVanillaSeed
 
         public float sx, sy, sz;
         public boolean visible;
-
-        /** Whether vanilla's animation moved the pivot off the part's rest one this frame. */
-        public boolean moved;
     }
 
     private final Map<String, Part> parts = new HashMap<>();

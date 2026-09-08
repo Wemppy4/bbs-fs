@@ -119,15 +119,13 @@ public class CemVanillaStage implements ICemVanillaStage
         float ax = ox + part.pivotX;
         float ay = oy + part.pivotY;
         float az = oz + part.pivotZ;
-        ModelTransform rest = part.getDefaultTransform();
-        boolean moved = part.pivotX != rest.pivotX || part.pivotY != rest.pivotY || part.pivotZ != rest.pivotZ;
         String optifine = this.names.optifine(name);
 
-        this.fill(this.seed.part(optifine), part, ax, ay, az, moved);
+        this.fill(this.seed.part(optifine), part, ax, ay, az);
 
         if (!optifine.equals(name))
         {
-            this.fill(this.seed.part(name), part, ax, ay, az, moved);
+            this.fill(this.seed.part(name), part, ax, ay, az);
         }
 
         for (String child : rig.getDirectChildrenKeys(name))
@@ -136,7 +134,7 @@ public class CemVanillaStage implements ICemVanillaStage
         }
     }
 
-    private void fill(CemVanillaSeed.Part slot, ModelPart part, float ax, float ay, float az, boolean moved)
+    private void fill(CemVanillaSeed.Part slot, ModelPart part, float ax, float ay, float az)
     {
         slot.tx = part.pivotX;
         slot.ty = part.pivotY;
@@ -151,6 +149,5 @@ public class CemVanillaStage implements ICemVanillaStage
         slot.sy = part.yScale;
         slot.sz = part.zScale;
         slot.visible = part.visible;
-        slot.moved = moved;
     }
 }
