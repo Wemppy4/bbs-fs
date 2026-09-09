@@ -204,54 +204,74 @@ public abstract class FormRenderer <T extends Form>
 
         BBSProfiler.count(BBSProfiler.Section.FORM_RENDER);
 
-        this.form.applyStates(context.transition);
-
         int light = context.light;
-        boolean visible = this.form.visible.get();
+        IEntity entity = context.entity;
+        MatrixStack stack = context.stack;
+        MatrixStack world = context.world;
+        MatrixStack.Entry stackEntry = stack.peek();
+        MatrixStack.Entry worldEntry = world == null ? null : world.peek();
 
-        if (!visible)
+        try
         {
-            return;
+            this.form.applyStates(context.transition);
+
+            if (!this.form.visible.get())
+            {
+                return;
+            }
+
+            stack.push();
+            if (world != null)
+            {
+                world.push();
+            }
+            this.applyTransforms(stack, false, context.getTransition());
+            if (world != null)
+            {
+                this.applyTransforms(world, false, context.getTransition());
+            }
+
+            float lf = 1F - MathUtils.clamp(this.form.lighting.get(), 0F, 1F);
+            int u = context.light & '\uffff';
+            int v = context.light >> 16 & '\uffff';
+
+            u = (int) Lerps.lerp(u, LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, lf);
+            context.light = u | v << 16;
+
+            this.render3D(context);
+
+            if (context.stencilMap != null)
+            {
+                this.updateStencilMap(context);
+            }
+
+            this.renderBodyParts(context);
         }
-
-        boolean isPicking = context.stencilMap != null;
-
-        context.stack.push();
-        if (context.world != null)
+        finally
         {
-            context.world.push();
+            /* FormUtilsClient catches render failures and continues the world frame. A
+             * single pop is insufficient when render3D/body parts left nested pushes. */
+            try
+            {
+                MatrixStackUtils.restore(stack, stackEntry);
+            }
+            finally
+            {
+                try
+                {
+                    if (world != null && world != stack)
+                    {
+                        MatrixStackUtils.restore(world, worldEntry);
+                    }
+                }
+                finally
+                {
+                    context.light = light;
+                    context.entity = entity;
+                    this.form.unapplyStates();
+                }
+            }
         }
-        this.applyTransforms(context.stack, false, context.getTransition());
-        if (context.world != null)
-        {
-            this.applyTransforms(context.world, false, context.getTransition());
-        }
-
-        float lf = 1F - MathUtils.clamp(this.form.lighting.get(), 0F, 1F);
-        int u = context.light & '\uffff';
-        int v = context.light >> 16 & '\uffff';
-
-        u = (int) Lerps.lerp(u, LightmapTextureManager.MAX_BLOCK_LIGHT_COORDINATE, lf);
-        context.light = u | v << 16;
-
-        this.render3D(context);
-
-        if (isPicking)
-        {
-            this.updateStencilMap(context);
-        }
-
-        this.renderBodyParts(context);
-
-        context.stack.pop();
-        if (context.world != null)
-        {
-            context.world.pop();
-        }
-
-        context.light = light;
-
-        this.form.unapplyStates();
     }
 
     protected void applyTransforms(MatrixStack stack, boolean origin, float transition)

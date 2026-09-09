@@ -17,6 +17,23 @@ public class MatrixStackUtils
 
     private static Matrix3f oldInverse = new Matrix3f();
 
+    /**
+     * Unwind a render scope to the entry saved before its push, including pushes left
+     * behind by a failing nested renderer. The caller's own stack levels stay intact.
+     */
+    public static void restore(MatrixStack stack, MatrixStack.Entry entry)
+    {
+        while (stack.peek() != entry)
+        {
+            if (stack.isEmpty())
+            {
+                throw new IllegalStateException("Renderer popped the saved matrix stack entry");
+            }
+
+            stack.pop();
+        }
+    }
+
     public static void scaleStack(MatrixStack stack, float x, float y, float z)
     {
         stack.peek().getPositionMatrix().scale(x, y, z);
