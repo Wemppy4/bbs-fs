@@ -540,7 +540,6 @@
     "bbs.ui.forms.editor.pick_form": "Escolher forma...",
     "bbs.ui.forms.editor.slim": "Slim",
     "bbs.ui.forms.editor.slim-tooltip": "Para formas de mob de jogadores, esta alternância permite alternar entre formatos de modelo slim e wide",
-    "bbs.ui.forms.editor.toggle_tree": "Alternar árvore de formas",
     "bbs.ui.forms.editor.use_target": "Usar alvo",
     "bbs.ui.forms.editor.context.add": "Adicionar uma parte do corpo",
     "bbs.ui.forms.editor.context.copy": "Copiar parte do corpo",

@@ -329,9 +329,23 @@ public class Pixels
         return colors;
     }
 
+    /**
+     * A copy of the given rectangle, four channels per pixel. Whole rows (a frame cut from a
+     * strip, the picture entire) are copied byte for byte: no pixel is walked, and none passes
+     * through a float and back.
+     */
     public Pixels createCopy(int x, int y, int w, int h)
     {
         Pixels pixels = fromSize(w, h);
+
+        if (x == 0 && w == this.width && this.bits == 4 && y >= 0 && y + h <= this.height)
+        {
+            long row = (long) w * 4;
+
+            MemoryUtil.memCopy(MemoryUtil.memAddress(this.buffer, 0) + y * row, MemoryUtil.memAddress(pixels.buffer, 0), h * row);
+
+            return pixels;
+        }
 
         for (int i = 0; i < w; i++)
         {
@@ -339,7 +353,10 @@ public class Pixels
             {
                 Color color = this.getColor(x + i, y + j);
 
-                pixels.setColor(i, j, color);
+                if (color != null)
+                {
+                    pixels.setColor(i, j, color);
+                }
             }
         }
 

@@ -176,7 +176,7 @@ public class StructureWorld extends World
     @Override
     public int getLightLevel(LightType type, BlockPos pos)
     {
-        return StructureLighting.getLightLevel(type);
+        return this.data.getLighting().getLightLevel(type, pos);
     }
 
     @Override

@@ -121,35 +121,40 @@ public abstract class EditorLayoutNode
         return null;
     }
 
-    /** Default: vertical 0.66 -> main | (horizontal 0.5 -> preview / editArea). */
+    /**
+     * What a fresh install opens the film editor in. The welcome screen offers the very same tree
+     * as its "default" card, so {@code assets/presets/layouts/default.json} has to move with this
+     * one: the record's properties over the record list down the left, the preview over the
+     * timeline in the middle, and the edit area as a column of its own on the right.
+     */
     public static EditorLayoutNode defaultFilmLayout()
     {
         return new SplitterNode(
             false,
-            0.1819149F,
+            0.7916667F,
             new SplitterNode(
-                true,
-                0.28659794F,
-                new PanelNode("replayProps"),
-                new PanelNode("replaysList")
-            ),
-            new SplitterNode(
-                true,
-                0.6659794F,
+                false,
+                0.25294888F,
                 new SplitterNode(
-                    false,
-                    0.793238F,
-                    new PanelNode("preview"),
-                    new PanelNode("editArea")
+                    true,
+                    0.28479657F,
+                    new PanelNode("replayProps"),
+                    new PanelNode("replaysList")
                 ),
-                new PanelNode("main")
-            )
+                new SplitterNode(
+                    true,
+                    0.6167024F,
+                    new PanelNode("preview"),
+                    new PanelNode("main")
+                )
+            ),
+            new PanelNode("editArea")
         );
     }
 
     /**
-     * Default particle layout: the section-group tabs stacked across the top, with the bottom split
-     * between the preview (left) and the MoLang editor (right).
+     * Default particle layout: the section-group tabs in a column on the right,
+     * with the preview above the MoLang editor on the left.
      */
     public static EditorLayoutNode defaultParticleLayout()
     {
@@ -161,14 +166,14 @@ public abstract class EditorLayoutNode
 
         return new SplitterNode(
             false,
-            0.22446808F,
-            new StackNode(tabs, "general"),
+            0.77553192F,
             new SplitterNode(
                 true,
                 0.7408994F,
                 new PanelNode("preview"),
                 new PanelNode("molang")
-            )
+            ),
+            new StackNode(tabs, "general")
         );
     }
 

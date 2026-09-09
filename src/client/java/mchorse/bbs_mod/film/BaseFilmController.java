@@ -523,7 +523,10 @@ public abstract class BaseFilmController
             /* Claimed before culling, not inside the draw: the film and the world cull by
              * different boxes, and an actor this film skipped would otherwise be picked back up
              * by the vanilla renderer and drawn at its networked position. */
-            this.claimActor(replay);
+            if (!this.claimActor(replay, entity))
+            {
+                continue;
+            }
 
             if (frustum != null && this.isCulled(frustum, replay, entity))
             {
@@ -570,12 +573,22 @@ public abstract class BaseFilmController
      * plates &mdash; it does not change how the replay is drawn. Drawn from the keyframes like
      * every other replay, it moves without riding the network, and it keeps what belongs to a
      * replay rather than to an entity: its shadow, its relative origin, its onion skin, its tag.
+     *
+     * <p>What the shell is being put through travels the other way, because the shell is the thing
+     * blows land on and the body drawn over it is the thing anyone looks at: the flash of a hit and
+     * the 20 ticks of falling over went to a body nobody was watching, so hitting an actor did
+     * nothing visible and killing one left the keyframed body standing.</p>
+     *
+     * @return whether there is still a body to draw. A shell that finished falling is taken out of
+     *         the world, and the film lets its body go with it - the way a death looked when vanilla
+     *         drew actors. A shell simply not here (never spawned, out of tracking range) is not a
+     *         death, and the keyframes are the whole reason the film draws the body itself.
      */
-    private void claimActor(Replay replay)
+    private boolean claimActor(Replay replay, IEntity entity)
     {
         if (!replay.actor.get())
         {
-            return;
+            return true;
         }
 
         Map<String, Integer> actors = this.getActors();
@@ -584,7 +597,27 @@ public abstract class BaseFilmController
         if (entityId != null)
         {
             BBSModClient.getFilms().markActorDrawn(entityId);
+
+            if (MinecraftClient.getInstance().world.getEntityById(entityId) instanceof ActorEntity actor)
+            {
+                /* The higher of the recorded flash and the one being taken right now, so a replay
+                 * that carries a damage track keeps it while its shell can still be hit. Read from
+                 * the track rather than from the body, which holds the answer of the frame before:
+                 * a paused editor stops refreshing it, and comparing against it would have latched
+                 * the first blow on forever. */
+                int recorded = replay.keyframes.damage.interpolate(replay.getTick(this.getTick())).intValue();
+
+                entity.setHurtTimer(Math.max(recorded, actor.hurtTime));
+
+                /* Taken as it stands, which is also what puts a body back on its feet: the actor
+                 * spawned by the next restart is alive and counts zero. */
+                entity.setDeathTime(actor.deathTime);
+
+                return true;
+            }
         }
+
+        return entity.getDeathTime() <= 0;
     }
 
     protected void renderEntity(WorldRenderContext context, Replay replay, IEntity entity)

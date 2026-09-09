@@ -7,6 +7,7 @@ import mchorse.bbs_mod.resources.AssetProvider;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import mchorse.bbs_mod.utils.resources.MultiLink;
 import mchorse.bbs_mod.utils.resources.MultiLinkThread;
 import mchorse.bbs_mod.utils.resources.Pixels;
@@ -325,6 +326,29 @@ public class TextureManager implements IWatchDogListener
 
             try
             {
+                if (GifFrames.isGif(link))
+                {
+                    /* The file itself says how it plays. One that can't be read as a GIF
+                     * is shown as a picture below, by whatever it turns out to be. */
+                    try (InputStream stream = this.provider.getAsset(link))
+                    {
+                        AnimatedTexture animatedTexture = AnimatedTexture.fromGif(stream);
+
+                        System.out.println("Animated texture \"" + link + "\" was loaded!");
+
+                        this.animatedTextures.put(link, animatedTexture);
+
+                        return animatedTexture.getTexture(this.tick);
+                    }
+                    catch (Exception e)
+                    {
+                        if (!silent)
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
                 Pixels pixels = this.getPixels(link);
 
                 if (pixels != null)
@@ -340,6 +364,9 @@ public class TextureManager implements IWatchDogListener
                             System.out.println("Animated texture \"" + link + "\" was loaded!");
 
                             this.animatedTextures.put(link, animatedTexture);
+
+                            /* Cut into frames by now; the strip itself is nobody's */
+                            pixels.delete();
 
                             return texture;
                         }

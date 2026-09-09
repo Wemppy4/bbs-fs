@@ -140,6 +140,13 @@ public class Gizmo
      *  {@link GizmoDrag} as before. */
     private TransformSpace lastSpace;
 
+    /** The camera view {@link #reorientForSpace} was handed last — the same one the
+     *  stack it reoriented already carries. Kept so the constraint guide can be put back
+     *  onto the drag's own frame ({@link #orientGuide}); unset without a scene camera,
+     *  and forgotten with the placement at the frame boundary. */
+    private final Matrix4f lastCameraView = new Matrix4f();
+    private boolean hasLastCameraView;
+
     /** The rings, the view ring and the sphere, with their settings-driven geometry cache. */
     private final GizmoRings rings = new GizmoRings();
     /** World-space radius the sphere is drawn at, expressed in
@@ -1020,6 +1027,9 @@ public class Gizmo
             return;
         }
 
+        stack.push();
+        this.orientGuide(stack);
+
         BufferBuilder builder = Tessellator.getInstance().getBuffer();
         builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
@@ -1045,6 +1055,41 @@ public class Gizmo
         RenderSystem.depthFunc(GL11.GL_ALWAYS);
         BufferRenderer.drawWithGlobalProgram(builder.end());
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
+
+        stack.pop();
+    }
+
+    /**
+     * Put the guide on the axes the drag really slides along, rather than on whichever
+     * ones the stack happens to carry.
+     *
+     * <p>In every reoriented frame those are the same matrix by construction:
+     * {@link #reorientForSpace} writes {@link GizmoDrag#stackBasisForSpace}, the drawn
+     * twin of {@link GizmoDrag#frameBasis}. {@link TransformSpace#LOCAL} and
+     * {@link TransformSpace#PARENT} are the two it deliberately leaves alone, and there
+     * the guide was inheriting the bone's LIVE placement — recomposed from euler angles
+     * every frame, at the frame's own partial tick — while the drag solves on the
+     * snapshot taken when the gesture started. Any wobble in it (an animated or
+     * physics-driven parent, an IK chain the drag itself turns, the placement sampled a
+     * partial tick later) swung a 10000-block line by metres at its far end, so the
+     * guide drifted off the line the object actually travels on and never sat still.
+     * Reading the same snapshot the drag does pins it there.
+     */
+    private void orientGuide(MatrixStack stack)
+    {
+        TransformGesture gesture = this.currentGesture;
+        GizmoDrag drag = gesture == null ? null : gesture.drag();
+
+        if (drag == null || !this.hasLastCameraView)
+        {
+            return;
+        }
+
+        Matrix4f matrix = stack.peek().getPositionMatrix();
+        Vector3f translation = matrix.getTranslation(new Vector3f());
+        Matrix3f basis = this.lastCameraView.get3x3(new Matrix3f()).mul(drag.frameBasis(gesture.space()));
+
+        matrix.set(new Matrix4f(basis).setTranslation(translation));
     }
 
     /**
@@ -1242,6 +1287,7 @@ public class Gizmo
     {
         this.hasLastRenderMatrix = false;
         this.hasLastSphereMatrix = false;
+        this.hasLastCameraView = false;
         this.lastSphereLocalRadius = 0F;
     }
 
@@ -1270,6 +1316,12 @@ public class Gizmo
          * nothing is reoriented, so the handles keep their placement frame and the
          * remembered space must not claim otherwise. */
         this.lastSpace = cameraView == null ? null : space;
+        this.hasLastCameraView = cameraView != null;
+
+        if (cameraView != null)
+        {
+            this.lastCameraView.set(cameraView);
+        }
 
         if (space == null || space == TransformSpace.LOCAL || space == TransformSpace.PARENT || cameraView == null)
         {

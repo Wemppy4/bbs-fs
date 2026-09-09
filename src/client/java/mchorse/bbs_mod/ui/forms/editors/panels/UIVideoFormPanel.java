@@ -31,10 +31,7 @@ public class UIVideoFormPanel extends UIFormPanel<VideoForm>
         );
         this.options.add(
             UI.label(UIKeys.FORMS_EDITORS_VIDEO_PLAYBACK).marginTop(UIConstants.SECTION_GAP),
-            UI.row(
-                UIValues.trackpad(() -> this.form.speed).tooltip(UIKeys.FORMS_EDITORS_VIDEO_SPEED),
-                UIValues.trackpad(() -> this.form.videoOffset).tooltip(UIKeys.FORMS_EDITORS_VIDEO_OFFSET)
-            )
+            UIValues.trackpad(() -> this.form.videoOffset).tooltip(UIKeys.FORMS_EDITORS_VIDEO_OFFSET)
         );
     }
 }

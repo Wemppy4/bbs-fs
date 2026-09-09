@@ -75,12 +75,14 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
         }
 
         /* Split a group's geometry by material so each material can be drawn with its own
-         * texture: cubes belong to the default material (""), meshes to their own. */
+         * texture: a cube or a mesh belongs to the material it names, the default ("") otherwise. */
         Map<String, MaterialBucket> buckets = new LinkedHashMap<>();
 
         for (ModelCube cube : group.cubes)
         {
-            this.renderCube(buckets.computeIfAbsent("", (k) -> new MaterialBucket()), stack, group, cube);
+            String material = cube.material == null ? "" : cube.material;
+
+            this.renderCube(buckets.computeIfAbsent(material, (k) -> new MaterialBucket()), stack, group, cube);
         }
 
         for (ModelMesh mesh : group.meshes)

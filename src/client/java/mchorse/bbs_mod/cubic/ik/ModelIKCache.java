@@ -28,7 +28,7 @@ final class ModelIKCache
     }
 
     /** One chain's structure: its tip, what it reaches for, and the bones it spans root-to-tip. */
-    public record CompiledChain(String tip, String target, String poleTarget, boolean tipRotation, boolean stretch, boolean classic, List<String> chainRootToEffector)
+    public record CompiledChain(String tip, String target, String poleTarget, boolean tipRotation, boolean stretch, boolean squash, boolean classic, List<String> chainRootToEffector)
     {
     }
 
@@ -141,7 +141,7 @@ final class ModelIKCache
                 chains = new ArrayList<>();
             }
 
-            chains.add(new CompiledChain(tip, target, poleTarget, bone.ikTipRotation.get(), bone.ikStretch.get(), bone.ikClassic.get(), chainIds));
+            chains.add(new CompiledChain(tip, target, poleTarget, bone.ikTipRotation.get(), bone.ikStretch.get(), bone.ikSquash.get(), bone.ikClassic.get(), chainIds));
         }
 
         if (chains == null && joints == null)

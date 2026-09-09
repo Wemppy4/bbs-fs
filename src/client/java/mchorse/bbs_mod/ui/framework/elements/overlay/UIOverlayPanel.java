@@ -15,6 +15,7 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
+import org.joml.Vector2i;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.function.Consumer;
@@ -107,6 +108,7 @@ public class UIOverlayPanel extends UIElement
         this.grip = new UIDraggable(this::dragSize);
         this.grip.rendering(this::renderGrip);
         this.grip.cursors(GLFW.GLFW_RESIZE_NWSE_CURSOR, GLFW.GLFW_RESIZE_NWSE_CURSOR);
+        this.grip.reference(() -> new Vector2i(this.area.ex(), this.area.ey()));
         this.grip.relative(this).x(1F, -GRIP).y(1F, -GRIP).wh(GRIP, GRIP);
 
         /* Last child: children are offered the click in reverse, so the grip gets it before the
@@ -269,20 +271,21 @@ public class UIOverlayPanel extends UIElement
     @Override
     public boolean subKeyPressed(UIContext context)
     {
-        if (!context.isFocused())
+        if (!context.isFocused() && context.isPressed(Keys.CLOSE))
         {
-            if (context.isPressed(Keys.CLOSE))
-            {
-                this.close();
+            this.close();
 
-                return true;
-            }
-            else if (context.isPressed(Keys.CONFIRM))
-            {
-                this.confirm();
+            return true;
+        }
 
-                return true;
-            }
+        /* Enter is not gated on focus, unlike the closing escape: children are offered the key
+         * first, so whoever spends it on itself (a text area, a list) has already taken it, and
+         * what reaches the panel is the Enter of someone done filling the dialog in */
+        if (context.isPressed(Keys.CONFIRM) || context.isPressed(GLFW.GLFW_KEY_ENTER) || context.isPressed(GLFW.GLFW_KEY_KP_ENTER))
+        {
+            this.confirm();
+
+            return true;
         }
 
         return super.subKeyPressed(context);

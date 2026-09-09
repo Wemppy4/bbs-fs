@@ -81,7 +81,7 @@ public final class ModelConstraintsRuntime
             {
                 BoneConstraint constraint = bone.constraints.get();
 
-                if (constraint.enabled)
+                if (constraint.isActive())
                 {
                     if (bones == null)
                     {
@@ -122,7 +122,7 @@ public final class ModelConstraintsRuntime
 
             BoneConstraint c = bones.get(bone.getBoneName());
 
-            if (c == null || !c.enabled)
+            if (c == null || !c.isActive())
             {
                 continue;
             }
@@ -135,12 +135,27 @@ public final class ModelConstraintsRuntime
         }
     }
 
-    /** Clamps euler angles to the constraint's limits, {@code scale} converting the degree limits to the angles' unit. */
+    /**
+     * Clamps euler angles to the constraint's limits, {@code scale} converting the
+     * degree limits to the angles' unit. An axis whose switch is off is left alone
+     * — free, not pinned to whatever its unused min/max happen to say.
+     */
     private static void clamp(Vector3f euler, BoneConstraint c, float scale)
     {
-        euler.x = clampAxis(euler.x, c.minX * scale, c.maxX * scale);
-        euler.y = clampAxis(euler.y, c.minY * scale, c.maxY * scale);
-        euler.z = clampAxis(euler.z, c.minZ * scale, c.maxZ * scale);
+        if (c.limitX)
+        {
+            euler.x = clampAxis(euler.x, c.minX * scale, c.maxX * scale);
+        }
+
+        if (c.limitY)
+        {
+            euler.y = clampAxis(euler.y, c.minY * scale, c.maxY * scale);
+        }
+
+        if (c.limitZ)
+        {
+            euler.z = clampAxis(euler.z, c.minZ * scale, c.maxZ * scale);
+        }
     }
 
     private static float clampAxis(float value, float min, float max)

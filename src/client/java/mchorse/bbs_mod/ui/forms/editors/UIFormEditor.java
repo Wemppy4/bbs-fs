@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.AnchorForm;
@@ -20,8 +21,11 @@ import mchorse.bbs_mod.forms.forms.StructureForm;
 import mchorse.bbs_mod.forms.forms.TrailForm;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.forms.forms.VideoForm;
+import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.states.AnimationState;
 import mchorse.bbs_mod.graphics.window.Window;
+import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.ICursor;
@@ -47,6 +51,7 @@ import mchorse.bbs_mod.ui.forms.editors.forms.UIVideoForm;
 import mchorse.bbs_mod.ui.forms.editors.states.UIAnimationStatesOverlayPanel;
 import mchorse.bbs_mod.ui.forms.editors.states.keyframes.UIAnimationStateEditor;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIPickableFormRenderer;
+import mchorse.bbs_mod.ui.forms.editors.utils.UISetupFaceOverlayPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
@@ -75,8 +80,11 @@ import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.presets.PresetManager;
+import mchorse.bbs_mod.utils.resources.FilteredLink;
+import mchorse.bbs_mod.utils.resources.MultiLink;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.HashMap;
 import java.util.List;
@@ -89,8 +97,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     private final BoneSelection boneSelection = new BoneSelection();
 
     private static Map<Class, Supplier<UIForm>> panels = new HashMap<>();
-
-    private static boolean TOGGLED = true;
 
     /* Palette for picking a form for body parts */
     public UIFormPalette palette;
@@ -123,7 +129,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     /* Sidebar icons */
     public UIElement icons;
     public UIIcon finish;
-    public UIIcon toggleSidebar;
     public UIIcon openStateEditor;
 
     public Form form;
@@ -230,11 +235,11 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         this.forms = new UIElement();
 
-        /* The tree's share is of the whole editor, measured from the tree's own left edge (20px in). */
+        /* The tree's share is of the whole editor, measured from its left edge. */
         UISplitter draggable = UISplitter.fraction("form_editor.tree", 0.1F, 0F, 0.5F);
         draggable.measure(this.forms, this).onChange(() -> this.forms.w(draggable.getValue()).resize());
 
-        this.forms.relative(this).x(20).w(draggable.getValue()).minW(140).h(1F);
+        this.forms.relative(this).w(draggable.getValue()).minW(140).h(1F);
 
         this.formsList = new UIForms((l) ->
         {
@@ -326,7 +331,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         this.statesEditor.full(this);
         this.statesEditor.setVisible(false);
         this.statesKeyframes = new UIAnimationStateEditor(this);
-        this.statesKeyframes.relative(this.statesEditor).x(20).y(1F).w(1F, -20).h(BBSSettings.editorLayoutSettings.getStateEditorSizeV()).anchorY(1F);
+        this.statesKeyframes.relative(this.statesEditor).y(1F).w(1F, -20).h(BBSSettings.editorLayoutSettings.getStateEditorSizeV()).anchorY(1F);
 
         this.openStates = new UIIcon(Icons.MORE, (b) ->
         {
@@ -335,11 +340,11 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             panel.setUndoId("animation_states_overlay_panel");
             UIOverlay.addOverlay(this.getContext(), panel, 280, 0.5F).eventPropagataion(EventPropagation.PASS);
         });
-        this.openStates.relative(this.statesEditor);
-        this.openStates.tooltip(UIKeys.FORMS_EDITOR_STATES_OPEN, Direction.RIGHT);
+        this.openStates.relative(this.statesEditor).x(1F, -20);
+        this.openStates.tooltip(UIKeys.FORMS_EDITOR_STATES_OPEN, Direction.LEFT);
         this.plause = new UIIcon(() -> this.playing ? Icons.PAUSE : Icons.PLAY, (b) -> this.plause());
         this.plause.relative(this.openStates).y(1F);
-        this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE, Direction.RIGHT);
+        this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE, Direction.LEFT);
         this.shiftDuration = new UIIcon(Icons.SHIFT_TO, (b) ->
         {
             AnimationState state = this.statesKeyframes.getState();
@@ -350,21 +355,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             }
         });
         this.shiftDuration.relative(this.plause).y(1F);
-        this.shiftDuration.tooltip(UIKeys.CAMERA_TIMELINE_CONTEXT_SHIFT_DURATION, Direction.RIGHT);
+        this.shiftDuration.tooltip(UIKeys.CAMERA_TIMELINE_CONTEXT_SHIFT_DURATION, Direction.LEFT);
         this.shiftDuration.keys().register(Keys.CLIP_SHIFT, () -> this.shiftDuration.clickItself());
 
         this.renderer = new UIPickableFormRenderer(this);
         this.renderer.full(this);
 
         this.finish = new UIIcon(Icons.IN, (b) -> this.palette.exit());
-        this.finish.tooltip(UIKeys.FORMS_EDITOR_FINISH, Direction.RIGHT).relative(this.formEditor).xy(0, 1F).anchorY(1F);
-        this.toggleSidebar = new UIIcon(() -> this.forms.isVisible() ? Icons.LEFTLOAD : Icons.RIGHTLOAD, (b) ->
-        {
-            this.toggleSidebar();
-
-            TOGGLED = !TOGGLED;
-        });
-        this.toggleSidebar.tooltip(UIKeys.FORMS_EDITOR_TOGGLE_TREE, Direction.RIGHT);
+        this.finish.tooltip(UIKeys.FORMS_EDITOR_FINISH, Direction.LEFT);
         this.openStateEditor = new UIIcon(Icons.GALLERY, (b) -> this.toggleStateEditor())
         {
             @Override
@@ -372,15 +370,15 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             {
                 if (UIFormEditor.this.statesEditor.isVisible())
                 {
-                    context.batcher.highlight(this.area, Direction.LEFT);
+                    context.batcher.highlight(this.area, Direction.RIGHT);
                 }
 
                 super.renderSkin(context);
             }
         };
-        this.openStateEditor.tooltip(UIKeys.FORMS_EDITOR_STATES_TOGGLE, Direction.RIGHT);
-        this.icons = UI.column(this.openStateEditor, this.toggleSidebar, this.finish);
-        this.icons.relative(this).y(1F).w(20).anchorY(1F);
+        this.openStateEditor.tooltip(UIKeys.FORMS_EDITOR_STATES_TOGGLE, Direction.LEFT);
+        this.icons = UI.column(this.openStateEditor, this.finish);
+        this.icons.relative(this).x(1F, -20).y(1F).w(20).anchorY(1F);
 
         UIRenderable background = new UIRenderable((context) ->
         {
@@ -392,7 +390,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         UIRenderable backgroundStates = new UIRenderable((context) ->
         {
-            context.batcher.box(this.area.x, this.area.y, this.area.x + 20, this.area.ey(), BBSSettings.chromeSurface());
+            context.batcher.box(this.area.ex() - 20, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.chromeSurface());
         });
 
         draggable.relative(this.forms).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
@@ -690,11 +688,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         this.statesEditor.toggleVisible();
     }
 
-    private void toggleSidebar()
-    {
-        this.forms.toggleVisible();
-    }
-
     /**
      * Put the view back onto the middle of what is being edited, wherever it has been dragged
      * off to - the same thing C does to the orbit of a film or of a model block.
@@ -723,6 +716,14 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
 
         if (current.part != null)
         {
+            if (current.getForm() instanceof FramebufferForm framebuffer && current.form instanceof ModelForm parent)
+            {
+                menu.action(Icons.CAMERA, UIKeys.FORMS_EDITOR_CONTEXT_SETUP_FACE, () ->
+                {
+                    UIOverlay.addOverlay(this.getContext(), new UISetupFaceOverlayPanel((model, offset) -> this.setupFace(framebuffer, parent, model, offset)), 240, 170);
+                });
+            }
+
             List<BodyPart> all = current.part.getManager().getAllTyped();
 
             if (all.size() > 1)
@@ -733,6 +734,74 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
                 if (index < all.size() - 1) menu.action(Icons.ARROW_DOWN, UIKeys.FORMS_EDITOR_CONTEXT_MOVE_DOWN, () -> this.moveBodyPart(current.part, index + 1));
             }
         }
+    }
+
+    /**
+     * Fill a framebuffer form with the pieces a face is made of: the parent model's own texture
+     * as a flat billboard, its face square erased from the parent so the framebuffer shows
+     * through, and a rig for the eyes on top of it.
+     */
+    private void setupFace(FramebufferForm framebuffer, ModelForm parent, String model, double verticalOffset)
+    {
+        BaseValue.edit(parent, (v) ->
+        {
+            BillboardForm face = new BillboardForm();
+            ModelForm eyes = new ModelForm();
+            BodyPart facePart = new BodyPart("");
+            BodyPart eyesPart = new BodyPart("");
+
+            face.texture.set(parent.texture.get());
+
+            if (face.texture.get() == null)
+            {
+                ModelInstance parentModel = ModelFormRenderer.getModel(parent);
+
+                if (parentModel != null)
+                {
+                    face.texture.set(parentModel.getTexture());
+                }
+            }
+
+            Link texture = face.texture.get();
+
+            if (texture != null)
+            {
+                MultiLink multi = texture instanceof MultiLink existing ? (MultiLink) existing.copy() : new MultiLink();
+
+                if (!(texture instanceof MultiLink))
+                {
+                    multi.children.add(new FilteredLink(texture));
+                }
+
+                FilteredLink erase = new FilteredLink(Link.assets("textures/pixel.png"));
+
+                erase.erase = true;
+                erase.shiftX = 8;
+                erase.shiftY = 8;
+                erase.scale = 8F;
+                multi.children.add(erase);
+                multi.recalculateId();
+                parent.texture.set(multi);
+            }
+
+            face.resizeCrop.set(true);
+            face.crop.set(new Vector4f(8F, 8F, 48F, 48F));
+            facePart.setForm(face);
+            facePart.transform.get().translate.set(0F, -0.5F, 0F);
+
+            eyes.model.set(model);
+            eyesPart.setForm(eyes);
+            eyesPart.transform.get().translate.set(0F, (float) (-1D + verticalOffset / 8D), -0.495F);
+            eyesPart.transform.get().scale.set(2F);
+
+            framebuffer.transform.get().translate.set(0F, 0.5F, 0.25F);
+            framebuffer.parts.addBodyPart(facePart);
+            framebuffer.parts.addBodyPart(eyesPart);
+        });
+
+        this.refreshFormList();
+        this.switchEditor(framebuffer);
+        this.refillState();
     }
 
     /**
@@ -935,11 +1004,6 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             }
 
             this.pickState(main);
-
-            if (TOGGLED != this.forms.isVisible())
-            {
-                this.toggleSidebar();
-            }
 
             this.palette.accept(form);
             this.renderer.reset();

@@ -30,6 +30,11 @@ public class MaterialPropTrack implements TrackBehaviour
     {
         String property = track.property();
 
+        if (TrackId.MATERIAL_PROP_VISIBLE.equals(property))
+        {
+            return KeyframeFactories.BOOLEAN;
+        }
+
         if (TrackId.MATERIAL_PROP_COLOR.equals(property) || TrackId.MATERIAL_PROP_OVERLAY.equals(property))
         {
             return KeyframeFactories.COLOR;
@@ -58,6 +63,19 @@ public class MaterialPropTrack implements TrackBehaviour
 
         switch (property)
         {
+            case TrackId.MATERIAL_PROP_VISIBLE ->
+            {
+                if (segment != null)
+                {
+                    Boolean current = staticMaterial == null || staticMaterial.visible.get();
+
+                    modelForm.materialVisibilityOverrides.put(material, (Boolean) TrackBlend.value(channel, current, segment, blend));
+                }
+                else if (blend >= 1F)
+                {
+                    modelForm.materialVisibilityOverrides.remove(material);
+                }
+            }
             case TrackId.MATERIAL_PROP_COLOR ->
             {
                 if (segment != null)

@@ -176,6 +176,7 @@ public class BOBJModel implements IModel
             }
 
             // TODO: bone.lighting = transform.lighting;
+            bone.visible &= transform.visible;
             // TODO: bone.color.copy(transform.color);
             bone.transform.translate.add(transform.translate);
             bone.transform.scale.add(transform.scale).sub(1, 1, 1);

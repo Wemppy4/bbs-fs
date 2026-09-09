@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import mchorse.bbs_mod.cubic.jem.CemNames;
 import mchorse.bbs_mod.resources.ISourcePack;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.IOUtils;
@@ -17,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -44,6 +46,9 @@ import java.util.TreeMap;
  * models/cem/&lt;entity&gt;/&lt;entity&gt;.jem   the entity model
  * models/cem/&lt;entity&gt;/&lt;name&gt;.jpm     only the part models that .jem refers to
  * models/cem/&lt;entity&gt;/model.png       the entity's texture, when it can be resolved
+ * models/cem/&lt;entity&gt;/&lt;variant&gt;.png   the other textures of that one's folder, to pick from
+ * models/cem/&lt;entity&gt;/&lt;entity&gt;_&lt;layer&gt;.jem          a layer over the entity — a material of its model
+ * models/cem/&lt;entity&gt;/textures/&lt;layer&gt;/model.png   that layer's texture, its variants beside it
  * </pre>
  *
  * <p>Everything is read through Minecraft's own {@link ResourceManager}, which is the point: it
@@ -95,30 +100,80 @@ public class CemSourcePack implements ISourcePack
     public void reindex()
     {
         Map<String, Identifier> assets = new TreeMap<>();
+        Map<String, Map<String, Identifier>> layers = new TreeMap<>();
         Textures textures = this.textures();
 
         for (Identifier jem : this.manager.findResources(CEM, (id) -> isMinecraft(id) && id.getPath().endsWith(".jem")).keySet())
         {
             /* The path under the CEM folder without its extension: "cow", or "boat/bamboo" for the
              * ones a pack files away in a subfolder. The last segment names the model's folder, and
-             * the .jem inside carries the same name so the loader picks it over any sibling. */
+             * the .jem inside carries the same name so the loader picks it over any sibling. A layer
+             * over an entity (sheep_wool, drowned_outer) is not a model of its own: it goes into the
+             * folder of the model it is a layer of, under its own name, with its texture under the
+             * layer's material — see CemNames.layer and the loader. */
             String model = jem.getPath().substring(CEM.length() + 1, jem.getPath().length() - 4);
             String name = model.substring(model.lastIndexOf('/') + 1);
-            String folder = FOLDER + model + "/";
+            CemNames.Layer layer = CemNames.layer(name);
+            String folder = FOLDER + (layer == null ? model : model.substring(0, model.length() - name.length()) + layer.base()) + "/";
+            String subfolder = layer == null ? "" : "textures/" + layer.name() + "/";
+            Map<String, Identifier> own = new TreeMap<>();
 
-            assets.put(folder + name + ".jem", jem);
+            own.put(folder + name + ".jem", jem);
 
-            this.collectParts(jem, folder, assets);
+            this.collectParts(jem, folder, own);
 
             Identifier texture = this.resolveTexture(textures, name);
 
             if (texture != null)
             {
-                assets.put(folder + TEXTURE, texture);
+                own.put(folder + subfolder + TEXTURE, texture);
+
+                for (Identifier alternative : alternatives(textures, texture))
+                {
+                    own.put(folder + subfolder + fileName(alternative) + ".png", alternative);
+                }
+            }
+
+            assets.putAll(own);
+
+            if (layer != null)
+            {
+                layers.computeIfAbsent(folder, (key) -> new TreeMap<>()).putAll(own);
             }
         }
 
+        this.dressTheYoung(assets, layers);
+
         this.assets = assets;
+    }
+
+    /**
+     * The young wear the layers of the grown: vanilla draws a drowned's outer layer over a baby drowned
+     * with the same model, and a pack that ships {@code drowned_baby.jem} beside {@code drowned_outer.jem}
+     * means the one to wear the other. So a layer folded into a model's folder is folded into the folder
+     * of its young too, where the pack has one — the layer's own files, under the same names. A layer the
+     * pack draws for the young by name ({@code pig_baby_saddle}) is theirs already.
+     *
+     * @param layers the files every layer brought, by the folder of the model it is a layer of
+     */
+    private void dressTheYoung(Map<String, Identifier> assets, Map<String, Map<String, Identifier>> layers)
+    {
+        for (Map.Entry<String, Map<String, Identifier>> layer : layers.entrySet())
+        {
+            String folder = layer.getKey();
+            String name = folder.substring(folder.lastIndexOf('/', folder.length() - 2) + 1, folder.length() - 1);
+            String babyFolder = folder.substring(0, folder.length() - 1) + BABY + "/";
+
+            if (!assets.containsKey(babyFolder + name + BABY + ".jem"))
+            {
+                continue;
+            }
+
+            for (Map.Entry<String, Identifier> asset : layer.getValue().entrySet())
+            {
+                assets.putIfAbsent(babyFolder + asset.getKey().substring(folder.length()), asset.getValue());
+            }
+        }
     }
 
     /**
@@ -230,22 +285,33 @@ public class CemSourcePack implements ISourcePack
     private static final class Textures
     {
         final Map<String, Identifier> byPath = new LinkedHashMap<>();
-        final Map<String, Identifier> byName = new LinkedHashMap<>();
+
+        /** Every texture of a file name, in path order: a name is not always one file, see {@link #pickByName}. */
+        final Map<String, List<Identifier>> byName = new LinkedHashMap<>();
         final Map<String, List<Identifier>> byFolder = new LinkedHashMap<>();
     }
 
-    /** Variant prefixes a pack puts on an entity that wears the plain one's texture. */
+    /** Climate prefixes a pack puts on an entity; the plain one's texture is the fallback when the pack draws none of its own. */
     private static final String[] PREFIXES = {"cold_", "warm_"};
+
+    /** The suffix Entity Texture Features gives an emissive overlay: a texture drawn over the entity, not a coat for it. */
+    private static final String EMISSIVE = "_e";
+
+    /**
+     * The young variant's marker. It sits anywhere in the name, not only at its end: a pack's
+     * {@code pig_baby_saddle} is the saddle of a pig, and wears the pig's saddle texture.
+     */
+    private static final String BABY = "_baby";
 
     /**
      * Suffixes naming a layer over an entity rather than an entity: the wool over a sheep, the armour
-     * over a horse, the outer skin of a stray. Stripped one after another, so {@code sheep_wool_undercoat}
-     * comes back to {@code sheep}.
+     * over a horse, the outer skin of a stray. Taken off one at a time, so {@code sheep_wool_undercoat}
+     * comes back to {@code sheep} through {@code sheep_wool}.
      */
     private static final String[] LAYERS = {
         "_outer", "_saddle", "_armor", "_decor", "_patch", "_collar", "_wool", "_charge",
         "_undercoat", "_harness", "_ropes", "_big", "_medium", "_small", "_pattern_a", "_pattern_b",
-        "_a", "_b", "_left", "_right"
+        "_a", "_b", "_left", "_right", "_layer"
     };
 
     /**
@@ -253,13 +319,18 @@ public class CemSourcePack implements ISourcePack
      * Kept small on purpose: everything a rule can reach is left to the rules.
      */
     private static final Map<String, String> ALIASES = Map.ofEntries(
+        Map.entry("bogged_outer", "skeleton/bogged_overlay.png"),
         Map.entry("chest", "chest/normal.png"),
         Map.entry("chest_large", "chest/normal_left.png"),
+        Map.entry("chest_raft", "chest_boat/bamboo.png"),
+        Map.entry("drowned_outer", "zombie/drowned_outer_layer.png"),
         Map.entry("ender_chest", "chest/ender.png"),
         Map.entry("trapped_chest", "chest/trapped.png"),
         Map.entry("trapped_chest_large", "chest/trapped_left.png"),
         Map.entry("elder_guardian", "guardian_elder.png"),
         Map.entry("giant", "zombie/zombie.png"),
+        Map.entry("horse_armor", "horse/armor/horse_armor_iron.png"),
+        Map.entry("llama_decor", "llama/decor/white.png"),
         Map.entry("magma_cube", "slime/magmacube.png"),
         Map.entry("mooshroom", "cow/red_mooshroom.png"),
         Map.entry("player", "player/wide/steve.png"),
@@ -269,6 +340,9 @@ public class CemSourcePack implements ISourcePack
         Map.entry("sheep_wool", "sheep/sheep_fur.png"),
         Map.entry("shulker_box", "shulker/shulker.png"),
         Map.entry("skeleton_horse", "horse/horse_skeleton.png"),
+        Map.entry("stray_outer", "skeleton/stray_overlay.png"),
+        Map.entry("trader_llama", "llama/creamy.png"),
+        Map.entry("trader_llama_decor", "llama/decor/trader_llama.png"),
         Map.entry("tropical_fish", "fish/tropical_a.png"),
         Map.entry("zombie_horse", "horse/horse_zombie.png")
     );
@@ -284,7 +358,7 @@ public class CemSourcePack implements ISourcePack
             String name = path.substring(path.lastIndexOf('/') + 1, path.length() - 4);
 
             textures.byPath.putIfAbsent(path, id);
-            textures.byName.putIfAbsent(name, id);
+            textures.byName.computeIfAbsent(name, (k) -> new ArrayList<>()).add(id);
 
             for (int slash = path.indexOf('/'); slash >= 0; slash = path.indexOf('/', slash + 1))
             {
@@ -318,7 +392,7 @@ public class CemSourcePack implements ISourcePack
 
         for (String name : names)
         {
-            Identifier id = textures.byName.get(name);
+            Identifier id = pickByName(textures, name);
 
             if (id != null)
             {
@@ -340,8 +414,58 @@ public class CemSourcePack implements ISourcePack
     }
 
     /**
-     * The names to look an entity up under: itself, then without the variant prefix, the baby suffix and
-     * a trailing number, then without the layer suffixes as well.
+     * The texture called after the entity. A name is not always one file: {@code creeper.png} is a
+     * banner pattern and a shield pattern before it is a creeper, and both sort ahead of the creeper's
+     * own folder - the model came out wearing the pattern. The entity's own folder wins, then a file at
+     * the root of the entity textures, then whichever came first.
+     */
+    private static Identifier pickByName(Textures textures, String name)
+    {
+        List<Identifier> all = textures.byName.get(name);
+
+        if (all == null)
+        {
+            return null;
+        }
+
+        for (Identifier id : all)
+        {
+            if (folderName(id).equals(name))
+            {
+                return id;
+            }
+        }
+
+        for (Identifier id : all)
+        {
+            if (folderName(id).isEmpty())
+            {
+                return id;
+            }
+        }
+
+        return all.get(0);
+    }
+
+    /** The folder a texture sits in, relative to the entity textures - {@code cat} for {@code cat/red.png}; empty at their root. */
+    private static String folderName(Identifier id)
+    {
+        String path = id.getPath().substring(TEXTURES.length() + 1);
+        int slash = path.lastIndexOf('/');
+
+        return slash < 0 ? "" : path.substring(path.lastIndexOf('/', slash - 1) + 1, slash);
+    }
+
+    /**
+     * The names to look an entity up under, from itself down to the entity it is a variant of.
+     *
+     * <p>The young and the numbered come off first, because they sit anywhere in the name and what
+     * follows them still means something: {@code pig_baby_saddle} is a saddled pig before it is a pig,
+     * and {@code villager_baby2} a villager. The climate prefix comes off next, and only next: a pack
+     * that draws a cold cow draws it on a texture of its own, and {@code cold_cow_baby} wears
+     * {@code cold_cow}'s, not {@code cow}'s. Then the layers come off one at a time, each a name of its
+     * own, so a layer over a layer is looked up through the layer ({@code sheep_wool_undercoat} finds
+     * the wool).</p>
      */
     private static Collection<String> variants(String entity)
     {
@@ -349,42 +473,20 @@ public class CemSourcePack implements ISourcePack
         String name = entity;
 
         names.add(name);
+        names.add(name = stripDigits(name.replace(BABY, "")));
 
         for (String prefix : PREFIXES)
         {
             if (name.startsWith(prefix))
             {
-                name = name.substring(prefix.length());
+                names.add(name = name.substring(prefix.length()));
             }
         }
 
-        if (name.endsWith("_baby"))
+        for (String shorter = peel(name); shorter != null; shorter = peel(name))
         {
-            name = name.substring(0, name.length() - 5);
+            names.add(name = shorter);
         }
-
-        names.add(name = stripDigits(name));
-
-        for (boolean stripped = true; stripped; )
-        {
-            stripped = false;
-
-            for (String suffix : LAYERS)
-            {
-                if (name.endsWith(suffix) && name.length() > suffix.length())
-                {
-                    name = name.substring(0, name.length() - suffix.length());
-                    stripped = true;
-                }
-            }
-        }
-
-        if (name.startsWith("head_"))
-        {
-            name = name.substring(5);
-        }
-
-        names.add(name = stripDigits(name));
 
         /* Every minecart is drawn on the one texture, whatever it carries. */
         if (name.endsWith("_minecart"))
@@ -393,6 +495,55 @@ public class CemSourcePack implements ISourcePack
         }
 
         return names;
+    }
+
+    /** The name with one layer off it - a layer suffix, or the head's prefix - or null once it is down to the entity. */
+    private static String peel(String name)
+    {
+        for (String suffix : LAYERS)
+        {
+            if (name.endsWith(suffix) && name.length() > suffix.length())
+            {
+                return stripDigits(name.substring(0, name.length() - suffix.length()));
+            }
+        }
+
+        return name.startsWith("head_") ? name.substring(5) : null;
+    }
+
+    /**
+     * The other textures of the folder the chosen one sits in: the cat's twelve coats beside the one
+     * it arrived in, the horse's other armours. A default for an entity that comes in variants is a
+     * guess by definition, and the guess is not what needs fixing - the choice is. A form's texture
+     * picker opens on the texture in effect, so served beside it under their own names the variants
+     * are right there in the picker, rather than somewhere under the game's own files. The folder is
+     * the unit: a texture sitting at the root of the entity textures has neighbours, not variants.
+     * Nor is everything in the folder a coat: a layer over the entity (the charge over a creeper, the
+     * collar over a cat) and an emissive overlay (the {@code _e} of Entity Texture Features) are left out.
+     */
+    private static List<Identifier> alternatives(Textures textures, Identifier texture)
+    {
+        String path = texture.getPath().substring(TEXTURES.length() + 1);
+        int slash = path.lastIndexOf('/');
+
+        if (slash < 0)
+        {
+            return Collections.emptyList();
+        }
+
+        List<Identifier> alternatives = new ArrayList<>();
+
+        for (Identifier id : direct(textures, path.substring(0, slash)))
+        {
+            String name = fileName(id);
+
+            if (!id.equals(texture) && !isLayer(name) && !name.endsWith(EMISSIVE))
+            {
+                alternatives.add(id);
+            }
+        }
+
+        return alternatives;
     }
 
     /**
@@ -409,19 +560,7 @@ public class CemSourcePack implements ISourcePack
             return null;
         }
 
-        int depth = folder.length() - folder.replace("/", "").length();
-        List<Identifier> direct = new ArrayList<>();
-
-        for (Identifier id : all)
-        {
-            String path = id.getPath().substring(TEXTURES.length() + 1);
-
-            if (path.length() - path.replace("/", "").length() == depth + 1)
-            {
-                direct.add(id);
-            }
-        }
-
+        List<Identifier> direct = direct(textures, folder);
         List<Identifier> pool = direct.isEmpty() ? all : direct;
         String name = folder.substring(folder.lastIndexOf('/') + 1);
 
@@ -444,6 +583,32 @@ public class CemSourcePack implements ISourcePack
         }
 
         return pool.get(0);
+    }
+
+    /** The textures sitting straight in a folder, not in one nested under it; a fresh list, the caller's to keep. */
+    private static List<Identifier> direct(Textures textures, String folder)
+    {
+        List<Identifier> direct = new ArrayList<>();
+        List<Identifier> all = textures.byFolder.get(folder);
+
+        if (all == null)
+        {
+            return direct;
+        }
+
+        int depth = folder.length() - folder.replace("/", "").length();
+
+        for (Identifier id : all)
+        {
+            String path = id.getPath().substring(TEXTURES.length() + 1);
+
+            if (path.length() - path.replace("/", "").length() == depth + 1)
+            {
+                direct.add(id);
+            }
+        }
+
+        return direct;
     }
 
     private static String fileName(Identifier id)

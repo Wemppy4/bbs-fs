@@ -7,7 +7,6 @@ import mchorse.bbs_mod.cubic.model.ModelManager;
 import mchorse.bbs_mod.data.DataStringifier;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormCategories;
-import mchorse.bbs_mod.forms.FormSort;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.categories.FormCategory;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
@@ -18,6 +17,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.forms.FormCellRenderer;
 import mchorse.bbs_mod.ui.forms.FormGridLayout;
 import mchorse.bbs_mod.ui.forms.UIFormList;
@@ -32,12 +32,13 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
+import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
+import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
-import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.MinecraftClient;
@@ -62,8 +63,6 @@ import java.util.function.Consumer;
  */
 public class UIFormCategory extends UIItemGrid<Form>
 {
-    private static final int SORT_BUTTON = 20;
-
     public UIFormList list;
     public FormCategory category;
 
@@ -78,14 +77,13 @@ public class UIFormCategory extends UIItemGrid<Form>
 
     private String search = "";
 
-    /* The category's forms as shown: sorted, then narrowed by search */
+    /* The category's forms as shown: narrowed by search */
     private final List<Form> view = new ArrayList<>();
     private int viewMod = -1;
     private String viewSearch;
 
     /* The header under the cursor, refreshed every frame along with the cells */
     private boolean hoverHeader;
-    private boolean hoverSort;
 
     /* The slice of the scroll view the cells must fall into to be worth painting */
     private final Area window = new Area();
@@ -186,6 +184,8 @@ public class UIFormCategory extends UIItemGrid<Form>
             {
                 UIUtils.openFolder(BBSMod.getAssetsPath(ModelManager.MODELS_PREFIX + modelForm.model.get() + "/"));
             });
+
+            this.openModelEditorAction(menu, modelForm);
         }
 
         menu.icon(MenuVerb.ADD, () ->
@@ -258,8 +258,26 @@ public class UIFormCategory extends UIItemGrid<Form>
                 });
             }
         }
+    }
 
-        menu.action(Icons.LIST, UIKeys.FORMS_CATEGORIES_SORT, () -> this.openSortMenu(this.getContext()));
+    private void openModelEditorAction(ContextMenuManager menu, ModelForm form)
+    {
+        UIMorphingPanel morphing = this.getParent(UIMorphingPanel.class);
+        String model = form.model.get();
+
+        if (morphing == null || model.isEmpty())
+        {
+            return;
+        }
+
+        menu.action(Icons.POSE, UIKeys.FORMS_CATEGORIES_CONTEXT_OPEN_MODEL_EDITOR, () ->
+        {
+            UIDashboard dashboard = morphing.dashboard;
+            UIModelEditorPanel panel = dashboard.getPanel(UIModelEditorPanel.class);
+
+            dashboard.setPanel(panel);
+            panel.pickData(model);
+        });
     }
 
     private void buildGroupContextMenu(ContextMenuManager menu, UserFormSection userForms)
@@ -295,17 +313,6 @@ public class UIFormCategory extends UIItemGrid<Form>
         }
     }
 
-    private void openSortMenu(UIContext context)
-    {
-        FormCategories formCategories = BBSModClient.getFormCategories();
-
-        UIChoiceMenu.of(FormSort.values())
-            .current(this.category.getSort())
-            .icon((sort) -> sort.icon)
-            .label((sort) -> sort.label)
-            .open(context, (sort) -> formCategories.setSort(this.category, sort));
-    }
-
     /* Content */
 
     public void search(String search)
@@ -313,14 +320,14 @@ public class UIFormCategory extends UIItemGrid<Form>
         this.search = search.toLowerCase();
     }
 
-    /** The forms as displayed: in the category's sort order, narrowed by the search. */
+    /** The forms as displayed: in the order the user arranged them, narrowed by the search. */
     public List<Form> getForms()
     {
         if (this.viewMod != this.category.getModCount() || !this.search.equals(this.viewSearch))
         {
             this.view.clear();
 
-            for (Form form : this.category.getSort().sorted(this.category.getForms()))
+            for (Form form : this.category.getForms())
             {
                 if (this.search.isEmpty() || form.getFormId().toLowerCase().contains(this.search) || form.getDisplayName().toLowerCase().contains(this.search))
                 {
@@ -482,14 +489,7 @@ public class UIFormCategory extends UIItemGrid<Form>
                 return false;
             }
 
-            if (this.isSortButton(x))
-            {
-                this.openSortMenu(context);
-            }
-            else
-            {
-                this.list.pressHeader(this, context);
-            }
+            this.list.pressHeader(this, context);
 
             return true;
         }
@@ -569,11 +569,6 @@ public class UIFormCategory extends UIItemGrid<Form>
         }
 
         return super.subMouseReleased(context);
-    }
-
-    private boolean isSortButton(int x)
-    {
-        return x >= this.area.w - SORT_BUTTON - 2 && x < this.area.w - 2;
     }
 
     /** The keyboard walks the cells; it's the list's scroll view that has to follow. */
@@ -674,7 +669,6 @@ public class UIFormCategory extends UIItemGrid<Form>
         {
             this.hoverIndex = -1;
             this.hoverHeader = false;
-            this.hoverSort = false;
 
             return;
         }
@@ -684,7 +678,6 @@ public class UIFormCategory extends UIItemGrid<Form>
         boolean inside = this.area.isInside(context) && !this.drag.isActive() && !context.hasContextMenu();
 
         this.hoverHeader = inside && this.layout.isHeader(this.contentY(context));
-        this.hoverSort = this.hoverHeader && this.isSortButton(this.contentX(context));
     }
 
     /** Only what the scroll view shows; the categories above and below are laid out but needn't be drawn. */
@@ -752,23 +745,6 @@ public class UIFormCategory extends UIItemGrid<Form>
 
         batcher.textShadow(title, textX, textY, textColor);
         batcher.text(count, textX + font.getWidth(title) + 6, textY, Colors.GRAY);
-
-        this.renderSortButton(context, ex - SORT_BUTTON - 2, y);
-    }
-
-    /** Shows itself when the header is hovered, and stays lit while a sort other than manual is on. */
-    private void renderSortButton(UIContext context, int x, int y)
-    {
-        boolean sorted = this.category.getSort() != FormSort.MANUAL;
-
-        if (!sorted && !this.hoverHeader)
-        {
-            return;
-        }
-
-        int color = sorted ? BBSSettings.primaryColor.get() | Colors.A100 : (this.hoverSort ? Colors.LIGHTEST_GRAY : Colors.WHITE);
-
-        context.batcher.icon(Icons.LIST, color, x + SORT_BUTTON / 2, y + FormGridLayout.HEADER / 2, 0.5F, 0.5F);
     }
 
     @Override

@@ -544,7 +544,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Зсув циклу: коли дія перемотується назад, вона переходить до цього тику, а не до початку.",
     "bbs.ui.forms.editor.states.open": "Відкрити менеджер станів анімацій",
     "bbs.ui.forms.editor.states.toggle": "Перемкнути редактор станів анімацій",
-    "bbs.ui.forms.editor.toggle_tree": "Перемкнути список форм",
     "bbs.ui.forms.editor.use_target": "Використати ціль",
     "bbs.ui.forms.editors.actions.animations": "Анімації",
     "bbs.ui.forms.editors.actions.fade": "З'явлення",

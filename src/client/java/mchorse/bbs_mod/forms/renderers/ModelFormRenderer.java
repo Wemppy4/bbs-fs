@@ -19,6 +19,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.jem.CemAnimator;
+import mchorse.bbs_mod.cubic.jem.CemVanillaStage;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
@@ -207,6 +208,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         {
             PoseTransform poseTransform = targetPose.getOrCreate(entry.getKey());
             PoseTransform value = entry.getValue();
+            poseTransform.visible &= value.visible;
 
             if (!Operation.equals(value.fix, 0))
             {
@@ -335,7 +337,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         {
             if (model.config.cemAnimation.get())
             {
-                return new CemAnimator(model.cemAnimation);
+                return new CemAnimator(model.cemAnimation, new CemVanillaStage(model.cemAnimation.jem));
             }
 
             /* CEM drove the bones' visibility and nothing else resets it: switched off, every bone shows again. */
@@ -397,7 +399,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, BBSModClient.getTextures().getTexture(texture)));
             RenderSystem.depthFunc(GL11.GL_LEQUAL);
 
-            Supplier<ShaderProgram> mainShader = (BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld()) || !model.isVAORendered()
+            Supplier<ShaderProgram> mainShader = BBSRendering.isIrisWorldShadersEnabled() || !model.isVAORendered()
                 ? GameRenderer::getRenderTypeEntityTranslucentCullProgram
                 : BBSShaders::getModel;
 
@@ -850,7 +852,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, BBSModClient.getTextures().getTexture(texture)));
 
-            Supplier<ShaderProgram> mainShader = (BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld()) || !model.isVAORendered()
+            Supplier<ShaderProgram> mainShader = BBSRendering.isIrisWorldShadersEnabled() || !model.isVAORendered()
                 ? GameRenderer::getRenderTypeEntityTranslucentCullProgram
                 : BBSShaders::getModel;
 
@@ -917,6 +919,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form, "", texture, textureObject));
 
+            /* Deliberately the wider question - "is a pack loaded at all" - and not
+             * isIrisWorldShadersEnabled(). What hangs off this below is the alpha handling, and
+             * that has to stay put where a pack can see the result. Inside a framebuffer form
+             * the pack stops shading, but the pixels still end up in its world: dropping the
+             * cutout degrade there turns blending back on, the parts land in the buffer
+             * premultiplied with alpha squared, and the quad multiplies by alpha once more. */
             boolean irisWorld = BBSRendering.isIrisShadersEnabled() && BBSRendering.isRenderingWorld();
 
             /* Under shaders we can't split opaque/translucent per pixel (Iris strips our PassMode),
@@ -940,9 +948,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 || (renderLayer == Form.LAYER_CUTOUT && !irisWorld);
             boolean suspendQueue = irisWorld || renderLayer == Form.LAYER_SOLID || renderLayer == Form.LAYER_CUTOUT;
 
+            /* The program, unlike the alpha handling above, does follow whether the pack is
+             * shading this very draw: off-screen it has stopped, and our own is the better one. */
             Supplier<ShaderProgram> mainShader = cutout
                 ? GameRenderer::getRenderTypeEntityCutoutProgram
-                : (irisWorld || !model.isVAORendered())
+                : (BBSRendering.isIrisWorldShadersEnabled() || !model.isVAORendered())
                     ? GameRenderer::getRenderTypeEntityTranslucentCullProgram
                     : BBSShaders::getModel;
             Supplier<ShaderProgram> shader = this.getShader(context, mainShader, BBSShaders::getPickerModelsProgram);

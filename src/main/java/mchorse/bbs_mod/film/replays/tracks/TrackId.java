@@ -51,6 +51,7 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
     public static final String MATERIAL_PROP_OVERLAY = "color_overlay";
     public static final String MATERIAL_PROP_LIGHTING = "lighting";
     public static final String MATERIAL_PROP_CULLING = "culling";
+    public static final String MATERIAL_PROP_VISIBLE = "visible";
     public static final String MATERIAL_PROP_SMOOTHNESS = "smoothness";
     public static final String MATERIAL_PROP_METALLIC = "metallic";
     public static final String MATERIAL_PROP_SSS = "sss";
@@ -59,7 +60,7 @@ public record TrackId(TrackKind kind, String formPath, String subject, String pr
 
     public static final String[] MATERIAL_PROPS_ALL = {
         MATERIAL_PROP_PIXEL_EMISSION, MATERIAL_PROP_OVERLAY, MATERIAL_PROP_SMOOTHNESS,
-        MATERIAL_PROP_LIGHTING, MATERIAL_PROP_METALLIC, MATERIAL_PROP_CULLING,
+        MATERIAL_PROP_LIGHTING, MATERIAL_PROP_METALLIC, MATERIAL_PROP_CULLING, MATERIAL_PROP_VISIBLE,
         MATERIAL_PROP_RELIEF, MATERIAL_PROP_COLOR, MATERIAL_PROP_SSS
     };
 

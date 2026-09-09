@@ -14,6 +14,7 @@ public class BOBJBone implements RigBone
     public String name;
     public String parent;
     public BOBJBone parentBone;
+    public boolean visible = true;
 
     /* Transformations */
     public final Transform transform = new Transform();
@@ -270,6 +271,7 @@ public class BOBJBone implements RigBone
 
     public void reset()
     {
+        this.visible = true;
         this.transform.identity();
         this.orient = null;
         this.offset = null;

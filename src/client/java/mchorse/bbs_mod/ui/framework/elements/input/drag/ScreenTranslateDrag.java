@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.input.drag;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
+import mchorse.bbs_mod.ui.utils.GizmoJacobian;
 import mchorse.bbs_mod.utils.Axis;
 import org.joml.Matrix3f;
 import org.joml.Vector3d;
@@ -91,7 +92,7 @@ public class ScreenTranslateDrag extends TranslateDrag
         cameraBasis.setColumn(1, up);
         cameraBasis.setColumn(2, forward);
 
-        Matrix3f inverse = invertedJacobian(drag.translateJacobian);
+        Matrix3f inverse = GizmoJacobian.inverse(drag.translateJacobian);
 
         this.translateBasis.set(inverse).mul(cameraBasis);
         this.screenInverseJacobian.set(inverse);

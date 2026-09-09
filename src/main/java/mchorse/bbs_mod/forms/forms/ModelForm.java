@@ -89,6 +89,7 @@ public class ModelForm extends Form implements IPosedForm
     public final transient Map<String, Color> materialOverlayOverrides = new HashMap<>();
     public final transient Map<String, Float> materialLightingOverrides = new HashMap<>();
     public final transient Map<String, Integer> materialCullingOverrides = new HashMap<>();
+    public final transient Map<String, Boolean> materialVisibilityOverrides = new HashMap<>();
 
     /** PBR slider overrides (keyed by material name, then by the slider's property name). */
     public final transient Map<String, Map<String, Float>> materialPbrOverrides = new HashMap<>();

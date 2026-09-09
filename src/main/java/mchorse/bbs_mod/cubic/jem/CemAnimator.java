@@ -3,7 +3,6 @@ package mchorse.bbs_mod.cubic.jem;
 import mchorse.bbs_mod.cubic.IModelInstance;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
-import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 
@@ -11,20 +10,19 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The animator stage of an OptiFine CEM model: the vanilla animation, then the model's
- * {@link CemAnimation} program on top of it, with its own {@link CemState}. It sits where
- * {@link ProceduralAnimator} does in the channels pipeline (rest &rarr; animator &rarr; default pose
- * &rarr; form pose), so the form's pose and the film's keyframes layer on top of the live animation
- * additively, exactly like on any other model. An animator lives per form renderer, which is what
- * makes the state per instance.
+ * The animator stage of an OptiFine CEM model: vanilla's frame, then the model's {@link CemAnimation}
+ * program on top of it, with its own {@link CemState}. It sits where the procedural animator does in
+ * the channels pipeline (rest &rarr; animator &rarr; default pose &rarr; form pose), so the form's pose
+ * and the film's keyframes layer on top of the live animation additively, exactly like on any other
+ * model. An animator lives per form renderer, which is what makes the state per instance.
  *
- * <p>The vanilla stage is not decoration: OptiFine evaluates CEM statements over the frame vanilla
- * just posed, so a bone's model variables arrive holding vanilla's angles. Packs rely on it — Fresh
- * Animations overwrites every rotation channel and never notices, while Fresh Moves layers on top and
- * says so outright ({@code varb.use_vanilla_leg_animations}), leaving a bone at its incoming value
- * where it wants vanilla's. {@link ProceduralAnimator} is BBS's vanilla stage, keyed by the same bone
- * names ({@code head}, {@code body}, {@code right_arm}…) the packs use, so it is the one to run. With
- * no entity there is no vanilla frame either, and the program evaluates over the rest pose.</p>
+ * <p>The vanilla frame is not decoration: OptiFine evaluates CEM statements over the frame vanilla
+ * just posed, so a bone's model variables arrive holding vanilla's angles, positions and flags. Packs
+ * rely on it — Fresh Animations reads the parts it leaves empty (the fox's flat body, the hoglin's
+ * bowed head, the blaze's orbiting rods), Fresh Moves layers on top and says so outright
+ * ({@code varb.use_vanilla_leg_animations}). The frame comes from an {@link ICemVanillaStage}: the
+ * game's own model of the entity, posed by the game's own code ({@code CemVanillaStage}). Without one —
+ * a probe, or an entity the game has no model for — the program evaluates over the rest pose.</p>
  *
  * <p>The program's {@code var.*}/{@code varb.*} are not the animator's: they belong to the entity, so
  * every CEM model on it reads what the others wrote — that is how a pack's cape follows its body (see
@@ -35,9 +33,10 @@ import java.util.List;
  */
 public class CemAnimator implements IAnimator
 {
-    private final ProceduralAnimator vanilla = new ProceduralAnimator();
-
     private final CemAnimation program;
+
+    /** The vanilla stage, or null for a program run with no game under it. */
+    private final ICemVanillaStage stage;
 
     /** The store for an instance with no entity to share one with — a UI preview. */
     private final CemVariables own = new CemVariables();
@@ -65,9 +64,13 @@ public class CemAnimator implements IAnimator
     private double previewTicks;
     private long previewNanos;
 
-    public CemAnimator(CemAnimation program)
+    /** The preview tick the stage was last stepped on: a preview has no tick of its own, so the stage gets one per tick of the clock. */
+    private int previewTicked = -1;
+
+    public CemAnimator(CemAnimation program, ICemVanillaStage stage)
     {
         this.program = program;
+        this.stage = stage;
     }
 
     @Override
@@ -78,9 +81,7 @@ public class CemAnimator implements IAnimator
 
     @Override
     public void setup(IModelInstance model, ActionsConfig actionsConfig, boolean fade)
-    {
-        this.vanilla.setup(model, actionsConfig, fade);
-    }
+    {}
 
     @Override
     public void applyActions(IEntity entity, IModelInstance cubicModel, float transition)
@@ -89,14 +90,19 @@ public class CemAnimator implements IAnimator
 
         if (inGui)
         {
+            /* The preview keeps its own clock, and the frame's place in it is its own too: the game's
+             * partial tick belongs to the game's ticks, which the preview's are not in step with, and
+             * mixing the two made the preview's time saw back and forth once a tick. */
             entity = this.preview();
+            transition = (float) (this.previewTicks - Math.floor(this.previewTicks));
         }
 
-        this.vanilla.applyActions(entity, cubicModel, transition);
-        this.program.apply(this.state(entity), entity, transition, inGui, this.status);
+        CemVanillaSeed seed = this.stage == null ? null : this.stage.seed(entity, transition);
+
+        this.program.apply(this.state(entity), entity, transition, inGui, this.status, seed);
     }
 
-    /** The stand-in entity, its clock stepped to now. */
+    /** The stand-in entity, its clock stepped to now — and the stage stepped with it, once a tick. */
     private IEntity preview()
     {
         long now = System.nanoTime();
@@ -109,7 +115,16 @@ public class CemAnimator implements IAnimator
         }
 
         this.previewNanos = now;
-        this.preview.setAge((int) this.previewTicks);
+
+        int tick = (int) this.previewTicks;
+
+        this.preview.setAge(tick);
+
+        if (this.stage != null && tick != this.previewTicked)
+        {
+            this.previewTicked = tick;
+            this.stage.tick(this.preview);
+        }
 
         return this.preview;
     }
@@ -144,6 +159,9 @@ public class CemAnimator implements IAnimator
     @Override
     public void update(IEntity entity)
     {
-        this.vanilla.update(entity);
+        if (this.stage != null)
+        {
+            this.stage.tick(entity);
+        }
     }
 }
