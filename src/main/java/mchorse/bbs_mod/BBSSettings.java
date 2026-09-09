@@ -56,8 +56,6 @@ public class BBSSettings {
 	public static ValueBoolean forceQwerty;
 	public static ValueBoolean freezeModels;
 	public static ValueBoolean listModelPreview;
-	/** How many cached form pictures (lists, palettes) are re-rendered per frame; 0 renders them live. */
-	public static ValueInt previewRefreshBudget;
 	public static ValueBoolean morphingFocusSearch;
 	public static ValueInt formCellSize;
 	public static ValueInt textureCellSize;
@@ -552,7 +550,7 @@ public class BBSSettings {
 		migrated |= migrateLegacyCategory(root, "appearance", "workspace", "clip_auto_name");
 
 		/* The performance knobs gathered into a category of their own */
-		migrated |= migrateLegacyCategory(root, "appearance", "performance", "list_model_preview", "preview_refresh_budget", "freeze_models");
+		migrated |= migrateLegacyCategory(root, "appearance", "performance", "list_model_preview", "freeze_models");
 		migrated |= migrateLegacyCategory(root, "viewport", "performance", "profiler_overlay", "frame_pose_cache");
 		migrated |= migrateLegacyCategory(root, "misc", "performance", "translucency_queue", "multiskin_multithreaded");
 
@@ -794,7 +792,6 @@ public class BBSSettings {
 		 * show where the frame goes. */
 		builder.category("performance", Icons.PROCESSOR);
 		listModelPreview = builder.getBoolean("list_model_preview", true);
-		previewRefreshBudget = builder.getInt("preview_refresh_budget", 8, 0, 8).slider();
 		freezeModels = builder.getBoolean("freeze_models", false);
 		translucencyQueue = builder.getBoolean("translucency_queue", false);
 		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
