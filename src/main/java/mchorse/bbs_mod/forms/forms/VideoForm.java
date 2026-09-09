@@ -19,7 +19,6 @@ public class VideoForm extends BillboardForm
 
     public final ValueLink video = new ValueLink("video", null);
     public final ValueBoolean loop = new ValueBoolean("loop", true);
-    public final ValueFloat speed = new ValueFloat("speed", 1F);
     public final ValueFloat videoOffset = new ValueFloat("videoOffset", 0F);
 
     public VideoForm()
@@ -30,16 +29,11 @@ public class VideoForm extends BillboardForm
          * the decoder instead, so it must not offer a track that does nothing. */
         this.texture.invisible();
 
-        /* One-off authoring switches, like the render layer: playback wraps or it
-         * doesn't. Animating the speed is worse than useless — it multiplies the
-         * carrier's WHOLE age, so a keyframe on it jumps the playhead instead of
-         * ramping. Animate the offset (the time curve) for that. */
+        /* Looping is an authoring switch, like the render layer. */
         this.loop.invisible();
-        this.speed.invisible();
 
         this.add(this.video);
         this.add(this.loop);
-        this.add(this.speed);
         this.add(this.videoOffset);
     }
 

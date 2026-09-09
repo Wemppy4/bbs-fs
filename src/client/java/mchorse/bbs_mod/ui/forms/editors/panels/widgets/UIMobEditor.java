@@ -99,7 +99,7 @@ public class UIMobEditor extends UIElement
     {
         try
         {
-            EntityType<?> type = Registries.ENTITY_TYPE.get(new Identifier(this.mobID));
+            EntityType<?> type = Registries.ENTITY_TYPE.get(Identifier.of(this.mobID));
             SpawnEggItem egg = SpawnEggItem.forEntity(type);
 
             return egg == null ? ItemStack.EMPTY : new ItemStack(egg);

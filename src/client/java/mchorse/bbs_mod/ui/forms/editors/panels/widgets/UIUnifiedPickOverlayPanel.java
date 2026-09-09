@@ -161,7 +161,7 @@ public class UIUnifiedPickOverlayPanel extends UIOverlayPanel
         {
             try
             {
-                return Registries.ENTITY_TYPE.get(new Identifier(id)).getName().getString();
+                return Registries.ENTITY_TYPE.get(Identifier.of(id)).getName().getString();
             }
             catch (Exception e)
             {

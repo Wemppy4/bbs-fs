@@ -562,7 +562,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "循環偏移量，當某個動作重新播放時，它將跳轉至此刻（Tick）而不是從頭開始",
     "bbs.ui.forms.editor.states.open": "打開動畫狀態管理器",
     "bbs.ui.forms.editor.states.toggle": "切換動畫狀態編輯器",
-    "bbs.ui.forms.editor.toggle_tree": "切換形態樹",
     "bbs.ui.forms.editor.use_target": "使用目標",
     "bbs.ui.forms.editors.actions.animations": "動畫",
     "bbs.ui.forms.editors.actions.fade": "淡入淡出",

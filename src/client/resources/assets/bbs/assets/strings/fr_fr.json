@@ -509,7 +509,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Décalage de boucle : lorsqu’une action est relancée, elle reprendra à cette valeur de tick au lieu de revenir au début.",
     "bbs.ui.forms.editor.states.open": "Ouvrir le gestionnaire des états d’animation",
     "bbs.ui.forms.editor.states.toggle": "Basculer vers l'éditeur d'états d'animation",
-    "bbs.ui.forms.editor.toggle_tree": "Basculer sur l'arbre de formes",
     "bbs.ui.forms.editor.use_target": "Utiliser la cible",
     "bbs.ui.forms.editors.actions.fade": "Estompage",
     "bbs.ui.forms.editors.actions.loops": "Boucles",

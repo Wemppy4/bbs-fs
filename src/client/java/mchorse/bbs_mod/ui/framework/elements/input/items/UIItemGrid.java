@@ -177,7 +177,19 @@ public abstract class UIItemGrid<T> extends UIItems<T>
         }
     }
 
-    /** Embedded: the element's height is the content's, and the parent is told when it changes. */
+    /**
+     * Embedded: the element's height is the content's, and the parent is told when it changes.
+     *
+     * <p>Told by {@link UIElement#invalidateLayout() invalidating} its layout rather than by resizing
+     * it on the spot, because the height is measured in {@link #relayout()}, which runs from a render
+     * and from a resize — both in the middle of the parent's pass over its children. Resizing the
+     * parent from there re-enters the column's running cursor: the grids after this one are placed a
+     * second time, on top of a cursor the nested pass had already advanced, and land far below
+     * everything the scroll view shows. Collapsing every category at once did exactly that — all the
+     * bands but one flew out of view, and only the next honest pass (dragging the panel's edge) put
+     * them back. Queued instead, every grid that changed height in a frame shares one clean pass
+     * before the next one.</p>
+     */
     private void syncHeight(int h)
     {
         if (this.lastHeight == h)
@@ -192,7 +204,7 @@ public abstract class UIItemGrid<T> extends UIItems<T>
 
         if (container != null)
         {
-            container.resize();
+            container.invalidateLayout();
         }
     }
 

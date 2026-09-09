@@ -19,6 +19,12 @@ public class ValueLinkList extends BaseValueBasic<List<Link>>
         super(id, new ArrayList<>());
     }
 
+    /** With the links it starts out holding, so a reset goes back to them rather than to nothing. */
+    public ValueLinkList(String id, List<Link> defaultLinks)
+    {
+        super(id, new ArrayList<>(defaultLinks));
+    }
+
     @Override
     public BaseType toData()
     {

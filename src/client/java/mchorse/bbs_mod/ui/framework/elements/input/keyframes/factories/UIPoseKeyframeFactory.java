@@ -226,6 +226,12 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
 
         @Override
+        protected void setBoneVisible(PoseTransform transform, boolean value)
+        {
+            apply(this.editor, this.keyframe, this.getGroup(transform), (poseT) -> poseT.visible = value);
+        }
+
+        @Override
         protected void setColor(PoseTransform transform, int value)
         {
             apply(this.editor, this.keyframe, this.getGroup(transform), (poseT) -> poseT.color.set(value));

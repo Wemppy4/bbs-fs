@@ -522,7 +522,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Desfase de bucle: cuando una acción se rebobina, saltará a este tick en lugar de al principio.",
     "bbs.ui.forms.editor.states.open": "Abrir administrador de estados de animación",
     "bbs.ui.forms.editor.states.toggle": "Alternar editor de estado de animación",
-    "bbs.ui.forms.editor.toggle_tree": "Alternar árbol de formas",
     "bbs.ui.forms.editor.use_target": "Usar objetivo",
     "bbs.ui.forms.editors.actions.animations": "Animaciones",
     "bbs.ui.forms.editors.actions.fade": "Desvanecimiento",

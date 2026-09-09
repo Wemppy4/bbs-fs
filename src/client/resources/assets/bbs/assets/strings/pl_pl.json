@@ -533,7 +533,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Odchylenie pętli – gdy akcja zostanie przewinięta, przeskoczy do tego ticku zamiast do początku",
     "bbs.ui.forms.editor.states.open": "Otwurz edytor stanów animacji",
     "bbs.ui.forms.editor.states.toggle": "Przełącz edytor stanów animacji",
-    "bbs.ui.forms.editor.toggle_tree": "Przłącz drzewko form",
     "bbs.ui.forms.editor.use_target": "Użyj targetu",
     "bbs.ui.forms.editors.actions.animations": "Animacje",
     "bbs.ui.forms.editors.actions.fade": "Zanikanie",

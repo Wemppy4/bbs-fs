@@ -3,6 +3,7 @@ package mchorse.bbs_mod.forms.forms.utils;
 import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.utils.colors.Color;
 
@@ -24,6 +25,7 @@ public class FormMaterial extends ValueGroup
     public final ValueFloat lighting = new ValueFloat("lighting", 1F);
 
     /* Render options — per-draw properties. */
+    public final ValueBoolean visible = new ValueBoolean("visible", true);
     public final ValueInt culling = new ValueInt("culling", 0);
 
     /* PBR sliders (LabPBR specular channels + albedo-derived normals), 0..1 each. */
@@ -45,6 +47,7 @@ public class FormMaterial extends ValueGroup
         this.overlayColor.invisible();
         this.lighting.invisible();
         this.culling.invisible();
+        this.visible.invisible();
         this.smoothness.invisible();
         this.metallic.invisible();
         this.sss.invisible();
@@ -55,6 +58,7 @@ public class FormMaterial extends ValueGroup
         this.add(this.overlayColor);
         this.add(this.lighting);
         this.add(this.culling);
+        this.add(this.visible);
         this.add(this.smoothness);
         this.add(this.metallic);
         this.add(this.sss);

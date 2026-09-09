@@ -12,6 +12,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
 import mchorse.bbs_mod.ui.forms.editors.utils.UIDebugOverlayContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
@@ -53,6 +54,17 @@ public class UIModelPhysicsFormPanel extends UIBoneListFormPanel
     public UISliderTrackpad windTurbulenceSpeed;
     public UISliderTrackpad windTurbulenceScale;
     public UIToggle windLocal;
+
+    /* Hidden until the chain is switched on, exactly like the IK panel's chain
+     * parameters. The wind section stays: it is the FORM's own property, not the
+     * bone's, and it keeps working while every chain sits idle. */
+    private UIElement gravityRow;
+    private UIElement gravityRotationLabel;
+    private UIElement gravityRotationRow;
+    private UIElement stiffnessRow;
+    private UIElement dampingRow;
+    private UIElement iterationsRow;
+    private UISection collisionsSection;
 
     public UIModelPhysicsFormPanel(UIForm editor)
     {
@@ -190,22 +202,29 @@ public class UIModelPhysicsFormPanel extends UIBoneListFormPanel
 
         UISection settings = this.section(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_SETTINGS, "physics.settings", true);
 
+        this.gravityRow = UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_GRAVITY, this.gravity);
+        this.gravityRotationLabel = UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY_ROTATION);
+        this.gravityRotationRow = UI.row(this.relativeGravityRotateX, this.relativeGravityRotateY, this.relativeGravityRotateZ);
+        this.stiffnessRow = UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS, this.stiffness);
+        this.dampingRow = UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING, this.damping);
+        this.iterationsRow = UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS, this.iterations);
+
         settings.fields.add(
             this.enabled,
             this.end,
             this.targetBone,
-            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_GRAVITY, this.gravity),
+            this.gravityRow,
             this.relativeGravity,
-            UI.label(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RELATIVE_GRAVITY_ROTATION),
-            UI.row(this.relativeGravityRotateX, this.relativeGravityRotateY, this.relativeGravityRotateZ),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_STIFFNESS, this.stiffness),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_DAMPING, this.damping),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_ITERATIONS, this.iterations)
+            this.gravityRotationLabel,
+            this.gravityRotationRow,
+            this.stiffnessRow,
+            this.dampingRow,
+            this.iterationsRow
         );
 
-        UISection collisionsSection = this.section(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS, "physics.collisions", false);
+        this.collisionsSection = this.section(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_COLLISIONS, "physics.collisions", false);
 
-        collisionsSection.fields.add(
+        this.collisionsSection.fields.add(
             this.collisions,
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_PHYSICS_RADIUS, this.radius)
         );
@@ -228,7 +247,7 @@ public class UIModelPhysicsFormPanel extends UIBoneListFormPanel
             this.debugRow(this.debug, BBSSettings.physicsDebug),
             this.bonesSearch,
             settings,
-            collisionsSection,
+            this.collisionsSection,
             windSection
         );
     }
@@ -309,6 +328,21 @@ public class UIModelPhysicsFormPanel extends UIBoneListFormPanel
 
         this.enabled.setEnabled(panelEnabled && boneSelected);
         this.enabled.setValue(hasChain && control.enabled);
+
+        /* Off means gone, not dimmed — the IK panel's rule, and the same reason. */
+        boolean on = hasChain && control.enabled;
+
+        this.end.setVisible(on);
+        this.targetBone.setVisible(on);
+        this.gravityRow.setVisible(on);
+        this.relativeGravity.setVisible(on);
+        this.gravityRotationLabel.setVisible(on);
+        this.gravityRotationRow.setVisible(on);
+        this.stiffnessRow.setVisible(on);
+        this.dampingRow.setVisible(on);
+        this.iterationsRow.setVisible(on);
+        this.collisionsSection.setVisible(on);
+        this.options.resize();
 
         this.end.setEnabled(active);
         this.targetBone.setEnabled(active);

@@ -8,6 +8,7 @@ import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
@@ -20,11 +21,14 @@ import mchorse.bbs_mod.utils.pose.ModelConstraintsManager;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
 {
-    public UIToggle enabled;
+    public UIToggle limitX;
+    public UIToggle limitY;
+    public UIToggle limitZ;
     public UISliderTrackpad minX;
     public UISliderTrackpad minY;
     public UISliderTrackpad minZ;
@@ -32,6 +36,11 @@ public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
     public UISliderTrackpad maxY;
     public UISliderTrackpad maxZ;
     public UIButton applyToChildren;
+
+    /** The angle pairs, shown only for the axes whose switch is on — as in the IK joint. */
+    private UIElement limitRowX;
+    private UIElement limitRowY;
+    private UIElement limitRowZ;
 
     public UIModelConstraintsFormPanel(UIForm editor)
     {
@@ -47,11 +56,9 @@ public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
             UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_CONTEXT_NAME
         );
 
-        this.enabled = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_ENABLED, (b) ->
-        {
-            this.editConstraint((c) -> c.enabled = b.getValue());
-            this.updateFieldsEnabled();
-        });
+        this.limitX = this.axisToggle(UIKeys.GENERAL_X, (c, v) -> c.limitX = v);
+        this.limitY = this.axisToggle(UIKeys.GENERAL_Y, (c, v) -> c.limitY = v);
+        this.limitZ = this.axisToggle(UIKeys.GENERAL_Z, (c, v) -> c.limitZ = v);
 
         this.minX = axisTrackpad((v) -> this.editConstraint((c) -> c.minX = v.floatValue()), Colors.RED, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_X));
         this.minY = axisTrackpad((v) -> this.editConstraint((c) -> c.minY = v.floatValue()), Colors.GREEN, axis.format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.GENERAL_Y));
@@ -63,15 +70,21 @@ public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
 
         UISection params = this.section(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_SETTINGS, "constraints.settings", true);
 
+        this.limitRowX = UI.row(this.minX, this.maxX);
+        this.limitRowY = UI.row(this.minY, this.maxY);
+        this.limitRowZ = UI.row(this.minZ, this.maxZ);
+
+        /* Same shape as the IK joint limits — a named header per axis carrying its
+         * switch, the two angles in the row below — minus the parts a bone
+         * constraint has no say in: no lock (nothing is being solved here, so
+         * there is no channel to freeze) and no stiffness. */
         params.fields.add(
-            this.enabled,
-            UI.label(IKey.constant("%s / %s").format(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MIN, UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_MAX)).marginTop(UIConstants.SECTION_GAP),
-            UI.label(UIKeys.GENERAL_X),
-            UI.row(this.minX, this.maxX),
-            UI.label(UIKeys.GENERAL_Y),
-            UI.row(this.minY, this.maxY),
-            UI.label(UIKeys.GENERAL_Z),
-            UI.row(this.minZ, this.maxZ),
+            this.axisHeader(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_AXIS.format(UIKeys.GENERAL_X), this.limitX),
+            this.limitRowX,
+            this.axisHeader(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_AXIS.format(UIKeys.GENERAL_Y), this.limitY),
+            this.limitRowY,
+            this.axisHeader(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_AXIS.format(UIKeys.GENERAL_Z), this.limitZ),
+            this.limitRowZ,
             this.applyToChildren.marginTop(UIConstants.SECTION_GAP)
         );
 
@@ -79,6 +92,31 @@ public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
             this.bonesSearch,
             params
         );
+    }
+
+    /** One axis' switch: its own name as a tooltip, the constraint edited like any other field. */
+    private UIToggle axisToggle(IKey axis, BiConsumer<BoneConstraint, Boolean> setter)
+    {
+        UIToggle toggle = new UIToggle(IKey.EMPTY, (b) ->
+        {
+            this.editConstraint((c) -> setter.accept(c, b.getValue()));
+            this.updateFields();
+        });
+
+        toggle.tooltip(UIKeys.FORMS_EDITORS_MODEL_CONSTRAINTS_LIMIT.format(axis));
+
+        return toggle;
+    }
+
+    /** An axis' header: its name on the left, its switch pinned right — the IK joint's row without the lock. */
+    private UIElement axisHeader(IKey label, UIToggle limit)
+    {
+        UIElement row = new UIElement();
+
+        row.row(UIConstants.MARGIN).preferred(0).height(UIConstants.CONTROL_HEIGHT);
+        row.add(UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F), limit.w(26));
+
+        return row;
     }
 
     /** The selected bone's constraint as stored, or the neutral default when never touched. */
@@ -117,7 +155,13 @@ public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
     {
         BoneConstraint c = this.currentConstraint();
 
-        this.enabled.setValue(c.enabled);
+        this.limitX.setValue(c.limitX);
+        this.limitY.setValue(c.limitY);
+        this.limitZ.setValue(c.limitZ);
+        this.limitRowX.setVisible(c.limitX);
+        this.limitRowY.setVisible(c.limitY);
+        this.limitRowZ.setVisible(c.limitZ);
+        this.options.resize();
         this.minX.setValue(c.minX);
         this.minY.setValue(c.minY);
         this.minZ.setValue(c.minZ);
@@ -131,21 +175,26 @@ public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
     private void updateFieldsEnabled()
     {
         boolean panelEnabled = this.bones.isEnabled();
-        boolean active = panelEnabled && this.enabled.getValue() && !this.selectedBone.isEmpty();
+        boolean active = panelEnabled && !this.selectedBone.isEmpty();
         boolean hasChildren = active && !this.getDescendantBones(this.selectedBone).isEmpty();
 
+        BoneConstraint c = this.currentConstraint();
+
         this.applyToChildren.setEnabled(hasChildren);
-        this.minX.setEnabled(active);
-        this.minY.setEnabled(active);
-        this.minZ.setEnabled(active);
-        this.maxX.setEnabled(active);
-        this.maxY.setEnabled(active);
-        this.maxZ.setEnabled(active);
+        this.limitX.setEnabled(active);
+        this.limitY.setEnabled(active);
+        this.limitZ.setEnabled(active);
+        this.minX.setEnabled(active && c.limitX);
+        this.minY.setEnabled(active && c.limitY);
+        this.minZ.setEnabled(active && c.limitZ);
+        this.maxX.setEnabled(active && c.limitX);
+        this.maxY.setEnabled(active && c.limitY);
+        this.maxZ.setEnabled(active && c.limitZ);
     }
 
     private void applySelectedToChildren()
     {
-        if (this.form == null || this.selectedBone.isEmpty() || !this.enabled.getValue())
+        if (this.form == null || this.selectedBone.isEmpty())
         {
             return;
         }
@@ -189,7 +238,9 @@ public class UIModelConstraintsFormPanel extends UIBoneListFormPanel
     {
         this.bonesSearch.setEnabled(enabled);
         this.bones.setEnabled(enabled);
-        this.enabled.setEnabled(enabled);
+        this.limitX.setEnabled(enabled);
+        this.limitY.setEnabled(enabled);
+        this.limitZ.setEnabled(enabled);
         this.applyToChildren.setEnabled(enabled);
         this.minX.setEnabled(enabled);
         this.minY.setEnabled(enabled);

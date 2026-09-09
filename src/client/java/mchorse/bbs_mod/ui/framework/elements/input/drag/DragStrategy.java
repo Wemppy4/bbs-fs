@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
+import mchorse.bbs_mod.ui.utils.GizmoJacobian;
 import mchorse.bbs_mod.utils.Axis;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.joml.Matrices;
@@ -321,7 +322,7 @@ public abstract class DragStrategy
             return null;
         }
 
-        Matrix3f translateBasis = TranslateDrag.invertedJacobian(drag.translateJacobian).mul(drag.frameBasis(this.ctx.space()));
+        Matrix3f translateBasis = GizmoJacobian.inverse(drag.translateJacobian).mul(drag.frameBasis(this.ctx.space()));
         Vector3f offset = translateBasis.getColumn(axis.ordinal(), new Vector3f()).mul((float) value);
 
         if (axis2 != null)

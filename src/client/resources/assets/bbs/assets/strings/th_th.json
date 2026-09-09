@@ -548,7 +548,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "ค่าออฟเซ็ตของการวนซ้ำ — เมื่อแอ็กชันถูกย้อนกลับ จะกระโดดไปที่ทิกนี้แทนที่จะไปเริ่มต้นใหม่",
     "bbs.ui.forms.editor.states.open": "เปิดตัวจัดการสถานะแอนิเมชัน",
     "bbs.ui.forms.editor.states.toggle": "เปิดหรือปิดตัวแก้ไขสถานะแอนิเมชัน",
-    "bbs.ui.forms.editor.toggle_tree": "สลับการแสดงผลต้นแบบฟอร์ม",
     "bbs.ui.forms.editor.use_target": "เลื่อกเป้าหมาย",
     "bbs.ui.forms.editors.actions.animations": "แอนิเมชั่น",
     "bbs.ui.forms.editors.actions.fade": "เฟด",

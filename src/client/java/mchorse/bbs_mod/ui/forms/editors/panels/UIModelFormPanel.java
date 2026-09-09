@@ -183,8 +183,12 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
         Set<String> modelShapeKeys = model == null ? Collections.emptySet() : model.model.getShapeKeys();
 
         this.shapeKeysSection.removeFromParent();
-        this.options.add(this.shapeKeysSection);
         this.shapeKeys.setShapeKeys(model == null ? "" : model.getPoseGroup(), modelShapeKeys, this.form.shapeKeys.get());
+
+        if (!modelShapeKeys.isEmpty())
+        {
+            this.options.add(this.shapeKeysSection);
+        }
 
         /* Nothing reads these unless a CEM program is what animates the model, so they only show there. */
         this.cemSection.removeFromParent();

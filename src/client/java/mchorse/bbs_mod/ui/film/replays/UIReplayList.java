@@ -43,6 +43,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.model_blocks.UIModelBlockEntityList;
+import mchorse.bbs_mod.ui.textures.TextureFiles;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
@@ -1438,7 +1439,7 @@ public class UIReplayList extends UIList<ReplayListEntry>
 
         for (Link link : BBSMod.getProvider().getLinksFromPath(folder, false))
         {
-            if (!link.path.endsWith("/") && link.path.endsWith(".png"))
+            if (!link.path.endsWith("/") && TextureFiles.isTexture(link))
             {
                 textures.add(link);
             }

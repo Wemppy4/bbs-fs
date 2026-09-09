@@ -17,7 +17,7 @@ public class UIStructureForm extends UIForm<StructureForm>
 
         this.defaultPanel = new UIStructureFormPanel(this);
 
-        this.registerPanel(this.defaultPanel, L10n.lang("bbs.ui.forms.editors.structure.title"), Icons.BLOCK);
+        this.registerPanel(this.defaultPanel, L10n.lang("bbs.ui.forms.editors.structure.title"), Icons.TREE);
         this.registerDefaultPanels();
     }
 }

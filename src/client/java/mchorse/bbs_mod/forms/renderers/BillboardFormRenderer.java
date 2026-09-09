@@ -34,6 +34,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.lwjgl.opengl.GL13;
 
 import java.util.function.Supplier;
 
@@ -216,7 +217,14 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
         BBSModClient.getTextures().bindTexture(texture);
         RenderSystem.setShader(() -> finalShader);
 
-        texture.bind();
+        /* Filter parameters go to whichever texture is bound on the ACTIVE unit, and nothing
+         * promises that unit is 0 here: under a shader pack it is whatever unit Iris touched
+         * last (unit 2 in practice). A raw bind there put this texture over the lightmap's slot
+         * behind GlStateManager's back - its cache still said the lightmap was bound, so the
+         * draw never rebound it, and the quad was lit by a texel of its own skin. Going through
+         * RenderSystem keeps the real binding and the cache in step, on unit 0, on purpose. */
+        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        RenderSystem.bindTexture(texture.id);
         texture.setFilterMipmap(this.form.linear.get(), this.form.mipmap.get());
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, format);
 
@@ -269,10 +277,16 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
                     buffer, () -> finalShader, texture, modelView, null, origin, planeNormal, true,
                     () ->
                     {
-                        texture.bind();
+                        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+                        RenderSystem.bindTexture(texture.id);
                         texture.setFilterMipmap(linear, mipmap);
                     },
-                    () -> texture.setFilterMipmap(false, false)
+                    () ->
+                    {
+                        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+                        RenderSystem.bindTexture(texture.id);
+                        texture.setFilterMipmap(false, false);
+                    }
                 ).overlayColor(overlayActive ? formOverlay : null));
             }
             else
@@ -281,6 +295,8 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
             }
         }
 
+        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        RenderSystem.bindTexture(texture.id);
         texture.setFilterMipmap(false, false);
 
         if (overlayActive)

@@ -35,6 +35,7 @@ import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.FormMaterialLevels;
 import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
@@ -119,6 +120,14 @@ public class ModelInstance implements IModelInstance
 
     /** The model's intrinsic texture from its loader; {@link ModelConfig#texture} overrides it when set. */
     public Link baseTexture;
+
+    /**
+     * What the loader had to work around to build this model - a part model it could not find, an
+     * attribute it does not support, a second model file in the folder it had to leave out - worded
+     * by the loader, one line each. A model that came out wrong looks exactly like one drawn that way,
+     * and the console, where the same lines go, is where nobody looks; the model editor shows these.
+     */
+    public final List<String> warnings = new ArrayList<>();
 
     /**
      * The {@code .bbs.json} this model was read from, when the model editor may write it back: a
@@ -723,9 +732,14 @@ public class ModelInstance implements IModelInstance
     {
         long hash = 1125899906842597L;
 
+        for (String material : this.materials)
+        {
+            hash = hash * 31 + (FormMaterialLevels.materialVisible(this.form instanceof ModelForm form ? form : null, material) ? 1 : 0);
+        }
+
         for (ModelGroup group : model.getAllGroups())
         {
-            hash = hash * 31 + (group.visible ? 1 : 0);
+            hash = hash * 31 + (group.isVisible() ? 1 : 0);
             hash = hash * 31 + group.current.contentHash();
             hash = hash * 31 + (group.orient == null ? 0 : group.orient.hashCode());
             hash = hash * 31 + (group.offset == null ? 0 : group.offset.hashCode());
@@ -856,7 +870,7 @@ public class ModelInstance implements IModelInstance
 
         for (ModelGroup group : model.getAllGroups())
         {
-            if (!group.visible || (group.cubes.isEmpty() && group.meshes.isEmpty()))
+            if (!group.isVisible() || (group.cubes.isEmpty() && group.meshes.isEmpty()))
             {
                 continue;
             }
@@ -901,6 +915,7 @@ public class ModelInstance implements IModelInstance
             else
             {
                 CubicCubeRenderer renderProcessor = new CubicCubeRenderer(light, overlay, stencilMap, keys);
+                renderProcessor.setMaterialVisibility((material) -> FormMaterialLevels.materialVisible(this.form instanceof ModelForm form ? form : null, material));
                 Color cpuOverlay = this.getCpuOverlay(stencilMap, overlay);
 
                 renderProcessor.setCpuOverlayActive(cpuOverlay != null);
@@ -942,6 +957,11 @@ public class ModelInstance implements IModelInstance
 
                 for (BOBJModelVAO vao : vaos)
                 {
+                    if (!FormMaterialLevels.materialVisible(modelForm, vao.data.mesh.name))
+                    {
+                        continue;
+                    }
+
                     Texture texture = null;
 
                     if (textureResolver != null)

@@ -761,7 +761,7 @@ final class ChainSolver
             Quaternionf localRot = Matrices.fromToMirroredX(restDirLocal, desiredDirLocal);
             Quaternionf applied = localRot;
 
-            if (c != null && c.enabled)
+            if (c != null && c.isActive())
             {
                 Vector3f eulerDeg = Matrices.toEulerZYXDegrees(localRot);
 
@@ -793,9 +793,11 @@ final class ChainSolver
                     maxZ = t;
                 }
 
-                eulerDeg.x = clampAngleArc(eulerDeg.x, minX, maxX);
-                eulerDeg.y = clampAngleArc(eulerDeg.y, minY, maxY);
-                eulerDeg.z = clampAngleArc(eulerDeg.z, minZ, maxZ);
+                /* An axis whose switch is off stays free — the same rule the
+                 * constraint stack's own clamp follows. */
+                eulerDeg.x = c.limitX ? clampAngleArc(eulerDeg.x, minX, maxX) : eulerDeg.x;
+                eulerDeg.y = c.limitY ? clampAngleArc(eulerDeg.y, minY, maxY) : eulerDeg.y;
+                eulerDeg.z = c.limitZ ? clampAngleArc(eulerDeg.z, minZ, maxZ) : eulerDeg.z;
 
                 applied = Matrices.toQuaternionZYXDegrees(eulerDeg.x, eulerDeg.y, eulerDeg.z);
                 Vector3f dirLocal = new Vector3f(restDirLocal);

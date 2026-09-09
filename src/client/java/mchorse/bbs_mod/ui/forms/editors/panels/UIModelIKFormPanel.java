@@ -79,6 +79,22 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
     public UISliderTrackpad stiffnessY;
     public UISliderTrackpad stiffnessZ;
     public UIToggle stretch;
+    public UIToggle squash;
+
+    /* The chain's own parameters, hidden until the chain is switched on: with IK
+     * off they describe nothing, and an empty panel says "tick this" far better
+     * than a wall of dimmed controls. The joint section below is NOT among them —
+     * it belongs to the BONE, and the bones that need limits (a knee) usually
+     * carry no chain of their own, the chain being on the foot. */
+    private UIElement poleRow;
+    private UIElement chainLengthRow;
+    private UIElement weightRow;
+    private UISection advancedSection;
+
+    /** The angle pairs, shown only for the axes whose limit switch is on. */
+    private UIElement limitRowX;
+    private UIElement limitRowY;
+    private UIElement limitRowZ;
 
     private final Map<String, UIBoneTreeList.Marker[]> boneMarkers = new HashMap<>();
 
@@ -201,6 +217,10 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
 
         this.tipRotation = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_TIP_ROTATION, (b) -> this.editBone((bone) -> bone.ikTipRotation.set(b.getValue())));
         this.stretch = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_STRETCH, (b) -> this.editBone((bone) -> bone.ikStretch.set(b.getValue())));
+        this.stretch.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_STRETCH_TOOLTIP);
+
+        this.squash = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_SQUASH, (b) -> this.editBone((bone) -> bone.ikSquash.set(b.getValue())));
+        this.squash.tooltip(UIKeys.FORMS_EDITORS_MODEL_IK_SQUASH_TOOLTIP);
 
         this.classic = new UIToggle(UIKeys.FORMS_EDITORS_MODEL_IK_CLASSIC, (b) ->
         {
@@ -211,6 +231,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
 
         this.resetBone(this.tipRotation, (bone) -> bone.ikTipRotation);
         this.resetBone(this.stretch, (bone) -> bone.ikStretch);
+        this.resetBone(this.squash, (bone) -> bone.ikSquash);
         this.resetBone(this.classic, (bone) -> bone.ikClassic);
 
         UISection settings = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_SETTINGS, "ik.chain", true);
@@ -221,21 +242,26 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
          * shared value column (same grid as the pose editor's lighting+colour
          * row). Everything the animator touches rarely lives in the collapsed
          * "Advanced" section below, so the panel reads in one glance. */
+        this.poleRow = UI.labelRow(this.pole, this.poleTarget);
+        this.chainLengthRow = UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH, this.chainLength);
+        this.weightRow = UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT, this.weight);
+
         settings.fields.add(
             UI.labelRow(this.enabled, this.target),
-            UI.labelRow(this.pole, this.poleTarget),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_CHAIN_LENGTH, this.chainLength),
-            this.chainPreview
+            this.poleRow,
+            this.chainLengthRow,
+            this.chainPreview,
+            this.weightRow
         );
 
-        UISection advanced = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_ADVANCED, "ik.advanced", false);
+        this.advancedSection = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_ADVANCED, "ik.advanced", false);
 
-        advanced.fields.add(
+        this.advancedSection.fields.add(
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_POLE_ANGLE, this.poleAngle),
             UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_SOFTNESS, this.softness),
-            UI.labelRow(UIKeys.FORMS_EDITORS_MODEL_IK_WEIGHT, this.weight),
             this.tipRotation,
             this.stretch,
+            this.squash,
             this.classic
         );
 
@@ -262,38 +288,47 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
 
         UISection joint = this.section(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT, "ik.joint", false);
 
-        /* One row per axis: lock switch, limit switch, min, max, stiffness —
-         * same freedom as the old 15-widget stack at a third of the height. The
-         * switches carry their names as tooltips; the limit's min/max sit right
-         * next to their switch and light up when it flips, so the columns teach
-         * themselves in one click. */
+        /* Per axis: a named header carrying the lock and the limit switch, then the
+         * pair of angles under it — the same shape the bone constraints panel uses,
+         * so the two limit editors read as one idea. Stiffness has no per-axis
+         * switch, so it sits as its own X/Y/Z row at the bottom rather than
+         * widening every axis row by a column that answers a different question. */
+        this.limitRowX = UI.row(this.limitMinX, this.limitMaxX);
+        this.limitRowY = UI.row(this.limitMinY, this.limitMaxY);
+        this.limitRowZ = UI.row(this.limitMinZ, this.limitMaxZ);
+
         joint.fields.add(
-            this.jointAxisRow(this.lockX, this.limitX, this.limitMinX, this.limitMaxX, this.stiffnessX),
-            this.jointAxisRow(this.lockY, this.limitY, this.limitMinY, this.limitMaxY, this.stiffnessY),
-            this.jointAxisRow(this.lockZ, this.limitZ, this.limitMinZ, this.limitMaxZ, this.stiffnessZ)
+            this.jointAxisHeader(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_AXIS.format(UIKeys.GENERAL_X), this.lockX, this.limitX),
+            this.limitRowX,
+            this.jointAxisHeader(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_AXIS.format(UIKeys.GENERAL_Y), this.lockY, this.limitY),
+            this.limitRowY,
+            this.jointAxisHeader(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_AXIS.format(UIKeys.GENERAL_Z), this.lockZ, this.limitZ),
+            this.limitRowZ,
+            UI.label(UIKeys.FORMS_EDITORS_MODEL_IK_JOINT_STIFFNESS_TITLE),
+            UI.row(this.stiffnessX, this.stiffnessY, this.stiffnessZ)
         );
 
         this.options.add(
             this.debugRow(this.debug, BBSSettings.ikDebug),
             this.bonesSearch,
             settings,
-            advanced,
+            this.advancedSection,
             joint
         );
     }
 
     /**
-     * One joint axis as a single row: the lock icon, the limit switch, then
-     * min/max/stiffness sharing the remaining width. No axis letter — the axis
-     * lives in the value colors (X red, Y green, Z blue, like the transform
-     * trackpads) and in every control's tooltip.
+     * One joint axis' header: its name on the left, the lock icon and the limit
+     * switch pinned right, with the axis' two angles in the row below. The axis
+     * letter is named here rather than left to the value colors alone, because the
+     * pair under it carries no letter of its own.
      */
-    private UIElement jointAxisRow(UIIcon lock, UIToggle limit, UISliderTrackpad min, UISliderTrackpad max, UISliderTrackpad stiffness)
+    private UIElement jointAxisHeader(IKey label, UIIcon lock, UIToggle limit)
     {
         UIElement row = new UIElement();
 
-        row.row(UIConstants.MARGIN).height(UIConstants.CONTROL_HEIGHT);
-        row.add(lock, limit.w(26), min, max, stiffness);
+        row.row(UIConstants.MARGIN).preferred(0).height(UIConstants.CONTROL_HEIGHT);
+        row.add(UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F), lock.w(20), limit.w(26));
 
         return row;
     }
@@ -396,6 +431,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
         this.weight.setEnabled(enabled);
         this.tipRotation.setEnabled(enabled);
         this.stretch.setEnabled(enabled);
+        this.squash.setEnabled(enabled);
         this.classic.setEnabled(enabled);
         this.setJointEnabled(enabled);
     }
@@ -627,6 +663,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
         this.weight.setValue(control.weight);
         this.tipRotation.setValue(formBone != null && formBone.ikTipRotation.get());
         this.stretch.setValue(formBone != null && formBone.ikStretch.get());
+        this.squash.setValue(formBone != null && formBone.ikSquash.get());
         this.classic.setValue(formBone != null && formBone.ikClassic.get());
 
         /* The classic toggle is loud about its fallback: a classic chain that
@@ -656,6 +693,12 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
          * ends here — it affects every chain running through this bone. */
         boolean canEditJoint = !this.selectedBone.isEmpty() && this.bones.isEnabled();
 
+        /* An axis with no limit has no angles to show — the switch above is the
+         * whole story until it is flipped. */
+        this.limitRowX.setVisible(joint.limitX);
+        this.limitRowY.setVisible(joint.limitY);
+        this.limitRowZ.setVisible(joint.limitZ);
+
         this.setJointEnabled(canEditJoint);
         this.limitMinX.setEnabled(canEditJoint && joint.limitX);
         this.limitMaxX.setEnabled(canEditJoint && joint.limitX);
@@ -663,6 +706,15 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
         this.limitMaxY.setEnabled(canEditJoint && joint.limitY);
         this.limitMinZ.setEnabled(canEditJoint && joint.limitZ);
         this.limitMaxZ.setEnabled(canEditJoint && joint.limitZ);
+
+        /* Off means gone, not dimmed: only the switch is left standing. */
+        this.target.setVisible(active);
+        this.poleRow.setVisible(active);
+        this.chainLengthRow.setVisible(active);
+        this.chainPreview.setVisible(active);
+        this.weightRow.setVisible(active);
+        this.advancedSection.setVisible(active);
+        this.options.resize();
 
         this.target.setEnabled(canEdit);
         this.chainLength.setEnabled(canEdit);
@@ -673,6 +725,7 @@ public class UIModelIKFormPanel extends UIBoneListFormPanel
         this.weight.setEnabled(canEdit);
         this.tipRotation.setEnabled(canEdit);
         this.stretch.setEnabled(canEdit);
+        this.squash.setEnabled(canEdit);
         this.classic.setEnabled(canEdit);
     }
 

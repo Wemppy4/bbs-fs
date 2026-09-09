@@ -56,19 +56,19 @@ import java.util.function.Consumer;
  *
  * <p>Layout:</p>
  * <pre>
- *   ┌─────┬───────────────────────────────────┐
- *   │ too │ options ║ canvas         │ preview │
- *   │ 20  │         ║                │         │
- *   └─────┴───────────────────────────────────┘
+ *   ┌─────────┬────────────────┬─────────┬─────┐
+ *   │ preview ║ canvas         ║ options │tools│
+ *   │         ║                ║         │ 20  │
+ *   └─────────┴────────────────┴─────────┴─────┘
  * </pre>
- * The 20px strip on the left is a tool palette (brush/eraser/fill/eyedropper), highlighted via
- * {@link mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels#renderHighlight} with {@link mchorse.bbs_mod.utils.Direction#LEFT}.
+ * The 20px strip on the right is a tool palette (brush/eraser/fill/eyedropper), highlighted via
+ * {@link mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels#renderHighlight} with {@link mchorse.bbs_mod.utils.Direction#RIGHT}.
  * It shares the chrome surface with the options column beside it, so the two read as one column
- * of controls down the left edge.
+ * of controls down the right edge.
  * The painter's actions — save, resize, extract frames, model preview — do not live here: the
  * owner hands them to its {@link mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelTopBar} through
  * {@link #installActions}, so they sit beside the tabs like every other panel's actions.
- * The left options column is a {@link UIScrollView} with a {@link UISplitter} whose
+ * The right options column is a {@link UIScrollView} with a {@link UISplitter} whose
  * width is remembered in the settings.
  *
  * <p>This painter does not own tabs: its owner (the texture picker) creates editors via
@@ -181,9 +181,8 @@ public class UITexturePainter extends UIElement
         this.buildModelPreviewHost();
         this.buildEditorHost();
 
-        /* modelPreviewHost must be added (and thus resized) before editorHost: when the preview
-         * is open editorHost.wTo(modelPreviewHost.area), so the canvas width is computed from the
-         * preview's area, which has to be up to date by the time editorHost resizes. */
+        /* The options and preview must resize before editorHost: the canvas starts after the
+         * preview and ends at the options column. */
         this.content.add(new UIRenderable(this::renderPanelBackground),
             this.toolBar, this.optionsHost, this.modelPreviewHost, this.editorHost, this.optionsDraggable, this.modelPreviewDraggable);
         this.add(this.content);
@@ -289,7 +288,7 @@ public class UITexturePainter extends UIElement
         this.toolBar = new UIScrollView();
         this.toolBar.scroll.cancelScrolling().noScrollbar();
         this.toolBar.scroll.scrollSpeed = 5;
-        this.toolBar.relative(this.content).x(0F).w(TOOL_BAR_W).h(1F)
+        this.toolBar.relative(this.content).x(1F).anchorX(1F).w(TOOL_BAR_W).h(1F)
             .column(0).scroll().vertical();
 
         this.toolIconBrush = this.createToolIcon(Icons.BRUSH, UIKeys.TEXTURES_TOOLS_BRUSH, TexturePaintTool.BRUSH);
@@ -320,11 +319,11 @@ public class UITexturePainter extends UIElement
     {
         UIIcon button = new UIIcon(icon, (b) -> this.userSelectTool(tool));
 
-        button.highlight(() -> this.activeTool == tool, Direction.LEFT);
+        button.highlight(() -> this.activeTool == tool, Direction.RIGHT);
 
         if (tooltip != null)
         {
-            button.tooltip(tooltip, Direction.RIGHT);
+            button.tooltip(tooltip, Direction.LEFT);
         }
 
         return button;
@@ -335,14 +334,14 @@ public class UITexturePainter extends UIElement
         this.optionsHost = new UIElement();
 
         this.optionsDraggable = UISplitter.fraction("texture_painter.options", DEFAULT_OPTIONS_WIDTH, 0F, 0.5F);
-        this.optionsDraggable.measure(this.optionsHost, this.content).onChange(() ->
+        this.optionsDraggable.measure(this.optionsHost, this.content).fromEnd().onChange(() ->
         {
             this.optionsHost.w(this.optionsDraggable.getValue());
             this.content.resize();
             this.optionsDraggable.resize();
         });
 
-        this.optionsHost.relative(this.content).x(TOOL_BAR_W)
+        this.optionsHost.relative(this.content).x(1F, -TOOL_BAR_W).anchorX(1F)
             .w(this.optionsDraggable.getValue())
             .minW(MIN_OPTIONS_WIDTH).h(1F);
 
@@ -355,7 +354,7 @@ public class UITexturePainter extends UIElement
 
         this.optionsHost.add(this.options, this.layersPanel);
 
-        this.optionsDraggable.relative(this.optionsHost).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        this.optionsDraggable.relative(this.optionsHost).x(0F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
 
         this.primary = new UIColor((c) -> {}).noLabel().withAlpha();
         this.primary.direction(Direction.LEFT).h(UIConstants.CONTROL_HEIGHT);
@@ -430,28 +429,28 @@ public class UITexturePainter extends UIElement
     private void buildModelPreviewHost()
     {
         this.modelPreviewHost = new UIElement();
-        this.modelPreviewHost.relative(this.content).x(1F).h(1F).w(0).anchorX(1F);
+        this.modelPreviewHost.relative(this.content).x(0F).h(1F).w(0);
         this.modelPreviewHost.setVisible(false);
 
         this.modelPreviewPanel = new UIModelPreviewPanel(this);
         this.modelPreviewPanel.relative(this.modelPreviewHost).w(1F).h(1F);
 
         this.modelPreviewDraggable = UISplitter.fraction("texture_painter.preview", DEFAULT_PREVIEW_WIDTH, 0.1F, 0.8F);
-        this.modelPreviewDraggable.measure(this.content).fromEnd().onChange(() ->
+        this.modelPreviewDraggable.measure(this.content).onChange(() ->
         {
             this.modelPreviewHost.w(this.modelPreviewDraggable.getValue());
             this.content.resize();
             this.modelPreviewDraggable.resize();
         });
-        this.modelPreviewDraggable.relative(this.modelPreviewHost).x(0F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        this.modelPreviewDraggable.relative(this.modelPreviewHost).x(1F).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
         this.modelPreviewDraggable.setVisible(false);
     }
 
     private void buildEditorHost()
     {
         this.editorHost = new UIElement();
-        this.editorHost.relative(this.optionsHost).x(1F, UIConstants.MARGIN).h(1F)
-            .wTo(this.content.area, 1F);
+        this.editorHost.relative(this.modelPreviewHost).x(1F).h(1F)
+            .wTo(this.optionsHost.area, 0F, -UIConstants.MARGIN);
 
         /* The strip sits along the bottom, collapsed to nothing while the texture isn't animated */
         this.framesHost = new UIElement();
@@ -524,7 +523,7 @@ public class UITexturePainter extends UIElement
     {
         /* The base surface is the canvas backdrop spanning the whole editor; the chrome
          * surface tints the tool strip and the options column so the two read as one column
-         * of controls down the left edge, matching the surfaces used across the dashboard
+         * of controls down the right edge, matching the surfaces used across the dashboard
          * (see UIFilmPanel). */
         this.content.area.render(context.batcher, BBSSettings.baseSurface());
 
@@ -551,7 +550,7 @@ public class UITexturePainter extends UIElement
         this.modelPreviewHost.setVisible(true);
         this.modelPreviewDraggable.setVisible(true);
 
-        this.editorHost.wTo(this.modelPreviewHost.area, 0F, -UIConstants.MARGIN);
+        this.editorHost.x(1F, UIConstants.MARGIN);
         this.resize();
     }
 
@@ -563,7 +562,7 @@ public class UITexturePainter extends UIElement
         this.modelPreviewHost.setVisible(false);
         this.modelPreviewDraggable.setVisible(false);
 
-        this.editorHost.wTo(this.content.area, 1F);
+        this.editorHost.x(1F);
         this.content.resize();
     }
 

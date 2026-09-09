@@ -19,6 +19,11 @@ import java.util.Map;
  */
 public class MobPoseApplier
 {
+    private static class SavedTransform extends Transform
+    {
+        public boolean hidden;
+    }
+
     /**
      * The pose stack of a mob form: its pose with the overlay folded in. Same rule as the model
      * form's merge — a non-zero {@code fix} lerps toward the overlay, otherwise it sums.
@@ -36,6 +41,7 @@ public class MobPoseApplier
         {
             PoseTransform poseTransform = merged.getOrCreate(entry.getKey());
             PoseTransform value = entry.getValue();
+            poseTransform.visible &= value.visible;
 
             if (value.fix != 0)
             {
@@ -70,7 +76,10 @@ public class MobPoseApplier
                 continue;
             }
 
-            Transform transform = new Transform();
+            SavedTransform transform = new SavedTransform();
+
+            transform.hidden = part.hidden;
+            part.hidden |= !poseTransform.visible;
 
             transform.translate.set(part.pivotX, part.pivotY, part.pivotZ);
             transform.rotate.set(part.pitch, part.yaw, part.roll);
@@ -100,6 +109,11 @@ public class MobPoseApplier
         {
             ModelPart part = entry.getKey();
             Transform transform = entry.getValue();
+
+            if (transform instanceof SavedTransform original)
+            {
+                part.hidden = original.hidden;
+            }
 
             part.pivotX = transform.translate.x;
             part.pivotY = transform.translate.y;

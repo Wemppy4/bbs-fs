@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
@@ -19,6 +20,7 @@ import java.util.function.Consumer;
 public class UIPoseTransformKeyframeFactory extends UIKeyframeFactory<PoseTransform>
 {
     public UISliderTrackpad fix;
+    public UIToggle boneVisible;
     public UIColor color;
     public UIColor overlay;
     public UISliderTrackpad lighting;
@@ -44,6 +46,13 @@ public class UIPoseTransformKeyframeFactory extends UIKeyframeFactory<PoseTransf
         this.fix.limit(0D, 1D).increment(0.1D).values(0.1, 0.05D, 0.2D);
         this.fix.tooltip(UIKeys.POSE_CONTEXT_FIX_TOOLTIP);
         this.fix.setValue(keyframe.getValue().fix);
+
+        this.boneVisible = new UIToggle(UIKeys.MODEL_EDITOR_BONE_VISIBLE, keyframe.getValue().visible, (toggle) ->
+        {
+            boolean visible = toggle.getValue();
+
+            UIPoseTransforms.apply(editor, keyframe, (poseT) -> poseT.visible = visible);
+        });
 
         this.color = new UIColor((c) ->
         {
@@ -82,6 +91,7 @@ public class UIPoseTransformKeyframeFactory extends UIKeyframeFactory<PoseTransf
         /* Same rows in the same order, and the material section built by UIPoseEditor itself —
          * this panel is that one without the bone list, so it has to read as the same panel. */
         this.scroll.add(
+            this.boneVisible,
             UI.labelRow(UIKeys.POSE_CONTEXT_FIX, this.fix),
             this.transform,
             UIPoseEditor.materialSection(this.color, this.overlay, this.lighting)

@@ -7,6 +7,7 @@ import mchorse.bbs_mod.ui.dashboard.textures.data.Document;
 import mchorse.bbs_mod.ui.dashboard.textures.data.TextureAnimation;
 import mchorse.bbs_mod.utils.PNGEncoder;
 import mchorse.bbs_mod.utils.StringUtils;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import mchorse.bbs_mod.utils.resources.Pixels;
 import mchorse.bbs_mod.utils.resources.PlayerSkins;
 
@@ -78,6 +79,12 @@ public class TextureFiles
         return file != null && file.isDirectory();
     }
 
+    /** The picture files a browser lists and a picker offers: PNG, and GIF, which plays as an animation. */
+    public static boolean isTexture(Link link)
+    {
+        return link.path.endsWith(".png") || GifFrames.isGif(link);
+    }
+
     public static Link rename(Link link, String newName)
     {
         File file = file(link);
@@ -100,7 +107,19 @@ public class TextureFiles
     /** Move a texture and whatever sits beside it, and hand back the link it now lives at. */
     private static Link moveFile(Link link, File file, File target)
     {
-        return moveFile(link, file, target);
+        try
+        {
+            Files.move(file.toPath(), target.toPath());
+            moveSidecars(file, target);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+
+            return null;
+        }
+
+        return moved(link, done(target, link));
     }
 
     public static Link duplicate(Link link)
@@ -152,19 +171,7 @@ public class TextureFiles
             return null;
         }
 
-        try
-        {
-            Files.move(file.toPath(), target.toPath());
-            moveSidecars(file, target);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-
-            return null;
-        }
-
-        return moved(link, done(target, link));
+        return moveFile(link, file, target);
     }
 
     /**
