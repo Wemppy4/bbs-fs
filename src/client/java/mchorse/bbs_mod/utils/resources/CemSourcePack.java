@@ -13,9 +13,12 @@ import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.TreeMap;
 
 /**
@@ -122,7 +126,7 @@ public class CemSourcePack implements ISourcePack
 
             this.collectParts(jem, folder, own);
 
-            Identifier texture = this.resolveTexture(textures, name);
+            Identifier texture = this.resolveTexture(textures, name, this.textureSize(jem));
 
             if (texture != null)
             {
@@ -289,10 +293,20 @@ public class CemSourcePack implements ISourcePack
         /** Every texture of a file name, in path order: a name is not always one file, see {@link #pickByName}. */
         final Map<String, List<Identifier>> byName = new LinkedHashMap<>();
         final Map<String, List<Identifier>> byFolder = new LinkedHashMap<>();
+
+        /** Each texture's own pixel size, read once from its header — see {@link #fits}. */
+        final Map<Identifier, int[]> sizes = new HashMap<>();
     }
 
     /** Climate prefixes a pack puts on an entity; the plain one's texture is the fallback when the pack draws none of its own. */
     private static final String[] PREFIXES = {"cold_", "warm_"};
+
+    /**
+     * The prefix vanilla gives the plain member of a climate set. Since 1.21.5 the cow, the pig, the
+     * chicken and the frog have no texture under their own name at all — the one an unqualified model
+     * means is {@code temperate_cow}, not whichever of the five files the folder answers with first.
+     */
+    private static final String TEMPERATE = "temperate_";
 
     /** The suffix Entity Texture Features gives an emissive overlay: a texture drawn over the entity, not a coat for it. */
     private static final String EMISSIVE = "_e";
@@ -376,7 +390,16 @@ public class CemSourcePack implements ISourcePack
      * definition - the point is that the model arrives wearing something rather than the missing-texture
      * checkerboard, and the form's own texture overrides it either way.
      */
-    private Identifier resolveTexture(Textures textures, String entity)
+    private Identifier resolveTexture(Textures textures, String entity, int[] want)
+    {
+        Identifier fitting = this.resolveTexture(textures, entity, (id) -> this.fits(textures, id, want));
+
+        /* Nothing of the right size at all: a pack that dresses this entity in one shape only, or a
+         * size this build cannot read. Better a texture that may not line up than the checkerboard. */
+        return fitting != null ? fitting : this.resolveTexture(textures, entity, (id) -> true);
+    }
+
+    private Identifier resolveTexture(Textures textures, String entity, Predicate<Identifier> accept)
     {
         Collection<String> names = variants(entity);
 
@@ -384,6 +407,16 @@ public class CemSourcePack implements ISourcePack
         {
             Identifier id = textures.byPath.get(ALIASES.getOrDefault(name, ""));
 
+            if (id != null && accept.test(id))
+            {
+                return id;
+            }
+        }
+
+        for (String name : names)
+        {
+            Identifier id = pickByName(textures, name, accept);
+
             if (id != null)
             {
                 return id;
@@ -392,17 +425,7 @@ public class CemSourcePack implements ISourcePack
 
         for (String name : names)
         {
-            Identifier id = pickByName(textures, name);
-
-            if (id != null)
-            {
-                return id;
-            }
-        }
-
-        for (String name : names)
-        {
-            Identifier id = pickFromFolder(textures, name);
+            Identifier id = pickFromFolder(textures, name, accept);
 
             if (id != null)
             {
@@ -419,11 +442,18 @@ public class CemSourcePack implements ISourcePack
      * own folder - the model came out wearing the pattern. The entity's own folder wins, then a file at
      * the root of the entity textures, then whichever came first.
      */
-    private static Identifier pickByName(Textures textures, String name)
+    private static Identifier pickByName(Textures textures, String name, Predicate<Identifier> accept)
     {
-        List<Identifier> all = textures.byName.get(name);
+        List<Identifier> named = textures.byName.get(name);
 
-        if (all == null)
+        if (named == null)
+        {
+            return null;
+        }
+
+        List<Identifier> all = accepted(named, accept);
+
+        if (all.isEmpty())
         {
             return null;
         }
@@ -445,6 +475,96 @@ public class CemSourcePack implements ISourcePack
         }
 
         return all.get(0);
+    }
+
+    /** The ones a filter takes, in the order they came; empty when it takes none. */
+    private static List<Identifier> accepted(List<Identifier> ids, Predicate<Identifier> accept)
+    {
+        List<Identifier> out = new ArrayList<>();
+
+        for (Identifier id : ids)
+        {
+            if (accept.test(id))
+            {
+                out.add(id);
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * The texture size a model is drawn for: its {@code textureSize}, else the 64x64 the parser assumes.
+     *
+     * <p>It is the only thing a .jem says about the texture it wants, and it is enough to tell a fitting
+     * one from a stale one. A pack ships an entity for several versions of the game at once (Fresh
+     * Animations keeps its 1.21.5 models in an overlay), and the textures of the older layout stay
+     * visible beside the new: vanilla split the cow into climate variants on a 64x64 sheet, while the
+     * pack's own {@code cow.png} is still the 64x32 of before. Both are called after the entity, so the
+     * name alone picks the stale one, and the model came out wearing a texture its UVs do not address.</p>
+     */
+    private int[] textureSize(Identifier jem)
+    {
+        try (InputStream stream = this.open(jem))
+        {
+            if (stream != null)
+            {
+                JsonElement parsed = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+
+                if (parsed.isJsonObject() && parsed.getAsJsonObject().has("textureSize"))
+                {
+                    JsonArray size = parsed.getAsJsonObject().getAsJsonArray("textureSize");
+
+                    return new int[] {size.get(0).getAsInt(), size.get(1).getAsInt()};
+                }
+            }
+        }
+        catch (Exception e)
+        {}
+
+        return new int[] {64, 64};
+    }
+
+    /**
+     * Whether a texture is drawn on the sheet the model addresses: its own size, or a whole multiple of
+     * it in both directions by the same factor — an HD repaint of a 64x32 skin is 128x64, and lines up.
+     */
+    private boolean fits(Textures textures, Identifier texture, int[] want)
+    {
+        int[] size = textures.sizes.computeIfAbsent(texture, this::pngSize);
+
+        if (size == null || want[0] <= 0 || want[1] <= 0)
+        {
+            return false;
+        }
+
+        return size[0] % want[0] == 0 && size[1] % want[1] == 0 && size[0] / want[0] == size[1] / want[1];
+    }
+
+    /** A PNG's width and height, straight out of its IHDR; null when it cannot be read. */
+    private int[] pngSize(Identifier texture)
+    {
+        try (InputStream stream = this.open(texture))
+        {
+            if (stream == null)
+            {
+                return null;
+            }
+
+            byte[] header = new byte[24];
+
+            new DataInputStream(stream).readFully(header);
+
+            return new int[]
+            {
+                ((header[16] & 0xff) << 24) | ((header[17] & 0xff) << 16) | ((header[18] & 0xff) << 8) | (header[19] & 0xff),
+                ((header[20] & 0xff) << 24) | ((header[21] & 0xff) << 16) | ((header[22] & 0xff) << 8) | (header[23] & 0xff)
+            };
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
     }
 
     /** The folder a texture sits in, relative to the entity textures - {@code cat} for {@code cat/red.png}; empty at their root. */
@@ -487,6 +607,10 @@ public class CemSourcePack implements ISourcePack
         {
             names.add(name = shorter);
         }
+
+        /* The plain member of a climate set, looked up after the bare name and before nothing: a folder
+         * of variants has no file called after the entity, and any of them would otherwise do. */
+        names.add(TEMPERATE + name);
 
         /* Every minecart is drawn on the one texture, whatever it carries. */
         if (name.endsWith("_minecart"))
@@ -551,17 +675,23 @@ public class CemSourcePack implements ISourcePack
      * something appended that is not a layer ({@code horse_black} but not {@code cat_collar}), else the
      * first. Files sitting straight in the folder are preferred over a nested {@code armor/} and such.
      */
-    private static Identifier pickFromFolder(Textures textures, String folder)
+    private static Identifier pickFromFolder(Textures textures, String folder, Predicate<Identifier> accept)
     {
-        List<Identifier> all = textures.byFolder.get(folder);
+        List<Identifier> folded = textures.byFolder.get(folder);
 
-        if (all == null)
+        if (folded == null)
         {
             return null;
         }
 
-        List<Identifier> direct = direct(textures, folder);
+        List<Identifier> all = accepted(folded, accept);
+        List<Identifier> direct = accepted(direct(textures, folder), accept);
         List<Identifier> pool = direct.isEmpty() ? all : direct;
+
+        if (pool.isEmpty())
+        {
+            return null;
+        }
         String name = folder.substring(folder.lastIndexOf('/') + 1);
 
         for (Identifier id : pool)
