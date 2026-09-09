@@ -150,8 +150,8 @@ public class ProceduralAnimator implements IAnimator
 
         if (isRolling)
         {
-            coefficient = (float) (target.getVelocity().lengthSquared() / 2D);
-            coefficient = Math.min(1F, coefficient * coefficient * coefficient);
+            coefficient = (float) (target.getVelocity().lengthSquared() / 0.2D);
+            coefficient = Math.max(1F, coefficient * coefficient * coefficient);
         }
 
         model.resetPose();

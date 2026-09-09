@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.forms.renderers;
 
-import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.render.picker.PickingReplay;
@@ -8,9 +7,8 @@ import mchorse.bbs_mod.forms.CustomVertexConsumerProvider;
 import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
-import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.QueueDispatch;
-import mchorse.bbs_mod.forms.entities.EntityState;
+import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
@@ -20,12 +18,11 @@ import mchorse.bbs_mod.forms.renderers.mob.MobRenderContext;
 import mchorse.bbs_mod.forms.renderers.mob.MobRig;
 import mchorse.bbs_mod.forms.renderers.mob.MobRigMatrices;
 import mchorse.bbs_mod.forms.renderers.mob.MobRigs;
+import mchorse.bbs_mod.forms.renderers.mob.MobStandIn;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.texture.AdoptedTexture;
 import mchorse.bbs_mod.graphics.texture.Texture;
-import mchorse.bbs_mod.mixin.EntityInvoker;
-import mchorse.bbs_mod.mixin.LimbAnimatorAccessor;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -35,7 +32,6 @@ import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
@@ -45,18 +41,9 @@ import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.PlayerLikeEntity;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.StringNbtReader;
-import net.minecraft.registry.Registries;
-import net.minecraft.storage.NbtReadView;
-import net.minecraft.util.ErrorReporter;
-import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.world.World;
 import org.joml.Matrix4f;
@@ -64,27 +51,16 @@ import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 {
-    public static final GameProfile WIDE = new GameProfile(UUID.fromString("b99a2400-28a8-4288-92dc-924beafbf756"), "McHorseYT");
-    public static final GameProfile SLIM = new GameProfile(UUID.fromString("5477bd28-e672-4f87-a209-c03cf75f3606"), "osmiq");
-
     private final MatrixCache bones = new MatrixCache();
+
+    /** The vanilla entity this form renders through, kept in step with the form's actor — see {@link MobStandIn}. */
+    private final MobStandIn standIn = new MobStandIn();
 
     private Entity entity;
 
-    private String lastId = "";
-    private String lastNBT = "";
-    private boolean lastSlim;
-
-    public float prevHandSwing;
-    private float prevYawHead;
-    private float prevPitch;
-
-    /** The rig of whichever renderer is currently serving {@code form}, for callers that hold a form
-     *  rather than a renderer (the pose keyframe editor, the mob panel, the track catalogue). */
     public static MobRig getRig(MobForm form)
     {
         return FormUtilsClient.getRenderer(form) instanceof MobFormRenderer renderer ? renderer.getRig() : null;
@@ -296,65 +272,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
 
     private void ensureEntity()
     {
-        String id = this.form.mobID.get();
-        String nbt = this.form.mobNBT.get();
-        boolean slim = this.form.slim.get();
-
-        if (!this.lastId.equals(id) || !this.lastNBT.equals(nbt) || slim != this.lastSlim)
-        {
-            this.lastId = id;
-            this.lastNBT = nbt;
-            this.lastSlim = slim;
-            this.entity = null;
-        }
-
-        if (this.entity != null)
-        {
-            return;
-        }
-
-        NbtCompound compound = new NbtCompound();
-
-        try
-        {
-            /* 1.21.5: new StringNbtReader(StringReader).parseCompound() -> StringNbtReader.readCompound(String). */
-            compound = StringNbtReader.readCompound(nbt);
-        }
-        catch (Exception e)
-        {}
-
-        /* 1.21.2: EntityType.create(World) -> create(World, SpawnReason). */
-        this.entity = Registries.ENTITY_TYPE.get(Identifier.of(id)).create(MinecraftClient.getInstance().world, SpawnReason.COMMAND);
-
-        if (this.entity == null && this.form.isPlayer())
-        {
-            this.entity = new OtherClientPlayerEntity(MinecraftClient.getInstance().world, slim ? SLIM : WIDE);
-            /* 1.21.9: PlayerEntity.PLAYER_MODEL_PARTS moved to PlayerLikeEntity.PLAYER_MODE_CUSTOMIZATION_ID
-             * (same tracked byte, renamed; opened via bbs.accesswidener). All cosmetic layers on, as before. */
-            this.entity.getDataTracker().set(PlayerLikeEntity.PLAYER_MODE_CUSTOMIZATION_ID, (byte) 0b1111111);
-        }
-
-        if (this.entity != null)
-        {
-            compound.putString("id", id);
-
-            World world = MinecraftClient.getInstance().world;
-
-            if (world != null)
-            {
-                try
-                {
-                    /* 1.21.6 persistence rewrite: Entity.readNbt(NbtCompound) -> readData(ReadView).
-                     * The user-typed NBT can be anything, and a mob that fails mid-read is still
-                     * usable — it just ignores the broken tags, like the old readNbt did. */
-                    this.entity.readData(NbtReadView.create(ErrorReporter.EMPTY, world.getRegistryManager(), compound));
-                }
-                catch (Exception e)
-                {}
-            }
-
-            this.entity.noClip = true;
-        }
+        this.entity = this.standIn.ensure(this.form.mobID.get(), this.form.mobNBT.get(), this.form.slim.get(), this.form.isPlayer());
     }
 
     @Override
@@ -568,74 +486,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
     public void tick(IEntity entity)
     {
         this.ensureEntity();
-
-        if (this.entity != null)
-        {
-            this.entity.tick();
-
-            /* 1.21.9: Entity prevPitch/prevYaw -> lastPitch/lastYaw; LivingEntity prevHeadYaw/
-             * prevBodyYaw -> lastHeadYaw/lastBodyYaw. */
-            this.entity.lastPitch = this.prevPitch;
-            this.entity.lastYaw = 0F;
-
-            if (this.entity instanceof LivingEntity livingEntity)
-            {
-                livingEntity.lastHeadYaw = this.prevYawHead;
-                livingEntity.lastBodyYaw = 0F;
-
-                /* Limb swing is so ugly */
-                if (livingEntity.limbAnimator instanceof LimbAnimatorAccessor a && entity.getLimbAnimator() instanceof LimbAnimatorAccessor b)
-                {
-                    a.setPrevSpeed(b.getPrevSpeed());
-                    a.setSpeed(b.getSpeed());
-                    a.setPos(b.getPos());
-                }
-
-                /* Arm swing */
-                float handSwingProgress = entity.getHandSwingProgress(0F);
-
-                if (handSwingProgress < this.prevHandSwing)
-                {
-                    this.prevHandSwing = 0;
-                }
-
-                if (handSwingProgress > 0 && this.prevHandSwing == 0)
-                {
-                    livingEntity.swingHand(Hand.MAIN_HAND);
-                }
-
-                this.prevHandSwing = handSwingProgress;
-            }
-
-            this.entity.setYaw(0F);
-            this.entity.setHeadYaw(entity.getHeadYaw() - entity.getBodyYaw());
-            this.entity.setPitch(entity.getPitch());
-            this.entity.setBodyYaw(0F);
-
-            this.entity.setPos(entity.getX(), entity.getY(), entity.getZ());
-            this.entity.setOnGround(entity.isOnGround());
-            this.entity.setSneaking(entity.isSneaking());
-            this.entity.setSprinting(entity.isSprinting());
-            this.entity.setSwimming(entity.isSwimming());
-            ((EntityInvoker) this.entity).bbs$setFlag(EntityState.FALL_FLYING_FLAG, entity.isFallFlying());
-            this.entity.setPose(EntityState.pose(entity));
-
-            /* Since 1.21.1 equipStack belongs to LivingEntity, not Entity */
-            if (this.entity instanceof LivingEntity living)
-            {
-                living.equipStack(EquipmentSlot.MAINHAND, entity.getEquipmentStack(EquipmentSlot.MAINHAND));
-                living.equipStack(EquipmentSlot.OFFHAND, entity.getEquipmentStack(EquipmentSlot.OFFHAND));
-                living.equipStack(EquipmentSlot.HEAD, entity.getEquipmentStack(EquipmentSlot.HEAD));
-                living.equipStack(EquipmentSlot.CHEST, entity.getEquipmentStack(EquipmentSlot.CHEST));
-                living.equipStack(EquipmentSlot.LEGS, entity.getEquipmentStack(EquipmentSlot.LEGS));
-                living.equipStack(EquipmentSlot.FEET, entity.getEquipmentStack(EquipmentSlot.FEET));
-            }
-            this.entity.age = entity.getAge();
-            this.entity.noClip = true;
-
-            this.prevYawHead = entity.getHeadYaw() - entity.getBodyYaw();
-            this.prevPitch = entity.getPitch();
-        }
+        this.standIn.tick(entity);
     }
 
 }

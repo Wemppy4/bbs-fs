@@ -9,6 +9,17 @@ import java.util.function.Consumer;
 public class FramebufferManager
 {
     public final Map<Link, Framebuffer> framebuffers = new HashMap<>();
+    private FramebufferPool formFramebuffers;
+
+    public FramebufferPool getFormFramebuffers()
+    {
+        if (this.formFramebuffers == null)
+        {
+            this.formFramebuffers = new FramebufferPool();
+        }
+
+        return this.formFramebuffers;
+    }
 
     public Framebuffer getFramebuffer(Link key, Consumer<Framebuffer> setup)
     {
@@ -34,5 +45,10 @@ public class FramebufferManager
         }
 
         this.framebuffers.clear();
+
+        if (this.formFramebuffers != null)
+        {
+            this.formFramebuffers.delete();
+        }
     }
 }

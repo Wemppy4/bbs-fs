@@ -546,7 +546,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Độ lệch lặp lại, khi hành động quay lại, nó sẽ nhảy đến tick này thay vì về đầu",
     "bbs.ui.forms.editor.states.open": "Mở trình quản lý trạng thái hoạt ảnh",
     "bbs.ui.forms.editor.states.toggle": "Chuyển đổi trình chỉnh sửa trạng thái hoạt ảnh",
-    "bbs.ui.forms.editor.toggle_tree": "Chuyển đổi cây biểu mẫu",
     "bbs.ui.forms.editor.use_target": "Sử dụng mục tiêu",
     "bbs.ui.forms.editors.actions.animations": "Hoạt ảnh",
     "bbs.ui.forms.editors.actions.fade": "Mờ",

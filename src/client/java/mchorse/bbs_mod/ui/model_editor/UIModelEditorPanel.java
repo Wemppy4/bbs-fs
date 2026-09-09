@@ -137,7 +137,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         /* What the tour of this panel points at; the pane's parts are built further down */
         TourAnchors.register("model_editor.preview", () -> this.renderer);
         TourAnchors.register("model_editor.settings", () -> this.pane);
-        TourAnchors.register("model_editor.bones", () -> this.configEditor.getTab(UIModelConfigEditor.Tab.BONES));
+        TourAnchors.register("model_editor.editors", () -> this.editorIcons[Editor.CONFIG.ordinal()], () -> this.editorIcons[Editor.MODEL.ordinal()]);
 
         this.renderer = new UIModelEditorRenderer()
             .target(this::shownTarget)

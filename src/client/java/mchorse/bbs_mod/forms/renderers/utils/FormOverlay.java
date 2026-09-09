@@ -319,7 +319,12 @@ public class FormOverlay
              * uploaded here — at any size past 1x1 that leaves the texture mipmap-incomplete, and
              * every fetch from an incomplete texture comes back (0, 0, 0, 1). The overlay would
              * then read as "no overlay" while the draw it rides on is paid for anyway. The
-             * constructor leaves the texture bound, so the filter lands on this one. */
+             * constructor leaves the texture bound, so the filter lands on this one.
+             *
+             * TODO(1.21.11 render): 1.21.1 binds through RenderSystem.bindTexture here so the game's
+             * state cache agrees about which texture is bound (see texture-bind-active-unit-trap).
+             * That method is gone in 1.21.11 — the raw bind stands until Texture.bind() itself goes
+             * through GlStateManager. */
             texture.setFilter(GL11.GL_NEAREST);
             texture.unbind();
         }

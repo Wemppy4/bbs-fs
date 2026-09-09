@@ -8,7 +8,7 @@ import mchorse.bbs_mod.utils.interps.IInterp;
 /**
  * One bone's rotation limits — the value of the bone's "constraints" property, both as the
  * form's static setting and as a film track's keyframe (one type for both, so no separate
- * animatable mirror is ever needed). The limits interpolate; {@code enabled} steps. An
+ * animatable mirror is ever needed). The limits interpolate; the switches step. An
  * all-default instance is neutral: the bone clamps nothing, as if the value didn't exist.
  */
 public class BoneConstraint implements IMapSerializable
@@ -18,7 +18,12 @@ public class BoneConstraint implements IMapSerializable
 
     public static final BoneConstraint DEFAULT = new BoneConstraint();
 
-    public boolean enabled;
+    /* Per-axis switches, like the IK joint's limits, and the only switches there
+     * are: a constraint IS its axes, so there is nothing left for a master toggle
+     * to say that turning all three off does not already say. */
+    public boolean limitX;
+    public boolean limitY;
+    public boolean limitZ;
     public float minX = DEFAULT_MIN;
     public float minY = DEFAULT_MIN;
     public float minZ = DEFAULT_MIN;
@@ -26,9 +31,17 @@ public class BoneConstraint implements IMapSerializable
     public float maxY = DEFAULT_MAX;
     public float maxZ = DEFAULT_MAX;
 
+    /** Whether this constraint clamps anything at all — no axis switched on is nothing to apply. */
+    public boolean isActive()
+    {
+        return this.limitX || this.limitY || this.limitZ;
+    }
+
     public void identity()
     {
-        this.enabled = false;
+        this.limitX = false;
+        this.limitY = false;
+        this.limitZ = false;
         this.minX = DEFAULT_MIN;
         this.minY = DEFAULT_MIN;
         this.minZ = DEFAULT_MIN;
@@ -45,7 +58,9 @@ public class BoneConstraint implements IMapSerializable
         this.maxX = (float) interp.interpolate(IInterp.context.set(preA.maxX, a.maxX, b.maxX, postB.maxX, x));
         this.maxY = (float) interp.interpolate(IInterp.context.set(preA.maxY, a.maxY, b.maxY, postB.maxY, x));
         this.maxZ = (float) interp.interpolate(IInterp.context.set(preA.maxZ, a.maxZ, b.maxZ, postB.maxZ, x));
-        this.enabled = a.enabled;
+        this.limitX = a.limitX;
+        this.limitY = a.limitY;
+        this.limitZ = a.limitZ;
     }
 
     public void autoLerp(BoneConstraint preA, BoneConstraint a, BoneConstraint b, BoneConstraint postB, float pt, float at, float bt, float qt, boolean clamped, float x)
@@ -56,7 +71,9 @@ public class BoneConstraint implements IMapSerializable
         this.maxX = (float) AutoBezier.get(preA.maxX, a.maxX, b.maxX, postB.maxX, pt, at, bt, qt, clamped, x);
         this.maxY = (float) AutoBezier.get(preA.maxY, a.maxY, b.maxY, postB.maxY, pt, at, bt, qt, clamped, x);
         this.maxZ = (float) AutoBezier.get(preA.maxZ, a.maxZ, b.maxZ, postB.maxZ, pt, at, bt, qt, clamped, x);
-        this.enabled = a.enabled;
+        this.limitX = a.limitX;
+        this.limitY = a.limitY;
+        this.limitZ = a.limitZ;
     }
 
     public BoneConstraint copy()
@@ -70,7 +87,9 @@ public class BoneConstraint implements IMapSerializable
 
     public void copy(BoneConstraint other)
     {
-        this.enabled = other.enabled;
+        this.limitX = other.limitX;
+        this.limitY = other.limitY;
+        this.limitZ = other.limitZ;
         this.minX = other.minX;
         this.minY = other.minY;
         this.minZ = other.minZ;
@@ -94,7 +113,9 @@ public class BoneConstraint implements IMapSerializable
 
         if (obj instanceof BoneConstraint constraint)
         {
-            return this.enabled == constraint.enabled
+            return this.limitX == constraint.limitX
+                && this.limitY == constraint.limitY
+                && this.limitZ == constraint.limitZ
                 && this.minX == constraint.minX
                 && this.minY == constraint.minY
                 && this.minZ == constraint.minZ
@@ -109,7 +130,9 @@ public class BoneConstraint implements IMapSerializable
     @Override
     public void toData(MapType data)
     {
-        data.putBool("enabled", this.enabled);
+        data.putBool("limit_x", this.limitX);
+        data.putBool("limit_y", this.limitY);
+        data.putBool("limit_z", this.limitZ);
         data.putDouble("min_x", this.minX);
         data.putDouble("min_y", this.minY);
         data.putDouble("min_z", this.minZ);
@@ -121,7 +144,9 @@ public class BoneConstraint implements IMapSerializable
     @Override
     public void fromData(MapType data)
     {
-        this.enabled = data.getBool("enabled", DEFAULT.enabled);
+        this.limitX = data.getBool("limit_x", DEFAULT.limitX);
+        this.limitY = data.getBool("limit_y", DEFAULT.limitY);
+        this.limitZ = data.getBool("limit_z", DEFAULT.limitZ);
         this.minX = (float) data.getDouble("min_x", DEFAULT.minX);
         this.minY = (float) data.getDouble("min_y", DEFAULT.minY);
         this.minZ = (float) data.getDouble("min_z", DEFAULT.minZ);

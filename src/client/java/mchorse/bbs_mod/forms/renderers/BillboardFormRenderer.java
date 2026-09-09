@@ -239,7 +239,13 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
          * useLightmap()/useOverlay()); the shader is the layer's RenderPipeline. */
         BBSModClient.getTextures().bindTexture(texture);
 
-        texture.bind();
+        /* Filter parameters go to whichever texture is bound on the ACTIVE unit, and nothing
+         * promises that unit is 0 here: under a shader pack it is whatever unit Iris touched
+         * last (unit 2 in practice). A bind there put this texture over the lightmap's slot
+         * behind GlStateManager's back - its cache still said the lightmap was bound, so the
+         * draw never rebound it, and the quad was lit by a texel of its own skin. Naming the
+         * unit keeps the real binding and the cache in step, on unit 0, on purpose. */
+        texture.bind(0);
         texture.setFilterMipmap(this.form.linear.get(), this.form.mipmap.get());
 
         /* After the bind, never before: the layer is resolved from the last bound texture, so that
@@ -334,6 +340,8 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
             }
         }
 
+        /* On unit 0 again, for the same reason as the bind above. */
+        texture.bind(0);
         texture.setFilterMipmap(false, false);
     }
 

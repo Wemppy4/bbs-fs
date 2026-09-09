@@ -4,11 +4,8 @@ import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.mixin.client.LivingEntityRendererInvoker;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.Transform;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
-import net.minecraft.client.render.entity.model.EntityModel;
-import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
@@ -83,35 +80,26 @@ public class MobRigMatrices
      */
     public static void evaluate(Entity entity, MobRig rig, Pose pose, Pose poseOverlay, float transition, MatrixCache cache)
     {
-        if (rig == null || MobRenderContext.current() != null
-            || !(entity instanceof LivingEntity)
-            || !(MinecraftClient.getInstance().getEntityRenderDispatcher().getRenderer(entity) instanceof LivingEntityRenderer renderer))
+        LivingEntityRenderer renderer = VanillaPose.renderer(entity);
+
+        if (rig == null || renderer == null)
         {
             return;
         }
 
-        /* Since 1.21.2 the model is posed from a render STATE rather than from the entity: setAngles
-         * takes one, and everything the 1.21.1 call assembled by hand — hand swing, riding, baby, the
-         * limb swing, the interpolated yaws and pitch, the scale attribute — is a field on it.
-         * getAndUpdateRenderState is the one supported way to fill one, and it is what
-         * MobFormRenderer's own draw already uses, so the rig walks exactly the pose the entity is
-         * drawn in rather than a second, hand-built approximation of it. */
-        EntityRenderState renderState = MinecraftClient.getInstance().getEntityRenderDispatcher().getAndUpdateRenderState(entity, transition);
-
-        if (!(renderState instanceof LivingEntityRenderState state))
-        {
-            return;
-        }
-
-        EntityModel model = renderer.getModel();
         LivingEntityRendererInvoker invoker = (LivingEntityRendererInvoker) renderer;
         Map<ModelPart, Transform> saved = new IdentityHashMap<>();
 
-        float animationProgress = invoker.bbs$getAnimationCounter(state);
-
         try
         {
-            model.setAngles(state);
+            LivingEntityRenderState state = VanillaPose.animate(renderer, (LivingEntity) entity, transition);
+
+            if (state == null)
+            {
+                return;
+            }
+
+            float animationProgress = invoker.bbs$getAnimationCounter(state);
 
             MobPoseApplier.apply(rig, MobPoseApplier.merge(pose, poseOverlay), saved);
 

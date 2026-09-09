@@ -8,21 +8,16 @@ import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * What the user set on a form category that isn't the category's own content: whether it's
- * expanded and how its forms are ordered. Keyed by category id and kept in one file, so the
- * asset categories (models, particles, mobs), which have no file of their own, remember it too.
- *
- * <p>The file used to hold just {@code id: visible}; that shape still reads.</p>
+ * expanded. Keyed by category id and kept in one file, so the asset categories (models,
+ * particles, mobs), which have no file of their own, remember it too.
  */
 public class CategoryPreferences
 {
     private final List<ValueBoolean> visibility = new ArrayList<>();
-    private final Map<String, FormSort> sorts = new HashMap<>();
 
     public ValueBoolean visible(String id)
     {
@@ -50,29 +45,9 @@ public class CategoryPreferences
         return value;
     }
 
-    public FormSort sort(String id)
-    {
-        return this.sorts.getOrDefault(id, FormSort.MANUAL);
-    }
-
-    public void setSort(String id, FormSort sort)
-    {
-        if (sort == FormSort.MANUAL)
-        {
-            this.sorts.remove(id);
-        }
-        else
-        {
-            this.sorts.put(id, sort);
-        }
-
-        this.write();
-    }
-
     public void remove(String id)
     {
         this.visibility.removeIf(visibility -> visibility.getId().equals(id));
-        this.sorts.remove(id);
 
         this.write();
     }
@@ -88,24 +63,11 @@ public class CategoryPreferences
                 for (String key : map.keys())
                 {
                     BaseType entry = map.get(key);
+                    /* The file briefly held a map of settings per category; only visibility
+                     * was ever kept in it */
+                    boolean visible = entry.isMap() ? entry.asMap().getBool("visible", true) : map.getBool(key);
 
-                    if (entry.isMap())
-                    {
-                        MapType prefs = entry.asMap();
-
-                        this.visible(key, prefs.getBool("visible", true)).set(prefs.getBool("visible", true), 1);
-
-                        FormSort sort = FormSort.byId(prefs.getString("sort"));
-
-                        if (sort != FormSort.MANUAL)
-                        {
-                            this.sorts.put(key, sort);
-                        }
-                    }
-                    else
-                    {
-                        this.visible(key, map.getBool(key)).set(map.getBool(key), 1);
-                    }
+                    this.visible(key, visible).set(visible, 1);
                 }
             }
         }
@@ -121,18 +83,7 @@ public class CategoryPreferences
 
         for (ValueBoolean value : this.visibility)
         {
-            MapType prefs = new MapType();
-
-            prefs.putBool("visible", value.get());
-
-            FormSort sort = this.sorts.get(value.getId());
-
-            if (sort != null)
-            {
-                prefs.putString("sort", sort.id);
-            }
-
-            type.put(value.getId(), prefs);
+            type.putBool(value.getId(), value.get());
         }
 
         DataToString.writeSilently(BBSMod.getSettingsPath("categories.json"), type, true);

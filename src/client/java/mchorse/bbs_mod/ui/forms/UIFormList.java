@@ -236,6 +236,12 @@ public class UIFormList extends UIElement
             category.setCellSize(this.getCellSize());
         }
 
+        /* Two passes: a category can only measure itself once it has been placed (it needs its
+         * real width), and it reports the new height as a layout to run later rather than
+         * resizing this list from inside the pass. The second pass places them at those
+         * heights, so whoever reads a category's area right after this — scrollToSelectedForm()
+         * — reads final offsets. */
+        this.resize();
         this.resize();
     }
 
@@ -633,19 +639,15 @@ public class UIFormList extends UIElement
         }
 
         boolean copy = Window.isCtrlPressed();
-        boolean rearrangeable = into.getSort().isRearrangeable();
 
         for (Form form : forms)
         {
             FormCategory from = this.categoryOf(form);
-            int index = before == null || !rearrangeable ? into.getForms().size() : this.selection.indexOf(into.getForms(), before);
+            int index = before == null ? into.getForms().size() : this.selection.indexOf(into.getForms(), before);
 
             if (from == into && !copy)
             {
-                if (rearrangeable)
-                {
-                    into.moveForm(form, index);
-                }
+                into.moveForm(form, index);
 
                 continue;
             }

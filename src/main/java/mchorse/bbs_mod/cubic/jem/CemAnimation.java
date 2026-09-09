@@ -15,9 +15,12 @@ import net.minecraft.world.World;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -51,6 +54,12 @@ import java.util.Set;
  * </ul>
  * The seeds are the inverse of each writeback, so an un-driven (or only cross-referenced) bone writes back
  * exactly the pose it came in with.
+ *
+ * <p>A bone's kind is its place in the <em>file</em>, not in the bone tree. The parser accumulates pivots
+ * by file nesting, and the vanilla rig may then hang a part on another part (see
+ * {@link JemModelParser}): that part goes parent-relative, while its direct submodels stay direct — a
+ * pack writes their positions for the direct mapping, and Fresh Animations' allay carried its head six
+ * pixels too high while they were read as deeper ones.</p>
  */
 public class CemAnimation
 {
@@ -97,8 +106,15 @@ public class CemAnimation
 
     public final CemParser parser;
 
+    /** The model file's name without its extension — {@code cold_cow_baby} — what a vanilla stage is made from. Set by the loader. */
+    public String jem = "";
+
     private final List<Statement> statements = new ArrayList<>();
     private final List<Binding> bindings = new ArrayList<>();
+
+    /** The bindings by bone, and the model's top-level bones, for the visibility walk — see {@link #show}. */
+    private final Map<ModelGroup, Binding> byGroup = new HashMap<>();
+    private List<ModelGroup> roots = Collections.emptyList();
 
     /**
      * The {@code var.*}/{@code varb.*} entity variables in a fixed order — the persistent slots of a
@@ -107,10 +123,20 @@ public class CemAnimation
     private final List<Variable> entityVariables = new ArrayList<>();
 
     /**
+     * The file's parts — its top-level entries, one bone each — as opposed to the submodels under them.
+     * Which mapping a bone takes is decided against this, so hanging a part on another leaves the
+     * kinds of everything under it alone.
+     */
+    private final Set<ModelGroup> parts = new HashSet<>();
+
+    /**
      * Parts the vanilla rig reparented (see {@link CemHierarchy}): the pack positions them against the
      * parent's rotation point, so they take the deeper-submodel mapping whatever their depth.
      */
     private final Set<ModelGroup> parentRelative = new HashSet<>();
+
+    /** Parts the file draws nothing in — shells the pack only reads, whose position is vanilla's to give. */
+    private final Set<ModelGroup> shells = new HashSet<>();
 
     public CemAnimation()
     {
@@ -121,6 +147,12 @@ public class CemAnimation
          * than branched on every frame: with an entity, setParameters writes over it. */
         this.parser.setValue("health", IEntity.FULL_HEALTH);
         this.parser.setValue("max_health", IEntity.FULL_HEALTH);
+    }
+
+    /** Note a bone as one of the file's parts — call before {@link #setup}. */
+    public void markPart(ModelGroup group)
+    {
+        this.parts.add(group);
     }
 
     /** Note a bone as positioned relative to its parent's pivot — call before {@link #setup}. */
@@ -166,9 +198,31 @@ public class CemAnimation
         return false;
     }
 
+    /** Note a part as a shell the file draws nothing in — call before {@link #setup}. */
+    public void markShell(ModelGroup group)
+    {
+        this.shells.add(group);
+    }
+
     public boolean isEmpty()
     {
         return this.statements.isEmpty();
+    }
+
+    /** Whether any statement writes a channel of this bone. */
+    public boolean mentions(String bone)
+    {
+        String prefix = bone + ".";
+
+        for (Statement statement : this.statements)
+        {
+            if (statement.target.getName().startsWith(prefix))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Record a {@code variable = expression} statement, preserving evaluation order. */
@@ -181,10 +235,15 @@ public class CemAnimation
     public void setup(Model model)
     {
         this.bindings.clear();
+        this.byGroup.clear();
+        this.roots = model.topGroups;
 
         for (ModelGroup group : model.getAllGroups())
         {
-            this.bindings.add(new Binding(group, kind(group)));
+            Binding binding = new Binding(group, kind(group));
+
+            this.bindings.add(binding);
+            this.byGroup.put(group, binding);
         }
 
         this.entityVariables.clear();
@@ -208,22 +267,18 @@ public class CemAnimation
     }
 
     /**
-     * Classify a bone by its place in the (flat-rooted) hierarchy — see {@link #TOP}/{@link #SUB1}/
-     * {@link #SUBN}. A reparented part is parent-relative regardless of depth.
+     * Classify a bone by its place in the file — see {@link #TOP}/{@link #SUB1}/{@link #SUBN}: a part,
+     * a part's direct submodel, or anything deeper. A reparented part is parent-relative whatever its
+     * depth; a bone under a part is judged against the part, wherever the rig hung that part.
      */
     private int kind(ModelGroup group)
     {
-        if (group.parent == null)
+        if (this.parts.contains(group))
         {
-            return TOP;
+            return this.parentRelative.contains(group) ? SUBN : TOP;
         }
 
-        if (this.parentRelative.contains(group))
-        {
-            return SUBN;
-        }
-
-        return group.parent.parent == null ? SUB1 : SUBN;
+        return this.parts.contains(group.parent) ? SUB1 : SUBN;
     }
 
     /**
@@ -252,6 +307,15 @@ public class CemAnimation
      */
     public void apply(CemState state, IEntity target, float transition, boolean inGui, CemStatus status)
     {
+        this.apply(state, target, transition, inGui, status, null);
+    }
+
+    /**
+     * @param seed the vanilla frame the program starts from ({@link CemVanillaSeed}), or null to start
+     *             from the rest pose — a probe, a test, an entity the game has no model for.
+     */
+    public void apply(CemState state, IEntity target, float transition, boolean inGui, CemStatus status, CemVanillaSeed seed)
+    {
         if (this.statements.isEmpty())
         {
             return;
@@ -273,12 +337,12 @@ public class CemAnimation
             {
                 for (int ticksAgo = WARM_UP_TICKS; ticksAgo > 0; ticksAgo -= WARM_UP_STEP)
                 {
-                    this.evaluate(state, target, transition, inGui, status, WARM_UP_STEP / 20D, -ticksAgo);
+                    this.evaluate(state, target, transition, inGui, status, seed, WARM_UP_STEP / 20D, -ticksAgo);
                 }
             }
         }
 
-        this.evaluate(state, target, transition, inGui, status, frameTime, 0);
+        this.evaluate(state, target, transition, inGui, status, seed, frameTime, 0);
 
         state.store(this.entityVariables);
     }
@@ -287,7 +351,7 @@ public class CemAnimation
      * One pass of the program: parameters in, bones out. {@code ticksAgo} is 0 for the frame being
      * rendered and negative for a warm-up pass, which stands that many ticks before it.
      */
-    private void evaluate(CemState state, IEntity target, float transition, boolean inGui, CemStatus status, double frameTime, int ticksAgo)
+    private void evaluate(CemState state, IEntity target, float transition, boolean inGui, CemStatus status, CemVanillaSeed seed, double frameTime, int ticksAgo)
     {
         this.parser.setValue("frame_time", frameTime);
 
@@ -304,7 +368,7 @@ public class CemAnimation
 
         for (Binding binding : this.bindings)
         {
-            binding.reset();
+            binding.reset(seed);
         }
 
         for (Statement statement : this.statements)
@@ -315,6 +379,31 @@ public class CemAnimation
         for (Binding binding : this.bindings)
         {
             binding.writeback();
+        }
+
+        for (ModelGroup root : this.roots)
+        {
+            this.show(root, true);
+        }
+    }
+
+    /**
+     * Visibility the way OptiFine reads it: a part written invisible takes its whole subtree with it,
+     * and {@code visible_boxes} hides the part's own boxes alone. BBS's flag is per bone — a hidden
+     * bone's children still draw — so after the statements the tree is walked and every bone's flag is
+     * set from its own two variables and its ancestors'. Fresh Animations' evoker hides {@code arms}
+     * while casting, and the crossed arms sit in a submodel of it: drawn, they were a second pair.
+     */
+    private void show(ModelGroup group, boolean parentShown)
+    {
+        Binding binding = this.byGroup.get(group);
+        boolean shown = parentShown && (binding == null || binding.visible.doubleValue() != 0);
+
+        group.visible = shown && (binding == null || binding.visibleBoxes.doubleValue() != 0);
+
+        for (ModelGroup child : group.children)
+        {
+            this.show(child, shown);
         }
     }
 
@@ -327,7 +416,11 @@ public class CemAnimation
         float yaw = Lerps.lerp(target.getPrevYaw(), target.getYaw(), transition);
         double age = target.getAge() + transition + ticksAgo + (target.isStandIn() ? SPAWN_SETTLED : 0);
 
-        this.parser.setValue("limb_swing", target.getLimbPos(transition));
+        boolean child = target.isChild() || CemNames.baby(this.jem);
+
+        /* Vanilla hands its models a child's limb swing three times over (LivingEntityRenderer: the
+         * young take quicker steps), and the swing OptiFine gives a pack is that one. */
+        this.parser.setValue("limb_swing", target.getLimbPos(transition) * (child ? 3F : 1F));
         this.parser.setValue("limb_speed", target.getLimbSpeed(transition));
         this.parser.setValue("age", age);
         this.parser.setValue("time", age);
@@ -371,7 +464,9 @@ public class CemAnimation
         this.parser.setValue("is_gliding", target.isFallFlying() ? 1 : 0);
         this.parser.setValue("is_riding", target.isRiding() ? 1 : 0);
         this.parser.setValue("is_ridden", target.isRidden() ? 1 : 0);
-        this.parser.setValue("is_child", target.isChild() ? 1 : 0);
+        /* A pack's _baby file is a child by definition, whatever the actor under it says: its timings
+         * (limb_speed >= if(is_child, 0.7, 0.87), age * if(is_child, 1.5, 1)) are written for one. */
+        this.parser.setValue("is_child", child ? 1 : 0);
 
         /* A name the program does not know reads as zero, and zero is a state of its own, not "unknown":
          * an iron golem written around if(health<=15, ...) posed as dying in every frame, a magma cube
@@ -477,6 +572,9 @@ public class CemAnimation
         private final ModelGroup group;
         private final int kind;
 
+        /** A shell the pack only reads — no box on it or under it — whose position is vanilla's to give. */
+        private final boolean empty;
+
         private final Variable tx, ty, tz;
         private final Variable rx, ry, rz;
         private final Variable sx, sy, sz;
@@ -486,6 +584,7 @@ public class CemAnimation
         {
             this.group = group;
             this.kind = kind;
+            this.empty = CemAnimation.this.shells.contains(group);
 
             CemParser p = CemAnimation.this.parser;
             String id = group.id;
@@ -504,25 +603,87 @@ public class CemAnimation
         }
 
         /**
-         * Seed this bone's model variables from the pose standing in {@code current} — the vanilla
-         * animation stage {@link CemAnimator} ran just before, or the rest pose when there was none.
+         * Seed this bone's model variables: from the vanilla frame where it has the part, else from the
+         * pose standing in {@code current} — the rest pose, the exact inverse of {@link #writeback()},
+         * so a bone no statement mentions writes back exactly what it came in with.
          *
-         * <p>This is what makes a statement that reads its own bone work: OptiFine evaluates CEM on
-         * top of the vanilla frame, so {@code head.ry} arrives holding the vanilla head yaw. Fresh
+         * <p>The vanilla frame is what makes a statement that reads its own bone work: OptiFine
+         * evaluates CEM on top of it, so {@code head.ry} arrives holding the vanilla head yaw. Fresh
          * Moves is written that way throughout — {@code head.ry = wraprad(head.ry)}, {@code
          * right_arm.rx = wraprad(right_arm.rx)} — and against a rest-pose seed those are the identity
-         * on zero, which left the player's head and arms frozen. Seeded from {@code current} they
-         * carry the vanilla angle through, and a bone no statement mentions writes back exactly what
-         * it came in with, because these are the exact inverse of {@link #writeback()}.</p>
+         * on zero, which left the player's head and arms frozen; the fox reads the flat body vanilla
+         * gives it, the hoglin the fifty degrees vanilla holds its head at.</p>
          */
-        public void reset()
+        public void reset(CemVanillaSeed seed)
         {
+            CemVanillaSeed.Part part = seed == null ? null : seed.get(this.group.id);
+
+            if (part != null)
+            {
+                this.seed(part);
+
+                return;
+            }
+
             Transform current = this.group.current;
-            Vector3f translate = current.translate;
+
+            this.resetPosition();
+
+            this.rx.set(-Math.toRadians(current.rotate.x));
+            this.ry.set(-Math.toRadians(current.rotate.y));
+            this.rz.set(Math.toRadians(current.rotate.z));
+
+            this.sx.set(current.scale.x);
+            this.sy.set(current.scale.y);
+            this.sz.set(current.scale.z);
+
+            /* Nothing resets what the last frame wrote, so every frame starts from shown. */
+            this.visible.set(1);
+            this.visibleBoxes.set(1);
+        }
+
+        /**
+         * The vanilla frame's values for this part — the part's own fields, which is what OptiFine's
+         * variables are: the position, the angle, the scale and the flag, vanilla's outright. A
+         * reparented part is placed against its vanilla parent, a top-level one against the model.
+         *
+         * <p>The position is vanilla's whatever the file says, because that is what the file's
+         * {@code translate} means in OptiFine: a part of the file hangs inside vanilla's part of the same
+         * name, and its translate is a fixed offset within — the part's geometry follows vanilla's pivot
+         * around, and turns about it. Fresh Animations' fox is the proof: its body sits in the file at
+         * (0, 16.5, 3.5), vanilla holds the body at (0, 8, -6) and pitches it ninety degrees, and the
+         * pack's head and tail are placed for the frame that gives — read the body's position off the
+         * file instead, and the fox comes apart on the ground. Where a pack draws a part in the model's
+         * own coordinates its translate is the vanilla pivot's negation (the evoker's arms), and the two
+         * readings agree.</p>
+         */
+        private void seed(CemVanillaSeed.Part part)
+        {
+            boolean local = this.kind == SUBN;
+
+            this.tx.set(local ? part.tx : part.ax);
+            this.ty.set(local ? part.ty : part.ay);
+            this.tz.set(local ? part.tz : part.az);
+
+            this.rx.set(part.rx);
+            this.ry.set(part.ry);
+            this.rz.set(part.rz);
+
+            this.sx.set(part.sx);
+            this.sy.set(part.sy);
+            this.sz.set(part.sz);
+
+            this.visible.set(part.visible ? 1 : 0);
+            this.visibleBoxes.set(1);
+        }
+
+        /** The position variables from the pose standing in {@code current}: the plain inverse of {@link #writeback()}'s split by kind. */
+        private void resetPosition()
+        {
+            Vector3f translate = this.group.current.translate;
             Vector3f pivot = this.group.initial.translate;
 
-            /* The writeback lays X down mirrored about the pivot; undo that first, then the split by
-             * kind below is the plain inverse of the one there. */
+            /* The writeback lays X down mirrored about the pivot; undo that first. */
             float x = 2F * pivot.x - translate.x;
 
             switch (this.kind)
@@ -548,19 +709,6 @@ public class CemAnimation
                     this.tz.set(translate.z);
                 }
             }
-
-            this.rx.set(-Math.toRadians(current.rotate.x));
-            this.ry.set(-Math.toRadians(current.rotate.y));
-            this.rz.set(Math.toRadians(current.rotate.z));
-
-            this.sx.set(current.scale.x);
-            this.sy.set(current.scale.y);
-            this.sz.set(current.scale.z);
-
-            /* Visibility has no vanilla stage to inherit from, and nothing resets what the last frame
-             * wrote, so every frame starts from shown. */
-            this.visible.set(1);
-            this.visibleBoxes.set(1);
         }
 
         public void writeback()
@@ -610,7 +758,7 @@ public class CemAnimation
                 safeScale(this.sz.doubleValue())
             );
 
-            this.group.visible = this.visible.doubleValue() != 0 && this.visibleBoxes.doubleValue() != 0;
+            /* Visibility is not written here: it is the tree's, not the bone's — see show(). */
         }
 
         private float safe(double value)

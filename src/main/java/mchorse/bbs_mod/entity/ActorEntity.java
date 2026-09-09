@@ -8,8 +8,6 @@ import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
@@ -138,24 +136,6 @@ public class ActorEntity extends LivingEntity implements IEntityFormProvider
 
         /* Since 1.21.1 the eye height rides the dimensions instead of an override of its own */
         return EntityDimensions.changing(width, height).withEyeHeight(this.form.hitboxEyeHeight.get());
-    }
-
-    /**
-     * An actor is a prop, not a creature. Being hit is the whole point of the flag, but dying is
-     * not: the film has no notion of a dead actor, so a killed one simply left a hole in the take
-     * that nothing filled. Everything about the blow still happens - the flash, the sound, the
-     * knockback the next keyframe undoes - only the health never runs out. Damage that bypasses
-     * invulnerability is let through, which keeps {@code /kill} as the way out.
-     */
-    @Override
-    public boolean damage(ServerWorld world, DamageSource source, float amount)
-    {
-        if (source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY))
-        {
-            return super.damage(world, source, amount);
-        }
-
-        return super.damage(world, source, 0F);
     }
 
     @Override

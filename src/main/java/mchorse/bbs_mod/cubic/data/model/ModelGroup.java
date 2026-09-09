@@ -25,6 +25,7 @@ public class ModelGroup implements IMapSerializable, RigBone
     public List<ModelCube> cubes = new ArrayList<>();
     public List<ModelMesh> meshes = new ArrayList<>();
     public boolean visible = true;
+    public boolean poseVisible = true;
     public int index = -1;
 
     public float lighting = 0F;
@@ -112,12 +113,18 @@ public class ModelGroup implements IMapSerializable, RigBone
 
     public void reset()
     {
+        this.poseVisible = true;
         this.lighting = 0F;
         this.color.set(1F, 1F, 1F);
         this.overlay.set(1F, 1F, 1F, 0F);
         this.current.copy(this.initial);
         this.orient = null;
         this.offset = null;
+    }
+
+    public boolean isVisible()
+    {
+        return this.visible && this.poseVisible;
     }
 
     /**

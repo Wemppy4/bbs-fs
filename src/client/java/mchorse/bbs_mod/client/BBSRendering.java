@@ -999,6 +999,36 @@ public class BBSRendering
     }
 
     /**
+     * Render into a framebuffer of ours instead of the world's frame: the world-forms span closes for
+     * the duration ({@link #suspendWorldForms()} says why a pack program must not claim these draws)
+     * and Iris is told the main target is gone, which also turns its shadow pass off for the span —
+     * see {@link IrisUtils#renderOffscreen(Runnable)}, where the nesting is counted, so an inner
+     * framebuffer form does not hand the main target back while the outer one is still drawing.
+     */
+    public static void renderOffscreen(Runnable render)
+    {
+        boolean prev = worldForms;
+
+        worldForms = false;
+
+        try
+        {
+            if (iris)
+            {
+                IrisUtils.renderOffscreen(render);
+            }
+            else
+            {
+                render.run();
+            }
+        }
+        finally
+        {
+            worldForms = prev;
+        }
+    }
+
+    /**
      * Whether Iris is currently filling its shadow map rather than the frame the player sees. That pass
      * runs the world render a second time from the sun's point of view, so anything BBS draws without
      * checking lands in the shadow map at the shadow camera's placement — a form smeared away from the

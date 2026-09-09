@@ -134,6 +134,14 @@ public interface IEntity
         return 0;
     }
 
+    /**
+     * Only a body drawn by something else has this written to it: a real entity counts its own
+     * death, a stub is told about the one its actor shell is going through (see the film
+     * controller), and everything else has no death to speak of.
+     */
+    public default void setDeathTime(int deathTime)
+    {}
+
     /** Whether something rides this entity — the opposite of {@link #isRiding()}. */
     public default boolean isRidden()
     {

@@ -509,7 +509,6 @@
     "bbs.ui.forms.editor.states.manager.offset": "Döngüleme offsetidir. Bir animasyon geri sarıldığında baştan başlamak yerine bu girilen tick'ten başlar",
     "bbs.ui.forms.editor.states.open": "Animasyon evreleri düzenleyicisini aç",
     "bbs.ui.forms.editor.states.toggle": "Animasyon evreleri düzenleyicisini aç/kapat",
-    "bbs.ui.forms.editor.toggle_tree": "Formlar ağacını aç/kapat",
     "bbs.ui.forms.editor.use_target": "Hedefi kullan",
     "bbs.ui.forms.editors.actions.animations": "Animasyonlar",
     "bbs.ui.forms.editors.actions.fade": "Geçiş",

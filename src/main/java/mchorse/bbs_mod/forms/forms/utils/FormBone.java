@@ -37,6 +37,7 @@ public class FormBone extends ValueGroup
     public final ValueInt ikChainLength = new ValueInt("ik_chain_length", 0);
     public final ValueBoolean ikTipRotation = new ValueBoolean("ik_tip_rotation", false);
     public final ValueBoolean ikStretch = new ValueBoolean("ik_stretch", false);
+    public final ValueBoolean ikSquash = new ValueBoolean("ik_squash", false);
     public final ValueBoolean ikClassic = new ValueBoolean("ik_classic", false);
     public final ValueBoneIK ik = new ValueBoneIK("ik", new IKControl());
 
@@ -67,6 +68,7 @@ public class FormBone extends ValueGroup
         this.ikChainLength.invisible();
         this.ikTipRotation.invisible();
         this.ikStretch.invisible();
+        this.ikSquash.invisible();
         this.ikClassic.invisible();
         this.ik.invisible();
         this.joint.invisible();
@@ -87,6 +89,7 @@ public class FormBone extends ValueGroup
         this.add(this.ikChainLength);
         this.add(this.ikTipRotation);
         this.add(this.ikStretch);
+        this.add(this.ikSquash);
         this.add(this.ikClassic);
         this.add(this.ik);
         this.add(this.joint);
@@ -124,6 +127,7 @@ public class FormBone extends ValueGroup
             && this.ikChainLength.get() == 0
             && !this.ikTipRotation.get()
             && !this.ikStretch.get()
+            && !this.ikSquash.get()
             && !this.ikClassic.get()
             && this.ik.get().isDefault()
             && this.joint.get().isFree()

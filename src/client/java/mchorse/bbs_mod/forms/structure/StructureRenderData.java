@@ -30,6 +30,9 @@ public class StructureRenderData
     /** Structure-local position → block entity NBT (chests, signs, beds, ...). */
     private final Map<BlockPos, NbtCompound> blockEntities;
 
+    /** Traced on first use: light depends on the blocks alone, so it outlives biome changes and rebakes. */
+    private StructureLighting lighting;
+
     private StructureRenderData(String id, Vec3i size, Map<BlockPos, BlockState> blocks, Map<BlockPos, NbtCompound> blockEntities)
     {
         this.id = id;
@@ -46,6 +49,17 @@ public class StructureRenderData
     public Map<BlockPos, NbtCompound> getBlockEntities()
     {
         return this.blockEntities;
+    }
+
+    /** How this structure is lit — shared by both fake worlds, so they agree; see {@link StructureLighting}. */
+    public StructureLighting getLighting()
+    {
+        if (this.lighting == null)
+        {
+            this.lighting = StructureLighting.compute(this);
+        }
+
+        return this.lighting;
     }
 
     public BlockState getBlockState(BlockPos pos)

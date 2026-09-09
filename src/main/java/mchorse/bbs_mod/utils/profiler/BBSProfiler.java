@@ -46,7 +46,9 @@ public class BBSProfiler
         /** BOBJ meshes skinned on the CPU and re-uploaded (the armature moved since the last upload). */
         BOBJ_SKINS,
         /** BOBJ mesh uploads skipped — the VAO already holds this armature pose. */
-        BOBJ_SKINS_SKIPPED;
+        BOBJ_SKINS_SKIPPED,
+        /** Framebuffer forms rendering their parts into their off-screen buffer (one per pass that draws the form). */
+        FRAMEBUFFER_RENDERS;
 
         /** Values are cached because {@code values()} clones the array on every call. */
         public static final Section[] VALUES = values();
@@ -61,6 +63,8 @@ public class BBSProfiler
     {
         /** The film's forms in the world pass (BaseFilmController.render). */
         WORLD_FORMS,
+        /** Framebuffer forms: their parts drawn into the off-screen buffer plus the quad (a slice of whichever pass drew them). */
+        FRAMEBUFFER_FORMS,
         /** The stencil picking pass: scene re-render into the pick buffer + pixel read. */
         STENCIL_PASS,
         /** The gizmo's own drawing (rings, handles, pie). */

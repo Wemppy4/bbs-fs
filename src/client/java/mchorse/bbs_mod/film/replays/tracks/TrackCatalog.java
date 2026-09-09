@@ -30,6 +30,7 @@ import mchorse.bbs_mod.settings.values.core.ValueColor;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
+import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.pose.PoseBones;
@@ -344,7 +345,7 @@ public class TrackCatalog
     private static void boneConstraint(ModelForm modelForm, String path, String bone, TrackId boneTrack, int color, FormProperties properties, List<TrackDescriptor> out)
     {
         FormBone formBone = modelForm.bones.getBone(bone);
-        boolean enabled = formBone != null && formBone.constraints.get().enabled;
+        boolean enabled = formBone != null && formBone.constraints.get().isActive();
         TrackId id = TrackId.boneConstraint(path, bone);
 
         if (!enabled && (properties == null || !properties.has(id)))
@@ -453,6 +454,11 @@ public class TrackCatalog
     {
         FormMaterial staticMaterial = modelForm.materials.getMaterial(material);
         String prefix = material + FormUtils.PATH_SEPARATOR;
+
+        TrackId visible = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_VISIBLE);
+
+        out.add(prop(modelForm, visible, parent, prefix + TrackId.MATERIAL_PROP_VISIBLE, Icons.VISIBLE,
+            new ValueBoolean(visible.toKey(), staticMaterial == null || staticMaterial.visible.get()), properties));
 
         TrackId color = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_COLOR);
 

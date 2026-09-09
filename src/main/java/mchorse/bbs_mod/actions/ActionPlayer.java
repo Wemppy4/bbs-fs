@@ -17,6 +17,7 @@ import mchorse.bbs_mod.morphing.Morph;
 import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.utils.DataPath;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MovementType;
@@ -258,10 +259,16 @@ public class ActionPlayer
 
     /**
      * Actors are props the film puts out, not creatures the world keeps, and the world may take one
-     * away at any moment: a chunk that unloaded and came back drops its actor on the despawn flag,
-     * a command or a stray explosion kills it. The film would then keep driving a corpse - the take
-     * simply loses a body and never gets it back. Anything missing is put back where its keyframes
-     * say it stands, and the map goes out again so clients stop pointing at a dead id.
+     * away at any moment: a chunk that unloaded and came back drops its actor on the despawn flag.
+     * The film would then keep driving a corpse - the take simply loses a body and never gets it
+     * back. Anything missing is put back where its keyframes say it stands, and the map goes out
+     * again so clients stop pointing at a dead id.
+     *
+     * <p>A body someone KILLED is the exception, and the reason the removal is asked for by name:
+     * being hit is what the flag is for, and a death is a thing being filmed, not an accident to
+     * undo. Putting it straight back made an actor unkillable by any means - a blow, a mob, even
+     * {@code /kill} - because the next tick spawned a replacement. It stays down until the film is
+     * restarted, which is what builds the cast again.</p>
      */
     private void reviveLostActors()
     {
@@ -290,8 +297,10 @@ public class ActionPlayer
         for (String id : lost)
         {
             Replay replay = (Replay) this.film.replays.get(id);
+            LivingEntity previous = this.actors.get(id);
+            boolean killed = previous != null && previous.getRemovalReason() == Entity.RemovalReason.KILLED;
 
-            if (replay == null || !replay.enabled.get())
+            if (killed || replay == null || !replay.enabled.get())
             {
                 this.actors.remove(id);
             }

@@ -189,7 +189,7 @@ final class ModelIKApplier
                     continue;
                 }
 
-                if (ClassicLimbSolver.apply(model, r.workIds(), frames, r.target(), r.tipTarget(), r.polePoint(), r.poleAngle(), r.softness(), r.weight(), chain.stretch()))
+                if (ClassicLimbSolver.apply(model, r.workIds(), frames, r.target(), r.tipTarget(), r.polePoint(), r.poleAngle(), r.softness(), r.weight(), chain.stretch(), chain.squash()))
                 {
                     continue;
                 }
@@ -693,6 +693,7 @@ final class ModelIKApplier
      * rest positions (absolute model rest space) plus the {@code lift}
      * rotation folding rest-space directions into the current pose.
      */
+    /** {@code elbow} is null on a chain with no interior joint — a single directed bone. */
     private record RestChain(Vector3f root, Vector3f elbow, Vector3f effector, Quaternionf lift)
     {
     }
@@ -704,22 +705,29 @@ final class ModelIKApplier
      * BOBJ rest geometry lives in the bind matrices, and the lift subtracts
      * the bind frame the same way (BOBJ ancestors carry authored rest
      * rotations, so the raw parent frame alone would double-count them).
-     * {@code null} when the chain is too short or a bone is missing.
+     * {@code null} when the chain is too short or a bone is missing. A chain of
+     * one directed bone has no interior joint, so it loads with a null elbow
+     * rather than not at all: the elbow is what a virtual pole needs (which side
+     * the knee bulges), while an authored pole target needs only the axis and its
+     * own rest spot — and on such a chain the pole is the only handle on the
+     * bone's twist, since the solve owns its rotation.
      */
     private static RestChain restChain(IModel model, List<String> workIds, Quaternionf rootParentRotation)
     {
-        if (workIds.size() < 3)
+        if (workIds.size() < 2)
         {
             return null;
         }
 
+        boolean bent = workIds.size() >= 3;
+
         if (model instanceof Model cubic)
         {
             ModelGroup root = cubic.getGroup(workIds.get(0));
-            ModelGroup elbow = cubic.getGroup(workIds.get(1));
+            ModelGroup elbow = bent ? cubic.getGroup(workIds.get(1)) : null;
             ModelGroup effector = cubic.getGroup(workIds.get(workIds.size() - 1));
 
-            if (root == null || elbow == null || effector == null)
+            if (root == null || effector == null || (bent && elbow == null))
             {
                 return null;
             }
@@ -731,16 +739,16 @@ final class ModelIKApplier
              * chain's ancestors carry, tilting the result even in rest pose. */
             Quaternionf restParent = cubicRestParentRotation(cubic, workIds.get(0));
 
-            return new RestChain(root.initial.translate, elbow.initial.translate, effector.initial.translate, new Quaternionf(rootParentRotation).mul(restParent.conjugate()));
+            return new RestChain(root.initial.translate, elbow == null ? null : elbow.initial.translate, effector.initial.translate, new Quaternionf(rootParentRotation).mul(restParent.conjugate()));
         }
         else if (model instanceof BOBJModel bobj)
         {
             Map<String, BOBJBone> bones = bobj.getArmature().bones;
             BOBJBone root = bones.get(workIds.get(0));
-            BOBJBone elbow = bones.get(workIds.get(1));
+            BOBJBone elbow = bent ? bones.get(workIds.get(1)) : null;
             BOBJBone effector = bones.get(workIds.get(workIds.size() - 1));
 
-            if (root == null || elbow == null || effector == null)
+            if (root == null || effector == null || (bent && elbow == null))
             {
                 return null;
             }
@@ -749,7 +757,7 @@ final class ModelIKApplier
              * rotation, so the current-vs-bind delta is the exact world lift. */
             Quaternionf bindParent = root.boneMat.getUnnormalizedRotation(new Quaternionf());
 
-            return new RestChain(root.boneMat.getTranslation(new Vector3f()), elbow.boneMat.getTranslation(new Vector3f()), effector.boneMat.getTranslation(new Vector3f()), new Quaternionf(rootParentRotation).mul(bindParent.conjugate()));
+            return new RestChain(root.boneMat.getTranslation(new Vector3f()), elbow == null ? null : elbow.boneMat.getTranslation(new Vector3f()), effector.boneMat.getTranslation(new Vector3f()), new Quaternionf(rootParentRotation).mul(bindParent.conjugate()));
         }
 
         return null;
@@ -779,6 +787,13 @@ final class ModelIKApplier
         }
 
         axis.normalize();
+
+        /* No interior joint, no bulge to read a side off: a single-bone chain can
+         * only be poled by an authored target. */
+        if (rest.elbow() == null)
+        {
+            return null;
+        }
 
         Vector3f side = perpendicularTo(new Vector3f(rest.elbow()).sub(rest.root()), axis);
         // (axis and side are in absolute model rest space; `lift` folds them into the current pose.)
@@ -833,7 +848,7 @@ final class ModelIKApplier
         Vector3f poleRest = restPosition(model, poleTarget);
         Vector3f side = poleRest == null ? null : perpendicularTo(new Vector3f(poleRest).sub(rest.root()), axis);
 
-        if (side == null)
+        if (side == null && rest.elbow() != null)
         {
             side = perpendicularTo(new Vector3f(rest.elbow()).sub(rest.root()), axis);
         }
@@ -1029,7 +1044,7 @@ final class ModelIKApplier
 
         for (ResolvedChain r : resolved)
         {
-            if (r.chain().stretch())
+            if (r.chain().stretch() || r.chain().squash())
             {
                 stretchToTarget(model, nodes, tree, r, frames, blendedParentOf, blendedWorld);
             }
@@ -1053,7 +1068,9 @@ final class ModelIKApplier
      * <p>The share is distributed only up to the last bone carrying GEOMETRY: a
      * chain ending in a bare end-marker (the auto-tail convention) would
      * otherwise open its last seam BEFORE the marker and leave the last visible
-     * bone short of the controller.
+     * bone short of the controller. When that bone is the chain's ROOT — a single
+     * visible bone reaching for its controller — the seam has nowhere to go but
+     * the root's own joint, so the root takes the whole gap and the limb slides.
      */
     private static void stretchToTarget(IModel model, List<String> nodes, IKTree tree, ResolvedChain r, Map<String, PivotFrame> frames, Quaternionf[] blendedParentOf, Quaternionf[] blendedWorld)
     {
@@ -1100,11 +1117,6 @@ final class ModelIKApplier
 
         int reach = lastGeometryIndex(model, workIds);
 
-        if (reach < 1)
-        {
-            return;
-        }
-
         /* Solved positions along the chain: the nodes from the tree, the effector
          * point for the last id. */
         Vector3f[] solved = new Vector3f[workIds.size()];
@@ -1122,6 +1134,19 @@ final class ModelIKApplier
             }
         }
 
+        /* Which half of the gap this is decides which box has to be ticked: a
+         * chain that fell SHORT of its goal telescopes out only with "stretch",
+         * one that OVERSHOT (the goal sits closer than the chain can fold, so the
+         * tip swings past it) folds in only with "squash". Independent on
+         * purpose: a leg that keeps its foot planted while the body squats must
+         * not turn rubbery when the body rises. */
+        boolean shortfall = fellShort(gap, solved[0], tree.effectors[effectorIndex].position);
+
+        if (!(shortfall ? r.chain().stretch() : r.chain().squash()))
+        {
+            return;
+        }
+
         float total = 0F;
 
         for (int i = 0; i < reach; i++)
@@ -1129,16 +1154,20 @@ final class ModelIKApplier
             total += solved[i].distance(solved[i + 1]);
         }
 
-        if (total < EPS)
+        boolean rootOnly = reach == 0;
+
+        if (!rootOnly && total < EPS)
         {
             return;
         }
 
         Vector3f cumulative = new Vector3f();
 
-        for (int i = 1; i <= reach && i < workIds.size(); i++)
+        for (int i = rootOnly ? 0 : 1; i <= reach && i < workIds.size(); i++)
         {
-            Vector3f share = new Vector3f(gap).mul(solved[i - 1].distance(solved[i]) / total);
+            Vector3f share = rootOnly
+                ? new Vector3f(gap)
+                : new Vector3f(gap).mul(solved[i - 1].distance(solved[i]) / total);
 
             String bone = workIds.get(i);
             int node = indexOf(nodes, bone);
@@ -1147,6 +1176,21 @@ final class ModelIKApplier
             cumulative.add(share);
             writeStretchOffset(model, bone, frames.get(bone), parentFrame, share, cumulative);
         }
+    }
+
+    /**
+     * Which side of the reach a gap sits on: {@code true} when the tip fell SHORT
+     * of the goal (the chain has to telescope OUT to close it), {@code false} when
+     * it overshot — the goal sits closer to the root than the chain can fold, so
+     * the tip swung past it and the chain has to fold IN. Read radially, along the
+     * root-to-tip line the solve already aimed at the goal: an unreachable goal
+     * leaves a purely radial gap, and a reachable one leaves no gap at all.
+     */
+    private static boolean fellShort(Vector3f gap, Vector3f root, Vector3f tip)
+    {
+        Vector3f radial = new Vector3f(tip).sub(root);
+
+        return radial.lengthSquared() < EPS * EPS || gap.dot(radial) >= 0F;
     }
 
     /**

@@ -18,6 +18,7 @@ import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 
@@ -129,7 +130,7 @@ public class UITextureInfoPanel extends UIElement
 
             File sidecar = TextureFiles.file(new Link(link.source, link.path + ".mcmeta"));
 
-            this.animated = sidecar != null && sidecar.isFile();
+            this.animated = (sidecar != null && sidecar.isFile()) || GifFrames.isGif(link);
 
             /* Loaded by getTexture above, when the sidecar could be read */
             AnimatedTexture animation = BBSModClient.getTextures().animatedTextures.get(link);
@@ -146,7 +147,7 @@ public class UITextureInfoPanel extends UIElement
 
             for (Link l : BBSMod.getProvider().getLinksFromPath(link, false))
             {
-                if (l.path.endsWith(".png"))
+                if (TextureFiles.isTexture(l))
                 {
                     count += 1;
                 }

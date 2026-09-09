@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.renderer.DeathPose;
 import mchorse.bbs_mod.client.renderer.ModelBlockEntityRenderer;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -150,6 +151,14 @@ public class FilmEntityRenderer
         MatrixStackUtils.multiply(formContext.world, targetWorld);
 
         MatrixStackUtils.multiply(stack, target);
+
+        /* Vanilla's fall, on a body vanilla is not drawing. An actor's shell tips over across the
+         * 20 ticks of its death, and the film draws the replay in its place, so the roll has to be
+         * put on here or a killed actor stands to attention until it vanishes. Exactly where the
+         * entity renderer puts it - after the body yaw, so the body falls sideways relative to
+         * itself - and zero, hence nothing, for everyone still alive. */
+        DeathPose.apply(stack, entity.getDeathTime(), transition);
+
         FormUtilsClient.render(form, formContext);
 
         /* A second, post-render span: the gizmo, the axes preview and the anchor gizmo are adjacent and all

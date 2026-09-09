@@ -105,13 +105,15 @@ public final class ModelPhysicsDebug
         Matrix4f matrix = new Matrix4f(stack.peek().getPositionMatrix());
         Matrix4f inverse = windMagnitude > 0F ? new Matrix4f(matrix).invert() : null;
 
+        float unit = DebugOverlay.modelUnit(model);
+
         for (ModelPhysicsCache.CompiledChain chain : compiled.chains())
         {
-            drawChain(stack, model, frames, chain, selectedRoot, config);
+            drawChain(stack, model, frames, chain, selectedRoot, config, unit);
 
             if (inverse != null)
             {
-                drawWind(stack, model, frames, chain, selectedRoot, wind, windDir, windMagnitude, age, matrix, inverse, config);
+                drawWind(stack, model, frames, chain, selectedRoot, wind, windDir, windMagnitude, age, matrix, inverse, config, unit);
             }
         }
 
@@ -174,6 +176,8 @@ public final class ModelPhysicsDebug
 
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
+        float unit = DebugOverlay.modelUnit(model);
+
         for (ModelPhysicsCache.CompiledChain chain : compiled.chains())
         {
             if (chain.targetBone() == null || chain.targetBone().isEmpty())
@@ -185,7 +189,7 @@ public final class ModelPhysicsDebug
 
             if (target != null)
             {
-                ModelIKDebug.pickMarker(builder, stack, stencilMap, form, config.attach, target, segmentUnit(chain.restLengths()), chain.targetBone());
+                ModelIKDebug.pickMarker(builder, stack, stencilMap, form, config.attach, target, unit, chain.targetBone());
             }
         }
 
@@ -193,23 +197,6 @@ public final class ModelPhysicsDebug
 
         stack.pop();
 
-    }
-
-    private static float segmentUnit(float[] lengths)
-    {
-        if (lengths == null || lengths.length == 0)
-        {
-            return 0.25F;
-        }
-
-        float total = 0F;
-
-        for (float length : lengths)
-        {
-            total += length;
-        }
-
-        return Math.max(total / lengths.length, EPS);
     }
 
     /** The chain's drawn points: each bone's pivot, then the reconstructed virtual tip. Null if any is missing. */
@@ -249,7 +236,7 @@ public final class ModelPhysicsDebug
         return pts;
     }
 
-    private static void drawChain(MatrixStack stack, IModel model, Map<String, PivotFrame> frames, ModelPhysicsCache.CompiledChain chain, String selectedRoot, ValuePhysicsDebug config)
+    private static void drawChain(MatrixStack stack, IModel model, Map<String, PivotFrame> frames, ModelPhysicsCache.CompiledChain chain, String selectedRoot, ValuePhysicsDebug config, float unit)
     {
         List<Vector3f> pts = chainPoints(model, frames, chain);
 
@@ -262,7 +249,6 @@ public final class ModelPhysicsDebug
 
         Vector3f target = chain.targetBone() == null || chain.targetBone().isEmpty() ? null : position(frames, chain.targetBone());
 
-        float unit = segmentUnit(chain.restLengths());
         boolean sel = selectedRoot == null || selectedRoot.isEmpty() || chain.attach().equals(selectedRoot);
         float a = (sel ? 1F : 0.4F) * config.opacity.get();
 
@@ -358,7 +344,7 @@ public final class ModelPhysicsDebug
      * Each arrow points in the displayed-world wind direction. The pinned root (point 0) feels no wind, so
      * it is skipped. Length is proportional to the force, scaled to the chain's segment length.
      */
-    private static void drawWind(MatrixStack stack, IModel model, Map<String, PivotFrame> frames, ModelPhysicsCache.CompiledChain chain, String selectedRoot, ModelPhysicsConfig.Wind wind, Vector3f windDir, float windMagnitude, int age, Matrix4f matrix, Matrix4f inverse, ValuePhysicsDebug config)
+    private static void drawWind(MatrixStack stack, IModel model, Map<String, PivotFrame> frames, ModelPhysicsCache.CompiledChain chain, String selectedRoot, ModelPhysicsConfig.Wind wind, Vector3f windDir, float windMagnitude, int age, Matrix4f matrix, Matrix4f inverse, ValuePhysicsDebug config, float unit)
     {
         List<Vector3f> pts = chainPoints(model, frames, chain);
 
@@ -369,7 +355,6 @@ public final class ModelPhysicsDebug
 
         boolean sel = selectedRoot == null || selectedRoot.isEmpty() || chain.attach().equals(selectedRoot);
         float a = (sel ? 1F : 0.4F) * config.opacity.get();
-        float unit = segmentUnit(chain.restLengths());
         float[] color = DebugOverlay.rgb(config.wind.color.get());
 
         Vector3f world = new Vector3f();

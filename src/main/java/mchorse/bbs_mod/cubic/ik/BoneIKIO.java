@@ -89,6 +89,7 @@ public final class BoneIKIO
             bone.ikChainLength.set(Math.max(0, entry.getInt("chain_length", 0)));
             bone.ikTipRotation.set(entry.getBool("tip_rotation", false));
             bone.ikStretch.set(entry.getBool("stretch", false));
+            bone.ikSquash.set(entry.getBool("squash", false));
             bone.ikClassic.set(entry.getBool("classic", defaultClassic));
 
             IKControl control = new IKControl();
@@ -187,6 +188,11 @@ public final class BoneIKIO
                     entry.putBool("stretch", true);
                 }
 
+                if (bone.ikSquash.get())
+                {
+                    entry.putBool("squash", true);
+                }
+
                 if (bone.ikClassic.get())
                 {
                     entry.putBool("classic", true);
@@ -229,6 +235,7 @@ public final class BoneIKIO
         bone.ikChainLength.set(0);
         bone.ikTipRotation.set(false);
         bone.ikStretch.set(false);
+        bone.ikSquash.set(false);
         bone.ikClassic.set(false);
         bone.ik.set(new IKControl());
     }

@@ -119,13 +119,22 @@ public class JemModelParser
             Vector3f pivot = translate(primary).negate();
 
             setupBone(info.group, primary, pivot);
+            parse.animation.markPart(info.group);
 
             for (JsonObject def : info.defs)
             {
                 readContent(parse, info.group, def, ZERO, pivot, 0);
             }
 
+            checkAttach(parse, info);
             model.topGroups.add(info.group);
+
+            /* A shell: the file draws nothing in it. Noted now, before the rig hangs other parts on it. */
+            if (!hasGeometry(info.group))
+            {
+                parse.shells.add(info.group);
+                parse.animation.markShell(info.group);
+            }
         }
 
         applyHierarchy(parse, hierarchy);
@@ -137,12 +146,76 @@ public class JemModelParser
     }
 
     /**
-     * Lay the vanilla rig over the flat file (see {@link CemHierarchy}): replace the pivots the file got
-     * wrong, then reparent flat top-level parts onto their vanilla parent. Geometry is unaffected — BBS
-     * composes child bones from their absolute pivots, and a parent with no rest rotation contributes
-     * nothing at rest — so a part keeps its rest position while now following the parent's animation.
-     * A reparented part is told to the animation as parent-relative: the pack positions it against the
-     * parent's rotation point, the way OptiFine composes vanilla children.
+     * Fold a layer's geometry into a base model as a material — the wool onto the sheep, the outer skin
+     * onto the drowned, the armour onto the horse. A layer is the same skeleton drawn again with other
+     * boxes, so its cubes go onto the base's bones of the same ids, under the material; a bone the base
+     * does not have comes along under its parent's counterpart, and stays still: the layer's program is
+     * the base's repeated and is not run, which a bone only the layer animates is told about.
+     *
+     * @return the quirks met, for the loader to print against the model's name.
+     */
+    public static Collection<String> graft(Result base, Result layer, String material)
+    {
+        Set<String> warnings = new LinkedHashSet<>();
+        Model model = base.model();
+
+        for (ModelGroup root : layer.model().topGroups)
+        {
+            graft(model, null, root, material, layer.animation(), warnings);
+        }
+
+        model.initialize();
+
+        return warnings;
+    }
+
+    private static void graft(Model model, ModelGroup parent, ModelGroup source, String material, CemAnimation program, Set<String> warnings)
+    {
+        ModelGroup target = model.getGroup(source.id);
+
+        if (target == null)
+        {
+            target = new ModelGroup(source.id);
+            target.initial.copy(source.initial);
+            target.current.copy(source.initial);
+
+            (parent == null ? model.topGroups : parent.children).add(target);
+
+            if (program.mentions(source.id))
+            {
+                warnings.add("bone \"" + source.id + "\" is the layer's alone - its animation is left out");
+            }
+        }
+
+        for (ModelCube cube : source.cubes)
+        {
+            cube.material = material;
+            target.cubes.add(cube);
+        }
+
+        for (ModelGroup child : source.children)
+        {
+            graft(model, target, child, material, program, warnings);
+        }
+    }
+
+    /**
+     * Lay the vanilla rig over the flat file (see {@link CemHierarchy}): give the parts the file left
+     * empty vanilla's rotation points, then reparent flat top-level parts onto their vanilla parent.
+     * Geometry is unaffected — BBS composes child bones from their absolute pivots, and a parent with
+     * no rest rotation contributes nothing at rest — so a part keeps its rest position while now
+     * following the parent's animation. A reparented part is told to the animation as parent-relative:
+     * the pack positions it against the parent's rotation point, the way OptiFine composes vanilla
+     * children.
+     *
+     * <p>Only an empty part takes vanilla's pivot. A pack keeps most vanilla parts as empty shells at a
+     * zero translate and reads their positions, and what such a shell holds in OptiFine is vanilla's own
+     * rotation point: the villager's head is animated about the neck, the magma cube's layers hang off
+     * {@code segment4.ty}, the blaze's body cancels {@code stick1.ty}. A part with geometry is placed
+     * where its file says — a pack that moved the cow's body rotation into a submodel meant it. An
+     * empty part hung on a parent stands at vanilla's offset from that parent's pivot, wherever the file
+     * put the parent — the guardian's spikes hang off a head the pack rotates about its own point — and
+     * so agrees with the vanilla frame the program is seeded from.</p>
      */
     private static void applyHierarchy(Parse parse, CemHierarchy hierarchy)
     {
@@ -156,17 +229,6 @@ public class JemModelParser
         for (ModelGroup group : parse.model.topGroups)
         {
             byId.put(group.id, group);
-        }
-
-        for (Map.Entry<String, Vector3f> entry : hierarchy.pivots.entrySet())
-        {
-            ModelGroup group = byId.get(entry.getKey());
-
-            if (group != null)
-            {
-                group.initial.translate.set(entry.getValue());
-                group.current.copy(group.initial);
-            }
         }
 
         for (Map.Entry<String, String> entry : hierarchy.parents.entrySet())
@@ -191,9 +253,75 @@ public class JemModelParser
                 parse.animation.markParentRelative(child);
             }
         }
+
+        for (ModelGroup group : parse.model.topGroups)
+        {
+            place(parse, group, null, hierarchy);
+        }
+    }
+
+    /** Give a shell vanilla's pivot — against the parent it hangs on, or the model — parents before children. */
+    private static void place(Parse parse, ModelGroup group, ModelGroup parent, CemHierarchy hierarchy)
+    {
+        Vector3f offset = parent == null ? null : hierarchy.offsets.get(group.id);
+        Vector3f pivot = offset != null ? new Vector3f(parent.initial.translate).add(offset) : hierarchy.pivots.get(group.id);
+
+        if (pivot != null && parse.shells.contains(group))
+        {
+            group.initial.translate.set(pivot);
+            group.current.copy(group.initial);
+        }
+
+        for (ModelGroup child : group.children)
+        {
+            place(parse, child, group, hierarchy);
+        }
     }
 
     private static final Vector3f ZERO = new Vector3f();
+
+    /**
+     * A part marked {@code attach} is added to the vanilla part rather than put in its place, so
+     * OptiFine draws it over the vanilla geometry. There is no vanilla geometry here - the pack's own
+     * boxes are all there is of the part. That is fine for the one use every pack makes of the flag,
+     * a signature hung on the root with no boxes at all, and a loss for a part that has some.
+     */
+    private static void checkAttach(Parse parse, GroupInfo info)
+    {
+        for (JsonObject def : info.defs)
+        {
+            if (isTrue(def, "attach") && hasGeometry(info.group))
+            {
+                parse.warn("part \"" + info.group.id + "\" is attached to the vanilla part, whose geometry is not available here - only the pack's own boxes of it are drawn");
+
+                return;
+            }
+        }
+    }
+
+    private static boolean hasGeometry(ModelGroup group)
+    {
+        if (!group.cubes.isEmpty())
+        {
+            return true;
+        }
+
+        for (ModelGroup child : group.children)
+        {
+            if (hasGeometry(child))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** A flag, whether written as a boolean or as the string {@code "true"} - packs do both. */
+    private static boolean isTrue(JsonObject object, String key)
+    {
+        return object.has(key) && object.get(key).isJsonPrimitive() && object.get(key).getAsString().equalsIgnoreCase("true");
+    }
 
     /**
      * Add a definition's boxes/sprites to a bone and recurse into its submodels (as child bones).
@@ -572,12 +700,15 @@ public class JemModelParser
         }
     }
 
-    /** One parse's working state: the model being built, its animation, the bone ids taken so far and the quirks met. */
+    /** One parse's working state: the model being built, its animation, the bone ids taken so far, the shells and the quirks met. */
     private static class Parse
     {
         public final Model model;
         public final CemAnimation animation;
         public final Set<String> ids = new HashSet<>();
+
+        /** The parts the file draws nothing in — the shells a pack only reads, whose pivots are vanilla's to give. */
+        public final Set<ModelGroup> shells = new HashSet<>();
         public final Set<String> warnings = new LinkedHashSet<>();
 
         public Parse(Model model, CemAnimation animation)

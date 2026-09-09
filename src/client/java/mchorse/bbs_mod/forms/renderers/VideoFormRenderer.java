@@ -33,7 +33,7 @@ public class VideoFormRenderer extends BillboardFormRenderer<VideoForm>
         VideoForm form = this.form;
         int age = context.entity == null ? 0 : context.entity.getAge();
 
-        this.seconds = (age + context.getTransition()) / 20F * form.speed.get() + form.videoOffset.get();
+        this.seconds = (age + context.getTransition()) / 20F + form.videoOffset.get();
         this.still = false;
 
         super.render3D(context);

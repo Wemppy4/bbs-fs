@@ -1,5 +1,10 @@
 package mchorse.bbs_mod.cubic.render;
 
+import mchorse.bbs_mod.bobj.BOBJBone;
+import mchorse.bbs_mod.cubic.IModel;
+import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.settings.values.ui.ValueDebugElement;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -20,8 +25,62 @@ import org.joml.Vector3f;
  */
 public final class DebugOverlay
 {
+    /** The drawing scale of a rig with no measurable bones at all. */
+    private static final float FALLBACK_UNIT = 0.25F;
+
+    private static final float EPS = 1.0e-6f;
+
     private DebugOverlay()
     {
+    }
+
+    /**
+     * The scale an overlay draws a model at: the average REST bone length of the
+     * WHOLE rig. One number per model, so every marker and wire on it comes out
+     * the same size — it used to be the average segment of each chain, which made
+     * a two-bone chain draw fat handles next to a five-bone one on the same model,
+     * and made every handle jump the moment a chain's length changed.
+     *
+     * <p>Rest, never the posed skeleton: a pose-derived scale would breathe with
+     * the animation, which is the same complaint one step further out. Read
+     * straight off the rig's relative bone offsets — cubic pivots are in the
+     * model's pixel space, so they come back to blocks the way the renderer takes
+     * them ({@code ICubicRenderer.moveToGroupPivot}), while BOBJ rest matrices are
+     * already in the overlay's space.
+     */
+    public static float modelUnit(IModel model)
+    {
+        float total = 0F;
+        int bones = 0;
+
+        if (model instanceof Model cubic)
+        {
+            for (ModelGroup group : cubic.getAllGroups())
+            {
+                float length = group.initial.translate.length() / 16F;
+
+                if (length > EPS)
+                {
+                    total += length;
+                    bones++;
+                }
+            }
+        }
+        else if (model instanceof BOBJModel bobj)
+        {
+            for (BOBJBone bone : bobj.getAllBOBJBones())
+            {
+                float length = bone.relBoneMat.getTranslation(new Vector3f()).length();
+
+                if (length > EPS)
+                {
+                    total += length;
+                    bones++;
+                }
+            }
+        }
+
+        return bones > 0 ? total / bones : FALLBACK_UNIT;
     }
 
     public static float[] rgb(int color)

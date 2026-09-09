@@ -12,6 +12,7 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -424,16 +425,23 @@ public class MotionPath
 
         double[] points = new double[count * 3];
 
-        for (int i = 0; i < count; i++)
+        try
         {
-            if (!sampleTargetWorld(entities, replay, target, base + i, LIVE))
+            for (int i = 0; i < count; i++)
             {
-                return null;
-            }
+                if (!sampleTargetWorld(entities, replay, target, base + i, LIVE))
+                {
+                    return null;
+                }
 
-            points[i * 3] = LIVE.x;
-            points[i * 3 + 1] = LIVE.y;
-            points[i * 3 + 2] = LIVE.z;
+                points[i * 3] = LIVE.x;
+                points[i * 3 + 1] = LIVE.y;
+                points[i * 3 + 2] = LIVE.z;
+            }
+        }
+        finally
+        {
+            RenderFrame.invalidate();
         }
 
         TreeSet<Float> ticks = new TreeSet<>();
@@ -472,6 +480,8 @@ public class MotionPath
         entity.update();
         entity.getForm().update(entity);
         replay.properties.applyProperties(entity.getForm(), tick);
+
+        RenderFrame.invalidate();
 
         Matrix4f matrix = target.is(FilmTarget.Kind.ANCHOR)
             ? FilmMatrices.getGizmoAnchorCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F)

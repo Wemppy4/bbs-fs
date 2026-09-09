@@ -40,8 +40,9 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     public UIForm()
     {
-        super(Direction.LEFT);
+        super(Direction.RIGHT);
 
+        this.buttons.activeEdge(Direction.RIGHT);
         this.keys().register(Keys.FILM_CONTROLLER_CYCLE_EDITORS, this::cyclePanels);
     }
 

@@ -489,7 +489,6 @@
     "bbs.ui.forms.editor.pick_form": "폼 선택...",
     "bbs.ui.forms.editor.slim": "슬림",
     "bbs.ui.forms.editor.slim-tooltip": "플레이어 몹 폼의 경우, 이 토글은 슬림 및 와이드 모델 형식 간에 전환할 수 있습니다",
-    "bbs.ui.forms.editor.toggle_tree": "폼 트리 전환",
     "bbs.ui.forms.editor.use_target": "대상 사용",
     "bbs.ui.forms.editors.actions.animations": "애니메이션",
     "bbs.ui.forms.editors.actions.fade": "페이드",

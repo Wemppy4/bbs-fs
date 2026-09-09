@@ -35,6 +35,7 @@ import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
 import mchorse.bbs_mod.utils.resources.PlayerSkins;
 import org.lwjgl.glfw.GLFW;
@@ -91,6 +92,9 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     public UIFolderTree tree;
     public UITextureGrid grid;
     public UITextureInfoPanel info;
+
+    /** Which of the two the side panel shows. It's a view, not the choice: the tree doesn't end a multiskin. */
+    private boolean multiskin;
 
     /* Files taken by Ctrl+C / Ctrl+X, put down by Ctrl+V; shown on the status line until then */
     private final List<Link> clipboard = new ArrayList<>();
@@ -248,24 +252,22 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.bar = new UIStrip(BAR_HEIGHT);
         this.back = new UIIcon(Icons.ARROW_LEFT, (b) -> this.up());
         this.back.tooltip(UIKeys.TEXTURES_BROWSER_BACK, Direction.BOTTOM);
-        this.treeToggle = new UIIcon(Icons.TREE, (b) ->
-        {
-            if (picker.multiLink != null)
-            {
-                picker.toggleMulti();
-            }
-        });
+        this.treeToggle = new UIIcon(Icons.TREE, (b) -> this.setMultiskin(false));
         this.treeToggle.tooltip(UIKeys.TEXTURES_BROWSER_TREE, Direction.BOTTOM);
-        this.treeToggle.highlight(() -> picker.multiLink == null, Direction.BOTTOM);
+        this.treeToggle.highlight(() -> !this.multiskin, Direction.BOTTOM);
         this.multiToggle = new UIIcon(Icons.GALLERY, (b) ->
         {
             if (picker.multiLink == null)
             {
                 picker.toggleMulti();
             }
+            else
+            {
+                this.setMultiskin(true);
+            }
         });
         this.multiToggle.tooltip(UIKeys.TEXTURE_MULTISKIN, Direction.BOTTOM);
-        this.multiToggle.highlight(() -> picker.multiLink != null, Direction.BOTTOM);
+        this.multiToggle.highlight(() -> this.multiskin, Direction.BOTTOM);
         this.search = new UITextbox(100, this::onSearch).placeholder(UIKeys.TEXTURES_BROWSER_SEARCH);
         this.sort = new UIIcon(Icons.LIST, (b) -> this.openSortMenu());
         this.sort.tooltip(UIKeys.TEXTURES_BROWSER_SORT, Direction.BOTTOM);
@@ -320,7 +322,14 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         this.grid.context(this::buildContextMenu);
         this.markContainer();
 
-        this.navigate(new Link("", ""));
+        this.navigate(defaultFolder());
+    }
+
+    private static Link defaultFolder()
+    {
+        Link textures = Link.assets("textures/");
+
+        return TextureFiles.isFolder(textures) ? textures : new Link("", "");
     }
 
     /** Place the parts for the current side panel widths: the info column reaches up beside the breadcrumbs. */
@@ -347,9 +356,17 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
     /** Which the side panel shows: the multiskin's skins while one is edited, the folder tree otherwise. */
     public void setMultiskin(boolean multiskin)
     {
-        this.tree.setVisible(!multiskin);
-        this.picker.multiList.setVisible(multiskin);
-        this.picker.buttons.setVisible(multiskin);
+        this.multiskin = multiskin && this.picker.multiLink != null;
+
+        if (!this.multiskin)
+        {
+            /* The skin's own editor stands where the grid does, so it goes together with the column */
+            this.picker.closeEditor();
+        }
+
+        this.tree.setVisible(!this.multiskin);
+        this.picker.multiList.setVisible(this.multiskin);
+        this.picker.buttons.setVisible(this.multiskin);
     }
 
     /** The multiskin editor takes the place of the grid, the breadcrumbs and the info column. */
@@ -540,7 +557,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         {
             for (Link link : BBSMod.getProvider().getLinksFromPath(this.path, false))
             {
-                if (link.path.endsWith("/") || link.path.endsWith(".png"))
+                if (link.path.endsWith("/") || TextureFiles.isTexture(link))
                 {
                     list.add(TextureEntry.of(link));
                 }
@@ -574,7 +591,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
         {
             for (Link link : BBSMod.getProvider().getLinksFromPath(root, true))
             {
-                if (!link.path.endsWith(".png") || link.path.contains("textures/banners/"))
+                if (!TextureFiles.isTexture(link) || link.path.contains("textures/banners/"))
                 {
                     continue;
                 }
@@ -926,7 +943,7 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             return;
         }
 
-        UIFileDialogs.pickFile(UIKeys.TEXTURES_BROWSER_IMPORT_TITLE, into, new String[] {"*.png"}, UIKeys.TEXTURES_BROWSER_IMPORT_FILTER, (file) ->
+        UIFileDialogs.pickFile(UIKeys.TEXTURES_BROWSER_IMPORT_TITLE, into, new String[] {"*.png", "*.gif"}, UIKeys.TEXTURES_BROWSER_IMPORT_FILTER, (file) ->
         {
             if (file == null || !file.isFile())
             {
@@ -1335,8 +1352,8 @@ public class UITextureBrowser extends UIElement implements IFolderTreeHost
             {
                 menu.action(Icons.FILM, UIKeys.TEXTURES_BROWSER_COMBINE.format(String.valueOf(frames.size())), () -> this.promptCombine(frames));
             }
-            /* A texture on disk that isn't animated yet: into the editor with the animation on */
-            else if (file != null && file.isFile() && !TextureAnimation.file(file).isFile())
+            /* A texture on disk that isn't animated yet (a GIF always is): into the editor with the animation on */
+            else if (file != null && file.isFile() && !GifFrames.isGif(link) && !TextureAnimation.file(file).isFile())
             {
                 menu.action(Icons.FILM, UIKeys.TEXTURES_MAKE_ANIMATED, () -> this.picker.openTextureAnimated(link));
             }

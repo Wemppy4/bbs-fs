@@ -17,7 +17,9 @@ import net.irisshaders.iris.pbr.TextureTracker;
 import net.irisshaders.iris.pbr.loader.PBRTextureLoaderRegistry;
 import net.irisshaders.iris.pbr.texture.PBRTextureManager;
 import net.irisshaders.iris.pipeline.IrisPipelines;
+import net.irisshaders.iris.pipeline.ShaderRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
+import net.irisshaders.iris.shadows.ShadowRenderer;
 import net.irisshaders.iris.shaderpack.LanguageMap;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.option.menu.OptionMenuContainer;
@@ -66,6 +68,7 @@ public class IrisUtils
      * So {@code ShaderPackMixin} hands them over the moment the field is written.</p>
      */
     private static ShaderProperties properties;
+    private static int offscreenDepth;
 
     private static boolean warnedNoProperties;
 
@@ -342,6 +345,54 @@ public class IrisUtils
         if (pipeline != null)
         {
             pipeline.setIsMainBound(bound);
+        }
+    }
+
+    /**
+     * Whether the pack currently replaces the game's own programs. It says no while the main
+     * framebuffer isn't bound — that is, while something renders off-screen — so a caller can
+     * tell "a pack is loaded" apart from "the pack is shading this very draw".
+     */
+    public static boolean shouldOverrideShaders()
+    {
+        WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipelineNullable();
+
+        return pipeline instanceof ShaderRenderingPipeline shaders && shaders.shouldOverrideShaders();
+    }
+
+    /**
+     * Run a render that goes into a framebuffer of ours instead of the world's: the pack is told
+     * the main target is gone (so it stops overriding programs) and the shadow pass is turned off
+     * for the duration. Only the outermost call flips the pack's state — nested off-screen
+     * renders would otherwise hand the main target back while the outer one is still drawing.
+     */
+    public static void renderOffscreen(Runnable render)
+    {
+        WorldRenderingPipeline pipeline = Iris.getPipelineManager().getPipelineNullable();
+        boolean override = offscreenDepth == 0 && pipeline instanceof ShaderRenderingPipeline shaders && shaders.shouldOverrideShaders();
+        boolean shadow = ShadowRenderer.ACTIVE;
+
+        try
+        {
+            if (override)
+            {
+                pipeline.setIsMainBound(false);
+            }
+
+            offscreenDepth += 1;
+            ShadowRenderer.ACTIVE = false;
+
+            render.run();
+        }
+        finally
+        {
+            offscreenDepth -= 1;
+            ShadowRenderer.ACTIVE = shadow;
+
+            if (override)
+            {
+                pipeline.setIsMainBound(true);
+            }
         }
     }
 

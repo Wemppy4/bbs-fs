@@ -14,6 +14,7 @@ import mchorse.bbs_mod.resources.packs.URLSourcePack;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.textures.TextureEntry;
+import mchorse.bbs_mod.ui.textures.TextureFiles;
 import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.textures.UITextureBrowser;
 import mchorse.bbs_mod.ui.dashboard.panels.bar.UIPanelTopBar;
@@ -39,6 +40,7 @@ import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import mchorse.bbs_mod.utils.resources.FilteredLink;
+import mchorse.bbs_mod.utils.resources.GifFrames;
 import mchorse.bbs_mod.utils.resources.LinkUtils;
 import mchorse.bbs_mod.utils.resources.MultiLink;
 import org.apache.commons.io.IOUtils;
@@ -130,21 +132,22 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         {
             String string = link.toString();
 
-            if (string.endsWith(".png") && !string.contains(":textures/banners/")) list.add(string);
+            if (TextureFiles.isTexture(link) && !string.contains(":textures/banners/")) list.add(string);
         }
 
+        /* A URL may go on past the extension */
         for (Link link : BBSMod.getProvider().getLinksFromPath(new Link("http", "")))
         {
             String string = link.toString();
 
-            if (string.contains(".png")) list.add(string);
+            if (string.contains(".png") || string.contains(GifFrames.EXTENSION)) list.add(string);
         }
 
         for (Link link : BBSMod.getProvider().getLinksFromPath(new Link("https", "")))
         {
             String string = link.toString();
 
-            if (string.contains(".png")) list.add(string);
+            if (string.contains(".png") || string.contains(GifFrames.EXTENSION)) list.add(string);
         }
 
         UIListOverlayPanel panel = new UIListOverlayPanel(UIKeys.TEXTURE_FIND_TITLE, callback);
@@ -710,17 +713,23 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
     {
         int index = this.multiList.getIndex();
 
-        if (index >= 0 && this.multiList.getList().size() > 1)
+        if (index < 0)
         {
-            this.multiList.getList().remove(index);
-            this.multiList.update();
-            this.multiList.setIndex(index - 1);
-
-            if (this.multiList.getIndex() >= 0)
-            {
-                this.setFilteredLink(this.multiList.getCurrent().get(0));
-            }
+            return;
         }
+
+        if (this.multiList.getList().size() == 1)
+        {
+            /* A multiskin of one skin is just that texture: taking out the last one ends the multiskin */
+            this.setMulti(this.multiList.getList().get(0).path, true);
+
+            return;
+        }
+
+        this.multiList.getList().remove(index);
+        this.multiList.update();
+        this.multiList.setIndex(Math.min(index, this.multiList.getList().size() - 1));
+        this.setFilteredLink(this.multiList.getCurrent().get(0));
     }
 
     private void setFilteredLink(FilteredLink location)
@@ -743,6 +752,15 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         if (this.editor.isVisible())
         {
             this.editor.resetView();
+        }
+    }
+
+    /** Put the skin's editor away, if it's open: it has nothing to stand on without the multiskin column. */
+    public void closeEditor()
+    {
+        if (this.editor.isVisible())
+        {
+            this.toggleEditor();
         }
     }
 
@@ -822,10 +840,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
     protected void setMulti(Link skin, boolean notify, boolean scroll)
     {
-        if (this.editor.isVisible())
-        {
-            this.toggleEditor();
-        }
+        this.closeEditor();
 
         boolean show = skin instanceof MultiLink;
 

@@ -27,8 +27,10 @@ import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.utils.FormMaterialLevels;
 import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -107,6 +109,14 @@ public class ModelInstance implements IModelInstance
 
     /** The model's intrinsic texture from its loader; {@link ModelConfig#texture} overrides it when set. */
     public Link baseTexture;
+
+    /**
+     * What the loader had to work around to build this model - a part model it could not find, an
+     * attribute it does not support, a second model file in the folder it had to leave out - worded
+     * by the loader, one line each. A model that came out wrong looks exactly like one drawn that way,
+     * and the console, where the same lines go, is where nobody looks; the model editor shows these.
+     */
+    public final List<String> warnings = new ArrayList<>();
 
     /**
      * The {@code .bbs.json} this model was read from, when the model editor may write it back: a
@@ -551,6 +561,8 @@ public class ModelInstance implements IModelInstance
 
             renderProcessor.setColor(color.r, color.g, color.b, color.a);
             renderProcessor.setWelds(bindings);
+            /* A material switched off in the material tab drops every cube and mesh that names it. */
+            renderProcessor.setMaterialVisibility((material) -> FormMaterialLevels.materialVisible(this.form instanceof ModelForm form ? form : null, material));
 
             /* One pass per material, each with that material's texture bound: the draw takes its
              * texture from whatever the manager bound last, and an OBJ normalises every material's
@@ -662,6 +674,13 @@ public class ModelInstance implements IModelInstance
                  * material textures back in exactly the way 1.21.1 did. */
                 for (BOBJModelVAO vao : vaos)
                 {
+                    /* A mesh IS its material here, so a material switched off in the material tab
+                     * takes the whole mesh out of the draw. */
+                    if (!FormMaterialLevels.materialVisible(this.form instanceof ModelForm form ? form : null, vao.data.mesh.name))
+                    {
+                        continue;
+                    }
+
                     if (textureResolver != null)
                     {
                         Texture meshTexture = textureResolver.apply(vao.data.mesh.name);

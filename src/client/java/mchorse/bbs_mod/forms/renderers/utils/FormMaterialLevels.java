@@ -14,6 +14,26 @@ import java.util.Map;
  */
 public class FormMaterialLevels
 {
+    /** Visibility applies to every pass, including picking and shadow draws. */
+    public static boolean materialVisible(ModelForm form, String material)
+    {
+        if (form == null || material == null || material.isEmpty())
+        {
+            return true;
+        }
+
+        Boolean override = form.materialVisibilityOverrides.get(material);
+
+        if (override != null)
+        {
+            return override;
+        }
+
+        FormMaterial formMaterial = form.materials.getMaterial(material);
+
+        return formMaterial == null || formMaterial.visible.get();
+    }
+
     /** The material's multiply color, or null when neutral. */
     public static Color materialColor(ModelForm form, String material)
     {
