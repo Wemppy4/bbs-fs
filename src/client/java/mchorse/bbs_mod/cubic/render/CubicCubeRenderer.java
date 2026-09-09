@@ -234,11 +234,14 @@ public class CubicCubeRenderer implements ICubicRenderer
     {
         this.groupOverlay = this.overlayPalette == null ? this.overlay : this.overlayPalette.applyAsInt(group);
 
-        /* Cubes belong to the model's own material — they have no material of their own and take
-         * the base texture, the way they did before materials existed. */
-        if (this.materialFilter == null || this.materialFilter.isEmpty())
+        /* A cube belongs to the material it names, like a mesh does: a CEM layer (the drowned's outer
+         * skin, a sheep's wool, a horse's armour) is grafted onto the same bones as the body and is
+         * told apart by nothing else, so a pass that drew every cube would put the body's texture on
+         * the layer. A model without materials leaves the name empty and draws in the empty pass, the
+         * way it did before materials existed. */
+        for (ModelCube cube : group.cubes)
         {
-            for (ModelCube cube : group.cubes)
+            if (this.materialFilter == null || this.materialFilter.equals(cube.material))
             {
                 this.renderCube(builder, stack, group, cube);
             }
