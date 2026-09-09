@@ -1,8 +1,11 @@
 package mchorse.bbs_mod.forms.renderers;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -24,12 +27,15 @@ import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
@@ -37,6 +43,7 @@ import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
 import java.util.Map;
+import java.util.function.Supplier;
 
 public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 {
@@ -208,15 +215,26 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         GL11.glCullFace(cullFace);
 
         boolean shading = !context.isPicking();
-        VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
-        /* TODO(1.21.11 render): the composite still needs a pipeline. 1.21.1 picked one per pass —
-         * shading ? getRenderTypeEntityTranslucentProgram : getPositionTexColorProgram — and both
-         * accessors are gone. The equivalents here are BBSShaders.getBoundModelLayer() and
-         * getBoundBillboardLayer(); until renderQuad submits through one the composite draws nothing. */
-        this.renderModel(framebuffer.getMainTexture(), format, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+
+        /* The finished picture goes onto the quad through the same pair of layers the billboard draws
+         * through: the shaded one in the world (formerly getRenderTypeEntityTranslucentProgram), the
+         * unlit one while picking, where the buffer holds ids as colours and any shading would alter
+         * them (formerly getPositionTexColorProgram).
+         *
+         * Both layers cull backfaces, because renderQuad emits the quad TWICE — once per side, with
+         * opposite winding and normals — and counts on the GPU to keep the side facing the viewer. On
+         * 1.21.1 that came for free from the global GL state; here it is the layer's own pipeline.
+         *
+         * The unlit layer is vanilla's position_tex_color, so the picking format loses the LIGHT element
+         * the 1.21.1 one carried: that program never read it, and on 1.21.11 the buffer's format has to
+         * be exactly the pipeline's own. */
+        VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_COLOR;
+        Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundCulledModelLayer : BBSShaders::getBoundBillboardLayer;
+
+        this.renderModel(framebuffer.getMainTexture(), format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
     }
 
-    private void renderModel(Texture texture, VertexFormat format, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderModel(Texture texture, VertexFormat format, Supplier<RenderLayer> layer, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
     {
         float w = texture.width;
         float h = texture.height;
@@ -249,10 +267,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         quad.p3.set(TLx, BRy, 0);
         quad.p4.set(BRx, BRy, 0);
 
-        this.renderQuad(format, texture, matrices, overlay, light, overlayColor, transition, defer);
+        this.renderQuad(format, texture, layer, matrices, overlay, light, overlayColor, transition, defer);
     }
 
-    private void renderQuad(VertexFormat format, Texture texture, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderQuad(VertexFormat format, Texture texture, Supplier<RenderLayer> layer, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
     {
         Color color = Color.white();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -260,13 +278,16 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         color.mul(overlayColor);
 
-        /* TODO(1.21.11 render): lightmap/overlay enable + RenderSystem.setShader were removed; lightmap,
-         * overlay and the shader program are now bound through the RenderPipeline/RenderLayer samplers. */
-
+        /* Was: lightmap.enable() + overlay.setupOverlayColor() + RenderSystem.setShader(shader).
+         * Lightmap, overlay and the program all belong to the layer now — the BBS model layer declares
+         * useLightmap()/useOverlay() and its pipeline is the shader.
+         *
+         * This bind is what the layer resolves from (getBoundCulledModelLayer reads the texture manager's
+         * last bound texture), so it has to come BEFORE the layer is asked for. Still no raw bind on the
+         * active unit: the draw binds its own samplers, and a raw one would land behind GlStateManager's
+         * back - see BillboardFormRenderer. */
         BBSModClient.getTextures().bindTexture(texture);
 
-        /* No raw bind here: the draw binds its own samplers, and a bind on whatever unit is
-         * active would land behind GlStateManager's back - see BillboardFormRenderer. */
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, format);
 
         /* Front */
@@ -287,22 +308,48 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         this.fill(format, builder, matrix, quad.p4.x, quad.p4.y, color, uvQuad.p4.x, uvQuad.p4.y, overlay, light, entry, -1F);
         this.fill(format, builder, matrix, quad.p3.x, quad.p3.y, color, uvQuad.p3.x, uvQuad.p3.y, overlay, light, entry, -1F);
 
-        /* TODO(1.21.11 render): blend state now pipeline-encoded; BufferRenderer.drawWithGlobalProgram was
-         * removed. The built quad must be submitted via a RenderLayer/RenderPipeline draw (e.g.
-         * someRenderLayer.draw(builtBuffer)). For now we build then discard the buffer so it compiles and
-         * does not leak; the framebuffer composite is a no-op until the pipeline path is wired up. */
-        net.minecraft.client.render.BuiltBuffer __bbsBuilt = builder.endNullable();
+        /* Was: defaultBlendFunc + enableBlend + BufferRenderer.drawWithGlobalProgram. Blend is encoded in
+         * the layer's pipeline now, and the quad is submitted through the layer, which carries this
+         * framebuffer's texture in its own Sampler0. */
+        BuiltBuffer built = builder.endNullable();
 
-        if (__bbsBuilt != null)
+        if (built != null)
         {
-            __bbsBuilt.close();
-        }
+            if (defer && FormTranslucentQueue.isActive())
+            {
+                /* The framebuffer's content is transparent-background by nature, so the whole quad defers
+                 * into the sorted translucent pass. A flat quad has nothing to occlude itself with, so the
+                 * deferred pass drops the depth write — except under a shaderpack, which reconstructs its
+                 * shading from the depth buffer and would paint the backdrop's shadows over our face.
+                 *
+                 * The layer is resolved HERE, while this framebuffer's texture is still the bound one: at
+                 * flush time the binding belongs to whoever drew last. The pool hands the same buffer to
+                 * the next form of the same size, so several deferred quads end up showing the same
+                 * content — a known trade-off of the pooled scheme, exactly as on 1.21.1. */
+                RenderLayer deferred = BBSShaders.getBoundModelLayer(new BBSShaders.ModelVariant(
+                    FormTranslucentQueue.PASS_SINGLE, BBSRendering.isIrisWorldForms(), true));
+                Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
+                Vector3f origin = modelView.transformPosition(matrix.getTranslation(new Vector3f()));
 
-        /* TODO(1.21.11 render): lightmap/overlay teardown was here; now pipeline-encoded. */
+                FormTranslucentQueue.add(new FormTranslucentQueue.BufferCommand(deferred, FormRenderCapture.copy(built), origin));
+
+                built.close();
+            }
+            else
+            {
+                layer.get().draw(built);
+            }
+        }
     }
 
     private VertexConsumer fill(VertexFormat format, VertexConsumer consumer, Matrix4f matrix, float x, float y, Color color, float u, float v, int overlay, int light, MatrixStack.Entry entry, float nz)
     {
+        if (format == VertexFormats.POSITION_TEXTURE_COLOR)
+        {
+            /* The unlit path: vanilla position_tex_color reads exactly Position/UV0/Color. */
+            return consumer.vertex(matrix, x, y, 0F).texture(u, v).color(color.r, color.g, color.b, color.a);
+        }
+
         if (format == VertexFormats.POSITION_TEXTURE_LIGHT_COLOR)
         {
             return consumer.vertex(matrix, x, y, 0F).texture(u, v).light(light).color(color.r, color.g, color.b, color.a);
