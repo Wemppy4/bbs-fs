@@ -103,6 +103,7 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_COPY_ENTITY_TOOLTIP = L10n.lang("bbs.ui.camera.panels.copy_entity_tooltip");
     public static final IKey CAMERA_PANELS_CURVES_BRIGHTNESS = L10n.lang("bbs.ui.camera.panels.curves.brightness");
     public static final IKey CAMERA_PANELS_CURVES_SUN_ROTATION = L10n.lang("bbs.ui.camera.panels.curves.sun_rotation");
+    public static final IKey CAMERA_PANELS_CURVES_SUN_HORIZONTAL_ROTATION = L10n.lang("bbs.ui.camera.panels.curves.sun_horizontal_rotation");
     public static final IKey CAMERA_PANELS_CURVES_WEATHER = L10n.lang("bbs.ui.camera.panels.curves.weather");
     public static final IKey CAMERA_PANELS_CURVES_CHROMA_SKY_COLOR = L10n.lang("bbs.ui.camera.panels.curves.chroma_sky_color");
     public static final IKey CAMERA_PANELS_CURVE_ADD = L10n.lang("bbs.ui.camera.panels.curve.add");

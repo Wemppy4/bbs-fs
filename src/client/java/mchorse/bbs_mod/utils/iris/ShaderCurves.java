@@ -16,16 +16,17 @@ import java.util.regex.Pattern;
 
 public class ShaderCurves
 {
+    public static final String BRIGHTNESS = "brightness";
+    public static final String SUN_ROTATION = "sun_rotation";
+    public static final String SUN_HORIZONTAL_ROTATION = "sun_horizontal_rotation";
+    public static final String WEATHER = "weather";
+
+    public static final String UNIFORM_IDENTIFIER = "bbs_";
+
     public static Map<String, ShaderVariable> variableMap = new HashMap<>();
 
     private static Set<String> prohibitedVariables = new HashSet<>();
     private static Set<String> prohibitedConstIdentifiers = new HashSet<>();
-
-    public static final String BRIGHTNESS = "brightness";
-    public static final String SUN_ROTATION = "sun_rotation";
-    public static final String WEATHER = "weather";
-
-    public static final String UNIFORM_IDENTIFIER = "bbs_";
 
     static
     {
@@ -45,6 +46,8 @@ public class ShaderCurves
 
     public static String processSource(String source)
     {
+        source = ShaderSunRotation.processSource(source);
+
         if (!BBSSettings.shaderCurvesEnabled.get())
         {
             return source;

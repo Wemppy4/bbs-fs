@@ -2,6 +2,7 @@ package mchorse.bbs_mod.utils.iris;
 
 import joptsimple.internal.Strings;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureManager;
 import mchorse.bbs_mod.resources.Link;
@@ -368,6 +369,8 @@ public class IrisUtils
 
     public static void addUniforms(List<CachedUniform> list, Map<String, ShaderCurves.ShaderVariable> variableMap)
     {
+        list.add(new FloatCachedUniform(ShaderSunRotation.UNIFORM, UniformUpdateFrequency.PER_FRAME, BBSRendering::getSunHorizontalRotation));
+
         for (ShaderCurves.ShaderVariable value : variableMap.values())
         {
             if (value.integer)

@@ -160,8 +160,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         int prevRead = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
         boolean scissorEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
         int[] scissorBox = new int[4];
+        float[] clearColor = new float[4];
 
         GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissorBox);
+        GL11.glGetFloatv(GL11.GL_COLOR_CLEAR_VALUE, clearColor);
 
         Vector3f light0 = RenderSystem.shaderLightDirections[0];
         Vector3f light1 = RenderSystem.shaderLightDirections[1];
@@ -193,6 +195,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         /* Whoever was drawing before us may have left a scissor box — the UI clips its
          * viewport that way — and it would clip this framebuffer's own pixels too. */
         RenderSystem.disableScissor();
+
+        /* Transparent clear: whatever was drawn before us may have left an opaque clear colour,
+         * and clearing this buffer with it would give the finished picture a solid background. */
+        RenderSystem.clearColor(0F, 0F, 0F, 0F);
         framebuffer.clear();
 
         context.stack.push();
@@ -217,6 +223,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
         finally
         {
+            RenderSystem.clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
             context.light = light;
 
             FormTranslucentQueue.restore(queueWasActive);
