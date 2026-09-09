@@ -8,6 +8,7 @@ import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.PostEffectPass;
 import net.minecraft.client.gl.PostEffectProcessor;
 import net.minecraft.util.Identifier;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 
 /**
@@ -72,27 +73,55 @@ public class InterfaceBlur
         direct(horizontal, 1F, 0F, radius);
         direct(vertical, 0F, 1F, radius);
 
-        /* The passes replace what they draw over, they do not blend into it - and blending is
-         * on by the time a second blur runs in the same frame (the first one leaves it on for
-         * the interface). With it on, the second pass writes a fragment whose alpha is zero
-         * (see the mask below), which lands as nothing at all and leaves the buffer black. */
-        RenderSystem.disableBlend();
+        int depthFunction = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+        boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
 
-        /* Colour only: box_blur averages the whole vec4, alpha included, and the interface
-         * is drawn into a buffer whose alpha is not 1 everywhere - averaging it down turns
-         * the blurred picture dark in patches. The pre-1.21.1 blur program guarded against
-         * exactly this by summing alpha instead of averaging it; masking the channel does
-         * the same thing without a shader of our own (a pass never touches the mask). */
-        RenderSystem.colorMask(true, true, true, false);
-        processor.render(0F);
-        RenderSystem.colorMask(true, true, true, true);
+        try
+        {
+            /* Blur only changes color. In particular, the final pass must neither clear the
+             * main target's depth nor write its fullscreen quad into it: subsequent GUI text
+             * and panels may enable depth testing. */
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
 
-        /* The last pass leaves no framebuffer bound and the blur program's blend state behind;
-         * the interface draws into the main one with the usual blending and texture unit */
-        main.beginWrite(true);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+            /* The passes replace what they draw over, they do not blend into it - and blending is
+             * on by the time a second blur runs in the same frame (the first one leaves it on for
+             * the interface). With it on, the second pass writes a fragment whose alpha is zero
+             * (see the mask below), which lands as nothing at all and leaves the buffer black. */
+            RenderSystem.disableBlend();
+
+            /* Colour only: box_blur averages the whole vec4, alpha included, and the interface
+             * is drawn into a buffer whose alpha is not 1 everywhere - averaging it down turns
+             * the blurred picture dark in patches. The pre-1.21.1 blur program guarded against
+             * exactly this by summing alpha instead of averaging it; masking the channel does
+             * the same thing without a shader of our own (a pass never touches the mask). */
+            RenderSystem.colorMask(true, true, true, false);
+            processor.render(0F);
+        }
+        finally
+        {
+            RenderSystem.colorMask(true, true, true, true);
+
+            /* PostEffectPass leaves GL_LEQUAL behind, but BBS paints its UI with GL_ALWAYS.
+             * Restore the caller's depth state as well as the target and GUI blending. */
+            main.beginWrite(true);
+            RenderSystem.depthMask(depthMask);
+            RenderSystem.depthFunc(depthFunction);
+
+            if (depthTest)
+            {
+                RenderSystem.enableDepthTest();
+            }
+            else
+            {
+                RenderSystem.disableDepthTest();
+            }
+
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        }
     }
 
     /**
