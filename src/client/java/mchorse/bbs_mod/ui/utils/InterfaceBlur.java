@@ -8,6 +8,7 @@ import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.PostEffectPass;
 import net.minecraft.client.gl.PostEffectProcessor;
 import net.minecraft.util.Identifier;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 
 /**
@@ -72,14 +73,41 @@ public class InterfaceBlur
         direct(horizontal, 1F, 0F, radius);
         direct(vertical, 0F, 1F, radius);
 
-        processor.render(0F);
+        int depthFunction = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+        boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
 
-        /* The last pass leaves no framebuffer bound and the blur program's blend state behind;
-         * the interface draws into the main one with the usual blending and texture unit */
-        main.beginWrite(true);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        try
+        {
+            /* Blur only changes color. In particular, the final pass must neither clear the
+             * main target's depth nor write its fullscreen quad into it: subsequent GUI text
+             * and panels may enable depth testing, including through Forge/Oculus. */
+            RenderSystem.disableDepthTest();
+            RenderSystem.depthMask(false);
+
+            processor.render(0F);
+        }
+        finally
+        {
+            /* PostEffectPass leaves GL_LEQUAL behind, but BBS paints its UI with GL_ALWAYS.
+             * Restore the caller's depth state as well as the target and GUI blending. */
+            main.beginWrite(true);
+            RenderSystem.depthMask(depthMask);
+            RenderSystem.depthFunc(depthFunction);
+
+            if (depthTest)
+            {
+                RenderSystem.enableDepthTest();
+            }
+            else
+            {
+                RenderSystem.disableDepthTest();
+            }
+
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+        }
     }
 
     /**
