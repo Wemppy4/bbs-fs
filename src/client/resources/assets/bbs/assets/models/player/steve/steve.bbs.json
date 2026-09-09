@@ -3,6 +3,10 @@
 	"animations": {},
 	"model": {
 		"groups": {
+			"left_arm_end": {
+				"origin": [-6, 12, 0],
+				"parent": "left_arm"
+			},
 			"left_arm_item": {
 				"origin": [-6, 12, 0],
 				"parent": "left_arm"
@@ -43,6 +47,10 @@
 						}
 					}
 				]
+			},
+			"right_arm_end": {
+				"origin": [6, 12, 0],
+				"parent": "right_arm"
 			},
 			"right_arm_item": {
 				"origin": [6, 12, 0],
@@ -126,6 +134,10 @@
 					}
 				]
 			},
+			"body_end": {
+				"origin": [0, 24, 0],
+				"parent": "body"
+			},
 			"body": {
 				"origin": [0, 24, 0],
 				"parent": "low_body"
@@ -175,7 +187,11 @@
 			},
 			"low_body": {
 				"origin": [0, 12, 0],
-				"parent": "anchor"
+				"parent": "anchor_low"
+			},
+			"right_leg_end": {
+				"origin": [2, 0, 0],
+				"parent": "right_leg"
 			},
 			"armor_right_leg": {
 				"origin": [2, 12, 0],
@@ -187,7 +203,7 @@
 			},
 			"right_leg": {
 				"origin": [2, 12, 0],
-				"parent": "anchor",
+				"parent": "anchor_low",
 				"cubes": [
 					{
 						"origin": [2, 6, 0],
@@ -218,6 +234,10 @@
 					}
 				]
 			},
+			"left_leg_end": {
+				"origin": [-2, 0, 0],
+				"parent": "left_leg"
+			},
 			"armor_left_leg": {
 				"origin": [-2, 12, 0],
 				"parent": "left_leg"
@@ -228,7 +248,7 @@
 			},
 			"left_leg": {
 				"origin": [-2, 12, 0],
-				"parent": "anchor",
+				"parent": "anchor_low",
 				"cubes": [
 					{
 						"origin": [-2, 6, 0],
@@ -258,6 +278,50 @@
 						}
 					}
 				]
+			},
+			"anchor_low": {
+				"origin": [0, 16, 0],
+				"parent": "anchor"
+			},
+			"pole_right_arm": {
+				"origin": [6, 18, 10],
+				"parent": "controller_right_arm"
+			},
+			"controller_right_arm": {
+				"origin": [6, 11, 0],
+				"parent": "anchor"
+			},
+			"pole_left_arm": {
+				"origin": [-6, 18, 10],
+				"parent": "controller_left_arm"
+			},
+			"controller_left_arm": {
+				"origin": [-6, 11, 0],
+				"parent": "anchor"
+			},
+			"pole_right_leg": {
+				"origin": [2, 6, -8],
+				"parent": "controller_right_leg"
+			},
+			"controller_right_leg": {
+				"origin": [2, -1, 0],
+				"parent": "anchor"
+			},
+			"pole_left_leg": {
+				"origin": [-2, 6, -8],
+				"parent": "controller_left_leg"
+			},
+			"controller_left_leg": {
+				"origin": [-2, -1, 0],
+				"parent": "anchor"
+			},
+			"pole_body": {
+				"origin": [0, 18, 8],
+				"parent": "controller_body"
+			},
+			"controller_body": {
+				"origin": [0, 24, 0],
+				"parent": "anchor"
 			},
 			"anchor": {
 				"origin": [0, 16, 0]
