@@ -15,6 +15,7 @@ import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
@@ -30,11 +31,13 @@ import mchorse.bbs_mod.utils.Quad;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.joml.Vectors;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RawProjectionMatrix;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.Tessellator;
@@ -71,6 +74,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
     private static GpuBuffer lightsBuffer;
     private static GpuBufferSlice lights;
 
+    /** Whatever the parts inside want to ask about the entity wearing the form; a cell has none. */
+    private final IEntity entity = new StubEntity();
+
     public FramebufferFormRenderer(FramebufferForm form)
     {
         super(form);
@@ -86,12 +92,53 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             int size = 32;
 
             context.batcher.scaledIcon(Icons.PLAYER, Colors.WHITE, (x1 + x2 - size) / 2F, (y1 + y2 - size) / 2F, size);
+
+            return;
         }
-        /* TODO(1.21.11 render merge): in-UI framebuffer-form preview STUBBED (the port's HEAD renderInUI was
-         * already an empty stub; the 1.21.1 body auto-merged in). It drew the body parts through a 3D
-         * MatrixStack (context.batcher.getContext().getMatrices() — now a 2D Matrix3x2fStack) with
-         * RenderSystem.depthFunc (removed). Needs the port's 2D->3D GUI matrix bridge + pipeline depth
-         * state. Only the empty-state camera icon is shown for now. */
+
+        /* A list or icon cell: the picture is submitted as a special GUI element and drawn off-screen in
+         * the GUI prepare phase, because the two-phase GUI (1.21.6+) drops an immediate 3D draw recorded
+         * here. BbsFormGuiElementRenderer calls back into renderUIPreview — the same path the model and
+         * billboard forms take. 1.21.1 drew straight onto the batcher's 3D matrix stack, which is a 2D
+         * one now, and bracketed it with RenderSystem.depthFunc, which is gone. */
+        this.submitUIPreview(context, x1, y1, x2, y2);
+    }
+
+    /**
+     * The cell preview: the form's own {@link #renderBodyParts} draws the parts into a buffer and puts the
+     * quad on screen, so a cell shows exactly what the world does — only framed for the cell.
+     *
+     * <p>The base renderer has already translated the stack to the cell and set its ortho projection; what
+     * is left is the shared cell framing plus the same lift and scale the billboard gives its own flat
+     * preview, the quad being the same kind of flat thing. The normal matrix takes the Y flip the preview
+     * frame is mirrored by, or the quad is lit from the wrong side (see ModelFormRenderer).</p>
+     */
+    @Override
+    public void renderUIPreview(MatrixStack stack, float angle, float transition, int x1, int y1, int x2, int y2)
+    {
+        if (this.form.parts.getAll().isEmpty())
+        {
+            return;
+        }
+
+        Matrix4f uiMatrix = getUIPreviewMatrix(angle, y1, y2);
+
+        this.applyTransforms(uiMatrix, transition);
+
+        stack.push();
+
+        MatrixStackUtils.multiply(stack, uiMatrix);
+        stack.translate(0F, 1F, 0F);
+        stack.scale(1.5F, 1.5F, 1.5F);
+
+        stack.peek().getNormalMatrix().getScale(Vectors.EMPTY_3F);
+        stack.peek().getNormalMatrix().scale(1F / Vectors.EMPTY_3F.x, -1F / Vectors.EMPTY_3F.y, 1F / Vectors.EMPTY_3F.z);
+
+        this.renderBodyParts(new FormRenderingContext()
+            .set(FormRenderType.ENTITY, this.entity, stack, LightmapTextureManager.pack(15, 15), OverlayTexture.DEFAULT_UV, transition)
+            .inUI());
+
+        stack.pop();
     }
 
     /**
