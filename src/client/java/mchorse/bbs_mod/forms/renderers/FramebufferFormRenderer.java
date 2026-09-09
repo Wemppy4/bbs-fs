@@ -1,5 +1,9 @@
 package mchorse.bbs_mod.forms.renderers;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.systems.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSModClient;
@@ -28,19 +32,23 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RawProjectionMatrix;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -49,6 +57,16 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 {
     private static final Quad quad = new Quad();
     private static final Quad uvQuad = new Quad();
+
+    /* The box the nested forms render into: the whole texture, flipped in Y (a framebuffer's origin is its
+     * top-left corner), 500 units of depth either way. One box for every framebuffer form, nested ones
+     * included — it never depends on the form, so a nested render writing the same values over the outer
+     * one's slice changes nothing. */
+    private static final Matrix4f ORTHO = new Matrix4f().setOrtho(-1F, 1F, 1F, -1F, -500F, 500F);
+    private static final RawProjectionMatrix PROJECTION = new RawProjectionMatrix("bbs_framebuffer_form");
+
+    private static GpuBuffer lightsBuffer;
+    private static GpuBufferSlice lights;
 
     public FramebufferFormRenderer(FramebufferForm form)
     {
@@ -140,18 +158,28 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         int cullFace = GL11.glGetInteger(GL11.GL_CULL_FACE_MODE);
 
-        /* TODO(1.21.11 render): RenderSystem.shaderLightDirections / setShaderLights(Vector3f,Vector3f) /
-         * getProjectionMatrix / setProjectionMatrix / getVertexSorting / applyModelViewMatrix were removed
-         * by the 1.21.5 GPU pipeline rewrite (lighting is now a GpuBufferSlice, projection lives in
-         * RenderSystem's dynamic uniforms). The 1.21.1 code saved the two shader light directions +
-         * projection matrix, switched to two opposed Z lights (a billboard inside the buffer is lit from
-         * its own back side, see BbsFormGuiElementRenderer#lights) and a Y-flipped ortho while rendering
-         * the inner forms, applied the identity model-view (in the interface the applied matrix is the
-         * GUI's translate(0, 0, -11000), which pushed every vertex out of the ±500 ortho), then restored
-         * them below. Re-implement once the framebuffer render path is rebuilt on the new pipeline
-         * foundation. The pure-GL state around it — cull face, scissor, viewport — is saved and restored
-         * here as it was. */
+        /* Snapshotted by hand, not through RenderSystem.backupProjectionMatrix(): that backup is a single
+         * slot, and a framebuffer form nested inside another would overwrite the outer one's saved world
+         * projection with the inner one's ortho. Put back below as they WERE, not as they usually are —
+         * the projection type is also what the frame's translucency sorts by. */
+        GpuBufferSlice previousLights = RenderSystem.getShaderLights();
+        GpuBufferSlice previousProjection = RenderSystem.getProjectionMatrixBuffer();
+        ProjectionType previousProjectionType = RenderSystem.getProjectionType();
+
         GL30.glCullFace(GL30.GL_FRONT);
+
+        RenderSystem.setShaderLights(lights());
+        RenderSystem.setProjectionMatrix(PROJECTION.set(ORTHO), ProjectionType.ORTHOGRAPHIC);
+
+        /* The programs read the model-view off this stack, and in the interface it carries the GUI's
+         * translate(0, 0, -11000): with our ortho reaching only 500 units deep, every vertex of the parts
+         * landed outside it and the buffer came out empty. In the world it is the identity already, so
+         * nothing changes there. 1.21.1 needed an applyModelViewMatrix() to go with this; on 1.21.11 the
+         * dynamic uniforms read the stack at draw time, so pushing the identity is the whole of it. */
+        Matrix4fStack modelView = RenderSystem.getModelViewStack();
+
+        modelView.pushMatrix();
+        modelView.identity();
 
         framebuffer.apply();
 
@@ -211,7 +239,15 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             GL11.glDisable(GL11.GL_SCISSOR_TEST);
         }
 
-        /* TODO(1.21.11 render): restore shader lights + projection here (see above). */
+        modelView.popMatrix();
+
+        RenderSystem.setProjectionMatrix(previousProjection, previousProjectionType);
+
+        if (previousLights != null)
+        {
+            RenderSystem.setShaderLights(previousLights);
+        }
+
         GL11.glCullFace(cullFace);
 
         boolean shading = !context.isPicking();
@@ -232,6 +268,39 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundCulledModelLayer : BBSShaders::getBoundBillboardLayer;
 
         this.renderModel(framebuffer.getMainTexture(), format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+    }
+
+    /**
+     * Both lights along Z, one each way, as a Lighting UBO of our own.
+     *
+     * <p>The picture in here is meant to be flat, and the two vanilla lights are what a flat one is made
+     * of — but pointing both at the camera lights only the faces that happen to look back at it. The
+     * framebuffer renders under a Y-flipped ortho with front faces culled, so a two-sided quad (a
+     * billboard draws both of its sides) keeps the side whose normal points away, and that side came out
+     * at MINECRAFT_AMBIENT_LIGHT alone — 40% — while a one-sided model next to it stayed lit.</p>
+     *
+     * <p>1.21.1 said this in one setShaderLights(Vector3f, Vector3f); the 1.21.5 rewrite left only the
+     * GpuBufferSlice overload, and the Lighting UBO behind it is exactly two std140 vec3s — so the two
+     * directions are built here, the way the list previews build theirs (BbsFormGuiElementRenderer).</p>
+     */
+    private static GpuBufferSlice lights()
+    {
+        if (lights == null)
+        {
+            try (MemoryStack stack = MemoryStack.stackPush())
+            {
+                ByteBuffer data = Std140Builder.onStack(stack, DiffuseLighting.UBO_SIZE)
+                    .putVec3(new Vector3f(0F, 0F, 1F))
+                    .putVec3(new Vector3f(0F, 0F, -1F))
+                    .get();
+
+                /* usage 136 = UNIFORM | COPY_DST, mirroring DiffuseLighting's own Lighting UBO. */
+                lightsBuffer = RenderSystem.getDevice().createBuffer(() -> "BBS framebuffer form lights UBO", 136, data);
+                lights = lightsBuffer.slice(0, DiffuseLighting.UBO_SIZE);
+            }
+        }
+
+        return lights;
     }
 
     private void renderModel(Texture texture, VertexFormat format, Supplier<RenderLayer> layer, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
