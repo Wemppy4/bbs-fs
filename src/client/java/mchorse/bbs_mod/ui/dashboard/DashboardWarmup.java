@@ -3,9 +3,9 @@ package mchorse.bbs_mod.ui.dashboard;
 import mchorse.bbs_mod.BBSModClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.DownloadingTerrainScreen;
+import net.minecraft.client.gui.screen.LevelLoadingScreen;
 import net.minecraft.client.gui.screen.ProgressScreen;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.world.LevelLoadingScreen;
 
 /**
  * Builds the dashboard ahead of the user asking for it.
