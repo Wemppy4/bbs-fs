@@ -19,15 +19,13 @@ import org.jspecify.annotations.Nullable;
  * <p>{@code pose} is the live 2D GUI matrix captured at submit time (it carries the list's scroll translate),
  * applied to the composite quad so the thumbnail scrolls with the cell — faithful to the original, which
  * rendered the model directly onto {@code context.batcher.getContext().getMatrices()}. {@code angle}
- * (cursor-driven yaw), {@code transition} and {@code refresh} (whether this picture is due to be drawn
- * again — see {@code FormPreviewCache}) are likewise captured at submit; the remaining accessors
+ * (cursor-driven yaw) and {@code transition} are likewise captured at submit; the remaining accessors
  * (x1/x2/y1/y2/scale/scissorArea/bounds) are record components.</p>
  */
 public record BbsFormGuiElementRenderState(
     FormRenderer<?> renderer,
     float angle,
     float transition,
-    boolean refresh,
     Matrix3x2f pose,
     int x1, int y1, int x2, int y2,
     float scale,
@@ -35,7 +33,7 @@ public record BbsFormGuiElementRenderState(
     @Nullable ScreenRect bounds
 ) implements SpecialGuiElementRenderState
 {
-    public BbsFormGuiElementRenderState(FormRenderer<?> renderer, float angle, float transition, boolean refresh, Matrix3x2f pose, int x1, int y1, int x2, int y2, float scale, @Nullable ScreenRect scissorArea)
+    public BbsFormGuiElementRenderState(FormRenderer<?> renderer, float angle, float transition, Matrix3x2f pose, int x1, int y1, int x2, int y2, float scale, @Nullable ScreenRect scissorArea)
     {
         /* The cell rect (x1..y2) is unscrolled content space; the composite quad is placed on-screen by `pose`
          * (which carries the list's scroll translate), and `scissorArea` was likewise captured already scrolled.
@@ -43,7 +41,7 @@ public record BbsFormGuiElementRenderState(
          * raw (unscrolled) cell intersected with the scrolled scissor shrinks as you scroll and goes empty (null)
          * once the scroll exceeds the cell height, culling the thumbnail entirely (crop-then-vanish on scroll).
          * Shift the cell by the pose translate so bounds, scissor and the drawn geometry share one screen space. */
-        this(renderer, angle, transition, refresh, pose, x1, y1, x2, y2, scale, scissorArea,
+        this(renderer, angle, transition, pose, x1, y1, x2, y2, scale, scissorArea,
             SpecialGuiElementRenderState.createBounds(
                 x1 + (int) pose.m20(), y1 + (int) pose.m21(),
                 x2 + (int) pose.m20(), y2 + (int) pose.m21(), scissorArea));

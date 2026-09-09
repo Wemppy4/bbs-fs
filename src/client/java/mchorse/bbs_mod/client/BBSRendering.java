@@ -32,6 +32,7 @@ import mchorse.bbs_mod.cubic.model.ModelSetupQueue;
 import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.utils.iris.IrisUtils;
+import mchorse.bbs_mod.utils.iris.ShaderCurves;
 import mchorse.bbs_mod.utils.colors.Color;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -1424,6 +1425,27 @@ public class BBSRendering
         }
 
         return null;
+    }
+
+    public static float getSunHorizontalRotation()
+    {
+        if (!MinecraftClient.getInstance().isOnThread())
+        {
+            return 0F;
+        }
+
+        if (BBSModClient.getCameraController().getCurrent() instanceof CameraWorkCameraController controller)
+        {
+            Map<String, Double> values = CurveClip.getValues(controller.getContext());
+            Double v = values != null ? values.get(ShaderCurves.SUN_HORIZONTAL_ROTATION) : null;
+
+            if (v != null)
+            {
+                return v.floatValue();
+            }
+        }
+
+        return 0F;
     }
 
     public static Integer getChromaSkyColorArgb()

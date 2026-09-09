@@ -205,6 +205,8 @@ public class IrisUtils
      */
     public static void addUniforms(List<CachedUniform> list, Map<String, ShaderCurves.ShaderVariable> variableMap)
     {
+        list.add(new FloatCachedUniform(ShaderSunRotation.UNIFORM, UniformUpdateFrequency.PER_FRAME, BBSRendering::getSunHorizontalRotation));
+
         for (ShaderCurves.ShaderVariable value : variableMap.values())
         {
             if (value.integer)

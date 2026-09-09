@@ -66,6 +66,7 @@ public class UICurveClip extends UIClip<CurveClip>
 
         if (!existing.contains(ShaderCurves.BRIGHTNESS)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_BRIGHTNESS, ShaderCurves.BRIGHTNESS));
         if (!existing.contains(ShaderCurves.SUN_ROTATION)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_SUN_ROTATION, ShaderCurves.SUN_ROTATION));
+        if (!existing.contains(ShaderCurves.SUN_HORIZONTAL_ROTATION)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_SUN_HORIZONTAL_ROTATION, ShaderCurves.SUN_HORIZONTAL_ROTATION));
         if (!existing.contains(ShaderCurves.WEATHER)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_WEATHER, ShaderCurves.WEATHER));
         if (!existing.contains(CurveClip.CHROMA_SKY_COLOR)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_CHROMA_SKY_COLOR, CurveClip.CHROMA_SKY_COLOR));
 

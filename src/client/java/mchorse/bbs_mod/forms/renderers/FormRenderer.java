@@ -19,7 +19,6 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.interps.Lerps;
-import mchorse.bbs_mod.forms.renderers.utils.FormPreviewCache;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.gui.DrawContext;
@@ -149,13 +148,8 @@ public abstract class FormRenderer <T extends Form>
          * scissor is shifted by the scroll exactly once — in lock-step with the geometry placed by pose. */
         ScreenRect scissor = dc.scissorStack.peekLast();
 
-        /* Whether the picture is drawn again this frame or the previous one is composited once more
-         * (see FormPreviewCache): the element carries the decision, because the drawing itself only
-         * happens later, in the GUI prepare phase. */
-        boolean refresh = FormPreviewCache.claimRefresh(this, x2 - x1, y2 - y1);
-
         dc.state.addSpecialElement(new BbsFormGuiElementRenderState(
-            this, angle, context.getTransition(), refresh, pose, x1, y1, x2, y2, 1.0F, scissor));
+            this, angle, context.getTransition(), pose, x1, y1, x2, y2, 1.0F, scissor));
     }
 
     /**
