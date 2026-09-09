@@ -460,8 +460,17 @@ public class BBSShaders
     public static RenderLayer getBoundBillboardLayer()
     {
         mchorse.bbs_mod.graphics.texture.Texture bound = mchorse.bbs_mod.BBSModClient.getTextures().getLastBound();
-        net.minecraft.util.Identifier id = bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound);
 
+        return getBillboardLayer(bound == null ? null : mchorse.bbs_mod.graphics.texture.AdoptedTexture.identifier(bound));
+    }
+
+    /**
+     * The unlit billboard layer for a texture named outright, for a draw whose texture never goes through
+     * the BBS texture manager's bind — the framebuffer form's picture, which lives in a device texture and
+     * reaches the layers only by its adopted id.
+     */
+    public static RenderLayer getBillboardLayer(net.minecraft.util.Identifier id)
+    {
         if (id == null)
         {
             if (billboardLayer == null)

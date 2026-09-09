@@ -5,10 +5,12 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.systems.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
+import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.forms.FormRenderCapture;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -18,9 +20,8 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
-import mchorse.bbs_mod.graphics.Framebuffer;
+import mchorse.bbs_mod.graphics.FormFramebuffer;
 import mchorse.bbs_mod.graphics.FramebufferPool;
-import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -40,29 +41,31 @@ import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.util.Map;
-import java.util.function.Supplier;
 
 public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 {
     private static final Quad quad = new Quad();
     private static final Quad uvQuad = new Quad();
 
-    /* The box the nested forms render into: the whole texture, flipped in Y (a framebuffer's origin is its
-     * top-left corner), 500 units of depth either way. One box for every framebuffer form, nested ones
-     * included — it never depends on the form, so a nested render writing the same values over the outer
-     * one's slice changes nothing. */
-    private static final Matrix4f ORTHO = new Matrix4f().setOrtho(-1F, 1F, 1F, -1F, -500F, 500F);
+    /* The box the nested forms render into: the whole texture, 500 units of depth either way. One box for
+     * every framebuffer form, nested ones included — it never depends on the form, so a nested render
+     * writing the same values over the outer one's slice changes nothing.
+     *
+     * 1.21.1 flipped this box in Y and culled FRONT faces to match, which is how the picture came out the
+     * way up the quad's UVs expected. Culling is the pipeline's own business now — a flipped box would
+     * turn every part's front faces into back ones and the culling layers would throw the whole picture
+     * away — so the box stands upright and the flip moved to the quad's UVs, where vanilla's own
+     * off-screen previews put theirs. */
+    private static final Matrix4f ORTHO = new Matrix4f().setOrtho(-1F, 1F, -1F, 1F, -500F, 500F);
     private static final RawProjectionMatrix PROJECTION = new RawProjectionMatrix("bbs_framebuffer_form");
 
     private static GpuBuffer lightsBuffer;
@@ -102,7 +105,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
     public void renderBodyParts(FormRenderingContext context)
     {
         FramebufferPool pool = BBSModClient.getFramebuffers().getFormFramebuffers();
-        Framebuffer framebuffer = pool.get(MathUtils.clamp(this.form.width.get(), 2, 4096), MathUtils.clamp(this.form.height.get(), 2, 4096));
+        FormFramebuffer framebuffer = pool.get(MathUtils.clamp(this.form.width.get(), 2, 4096), MathUtils.clamp(this.form.height.get(), 2, 4096));
         boolean outermost = renderDepth == 0;
 
         BBSProfiler.count(BBSProfiler.Section.FRAMEBUFFER_RENDERS);
@@ -130,34 +133,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
     }
 
-    private void renderFramebuffer(FormRenderingContext context, Framebuffer framebuffer)
+    private void renderFramebuffer(FormRenderingContext context, FormFramebuffer framebuffer)
     {
-        int x;
-        int y;
-        int width;
-        int height;
-
-        try (MemoryStack stack = MemoryStack.stackPush())
-        {
-            IntBuffer viewport = stack.mallocInt(4);
-
-            GL30.glGetIntegerv(GL30.GL_VIEWPORT, viewport);
-
-            x = viewport.get(0);
-            y = viewport.get(1);
-            width = viewport.get(2);
-            height = viewport.get(3);
-        }
-
-        int prevDraw = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
-        int prevRead = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
-        boolean scissorEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-        int[] scissorBox = new int[4];
-
-        GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissorBox);
-
-        int cullFace = GL11.glGetInteger(GL11.GL_CULL_FACE_MODE);
-
         /* Snapshotted by hand, not through RenderSystem.backupProjectionMatrix(): that backup is a single
          * slot, and a framebuffer form nested inside another would overwrite the outer one's saved world
          * projection with the inner one's ortho. Put back below as they WERE, not as they usually are —
@@ -166,7 +143,27 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         GpuBufferSlice previousProjection = RenderSystem.getProjectionMatrixBuffer();
         ProjectionType previousProjectionType = RenderSystem.getProjectionType();
 
-        GL30.glCullFace(GL30.GL_FRONT);
+        /* Where the draws land. 1.21.1 bound this framebuffer by hand and every draw in the frame
+         * followed; on 1.21.11 a draw goes through a render pass the backend builds out of texture
+         * views, and a hand-bound FBO is never consulted — the parts would have gone to the screen and
+         * the buffer would have stayed empty. So the target is named instead, and the picker is named
+         * separately: its passes are built by hand (BBSPickerRenderer#draw) and keep a target of their
+         * own. Both are put back to what they WERE, not to the default: the caller may be drawing
+         * off-screen itself — a framebuffer form nested inside another, a form-list thumbnail rendering
+         * into its cell — and the default would send the rest of its picture to the screen. */
+        GpuTextureView previousColor = RenderSystem.outputColorTextureOverride;
+        GpuTextureView previousDepth = RenderSystem.outputDepthTextureOverride;
+        GpuTextureView previousPickColor = BBSPickerRenderer.getRenderTargetColor();
+        GpuTextureView previousPickDepth = BBSPickerRenderer.getRenderTargetDepth();
+
+        /* Cleared to fully transparent, so only what the parts draw carries alpha, and to depth 1 so they
+         * sort among themselves. Was a glClear against the bound FBO, which no longer means anything. */
+        RenderSystem.getDevice().createCommandEncoder()
+            .clearColorAndDepthTextures(framebuffer.getColor(), 0x00000000, framebuffer.getDepth(), 1.0D);
+
+        RenderSystem.outputColorTextureOverride = framebuffer.getColorView();
+        RenderSystem.outputDepthTextureOverride = framebuffer.getDepthView();
+        BBSPickerRenderer.setRenderTarget(framebuffer.getColorView(), framebuffer.getDepthView());
 
         RenderSystem.setShaderLights(lights());
         RenderSystem.setProjectionMatrix(PROJECTION.set(ORTHO), ProjectionType.ORTHOGRAPHIC);
@@ -180,13 +177,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         modelView.pushMatrix();
         modelView.identity();
-
-        framebuffer.apply();
-
-        /* Whoever was drawing before us may have left a scissor box — the UI clips its
-         * viewport that way — and it would clip this framebuffer's own pixels too. */
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
-        framebuffer.clear();
 
         context.stack.push();
         context.stack.peek().getPositionMatrix().identity();
@@ -217,28 +207,6 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         context.stack.pop();
 
-        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
-        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
-
-        /* All four: whoever called us may have placed the viewport off the origin — the preview cache
-         * does, sliding it so a list cell's on-screen box lands at its own framebuffer's corner. Putting
-         * it back at (0, 0) drew the quad off that framebuffer and the cell showed nothing.
-         *
-         * TODO(1.21.11 render): 1.21.1 routes this through RenderSystem, not raw GL30.glViewport —
-         * see Framebuffer#apply for why (Sodium 0.8+ swallows a later restore it thinks redundant).
-         * RenderSystem.viewport() is gone here, so the raw call stands for now. */
-        GL30.glViewport(x, y, width, height);
-
-        if (scissorEnabled)
-        {
-            GL11.glEnable(GL11.GL_SCISSOR_TEST);
-            GL11.glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
-        }
-        else
-        {
-            GL11.glDisable(GL11.GL_SCISSOR_TEST);
-        }
-
         modelView.popMatrix();
 
         RenderSystem.setProjectionMatrix(previousProjection, previousProjectionType);
@@ -248,7 +216,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             RenderSystem.setShaderLights(previousLights);
         }
 
-        GL11.glCullFace(cullFace);
+        RenderSystem.outputColorTextureOverride = previousColor;
+        RenderSystem.outputDepthTextureOverride = previousDepth;
+        BBSPickerRenderer.setRenderTarget(previousPickColor, previousPickDepth);
 
         boolean shading = !context.isPicking();
 
@@ -263,11 +233,37 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
          *
          * The unlit layer is vanilla's position_tex_color, so the picking format loses the LIGHT element
          * the 1.21.1 one carried: that program never read it, and on 1.21.11 the buffer's format has to
-         * be exactly the pipeline's own. */
+         * be exactly the pipeline's own. Neither layer needs a texture bind: the picture is a device
+         * texture, and the layers name it by the id it was adopted under. */
+        Identifier identifier = framebuffer.getIdentifier();
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_COLOR;
-        Supplier<RenderLayer> layer = shading ? BBSShaders::getBoundCulledModelLayer : BBSShaders::getBoundBillboardLayer;
+        RenderLayer layer = shading
+            ? BBSShaders.getModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(true), identifier)
+            : BBSShaders.getBillboardLayer(identifier);
 
-        this.renderModel(framebuffer.getMainTexture(), format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+        if (shading)
+        {
+            this.renderModel(framebuffer, identifier, format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition(), true);
+
+            return;
+        }
+
+        /* Picking composites the ids the parts wrote into the buffer, and those have to reach the
+         * PICKER's target — a layer draw follows RenderSystem's, which during the pick pass still points
+         * at the screen. Pointed at the picking target for the one draw and put back after: the ids stay
+         * per nested part, exactly as on 1.21.1, instead of the whole form picking as one object. */
+        RenderSystem.outputColorTextureOverride = previousPickColor == null ? previousColor : previousPickColor;
+        RenderSystem.outputDepthTextureOverride = previousPickColor == null ? previousDepth : previousPickDepth;
+
+        try
+        {
+            this.renderModel(framebuffer, identifier, format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition(), false);
+        }
+        finally
+        {
+            RenderSystem.outputColorTextureOverride = previousColor;
+            RenderSystem.outputDepthTextureOverride = previousDepth;
+        }
     }
 
     /**
@@ -303,10 +299,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         return lights;
     }
 
-    private void renderModel(Texture texture, VertexFormat format, Supplier<RenderLayer> layer, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderModel(FormFramebuffer framebuffer, Identifier identifier, VertexFormat format, RenderLayer layer, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
     {
-        float w = texture.width;
-        float h = texture.height;
+        float w = framebuffer.width;
+        float h = framebuffer.height;
 
         /* TL = top left, BR = bottom right*/
         Vector4f crop = new Vector4f(0, 0, 0, 0);
@@ -315,10 +311,13 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         float uvBRx = 1 - crop.z / w;
         float uvBRy = 1 - crop.w / h;
 
-        uvQuad.p1.set(uvTLx, uvTLy, 0);
-        uvQuad.p2.set(uvBRx, uvTLy, 0);
-        uvQuad.p3.set(uvTLx, uvBRy, 0);
-        uvQuad.p4.set(uvBRx, uvBRy, 0);
+        /* Flipped in V: the texture's first row is its BOTTOM one, while p1/p2 are the quad's top edge.
+         * 1.21.1 got this from the flipped ortho the parts rendered under; that flip is gone (see ORTHO),
+         * so it is spelled out here — the same way vanilla composites its own off-screen previews. */
+        uvQuad.p1.set(uvTLx, uvBRy, 0);
+        uvQuad.p2.set(uvBRx, uvBRy, 0);
+        uvQuad.p3.set(uvTLx, uvTLy, 0);
+        uvQuad.p4.set(uvBRx, uvTLy, 0);
 
         /* Calculate quad's size (vertices, not UV). The scale sizes the quad the framebuffer is
          * shown on, not what is drawn into it — the body parts always fill the whole texture,
@@ -336,10 +335,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         quad.p3.set(TLx, BRy, 0);
         quad.p4.set(BRx, BRy, 0);
 
-        this.renderQuad(format, texture, layer, matrices, overlay, light, overlayColor, transition, defer);
+        this.renderQuad(format, identifier, layer, matrices, overlay, light, overlayColor, transition, defer);
     }
 
-    private void renderQuad(VertexFormat format, Texture texture, Supplier<RenderLayer> layer, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
+    private void renderQuad(VertexFormat format, Identifier identifier, RenderLayer layer, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
     {
         Color color = Color.white();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -347,16 +346,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         color.mul(overlayColor);
 
-        /* Was: lightmap.enable() + overlay.setupOverlayColor() + RenderSystem.setShader(shader).
-         * Lightmap, overlay and the program all belong to the layer now — the BBS model layer declares
-         * useLightmap()/useOverlay() and its pipeline is the shader.
-         *
-         * This bind is what the layer resolves from (getBoundCulledModelLayer reads the texture manager's
-         * last bound texture), so it has to come BEFORE the layer is asked for. Still no raw bind on the
-         * active unit: the draw binds its own samplers, and a raw one would land behind GlStateManager's
-         * back - see BillboardFormRenderer. */
-        BBSModClient.getTextures().bindTexture(texture);
-
+        /* Was: lightmap.enable() + overlay.setupOverlayColor() + RenderSystem.setShader(shader). Lightmap,
+         * overlay and the program all belong to the layer now — the BBS model layer declares
+         * useLightmap()/useOverlay() and its pipeline is the shader, and the layer carries the picture in
+         * its own Sampler0, so there is nothing left to bind here. */
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, format);
 
         /* Front */
@@ -391,12 +384,11 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
                  * deferred pass drops the depth write — except under a shaderpack, which reconstructs its
                  * shading from the depth buffer and would paint the backdrop's shadows over our face.
                  *
-                 * The layer is resolved HERE, while this framebuffer's texture is still the bound one: at
-                 * flush time the binding belongs to whoever drew last. The pool hands the same buffer to
-                 * the next form of the same size, so several deferred quads end up showing the same
-                 * content — a known trade-off of the pooled scheme, exactly as on 1.21.1. */
-                RenderLayer deferred = BBSShaders.getBoundModelLayer(new BBSShaders.ModelVariant(
-                    FormTranslucentQueue.PASS_SINGLE, BBSRendering.isIrisWorldForms(), true));
+                 * The pool hands the same target to the next form of the same size, so several deferred
+                 * quads end up showing the same content — a known trade-off of the pooled scheme, exactly
+                 * as on 1.21.1. */
+                RenderLayer deferred = BBSShaders.getModelLayer(new BBSShaders.ModelVariant(
+                    FormTranslucentQueue.PASS_SINGLE, BBSRendering.isIrisWorldForms(), true), identifier);
                 Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
                 Vector3f origin = modelView.transformPosition(matrix.getTranslation(new Vector3f()));
 
@@ -406,7 +398,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             }
             else
             {
-                layer.get().draw(built);
+                layer.draw(built);
             }
         }
     }

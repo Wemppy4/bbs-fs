@@ -202,6 +202,22 @@ public class BBSPickerRenderer
     }
 
     /**
+     * The colour target picker draws currently go to, or null for the main framebuffer. For a renderer that
+     * points them at a target of its own for the length of one nested render (the framebuffer form) and has
+     * to put back what it found, not what the default happens to be.
+     */
+    public static GpuTextureView getRenderTargetColor()
+    {
+        return targetColor;
+    }
+
+    /** @see #getRenderTargetColor() */
+    public static GpuTextureView getRenderTargetDepth()
+    {
+        return targetDepth;
+    }
+
+    /**
      * Record the Sampler0 albedo texture to bind on the next picker draw. The picker shaders sample it for the
      * alpha cutout ({@code color.a < 0.1 -> discard}); the form/model renderer resolves it from the (adopted)
      * vanilla texture right before issuing the draw.
@@ -220,8 +236,15 @@ public class BBSPickerRenderer
      */
     public static void setSampler0(Texture texture)
     {
-        Identifier adopted = AdoptedTexture.identifier(texture);
+        setSampler0(AdoptedTexture.identifier(texture));
+    }
 
+    /**
+     * {@link #setSampler0(Texture)} for a texture that is already adopted under an id of its own — the
+     * framebuffer form's picture, which is a device texture rather than a BBS raw-GL one.
+     */
+    public static void setSampler0(Identifier adopted)
+    {
         if (adopted == null)
         {
             return;
