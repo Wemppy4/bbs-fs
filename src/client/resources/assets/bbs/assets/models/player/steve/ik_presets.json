@@ -30,5 +30,41 @@
             "enabled": true,
             "target": "controller_body"
         }
+    },
+    "ik_no_bends": {
+        "chains": {
+            "left_leg_end": {
+                "pole_target": "pole_left_leg",
+                "squash": true,
+                "chain_length": 2,
+                "enabled": true,
+                "target": "controller_left_leg"
+            },
+            "left_arm_end": {
+                "pole_target": "pole_left_arm",
+                "chain_length": 2,
+                "enabled": true,
+                "target": "controller_left_arm"
+            },
+            "right_leg_end": {
+                "pole_target": "pole_right_leg",
+                "squash": true,
+                "chain_length": 2,
+                "enabled": true,
+                "target": "controller_right_leg"
+            },
+            "right_arm_end": {
+                "pole_target": "pole_right_arm",
+                "chain_length": 2,
+                "enabled": true,
+                "target": "controller_right_arm"
+            },
+            "body_end": {
+                "pole_target": "pole_body",
+                "chain_length": 3,
+                "enabled": true,
+                "target": "controller_body"
+            }
+        }
     }
 }

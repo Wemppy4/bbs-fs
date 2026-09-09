@@ -23,6 +23,8 @@
         "LivingEntityRendererMixin",
         "ModelPartMixin",
         "iris.SystemTimeUniformsTimerMixin",
+        "iris.CelestialUniformsMixin",
+        "iris.ShadowMatricesMixin",
         "InGameHudMixin",
         "KeyboardMixin",
         "ResourceReloadLoggerMixin",

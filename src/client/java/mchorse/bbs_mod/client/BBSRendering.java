@@ -903,6 +903,27 @@ public class BBSRendering
         return null;
     }
 
+    public static float getSunHorizontalRotation()
+    {
+        if (!MinecraftClient.getInstance().isOnThread())
+        {
+            return 0F;
+        }
+
+        if (BBSModClient.getCameraController().getCurrent() instanceof CameraWorkCameraController controller)
+        {
+            Map<String, Double> values = CurveClip.getValues(controller.getContext());
+            Double v = values != null ? values.get(ShaderCurves.SUN_HORIZONTAL_ROTATION) : null;
+
+            if (v != null)
+            {
+                return v.floatValue();
+            }
+        }
+
+        return 0F;
+    }
+
     public static Integer getChromaSkyColorArgb()
     {
         if (!MinecraftClient.getInstance().isOnThread())

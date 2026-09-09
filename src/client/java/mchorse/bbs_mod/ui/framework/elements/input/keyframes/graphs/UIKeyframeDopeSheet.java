@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.camera.utils.TimeUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.graphics.window.Window;
@@ -50,9 +49,6 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     /** Width of the fold arrow's slot in the name column, left of the icon. */
     private static final int LABEL_ARROW_SIZE = 10;
-
-    /** How tall a bone row is next to the others. A skeleton is most of the rows there are, and at full height a hand fills the timeline. */
-    private static final double BONE_TRACK_SCALE = 0.7D;
 
     /** Track-name column layout: left text indent, right padding, right-side icon slot, text/icon gap. */
     private static final int LABEL_TEXT_LEFT = 5;
@@ -196,14 +192,9 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         this.dopeSheet.clamp();
     }
 
-    /** How tall this row is drawn. Bone rows are shorter than the rest — see {@link #BONE_TRACK_SCALE}. */
+    /** All rows use the same configured track height. */
     public int getTrackHeight(UIKeyframeSheet sheet)
     {
-        if (sheet != null && sheet.descriptor != null && (sheet.descriptor.kind() == TrackKind.BONE || sheet.descriptor.kind() == TrackKind.BONE_CONSTRAINT))
-        {
-            return Math.max(6, (int) (this.trackHeight * BONE_TRACK_SCALE));
-        }
-
         return (int) this.trackHeight;
     }
 
