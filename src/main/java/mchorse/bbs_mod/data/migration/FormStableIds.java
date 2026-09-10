@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * The form-fragment half of the stable-id migration: gives every body part of a <em>raw</em> form
@@ -27,6 +29,24 @@ import java.util.Map;
 public class FormStableIds
 {
     private static final Logger LOGGER = LogUtils.getLogger();
+
+    /** A replay preset also owns tracks outside its form, but has no film version gate. */
+    public static Map<String, String> ensureReplay(MapType replay)
+    {
+        Map<String, String> mapping = ensure(replay.has("form") ? replay.getMap("form") : null);
+
+        if (replay.has("properties"))
+        {
+            rewriteFormPaths(replay.getMap("properties"), mapping);
+        }
+
+        if (replay.has("axes_preview_bone"))
+        {
+            replay.putString("axes_preview_bone", rewriteTrackKey(replay.getString("axes_preview_bone"), mapping));
+        }
+
+        return mapping;
+    }
 
     /**
      * Ensure ids and rewrite state track keys, recursively through nested body parts.
@@ -58,6 +78,8 @@ public class FormStableIds
             }
         }
 
+        Set<String> assigned = new HashSet<>();
+
         for (int i = 0; i < parts.size(); i++)
         {
             if (!parts.get(i).isMap())
@@ -68,17 +90,15 @@ public class FormStableIds
             MapType part = parts.get(i).asMap();
             String id = part.getString(StableIds.KEY);
 
-            if (!StableIds.isStableId(id))
+            if (!StableIds.isStableId(id) || assigned.contains(id))
             {
-                do
-                {
-                    id = StableIds.generate();
-                }
-                while (taken.contains(id));
+                id = StableIds.fromLegacyIndex(i, taken);
 
                 taken.add(id);
                 part.putString(StableIds.KEY, id);
             }
+
+            assigned.add(id);
 
             mapping.put(String.valueOf(i), id);
 
@@ -111,16 +131,16 @@ public class FormStableIds
      * The raw form's body part list: {@code parts}, or the pre-1.x {@code bodyParts.parts} nest
      * (the same legacy shape {@code Form.fromData} unwraps — but this runs before it).
      */
-    private static ListType getParts(MapType form)
+    static ListType getParts(MapType form)
     {
-        if (form.has("parts"))
-        {
-            return form.getList("parts");
-        }
-
         if (form.has("bodyParts") && form.getMap("bodyParts").has("parts"))
         {
             return form.getMap("bodyParts").getList("parts");
+        }
+
+        if (form.has("parts"))
+        {
+            return form.getList("parts");
         }
 
         return new ListType();
@@ -189,6 +209,13 @@ public class FormStableIds
 
         for (Map.Entry<String, String> entry : renames.entrySet())
         {
+            if (tracks.has(entry.getValue()))
+            {
+                LOGGER.warn("Cannot migrate track \"{}\" to \"{}\": both exist; keeping both", entry.getKey(), entry.getValue());
+
+                continue;
+            }
+
             BaseType value = tracks.get(entry.getKey());
 
             tracks.remove(entry.getKey());

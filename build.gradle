@@ -83,6 +83,18 @@ test {
 	failOnNoDiscoveredTests = false
 }
 
+tasks.register('migrationTest', JavaExec) {
+	group = 'verification'
+	description = 'Checks legacy body-part and film references without starting Minecraft.'
+	dependsOn tasks.named('testClasses')
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'mchorse.bbs_mod.data.migration.StableIdsMigrationTest'
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('migrationTest')
+}
+
 java {
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
 	// if it is present.

@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Format 1 &rarr; 2: everything in a film that used to address a replay or a body part by its list
@@ -59,7 +61,7 @@ public class FilmStableIds implements IDataMigration
         {
             MapType replay = replayType.isMap() ? replayType.asMap() : null;
 
-            formMappings.add(FormStableIds.ensure(replay != null && replay.has("form") ? replay.getMap("form") : null));
+            formMappings.add(replay == null ? Map.of() : FormStableIds.ensureReplay(replay));
         }
 
         /* Pass 2: references. */
@@ -74,7 +76,6 @@ public class FilmStableIds implements IDataMigration
 
             if (replay.has("properties"))
             {
-                FormStableIds.rewriteFormPaths(replay.getMap("properties"), formMappings.get(i));
                 convertAnchorChannels(replay.getMap("properties"), replayIds, formMappings);
             }
 
@@ -104,6 +105,7 @@ public class FilmStableIds implements IDataMigration
         }
 
         List<String> ids = new ArrayList<>();
+        Set<String> assigned = new HashSet<>();
 
         for (BaseType type : replays)
         {
@@ -117,18 +119,15 @@ public class FilmStableIds implements IDataMigration
             MapType replay = type.asMap();
             String id = replay.getString(StableIds.KEY);
 
-            if (!StableIds.isStableId(id))
+            if (!StableIds.isStableId(id) || assigned.contains(id))
             {
-                do
-                {
-                    id = StableIds.generate();
-                }
-                while (taken.contains(id));
+                id = StableIds.fromLegacyIndex(ids.size(), taken);
 
                 taken.add(id);
                 replay.putString(StableIds.KEY, id);
             }
 
+            assigned.add(id);
             ids.add(id);
         }
 
@@ -151,7 +150,7 @@ public class FilmStableIds implements IDataMigration
             }
         }
 
-        for (BaseType partType : form.has("parts") ? form.getList("parts") : new ListType())
+        for (BaseType partType : FormStableIds.getParts(form))
         {
             if (partType.isMap() && partType.asMap().has("form"))
             {
@@ -214,20 +213,20 @@ public class FilmStableIds implements IDataMigration
     /**
      * One anchor map: {@code "actor"} legacy int index &rarr; the target replay's id, and
      * {@code "attachment"} rewritten against the <em>target's</em> form (its leading segments are
-     * body part indices of that form's tree). A string actor means the map is already converted; a
-     * dangling or negative index means "no target" and becomes the explicit empty id it always
-     * meant.
+     * body part indices of that form's tree). A string actor is preserved, but its attachment may
+     * still need conversion. A dangling or negative numeric index becomes an empty target id.
      */
     private static void convertAnchor(MapType anchor, List<String> replayIds, List<Map<String, String>> formMappings)
     {
         BaseType actor = anchor.get("actor");
 
-        if (actor == null || BaseType.isString(actor))
+        if (actor == null)
         {
             return;
         }
 
-        int index = anchor.getInt("actor", -1);
+        boolean converted = BaseType.isString(actor);
+        int index = converted ? replayIds.indexOf(anchor.getString("actor")) : anchor.getInt("actor", -1);
         String id = index >= 0 && index < replayIds.size() ? replayIds.get(index) : null;
 
         if (index >= 0 && id == null)
@@ -235,7 +234,10 @@ public class FilmStableIds implements IDataMigration
             LOGGER.warn("Anchor points at replay [" + index + "] which does not exist; unanchoring");
         }
 
-        anchor.putString("actor", id == null ? "" : id);
+        if (!converted)
+        {
+            anchor.putString("actor", id == null ? "" : id);
+        }
 
         if (id != null && anchor.has("attachment"))
         {
@@ -256,12 +258,13 @@ public class FilmStableIds implements IDataMigration
             MapType clip = clipType.asMap();
             BaseType selector = clip.get("selector");
 
-            if (selector == null || BaseType.isString(selector))
+            if (selector == null)
             {
                 continue;
             }
 
-            int index = clip.getInt("selector", -1);
+            boolean converted = BaseType.isString(selector);
+            int index = converted ? replayIds.indexOf(clip.getString("selector")) : clip.getInt("selector", -1);
             String id = index >= 0 && index < replayIds.size() ? replayIds.get(index) : null;
 
             if (index >= 0 && id == null)
@@ -269,7 +272,10 @@ public class FilmStableIds implements IDataMigration
                 LOGGER.warn("Camera clip selector points at replay [" + index + "] which does not exist; clearing");
             }
 
-            clip.putString("selector", id == null ? "" : id);
+            if (!converted)
+            {
+                clip.putString("selector", id == null ? "" : id);
+            }
 
             /* The tracker's attachment path into the tracked replay's matrix tree. */
             if (id != null && clip.has("group"))

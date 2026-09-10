@@ -38,6 +38,7 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.ui.utils.pose.PoseBones;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
@@ -957,6 +958,17 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                     : BBSShaders::getModel;
             Supplier<ShaderProgram> shader = this.getShader(context, mainShader, BBSShaders::getPickerModelsProgram);
 
+            if (FramebufferDebug.inside())
+            {
+                FramebufferDebug.log("model", "shader=" + FramebufferDebug.shader(shader.get())
+                    + " irisWorld=" + irisWorld + " shadingThisDraw=" + BBSRendering.isIrisWorldShadersEnabled()
+                    + " vao=" + model.isVAORendered() + " cutout=" + cutout + " noBlend=" + noBlend + " suspendQueue=" + suspendQueue
+                    + " picking=" + context.isPicking() + " renderLayer=" + renderLayer
+                    + " texture=" + (textureObject == null ? "null" : textureObject.id + "/translucent=" + textureObject.hasTranslucency())
+                    + " alpha=" + contextColor.a + "/" + formColor.a
+                    + " | " + FramebufferDebug.bindings());
+            }
+
             boolean wasActive = false;
 
             if (suspendQueue)
@@ -983,6 +995,13 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             }
             finally
             {
+                if (FramebufferDebug.inside())
+                {
+                    FramebufferDebug.log("model", "after draw | " + FramebufferDebug.bindings());
+                    FramebufferDebug.log("model", "after draw | " + FramebufferDebug.glState());
+                    FramebufferDebug.log("model", "after draw | " + FramebufferDebug.samplers());
+                }
+
                 if (noBlend)
                 {
                     RenderSystem.enableBlend();

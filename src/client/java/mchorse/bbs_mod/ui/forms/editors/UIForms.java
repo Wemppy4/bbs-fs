@@ -60,32 +60,32 @@ public class UIForms extends UIList<UIForms.FormEntry>
     {
         this.clear();
 
-        this.add(new FormEntry(form, null, 0));
-
-        for (BodyPart part : form.parts.getAllTyped())
-        {
-            this.setupRecursively(form, part, 1);
-        }
+        this.add(new FormEntry(form, null, 0, 0, true));
+        this.setupRecursively(form, 1, 0);
     }
 
-    private void setupRecursively(Form parent, BodyPart part, int depth)
+    private void setupRecursively(Form parent, int depth, int lines)
     {
-        this.add(new FormEntry(parent, part, depth));
+        List<BodyPart> parts = parent.parts.getAllTyped();
 
-        if (part.getForm() == null)
+        for (int i = 0; i < parts.size(); i++)
         {
-            return;
-        }
+            BodyPart part = parts.get(i);
+            boolean last = i == parts.size() - 1;
 
-        for (BodyPart childPart : part.getForm().parts.getAllTyped())
-        {
-            this.setupRecursively(part.getForm(), childPart, depth + 1);
+            this.add(new FormEntry(parent, part, depth, lines, last));
+
+            if (part.getForm() != null)
+            {
+                this.setupRecursively(part.getForm(), depth + 1, childGuideLines(lines, depth, last));
+            }
         }
     }
 
     @Override
     protected void renderElementPart(UIContext context, FormEntry element, int i, int x, int y, boolean hover, boolean selected)
     {
+        this.renderTreeGuides(context, x, y, element.depth, element.lines, element.last, x + this.rowContentX(element));
         super.renderElementPart(context, element, i, x, y, hover, selected);
 
         Form form = element.getForm();
@@ -108,6 +108,12 @@ public class UIForms extends UIList<UIForms.FormEntry>
     protected int indent(FormEntry element)
     {
         return element.depth * INDENT;
+    }
+
+    @Override
+    protected int indentStep()
+    {
+        return INDENT;
     }
 
     @Override
@@ -231,12 +237,16 @@ public class UIForms extends UIList<UIForms.FormEntry>
         public Form form;
         public BodyPart part;
         public int depth;
+        public final int lines;
+        public final boolean last;
 
-        public FormEntry(Form form, BodyPart part, int depth)
+        public FormEntry(Form form, BodyPart part, int depth, int lines, boolean last)
         {
             this.form = form;
             this.part = part;
             this.depth = depth;
+            this.lines = lines;
+            this.last = last;
         }
 
         public Form getForm()
