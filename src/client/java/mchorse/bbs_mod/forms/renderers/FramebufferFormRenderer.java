@@ -141,25 +141,26 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
     }
 
-    /** TEMPORARY diagnostic: every nested part reports its bindings and what it left in the buffer. */
+    /** Diagnostic (see {@link FramebufferDebug}): every nested part reports its bindings and what it left in the buffer. */
     @Override
     protected void renderBodyPart(BodyPart part, FormRenderingContext context)
     {
+        if (!FramebufferDebug.inside())
+        {
+            super.renderBodyPart(part, context);
+
+            return;
+        }
+
         String name = part.getForm() == null ? "null" : part.getForm().getClass().getSimpleName();
 
-        if (FramebufferDebug.inside())
-        {
-            FramebufferDebug.log("part", "begin " + name + " id=" + part.getId() + " | " + FramebufferDebug.bindings());
-        }
+        FramebufferDebug.log("part", "begin " + name + " id=" + part.getId() + " | " + FramebufferDebug.bindings());
 
         super.renderBodyPart(part, context);
 
-        if (FramebufferDebug.inside())
-        {
-            FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.bindings());
-            FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.glState());
-            FramebufferDebug.readViewport("part end " + name);
-        }
+        FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.bindings());
+        FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.glState());
+        FramebufferDebug.readViewport("part end " + name);
     }
 
     private void renderFramebuffer(FormRenderingContext context, Framebuffer framebuffer)

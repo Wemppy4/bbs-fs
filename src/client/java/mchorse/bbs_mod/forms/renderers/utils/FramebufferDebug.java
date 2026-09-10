@@ -31,20 +31,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * TEMPORARY. Writes out everything a framebuffer form's render depends on, for every such
- * render inside one frame per second: which pass it is (world, Iris shadow, stencil pick, UI),
- * its order in the frame, the framebuffer and program GL really has bound against what Iris'
- * redundant-bind cache believes, the write masks and Iris' mask locks, the sampler units, the
- * matrices, and what actually landed in the buffer (coverage, bounding box, brightest texel).
- * Lines carry "!!" where two views of the same state disagree. Delete once the shader-pack
- * bugs are understood: this file plus the calls in FramebufferFormRenderer and the one in
- * WorldRendererMixin.
+ * Diagnostic log for the framebuffer form. Off unless the game runs with
+ * {@code -Dbbs.framebufferDebug=true}; switched on, it writes out everything a framebuffer
+ * form's render depends on, for every such render inside one frame per second: which pass it
+ * is (world, Iris shadow, stencil pick, UI), its order in the frame, the framebuffer and program
+ * GL really has bound against what Iris' redundant-bind cache believes, the write masks and
+ * Iris' mask locks, the sampler units, the matrices, and what actually landed in the buffer
+ * (coverage, bounding box, brightest texel) after each nested part. Lines carry "!!" where two
+ * views of the same state disagree.
+ *
+ * <p>It stays off by default because a logged frame reads every form's buffer back from the
+ * GPU - a megabyte per 512x512 form - which is a hitch once a second. This is what found the
+ * shader-pack transparency bug (Iris leaving an indexed alpha blend function behind
+ * GlStateManager's cache); the call sites live in FramebufferFormRenderer, ModelFormRenderer,
+ * BillboardFormRenderer, IrisUtils and WorldRendererMixin, all gated on {@link #logging} or
+ * {@link #inside()}.</p>
  */
 public class FramebufferDebug
 {
     private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
     private static final long PERIOD = 1000L;
     private static final Object MISSING = new Object();
+
+    /** The switch: a JVM argument, so a build never has to change to turn the log on. */
+    private static final boolean ENABLED = Boolean.getBoolean("bbs.framebufferDebug");
 
     /** True for the whole frame being logged: every framebuffer render in it gets written out. */
     public static boolean logging;
@@ -63,7 +73,7 @@ public class FramebufferDebug
 
         frame += 1;
         sequence = 0;
-        logging = now - last >= PERIOD;
+        logging = ENABLED && now - last >= PERIOD;
 
         if (logging)
         {
