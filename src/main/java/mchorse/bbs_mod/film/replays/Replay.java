@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.film.replays;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.data.migration.FormStableIds;
+import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.actions.SuperFakePlayer;
 import mchorse.bbs_mod.actions.types.ActionClip;
 import mchorse.bbs_mod.camera.data.Point;
@@ -110,6 +112,17 @@ public class Replay extends ValueGroup
     public static String normalizeCategory(String raw)
     {
         return CategoryPath.normalize(raw);
+    }
+
+    @Override
+    public void fromData(BaseType data)
+    {
+        if (data.isMap())
+        {
+            FormStableIds.ensureReplay(data.asMap());
+        }
+
+        super.fromData(data);
     }
 
     public String getName()
