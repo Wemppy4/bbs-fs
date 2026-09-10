@@ -295,7 +295,7 @@ public class FramebufferDebug
     {
         Matrix4f stack = context.stack.peek().getPositionMatrix();
         Matrix4f applied = RenderSystem.getModelViewMatrix();
-        Matrix4f top = RenderSystem.getModelViewStack().peek().getPositionMatrix();
+        Matrix4f top = RenderSystem.getModelViewStack();
         Matrix4f projection = RenderSystem.getProjectionMatrix();
         VertexSorter sorter = RenderSystem.getVertexSorting();
         boolean identity = applied.equals(new Matrix4f(), 1e-5F);
