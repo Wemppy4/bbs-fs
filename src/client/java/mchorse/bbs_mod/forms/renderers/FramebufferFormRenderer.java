@@ -11,6 +11,7 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.Framebuffer;
@@ -45,6 +46,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
@@ -120,6 +122,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
 
         renderDepth += 1;
+        FramebufferDebug.beginRender(this.form, context, framebuffer);
 
         try
         {
@@ -128,6 +131,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         finally
         {
             renderDepth -= 1;
+            FramebufferDebug.endRender();
             pool.release(framebuffer);
 
             if (outermost)
@@ -135,6 +139,28 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
                 BBSProfiler.end(BBSProfiler.Timer.FRAMEBUFFER_FORMS);
             }
         }
+    }
+
+    /** Diagnostic (see {@link FramebufferDebug}): every nested part reports its bindings and what it left in the buffer. */
+    @Override
+    protected void renderBodyPart(BodyPart part, FormRenderingContext context)
+    {
+        if (!FramebufferDebug.inside())
+        {
+            super.renderBodyPart(part, context);
+
+            return;
+        }
+
+        String name = part.getForm() == null ? "null" : part.getForm().getClass().getSimpleName();
+
+        FramebufferDebug.log("part", "begin " + name + " id=" + part.getId() + " | " + FramebufferDebug.bindings());
+
+        super.renderBodyPart(part, context);
+
+        FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.bindings());
+        FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.glState());
+        FramebufferDebug.readViewport("part end " + name);
     }
 
     private void renderFramebuffer(FormRenderingContext context, Framebuffer framebuffer)
@@ -171,6 +197,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         VertexSorter vertexSorter = RenderSystem.getVertexSorting();
         int cullFace = GL11.glGetInteger(GL11.GL_CULL_FACE_MODE);
 
+        FramebufferDebug.state("entry", context);
+
         GL30.glCullFace(GL30.GL_FRONT);
         /* Both lights along Z, one each way. The picture in here is meant to be flat, and the
          * two vanilla lights are what a flat one is made of - but pointing both at the camera
@@ -199,6 +227,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         /* Transparent clear: whatever was drawn before us may have left an opaque clear colour,
          * and clearing this buffer with it would give the finished picture a solid background. */
         RenderSystem.clearColor(0F, 0F, 0F, 0F);
+        FramebufferDebug.clearState("clear");
         framebuffer.clear();
 
         context.stack.push();
@@ -217,6 +246,24 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         context.light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
 
+        /* Blending as GL really holds it, not as GlStateManager's cache believes. A shader pack's
+         * per-draw-buffer blend modes are set by Iris with indexed GL calls the cache never sees,
+         * and put back through the cache - which skips the real call when it already thinks the
+         * default is in place. So after a pack's entity program the world runs with the alpha
+         * factors ZERO/ONE (keep what the target already holds) on draw buffer 0, while the cache
+         * says ONE/ZERO. This buffer is cleared to alpha 0, and every part's defaultBlendFunc()
+         * was a no-op against that cache: the parts painted their colours, alpha stayed 0, and the
+         * quad drew a fully transparent picture - only in the world pass, only under a pack (the
+         * shadow pass and the UI carry no such override, and there the same buffer filled fine).
+         * A raw reset puts GL at the default, the tracked calls put the cache there too, and from
+         * here the parts' own blend calls mean what they say. Nothing is put back afterwards: the
+         * pack re-applies its overrides on its next program bind, and a cache that agrees with GL
+         * is the state everything else assumes. */
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+        GL11.glEnable(GL11.GL_BLEND);
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableBlend();
+
         try
         {
             BBSRendering.renderOffscreen(() -> super.renderBodyParts(context));
@@ -228,6 +275,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
             FormTranslucentQueue.restore(queueWasActive);
         }
+
+        FramebufferDebug.readBuffer("after parts", framebuffer);
+        FramebufferDebug.state("after parts", context);
 
         context.stack.pop();
 
@@ -261,7 +311,18 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
         Supplier<ShaderProgram> shader = shading ? GameRenderer::getRenderTypeEntityTranslucentProgram : GameRenderer::getPositionTexLightmapColorProgram;
 
+        if (FramebufferDebug.logging)
+        {
+            FramebufferDebug.log("quad", "shader=" + FramebufferDebug.shader(shader.get()) + " shading=" + shading
+                + " texId=" + framebuffer.getMainTexture().id + " restoredTo draw=" + prevDraw + " read=" + prevRead
+                + " viewport=[" + x + "," + y + "," + width + "," + height + "]");
+        }
+
+        FramebufferDebug.state("before quad", context);
+
         this.renderModel(framebuffer.getMainTexture(), format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+
+        FramebufferDebug.state("after quad", context);
     }
 
     private void renderModel(Texture texture, VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)

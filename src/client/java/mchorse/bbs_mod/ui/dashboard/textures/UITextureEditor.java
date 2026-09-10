@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.dashboard.textures;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSResources;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.resources.Link;
@@ -803,6 +805,12 @@ public class UITextureEditor extends UIPixelsEditor
              * it reads the PNG the .mcmeta has to be beside it already */
             this.writeAnimation(file);
             PNGEncoder.writeToFile(pixels, file);
+
+            /* Refresh rendered textures and open browsers before the save callback selects the
+             * file. The watchdog may be delayed while the game is paused in the editor. */
+            BBSModClient.getTextures().delete(link);
+            BBSModClient.getTextures().getExtruder().delete(link);
+            BBSResources.markAssetsChanged();
 
             this.setDirty(false);
 

@@ -141,12 +141,12 @@ public class TrackCatalog
             return;
         }
 
-        properties(root, form, path, properties, out);
+        ModelInstance model = form instanceof ModelForm modelForm ? ModelFormRenderer.getModel(modelForm) : null;
+
+        properties(root, form, model, path, properties, out);
 
         if (form instanceof ModelForm modelForm)
         {
-            ModelInstance model = ModelFormRenderer.getModel(modelForm);
-
             materials(modelForm, model, path, properties, out);
             bones(modelForm, model == null ? null : model.model, model == null ? null : model.getDisabledBones(), path, properties, out);
             ik(modelForm, model, path, properties, out);
@@ -238,7 +238,7 @@ public class TrackCatalog
 
     /* The form's own properties */
 
-    private static void properties(Form root, Form form, String path, FormProperties properties, List<TrackDescriptor> out)
+    private static void properties(Form root, Form form, ModelInstance model, String path, FormProperties properties, List<TrackDescriptor> out)
     {
         for (BaseValue value : form.getAll())
         {
@@ -248,6 +248,12 @@ public class TrackCatalog
             }
 
             String name = value.getId();
+
+            /* CEM states belong only to JEM models, including forms nested in body parts. */
+            if (form instanceof ModelForm && name.startsWith("cem_") && (model == null || model.cemAnimation == null))
+            {
+                continue;
+            }
 
             /* The root form's own anchor is animatable (it is what parents a replay to another one);
              * a body part's anchor is what glues it to its parent, and animating that is meaningless. */
