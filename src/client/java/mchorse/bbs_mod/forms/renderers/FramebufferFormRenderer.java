@@ -11,6 +11,7 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.Framebuffer;
@@ -120,6 +121,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
 
         renderDepth += 1;
+        FramebufferDebug.beginRender(this.form, context, framebuffer);
 
         try
         {
@@ -128,6 +130,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         finally
         {
             renderDepth -= 1;
+            FramebufferDebug.endRender();
             pool.release(framebuffer);
 
             if (outermost)
@@ -171,6 +174,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         VertexSorter vertexSorter = RenderSystem.getVertexSorting();
         int cullFace = GL11.glGetInteger(GL11.GL_CULL_FACE_MODE);
 
+        FramebufferDebug.state("entry", context);
+
         GL30.glCullFace(GL30.GL_FRONT);
         /* Both lights along Z, one each way. The picture in here is meant to be flat, and the
          * two vanilla lights are what a flat one is made of - but pointing both at the camera
@@ -199,6 +204,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         /* Transparent clear: whatever was drawn before us may have left an opaque clear colour,
          * and clearing this buffer with it would give the finished picture a solid background. */
         RenderSystem.clearColor(0F, 0F, 0F, 0F);
+        FramebufferDebug.clearState("clear");
         framebuffer.clear();
 
         context.stack.push();
@@ -228,6 +234,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
             FormTranslucentQueue.restore(queueWasActive);
         }
+
+        FramebufferDebug.readBuffer("after parts", framebuffer);
+        FramebufferDebug.state("after parts", context);
 
         context.stack.pop();
 
@@ -261,7 +270,18 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         VertexFormat format = shading ? VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL : VertexFormats.POSITION_TEXTURE_LIGHT_COLOR;
         Supplier<ShaderProgram> shader = shading ? GameRenderer::getRenderTypeEntityTranslucentProgram : GameRenderer::getPositionTexLightmapColorProgram;
 
+        if (FramebufferDebug.logging)
+        {
+            FramebufferDebug.log("quad", "shader=" + FramebufferDebug.shader(shader.get()) + " shading=" + shading
+                + " texId=" + framebuffer.getMainTexture().id + " restoredTo draw=" + prevDraw + " read=" + prevRead
+                + " viewport=[" + x + "," + y + "," + width + "," + height + "]");
+        }
+
+        FramebufferDebug.state("before quad", context);
+
         this.renderModel(framebuffer.getMainTexture(), format, shader, context.stack, context.overlay, context.light, context.color, context.getTransition(), !context.isPicking());
+
+        FramebufferDebug.state("after quad", context);
     }
 
     private void renderModel(Texture texture, VertexFormat format, Supplier<ShaderProgram> shader, MatrixStack matrices, int overlay, int light, int overlayColor, float transition, boolean defer)
