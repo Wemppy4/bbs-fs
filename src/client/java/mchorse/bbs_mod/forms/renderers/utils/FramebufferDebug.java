@@ -31,8 +31,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Diagnostic log for the framebuffer form. Off unless the game runs with
- * {@code -Dbbs.framebufferDebug=true}; switched on, it writes out everything a framebuffer
+ * Diagnostic log for the framebuffer form. Off until {@link #ENABLED} is set to true;
+ * switched on, it writes out everything a framebuffer
  * form's render depends on, for every such render inside one frame per second: which pass it
  * is (world, Iris shadow, stencil pick, UI), its order in the frame, the framebuffer and program
  * GL really has bound against what Iris' redundant-bind cache believes, the write masks and
@@ -53,8 +53,8 @@ public class FramebufferDebug
     private static final long PERIOD = 1000L;
     private static final Object MISSING = new Object();
 
-    /** The switch: a JVM argument, so a build never has to change to turn the log on. */
-    private static final boolean ENABLED = Boolean.getBoolean("bbs.framebufferDebug");
+    /** The switch. Flip to true to log; nothing else needs touching. */
+    public static boolean ENABLED = false;
 
     /** True for the whole frame being logged: every framebuffer render in it gets written out. */
     public static boolean logging;
