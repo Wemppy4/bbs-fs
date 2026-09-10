@@ -120,6 +120,35 @@ public class FramebufferDebug
         depth -= 1;
     }
 
+    /** Whether a framebuffer form's render is being logged right now - nested renderers speak up then. */
+    public static boolean inside()
+    {
+        return logging && depth > 0;
+    }
+
+    /** The bindings a draw is about to use, on one line - for the draw sites of nested forms. */
+    public static String bindings()
+    {
+        return framebuffers() + " | " + program() + " | " + iris();
+    }
+
+    /**
+     * Read back whatever is bound for reading, sized by the viewport - for a point where the
+     * form's own framebuffer object is not at hand (after each nested part).
+     */
+    public static void readViewport(String tag)
+    {
+        if (!logging)
+        {
+            return;
+        }
+
+        int[] viewport = new int[4];
+
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+        readPixels(tag, GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING), viewport[2], viewport[3]);
+    }
+
     public static void log(String tag, String line)
     {
         LOGGER.info("[BBS FB] {} | {}: {}", depth < labels.length && labels[depth] != null ? labels[depth] : "?", tag, line);
@@ -293,9 +322,13 @@ public class FramebufferDebug
         }
 
         Texture texture = framebuffer.getMainTexture();
+
+        readPixels(tag, framebuffer.id, texture.width, texture.height);
+    }
+
+    private static void readPixels(String tag, int expected, int width, int height)
+    {
         int read = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
-        int width = texture.width;
-        int height = texture.height;
         int x = 0;
         int y = 0;
 
@@ -356,7 +389,7 @@ public class FramebufferDebug
 
             float coverage = covered * 100F / (width * height);
 
-            log(tag, "readFbo=" + read + " (expected " + framebuffer.id + ")"
+            log(tag, "readFbo=" + read + " (expected " + expected + ")" + " size=" + width + "x" + height
                 + " coverage=" + String.format("%.2f", coverage) + "%"
                 + (covered == 0 ? " !!BUFFER-EMPTY" : " bbox=[" + (x + minX) + ".." + (x + maxX) + " x " + (y + minY) + ".." + (y + maxY) + "]")
                 + (best < 0 ? "" : " brightest=rgba(" + br + ", " + bg + ", " + bb + ", " + ba + ")"));

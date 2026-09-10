@@ -8,6 +8,7 @@ import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.utils.colors.OverlayBlend;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
@@ -230,6 +231,15 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
         BBSModClient.getTextures().bindTexture(texture);
         RenderSystem.setShader(() -> finalShader);
 
+        if (FramebufferDebug.inside())
+        {
+            FramebufferDebug.log("billboard", "shader=" + FramebufferDebug.shader(finalShader)
+                + " shaded=" + (format == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL)
+                + " texture=" + texture.id + "/translucent=" + texture.hasTranslucency() + " alpha=" + color.a
+                + " light=" + light + " overlayActive=" + overlayActive + " defer=" + defer
+                + " | " + FramebufferDebug.bindings());
+        }
+
         /* Filter parameters go to whichever texture is bound on the ACTIVE unit, and nothing
          * promises that unit is 0 here: under a shader pack it is whatever unit Iris touched
          * last (unit 2 in practice). A raw bind there put this texture over the lightmap's slot
@@ -302,6 +312,13 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
         else
         {
             BufferRenderer.drawWithGlobalProgram(builder.end());
+        }
+
+        if (FramebufferDebug.inside())
+        {
+            FramebufferDebug.log("billboard", "after draw | " + FramebufferDebug.bindings());
+            FramebufferDebug.log("billboard", "after draw | " + FramebufferDebug.glState());
+            FramebufferDebug.log("billboard", "after draw | " + FramebufferDebug.samplers());
         }
 
         RenderSystem.activeTexture(GL13.GL_TEXTURE0);
