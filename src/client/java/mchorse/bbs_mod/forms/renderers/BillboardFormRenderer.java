@@ -9,6 +9,7 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.client.render.picker.BBSPickerRenderer;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.forms.BillboardForm;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.forms.renderers.utils.FormOverlay;
 import mchorse.bbs_mod.utils.colors.OverlayBlend;
@@ -278,6 +279,15 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
             BBSPickerRenderer.setSampler0(texture);
         }
 
+        if (FramebufferDebug.inside())
+        {
+            FramebufferDebug.log("billboard", "layer=" + layer
+                + " shaded=" + (format == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL)
+                + " texture=" + texture.id + "/translucent=" + texture.hasTranslucency() + " alpha=" + color.a
+                + " light=" + light + " overlayActive=" + tinted + " defer=" + deferrable
+                + " | " + FramebufferDebug.bindings());
+        }
+
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, format);
 
         /* Front */
@@ -338,6 +348,13 @@ public class BillboardFormRenderer <T extends BillboardForm> extends FormRendere
             {
                 layer.draw(built);
             }
+        }
+
+        if (FramebufferDebug.inside())
+        {
+            FramebufferDebug.log("billboard", "after draw | " + FramebufferDebug.bindings());
+            FramebufferDebug.log("billboard", "after draw | " + FramebufferDebug.glState());
+            FramebufferDebug.log("billboard", "after draw | " + FramebufferDebug.samplers());
         }
 
         /* On unit 0 again, for the same reason as the bind above. */

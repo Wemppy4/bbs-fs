@@ -39,6 +39,7 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
 import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
@@ -933,7 +934,28 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
              * branch — the world span now mirrors the vanilla entity pipeline instead — so the dance is
              * dropped. Re-add via FormTranslucentQueue.suspend()/restore() if a deferred pack ever eats a
              * translucent model again. */
-            this.renderModel(context.entity, context.stack, model, context.light, context.overlay, contextColor, formColor, additive, false, context.stencilMap, context.getTransition(), context.world);
+            if (FramebufferDebug.inside())
+            {
+                FramebufferDebug.log("model", "shadingThisDraw=" + BBSRendering.isIrisWorldForms()
+                    + " picking=" + context.isPicking()
+                    + " texture=" + texture + " additive=" + additive
+                    + " alpha=" + contextColor.a + "/" + formColor.a
+                    + " | " + FramebufferDebug.bindings());
+            }
+
+            try
+            {
+                this.renderModel(context.entity, context.stack, model, context.light, context.overlay, contextColor, formColor, additive, false, context.stencilMap, context.getTransition(), context.world);
+            }
+            finally
+            {
+                if (FramebufferDebug.inside())
+                {
+                    FramebufferDebug.log("model", "after draw | " + FramebufferDebug.bindings());
+                    FramebufferDebug.log("model", "after draw | " + FramebufferDebug.glState());
+                    FramebufferDebug.log("model", "after draw | " + FramebufferDebug.samplers());
+                }
+            }
         }
     }
 

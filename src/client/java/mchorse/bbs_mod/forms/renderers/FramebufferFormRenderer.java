@@ -3,6 +3,7 @@ package mchorse.bbs_mod.forms.renderers;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.buffers.Std140Builder;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -19,6 +20,7 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.FramebufferForm;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.FormFramebuffer;
@@ -49,6 +51,8 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL14;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.ByteBuffer;
@@ -163,6 +167,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
 
         renderDepth += 1;
+        FramebufferDebug.beginRender(this.form, context, framebuffer);
 
         try
         {
@@ -171,6 +176,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         finally
         {
             renderDepth -= 1;
+            FramebufferDebug.endRender();
             pool.release(framebuffer);
 
             if (outermost)
@@ -180,8 +186,30 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         }
     }
 
+    /** Report each nested part and the pixels it has left in the current target. */
+    @Override
+    protected void renderBodyPart(BodyPart part, FormRenderingContext context)
+    {
+        if (!FramebufferDebug.inside())
+        {
+            super.renderBodyPart(part, context);
+
+            return;
+        }
+
+        String name = part.getForm() == null ? "null" : part.getForm().getClass().getSimpleName();
+
+        FramebufferDebug.log("part", "begin " + name + " id=" + part.getId() + " | " + FramebufferDebug.bindings());
+        super.renderBodyPart(part, context);
+        FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.bindings());
+        FramebufferDebug.log("part", "end " + name + " | " + FramebufferDebug.glState());
+        FramebufferDebug.readViewport("part end " + name);
+    }
+
     private void renderFramebuffer(FormRenderingContext context, FormFramebuffer framebuffer)
     {
+        FramebufferDebug.state("entry", context);
+
         /* Snapshotted by hand, not through RenderSystem.backupProjectionMatrix(): that backup is a single
          * slot, and a framebuffer form nested inside another would overwrite the outer one's saved world
          * projection with the inner one's ortho. Put back below as they WERE, not as they usually are —
@@ -241,6 +269,15 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         context.light = LightmapTextureManager.MAX_LIGHT_COORDINATE;
 
+        /* Iris can leave indexed blend overrides behind while GlStateManager already caches the
+         * default. Reset the real factors as well as the cache before the parts select their own
+         * pipelines, or their alpha can stay at the transparent clear value (ZERO/ONE).
+         * 1.21.11 moved the tracked calls from RenderSystem to GlStateManager. */
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+        GL11.glEnable(GL11.GL_BLEND);
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+        GlStateManager._enableBlend();
+
         try
         {
             BBSRendering.renderOffscreen(() -> super.renderBodyParts(context));
@@ -251,6 +288,9 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
             FormTranslucentQueue.restore(queueWasActive);
         }
+
+        FramebufferDebug.readBuffer("after parts", framebuffer);
+        FramebufferDebug.state("after parts", context);
 
         context.stack.pop();
 
@@ -288,9 +328,17 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             ? BBSShaders.getModelLayer(BBSShaders.ModelVariant.SINGLE.withCull(true), identifier)
             : BBSShaders.getBillboardLayer(identifier);
 
+        if (FramebufferDebug.logging)
+        {
+            FramebufferDebug.log("quad", "layer=" + layer + " shading=" + shading + " texture=" + identifier);
+        }
+
+        FramebufferDebug.state("before quad", context);
+
         if (shading)
         {
             this.renderModel(framebuffer, identifier, format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition(), true);
+            FramebufferDebug.state("after quad", context);
 
             return;
         }
@@ -305,6 +353,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         try
         {
             this.renderModel(framebuffer, identifier, format, layer, context.stack, context.overlay, context.light, context.color, context.getTransition(), false);
+            FramebufferDebug.state("after quad", context);
         }
         finally
         {

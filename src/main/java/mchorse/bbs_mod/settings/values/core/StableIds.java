@@ -1,5 +1,8 @@
 package mchorse.bbs_mod.settings.values.core;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -11,7 +14,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>The id lives <em>in the saved data</em> (a {@code "id"} key inside the element's map), not in
  * runtime state. That is not an implementation detail: the client and the server load the same film
  * file independently, and both must arrive at the same ids for cross-references (action actors,
- * sync-by-path) to keep meaning the same thing. An id generated at load time would differ per side.
+ * sync-by-path) to keep meaning the same thing. A random id generated at load time would differ
+ * per side, so legacy conversion uses {@link #fromLegacyIndex} until those ids are saved.
  *
  * <p>The format is eight lowercase hex chars with at least one letter. Eight hex chars keep track
  * keys readable; the mandatory letter guarantees an id never parses as an integer, so it can never
@@ -60,6 +64,25 @@ public final class StableIds
         }
 
         return true;
+    }
+
+    /**
+     * Repeatable identity for an unsaved legacy list. Independent readers must agree even before
+     * the user saves the converted document. Ids are scoped to their owning list; once saved they
+     * are preserved, and newly inserted elements still use {@link #generate()}.
+     */
+    public static String fromLegacyIndex(int index, Collection<String> taken)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            String seed = "bbs:legacy-list:" + index + ":" + attempt;
+            String id = UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8)).toString().substring(0, LENGTH);
+
+            if (isStableId(id) && !taken.contains(id))
+            {
+                return id;
+            }
+        }
     }
 
     private static boolean hasLetter(String id)

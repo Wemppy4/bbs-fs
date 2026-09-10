@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.film;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.data.migration.FilmStableIds;
+import mchorse.bbs_mod.data.migration.SaveVersion;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.film.markers.FilmMarkers;
 import mchorse.bbs_mod.film.replays.Replay;
@@ -82,6 +84,13 @@ public class Film extends ValueGroup
     @Override
     public void fromData(BaseType data)
     {
+        /* Imports, clipboard data and network repositories can bypass BaseManager.load().
+         * Resolve legacy references before ValueStableList assigns ids and properties are read. */
+        if (data.isMap() && SaveVersion.read(data.asMap()) < 2)
+        {
+            new FilmStableIds().migrate(data.asMap());
+        }
+
         super.fromData(data);
 
         FilmLegacy.migrateHotbar(this, data);

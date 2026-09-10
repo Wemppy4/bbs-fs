@@ -9,6 +9,7 @@ import mchorse.bbs_mod.cubic.render.DebugOverlay;
 import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.settings.values.ui.ValueDebugElement;
 import mchorse.bbs_mod.settings.values.ui.ValuePhysicsDebug;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -109,6 +110,13 @@ public final class ModelPhysicsDebug
 
         for (ModelPhysicsCache.CompiledChain chain : compiled.chains())
         {
+            FormBone bone = form.bones.getBone(chain.attach());
+
+            if (bone == null || !bone.physics.get().enabled)
+            {
+                continue;
+            }
+
             drawChain(stack, model, frames, chain, selectedRoot, config, unit);
 
             if (inverse != null)
@@ -180,6 +188,13 @@ public final class ModelPhysicsDebug
 
         for (ModelPhysicsCache.CompiledChain chain : compiled.chains())
         {
+            FormBone bone = modelForm.bones.getBone(chain.attach());
+
+            if (bone == null || !bone.physics.get().enabled)
+            {
+                continue;
+            }
+
             if (chain.targetBone() == null || chain.targetBone().isEmpty())
             {
                 continue;

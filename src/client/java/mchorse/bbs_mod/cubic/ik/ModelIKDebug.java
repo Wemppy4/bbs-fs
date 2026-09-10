@@ -14,6 +14,7 @@ import mchorse.bbs_mod.cubic.render.DebugOverlay;
 import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
+import mchorse.bbs_mod.forms.forms.utils.FormBone;
 import mchorse.bbs_mod.settings.values.ui.ValueDebugElement;
 import mchorse.bbs_mod.settings.values.ui.ValueIKDebug;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
@@ -204,6 +205,13 @@ public final class ModelIKDebug
 
         for (ModelIKCache.CompiledChain chain : compiled.chains())
         {
+            FormBone bone = form.bones.getBone(chain.tip());
+
+            if (bone == null || !bone.ik.get().enabled)
+            {
+                continue;
+            }
+
             drawChain(stack, frames, chain, selectedTip, config, unit);
         }
 
@@ -273,6 +281,13 @@ public final class ModelIKDebug
 
         for (ModelIKCache.CompiledChain chain : compiled.chains())
         {
+            FormBone bone = modelForm.bones.getBone(chain.tip());
+
+            if (bone == null || !bone.ik.get().enabled)
+            {
+                continue;
+            }
+
             if (targets)
             {
                 Vector3f goal = position(frames, chain.target());

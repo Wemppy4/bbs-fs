@@ -4,6 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.logging.LogUtils;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureManager;
 import mchorse.bbs_mod.resources.Link;
@@ -374,6 +375,13 @@ public class IrisUtils
         boolean override = offscreenDepth == 0 && pipeline instanceof ShaderRenderingPipeline shaders && shaders.shouldOverrideShaders();
         boolean shadow = ShadowRenderer.ACTIVE;
 
+        if (FramebufferDebug.logging)
+        {
+            FramebufferDebug.log("offscreen", "enter override=" + override + " offscreenDepth=" + offscreenDepth
+                + " shadowActive=" + shadow + " shouldOverride=" + shouldOverrideShaders()
+                + " pipeline=" + (pipeline == null ? "null" : pipeline.getClass().getSimpleName()));
+        }
+
         try
         {
             if (override)
@@ -383,6 +391,12 @@ public class IrisUtils
 
             offscreenDepth += 1;
             ShadowRenderer.ACTIVE = false;
+
+            if (FramebufferDebug.logging)
+            {
+                FramebufferDebug.log("offscreen", "inside shouldOverride=" + shouldOverrideShaders()
+                    + " shadingThisDraw=" + BBSRendering.isIrisWorldForms() + " shadowPass=" + isShadowPass());
+            }
 
             render.run();
         }
@@ -394,6 +408,11 @@ public class IrisUtils
             if (override)
             {
                 pipeline.setIsMainBound(true);
+            }
+
+            if (FramebufferDebug.logging)
+            {
+                FramebufferDebug.log("offscreen", "leave offscreenDepth=" + offscreenDepth + " shouldOverride=" + shouldOverrideShaders());
             }
         }
     }

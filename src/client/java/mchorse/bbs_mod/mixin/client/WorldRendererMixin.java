@@ -5,6 +5,7 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.renderer.MorphRenderer;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
+import mchorse.bbs_mod.forms.renderers.utils.FramebufferDebug;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.render.Camera;
@@ -34,6 +35,7 @@ public class WorldRendererMixin
     public void onRenderWorldStart(CallbackInfo info)
     {
         FormTranslucentQueue.begin();
+        FramebufferDebug.newFrame();
 
         /* The GUI entity span is closed on RETURN of that draw, which a throw inside it would skip —
          * and a stuck flag would make every world morph draw in the build phase, i.e. vanish. The world
