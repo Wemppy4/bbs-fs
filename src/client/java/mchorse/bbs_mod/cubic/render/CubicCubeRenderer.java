@@ -94,7 +94,7 @@ public class CubicCubeRenderer implements ICubicRenderer
 
     /* The subdivided quads of the bake, held as grids until the walk ends and finish() writes them out: a grid
      * point is resolved ONCE and its cells index into it, and a seam gets both of its sides before it is drawn. */
-    private final WeldPatchBuffer patches = new WeldPatchBuffer((WELD_SUBDIVISIONS + 1) * (WELD_SUBDIVISIONS + 1));
+    private final WeldPatchBuffer patches = new WeldPatchBuffer(WELD_SUBDIVISIONS);
     private final Vector3f gridTangentS = new Vector3f();
     private final Vector3f gridTangentT = new Vector3f();
     private final Vector3f quadNormal = new Vector3f();
@@ -610,6 +610,75 @@ public class CubicCubeRenderer implements ICubicRenderer
         }
 
         this.resolveGridNormals(patch);
+        this.registerSeamEdges(patch, quad, count);
+    }
+
+    /**
+     * Tell the patch buffer which edges of this grid lie on a seam, and between which seam corners, so the
+     * seam can later be matched with its other side. An edge is on a snap's seam when exactly its two corners
+     * sit on that snap's plane; each corner is identified with a corner of the welded face by its local
+     * position (a box's side edge is one of that face's edges), which names the seam corner through the
+     * layer's mapping. Anything else — the welded face itself, inset geometry, a triangle — registers nothing
+     * and keeps its own normals.
+     */
+    private void registerSeamEdges(WeldPatchBuffer.Patch patch, ModelQuad quad, int count)
+    {
+        if (count != 4)
+        {
+            return;
+        }
+
+        for (int k = 0; k < this.snapCount; k++)
+        {
+            WeldSnap snap = this.snapPool.get(k);
+            int onPlane = 0;
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (snap.cornerDist[i] < WELD_PLANE_EPS)
+                {
+                    onPlane |= 1 << i;
+                }
+            }
+
+            WeldPatchBuffer.Edge edge;
+            int start;
+            int end;
+
+            /* The edge's points run from start to end: rows along s from column 0, columns along t from row 0. */
+            switch (onPlane)
+            {
+                case 0b0011: edge = WeldPatchBuffer.Edge.ROW_0; start = 0; end = 1; break;
+                case 0b0110: edge = WeldPatchBuffer.Edge.COL_N; start = 1; end = 2; break;
+                case 0b1100: edge = WeldPatchBuffer.Edge.ROW_N; start = 3; end = 2; break;
+                case 0b1001: edge = WeldPatchBuffer.Edge.COL_0; start = 0; end = 3; break;
+                default: continue;
+            }
+
+            int seamA = this.seamCorner(snap, quad.vertices.get(start).vertex);
+            int seamB = this.seamCorner(snap, quad.vertices.get(end).vertex);
+
+            if (seamA >= 0 && seamB >= 0 && seamA != seamB)
+            {
+                this.patches.addSeamEdge(patch, snap.layer, snap.source, edge, seamA, seamB);
+            }
+        }
+    }
+
+    /** The seam corner a local cube position stands on, through the layer's welded-face corners; -1 when it is none of them. */
+    private int seamCorner(WeldSnap snap, Vector3f local)
+    {
+        Vector3f[] corners = snap.source ? snap.layer.sourceCorners : snap.layer.targetCorners;
+
+        for (int c = 0; c < corners.length; c++)
+        {
+            if (corners[c].distanceSquared(local) < WELD_PLANE_EPS * WELD_PLANE_EPS)
+            {
+                return snap.source ? snap.layer.sourceToTarget[c] : c;
+            }
+        }
+
+        return -1;
     }
 
     /**
@@ -719,6 +788,8 @@ public class CubicCubeRenderer implements ICubicRenderer
      */
     public void finish(BufferBuilder builder)
     {
+        this.patches.resolveSeams();
+
         for (int p = 0; p < this.patches.size(); p++)
         {
             WeldPatchBuffer.Patch patch = this.patches.get(p);

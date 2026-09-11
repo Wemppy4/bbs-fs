@@ -475,6 +475,9 @@ public class WeldBinding
         /* Whether the seam also distributes twist (rotation about the bone axis) across the band. */
         public final boolean twist;
 
+        /* Whether the two sides share shading normals along the seam (the patch buffer resolves it after the walk). */
+        public final boolean smooth;
+
         /* Twist already present between the two faces in the rest pose (rotated cubes), subtracted from the
          * live measurement so only ANIMATED twist deforms the band. */
         private final float restTwist;
@@ -525,6 +528,7 @@ public class WeldBinding
             this.falloff = weld.seamFalloff;
             this.targetShare = targetShare;
             this.twist = weld.twist;
+            this.smooth = weld.smooth;
 
             Vector3f restSourceAxis = sourceGroupRest.transformDirection(new Vector3f(this.sourceFaceNormal)).normalize();
             Vector3f restTargetAxis = targetGroupRest.transformDirection(new Vector3f(this.targetFaceNormal)).normalize();

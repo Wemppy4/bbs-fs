@@ -25,6 +25,9 @@ public class WeldValue extends ValueGroup
     /** Off by default so scenes tuned before twist distribution existed keep rendering identically. */
     public final ValueBoolean twist = new ValueBoolean("twist", false);
 
+    /** Off by default: older configs keep their hard crease, and a rounded look is a choice per joint. */
+    public final ValueBoolean smooth = new ValueBoolean("smooth", false);
+
     public WeldValue(String id)
     {
         super(id);
@@ -37,6 +40,7 @@ public class WeldValue extends ValueGroup
         this.add(this.seamFalloff);
         this.add(this.parentShare);
         this.add(this.twist);
+        this.add(this.smooth);
     }
 
     public ModelWeld toWeld()
@@ -49,7 +53,8 @@ public class WeldValue extends ValueGroup
             this.maxAngle.get(),
             this.seamFalloff.get(),
             this.parentShare.get(),
-            this.twist.get()
+            this.twist.get(),
+            this.smooth.get()
         );
     }
 }

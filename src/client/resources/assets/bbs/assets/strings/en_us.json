@@ -1452,6 +1452,7 @@
 	"bbs.ui.model_editor.weld.seam_falloff": "Bend width",
 	"bbs.ui.model_editor.weld.parent_share": "Parent's share",
 	"bbs.ui.model_editor.weld.twist": "Distribute twist",
+	"bbs.ui.model_editor.weld.smooth": "Smooth seam",
 	"bbs.ui.model_editor.weld.add": "Add weld",
 	"bbs.ui.model_editor.weld.remove": "Remove weld",
 	"bbs.ui.model_editor.weld.issue.source_bone": "Source bone not found",

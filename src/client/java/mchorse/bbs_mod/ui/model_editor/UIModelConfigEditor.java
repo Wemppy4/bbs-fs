@@ -1345,7 +1345,8 @@ public class UIModelConfigEditor extends UIElement
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_MAX_ANGLE, this.weldAngle(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_SEAM_FALLOFF, this.weldFalloff(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_PARENT_SHARE, this.weldShare(weld)),
-            this.weldTwist(weld)
+            this.weldTwist(weld),
+            this.weldSmooth(weld)
         );
         UIUtils.setEnabledDeep(this.weldPanel, picked != null);
 
@@ -1451,6 +1452,11 @@ public class UIModelConfigEditor extends UIElement
     private UIToggle weldTwist(WeldValue weld)
     {
         return this.toggle(UIKeys.MODEL_EDITOR_WELD_TWIST, () -> weld.twist, this::invalidateWelds);
+    }
+
+    private UIToggle weldSmooth(WeldValue weld)
+    {
+        return this.toggle(UIKeys.MODEL_EDITOR_WELD_SMOOTH, () -> weld.smooth, this::invalidateWelds);
     }
 
     private void addWeld()
