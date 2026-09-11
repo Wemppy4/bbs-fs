@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.graphics.InverseView;
+import mchorse.bbs_mod.particles.ParticleMaterial;
 import mchorse.bbs_mod.particles.ParticleScheme;
 import mchorse.bbs_mod.particles.components.expiration.ParticleComponentKillPlane;
 import mchorse.bbs_mod.particles.emitter.ParticleEmitter;
@@ -13,6 +14,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.texture.NativeImage;
@@ -124,10 +126,12 @@ public class UIParticleSchemeRenderer extends UIModelRenderer
         getWhiteLightmapTexture();
 
         /* 1.21.11 render: this is a NORMAL (non-picking) preview, so it must not use the picker
-         * layer — picker_particles now declares the BBSPicker UBO and cannot be drawn through the
+         * layer - picker_particles now declares the BBSPicker UBO and cannot be drawn through the
          * immediate RenderLayer path. Route through the proper non-picker particle layer (same
-         * POSITION_TEXTURE_COLOR_LIGHT format). */
-        this.emitter.render(VertexFormats.POSITION_TEXTURE_COLOR_LIGHT, BBSShaders.getParticlesLayer(), stack, OverlayTexture.DEFAULT_UV, context.getTransition());
+         * POSITION_TEXTURE_COLOR_LIGHT format), blending by the scheme's material as in 1.21.1. */
+        RenderLayer layer = BBSShaders.getParticlesLayer(this.emitter.scheme.material == ParticleMaterial.BLEND);
+
+        this.emitter.render(VertexFormats.POSITION_TEXTURE_COLOR_LIGHT, layer, stack, OverlayTexture.DEFAULT_UV, context.getTransition());
 
         stack.pop();
 

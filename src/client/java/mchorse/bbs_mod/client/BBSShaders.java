@@ -241,6 +241,15 @@ public class BBSShaders
     private static final RenderPipeline PARTICLES = registerParticles(false);
 
     /**
+     * The same particle pipeline with blending off, for Bedrock's particles_opaque and
+     * particles_alpha materials: only particles_blend blends the texture's alpha, the other two
+     * merely cut out transparent pixels, which core/particles does on its own (discard at a < 0.1).
+     * 1.21.1 picked this with RenderSystem.enable/disableBlend before the draw; blending is pipeline
+     * state here, so the choice is a second pipeline instead.
+     */
+    private static final RenderPipeline PARTICLES_OPAQUE = registerParticles(false, false);
+
+    /**
      * The world copy of the particle pipeline, assigned to the pack's PARTICLES program (see
      * {@link PipelineKey} for why the shared one cannot be). Built lazily on the first world draw
      * under a pack rather than in {@code <clinit>} — the shared fields above initialise in
@@ -279,6 +288,7 @@ public class BBSShaders
     private static RenderLayer pickerBillboardLayer;
     private static RenderLayer pickerParticlesLayer;
     private static RenderLayer particlesLayer;
+    private static RenderLayer particlesOpaqueLayer;
     private static RenderLayer particlesWorldLayer;
 
     /**
@@ -559,6 +569,34 @@ public class BBSShaders
         return particlesLayer;
     }
 
+    /**
+     * The normal particle layer for a given scheme material: blending only for
+     * {@link mchorse.bbs_mod.particles.ParticleMaterial#BLEND}, as on 1.21.1.
+     *
+     * Under a shader pack the world copy is returned either way - its pipeline is the one handed to
+     * Iris as the pack's PARTICLES program, and a second world pipeline would have nothing to be
+     * assigned to. Picking never reaches here: the picker pipelines have blending off already.
+     */
+    public static RenderLayer getParticlesLayer(boolean blend)
+    {
+        if (blend || BBSRendering.isIrisWorldForms())
+        {
+            return getParticlesLayer();
+        }
+
+        if (particlesOpaqueLayer == null)
+        {
+            RenderSetup.Builder setup = RenderSetup.builder(PARTICLES_OPAQUE)
+                .expectedBufferSize(RenderLayer.field_64008)
+                .translucent()
+                .useLightmap();
+
+            particlesOpaqueLayer = RenderLayer.of(BBSMod.MOD_ID + "_particles_opaque", setup.build());
+        }
+
+        return particlesOpaqueLayer;
+    }
+
     /* ----------------------------------------------------------------------------------------
      * Builders
      * ---------------------------------------------------------------------------------------- */
@@ -685,14 +723,18 @@ public class BBSShaders
      */
     private static RenderPipeline registerParticles(boolean world)
     {
+        return registerParticles(world, true);
+    }
+
+    private static RenderPipeline registerParticles(boolean world, boolean blend)
+    {
         Identifier shader = Identifier.of(BBSMod.MOD_ID, "core/particles");
 
         RenderPipeline.Builder builder = RenderPipeline.builder()
-            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/particles" + (world ? "_world" : "")))
+            .withLocation(Identifier.of(BBSMod.MOD_ID, "pipeline/particles" + (world ? "_world" : "") + (blend ? "" : "_opaque")))
             .withVertexShader(shader)
             .withFragmentShader(shader)
             .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR_LIGHT, VertexFormat.DrawMode.QUADS)
-            .withBlend(BLEND)
             .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
             .withCull(false)
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
@@ -700,6 +742,15 @@ public class BBSShaders
             .withUniform("Fog", UniformType.UNIFORM_BUFFER)
             .withSampler("Sampler0")
             .withSampler("Sampler2");
+
+        if (blend)
+        {
+            builder.withBlend(BLEND);
+        }
+        else
+        {
+            builder.withoutBlend();
+        }
 
         RenderPipeline pipeline = RenderPipelines.register(builder.build());
 

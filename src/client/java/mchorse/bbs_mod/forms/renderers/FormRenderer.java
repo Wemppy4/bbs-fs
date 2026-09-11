@@ -204,12 +204,15 @@ public abstract class FormRenderer <T extends Form>
         MatrixStack world = context.world;
         MatrixStack.Entry stackEntry = stack.peek();
         MatrixStack.Entry worldEntry = world == null ? null : world.peek();
+        boolean isPicking = context.isPicking();
 
         try
         {
             this.form.applyStates(context.transition);
 
-            if (!this.form.visible.get())
+            /* A form the author marked unpickable stays out of the picking pass only -
+             * it still renders normally. States are unapplied by the finally below. */
+            if (!this.form.visible.get() || (isPicking && !this.form.pickable.get()))
             {
                 return;
             }
@@ -234,7 +237,7 @@ public abstract class FormRenderer <T extends Form>
 
             this.render3D(context);
 
-            if (context.stencilMap != null)
+            if (isPicking)
             {
                 this.updateStencilMap(context);
             }

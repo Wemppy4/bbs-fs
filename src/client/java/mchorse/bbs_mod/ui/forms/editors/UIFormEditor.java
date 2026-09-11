@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.forms.editors;
 
+import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.data.types.MapType;
@@ -23,6 +24,7 @@ import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.forms.forms.VideoForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
 import mchorse.bbs_mod.forms.states.AnimationState;
+import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
@@ -763,9 +765,19 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             }
 
             Link texture = face.texture.get();
+            Vector4f crop = new Vector4f(8F, 8F, 48F, 48F);
 
             if (texture != null)
             {
+                Texture skin = BBSModClient.getTextures().getTexture(texture);
+                int textureScale = 1;
+
+                if (skin.width >= 64 && skin.width % 64 == 0)
+                {
+                    textureScale = skin.width / 64;
+                    crop.set(8F * textureScale, 8F * textureScale, skin.width - 16F * textureScale, skin.height - 16F * textureScale);
+                }
+
                 MultiLink multi = texture instanceof MultiLink existing ? (MultiLink) existing.copy() : new MultiLink();
 
                 if (!(texture instanceof MultiLink))
@@ -776,16 +788,17 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
                 FilteredLink erase = new FilteredLink(Link.assets("textures/pixel.png"));
 
                 erase.erase = true;
-                erase.shiftX = 8;
-                erase.shiftY = 8;
-                erase.scale = 8F;
+                erase.shiftX = 8 * textureScale;
+                erase.shiftY = 8 * textureScale;
+                erase.scale = 8F * textureScale;
                 multi.children.add(erase);
                 multi.recalculateId();
                 parent.texture.set(multi);
             }
 
+            face.pickable.set(false);
             face.resizeCrop.set(true);
-            face.crop.set(new Vector4f(8F, 8F, 48F, 48F));
+            face.crop.set(crop);
             facePart.setForm(face);
             facePart.transform.get().translate.set(0F, -0.5F, 0F);
 

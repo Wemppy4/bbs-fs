@@ -8,6 +8,7 @@ import mchorse.bbs_mod.client.BBSShaders;
 import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.ParticleForm;
+import mchorse.bbs_mod.particles.ParticleMaterial;
 import mchorse.bbs_mod.particles.ParticleScheme;
 import mchorse.bbs_mod.particles.emitter.ParticleEmitter;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -192,9 +193,12 @@ public class ParticleFormRenderer extends FormRenderer<ParticleForm> implements 
                 }
                 else
                 {
+                    /* Bedrock's material decides blending: only particles_blend blends, opaque and
+                     * alpha cut out by alpha in the shader. On 1.21.1 this was enable/disableBlend
+                     * around the draw; here it is which layer the emitter draws through. */
                     layer = shadersEnabled
                         ? BBSShaders.getModelLayer()
-                        : BBSShaders.getParticlesLayer();
+                        : BBSShaders.getParticlesLayer(emitter.scheme != null && emitter.scheme.material == ParticleMaterial.BLEND);
                 }
 
                 emitter.setupCameraProperties(context.camera);
