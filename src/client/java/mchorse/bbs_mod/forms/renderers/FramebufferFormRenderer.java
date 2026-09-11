@@ -421,6 +421,24 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             Vector3f origin = modelView.transformPosition(matrix.getTranslation(new Vector3f()));
             Vector3f planeNormal = FormTranslucentQueue.quadPlaneNormal(modelView, matrix);
 
+            /* The quad's opaque texels also draw right here, writing depth, because the sort
+             * alone cannot order this quad against a model it sits inside: a semi-transparent
+             * layer of the parent model (a skin's hat layer) sorts by its group's pivot, which
+             * is always further than the quad's own plane, so it replays first. With depth in
+             * the buffer that layer lands over the quad by the depth test, pixel by pixel,
+             * instead of the two fighting over who overwrites whom. */
+            ShaderProgram cutout = GameRenderer.getRenderTypeEntityCutoutProgram();
+
+            if (cutout != null)
+            {
+                /* The world pass draws with depth writes on; this only re-asserts it. */
+                RenderSystem.depthMask(true);
+
+                buffer.bind();
+                buffer.draw(modelView, RenderSystem.getProjectionMatrix(), cutout);
+                VertexBuffer.unbind();
+            }
+
             FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(
                 buffer, () -> finalShader, texture, modelView, null, origin, planeNormal, true, null, null
             ));
