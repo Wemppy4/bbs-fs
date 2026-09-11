@@ -92,13 +92,9 @@ public class CubicCubeRenderer implements ICubicRenderer
     private final float[] cornerV = new float[4];
     private final Vector3f seamPosition = new Vector3f();
 
-    /* The subdivided quad's grid of finished sub-vertices, (nS + 1) x (nT + 1): every point is resolved ONCE and
-     * the cells index into it — a cell's six vertices come from four shared points, not six evaluations. */
-    private static final int GRID_POINTS = (WELD_SUBDIVISIONS + 1) * (WELD_SUBDIVISIONS + 1);
-    private final Vector3f[] gridPos = vectors(GRID_POINTS);
-    private final Vector3f[] gridNormal = vectors(GRID_POINTS);
-    private final float[] gridU = new float[GRID_POINTS];
-    private final float[] gridV = new float[GRID_POINTS];
+    /* The subdivided quads of the bake, held as grids until the walk ends and finish() writes them out: a grid
+     * point is resolved ONCE and its cells index into it, and a seam gets both of its sides before it is drawn. */
+    private final WeldPatchBuffer patches = new WeldPatchBuffer((WELD_SUBDIVISIONS + 1) * (WELD_SUBDIVISIONS + 1));
     private final Vector3f gridTangentS = new Vector3f();
     private final Vector3f gridTangentT = new Vector3f();
     private final Vector3f quadNormal = new Vector3f();
@@ -266,7 +262,7 @@ public class CubicCubeRenderer implements ICubicRenderer
              * takes the plain path (most of a cube's quads are far ones). */
             if (subdivide && this.nearSeam(quad))
             {
-                this.renderQuadSubdivided(builder, stack, group, quad);
+                this.renderQuadSubdivided(stack, group, quad);
             }
             else
             {
@@ -515,11 +511,12 @@ public class CubicCubeRenderer implements ICubicRenderer
      * while the rest of the cube stays straight. The weight is evaluated per point (not interpolated from
      * the corners, which only ever sit at distance 0 or the full length) so the band actually shapes the
      * bend. Fine sub-quads are each nearly affine, so the texture warps smoothly across that band instead
-     * of kinking along the diagonal of a flat trapezoid. The grid is resolved once, then the cells index
-     * into it; normals come off the deformed grid ({@link #resolveGridNormals}), so the sheared band is lit
-     * as the curve it draws, not as the flat face it came from.
+     * of kinking along the diagonal of a flat trapezoid. The grid is resolved once into a patch that
+     * {@link #finish} writes out after the walk; normals come off the deformed grid
+     * ({@link #resolveGridNormals}), so the sheared band is lit as the curve it draws, not as the flat face
+     * it came from.
      */
-    private void renderQuadSubdivided(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelQuad quad)
+    private void renderQuadSubdivided(MatrixStack stack, ModelGroup group, ModelQuad quad)
     {
         Matrix4f matrix = stack.peek().getPositionMatrix();
         Matrix3f normalMatrix = stack.peek().getNormalMatrix();
@@ -602,35 +599,17 @@ public class CubicCubeRenderer implements ICubicRenderer
             if (!boneAlongS || twisted) nT = WELD_SUBDIVISIONS;
         }
 
-        int columns = nS + 1;
+        WeldPatchBuffer.Patch patch = this.patches.add(group, nS, nT);
 
         for (int row = 0; row <= nT; row++)
         {
             for (int col = 0; col <= nS; col++)
             {
-                this.resolveGridPoint(row * columns + col, (float) col / nS, (float) row / nT);
+                this.resolveGridPoint(patch, patch.index(col, row), (float) col / nS, (float) row / nT);
             }
         }
 
-        this.resolveGridNormals(nS, nT);
-
-        for (int row = 0; row < nT; row++)
-        {
-            for (int col = 0; col < nS; col++)
-            {
-                int i00 = row * columns + col;
-                int i10 = i00 + 1;
-                int i01 = i00 + columns;
-                int i11 = i01 + 1;
-
-                this.emitGridPoint(builder, group, i00);
-                this.emitGridPoint(builder, group, i10);
-                this.emitGridPoint(builder, group, i11);
-                this.emitGridPoint(builder, group, i00);
-                this.emitGridPoint(builder, group, i11);
-                this.emitGridPoint(builder, group, i01);
-            }
-        }
+        this.resolveGridNormals(patch);
     }
 
     /**
@@ -658,7 +637,7 @@ public class CubicCubeRenderer implements ICubicRenderer
      * the other seam's band on a cube welded at both ends, so bending only the foot wiggled the knee's
      * leg-side band too.
      */
-    private void resolveGridPoint(int index, float s, float t)
+    private void resolveGridPoint(WeldPatchBuffer.Patch patch, int index, float s, float t)
     {
         Vector3f[] r = this.rigidPos;
 
@@ -682,13 +661,13 @@ public class CubicCubeRenderer implements ICubicRenderer
             }
         }
 
-        this.gridPos[index].set(x, y, z);
-        this.gridU[index] = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
-        this.gridV[index] = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
+        patch.pos[index].set(x, y, z);
+        patch.u[index] = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
+        patch.v[index] = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
 
         Vector3f[] n = this.cornerNormal;
 
-        this.gridNormal[index].set(
+        patch.normal[index].set(
             bilerp(n[0].x, n[1].x, n[2].x, n[3].x, s, t),
             bilerp(n[0].y, n[1].y, n[2].y, n[3].y, s, t),
             bilerp(n[0].z, n[1].z, n[2].z, n[3].z, s, t)
@@ -704,17 +683,18 @@ public class CubicCubeRenderer implements ICubicRenderer
      * the grid degenerates (a triangle's doubled corner). Off the band the surface is the rigid bilerp, so
      * the result there is the face normal again and meets the plain-path quads without a step.
      */
-    private void resolveGridNormals(int nS, int nT)
+    private void resolveGridNormals(WeldPatchBuffer.Patch patch)
     {
-        int columns = nS + 1;
+        int nS = patch.nS;
+        int nT = patch.nT;
 
         for (int row = 0; row <= nT; row++)
         {
             for (int col = 0; col <= nS; col++)
             {
-                Vector3f normal = this.gridNormal[row * columns + col];
-                Vector3f alongS = this.gridTangentS.set(this.gridPos[row * columns + Math.min(col + 1, nS)]).sub(this.gridPos[row * columns + Math.max(col - 1, 0)]);
-                Vector3f alongT = this.gridTangentT.set(this.gridPos[Math.min(row + 1, nT) * columns + col]).sub(this.gridPos[Math.max(row - 1, 0) * columns + col]);
+                Vector3f normal = patch.normal[patch.index(col, row)];
+                Vector3f alongS = this.gridTangentS.set(patch.pos[patch.index(Math.min(col + 1, nS), row)]).sub(patch.pos[patch.index(Math.max(col - 1, 0), row)]);
+                Vector3f alongT = this.gridTangentT.set(patch.pos[patch.index(col, Math.min(row + 1, nT))]).sub(patch.pos[patch.index(col, Math.max(row - 1, 0))]);
                 Vector3f cross = alongS.cross(alongT);
 
                 if (cross.lengthSquared() < GRID_NORMAL_EPS_SQ)
@@ -732,23 +712,44 @@ public class CubicCubeRenderer implements ICubicRenderer
         }
     }
 
-    private void emitGridPoint(BufferBuilder builder, ModelGroup group, int index)
+    /**
+     * Write out the welded geometry held back during the walk. Follows {@code processRenderModel} whenever
+     * this renderer has welds and emits: the grids only leave the buffer here, so a walk without it draws
+     * no bent bands at all.
+     */
+    public void finish(BufferBuilder builder)
     {
-        Vector3f position = this.gridPos[index];
-
-        this.emit(builder, group, position.x, position.y, position.z, this.gridU[index], this.gridV[index], this.gridNormal[index]);
-    }
-
-    private static Vector3f[] vectors(int count)
-    {
-        Vector3f[] vectors = new Vector3f[count];
-
-        for (int i = 0; i < count; i++)
+        for (int p = 0; p < this.patches.size(); p++)
         {
-            vectors[i] = new Vector3f();
+            WeldPatchBuffer.Patch patch = this.patches.get(p);
+
+            for (int row = 0; row < patch.nT; row++)
+            {
+                for (int col = 0; col < patch.nS; col++)
+                {
+                    int i00 = patch.index(col, row);
+                    int i10 = i00 + 1;
+                    int i01 = patch.index(col, row + 1);
+                    int i11 = i01 + 1;
+
+                    this.emitPatchPoint(builder, patch, i00);
+                    this.emitPatchPoint(builder, patch, i10);
+                    this.emitPatchPoint(builder, patch, i11);
+                    this.emitPatchPoint(builder, patch, i00);
+                    this.emitPatchPoint(builder, patch, i11);
+                    this.emitPatchPoint(builder, patch, i01);
+                }
+            }
         }
 
-        return vectors;
+        this.patches.clear();
+    }
+
+    private void emitPatchPoint(BufferBuilder builder, WeldPatchBuffer.Patch patch, int index)
+    {
+        Vector3f position = patch.pos[index];
+
+        this.emit(builder, patch.group, position.x, position.y, position.z, patch.u[index], patch.v[index], patch.normal[index]);
     }
 
     /** Bilinear blend of four corner scalars laid out as (0,1) along the bottom edge and (3,2) along the top. */
