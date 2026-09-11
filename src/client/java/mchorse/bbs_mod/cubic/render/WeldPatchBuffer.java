@@ -10,8 +10,8 @@ import java.util.List;
 /**
  * The welded geometry of one CPU bake, held back as grids until the whole model has been walked. A welded
  * cube tessellates its bands knowing only its own side of every seam — the other side belongs to a cube
- * drawn earlier or later in the tree — so a seam can only be resolved across both of its sides (shared
- * shading normals, a fillet) once everything is in. Pooled: patches, seam edges and their grids are reused
+ * drawn earlier or later in the tree — so a seam can only be resolved across both of its sides (today:
+ * shared shading normals) once everything is in. Pooled: patches, seam edges and their grids are reused
  * across bakes, so a warm buffer allocates nothing per frame.
  */
 public class WeldPatchBuffer
