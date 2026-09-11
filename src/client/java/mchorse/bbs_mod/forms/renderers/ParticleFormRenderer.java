@@ -166,7 +166,7 @@ public class ParticleFormRenderer extends FormRenderer<ParticleForm> implements 
                     : this.getShader(context, GameRenderer::getParticleProgram, BBSShaders::getPickerParticlesProgram);
 
                 emitter.setupCameraProperties(context.camera);
-                emitter.render(format, shader, context.stack, context.overlay, context.getTransition());
+                emitter.render(format, shader, context.stack, context.overlay, context.getTransition(), !context.isPicking());
             }
 
             context.stack.pop();

@@ -126,13 +126,14 @@ public abstract class FormRenderer <T extends Form>
 
         int light = context.light;
         boolean visible = this.form.visible.get();
+        boolean isPicking = context.isPicking();
 
-        if (!visible)
+        if (!visible || (isPicking && !this.form.pickable.get()))
         {
+            this.form.unapplyStates();
+
             return;
         }
-
-        boolean isPicking = context.stencilMap != null;
 
         context.stack.push();
         if (context.world != null)

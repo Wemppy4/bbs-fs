@@ -42,6 +42,7 @@ public abstract class Form extends ValueGroup
     public static final String DISABLED_ALL = "*";
 
     public final ValueBoolean visible = new ValueBoolean("visible", true);
+    public final ValueBoolean pickable = new ValueBoolean("pickable", true);
     public final ValueStringKeys disabledTracks = new ValueStringKeys("disabled_tracks");
     public final ValueString trackName = new ValueString("track_name", "");
     public final ValueFloat lighting = new ValueFloat("lighting", 1F);
@@ -130,6 +131,7 @@ public abstract class Form extends ValueGroup
         this.renderLayer.invisible();
 
         this.add(this.visible);
+        this.add(this.pickable);
         this.add(this.disabledTracks);
         this.add(this.trackName);
         this.add(this.lighting);
