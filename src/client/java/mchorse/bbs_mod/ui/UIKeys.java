@@ -1098,10 +1098,12 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_SEAM_FALLOFF = L10n.lang("bbs.ui.model_editor.weld.seam_falloff");
     public static final IKey MODEL_EDITOR_WELD_PARENT_SHARE = L10n.lang("bbs.ui.model_editor.weld.parent_share");
     public static final IKey MODEL_EDITOR_WELD_TWIST = L10n.lang("bbs.ui.model_editor.weld.twist");
+    public static final IKey MODEL_EDITOR_WELD_SMOOTH = L10n.lang("bbs.ui.model_editor.weld.smooth");
     public static final IKey MODEL_EDITOR_WELD_ADD = L10n.lang("bbs.ui.model_editor.weld.add");
     public static final IKey MODEL_EDITOR_WELD_REMOVE = L10n.lang("bbs.ui.model_editor.weld.remove");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_BONE = L10n.lang("bbs.ui.model_editor.weld.issue.source_bone");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_BONE = L10n.lang("bbs.ui.model_editor.weld.issue.target_bone");
+    public static final IKey MODEL_EDITOR_WELD_ISSUE_SAME_BONE = L10n.lang("bbs.ui.model_editor.weld.issue.same_bone");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_FACE = L10n.lang("bbs.ui.model_editor.weld.issue.source_face");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_FACE = L10n.lang("bbs.ui.model_editor.weld.issue.target_face");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_CUBES = L10n.lang("bbs.ui.model_editor.weld.issue.source_cubes");

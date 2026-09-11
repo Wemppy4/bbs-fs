@@ -92,6 +92,17 @@ public class CubicCubeRenderer implements ICubicRenderer
     private final float[] cornerV = new float[4];
     private final Vector3f seamPosition = new Vector3f();
 
+    /* The subdivided quads of the bake, held as grids until the walk ends and finish() writes them out: a grid
+     * point is resolved ONCE and its cells index into it, and a seam gets both of its sides before it is drawn. */
+    private final WeldPatchBuffer patches = new WeldPatchBuffer(WELD_SUBDIVISIONS);
+    private final Vector3f gridTangentS = new Vector3f();
+    private final Vector3f gridTangentT = new Vector3f();
+    private final Vector3f quadNormal = new Vector3f();
+
+    /* A collapsed grid edge (a triangle's doubled corner) gives a zero cross product; any real cell, even a
+     * texel-sized one split eight ways, lands orders of magnitude above this. */
+    private static final float GRID_NORMAL_EPS_SQ = 1.0e-12F;
+
     /* Per-cube seam-ready snaps (one per active layer x role), pooled so no per-frame allocation:
      * nearSeam culls by them, snapWeldCorner pulls vertices by them, the subdivided path blends by them. */
     private final List<WeldSnap> snapPool = new ArrayList<>();
@@ -251,7 +262,7 @@ public class CubicCubeRenderer implements ICubicRenderer
              * takes the plain path (most of a cube's quads are far ones). */
             if (subdivide && this.nearSeam(quad))
             {
-                this.renderQuadSubdivided(builder, stack, group, quad);
+                this.renderQuadSubdivided(stack, group, quad);
             }
             else
             {
@@ -495,15 +506,17 @@ public class CubicCubeRenderer implements ICubicRenderer
     /**
      * Draw a welded cube's face as a tessellated grid instead of two triangles. Each corner is resolved
      * rigidly, and every seam records its OWN displacement at the corners on its plane (zero elsewhere).
-     * Every sub-vertex then adds each seam's interpolated displacement scaled by that seam's falloff weight
+     * Every grid point then adds each seam's interpolated displacement scaled by that seam's falloff weight
      * (full at the joint, fading to nothing a band away) — so each seam bends only the strip near itself
-     * while the rest of the cube stays straight. The weight is evaluated per sub-vertex (not interpolated
-     * from the corners, which only ever sit at distance 0 or the full length) so the band actually shapes
-     * the bend. Fine sub-quads are each nearly affine, so the texture warps smoothly across that band
-     * instead of kinking along the diagonal of a flat trapezoid. Normals interpolate from the corners' own
-     * normals, so curved strips keep their smooth shading.
+     * while the rest of the cube stays straight. The weight is evaluated per point (not interpolated from
+     * the corners, which only ever sit at distance 0 or the full length) so the band actually shapes the
+     * bend. Fine sub-quads are each nearly affine, so the texture warps smoothly across that band instead
+     * of kinking along the diagonal of a flat trapezoid. The grid is resolved once into a patch that
+     * {@link #finish} writes out after the walk; normals come off the deformed grid
+     * ({@link #resolveGridNormals}), so the sheared band is lit as the curve it draws, not as the flat face
+     * it came from.
      */
-    private void renderQuadSubdivided(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelQuad quad)
+    private void renderQuadSubdivided(MatrixStack stack, ModelGroup group, ModelQuad quad)
     {
         Matrix4f matrix = stack.peek().getPositionMatrix();
         Matrix3f normalMatrix = stack.peek().getNormalMatrix();
@@ -561,47 +574,139 @@ public class CubicCubeRenderer implements ICubicRenderer
         Vector3f cT = quad.vertices.get(Math.min(3, count - 1)).vertex;
 
         /* Per snap, only the edge running along ITS bone axis bends non-linearly; the other stays linear, so
-         * 1 segment is exact. Snaps on different faces can pull different edges — then both directions split. */
+         * 1 segment is exact — as long as the seam keeps this face in its plane. A seam that pulls the on-plane
+         * corners OUT of the plane by different amounts at the two ends of the other edge (an uneven share on a
+         * two-axis bend, the twist mode) makes every cell a twisted bilinear patch: two flat triangles crease
+         * it, every cell the same way, and the band reads as a sawtooth. Then the other edge splits too, which
+         * cuts each tooth down to a cell's width. Snaps on different faces can pull different edges — then both
+         * directions split as well. */
         for (int k = 0; k < this.snapCount; k++)
         {
-            Vector3f axis = this.snapPool.get(k).faceNormal;
+            WeldSnap snap = this.snapPool.get(k);
+            Vector3f axis = snap.faceNormal;
             float alongS = Math.abs((cS.x - c0.x) * axis.x + (cS.y - c0.y) * axis.y + (cS.z - c0.z) * axis.z);
             float alongT = Math.abs((cT.x - c0.x) * axis.x + (cT.y - c0.y) * axis.y + (cT.z - c0.z) * axis.z);
 
-            if (Math.max(alongS, alongT) > 1.0e-4F)
+            if (Math.max(alongS, alongT) <= 1.0e-4F)
             {
-                if (alongS >= alongT) nS = WELD_SUBDIVISIONS;
-                else nT = WELD_SUBDIVISIONS;
+                continue;
+            }
+
+            boolean boneAlongS = alongS >= alongT;
+            boolean twisted = this.leavesPlaneAcross(snap.cornerDisp, boneAlongS);
+
+            if (boneAlongS || twisted) nS = WELD_SUBDIVISIONS;
+            if (!boneAlongS || twisted) nT = WELD_SUBDIVISIONS;
+        }
+
+        WeldPatchBuffer.Patch patch = this.patches.add(group, nS, nT);
+
+        for (int row = 0; row <= nT; row++)
+        {
+            for (int col = 0; col <= nS; col++)
+            {
+                this.resolveGridPoint(patch, patch.index(col, row), (float) col / nS, (float) row / nT);
             }
         }
 
-        for (int row = 0; row < nT; row++)
-        {
-            for (int col = 0; col < nS; col++)
-            {
-                float s0 = (float) col / nS;
-                float s1 = (float) (col + 1) / nS;
-                float t0 = (float) row / nT;
-                float t1 = (float) (row + 1) / nT;
+        this.resolveGridNormals(patch);
+        this.registerSeamEdges(patch, quad, count);
+    }
 
-                this.emitInterp(builder, group, s0, t0);
-                this.emitInterp(builder, group, s1, t0);
-                this.emitInterp(builder, group, s1, t1);
-                this.emitInterp(builder, group, s0, t0);
-                this.emitInterp(builder, group, s1, t1);
-                this.emitInterp(builder, group, s0, t1);
+    /**
+     * Tell the patch buffer which edges of this grid lie on a seam, and between which seam corners, so the
+     * seam can later be matched with its other side. An edge is on a snap's seam when exactly its two corners
+     * sit on that snap's plane; each corner is identified with a corner of the welded face by its local
+     * position (a box's side edge is one of that face's edges), which names the seam corner through the
+     * layer's mapping. Anything else — the welded face itself, inset geometry, a triangle — registers nothing
+     * and keeps its own normals.
+     */
+    private void registerSeamEdges(WeldPatchBuffer.Patch patch, ModelQuad quad, int count)
+    {
+        if (count != 4)
+        {
+            return;
+        }
+
+        for (int k = 0; k < this.snapCount; k++)
+        {
+            WeldSnap snap = this.snapPool.get(k);
+            int onPlane = 0;
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (snap.cornerDist[i] < WELD_PLANE_EPS)
+                {
+                    onPlane |= 1 << i;
+                }
+            }
+
+            WeldPatchBuffer.Edge edge;
+            int start;
+            int end;
+
+            /* The edge's points run from start to end: rows along s from column 0, columns along t from row 0. */
+            switch (onPlane)
+            {
+                case 0b0011: edge = WeldPatchBuffer.Edge.ROW_0; start = 0; end = 1; break;
+                case 0b0110: edge = WeldPatchBuffer.Edge.COL_N; start = 1; end = 2; break;
+                case 0b1100: edge = WeldPatchBuffer.Edge.ROW_N; start = 3; end = 2; break;
+                case 0b1001: edge = WeldPatchBuffer.Edge.COL_0; start = 0; end = 3; break;
+                default: continue;
+            }
+
+            int seamA = this.seamCorner(snap, quad.vertices.get(start).vertex);
+            int seamB = this.seamCorner(snap, quad.vertices.get(end).vertex);
+
+            if (seamA >= 0 && seamB >= 0 && seamA != seamB)
+            {
+                this.patches.addSeamEdge(patch, snap.layer, snap.source, edge, seamA, seamB);
             }
         }
     }
 
+    /** The seam corner a local cube position stands on, through the layer's welded-face corners; -1 when it is none of them. */
+    private int seamCorner(WeldSnap snap, Vector3f local)
+    {
+        Vector3f[] corners = snap.source ? snap.layer.sourceCorners : snap.layer.targetCorners;
+
+        for (int c = 0; c < corners.length; c++)
+        {
+            if (corners[c].distanceSquared(local) < WELD_PLANE_EPS * WELD_PLANE_EPS)
+            {
+                return snap.source ? snap.layer.sourceToTarget[c] : c;
+            }
+        }
+
+        return -1;
+    }
+
     /**
-     * Bilinearly interpolate UV and the rigid position across the four corners (s along 0->1, t along 0->3),
-     * then add EACH seam's interpolated displacement scaled by that seam's OWN falloff weight — the falloff
-     * curve evaluated on this sub-vertex's interpolated distance from that seam. Per-seam, not a shared
-     * max-weighted "snapped surface": a shared surface bleeds one seam's motion into the other seam's band
-     * on a cube welded at both ends, so bending only the foot wiggled the knee's leg-side band too.
+     * Whether a seam's displacement leaves this quad's plane by different amounts at the two ends of the edge
+     * running ACROSS the bone — the twist that turns a cell cut only along the bone into a non-planar patch.
+     * A bend at the default share never does: the seam slides corners along the bone axis, which lies in every
+     * side face, so the whole face stays planar and one cross segment is exact.
      */
-    private void emitInterp(BufferBuilder builder, ModelGroup group, float s, float t)
+    private boolean leavesPlaneAcross(Vector3f[] disp, boolean boneAlongS)
+    {
+        Vector3f n = this.quadNormal.set(this.cornerNormal[0]).normalize();
+
+        /* The cross edge joins corners (0,3) and (1,2) when the bone runs along s, (0,1) and (3,2) along t. */
+        int across0 = boneAlongS ? 3 : 1;
+        int across1 = boneAlongS ? 1 : 3;
+
+        return Math.abs(disp[0].dot(n) - disp[across0].dot(n)) > WELD_PLANE_EPS || Math.abs(disp[across1].dot(n) - disp[2].dot(n)) > WELD_PLANE_EPS;
+    }
+
+    /**
+     * Resolve one grid point: bilinearly interpolate UV and the rigid position across the four corners (s
+     * along 0->1, t along 0->3), then add EACH seam's interpolated displacement scaled by that seam's OWN
+     * falloff weight — the falloff curve evaluated on this point's interpolated distance from that seam.
+     * Per-seam, not a shared max-weighted "snapped surface": a shared surface bleeds one seam's motion into
+     * the other seam's band on a cube welded at both ends, so bending only the foot wiggled the knee's
+     * leg-side band too.
+     */
+    private void resolveGridPoint(WeldPatchBuffer.Patch patch, int index, float s, float t)
     {
         Vector3f[] r = this.rigidPos;
 
@@ -625,17 +730,97 @@ public class CubicCubeRenderer implements ICubicRenderer
             }
         }
 
-        float u = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
-        float v = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
+        patch.pos[index].set(x, y, z);
+        patch.u[index] = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
+        patch.v[index] = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
+
         Vector3f[] n = this.cornerNormal;
 
-        this.normal.set(
+        patch.normal[index].set(
             bilerp(n[0].x, n[1].x, n[2].x, n[3].x, s, t),
             bilerp(n[0].y, n[1].y, n[2].y, n[3].y, s, t),
             bilerp(n[0].z, n[1].z, n[2].z, n[3].z, s, t)
         ).normalize();
+    }
 
-        this.emit(builder, group, x, y, z, u, v, this.normal);
+    /**
+     * Shading normals off the DEFORMED grid rather than the rigid face. The band next to a seam is sheared
+     * toward it, and lit with the flat face's normal it reads as a sticker over a bend — the shape curves,
+     * the light stays flat. Central differences between grid neighbours (one-sided on the border) give the
+     * tangent plane of what is actually drawn. The rigid normal already in the grid only settles which way
+     * the cross product faces — a mirrored matrix (the UI preview flips Y) reverses it — and stands in where
+     * the grid degenerates (a triangle's doubled corner). Off the band the surface is the rigid bilerp, so
+     * the result there is the face normal again and meets the plain-path quads without a step.
+     */
+    private void resolveGridNormals(WeldPatchBuffer.Patch patch)
+    {
+        int nS = patch.nS;
+        int nT = patch.nT;
+
+        for (int row = 0; row <= nT; row++)
+        {
+            for (int col = 0; col <= nS; col++)
+            {
+                Vector3f normal = patch.normal[patch.index(col, row)];
+                Vector3f alongS = this.gridTangentS.set(patch.pos[patch.index(Math.min(col + 1, nS), row)]).sub(patch.pos[patch.index(Math.max(col - 1, 0), row)]);
+                Vector3f alongT = this.gridTangentT.set(patch.pos[patch.index(col, Math.min(row + 1, nT))]).sub(patch.pos[patch.index(col, Math.max(row - 1, 0))]);
+                Vector3f cross = alongS.cross(alongT);
+
+                if (cross.lengthSquared() < GRID_NORMAL_EPS_SQ)
+                {
+                    continue;
+                }
+
+                if (cross.dot(normal) < 0F)
+                {
+                    cross.negate();
+                }
+
+                normal.set(cross).normalize();
+            }
+        }
+    }
+
+    /**
+     * Write out the welded geometry held back during the walk. Follows {@code processRenderModel} whenever
+     * this renderer has welds and emits: the grids only leave the buffer here, so a walk without it draws
+     * no bent bands at all.
+     */
+    public void finish(BufferBuilder builder)
+    {
+        this.patches.resolveSeams();
+
+        for (int p = 0; p < this.patches.size(); p++)
+        {
+            WeldPatchBuffer.Patch patch = this.patches.get(p);
+
+            for (int row = 0; row < patch.nT; row++)
+            {
+                for (int col = 0; col < patch.nS; col++)
+                {
+                    int i00 = patch.index(col, row);
+                    int i10 = i00 + 1;
+                    int i01 = patch.index(col, row + 1);
+                    int i11 = i01 + 1;
+
+                    this.emitPatchPoint(builder, patch, i00);
+                    this.emitPatchPoint(builder, patch, i10);
+                    this.emitPatchPoint(builder, patch, i11);
+                    this.emitPatchPoint(builder, patch, i00);
+                    this.emitPatchPoint(builder, patch, i11);
+                    this.emitPatchPoint(builder, patch, i01);
+                }
+            }
+        }
+
+        this.patches.clear();
+    }
+
+    private void emitPatchPoint(BufferBuilder builder, WeldPatchBuffer.Patch patch, int index)
+    {
+        Vector3f position = patch.pos[index];
+
+        this.emit(builder, patch.group, position.x, position.y, position.z, patch.u[index], patch.v[index], patch.normal[index]);
     }
 
     /** Bilinear blend of four corner scalars laid out as (0,1) along the bottom edge and (3,2) along the top. */

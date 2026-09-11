@@ -845,7 +845,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 group.visible = visible;
             }
 
+            /* The cached channel evaluation is of the posed model, and this reset leaves the
+             * bind pose behind: a stamp left standing would have the next pass restore only
+             * the constraint writes on top of it - see evaluateChannels' own rest branch. */
             model.model.resetPose();
+            model.clearChannels();
 
             matrices.push();
             matrices.multiply(RotationAxis.POSITIVE_Y.rotation(MathUtils.PI));
@@ -1255,7 +1259,11 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         if (rest || this.animator == null)
         {
+            /* Same as above: the rest sample wipes the live channels the posed evaluation left,
+             * so the stamp must go with them - otherwise the render that follows this sampling
+             * hits the cache and draws the bind pose (the form's pose silently gone). */
             model.model.resetPose();
+            model.clearChannels();
         }
         else
         {
