@@ -610,6 +610,11 @@ public class ModelInstance implements IModelInstance
                 BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
                 CubicRenderer.processRenderModel(renderProcessor, builder, stack, model);
 
+                /* The subdivided welded quads are held back in the renderer's patch buffer during
+                 * the walk (so a seam gets both of its sides before it is drawn) and only leave it
+                 * here — without this the bent bands are simply not emitted. */
+                renderProcessor.finish(builder);
+
                 BuiltBuffer built = builder.endNullable();
 
                 /* Claimed while the geometry was written, so the upload comes after it. */

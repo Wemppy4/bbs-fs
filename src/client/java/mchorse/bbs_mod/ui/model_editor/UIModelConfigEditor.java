@@ -1345,7 +1345,8 @@ public class UIModelConfigEditor extends UIElement
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_MAX_ANGLE, this.weldAngle(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_SEAM_FALLOFF, this.weldFalloff(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_PARENT_SHARE, this.weldShare(weld)),
-            this.weldTwist(weld)
+            this.weldTwist(weld),
+            this.weldSmooth(weld)
         );
         UIUtils.setEnabledDeep(this.weldPanel, picked != null);
 
@@ -1451,6 +1452,11 @@ public class UIModelConfigEditor extends UIElement
     private UIToggle weldTwist(WeldValue weld)
     {
         return this.toggle(UIKeys.MODEL_EDITOR_WELD_TWIST, () -> weld.twist, this::invalidateWelds);
+    }
+
+    private UIToggle weldSmooth(WeldValue weld)
+    {
+        return this.toggle(UIKeys.MODEL_EDITOR_WELD_SMOOTH, () -> weld.smooth, this::invalidateWelds);
     }
 
     private void addWeld()
@@ -1562,6 +1568,7 @@ public class UIModelConfigEditor extends UIElement
         {
             case SOURCE_BONE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_BONE;
             case TARGET_BONE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_BONE;
+            case SAME_BONE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SAME_BONE;
             case SOURCE_FACE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_FACE;
             case TARGET_FACE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_FACE;
             case SOURCE_CUBES: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_CUBES;
