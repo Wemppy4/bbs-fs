@@ -99,6 +99,12 @@ public class CubicCubeRenderer implements ICubicRenderer
     private final Vector3f[] gridNormal = vectors(GRID_POINTS);
     private final float[] gridU = new float[GRID_POINTS];
     private final float[] gridV = new float[GRID_POINTS];
+    private final Vector3f gridTangentS = new Vector3f();
+    private final Vector3f gridTangentT = new Vector3f();
+
+    /* A collapsed grid edge (a triangle's doubled corner) gives a zero cross product; any real cell, even a
+     * texel-sized one split eight ways, lands orders of magnitude above this. */
+    private static final float GRID_NORMAL_EPS_SQ = 1.0e-12F;
 
     /* Per-cube seam-ready snaps (one per active layer x role), pooled so no per-frame allocation:
      * nearSeam culls by them, snapWeldCorner pulls vertices by them, the subdivided path blends by them. */
@@ -509,7 +515,8 @@ public class CubicCubeRenderer implements ICubicRenderer
      * the corners, which only ever sit at distance 0 or the full length) so the band actually shapes the
      * bend. Fine sub-quads are each nearly affine, so the texture warps smoothly across that band instead
      * of kinking along the diagonal of a flat trapezoid. The grid is resolved once, then the cells index
-     * into it; normals interpolate from the corners' own normals, so curved strips keep their smooth shading.
+     * into it; normals come off the deformed grid ({@link #resolveGridNormals}), so the sheared band is lit
+     * as the curve it draws, not as the flat face it came from.
      */
     private void renderQuadSubdivided(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelQuad quad)
     {
@@ -593,6 +600,8 @@ public class CubicCubeRenderer implements ICubicRenderer
             }
         }
 
+        this.resolveGridNormals(nS, nT);
+
         for (int row = 0; row < nT; row++)
         {
             for (int col = 0; col < nS; col++)
@@ -655,6 +664,43 @@ public class CubicCubeRenderer implements ICubicRenderer
             bilerp(n[0].y, n[1].y, n[2].y, n[3].y, s, t),
             bilerp(n[0].z, n[1].z, n[2].z, n[3].z, s, t)
         ).normalize();
+    }
+
+    /**
+     * Shading normals off the DEFORMED grid rather than the rigid face. The band next to a seam is sheared
+     * toward it, and lit with the flat face's normal it reads as a sticker over a bend — the shape curves,
+     * the light stays flat. Central differences between grid neighbours (one-sided on the border) give the
+     * tangent plane of what is actually drawn. The rigid normal already in the grid only settles which way
+     * the cross product faces — a mirrored matrix (the UI preview flips Y) reverses it — and stands in where
+     * the grid degenerates (a triangle's doubled corner). Off the band the surface is the rigid bilerp, so
+     * the result there is the face normal again and meets the plain-path quads without a step.
+     */
+    private void resolveGridNormals(int nS, int nT)
+    {
+        int columns = nS + 1;
+
+        for (int row = 0; row <= nT; row++)
+        {
+            for (int col = 0; col <= nS; col++)
+            {
+                Vector3f normal = this.gridNormal[row * columns + col];
+                Vector3f alongS = this.gridTangentS.set(this.gridPos[row * columns + Math.min(col + 1, nS)]).sub(this.gridPos[row * columns + Math.max(col - 1, 0)]);
+                Vector3f alongT = this.gridTangentT.set(this.gridPos[Math.min(row + 1, nT) * columns + col]).sub(this.gridPos[Math.max(row - 1, 0) * columns + col]);
+                Vector3f cross = alongS.cross(alongT);
+
+                if (cross.lengthSquared() < GRID_NORMAL_EPS_SQ)
+                {
+                    continue;
+                }
+
+                if (cross.dot(normal) < 0F)
+                {
+                    cross.negate();
+                }
+
+                normal.set(cross).normalize();
+            }
+        }
     }
 
     private void emitGridPoint(BufferBuilder builder, ModelGroup group, int index)
