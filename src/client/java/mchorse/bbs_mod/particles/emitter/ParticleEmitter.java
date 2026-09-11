@@ -6,6 +6,7 @@ import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.math.IExpression;
 import mchorse.bbs_mod.math.Variable;
+import mchorse.bbs_mod.particles.ParticleMaterial;
 import mchorse.bbs_mod.particles.ParticleScheme;
 import mchorse.bbs_mod.particles.components.IComponentEmitterInitialize;
 import mchorse.bbs_mod.particles.components.IComponentEmitterUpdate;
@@ -472,7 +473,7 @@ public class ParticleEmitter
     /**
      * Render all the particles in this particle emitter
      */
-    public void render(VertexFormat format, Supplier<ShaderProgram> program, MatrixStack stack, int overlay, float transition)
+    public void render(VertexFormat format, Supplier<ShaderProgram> program, MatrixStack stack, int overlay, float transition, boolean blend)
     {
         if (this.scheme == null)
         {
@@ -506,7 +507,21 @@ public class ParticleEmitter
             }
 
             RenderSystem.setShader(program);
-            RenderSystem.disableBlend();
+
+            /* Of Bedrock's materials only particles_blend blends the texture's (and the
+             * particle's own) alpha, while particles_opaque and particles_alpha merely cut out
+             * transparent pixels, which the particle shader does on its own. Picking passes
+             * disallow blending: their colors are form IDs rather than pixels */
+            if (blend && this.scheme.material == ParticleMaterial.BLEND)
+            {
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+            }
+            else
+            {
+                RenderSystem.disableBlend();
+            }
+
             RenderSystem.disableCull();
             BufferRenderer.drawWithGlobalProgram(builder.end());
             RenderSystem.enableCull();

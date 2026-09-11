@@ -127,7 +127,7 @@ public class UIParticleSchemeRenderer extends UIModelRenderer
          * unaffected: they render through ParticleFormRenderer with the real light map. */
         RenderSystem.setShaderTexture(2, getWhiteLightmapTextureId());
 
-        this.emitter.render(VertexFormats.POSITION_TEXTURE_COLOR_LIGHT, GameRenderer::getParticleProgram, stack, OverlayTexture.DEFAULT_UV, context.getTransition());
+        this.emitter.render(VertexFormats.POSITION_TEXTURE_COLOR_LIGHT, GameRenderer::getParticleProgram, stack, OverlayTexture.DEFAULT_UV, context.getTransition(), true);
         RenderSystem.disableDepthTest();
         RenderSystem.disableBlend();
 
