@@ -632,6 +632,7 @@ public class ModelInstance implements IModelInstance
                 builder = Tessellator.getInstance().getBuffer();
                 builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
                 CubicRenderer.processRenderModel(bake, builder, ROOT, model);
+                bake.finish(builder);
             }
 
             if (cacheable)

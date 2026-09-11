@@ -10,7 +10,6 @@ import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
-import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -23,10 +22,10 @@ import java.util.List;
  * parent.
  *
  * <p>A bone is usually two coincident cubes — the base skin and the inflated jacket layer. Each layer is a
- * different size, so they get their OWN seam: the cubes of the two bones are paired by matching welded-face
- * cross-section (base to base, jacket to jacket — whether the layers differ by inflate or by raw size) and
- * every pair seals independently. A single shared seam would drag the base layer out to the jacket's size
- * and puff the joint.
+ * different size, so they get their OWN seam: the cubes of the two bones are paired by how their welded
+ * faces fit in the rest pose (base to base, jacket to jacket — whether the layers differ by inflate or by
+ * raw size) and every pair seals independently. A single shared seam would drag the base layer out to the
+ * jacket's size and puff the joint.
  *
  * <p>Because the parent draws before the child, the rigid world poses of both faces can't be known in one
  * traversal — the renderer runs a capture pass first (the renderer fills {@link Layer#resetCapture} state),
@@ -52,6 +51,10 @@ public class WeldBinding
     {
         SOURCE_BONE,
         TARGET_BONE,
+
+        /** Both faces sit on one bone — rigid, so there is no joint between them to seal; the source face would just collapse onto the target's. */
+        SAME_BONE,
+
         SOURCE_FACE,
         TARGET_FACE,
 
@@ -69,6 +72,7 @@ public class WeldBinding
     {
         if (model.getGroup(weld.sourceBone) == null) return Issue.SOURCE_BONE;
         if (model.getGroup(weld.targetBone) == null) return Issue.TARGET_BONE;
+        if (model.getGroup(weld.sourceBone) == model.getGroup(weld.targetBone)) return Issue.SAME_BONE;
         if (CubeFace.fromName(weld.sourceFace) == null) return Issue.SOURCE_FACE;
         if (CubeFace.fromName(weld.targetFace) == null) return Issue.TARGET_FACE;
 
@@ -94,12 +98,15 @@ public class WeldBinding
         List<ModelCube> targetCubes = facedCubes(targetGroup, targetFace);
         List<Layer> layers = new ArrayList<>();
 
-        /* Rest-pose world matrices of both bones, composed the exact way the renderer stacks them: the
-         * corner correspondence between the two faces is decided HERE, in the one pose where the modeler
-         * actually aligned them — matching by proximity in whatever animated pose the first frame happens
-         * to catch fixes a bent/twisted mapping forever. (The rest twist bias is read off the same pose.) */
+        /* Rest-pose world matrices of both bones, composed the exact way the renderer stacks them: which
+         * cube pairs with which, and the corner correspondence within each pair, are decided HERE, in the
+         * one pose where the modeler actually aligned them — matching by proximity in whatever animated
+         * pose the first frame happens to catch fixes a bent/twisted mapping forever. (The rest twist bias
+         * is read off the same pose.) */
         Matrix4f sourceGroupRest = restWorldMatrix(sourceGroup);
         Matrix4f targetGroupRest = restWorldMatrix(targetGroup);
+        Vector3f[][] sourceRestWorld = restFaceCorners(sourceGroupRest, sourceCubes, sourceFace);
+        Vector3f[][] targetRestWorld = restFaceCorners(targetGroupRest, targetCubes, targetFace);
 
         /* The share knob is authored as the PARENT bone's share, but the seam math is anchored to the
          * target's face — so resolve which side the parent actually is from the model hierarchy and flip
@@ -108,14 +115,11 @@ public class WeldBinding
          * welds of the same rig. Unrelated bones (no ancestry either way) treat the target as the parent. */
         float targetShare = isAncestor(sourceGroup, targetGroup) ? 1F - weld.parentShare : weld.parentShare;
 
-        for (int[] pair : pairByCrossSection(sourceCubes, sourceFace, targetCubes, targetFace))
+        for (int[] pair : pairByRestFit(sourceRestWorld, targetRestWorld))
         {
-            ModelCube sourceCube = sourceCubes.get(pair[0]);
-            ModelCube targetCube = targetCubes.get(pair[1]);
-
             layers.add(new Layer(
-                sourceCube, sourceFace, sourceGroupRest, restCubeMatrix(sourceGroupRest, sourceCube),
-                targetCube, targetFace, targetGroupRest, restCubeMatrix(targetGroupRest, targetCube),
+                sourceCubes.get(pair[0]), sourceFace, sourceGroupRest, sourceRestWorld[pair[0]],
+                targetCubes.get(pair[1]), targetFace, targetGroupRest, targetRestWorld[pair[1]],
                 weld, targetShare
             ));
         }
@@ -150,7 +154,7 @@ public class WeldBinding
         return false;
     }
 
-    /** The group's cubes that carry the welded face, in model order; {@link #pairByCrossSection} pairs them up. */
+    /** The group's cubes that carry the welded face, in model order; {@link #pairByRestFit} pairs them up. */
     private static List<ModelCube> facedCubes(ModelGroup group, CubeFace face)
     {
         List<ModelCube> cubes = new ArrayList<>();
@@ -166,38 +170,54 @@ public class WeldBinding
         return cubes;
     }
 
-    /**
-     * Pair source cubes to target cubes by how closely their welded faces match in cross-section, so each
-     * skin layer welds to its own counterpart (base to base, inflated jacket to jacket) whether the layers
-     * differ by inflate or by raw size. Greedy: the closest-matching free pair is taken first, so a spare
-     * cube on the longer side is left unwelded instead of dragging a mismatched partner onto its seam.
-     */
-    private static List<int[]> pairByCrossSection(List<ModelCube> sources, CubeFace sourceFace, List<ModelCube> targets, CubeFace targetFace)
+    /** Each cube's welded-face corners carried to the rest-pose world by its bone and its own modeling transform. */
+    private static Vector3f[][] restFaceCorners(Matrix4f groupRest, List<ModelCube> cubes, CubeFace face)
     {
-        Vector2f[] sourceSizes = crossSections(sources, sourceFace);
-        Vector2f[] targetSizes = crossSections(targets, targetFace);
+        Vector3f[][] corners = new Vector3f[cubes.size()][];
+
+        for (int i = 0; i < cubes.size(); i++)
+        {
+            corners[i] = transformCorners(restCubeMatrix(groupRest, cubes.get(i)), faceCorners(cubes.get(i), face));
+        }
+
+        return corners;
+    }
+
+    /**
+     * Pair source cubes to target cubes by how well their welded faces fit in the rest pose — the same
+     * corner-to-corner distance {@link #matchCorners} minimizes, so size and position count together: each
+     * skin layer welds to its own counterpart (base to base, inflated jacket to jacket, whether the layers
+     * differ by inflate or by raw size), and two same-sized cubes side by side each take the one actually in
+     * front of them rather than whichever the model lists first. Greedy: the best-fitting free pair is taken
+     * first, so a spare cube on the longer side is left unwelded instead of dragging a mismatched partner
+     * onto its seam.
+     */
+    private static List<int[]> pairByRestFit(Vector3f[][] sources, Vector3f[][] targets)
+    {
+        float[][] fit = new float[sources.length][targets.length];
         List<int[]> candidates = new ArrayList<>();
 
-        for (int s = 0; s < sources.size(); s++)
+        for (int s = 0; s < sources.length; s++)
         {
-            for (int t = 0; t < targets.size(); t++)
+            for (int t = 0; t < targets.length; t++)
             {
+                fit[s][t] = matchDistance(sources[s], targets[t], matchCorners(sources[s], targets[t]));
                 candidates.add(new int[] {s, t});
             }
         }
 
         candidates.sort((a, b) ->
         {
-            int byScore = Float.compare(crossSectionDistance(sourceSizes[a[0]], targetSizes[a[1]]), crossSectionDistance(sourceSizes[b[0]], targetSizes[b[1]]));
+            int byFit = Float.compare(fit[a[0]][a[1]], fit[b[0]][b[1]]);
 
-            if (byScore != 0) return byScore;
+            if (byFit != 0) return byFit;
             if (a[0] != b[0]) return Integer.compare(a[0], b[0]);
 
             return Integer.compare(a[1], b[1]);
         });
 
-        boolean[] sourceUsed = new boolean[sources.size()];
-        boolean[] targetUsed = new boolean[targets.size()];
+        boolean[] sourceUsed = new boolean[sources.length];
+        boolean[] targetUsed = new boolean[targets.length];
         List<int[]> pairs = new ArrayList<>();
 
         for (int[] pair : candidates)
@@ -211,37 +231,6 @@ public class WeldBinding
         }
 
         return pairs;
-    }
-
-    /** The two in-plane extents of each cube's welded face (sorted small-to-large) — its cross-section size. */
-    private static Vector2f[] crossSections(List<ModelCube> cubes, CubeFace face)
-    {
-        Vector3f[] axes = inPlaneAxes(face.normal);
-        Vector2f[] sizes = new Vector2f[cubes.size()];
-
-        for (int i = 0; i < cubes.size(); i++)
-        {
-            float a = axisExtent(cubes.get(i), axes[0]);
-            float b = axisExtent(cubes.get(i), axes[1]);
-
-            sizes[i] = a <= b ? new Vector2f(a, b) : new Vector2f(b, a);
-        }
-
-        return sizes;
-    }
-
-    private static float crossSectionDistance(Vector2f a, Vector2f b)
-    {
-        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-    }
-
-    /** The two unit axes spanning an axis-aligned face's plane (the pair that isn't its normal). */
-    private static Vector3f[] inPlaneAxes(Vector3f normal)
-    {
-        if (Math.abs(normal.x) > 0.5F) return new Vector3f[] {new Vector3f(0F, 1F, 0F), new Vector3f(0F, 0F, 1F)};
-        if (Math.abs(normal.y) > 0.5F) return new Vector3f[] {new Vector3f(1F, 0F, 0F), new Vector3f(0F, 0F, 1F)};
-
-        return new Vector3f[] {new Vector3f(1F, 0F, 0F), new Vector3f(0F, 1F, 0F)};
     }
 
     /** Whether {@code ancestor} sits above {@code group} in the bone hierarchy. */
@@ -349,12 +338,7 @@ public class WeldBinding
 
         for (int[] permutation : PERMUTATIONS)
         {
-            float score = 0F;
-
-            for (int r = 0; r < 4; r++)
-            {
-                score += sourceRest[r].distanceSquared(targetRest[permutation[r]]);
-            }
+            float score = matchDistance(sourceRest, targetRest, permutation);
 
             if (score < bestScore)
             {
@@ -364,6 +348,19 @@ public class WeldBinding
         }
 
         return best.clone();
+    }
+
+    /** Total squared rest-pose distance between the corners under a source -> target assignment: how well the faces fit. */
+    private static float matchDistance(Vector3f[] sourceRest, Vector3f[] targetRest, int[] sourceToTarget)
+    {
+        float score = 0F;
+
+        for (int r = 0; r < sourceToTarget.length; r++)
+        {
+            score += sourceRest[r].distanceSquared(targetRest[sourceToTarget[r]]);
+        }
+
+        return score;
     }
 
     private static Vector3f average(Vector3f[] points)
@@ -478,6 +475,9 @@ public class WeldBinding
         /* Whether the seam also distributes twist (rotation about the bone axis) across the band. */
         public final boolean twist;
 
+        /* Whether the two sides share shading normals along the seam (the patch buffer resolves it after the walk). */
+        public final boolean smooth;
+
         /* Twist already present between the two faces in the rest pose (rotated cubes), subtracted from the
          * live measurement so only ANIMATED twist deforms the band. */
         private final float restTwist;
@@ -511,16 +511,12 @@ public class WeldBinding
          * rest gap between the faces), so snapping to it is a no-op and the group may ride its baked VAO. */
         public boolean identity;
 
-        private Layer(ModelCube sourceCube, CubeFace sourceFace, Matrix4f sourceGroupRest, Matrix4f sourceCubeRest, ModelCube targetCube, CubeFace targetFace, Matrix4f targetGroupRest, Matrix4f targetCubeRest, ModelWeld weld, float targetShare)
+        private Layer(ModelCube sourceCube, CubeFace sourceFace, Matrix4f sourceGroupRest, Vector3f[] sourceRestWorld, ModelCube targetCube, CubeFace targetFace, Matrix4f targetGroupRest, Vector3f[] targetRestWorld, ModelWeld weld, float targetShare)
         {
             this.sourceCube = sourceCube;
             this.targetCube = targetCube;
             this.sourceCorners = faceCorners(sourceCube, sourceFace);
             this.targetCorners = faceCorners(targetCube, targetFace);
-
-            Vector3f[] sourceRestWorld = transformCorners(sourceCubeRest, this.sourceCorners);
-            Vector3f[] targetRestWorld = transformCorners(targetCubeRest, this.targetCorners);
-
             this.sourceToTarget = matchCorners(sourceRestWorld, targetRestWorld);
             this.targetFaceNormal = new Vector3f(targetFace.normal);
             this.sourceFaceNormal = new Vector3f(sourceFace.normal);
@@ -532,6 +528,7 @@ public class WeldBinding
             this.falloff = weld.seamFalloff;
             this.targetShare = targetShare;
             this.twist = weld.twist;
+            this.smooth = weld.smooth;
 
             Vector3f restSourceAxis = sourceGroupRest.transformDirection(new Vector3f(this.sourceFaceNormal)).normalize();
             Vector3f restTargetAxis = targetGroupRest.transformDirection(new Vector3f(this.targetFaceNormal)).normalize();
