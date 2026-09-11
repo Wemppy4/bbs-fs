@@ -784,6 +784,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
                 parent.texture.set(multi);
             }
 
+            face.pickable.set(false);
             face.resizeCrop.set(true);
             face.crop.set(new Vector4f(8F, 8F, 48F, 48F));
             facePart.setForm(face);
