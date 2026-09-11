@@ -101,6 +101,7 @@ public class CubicCubeRenderer implements ICubicRenderer
     private final float[] gridV = new float[GRID_POINTS];
     private final Vector3f gridTangentS = new Vector3f();
     private final Vector3f gridTangentT = new Vector3f();
+    private final Vector3f quadNormal = new Vector3f();
 
     /* A collapsed grid edge (a triangle's doubled corner) gives a zero cross product; any real cell, even a
      * texel-sized one split eight ways, lands orders of magnitude above this. */
@@ -576,18 +577,29 @@ public class CubicCubeRenderer implements ICubicRenderer
         Vector3f cT = quad.vertices.get(Math.min(3, count - 1)).vertex;
 
         /* Per snap, only the edge running along ITS bone axis bends non-linearly; the other stays linear, so
-         * 1 segment is exact. Snaps on different faces can pull different edges — then both directions split. */
+         * 1 segment is exact — as long as the seam keeps this face in its plane. A seam that pulls the on-plane
+         * corners OUT of the plane by different amounts at the two ends of the other edge (an uneven share on a
+         * two-axis bend, the twist mode) makes every cell a twisted bilinear patch: two flat triangles crease
+         * it, every cell the same way, and the band reads as a sawtooth. Then the other edge splits too, which
+         * cuts each tooth down to a cell's width. Snaps on different faces can pull different edges — then both
+         * directions split as well. */
         for (int k = 0; k < this.snapCount; k++)
         {
-            Vector3f axis = this.snapPool.get(k).faceNormal;
+            WeldSnap snap = this.snapPool.get(k);
+            Vector3f axis = snap.faceNormal;
             float alongS = Math.abs((cS.x - c0.x) * axis.x + (cS.y - c0.y) * axis.y + (cS.z - c0.z) * axis.z);
             float alongT = Math.abs((cT.x - c0.x) * axis.x + (cT.y - c0.y) * axis.y + (cT.z - c0.z) * axis.z);
 
-            if (Math.max(alongS, alongT) > 1.0e-4F)
+            if (Math.max(alongS, alongT) <= 1.0e-4F)
             {
-                if (alongS >= alongT) nS = WELD_SUBDIVISIONS;
-                else nT = WELD_SUBDIVISIONS;
+                continue;
             }
+
+            boolean boneAlongS = alongS >= alongT;
+            boolean twisted = this.leavesPlaneAcross(snap.cornerDisp, boneAlongS);
+
+            if (boneAlongS || twisted) nS = WELD_SUBDIVISIONS;
+            if (!boneAlongS || twisted) nT = WELD_SUBDIVISIONS;
         }
 
         int columns = nS + 1;
@@ -619,6 +631,23 @@ public class CubicCubeRenderer implements ICubicRenderer
                 this.emitGridPoint(builder, group, i01);
             }
         }
+    }
+
+    /**
+     * Whether a seam's displacement leaves this quad's plane by different amounts at the two ends of the edge
+     * running ACROSS the bone — the twist that turns a cell cut only along the bone into a non-planar patch.
+     * A bend at the default share never does: the seam slides corners along the bone axis, which lies in every
+     * side face, so the whole face stays planar and one cross segment is exact.
+     */
+    private boolean leavesPlaneAcross(Vector3f[] disp, boolean boneAlongS)
+    {
+        Vector3f n = this.quadNormal.set(this.cornerNormal[0]).normalize();
+
+        /* The cross edge joins corners (0,3) and (1,2) when the bone runs along s, (0,1) and (3,2) along t. */
+        int across0 = boneAlongS ? 3 : 1;
+        int across1 = boneAlongS ? 1 : 3;
+
+        return Math.abs(disp[0].dot(n) - disp[across0].dot(n)) > WELD_PLANE_EPS || Math.abs(disp[across1].dot(n) - disp[2].dot(n)) > WELD_PLANE_EPS;
     }
 
     /**
