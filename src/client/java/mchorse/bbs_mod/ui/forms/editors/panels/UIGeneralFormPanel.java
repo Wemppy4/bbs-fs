@@ -31,6 +31,7 @@ public class UIGeneralFormPanel extends UIFormPanel
     public UIKeybind hotkey;
 
     public UIToggle visible;
+    public UIToggle pickable;
     public UIButton filterTracks;
     public UIToggle boneTracks;
     
@@ -60,6 +61,8 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.hotkey.single().tooltip(UIKeys.FORMS_EDITORS_GENERAL_HOTKEY);
 
         this.visible = UIValues.toggle(UIKeys.FORMS_EDITORS_GENERAL_VISIBLE, () -> this.form.visible);
+        this.pickable = UIValues.toggle(UIKeys.FORMS_EDITORS_GENERAL_PICKABLE, () -> this.form.pickable);
+        this.pickable.tooltip(UIKeys.FORMS_EDITORS_GENERAL_PICKABLE_TOOLTIP);
         this.filterTracks = new UIButton(UIKeys.FORMS_EDITORS_GENERAL_FILTER_TRACKS, (b) -> this.openTrackFilter());
         this.filterTracks.tooltip(UIKeys.FORMS_EDITORS_GENERAL_FILTER_TRACKS_TOOLTIP);
         this.boneTracks = new UIToggle(UIKeys.FORMS_EDITORS_GENERAL_BONE_TRACKS, (b) ->
@@ -102,7 +105,7 @@ public class UIGeneralFormPanel extends UIFormPanel
 
         display.fields.add(
             UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_DISPLAY, this.name),
-            this.hotkey, this.visible,
+            this.hotkey, this.visible, this.pickable,
             UI.labelRow(UIKeys.FORMS_EDITORS_GENERAL_UI_SCALE, this.uiScale)
         );
 
