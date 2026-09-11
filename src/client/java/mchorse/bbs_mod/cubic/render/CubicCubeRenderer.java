@@ -92,6 +92,14 @@ public class CubicCubeRenderer implements ICubicRenderer
     private final float[] cornerV = new float[4];
     private final Vector3f seamPosition = new Vector3f();
 
+    /* The subdivided quad's grid of finished sub-vertices, (nS + 1) x (nT + 1): every point is resolved ONCE and
+     * the cells index into it — a cell's six vertices come from four shared points, not six evaluations. */
+    private static final int GRID_POINTS = (WELD_SUBDIVISIONS + 1) * (WELD_SUBDIVISIONS + 1);
+    private final Vector3f[] gridPos = vectors(GRID_POINTS);
+    private final Vector3f[] gridNormal = vectors(GRID_POINTS);
+    private final float[] gridU = new float[GRID_POINTS];
+    private final float[] gridV = new float[GRID_POINTS];
+
     /* Per-cube seam-ready snaps (one per active layer x role), pooled so no per-frame allocation:
      * nearSeam culls by them, snapWeldCorner pulls vertices by them, the subdivided path blends by them. */
     private final List<WeldSnap> snapPool = new ArrayList<>();
@@ -495,13 +503,13 @@ public class CubicCubeRenderer implements ICubicRenderer
     /**
      * Draw a welded cube's face as a tessellated grid instead of two triangles. Each corner is resolved
      * rigidly, and every seam records its OWN displacement at the corners on its plane (zero elsewhere).
-     * Every sub-vertex then adds each seam's interpolated displacement scaled by that seam's falloff weight
+     * Every grid point then adds each seam's interpolated displacement scaled by that seam's falloff weight
      * (full at the joint, fading to nothing a band away) — so each seam bends only the strip near itself
-     * while the rest of the cube stays straight. The weight is evaluated per sub-vertex (not interpolated
-     * from the corners, which only ever sit at distance 0 or the full length) so the band actually shapes
-     * the bend. Fine sub-quads are each nearly affine, so the texture warps smoothly across that band
-     * instead of kinking along the diagonal of a flat trapezoid. Normals interpolate from the corners' own
-     * normals, so curved strips keep their smooth shading.
+     * while the rest of the cube stays straight. The weight is evaluated per point (not interpolated from
+     * the corners, which only ever sit at distance 0 or the full length) so the band actually shapes the
+     * bend. Fine sub-quads are each nearly affine, so the texture warps smoothly across that band instead
+     * of kinking along the diagonal of a flat trapezoid. The grid is resolved once, then the cells index
+     * into it; normals interpolate from the corners' own normals, so curved strips keep their smooth shading.
      */
     private void renderQuadSubdivided(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelQuad quad)
     {
@@ -575,33 +583,44 @@ public class CubicCubeRenderer implements ICubicRenderer
             }
         }
 
+        int columns = nS + 1;
+
+        for (int row = 0; row <= nT; row++)
+        {
+            for (int col = 0; col <= nS; col++)
+            {
+                this.resolveGridPoint(row * columns + col, (float) col / nS, (float) row / nT);
+            }
+        }
+
         for (int row = 0; row < nT; row++)
         {
             for (int col = 0; col < nS; col++)
             {
-                float s0 = (float) col / nS;
-                float s1 = (float) (col + 1) / nS;
-                float t0 = (float) row / nT;
-                float t1 = (float) (row + 1) / nT;
+                int i00 = row * columns + col;
+                int i10 = i00 + 1;
+                int i01 = i00 + columns;
+                int i11 = i01 + 1;
 
-                this.emitInterp(builder, group, s0, t0);
-                this.emitInterp(builder, group, s1, t0);
-                this.emitInterp(builder, group, s1, t1);
-                this.emitInterp(builder, group, s0, t0);
-                this.emitInterp(builder, group, s1, t1);
-                this.emitInterp(builder, group, s0, t1);
+                this.emitGridPoint(builder, group, i00);
+                this.emitGridPoint(builder, group, i10);
+                this.emitGridPoint(builder, group, i11);
+                this.emitGridPoint(builder, group, i00);
+                this.emitGridPoint(builder, group, i11);
+                this.emitGridPoint(builder, group, i01);
             }
         }
     }
 
     /**
-     * Bilinearly interpolate UV and the rigid position across the four corners (s along 0->1, t along 0->3),
-     * then add EACH seam's interpolated displacement scaled by that seam's OWN falloff weight — the falloff
-     * curve evaluated on this sub-vertex's interpolated distance from that seam. Per-seam, not a shared
-     * max-weighted "snapped surface": a shared surface bleeds one seam's motion into the other seam's band
-     * on a cube welded at both ends, so bending only the foot wiggled the knee's leg-side band too.
+     * Resolve one grid point: bilinearly interpolate UV and the rigid position across the four corners (s
+     * along 0->1, t along 0->3), then add EACH seam's interpolated displacement scaled by that seam's OWN
+     * falloff weight — the falloff curve evaluated on this point's interpolated distance from that seam.
+     * Per-seam, not a shared max-weighted "snapped surface": a shared surface bleeds one seam's motion into
+     * the other seam's band on a cube welded at both ends, so bending only the foot wiggled the knee's
+     * leg-side band too.
      */
-    private void emitInterp(BufferBuilder builder, ModelGroup group, float s, float t)
+    private void resolveGridPoint(int index, float s, float t)
     {
         Vector3f[] r = this.rigidPos;
 
@@ -625,17 +644,36 @@ public class CubicCubeRenderer implements ICubicRenderer
             }
         }
 
-        float u = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
-        float v = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
+        this.gridPos[index].set(x, y, z);
+        this.gridU[index] = bilerp(this.cornerU[0], this.cornerU[1], this.cornerU[2], this.cornerU[3], s, t);
+        this.gridV[index] = bilerp(this.cornerV[0], this.cornerV[1], this.cornerV[2], this.cornerV[3], s, t);
+
         Vector3f[] n = this.cornerNormal;
 
-        this.normal.set(
+        this.gridNormal[index].set(
             bilerp(n[0].x, n[1].x, n[2].x, n[3].x, s, t),
             bilerp(n[0].y, n[1].y, n[2].y, n[3].y, s, t),
             bilerp(n[0].z, n[1].z, n[2].z, n[3].z, s, t)
         ).normalize();
+    }
 
-        this.emit(builder, group, x, y, z, u, v, this.normal);
+    private void emitGridPoint(BufferBuilder builder, ModelGroup group, int index)
+    {
+        Vector3f position = this.gridPos[index];
+
+        this.emit(builder, group, position.x, position.y, position.z, this.gridU[index], this.gridV[index], this.gridNormal[index]);
+    }
+
+    private static Vector3f[] vectors(int count)
+    {
+        Vector3f[] vectors = new Vector3f[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            vectors[i] = new Vector3f();
+        }
+
+        return vectors;
     }
 
     /** Bilinear blend of four corner scalars laid out as (0,1) along the bottom edge and (3,2) along the top. */
