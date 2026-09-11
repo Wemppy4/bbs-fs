@@ -1456,6 +1456,7 @@
 	"bbs.ui.model_editor.weld.remove": "Remove weld",
 	"bbs.ui.model_editor.weld.issue.source_bone": "Source bone not found",
 	"bbs.ui.model_editor.weld.issue.target_bone": "Target bone not found",
+	"bbs.ui.model_editor.weld.issue.same_bone": "Source and target are the same bone",
 	"bbs.ui.model_editor.weld.issue.source_face": "Source face isn't picked",
 	"bbs.ui.model_editor.weld.issue.target_face": "Target face isn't picked",
 	"bbs.ui.model_editor.weld.issue.source_cubes": "Source bone has no cube with that face",

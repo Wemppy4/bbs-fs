@@ -51,6 +51,10 @@ public class WeldBinding
     {
         SOURCE_BONE,
         TARGET_BONE,
+
+        /** Both faces sit on one bone — rigid, so there is no joint between them to seal; the source face would just collapse onto the target's. */
+        SAME_BONE,
+
         SOURCE_FACE,
         TARGET_FACE,
 
@@ -68,6 +72,7 @@ public class WeldBinding
     {
         if (model.getGroup(weld.sourceBone) == null) return Issue.SOURCE_BONE;
         if (model.getGroup(weld.targetBone) == null) return Issue.TARGET_BONE;
+        if (model.getGroup(weld.sourceBone) == model.getGroup(weld.targetBone)) return Issue.SAME_BONE;
         if (CubeFace.fromName(weld.sourceFace) == null) return Issue.SOURCE_FACE;
         if (CubeFace.fromName(weld.targetFace) == null) return Issue.TARGET_FACE;
 

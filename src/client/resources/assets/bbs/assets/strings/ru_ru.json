@@ -1450,6 +1450,7 @@
 	"bbs.ui.model_editor.weld.remove": "Удалить шов",
 	"bbs.ui.model_editor.weld.issue.source_bone": "Кость-источник не найдена",
 	"bbs.ui.model_editor.weld.issue.target_bone": "Кость-цель не найдена",
+	"bbs.ui.model_editor.weld.issue.same_bone": "Источник и цель — одна и та же кость",
 	"bbs.ui.model_editor.weld.issue.source_face": "Не выбрана грань-источник",
 	"bbs.ui.model_editor.weld.issue.target_face": "Не выбрана грань-цель",
 	"bbs.ui.model_editor.weld.issue.source_cubes": "У кости-источника нет куба с такой гранью",
