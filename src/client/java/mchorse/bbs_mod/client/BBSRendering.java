@@ -573,10 +573,33 @@ public class BBSRendering
         batcher2D.textCard(label, iconX + 3, y + 4, Colors.WHITE, Colors.A50);
     }
 
+    /** Whether the entity pass opened the render-last scope — false when one was already open. */
+    private static boolean entityPassRenderLast;
+
+    /**
+     * The world's entity pass: between these two calls vanilla draws the actors, model blocks
+     * and morphed players, and without a shader pack {@link #renderCoolStuff} draws the films
+     * at its end — one render-last scope spans it all, so a form set to render last draws after
+     * every other form of the frame. Under Iris the films run earlier, at the solid layer, in a
+     * scope of their own; this one still covers what the entity loop drew.
+     */
+    public static void beginEntityPass()
+    {
+        entityPassRenderLast = FormRenderLast.open();
+    }
+
+    public static void endEntityPass()
+    {
+        FormRenderLast.close(entityPassRenderLast);
+
+        entityPassRenderLast = false;
+    }
+
     public static void renderCoolStuff(WorldRenderContext worldRenderContext)
     {
-        /* One scope over everything drawn here: forms set to render last draw when it closes,
-         * after the last replay — still in this pass, whichever phase of the frame it runs in. */
+        /* A scope over everything drawn here, for when this runs on its own — under Iris, at the
+         * solid layer: forms set to render last draw when it closes, after the last replay, still
+         * in this pass. Inside the entity pass's scope this opens nothing and they wait for it. */
         boolean renderLast = FormRenderLast.open();
 
         try
