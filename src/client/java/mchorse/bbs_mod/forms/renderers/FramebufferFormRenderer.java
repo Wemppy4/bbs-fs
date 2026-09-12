@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.forms.FormRenderLast;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -236,8 +237,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         /* The nested forms render under an ortho projection into this framebuffer — deferring
          * their translucent pixels into the world's queue would replay them with the wrong
-         * projection, so they render single-pass as before. */
+         * projection, so they render single-pass as before. Render-last is off here for the
+         * same reason: a part postponed out of this buffer would come back in the world. */
         boolean queueWasActive = FormTranslucentQueue.suspend();
+        boolean renderLastWasActive = FormRenderLast.suspend();
 
         /* Full bright on the way in: the quad that draws the finished picture applies the
          * caller's lightmap once, so letting it shade the parts inside the buffer too would
@@ -274,6 +277,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             context.light = light;
 
             FormTranslucentQueue.restore(queueWasActive);
+            FormRenderLast.restore(renderLastWasActive);
         }
 
         FramebufferDebug.readBuffer("after parts", framebuffer);
@@ -358,6 +362,8 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
         quad.p3.set(TLx, BRy, 0);
         quad.p4.set(BRx, BRy, 0);
 
+        FramebufferDebug.quad("quad corners", matrices, quad);
+
         this.renderQuad(format, texture, shader, matrices, overlay, light, overlayColor, transition, defer);
     }
 
@@ -420,6 +426,24 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewMatrix());
             Vector3f origin = modelView.transformPosition(matrix.getTranslation(new Vector3f()));
             Vector3f planeNormal = FormTranslucentQueue.quadPlaneNormal(modelView, matrix);
+
+            /* The quad's opaque texels also draw right here, writing depth, because the sort
+             * alone cannot order this quad against a model it sits inside: a semi-transparent
+             * layer of the parent model (a skin's hat layer) sorts by its group's pivot, which
+             * is always further than the quad's own plane, so it replays first. With depth in
+             * the buffer that layer lands over the quad by the depth test, pixel by pixel,
+             * instead of the two fighting over who overwrites whom. */
+            ShaderProgram cutout = GameRenderer.getRenderTypeEntityCutoutProgram();
+
+            if (cutout != null)
+            {
+                /* The world pass draws with depth writes on; this only re-asserts it. */
+                RenderSystem.depthMask(true);
+
+                buffer.bind();
+                buffer.draw(modelView, RenderSystem.getProjectionMatrix(), cutout);
+                VertexBuffer.unbind();
+            }
 
             FormTranslucentQueue.add(new FormTranslucentQueue.VertexBufferCommand(
                 buffer, () -> finalShader, texture, modelView, null, origin, planeNormal, true, null, null

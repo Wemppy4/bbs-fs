@@ -676,6 +676,8 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_MATERIAL_OVERLAY_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.overlay-tooltip");
     public static final IKey FORMS_EDITORS_MATERIAL_GLOW = L10n.lang("bbs.ui.forms.editors.material.glow");
     public static final IKey FORMS_EDITORS_MATERIAL_GLOW_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.glow-tooltip");
+    public static final IKey FORMS_EDITORS_MATERIAL_RENDER_LAST = L10n.lang("bbs.ui.forms.editors.material.render_last");
+    public static final IKey FORMS_EDITORS_MATERIAL_RENDER_LAST_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.render_last-tooltip");
     public static final IKey FORMS_EDITORS_MATERIAL_LAYER = L10n.lang("bbs.ui.forms.editors.material.layer");
     public static final IKey FORMS_EDITORS_MATERIAL_LAYER_TOOLTIP = L10n.lang("bbs.ui.forms.editors.material.layer-tooltip");
     public static final IKey FORMS_EDITORS_MATERIAL_LAYER_AUTO = L10n.lang("bbs.ui.forms.editors.material.layer.auto");
