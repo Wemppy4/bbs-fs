@@ -62,6 +62,7 @@ public class UIMaterialFormPanel extends UIFormPanel
     public UICirculate culling;
     public UIToggle materialVisible;
     public UIToggle shaderShadow;
+    public UIToggle renderLast;
 
     public UISliderTrackpad smoothness;
     public UISliderTrackpad metallic;
@@ -116,6 +117,8 @@ public class UIMaterialFormPanel extends UIFormPanel
             (toggle) -> this.materialValue().visible.set(toggle.getValue()));
 
         this.shaderShadow = UIValues.toggle(UIKeys.FORMS_EDITORS_GENERAL_SHADER_SHADOW, () -> this.form.shaderShadow);
+        this.renderLast = UIValues.toggle(UIKeys.FORMS_EDITORS_MATERIAL_RENDER_LAST, () -> this.form.renderLast);
+        this.renderLast.tooltip(UIKeys.FORMS_EDITORS_MATERIAL_RENDER_LAST_TOOLTIP);
 
         this.smoothness = this.pbrSlider((v) -> this.materialValue().smoothness.set(v));
         this.metallic = this.pbrSlider((v) -> this.materialValue().metallic.set(v));
@@ -346,6 +349,7 @@ public class UIMaterialFormPanel extends UIFormPanel
         this.layerRow.removeFromParent();
         this.cullingRow.removeFromParent();
         this.shaderShadow.removeFromParent();
+        this.renderLast.removeFromParent();
 
         this.colorSection.fields.removeAll();
         this.renderSection.fields.removeAll();
@@ -363,7 +367,7 @@ public class UIMaterialFormPanel extends UIFormPanel
         }
         else
         {
-            this.renderSection.fields.add(this.layerRow, this.shaderShadow);
+            this.renderSection.fields.add(this.layerRow, this.shaderShadow, this.renderLast);
         }
 
         if (this.hasMaterials())

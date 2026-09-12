@@ -290,6 +290,16 @@ public class IrisUtils
         }
     }
 
+    /**
+     * Whether a render into a framebuffer of ours is going on right now. The pack is told the main
+     * target is gone for the duration, and the flags it checks ahead of that - the shadow pass and
+     * the hand - are answered to match (see HandRendererMixin).
+     */
+    public static boolean isRenderingOffscreen()
+    {
+        return offscreenDepth > 0;
+    }
+
     public static boolean isShadowPass()
     {
         return IrisApi.getInstance().isRenderingShadowPass();

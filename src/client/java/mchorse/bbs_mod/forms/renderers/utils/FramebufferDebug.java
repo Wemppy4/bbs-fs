@@ -11,10 +11,13 @@ import mchorse.bbs_mod.forms.forms.FramebufferForm;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.graphics.Framebuffer;
 import mchorse.bbs_mod.graphics.texture.Texture;
+import mchorse.bbs_mod.utils.Quad;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
@@ -103,6 +106,7 @@ public class FramebufferDebug
         String pass = context.isPicking() ? "PICK"
             : BBSRendering.isIrisShadowPass() ? "SHADOW"
             : context.ui ? "UI"
+            : irisHand() ? "HAND"
             : BBSRendering.isRenderingWorld() ? "WORLD" : "OTHER";
         List<BodyPart> parts = form.parts.getAllTyped();
         StringBuilder inside = new StringBuilder();
@@ -200,10 +204,26 @@ public class FramebufferDebug
             + " " + framebuffers());
     }
 
+    /**
+     * Whether the pack is drawing the first-person hand right now. Iris renders the hand from
+     * inside the level render, with a projection of its own and into a batch of its own, so a
+     * form in hand comes through a pass the world's own label cannot tell apart.
+     */
+    public static boolean irisHand()
+    {
+        return Boolean.TRUE.equals(instanceCall(handRenderer(), "isActive"));
+    }
+
+    private static Object handRenderer()
+    {
+        return staticField("net.irisshaders.iris.pathways.HandRenderer", "INSTANCE");
+    }
+
     /** What the pack thinks, and every flag of its that our offscreen render toggles. */
     public static String iris()
     {
         Object pipeline = pipeline();
+        Object hand = handRenderer();
 
         return "irisPack=" + BBSRendering.isIrisShadersEnabled()
             + " shadingThisDraw=" + BBSRendering.isIrisWorldShadersEnabled()
@@ -214,6 +234,7 @@ public class FramebufferDebug
             + " isRenderingWorld=" + instanceField(pipeline, "isRenderingWorld")
             + " shouldOverride=" + instanceCall(pipeline, "shouldOverrideShaders")
             + " shadowACTIVE=" + staticField("net.irisshaders.iris.shadows.ShadowRenderer", "ACTIVE")
+            + " irisHand=" + instanceCall(hand, "isActive") + " irisHandSolid=" + instanceCall(hand, "isRenderingSolid")
             + " depthColorLocked=" + staticCall("net.irisshaders.iris.gl.blending.DepthColorStorage", "isDepthColorLocked")
             + " blendLocked=" + staticCall("net.irisshaders.iris.gl.blending.BlendModeStorage", "isBlendLocked")
             + " isRenderingLevel=" + staticField("net.irisshaders.iris.vertices.ImmediateState", "isRenderingLevel")
@@ -317,6 +338,57 @@ public class FramebufferDebug
 
         return "light0=" + vec(l0) + " light1=" + vec(l1)
             + " colorModulator=[" + modulator[0] + ", " + modulator[1] + ", " + modulator[2] + ", " + modulator[3] + "]";
+    }
+
+    /**
+     * Where the finished quad lands on screen, corner by corner: the form's own matrix, then the
+     * applied model-view and the projection, as normalised device coordinates and as pixels of the
+     * current viewport. This is the line that tells a misplaced quad from a misdrawn picture inside
+     * it - under a shader pack the hand is drawn by the pack itself, with a projection of its own.
+     */
+    public static void quad(String tag, MatrixStack matrices, Quad quad)
+    {
+        if (!logging)
+        {
+            return;
+        }
+
+        Matrix4f mvp = new Matrix4f(RenderSystem.getProjectionMatrix())
+            .mul(RenderSystem.getModelViewMatrix())
+            .mul(matrices.peek().getPositionMatrix());
+        int[] viewport = new int[4];
+
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+
+        Vector3f[] corners = {quad.p1, quad.p2, quad.p3, quad.p4};
+        StringBuilder builder = new StringBuilder("viewport=[" + viewport[0] + "," + viewport[1] + "," + viewport[2] + "," + viewport[3] + "]");
+
+        for (int i = 0; i < corners.length; i++)
+        {
+            Vector4f p = mvp.transform(new Vector4f(corners[i].x, corners[i].y, corners[i].z, 1F));
+
+            builder.append(" p").append(i + 1).append("=");
+
+            if (Math.abs(p.w) < 1e-6F)
+            {
+                builder.append("w~0!!");
+
+                continue;
+            }
+
+            float ndcX = p.x / p.w;
+            float ndcY = p.y / p.w;
+            float ndcZ = p.z / p.w;
+            float px = viewport[0] + (ndcX * 0.5F + 0.5F) * viewport[2];
+            float py = viewport[1] + (ndcY * 0.5F + 0.5F) * viewport[3];
+
+            builder.append("ndc(").append(fmt(ndcX)).append(", ").append(fmt(ndcY)).append(", ").append(fmt(ndcZ)).append(")")
+                .append(" px(").append(Math.round(px)).append(", ").append(Math.round(py)).append(")")
+                .append(p.w < 0F ? " !!BEHIND-CAMERA" : "")
+                .append(Math.abs(ndcX) > 1F || Math.abs(ndcY) > 1F ? " !!OFF-SCREEN" : "");
+        }
+
+        log(tag, builder.toString());
     }
 
     /**

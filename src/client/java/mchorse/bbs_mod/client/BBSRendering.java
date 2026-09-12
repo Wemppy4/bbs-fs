@@ -12,6 +12,7 @@ import mchorse.bbs_mod.camera.clips.misc.CurveClip;
 import mchorse.bbs_mod.camera.controller.CameraWorkCameraController;
 import mchorse.bbs_mod.camera.controller.PlayCameraController;
 import mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback;
+import mchorse.bbs_mod.forms.FormRenderLast;
 import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
 import mchorse.bbs_mod.forms.structure.StructureWand;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -577,6 +578,28 @@ public class BBSRendering
         batcher2D.textCard(label, iconX + 3, y + 4, Colors.WHITE, Colors.A50);
     }
 
+    /** Whether the entity pass opened the render-last scope — false when one was already open. */
+    private static boolean entityPassRenderLast;
+
+    /**
+     * The world's entity pass: between these two calls vanilla draws the actors, model blocks
+     * and morphed players, and without a shader pack {@link #renderCoolStuff} draws the films
+     * at its end — one render-last scope spans it all, so a form set to render last draws after
+     * every other form of the frame. Under Iris the films run earlier, at the solid layer, in a
+     * scope of their own; this one still covers what the entity loop drew.
+     */
+    public static void beginEntityPass()
+    {
+        entityPassRenderLast = FormRenderLast.open();
+    }
+
+    public static void endEntityPass()
+    {
+        FormRenderLast.close(entityPassRenderLast);
+
+        entityPassRenderLast = false;
+    }
+
     public static void renderCoolStuff(WorldRenderContext worldRenderContext)
     {
         /* 1.21's Fabric no longer threads a matrix stack through the world render
@@ -595,12 +618,24 @@ public class BBSRendering
          * billboards and particles keep facing the camera in world space. */
         InverseView.set(new Matrix3f().rotation(worldRenderContext.camera().getRotation()));
 
-        if (MinecraftClient.getInstance().currentScreen instanceof UIScreen screen)
-        {
-            screen.renderInWorld(worldRenderContext);
-        }
+        /* A scope over everything drawn here, for when this runs on its own — under Iris, at the
+         * solid layer: forms set to render last draw when it closes, after the last replay, still
+         * in this pass. Inside the entity pass's scope this opens nothing and they wait for it. */
+        boolean renderLast = FormRenderLast.open();
 
-        BBSModClient.getFilms().render(worldRenderContext);
+        try
+        {
+            if (MinecraftClient.getInstance().currentScreen instanceof UIScreen screen)
+            {
+                screen.renderInWorld(worldRenderContext);
+            }
+
+            BBSModClient.getFilms().render(worldRenderContext);
+        }
+        finally
+        {
+            FormRenderLast.close(renderLast);
+        }
     }
 
     public static boolean isOptifinePresent()

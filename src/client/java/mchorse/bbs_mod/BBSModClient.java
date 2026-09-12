@@ -692,6 +692,8 @@ public class BBSModClient implements ClientModInitializer
 
         StructureWand.register();
 
+        WorldRenderEvents.BEFORE_ENTITIES.register((context) -> BBSRendering.beginEntityPass());
+
         WorldRenderEvents.AFTER_ENTITIES.register((context) ->
         {
             StructureWand.renderWorld(context);
@@ -700,6 +702,8 @@ public class BBSModClient implements ClientModInitializer
             {
                 BBSRendering.renderCoolStuff(context);
             }
+
+            BBSRendering.endEntityPass();
 
             if (BBSSettings.chromaSkyEnabled.get())
             {
