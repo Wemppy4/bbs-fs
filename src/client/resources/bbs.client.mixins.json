@@ -42,6 +42,7 @@
         "iris.JcppProcessorMixin",
         "iris.ShaderPackMixin",
         "iris.IrisMixin",
+        "iris.HandRendererMixin",
         "iris.SliderElementWidgetMixin",
         "iris.StringElementWidgetInvoker",
         "SimpleOptionMixin",
