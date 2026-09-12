@@ -1036,6 +1036,8 @@
 	"bbs.ui.forms.editors.material.overlay-tooltip": "Mixes the pixels toward this color; alpha is the strength. Unlike the multiply tint, it can paint the form INTO a color, and it works under shader packs",
 	"bbs.ui.forms.editors.material.glow": "Glow",
 	"bbs.ui.forms.editors.material.glow-tooltip": "How much the bone ignores world lighting (0 = lit normally, 1 = full bright)",
+	"bbs.ui.forms.editors.material.render_last": "Render last",
+	"bbs.ui.forms.editors.material.render_last-tooltip": "Draws the form after every other form of the pass, so its semi-transparent pixels blend over what is behind them instead of hiding it. Set it only on the form whose transparency breaks; several last-drawn forms keep the list order among themselves",
 	"bbs.ui.forms.editors.material.layer": "Layer",
 	"bbs.ui.forms.editors.material.layer-tooltip": "Which render layer the form draws in. Auto keeps the old behavior (under shaders, semi-transparent textures degrade to cutout); Translucent forbids that degrade; Solid and Cutout draw immediately with blending off",
 	"bbs.ui.forms.editors.material.layer.auto": "Auto",

@@ -53,6 +53,12 @@ public abstract class Form extends ValueGroup
     /** Explicit render layer ({@link #LAYER_AUTO} keeps the old heuristics — see the model renderer). */
     public final ValueInt renderLayer = new ValueInt("render_layer", 0);
 
+    /**
+     * Draw after every other form of the pass (the client's FormRenderLast): the per-form cure
+     * for a semi-transparent form hiding what is behind it, instead of reordering the list.
+     */
+    public final ValueBoolean renderLast = new ValueBoolean("render_last", false);
+
     public static final int LAYER_AUTO = 0;
     public static final int LAYER_SOLID = 1;
     public static final int LAYER_CUTOUT = 2;
@@ -127,8 +133,9 @@ public abstract class Form extends ValueGroup
         this.shaderShadow.invisible();
         this.additiveColor.invisible();
 
-        /* Not animated: a one-off authoring switch, like the hitbox or the hotkey. */
+        /* Not animated: one-off authoring switches, like the hitbox or the hotkey. */
         this.renderLayer.invisible();
+        this.renderLast.invisible();
 
         this.add(this.visible);
         this.add(this.pickable);
@@ -137,6 +144,7 @@ public abstract class Form extends ValueGroup
         this.add(this.lighting);
         this.add(this.overlayColor);
         this.add(this.renderLayer);
+        this.add(this.renderLast);
         this.add(this.name);
         this.add(this.transform);
         this.add(this.transformOverlay);

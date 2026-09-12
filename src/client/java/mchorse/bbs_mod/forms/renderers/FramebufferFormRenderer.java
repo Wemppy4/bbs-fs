@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.forms.FormRenderLast;
 import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -236,8 +237,10 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         /* The nested forms render under an ortho projection into this framebuffer — deferring
          * their translucent pixels into the world's queue would replay them with the wrong
-         * projection, so they render single-pass as before. */
+         * projection, so they render single-pass as before. Render-last is off here for the
+         * same reason: a part postponed out of this buffer would come back in the world. */
         boolean queueWasActive = FormTranslucentQueue.suspend();
+        boolean renderLastWasActive = FormRenderLast.suspend();
 
         /* Full bright on the way in: the quad that draws the finished picture applies the
          * caller's lightmap once, so letting it shade the parts inside the buffer too would
@@ -274,6 +277,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
             context.light = light;
 
             FormTranslucentQueue.restore(queueWasActive);
+            FormRenderLast.restore(renderLastWasActive);
         }
 
         FramebufferDebug.readBuffer("after parts", framebuffer);

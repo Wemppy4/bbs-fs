@@ -9,6 +9,7 @@ import mchorse.bbs_mod.camera.clips.misc.CurveClip;
 import mchorse.bbs_mod.camera.controller.CameraWorkCameraController;
 import mchorse.bbs_mod.camera.controller.PlayCameraController;
 import mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback;
+import mchorse.bbs_mod.forms.FormRenderLast;
 import mchorse.bbs_mod.forms.renderers.utils.RecolorVertexConsumer;
 import mchorse.bbs_mod.forms.structure.StructureWand;
 import mchorse.bbs_mod.graphics.texture.Texture;
@@ -574,12 +575,23 @@ public class BBSRendering
 
     public static void renderCoolStuff(WorldRenderContext worldRenderContext)
     {
-        if (MinecraftClient.getInstance().currentScreen instanceof UIScreen screen)
-        {
-            screen.renderInWorld(worldRenderContext);
-        }
+        /* One scope over everything drawn here: forms set to render last draw when it closes,
+         * after the last replay — still in this pass, whichever phase of the frame it runs in. */
+        boolean renderLast = FormRenderLast.open();
 
-        BBSModClient.getFilms().render(worldRenderContext);
+        try
+        {
+            if (MinecraftClient.getInstance().currentScreen instanceof UIScreen screen)
+            {
+                screen.renderInWorld(worldRenderContext);
+            }
+
+            BBSModClient.getFilms().render(worldRenderContext);
+        }
+        finally
+        {
+            FormRenderLast.close(renderLast);
+        }
     }
 
     public static boolean isOptifinePresent()

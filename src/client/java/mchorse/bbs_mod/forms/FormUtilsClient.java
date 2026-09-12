@@ -250,6 +250,13 @@ public class FormUtilsClient
 
     public static void render(Form form, FormRenderingContext context)
     {
+        /* A form set to render last skips its turn here and draws when the pass closes its
+         * scope — through this very method, so the events fire once, at the real draw. */
+        if (FormRenderLast.postpone(form, context))
+        {
+            return;
+        }
+
         FormRenderer renderer = getRenderer(form);
 
         if (renderer != null)
