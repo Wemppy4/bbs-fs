@@ -58,16 +58,21 @@ public class UILandingScreen extends UIElement
     private static final int DIMMED = Colors.setA(Colors.WHITE, 0.7F);
     private static final int MUTED = Colors.setA(Colors.WHITE, 0.5F);
 
-    private static final Link[] BANNERS = {
-        Link.assets("textures/banners/bg1.png"),
-        Link.assets("textures/banners/bg2.png"),
-        Link.assets("textures/banners/bg3.png")
+    private record Banner(Link image, String artist)
+    {}
+
+    private static final Banner[] BANNERS = {
+        new Banner(Link.assets("textures/banners/bg1.png"), "Anderson"),
+        new Banner(Link.assets("textures/banners/bg2.png"), "Kizrum"),
+        new Banner(Link.assets("textures/banners/bg3.png"), "Xavin")
     };
     private static final double BANNER_HOLD_SECONDS = 6;
-    private static final double BANNER_FADE_SECONDS = 2;
+    private static final double BANNER_FADE_SECONDS = 1;
 
     /** One monotonic clock keeps the banner continuous when switching editor panels. */
     private static long bannerStarted;
+    private static int bannerIndex;
+    private static int bannerDirection = 1;
 
     /* Where the community lives; the same in every language, so not in the language files */
     public static final String DISCORD_LINK = "https://discord.gg/66mVb7Ezjj";
@@ -97,7 +102,6 @@ public class UILandingScreen extends UIElement
         this.banner = new UIElement();
         this.banner.relative(this.card).xy(0, 0).w(1F).h(BANNER_H);
         this.banner.add(new UIRenderable((context) -> this.renderBanner(context, this.banner.area)));
-        this.banner.add(new UIRenderable((context) -> this.renderBannerCaption(context, this.banner.area)));
 
         UILabel title = UI.label(host.getTitle()).color(DIMMED);
         title.labelAnchor(0, 0.5F);
@@ -270,6 +274,27 @@ public class UILandingScreen extends UIElement
         this.refresh();
     }
 
+    @Override
+    protected boolean subMouseClicked(UIContext context)
+    {
+        if ((context.mouseButton == 0 || context.mouseButton == 1) && this.banner.area.isInside(context) && BANNERS.length > 1)
+        {
+            long now = System.nanoTime();
+            double phase = getBannerPhase(now);
+
+            /* Skip the remaining hold, but never restart a transition already in progress. */
+            if (phase < BANNER_HOLD_SECONDS)
+            {
+                bannerDirection = context.mouseButton == 0 ? 1 : -1;
+                bannerStarted -= (long) ((BANNER_HOLD_SECONDS - phase) * 1_000_000_000.0);
+            }
+
+            return true;
+        }
+
+        return super.subMouseClicked(context);
+    }
+
     /* Rendering */
 
     private void renderBackdrop(UIContext context)
@@ -308,12 +333,10 @@ public class UILandingScreen extends UIElement
         }
     }
 
-    private void renderBannerCaption(UIContext context, Area area)
+    private void renderBannerCaption(UIContext context, Area area, String artist, String nextArtist, float alpha)
     {
         FontRenderer font = context.batcher.getFont();
         String brand = "\u00a7lBBS FS";
-        String credit = "render by ";
-        String artist = "Kizrum";
         int brandWidth = font.getWidth(brand);
         int versionWidth = this.bannerVersion.isEmpty() ? 0 : font.getWidth(this.bannerVersion) + 16;
         int x = area.x + PADDING;
@@ -340,39 +363,79 @@ public class UILandingScreen extends UIElement
             context.batcher.text(this.bannerVersion, dividerX + 8, textY, secondary, false);
         }
 
+        if (artist.equals(nextArtist))
+        {
+            this.renderBannerCredit(context, area, textY, artist, 1F);
+        }
+        else
+        {
+            this.renderBannerCredit(context, area, textY, artist, 1F - alpha);
+            this.renderBannerCredit(context, area, textY, nextArtist, alpha);
+        }
+    }
+
+    private void renderBannerCredit(UIContext context, Area area, int textY, String artist, float alpha)
+    {
+        int creditColor = Colors.setA(0xffb4bccb, alpha);
+
+        /* Minecraft treats alpha bytes 0..3 as fully opaque legacy RGB text. */
+        if ((creditColor >>> 24) < 4)
+        {
+            return;
+        }
+
+        FontRenderer font = context.batcher.getFont();
+        String credit = "render by ";
         int creditX = area.ex() - PADDING - font.getWidth(credit) - font.getWidth(artist);
 
-        context.batcher.text(credit, creditX, textY, secondary, false);
-        context.batcher.text(artist, creditX + font.getWidth(credit), textY, ink, false);
+        context.batcher.text(credit, creditX, textY, creditColor, false);
+        context.batcher.text(artist, creditX + font.getWidth(credit), textY, Colors.setA(0xfff2f4f8, alpha), false);
+    }
+
+    private static double getBannerPhase(long now)
+    {
+        if (bannerStarted == 0)
+        {
+            bannerStarted = now;
+        }
+
+        long duration = (long) ((BANNER_HOLD_SECONDS + BANNER_FADE_SECONDS) * 1_000_000_000.0);
+        long cycles = (now - bannerStarted) / duration;
+
+        if (cycles > 0)
+        {
+            /* Only the requested transition goes backward; autoplay then resumes forward. */
+            bannerIndex = Math.floorMod(bannerIndex + bannerDirection + (int) ((cycles - 1) % BANNERS.length), BANNERS.length);
+            bannerDirection = 1;
+            bannerStarted += cycles * duration;
+        }
+
+        return (now - bannerStarted) / 1_000_000_000.0;
     }
 
     private void renderBanner(UIContext context, Area area)
     {
         /* Warm the texture cache before timing the slideshow, including after a reload. */
-        for (Link link : BANNERS)
+        for (Banner banner : BANNERS)
         {
-            BBSModClient.getTextures().getTexture(link);
+            BBSModClient.getTextures().getTexture(banner.image());
         }
 
-        if (bannerStarted == 0)
-        {
-            bannerStarted = System.nanoTime();
-        }
-
-        double duration = BANNER_HOLD_SECONDS + BANNER_FADE_SECONDS;
-        double time = (System.nanoTime() - bannerStarted) / 1_000_000_000.0;
-        double cycle = time % (duration * BANNERS.length);
-        int current = (int) (cycle / duration);
-        float progress = (float) Math.max(0, (cycle % duration - BANNER_HOLD_SECONDS) / BANNER_FADE_SECONDS);
+        double phase = getBannerPhase(System.nanoTime());
+        int current = bannerIndex;
+        float progress = (float) Math.max(0, (phase - BANNER_HOLD_SECONDS) / BANNER_FADE_SECONDS);
         float alpha = progress * progress * (3F - 2F * progress);
+        int next = Math.floorMod(current + bannerDirection, BANNERS.length);
 
         /* Keep the lower image opaque: fading both layers would darken the midpoint. */
-        this.renderBannerImage(context, area, BANNERS[current], 1F);
+        this.renderBannerImage(context, area, BANNERS[current].image(), 1F);
 
         if (alpha > 0F)
         {
-            this.renderBannerImage(context, area, BANNERS[(current + 1) % BANNERS.length], alpha);
+            this.renderBannerImage(context, area, BANNERS[next].image(), alpha);
         }
+
+        this.renderBannerCaption(context, area, BANNERS[current].artist(), BANNERS[next].artist(), alpha);
     }
 
     private void renderBannerImage(UIContext context, Area area, Link bannerLink, float alpha)

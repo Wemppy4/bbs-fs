@@ -25,8 +25,8 @@ public class LandingBackdrop
     private static final float[][] LIGHTS = {
         /* x, y, radius (of height), sway x, sway y, period, hue turn in degrees, parallax */
         {0.22F, 0.78F, 0.62F, 0.12F, 0.08F, 29F, 0F, 0.10F},
-        {0.80F, 0.55F, 0.50F, 0.10F, 0.14F, 37F, 55F, 0.06F},
-        {0.55F, 1.05F, 0.42F, 0.18F, 0.06F, 23F, -45F, 0.03F},
+        {0.80F, 0.55F, 0.50F, 0.10F, 0.14F, 37F, 18F, 0.06F},
+        {0.55F, 1.05F, 0.42F, 0.18F, 0.06F, 23F, -15F, 0.03F},
     };
 
     private static final int SEGMENTS = 48;
