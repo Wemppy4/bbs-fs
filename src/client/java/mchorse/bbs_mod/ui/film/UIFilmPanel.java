@@ -981,10 +981,10 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             this.timelineXMin = this.cameraEditor.clips.getXAxis().getMinValue();
             this.timelineXMax = this.cameraEditor.clips.getXAxis().getMaxValue();
         }
-        else if (panel == this.replayEditor && this.replayEditor.keyframeEditor != null)
+        else if (panel == this.replayEditor)
         {
-            this.timelineXMin = this.replayEditor.keyframeEditor.view.getXAxis().getMinValue();
-            this.timelineXMax = this.replayEditor.keyframeEditor.view.getXAxis().getMaxValue();
+            this.timelineXMin = this.replayEditor.getActiveTimeline().getXAxis().getMinValue();
+            this.timelineXMax = this.replayEditor.getActiveTimeline().getXAxis().getMaxValue();
         }
     }
 
@@ -999,9 +999,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             this.cameraEditor.clips.getXAxis().view(this.timelineXMin, this.timelineXMax);
         }
-        else if (panel == this.replayEditor && this.replayEditor.keyframeEditor != null)
+        else if (panel == this.replayEditor)
         {
-            this.replayEditor.keyframeEditor.view.getXAxis().view(this.timelineXMin, this.timelineXMax);
+            this.replayEditor.getActiveTimeline().getXAxis().view(this.timelineXMin, this.timelineXMax);
         }
     }
 
@@ -1994,10 +1994,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             this.cameraEditor.clips.getXAxis().shiftIntoMiddle(this.getCursor());
 
-            if (this.replayEditor.keyframeEditor != null)
-            {
-                this.replayEditor.keyframeEditor.view.getXAxis().shiftIntoMiddle(this.getCursor());
-            }
+            this.replayEditor.getActiveTimeline().getXAxis().shiftIntoMiddle(this.getCursor());
         }
     }
 
