@@ -32,6 +32,7 @@
         "KeyboardMixin",
         "ResourceReloadLoggerMixin",
         "RenderLayerMixin",
+        "RenderPhaseMixin",
         "ClientWorldPropertiesMixin",
         "sodium.SodiumBufferBuilderAccessor",
         "sodium.ColorAttributeMixin",

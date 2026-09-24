@@ -50,6 +50,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCategoryBar;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.utils.BoneSelection;
@@ -128,6 +129,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
     private UIClipsPanel actionTimeline;
     private UIIcon actionsToggle;
     private boolean actionsMode;
+    private boolean useActionViewportForNewKeyframes;
     /* «All tracks» view: shows every category's tracks at once, bypassing the category filter. */
     private UIIcon allToggle;
     private UIIcon sectionsToggle;
@@ -371,7 +373,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 
     private void setCategory(TrackCategory c)
     {
-        this.actionsMode = false;
+        this.setActionsMode(false);
         this.allMode = false;
         this.category = c;
         this.updateChannelsList();
@@ -396,7 +398,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
     /** Show every category's tracks at once, bypassing the category filter. */
     private void setAllTracks()
     {
-        this.actionsMode = false;
+        this.setActionsMode(false);
         this.allMode = true;
         this.updateChannelsList();
     }
@@ -416,6 +418,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 
     public void setFilm(Film film)
     {
+        this.useActionViewportForNewKeyframes = false;
         this.expandedTracksByReplay.clear();
         this.selectedPartsByReplay.clear();
         this.replaysList.setBodyPartsReplay(null, "");
@@ -792,6 +795,12 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         {
             this.keyframeEditor.view.resetView();
         }
+
+        if (this.keyframeEditor != null && (this.actionsMode || this.useActionViewportForNewKeyframes))
+        {
+            this.copyTimeViewport(this.actionTimeline.clips, this.keyframeEditor.view);
+            this.useActionViewportForNewKeyframes = false;
+        }
     }
 
     private void collectCuratedSheets(List<UIKeyframeSheet> sheets)
@@ -931,6 +940,11 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
         return this.actionsMode;
     }
 
+    public UITimelineCanvas getActiveTimeline()
+    {
+        return this.actionsMode || this.keyframeEditor == null ? this.actionTimeline.clips : this.keyframeEditor.view;
+    }
+
     private void toggleActionsMode()
     {
         this.setActionsMode(!this.actionsMode);
@@ -943,8 +957,34 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
             return;
         }
 
+        if (this.actionTimeline != null)
+        {
+            if (actionsMode)
+            {
+                if (this.keyframeEditor != null)
+                {
+                    this.copyTimeViewport(this.keyframeEditor.view, this.actionTimeline.clips);
+                }
+            }
+            else if (this.keyframeEditor != null)
+            {
+                this.copyTimeViewport(this.actionTimeline.clips, this.keyframeEditor.view);
+            }
+            else
+            {
+                this.useActionViewportForNewKeyframes = true;
+            }
+        }
+
         this.actionsMode = actionsMode;
         this.updateTimelineModeVisibility();
+    }
+
+    private void copyTimeViewport(UITimelineCanvas source, UITimelineCanvas target)
+    {
+        source.getXAxis().updateZoom();
+        source.getXAxis().stopZoom();
+        target.getXAxis().copy(source.getXAxis());
     }
 
     /**

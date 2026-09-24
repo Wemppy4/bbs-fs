@@ -143,7 +143,7 @@
 	"bbs.config.transformation.snap_rotate": "Шаг привязки вращения",
 	"bbs.config.transformation.snap_rotate-comment": "Градусы, к которым привязываются кольца осей, пока зажат Ctrl; без него вращение свободное",
 	"bbs.config.transformation.snap_scale": "Шаг привязки масштаба",
-	"bbs.config.transformation.snap_scale-comment": "Шаг, к которому привязывается масштаб, пока зажат Ctrl (Ctrl также масштабирует равномерно)",
+	"bbs.config.transformation.snap_scale-comment": "Шаг, к которому привязывается масштаб, пока зажат Ctrl",
 	"bbs.config.transformation.gizmo_hover_tolerance": "Допуск наведения на ручки",
 	"bbs.config.transformation.gizmo_hover_tolerance-comment": "На сколько пикселей рядом с ручкой гизмо (линией, кольцом, плейном) курсор всё ещё её захватывает — побеждает ближайшая ручка в этом радиусе. 0 требует точного попадания",
 	"bbs.config.transformation.gizmo_opacity": "Непрозрачность гизмо",

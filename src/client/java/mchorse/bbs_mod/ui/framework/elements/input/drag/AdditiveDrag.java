@@ -9,12 +9,12 @@ import org.joml.Vector3f;
 
 /**
  * The plain left/right additive drag: horizontal travel nudges the channel by a per-pixel
- * step, no 3D ray. Serves the hotkey operations without a rendered gizmo, and the uniform
- * scale, whose centre grab reads wildly through a single-axis ray lever.
+ * step, no 3D ray. Serves hotkey operations, including uniform scale,
+ * when no rendered gizmo snapshot is available.
  */
 public class AdditiveDrag extends DragStrategy
 {
-    /** Uniform (three-axis) scale: one lever drives every axis, like Ctrl. */
+    /** Uniform (three-axis) scale: one lever drives every axis. */
     private final boolean scaleAll;
 
     private int lastX;
@@ -97,7 +97,7 @@ public class AdditiveDrag extends DragStrategy
             return;
         }
 
-        boolean all = this.op == TransformOp.SCALE && (this.scaleAll || Window.isCtrlPressed());
+        boolean all = this.op == TransformOp.SCALE && this.scaleAll;
         float factor = this.ctx.additiveFactor(this.op) * (Window.isShiftPressed() ? FINE_DRAG_FACTOR : 1F);
 
         /* Translate lever: step along the active space's axes as drawn, mapped
@@ -202,7 +202,7 @@ public class AdditiveDrag extends DragStrategy
                 this.numericTranslate(value);
                 break;
             case SCALE:
-                this.numericScale(value, this.scaleAll || Window.isCtrlPressed());
+                this.numericScale(value, this.scaleAll);
                 break;
             default:
                 this.numericRotate(value);

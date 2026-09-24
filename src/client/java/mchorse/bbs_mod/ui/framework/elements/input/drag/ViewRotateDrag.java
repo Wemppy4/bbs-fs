@@ -38,10 +38,6 @@ public class ViewRotateDrag extends DragStrategy
 
     private float lastScreenAngle;
 
-    /** Cursor angle (radians, screen convention) at the moment the drag began —
-     *  the fixed start edge of the view sweep pie. */
-    private float grabScreenAngle;
-
     private float accumulatedDeg;
 
 
@@ -63,22 +59,9 @@ public class ViewRotateDrag extends DragStrategy
     }
 
     @Override
-    public float viewGrabScreenAngle()
-    {
-        return this.grabScreenAngle;
-    }
-
-    @Override
     public float accumulatedRotateDeg()
     {
         return this.accumulatedDeg;
-    }
-
-    /** The screen angle winds opposite to the applied turn, hence the {@link #ROTATE_SIGN} fold. */
-    @Override
-    public float viewScreenSweepRad()
-    {
-        return MathUtils.toRad(this.accumulatedDeg) * ROTATE_SIGN;
     }
 
     @Override
@@ -94,8 +77,8 @@ public class ViewRotateDrag extends DragStrategy
         }
 
         /* A re-anchor (cursor wrap, cursor control resumed after typed input)
-         * only moves the cursor reference; the anchored axis, the pie's start
-         * edge and the swept angle survive so the gesture continues instead
+         * only moves the cursor reference; the anchored axis and the swept
+         * angle survive so the gesture continues instead
          * of restarting. */
         if (this.hasStart)
         {
@@ -135,7 +118,6 @@ public class ViewRotateDrag extends DragStrategy
 
         this.viewLocalAxis.normalize();
         this.lastScreenAngle = RotationDragMath.screenAngle(this.screenCenter, mouseX, mouseY);
-        this.grabScreenAngle = this.lastScreenAngle;
         this.accumulatedDeg = 0F;
         this.hasStart = true;
     }

@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.input.drag;
 
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.utils.GizmoDrag;
 import mchorse.bbs_mod.utils.Axis;
 import org.joml.Matrix3f;
@@ -13,7 +12,6 @@ import org.joml.Vector3f;
  * axis. The "lever" picked at drag start defines 1.0; pulling further
  * multiplies the scale, dragging closer shrinks it. Falls back to additive
  * delta if the starting projection is too small to safely divide by.
- * Holding Ctrl drives all three axes off the one lever.
  */
 public class ScaleDrag extends DragStrategy
 {
@@ -85,29 +83,28 @@ public class ScaleDrag extends DragStrategy
             return;
         }
 
-        boolean all = Window.isCtrlPressed();
         Vector3f s = new Vector3f(this.startScale);
 
-        this.applyAxis(hit, this.axis, all, s);
+        this.applyAxis(hit, this.axis, s);
 
         if (this.axis2 != null)
         {
-            this.applyAxis(hit, this.axis2, all, s);
+            this.applyAxis(hit, this.axis2, s);
         }
 
         if (this.ctx.shouldSnap(TransformOp.SCALE))
         {
             float step = BBSSettings.snapScale.get();
 
-            if (all || this.axis == Axis.X || this.axis2 == Axis.X) s.x = (float) snap(s.x, step);
-            if (all || this.axis == Axis.Y || this.axis2 == Axis.Y) s.y = (float) snap(s.y, step);
-            if (all || this.axis == Axis.Z || this.axis2 == Axis.Z) s.z = (float) snap(s.z, step);
+            if (this.axis == Axis.X || this.axis2 == Axis.X) s.x = (float) snap(s.x, step);
+            if (this.axis == Axis.Y || this.axis2 == Axis.Y) s.y = (float) snap(s.y, step);
+            if (this.axis == Axis.Z || this.axis2 == Axis.Z) s.z = (float) snap(s.z, step);
         }
 
         this.ctx.writeScale(s.x, s.y, s.z);
     }
 
-    private void applyAxis(Vector3d hit, Axis currentAxis, boolean all, Vector3f s)
+    private void applyAxis(Vector3d hit, Axis currentAxis, Vector3f s)
     {
         GizmoDrag drag = this.ctx.drag();
         Vector3f axisDir = this.worldBasis.getColumn(currentAxis.ordinal(), new Vector3f());
@@ -133,24 +130,24 @@ public class ScaleDrag extends DragStrategy
 
         if (Math.abs(startProj) < 1.0E-4F)
         {
-            if (all || currentAxis == Axis.X) s.x += delta;
-            if (all || currentAxis == Axis.Y) s.y += delta;
-            if (all || currentAxis == Axis.Z) s.z += delta;
+            if (currentAxis == Axis.X) s.x += delta;
+            if (currentAxis == Axis.Y) s.y += delta;
+            if (currentAxis == Axis.Z) s.z += delta;
         }
         else
         {
             float ratio = currentProj / startProj;
 
-            if (all || currentAxis == Axis.X) s.x *= ratio;
-            if (all || currentAxis == Axis.Y) s.y *= ratio;
-            if (all || currentAxis == Axis.Z) s.z *= ratio;
+            if (currentAxis == Axis.X) s.x *= ratio;
+            if (currentAxis == Axis.Y) s.y *= ratio;
+            if (currentAxis == Axis.Z) s.z *= ratio;
         }
     }
 
     @Override
     public void applyNumeric(double value)
     {
-        this.numericScale(value, Window.isCtrlPressed());
+        this.numericScale(value, false);
     }
 
     @Override

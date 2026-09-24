@@ -824,12 +824,11 @@ public class Gizmo
      *  scene camera (see {@link #drawGizmo}) and outside the gizmo's distance scale. */
     private void drawInfiniteLine(MatrixStack stack)
     {
-        int debugIndex = this.index;
-
-        if ((debugIndex < STENCIL_X || debugIndex > STENCIL_ZY) && this.currentGesture != null)
-        {
-            debugIndex = this.currentGesture.getDebugLineStencilIndex();
-        }
+        /* While editing, the gesture owns the constraint; a hovered handle
+         * must not add an axis to an unconstrained operation such as uniform scale. */
+        int debugIndex = this.currentGesture != null && this.currentGesture.isEditing()
+            ? this.currentGesture.getDebugLineStencilIndex()
+            : this.index;
 
         if (debugIndex < STENCIL_X || debugIndex > STENCIL_ZY)
         {

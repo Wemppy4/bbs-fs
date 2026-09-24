@@ -290,8 +290,8 @@ public class TransformGesture implements DragContext
     }
 
     /**
-     * Start a uniform (three-axis) scale: one lever axis drives all three, the
-     * same math Ctrl+axis-scale uses. Reached by a mouse pick on the centre cube
+     * Start a uniform (three-axis) scale: one lever axis drives all three.
+     * Reached by a mouse pick on the centre cube
      * and as a step of the S-key walk alike.
      */
     public void enableUniformScale(GizmoDrag drag)
@@ -905,18 +905,6 @@ public class TransformGesture implements DragContext
         return this.strategy == null ? 0F : this.strategy.accumulatedRotateDeg();
     }
 
-    /** Screen-space start edge of the view sweep pie (radians, Y-down convention). */
-    public float getViewGrabScreenAngle()
-    {
-        return this.strategy == null ? 0F : this.strategy.viewGrabScreenAngle();
-    }
-
-    /** Signed screen-space span of the view sweep, in radians. */
-    public float getViewScreenSweepRad()
-    {
-        return this.strategy == null ? 0F : this.strategy.viewScreenSweepRad();
-    }
-
     /**
      * A short summary of what the active drag has changed so far, for the gizmo's
      * on-screen readout: degrees for a rotation (axis or view ring by swept angle,
@@ -939,7 +927,7 @@ public class TransformGesture implements DragContext
 
     public int getDebugLineStencilIndex()
     {
-        if (!this.editing || this.isScreenTranslate())
+        if (!this.editing || this.isScreenTranslate() || this.isScaleAll())
         {
             return -1;
         }

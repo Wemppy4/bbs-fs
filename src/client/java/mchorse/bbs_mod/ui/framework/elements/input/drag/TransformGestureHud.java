@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.framework.elements.input.drag;
 
 import mchorse.bbs_mod.BBSSettings;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -137,7 +136,7 @@ public class TransformGestureHud
             return special;
         }
 
-        if (gesture.getOp() == TransformOp.SCALE && (gesture.isScaleAll() || Window.isCtrlPressed()))
+        if (gesture.getOp() == TransformOp.SCALE && gesture.isScaleAll())
         {
             return "XYZ";
         }
@@ -159,7 +158,7 @@ public class TransformGestureHud
         Axis axis = gesture.getAxis();
         boolean singleAxis = axis != null && gesture.getAxis2() == null
             && !gesture.isScreenTranslate()
-            && !(gesture.getOp() == TransformOp.SCALE && (gesture.isScaleAll() || Window.isCtrlPressed()));
+            && !(gesture.getOp() == TransformOp.SCALE && gesture.isScaleAll());
 
         if (!singleAxis)
         {

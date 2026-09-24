@@ -4,8 +4,8 @@ import mchorse.bbs_mod.utils.Axis;
 
 /**
  * Resolves an edit request to the drag strategy that will drive it. The
- * ray-vs-additive decision lives here, in one place: the uniform scale always
- * takes the additive lever, a two-axis rotate has no ray implementation, and
+ * ray-vs-additive decision lives here, in one place: a two-axis rotate has
+ * no ray implementation, and
  * anything without a drag snapshot falls back to additive as well.
  */
 public final class DragStrategyFactory
@@ -37,9 +37,7 @@ public final class DragStrategyFactory
         switch (variant)
         {
             case UNIFORM_SCALE:
-                /* The ray's lever runs along a single axis, which reads wildly
-                 * for a centre grab and makes the scale explode. */
-                return new AdditiveDrag(ctx, TransformOp.SCALE, axis, axis2, true);
+                return rayAllowed ? new UniformScaleDrag(ctx) : new AdditiveDrag(ctx, TransformOp.SCALE, axis, axis2, true);
 
             case SCREEN:
                 return rayAllowed ? new ScreenTranslateDrag(ctx) : new AdditiveDrag(ctx, TransformOp.TRANSLATE, axis, axis2, false);

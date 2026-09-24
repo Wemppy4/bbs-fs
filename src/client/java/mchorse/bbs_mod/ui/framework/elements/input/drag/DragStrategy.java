@@ -190,18 +190,6 @@ public abstract class DragStrategy
         return null;
     }
 
-    /** Screen-space start edge of the view sweep pie (radians, Y-down convention). */
-    public float viewGrabScreenAngle()
-    {
-        return 0F;
-    }
-
-    /** Signed screen-space span of the view sweep, in radians. */
-    public float viewScreenSweepRad()
-    {
-        return 0F;
-    }
-
     /**
      * Apply the shared modifier keys to a gizmo step amount: Alt makes it fine
      * (÷{@value #STEP_MODIFIER}), Ctrl makes it coarse (×{@value #STEP_MODIFIER}),
@@ -516,7 +504,7 @@ public abstract class DragStrategy
 
         if (pieDeg != 0F)
         {
-            b.append("  pie=").append(fmt(pieDeg)).append("°  viewSweep=").append(fmt(this.viewScreenSweepRad())).append(" rad\n");
+            b.append("  pie=").append(fmt(pieDeg)).append("°\n");
         }
 
         if (readout != null)
