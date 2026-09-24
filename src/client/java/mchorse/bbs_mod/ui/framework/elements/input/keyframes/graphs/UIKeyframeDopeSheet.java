@@ -384,7 +384,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     @Override
     public void clearSelection()
     {
-        for (UIKeyframeSheet sheet : this.getInteractiveSheets())
+        for (UIKeyframeSheet sheet : this.sheets)
         {
             sheet.selection.clear();
         }
@@ -395,7 +395,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     @Override
     public void selectAll()
     {
-        for (UIKeyframeSheet sheet : this.getInteractiveSheets())
+        for (UIKeyframeSheet sheet : this.sheets)
         {
             sheet.selection.all();
         }
@@ -406,7 +406,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     @Override
     public void selectAfter(float tick, int direction)
     {
-        for (UIKeyframeSheet sheet : this.getInteractiveSheets())
+        for (UIKeyframeSheet sheet : this.sheets)
         {
             sheet.selection.after(tick, direction);
         }
@@ -417,7 +417,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     @Override
     public Keyframe getSelected()
     {
-        for (UIKeyframeSheet sheet : this.getInteractiveSheets())
+        for (UIKeyframeSheet sheet : this.sheets)
         {
             Keyframe first = sheet.selection.getFirst();
 
@@ -433,7 +433,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     @Override
     public UIKeyframeSheet getSheet(String id)
     {
-        for (UIKeyframeSheet sheet : this.getInteractiveSheets())
+        for (UIKeyframeSheet sheet : this.sheets)
         {
             if (sheet.id.equals(id))
             {
@@ -447,7 +447,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     @Override
     public void removeSelected()
     {
-        for (UIKeyframeSheet sheet : this.getInteractiveSheets())
+        for (UIKeyframeSheet sheet : this.sheets)
         {
             sheet.selection.removeSelected();
         }
