@@ -77,7 +77,7 @@ public class FormRenderLast
      */
     public static boolean isActive()
     {
-        return active;
+        return active && !mchorse.bbs_mod.graphics.OptiFineShaders.isShadowPass();
     }
 
     /**

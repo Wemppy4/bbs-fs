@@ -1,0 +1,41 @@
+import java.security.MessageDigest
+
+def optifineName = 'OptiFine_1.12.2_HD_U_G5.jar'
+def optifineSha256 = '3b0006797771feb97f2d0d2908ae7c9a78cefb2e730af1c2e85d08a839ba271e'
+def optifineJar = layout.buildDirectory.file("dependencies/optifine/${optifineName}")
+def checksum = { File file -> MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString() }
+def download = { URL url ->
+    def connection = url.openConnection()
+    connection.setRequestProperty('User-Agent', 'Mozilla/5.0')
+    connection.connectTimeout = 30000
+    connection.readTimeout = 30000
+    connection.inputStream.withCloseable { it.bytes }
+}
+
+def fetchOptiFine = tasks.register('downloadOptiFine') {
+    group = 'application'
+    description = 'Fetch and verify OptiFine G5 directly from optifine.net into the local build cache.'
+    outputs.file optifineJar
+    outputs.upToDateWhen {
+        def jar = optifineJar.get().asFile
+        jar.isFile() && checksum(jar) == optifineSha256
+    }
+    doLast {
+        def jar = optifineJar.get().asFile
+        if (jar.isFile() && checksum(jar) == optifineSha256) return
+        def page = new String(download(new URL("https://optifine.net/adloadx?f=${optifineName}")), 'UTF-8')
+        def link = page =~ /href=['"](downloadx\?[^'"]+)['"]/
+        if (!link.find()) throw new GradleException('Official OptiFine download link not found.')
+        def bytes = download(new URL('https://optifine.net/' + link.group(1).replace('&amp;', '&')))
+        def hash = MessageDigest.getInstance('SHA-256').digest(bytes).encodeHex().toString()
+        if (hash != optifineSha256) throw new GradleException('OptiFine SHA-256 mismatch; refusing to install the response.')
+        jar.parentFile.mkdirs()
+        jar.bytes = bytes
+    }
+}
+
+configurations.create('optifineRuntime') {
+    canBeConsumed = false
+    transitive = false
+}
+dependencies.add('optifineRuntime', files(optifineJar).builtBy(fetchOptiFine))

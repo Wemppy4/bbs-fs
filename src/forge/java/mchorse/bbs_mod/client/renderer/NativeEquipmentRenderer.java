@@ -55,6 +55,14 @@ public final class NativeEquipmentRenderer
             GlStateManager.alphaFunc(GL11.GL_GREATER, 1F / 255F);
             GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
             OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, light & 0xffff, light >>> 16);
+            boolean shaders = mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass();
+            try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pack = shaders
+                ? mchorse.bbs_mod.graphics.OptiFineModelRenderer.beginNative(matrix,
+                    mchorse.bbs_mod.graphics.render.RenderSystem.getProjectionMatrix(),color.r,color.g,color.b,color.a,light) : null;
+                 mchorse.bbs_mod.graphics.OptiFineShaders.LocalPass local = shaders ? null : mchorse.bbs_mod.graphics.OptiFineShaders.localPass())
+            {
+            if (!shaders)
+            {
             ensureProgram(); GL20.glUseProgram(program);
             GL20.glUniform1i(GL20.glGetUniformLocation(program, "Albedo"), 0);
             GL20.glUniform1i(GL20.glGetUniformLocation(program, "Lightmap"), 1);
@@ -62,7 +70,9 @@ public final class NativeEquipmentRenderer
             GlStateManager.setActiveTexture(OpenGlHelper.lightmapTexUnit);
             GL20.glUniform1i(GL20.glGetUniformLocation(program, "HasLightmap"), GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D) == 0 ? 0 : 1);
             GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
+            }
             render.run();
+            }
         }
         finally
         {

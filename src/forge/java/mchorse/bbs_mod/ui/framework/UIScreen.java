@@ -93,6 +93,8 @@ public class UIScreen extends GuiScreen
 
     @Override public void drawScreen(int mouseX, int mouseY, float partialTicks)
     {
+        try (mchorse.bbs_mod.graphics.OptiFineShaders.LocalPass pass = mchorse.bbs_mod.graphics.OptiFineShaders.localPass())
+        {
         if (scale != BBSModClient.getGUIScale()) initGui();
         GlStateManager.matrixMode(GL11.GL_PROJECTION);
         GlStateManager.pushMatrix();
@@ -124,6 +126,7 @@ public class UIScreen extends GuiScreen
             GlStateManager.enableCull();
             GlStateManager.enableTexture2D();
             GlStateManager.color(1, 1, 1, 1);
+        }
         }
     }
 }

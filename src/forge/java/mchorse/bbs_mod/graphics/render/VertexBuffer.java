@@ -12,6 +12,7 @@ public final class VertexBuffer implements AutoCloseable
     public enum Usage { STATIC(GL15.GL_STATIC_DRAW), DYNAMIC(GL15.GL_DYNAMIC_DRAW); final int gl; Usage(int gl){this.gl=gl;} }
     private final Usage usage;
     private int vao, buffer, count, mode;
+    private VertexFormat format;
     public VertexBuffer(Usage usage) { this.usage=usage; this.vao=GL30.glGenVertexArrays(); this.buffer=GL15.glGenBuffers(); }
     public void bind(){GL30.glBindVertexArray(this.vao);}
     public static void unbind(){GL30.glBindVertexArray(0);}
@@ -31,6 +32,7 @@ public final class VertexBuffer implements AutoCloseable
             }
             for(;index<6;index++)GL20.glDisableVertexAttribArray(index);
             this.count=built.count; this.mode=built.mode.glMode;
+            this.format=built.format;
         }
         finally { GL30.glBindVertexArray(oldVao); GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,oldBuffer); }
     }
@@ -40,6 +42,15 @@ public final class VertexBuffer implements AutoCloseable
     }
     public void draw(Matrix4f modelView,Matrix4f projection,ShaderProgram shader,Matrix3f normalMat)
     {
+        if (shader.isWorldModel())
+        {
+            try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(modelView,projection,1,1,1,1,0x00f000f0))
+            {
+                mchorse.bbs_mod.graphics.OptiFineModelRenderer.interleaved(this.buffer,this.format);
+                GL11.glDrawArrays(this.mode,0,this.count);
+            }
+            return;
+        }
         int oldVao=GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         ModelVAORenderer.setupUniforms(shader,modelView,normalMat==null?new Matrix3f():normalMat);
         if(shader.projectionMat!=null)shader.projectionMat.set(projection);

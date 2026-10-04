@@ -82,7 +82,7 @@ public final class OriginalModelGPUProbe
             GlStateManager.setActiveTexture(GL13.GL_TEXTURE1); GlStateManager.bindTexture(white);
             GlStateManager.setActiveTexture(GL13.GL_TEXTURE2); GlStateManager.bindTexture(coloredLight);
             GlStateManager.setActiveTexture(GL13.GL_TEXTURE3); GlStateManager.bindTexture(white);
-            RenderSystem.setShaderTexture(2,0);
+            RenderSystem.setShaderTexture(2,white);
             sentinelVao=GL30.glGenVertexArrays(); sentinelBuffer=GL15.glGenBuffers();
             GL30.glBindVertexArray(sentinelVao); GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,sentinelBuffer);
             GlStateManager.enableBlend(); GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE,GL11.GL_ZERO,GL11.GL_DST_ALPHA,GL11.GL_ONE_MINUS_DST_ALPHA);
@@ -112,7 +112,7 @@ public final class OriginalModelGPUProbe
             vao.upload(ordinary); before=bindings(); clear(); vao.draw(new Matrix4f(),new Matrix4f(),model);
             scopesRestored &= before.equals(bindings()); out.add("coloredLight",rgba(pixel()));
             RenderSystem.setShaderTexture(2,0);
-            out.addProperty("nativeLightmapRestored",RenderSystem.getShaderTexture(2)==white);
+            out.addProperty("nativeLightmapRestored",RenderSystem.getShaderTexture(2)==RenderSystem.nativeLightmap());
             /* >65535 catches short truncation; the nontrivial Target also checks addition across bytes. */
             int boneId=0x12345, target=0x100321;
             vao.upload(quad(builder,-1,boneId,0,1F)); picker.getUniform("Target").set(target);

@@ -36,6 +36,15 @@ public class ModelVAORenderer
 
     public static void render(ShaderProgram shader, IModelVAO modelVAO, Matrix4f modelView, Matrix3f normalMat, float r, float g, float b, float a, int light, int overlay)
     {
+        if (shader.isWorldModel() && modelVAO instanceof ModelVAO)
+        {
+            try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(
+                modelView, RenderSystem.getProjectionMatrix(), r, g, b, a, light))
+            {
+                ((ModelVAO) modelVAO).renderOptiFine();
+            }
+            return;
+        }
         int currentVAO = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         int currentElementArrayBuffer = GL11.glGetInteger(GL15.GL_ELEMENT_ARRAY_BUFFER_BINDING);
 

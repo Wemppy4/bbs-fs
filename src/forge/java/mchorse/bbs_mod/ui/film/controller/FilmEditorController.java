@@ -185,6 +185,11 @@ public class FilmEditorController extends BaseFilmController
     @Override
     protected void renderEntity(WorldRenderContext context, Replay replay, IEntity entity)
     {
+        if (mchorse.bbs_mod.graphics.OptiFineShaders.isShadowPass())
+        {
+            super.renderEntity(context, replay, entity);
+            return;
+        }
         boolean current = this.isCurrent(entity);
 
         if (!(this.controller.getPovMode() == UIFilmController.CAMERA_MODE_FIRST_PERSON && current))

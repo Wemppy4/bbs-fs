@@ -25,11 +25,15 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL21;
 
 import java.nio.FloatBuffer;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
 public class StencilFormFramebuffer
 {
+    private static final FloatBuffer EMPTY = BufferUtils.createFloatBuffer(4);
+    private static final FloatBuffer FAR_DEPTH = (FloatBuffer) BufferUtils.createFloatBuffer(4).put(1F).put(0F).put(0F).put(0F).flip();
+
     private Framebuffer framebuffer;
 
     private int index;
@@ -37,6 +41,7 @@ public class StencilFormFramebuffer
 
     /** Reused readback buffer for the tolerance region pick (grows as needed). */
     private FloatBuffer pickBuffer;
+    private final ByteBuffer colorMask = BufferUtils.createByteBuffer(16);
 
     public Framebuffer getFramebuffer()
     {
@@ -58,18 +63,13 @@ public class StencilFormFramebuffer
     {
         context.batcher.flush();
         Texture texture = this.getFramebuffer().getMainTexture();
-        int previous = StencilPreviewProgram.bind(index, BBSSettings.stencilHighlightColor.get());
-        try
-        {
-            GlStateManager.enableBlend();
-            context.batcher.texturedBox(texture.id, Colors.WHITE,
-                area.x, area.y, area.w, area.h,
-                0, texture.height, texture.width, 0, texture.width, texture.height);
-        }
-        finally
-        {
-            org.lwjgl.opengl.GL20.glUseProgram(previous);
-        }
+        mchorse.bbs_mod.graphics.shader.ShaderProgram shader = mchorse.bbs_mod.client.BBSShaders.getPickerPreviewProgram();
+        int color = BBSSettings.stencilHighlightColor.get();
+        shader.getUniform("Target").set(index);
+        shader.getUniform("HighlightColor").set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+        context.batcher.texturedBox(() -> shader, texture.id, Colors.WHITE,
+            area.x, area.y, area.w, area.h,
+            0, texture.height, texture.width, 0, texture.width, texture.height);
     }
     public int getIndex()
     {
@@ -140,7 +140,30 @@ public class StencilFormFramebuffer
     public void apply()
     {
         UIModelRenderer.flushViewportTranslucency();
-        this.framebuffer.applyClear();
+        this.framebuffer.apply();
+
+        /* Pick ids require a transparent background. OptiFine changes the global clear
+         * colour with raw GL calls, so neither inheriting it nor relying on Minecraft's
+         * cached clearColor setter is safe here. Explicit buffer clears leave it intact. */
+        boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+        this.colorMask.clear();
+        GL11.glGetBoolean(GL11.GL_COLOR_WRITEMASK, this.colorMask);
+        try
+        {
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GL11.glColorMask(true, true, true, true);
+            GL11.glDepthMask(true);
+            GL30.glClearBuffer(GL11.GL_COLOR, 0, EMPTY);
+            GL30.glClearBuffer(GL11.GL_DEPTH, 0, FAR_DEPTH);
+        }
+        finally
+        {
+            GL11.glColorMask(this.colorMask.get(0) != 0, this.colorMask.get(1) != 0,
+                this.colorMask.get(2) != 0, this.colorMask.get(3) != 0);
+            GL11.glDepthMask(depthMask);
+            if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        }
     }
 
     public void pickGUI(UIContext context, Area area)

@@ -99,6 +99,7 @@ public final class BBSRendering
     public static int capturedScaledHeight(int original){return capturing?new ScaledResolution(Minecraft.getMinecraft()).getScaledHeight():original;}
     public static void resizeExtraFramebuffers()
     {
+        mchorse.bbs_mod.graphics.OptiFineShaders.resize();
         Minecraft mc=Minecraft.getMinecraft();
         if(mc.renderGlobal!=null)mc.renderGlobal.createBindEntityOutlineFbs(mc.displayWidth,mc.displayHeight);
         if(mc.entityRenderer!=null)mc.entityRenderer.updateShaderGroupSize(mc.displayWidth,mc.displayHeight);
@@ -126,6 +127,32 @@ public final class BBSRendering
         ownsWorldQueue=!FormTranslucentQueue.isActive();
         if(ownsWorldQueue)FormTranslucentQueue.begin();
         worldRenderLast=FormRenderLast.open();
+    }
+    /** OptiFine renders shadow entities directly, without Forge's RenderWorldLastEvent. */
+    public static void onShadowEntities(float transition)
+    {
+        if (!mchorse.bbs_mod.graphics.OptiFineShaders.isShadowPass()
+            || net.minecraftforge.client.MinecraftForgeClient.getRenderPass() != 0) return;
+        mchorse.bbs_mod.graphics.WorldRenderContext context = mchorse.bbs_mod.graphics.WorldRenderContext.capture(transition);
+        int mode = GL11.glGetInteger(GL11.GL_MATRIX_MODE);
+        GlStateManager.matrixMode(GL11.GL_MODELVIEW); GlStateManager.pushMatrix(); GlStateManager.loadIdentity();
+        boolean previous = renderingWorld;
+        renderingWorld = true;
+        try
+        {
+            BBSModClient.getFilms().render(context);
+            UIBaseMenu menu = UIScreen.getCurrentMenu();
+            if (menu instanceof UIDashboard && ((UIDashboard) menu).getPanels().panel instanceof UIFilmPanel)
+            {
+                UIFilmPanel film = (UIFilmPanel) ((UIDashboard) menu).getPanels().panel;
+                if (film.getController().editorController != null) film.getController().editorController.render(context);
+            }
+        }
+        finally
+        {
+            renderingWorld = previous;
+            GlStateManager.matrixMode(GL11.GL_MODELVIEW); GlStateManager.popMatrix(); GlStateManager.matrixMode(mode);
+        }
     }
     /** Called under ClientProxy's identity GL view, before the native hand pass. */
     public static void finishWorldForms()

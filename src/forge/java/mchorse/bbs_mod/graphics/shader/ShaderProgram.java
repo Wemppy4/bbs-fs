@@ -18,6 +18,7 @@ public final class ShaderProgram implements AutoCloseable
 {
     private static final Pattern IMPORT = Pattern.compile("^\\s*#moj_import\\s+[<\"]([^>\"]+)[>\"]\\s*$", Pattern.MULTILINE);
     private final VertexFormat format;
+    private final String name;
     private final Map<String, GlUniform> uniforms = new LinkedHashMap<>();
     private final Map<String, Integer> samplerLocations = new LinkedHashMap<>();
     private final Map<String, Integer> samplers = new HashMap<>();
@@ -31,6 +32,7 @@ public final class ShaderProgram implements AutoCloseable
 
     public ShaderProgram(String name, VertexFormat format) throws IOException
     {
+        this.name = name;
         this.format = format;
         int vertex = 0, fragment = 0;
         try
@@ -154,6 +156,7 @@ public final class ShaderProgram implements AutoCloseable
     }
     public int getId() { return this.id; }
     public VertexFormat getFormat() { return this.format; }
+    public boolean isWorldModel() { return this.name.equals("model") && mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass(); }
     public GlUniform getUniform(String name) { return this.uniforms.get(name); }
     public void addSampler(String name,int texture) { this.samplers.put(name,texture); }
     boolean isBound() { return this.id != 0 && !this.states.isEmpty() && GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM)==this.id; }
@@ -200,6 +203,7 @@ public final class ShaderProgram implements AutoCloseable
         GL20.glBlendEquationSeparate(state.equation,state.alphaEquation);
         GlStateManager.tryBlendFuncSeparate(state.src,state.dst,state.srcAlpha,state.dstAlpha);
         if (state.blend) GlStateManager.enableBlend(); else GlStateManager.disableBlend();
+        state.optifine.close();
     }
     @Override public void close()
     {
@@ -209,6 +213,7 @@ public final class ShaderProgram implements AutoCloseable
     }
     private static final class State
     {
+        final mchorse.bbs_mod.graphics.OptiFineShaders.LocalPass optifine = mchorse.bbs_mod.graphics.OptiFineShaders.localPass();
         final int program=GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM), activeTexture=GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
         final boolean blend=GL11.glIsEnabled(GL11.GL_BLEND);
         final int equation=GL11.glGetInteger(GL20.GL_BLEND_EQUATION_RGB), alphaEquation=GL11.glGetInteger(GL20.GL_BLEND_EQUATION_ALPHA);

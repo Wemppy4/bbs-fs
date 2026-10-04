@@ -88,8 +88,9 @@ public final class NativeTextureRenderer
         boolean translucent = texture.hasTranslucency() || color.a < 1F || linear || mipmap;
         if (translucent && FormTranslucentQueue.isActive() && !NativePickingShader.isActive())
         {
-            if (color.a >= 1F) { draw.mode = 1; draw.draw(); }
-            draw.mode = color.a >= 1F ? 2 : 0;
+            boolean split = color.a >= 1F && !mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass();
+            if (split) { draw.mode = 1; draw.draw(); }
+            draw.mode = split ? 2 : 0;
             boolean flat = form instanceof mchorse.bbs_mod.forms.forms.BillboardForm;
             draw.writeDepth = !flat;
             Vector3f origin = draw.matrix.getTranslation(new Vector3f());
@@ -102,12 +103,13 @@ public final class NativeTextureRenderer
         }
         else if (!ui && translucent && passDepth > 0 && !NativePickingShader.isActive())
         {
-            if (color.a >= 1F)
+            boolean split = color.a >= 1F && !mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass();
+            if (split)
             {
                 draw.mode = 1;
                 draw.draw();
             }
-            draw.mode = color.a >= 1F ? 2 : 0;
+            draw.mode = split ? 2 : 0;
             draw.writeDepth = false;
             TRANSLUCENT.add(draw);
         }
@@ -170,7 +172,15 @@ public final class NativeTextureRenderer
                 try
                 {
                     this.texture.setFilterMipmap(this.linear, this.mipmap);
-                    useProgram(this);
+                    boolean shaders = !this.ui && !NativePickingShader.isActive() && mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass();
+                    try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pack = shaders
+                        ? mchorse.bbs_mod.graphics.OptiFineModelRenderer.beginNative(this.matrix,
+                            mchorse.bbs_mod.graphics.render.RenderSystem.getProjectionMatrix(),1,1,1,1,
+                            (int)this.lightX | (int)this.lightY << 16) : null;
+                         mchorse.bbs_mod.graphics.OptiFineShaders.LocalPass local = shaders ? null : mchorse.bbs_mod.graphics.OptiFineShaders.localPass())
+                    {
+                    if (shaders) { GlStateManager.enableAlpha(); GlStateManager.alphaFunc(GL11.GL_GREATER,0.1F); }
+                    else useProgram(this);
                     BufferBuilder buffer = Tessellator.getInstance().getBuffer();
                     buffer.begin(GL11.GL_TRIANGLES, DefaultVertexFormats.POSITION_TEX_COLOR_NORMAL);
                     for (int i = 0, count = this.mesh.positions.length / 3; i < count; i++)
@@ -182,6 +192,7 @@ public final class NativeTextureRenderer
                             .normal(this.mesh.normals[p], this.mesh.normals[p + 1], this.mesh.normals[p + 2]).endVertex();
                     }
                     Tessellator.getInstance().draw();
+                    }
                 }
                 finally
                 {

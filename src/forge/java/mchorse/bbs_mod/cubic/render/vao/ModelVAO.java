@@ -105,4 +105,10 @@ public class ModelVAO implements IModelVAO
         }
         finally { GL30.glBindVertexArray(previousVao); }
     }
+
+    public void renderOptiFine()
+    {
+        mchorse.bbs_mod.graphics.OptiFineModelRenderer.arrays(this.positions, this.normals, this.texCoords);
+        GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, this.count);
+    }
 }

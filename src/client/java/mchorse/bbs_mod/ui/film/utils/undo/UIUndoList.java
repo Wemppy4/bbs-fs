@@ -32,8 +32,9 @@ public class UIUndoList <T> extends UIList<IUndo<T>>
         {
             return undo.name.toString();
         }
-        else if (element instanceof CompoundUndo<T> compoundUndo)
+        else if (element instanceof CompoundUndo)
         {
+            CompoundUndo<T> compoundUndo = (CompoundUndo<T>) element;
             List<String> keys = new ArrayList<>();
 
             for (IUndo<T> undo : compoundUndo.getUndos())

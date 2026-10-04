@@ -105,7 +105,7 @@ public class FormTranslucentQueue
         /* The Iris shadow pass re-renders the scene into the shadow map mid-frame: forms there
          * must draw immediately (the shadow map needs their full geometry), and nothing may
          * enqueue — the queue belongs to the main pass. */
-        return active;
+        return active && !mchorse.bbs_mod.graphics.OptiFineShaders.isShadowPass();
     }
 
     /**
@@ -121,7 +121,7 @@ public class FormTranslucentQueue
     public static boolean needsSplit(ShaderProgram shader, StencilMap stencilMap, Texture texture, float alpha)
     {
         return alpha >= 1F && texture != null && texture.hasTranslucency()
-            && isActive() && stencilMap == null && shader.getUniform("PassMode") != null;
+            && isActive() && stencilMap == null && !shader.isWorldModel() && shader.getUniform("PassMode") != null;
     }
 
     /**
@@ -135,7 +135,7 @@ public class FormTranslucentQueue
      */
     public static boolean needsWholeDefer(ShaderProgram shader, StencilMap stencilMap, float alpha)
     {
-        return alpha < 1F && isActive() && stencilMap == null && shader.getUniform("PassMode") != null;
+        return alpha < 1F && isActive() && stencilMap == null && !shader.isWorldModel() && shader.getUniform("PassMode") != null;
     }
 
     public static void setPassMode(ShaderProgram shader, int mode)
@@ -150,6 +150,12 @@ public class FormTranslucentQueue
 
     public static void add(DrawCommand command)
     {
+        if (mchorse.bbs_mod.graphics.OptiFineShaders.isShadowPass())
+        {
+            try { command.draw(); }
+            finally { command.release(); }
+            return;
+        }
         if (group != null && command != group)
         {
             group.children.add(command);

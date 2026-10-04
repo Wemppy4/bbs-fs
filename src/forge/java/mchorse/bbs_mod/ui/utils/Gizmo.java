@@ -526,13 +526,11 @@ public class Gizmo
         }
 
         context.batcher.flush();
-        int previous = StencilPreviewProgram.bind(STENCIL_TRACKBALL, BBSSettings.stencilHighlightColor.get());
-        try
-        {
-            GlStateManager.enableBlend();
-            context.batcher.texturedBox(texture.id, Colors.WHITE, rectX, rectY, rw, rh, 0, ph, pw, 0, texture.width, texture.height);
-        }
-        finally { org.lwjgl.opengl.GL20.glUseProgram(previous); }
+        mchorse.bbs_mod.graphics.shader.ShaderProgram shader = mchorse.bbs_mod.client.BBSShaders.getPickerPreviewProgram();
+        int color = BBSSettings.stencilHighlightColor.get();
+        shader.getUniform("Target").set(STENCIL_TRACKBALL);
+        shader.getUniform("HighlightColor").set(Colors.getR(color), Colors.getG(color), Colors.getB(color), Colors.getA(color));
+        context.batcher.texturedBox(() -> shader, texture.id, Colors.WHITE, rectX, rectY, rw, rh, 0, ph, pw, 0, texture.width, texture.height);
     }
 
     public boolean start(int index, int mouseX, int mouseY, UIPropTransform transform)

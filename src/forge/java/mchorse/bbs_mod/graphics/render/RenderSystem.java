@@ -18,6 +18,8 @@ public final class RenderSystem
     private static ShaderProgram shader;
     private static int overlay, defaultOverlay, whiteLight;
     private static final int[] extraTextures = new int[12];
+    private static final java.lang.reflect.Field LIGHTMAP = net.minecraftforge.fml.relauncher.ReflectionHelper.findField(
+        net.minecraft.client.renderer.EntityRenderer.class, "lightmapTexture", "field_78513_d");
     private RenderSystem() {}
     public static void setShader(Supplier<ShaderProgram> supplier) { shader=supplier.get(); }
     public static ShaderProgram getShader() { return shader; }
@@ -28,10 +30,22 @@ public final class RenderSystem
         if (unit==2)
         {
             if (extraTextures[2] != 0) return extraTextures[2];
-            int texture=binding(1);
+            int texture=nativeLightmap();
             return texture != 0 ? texture : (whiteLight != 0 ? whiteLight : (whiteLight=createAtlas(false)));
         }
         return unit >= 0 && unit < extraTextures.length ? extraTextures[unit] : 0;
+    }
+    /** Composite passes reuse unit 1; its current binding is not a lightmap identity. */
+    public static int nativeLightmap()
+    {
+        try
+        {
+            Object renderer = Minecraft.getMinecraft().entityRenderer;
+            net.minecraft.client.renderer.texture.DynamicTexture light = renderer == null ? null
+                : (net.minecraft.client.renderer.texture.DynamicTexture) LIGHTMAP.get(renderer);
+            return light == null ? 0 : light.getGlTextureId();
+        }
+        catch (IllegalAccessException error) { throw new IllegalStateException("Cannot access Minecraft lightmap", error); }
     }
     /** Logical override only; zero means the native/default texture is selected. */
     public static int getShaderTextureOverride(int unit)

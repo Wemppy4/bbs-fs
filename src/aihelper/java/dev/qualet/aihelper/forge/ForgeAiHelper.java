@@ -152,6 +152,7 @@ public class ForgeAiHelper
             case "/bbs-camera-probe": return OriginalCameraProbe.handle(p);
             case "/bbs-viewport-probe": return OriginalViewportProbe.handle(p);
             case "/bbs-model-gpu-probe": return OriginalModelGPUProbe.handle(p);
+            case "/bbs-optifine-probe": return OptiFineProbe.handle(p);
             case "/bbs-film-backend-probe": return OriginalFilmBackendProbe.handle(p);
             case "/bbs-gizmo-probe": return OriginalGizmoProbe.handle(p);
             case "/bbs-dashboard-probe": return OriginalDashboardProbe.snapshot();

@@ -31,6 +31,15 @@ public final class BBSRenderTransformer implements IClassTransformer
         int matched=0;
         for(MethodNode method:new ArrayList<MethodNode>(node.methods))
         {
+            if (sky && named(method,"renderEntities","func_180446_a")
+                && method.desc.equals("(Lnet/minecraft/entity/Entity;Lnet/minecraft/client/renderer/culling/ICamera;F)V"))
+            {
+                for (AbstractInsnNode instruction : method.instructions.toArray()) if (instruction.getOpcode()==Opcodes.RETURN)
+                {
+                    InsnList hook=new InsnList();hook.add(new VarInsnNode(Opcodes.FLOAD,3));hook.add(call("onShadowEntities","(F)V"));
+                    method.instructions.insertBefore(instruction,hook);
+                }
+            }
             if(renderer)
             {
                 for(AbstractInsnNode instruction:method.instructions.toArray()) if(instruction instanceof FieldInsnNode)

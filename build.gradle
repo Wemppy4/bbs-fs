@@ -15,6 +15,9 @@ minecraft {
     extraRunJvmArguments.addAll('-Xmx2G', '-Dfile.encoding=UTF-8')
 }
 repositories { mavenCentral() }
+// OptiFine patches vanilla class names, so its client uses Forge's obfuscated runtime.
+def withOptiFine = project.hasProperty('withOptiFine') || gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'runClientOptiFine' }
+apply from: 'gradle/optifine.gradle'
 configurations {
     embedded
     implementation.extendsFrom(embedded)
@@ -62,7 +65,8 @@ tasks.named('processResources') {
     from('src/main/resources') { include 'assets/bbs/icon.png', 'assets/bbs/licenses/**', 'assets/bbs/textures/block/model.png', 'assets/bbs/sounds/**', 'assets/bbs/sounds.json', 'assets/bbs/shaders/**', 'assets/minecraft/shaders/program/bbs_kawase*' }
 }
 tasks.named('runClient') {
-    onlyIf { !project.hasProperty('forgeReleaseTest') }
+    onlyIf { !project.hasProperty('forgeReleaseTest') && !withOptiFine }
+    if (withOptiFine) dependsOn 'runObfClient'
     dependsOn tasks.named('aihelperClasses'), 'embeddedRuntime'
     classpath += sourceSets.aihelper.output
     workingDir = file('run-forge1122')
@@ -98,6 +102,7 @@ tasks.register('reobfAihelper', com.gtnewhorizons.retrofuturagradle.mcp.Reobfusc
 }
 tasks.named('prepareObfModsFolder') {
     from tasks.named('reobfAihelper')
+    if (withOptiFine) from configurations.optifineRuntime
     // JOML is already embedded without its Java 9 module descriptor.
     exclude 'joml-*.jar'
     into file('run-forge1122-obf/mods')
@@ -105,6 +110,11 @@ tasks.named('prepareObfModsFolder') {
 tasks.named('runObfClient') {
     workingDir = file('run-forge1122-obf')
     systemProperty 'aihelper.port', '25612'
+}
+tasks.register('runClientOptiFine') {
+    group = 'application'
+    description = 'Run Forge 1.12.2 with BBS and the pinned official OptiFine runtime dependency.'
+    dependsOn 'runObfClient'
 }
 tasks.register('embeddedRuntime', Jar) {
     archiveClassifier = 'runtime'

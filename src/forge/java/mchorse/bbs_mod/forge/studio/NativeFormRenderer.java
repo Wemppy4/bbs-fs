@@ -20,6 +20,8 @@ import java.util.*;
 /** A renderer belongs to a form, while immutable assets are shared by ModelManager. */
 public final class NativeFormRenderer implements ITickable
 {
+    private static final java.lang.reflect.Field BUFFER_BUILDING = net.minecraftforge.fml.relauncher.ReflectionHelper.findField(
+        net.minecraft.client.renderer.BufferBuilder.class, "isDrawing", "field_179010_r");
     private final Form form;
     private Entity mob;
     private String mobKey;
@@ -221,6 +223,9 @@ public final class NativeFormRenderer implements ITickable
         int previousMode = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_MATRIX_MODE);
         GlStateManager.matrixMode(org.lwjgl.opengl.GL11.GL_MODELVIEW);
         int previousDepth = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_MODELVIEW_STACK_DEPTH);
+        int previousList = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_LIST_INDEX);
+        net.minecraft.client.renderer.BufferBuilder vertices = net.minecraft.client.renderer.Tessellator.getInstance().getBuffer();
+        boolean wasBuilding = isBuilding(vertices);
         GlStateManager.pushMatrix();
         try
         {
@@ -230,6 +235,18 @@ public final class NativeFormRenderer implements ITickable
         }
         finally
         {
+            /* RenderLivingBase catches layer/model failures itself. An interrupted
+             * ModelRenderer compilation otherwise keeps recording future frames into
+             * its GL display list, growing driver memory without a Java heap limit. */
+            if (previousList == 0 && org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_LIST_INDEX) != 0)
+            {
+                GlStateManager.glEndList();
+            }
+            if (!wasBuilding && isBuilding(vertices))
+            {
+                vertices.finishDrawing();
+                vertices.reset();
+            }
             /* RenderLivingBase pushes before querying isChild(), outside its own try block.
              * A failing external entity renderer must not leave that stack entry in the UI. */
             GlStateManager.matrixMode(org.lwjgl.opengl.GL11.GL_MODELVIEW);
@@ -237,6 +254,11 @@ public final class NativeFormRenderer implements ITickable
                 GlStateManager.popMatrix();
             GlStateManager.matrixMode(previousMode);
         }
+    }
+    private static boolean isBuilding(net.minecraft.client.renderer.BufferBuilder vertices)
+    {
+        try { return BUFFER_BUILDING.getBoolean(vertices); }
+        catch (IllegalAccessException error) { throw new IllegalStateException("Cannot inspect native vertex buffer", error); }
     }
     private void resolveMob(MobForm f, net.minecraft.world.World world)
     {

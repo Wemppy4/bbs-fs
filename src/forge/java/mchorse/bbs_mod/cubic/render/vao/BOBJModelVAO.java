@@ -362,6 +362,17 @@ public class BOBJModelVAO
 
     public void render(ShaderProgram shader, Matrix4f modelView, Matrix3f normalMat, float r, float g, float b, float a, StencilMap stencilMap, int light, int overlay)
     {
+        if (stencilMap == null && shader.isWorldModel())
+        {
+            try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(
+                modelView,mchorse.bbs_mod.graphics.render.RenderSystem.getProjectionMatrix(),r,g,b,a,light))
+            {
+                mchorse.bbs_mod.graphics.OptiFineModelRenderer.arrays(this.vertexBuffer,this.normalBuffer,this.texCoordBuffer);
+                if (this.visibleRanges == null) GL11.glDrawArrays(GL11.GL_TRIANGLES,0,this.count);
+                else for (int[] range : this.visibleRanges) GL11.glDrawArrays(GL11.GL_TRIANGLES,range[0],range[1]);
+            }
+            return;
+        }
         GL20.glVertexAttrib4f(Attributes.COLOR, r, g, b, a);
         GL30.glVertexAttribI2i(Attributes.OVERLAY_UV, overlay & '\uffff', overlay >> 16 & '\uffff');
         GL30.glVertexAttribI2i(Attributes.LIGHTMAP_UV, light & '\uffff', light >> 16 & '\uffff');
