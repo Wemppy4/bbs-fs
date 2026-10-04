@@ -311,6 +311,7 @@ public final class BBSRendering
         Double value = getCurveValue("sun_rotation", mchorse.bbs_mod.camera.clips.misc.CurveClip::getValues);
         return value == null ? null : (long) (value * 1000L);
     }
+    public static Double getShaderCurveValue(String option) { return getCurveValue(mchorse.bbs_mod.camera.clips.misc.CurveClip.SHADER_CURVES_PREFIX + option, mchorse.bbs_mod.camera.clips.misc.CurveClip::getValues); }
     public static Double getBrightness() { return getCurveValue("brightness", mchorse.bbs_mod.camera.clips.misc.CurveClip::getValues); }
     public static Double getWeather() { return getCurveValue("weather", mchorse.bbs_mod.camera.clips.misc.CurveClip::getValues); }
     public static float getSunHorizontalRotation()

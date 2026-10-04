@@ -21,7 +21,7 @@ public class ContentType
     private static final IRepository<? extends ValueGroup> MODEL_REPOSITORY = new ModelManagerRepository();
     private static final IRepository<? extends ValueGroup> FILMS_REMOTE_REPOSITORY = new FilmRepository();
     public static final ContentType MODELS = new ContentType("models", () -> MODEL_REPOSITORY, null);
-    public static final ContentType PARTICLES = new ContentType("particles", null, null);
+    public static final ContentType PARTICLES = new ContentType("particles", () -> new FolderManagerRepository<>(BBSModClient.getParticles()), null);
     public static final ContentType FILMS = new ContentType("films", ContentType::getFilmsRepository, null);
 
     private static IRepository<? extends ValueGroup> getFilmsRepository()

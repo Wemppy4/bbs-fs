@@ -1,0 +1,4 @@
+screen.COLOR=Color
+option.BBS_QA_EXPOSURE=Exposure
+option.BBS_QA_BLUE=Blue channel
+option.BBS_QA_SAMPLES=Compile-time sample count

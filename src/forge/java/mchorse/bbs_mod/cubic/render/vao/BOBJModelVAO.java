@@ -33,9 +33,11 @@ public class BOBJModelVAO
     public int normalBuffer;
     public int lightBuffer;
     public int texCoordBuffer;
+    private int tangentBuffer,midUvBuffer;
 
     private float[] tmpVertices;
     private float[] tmpNormals;
+    private float[] tmpTangents;
     private int[] tmpLight;
 
     /**
@@ -70,9 +72,12 @@ public class BOBJModelVAO
             this.normalBuffer = GL15.glGenBuffers();
             this.lightBuffer = GL15.glGenBuffers();
             this.texCoordBuffer = GL15.glGenBuffers();
+            this.tangentBuffer = GL15.glGenBuffers();
+            this.midUvBuffer = GL15.glGenBuffers();
             this.count = this.data.normData.length / 3;
             this.tmpVertices = new float[this.data.posData.length];
             this.tmpNormals = new float[this.data.normData.length];
+            this.tmpTangents = mchorse.bbs_mod.graphics.ModelTangents.calculate(this.data.posData,this.data.normData,this.data.texData);
             this.tmpLight = new int[this.count * 2];
 
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, this.vertexBuffer);
@@ -87,6 +92,10 @@ public class BOBJModelVAO
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, this.texCoordBuffer);
             GL15.glBufferData(GL15.GL_ARRAY_BUFFER, ModelBuffers.wrap(this.data.texData), GL15.GL_STATIC_DRAW);
             GL20.glVertexAttribPointer(Attributes.TEXTURE_UV, 2, GL11.GL_FLOAT, false, 0, 0L);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,this.tangentBuffer);
+            GL15.glBufferData(GL15.GL_ARRAY_BUFFER,ModelBuffers.wrap(this.tmpTangents),GL15.GL_DYNAMIC_DRAW);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,this.midUvBuffer);
+            GL15.glBufferData(GL15.GL_ARRAY_BUFFER,ModelBuffers.wrap(mchorse.bbs_mod.graphics.ModelTangents.midUvs(this.data.texData)),GL15.GL_STATIC_DRAW);
         }
         catch (RuntimeException error) { this.delete(); throw error; }
         finally
@@ -107,7 +116,9 @@ public class BOBJModelVAO
         GL15.glDeleteBuffers(this.normalBuffer);
         GL15.glDeleteBuffers(this.lightBuffer);
         GL15.glDeleteBuffers(this.texCoordBuffer);
-        this.vao = this.vertexBuffer = this.normalBuffer = this.lightBuffer = this.texCoordBuffer = 0;
+        GL15.glDeleteBuffers(this.tangentBuffer);
+        GL15.glDeleteBuffers(this.midUvBuffer);
+        this.vao = this.vertexBuffer = this.normalBuffer = this.lightBuffer = this.texCoordBuffer = this.tangentBuffer = this.midUvBuffer = 0;
     }
 
     public int getUploadCount()
@@ -301,6 +312,9 @@ public class BOBJModelVAO
             GL15.glBufferData(GL15.GL_ARRAY_BUFFER, ModelBuffers.wrap(newVertices), GL15.GL_DYNAMIC_DRAW);
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, this.normalBuffer);
             GL15.glBufferData(GL15.GL_ARRAY_BUFFER, ModelBuffers.wrap(newNormals), GL15.GL_DYNAMIC_DRAW);
+            mchorse.bbs_mod.graphics.ModelTangents.calculate(this.tmpTangents,newVertices,newNormals,this.data.texData);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,this.tangentBuffer);
+            GL15.glBufferData(GL15.GL_ARRAY_BUFFER,ModelBuffers.wrap(this.tmpTangents),GL15.GL_DYNAMIC_DRAW);
             if (stencilMap != null)
             {
                 GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, this.lightBuffer);
@@ -367,7 +381,7 @@ public class BOBJModelVAO
             try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(
                 modelView,mchorse.bbs_mod.graphics.render.RenderSystem.getProjectionMatrix(),r,g,b,a,light))
             {
-                mchorse.bbs_mod.graphics.OptiFineModelRenderer.arrays(this.vertexBuffer,this.normalBuffer,this.texCoordBuffer);
+                mchorse.bbs_mod.graphics.OptiFineModelRenderer.arrays(this.vertexBuffer,this.normalBuffer,this.texCoordBuffer,this.tangentBuffer,this.midUvBuffer);
                 if (this.visibleRanges == null) GL11.glDrawArrays(GL11.GL_TRIANGLES,0,this.count);
                 else for (int[] range : this.visibleRanges) GL11.glDrawArrays(GL11.GL_TRIANGLES,range[0],range[1]);
             }

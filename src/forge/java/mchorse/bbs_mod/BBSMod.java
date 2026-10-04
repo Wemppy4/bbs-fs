@@ -1,4 +1,6 @@
 package mchorse.bbs_mod;
+import mchorse.bbs_mod.api.AddonLifecycle;
+import mchorse.bbs_mod.api.events.*;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.converters.*;
 import mchorse.bbs_mod.camera.clips.overwrite.*;
@@ -105,6 +107,16 @@ public class BBSMod
         forms.register(Link.bbs("billboard"), mchorse.bbs_mod.forms.forms.BillboardForm.class);
         forms.register(Link.bbs("extruded"), mchorse.bbs_mod.forms.forms.ExtrudedForm.class);
         forms.register(Link.bbs("anchor"), mchorse.bbs_mod.forms.forms.AnchorForm.class);
+        forms.register(Link.bbs("block"), mchorse.bbs_mod.forms.forms.BlockForm.class);
+        forms.register(Link.bbs("item"), mchorse.bbs_mod.forms.forms.ItemForm.class);
+        forms.register(Link.bbs("label"), mchorse.bbs_mod.forms.forms.LabelForm.class);
+        forms.register(Link.bbs("video"), mchorse.bbs_mod.forms.forms.VideoForm.class);
+        forms.register(Link.bbs("spline"), mchorse.bbs_mod.forms.forms.SplineForm.class);
+        forms.register(Link.bbs("structure"), mchorse.bbs_mod.forms.forms.StructureForm.class);
+        forms.register(Link.bbs("particle"), mchorse.bbs_mod.forms.forms.ParticleForm.class);
+        forms.register(Link.bbs("vanilla_particles"), mchorse.bbs_mod.forms.forms.VanillaParticleForm.class);
+        forms.register(Link.bbs("trail"), mchorse.bbs_mod.forms.forms.TrailForm.class);
+        forms.register(Link.bbs("framebuffer"), mchorse.bbs_mod.forms.forms.FramebufferForm.class);
         factoryCameraClips.register(Link.bbs("image"), mchorse.bbs_mod.camera.clips.misc.ImageClip.class, new ClipFactoryData(Icons.GALLERY, 0x5278cd));
         factoryCameraClips.register(Link.bbs("video"), mchorse.bbs_mod.camera.clips.misc.VideoClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c));
     }
@@ -131,15 +143,26 @@ public class BBSMod
         assetsFolder = new File(event.getModConfigurationDirectory(), "bbs/assets");
         assetsFolder.mkdirs();
         settingsFolder = new File(assetsFolder.getParentFile(), "settings");
+        AddonLifecycle.registerCommon(event.getAsmData());
         setupSettings(getSettingsPath("bbs.json"));
         provider = new AssetProvider();
         dynamicSourcePack = new mchorse.bbs_mod.resources.packs.DynamicSourcePack(new ExternalAssetsSourcePack(Link.ASSETS, assetsFolder).providesFiles());
         provider.register(dynamicSourcePack);
+        try { provider.register(new mchorse.bbs_mod.resources.packs.ClasspathSourcePack()); }
+        catch (java.io.IOException error) { throw new IllegalStateException("BBS assets unavailable", error); }
         mchorse.bbs_mod.resources.packs.URLRepository urlCache = new mchorse.bbs_mod.resources.packs.URLRepository(new File(assetsFolder.getParentFile(), "url_cache"));
         provider.register(new mchorse.bbs_mod.resources.packs.URLSourcePack("http", urlCache));
         provider.register(new mchorse.bbs_mod.resources.packs.URLSourcePack("https", urlCache));
+        events.post(new RegisterSourcePacksEvent(provider));
         KeyframeFactories.setup();
+        events.post(new RegisterKeyframeFactoriesEvent());
+        events.post(new RegisterFormsEvent(forms));
+        events.post(new RegisterFormModifiersEvent());
+        events.post(new RegisterCameraClipsEvent(factoryCameraClips));
         proxy.preInit();
+        events.post(new RegisterActionClipsEvent(factoryActionClips));
+        events.post(new RegisterSettingsEvent());
+        events.post(new BBSReadyEvent());
         LOGGER.info("BBS FS Forge 1.12.2 foundation initializing");
     }
     @Mod.EventHandler

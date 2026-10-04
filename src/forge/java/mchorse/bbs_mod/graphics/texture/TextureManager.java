@@ -31,10 +31,9 @@ public class TextureManager implements IWatchDogListener
 
     /**
      * Variant copies of loaded textures (link &rarr; variant key &rarr; texture), used by the
-     * material PBR sliders: Iris caches PBR holders by the albedo's GL id, so a material with
-     * its own slider values needs its own GL texture. The variant key encodes the slider
-     * values — moving a slider lands on a NEW id, which is how edits invalidate Iris' cache.
-     * A few variants per link are kept; older ones are deleted.
+     * material PBR sliders. Each material instance has a stable key; editing a slider
+     * updates its maps without allocating another albedo. Animation frames have separate
+     * copies, and deleting/reloading the source releases all of them.
      */
     private final Map<Link, LinkedHashMap<String, Texture>> variants = new HashMap<>();
 
@@ -137,7 +136,7 @@ public class TextureManager implements IWatchDogListener
         }
 
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE0 + unit);
-        GlStateManager.bindTexture(texture.id);
+        texture.bind();
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE0);
     }
 
@@ -213,6 +212,9 @@ public class TextureManager implements IWatchDogListener
             return this.getError();
         }
 
+        Texture source=this.getTexture(link);
+        if(source==this.getError())return source;
+        if(source.getParent()!=null)key+=":frame:"+source.getParent().textures.indexOf(source);
         LinkedHashMap<String, Texture> byKey = this.variants.computeIfAbsent(link, (l) -> new LinkedHashMap<>());
         Texture texture = byKey.get(key);
 
@@ -222,7 +224,7 @@ public class TextureManager implements IWatchDogListener
 
             try
             {
-                pixels = this.getPixels(link);
+                pixels = Texture.pixelsFromTexture(source);
             }
             catch (Exception e)
             {
@@ -236,22 +238,25 @@ public class TextureManager implements IWatchDogListener
                 return this.getError();
             }
 
-            texture = Texture.textureFromPixels(pixels, GL11.GL_NEAREST);
+            try{texture = Texture.textureFromPixels(pixels, GL11.GL_NEAREST);}
+            finally{pixels.delete();}
 
             byKey.put(key, texture);
 
-            /* Slider drags walk through many intermediate values; keep the tail short. */
-            Iterator<Texture> it = byKey.values().iterator();
+            /* PBR keys identify live material instances, not slider values. Evicting them
+             * during another actor's draw invalidates deferred translucent commands. */
+            Iterator<Map.Entry<String,Texture>> it = byKey.entrySet().iterator();
 
             while (byKey.size() > 4 && it.hasNext())
             {
-                Texture old = it.next();
-
+                Map.Entry<String,Texture> entry = it.next();
+                if(entry.getKey().startsWith("pbr:"))continue;
                 it.remove();
-                old.delete();
+                entry.getValue().delete();
             }
         }
 
+        mchorse.bbs_mod.graphics.OptiFinePbr.trackFrame(texture,link,source);
         return texture;
     }
 
@@ -273,7 +278,7 @@ public class TextureManager implements IWatchDogListener
             this.failed.remove(link);
         }
 
-        return texture;
+        return mchorse.bbs_mod.graphics.OptiFinePbr.track(texture,link);
     }
 
     public Pixels getPixels(Link link) throws Exception
@@ -340,7 +345,7 @@ public class TextureManager implements IWatchDogListener
 
                         this.animatedTextures.put(link, animatedTexture);
 
-                        return animatedTexture.getTexture(this.tick);
+                        return mchorse.bbs_mod.graphics.OptiFinePbr.track(animatedTexture.getTexture(this.tick),link);
                     }
                     catch (Exception e)
                     {
@@ -370,7 +375,7 @@ public class TextureManager implements IWatchDogListener
                             /* Cut into frames by now; the strip itself is nobody's */
                             pixels.delete();
 
-                            return texture;
+                            return mchorse.bbs_mod.graphics.OptiFinePbr.track(texture,link);
                         }
                         catch (Exception e)
                         {}
@@ -402,7 +407,7 @@ public class TextureManager implements IWatchDogListener
             }
         }
 
-        return texture;
+        return mchorse.bbs_mod.graphics.OptiFinePbr.track(texture,link);
     }
 
     private Texture get(Link link)

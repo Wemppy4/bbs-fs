@@ -39,7 +39,9 @@ public abstract class UIBaseMenu
      */
     public static boolean shouldRenderAxes()
     {
-        return renderAxes && !isHideGizmoHeld() && !mchorse.bbs_mod.graphics.OptiFineShaders.isShadowPass();
+        return renderAxes && !isHideGizmoHeld()
+            && !mchorse.bbs_mod.BBSModClient.getVideoRecorder().isRecording()
+            && !mchorse.bbs_mod.graphics.OptiFineShaders.isShadowPass();
     }
 
     /** Whether the hold-to-hide gizmo key ({@link Keys#TRANSFORMATIONS_HIDE_GIZMO}) is currently held.

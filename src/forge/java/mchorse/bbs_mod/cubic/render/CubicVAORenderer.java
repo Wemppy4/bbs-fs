@@ -163,6 +163,7 @@ public class CubicVAORenderer extends CubicCubeRenderer
                 if (link != null)
                 {
                     texture = BBSModClient.getTextures().getTexture(link);
+                    texture = mchorse.bbs_mod.forms.renderers.utils.FormPbr.resolveAlbedo(modelForm,material,link,texture);
                     BBSModClient.getTextures().bindTexture(texture);
                 }
             }

@@ -241,7 +241,14 @@ public final class NativeBitmapFontRenderer extends FontRenderer
         this.buffer.pos(x1 + slant1, y1, 0).tex(glyph.u1, glyph.v1).color(r, g, b, a).endVertex();
         this.buffer.pos(x1 + slant0, y0, 0).tex(glyph.u1, glyph.v0).color(r, g, b, a).endVertex();
     }
-    private void flush() { this.buffer.finishDrawing(); this.uploader.draw(this.buffer); }
+    private void flush()
+    {
+        this.buffer.finishDrawing();
+        mchorse.bbs_mod.graphics.shader.ShaderProgram shader = this.buffer.getVertexFormat().hasUvOffset(0)
+            ? mchorse.bbs_mod.client.PixelArt.bind(true) : null;
+        try { this.uploader.draw(this.buffer); }
+        finally { if (shader != null) shader.unbind(); }
+    }
 
     private BakedGlyph bake(int codepoint)
     {

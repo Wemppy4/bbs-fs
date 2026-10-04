@@ -27,11 +27,11 @@ import java.nio.FloatBuffer;
 
 /** Native ground projection and billboard labels for replay bodies. The placement
  * is supplied by FilmEntityRenderer, including anchor and shadow-follow displacement. */
-final class FilmOverlayRenderer
+public final class FilmOverlayRenderer
 {
     private static final ResourceLocation SHADOW = new ResourceLocation("textures/misc/shadow.png");
 
-    static void renderShadow(World world, MatrixStack matrices, Camera camera, double x, double y, double z, float radius, float opacity)
+    public static void renderShadow(World world, MatrixStack matrices, Camera camera, double x, double y, double z, float radius, float opacity)
     {
         if (world == null || radius <= 0F) return;
         opacity *= Math.max(0D, 1D - camera.position.distanceSquared(x, y, z) / 256D);

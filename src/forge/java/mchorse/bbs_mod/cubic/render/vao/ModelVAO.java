@@ -10,7 +10,7 @@ import org.lwjgl.opengl.GL30;
 /** Original rigid model layouts, with buffers owned and released alongside their VAOs. */
 public class ModelVAO implements IModelVAO
 {
-    private int vao, vao2, positions, normals, texCoords, count;
+    private int vao, vao2, positions, normals, texCoords, tangents, midUvs, count;
 
     public ModelVAO(ModelVAOData data) { this.upload(data); }
 
@@ -21,7 +21,9 @@ public class ModelVAO implements IModelVAO
         if (this.positions != 0) GL15.glDeleteBuffers(this.positions);
         if (this.normals != 0) GL15.glDeleteBuffers(this.normals);
         if (this.texCoords != 0) GL15.glDeleteBuffers(this.texCoords);
-        this.vao = this.vao2 = this.positions = this.normals = this.texCoords = this.count = 0;
+        if (this.tangents != 0) GL15.glDeleteBuffers(this.tangents);
+        if (this.midUvs != 0) GL15.glDeleteBuffers(this.midUvs);
+        this.vao = this.vao2 = this.positions = this.normals = this.texCoords = this.tangents = this.midUvs = this.count = 0;
     }
 
     public void upload(ModelVAOData data)
@@ -29,7 +31,7 @@ public class ModelVAO implements IModelVAO
         int previousVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         int previousBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
         if (previousVao == this.vao || previousVao == this.vao2) previousVao = 0;
-        if (previousBuffer == this.positions || previousBuffer == this.normals || previousBuffer == this.texCoords) previousBuffer = 0;
+        if (previousBuffer == this.positions || previousBuffer == this.normals || previousBuffer == this.texCoords || previousBuffer == this.tangents || previousBuffer == this.midUvs) previousBuffer = 0;
         this.delete();
         try
         {
@@ -38,6 +40,8 @@ public class ModelVAO implements IModelVAO
             this.positions = upload(data.vertices());
             this.normals = upload(data.normals());
             this.texCoords = upload(data.texCoords());
+            this.tangents = upload(mchorse.bbs_mod.graphics.ModelTangents.calculate(data.vertices(),data.normals(),data.texCoords()));
+            this.midUvs = upload(mchorse.bbs_mod.graphics.ModelTangents.midUvs(data.texCoords()));
             GL30.glBindVertexArray(this.vao);
             pointer(this.positions, Attributes.POSITION, 3);
             pointer(this.normals, Attributes.NORMAL, 3);
@@ -46,7 +50,6 @@ public class ModelVAO implements IModelVAO
             GL20.glDisableVertexAttribArray(Attributes.OVERLAY_UV);
             GL20.glDisableVertexAttribArray(Attributes.LIGHTMAP_UV);
 
-            /* Iris-only tangent/mid-UV attributes have no native Forge consumer. */
             GL30.glBindVertexArray(this.vao2);
             pointer(this.positions, 0, 3);
             pointer(this.texCoords, 1, 2);
@@ -108,7 +111,7 @@ public class ModelVAO implements IModelVAO
 
     public void renderOptiFine()
     {
-        mchorse.bbs_mod.graphics.OptiFineModelRenderer.arrays(this.positions, this.normals, this.texCoords);
+        mchorse.bbs_mod.graphics.OptiFineModelRenderer.arrays(this.positions, this.normals, this.texCoords, this.tangents, this.midUvs);
         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, this.count);
     }
 }

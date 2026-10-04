@@ -18,7 +18,8 @@ public class ModelEditPacket implements IMessage {
         public IMessage onMessage(ModelEditPacket message, MessageContext context) {
             final EntityPlayerMP player=context.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                if (!player.capabilities.isCreativeMode || message.data.length()>65536) return;
+                if (!player.capabilities.isCreativeMode || message.data.length()>65536
+                    || !mchorse.bbs_mod.utils.PermissionUtils.arePanelsAllowed(player.getServer(),player)) return;
                 BlockPos pos=message.place?player.getPosition().offset(player.getHorizontalFacing(),3):message.pos;
                 if(player.getDistanceSq(pos)>4096 || !player.world.isBlockLoaded(pos)) return;
                 try {
@@ -29,7 +30,7 @@ public class ModelEditPacket implements IMessage {
                     }
                     if(!(player.world.getTileEntity(pos) instanceof ModelTileEntity)) return;
                     ModelTileEntity tile=(ModelTileEntity)player.world.getTileEntity(pos);
-                    tile.form=form; tile.markDirty();
+                    tile.getProperties().setForm(form); tile.markDirty();
                     player.world.notifyBlockUpdate(pos,tile.getBlockType().getDefaultState(),tile.getBlockType().getDefaultState(),3);
                 } catch (Exception e) { mchorse.bbs_mod.BBSMod.LOGGER.warn("Invalid model edit",e); }
             });

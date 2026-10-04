@@ -36,6 +36,7 @@ public final class BBSShaders
         try
         {
             cosmetic.put("pixelart",new ShaderProgram("pixelart",VertexFormats.POSITION_TEXTURE_COLOR));
+            cosmetic.put("pixelart_native",new ShaderProgram("pixelart_native",VertexFormats.POSITION_TEXTURE_COLOR));
             cosmetic.put("pixelart_text",new ShaderProgram("pixelart_text",VertexFormats.POSITION_COLOR_TEXTURE_LIGHT));
             cosmetic.put("pixelart_text_intensity",new ShaderProgram("pixelart_text_intensity",VertexFormats.POSITION_COLOR_TEXTURE_LIGHT));
             next.putAll(cosmetic);
@@ -54,6 +55,7 @@ public final class BBSShaders
     public static ShaderProgram getSubtitlesProgram(){return get("subtitles");}
     public static ShaderProgram getSelectionProgram(){return get("selection");}
     public static ShaderProgram getPixelArtProgram(){return get("pixelart");}
+    public static ShaderProgram getNativePixelArtProgram(){return get("pixelart_native");}
     public static ShaderProgram getPixelArtTextProgram(){return get("pixelart_text");}
     public static ShaderProgram getPixelArtTextIntensityProgram(){return get("pixelart_text_intensity");}
     public static ShaderProgram getPickerPreviewProgram(){return get("picker_preview");}

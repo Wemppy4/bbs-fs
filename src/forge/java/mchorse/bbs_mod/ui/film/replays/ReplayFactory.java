@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.film.replays;
 
 import mchorse.bbs_mod.forge.ModelTileEntity;
+import mchorse.bbs_mod.blocks.entities.ModelProperties;
 import mchorse.bbs_mod.camera.clips.CameraClipContext;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.film.Film;
@@ -93,11 +94,49 @@ public class ReplayFactory
         replay.category.set("");
 
         BlockPos blockPos = modelBlock.getPos();
-        /* The native model block renders its complete form transform at this origin. */
-        replay.form.set(FormUtils.copy(modelBlock.form));
-        replay.keyframes.x.insert(0, blockPos.getX() + 0.5D);
-        replay.keyframes.y.insert(0, (double) blockPos.getY());
-        replay.keyframes.z.insert(0, blockPos.getZ() + 0.5D);
+        ModelProperties properties = modelBlock.getProperties();
+        Transform transform = properties.getTransform().copy();
+        double x = blockPos.getX() + transform.translate.x + 0.5D;
+        double y = blockPos.getY() + transform.translate.y;
+        double z = blockPos.getZ() + transform.translate.z + 0.5D;
+
+        transform.translate.set(0, 0, 0);
+
+        replay.shadow.set(properties.isShadow());
+        replay.form.set(FormUtils.copy(properties.getForm()));
+        replay.keyframes.x.insert(0, x);
+        replay.keyframes.y.insert(0, y);
+        replay.keyframes.z.insert(0, z);
+
+        /* Mode-aware read: on a quaternion-mode transform the euler channels are
+         * stale zeros — reading them raw would take the yaw-only path with yaw 0
+         * and silently drop the block's whole rotation. */
+        Vector3f rotation = transform.getEulerRotation(new Vector3f());
+
+        if (!transform.isDefault())
+        {
+            if (
+                rotation.x == 0 && rotation.z == 0 &&
+                transform.scale.x == 1 && transform.scale.y == 1 && transform.scale.z == 1
+            ) {
+                double yaw = -Math.toDegrees(rotation.y);
+
+                replay.keyframes.yaw.insert(0, yaw);
+                replay.keyframes.headYaw.insert(0, yaw);
+                replay.keyframes.bodyYaw.insert(0, yaw);
+            }
+            else
+            {
+                AnchorForm form = new AnchorForm();
+                BodyPart part = new BodyPart("");
+
+                part.setForm(replay.form.get());
+                form.transform.set(transform);
+                form.parts.addBodyPart(part);
+
+                replay.form.set(form);
+            }
+        }
 
         return replay;
     }

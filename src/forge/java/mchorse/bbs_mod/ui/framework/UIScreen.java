@@ -14,7 +14,7 @@ import org.lwjgl.opengl.GL11;
 import java.io.IOException;
 
 /** Forge screen lifecycle and input boundary for the unchanged BBS menu tree. */
-public class UIScreen extends GuiScreen
+public class UIScreen extends GuiScreen implements mchorse.bbs_mod.ui.utils.IFileDropListener
 {
     private final UIBaseMenu menu;
     private UIRenderingContext context;
@@ -33,6 +33,7 @@ public class UIScreen extends GuiScreen
 
     @Override public void initGui()
     {
+        mchorse.bbs_mod.graphics.window.NativeFileDrop.attach();
         scale = BBSModClient.getGUIScale();
         width = (int) Math.ceil(mc.displayWidth / scale);
         height = (int) Math.ceil(mc.displayHeight / scale);
@@ -51,6 +52,7 @@ public class UIScreen extends GuiScreen
 
     @Override public void onGuiClosed()
     {
+        mchorse.bbs_mod.graphics.window.NativeFileDrop.detach();
         menu.onClose(null);
         mc.gameSettings.hideGUI = previousHiddenHUD;
         Keyboard.enableRepeatEvents(false);
@@ -58,7 +60,7 @@ public class UIScreen extends GuiScreen
         opened = false;
     }
     @Override public boolean doesGuiPauseGame() { return menu.canPause(); }
-    @Override public void updateScreen() { menu.update(); }
+    @Override public void updateScreen() { mchorse.bbs_mod.graphics.window.NativeFileDrop.poll(); menu.update(); }
     public void renderInWorld(WorldRenderContext context) { menu.renderInWorld(context); }
 
     @Override protected void mouseClicked(int x, int y, int button) { menu.mouseClicked(x, y, button); }
@@ -110,6 +112,7 @@ public class UIScreen extends GuiScreen
         GlStateManager.color(1, 1, 1, 1);
         try
         {
+            mchorse.bbs_mod.client.PixelArt.setDrawingUI(true);
             menu.context.setTransition(partialTicks);
             menu.renderMenu(context, (int) (Mouse.getX() / scale), (int) ((mc.displayHeight - Mouse.getY() - 1) / scale));
             context.executeRunnables();
@@ -117,6 +120,7 @@ public class UIScreen extends GuiScreen
         }
         finally
         {
+            mchorse.bbs_mod.client.PixelArt.setDrawingUI(false);
             GL11.glDisable(GL11.GL_SCISSOR_TEST);
             GlStateManager.depthFunc(GL11.GL_LEQUAL);
             GlStateManager.popMatrix();
@@ -127,6 +131,43 @@ public class UIScreen extends GuiScreen
             GlStateManager.enableTexture2D();
             GlStateManager.color(1, 1, 1, 1);
         }
+        }
+    }
+
+    @Override public void acceptFilePaths(String[] paths)
+    {
+        if (paths == null || paths.length == 0) return;
+        mchorse.bbs_mod.importers.Importers.setup();
+        java.io.File directory = null;
+        boolean open = true;
+        for (mchorse.bbs_mod.importers.IImportPathProvider provider : this.menu.getRoot().getChildren(mchorse.bbs_mod.importers.IImportPathProvider.class))
+        {
+            directory = provider.getImporterPath();
+            if (directory != null) { open = false; break; }
+        }
+        java.util.List<java.io.File> files = new java.util.ArrayList<>();
+        for (String path : paths) { java.io.File file = new java.io.File(path); if (file.isFile()) files.add(file); }
+        if (files.isEmpty()) return;
+        mchorse.bbs_mod.importers.ImporterContext context = new mchorse.bbs_mod.importers.ImporterContext(files, directory);
+        for (mchorse.bbs_mod.importers.types.IImporter importer : mchorse.bbs_mod.importers.Importers.getImporters())
+        {
+            if (!importer.canImport(context)) continue;
+            boolean needsFFmpeg = !(importer instanceof mchorse.bbs_mod.importers.types.PNGImporter)
+                && !(importer instanceof mchorse.bbs_mod.importers.types.OldSkinImporter);
+            if (needsFFmpeg && !mchorse.bbs_mod.utils.FFMpegUtils.checkFFMPEG())
+            { this.menu.context.notifyError(mchorse.bbs_mod.ui.UIKeys.IMPORTER_FFMPEG_NOTIFICATION); return; }
+            try
+            {
+                importer.importFiles(context);
+                if (open) mchorse.bbs_mod.ui.utils.UIUtils.openFolder(context.getDestination(importer));
+                this.menu.context.notifySuccess(mchorse.bbs_mod.ui.UIKeys.IMPORTER_SUCCESS_NOTIFICATION.format(importer.getName()));
+            }
+            catch (RuntimeException error)
+            {
+                mchorse.bbs_mod.BBSMod.LOGGER.error("Could not import dropped files", error);
+                this.menu.context.notifyError(mchorse.bbs_mod.l10n.keys.IKey.raw(error.getMessage()));
+            }
+            return;
         }
     }
 }

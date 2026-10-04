@@ -1,0 +1,4 @@
+screen.COLOR=Цвет
+option.BBS_QA_EXPOSURE=Экспозиция
+option.BBS_QA_BLUE=Синий канал
+option.BBS_QA_SAMPLES=Число проходов компиляции

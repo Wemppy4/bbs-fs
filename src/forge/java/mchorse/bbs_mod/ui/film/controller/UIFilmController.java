@@ -1,4 +1,5 @@
 package mchorse.bbs_mod.ui.film.controller;
+import mchorse.bbs_mod.BBSModClient;
 
 
 import mchorse.bbs_mod.ui.utils.shapes.ShapeControllerOverlay;
@@ -1104,6 +1105,14 @@ public class UIFilmController extends UIElement implements GizmoViewport
         if (this.editorController != null)
         {
             this.editorController.render(context);
+
+            /* The actor scene belongs in the movie; camera previews, the orbit
+             * pivot, motion paths and addon editor tools belong in the editor. */
+            if (this.panel.recorder.isExporting() || BBSModClient.getVideoRecorder().isRecording())
+            {
+                RenderSystem.disableDepthTest();
+                return;
+            }
 
             int povMode = this.panel.getController().getPovMode();
 

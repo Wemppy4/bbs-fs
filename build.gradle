@@ -17,6 +17,7 @@ minecraft {
 repositories { mavenCentral() }
 // OptiFine patches vanilla class names, so its client uses Forge's obfuscated runtime.
 def withOptiFine = project.hasProperty('withOptiFine') || gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'runClientOptiFine' }
+def dedicatedServer = gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'runObfServer' }
 apply from: 'gradle/optifine.gradle'
 configurations {
     embedded
@@ -58,9 +59,31 @@ tasks.register('generateAssetIndex') {
         index.get().asFile.text = assets.files.collect { base.relativize(it.toPath()).toString().replace('\\', '/') }.sort().join('\n')
     }
 }
+tasks.register('generateForgeLanguages') {
+    def languages = fileTree('src/main/resources/assets/bbs/lang') { include '*.json' }
+    def output = layout.buildDirectory.dir('generated/forge-languages')
+    inputs.files languages
+    outputs.dir output
+    doLast {
+        languages.files.each { source ->
+            def strings = new groovy.json.JsonSlurper().parse(source, 'UTF-8')
+            def target = new File(output.get().asFile, 'assets/bbs/lang/' + source.name.replace('.json', '.lang'))
+            target.parentFile.mkdirs()
+            target.setText(strings.collect { key, value ->
+                // Native 1.12 ItemBlock asks for tile.<id>.name; tooltip/key IDs stay intact.
+                def legacy = key.startsWith('block.') ? 'tile.' + key.substring(6) + '.name'
+                    : key ==~ /item\.[^.]+\.[^.]+/ ? key + '.name' : key
+                legacy + '=' + value.toString().replace('\r', '').replace('\n', '\\n')
+            }.join('\n') + '\n', 'UTF-8')
+        }
+    }
+}
 tasks.named('processResources') {
-    dependsOn 'generateAssetIndex'
+    dependsOn 'generateAssetIndex', 'generateForgeLanguages'
+    from(layout.buildDirectory.dir('generated/forge-languages'))
     from('src/client/resources') { include 'assets/bbs/assets/**' }
+    from('src/main/resources') { include 'assets/bbs/models/item/structure_wand.json', 'assets/bbs/textures/item/structure_wand.png' }
+    from('src/main/resources') { include 'assets/bbs/models/block/chroma_*.json', 'assets/bbs/models/item/chroma*.json', 'assets/bbs/textures/block/red.png', 'assets/bbs/textures/block/green.png', 'assets/bbs/textures/block/blue.png', 'assets/bbs/textures/block/cyan.png', 'assets/bbs/textures/block/magenta.png', 'assets/bbs/textures/block/yellow.png', 'assets/bbs/textures/block/black.png', 'assets/bbs/textures/block/white.png' }
     from(layout.buildDirectory.dir('generated/port-resources'))
     from('src/main/resources') { include 'assets/bbs/icon.png', 'assets/bbs/licenses/**', 'assets/bbs/textures/block/model.png', 'assets/bbs/sounds/**', 'assets/bbs/sounds.json', 'assets/bbs/shaders/**', 'assets/minecraft/shaders/program/bbs_kawase*' }
 }
@@ -101,15 +124,20 @@ tasks.register('reobfAihelper', com.gtnewhorizons.retrofuturagradle.mcp.Reobfusc
     referenceClasspath.from(sourceSets.aihelper.compileClasspath)
 }
 tasks.named('prepareObfModsFolder') {
-    from tasks.named('reobfAihelper')
-    if (withOptiFine) from configurations.optifineRuntime
+    if (!dedicatedServer) from tasks.named('reobfAihelper')
+    if (withOptiFine && !dedicatedServer) from configurations.optifineRuntime
     // JOML is already embedded without its Java 9 module descriptor.
     exclude 'joml-*.jar'
-    into file('run-forge1122-obf/mods')
+    into file(dedicatedServer ? 'run-forge1122-server/mods' : 'run-forge1122-obf/mods')
 }
 tasks.named('runObfClient') {
     workingDir = file('run-forge1122-obf')
     systemProperty 'aihelper.port', '25612'
+}
+tasks.named('runObfServer') {
+    workingDir = file('run-forge1122-server')
+    args 'nogui'
+    standardInput = System.in
 }
 tasks.register('runClientOptiFine') {
     group = 'application'

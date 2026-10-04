@@ -1,4 +1,5 @@
 package mchorse.bbs_mod.data;
+import mchorse.bbs_mod.data.storage.DataStorage;
 import mchorse.bbs_mod.data.types.*;
 import org.joml.*;
 import net.minecraft.nbt.*;
@@ -444,4 +445,36 @@ public class DataStorageUtils {
 
         return ints;
     }
+    public static void writeToPacket(net.minecraft.network.PacketBuffer packet, BaseType type)
+    {
+        try
+        {
+            java.io.ByteArrayOutputStream stream = new java.io.ByteArrayOutputStream();
+
+            DataStorage.writeToStream(stream, type);
+
+            packet.writeByteArray(stream.toByteArray());
+        }
+        catch (java.io.IOException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    public static BaseType readFromPacket(net.minecraft.network.PacketBuffer packet)
+    {
+        try
+        {
+            java.io.ByteArrayInputStream stream = new java.io.ByteArrayInputStream(packet.readByteArray());
+
+            return DataStorage.readFromStream(stream);
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
 }

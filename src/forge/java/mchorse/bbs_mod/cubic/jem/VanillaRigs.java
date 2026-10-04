@@ -39,6 +39,13 @@ public final class VanillaRigs
     }
     public static synchronized void clear(){rigs.clear();}
 
+    /** Inspect an existing renderer's model without replacing it or changing its pose. */
+    public static Rig inspect(String entity,ModelBase model)
+    {
+        try{return new Rig(entity,model);}
+        catch(IllegalAccessException e){throw new IllegalStateException("Cannot inspect native model "+entity,e);}
+    }
+
     static String entityId(String name)
     {
         switch(name)
@@ -111,7 +118,7 @@ public final class VanillaRigs
     }
 
     /** Native model and identity-preserving traversal, shared by rest-rig and animated seed reads. */
-    static final class Rig
+    public static final class Rig
     {
         final ModelBase model;
         final Map<String,ModelRenderer> parts=new LinkedHashMap<>();
@@ -119,6 +126,10 @@ public final class VanillaRigs
         final List<String> roots=new ArrayList<>();
         final IdentityHashMap<ModelRenderer,String> names=new IdentityHashMap<>();
         final IdentityHashMap<ModelRenderer,float[]> rest=new IdentityHashMap<>();
+        public ModelBase model(){return model;}
+        public Map<String,ModelRenderer> parts(){return Collections.unmodifiableMap(parts);}
+        public Map<String,List<String>> children(){return Collections.unmodifiableMap(children);}
+        public List<String> roots(){return Collections.unmodifiableList(roots);}
         Rig(String entity,ModelBase model) throws IllegalAccessException
         {
             this.model=model;

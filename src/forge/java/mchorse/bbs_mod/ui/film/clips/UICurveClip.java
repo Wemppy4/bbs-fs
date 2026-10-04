@@ -11,6 +11,7 @@ import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.keyframes.UIFilmKeyframes;
+import mchorse.bbs_mod.ui.film.utils.shader.ShaderCurvePicker;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
@@ -22,6 +23,7 @@ import mchorse.bbs_mod.ui.utils.Label;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.iris.ShaderCurves;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
@@ -42,16 +44,40 @@ public class UICurveClip extends UIClip<CurveClip>
 
     public static void offerCurveKeys(UIContext context, List<String> existing, Consumer<String> callback)
     {
-        offerCurveKeyList(context, existing, callback);
+        if (!ShaderCurvePicker.open(context, existing, callback))
+        {
+            offerCurveKeyList(context, existing, callback);
+        }
     }
 
     public static void offerCurveKeyList(UIContext context, List<String> existing, Consumer<String> callback)
     {
         List<Label<String>> list = new ArrayList<>();
-        if (!existing.contains("brightness")) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_BRIGHTNESS, "brightness"));
-        if (!existing.contains("sun_rotation")) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_SUN_ROTATION, "sun_rotation"));
-        if (!existing.contains("sun_horizontal_rotation")) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_SUN_HORIZONTAL_ROTATION, "sun_horizontal_rotation"));
-        if (!existing.contains("weather")) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_WEATHER, "weather"));
+        String language = BBSModClient.getLanguageKey();
+        Map<String, String> languageMap = mchorse.bbs_mod.utils.iris.OptiFineShaderOptions.language(language);
+
+        for (ShaderCurves.ShaderVariable value : ShaderCurves.variableMap.values())
+        {
+            if (existing.contains(CurveClip.SHADER_CURVES_PREFIX + value.name))
+            {
+                continue;
+            }
+
+            String key = value.name;
+            String newKey = languageMap.get("option." + key);
+
+            if (newKey != null)
+            {
+                key = newKey + " (" + key + ")";
+            }
+
+            list.add(new Label<>(IKey.constant(key), CurveClip.SHADER_CURVES_PREFIX + value.name));
+        }
+
+        if (!existing.contains(ShaderCurves.BRIGHTNESS)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_BRIGHTNESS, ShaderCurves.BRIGHTNESS));
+        if (!existing.contains(ShaderCurves.SUN_ROTATION)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_SUN_ROTATION, ShaderCurves.SUN_ROTATION));
+        if (!existing.contains(ShaderCurves.SUN_HORIZONTAL_ROTATION)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_SUN_HORIZONTAL_ROTATION, ShaderCurves.SUN_HORIZONTAL_ROTATION));
+        if (!existing.contains(ShaderCurves.WEATHER)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_WEATHER, ShaderCurves.WEATHER));
         if (!existing.contains(CurveClip.CHROMA_SKY_COLOR)) list.add(new Label<>(UIKeys.CAMERA_PANELS_CURVES_CHROMA_SKY_COLOR, CurveClip.CHROMA_SKY_COLOR));
 
         UILabelListOverlayPanel panel = new UILabelListOverlayPanel(UIKeys.CAMERA_PANELS_PICK_KEY, list, callback);

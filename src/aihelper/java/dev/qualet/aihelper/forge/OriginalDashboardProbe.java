@@ -16,7 +16,7 @@ import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
 import mchorse.bbs_mod.utils.DataPath;
 import org.lwjgl.opengl.GL11;
 
-/** Read-only inspection of the actual F6 Dashboard. Does not create a test menu or mutate data. */
+/** Read-only inspection of the actual Dashboard. Does not create a test menu or mutate data. */
 public final class OriginalDashboardProbe
 {
     public static JsonObject snapshot()

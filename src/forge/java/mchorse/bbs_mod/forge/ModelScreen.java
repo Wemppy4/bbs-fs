@@ -29,7 +29,7 @@ public class ModelScreen extends GuiScreen
     private final mchorse.bbs_mod.forms.entities.StubEntity previewEntity = new mchorse.bbs_mod.forms.entities.StubEntity();
     public ModelScreen(ModelTileEntity tile) {
         target=tile==null?null:tile.getPos();
-        if (tile!=null) form.fromData(tile.form.toData());
+        if (tile != null && tile.getProperties().getForm() instanceof ModelForm) form.fromData(tile.getProperties().getForm().toData());
         else form.model.set("player/steve");
     }
     private String animation() { return form.actions.get().getConfig("idle").name; }

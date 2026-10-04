@@ -1021,6 +1021,7 @@ public class ModelInstance implements IModelInstance
                         if (link != null)
                         {
                             texture = BBSModClient.getTextures().getTexture(link);
+                            texture = mchorse.bbs_mod.forms.renderers.utils.FormPbr.resolveAlbedo(modelForm,vao.data.mesh.name,link,texture);
                             BBSModClient.getTextures().bindTexture(texture);
                         }
                     }

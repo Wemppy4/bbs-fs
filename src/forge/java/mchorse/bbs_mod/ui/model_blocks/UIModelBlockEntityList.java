@@ -106,14 +106,14 @@ public class UIModelBlockEntityList extends UIList<ModelTileEntity>
     {
         /* Also what the search box matches against, so both the form's name and the
          * coordinates of the row are typeable. */
-        return (element.form == null ? "" : element.form.getDisplayName()) + " " + element.getPos().getX() + ", " + element.getPos().getY() + ", " + element.getPos().getZ();
+        return (element.getProperties().getForm() == null ? "" : element.getProperties().getForm().getDisplayName()) + " " + element.getPos().getX() + ", " + element.getPos().getY() + ", " + element.getPos().getZ();
     }
 
     @Override
     protected void renderElementPart(UIContext context, ModelTileEntity element, int i, int x, int y, boolean hover, boolean selected)
     {
         FontRenderer font = context.batcher.getFont();
-        Form form = element.form;
+        Form form = element.getProperties().getForm();
         BlockPos pos = element.getPos();
         String coords = pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
 
@@ -136,7 +136,7 @@ public class UIModelBlockEntityList extends UIList<ModelTileEntity>
         int textX = x + TEXT_X;
 
         /* A block that is off is greyed the way a disabled replay is in the film's list. */
-        int nameColor = !element.isInvalid()
+        int nameColor = element.getProperties().isEnabled()
             ? RowStyle.textColor(hover || selected)
             : RowStyle.textColor(hover || selected, Colors.GRAY);
 

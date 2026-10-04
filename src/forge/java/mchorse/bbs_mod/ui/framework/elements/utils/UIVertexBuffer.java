@@ -47,7 +47,9 @@ public class UIVertexBuffer extends BufferBuilder
         boolean textured = getVertexFormat().hasUvOffset(0);
         if (textured) GlStateManager.enableTexture2D(); else GlStateManager.disableTexture2D();
         finishDrawing();
-        UPLOADER.draw(this);
+        mchorse.bbs_mod.graphics.shader.ShaderProgram shader = textured ? mchorse.bbs_mod.client.PixelArt.bind(false) : null;
+        try { UPLOADER.draw(this); }
+        finally { if (shader != null) shader.unbind(); }
         GlStateManager.enableTexture2D();
         GlStateManager.enableAlpha();
         GlStateManager.shadeModel(GL11.GL_FLAT);

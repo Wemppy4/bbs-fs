@@ -17,6 +17,7 @@ public class StructureRenderWorld implements IBlockAccess
 {
     private final StructureRenderData data;
     private final Biome biome;
+    private java.util.Map<BlockPos, TileEntity> tiles = java.util.Collections.emptyMap();
 
     public StructureRenderWorld(StructureRenderData data, String biomeId)
     {
@@ -32,7 +33,8 @@ public class StructureRenderWorld implements IBlockAccess
 
     public StructureRenderData getData() { return this.data; }
     public IBlockState getBlockState(BlockPos pos) { return this.data.getBlockState(pos); }
-    public TileEntity getTileEntity(BlockPos pos) { return null; }
+    public void setTiles(java.util.Map<BlockPos, TileEntity> tiles) { this.tiles = tiles; }
+    public TileEntity getTileEntity(BlockPos pos) { return this.tiles.get(pos); }
     public Biome getBiome(BlockPos pos) { return this.biome; }
     public WorldType getWorldType() { return WorldType.DEFAULT; }
     public boolean isAirBlock(BlockPos pos) { return getBlockState(pos).getMaterial() == Material.AIR; }

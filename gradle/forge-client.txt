@@ -436,3 +436,4 @@ mchorse/bbs_mod/utils/repos/FilmRepository.java
 mchorse/bbs_mod/utils/resources/PlayerSkinImage.java
 mchorse/bbs_mod/utils/resources/PlayerSkinSourcePack.java
 mchorse/bbs_mod/video/VideoManager.java
+mchorse/bbs_mod/utils/iris/ShaderSunRotation.java

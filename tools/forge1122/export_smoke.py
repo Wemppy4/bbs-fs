@@ -27,10 +27,11 @@ def main():
     parser.add_argument('--film', default='dashboard_qa_1791140179212834100')
     parser.add_argument('--width', type=int, default=1280)
     parser.add_argument('--height', type=int, default=720)
+    parser.add_argument('--release', action='store_true')
     args = parser.parse_args()
     ffprobe, ffmpeg = executable('ffprobe'), executable('ffmpeg')
     health, before = call('/health'), state()
-    assert Path(health['gameDir']).resolve() == (ROOT / 'run-forge1122').resolve(), health
+    assert Path(health['gameDir']).resolve() == (ROOT / ('run-forge1122-obf' if args.release else 'run-forge1122')).resolve(), health
     assert health['inWorld'] and before['menu'] == 'UIDashboard', before
     assert before['selectedPanel'] == 'UIFilmPanel' and before['dataId'] == args.film, before
     assert args.film.startswith('dashboard_qa_'), 'Only the disposable Dashboard QA film is supported'

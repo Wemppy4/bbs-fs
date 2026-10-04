@@ -42,6 +42,23 @@ public final class BBSRenderTransformer implements IClassTransformer
             }
             if(renderer)
             {
+                if (named(method,"orientCamera","func_78467_g") && method.desc.equals("(F)V"))
+                {
+                    int cameraTraces = 0;
+                    for (AbstractInsnNode instruction : method.instructions.toArray()) if (instruction instanceof MethodInsnNode)
+                    {
+                        MethodInsnNode trace = (MethodInsnNode) instruction;
+                        if ((trace.name.equals("rayTraceBlocks") || trace.name.equals("func_72933_a"))
+                            && trace.desc.equals("(Lnet/minecraft/util/math/Vec3d;Lnet/minecraft/util/math/Vec3d;)Lnet/minecraft/util/math/RayTraceResult;"))
+                        {
+                            method.instructions.set(trace, new MethodInsnNode(Opcodes.INVOKESTATIC,
+                                "mchorse/bbs_mod/forge/ModelCameraHooks", "trace",
+                                "(Lnet/minecraft/world/World;Lnet/minecraft/util/math/Vec3d;Lnet/minecraft/util/math/Vec3d;)Lnet/minecraft/util/math/RayTraceResult;", false));
+                            cameraTraces++;
+                        }
+                    }
+                    if (cameraTraces == 0) throw new IllegalStateException("BBS model blocks: third-person camera trace was not found");
+                }
                 for(AbstractInsnNode instruction:method.instructions.toArray()) if(instruction instanceof FieldInsnNode)
                 {
                     FieldInsnNode field=(FieldInsnNode)instruction;

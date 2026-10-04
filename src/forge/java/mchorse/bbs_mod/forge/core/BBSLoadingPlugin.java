@@ -9,7 +9,7 @@ import java.util.Map;
 @IFMLLoadingPlugin.TransformerExclusions({"mchorse.bbs_mod.forge.core"})
 public final class BBSLoadingPlugin implements IFMLLoadingPlugin
 {
-    public String[] getASMTransformerClass(){return new String[]{"mchorse.bbs_mod.forge.core.BBSWorldTransformer", "mchorse.bbs_mod.forge.core.BBSMorphTransformer", "mchorse.bbs_mod.forge.core.BBSRenderTransformer"};}
+    public String[] getASMTransformerClass(){return new String[]{"mchorse.bbs_mod.forge.core.BBSWorldTransformer", "mchorse.bbs_mod.forge.core.BBSActionTransformer", "mchorse.bbs_mod.forge.core.BBSMorphTransformer", "mchorse.bbs_mod.forge.core.BBSRenderTransformer", "mchorse.bbs_mod.forge.core.BBSShaderTransformer", "mchorse.bbs_mod.forge.core.BBSNativeVertexTransformer", "mchorse.bbs_mod.forge.core.BBSMobTransformer"};}
     public String getModContainerClass(){return null;}
     public String getSetupClass(){return null;}
     public void injectData(Map<String,Object> data){}

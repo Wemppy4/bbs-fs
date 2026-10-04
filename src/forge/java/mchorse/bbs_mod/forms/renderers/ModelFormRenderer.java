@@ -39,6 +39,7 @@ import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.utils.FormColorBlend;
+import mchorse.bbs_mod.forms.renderers.utils.FormPbr;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.ui.utils.pose.PoseBones;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
@@ -407,7 +408,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
                 MatrixStackUtils.multiply(stack, uiMatrix);
 
-                BBSModClient.getTextures().bindTexture(texture);
+                BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form,"",texture,BBSModClient.getTextures().getTexture(texture)));
 
                 /* Native GUI callers can leave depth disabled. Changing its comparison alone
                  * cannot make the thumbnail's front faces occlude its back faces. */
@@ -869,7 +870,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 matrices.multiply(new org.joml.Quaternionf().rotationY(MathUtils.PI));
                 MatrixStackUtils.applyTransform(matrices, slot.transform);
 
-                BBSModClient.getTextures().bindTexture(texture);
+                BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form,"",texture,BBSModClient.getTextures().getTexture(texture)));
 
                 Supplier<ShaderProgram> mainShader = BBSShaders::getModel;
 
@@ -943,7 +944,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             Texture textureObject = BBSModClient.getTextures().getTexture(texture);
 
-            BBSModClient.getTextures().bindTexture(textureObject);
+            BBSModClient.getTextures().bindTexture(FormPbr.resolveAlbedo(this.form,"",texture,textureObject));
             int renderLayer = this.form.renderLayer.get();
             boolean noBlend = renderLayer == Form.LAYER_SOLID || renderLayer == Form.LAYER_CUTOUT;
             boolean wasActive = false;

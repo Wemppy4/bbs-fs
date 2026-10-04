@@ -30,6 +30,19 @@ public final class ClientNetwork
     private static int callbackSequence;
     private static final Map<Integer, Consumer<BaseType>> callbacks = new HashMap<>();
     public static boolean isIsBBSModOnServer(){return server;}
+    public static void sendModelBlockTransforms(MapType data)
+    {
+        NBTTagCompound request = packet("model_item", "");
+        request.setTag("data", DataStorageUtils.toNbt(data));
+        FilmNetwork.toServer(request);
+    }
+    public static void sendModelBlockForm(net.minecraft.util.math.BlockPos pos, mchorse.bbs_mod.forge.ModelTileEntity tile)
+    {
+        NBTTagCompound request = packet("model_block", "");
+        request.setLong("pos", pos.toLong());
+        request.setTag("data", DataStorageUtils.toNbt(tile.getProperties().toData()));
+        FilmNetwork.toServer(request);
+    }
     public static void reset(){server=false;callbacks.clear();FilmNetwork.resetClient();FilmClientBridge.reset();}
     public static void sendManagerDataLoad(String id, Consumer<BaseType> callback)
     {
@@ -106,6 +119,14 @@ public final class ClientNetwork
         request.setLong("to", to.toLong());
         FilmNetwork.toServer(request);
     }
+    public static void sendSaveStructure(String name, net.minecraft.util.math.BlockPos from, net.minecraft.util.math.BlockPos to)
+    {
+        NBTTagCompound request = packet("save_structure", "");
+        request.setString("name", name);
+        request.setLong("from", from.toLong());
+        request.setLong("to", to.toLong());
+        FilmNetwork.toServer(request);
+    }
     private static void receiveSharedForm(NBTTagCompound packet)
     {
         Form form = FormUtils.fromData(DataStorageUtils.fromNbt(packet.getTag("data")));
@@ -124,7 +145,30 @@ public final class ClientNetwork
         {
             case "hello":server=true;break;
             case "shared":receiveSharedForm(p);break;
+            case "model_state":
+                Minecraft mc=Minecraft.getMinecraft();
+                if(mc.world!=null)
+                {
+                    net.minecraft.tileentity.TileEntity tile=mc.world.getTileEntity(net.minecraft.util.math.BlockPos.fromLong(p.getLong("pos")));
+                    if(tile instanceof mchorse.bbs_mod.forge.ModelTileEntity)
+                    {
+                        Form modelForm=((mchorse.bbs_mod.forge.ModelTileEntity)tile).getProperties().getForm();
+                        if(modelForm!=null)modelForm.playState(p.getString("state"));
+                    }
+                }
+                break;
+            case "model_refresh":
+                int range=p.getInteger("range");
+                for(mchorse.bbs_mod.forge.ModelTileEntity model:mchorse.bbs_mod.client.BBSRendering.capturedModelBlocks)
+                {
+                    mchorse.bbs_mod.blocks.entities.ModelProperties properties=model.getProperties();
+                    properties.setForm(FormUtils.copy(properties.getForm()));
+                    int random=(int)(Math.random()*range);
+                    while(random-->0)properties.update(model.getEntity());
+                }
+                break;
             case "structure_cut":mchorse.bbs_mod.forms.structure.StructureCut.onCut(p.getBoolean("ok"), p.getString("name"));break;
+            case "structure_saved":mchorse.bbs_mod.forms.structure.StructureWand.onSaved(p.getBoolean("ok"), p.getString("name"));break;
             case "manager":
                 Consumer<BaseType> callback = callbacks.remove(p.getInteger("callback"));
                 if (callback != null) callback.accept(DataStorageUtils.fromNbt(p.getTag("data")));

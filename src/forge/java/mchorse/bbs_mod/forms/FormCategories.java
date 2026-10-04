@@ -63,6 +63,7 @@ public class FormCategories implements IWatchDogListener
         this.sections.add(this.recentForms);
         this.sections.add(this.userForms);
         this.sections.add(new ModelFormSection(this));
+        this.sections.add(new mchorse.bbs_mod.forms.sections.ParticleFormSection(this));
         this.sections.add(new ExtraFormSection(this));
 
         for (Function<FormCategories, FormSection> factory : EXTRA_SECTIONS)
@@ -113,7 +114,8 @@ public class FormCategories implements IWatchDogListener
 
         for (FormSection section : this.sections)
         {
-            if (!includeModels && section instanceof ModelFormSection)
+            if ((!includeModels && section instanceof ModelFormSection)
+                || (!includeParticles && section instanceof mchorse.bbs_mod.forms.sections.ParticleFormSection))
             {
                 continue;
             }

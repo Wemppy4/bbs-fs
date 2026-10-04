@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.forge;
 
 import mchorse.bbs_mod.BBSMod;
+import mchorse.bbs_mod.api.AddonLifecycle;
+import mchorse.bbs_mod.api.client.events.*;
 import mchorse.bbs_mod.cubic.model.ModelManager;
 import mchorse.bbs_mod.resources.packs.ClasspathSourcePack;
 import net.minecraft.client.Minecraft;
@@ -23,7 +25,6 @@ import mchorse.bbs_mod.forge.studio.StudioScreen;
 
 public class ClientProxy extends CommonProxy {
     public static ModelManager models;
-    private final KeyBinding dashboard = new KeyBinding("key.bbs.dashboard",Keyboard.KEY_F6,"BBS FS");
     private net.minecraft.world.World lastWorld;
     private boolean heldLoadingScreen;
     private final java.util.Queue<net.minecraft.network.NetworkManager> disconnectedConnections = new java.util.concurrent.ConcurrentLinkedQueue<>();
@@ -32,26 +33,47 @@ public class ClientProxy extends CommonProxy {
     }
     @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid="bbs",value=net.minecraftforge.fml.relauncher.Side.CLIENT)
     public static class Models {
+        @SubscribeEvent public static void bake(net.minecraftforge.client.event.ModelBakeEvent event) {
+            ModelResourceLocation id = new ModelResourceLocation("bbs:model", "inventory");
+            net.minecraft.client.renderer.block.model.IBakedModel baked = event.getModelRegistry().getObject(id);
+            if (baked != null) event.getModelRegistry().putObject(id, new ModelItemRenderer.Baked(baked));
+            ModelResourceLocation gunId = new ModelResourceLocation("bbs:gun", "inventory");
+            net.minecraft.client.renderer.block.model.IBakedModel gunBaked = event.getModelRegistry().getObject(gunId);
+            if (gunBaked != null) event.getModelRegistry().putObject(gunId, new mchorse.bbs_mod.client.renderer.item.GunItemRenderer.Baked(gunBaked));
+        }
         @SubscribeEvent public static void register(net.minecraftforge.client.event.ModelRegistryEvent event) {
             ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(MODEL_BLOCK),0,new ModelResourceLocation("bbs:model","inventory"));
+            ModelLoader.setCustomModelResourceLocation(STRUCTURE_WAND,0,new ModelResourceLocation("bbs:structure_wand","inventory"));
+            for(net.minecraft.block.Block block:CHROMA_BLOCKS)ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(block),0,new ModelResourceLocation(block.getRegistryName(),"inventory"));
+            ModelLoader.setCustomModelResourceLocation(GUN_ITEM,0,new ModelResourceLocation("bbs:gun","inventory"));
         }
     }
     public void init() {
-        try { BBSMod.getProvider().register(new ClasspathSourcePack()); }
-        catch (Exception e) { throw new IllegalStateException("BBS assets unavailable",e); }
+        AddonLifecycle.registerClient();
+        mchorse.bbs_mod.BBSModClient.getL10n();
+        BBSMod.events.post(new RegisterModelLoadersEvent());
+        BBSMod.events.post(new RegisterFormSectionsEvent());
         models = new ModelManager(BBSMod.getProvider());
         mchorse.bbs_mod.utils.resources.PlayerSkins.init(new File(BBSMod.getAssetsFolder().getParentFile(), "skin_cache"));
         BBSMod.getProvider().register(new mchorse.bbs_mod.utils.resources.PlayerSkinSourcePack());
         ClientRegistry.bindTileEntitySpecialRenderer(ModelTileEntity.class,new ModelTileRenderer());
-        ClientRegistry.registerKeyBinding(dashboard);
+        GlobalKeybinds.register();
+        Item.getItemFromBlock(MODEL_BLOCK).setTileEntityItemStackRenderer(ModelItemRenderer.INSTANCE);
+        GUN_ITEM.setTileEntityItemStackRenderer(mchorse.bbs_mod.client.renderer.item.GunItemRenderer.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(new GunClientHandler());
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new mchorse.bbs_mod.client.renderer.MorphRenderer());
+        mchorse.bbs_mod.selectors.SelectorOwnerCapability.register();
+        MinecraftForge.EVENT_BUS.register(new mchorse.bbs_mod.selectors.SelectorClientHandler());
         MinecraftForge.EVENT_BUS.register(new mchorse.bbs_mod.forge.camera.ForgeCameraHandler(mchorse.bbs_mod.BBSModClient.getCameraController()));
-        mchorse.bbs_mod.ui.utils.keys.KeybindSettings.registerClasses();
+        BBSMod.events.post(new RegisterTrackCategoriesEvent());
         mchorse.bbs_mod.api.client.editor.TrackCategories.finishRegistration();
+        mchorse.bbs_mod.ui.utils.keys.KeybindSettings.registerClasses();
+        BBSMod.events.post(new RegisterKeybindsEvent());
         mchorse.bbs_mod.ui.utils.keys.KeybindSettings.migrateTrackSearchShortcuts(BBSMod.setupConfig(
             mchorse.bbs_mod.ui.utils.icons.Icons.KEY_CAP, "keybinds", BBSMod.getSettingsPath("keybinds.json"),
             mchorse.bbs_mod.ui.utils.keys.KeybindSettings::register));
+        BBSMod.events.post(new RegisterClientSettingsEvent());
         mchorse.bbs_mod.ui.UIKeys.C_KEYBIND_CATGORIES.load(mchorse.bbs_mod.ui.utils.keys.KeyCombo.getCategoryKeys());
         mchorse.bbs_mod.ui.UIKeys.C_KEYBIND_CATGORIES_TOOLTIP.load(mchorse.bbs_mod.ui.utils.keys.KeyCombo.getCategoryKeys());
         BBSMod.getFactoryCameraClips()
@@ -66,23 +88,55 @@ public class ClientProxy extends CommonProxy {
             .register(Link.bbs("curve"), mchorse.bbs_mod.camera.clips.misc.CurveClientClip.class,
                 new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.ARC, 0xff1493));
         mchorse.bbs_mod.ui.film.clips.renderer.UIClipRenderers.setup();
+        BBSMod.events.post(new RegisterClipRenderersEvent());
         mchorse.bbs_mod.forms.FormUtilsClient.setup();
+        BBSMod.events.post(new RegisterFormRenderersEvent());
         mchorse.bbs_mod.ui.forms.editors.UIFormEditor.setup();
+        BBSMod.events.post(new RegisterFormEditorsEvent());
+        BBSMod.events.post(new RegisterFormPanelsEvent());
+        BBSMod.events.post(new RegisterReplayActionsEvent());
         mchorse.bbs_mod.ui.film.clips.UIClip.setup();
+        BBSMod.events.post(new RegisterClipPanelsEvent());
         mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory.setup();
+        BBSMod.events.post(new RegisterKeyframeEditorsEvent());
         mchorse.bbs_mod.settings.ui.UIValueMap.setup();
+        BBSMod.events.post(new RegisterValueWidgetsEvent());
         mchorse.bbs_mod.film.replays.tracks.TrackStyle.setup();
+        BBSMod.events.post(new RegisterTrackStylesEvent());
+        mchorse.bbs_mod.importers.Importers.setup();
+        BBSMod.events.post(new RegisterImportersEvent());
         mchorse.bbs_mod.ui.film.FrameOverlays.setup();
+        BBSMod.events.post(new RegisterFrameOverlaysEvent());
+        BBSMod.events.post(new RegisterPreviewOverlaysEvent());
+        BBSMod.events.post(new RegisterFilmToolsEvent());
         mchorse.bbs_mod.fonts.nativefonts.NativeDefaultFont.prepare();
         mchorse.bbs_mod.cubic.animation.ItemUsePose.setSource(mchorse.bbs_mod.client.renderer.ThirdPersonItemUse::get);
         net.minecraftforge.fml.client.registry.RenderingRegistry.registerEntityRenderingHandler(mchorse.bbs_mod.entity.ActorEntity.class,
             mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer::new);
+        net.minecraftforge.fml.client.registry.RenderingRegistry.registerEntityRenderingHandler(mchorse.bbs_mod.entity.GunProjectileEntity.class,
+            mchorse.bbs_mod.client.renderer.entity.GunProjectileEntityRenderer::new);
+        mchorse.bbs_mod.utils.resources.CemResourceLifecycle.install();
+        BBSMod.getProvider().register(new mchorse.bbs_mod.utils.resources.MinecraftSourcePack());
         models.reload();
         mchorse.bbs_mod.BBSResources.init();
         registerDashboardPanels();
-        BBSMod.LOGGER.info("BBS FS Forge client ready; F6 opens the dashboard");
+        mchorse.bbs_mod.forms.structure.StructureWand.register();
+        ModelBlock.editingCheck = () -> mchorse.bbs_mod.ui.framework.UIScreen.getCurrentMenu() instanceof mchorse.bbs_mod.ui.dashboard.UIDashboard
+            || (Minecraft.getMinecraft().player != null && Minecraft.getMinecraft().player.getHeldItemMainhand().getItem() == Item.getItemFromBlock(MODEL_BLOCK));
+        BBSMod.events.post(new BBSClientReadyEvent());
+        BBSMod.LOGGER.info("BBS FS Forge client ready; 0 opens the dashboard, F4 records the world, F6 records the selected film");
     }
     private static void registerDashboardPanels() {
+        mchorse.bbs_mod.ui.dashboard.DashboardPanelRegistry.registerPinned("selectors",
+            mchorse.bbs_mod.ui.utils.icons.Icons.PROPERTIES, mchorse.bbs_mod.ui.UIKeys.SELECTORS_TITLE,
+            context -> mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay.addOverlay(context,
+                new mchorse.bbs_mod.ui.selectors.UISelectorsOverlayPanel(), 430, 300));
+        mchorse.bbs_mod.ui.dashboard.DashboardPanelRegistry.register("particles", 3,
+            mchorse.bbs_mod.ui.UIKeys.SNOWSTORM_TITLE, mchorse.bbs_mod.ui.utils.icons.Icons.PARTICLE,
+            mchorse.bbs_mod.ui.particles.UIParticleSchemePanel::new);
+        mchorse.bbs_mod.ui.dashboard.DashboardPanelRegistry.register("model_blocks", 2,
+            mchorse.bbs_mod.ui.UIKeys.MODEL_BLOCKS_TITLE, mchorse.bbs_mod.ui.utils.icons.Icons.BLOCK,
+            mchorse.bbs_mod.ui.model_blocks.UIModelBlockPanel::new);
         mchorse.bbs_mod.ui.dashboard.DashboardPanelRegistry.register("morphing", 0,
             mchorse.bbs_mod.ui.UIKeys.MORPHING_TITLE, mchorse.bbs_mod.ui.utils.icons.Icons.MORPH,
             mchorse.bbs_mod.ui.morphing.UIMorphingPanel::new);
@@ -100,11 +154,15 @@ public class ClientProxy extends CommonProxy {
         mchorse.bbs_mod.ui.onboarding.Onboarding.registerOpened(mchorse.bbs_mod.ui.film.UIFilmPanel.class, mchorse.bbs_mod.ui.onboarding.Tours.FILM);
         mchorse.bbs_mod.ui.onboarding.Onboarding.registerOpened(mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel.class, mchorse.bbs_mod.ui.onboarding.Tours.MODEL_EDITOR);
     }
-    @SubscribeEvent public void input(InputEvent.KeyInputEvent event) {
-        if (dashboard.isPressed() && Minecraft.getMinecraft().world != null)
-            mchorse.bbs_mod.ui.framework.UIScreen.open(mchorse.bbs_mod.BBSModClient.getDashboard());
+    public void openModel(ModelTileEntity tile) {
+        if (tile == null) return;
+        mchorse.bbs_mod.ui.dashboard.UIDashboard menu = mchorse.bbs_mod.BBSModClient.getDashboard();
+        menu.finishBuilding();
+        mchorse.bbs_mod.ui.framework.UIScreen.open(menu);
+        mchorse.bbs_mod.ui.model_blocks.UIModelBlockPanel panel = menu.getPanel(mchorse.bbs_mod.ui.model_blocks.UIModelBlockPanel.class);
+        menu.setPanel(panel);
+        panel.fill(tile, true);
     }
-    public void openModel(ModelTileEntity tile) { Minecraft.getMinecraft().displayGuiScreen(new ModelScreen(tile)); }
     @SubscribeEvent public void loadingScreen(net.minecraftforge.client.event.GuiOpenEvent event) {
         Minecraft mc = Minecraft.getMinecraft();
         if (event.getGui() == null && mc.currentScreen instanceof net.minecraft.client.gui.GuiDownloadTerrain
@@ -120,10 +178,12 @@ public class ClientProxy extends CommonProxy {
     private void world() {
         Minecraft mc=Minecraft.getMinecraft();
         if(lastWorld==mc.world) return;
+        mchorse.bbs_mod.BBSModClient.getWorldExportSession().stop();
         mchorse.bbs_mod.client.renderer.LivePlayerItemUse.endFrame();
         mchorse.bbs_mod.BBSModClient.getFilms().reset();
         StudioSession.unload();
         lastWorld=mc.world;
+        ModelItemRenderer.INSTANCE.clear();
         if (mc.world == null) mchorse.bbs_mod.BBSResources.leaveWorld();
         else mchorse.bbs_mod.BBSResources.enterWorld();
     }
@@ -139,6 +199,7 @@ public class ClientProxy extends CommonProxy {
             mchorse.bbs_mod.BBSModClient.getFilms().update();
         }
         if (event.phase == TickEvent.Phase.END) {
+            ModelItemRenderer.INSTANCE.tick();
             mchorse.bbs_mod.BBSModClient.update();
             mchorse.bbs_mod.BBSResources.tick();
             mchorse.bbs_mod.BBSModClient.getFormCategories().getUserForms().flush();
@@ -201,6 +262,7 @@ public class ClientProxy extends CommonProxy {
             if (Minecraft.getMinecraft().getConnection() != null
                 && Minecraft.getMinecraft().getConnection().getNetworkManager() != connection) return;
             mchorse.bbs_mod.client.renderer.LivePlayerItemUse.endFrame();
+            mchorse.bbs_mod.BBSModClient.getWorldExportSession().stop();
             mchorse.bbs_mod.BBSModClient.getFilms().reset();
             mchorse.bbs_mod.BBSModClient.getMinecraftSoundCapture().end();
             mchorse.bbs_mod.BBSModClient.resetDashboard();

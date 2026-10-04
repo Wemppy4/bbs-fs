@@ -86,6 +86,7 @@ public class VideoPlayer
     private Thread seekThread;
     private volatile boolean seeking;
     private volatile boolean pendingReady;
+    private volatile boolean disposed;
     private volatile int pendingFrame = -1;
 
     public VideoPlayer(File file)
@@ -100,7 +101,7 @@ public class VideoPlayer
 
     public boolean isInvalid()
     {
-        return this.state == STATE_INVALID;
+        return this.disposed || this.state == STATE_INVALID;
     }
 
     public float getDuration()
@@ -191,7 +192,7 @@ public class VideoPlayer
      */
     public Texture getFrame(float seconds)
     {
-        if (this.state == STATE_INVALID)
+        if (this.disposed || this.state == STATE_INVALID)
         {
             return null;
         }
@@ -329,6 +330,7 @@ public class VideoPlayer
 
     private void startSeek(float seconds)
     {
+        if (this.disposed) return;
         this.seeking = true;
         this.seekThread = new Thread(() ->
         {
@@ -339,7 +341,7 @@ public class VideoPlayer
                     this.probe();
                 }
 
-                if (this.state != STATE_VALID)
+                if (this.disposed || this.state != STATE_VALID)
                 {
                     return;
                 }
@@ -349,7 +351,7 @@ public class VideoPlayer
 
                 this.restart(target / this.fps, target);
 
-                if (this.readFrame())
+                if (this.readFrame() && !this.disposed)
                 {
                     this.streamFrame = target + 1;
                     this.pendingFrame = target;
@@ -390,8 +392,9 @@ public class VideoPlayer
         }
     }
 
-    private void restart(float seconds, int frame)
+    private synchronized void restart(float seconds, int frame)
     {
+        if (this.disposed) return;
         this.stop();
 
         try
@@ -479,12 +482,32 @@ public class VideoPlayer
      * Kill the decoding process (the texture keeps the last frame; the stream
      * restarts on the next {@link #getFrame(float)}).
      */
-    public void stop()
+    public synchronized void stop()
     {
-        if (this.process != null)
+        Process decoder = this.process;
+        this.process = null;
+        if (decoder != null)
         {
-            this.process.destroy();
-            this.process = null;
+            decoder.destroy();
+        }
+
+        /* destroy() is asynchronous on Windows: the input file stays locked until exit.
+         * Await our own decoder only, so releasing a form also releases its asset. */
+        if (decoder != null)
+        {
+            try
+            {
+                if (!decoder.waitFor(1500, java.util.concurrent.TimeUnit.MILLISECONDS))
+                {
+                    decoder.destroyForcibly();
+                    decoder.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS);
+                }
+            }
+            catch (InterruptedException interrupted)
+            {
+                decoder.destroyForcibly();
+                Thread.currentThread().interrupt();
+            }
         }
 
         if (this.channel != null)
@@ -504,6 +527,7 @@ public class VideoPlayer
 
     public void delete()
     {
+        this.disposed = true;
         /* The worker writes into frameBuffer - it must be done before the buffer is freed */
         this.stop();
         this.finishSeek();

@@ -52,7 +52,26 @@ public final class ServerNetwork
         NBTTagCompound p=packet("play",id);p.setBoolean("camera",camera);p.setTag("data",DataStorageUtils.toNbt(film.toData()));
         for(EntityPlayer watcher:world.playerEntities)if(watcher instanceof EntityPlayerMP)FilmNetwork.toClient((EntityPlayerMP)watcher,p);
     }
-    public static void sendPlayFilm(EntityPlayerMP player,String id,boolean camera){sendPlayFilm(player,player.getServerWorld(),id,camera);}
+    public static void sendPlayFilm(EntityPlayerMP player,String id,boolean camera)
+    {
+        Film film=BBSMod.getFilms().load(id);if(film==null)return;
+        BBSMod.getActions().play(player,player.getServerWorld(),film,0);
+        NBTTagCompound p=packet("play",id);p.setBoolean("camera",camera);p.setTag("data",DataStorageUtils.toNbt(film.toData()));
+        FilmNetwork.toClient(player,p);
+    }
+    public static void sendModelBlockState(EntityPlayerMP player,net.minecraft.util.math.BlockPos pos,String state)
+    {
+        NBTTagCompound p=packet("model_state","");p.setLong("pos",pos.toLong());p.setString("state",state);FilmNetwork.toClient(player,p);
+    }
+    public static void sendReloadModelBlocks(EntityPlayerMP player,int range)
+    {
+        NBTTagCompound p=packet("model_refresh","");p.setInteger("range",range);FilmNetwork.toClient(player,p);
+    }
+    public static void sendCheatsPermission(EntityPlayerMP player,boolean enabled)
+    {
+        /* Native vanilla uses entity status 24..28 for client command permission levels. */
+        player.connection.sendPacket(new net.minecraft.network.play.server.SPacketEntityStatus(player,(byte)(enabled?28:24)));
+    }
     private static void validateId(String id)
     {
         if(id.isEmpty()||id.length()>1024||id.indexOf('\\')>=0||id.indexOf(':')>=0||id.startsWith("/")||Arrays.asList(id.split("/")).contains(".."))
@@ -74,10 +93,41 @@ public final class ServerNetwork
         }
         if(!PermissionUtils.arePanelsAllowed(player.getServer(),player))return;
         String op=p.getString("op"),id=p.getString("film");
+        if (op.equals("model_item"))
+        {
+            if (!player.capabilities.isCreativeMode || !p.hasKey("data", 10)) return;
+            net.minecraft.item.ItemStack stack = player.getHeldItemMainhand().copy();
+            if (stack.getItem() == mchorse.bbs_mod.forge.CommonProxy.GUN_ITEM)
+            {
+                mchorse.bbs_mod.items.GunProperties gun = new mchorse.bbs_mod.items.GunProperties();
+                gun.fromData(DataStorageUtils.fromNbt(p.getTag("data")).asMap());
+                NBTTagCompound tag = stack.hasTagCompound() ? stack.getTagCompound() : new NBTTagCompound();
+                tag.setTag("GunData", DataStorageUtils.toNbt(gun.toData()));
+                stack.setTagCompound(tag);player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND, stack);
+                player.inventoryContainer.detectAndSendChanges();return;
+            }
+            if (stack.getItem() != net.minecraft.item.Item.getItemFromBlock(mchorse.bbs_mod.forge.CommonProxy.MODEL_BLOCK)) return;
+            mchorse.bbs_mod.blocks.entities.ModelProperties checked = new mchorse.bbs_mod.blocks.entities.ModelProperties();
+            checked.fromData(DataStorageUtils.fromNbt(p.getTag("data")).asMap());
+            NBTTagCompound root = stack.hasTagCompound() ? stack.getTagCompound() : new NBTTagCompound();
+            NBTTagCompound tileTag = root.getCompoundTag("BlockEntityTag");
+            tileTag.setTag("Properties", DataStorageUtils.toNbt(checked.toData()));
+            root.setTag("BlockEntityTag", tileTag); stack.setTagCompound(root);
+            player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND, stack);
+            player.inventoryContainer.detectAndSendChanges();
+            return;
+        }
         ActionManager actions=BBSMod.getActions();
-        if(!op.equals("morph")&&!op.equals("teleport")&&!op.equals("manager")&&!op.equals("cut_structure")&&!op.equals("player_settings"))validateId(id);
+        if(!op.equals("morph")&&!op.equals("teleport")&&!op.equals("manager")&&!op.equals("cut_structure")&&!op.equals("save_structure")&&!op.equals("player_settings")&&!op.equals("model_block"))validateId(id);
         switch(op)
         {
+            case "model_block":
+                net.minecraft.util.math.BlockPos blockPos = net.minecraft.util.math.BlockPos.fromLong(p.getLong("pos"));
+                if (!player.capabilities.isCreativeMode || !player.world.isBlockLoaded(blockPos) || player.getDistanceSq(blockPos) > 4096 || !p.hasKey("data", 10)) break;
+                net.minecraft.tileentity.TileEntity tile = player.world.getTileEntity(blockPos);
+                if (tile instanceof mchorse.bbs_mod.forge.ModelTileEntity)
+                    ((mchorse.bbs_mod.forge.ModelTileEntity) tile).updateForm(DataStorageUtils.fromNbt(p.getTag("data")).asMap(), player.world);
+                break;
             case "manager":receiveManagerData(player,p);break;
             case "player_settings":
                 ActionPlayer.applyFilmPlayerSettingsTo(player, p.getFloat("hp"), p.getFloat("hunger"), p.getInteger("xpLevel"), p.getFloat("xpProgress"));
@@ -92,6 +142,12 @@ public final class ServerNetwork
                 cut.setString("name", p.getString("name"));
                 cut.setBoolean("ok", mchorse.bbs_mod.forms.structure.StructureOperations.cut(player.getServerWorld(), p.getString("name"), net.minecraft.util.math.BlockPos.fromLong(p.getLong("from")), net.minecraft.util.math.BlockPos.fromLong(p.getLong("to"))));
                 FilmNetwork.toClient(player, cut);
+                break;
+            case "save_structure":
+                NBTTagCompound saved = packet("structure_saved", "");
+                saved.setString("name", p.getString("name"));
+                saved.setBoolean("ok", mchorse.bbs_mod.forms.structure.StructureOperations.save(player.getServerWorld(), p.getString("name"), net.minecraft.util.math.BlockPos.fromLong(p.getLong("from")), net.minecraft.util.math.BlockPos.fromLong(p.getLong("to"))));
+                FilmNetwork.toClient(player, saved);
                 break;
             case "toggle":
                 if(actions.getPlayer(id)!=null)
@@ -137,7 +193,7 @@ public final class ServerNetwork
             boolean rewind=current!=null&&current.type==PlayerType.FILM_EDITOR&&current.isPlayedBy(player)&&current.getWorld()==player.getServerWorld();
             if(!rewind)
             {
-                Film film=current==null?BBSMod.getFilms().load(id):current.film;
+                Film film=current==null?(BBSMod.getFilms().exists(id)?BBSMod.getFilms().load(id):null):current.film;
                 if(current!=null)actions.stop(id);
                 current=film==null?null:actions.play(player,player.getServerWorld(),film,tick,PlayerType.FILM_EDITOR);
             }

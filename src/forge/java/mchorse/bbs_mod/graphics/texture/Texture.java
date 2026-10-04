@@ -143,13 +143,13 @@ public class Texture
     {
         if (this.target == GL11.GL_TEXTURE_2D) GlStateManager.bindTexture(this.id);
         else GL11.glBindTexture(this.target, this.id);
+        if (this.target == GL11.GL_TEXTURE_2D) mchorse.bbs_mod.graphics.OptiFinePbr.onBind(this.id);
     }
 
     public void bind(int texture)
     {
         GlStateManager.setActiveTexture(texture);
-        if (this.target == GL11.GL_TEXTURE_2D) GlStateManager.bindTexture(this.id);
-        else GL11.glBindTexture(this.target, this.id);
+        this.bind();
     }
 
     public void unbind()
@@ -222,6 +222,7 @@ public class Texture
 
     public void delete()
     {
+        mchorse.bbs_mod.graphics.OptiFinePbr.forget(this.id);
         GlStateManager.deleteTexture(this.id);
         this.id = -1;
     }

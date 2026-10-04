@@ -21,9 +21,19 @@ public final class FormUtilsClient
     {
         register(ModelForm.class, ModelFormRenderer::new);
         register(AnchorForm.class, AnchorFormRenderer::new);
-        register(MobForm.class, NativeFormRendererAdapter::new);
-        register(BillboardForm.class, NativeFormRendererAdapter::new);
+        register(MobForm.class, MobFormRenderer::new);
+        register(BillboardForm.class, BillboardFormRenderer::new);
         register(ExtrudedForm.class, NativeFormRendererAdapter::new);
+        register(BlockForm.class, BlockFormRenderer::new);
+        register(ItemForm.class, ItemFormRenderer::new);
+        register(LabelForm.class, LabelFormRenderer::new);
+        register(VideoForm.class, VideoFormRenderer::new);
+        register(SplineForm.class, SplineFormRenderer::new);
+        register(StructureForm.class, StructureFormRenderer::new);
+        register(ParticleForm.class, ParticleFormRenderer::new);
+        register(VanillaParticleForm.class, VanillaParticleFormRenderer::new);
+        register(TrailForm.class, TrailFormRenderer::new);
+        register(FramebufferForm.class, FramebufferFormRenderer::new);
     }
 
     public static <T extends Form> void register(Class<T> type, IFormRendererFactory<T> factory) { map.put(type, factory); }

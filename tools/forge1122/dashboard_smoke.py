@@ -1,8 +1,10 @@
-"""Exercise the real F6 Dashboard via native mouse/key routes and read-only inspection.
+"""Exercise the original 0-key Dashboard via native mouse/key routes and read-only inspection.
 
 Only the isolated run-forge1122/ai_test world is used. No alternate probe menu is opened.
 The uniquely named saved film is retained for review; its duplicate is renamed/deleted via UI.
 """
+import argparse
+import os
 import json
 import time
 from pathlib import Path
@@ -24,6 +26,10 @@ def key(value, **modifiers):
 
 def mouse(x, y, mode='move'):
     x, y = round(x), round(y)
+    if os.environ.get('AIH_DIRECT_UI') == '1':
+        call('/ui-mouse', {'x': x, 'y': y, 'mode': mode, 'button': 0, 'warp': False})
+        wait()
+        return
     for _ in range(8):
         call('/ui-mouse', {'x': x, 'y': y, 'mode': 'move'})
         wait()
@@ -105,8 +111,11 @@ def enter_prompt(text):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--release', action='store_true', help='Exercise the distributable JAR in run-forge1122-obf')
+    args = parser.parse_args()
     health = call('/health')
-    run_dir = (ROOT / 'run-forge1122').resolve()
+    run_dir = (ROOT / ('run-forge1122-obf' if args.release else 'run-forge1122')).resolve()
     assert Path(health['gameDir']).resolve() == run_dir, health
     assert health['inWorld'], health
     call('/disconnect', {})
@@ -118,7 +127,7 @@ def main():
             break
         key('escape')
     assert call('/health')['screen'] is None, call('/health')
-    key('f6')
+    key('0')
     start = state()
     assert start['menu'] == 'UIDashboard' and start['built'], start
     required = {'UIFilmPanel', 'UITextureManagerPanel', 'UIAudioEditorPanel'}
@@ -142,8 +151,10 @@ def main():
     click(overlay()['close'])
 
     # The original panel bar must switch genuine editors and return to the film.
-    for name in ('UITextureManagerPanel', 'UIAudioEditorPanel', 'UIFilmPanel'):
+    panel_names = [panel['type'] for panel in start['panels'] if panel['type'] != 'UIFilmPanel'] + ['UIFilmPanel']
+    for name in panel_names:
         select_panel(name)
+        dismiss_onboarding()
         assert state()['glError'] == 0, state()
         call('/screenshot', {'name': 'original-dashboard-' + name.lower() + '-verified'})
 
@@ -205,7 +216,7 @@ def main():
     report = {'ok': True, 'menu': final['menu'], 'panels': final['panels'],
               'savedFilm': str(original_file), 'created': name, 'duplicated': dupe,
               'renamed': renamed, 'deletedDuplicate': not renamed_file.exists(), 'snapshot': final}
-    output = ROOT / 'build/reports/forge1122-dashboard-smoke.json'
+    output = ROOT / ('build/reports/forge1122-dashboard-release-smoke.json' if args.release else 'build/reports/forge1122-dashboard-smoke.json')
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf8')
     print(json.dumps(report, ensure_ascii=False, indent=2))

@@ -201,6 +201,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
         register(SplineForm.class, UISplineForm::new);
         register(MobForm.class, UIMobForm::new);
         register(VanillaParticleForm.class, UIVanillaParticleForm::new);
+        register(ParticleForm.class, mchorse.bbs_mod.ui.forms.editors.forms.UIParticleForm::new);
         register(TrailForm.class, UITrailForm::new);
         register(FramebufferForm.class, UIFramebufferForm::new);
         register(StructureForm.class, UIStructureForm::new);

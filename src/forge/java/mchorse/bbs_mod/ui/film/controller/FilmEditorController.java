@@ -1,4 +1,5 @@
 package mchorse.bbs_mod.ui.film.controller;
+import mchorse.bbs_mod.BBSModClient;
 
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.film.BaseFilmController;
@@ -197,6 +198,8 @@ public class FilmEditorController extends BaseFilmController
             super.renderEntity(context, replay, entity);
         }
 
+        if (this.controller.panel.recorder.isExporting() || BBSModClient.getVideoRecorder().isRecording()) return;
+
         boolean isPlaying = this.controller.isPlaying();
         int ticks = replay.getTick(this.getTick());
         ValueOnionSkin onionSkin = this.controller.getOnionSkin();
@@ -287,7 +290,8 @@ public class FilmEditorController extends BaseFilmController
     @Override
     protected FilmControllerContext getFilmControllerContext(WorldRenderContext context, Replay replay, IEntity entity)
     {
-        boolean recording = this.controller.panel.recorder.isRecording();
+        boolean recording = this.controller.panel.recorder.isRecording()
+            || this.controller.panel.recorder.isExporting() || BBSModClient.getVideoRecorder().isRecording();
 
         /* One question, asked once. The gizmo only ever belongs to the replay being edited,
          * so every other actor in the film gets NONE. */

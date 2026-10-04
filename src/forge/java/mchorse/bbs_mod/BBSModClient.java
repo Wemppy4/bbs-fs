@@ -44,6 +44,22 @@ public final class BBSModClient
         cameraController.reset();
     }
     private static mchorse.bbs_mod.film.FilmManager localFilms;
+    private static mchorse.bbs_mod.particles.ParticleManager particles;
+    private static mchorse.bbs_mod.selectors.EntitySelectors selectors;
+    public static mchorse.bbs_mod.selectors.EntitySelectors getSelectors()
+    {
+        if (selectors == null)
+        {
+            selectors = new mchorse.bbs_mod.selectors.EntitySelectors();
+            selectors.read();
+        }
+        return selectors;
+    }
+    public static mchorse.bbs_mod.particles.ParticleManager getParticles()
+    {
+        if (particles == null) particles = new mchorse.bbs_mod.particles.ParticleManager(() -> BBSMod.getAssetsPath("particles"), BBSMod.getDynamicSourcePack());
+        return particles;
+    }
     private static final mchorse.bbs_mod.film.Films films = new mchorse.bbs_mod.film.Films();
     private static final mchorse.bbs_mod.audio.MinecraftSoundCapture minecraftSoundCapture = new mchorse.bbs_mod.audio.MinecraftSoundCapture();
     public static mchorse.bbs_mod.audio.MinecraftSoundCapture getMinecraftSoundCapture() { return minecraftSoundCapture; }
@@ -60,6 +76,11 @@ public final class BBSModClient
     private static final mchorse.bbs_mod.fonts.FontManager fonts = new mchorse.bbs_mod.fonts.FontManager();
     private static final mchorse.bbs_mod.graphics.FramebufferManager framebuffers = new mchorse.bbs_mod.graphics.FramebufferManager();
     private static final mchorse.bbs_mod.utils.VideoRecorder videoRecorder = new mchorse.bbs_mod.utils.VideoRecorder();
+    private static final mchorse.bbs_mod.film.WorldVideoExportSession worldExportSession = new mchorse.bbs_mod.film.WorldVideoExportSession();
+    public static mchorse.bbs_mod.film.WorldVideoExportSession getWorldExportSession() { return worldExportSession; }
+    public static boolean isVideoExportDelayPending() { return worldExportSession.isWarmingUp(); }
+    public static long getVideoExportDelayRemainingMs() { return worldExportSession.getWarmupRemainingMs(); }
+    public static net.minecraft.client.settings.KeyBinding getKeyRecordVideo() { return mchorse.bbs_mod.forge.GlobalKeybinds.RECORD_VIDEO; }
     private static final mchorse.bbs_mod.camera.controller.CameraController cameraController = new mchorse.bbs_mod.camera.controller.CameraController();
     public static mchorse.bbs_mod.camera.controller.CameraController getCameraController() { return cameraController; }
     private static long lastFrame;
@@ -83,6 +104,13 @@ public final class BBSModClient
         return textures;
     }
     public static ModelManager getModels() { return ClientProxy.models; }
+    public static mchorse.bbs_mod.blocks.entities.ModelProperties getItemStackProperties(net.minecraft.item.ItemStack stack)
+    {
+        mchorse.bbs_mod.forge.ModelItemRenderer.Entry entry = mchorse.bbs_mod.forge.ModelItemRenderer.INSTANCE.get(stack);
+        if (entry != null) return entry.tile.getProperties();
+        mchorse.bbs_mod.client.renderer.item.GunItemRenderer.Entry gun = mchorse.bbs_mod.client.renderer.item.GunItemRenderer.INSTANCE.get(stack);
+        return gun == null ? null : gun.properties;
+    }
     public static mchorse.bbs_mod.film.FilmManager getLocalFilms()
     {
         if (localFilms == null) localFilms = new mchorse.bbs_mod.film.FilmManager(() -> new java.io.File(BBSMod.getAssetsFolder().getParentFile(), "data/films"));
@@ -107,6 +135,7 @@ public final class BBSModClient
         {
             l10n = new L10n();
             l10n.registerOne(lang -> Link.assets("strings/" + lang + ".json"));
+            BBSMod.events.post(new mchorse.bbs_mod.api.client.events.RegisterL10nEvent(l10n));
             l10n.reload(getLanguageKey(), BBSMod.getProvider());
         }
         return l10n;
@@ -125,9 +154,12 @@ public final class BBSModClient
         if (sounds != null) sounds.update();
         if (videos != null) videos.update();
         fonts.update();
+        worldExportSession.update();
     }
     public static void assetsChanged()
     {
+        particles = null;
+        mchorse.bbs_mod.forms.renderers.ParticleFormRenderer.lastUpdate++;
         if (sounds != null) sounds.deleteSounds();
         if (videos != null) videos.delete();
         sounds = null;

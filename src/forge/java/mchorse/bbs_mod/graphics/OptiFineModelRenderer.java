@@ -39,6 +39,28 @@ public final class OptiFineModelRenderer
         GL11.glTexCoordPointer(2, GL11.GL_FLOAT, 0, 0L); GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
     }
 
+    public static void arrays(int positions, int normals, int uvs, int tangents, int midUvs)
+    {
+        arrays(positions,normals,uvs);
+        int program=GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+        attributeArray(program,"at_tangent",tangents,4);
+        attributeArray(program,"mc_midTexCoord",midUvs,2);
+    }
+
+    public static void tangents(int buffer,int midUvs)
+    {int program=GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);attributeArray(program,"at_tangent",buffer,4);attributeArray(program,"mc_midTexCoord",midUvs,2);}
+
+    private static void attributeArray(int program,String name,int buffer,int components)
+    {
+        int location=GL20.glGetAttribLocation(program,name);
+        if(location>=0)
+        {
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,buffer);
+            GL20.glVertexAttribPointer(location,components,GL11.GL_FLOAT,false,0,0L);
+            GL20.glEnableVertexAttribArray(location);
+        }
+    }
+
     public static void interleaved(int buffer, VertexFormat format)
     {
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffer);
@@ -59,7 +81,13 @@ public final class OptiFineModelRenderer
                 case TEXTURE: case LIGHT:
                     GL13.glClientActiveTexture(element == VertexFormat.Element.TEXTURE ? GL13.GL_TEXTURE0 : GL13.GL_TEXTURE1);
                     GL11.glTexCoordPointer(2, element.type, stride, (long) offset);
-                    GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY); break;
+                    GL11.glEnableClientState(GL11.GL_TEXTURE_COORD_ARRAY);
+                    if(element==VertexFormat.Element.TEXTURE)
+                    {
+                        int location=GL20.glGetAttribLocation(GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM),"mc_midTexCoord");
+                        if(location>=0){GL20.glVertexAttribPointer(location,2,GL11.GL_FLOAT,false,stride,(long)offset);GL20.glEnableVertexAttribArray(location);}
+                    }
+                    break;
                 default: break;
             }
             offset += element.bytes();
@@ -91,8 +119,10 @@ public final class OptiFineModelRenderer
             }
             if (normalTexture == 0) normalTexture = pixel(128, 128, 255, 255);
             if (specularTexture == 0) specularTexture = pixel(0, 0, 0, 0);
-            GlStateManager.setActiveTexture(GL13.GL_TEXTURE2); GlStateManager.bindTexture(normalTexture);
-            GlStateManager.setActiveTexture(GL13.GL_TEXTURE3); GlStateManager.bindTexture(specularTexture);
+            GlStateManager.setActiveTexture(GL13.GL_TEXTURE0);
+            int[] pbr=OptiFinePbr.maps(GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D),normalTexture,specularTexture);
+            GlStateManager.setActiveTexture(GL13.GL_TEXTURE2); GlStateManager.bindTexture(pbr[0]);
+            GlStateManager.setActiveTexture(GL13.GL_TEXTURE3); GlStateManager.bindTexture(pbr[1]);
             GlStateManager.setActiveTexture(GL13.GL_TEXTURE1); GlStateManager.bindTexture(RenderSystem.nativeLightmap());
             GL11.glGetFloat(GL11.GL_CURRENT_TEXTURE_COORDS, lightCoord);
             GlStateManager.matrixMode(GL11.GL_TEXTURE); GlStateManager.pushMatrix(); GlStateManager.loadIdentity();
@@ -130,14 +160,19 @@ public final class OptiFineModelRenderer
             }
             GL13.glClientActiveTexture(GL13.GL_TEXTURE0);
             GlStateManager.color(r, g, b, a);
+            /* A previous array draw leaves current color undefined without updating
+             * Minecraft's cache. Native models use this constant, not a color array. */
+            GL11.glColor4f(r,g,b,a);
             int program = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
             attribute(program, "mc_Entity", -1, -1, -1, 0);
             attribute(program, "mc_midTexCoord", 0, 0, 0, 1);
             attribute(program, "at_tangent", 1, 0, 0, 1);
+            OptiFinePbr.begin(normalTexture,specularTexture);
         }
 
         @Override public void close()
         {
+            OptiFinePbr.end();
             if (nativeVertices)
             {
                 GL30.glBindVertexArray(0);
@@ -158,6 +193,7 @@ public final class OptiFineModelRenderer
             }
             GlStateManager.setActiveTexture(activeTexture); GlStateManager.matrixMode(matrixMode);
             GlStateManager.color(color.get(0), color.get(1), color.get(2), color.get(3));
+            GL11.glColor4f(color.get(0), color.get(1), color.get(2), color.get(3));
         }
     }
 
