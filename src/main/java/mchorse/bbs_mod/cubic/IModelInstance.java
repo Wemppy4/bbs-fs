@@ -13,6 +13,6 @@ public interface IModelInstance
 
     default java.util.Map<String, String> getProceduralBones()
     {
-        return java.util.Map.of();
+        return java.util.Collections.emptyMap();
     }
 }

@@ -131,8 +131,10 @@ public class UIFormUndoHandler
 
     private static void collectAppliedValues(IUndo<ValueGroup> undo, List<BaseValue> values)
     {
-        if (undo instanceof CompoundUndo<ValueGroup> compound)
+        if (undo instanceof CompoundUndo)
         {
+            CompoundUndo<ValueGroup> compound = (CompoundUndo<ValueGroup>) undo;
+
             for (IUndo<ValueGroup> child : compound.getUndos()) collectAppliedValues(child, values);
         }
         else if (undo instanceof ValueChangeUndo change && change.getAppliedValue() != null)

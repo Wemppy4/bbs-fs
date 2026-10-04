@@ -56,15 +56,16 @@ public class ModelCube implements IMapSerializable
     /** The unwrap of one of the cube's six sides, or null when that side isn't drawn at all. */
     public ModelUV getUV(CubeFace face)
     {
-        return switch (face)
+        switch (face)
         {
-            case FRONT -> this.front;
-            case BACK -> this.back;
-            case RIGHT -> this.right;
-            case LEFT -> this.left;
-            case TOP -> this.top;
-            case BOTTOM -> this.bottom;
-        };
+            case FRONT: return this.front;
+            case BACK: return this.back;
+            case RIGHT: return this.right;
+            case LEFT: return this.left;
+            case TOP: return this.top;
+            case BOTTOM: return this.bottom;
+            default: throw new IllegalArgumentException("Unknown cube face: " + face);
+        }
     }
 
     /** The unwrap a side that isn't drawn will come back with; null for a drawn side, or one never drawn. */
@@ -111,12 +112,13 @@ public class ModelCube implements IMapSerializable
     /** How big a side is on the sheet at a pixel of it per pixel of the model: across, then down, as it faces out. */
     public Vector2f faceSize(CubeFace face)
     {
-        return switch (face)
+        switch (face)
         {
-            case FRONT, BACK -> new Vector2f(this.size.x, this.size.y);
-            case RIGHT, LEFT -> new Vector2f(this.size.z, this.size.y);
-            case TOP, BOTTOM -> new Vector2f(this.size.x, this.size.z);
-        };
+            case FRONT: case BACK: return new Vector2f(this.size.x, this.size.y);
+            case RIGHT: case LEFT: return new Vector2f(this.size.z, this.size.y);
+            case TOP: case BOTTOM: return new Vector2f(this.size.x, this.size.z);
+            default: throw new IllegalArgumentException("Unknown cube face: " + face);
+        }
     }
 
     /** Give a side its unwrap, or null to stop drawing it — either way, what it was hidden with is forgotten. */
@@ -126,12 +128,12 @@ public class ModelCube implements IMapSerializable
 
         switch (face)
         {
-            case FRONT -> this.front = uv;
-            case BACK -> this.back = uv;
-            case RIGHT -> this.right = uv;
-            case LEFT -> this.left = uv;
-            case TOP -> this.top = uv;
-            case BOTTOM -> this.bottom = uv;
+            case FRONT: this.front = uv; break;
+            case BACK: this.back = uv; break;
+            case RIGHT: this.right = uv; break;
+            case LEFT: this.left = uv; break;
+            case TOP: this.top = uv; break;
+            case BOTTOM: this.bottom = uv; break;
         }
     }
 

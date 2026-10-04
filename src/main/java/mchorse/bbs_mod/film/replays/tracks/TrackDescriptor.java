@@ -34,6 +34,7 @@ import java.util.function.Supplier;
  *                 its own. How far in a track is drawn follows from this chain, so there is nothing
  *                 to keep in step with it.
  */
+@com.github.bsideup.jabel.Desugar
 public record TrackDescriptor(
     TrackId id,
     KeyframeChannel channel,

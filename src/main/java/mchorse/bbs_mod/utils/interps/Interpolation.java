@@ -127,8 +127,9 @@ public class Interpolation extends BaseValue implements IInterp
             return true;
         }
 
-        if (obj instanceof Interpolation i)
+        if (obj instanceof Interpolation)
         {
+            Interpolation i = (Interpolation) obj;
             return this.interp == i.interp
                 && this.args.v1 == i.args.v1
                 && this.args.v2 == i.args.v2

@@ -1,0 +1,665 @@
+package mchorse.bbs_mod.ui.utils;
+
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
+import mchorse.bbs_mod.utils.MathUtils;
+import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.interps.Lerps;
+import net.minecraft.client.Minecraft;
+
+import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
+
+/**
+ * Scroll
+ * 
+ * This class is responsible for storing information for scrollable one 
+ * directional objects. 
+ */
+public class Scroll
+{
+    private static Area temporary = new Area();
+    private static final long SCROLLBAR_HOVER_DELAY = 180_000_000L;
+
+    /**
+     * Size of an element/item in the scroll area
+     */
+    public int scrollItemSize;
+
+    /**
+     * Size of the scrolling area 
+     */
+    public int scrollSize;
+
+    /**
+     * Scroll position 
+     */
+    private double scroll;
+
+    /**
+     * Whether this scroll area gets dragged 
+     */
+    public boolean dragging;
+
+    /**
+     * Speed of how fast shit's scrolling  
+     */
+    public int scrollSpeed = 10;
+
+    /**
+     * Scroll direction
+     */
+    public ScrollDirection direction = ScrollDirection.VERTICAL;
+
+    /**
+     * Whether the scrollbar should be on opposite side (default is right
+     * for vertical and bottom for horizontal)
+     */
+    public boolean opposite;
+
+    /**
+     * Whether this scroll area should cancel mouse events when mouse scroll
+     * reaches the end
+     */
+    public boolean cancelScrollEdge = false;
+
+    /**
+     * Whether the scrollbar should be rendered and handled by input methods
+     */
+    public boolean scrollbar = true;
+
+    public final Area area;
+
+    private float scrollbarRatio;
+    private double targetScroll;
+    private BooleanSupplier smoothScrolling;
+    private IntSupplier wheelScrollStep;
+    private long scrollbarHoverStarted = -1L;
+    private long scrollbarLastHoverUpdate;
+    private boolean scrollbarExpanded;
+
+    public static final int HANDLE_COLOR = 0xff4d525a;
+    public static final int HANDLE_ACTIVE_COLOR = 0xff6e747c;
+
+    /* Band along the edges within which a drag keeps scrolling, and how fast (per frame) */
+    public static final int AUTO_SCROLL_EDGE = 24;
+    public static final int AUTO_SCROLL_SPEED = 6;
+
+    public static void bar(Batcher2D batcher, int x1, int y1, int x2, int y2)
+    {
+        bar(batcher, x1, y1, x2, y2, HANDLE_COLOR);
+    }
+
+    public static void bar(Batcher2D batcher, int x1, int y1, int x2, int y2, int fill)
+    {
+        if (x2 - x1 == 0 || y2 - y1 == 0)
+        {
+            return;
+        }
+
+        batcher.surfaceBox(x1, y1, x2, y2, fill, true, false);
+    }
+
+    public Scroll(Area area)
+    {
+        this.area = area;
+        this.area.scroll = this;
+    }
+
+    public Scroll(Area area, int itemSize)
+    {
+        this(area);
+
+        this.scrollItemSize = itemSize;
+    }
+
+    public Scroll(Area area, int itemSize, ScrollDirection direction)
+    {
+        this(area, itemSize);
+
+        this.direction = direction;
+    }
+
+    public Scroll cancelScrolling()
+    {
+        this.cancelScrollEdge = true;
+
+        return this;
+    }
+
+    public Scroll opposite()
+    {
+        this.opposite = true;
+
+        return this;
+    }
+
+    public Scroll noScrollbar()
+    {
+        this.scrollbar = false;
+
+        return this;
+    }
+
+    public Scroll smoothScrolling(BooleanSupplier supplier)
+    {
+        this.smoothScrolling = supplier;
+
+        return this;
+    }
+
+    public Scroll wheelScrollStep(IntSupplier supplier)
+    {
+        this.wheelScrollStep = supplier;
+
+        return this;
+    }
+
+    private int getWheelScrollStep()
+    {
+        return this.wheelScrollStep == null ? 0 : Math.max(0, this.wheelScrollStep.getAsInt());
+    }
+
+    private void scrollByStep(double scroll)
+    {
+        int step = this.getWheelScrollStep();
+
+        if (step <= 0 || scroll == 0D)
+        {
+            this.scrollBy(scroll);
+
+            return;
+        }
+
+        double target = this.targetScroll;
+        double epsilon = 0.0001D;
+        boolean forward = scroll > 0D;
+        double snapped;
+
+        if (forward)
+        {
+            snapped = Math.floor(target / step) * step;
+
+            if (target - snapped > epsilon)
+            {
+                this.scrollTo(snapped + step);
+            }
+            else
+            {
+                this.scrollTo(target + step);
+            }
+        }
+        else
+        {
+            snapped = Math.ceil(target / step) * step;
+
+            if (snapped - target > epsilon)
+            {
+                this.scrollTo(snapped - step);
+            }
+            else
+            {
+                this.scrollTo(target - step);
+            }
+        }
+    }
+
+    public int getScrollbarWidth()
+    {
+        return BBSSettings.scrollbarWidth.get();
+    }
+
+    private int getScrollbarHandleWidth()
+    {
+        int width = this.getScrollbarWidth();
+        int available = this.direction == ScrollDirection.VERTICAL ? this.area.w : this.area.h;
+
+        return Math.min(available, this.dragging || this.scrollbarExpanded ? Math.max(width, 10) : width);
+    }
+
+    private void updateScrollbarHover(int x, int y)
+    {
+        long now = System.nanoTime();
+        long elapsed = now - this.scrollbarLastHoverUpdate;
+
+        /* A panel which was not updated recently must not retain an old hover timer. */
+        if (elapsed > 250_000_000L)
+        {
+            this.scrollbarHoverStarted = -1L;
+            this.scrollbarExpanded = false;
+        }
+
+        this.scrollbarLastHoverUpdate = now;
+
+        if (!this.scrollbar || !this.hasScrollbar())
+        {
+            this.scrollbarHoverStarted = -1L;
+            this.scrollbarExpanded = false;
+
+            return;
+        }
+
+        Area track = this.getScrollArea();
+        boolean hover = x >= track.x - 3 && x < track.ex() + 3
+            && y >= track.y - 3 && y < track.ey() + 3;
+
+        if (!hover)
+        {
+            this.scrollbarHoverStarted = -1L;
+        }
+        else if (this.scrollbarHoverStarted == -1L)
+        {
+            this.scrollbarHoverStarted = now;
+        }
+
+        this.scrollbarExpanded = this.dragging
+            || hover && now - this.scrollbarHoverStarted >= SCROLLBAR_HOVER_DELAY;
+    }
+
+    public void setSize(int items)
+    {
+        this.scrollSize = items * this.scrollItemSize;
+    }
+
+    public double getScroll()
+    {
+        return this.scroll;
+    }
+
+    /**
+     * Force set scroll
+     */
+    public void setScroll(double x)
+    {
+        this.scroll = this.targetScroll = x;
+
+        this.clamp();
+    }
+
+    /**
+     * Scroll by relative amount 
+     */
+    public void scrollBy(double x)
+    {
+        this.scrollTo(this.targetScroll + x);
+    }
+
+    /**
+     * Keep scrolling while a drag rests near the start or end edge of the area, so
+     * something carried across the view can reach what's scrolled out of sight. Call it
+     * every frame the drag is on; it does nothing when the cursor is outside the area
+     * or away from its edges.
+     *
+     * @param edge  band along each edge (in pixels) that triggers scrolling
+     * @param speed pixels scrolled per call
+     */
+    public void autoScrollAt(int x, int y, int edge, double speed)
+    {
+        if (!this.area.isInside(x, y))
+        {
+            return;
+        }
+
+        boolean vertical = this.direction == ScrollDirection.VERTICAL;
+        int position = vertical ? y : x;
+        int start = vertical ? this.area.y : this.area.x;
+        int end = vertical ? this.area.ey() : this.area.ex();
+
+        if (position < start + edge)
+        {
+            this.scrollBy(-speed);
+        }
+        else if (position > end - edge)
+        {
+            this.scrollBy(speed);
+        }
+    }
+
+    /**
+     * Scroll to the position in the scroll area 
+     */
+    public void scrollTo(double x)
+    {
+        this.targetScroll = x;
+
+        this.clamp();
+    }
+
+    public void scrollToEnd()
+    {
+        this.setScroll(Integer.MAX_VALUE);
+    }
+
+    public void scrollIntoView(int x)
+    {
+        this.scrollIntoView(x, this.scrollItemSize, 0);
+    }
+
+    public void scrollIntoView(int x, int bottomOffset)
+    {
+        this.scrollIntoView(x, bottomOffset, 0);
+    }
+
+    public void scrollIntoView(int x, int bottomOffset, int topOffset)
+    {
+        if (this.scroll + topOffset > x)
+        {
+            this.scrollTo(x - topOffset);
+        }
+        else if (x > this.scroll + this.direction.getSide(this.area) - bottomOffset)
+        {
+            this.scrollTo(x - this.direction.getSide(this.area) + bottomOffset);
+        }
+    }
+
+    /**
+     * Clamp scroll to the bounds of the scroll size; 
+     */
+    public void clamp()
+    {
+        int size = this.direction.getSide(this.area);
+
+        if (this.scrollSize <= size)
+        {
+            this.scroll = this.targetScroll = 0;
+        }
+        else
+        {
+            this.scroll = MathUtils.clamp(this.scroll, 0, this.scrollSize - size);
+            this.targetScroll = MathUtils.clamp(this.targetScroll, 0, this.scrollSize - size);
+        }
+    }
+
+    public void updateTarget()
+    {
+        this.scroll = this.targetScroll;
+    }
+
+    public void copy(Scroll scroll)
+    {
+        this.scroll = scroll.scroll;
+        this.targetScroll = scroll.targetScroll;
+        this.scrollSize = scroll.scrollSize;
+    }
+
+    /**
+     * Get index of the cursor based on the {@link #scrollItemSize}.  
+     */
+    public int getIndex(int x, int y)
+    {
+        int axis = this.direction.getScroll(this.area, this, x, y);
+        int index = axis / this.scrollItemSize;
+
+        if (axis < 0)
+        {
+            return -1;
+        }
+        else if (axis > this.scrollSize)
+        {
+            return -2;
+        }
+
+        return index > this.scrollSize / this.scrollItemSize ? -1 : index;
+    }
+
+    public boolean hasScrollbar()
+    {
+        return this.scrollSize > this.direction.getSide(this.area);
+    }
+
+    /**
+     * Calculates scroll bar's height 
+     */
+    public int getScrollbar()
+    {
+        int maxSize = this.direction.getSide(this.area);
+
+        if (this.scrollSize < maxSize)
+        {
+            return 0;
+        }
+
+        float finalSize = (1F - ((this.scrollSize - maxSize) / (float) this.scrollSize)) * maxSize;
+
+        return Math.max(4, (int) finalSize);
+    }
+
+    public Area getScrollArea()
+    {
+        int maxSize = this.direction.getSide(this.area);
+
+        if (this.scrollSize < maxSize)
+        {
+            temporary.set(0, 0, 0, 0);
+        }
+        else
+        {
+            int width = this.getScrollbarHandleWidth();
+
+            if (this.direction == ScrollDirection.VERTICAL)
+            {
+                temporary.set(this.area.x + (this.opposite ? 0 : this.area.w - width), this.area.y, width, this.area.h);
+            }
+            else
+            {
+                temporary.set(this.area.x, this.area.y + (this.opposite ? 0 : this.area.h - width), this.area.w, width);
+            }
+        }
+
+        return temporary;
+    }
+
+    public Area getScrollbarArea()
+    {
+        int maxSize = this.direction.getSide(this.area);
+
+        if (this.scrollSize < maxSize)
+        {
+            temporary.set(0, 0, 0, 0);
+        }
+        else
+        {
+            int scrollbar = this.getScrollbarHandleWidth();
+            int h = this.getScrollbar();
+
+            if (this.direction == ScrollDirection.HORIZONTAL)
+            {
+                int y = this.opposite ? this.area.y : this.area.ey() - scrollbar;
+                int x = this.area.x + (int) ((this.scroll / (float) (this.scrollSize - this.area.w)) * (this.area.w - h));
+
+                temporary.set(x, y, h, scrollbar);
+            }
+            else
+            {
+                int x = this.opposite ? this.area.x : this.area.ex() - scrollbar;
+                int y = this.area.y + (int) ((this.scroll / (float) (this.scrollSize - this.area.h)) * (this.area.h - h));
+
+                temporary.set(x, y, scrollbar, h);
+            }
+        }
+
+        return temporary;
+    }
+
+    /* GUI code for easier manipulations */
+
+    public boolean mouseClicked(UIContext context)
+    {
+        return context.mouseButton == 0 && this.mouseClicked(context.mouseX, context.mouseY);
+    }
+
+    /**
+     * This method should be invoked to register dragging 
+     */
+    public boolean mouseClicked(int x, int y)
+    {
+        if (!this.scrollbar)
+        {
+            return false;
+        }
+
+        boolean isInside = this.hasScrollbar() && this.getScrollArea().isInside(x, y);
+
+        if (isInside)
+        {
+            this.dragging = true;
+
+            Area area = this.getScrollbarArea();
+
+            if (area.isInside(x, y))
+            {
+                this.scrollbarRatio = (this.direction.getMouse(x, y) - this.direction.getPosition(area, 0F)) / (float) this.direction.getSide(area);
+            }
+            else
+            {
+                this.scrollbarRatio = 0.5F;
+            }
+        }
+
+        return isInside;
+    }
+
+    public boolean mouseScroll(UIContext context)
+    {
+        boolean canceled = this.mouseScroll(context.mouseX, context.mouseY, context.mouseWheel);
+
+        if (canceled)
+        {
+            context.markUpdateScroll();
+        }
+
+        return canceled;
+    }
+
+    /**
+     * This method should be invoked when mouse wheel is scrolling 
+     */
+    public boolean mouseScroll(int x, int y, double scroll)
+    {
+        scroll = -scroll;
+
+        boolean isInside = this.area.isInside(x, y);
+        double lastScroll = this.targetScroll;
+
+        if (isInside)
+        {
+            if (Minecraft.IS_RUNNING_ON_MAC)
+            {
+                this.scrollByStep(scroll * BBSSettings.scrollingSensitivity.get());
+            }
+            else if (scroll != 0D)
+            {
+                int step = this.getWheelScrollStep();
+
+                if (step > 0)
+                {
+                    this.scrollByStep(Math.copySign(1D, scroll));
+                }
+                else
+                {
+                    this.scrollBy((int) (Math.copySign(this.scrollSpeed, scroll) * BBSSettings.scrollingSensitivity.get()));
+                }
+            }
+        }
+
+        return isInside && ((this.cancelScrollEdge && this.scrollSize > this.direction.getSide(this.area)) || lastScroll != this.targetScroll);
+    }
+
+    public void mouseReleased(UIContext context)
+    {
+        this.mouseReleased(context.mouseX, context.mouseY);
+    }
+
+    /**
+     * When mouse button gets released
+     */
+    public void mouseReleased(int x, int y)
+    {
+        this.dragging = false;
+    }
+
+    public void drag(UIContext context)
+    {
+        this.drag(context.mouseX, context.mouseY);
+    }
+
+    /**
+     * This should be invoked in a rendering or and update method. It's
+     * responsible for scrolling through this view when dragging. 
+     */
+    public void drag(int x, int y)
+    {
+        float smoothing = BBSSettings.getScrollSmoothingIntensity();
+
+        if (smoothing > 0F && (this.smoothScrolling == null || this.smoothScrolling.getAsBoolean()))
+        {
+            float delta = mchorse.bbs_mod.BBSModClient.getFrameDuration();
+
+            /* The higher the FPS, the smaller the lerp factor is,
+             * the lower the FPS, the bigger the factor is */
+            this.scroll = Lerps.lerp(this.scroll, this.targetScroll, Math.min(1F, delta / (2.5F * smoothing)));
+        }
+        else
+        {
+            this.scroll = this.targetScroll;
+        }
+
+        if (this.dragging)
+        {
+            int scrollbar = this.getScrollbar();
+            int h = this.direction.getSide(this.area) - scrollbar;
+            float progress = (this.direction.getMouse(x, y) - (this.direction.getPosition(this.area, 0F) + scrollbar * this.scrollbarRatio)) / (float) h;
+            float to = progress * (this.scrollSize - this.direction.getSide(this.area));
+
+            this.scrollTo(to);
+        }
+
+        this.updateScrollbarHover(x, y);
+    }
+
+    /**
+     * This method is responsible for render a scroll bar
+     */
+    public void renderScrollbar(Batcher2D batcher)
+    {
+        if (!this.hasScrollbar())
+        {
+            return;
+        }
+
+        int side = this.direction.getSide(this.area);
+        int shadow = Colors.mulRGB(Colors.A50 | BBSSettings.primaryColor.get(), 0.75F);
+
+        if (this.scrollbar)
+        {
+            Area scrollbar = this.getScrollbarArea();
+
+            bar(batcher, scrollbar.x, scrollbar.y, scrollbar.ex(), scrollbar.ey(), this.dragging ? HANDLE_ACTIVE_COLOR : HANDLE_COLOR);
+        }
+        else if (this.direction == ScrollDirection.VERTICAL)
+        {
+            if (this.scroll > 0)
+            {
+                batcher.gradientVBox(this.area.x, this.area.y, this.area.ex(), this.area.y + 20, shadow, 0);
+            }
+
+            if (this.scroll < this.scrollSize - side)
+            {
+                batcher.gradientVBox(this.area.x, this.area.ey() - 20, this.area.ex(), this.area.ey(), 0, shadow);
+            }
+        }
+        else if (this.direction == ScrollDirection.HORIZONTAL)
+        {
+            if (this.scroll > 0)
+            {
+                batcher.gradientHBox(this.area.x, this.area.y, this.area.x + 20, this.area.ey(), shadow, 0);
+            }
+
+            if (this.scroll < this.scrollSize - side)
+            {
+                batcher.gradientHBox(this.area.ex() - 20, this.area.y, this.area.ex(), this.area.ey(), 0, shadow);
+            }
+        }
+    }
+}

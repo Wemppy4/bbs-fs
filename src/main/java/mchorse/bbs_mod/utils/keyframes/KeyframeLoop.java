@@ -4,8 +4,24 @@ import mchorse.bbs_mod.data.types.MapType;
 
 /** A finite repetition of the channel's keys in [start, sourceEnd].
  * Channels belonging to the same block share an id, not mutable object identity. */
-public record KeyframeLoop(String id, float start, float sourceEnd, float end)
+public final class KeyframeLoop
 {
+    private final String id;
+    private final float start, sourceEnd, end;
+    public KeyframeLoop(String id, float start, float sourceEnd, float end) {
+        this.id = id; this.start = start; this.sourceEnd = sourceEnd; this.end = end;
+    }
+    public String id() { return id; }
+    public float start() { return start; }
+    public float sourceEnd() { return sourceEnd; }
+    public float end() { return end; }
+    @Override public boolean equals(Object value) {
+        if (!(value instanceof KeyframeLoop)) return false;
+        KeyframeLoop other = (KeyframeLoop) value;
+        return java.util.Objects.equals(id,other.id) && Float.compare(start,other.start)==0
+            && Float.compare(sourceEnd,other.sourceEnd)==0 && Float.compare(end,other.end)==0;
+    }
+    @Override public int hashCode() { return java.util.Objects.hash(id,start,sourceEnd,end); }
     public boolean isValid()
     {
         return id != null && !id.isEmpty() && Float.isFinite(start)

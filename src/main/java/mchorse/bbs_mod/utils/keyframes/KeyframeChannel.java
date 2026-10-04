@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.utils.keyframes;
 
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.LogManager;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
@@ -11,7 +11,7 @@ import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Collections;
 import java.util.ArrayList;
@@ -27,7 +27,7 @@ import java.util.Map;
  */
 public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
 {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger();
 
     private IKeyframeFactory<T> factory;
     private final List<KeyframeLoop> loops = new ArrayList<>();
@@ -751,7 +751,7 @@ public class KeyframeChannel <T> extends ValueList<Keyframe<T>>
     @Override
     public boolean equals(Object object)
     {
-        return object instanceof KeyframeChannel<?> channel && super.equals(object) && this.loops.equals(channel.loops);
+        return object instanceof KeyframeChannel<?> && super.equals(object) && this.loops.equals(((KeyframeChannel<?>) object).loops);
     }
 
     /**

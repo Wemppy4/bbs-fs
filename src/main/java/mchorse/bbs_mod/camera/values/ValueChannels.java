@@ -71,8 +71,9 @@ public class ValueChannels extends ValueGroup
 
         for (BaseValue baseValue : this.getAll())
         {
-            if (baseValue instanceof KeyframeChannel<?> channel)
+            if (baseValue instanceof KeyframeChannel)
             {
+                KeyframeChannel<?> channel = (KeyframeChannel<?>) baseValue;
                 out.add(channel);
             }
         }
@@ -88,8 +89,9 @@ public class ValueChannels extends ValueGroup
 
         for (BaseValue baseValue : this.getAll())
         {
-            if (baseValue instanceof KeyframeChannel<?> channel && channel.getFactory() == factory)
+            if (baseValue instanceof KeyframeChannel && ((KeyframeChannel<?>) baseValue).getFactory() == factory)
             {
+                KeyframeChannel<?> channel = (KeyframeChannel<?>) baseValue;
                 buffer.add((KeyframeChannel<T>) channel);
             }
         }

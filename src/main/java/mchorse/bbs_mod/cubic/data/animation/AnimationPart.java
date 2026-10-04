@@ -28,7 +28,7 @@ public class AnimationPart implements IMapSerializable
     public final KeyframeChannel<MolangExpression> ry = new KeyframeChannel<>("ry", null);
     public final KeyframeChannel<MolangExpression> rz = new KeyframeChannel<>("rz", null);
 
-    public final List<KeyframeChannel<MolangExpression>> channels = List.of(this.x, this.y, this.z, this.sx, this.sy, this.sz, this.rx, this.ry, this.rz);
+    public final List<KeyframeChannel<MolangExpression>> channels = java.util.Arrays.asList(this.x, this.y, this.z, this.sx, this.sy, this.sz, this.rx, this.ry, this.rz);
 
     private MolangParser parser;
 

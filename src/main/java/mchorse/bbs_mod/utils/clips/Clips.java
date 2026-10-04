@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.utils.clips;
 
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.LogManager;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
 import mchorse.bbs_mod.camera.data.Point;
@@ -19,7 +19,7 @@ import java.util.List;
 
 public class Clips extends ValueGroup
 {
-    private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
+    private static final org.apache.logging.log4j.Logger LOGGER = LogManager.getLogger();
 
     private List<Clip> clips = new ArrayList<>();
     private IFactory<Clip, ClipFactoryData> factory;

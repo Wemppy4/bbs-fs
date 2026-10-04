@@ -70,8 +70,9 @@ public class CubicLoader
     {
         MapType data = new MapType();
 
-        if (model.getModel() instanceof IMapSerializable serializable)
+        if (model.getModel() instanceof IMapSerializable)
         {
+            IMapSerializable serializable = (IMapSerializable) model.getModel();
             data.put("model", serializable.toData());
         }
 

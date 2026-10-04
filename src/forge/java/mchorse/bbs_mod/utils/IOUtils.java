@@ -1,0 +1,203 @@
+package mchorse.bbs_mod.utils;
+
+import org.lwjgl.BufferUtils;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+public class IOUtils
+{
+    public static String readText(File file) throws FileNotFoundException
+    {
+        return readText(new FileInputStream(file));
+    }
+
+    /**
+     * Read a text file from current jar's resources
+     */
+    public static String readText(String path)
+    {
+        try
+        {
+            InputStream in = IOUtils.class.getResourceAsStream(path);
+
+            return readText(in);
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException("Failed to read file: " + path);
+        }
+    }
+
+    /**
+     * Read a text file from {@link InputStream} 
+     */
+    public static String readText(InputStream in)
+    {
+        try (Scanner scanner = new Scanner(new InputStreamReader(in, StandardCharsets.UTF_8)))
+        {
+            return scanner.useDelimiter("\\A").next();
+        }
+    }
+
+    public static void writeText(File file, String string) throws IOException
+    {
+        File parent = file.getParentFile();
+
+        if (parent != null && !parent.isDirectory())
+        {
+            parent.mkdirs();
+        }
+
+        /* Write to a sibling temp file, flush it all the way to disk, then atomically
+         * swap it into place. A direct FileOutputStream(file) truncates the live file
+         * the instant the stream opens, so a crash or power loss mid-write left it empty
+         * or partial — which is why an unexpected shutdown wiped settings/keybinds. With
+         * temp + fsync + atomic move, a crash leaves either the old intact file or the
+         * new one, never a corrupt one. */
+        File temp = new File(parent, file.getName() + ".tmp");
+
+        try (FileOutputStream fos = new FileOutputStream(temp))
+        {
+            Writer writer = new BufferedWriter(new OutputStreamWriter(fos, StandardCharsets.UTF_8));
+
+            writer.write(string);
+            writer.flush();
+            fos.getFD().sync();
+        }
+
+        try
+        {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        }
+        catch (AtomicMoveNotSupportedException e)
+        {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * Read all lines from a file (needs a text file) 
+     */
+    public static List<String> readLines(String fileName) throws Exception
+    {
+        return readLines(IOUtils.class.getClass().getResourceAsStream(fileName));
+    }
+
+    /**
+     * Read all lines from a file (needs a text file) 
+     */
+    public static List<String> readLines(InputStream stream) throws Exception
+    {
+        List<String> list = new ArrayList<>();
+
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8)))
+        {
+            String line;
+
+            while ((line = br.readLine()) != null)
+            {
+                list.add(line);
+            }
+        }
+
+        return list;
+    }
+
+    /**
+     * The direct buffer is managed by the JVM on LWJGL 2.
+     * after using the byte buffer!
+     */
+    public static ByteBuffer readByteBuffer(InputStream stream, int bufferSize) throws IOException
+    {
+        byte[] bytes = IOUtils.readBytes(stream, bufferSize);
+        ByteBuffer buffer = BufferUtils.createByteBuffer(bytes.length);
+
+        buffer.put(bytes);
+        buffer.flip();
+
+        return buffer;
+    }
+
+    public static byte[] readBytes(InputStream stream) throws IOException
+    {
+        return readBytes(stream, 4 * 1024);
+    }
+
+    public static byte[] readBytes(InputStream stream, int bufferSize) throws IOException
+    {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        int bytesRead;
+        byte[] data = new byte[bufferSize];
+
+        while ((bytesRead = stream.read(data, 0, data.length)) != -1)
+        {
+            buffer.write(data, 0, bytesRead);
+        }
+
+        buffer.flush();
+
+        return buffer.toByteArray();
+    }
+
+    public static void deleteFolder(File folder)
+    {
+        if (!folder.isDirectory())
+        {
+            return;
+        }
+
+        for (File file : folder.listFiles())
+        {
+            if (file.isDirectory())
+            {
+                deleteFolder(file);
+            }
+            else
+            {
+                file.delete();
+            }
+        }
+
+        folder.delete();
+    }
+
+    public static File findNonExistingFile(File file)
+    {
+        String name = file.getName();
+        int index = name.lastIndexOf('.');
+        String baseName = index == -1 ? name : name.substring(0, index);
+        String extension = index == -1 ? "" : name.substring(index);
+
+        int i = 1;
+
+        while (file.exists())
+        {
+            file = new File(file.getParentFile().getAbsolutePath(), baseName + "_" + i + extension);
+
+            i += 1;
+        }
+
+        return file;
+    }
+}

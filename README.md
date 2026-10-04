@@ -1,5 +1,10 @@
 # BBS mod
 
+**Branch `1.12.2`: BBS FS Forge foundation port, alpha.** Build, installation,
+supported features, limitations and in-game checks are documented in
+[the Forge 1.12.2 port guide](docs/forge-1.12.2.md). The historical description
+below refers to the modern version, not the feature set of this alpha.
+
 BBS mod is a Minecraft mod for Fabric 1.20.4 and 1.20.1 (works on Forge as well) for creating animations within Minecraft. It has more features than that, but overall its main task is to facilitate making animated content within Minecraft. For more information, see BBS mod's [Modrinth](https://modrinth.com/mod/bbs-mod/) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/bbs-mod) pages.
 
 This repository is the source code of BBS mod. The `1.20.4` code is in the `master` branch, and `1.20.1` in `1.20.1` branch, which is usually just a merge of the `master` branch.

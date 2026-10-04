@@ -1,12 +1,12 @@
 package mchorse.bbs_mod.data.migration;
 
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.LogManager;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.values.core.StableIds;
 import mchorse.bbs_mod.utils.StringUtils;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,7 +28,7 @@ import java.util.Set;
  */
 public class FormStableIds
 {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger();
 
     /** A replay preset also owns tracks outside its form, but has no film version gate. */
     public static Map<String, String> ensureReplay(MapType replay)

@@ -51,8 +51,9 @@ public class BaseKeyframeFactoryValue<T> extends BaseValueBasic<T>
     @Override
     public boolean equals(Object obj)
     {
-        if (obj instanceof BaseKeyframeFactoryValue<?> property && property.factory == this.factory)
+        if (obj instanceof BaseKeyframeFactoryValue && ((BaseKeyframeFactoryValue<?>) obj).factory == this.factory)
         {
+            BaseKeyframeFactoryValue<T> property = (BaseKeyframeFactoryValue<T>) obj;
             return this.factory.compare(this.getOriginalValue(), property.getOriginalValue());
         }
 

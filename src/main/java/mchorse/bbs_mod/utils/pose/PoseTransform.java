@@ -35,8 +35,9 @@ public class PoseTransform extends Transform
     @Override
     public void lerp(Transform transform, float a)
     {
-        if (transform instanceof PoseTransform pose)
+        if (transform instanceof PoseTransform)
         {
+            PoseTransform pose = (PoseTransform) transform;
             if (a >= 1F)
             {
                 this.visible = pose.visible;
@@ -65,8 +66,9 @@ public class PoseTransform extends Transform
     {
         super.lerp(preA, a, b, postB, interp, x);
 
-        if (preA instanceof PoseTransform preA1)
+        if (preA instanceof PoseTransform)
         {
+            PoseTransform preA1 = (PoseTransform) preA;
             PoseTransform a1 = (PoseTransform) a;
             PoseTransform b1 = (PoseTransform) b;
             PoseTransform postB1 = (PoseTransform) postB;
@@ -97,8 +99,9 @@ public class PoseTransform extends Transform
     {
         super.autoLerp(preA, a, b, postB, pt, at, bt, qt, clamped, x);
 
-        if (preA instanceof PoseTransform preA1)
+        if (preA instanceof PoseTransform)
         {
+            PoseTransform preA1 = (PoseTransform) preA;
             PoseTransform a1 = (PoseTransform) a;
             PoseTransform b1 = (PoseTransform) b;
             PoseTransform postB1 = (PoseTransform) postB;
@@ -129,8 +132,9 @@ public class PoseTransform extends Transform
     {
         boolean result = super.equals(obj);
 
-        if (obj instanceof PoseTransform poseTransform)
+        if (obj instanceof PoseTransform)
         {
+            PoseTransform poseTransform = (PoseTransform) obj;
             result = result && this.fix == poseTransform.fix;
             result = result && this.visible == poseTransform.visible;
             result = result && this.color.equals(poseTransform.color);
@@ -168,8 +172,9 @@ public class PoseTransform extends Transform
     @Override
     public void copy(Transform transform)
     {
-        if (transform instanceof PoseTransform poseTransform)
+        if (transform instanceof PoseTransform)
         {
+            PoseTransform poseTransform = (PoseTransform) transform;
             this.fix = poseTransform.fix;
             this.visible = poseTransform.visible;
             this.color.copy(poseTransform.color);
@@ -185,8 +190,9 @@ public class PoseTransform extends Transform
     {
         super.add(transform);
 
-        if (transform instanceof PoseTransform pose)
+        if (transform instanceof PoseTransform)
         {
+            PoseTransform pose = (PoseTransform) transform;
             this.fix += pose.fix;
             this.visible &= pose.visible;
             this.color.mul(pose.color);

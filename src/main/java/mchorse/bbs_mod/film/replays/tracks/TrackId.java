@@ -24,6 +24,7 @@ import mchorse.bbs_mod.forms.FormUtils;
  * @param subject  which bone / material / controller / chain; empty for whole-form kinds
  * @param property for {@link TrackKind#MATERIAL_PROP}, which material property; empty otherwise
  */
+@com.github.bsideup.jabel.Desugar
 public record TrackId(TrackKind kind, String formPath, String subject, String property)
 {
     /* Segment prefixes of the string form. Kept exactly as they were written, since saved films

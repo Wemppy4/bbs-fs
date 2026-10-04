@@ -50,9 +50,9 @@ public class UnknownClip extends Clip implements IUnknownType
     @Override
     public void fromData(BaseType data)
     {
-        if (data instanceof MapType map)
+        if (data instanceof MapType)
         {
-            this.raw = (MapType) map.copy();
+            this.raw = (MapType) data.copy();
         }
 
         super.fromData(data);

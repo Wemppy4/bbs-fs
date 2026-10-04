@@ -30,7 +30,7 @@ public enum ProceduralBone
 
     public String detect(IModel model)
     {
-        String name = this.resolve(model, Map.of());
+        String name = this.resolve(model, java.util.Collections.emptyMap());
         return model.getAllGroupKeys().contains(name) ? name : "";
     }
 }

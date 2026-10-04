@@ -77,7 +77,8 @@ public class TargetTrack implements TrackBehaviour
         weights.put(subject, target.weight());
     }
 
-    private record ResolvedTarget(Vector3f position, float weight) {}
+    @com.github.bsideup.jabel.Desugar
+private record ResolvedTarget(Vector3f position, float weight) {}
 
     private static ResolvedTarget resolve(TrackContext context, Anchor anchor)
     {

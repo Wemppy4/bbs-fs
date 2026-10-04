@@ -18,6 +18,7 @@ import mchorse.bbs_mod.forms.forms.Form;
  *                   preview) says false: nothing would ever clear what it wrote, and the overrides
  *                   would stick for good.
  */
+@com.github.bsideup.jabel.Desugar
 public record TrackContext(Form root, float transition, AnchorResolver anchors, boolean solvers)
 {
     /** Form values, including solver state, without external targets or legacy solver overrides. */

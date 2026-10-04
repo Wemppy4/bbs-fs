@@ -19,7 +19,8 @@ public final class LegacySplineValues
 {
     private LegacySplineValues() {}
 
-    private record Overlay(SplineControls base, SplineControls applied) {}
+    @com.github.bsideup.jabel.Desugar
+private record Overlay(SplineControls base, SplineControls applied) {}
     private static final Map<ModelForm, Overlay> overlays = new WeakHashMap<>();
 
     public static Set<ModelForm> begin(Form root, Iterable<TrackId> tracks)

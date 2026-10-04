@@ -68,7 +68,7 @@ public class UIListOverlayPanel extends UIOverlayPanel
     {
         String selected = this.list.list.getVisibleSelection();
 
-        if (selected != null) this.apply(List.of(selected));
+        if (selected != null) this.apply(java.util.Collections.singletonList(selected));
     }
 
     @Override

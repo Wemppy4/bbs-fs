@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.utils.manager;
 
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.LogManager;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.data.migration.IDataMigration;
 import mchorse.bbs_mod.data.migration.SaveVersion;
@@ -9,7 +9,7 @@ import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.manager.storage.IDataStorage;
 import mchorse.bbs_mod.utils.manager.storage.JSONLikeStorage;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  */
 public abstract class BaseManager <T extends ValueGroup> extends FolderManager<T>
 {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger();
 
     protected IDataStorage storage = new JSONLikeStorage();
     protected boolean backUps;
@@ -112,7 +112,7 @@ public abstract class BaseManager <T extends ValueGroup> extends FolderManager<T
         List<IDataMigration> migrations = this.getMigrations().stream()
             .filter((migration) -> migration.getVersion() >= version)
             .sorted(Comparator.comparingInt(IDataMigration::getVersion))
-            .toList();
+            .collect(java.util.stream.Collectors.toList());
 
         if (!migrations.isEmpty())
         {
@@ -132,7 +132,7 @@ public abstract class BaseManager <T extends ValueGroup> extends FolderManager<T
     {
         if (!this.backUps)
         {
-            return List.of();
+            return java.util.Collections.emptyList();
         }
 
         File original = this.getFile(id);
@@ -143,7 +143,7 @@ public abstract class BaseManager <T extends ValueGroup> extends FolderManager<T
 
         if (files == null)
         {
-            return List.of();
+            return java.util.Collections.emptyList();
         }
 
         String prefix = id.substring(0, id.length() - name.length()) + "_" + name + "/";
@@ -151,7 +151,7 @@ public abstract class BaseManager <T extends ValueGroup> extends FolderManager<T
         return Arrays.stream(files)
             .map((file) -> prefix + file.getName().substring(0, file.getName().length() - this.getExtension().length()))
             .sorted(Comparator.reverseOrder())
-            .toList();
+            .collect(java.util.stream.Collectors.toList());
     }
 
     @Override

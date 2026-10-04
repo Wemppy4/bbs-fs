@@ -164,6 +164,8 @@ public class Film extends ValueGroup
             {
                 duration = Math.max(duration, (int) channel.getLength() + 1);
             }
+            duration = Math.max(duration, (int) replay.getLastKeyframeTick() + 1);
+            duration = Math.max(duration, replay.actions.calculateDuration());
         }
 
         return duration;

@@ -237,8 +237,9 @@ public class Keyframe <T> extends BaseValue
             return true;
         }
 
-        if (obj instanceof Keyframe<?> kf)
+        if (obj instanceof Keyframe<?>)
         {
+            Keyframe<?> kf = (Keyframe<?>) obj;
             return this.tick == kf.tick
                 && this.enabled == kf.enabled
                 && Objects.equals(this.value, kf.value)

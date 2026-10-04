@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.forms;
 
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.LogManager;
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.cubic.spline.ValueSplineIKs;
 import mchorse.bbs_mod.data.types.BaseType;
@@ -32,7 +32,7 @@ import mchorse.bbs_mod.settings.values.base.BaseKeyframeFactoryValue;
 
 public class FormUtils
 {
-    private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
+    private static final org.apache.logging.log4j.Logger LOGGER = LogManager.getLogger();
 
     public static final String PATH_SEPARATOR = "/";
 

@@ -81,8 +81,9 @@ public class Placement implements IDataSerializable<BaseType>
     @Override
     public boolean equals(Object obj)
     {
-        if (obj instanceof Placement placement)
+        if (obj instanceof Placement)
         {
+            Placement placement = (Placement) obj;
             return this.windowX == placement.windowX
                 && this.windowY == placement.windowY
                 && this.anchorX == placement.anchorX

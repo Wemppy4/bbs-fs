@@ -99,9 +99,9 @@ public class CameraClipContext extends ClipContext<CameraClip, Position>
 
         for (Clip clip : this.clips.get())
         {
-            if (clip instanceof CameraClip cameraClip)
+            if (clip instanceof CameraClip)
             {
-                cameraClip.shutdown(this);
+                ((CameraClip) clip).shutdown(this);
             }
         }
     }

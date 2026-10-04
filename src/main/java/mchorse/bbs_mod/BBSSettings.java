@@ -694,7 +694,7 @@ public class BBSSettings {
 		formCellSize = builder.getInt("form_cell_size", 60, 40, 140).slider();
 		textureCellSize = builder.getInt("texture_cell_size", 80, 40, 200).slider();
 		textureSort = builder.getString("texture_sort", "name");
-		texturePins = new ValueLinkList("texture_pins", List.of(Link.assets("textures/")));
+		texturePins = new ValueLinkList("texture_pins", java.util.Collections.singletonList(Link.assets("textures/")));
 		texturePins.invisible();
 		builder.register(texturePins);
 		recentData = new ValueRecentData("recent_data");

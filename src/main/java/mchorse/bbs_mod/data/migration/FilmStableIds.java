@@ -1,11 +1,11 @@
 package mchorse.bbs_mod.data.migration;
 
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.LogManager;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.settings.values.core.StableIds;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ import java.util.Set;
  */
 public class FilmStableIds implements IDataMigration
 {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger();
 
     /** The keyframe channel type whose values are anchors — the marker for actor rewriting. */
     private static final String ANCHOR_CHANNEL_TYPE = "anchor";
@@ -61,7 +61,7 @@ public class FilmStableIds implements IDataMigration
         {
             MapType replay = replayType.isMap() ? replayType.asMap() : null;
 
-            formMappings.add(replay == null ? Map.of() : FormStableIds.ensureReplay(replay));
+            formMappings.add(replay == null ? java.util.Collections.emptyMap() : FormStableIds.ensureReplay(replay));
         }
 
         /* Pass 2: references. */

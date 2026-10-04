@@ -88,8 +88,9 @@ public class KeyframeStyle
     @Override
     public boolean equals(Object obj)
     {
-        if (obj instanceof KeyframeStyle style)
+        if (obj instanceof KeyframeStyle)
         {
+            KeyframeStyle style = (KeyframeStyle) obj;
             return this.shape == style.shape
                 && this.filled == style.filled
                 && Objects.equals(this.color, style.color);

@@ -71,7 +71,8 @@ public class ValueGroup extends BaseValueGroup
     /** One child by id, if it is a basic value — the per-lookup shape of {@link #getAllMap()}. */
     public BaseValueBasic getBasic(String id)
     {
-        return this.children.get(id) instanceof BaseValueBasic<?> basic ? basic : null;
+        BaseValue child = this.children.get(id);
+        return child instanceof BaseValueBasic ? (BaseValueBasic) child : null;
     }
 
     public Map<String, BaseValueBasic> getAllMap()
@@ -80,8 +81,9 @@ public class ValueGroup extends BaseValueGroup
 
         for (BaseValue value : this.children.values())
         {
-            if (value instanceof BaseValueBasic<?> basic)
+            if (value instanceof BaseValueBasic)
             {
+                BaseValueBasic<?> basic = (BaseValueBasic<?>) value;
                 map.put(basic.getId(), basic);
             }
         }
@@ -119,8 +121,9 @@ public class ValueGroup extends BaseValueGroup
             return equals;
         }
 
-        if (obj instanceof ValueGroup group)
+        if (obj instanceof ValueGroup)
         {
+            ValueGroup group = (ValueGroup) obj;
             return this.children.equals(group.children);
         }
 

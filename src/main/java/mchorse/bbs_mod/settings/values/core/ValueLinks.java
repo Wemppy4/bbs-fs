@@ -61,8 +61,9 @@ public class ValueLinks extends BaseValueBasic<Map<String, Link>>
     {
         this.value.clear();
 
-        if (data instanceof MapType map)
+        if (data instanceof MapType)
         {
+            MapType map = (MapType) data;
             for (String key : map.keys())
             {
                 Link link = LinkUtils.create(map.get(key));

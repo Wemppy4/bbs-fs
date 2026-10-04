@@ -23,7 +23,7 @@ public class FilmManager extends BaseManager<Film>
     @Override
     protected List<IDataMigration> getMigrations()
     {
-        return List.of(new FilmStableIds());
+        return java.util.Collections.singletonList(new FilmStableIds());
     }
 
     @Override

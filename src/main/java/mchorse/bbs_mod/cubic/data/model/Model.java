@@ -392,7 +392,7 @@ public class Model implements IMapSerializable, IModel
         ModelGroup group = this.getGroup(groupName);
         List<ModelGroup> groups = group.parent != null ? group.parent.children : this.topGroups;
 
-        return groups.stream().map((g) -> g.id).toList();
+        return groups.stream().map((g) -> g.id).collect(java.util.stream.Collectors.toList());
     }
 
     @Override
@@ -414,7 +414,7 @@ public class Model implements IMapSerializable, IModel
     @Override
     public Collection<String> getRootGroupKeys()
     {
-        return this.topGroups.stream().map((g) -> g.id).toList();
+        return this.topGroups.stream().map((g) -> g.id).collect(java.util.stream.Collectors.toList());
     }
 
     @Override
@@ -427,7 +427,7 @@ public class Model implements IMapSerializable, IModel
             return Collections.emptyList();
         }
 
-        return group.children.stream().map((g) -> g.id).toList();
+        return group.children.stream().map((g) -> g.id).collect(java.util.stream.Collectors.toList());
     }
 
     @Override

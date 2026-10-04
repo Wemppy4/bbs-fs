@@ -15,7 +15,7 @@ public final class FormPropertyAliases
 
     public static void register(String legacy, String canonical)
     {
-        if (legacy == null || legacy.isBlank() || canonical == null || canonical.indexOf(':') <= 0
+        if (legacy == null || legacy.codePoints().allMatch(Character::isWhitespace) || canonical == null || canonical.indexOf(':') <= 0
             || canonical.endsWith(":") || legacy.contains("/") || canonical.contains("/")
             || legacy.equals(canonical) || ALIASES.containsKey(canonical) || ALIASES.containsValue(legacy))
         {
