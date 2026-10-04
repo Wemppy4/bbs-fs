@@ -58,7 +58,7 @@ public class StructureFormRenderer extends NativeGeometryFormRenderer<StructureF
                 for(BlockRenderLayer layer:BlockRenderLayer.values())
                 {
                     if(layer==BlockRenderLayer.TRANSLUCENT){GlStateManager.enableBlend();GlStateManager.depthMask(context.isPicking());}
-                    else {GlStateManager.depthMask(true);GlStateManager.enableAlpha();}
+                    else {GlStateManager.depthMask(true);GlStateManager.enableAlpha();if(tint.a<1F)GlStateManager.enableBlend();else GlStateManager.disableBlend();}
                     baked.render(layer);
                 }
             }

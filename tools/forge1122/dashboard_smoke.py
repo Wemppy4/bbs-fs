@@ -113,6 +113,7 @@ def enter_prompt(text):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--release', action='store_true', help='Exercise the distributable JAR in run-forge1122-obf')
+    parser.add_argument('--dashboard-key', default='0', help='Current configured Dashboard key; preserve custom user bindings')
     args = parser.parse_args()
     health = call('/health')
     run_dir = (ROOT / ('run-forge1122-obf' if args.release else 'run-forge1122')).resolve()
@@ -127,7 +128,7 @@ def main():
             break
         key('escape')
     assert call('/health')['screen'] is None, call('/health')
-    key('0')
+    key(args.dashboard_key)
     start = state()
     assert start['menu'] == 'UIDashboard' and start['built'], start
     required = {'UIFilmPanel', 'UITextureManagerPanel', 'UIAudioEditorPanel'}

@@ -50,6 +50,8 @@ public final class ShaderWorldFormsProbe
     private final Set<String> errors=new LinkedHashSet<>();
     private int frames,worldFrames,shaderFrames;
     private boolean restored=true;
+    private JsonArray cemDraw;
+    private int cemOverlay=10<<16;
 
     private ShaderWorldFormsProbe()
     {
@@ -93,8 +95,11 @@ public final class ShaderWorldFormsProbe
             try
             {
                 MatrixStack stack=new MatrixStack();stack.peek().getPositionMatrix().translation((i%4-1.5F)*1.65F,1.3F-i/4*1.7F,-8F).rotateX(.18F).rotateY(.3F);
-                FormRenderingContext context=new FormRenderingContext().set(FormRenderType.ENTITY,entity,stack,0x00f000f0,10<<16,event.getPartialTicks()).camera(mc.player);
-                FormUtilsClient.getRenderer(forms[i]).render(context);
+                FormRenderingContext context=new FormRenderingContext().set(FormRenderType.ENTITY,entity,stack,0x00f000f0,i==7?cemOverlay:10<<16,event.getPartialTicks()).camera(mc.player);
+                Form current=forms[i];
+                if(i==7&&frames>0&&cemDraw==null&&firstModel instanceof mchorse.bbs_mod.cubic.ModelInstance)
+                    cemDraw=CemDrawDiagnostics.render((mchorse.bbs_mod.cubic.ModelInstance)firstModel,()->FormUtilsClient.getRenderer(current).render(context));
+                else FormUtilsClient.getRenderer(current).render(context);
             }
             catch(Throwable e){errors.add(names[i]+": "+e);}
             finally{GL15.glEndQuery(GL15.GL_SAMPLES_PASSED);samples[i]=GL15.glGetQueryObjecti(query,GL15.GL_QUERY_RESULT);GL15.glDeleteQueries(query);}
@@ -162,6 +167,13 @@ public final class ShaderWorldFormsProbe
             if(request.has("metallic"))material.metallic.set(request.get("metallic").getAsFloat());
             if(request.has("emission"))material.pixelEmission.set(request.get("emission").getAsFloat());
             if(request.has("relief"))material.relief.set(request.get("relief").getAsFloat());
+            if(request.has("overlay"))
+            {
+                JsonArray color=request.getAsJsonArray("overlay");
+                model.overlayColor.set(new Color(color.get(0).getAsFloat(),color.get(1).getAsFloat(),color.get(2).getAsFloat(),color.get(3).getAsFloat()));
+            }
+            if(request.has("hurt"))active.cemOverlay=(request.get("hurt").getAsBoolean()?3:10)<<16;
+            active.cemDraw=null;
         }
         if(action.equals("stop")&&active!=null){MinecraftForge.EVENT_BUS.unregister(active);active=null;StructureManager.setPreview(null);}
         JsonObject out=new JsonObject();out.addProperty("ok",true);out.addProperty("active",active!=null);out.addProperty("cemEnabled",fixture!=null);
@@ -173,6 +185,7 @@ public final class ShaderWorldFormsProbe
             out.addProperty("frames",active.frames);out.addProperty("worldFrames",active.worldFrames);out.addProperty("shaderFrames",active.shaderFrames);out.addProperty("stateRestored",active.restored);
             JsonArray counts=new JsonArray(),names=new JsonArray(),errors=new JsonArray();for(int value:active.samples)counts.add(value);for(String name:active.names)names.add(name);for(String error:active.errors)errors.add(error);
             out.add("samples",counts);out.add("names",names);out.add("errors",errors);
+            if(active.cemDraw!=null)out.add("cemDraw",active.cemDraw);
         }
         return out;
     }

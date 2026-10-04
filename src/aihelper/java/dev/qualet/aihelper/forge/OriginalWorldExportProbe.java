@@ -32,6 +32,8 @@ public final class OriginalWorldExportProbe
     private static String path,id;
     private static Film previous;
     private static GuiScreen screen;
+    private static boolean muted;
+    private static float masterVolume;
 
     public static JsonObject run(JsonObject request)
     {
@@ -70,6 +72,18 @@ public final class OriginalWorldExportProbe
             if(!active||BBSModClient.getWorldExportSession().isExporting())throw new IllegalStateException("Configure only an idle active fixture");
             if(request.has("resize"))BBSSettings.worldExportResizeWindow.set(request.get("resize").getAsBoolean());
             if(request.has("delay"))BBSSettings.videoDelay.set(request.get("delay").getAsFloat());
+            if(request.has("captureSounds"))BBSSettings.videoExportMinecraftSounds.set(request.get("captureSounds").getAsBoolean());
+            if(request.has("mute")&&request.get("mute").getAsBoolean()&&!muted)
+            {
+                masterVolume=mc.gameSettings.getSoundLevel(net.minecraft.util.SoundCategory.MASTER);
+                mc.gameSettings.setSoundLevel(net.minecraft.util.SoundCategory.MASTER,0F);muted=true;
+            }
+        }
+        else if(op.equals("native_sound"))
+        {
+            if(!active||!BBSModClient.getMinecraftSoundCapture().isActive())throw new IllegalStateException("Start real capture before playing the native sound");
+            mc.getSoundHandler().playSound(new net.minecraft.client.audio.PositionedSoundRecord(
+                net.minecraft.init.SoundEvents.BLOCK_NOTE_PLING,net.minecraft.util.SoundCategory.BLOCKS,1F,1F,new net.minecraft.util.math.BlockPos(mc.player)));
         }
         else if(op.equals("cleanup"))
         {
@@ -81,6 +95,7 @@ public final class OriginalWorldExportProbe
                 BBSSettings.videoWidth.set(width);BBSSettings.videoHeight.set(height);BBSSettings.videoFrameRate.set(fps);BBSSettings.videoMotionBlur.set(blur);BBSSettings.videoDelay.set(delay);BBSSettings.videoExportPath.set(path);
                 BBSModClient.getDashboard().getPanel(UIFilmPanel.class).fill(previous);mc.displayGuiScreen(screen);active=false;
             }
+            if(muted){mc.gameSettings.setSoundLevel(net.minecraft.util.SoundCategory.MASTER,masterVolume);muted=false;}
         }
         return snapshot();
     }
@@ -97,6 +112,12 @@ public final class OriginalWorldExportProbe
         out.addProperty("customSize",BBSRendering.isCustomSize());out.addProperty("output",BBSRendering.getVideoFolder().getAbsolutePath());
         out.addProperty("dashboardKey",GlobalKeybinds.DASHBOARD.getKeyCode());out.addProperty("worldKey",GlobalKeybinds.RECORD_VIDEO.getKeyCode());out.addProperty("filmKey",GlobalKeybinds.PLAY_FILM_AND_RECORD.getKeyCode());
         out.addProperty("failure",BBSModClient.getVideoRecorder().getFailure()==null?"":BBSModClient.getVideoRecorder().getFailure().toString());
+        com.google.gson.JsonArray sounds=new com.google.gson.JsonArray();
+        for(mchorse.bbs_mod.audio.MinecraftSoundCapture.CapturedSound sound:BBSModClient.getMinecraftSoundCapture().getSounds())
+        {
+            JsonObject captured=new JsonObject();captured.addProperty("resource",sound.location.toString());captured.addProperty("frame",sound.frame);sounds.add(captured);
+        }
+        out.add("capturedSounds",sounds);out.addProperty("captureActive",BBSModClient.getMinecraftSoundCapture().isActive());
         out.addProperty("glError",GL11.glGetError());return out;
     }
 }

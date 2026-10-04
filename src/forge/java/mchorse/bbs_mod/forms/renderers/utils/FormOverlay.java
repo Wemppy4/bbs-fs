@@ -161,4 +161,24 @@ public class FormOverlay
     {
         RenderSystem.setShaderTexture(1, previous);
     }
+
+    /** The compatibility shader ABI has entityColor instead of the modern overlay sampler. */
+    public static Color boundColor()
+    {
+        if(texture==null||!uploaded||RenderSystem.getShaderTextureOverride(1)!=texture.id)return null;
+        Color color=new Color().set(lastPixel);
+        color.a=1F-color.a;
+        return color;
+    }
+
+    /** Same packed UV and precedence as the local vanilla overlay atlas. */
+    public static Color shaderColor(int packed)
+    {
+        Color custom=(packed==0||packed==(10<<16))?boundColor():null;
+        if(custom!=null)return custom;
+        int u=Math.min(15,packed&65535),v=Math.min(15,packed>>>16);
+        if(v<8)return new Color(1,0,0,1F-178F/255F);
+        float strength=1F-(int)((1F-u/15F*.75F)*255F)/255F;
+        return strength==0?new Color(0,0,0,0):new Color(1,1,1,strength);
+    }
 }

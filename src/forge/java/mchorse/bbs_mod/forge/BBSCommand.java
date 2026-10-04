@@ -78,7 +78,7 @@ public class BBSCommand extends CommandBase
                 return;
             case "morph_entity":
                 if (args.length != 1) throw new WrongUsageException("/bbs morph_entity");
-                EntityPlayerMP target = getCommandSenderAsPlayer(sender);
+                EntityPlayerMP target = player(sender);
                 Form mob = Morph.getMobForm(target);
                 if (mob != null) ServerNetwork.sendMorphToTracked(target, mob);
                 return;
@@ -189,7 +189,7 @@ public class BBSCommand extends CommandBase
     private void placeModel(ICommandSender sender, String[] args) throws CommandException
     {
         if (args.length < 2 || args.length > 3) throw new WrongUsageException("/bbs model <id> [animation]");
-        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        EntityPlayerMP player = player(sender);
         BlockPos pos = player.getPosition().offset(player.getHorizontalFacing(), 3);
         if (!player.world.isAirBlock(pos)) throw new CommandException("BBS: placement position is occupied");
         player.world.setBlockState(pos, CommonProxy.MODEL_BLOCK.getDefaultState(), 3);
@@ -207,6 +207,15 @@ public class BBSCommand extends CommandBase
         TileEntity tile = sender.getEntityWorld().getTileEntity(pos);
         if (!(tile instanceof ModelTileEntity)) throw new CommandException("BBS: no model block at %s", pos);
         return (ModelTileEntity) tile;
+    }
+
+    private static EntityPlayerMP player(ICommandSender sender) throws CommandException
+    {
+        /* /execute supplies a CommandSenderWrapper, while modern source.getEntity()
+         * resolves the player behind it. CommandBase only checks the wrapper itself. */
+        if (!(sender.getCommandSenderEntity() instanceof EntityPlayerMP))
+            throw new net.minecraft.command.PlayerNotFoundException("commands.generic.player.unspecified");
+        return (EntityPlayerMP) sender.getCommandSenderEntity();
     }
 
     private static WorldServer world(ICommandSender sender) throws CommandException

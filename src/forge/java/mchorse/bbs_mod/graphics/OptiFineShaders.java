@@ -109,7 +109,15 @@ public final class OptiFineShaders
             if (isShadowPass()) return;
             int program = (Integer) invokeOn(API.uniformProgram,uniform);
             if (program <= 0 || program != GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM)) return;
-            if (!previous.containsKey(program)) previous.put(program, ((float[])invokeOn(API.colorValue,uniform)).clone());
+            if (!previous.containsKey(program))
+            {
+                /* OptiFine's cache begins with -Float.MAX_VALUE, not the actual GL
+                 * default. Restoring that sentinel makes the following models black. */
+                int location=GL20.glGetUniformLocation(program,"entityColor");
+                java.nio.FloatBuffer value=org.lwjgl.BufferUtils.createFloatBuffer(4);
+                if(location>=0)GL20.glGetUniform(program,location,value);
+                previous.put(program,new float[]{value.get(0),value.get(1),value.get(2),value.get(3)});
+            }
             invokeOn(API.colorSet,uniform,r,g,b,a);
         }
         @Override public void close()
@@ -168,7 +176,7 @@ public final class OptiFineShaders
     {
         final Field loaded, world, deferred, shadow, glowing, active, activeId, none, entities, hand, handWater, texturedLit, entityColor;
         final Field terrainSolid, terrainCutoutMip, terrainCutout, water;
-        final Method use, resize, colorValue, colorSet, uniformProgram, uniformSetProgram;
+        final Method use, resize, colorSet, uniformProgram, uniformSetProgram;
         Access(Class<?> shaders) throws ReflectiveOperationException
         {
             loaded = shaders.getField("shaderPackLoaded");
@@ -186,7 +194,6 @@ public final class OptiFineShaders
             terrainCutout = shaders.getField("ProgramTerrainCutout");
             water = shaders.getField("ProgramWater");
             entityColor = shaders.getField("uniform_entityColor");
-            colorValue = entityColor.getType().getMethod("getValue");
             colorSet = entityColor.getType().getMethod("setValue",float.class,float.class,float.class,float.class);
             uniformProgram = entityColor.getType().getMethod("getProgram");
             uniformSetProgram = entityColor.getType().getMethod("setProgram",int.class);

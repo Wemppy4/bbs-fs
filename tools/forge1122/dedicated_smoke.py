@@ -1,5 +1,6 @@
 """Load the actual release mod on a local, disposable, headless Forge server."""
 import json
+import argparse
 import gzip
 import os
 from pathlib import Path
@@ -36,6 +37,7 @@ def packet(stream, kind, body, request=1):
 
 
 def main():
+    argparse.ArgumentParser(description=__doc__).parse_args()
     SERVER.mkdir(exist_ok=True)
     config = SERVER / 'server.properties'
     marker = SERVER / '.bbs-qa-server'
@@ -53,11 +55,15 @@ def main():
     (SERVER / 'eula.txt').write_text('eula=true\n', encoding='utf-8')
     LOG.parent.mkdir(exist_ok=True)
     flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+    environment = os.environ.copy()
+    local_jdk = ROOT / '.aihelper/jdk17/zulu17.66.19-ca-jdk17.0.19-win_x64'
+    if not environment.get('JAVA_HOME') and (local_jdk / 'bin/java.exe').is_file():
+        environment['JAVA_HOME'] = str(local_jdk)
     args = [str(ROOT / 'gradlew.bat'), 'runObfServer', '--no-daemon', '--console=plain']
     report = {'ok': False, 'directory': str(SERVER), 'commands': {}}
     connection = None
     with LOG.open('w', encoding='utf-8') as output:
-        process = subprocess.Popen(args, cwd=ROOT, stdin=subprocess.PIPE, stdout=output,
+        process = subprocess.Popen(args, cwd=ROOT, env=environment, stdin=subprocess.PIPE, stdout=output,
                                    stderr=subprocess.STDOUT, creationflags=flags)
         try:
             deadline = time.monotonic() + 180

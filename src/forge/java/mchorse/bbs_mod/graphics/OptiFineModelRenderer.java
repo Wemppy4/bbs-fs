@@ -19,13 +19,16 @@ public final class OptiFineModelRenderer
 
     public static Scope begin(Matrix4f modelView, Matrix4f projection, float r, float g, float b, float a, int light)
     {
-        return new Scope(modelView, projection, r, g, b, a, light, false);
+        return begin(modelView,projection,r,g,b,a,light,10<<16);
     }
+
+    public static Scope begin(Matrix4f modelView, Matrix4f projection, float r, float g, float b, float a, int light,int overlay)
+    {return new Scope(modelView,projection,r,g,b,a,light,false,overlay);}
 
     /** Vanilla's uploader supplies client-memory pointers and must not inherit a BBS VBO/VAO. */
     public static Scope beginNative(Matrix4f modelView, Matrix4f projection, float r, float g, float b, float a, int light)
     {
-        return new Scope(modelView, projection, r, g, b, a, light, true);
+        return new Scope(modelView, projection, r, g, b, a, light, true,10<<16);
     }
 
     public static void arrays(int positions, int normals, int uvs)
@@ -106,9 +109,10 @@ public final class OptiFineModelRenderer
         private final FloatBuffer color = BufferUtils.createFloatBuffer(16);
         private final FloatBuffer lightCoord = BufferUtils.createFloatBuffer(16);
         private final OptiFineShaders.EntityPass pass;
+        private final OptiFineShaders.OverlayPass overlay;
         private final boolean nativeVertices;
 
-        private Scope(Matrix4f modelView, Matrix4f projection, float r, float g, float b, float a, int light, boolean nativeVertices)
+        private Scope(Matrix4f modelView, Matrix4f projection, float r, float g, float b, float a, int light, boolean nativeVertices,int overlayUv)
         {
             this.nativeVertices = nativeVertices;
             GL11.glGetFloat(GL11.GL_CURRENT_COLOR, color);
@@ -168,10 +172,16 @@ public final class OptiFineModelRenderer
             attribute(program, "mc_midTexCoord", 0, 0, 0, 1);
             attribute(program, "at_tangent", 1, 0, 0, 1);
             OptiFinePbr.begin(normalTexture,specularTexture);
+            mchorse.bbs_mod.utils.colors.Color colorOverlay=nativeVertices?null:
+                mchorse.bbs_mod.forms.renderers.utils.FormOverlay.shaderColor(overlayUv);
+            /* Native geometry owns its entityColor scope. BBS model buffers instead
+             * carry the form/material/bone overlay in their logical sampler slot. */
+            overlay=nativeVertices?null:OptiFineShaders.overlay(colorOverlay.r,colorOverlay.g,colorOverlay.b,colorOverlay.a);
         }
 
         @Override public void close()
         {
+            if(overlay!=null)overlay.close();
             OptiFinePbr.end();
             if (nativeVertices)
             {

@@ -26,6 +26,7 @@ public final class OriginalDashboardProbe
         UIBaseMenu menu = UIScreen.getCurrentMenu();
         out.addProperty("menu", menu == null ? "" : menu.getClass().getSimpleName());
         out.addProperty("glError", GL11.glGetError());
+        out.addProperty("dashboardKey", org.lwjgl.input.Keyboard.getKeyName(mchorse.bbs_mod.forge.GlobalKeybinds.DASHBOARD.getKeyCode()));
         if (!(menu instanceof UIDashboard)) return out;
         UIDashboard dashboard = (UIDashboard) menu;
         out.addProperty("built", dashboard.isFullyBuilt());
@@ -76,6 +77,8 @@ public final class OriginalDashboardProbe
             panels.add(entry);
         }
         out.add("panels", panels);
+        if (host.panel instanceof mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel)
+            out.add("modelEditor", modelEditor((mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel) host.panel));
         JsonArray overlays = new JsonArray();
         for (UIOverlayPanel panel : menu.getRoot().getChildren(UIOverlayPanel.class))
         {
@@ -117,6 +120,76 @@ public final class OriginalDashboardProbe
             for (UIIcon close : tour.getChildren(UIIcon.class)) if (close.canBeSeen()) tours.add(area(close));
         out.add("tours", tours);
         return out;
+    }
+
+    private static Object field(Object owner, String name)
+    {
+        try
+        {
+            for (Class<?> type = owner.getClass(); type != null; type = type.getSuperclass())
+            {
+                try
+                {
+                    java.lang.reflect.Field field = type.getDeclaredField(name);
+                    field.setAccessible(true);
+                    return field.get(owner);
+                }
+                catch (NoSuchFieldException ignored) {}
+            }
+            throw new NoSuchFieldException(name);
+        }
+        catch (ReflectiveOperationException e) { throw new IllegalStateException(name, e); }
+    }
+
+    private static JsonObject modelEditor(mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel panel)
+    {
+        JsonObject out = new JsonObject();
+        out.addProperty("loaded", panel.getInstance() != null);
+        out.addProperty("instance", panel.getInstance() == null ? 0 : System.identityHashCode(panel.getInstance()));
+        out.addProperty("dirty", (Boolean) field(panel, "modelDirty"));
+        out.addProperty("editor", field(panel, "lastEditor").toString());
+        JsonArray icons = new JsonArray();
+        for (UIIcon icon : (UIIcon[]) field(panel, "editorIcons")) icons.add(area(icon));
+        out.add("editors", icons);
+        out.add("preview", area(panel.renderer));
+        mchorse.bbs_mod.ui.model_editor.UIModelGeometryEditor geometry =
+            (mchorse.bbs_mod.ui.model_editor.UIModelGeometryEditor) field(panel, "modelEditor");
+        out.addProperty("selected", geometry.getSelected());
+        out.add("tree", area((UIElement) field(geometry, "tree")));
+        out.add("addCube", area((UIElement) field(geometry, "addCube")));
+        Object cubeTransform = field(geometry, "cubeTransform");
+        out.add("cubeX", area((UIElement) field(cubeTransform, "tx")));
+        UITextbox name = (UITextbox) field(geometry, "name");
+        JsonObject nameInfo = area(name); nameInfo.addProperty("text", name.getText()); out.add("name", nameInfo);
+        JsonArray tools = new JsonArray();
+        for (UIIcon icon : geometry.getChildren(UIIcon.class)) if (icon.canBeSeen()) tools.add(area(icon));
+        out.add("tools", tools);
+        JsonArray numbers = new JsonArray();
+        for (mchorse.bbs_mod.ui.framework.elements.input.UITrackpad pad : geometry.getChildren(mchorse.bbs_mod.ui.framework.elements.input.UITrackpad.class))
+            if (pad.canBeSeen()) { JsonObject item = area(pad); item.addProperty("value", pad.getValue()); numbers.add(item); }
+        out.add("numbers", numbers);
+        JsonArray groups = new JsonArray();
+        if (panel.getInstance() != null && panel.getInstance().getModel() instanceof mchorse.bbs_mod.cubic.data.model.Model)
+            modelGroups(((mchorse.bbs_mod.cubic.data.model.Model) panel.getInstance().getModel()).topGroups, groups);
+        out.add("groups", groups);
+        return out;
+    }
+
+    private static void modelGroups(java.util.List<mchorse.bbs_mod.cubic.data.model.ModelGroup> input, JsonArray output)
+    {
+        for (mchorse.bbs_mod.cubic.data.model.ModelGroup group : input)
+        {
+            JsonObject entry = new JsonObject(); entry.addProperty("id", group.id);
+            JsonArray cubes = new JsonArray();
+            for (mchorse.bbs_mod.cubic.data.model.ModelCube cube : group.cubes)
+            {
+                JsonObject item = new JsonObject(); item.addProperty("name", cube.name);
+                item.addProperty("x", cube.origin.x); item.addProperty("y", cube.origin.y); item.addProperty("z", cube.origin.z);
+                item.addProperty("width", cube.size.x); item.addProperty("height", cube.size.y); item.addProperty("depth", cube.size.z);
+                cubes.add(item);
+            }
+            entry.add("cubes", cubes); output.add(entry); modelGroups(group.children, output);
+        }
     }
     private static JsonObject area(UIElement element)
     {

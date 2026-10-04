@@ -50,6 +50,7 @@ public class ForgeAiHelper
     private static final List<JsonObject> LOG=new ArrayList<>();
     private static final Map<Integer,Long> RELEASES=new HashMap<>();
     private static final Minecraft MC=Minecraft.getMinecraft();
+    private static final mchorse.bbs_mod.utils.WorldExportWindowSession UI_WINDOW = new mchorse.bbs_mod.utils.WorldExportWindowSession();
     private static HttpServer http;
     private static long tick;
     private static boolean autoJoin=true;
@@ -58,6 +59,7 @@ public class ForgeAiHelper
     @Mod.EventHandler public void init(FMLInitializationEvent event) throws Exception {
         MC.gameSettings.pauseOnLostFocus=false;
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.register(new DirectUIMouse());
         AbstractAppender appender=new AbstractAppender("AIHelperForge",null,PatternLayout.createDefaultLayout(),false) {
             public void append(LogEvent event) {
                 JsonObject item=new JsonObject();
@@ -157,6 +159,7 @@ public class ForgeAiHelper
             case "/bbs-shader-world-forms-probe": return ShaderWorldFormsProbe.handle(p);
             case "/bbs-extended-forms-probe": return ExtendedFormsProbe.handle(p);
             case "/bbs-trail-mob-probe": return mchorse.bbs_mod.forms.renderers.TrailMobProbe.run(p);
+            case "/bbs-forms-transparency-probe": return mchorse.bbs_mod.forms.renderers.FormsTransparencyProbe.run(p);
             case "/bbs-model-item-gpu-probe": return mchorse.bbs_mod.forms.renderers.ModelItemGPUProbe.run(p);
             case "/bbs-film-control-input-probe": return mchorse.bbs_mod.forge.FilmControlInputProbe.run();
             case "/bbs-model-blocks-probe": return ModelBlocksProbe.handle(p);
@@ -169,6 +172,7 @@ public class ForgeAiHelper
             case "/bbs-actions-probe": return OriginalActionsProbe.run(p);
             case "/bbs-selectors-probe": return OriginalSelectorsProbe.run(p);
             case "/bbs-world-export-probe": return OriginalWorldExportProbe.run(p);
+            case "/bbs-commands-probe": return OriginalCommandsProbe.run(p);
             case "/bbs-film-backend-probe": return OriginalFilmBackendProbe.handle(p);
             case "/bbs-gizmo-probe": return OriginalGizmoProbe.handle(p);
             case "/bbs-dashboard-probe": return OriginalDashboardProbe.snapshot();
@@ -194,13 +198,19 @@ public class ForgeAiHelper
                 if (!(MC.currentScreen instanceof mchorse.bbs_mod.ui.framework.UIScreen)) throw new IllegalStateException("Open a BBS screen first");
                 int ux = integer(p,"x",0), uy = integer(p,"y",0), ub = integer(p,"button",0);
                 float us = mchorse.bbs_mod.BBSModClient.getGUIScale();
-                if (bool(p,"warp",true)) org.lwjgl.input.Mouse.setCursorPosition(Math.round(ux * us), MC.displayHeight - 1 - Math.round(uy * us));
+                if (bool(p,"warp",true)) { DirectUIMouse.clear(); org.lwjgl.input.Mouse.setCursorPosition(Math.round(ux * us), MC.displayHeight - 1 - Math.round(uy * us)); }
+                else DirectUIMouse.set(MC.currentScreen,ux,uy,ub,str(p,"mode","move"));
                 mchorse.bbs_mod.ui.framework.UIBaseMenu um = mchorse.bbs_mod.ui.framework.UIScreen.getCurrentMenu();
                 um.context.setMouse(ux,uy,ub);
                 String umode = str(p,"mode","move");
                 if (umode.equals("down")) um.mouseClicked(ux,uy,ub);
                 if (umode.equals("up")) um.mouseReleased(ux,uy,ub);
                 return out;
+            case "/ui-window":
+                DirectUIMouse.clear();
+                if (bool(p,"restore",false)) UI_WINDOW.restore();
+                else UI_WINDOW.begin(Math.max(640,Math.min(2560,integer(p,"width",1280))),Math.max(360,Math.min(1440,integer(p,"height",720))));
+                out.addProperty("width",MC.displayWidth);out.addProperty("height",MC.displayHeight);return out;
             case "/bbs-ui-probe":
                 if (bool(p,"open",false)) mchorse.bbs_mod.ui.framework.UIScreen.open(new OriginalUIProbe());
                 if (p.has("scale")) mchorse.bbs_mod.BBSSettings.userIntefaceScale.set(p.get("scale").getAsFloat());
@@ -241,7 +251,7 @@ public class ForgeAiHelper
                 if(MC.world!=null) MC.world.sendQuittingDisconnectingPacket();
                 MC.loadWorld(null);MC.displayGuiScreen(new GuiMainMenu());return out;
             case "/quit": MC.addScheduledTask(() -> MC.shutdown());return out;
-            case "/release": KeyBinding.unPressAllKeys();RELEASES.clear();return out;
+            case "/release": KeyBinding.unPressAllKeys();RELEASES.clear();DirectUIMouse.clear();return out;
             case "/key":
                 String key=str(p,"key","escape");
                 int code=Keyboard.getKeyIndex(key.toUpperCase(Locale.ROOT));

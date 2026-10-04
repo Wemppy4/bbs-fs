@@ -24,6 +24,9 @@ def main():
         assert world['shaderFrames'] > 0 and world['shaderFrames'] == world['worldFrames'], world
         assert not world['errors'] and world['stateRestored'], world
         assert all(value > 0 for value in world['samples']), world
+        for draw in world.get('cemDraw', []):
+            assert not draw.get('error') and draw.get('glError', 0) == 0, draw
+            assert all(0 <= channel <= 1 for channel in draw.get('entityColor', [])), draw
         report['screenshot'] = call('/screenshot', {'name': 'shader-world-forms'})
         report['reloaded'] = probe('cem-reload')
         assert report['reloaded']['cemModelReplacedOnReload'], report['reloaded']

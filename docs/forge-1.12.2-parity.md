@@ -2,7 +2,7 @@
 
 Актуально на 2026-10-05. Полный порт **не завершён**. Baseline `41fc825c0`
 собран и выдан до изменений, после чего проверен через ai_helper. Последний
-подтверждённый общий runtime checkpoint — build12; build13 собран: настоящий Forge release
+подтверждённый общий runtime checkpoint — build13; build15 собран: настоящий Forge release
 client, Java 8, OptiFine G5, скрытый рабочий стол Windows. Номера build —
 локальные метки этой сессии, не версии продукта.
 
@@ -28,6 +28,9 @@ client, Java 8, OptiFine G5, скрытый рабочий стол Windows. Н�
 | Selectors | Правила выбора, приоритет/NBT, tick/render hooks, исходный UI и сохранение | `forge1122-selectors-smoke.json` |
 | Экспорт мира | F4 отмена прогрева/запись, F6 фильм со звуком 440 Гц, завершение, изменение и восстановление размера окна | `forge1122-world-export-smoke.json` |
 | Dedicated server | Загрузка настоящего release JAR без ai_helper/OptiFine, мир, команды, модельные/chroma блоки, сохранение и штатная остановка | `forge1122-dedicated-smoke.json` |
+| Chroma/ресурсы/UI | 8 chroma блоков без AO/diffuse; 1460 Minecraft texture links, PNG; GPU bitmap/кириллица и сглаживание при масштабе 1.5 | `forge1122-native-resources-smoke.json` |
+| Редактор модели | Реальное создание кости/куба, русское имя, координата, undo/redo, запись JSON и повторное открытие через Dashboard | `forge1122-model-editor-smoke.json` |
+| Управление/броня | Переназначенные клавиши и мышь, движение в Film UI/блокировка overlay; реальные GPU-цвета кожаной брони | `forge1122-film-control-input-smoke.json`, `forge1122-trail-mob-smoke.json` |
 
 Исходные камера, timeline/clips, gizmo, геометрия/rigging, animation states,
 медиа и Film backend подключены и проверялись на предыдущих этапах. Их старые
@@ -35,24 +38,23 @@ client, Java 8, OptiFine G5, скрытый рабочий стол Windows. Н�
 
 ## Текущая работа и границы подтверждения
 
-- PBR: реальные LabPBR карты, material sliders, relief и animated maps прошли
-  первый GPU-прогон. Проверка OldPBR и визуальная проверка материалов продолжаются.
-- Native world forms с shader pack: 7 форм уже дали GPU pixels и GL0;
-  CEM catalog/load/reload/remove прошёл. Полный CEM visual smoke повторяется
-  после исправления камеры самого проверочного стенда.
+- PBR: реальные LabPBR и OldPBR, material sliders, relief и animated maps прошли
+  GPU-прогон в подтверждённых RP_MODE=3/2. Визуальная проверка материалов продолжается.
+- Native world forms с shader pack: 8 форм дали GPU pixels и GL0;
+  CEM catalog/load/reload/remove прошёл. В build15 чёрный силуэт устранён:
+  сохранение реального GPU entityColor вместо служебного значения кеша OptiFine.
+  Цветная текстура CEM подтверждена скриншотом и диагностикой uniform.
 - Sun horizontal rotation: реальные shadow matrices/light direction/reset
   проверены; визуальный стенд камеры исправлен и ожидает повторного прогона.
-- Mob: новые позы и Trail проверены; новая проверка цвета кожаной брони и
-  управления персонажем в Film UI ожидает запуска build13.
-- Chroma blocks, Minecraft texture browser и дробное pixel-art UI smoothing:
-  source готов, проверяется новой сборкой и GPU smoke.
+- Mob: новые позы, Trail, кожаная броня и управление персонажем в Film UI проверены.
 - Native drag-and-drop: настоящие Win32 WM_DROPFILES, два Unicode PNG,
   очередь/слушатель/восстановление экрана проверены на скрытом окне.
 - Требуются совместный регрессионный прогон, проверка без OptiFine и проверка
   multiplayer границ и новых команд /bbs. Сложные сочетания прозрачных форм,
   материалы разных shader packs и физический UI-путь предметов покрыты частично.
-- Видеоform decode прошёл; найдена блокировка временного MP4 при закрытии,
-  проверяется освобождение decoder/preview ресурсов.
+- Видеоформа: decode и освобождение обоих decoder/preview владельцев прошли;
+  после завершения процессов временный MP4 успешно удаляется (наблюдалась
+  краткая задержка Windows около 10 мс).
 
 Framebuffer пользователь разрешил исключить, если перенос слишком сложен.
 Простая и вложенная формы уже рисуются после исправления native projection

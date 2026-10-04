@@ -4,6 +4,7 @@ Run after the isolated run-forge1122 client has entered its disposable world.
 The fixture is in src/aihelper only and never writes a film or world block.
 """
 import json
+import os
 import math
 from pathlib import Path
 from smoke import call, wait_for, ROOT
@@ -14,7 +15,8 @@ def state():
 
 
 def mouse(x, y, mode='move', button=0):
-    call('/ui-mouse', {'x': round(x), 'y': round(y), 'mode': mode, 'button': button})
+    call('/ui-mouse', {'x': round(x), 'y': round(y), 'mode': mode, 'button': button,
+                       'warp': os.environ.get('AIH_DIRECT_UI') != '1'})
     call('/wait', {'ticks': 2})
 
 

@@ -4,6 +4,8 @@ import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.cubic.jem.VanillaRigs;
 import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
+import mchorse.bbs_mod.forms.renderers.NativeFormCommand;
+import mchorse.bbs_mod.forms.FormTranslucentQueue;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.forge.studio.NativePickingShader;
 import mchorse.bbs_mod.forge.studio.NativeTextureRenderer;
@@ -24,6 +26,9 @@ public final class NativeMobRenderContext implements AutoCloseable
     private static NativeMobRenderContext current;
     private static int bypass;
     private static final java.lang.reflect.Field OWNER=net.minecraftforge.fml.relauncher.ReflectionHelper.findField(ModelRenderer.class,"baseModel","field_78810_s");
+    private static final java.lang.reflect.Field COMPILED=net.minecraftforge.fml.relauncher.ReflectionHelper.findField(ModelRenderer.class,"compiled","field_78812_q");
+    private static final java.lang.reflect.Field DISPLAY_LIST=net.minecraftforge.fml.relauncher.ReflectionHelper.findField(ModelRenderer.class,"displayList","field_78811_r");
+    private static final java.lang.reflect.Method COMPILE=net.minecraftforge.fml.relauncher.ReflectionHelper.findMethod(ModelRenderer.class,"compileDisplayList","func_78788_d",float.class);
     private final NativeMobRenderContext previous=current;
     private final MobForm form;
     private final VanillaRigs.Rig rig;
@@ -33,6 +38,7 @@ public final class NativeMobRenderContext implements AutoCloseable
     private final Matrix4f baseInverse;
     private final Map<ModelRenderer,String> names=new IdentityHashMap<>();
     private final Set<ModelRenderer> primary=Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<ModelRenderer> translucent=Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<ModelBase> layers=Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<String,Integer> indices=new HashMap<>();
     private final java.nio.FloatBuffer nativeColor=org.lwjgl.BufferUtils.createFloatBuffer(16);
@@ -58,14 +64,20 @@ public final class NativeMobRenderContext implements AutoCloseable
     }
     private void layer(ModelRenderer part)
     {
-        if(captureOnly||rig==null||!(rig.model() instanceof ModelBiped))return;
+        if(captureOnly||rig==null)return;
         try
         {
             ModelBase owner=(ModelBase)OWNER.get(part);
             /* Armour models use the same bone convention; skull/held-item models are already
              * inside a posed postRender frame and must not receive the pose twice. */
-            if(owner instanceof ModelBiped&&layers.add(owner))
-                for(Map.Entry<String,ModelRenderer> e:VanillaRigs.inspect(form.mobID.get().replace("minecraft:",""),owner).parts().entrySet())names.put(e.getValue(),e.getKey());
+            boolean armor=rig.model() instanceof ModelBiped&&owner instanceof ModelBiped;
+            boolean sameModel=owner!=rig.model()&&owner.getClass()==rig.model().getClass();
+            if((armor||sameModel)&&layers.add(owner))
+                for(Map.Entry<String,ModelRenderer> e:VanillaRigs.inspect(form.mobID.get().replace("minecraft:",""),owner).parts().entrySet())
+                {
+                    names.put(e.getValue(),e.getKey());
+                    if(owner instanceof net.minecraft.client.model.ModelSlime)translucent.add(e.getValue());
+                }
         }
         catch(IllegalAccessException e){throw new IllegalStateException("Cannot inspect mob render layer",e);}
     }
@@ -114,7 +126,11 @@ public final class NativeMobRenderContext implements AutoCloseable
                 int id=context.isPicking()?(primary.contains(part)?indices.getOrDefault(bone,context.getPickingIndex()):context.getPickingIndex()):-1;
                 nativeColor.clear();GL11.glGetFloat(GL11.GL_CURRENT_COLOR,nativeColor);
                 float cr=nativeColor.get(0),cg=nativeColor.get(1),cb=nativeColor.get(2),ca=nativeColor.get(3);
-                try(NativePickingShader.Scope pick=NativePickingShader.open(id))
+                if(translucent.contains(part)&&!context.isPicking()&&FormTranslucentQueue.isActive())
+                {
+                    defer(part,scale,full,cr,cg,cb,ca);
+                }
+                else try(NativePickingShader.Scope pick=NativePickingShader.open(id))
                 {
                     float r=primary.contains(part)?1:cr,g=primary.contains(part)?1:cg,b=primary.contains(part)?1:cb,a=primary.contains(part)?1:ca;
                     if(!context.ui&&!context.isPicking()&&mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass())
@@ -138,6 +154,26 @@ public final class NativeMobRenderContext implements AutoCloseable
             }
         }
         finally{GlStateManager.popMatrix();}
+    }
+    /** Capture only the gel mesh and its evaluated frame; opaque body/bones remain immediate. */
+    private void defer(ModelRenderer part,float scale,Matrix4f full,float r,float g,float b,float a)
+    {
+        try
+        {
+            if(!COMPILED.getBoolean(part))COMPILE.invoke(part,scale);
+            int list=DISPLAY_LIST.getInt(part),texture=GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            boolean cull=GL11.glIsEnabled(GL11.GL_CULL_FACE);
+            boolean ui=context.ui;
+            mchorse.bbs_mod.utils.colors.Color tint=mchorse.bbs_mod.utils.colors.Color.white();tint.mul(context.color);
+            FormTranslucentQueue.add(new NativeFormCommand(context,tint,form.overlayColor.get(),false,cull,true,false,()->
+            {
+                boolean world=!ui&&mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass();
+                GlStateManager.bindTexture(texture);GL11.glBindTexture(GL11.GL_TEXTURE_2D,texture);
+                color(r*(world?tint.r:1),g*(world?tint.g:1),b*(world?tint.b:1),a*(world?tint.a:1));GL11.glCallList(list);
+            }).matrix(full));
+        }
+        catch(ReflectiveOperationException e){throw new IllegalStateException("Cannot capture native translucent mob geometry",e);}
+        finally{color(r,g,b,a);}
     }
     private static void color(float r,float g,float b,float a)
     {

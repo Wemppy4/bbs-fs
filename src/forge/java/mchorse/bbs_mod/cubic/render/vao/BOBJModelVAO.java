@@ -379,7 +379,7 @@ public class BOBJModelVAO
         if (stencilMap == null && shader.isWorldModel())
         {
             try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(
-                modelView,mchorse.bbs_mod.graphics.render.RenderSystem.getProjectionMatrix(),r,g,b,a,light))
+                modelView,mchorse.bbs_mod.graphics.render.RenderSystem.getProjectionMatrix(),r,g,b,a,light,overlay))
             {
                 mchorse.bbs_mod.graphics.OptiFineModelRenderer.arrays(this.vertexBuffer,this.normalBuffer,this.texCoordBuffer,this.tangentBuffer,this.midUvBuffer);
                 if (this.visibleRanges == null) GL11.glDrawArrays(GL11.GL_TRIANGLES,0,this.count);

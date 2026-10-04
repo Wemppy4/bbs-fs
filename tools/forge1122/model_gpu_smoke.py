@@ -6,7 +6,8 @@ from smoke import call, ROOT
 
 def main():
     health = call('/health')
-    assert health['inWorld'] and Path(health['gameDir']).resolve() == (ROOT / 'run-forge1122').resolve(), health
+    assert health['inWorld'] and Path(health['gameDir']).resolve() in (
+        (ROOT / 'run-forge1122').resolve(), (ROOT / 'run-forge1122-obf').resolve()), health
     errors = call('/log?limit=2000&level=ERROR+')['entries']
     state = call('/bbs-model-gpu-probe', {'run': True})
     checks = ['modelLinked', 'pickerLinked', 'immutableBuilderReuse', 'uploadStateRestored',

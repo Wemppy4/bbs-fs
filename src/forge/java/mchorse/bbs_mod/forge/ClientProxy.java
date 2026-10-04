@@ -173,7 +173,9 @@ public class ClientProxy extends CommonProxy {
     }
     @SubscribeEvent public void overlay(net.minecraftforge.client.event.RenderGameOverlayEvent.Pre event) {
         mchorse.bbs_mod.ui.framework.UIBaseMenu menu = mchorse.bbs_mod.ui.framework.UIScreen.getCurrentMenu();
-        if (event.getType() == net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType.ALL && menu != null && menu.canHideHUD()) event.setCanceled(true);
+        if (event.getType() == net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType.ALL
+            && (mchorse.bbs_mod.BBSModClient.getCameraController().getCurrent() instanceof mchorse.bbs_mod.camera.controller.PlayCameraController
+                || menu != null && menu.canHideHUD())) event.setCanceled(true);
     }
     private void world() {
         Minecraft mc=Minecraft.getMinecraft();

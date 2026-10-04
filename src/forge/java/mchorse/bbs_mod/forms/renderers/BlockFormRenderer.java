@@ -44,6 +44,13 @@ public class BlockFormRenderer extends NativeGeometryFormRenderer<BlockForm>
             GlStateManager.enableCull();
             for(BlockRenderLayer layer:BlockRenderLayer.values())
             {
+                if(layer==BlockRenderLayer.TRANSLUCENT&&!context.isPicking()&&mchorse.bbs_mod.forms.FormTranslucentQueue.isActive())
+                {
+                    BakedStructure geometry=baked;
+                    mchorse.bbs_mod.forms.FormTranslucentQueue.add(new NativeFormCommand(context,tint,form.overlayColor.get(),false,true,true,false,()->
+                    {Minecraft.getMinecraft().getTextureManager().bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);geometry.render(BlockRenderLayer.TRANSLUCENT);}));
+                    continue;
+                }
                 GlStateManager.depthMask(layer!=BlockRenderLayer.TRANSLUCENT||context.isPicking());
                 GlStateManager.enableAlpha();baked.render(layer);
             }

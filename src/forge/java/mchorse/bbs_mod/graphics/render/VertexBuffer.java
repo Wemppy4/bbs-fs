@@ -14,6 +14,7 @@ public final class VertexBuffer implements AutoCloseable
     private int vao, buffer, tangents, midUvs, count, mode;
     private boolean hasTangents;
     private VertexFormat format;
+    private int overlay=10<<16;
     public VertexBuffer(Usage usage) { this.usage=usage; this.vao=GL30.glGenVertexArrays(); this.buffer=GL15.glGenBuffers(); }
     public void bind(){GL30.glBindVertexArray(this.vao);}
     public static void unbind(){GL30.glBindVertexArray(0);}
@@ -25,8 +26,11 @@ public final class VertexBuffer implements AutoCloseable
             this.bind(); GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,this.buffer);
             GL15.glBufferData(GL15.GL_ARRAY_BUFFER,built.getBuffer(),this.usage.gl);
             int index=0,offset=0;
+            this.overlay=10<<16;
             for(VertexFormat.Element element:built.format.elements)
             {
+                if(element==VertexFormat.Element.OVERLAY&&built.count>0)
+                    this.overlay=built.getBuffer().getInt(offset)|(built.getBuffer().getInt(offset+4)<<16);
                 if(element.integer) GL30.glVertexAttribIPointer(index,element.count,element.type,built.format.getVertexSizeByte(),(long)offset);
                 else GL20.glVertexAttribPointer(index,element.count,element.type,element.normalized,built.format.getVertexSizeByte(),(long)offset);
                 GL20.glEnableVertexAttribArray(index++); offset+=element.bytes();
@@ -76,7 +80,7 @@ public final class VertexBuffer implements AutoCloseable
     {
         if (shader.isWorldModel())
         {
-            try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(modelView,projection,1,1,1,1,0x00f000f0))
+            try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(modelView,projection,1,1,1,1,0x00f000f0,this.overlay))
             {
                 mchorse.bbs_mod.graphics.OptiFineModelRenderer.interleaved(this.buffer,this.format);
                 if(this.hasTangents)mchorse.bbs_mod.graphics.OptiFineModelRenderer.tangents(this.tangents,this.midUvs);

@@ -35,7 +35,7 @@ public final class OptiFinePbr
     /** Texture renderers may bind their albedo after entering a native draw scope. */
     public static void onBind(int albedo)
     {
-        if(scopes==0||resolving||GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE)!=GL13.GL_TEXTURE0)return;
+        if(scopes==0||resolving||!OptiFineShaders.isWorldPass()||GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE)!=GL13.GL_TEXTURE0)return;
         int[] maps=maps(albedo,neutralNormal,neutralSpecular);
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE2);GlStateManager.bindTexture(maps[0]);
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE3);GlStateManager.bindTexture(maps[1]);
@@ -121,11 +121,22 @@ public final class OptiFinePbr
 
     private static int fileMap(Entry entry,String suffix,int fallback)
     {
+        /* These sources describe a generated color or an account, not a sibling file.
+         * In particular, player:name_n would fetch another player's skin as a normal map. */
+        if(!hasSidecarFiles(entry.source))return fallback;
         Texture texture=BBSModClient.getTextures().getTexture(suffixed(entry.source,suffix),GL11.GL_NEAREST,true);
         if(texture==null||texture==BBSModClient.getTextures().getError()||!texture.isValid())return fallback;
         if(entry.frame>=0&&texture.getParent()!=null&&!texture.getParent().textures.isEmpty())
             texture=texture.getParent().textures.get(entry.frame%texture.getParent().textures.size());
         return texture.id;
+    }
+
+    static boolean hasSidecarFiles(Link source)
+    {
+        if(source==null||Link.COLOR.equals(source.source)||"player".equals(source.source))return false;
+        if(source instanceof MultiLink)
+            for(FilteredLink child:((MultiLink)source).children)if(!hasSidecarFiles(child.path))return false;
+        return true;
     }
 
     public static Link suffixed(Link link,String suffix)

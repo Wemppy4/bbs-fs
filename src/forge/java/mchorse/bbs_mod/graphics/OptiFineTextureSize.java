@@ -18,7 +18,13 @@ final class OptiFineTextureSize implements AutoCloseable
         Object uniform=get(API.uniform);int program=(Integer)invoke(API.getProgram,uniform);
         if(program>0&&program==GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM))
         {
-            if(!previous.containsKey(program))previous.put(program,((int[])invoke(API.getValue,uniform)).clone());
+            if(!previous.containsKey(program))
+            {
+                int location=GL20.glGetUniformLocation(program,"atlasSize");
+                java.nio.IntBuffer value=org.lwjgl.BufferUtils.createIntBuffer(2);
+                if(location>=0)GL20.glGetUniform(program,location,value);
+                previous.put(program,new int[]{value.get(0),value.get(1)});
+            }
             invoke(API.setValue,uniform,width,height);
         }
     }
@@ -43,11 +49,11 @@ final class OptiFineTextureSize implements AutoCloseable
     private static final class Access
     {
         final Field width,height,uniform;
-        final Method getProgram,setProgram,getValue,setValue;
+        final Method getProgram,setProgram,setValue;
         Access(Class<?> shaders)throws ReflectiveOperationException
         {
             width=shaders.getField("atlasSizeX");height=shaders.getField("atlasSizeY");uniform=shaders.getField("uniform_atlasSize");Class<?> type=uniform.getType();
-            getProgram=type.getMethod("getProgram");setProgram=type.getMethod("setProgram",int.class);getValue=type.getMethod("getValue");setValue=type.getMethod("setValue",int.class,int.class);
+            getProgram=type.getMethod("getProgram");setProgram=type.getMethod("setProgram",int.class);setValue=type.getMethod("setValue",int.class,int.class);
         }
     }
 }

@@ -70,6 +70,7 @@ public class LabelFormRenderer extends NativeGeometryFormRenderer<LabelForm>
             Color shadow=form.shadowColor.get();
             if(shadow.a>0)drawLines(font,lines,x,y,w,shadow.getARGBColor(),form.shadowX.get(),form.shadowY.get(),-.1F);
             drawLines(font,lines,x,y,w,form.color.get().getARGBColor(),0,0,0);
+            mchorse.bbs_mod.graphics.texture.Texture texture=off.straightTexture();
             off.restore();
             context.stack.push();
             try
@@ -80,10 +81,16 @@ public class LabelFormRenderer extends NativeGeometryFormRenderer<LabelForm>
                     m.m00(1).m01(0).m02(0).m10(0).m11(1).m12(0).m20(0).m21(0).m22(1).scale(scale);
                 }
                 Color tint=Color.white();tint.mul(context.color);
-                try(NativeFormDraw draw=new NativeFormDraw(context,tint,form.overlayColor.get(),false))
+                if(!context.isPicking()&&mchorse.bbs_mod.forms.FormTranslucentQueue.isActive())
                 {
-                    GlStateManager.disableCull();off.framebuffer.getMainTexture().bind();
-                    texturedQuad(left/16F,-top/16F,(left+width)/16F,-(top+height)/16F);
+                    off.retain();
+                    mchorse.bbs_mod.forms.FormTranslucentQueue.add(new NativeFormCommand(context,tint,form.overlayColor.get(),false,false,false,true,()->
+                    {texture.bind();texturedQuad(left/16F,-top/16F,(left+width)/16F,-(top+height)/16F);})
+                    {@Override public void release(){off.release();}});
+                }
+                else try(NativeFormDraw draw=new NativeFormDraw(context,tint,form.overlayColor.get(),false))
+                {
+                    GlStateManager.disableCull();texture.bind();texturedQuad(left/16F,-top/16F,(left+width)/16F,-(top+height)/16F);
                 }
             }
             finally{context.stack.pop();}

@@ -39,7 +39,7 @@ public class ModelVAORenderer
         if (shader.isWorldModel() && modelVAO instanceof ModelVAO)
         {
             try (mchorse.bbs_mod.graphics.OptiFineModelRenderer.Scope pass = mchorse.bbs_mod.graphics.OptiFineModelRenderer.begin(
-                modelView, RenderSystem.getProjectionMatrix(), r, g, b, a, light))
+                modelView, RenderSystem.getProjectionMatrix(), r, g, b, a, light,overlay))
             {
                 ((ModelVAO) modelVAO).renderOptiFine();
             }

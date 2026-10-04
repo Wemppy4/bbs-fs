@@ -118,7 +118,7 @@ public final class OptiFinePbrProbe
     private static int texture(int unit)
     {int active=GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);GlStateManager.setActiveTexture(GL13.GL_TEXTURE0+unit);int id=GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);GlStateManager.setActiveTexture(active);return id;}
     private static JsonArray pixels(int unit){JsonArray out=new JsonArray();for(int b:read(unit))out.add(b);return out;}
-    private static int[] read(int unit)
+    static int[] read(int unit)
     {
         int active=GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE),pbo=GL11.glGetInteger(GL21.GL_PIXEL_PACK_BUFFER_BINDING);
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE0+unit);int[] params={GL11.GL_PACK_ALIGNMENT,GL11.GL_PACK_ROW_LENGTH,GL11.GL_PACK_SKIP_ROWS,GL11.GL_PACK_SKIP_PIXELS},old=new int[4];

@@ -44,19 +44,28 @@ public class FramebufferFormRenderer extends NativeGeometryFormRenderer<Framebuf
                 super.renderBodyParts(context);
             }
             finally{context.stack.pop();context.light=light;context.ui=ui;mchorse.bbs_mod.client.BBSRendering.renderingWorld=renderingWorld;}
+            mchorse.bbs_mod.graphics.texture.Texture texture=context.isPicking()?off.framebuffer.getMainTexture():off.straightTexture();
             off.restore();
-            /* Draw while checked out: same-size forms cannot reuse a deferred texture. Child
-             * pick colours pass through unchanged rather than becoming the framebuffer's ID. */
+            /* Child pick colours pass through unchanged. Deferred visible draws hold their
+             * checked-out texture until replay, so same-size forms cannot overwrite it. */
             Color tint=Color.white();tint.mul(context.color);
-            try(NativeFormDraw draw=new NativeFormDraw(context,tint,form.overlayColor.get(),false))
+            float sx=sx(),sy=sy();
+            if(!context.isPicking()&&mchorse.bbs_mod.forms.FormTranslucentQueue.isActive())
             {
-                off.framebuffer.getMainTexture().bind();GlStateManager.disableCull();
+                off.retain();
+                mchorse.bbs_mod.forms.FormTranslucentQueue.add(new NativeFormCommand(context,tint,form.overlayColor.get(),false,false,false,true,()->
+                {texture.bind();LabelFormRenderer.texturedQuad(-sx,sy,sx,-sy);})
+                {@Override public void release(){off.release();}});
+            }
+            else try(NativeFormDraw draw=new NativeFormDraw(context,tint,form.overlayColor.get(),false))
+            {
+                texture.bind();GlStateManager.disableCull();
                 if(context.isPicking())
                 {
                     GL20.glUseProgram(0);net.minecraft.client.Minecraft.getMinecraft().entityRenderer.disableLightmap();
                     GlStateManager.color(1,1,1,1);GlStateManager.disableBlend();GlStateManager.enableAlpha();
                 }
-                LabelFormRenderer.texturedQuad(-sx(),sy(),sx(),-sy());
+                LabelFormRenderer.texturedQuad(-sx,sy,sx,-sy);
             }
         }
     }
