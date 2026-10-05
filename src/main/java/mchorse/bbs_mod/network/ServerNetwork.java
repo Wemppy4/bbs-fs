@@ -10,7 +10,6 @@ import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ByteType;
-import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.entity.IEntityFormProvider;
@@ -313,9 +312,18 @@ public class ServerNetwork
             }
             else if (op == RepositoryOperation.KEYS)
             {
-                ListType list = DataStorageUtils.stringListToData(films.getKeys());
+                /* With dates when asked for them; a plain list for whoever asks without */
+                if (data.getBool("modified"))
+                {
+                    MapType modified = new MapType();
 
-                sendManagerData(player, callbackId, op, list);
+                    films.getModified().forEach(modified::putLong);
+                    sendManagerData(player, callbackId, op, modified);
+                }
+                else
+                {
+                    sendManagerData(player, callbackId, op, DataStorageUtils.stringListToData(films.getKeys()));
+                }
             }
             else if (op == RepositoryOperation.BACKUPS)
             {

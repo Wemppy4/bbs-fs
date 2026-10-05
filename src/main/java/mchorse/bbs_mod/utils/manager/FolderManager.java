@@ -4,8 +4,9 @@ import mchorse.bbs_mod.settings.values.core.ValueGroup;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Set;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -124,19 +125,27 @@ public abstract class FolderManager <T extends ValueGroup> implements IManager<T
     @Override
     public Collection<String> getKeys()
     {
-        Set<String> set = new HashSet<>();
+        return new HashSet<>(this.getModified().keySet());
+    }
+
+    /**
+     * Every key with when it was last changed on disk; an empty folder goes by the folder's own time.
+     */
+    public Map<String, Long> getModified()
+    {
+        Map<String, Long> map = new HashMap<>();
 
         if (this.folder == null)
         {
-            return set;
+            return map;
         }
 
-        this.recursiveFind(set, this.getFolder(), "");
+        this.recursiveFind(map, this.getFolder(), "");
 
-        return set;
+        return map;
     }
 
-    private void recursiveFind(Set<String> set, File folder, String prefix)
+    private void recursiveFind(Map<String, Long> map, File folder, String prefix)
     {
         for (File file : folder.listFiles())
         {
@@ -144,7 +153,7 @@ public abstract class FolderManager <T extends ValueGroup> implements IManager<T
 
             if (file.isFile() && this.isData(file))
             {
-                set.add(prefix + name.substring(0, name.lastIndexOf(".")));
+                map.put(prefix + name.substring(0, name.lastIndexOf(".")), file.lastModified());
             }
             else if (file.isDirectory() && !file.getName().startsWith("_"))
             {
@@ -152,11 +161,11 @@ public abstract class FolderManager <T extends ValueGroup> implements IManager<T
 
                 if (files == null || files.length == 0)
                 {
-                    set.add(prefix + name + "/");
+                    map.put(prefix + name + "/", file.lastModified());
                 }
                 else
                 {
-                    this.recursiveFind(set, file, prefix + name + "/");
+                    this.recursiveFind(map, file, prefix + name + "/");
                 }
             }
         }

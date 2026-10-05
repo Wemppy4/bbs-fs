@@ -14,7 +14,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
-import java.util.Collection;
+import java.util.Map;
 
 /**
  * A dashboard panel that edits something: a strip of tabs and actions along the top, and the
@@ -65,8 +65,8 @@ public abstract class UIEditorDashboardPanel extends UIDashboardPanel implements
 
     /**
      * The name list is refreshed once per screen, when this panel is actually looked at — and
-     * again whenever the landing screen is the thing being looked at, because its list of what
-     * was opened last is only as honest as the names behind it.
+     * again whenever the landing screen is the thing being looked at, because its list sorted by
+     * the last change is only as honest as the dates behind it.
      */
     private void requestNamesWhenStale()
     {
@@ -165,16 +165,16 @@ public abstract class UIEditorDashboardPanel extends UIDashboardPanel implements
         this.tabs.pick(id);
     }
 
-    /** Ask what still exists; the answer is expected back through {@link #fillNames(Collection)}. */
+    /** Ask what exists; the answer is expected back through {@link #fillNames(Map)}. */
     @Override
     public abstract void requestNames();
 
-    /** The ids that still exist. */
-    public void fillNames(Collection<String> names)
+    /** The ids that exist, with when each was last changed. */
+    public void fillNames(Map<String, Long> names)
     {
         if (this.landing != null)
         {
-            this.landing.fillNames(names);
+            this.landing.fill(names);
         }
     }
 }

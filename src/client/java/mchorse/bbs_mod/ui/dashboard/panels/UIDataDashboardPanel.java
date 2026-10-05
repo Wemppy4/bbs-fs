@@ -13,13 +13,12 @@ import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.onboarding.Onboarding;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.utils.UIDataUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 
 import java.io.File;
-import java.util.Collection;
+import java.util.Map;
 
 public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUDDashboardPanel
 {
@@ -90,7 +89,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         this.save();
     }
 
-    /* Renames and removals done in the data manager, mirrored onto the open tabs and the recent list */
+    /* Renames and removals done in the data manager, mirrored onto the open tabs */
 
     public void onDataRenamed(String from, String to)
     {
@@ -100,7 +99,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.renameId(from, to);
-        BBSSettings.recentData.rename(this.getType().getId(), from, to);
     }
 
     public void onDataFolderRenamed(String fromPath, String name)
@@ -111,7 +109,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.renameFolder(fromPath, name);
-        BBSSettings.recentData.renameFolder(this.getType().getId(), fromPath, name);
     }
 
     public void onDataRemoved(String id)
@@ -122,7 +119,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.forgetId(id);
-        BBSSettings.recentData.forget(this.getType().getId(), id);
 
         if (this.data != null && id.equals(this.data.getId()))
         {
@@ -138,7 +134,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         }
 
         this.tabs.forgetFolder(path);
-        BBSSettings.recentData.forgetFolder(this.getType().getId(), path);
 
         String id = this.data == null ? null : this.data.getId();
         String prefix = path.endsWith("/") ? path : path + "/";
@@ -160,12 +155,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     public abstract ContentType getType();
 
     /* ILandingHost — the landing screen of a panel that edits saved documents */
-
-    @Override
-    public String getRecentType()
-    {
-        return this.getType().getId();
-    }
 
     @Override
     public File getDataFolder()
@@ -232,7 +221,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         if (data != null && data.getId() != null)
         {
             this.overlay.namesList.setCurrentFile(data.getId());
-            BBSSettings.recentData.touch(this.getType().getId(), data.getId());
         }
 
         this.savingTimer.mark(BBSSettings.editorPeriodicSave.get() * 1000L);
@@ -244,7 +232,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     {}
 
     @Override
-    public void fillNames(Collection<String> names)
+    public void fillNames(Map<String, Long> names)
     {
         super.fillNames(names);
 
@@ -257,7 +245,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
             this.tabs.setOpenId(value);
         }
 
-        this.overlay.namesList.fill(names);
+        this.overlay.namesList.fill(names.keySet());
 
         if (value != null)
         {
@@ -268,7 +256,7 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
     @Override
     public void requestNames()
     {
-        UIDataUtils.requestNames(this.getType(), this::fillNames);
+        this.getType().getRepository().requestModified(this::fillNames);
     }
 
     public void save()

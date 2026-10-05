@@ -27,9 +27,6 @@ public interface ILandingHost
     /** Icon of an entry &mdash; the same one its tab wears. */
     Icon getTabIcon(String id);
 
-    /** Under which key the recently opened are kept in the settings. */
-    String getRecentType();
-
     /** Open an entry, the way picking it out of the list would. */
     void pickData(String id);
 
@@ -42,8 +39,8 @@ public interface ILandingHost
     void openDataManager();
 
     /**
-     * Ask what still exists; the answer comes back through {@link UILandingScreen#fillNames}.
-     * Over the network that takes a moment, which is why the list is drawn before it arrives.
+     * Ask what exists and when each was last changed; the answer comes back through
+     * {@link UILandingScreen#fill}. Over the network that takes a moment.
      */
     void requestNames();
 

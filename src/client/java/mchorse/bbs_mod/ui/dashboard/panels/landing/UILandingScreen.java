@@ -6,8 +6,8 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
-import mchorse.bbs_mod.settings.values.core.ValueRecentData.Entry;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.dashboard.panels.landing.UILandingList.Entry;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -23,14 +23,14 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * What an empty tab shows: a menu on the left — new, the list, the folder, the community links —
- * and on the right what was opened last, so the way back into yesterday's work is one click.
+ * and on the right everything there is, the last changed first, so the way back into yesterday's
+ * work is one click.
  *
  * <p>Nothing here changes files. Renaming, removing, folders, duplicates all live in the data
  * manager the list entry leads to; this screen only opens things.</p>
@@ -50,7 +50,7 @@ public class UILandingScreen extends UIElement
     private static final int GUTTER = 20;
     private static final int GROUP_GAP = 10;
 
-    private static final int RECENT_X = PADDING + MENU_W + GUTTER;
+    private static final int LIST_X = PADDING + MENU_W + GUTTER;
     private static final int CONTENT_Y = BANNER_H + BANNER_MARGIN;
     private static final int LIST_Y = CONTENT_Y + HEADER_H + HEADER_MARGIN;
 
@@ -86,11 +86,11 @@ public class UILandingScreen extends UIElement
     private final UIElement banner;
     private final UIElement menu;
     private final UILandingRow folder;
-    private final UIRecentDataList recent;
+    private final UILandingList list;
     private final String bannerVersion = getReleaseVersion();
 
-    /** Ids the repository reported last; null until it answered, when nothing is filtered out. */
-    private Set<String> known;
+    /** Whether the panel has answered at all; until then an empty list does not mean there is nothing. */
+    private boolean filled;
 
     public UILandingScreen(ILandingHost host)
     {
@@ -108,13 +108,13 @@ public class UILandingScreen extends UIElement
         title.labelAnchor(0, 0.5F);
         title.relative(this.card).xy(PADDING, CONTENT_Y).w(MENU_W).h(HEADER_H);
 
-        UILabel recentTitle = UI.label(UIKeys.PANELS_LANDING_RECENT).color(DIMMED);
-        recentTitle.labelAnchor(0, 0.5F);
-        recentTitle.relative(this.card).xy(RECENT_X, CONTENT_Y).w(CARD_W - RECENT_X - PADDING).h(HEADER_H);
+        UILabel listTitle = UI.label(UIKeys.PANELS_LANDING_MODIFIED).color(DIMMED);
+        listTitle.labelAnchor(0, 0.5F);
+        listTitle.relative(this.card).xy(LIST_X, CONTENT_Y).w(CARD_W - LIST_X - PADDING).h(HEADER_H);
 
         /* The menu: what leads into the editor first, what leads out of it after a gap */
         IKey createLabel = host.getCreateLabel();
-        UILandingRow list = new UILandingRow(Icons.MORE, host.getListLabel(), (b) -> host.openDataManager());
+        UILandingRow manager = new UILandingRow(Icons.MORE, host.getListLabel(), (b) -> host.openDataManager());
         UIElement gap = new UIElement();
         UILandingRow discord = new UILandingRow(Icons.DISCORD, IKey.constant("Discord"), (b) -> UIUtils.openWebLink(DISCORD_LINK));
         UILandingRow tutorials = new UILandingRow(Icons.PLAY, UIKeys.SUPPORTERS_TUTORIALS, (b) -> UIUtils.openWebLink(TUTORIALS_LINK));
@@ -130,7 +130,7 @@ public class UILandingScreen extends UIElement
          * to create; there the list is the way in, and it wears the accent instead */
         if (createLabel == null)
         {
-            list.accent();
+            manager.accent();
         }
         else
         {
@@ -140,7 +140,7 @@ public class UILandingScreen extends UIElement
             rows.add(create);
         }
 
-        rows.add(list);
+        rows.add(manager);
         rows.add(this.folder);
         rows.add(gap);
         rows.add(discord);
@@ -150,16 +150,16 @@ public class UILandingScreen extends UIElement
         this.menu = UI.column(0, rows.toArray(new UIElement[0]));
         this.menu.relative(this.card).xy(PADDING, LIST_Y).w(MENU_W).h(1F, -(LIST_Y + PADDING));
 
-        this.recent = new UIRecentDataList((entries) -> this.open(entries.get(0)), host::getTabIcon);
-        this.recent.relative(this.card).xy(RECENT_X, LIST_Y).w(CARD_W - RECENT_X - PADDING).h(1F, -(LIST_Y + PADDING));
-        this.recent.context(this::fillRecentMenu);
+        this.list = new UILandingList((entries) -> this.open(entries.get(0)), host::getTabIcon);
+        this.list.relative(this.card).xy(LIST_X, LIST_Y).w(CARD_W - LIST_X - PADDING).h(1F, -(LIST_Y + PADDING));
+        this.list.context(this::fillListMenu);
 
         this.card.add(new UIRenderable((context) -> this.renderCard(context, this.card.area)));
-        this.card.add(this.banner, title, recentTitle, this.menu);
-        this.card.add(new UIRenderable(this::renderEmptyHint), this.recent);
+        this.card.add(this.banner, title, listTitle, this.menu);
+        this.card.add(new UIRenderable(this::renderEmptyHint), this.list);
         this.add(new UIRenderable(this::renderBackdrop), this.card);
 
-        this.refresh();
+        this.syncFolder();
     }
 
     /** The card in the middle — what a tour points at when it points at the landing screen. */
@@ -198,25 +198,37 @@ public class UILandingScreen extends UIElement
 
         if (visible && !wasVisible)
         {
-            this.refresh();
+            this.syncFolder();
             this.host.requestNames();
         }
     }
 
-    /** The repository answered: whatever it no longer has drops out of the list. */
-    public void fillNames(Collection<String> names)
-    {
-        this.known = new HashSet<>(names);
-
-        this.refresh();
-    }
-
     /**
-     * Rebuild from the registry. The list is drawn from the settings right away, without waiting
-     * for the repository — over the network that answer takes a moment, and the screen must not
+     * The panel answered with everything it has and when each was last changed. Until the next
+     * answer the previous list stays: over the network it takes a moment, and the screen must not
      * flash empty every time a tab is emptied.
      */
-    private void refresh()
+    public void fill(Map<String, Long> names)
+    {
+        List<Entry> entries = new ArrayList<>();
+
+        names.forEach((id, time) ->
+        {
+            /* Empty folders come along with the names; there is nothing to open in them */
+            if (!id.endsWith("/"))
+            {
+                entries.add(new Entry(id, time));
+            }
+        });
+
+        entries.sort(Comparator.comparingLong(Entry::time).reversed().thenComparing(Entry::id, String.CASE_INSENSITIVE_ORDER));
+
+        this.filled = true;
+        this.list.setList(entries);
+        this.list.deselect();
+    }
+
+    private void syncFolder()
     {
         boolean hasFolder = this.host.getDataFolder() != null;
 
@@ -225,24 +237,11 @@ public class UILandingScreen extends UIElement
             this.folder.setVisible(hasFolder);
             this.menu.resize();
         }
-
-        List<Entry> entries = new ArrayList<>();
-
-        for (Entry entry : BBSSettings.recentData.get(this.host.getRecentType()))
-        {
-            if (this.known == null || this.known.contains(entry.id))
-            {
-                entries.add(entry);
-            }
-        }
-
-        this.recent.setList(entries);
-        this.recent.deselect();
     }
 
     private void open(Entry entry)
     {
-        this.host.pickData(entry.id);
+        this.host.pickData(entry.id());
     }
 
     private void openFolder()
@@ -255,24 +254,17 @@ public class UILandingScreen extends UIElement
         }
     }
 
-    private void fillRecentMenu(ContextMenuManager menu)
+    private void fillListMenu(ContextMenuManager menu)
     {
-        Entry entry = this.recent.getEntryAtCursor(this.getContext());
+        Entry entry = this.list.getEntryAtCursor(this.getContext());
 
         if (entry == null)
         {
             return;
         }
 
-        menu.action(this.host.getTabIcon(entry.id), UIKeys.PANELS_LANDING_OPEN, () -> this.open(entry));
-        menu.action(Icons.MORE, UIKeys.PANELS_LANDING_SHOW_IN_MANAGER, () -> this.host.showInList(entry.id));
-        menu.action(Icons.REMOVE, UIKeys.PANELS_LANDING_FORGET, () -> this.forget(entry));
-    }
-
-    private void forget(Entry entry)
-    {
-        BBSSettings.recentData.forget(this.host.getRecentType(), entry.id);
-        this.refresh();
+        menu.action(this.host.getTabIcon(entry.id()), UIKeys.PANELS_LANDING_OPEN, () -> this.open(entry));
+        menu.action(Icons.MORE, UIKeys.PANELS_LANDING_SHOW_IN_MANAGER, () -> this.host.showInList(entry.id()));
     }
 
     @Override
@@ -315,14 +307,14 @@ public class UILandingScreen extends UIElement
 
     private void renderEmptyHint(UIContext context)
     {
-        if (!this.recent.getList().isEmpty())
+        if (!this.filled || !this.list.getList().isEmpty())
         {
             return;
         }
 
         FontRenderer font = context.batcher.getFont();
-        Area area = this.recent.area;
-        List<String> lines = font.wrap(UIKeys.PANELS_LANDING_RECENT_EMPTY.get(), area.w - PADDING * 2);
+        Area area = this.list.area;
+        List<String> lines = font.wrap(UIKeys.PANELS_LANDING_EMPTY.get(), area.w - PADDING * 2);
         int lineH = font.getHeight() + 2;
         int y = area.my() - lines.size() * lineH / 2;
 

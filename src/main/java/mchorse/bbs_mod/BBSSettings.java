@@ -9,7 +9,6 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.values.core.ValueLink;
 import mchorse.bbs_mod.settings.values.core.ValueLinkList;
-import mchorse.bbs_mod.settings.values.core.ValueRecentData;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
@@ -64,7 +63,6 @@ public class BBSSettings {
 	public static ValueInt textureCellSize;
 	public static ValueString textureSort;
 	public static ValueLinkList texturePins;
-	public static ValueRecentData recentData;
 	public static ValueFloat axesScale;
 	public static ValueFloat axesThickness;
 	public static ValueBoolean gizmoKeepScreenSize;
@@ -697,9 +695,6 @@ public class BBSSettings {
 		texturePins = new ValueLinkList("texture_pins", List.of(Link.assets("textures/")));
 		texturePins.invisible();
 		builder.register(texturePins);
-		recentData = new ValueRecentData("recent_data");
-		recentData.invisible();
-		builder.register(recentData);
 		/* Kept by the browsers themselves (Ctrl+wheel, the sort menu); nothing to tune in the settings screen */
 		formCellSize.invisible();
 		textureCellSize.invisible();

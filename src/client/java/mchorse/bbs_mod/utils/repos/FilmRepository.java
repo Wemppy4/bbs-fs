@@ -8,7 +8,9 @@ import mchorse.bbs_mod.network.ClientNetwork;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class FilmRepository implements IRepository<Film>
@@ -96,6 +98,32 @@ public class FilmRepository implements IRepository<Film>
             }
 
             callback.accept(list);
+        });
+    }
+
+    @Override
+    public void requestModified(Consumer<Map<String, Long>> callback)
+    {
+        MapType mapType = new MapType();
+
+        mapType.putBool("modified", true);
+
+        ClientNetwork.sendManagerData(RepositoryOperation.KEYS, mapType, (data) ->
+        {
+            if (!data.isMap())
+            {
+                return;
+            }
+
+            MapType map = data.asMap();
+            Map<String, Long> modified = new HashMap<>();
+
+            for (String key : map.keys())
+            {
+                modified.put(key, map.getLong(key));
+            }
+
+            callback.accept(modified);
         });
     }
 

@@ -1258,11 +1258,10 @@ public class UIKeys
     public static final IKey PANELS_KEYS_OPEN_DATA_MANAGER = L10n.lang("bbs.ui.panels.keys.open_data_list");
     public static final IKey PANELS_KEYS_OPEN_NEW_TAB = L10n.lang("bbs.ui.panels.keys.open_new_tab");
     public static final IKey PANELS_KEYS_TOGGLE_CHALKBOARD = L10n.lang("bbs.ui.panels.keys.toggle_chalkboard");
-    public static final IKey PANELS_LANDING_RECENT = L10n.lang("bbs.ui.panels.landing.recent");
-    public static final IKey PANELS_LANDING_RECENT_EMPTY = L10n.lang("bbs.ui.panels.landing.recent_empty");
+    public static final IKey PANELS_LANDING_MODIFIED = L10n.lang("bbs.ui.panels.landing.modified");
+    public static final IKey PANELS_LANDING_EMPTY = L10n.lang("bbs.ui.panels.landing.empty");
     public static final IKey PANELS_LANDING_OPEN = L10n.lang("bbs.ui.panels.landing.open");
     public static final IKey PANELS_LANDING_SHOW_IN_MANAGER = L10n.lang("bbs.ui.panels.landing.show_in_manager");
-    public static final IKey PANELS_LANDING_FORGET = L10n.lang("bbs.ui.panels.landing.forget");
     public static final IKey PANELS_LANDING_TIME_NOW = L10n.lang("bbs.ui.panels.landing.time.now");
     public static final IKey PANELS_LANDING_TIME_MINUTES = L10n.lang("bbs.ui.panels.landing.time.minutes");
     public static final IKey PANELS_LANDING_TIME_HOURS = L10n.lang("bbs.ui.panels.landing.time.hours");

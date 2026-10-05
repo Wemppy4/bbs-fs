@@ -8,6 +8,7 @@ import mchorse.bbs_mod.utils.repos.IRepository;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -56,6 +57,15 @@ public class ModelManagerRepository implements IRepository<ModelConfig>
         if (callback != null)
         {
             callback.accept(BBSModClient.getModels().getAvailableKeys());
+        }
+    }
+
+    @Override
+    public void requestModified(Consumer<Map<String, Long>> callback)
+    {
+        if (callback != null)
+        {
+            callback.accept(BBSModClient.getModels().getModified());
         }
     }
 

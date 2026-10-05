@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.dashboard.panels.landing;
 
-import mchorse.bbs_mod.settings.values.core.ValueRecentData.Entry;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
@@ -17,16 +16,20 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * The landing screen's list of what was opened last. A click opens the row under the cursor;
- * the arrow keys walk the list and Enter opens the chosen one, so the way back into yesterday's
- * work needs no mouse.
+ * The landing screen's list of everything a panel can open, the last changed first. A click opens
+ * the row under the cursor; the arrow keys walk the list and Enter opens the chosen one, so the
+ * way back into yesterday's work needs no mouse.
  *
  * <p>A row is the document's icon, its name, the folder it sits in and how long ago it was
- * opened — the name in white, the rest dimmed. Hover and selection look the way they do in
+ * changed — the name in white, the rest dimmed. Hover and selection look the way they do in
  * every other list of the mod.</p>
  */
-public class UIRecentDataList extends UIList<Entry>
+public class UILandingList extends UIList<UILandingList.Entry>
 {
+    /** A document and when it was last changed; 0 when that is unknown. */
+    public record Entry(String id, long time)
+    {}
+
     public static final int ROW = 20;
 
     private static final int ICON_X = 2;
@@ -36,7 +39,7 @@ public class UIRecentDataList extends UIList<Entry>
 
     private final Function<String, Icon> icons;
 
-    public UIRecentDataList(Consumer<List<Entry>> callback, Function<String, Icon> icons)
+    public UILandingList(Consumer<List<Entry>> callback, Function<String, Icon> icons)
     {
         super(callback);
 
@@ -94,7 +97,7 @@ public class UIRecentDataList extends UIList<Entry>
     @Override
     protected String elementToString(UIContext context, int i, Entry element)
     {
-        return element.id;
+        return element.id();
     }
 
     @Override
@@ -141,10 +144,10 @@ public class UIRecentDataList extends UIList<Entry>
     protected void renderElementPart(UIContext context, Entry element, int i, int x, int y, boolean hover, boolean selected)
     {
         FontRenderer font = context.batcher.getFont();
-        DataPath path = new DataPath(element.id);
+        DataPath path = new DataPath(element.id());
         DataPath parent = path.getParent();
         String folder = parent.strings.isEmpty() ? "" : parent.toString() + "/";
-        String ago = ago(element.time);
+        String ago = element.time() > 0L ? ago(element.time()) : "";
 
         int muted = Colors.setA(Colors.WHITE, 0.5F);
         int h = this.rowHeight();
@@ -153,7 +156,7 @@ public class UIRecentDataList extends UIList<Entry>
         int agoW = font.getWidth(ago);
         int textX = x + TEXT_X;
 
-        context.batcher.icon(this.icons.apply(element.id), RowStyle.iconColor(hover || selected), x + ICON_X, y + h / 2, 0F, 0.5F);
+        context.batcher.icon(this.icons.apply(element.id()), RowStyle.iconColor(hover || selected), x + ICON_X, y + h / 2, 0F, 0.5F);
         context.batcher.text(ago, right - agoW, textY, muted, false);
 
         String name = font.limitToWidth(path.getLast(), right - agoW - GAP - textX);

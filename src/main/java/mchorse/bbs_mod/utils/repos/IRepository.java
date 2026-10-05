@@ -6,6 +6,7 @@ import mchorse.bbs_mod.data.types.MapType;
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public interface IRepository<T extends IDataSerializable>
@@ -26,6 +27,9 @@ public interface IRepository<T extends IDataSerializable>
     public void delete(String id);
 
     public void requestKeys(Consumer<Collection<String>> callback);
+
+    /** The keys with when each was last changed, in milliseconds; 0 when that is unknown. */
+    public void requestModified(Consumer<Map<String, Long>> callback);
 
     public default void requestBackups(String id, Consumer<Collection<String>> callback)
     {

@@ -5,6 +5,7 @@ import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.utils.manager.FolderManager;
 import mchorse.bbs_mod.utils.manager.BaseManager;
 import java.util.List;
+import java.util.Map;
 
 import java.io.File;
 import java.util.Collection;
@@ -60,6 +61,15 @@ public class FolderManagerRepository <T extends ValueGroup> implements IReposito
         if (callback != null)
         {
             callback.accept(this.manager.getKeys());
+        }
+    }
+
+    @Override
+    public void requestModified(Consumer<Map<String, Long>> callback)
+    {
+        if (callback != null)
+        {
+            callback.accept(this.manager.getModified());
         }
     }
 
