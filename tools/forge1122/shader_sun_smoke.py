@@ -1,6 +1,7 @@
 """Check actual OptiFine shadow matrices and light vector under a real horizontal sun curve."""
 import json
-from smoke import call, ROOT
+from smoke import call
+from qa_environment import checked_client, report_path
 
 
 def snapshot():
@@ -11,7 +12,8 @@ def snapshot():
 
 
 def main():
-    report = {}
+    target=checked_client()
+    report = {'target': target}
     try:
         call('/bbs-shader-curves-probe', {'action': 'start', 'option': 'sun_horizontal_rotation', 'from': 0, 'to': 90})
         call('/wait', {'ticks': 10})
@@ -36,7 +38,7 @@ def main():
         call('/bbs-shader-curves-probe', {'action': 'stop'})
         call('/wait', {'ticks': 5})
         report['stopped'] = snapshot()
-        path = ROOT / 'build/reports/forge1122-shader-sun-smoke.json'
+        path = report_path('forge1122-shader-sun-smoke.json')
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(report, indent=2), encoding='utf-8')
     assert report['stopped']['sunYaw'] == 0 and report['stopped']['glError'] == 0, report

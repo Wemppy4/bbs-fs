@@ -9,13 +9,14 @@ import subprocess
 import sys
 import uuid
 import wave
-from smoke import ROOT, call
+from smoke import call
+from qa_environment import checked_client, report_path
 from dashboard_smoke import dismiss_onboarding
 import export_smoke
 
 
 def main():
-    os.environ['AIH_DIRECT_UI']='1'
+    target=checked_client()
     assets=Path(call('/bbs-export-fixture',{'paths':True})['assets'])
     name='sounds/__ai_export_'+uuid.uuid4().hex+'.wav'
     tone=assets/name
@@ -32,10 +33,9 @@ def main():
         dismiss_onboarding()
         call('/wait',{'ticks':10})
         call('/screenshot',{'name':'export-audio-original-editor'})
-        release=Path(call('/health')['gameDir']).name.endswith('-obf')
-        sys.argv=['export_smoke','--film',fixture['dataId']]+(['--release'] if release else [])
+        sys.argv=['export_smoke','--film',fixture['dataId']]
         export_smoke.main()
-        path=ROOT/'build/reports/forge1122-export-smoke.json'
+        path=report_path('forge1122-export-smoke.json')
         report=json.loads(path.read_text(encoding='utf-8'))
         movie=report['movie']
         metadata=json.loads(subprocess.check_output([export_smoke.executable('ffprobe'),'-v','error','-select_streams','a:0','-show_streams','-of','json',movie],text=True,encoding='utf-8'))
@@ -49,7 +49,7 @@ def main():
         frequency=crossings*rate/len(core)
         assert abs(frequency-440)<5,frequency
         report['audio']={'stream':metadata['streams'][0],'rms':rms,'frequencyHz':frequency,'seconds':len(data)/rate}
-        output=ROOT/'build/reports/forge1122-export-audio-smoke.json'
+        output=report_path('forge1122-export-audio-smoke.json')
         output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         print('PASS: actual export video + 440Hz audio',output)
     finally:

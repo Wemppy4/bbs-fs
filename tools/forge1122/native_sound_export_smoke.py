@@ -4,7 +4,8 @@ import json
 import math
 from pathlib import Path
 import subprocess
-from smoke import ROOT, call
+from smoke import call
+from qa_environment import checked_client, report_path
 from dashboard_smoke import dismiss_onboarding
 from world_export_smoke import key, wait_for, inspect_movie
 from export_smoke import executable
@@ -15,7 +16,7 @@ def rms(samples):
 
 
 def main():
-    report = {'ok': False}
+    report = {'ok': False, 'target': checked_client()}
     try:
         before = call('/bbs-world-export-probe', {'op': 'prepare'})
         dismiss_onboarding()
@@ -60,7 +61,7 @@ def main():
         report['ok'] = True
     finally:
         report['cleanup'] = call('/bbs-world-export-probe', {'op': 'cleanup'})
-        output = ROOT / 'build/reports/forge1122-native-sound-export-smoke.json'
+        output = report_path('forge1122-native-sound-export-smoke.json')
         output.write_text(json.dumps(report, indent=2), encoding='utf8')
     print('PASS: native SoundHandler -> capture -> mix -> AAC', output)
 

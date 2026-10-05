@@ -2,7 +2,8 @@
 import json
 from pathlib import Path
 import re
-from smoke import call, mc, ROOT
+from smoke import call, mc
+from qa_environment import checked_client, report_path
 
 
 def probe(action):
@@ -12,16 +13,14 @@ def probe(action):
 
 
 def main():
-    health = call('/health')
-    assert health['inWorld'], 'An isolated shader world is required'
-    run = Path(health['gameDir']).resolve()
-    assert run == (ROOT / 'run-forge1122-obf').resolve(), health
+    target=checked_client()
+    run=Path(target['gameDir'])
     pack = call('/bbs-optifine-probe')['pack']
     assert pack.startswith('Complementary') and Path(pack).name == pack, pack
     options = run / 'shaderpacks' / (pack + '.txt')
     original = options.read_bytes() if options.exists() else None
-    result = {'pack': pack, 'modes': {}}
-    path = ROOT / 'build/reports/forge1122-pbr-smoke.json'
+    result = {'target': target, 'pack': pack, 'modes': {}}
+    path = report_path('forge1122-pbr-smoke.json')
     try:
         for mode, name in ((3, 'labPBR'), (2, 'OldPBR')):
             if call('/health')['inWorld']:

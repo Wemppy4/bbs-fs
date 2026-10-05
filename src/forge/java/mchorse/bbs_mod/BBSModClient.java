@@ -111,6 +111,44 @@ public final class BBSModClient
         mchorse.bbs_mod.client.renderer.item.GunItemRenderer.Entry gun = mchorse.bbs_mod.client.renderer.item.GunItemRenderer.INSTANCE.get(stack);
         return gun == null ? null : gun.properties;
     }
+    /** Original world hotkeys use the same GLFW key IDs saved by the form editor. */
+    public static void onEndKey(int key, int action)
+    {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (action != mchorse.bbs_mod.graphics.window.InputCodes.PRESS || key == mchorse.bbs_mod.graphics.window.InputCodes.KEY_UNKNOWN
+            || mc.player == null || mc.currentScreen != null) return;
+
+        mchorse.bbs_mod.morphing.Morph morph = mchorse.bbs_mod.morphing.Morph.getMorph(mc.player);
+        if (morph != null && morph.getForm() != null && morph.getForm().findState(key, (form, state) ->
+        {
+            mchorse.bbs_mod.network.ClientNetwork.sendFormTrigger(state.id.get(), mchorse.bbs_mod.network.ServerNetwork.STATE_TRIGGER_MORPH);
+            form.playState(state);
+        })) return;
+
+        mchorse.bbs_mod.blocks.entities.ModelProperties main = getItemStackProperties(mc.player.getHeldItemMainhand());
+        mchorse.bbs_mod.blocks.entities.ModelProperties offhand = getItemStackProperties(mc.player.getHeldItemOffhand());
+        if (main != null && main.getForm() != null && main.getForm().findState(key, (form, state) ->
+        {
+            mchorse.bbs_mod.network.ClientNetwork.sendFormTrigger(state.id.get(), mchorse.bbs_mod.network.ServerNetwork.STATE_TRIGGER_MAIN_HAND_ITEM);
+            form.playState(state);
+        })) return;
+        if (offhand != null && offhand.getForm() != null && offhand.getForm().findState(key, (form, state) ->
+        {
+            mchorse.bbs_mod.network.ClientNetwork.sendFormTrigger(state.id.get(), mchorse.bbs_mod.network.ServerNetwork.STATE_TRIGGER_OFF_HAND_ITEM);
+            form.playState(state);
+        })) return;
+
+        for (mchorse.bbs_mod.forms.forms.Form form : getFormCategories().getRecentForms().getCategories().get(0).getForms())
+        {
+            if (form.hotkey.get() == key) { mchorse.bbs_mod.network.ClientNetwork.sendPlayerForm(form); return; }
+        }
+        for (mchorse.bbs_mod.forms.categories.UserFormCategory category : getFormCategories().getUserForms().categories)
+        {
+            for (mchorse.bbs_mod.forms.forms.Form form : category.getForms())
+                if (form.hotkey.get() == key) { mchorse.bbs_mod.network.ClientNetwork.sendPlayerForm(form); return; }
+        }
+    }
+
     public static mchorse.bbs_mod.film.FilmManager getLocalFilms()
     {
         if (localFilms == null) localFilms = new mchorse.bbs_mod.film.FilmManager(() -> new java.io.File(BBSMod.getAssetsFolder().getParentFile(), "data/films"));

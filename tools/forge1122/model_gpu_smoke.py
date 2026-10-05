@@ -2,12 +2,11 @@
 import json
 from pathlib import Path
 from smoke import call, ROOT
+from qa_environment import checked_client, report_path
 
 
 def main():
-    health = call('/health')
-    assert health['inWorld'] and Path(health['gameDir']).resolve() in (
-        (ROOT / 'run-forge1122').resolve(), (ROOT / 'run-forge1122-obf').resolve()), health
+    checked_client()
     errors = call('/log?limit=2000&level=ERROR+')['entries']
     state = call('/bbs-model-gpu-probe', {'run': True})
     checks = ['modelLinked', 'pickerLinked', 'immutableBuilderReuse', 'uploadStateRestored',
@@ -26,7 +25,7 @@ def main():
     assert hurt[0] > normal[0] + 40 and hurt[1] < normal[1] and hurt[2] < normal[2], state
     assert all(abs(a-b) <= 2 for a, b in zip(light, [13, 102, 102, 255])), state
     assert call('/log?limit=2000&level=ERROR+')['entries'] == errors
-    output = ROOT / 'build/reports/forge1122-original-model-gpu-smoke.json'
+    output = report_path('forge1122-original-model-gpu-smoke.json')
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(state, indent=2), encoding='utf-8')
     print('PASS: original model GPU / integer bone picking / native state scopes:', output)

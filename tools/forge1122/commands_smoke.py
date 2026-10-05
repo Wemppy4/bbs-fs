@@ -2,7 +2,8 @@
 import json
 import argparse
 import time
-from smoke import ROOT, call
+from smoke import call
+from qa_environment import checked_client, report_path
 
 
 def request(op):
@@ -30,7 +31,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--camera', action='store_true', help='also verify native HUD hiding and frame-overlay pixels')
     args = parser.parse_args()
-    report = {'ok': False}
+    report = {'ok': False, 'target': checked_client()}
     try:
         report['server'] = request('prepare')
         for name in ('setForm', 'stateCompletion', 'permissionRejected', 'onHead', 'morphEntity',
@@ -63,7 +64,7 @@ def main():
         report['ok'] = True
     finally:
         report['cleanup'] = request('cleanup')
-        output = ROOT / 'build/reports/forge1122-commands-smoke.json'
+        output = report_path('forge1122-commands-smoke.json')
         output.write_text(json.dumps(report, indent=2), encoding='utf8')
     print('PASS: original commands, permissions, native packets and restoration', output)
 

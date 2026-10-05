@@ -12,7 +12,8 @@ from fractions import Fraction
 from pathlib import Path
 
 from dashboard_smoke import click, state
-from smoke import ROOT, call
+from smoke import call
+from qa_environment import checked_client, report_path
 
 
 def executable(name):
@@ -27,11 +28,10 @@ def main():
     parser.add_argument('--film', default='dashboard_qa_1791140179212834100')
     parser.add_argument('--width', type=int, default=1280)
     parser.add_argument('--height', type=int, default=720)
-    parser.add_argument('--release', action='store_true')
     args = parser.parse_args()
+    target = checked_client()
     ffprobe, ffmpeg = executable('ffprobe'), executable('ffmpeg')
     health, before = call('/health'), state()
-    assert Path(health['gameDir']).resolve() == (ROOT / ('run-forge1122-obf' if args.release else 'run-forge1122')).resolve(), health
     assert health['inWorld'] and before['menu'] == 'UIDashboard', before
     assert before['selectedPanel'] == 'UIFilmPanel' and before['dataId'] == args.film, before
     assert args.film.startswith('dashboard_qa_'), 'Only the disposable Dashboard QA film is supported'
@@ -42,8 +42,8 @@ def main():
     previous = set(folder.iterdir()) if folder.exists() else set()
     snapshots = []
     active = False
-    report = {'ok': False, 'film': args.film, 'before': before, 'snapshots': snapshots}
-    output = ROOT / 'build/reports/forge1122-export-smoke.json'
+    report = {'ok': False, 'target': target, 'film': args.film, 'before': before, 'snapshots': snapshots}
+    output = report_path('forge1122-export-smoke.json')
     output.parent.mkdir(parents=True, exist_ok=True)
     try:
         click(film['exportButton'])

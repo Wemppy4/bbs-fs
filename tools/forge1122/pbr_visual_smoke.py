@@ -2,7 +2,8 @@
 import json
 import re
 from pathlib import Path
-from smoke import call, ROOT
+from smoke import call
+from qa_environment import checked_client, report_path
 
 
 def probe(action, **values):
@@ -10,15 +11,14 @@ def probe(action, **values):
 
 
 def main():
-    health = call('/health')
-    run = Path(health['gameDir']).resolve()
-    assert health['inWorld'] and run == (ROOT / 'run-forge1122-obf').resolve(), health
+    target=checked_client()
+    run=Path(target['gameDir'])
     pack = call('/bbs-optifine-probe')['pack']
     assert pack.startswith('Complementary') and Path(pack).name == pack, pack
     options = run / 'shaderpacks' / (pack + '.txt')
     original = options.read_bytes() if options.exists() else None
-    report = {'pack': pack}
-    path = ROOT / 'build/reports/forge1122-pbr-visual-smoke.json'
+    report = {'target': target, 'pack': pack}
+    path = report_path('forge1122-pbr-visual-smoke.json')
     try:
         call('/disconnect')
         settings = re.sub(r'^RP_MODE=.*\r?\n?', '', (original or b'').decode('iso-8859-1'), flags=re.M)

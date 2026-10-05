@@ -12,6 +12,7 @@ os.environ['AIH_DIRECT_UI'] = '1'
 from dashboard_smoke import state, key, click, mouse, wait, dismiss_onboarding
 from dashboard_smoke import select_panel, manager, enter_prompt, close_manager, replace_text
 from smoke import call, wait_for, ROOT
+from qa_environment import checked_client, report_path
 
 
 def model():
@@ -22,7 +23,6 @@ def scenario():
     health = call('/health')
     assert health['inWorld'], health
     run = Path(health['gameDir']).resolve()
-    assert run.name in ('run-forge1122', 'run-forge1122-obf'), run
     while call('/health')['screen'] is not None:
         key('escape')
     key(state()['dashboardKey'])
@@ -84,12 +84,13 @@ def scenario():
     assert state()['glError'] == 0, state()
     result = {'ok': True, 'model': str(folder), 'before': before, 'edited': edited,
               'undoRedo': True, 'reopened': model()}
-    output = ROOT / 'build/reports/forge1122-model-editor-smoke.json'
+    output = report_path('forge1122-model-editor-smoke.json')
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     print('PASS:', output)
 
 
 def main():
+    checked_client()
     call('/ui-window', {'width': 1280, 'height': 720})
     try:
         scenario()

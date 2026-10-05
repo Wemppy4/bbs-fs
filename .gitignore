@@ -56,3 +56,6 @@ temp_change_log.md
 # Python verification tools
 __pycache__/
 *.pyc
+
+# Isolated hidden client used while the user tests the visible build
+run-forge1122-qa/

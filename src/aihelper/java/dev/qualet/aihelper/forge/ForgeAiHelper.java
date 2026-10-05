@@ -173,6 +173,7 @@ public class ForgeAiHelper
             case "/bbs-selectors-probe": return OriginalSelectorsProbe.run(p);
             case "/bbs-world-export-probe": return OriginalWorldExportProbe.run(p);
             case "/bbs-commands-probe": return OriginalCommandsProbe.run(p);
+            case "/bbs-hotkeys-probe": return OriginalHotkeysProbe.run(p);
             case "/bbs-film-backend-probe": return OriginalFilmBackendProbe.handle(p);
             case "/bbs-gizmo-probe": return OriginalGizmoProbe.handle(p);
             case "/bbs-dashboard-probe": return OriginalDashboardProbe.snapshot();

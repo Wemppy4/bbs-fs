@@ -92,8 +92,12 @@ def main():
                 offset = level.index(tag) + len(tag)
                 spawn.append(struct.unpack('>i', level[offset:offset + 4])[0])
             x, z = spawn
+            # Clear the two disposable fixture positions first: a repeated run must verify
+            # fresh registration/placement, not merely find blocks saved by an older JAR.
             commands = ['list', 'help bbs', 'gamerule bbsEditing',
+                        f'setblock {x} 10 {z} air', f'testforblock {x} 10 {z} air',
                         f'setblock {x} 10 {z} bbs:model', f'testforblock {x} 10 {z} bbs:model',
+                        f'setblock {x + 1} 10 {z} air', f'testforblock {x + 1} 10 {z} air',
                         f'setblock {x + 1} 10 {z} bbs:chroma_green', f'testforblock {x + 1} 10 {z} bbs:chroma_green',
                         'save-all']
             for command in commands:

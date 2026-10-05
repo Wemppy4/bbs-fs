@@ -12,7 +12,8 @@ import subprocess
 import time
 import uuid
 import wave
-from smoke import ROOT, call
+from smoke import call
+from qa_environment import checked_client, report_path
 from dashboard_smoke import dismiss_onboarding
 from export_smoke import executable
 
@@ -62,6 +63,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--resize-window', action='store_true')
     args = parser.parse_args()
+    target = checked_client()
     assets = Path(call('/bbs-export-fixture', {'paths': True})['assets'])
     name = 'sounds/__ai_world_export_' + uuid.uuid4().hex + '.wav'
     tone = assets / name
@@ -74,7 +76,7 @@ def main():
         output.setframerate(rate)
         output.writeframes(struct.pack('<' + 'h' * len(samples), *samples))
     active = False
-    report = {'ok': False}
+    report = {'ok': False, 'target': target}
     try:
         before = call('/bbs-world-export-probe', {'op': 'prepare', 'audio': name})
         active = True
@@ -136,7 +138,7 @@ def main():
         if active:
             report['cleanup'] = call('/bbs-world-export-probe', {'op': 'cleanup'})
         tone.unlink(missing_ok=True)
-        output = ROOT / 'build/reports/forge1122-world-export-smoke.json'
+        output = report_path('forge1122-world-export-smoke.json')
         output.write_text(json.dumps(report, indent=2), encoding='utf8')
     print('PASS: native F4/F6 world/film video export', output)
 

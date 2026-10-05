@@ -1,7 +1,9 @@
 """Native resource packs, original chroma blocks and fractional UI GPU sampling."""
 import json
 from smoke import call, ROOT
+from qa_environment import checked_client, report_path
 
+checked_client()
 result = call('/bbs-native-resources-probe')
 print(json.dumps(result, ensure_ascii=False))
 assert len(result['chroma']) == 8, result
@@ -17,6 +19,6 @@ assert pixels['glError'] == 0, pixels
 assert pixels['seams_1.5_0'] == 0 and pixels['seams_1.5_1'] > 30, pixels
 assert pixels['seams_2.0_0'] == 0 and pixels['seams_2.0_1'] == 0, pixels
 assert pixels['changed_1.5'] > 100, pixels
-path = ROOT / 'build/reports/forge1122-native-resources-smoke.json'
+path = report_path('forge1122-native-resources-smoke.json')
 path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
 print('PASS:', path)

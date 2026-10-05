@@ -68,18 +68,31 @@ def launch(args):
         raise SystemExit('This launcher requires Windows.')
     if not HELPER.is_file():
         raise SystemExit(f'ai_helper was not found: {HELPER}')
+    if args.isolated:
+        if os.environ.get('AIH_PORT', '25615') != '25615':
+            raise SystemExit('--isolated requires AIH_PORT=25615, never the user client port.')
+        os.environ['AIH_PORT'] = '25615'
+    else:
+        os.environ.setdefault('AIH_PORT', '25612')
+    state = ROOT / '.aihelper'
+    runner = HELPER
+    if args.isolated:
+        state = state / 'clients/25615'
+        runner = ROOT / 'tools/forge1122/isolated_client.py'
     gradle = args.gradle_args.split()
+    if args.isolated and '-PisolatedQa' not in gradle:
+        gradle.append('-PisolatedQa')
     if '--daemon' in gradle:
         raise SystemExit('--daemon would reuse a process on another desktop; use --no-daemon.')
     if '--no-daemon' not in gradle:
         gradle.append('--no-daemon')
     desktop_name = f'BBS_FS_QA_{os.getpid()}_{time.time_ns()}'
-    command = [sys.executable, '-X', 'utf8', '-u', str(HELPER), 'launch', '--project', str(ROOT),
+    command = [sys.executable, '-X', 'utf8', '-u', str(runner), 'launch', '--project', str(ROOT),
                '--timeout', str(args.timeout), '--gradle-args=' + ' '.join(gradle)]
     plan = {'desktop': 'winsta0\\' + desktop_name, 'command': command,
             'helperPort': os.environ.get('AIH_PORT', '25612'),
-            'log': str(ROOT / '.aihelper/background-client-launch.log'),
-            'gameLog': str(ROOT / '.aihelper/runClient.log'),
+            'log': str(state / 'background-client-launch.log'),
+            'gameLog': str(state / 'runClient.log'),
             'activated': False, 'openGLVerified': False}
     if args.dry_run:
         print(json.dumps(plan, ensure_ascii=False, indent=2))
@@ -125,7 +138,7 @@ def launch(args):
             os.set_handle_inheritable(out_handle, False)
             os.set_handle_inheritable(in_handle, False)
             plan['launcherPid'] = process.dwProcessId
-            (ROOT / '.aihelper/background-client.json').write_text(
+            (state / 'background-client.json').write_text(
                 json.dumps(plan, ensure_ascii=False, indent=2), encoding='utf-8')
             print(json.dumps(plan, ensure_ascii=False), flush=True)
             # Retain the desktop while ai_helper waits for readiness. Once Java
@@ -154,6 +167,7 @@ def main():
     parser.add_argument('--gradle-args', default='-PwithOptiFine --no-daemon')
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--isolated', action='store_true', help='Use separate game directory, port and PID/log files alongside the user client')
     return launch(parser.parse_args())
 
 

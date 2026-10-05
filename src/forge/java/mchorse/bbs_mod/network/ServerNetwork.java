@@ -26,6 +26,10 @@ import java.util.*;
 /** Authoritative film controls. All receive calls run on the actual server thread. */
 public final class ServerNetwork
 {
+    public static final int STATE_TRIGGER_MORPH = 0;
+    public static final int STATE_TRIGGER_MAIN_HAND_ITEM = 1;
+    public static final int STATE_TRIGGER_OFF_HAND_ITEM = 2;
+
     private static NBTTagCompound packet(String op,String id){NBTTagCompound p=new NBTTagCompound();p.setString("op",op);p.setString("film",id);return p;}
     public static void sendHandshake(EntityPlayerMP player){FilmNetwork.toClient(player,packet("hello",""));}
     public static void sendMorphToTracked(EntityPlayerMP player,Form form)
@@ -79,6 +83,19 @@ public final class ServerNetwork
     }
     public static void receive(EntityPlayerMP player,NBTTagCompound p)
     {
+        if (p.getString("op").equals("form_trigger"))
+        {
+            int type = p.getInteger("type");
+            String trigger = p.getString("trigger");
+            if (type < STATE_TRIGGER_MORPH || type > STATE_TRIGGER_OFF_HAND_ITEM || trigger.isEmpty() || trigger.length() > 1024) return;
+            NBTTagCompound response = packet("form_trigger", "");
+            response.setInteger("entity", player.getEntityId());
+            response.setInteger("type", type);
+            response.setString("trigger", trigger);
+            for (EntityPlayer watcher : player.getServerWorld().getEntityTracker().getTrackingPlayers(player))
+                if (watcher instanceof EntityPlayerMP) FilmNetwork.toClient((EntityPlayerMP) watcher, response);
+            return;
+        }
         if (p.getString("op").equals("share"))
         {
             if (!p.hasUniqueId("player") || !p.hasKey("data", 10)) return;

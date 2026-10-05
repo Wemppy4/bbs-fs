@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 from smoke import call, wait_for, ROOT
 from camera_smoke import mouse, distance
+from qa_environment import checked_client, report_path
 
 
 def state(data=None):
@@ -87,14 +88,12 @@ def near(a, b, tolerance=1e-4):
 
 
 def main():
-    health = call('/health')
-    assert health['inWorld'] and Path(health['gameDir']).resolve() in (
-        (ROOT / 'run-forge1122').resolve(), (ROOT / 'run-forge1122-obf').resolve()), health
+    checked_client()
     errors = call('/log?limit=2000&level=ERROR+')['entries']
     call('/release', {})
     state({'open': True})
     report = {'ok': False, 'records': {}}
-    output = ROOT / 'build/reports/forge1122-original-gizmo-smoke.json'
+    output = report_path('forge1122-original-gizmo-smoke.json')
     output.parent.mkdir(parents=True, exist_ok=True)
     try:
         wait_for(lambda: state()['frames'] > 4)

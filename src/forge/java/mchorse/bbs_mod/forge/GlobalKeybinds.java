@@ -54,6 +54,13 @@ public final class GlobalKeybinds
         MinecraftForge.EVENT_BUS.register(new GlobalKeybinds());
     }
 
+    @SubscribeEvent public void key(net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent event)
+    {
+        if (!Keyboard.getEventKeyState() || Keyboard.isRepeatEvent()) return;
+        BBSModClient.onEndKey(mchorse.bbs_mod.graphics.window.InputCodes.fromNative(Keyboard.getEventKey()),
+            mchorse.bbs_mod.graphics.window.InputCodes.PRESS);
+    }
+
     @SubscribeEvent public void tick(TickEvent.ClientTickEvent event)
     {
         if(event.phase!=TickEvent.Phase.END)return;

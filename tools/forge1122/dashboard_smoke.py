@@ -9,6 +9,7 @@ import json
 import time
 from pathlib import Path
 from smoke import call, ROOT, wait_for
+from qa_environment import checked_client, report_path
 
 
 def state():
@@ -113,11 +114,11 @@ def enter_prompt(text):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--release', action='store_true', help='Exercise the distributable JAR in run-forge1122-obf')
-    parser.add_argument('--dashboard-key', default='0', help='Current configured Dashboard key; preserve custom user bindings')
+    parser.add_argument('--dashboard-key', help='Override the detected configured Dashboard key')
     args = parser.parse_args()
+    target = checked_client()
     health = call('/health')
-    run_dir = (ROOT / ('run-forge1122-obf' if args.release else 'run-forge1122')).resolve()
-    assert Path(health['gameDir']).resolve() == run_dir, health
+    run_dir = Path(target['gameDir'])
     assert health['inWorld'], health
     call('/disconnect', {})
     call('/world', {'world': 'ai_test'})
@@ -128,7 +129,7 @@ def main():
             break
         key('escape')
     assert call('/health')['screen'] is None, call('/health')
-    key(args.dashboard_key)
+    key(args.dashboard_key or state()['dashboardKey'])
     start = state()
     assert start['menu'] == 'UIDashboard' and start['built'], start
     required = {'UIFilmPanel', 'UITextureManagerPanel', 'UIAudioEditorPanel'}
@@ -217,7 +218,8 @@ def main():
     report = {'ok': True, 'menu': final['menu'], 'panels': final['panels'],
               'savedFilm': str(original_file), 'created': name, 'duplicated': dupe,
               'renamed': renamed, 'deletedDuplicate': not renamed_file.exists(), 'snapshot': final}
-    output = ROOT / ('build/reports/forge1122-dashboard-release-smoke.json' if args.release else 'build/reports/forge1122-dashboard-smoke.json')
+    report['target'] = target
+    output = report_path('forge1122-dashboard-release-smoke.json')
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf8')
     print(json.dumps(report, ensure_ascii=False, indent=2))

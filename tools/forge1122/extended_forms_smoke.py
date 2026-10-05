@@ -1,9 +1,11 @@
 """Real production form draws and FBO restoration, with no OS mouse/keyboard input."""
 import json
 from smoke import call, ROOT
+from qa_environment import checked_client, report_path
 
 
 def main():
+    environment = checked_client()
     call('/bbs-extended-forms-probe', {'open': True})
     call('/wait', {'ticks': 20})
     initial = call('/bbs-extended-forms-probe')
@@ -30,14 +32,13 @@ def main():
     assert all(p > 20 for p in changed['visiblePixels']), changed
     assert changed['visiblePixels'][3] != initial['visiblePixels'][3], (initial, changed)
     call('/screenshot', {'name': 'extended-forms-mutated'})
-    report = {'ok': True, 'initial': initial, 'changed': changed, 'picking': picking, 'mobMatrices': matrices,
+    report = {'ok': True, 'environment': environment, 'initial': initial, 'changed': changed, 'picking': picking, 'mobMatrices': matrices,
               'checks': ['block and fluid geometry', 'native item model', 'label Cyrillic and background',
                          'structure AO, fluids and TESR', 'spline repetition', 'nested framebuffer forms',
                          'FBO/viewport/GL restoration', 'registered form roundtrip', 'structure cache invalidation',
                          'player wide/slim', 'mob poses and attached forms', 'per-bone picking and matrix evaluation'],
               'notCovered': ['shaderpack parity', 'video decoding', 'world trail movement', 'wand physical input']}
-    path = ROOT / 'build/reports/forge1122-extended-forms-smoke.json'
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = report_path('forge1122-extended-forms-smoke.json')
     path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print('PASS:', path)
 

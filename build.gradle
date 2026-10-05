@@ -18,6 +18,8 @@ repositories { mavenCentral() }
 // OptiFine patches vanilla class names, so its client uses Forge's obfuscated runtime.
 def withOptiFine = project.hasProperty('withOptiFine') || gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'runClientOptiFine' }
 def dedicatedServer = gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'runObfServer' }
+def isolatedQa = project.hasProperty('isolatedQa')
+def forgeClientDirectory = file(isolatedQa ? 'run-forge1122-qa' : 'run-forge1122-obf')
 apply from: 'gradle/optifine.gradle'
 configurations {
     embedded
@@ -128,11 +130,11 @@ tasks.named('prepareObfModsFolder') {
     if (withOptiFine && !dedicatedServer) from configurations.optifineRuntime
     // JOML is already embedded without its Java 9 module descriptor.
     exclude 'joml-*.jar'
-    into file(dedicatedServer ? 'run-forge1122-server/mods' : 'run-forge1122-obf/mods')
+    into (dedicatedServer ? file('run-forge1122-server/mods') : new File(forgeClientDirectory, 'mods'))
 }
 tasks.named('runObfClient') {
-    workingDir = file('run-forge1122-obf')
-    systemProperty 'aihelper.port', '25612'
+    workingDir = forgeClientDirectory
+    systemProperty 'aihelper.port', isolatedQa ? '25615' : '25612'
 }
 tasks.named('runObfServer') {
     workingDir = file('run-forge1122-server')

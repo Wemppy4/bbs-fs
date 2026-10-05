@@ -1,6 +1,7 @@
 """Real shader-world draws plus CEM pack lifecycle; an isolated running world is required."""
 import json
-from smoke import call, ROOT
+from smoke import call
+from qa_environment import checked_client, report_path
 
 
 def probe(action='state'):
@@ -8,11 +9,11 @@ def probe(action='state'):
 
 
 def main():
-    assert call('/health')['inWorld'], 'An isolated ai_helper world is required'
+    target=checked_client()
     shader = call('/bbs-optifine-probe')
     assert shader['loaded'] and shader['isShaderPackInitialized'], shader
-    report = {'shader': shader, 'before': probe()}
-    path = ROOT / 'build/reports/forge1122-shader-world-forms-smoke.json'
+    report = {'target': target, 'shader': shader, 'before': probe()}
+    path = report_path('forge1122-shader-world-forms-smoke.json')
     try:
         report['enabled'] = probe('cem-enable')
         enabled = report['enabled']

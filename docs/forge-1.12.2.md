@@ -1,8 +1,8 @@
 # BBS FS для Minecraft Forge 1.12.2
 
-Рабочая ветка `1.12.2`. Полный порт находится в разработке. Успешная сборка
-сама по себе не означает совпадения с BBS FS: текущие игровые проверки и
-оставшиеся расхождения перечислены в [карте паритета](forge-1.12.2-parity.md).
+Рабочая ветка `1.12.2`. Основные системы BBS FS перенесены и проверены на
+настоящем Forge-клиенте и dedicated server. Подтверждённые игровые сценарии
+и границы проверки перечислены в [карте паритета](forge-1.12.2-parity.md).
 
 ## Установка
 
@@ -55,27 +55,34 @@ OptiFine G5 подключается для тестов флагом `-PwithOpt
 
 `src/aihelper` собирается отдельным тестовым модом и не попадает в BBS JAR.
 Используется протокол и `tools/mc.py` из соседнего `../ai_helper`.
-Release-проверки запускают обфусцированный JAR в `run-forge1122-obf`, мир
-`ai_test`; dev-клиент использует отдельный каталог `run-forge1122`.
+Изолированные release-проверки запускают обфусцированный JAR в
+`run-forge1122-qa`, мир `ai_test`, HTTP-порт 25615. Обычный клиент использует
+`run-forge1122-obf` и порт 25612; dev-клиент — каталог `run-forge1122`.
 
 ```powershell
 .\gradlew.bat build reobfAihelper
-$env:AIH_PORT = '25612'
+$env:AIH_PORT = '25615'
+$env:AIH_GAME_DIR = Join-Path $PWD 'run-forge1122-qa'
+$env:AIH_REPORT_DIR = Join-Path $PWD 'build/reports/qa'
 $env:AIH_DIRECT_UI = '1'
-python tools/forge1122/background_client.py --timeout 300 --gradle-args '-PwithOptiFine -PforgeReleaseTest runObfClient --no-daemon'
+python tools/forge1122/background_client.py --isolated --timeout 300 --gradle-args '-PwithOptiFine -PforgeReleaseTest runObfClient --no-daemon'
 python tools/forge1122/dashboard_smoke.py --release
 python tools/forge1122/extended_forms_smoke.py
 python tools/forge1122/export_audio_smoke.py
-python ../ai_helper/tools/mc.py stop
+python tools/forge1122/isolated_client.py stop
 ```
 
 `background_client.py` запускает клиент на отдельном скрытом рабочем столе
 Windows, без переключения пользовательского рабочего стола. OpenGL и
 снимки работают. `AIH_DIRECT_UI=1` отправляет UI-события через ai_helper
 без движения системного курсора. Прогоны, которые меняют экран, выполняются
-последовательно. Перед заменой запущенного JAR клиент останавливается.
-Отчёты находятся в `build/reports/forge1122-*-smoke.json`, снимки — в
-`run-forge1122-obf/screenshots/ai`.
+последовательно. Перед заменой запущенного JAR тестовый клиент останавливается.
+Изолированный адаптер использует исходный `mc.py` с отдельными PID и логами
+в `.aihelper/clients/25615`; остановка QA не закрывает обычный игровой клиент.
+Проверки с `qa_environment` сверяют порт и каталог до изменений в игре.
+Отчёты находятся в `build/reports/qa/forge1122-*-smoke.json`, снимки — в
+`run-forge1122-qa/screenshots/ai`. Для проверки без OptiFine уберите
+`-PwithOptiFine` из команды запуска.
 
 ## Донорские исходники
 

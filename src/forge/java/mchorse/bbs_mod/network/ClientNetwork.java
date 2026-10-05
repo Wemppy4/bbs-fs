@@ -88,6 +88,34 @@ public final class ClientNetwork
         if(!server){Morph morph=Morph.getMorph(Minecraft.getMinecraft().player);if(morph!=null)morph.setForm(FormUtils.copy(form));return;}
         NBTTagCompound p=packet("morph","");if(form!=null)p.setTag("data",DataStorageUtils.toNbt(FormUtils.toData(form)));FilmNetwork.toServer(p);
     }
+    public static void sendFormTrigger(String triggerId, int type)
+    {
+        if (!server) return;
+        NBTTagCompound request = packet("form_trigger", "");
+        request.setString("trigger", triggerId);
+        request.setInteger("type", type);
+        FilmNetwork.toServer(request);
+    }
+
+    private static void receiveFormTrigger(NBTTagCompound packet)
+    {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.world == null) return;
+        net.minecraft.entity.Entity entity = mc.world.getEntityByID(packet.getInteger("entity"));
+        int type = packet.getInteger("type");
+        if (type < ServerNetwork.STATE_TRIGGER_MORPH || type > ServerNetwork.STATE_TRIGGER_OFF_HAND_ITEM) return;
+        String trigger = packet.getString("trigger");
+        Morph morph = Morph.getMorph(entity);
+        if (morph != null && morph.getForm() != null) morph.getForm().playState(trigger);
+        if (entity instanceof net.minecraft.entity.EntityLivingBase && type > 0)
+        {
+            net.minecraft.entity.EntityLivingBase living = (net.minecraft.entity.EntityLivingBase) entity;
+            mchorse.bbs_mod.blocks.entities.ModelProperties properties = BBSModClient.getItemStackProperties(
+                type == ServerNetwork.STATE_TRIGGER_MAIN_HAND_ITEM ? living.getHeldItemMainhand() : living.getHeldItemOffhand());
+            if (properties != null && properties.getForm() != null) properties.getForm().playState(trigger);
+        }
+    }
+
     public static void sendSharedForm(Form form, UUID player)
     {
         NBTTagCompound request = packet("share", "");
@@ -145,6 +173,7 @@ public final class ClientNetwork
         {
             case "hello":server=true;break;
             case "shared":receiveSharedForm(p);break;
+            case "form_trigger":receiveFormTrigger(p);break;
             case "model_state":
                 Minecraft mc=Minecraft.getMinecraft();
                 if(mc.world!=null)

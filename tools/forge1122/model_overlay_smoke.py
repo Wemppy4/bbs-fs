@@ -1,6 +1,7 @@
 """Actual ModelForm color overlay in a shader pack, plus restoration to the neutral draw."""
 import json
-from smoke import call, ROOT
+from smoke import call
+from qa_environment import checked_client, report_path
 
 
 def probe(action='state', **values):
@@ -8,10 +9,10 @@ def probe(action='state', **values):
 
 
 def main():
-    assert call('/health')['inWorld']
+    target=checked_client()
     assert call('/bbs-optifine-probe')['loaded']
-    report = {}
-    path = ROOT / 'build/reports/forge1122-model-overlay-smoke.json'
+    report = {'target': target}
+    path = report_path('forge1122-model-overlay-smoke.json')
     try:
         probe('cem-enable')
         probe('start')
