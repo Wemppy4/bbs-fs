@@ -21,6 +21,7 @@ import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 public class UIKeyframeSheet
@@ -70,6 +71,12 @@ public class UIKeyframeSheet
      * interpolates toward the hardcoded defaults, so two "identical" keyframes silently drift apart.
      */
     public Supplier<Object> seed;
+
+    /**
+     * Whether the row is the live one right now, e.g. the hotbar cell {@code selected_slot} points
+     * at under the cursor. Null for rows that are never singled out like that.
+     */
+    public BooleanSupplier live;
 
     /** The track this row draws, when it came from the catalog; null for the replay's own curated channels. */
     public final TrackDescriptor descriptor;
@@ -227,6 +234,11 @@ public class UIKeyframeSheet
     public Icon getIcon()
     {
         return this.icon;
+    }
+
+    public boolean isLive()
+    {
+        return this.live != null && this.live.getAsBoolean();
     }
 
     /**

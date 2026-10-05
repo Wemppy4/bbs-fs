@@ -850,6 +850,15 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
                     KeyframeChannel channel = (KeyframeChannel) this.replay.keyframes.get(key);
                     UIKeyframeSheet sheet = new UIKeyframeSheet(key, IKey.constant(key), getColor(key), channel, key.equals("anchor") ? this.replay.anchor : null, false).icon(getIcon(key));
                     sheet.section = section;
+
+                    if (key.startsWith("item_slot_"))
+                    {
+                        Replay replay = this.replay;
+                        int slot = Integer.parseInt(key.substring("item_slot_".length()));
+
+                        sheet.live = () -> replay.keyframes.getSelectedSlot(this.filmPanel.getCursor()) == slot;
+                    }
+
                     sheets.add(sheet);
                 }
             }

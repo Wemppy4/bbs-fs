@@ -1161,7 +1161,15 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         int my = y + height / 2;
         int lx = area.x;
 
+        boolean live = sheet.isLive();
+
         this.renderRowBackground(context, lx, y, w, height, true);
+
+        if (live)
+        {
+            RowStyle.live(context.batcher, lx, y, w, height, sheet.color);
+        }
+
         RowStyle.row(context.batcher, lx, y, w, height, sheet.color, false, hover, this.keyframes.isTrackSelected(sheet));
 
         if (sheet == this.revealedSheet && System.currentTimeMillis() < this.revealUntil)
@@ -1186,7 +1194,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         if (w > LABEL_COMPACT_WIDTH)
         {
             FontRenderer font = context.batcher.getFont();
-            int textColor = hover ? Colors.WHITE : Colors.setA(Colors.WHITE, 0.75F);
+            int textColor = hover || live ? Colors.WHITE : Colors.setA(Colors.WHITE, 0.75F);
             int textX = lx + LABEL_TEXT_LEFT + this.getSheetIndent(sheet);
             int textRight = hasIcon ? iconX - LABEL_TEXT_ICON_GAP : lx + w - LABEL_RIGHT_PAD;
 
@@ -1276,6 +1284,10 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         {
             context.batcher.box(area.x, y, area.ex(), y + bh,
                 Colors.setA(active ? BBSSettings.primaryColor.get() : sheet.color, 0.12F));
+        }
+        else if (sheet.isLive())
+        {
+            context.batcher.box(area.x, y, area.ex(), y + bh, Colors.setA(sheet.color, 0.08F));
         }
 
         builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);

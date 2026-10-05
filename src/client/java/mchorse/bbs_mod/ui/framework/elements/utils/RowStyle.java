@@ -62,6 +62,10 @@ public class RowStyle
     private static final float DROP_NEAR = 0.35F;
     private static final float DROP_FAR = 0.05F;
 
+    /** A row that is in effect right now: lit by its own colour, louder than a hover, no bar. */
+    private static final float LIVE_NEAR = 0.35F;
+    private static final float LIVE_FAR = 0.06F;
+
     /** How far a colour tag reaches across a row before it has faded out, and how strongly it starts. */
     private static final int SWATCH = 24;
     private static final float SWATCH_NEAR = 0.25F;
@@ -155,6 +159,16 @@ public class RowStyle
     public static void hover(Batcher2D batcher, int x, int y, int w, int h, int color)
     {
         wash(batcher, x, y, w, h, tint(color), HOVER_NEAR, HOVER_FAR);
+    }
+
+    /**
+     * A row that is in effect right now rather than picked — the hotbar cell the selected slot
+     * points at. The row's own colour, no bar: nobody picked it, the data did. Goes under
+     * {@link #row}'s marks.
+     */
+    public static void live(Batcher2D batcher, int x, int y, int w, int h, int color)
+    {
+        wash(batcher, x, y, w, h, tint(color), LIVE_NEAR, LIVE_FAR);
     }
 
     /**
