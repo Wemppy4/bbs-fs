@@ -6,6 +6,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
+import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -361,6 +362,12 @@ public class UIKeyframeEditor extends UITimelinePanel
         state.extra = data.getMap("extra");
 
         this.view.applyState(state);
+
+        /* Restore after applyState has selected the track and rebuilt its properties panel. */
+        if (this.editor instanceof UIPoseKeyframeFactory pose && data.has("bones"))
+        {
+            pose.poseEditor.restoreSelection(DataStorageUtils.stringListFromData(data.get("bones")));
+        }
     }
 
     @Override
@@ -370,5 +377,10 @@ public class UIKeyframeEditor extends UITimelinePanel
 
         KeyframeState keyframeState = this.view.cacheState();
         data.put("extra", keyframeState.extra);
+
+        if (this.editor instanceof UIPoseKeyframeFactory pose)
+        {
+            data.put("bones", DataStorageUtils.stringListToData(pose.poseEditor.groups.list.getCurrent()));
+        }
     }
 }

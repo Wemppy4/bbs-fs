@@ -56,9 +56,10 @@ public class MobStandIn
 
     /**
      * The entity for an id, made on the first ask and remade when the id, the NBT or the arm width
-     * changes. Null when the game has no world to make it in, or no such kind of entity: an id the
-     * registry does not know is not the pig it answers with by default. The player has no entity type
-     * to create from — asked for one ({@code player}), a player of the given arm width stands in.
+     * changes, or when the world it was made in is gone. Null when the game has no world to make it in,
+     * or no such kind of entity: an id the registry does not know is not the pig it answers with by
+     * default. The player has no entity type to create from — asked for one ({@code player}), a player
+     * of the given arm width stands in.
      */
     public Entity ensure(String id, String nbt, boolean slim, boolean player)
     {
@@ -71,6 +72,12 @@ public class MobStandIn
         }
 
         ClientWorld world = MinecraftClient.getInstance().world;
+
+        /* One made in a world the game has since left is dropped: ticking it would reach for that world's connection */
+        if (this.entity != null && this.entity.getWorld() != world)
+        {
+            this.entity = null;
+        }
 
         if (this.entity != null || world == null)
         {
@@ -110,7 +117,8 @@ public class MobStandIn
     /** Step the entity and bring it in line with the actor: what vanilla's animation will read off it next frame. */
     public void tick(IEntity source)
     {
-        if (this.entity == null)
+        /* A player's tick asks the connection's player list whether it spectates, so none is stepped without one */
+        if (this.entity == null || MinecraftClient.getInstance().getNetworkHandler() == null)
         {
             return;
         }
