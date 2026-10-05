@@ -718,7 +718,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             stack.multiply(new org.joml.Quaternionf().rotationX(MathUtils.toRad(180F)));
 
             ItemStack equipment = target.getEquipmentStack(type.slot).copy();
-            NativeEquipmentRenderer.draw(stack, color, light, () -> ActorEntityRenderer.armorRenderer.renderArmorSlot(target, equipment, type));
+            NativeEquipmentRenderer.draw(stack, color, light, true, () -> ActorEntityRenderer.armorRenderer.renderArmorSlot(target, equipment, type));
             }
             finally { stack.pop(); }
         }
@@ -754,7 +754,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 stack.translate(0F, 0.125F, 0F);
                 MatrixStackUtils.applyTransform(stack, armorSlot.transform);
 
-                NativeEquipmentRenderer.draw(stack, color, light, () ->
+                NativeEquipmentRenderer.draw(stack, color, light, false, () ->
                 {
                     EntityLivingBase holder = use == null ? liveHolder(target) : ItemPredicateDonor.get(itemStack, use);
                     Minecraft.getMinecraft().getRenderItem().renderItem(itemStack, holder, mode, mode == TransformType.THIRD_PERSON_LEFT_HAND);

@@ -84,6 +84,7 @@
     "bbs.ui.utility.shaders_off": "Disabled",
     "bbs.ui.utility.open_shaders": "Open shader pack folder",
     "bbs.ui.utility.iris_required": "Install Iris to select shader packs",
+    "bbs.ui.utility.optifine_required": "Install OptiFine to select shader packs",
     "bbs.ui.utility.shader_error": "Could not list or load shader packs. See the log for details.",
     "bbs.ui.utility.time": "Time of day",
     "bbs.ui.utility.time_permission": "Changing time requires permission to run world commands",

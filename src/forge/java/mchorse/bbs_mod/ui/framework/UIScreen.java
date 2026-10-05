@@ -131,7 +131,7 @@ public class UIScreen extends GuiScreen implements mchorse.bbs_mod.ui.utils.IFil
             mchorse.bbs_mod.client.PixelArt.setDrawingUI(true);
             /* Forge 1.12 passes elapsedPartialTicks (the last frame duration) to
              * GuiScreen, whereas BBS interpolation needs the current tick fraction. */
-            menu.context.setTransition(mc.getRenderPartialTicks());
+            menu.context.setTransition(mchorse.bbs_mod.client.BBSRendering.worldTransition(mc.getRenderPartialTicks()));
             menu.renderMenu(context, (int) (Mouse.getX() / scale), (int) ((mc.displayHeight - Mouse.getY() - 1) / scale));
             context.executeRunnables();
             context.batcher.flush();

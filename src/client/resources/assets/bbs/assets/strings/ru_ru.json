@@ -84,6 +84,7 @@
     "bbs.ui.utility.shaders_off": "Отключены",
     "bbs.ui.utility.open_shaders": "Открыть папку шейдеров",
     "bbs.ui.utility.iris_required": "Для выбора шейдеров требуется Iris",
+    "bbs.ui.utility.optifine_required": "Для выбора шейдеров требуется OptiFine",
     "bbs.ui.utility.shader_error": "Не удалось загрузить список или включить шейдер. Подробности в журнале.",
     "bbs.ui.utility.time": "Время суток",
     "bbs.ui.utility.time_permission": "Изменение времени требует права на команды мира",

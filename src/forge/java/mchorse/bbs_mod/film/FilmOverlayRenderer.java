@@ -33,7 +33,7 @@ public final class FilmOverlayRenderer
 
     public static void renderShadow(World world, MatrixStack matrices, Camera camera, double x, double y, double z, float radius, float opacity)
     {
-        if (world == null || radius <= 0F) return;
+        if (world == null || radius <= 0F || mchorse.bbs_mod.graphics.OptiFineShaders.isLoaded()) return;
         opacity *= Math.max(0D, 1D - camera.position.distanceSquared(x, y, z) / 256D);
         if (opacity <= 0F) return;
         try (DrawState state = new DrawState(matrices.peek().getPositionMatrix()))

@@ -382,8 +382,14 @@ public class OrbitViewGizmo
 
     private void draw(Batcher2D batcher, UIVertexBuffer builder)
     {
+        batcher.flush();
         RenderSystem.enableBlend();
-        NativeColorProgram.draw(builder);
+        /* Widget vertices are in screen coordinates. The native GUI model-view
+         * supplies its -2000 Z translation; an identity matrix clips every ball. */
+        int previous = NativeColorProgram.bind(
+            mchorse.bbs_mod.forge.studio.NativeTextureRenderer.currentMatrix(), NativeColorProgram.projection());
+        try { builder.draw(); }
+        finally { org.lwjgl.opengl.GL20.glUseProgram(previous); }
 
         batcher.getContext().draw();
     }

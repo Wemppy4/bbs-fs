@@ -22,6 +22,14 @@ import java.util.function.IntPredicate;
 public final class FilmControlInput
 {
     private static boolean ownedSprint;
+    public static boolean isControlledPlayer(net.minecraft.entity.Entity entity)
+    {
+        if (entity != Minecraft.getMinecraft().player) return false;
+        UIBaseMenu menu = UIScreen.getCurrentMenu();
+        return menu instanceof UIDashboard
+            && ((UIDashboard) menu).getPanels().panel instanceof UIFilmPanel
+            && ((UIFilmPanel) ((UIDashboard) menu).getPanels().panel).getController().canControl();
+    }
     @SubscribeEvent public static void input(InputUpdateEvent event)
     {
         Minecraft mc=Minecraft.getMinecraft();if(event.getEntityPlayer()!=mc.player)return;

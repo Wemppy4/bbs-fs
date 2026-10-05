@@ -15,23 +15,28 @@ import java.nio.FloatBuffer;
 /** Native vanilla equipment boundary. Captures the evaluated attachment frame, never the model's pose. */
 public final class NativeEquipmentRenderer
 {
-    private static int program;
+    private static int program, armorProgram;
     private NativeEquipmentRenderer() {}
 
-    public static void draw(MatrixStack stack, Color color, int light, Runnable render)
+    public static void draw(MatrixStack stack, Color color, int light, boolean diffuse, Runnable render)
     {
         Matrix4f matrix = new Matrix4f(stack.peek().getPositionMatrix());
         Color tint = color.copy();
+        org.joml.Matrix3f normal = new org.joml.Matrix3f(stack.peek().getNormalMatrix())
+            .mul(new org.joml.Matrix3f(matrix).transpose());
+        Vector3f[] lights = diffuse ? new Vector3f[]{
+            mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(0),
+            mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(1)} : null;
         FormTranslucentQueue.DrawCommand command = new FormTranslucentQueue.DrawCommand(matrix.getTranslation(new Vector3f()), true, true)
         {
-            @Override public void draw() { drawNow(matrix, tint, light, render); }
+            @Override public void draw() { drawNow(matrix, normal, lights, tint, light, render); }
         };
         /* Native item renderers choose their own textures and layers while drawing. Replay the
          * complete attachment in sorted order instead of pretending it is a modern RenderLayer. */
         FormTranslucentQueue.add(command);
     }
 
-    private static void drawNow(Matrix4f matrix, Color color, int light, Runnable render)
+    private static void drawNow(Matrix4f matrix, org.joml.Matrix3f normal, Vector3f[] lights, Color color, int light, Runnable render)
     {
         int mode = GL11.glGetInteger(GL11.GL_MATRIX_MODE), shader = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
         int active = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
@@ -63,12 +68,18 @@ public final class NativeEquipmentRenderer
             {
             if (!shaders)
             {
-            ensureProgram(); GL20.glUseProgram(program);
-            GL20.glUniform1i(GL20.glGetUniformLocation(program, "Albedo"), 0);
-            GL20.glUniform1i(GL20.glGetUniformLocation(program, "Lightmap"), 1);
-            GL20.glUniform4f(GL20.glGetUniformLocation(program, "Tint"), color.r, color.g, color.b, color.a);
+            int selected = ensureProgram(lights != null); GL20.glUseProgram(selected);
+            if (lights != null)
+            {
+                FloatBuffer normals = BufferUtils.createFloatBuffer(9); normal.get(normals);
+                GL20.glUniformMatrix3(GL20.glGetUniformLocation(selected, "NormalTransform"), false, normals);
+                for (int i=0;i<2;i++) GL20.glUniform3f(GL20.glGetUniformLocation(selected,"Light"+i),lights[i].x,lights[i].y,lights[i].z);
+            }
+            GL20.glUniform1i(GL20.glGetUniformLocation(selected, "Albedo"), 0);
+            GL20.glUniform1i(GL20.glGetUniformLocation(selected, "Lightmap"), 1);
+            GL20.glUniform4f(GL20.glGetUniformLocation(selected, "Tint"), color.r, color.g, color.b, color.a);
             GlStateManager.setActiveTexture(OpenGlHelper.lightmapTexUnit);
-            GL20.glUniform1i(GL20.glGetUniformLocation(program, "HasLightmap"), GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D) == 0 ? 0 : 1);
+            GL20.glUniform1i(GL20.glGetUniformLocation(selected, "HasLightmap"), GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D) == 0 ? 0 : 1);
             GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
             }
             render.run();
@@ -94,9 +105,10 @@ public final class NativeEquipmentRenderer
         }
     }
 
-    private static void ensureProgram()
+    private static int ensureProgram(boolean diffuse)
     {
-        if (program != 0) return;
+        if (diffuse ? armorProgram != 0 : program != 0) return diffuse ? armorProgram : program;
+        int vertex = 0;
         int fragment = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
         int candidate = GL20.glCreateProgram();
         try
@@ -106,10 +118,21 @@ public final class NativeEquipmentRenderer
             GL20.glShaderSource(fragment, "#version 120\nuniform sampler2D Albedo; uniform sampler2D Lightmap; uniform vec4 Tint; uniform bool HasLightmap; void main(){ vec4 c=texture2D(Albedo,gl_TexCoord[0].xy)*gl_Color*Tint; if(c.a<0.00392157)discard; if(HasLightmap)c.rgb*=texture2D(Lightmap,gl_TexCoord[1].xy).rgb; gl_FragColor=c; }");
             GL20.glCompileShader(fragment);
             if (GL20.glGetShaderi(fragment, GL20.GL_COMPILE_STATUS) == 0) throw new IllegalStateException(GL20.glGetShaderInfoLog(fragment, 8192));
-            GL20.glAttachShader(candidate, fragment); GL20.glLinkProgram(candidate);
+            GL20.glAttachShader(candidate, fragment);
+            if (diffuse)
+            {
+                vertex = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
+                GL20.glShaderSource(vertex, "#version 120\nuniform mat3 NormalTransform;uniform vec3 Light0;uniform vec3 Light1;void main(){gl_Position=gl_ModelViewProjectionMatrix*gl_Vertex;gl_TexCoord[0]=gl_TextureMatrix[0]*gl_MultiTexCoord0;gl_TexCoord[1]=gl_TextureMatrix[1]*gl_MultiTexCoord1;vec3 n=normalize(NormalTransform*gl_NormalMatrix*gl_Normal);float d=max(0.0,dot(normalize(Light0),n))+max(0.0,dot(normalize(Light1),n));gl_FrontColor=gl_Color;gl_FrontColor.rgb*=min(1.0,d*0.6+0.4);}");
+                GL20.glCompileShader(vertex);
+                if (GL20.glGetShaderi(vertex, GL20.GL_COMPILE_STATUS) == 0) throw new IllegalStateException(GL20.glGetShaderInfoLog(vertex,8192));
+                GL20.glAttachShader(candidate, vertex);
+            }
+            GL20.glLinkProgram(candidate);
             if (GL20.glGetProgrami(candidate, GL20.GL_LINK_STATUS) == 0) throw new IllegalStateException(GL20.glGetProgramInfoLog(candidate, 8192));
-            program = candidate; candidate = 0;
+            if (diffuse) armorProgram = candidate; else program = candidate;
+            candidate = 0;
+            return diffuse ? armorProgram : program;
         }
-        finally { GL20.glDeleteShader(fragment); if (candidate != 0) GL20.glDeleteProgram(candidate); }
+        finally { if (vertex != 0) GL20.glDeleteShader(vertex); GL20.glDeleteShader(fragment); if (candidate != 0) GL20.glDeleteProgram(candidate); }
     }
 }

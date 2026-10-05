@@ -206,8 +206,9 @@ public class UIFilmPreview extends UIElement
             menu.action(Icons.MOVE_TO, UIKeys.FILM_REPLAY_TELEPORT_TO_PLAYER, () -> this.panel.getController().keyframes.insertPlayerFrame());
         });
         this.shaders = new UIIcon(Icons.SUN, (b) -> this.toggleShaders());
-        this.shaders.tooltip(UIKeys.UTILITY_IRIS_REQUIRED);
-        this.shaders.setEnabled(false);
+        this.shaders.tooltip(UIKeys.FILM_TOGGLE_SHADERS);
+        this.shaders.highlight(mchorse.bbs_mod.graphics.OptiFineShaders::isLoaded, Direction.BOTTOM);
+        this.shaders.setEnabled(mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.available());
         this.recordVideo = new UIIcon(Icons.VIDEO_CAMERA, (b) ->
         {
             if (!this.canExport())
@@ -313,7 +314,8 @@ public class UIFilmPreview extends UIElement
 
     private void toggleShaders()
     {
-        UIOverlay.addOverlay(this.getContext(), new UIMessageOverlayPanel(UIKeys.FILM_TOGGLE_SHADERS, UIKeys.UTILITY_IRIS_REQUIRED));
+        if (!mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.toggle())
+            UIOverlay.addOverlay(this.getContext(), new UIMessageOverlayPanel(UIKeys.FILM_TOGGLE_SHADERS, UIKeys.FILM_SELECT_SHADER));
     }
 
     /**

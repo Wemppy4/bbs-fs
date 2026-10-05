@@ -35,14 +35,14 @@ def main():
         wait(8)
         plain = report['unmorphed'] = capture('film-unmorphed')
         assert not plain['hasMorph'] and plain['hidePlayer'] and not plain['cameraIsPlayer'], plain
-        assert plain['localAttempts'] > 0 and plain['localAttempts'] == plain['localCanceled'], plain
+        assert plain['shouldHide'] and plain['localAttempts'] == plain['localMorphDraws'] == 0, plain
         assert plain['localPosts'] == 0 and plain['previewPosts'] > 0 and plain['glError'] == 0, plain
 
         probe('morph')
         wait(8)
         morphed = report['morphed'] = capture('film-morphed')
         assert morphed['hasMorph'] and morphed['hidePlayer'], morphed
-        assert morphed['localAttempts'] > 0 and morphed['localAttempts'] == morphed['localCanceled'], morphed
+        assert morphed['shouldHide'] and morphed['localAttempts'] == morphed['localMorphDraws'] == 0, morphed
         assert morphed['localPosts'] == 0 and morphed['previewPosts'] > 0 and morphed['glError'] == 0, morphed
 
         select_panel('UIMorphingPanel')

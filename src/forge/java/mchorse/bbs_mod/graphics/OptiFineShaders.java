@@ -26,6 +26,10 @@ public final class OptiFineShaders
     }
 
     public static boolean isLoaded() { return API != null && flag(API.loaded); }
+    public static float blockShade(int face)
+    {
+        return isLoaded() ? ((Number) get(API.blockLight[face])).floatValue() : new float[]{.6F, .8F, .5F}[face];
+    }
     public static boolean isShadowPass() { return isLoaded() && flag(API.shadow); }
     public static boolean isWorldPass()
     {
@@ -176,10 +180,14 @@ public final class OptiFineShaders
     {
         final Field loaded, world, deferred, shadow, glowing, active, activeId, none, entities, hand, handWater, texturedLit, entityColor;
         final Field terrainSolid, terrainCutoutMip, terrainCutout, water;
+        final Field[] blockLight = new Field[3];
         final Method use, resize, colorSet, uniformProgram, uniformSetProgram;
         Access(Class<?> shaders) throws ReflectiveOperationException
         {
             loaded = shaders.getField("shaderPackLoaded");
+            blockLight[0] = shaders.getField("blockLightLevel06");
+            blockLight[1] = shaders.getField("blockLightLevel08");
+            blockLight[2] = shaders.getField("blockLightLevel05");
             world = shaders.getField("isRenderingWorld");
             deferred = shaders.getField("isRenderingDfb");
             shadow = shaders.getField("isShadowPass");

@@ -64,7 +64,8 @@ public final class BakedStructure
     {
         int[] vertices=layers.get(layer);if(vertices==null||vertices.length==0)return;
         BufferBuilder builder=Tessellator.getInstance().getBuffer();
-        try(OptiFineShaders.EntityPass pass=OptiFineShaders.isWorldPass()?OptiFineShaders.blocks(layer):null)
+        try(mchorse.bbs_mod.forms.renderers.NativeFormDraw.BlockLighting lighting=mchorse.bbs_mod.forms.renderers.NativeFormDraw.blockLighting();
+            OptiFineShaders.EntityPass pass=OptiFineShaders.isWorldPass()?OptiFineShaders.blocks(layer):null)
         {
             builder.begin(GL11.GL_QUADS,format);
             /* addVertexData overwrites mc_Entity in the passed array in OptiFine. A state replay

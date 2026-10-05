@@ -11,12 +11,34 @@ public final class BBSMorphTransformer implements IClassTransformer
     {
         boolean player = "net.minecraft.entity.player.EntityPlayer".equals(transformedName);
         boolean renderer = "net.minecraft.client.renderer.entity.RenderPlayer".equals(transformedName);
-        if (bytes == null || !player && !renderer) return bytes;
+        boolean manager = "net.minecraft.client.renderer.entity.RenderManager".equals(transformedName);
+        boolean localPlayer = "net.minecraft.client.entity.EntityPlayerSP".equals(transformedName);
+        if (bytes == null || !player && !renderer && !manager && !localPlayer) return bytes;
         ClassNode node = new ClassNode();
         new ClassReader(bytes).accept(node, 0);
         int changed = 0;
         for (MethodNode method : node.methods)
         {
+            if (manager && (method.name.equals("renderEntity") || method.name.equals("func_188391_a"))
+                && method.desc.equals("(Lnet/minecraft/entity/Entity;DDDFFZ)V"))
+            {
+                InsnList hook = new InsnList(); LabelNode visible = new LabelNode();
+                hook.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "mchorse/bbs_mod/client/renderer/MorphRenderer", "shouldHide", "(Lnet/minecraft/entity/Entity;)Z", false));
+                hook.add(new JumpInsnNode(Opcodes.IFEQ, visible)); hook.add(new InsnNode(Opcodes.RETURN));
+                hook.add(visible); hook.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
+                method.instructions.insert(hook); changed++;
+            }
+            if (localPlayer && (method.name.equals("isCurrentViewEntity") || method.name.equals("func_175160_A")) && method.desc.equals("()Z"))
+            {
+                for (AbstractInsnNode instruction : method.instructions.toArray()) if (instruction.getOpcode() == Opcodes.IRETURN)
+                {
+                    InsnList hook = new InsnList(); hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "mchorse/bbs_mod/forge/FilmControlInput", "isControlledPlayer", "(Lnet/minecraft/entity/Entity;)Z", false));
+                    hook.add(new InsnNode(Opcodes.IOR)); method.instructions.insertBefore(instruction, hook);
+                }
+                changed++;
+            }
             if (player && (method.name.equals("getEyeHeight") || method.name.equals("func_70047_e")) && method.desc.equals("()F"))
             {
                 for (AbstractInsnNode instruction : method.instructions.toArray())
@@ -47,7 +69,7 @@ public final class BBSMorphTransformer implements IClassTransformer
                 changed++;
             }
         }
-        if (changed != (player ? 1 : 2)) throw new IllegalStateException("BBS morph hooks did not match " + transformedName);
+        if (changed != (renderer ? 2 : 1)) throw new IllegalStateException("BBS morph hooks did not match " + transformedName);
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         node.accept(writer);
         return writer.toByteArray();

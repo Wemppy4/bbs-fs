@@ -34,6 +34,8 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
     public UIScrollView view;
     private final UISliderTrackpad time;
     private final UIText shaderStatus;
+    private final UIStringList shaders;
+    private final boolean optifine = mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.available();
     private int pendingTime = -1;
     private long timeRequestDeadline;
 
@@ -89,12 +91,27 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         folder.tooltip(UIKeys.UTILITY_OPEN_SHADERS);
         UIElement header = this.header(UIKeys.UTILITY_SHADERS, folder);
         header.relative(right).xy(10, 10).w(1F, -20).h(20);
-        /* Iris integration is explicitly deferred for this native Forge port. Keep the
-         * original unavailable-provider message and layout; expose no dummy selector. */
-        this.shaderStatus = new UIText().text(UIKeys.UTILITY_IRIS_REQUIRED);
+        this.shaders = new UIStringList(list ->
+        {
+            if (!list.isEmpty()) this.selectShader(list.get(0));
+        })
+        {
+            @Override
+            protected String elementToString(UIContext context, int i, String element)
+            {
+                return element.isEmpty() ? UIKeys.UTILITY_SHADERS_OFF.get() : element;
+            }
+        };
+        this.shaders.relative(right).xy(10, 35).w(1F, -20).h(1F, -45);
+        this.shaders.scroll.scrollItemSize = 18;
+        this.shaders.background(BBSSettings.inputSurface());
+        this.shaderStatus = new UIText().text(mchorse.bbs_mod.l10n.L10n.lang("bbs.ui.utility.optifine_required"));
         this.shaderStatus.relative(right).xy(15, 40).w(1F, -30).h(1F, -50);
-        right.add(header, this.shaderStatus);
+        this.shaderStatus.setVisible(!this.optifine);
+        this.shaders.setEnabled(this.optifine);
+        right.add(header, this.shaders, this.shaderStatus);
         this.content.add(this.view, right);
+        this.refreshShaders();
     }
 
     private UIElement header(IKey label, UIIcon icon)
@@ -168,6 +185,42 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         UIUtils.openFolder(folder);
     }
 
+    private void refreshShaders()
+    {
+        if (!this.optifine) return;
+        try
+        {
+            List<String> packs = new ArrayList<>();
+            packs.add("");
+            packs.addAll(mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.list());
+            this.shaderStatus.setVisible(false);
+            this.shaders.setList(packs);
+            this.shaders.setCurrent(mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.current());
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            this.shaders.setList(new ArrayList<>());
+            this.shaderStatus.text(UIKeys.UTILITY_SHADER_ERROR);
+            this.shaderStatus.setVisible(true);
+        }
+    }
+
+    private void selectShader(String name)
+    {
+        if (!this.optifine || name.equals(mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.current())) return;
+        try
+        {
+            mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.select(name);
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            UIOverlay.addOverlay(this.getContext(), new UIMessageOverlayPanel(UIKeys.GENERAL_ERROR, UIKeys.UTILITY_SHADER_ERROR));
+        }
+        this.shaders.setCurrent(mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.current());
+    }
+
     @Override
     public void render(UIContext context)
     {
@@ -185,6 +238,7 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
             }
             if (this.pendingTime < 0) this.time.setValue(worldTime);
         }
+        if (this.optifine) this.shaders.setCurrent(mchorse.bbs_mod.utils.iris.OptiFineShaderPacks.current());
         super.render(context);
     }
 

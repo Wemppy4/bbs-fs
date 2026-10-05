@@ -38,7 +38,7 @@ public class NativeFormCommand extends FormTranslucentQueue.DrawCommand
     }
     public NativeFormCommand diffuseLighting()
     {
-        if(context.ui||context.modelRenderer)lights=new Vector3f[]{mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(0),mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(1)};
+        lights=new Vector3f[]{mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(0),mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(1)};
         return this;
     }
     @Override public void draw()

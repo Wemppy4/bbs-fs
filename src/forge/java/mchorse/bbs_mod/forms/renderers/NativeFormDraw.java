@@ -63,6 +63,7 @@ public final class NativeFormDraw implements AutoCloseable
             GL20.glUniform4f(GL20.glGetUniformLocation(program, "Overlay"), overlay.r, overlay.g, overlay.b, overlay.a);
             GL20.glUniform1f(GL20.glGetUniformLocation(program, "VertexLight"), vertexLight ? 1 : 0);
             GL20.glUniform1f(GL20.glGetUniformLocation(program, "Diffuse"), diffuse ? 1 : 0);
+            GL20.glUniform3f(GL20.glGetUniformLocation(program, "BlockShade"), 1, 1, 1);
             if(diffuse)
             {
                 /* Native entity parts continue changing gl_NormalMatrix below this scope.
@@ -81,9 +82,21 @@ public final class NativeFormDraw implements AutoCloseable
         }
     }
 
+    /** OptiFine neutralizes baked face brightness for world shaders. Local block
+     * previews restore only that factor; their baked AO and biome tint stay intact. */
+    public interface BlockLighting extends AutoCloseable { void close(); }
+    public static BlockLighting blockLighting()
+    {
+        if (!OptiFineShaders.isLoaded() || program == 0 || GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM) != program)
+            return () -> {};
+        int uniform = GL20.glGetUniformLocation(program, "BlockShade");
+        GL20.glUniform3f(uniform, .6F / OptiFineShaders.blockShade(0), .8F / OptiFineShaders.blockShade(1), .5F / OptiFineShaders.blockShade(2));
+        return () -> GL20.glUniform3f(uniform, 1, 1, 1);
+    }
+
     private static int createProgram()
     {
-        int vertex = shader(GL20.GL_VERTEX_SHADER, "#version 120\nuniform float Diffuse;uniform mat3 NormalTransform;uniform vec3 Light0;uniform vec3 Light1;varying vec2 uv; varying vec2 light; varying vec4 color; void main(){gl_Position=gl_ModelViewProjectionMatrix*gl_Vertex;uv=gl_MultiTexCoord0.xy;light=gl_MultiTexCoord1.xy/256.0+vec2(0.03125);color=gl_Color;if(Diffuse>0.5){vec3 n=normalize(NormalTransform*gl_NormalMatrix*gl_Normal);float d=max(0.0,dot(normalize(Light0),n))+max(0.0,dot(normalize(Light1),n));color.rgb*=min(1.0,d*0.6+0.4);}}");
+        int vertex = shader(GL20.GL_VERTEX_SHADER, "#version 120\nuniform vec3 BlockShade;uniform float Diffuse;uniform mat3 NormalTransform;uniform vec3 Light0;uniform vec3 Light1;varying vec2 uv; varying vec2 light; varying vec4 color; void main(){gl_Position=gl_ModelViewProjectionMatrix*gl_Vertex;uv=gl_MultiTexCoord0.xy;light=gl_MultiTexCoord1.xy/256.0+vec2(0.03125);color=gl_Color;vec3 bn=abs(gl_Normal);if(any(notEqual(BlockShade,vec3(1.0))))color.rgb*=bn.x*BlockShade.x+bn.z*BlockShade.y+bn.y*(gl_Normal.y<0.0?BlockShade.z:1.0);if(Diffuse>0.5){vec3 n=normalize(NormalTransform*gl_NormalMatrix*gl_Normal);float d=max(0.0,dot(normalize(Light0),n))+max(0.0,dot(normalize(Light1),n));color.rgb*=min(1.0,d*0.6+0.4);}}");
         int fragment = shader(GL20.GL_FRAGMENT_SHADER, "#version 120\nuniform sampler2D Texture;uniform sampler2D Lightmap;uniform vec4 Tint;uniform vec4 Overlay;uniform vec2 Light;uniform float VertexLight;varying vec2 uv;varying vec2 light;varying vec4 color;void main(){vec4 c=texture2D(Texture,uv)*color*Tint;if(c.a<0.003)discard;c.rgb=mix(c.rgb,Overlay.rgb,clamp(Overlay.a,0.0,1.0));c.rgb*=texture2D(Lightmap,vec2(mix(Light.x,max(Light.x,light.x),VertexLight),Light.y)).rgb;gl_FragColor=c;}");
         int result = GL20.glCreateProgram();
         GL20.glAttachShader(result, vertex); GL20.glAttachShader(result, fragment); GL20.glLinkProgram(result);

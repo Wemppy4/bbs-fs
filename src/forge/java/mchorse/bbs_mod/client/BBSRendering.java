@@ -104,6 +104,17 @@ public final class BBSRendering
         if(mc.renderGlobal!=null)mc.renderGlobal.createBindEntityOutlineFbs(mc.displayWidth,mc.displayHeight);
         if(mc.entityRenderer!=null)mc.entityRenderer.updateShaderGroupSize(mc.displayWidth,mc.displayHeight);
     }
+    private static final java.lang.reflect.Field PAUSED_PARTIAL = net.minecraftforge.fml.relauncher.ReflectionHelper.findField(
+        Minecraft.class, "renderPartialTicksPaused", "field_193996_ah");
+
+    public static float worldTransition(float transition)
+    {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (!mc.isGamePaused()) return transition;
+        try { return PAUSED_PARTIAL.getFloat(mc); }
+        catch (IllegalAccessException error) { throw new IllegalStateException(error); }
+    }
+
     public static void onWorldRenderBegin(float transition)
     {
         if(capturing)throw new IllegalStateException("Nested native world capture");

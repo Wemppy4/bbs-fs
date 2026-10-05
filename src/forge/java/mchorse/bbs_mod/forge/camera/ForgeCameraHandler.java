@@ -116,7 +116,7 @@ public final class ForgeCameraHandler
             this.view = new CameraEntity(this.mc.world);
         }
 
-        this.controller.setup(this.controller.camera, event.renderTickTime);
+        this.controller.setup(this.controller.camera, mchorse.bbs_mod.client.BBSRendering.worldTransition(event.renderTickTime));
         this.view.apply(this.controller);
         this.mc.setRenderViewEntity(this.view);
         this.mc.gameSettings.thirdPersonView = 0;

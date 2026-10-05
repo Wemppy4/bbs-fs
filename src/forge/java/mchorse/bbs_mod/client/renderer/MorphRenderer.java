@@ -31,6 +31,12 @@ public final class MorphRenderer
     /** Installed by the real morphing panel; editing its preview hides the world body. */
     public static void setVisibility(BooleanSupplier value) { visibility = value; }
 
+    /** Run before RenderManager draws either the body, its morph or its shadow/fire. */
+    public static boolean shouldHide(net.minecraft.entity.Entity entity)
+    {
+        return entity == Minecraft.getMinecraft().player && (hidePlayer || !visibility.getAsBoolean());
+    }
+
     @SubscribeEvent
     public void renderPlayer(RenderPlayerEvent.Pre event)
     {
@@ -38,7 +44,7 @@ public final class MorphRenderer
          * player, which vanilla omits from the world pass. The 1.12 camera uses a
          * separate view entity, so repeat that exclusion while editing a film.
          * MobForm previews and film actors use separate entities and stay visible. */
-        if (event.getEntityPlayer() == Minecraft.getMinecraft().player && (hidePlayer || !visibility.getAsBoolean()))
+        if (shouldHide(event.getEntityPlayer()))
         {
             event.setCanceled(true);
             return;
