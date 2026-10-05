@@ -238,20 +238,7 @@ public class ForgeAiHelper
                     List<GuiButton> list=ReflectionHelper.getPrivateValue(GuiScreen.class,MC.currentScreen,"buttonList","field_146292_n");
                     for(GuiButton b:list) { JsonObject v=new JsonObject();v.addProperty("id",b.id);v.addProperty("text",b.displayString);v.addProperty("x",b.x);v.addProperty("y",b.y);v.addProperty("width",b.width);v.addProperty("height",b.height);buttons.add(v); }
                 } out.add("widgets",buttons);
-                JsonArray inputs=new JsonArray();
-                if(MC.currentScreen instanceof mchorse.bbs_mod.forge.studio.StudioScreen) {
-                    java.lang.reflect.Field fields=MC.currentScreen.getClass().getDeclaredField("fields");fields.setAccessible(true);
-                    for(Object field:(java.util.List<?>)fields.get(MC.currentScreen)) {
-                        java.lang.reflect.Field input=field.getClass().getDeclaredField("input"),label=field.getClass().getDeclaredField("label");input.setAccessible(true);label.setAccessible(true);
-                        inputs.add(textField((String)label.get(field),(net.minecraft.client.gui.GuiTextField)input.get(field)));
-                    }
-                    java.lang.reflect.Field input=MC.currentScreen.getClass().getDeclaredField("tickField");input.setAccessible(true);
-                    inputs.add(textField("Tick",(net.minecraft.client.gui.GuiTextField)input.get(MC.currentScreen)));
-                } else if(MC.currentScreen instanceof mchorse.bbs_mod.forge.studio.StudioDialog) {
-                    java.lang.reflect.Field input=MC.currentScreen.getClass().getDeclaredField("input");input.setAccessible(true);
-                    inputs.add(textField("Input",(net.minecraft.client.gui.GuiTextField)input.get(MC.currentScreen)));
-                }
-                out.add("fields",inputs);return out;
+                out.add("fields",new JsonArray());return out;
             case "/world": if(MC.world!=null) throw new IllegalStateException("Disconnect first");join(str(p,"world","ai_test"));return out;
             case "/disconnect":
                 if(MC.world!=null) MC.world.sendQuittingDisconnectingPacket();
@@ -285,8 +272,7 @@ public class ForgeAiHelper
                 if (MC.currentScreen instanceof mchorse.bbs_mod.ui.framework.UIScreen) {
                     withModifiers(p, () -> ((mchorse.bbs_mod.ui.framework.UIScreen)MC.currentScreen).mouseScrolled(integer(p,"x",0),integer(p,"y",0),0,integer(p,"wheel",-120)/120D));return out;
                 }
-                if(!(MC.currentScreen instanceof mchorse.bbs_mod.forge.studio.StudioScreen)) throw new IllegalStateException("Open the studio first");
-                ((mchorse.bbs_mod.forge.studio.StudioScreen)MC.currentScreen).scroll(integer(p,"x",0),integer(p,"y",0),integer(p,"wheel",-120));return out;
+                throw new IllegalStateException("Open a BBS screen first");
             case "/look":
                 if(MC.player==null) throw new IllegalStateException("No player");
                 MC.player.rotationYaw=(float)Double.parseDouble(str(p,"yaw","0"));MC.player.rotationPitch=(float)Double.parseDouble(str(p,"pitch","0"));return out;
@@ -301,34 +287,7 @@ public class ForgeAiHelper
                 out.add("loadedModels",GSON.toJsonTree(mchorse.bbs_mod.forge.ClientProxy.models.models.keySet()));
                 out.addProperty("renderEpoch",mchorse.bbs_mod.forms.renderers.utils.RenderFrame.getEpoch());
                 out.addProperty("glError",GL11.glGetError());
-                mchorse.bbs_mod.forge.studio.StudioSession studio=mchorse.bbs_mod.forge.studio.StudioSession.current;
-                if(studio!=null) {
-                    out.addProperty("film",mchorse.bbs_mod.data.DataToString.toString(studio.film.toData()));
-                    out.addProperty("filmName",studio.film.getId());out.addProperty("filmTick",studio.runtime.tick);
-                    out.addProperty("playing",studio.runtime.playing);out.addProperty("recording",studio.recording);
-                    out.addProperty("camera",studio.runtime.cameraEnabled);out.addProperty("selectedActor",studio.selectedReplay);
-                    out.addProperty("status",studio.status);
-                    out.addProperty("viewEntity",MC.getRenderViewEntity()==null?"":MC.getRenderViewEntity().getClass().getSimpleName());
-                    JsonArray actors=new JsonArray();
-                    for(mchorse.bbs_mod.forms.entities.ReplayEntity actor:studio.runtime.actors.values()) {
-                        JsonObject a=new JsonObject();a.addProperty("id",actor.replay.getId());a.addProperty("name",actor.replay.getName());
-                        a.add("position",GSON.toJsonTree(new double[]{actor.getX(),actor.getY(),actor.getZ()}));
-                        a.addProperty("form",mchorse.bbs_mod.data.DataToString.toString(actor.getForm().toData()));
-                        JsonObject bones=new JsonObject();
-                        for(java.util.Map.Entry<String,mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry> b:mchorse.bbs_mod.forms.FormUtilsClient.getRenderer(actor.getForm()).collectMatrices(actor,MC.getRenderPartialTicks()).entrySet())if(b.getValue().matrix()!=null)bones.add(b.getKey(),GSON.toJsonTree(b.getValue().matrix().get(new float[16])));
-                        a.add("bones",bones);actors.add(a);
-                    }
-                    out.add("actors",actors);
-                }
-                if(MC.currentScreen instanceof mchorse.bbs_mod.forge.ModelScreen) {
-                    mchorse.bbs_mod.forms.forms.ModelForm form=((mchorse.bbs_mod.forge.ModelScreen)MC.currentScreen).form;
-                    out.addProperty("form",mchorse.bbs_mod.data.DataToString.toString(form.toData()));
-                    mchorse.bbs_mod.cubic.ModelInstance entry=mchorse.bbs_mod.forge.ClientProxy.models.getModel(form.model.get());
-                    if(entry!=null) {
-                        out.add("animations",GSON.toJsonTree(mchorse.bbs_mod.forge.ModelScreen.animationNames(entry)));
-                        JsonObject bones=new JsonObject();for(java.util.Map.Entry<String,mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry> b:mchorse.bbs_mod.forms.FormUtilsClient.getRenderer(form).collectMatrices(((mchorse.bbs_mod.forge.ModelScreen)MC.currentScreen).getPreviewEntity(),MC.getRenderPartialTicks()).entrySet())if(b.getValue().evaluatedRotation()!=null){org.joml.Vector3f r=b.getValue().evaluatedRotation();bones.add(b.getKey(),GSON.toJsonTree(new float[]{r.x,r.y,r.z}));}out.add("bones",bones);
-                    }
-                } return out;
+                return out;
             default: throw new IllegalArgumentException("Unsupported Forge AI Helper route: "+endpoint);
         }
     }
@@ -356,9 +315,6 @@ public class ForgeAiHelper
     private static void guiKey(char c,int code) throws Exception {
         if(MC.currentScreen==null) throw new IllegalStateException("No GUI");
         ReflectionHelper.findMethod(GuiScreen.class,"keyTyped","func_73869_a",char.class,int.class).invoke(MC.currentScreen,c,code);
-    }
-    private static JsonObject textField(String label,net.minecraft.client.gui.GuiTextField field) {
-        JsonObject out=new JsonObject();out.addProperty("label",label);out.addProperty("text",field.getText());out.addProperty("x",field.x);out.addProperty("y",field.y);out.addProperty("width",field.width);out.addProperty("height",field.height);return out;
     }
     private static JsonObject command(JsonObject p) throws Exception {
         String text=str(p,"cmd","");if(text.startsWith("/"))text=text.substring(1);

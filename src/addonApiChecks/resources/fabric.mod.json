@@ -1,1 +1,0 @@
-{"schemaVersion":1,"id":"bbs_api_check","version":"1.0","environment":"client","entrypoints":{"preLaunch":["mchorse.bbs_mod.api.AddonApiCheck"]}}

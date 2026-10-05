@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.minecraftforge.client.event.EntityViewRenderEvent;
 import net.minecraftforge.client.event.RenderHandEvent;
@@ -32,6 +33,9 @@ public final class ForgeCameraHandler
     private final CameraController controller;
     private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
     private final Matrix4f projection = new Matrix4f();
+    private final Matrix4f terrainProjection = new Matrix4f();
+    private boolean terrainProjectionValid;
+    private float terrainRoll;
     private World lastWorld;
     private CameraEntity view;
     private Entity previousView;
@@ -146,6 +150,22 @@ public final class ForgeCameraHandler
         event.setRoll(this.controller.getRoll());
 
         this.applyOrthographicProjection();
+
+        /* RenderGlobal only tracks position/yaw/pitch. Editor FOV, roll and
+         * framebuffer aspect changes must also invalidate its visible chunks. */
+        this.matrixBuffer.clear();
+        GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, this.matrixBuffer);
+        this.projection.set(this.matrixBuffer);
+        float roll = this.controller.getRoll();
+
+        if (!this.terrainProjectionValid || !this.terrainProjection.equals(this.projection)
+            || this.terrainRoll != roll)
+        {
+            this.mc.renderGlobal.setDisplayListEntitiesDirty();
+            this.terrainProjection.set(this.projection);
+            this.terrainRoll = roll;
+            this.terrainProjectionValid = true;
+        }
     }
 
     /**
@@ -301,6 +321,8 @@ public final class ForgeCameraHandler
             this.mc.gameSettings.thirdPersonView = this.previousPerspective;
         }
 
+        this.mc.renderGlobal.setDisplayListEntitiesDirty();
+        this.terrainProjectionValid = false;
         this.view = null;
         this.previousView = null;
     }
@@ -317,6 +339,11 @@ public final class ForgeCameraHandler
         void apply(CameraController controller)
         {
             this.setPosition(controller.getPosition().x, controller.getPosition().y, controller.getPosition().z);
+            /* This camera is not added to World, so Chunk.addEntity never
+             * maintains these fields for RenderGlobal's frustum tracking. */
+            this.chunkCoordX = MathHelper.floor(this.posX / 16D);
+            this.chunkCoordY = MathHelper.floor(this.posY / 16D);
+            this.chunkCoordZ = MathHelper.floor(this.posZ / 16D);
             this.prevPosX = this.lastTickPosX = this.posX;
             this.prevPosY = this.lastTickPosY = this.posY;
             this.prevPosZ = this.lastTickPosZ = this.posZ;

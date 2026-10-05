@@ -20,8 +20,6 @@ import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraft.item.Item;
 import java.io.File;
-import mchorse.bbs_mod.forge.studio.StudioSession;
-import mchorse.bbs_mod.forge.studio.StudioScreen;
 
 public class ClientProxy extends CommonProxy {
     public static ModelManager models;
@@ -184,13 +182,12 @@ public class ClientProxy extends CommonProxy {
         mchorse.bbs_mod.BBSModClient.getWorldExportSession().stop();
         mchorse.bbs_mod.client.renderer.LivePlayerItemUse.endFrame();
         mchorse.bbs_mod.BBSModClient.getFilms().reset();
-        StudioSession.unload();
         lastWorld=mc.world;
         ModelItemRenderer.INSTANCE.clear();
         if (mc.world == null) mchorse.bbs_mod.BBSResources.leaveWorld();
         else mchorse.bbs_mod.BBSResources.enterWorld();
     }
-    @SubscribeEvent public void studioTick(TickEvent.ClientTickEvent event) {
+    @SubscribeEvent public void clientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.START) {
             net.minecraft.network.NetworkManager disconnected;
             while ((disconnected = disconnectedConnections.poll()) != null) resetConnection(disconnected);
@@ -213,7 +210,6 @@ public class ClientProxy extends CommonProxy {
                     Minecraft.getMinecraft().displayGuiScreen(null);
             }
         }
-        if(event.phase==TickEvent.Phase.END && Minecraft.getMinecraft().world!=null && StudioSession.current!=null) StudioSession.current.update();
     }
     @SubscribeEvent public void cameraTick(TickEvent.RenderTickEvent event) {
         if (event.phase == TickEvent.Phase.START)
@@ -227,7 +223,6 @@ public class ClientProxy extends CommonProxy {
             mchorse.bbs_mod.ui.framework.UIBaseMenu menu = mchorse.bbs_mod.ui.framework.UIScreen.getCurrentMenu();
             if (menu != null) menu.startRenderFrame(event.renderTickTime);
         }
-        if(event.phase==TickEvent.Phase.START && StudioSession.current!=null) StudioSession.current.runtime.updateCamera(event.renderTickTime);
         if(event.phase==TickEvent.Phase.END) mchorse.bbs_mod.client.renderer.LivePlayerItemUse.endFrame();
     }
     @SubscribeEvent public void scene(net.minecraftforge.client.event.RenderWorldLastEvent event) {
@@ -256,7 +251,6 @@ public class ClientProxy extends CommonProxy {
                 if(depth)net.minecraft.client.renderer.GlStateManager.enableDepth();else net.minecraft.client.renderer.GlStateManager.disableDepth();
             }
         }
-        if(StudioSession.current!=null) StudioSession.current.runtime.render(event.getPartialTicks());
     }
     @SubscribeEvent public void disconnected(net.minecraftforge.fml.common.network.FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
         /* closeChannel waits for Netty while Minecraft may hold its scheduled-task monitor.
@@ -281,11 +275,5 @@ public class ClientProxy extends CommonProxy {
         batcher.beginBatch();
         try { mchorse.bbs_mod.BBSModClient.getFilms().renderHud(batcher,event.getPartialTicks()); }
         finally { batcher.endBatch(); }
-    }
-    @SubscribeEvent public void camera(net.minecraftforge.client.event.EntityViewRenderEvent.CameraSetup event) {
-        if(StudioSession.current!=null && StudioSession.current.runtime.cameraEnabled) event.setRoll(StudioSession.current.runtime.cameraPosition.angle.roll);
-    }
-    @SubscribeEvent public void fov(net.minecraftforge.client.event.EntityViewRenderEvent.FOVModifier event) {
-        if(StudioSession.current!=null && StudioSession.current.runtime.cameraEnabled) event.setFOV(StudioSession.current.runtime.cameraPosition.angle.fov);
     }
 }

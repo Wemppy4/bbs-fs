@@ -33,15 +33,14 @@ dependencies {
     // CPU geometry/audio tests use LWJGL's direct-buffer allocator; no GL context is created.
     testRuntimeOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
 }
-// Audited BBS core is added here as each subsystem becomes runnable.
+// Shared BBS code and native Forge implementations are compiled directly.
 sourceSets {
-    // Modern integration tests depend on systems outside the foundation port.
     test {
         java.setSrcDirs(['src/forgeTest/java'])
         resources.setSrcDirs(['src/forgeTest/resources'])
     }
     main {
-        java.setSrcDirs(['src/forge/java', layout.buildDirectory.dir('generated/bbs-core')])
+        java.setSrcDirs(['src/forge/java', 'src/main/java', 'src/client/java'])
         resources.setSrcDirs(['src/forge/resources'])
     }
     aihelper {
@@ -153,22 +152,11 @@ tasks.register('embeddedRuntime', Jar) {
     exclude 'module-info.class', 'META-INF/versions/**', 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-tasks.register('prepareBbsCore', Sync) {
-    from('src/main/java') {
-        include file('gradle/forge-core.txt').readLines().findAll { it && !it.startsWith('#') }
-    }
-    from('src/client/java') {
-        include file('gradle/forge-client.txt').readLines().findAll { it && !it.startsWith('#') }
-    }
-    into layout.buildDirectory.dir('generated/bbs-core')
-}
 tasks.named('compileJava') {
-    dependsOn 'prepareBbsCore'
     javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(17) }
     sourceCompatibility = '17'
     options.release = 8
 }
-tasks.named('sourcesJar') { dependsOn 'prepareBbsCore' }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.named('processResources') {
     inputs.property 'version', project.version

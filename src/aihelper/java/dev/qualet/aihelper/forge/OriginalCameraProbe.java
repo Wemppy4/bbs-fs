@@ -162,6 +162,20 @@ public final class OriginalCameraProbe extends UIBaseMenu
     public static JsonObject handle(JsonObject request)
     {
         Minecraft mc = Minecraft.getMinecraft();
+        if (request.has("terrain"))
+        {
+            if (request.has("invalidate")) mc.renderGlobal.setDisplayListEntitiesDirty();
+            if (request.has("reload")) mc.renderGlobal.loadRenderers();
+            JsonObject result = new JsonObject();
+            result.addProperty("ok", true);
+            result.addProperty("renders", mc.renderGlobal.getDebugInfoRenders());
+            result.addProperty("loaded", mc.world.getChunkProvider().makeString());
+            Entity view = mc.getRenderViewEntity();
+            result.add("position", vector(view.posX, view.posY, view.posZ));
+            result.add("chunk", vector(view.chunkCoordX, view.chunkCoordY, view.chunkCoordZ));
+            result.addProperty("viewIsPlayer", view == mc.player);
+            return result;
+        }
         if (request.has("perspective")) mc.gameSettings.thirdPersonView = request.get("perspective").getAsInt();
         if (request.has("open") && request.get("open").getAsBoolean())
         {
@@ -175,6 +189,14 @@ public final class OriginalCameraProbe extends UIBaseMenu
         if (request.has("freeLook")) last.flight.setFreeLook(request.get("freeLook").getAsBoolean());
         if (request.has("orbit")) last.setOrbit(request.get("orbit").getAsBoolean());
         if (request.has("toggleOrtho") && request.get("toggleOrtho").getAsBoolean()) last.orbit.toggleOrtho();
+        if (request.has("fov"))
+        {
+            Camera pose = new Camera();
+            pose.position.set(last.flight.orbit.getFinalPosition());
+            pose.rotation.set(last.flight.orbit.rotation);
+            pose.fov = MathUtils.toRad(request.get("fov").getAsFloat());
+            last.flight.orbit.setup(pose);
+        }
         if (request.has("key"))
         {
             int nativeKey = Keyboard.getKeyIndex(request.get("key").getAsString().toUpperCase(java.util.Locale.ROOT));
