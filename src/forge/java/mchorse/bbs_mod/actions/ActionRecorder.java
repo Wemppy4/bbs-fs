@@ -105,7 +105,9 @@ public class ActionRecorder
         this.trackItemUse(player);
         this.trackContainer(player);
 
-        if (player.swingProgressInt == -1)
+        /* ServerTick.END runs after vanilla advances a newly received swing from
+         * -1 to 0. Match the 1.12 animation start, excluding idle and sleeping. */
+        if (player.isSwingInProgress && player.swingProgress == 0F && !player.isPlayerSleeping())
         {
             this.add(new SwipeActionClip());
 

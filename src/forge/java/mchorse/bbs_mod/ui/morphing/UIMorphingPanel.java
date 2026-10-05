@@ -14,6 +14,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.morphing.camera.ImmersiveMorphingCameraController;
+import mchorse.bbs_mod.ui.model_blocks.UIModelBlockPanel;
 import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
@@ -46,6 +47,11 @@ public class UIMorphingPanel extends UIDashboardPanel
             if (menu instanceof UIDashboard)
             {
                 UIDashboardPanel panel = ((UIDashboard) menu).getPanels().panel;
+
+                if (panel instanceof UIModelBlockPanel)
+                {
+                    return false;
+                }
 
                 if (panel instanceof UIMorphingPanel)
                 {

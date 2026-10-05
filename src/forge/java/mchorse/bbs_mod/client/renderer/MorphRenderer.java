@@ -28,7 +28,7 @@ public final class MorphRenderer
     public static boolean hidePlayer;
     private static BooleanSupplier visibility = () -> true;
 
-    /** Installed by the real morphing panel; editing its preview hides the world body. */
+    /** Dashboard visibility policy for the local player's world body. */
     public static void setVisibility(BooleanSupplier value) { visibility = value; }
 
     /** Run before RenderManager draws either the body, its morph or its shadow/fire. */
@@ -58,7 +58,6 @@ public final class MorphRenderer
         Morph morph = Morph.getMorph(event.getEntityPlayer());
         if (morph == null || morph.getForm() == null) return;
         event.setCanceled(true);
-        if (!visibility.getAsBoolean()) return;
 
         AbstractClientPlayer player = (AbstractClientPlayer) event.getEntityPlayer();
         float transition = event.getPartialRenderTick();

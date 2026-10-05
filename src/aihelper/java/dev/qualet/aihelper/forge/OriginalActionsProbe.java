@@ -21,6 +21,11 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import com.google.gson.JsonArray;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 /** Invoke transformed Minecraft methods while the real production recorder owns a temporary take. */
 public final class OriginalActionsProbe {
@@ -29,9 +34,32 @@ public final class OriginalActionsProbe {
     private static volatile String error;
     private static volatile int completed;
     private static int requested;
+    private static final OriginalActionsProbe SWINGS = new OriginalActionsProbe();
+    private static boolean registered;
+    private static volatile boolean swinging;
+    private static int clientTicks, serverTicks;
+    private static ActionRecorder swingRecorder;
+    private static EntityPlayerMP swingPlayer;
+    private static JsonArray swingSamples = new JsonArray();
+    private static volatile JsonObject swingResult = new JsonObject();
     public static JsonObject run(JsonObject request) {
         if(MC.getIntegratedServer()==null||MC.player==null||!new File(MC.gameDir,"saves/ai_test").getAbsoluteFile().equals(MC.getIntegratedServer().getWorld(0).getSaveHandler().getWorldDirectory().getAbsoluteFile()))
             throw new IllegalStateException("Action boundary probe requires ai_test integrated world");
+        if (request.has("swings")) {
+            if (!MC.gameDir.getName().equals("run-forge1122-qa")) throw new IllegalStateException("Swing probe requires isolated QA");
+            if (request.get("swings").getAsBoolean()) {
+                if (swinging) throw new IllegalStateException("Swing probe is already active");
+                if (!registered) { MinecraftForge.EVENT_BUS.register(SWINGS); registered=true; }
+                clientTicks=serverTicks=0; swingSamples=new JsonArray(); swingResult=new JsonObject();
+                MC.getIntegratedServer().addScheduledTask(() -> {
+                    swingPlayer=MC.getIntegratedServer().getPlayerList().getPlayerByUUID(MC.player.getUniqueID());
+                    Film take=new Film(); take.setId("__aihelper_swings_"+System.nanoTime());
+                    BBSMod.getActions().startRecording(take,swingPlayer,7,8,-1);
+                    swinging=true;
+                });
+            }
+            JsonObject out=new JsonObject(); out.addProperty("ok",true); out.addProperty("active",swinging); out.add("result",swingResult); return out;
+        }
         if(request.has("test")&&request.get("test").getAsBoolean()) {
             final int task=++requested;error=null;
             MC.getIntegratedServer().addScheduledTask(()->{
@@ -42,6 +70,25 @@ public final class OriginalActionsProbe {
         }
         JsonObject out=new JsonObject();out.addProperty("ok",error==null);out.addProperty("requested",requested);out.addProperty("completed",completed);
         if(error!=null)out.addProperty("error",error);out.add("result",result);return out;
+    }
+    @SubscribeEvent public void clientTick(TickEvent.ClientTickEvent event) {
+        if (!swinging || event.phase!=TickEvent.Phase.START) return;
+        /* EntityPlayerSP sends real CPacketAnimation; no direct calls into the recorder. */
+        if (clientTicks<48 && clientTicks%4==0) MC.player.swingArm(EnumHand.MAIN_HAND);
+        clientTicks++;
+    }
+    @SubscribeEvent(priority=EventPriority.LOWEST) public void serverTick(TickEvent.ServerTickEvent event) {
+        if (!swinging || event.phase!=TickEvent.Phase.END) return;
+        JsonObject sample=new JsonObject(); sample.addProperty("tick",serverTicks);
+        sample.addProperty("progress",swingPlayer.swingProgressInt);sample.addProperty("active",swingPlayer.isSwingInProgress);
+        swingSamples.add(sample);
+        if (++serverTicks>=65) {
+            swingRecorder=BBSMod.getActions().stopRecording(swingPlayer);
+            JsonObject out=new JsonObject();out.add("samples",swingSamples);
+            JsonArray ticks=new JsonArray();for(mchorse.bbs_mod.actions.types.SwipeActionClip clip:swingRecorder.getClips().getClips(mchorse.bbs_mod.actions.types.SwipeActionClip.class))ticks.add(clip.tick.get());
+            out.add("swipeTicks",ticks);out.addProperty("clientTicks",clientTicks);out.addProperty("finished",true);
+            swingResult=out;swinging=false;
+        }
     }
     private static JsonObject test() throws Exception {
         EntityPlayerMP player=MC.getIntegratedServer().getPlayerList().getPlayerByUUID(MC.player.getUniqueID());
