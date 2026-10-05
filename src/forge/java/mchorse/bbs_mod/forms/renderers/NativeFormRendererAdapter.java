@@ -73,7 +73,7 @@ public final class NativeFormRendererAdapter<T extends Form> extends FormRendere
             OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, context.light & 0xffff, context.light >> 16 & 0xffff);
             try (NativePickingShader.Scope picking = NativePickingShader.open(context.isPicking() ? context.getPickingIndex() : -1))
             {
-                this.backend.renderGeometry(context.entity, context.transition, context.ui, context.color);
+                this.backend.renderGeometry(context);
             }
         }
         finally

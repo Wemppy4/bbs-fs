@@ -13,6 +13,8 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import org.joml.Matrix4f;
+import org.joml.Matrix3f;
+import org.joml.Matrix3fc;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
@@ -81,10 +83,10 @@ public final class NativeTextureRenderer
     }
 
     public static void render(NativeTextureMesh mesh, Texture texture, Form form, Color color,
-                              boolean shading, boolean linear, boolean mipmap, boolean ui)
+                              boolean shading, boolean linear, boolean mipmap, boolean ui, Matrix3fc normalMatrix)
     {
         if (mesh == null || texture == null) return;
-        Draw draw = new Draw(mesh, texture, form, color, shading, linear, mipmap, ui);
+        Draw draw = new Draw(mesh, texture, form, color, shading, linear, mipmap, ui, normalMatrix);
         boolean translucent = texture.hasTranslucency() || color.a < 1F || linear || mipmap;
         if (translucent && FormTranslucentQueue.isActive() && !NativePickingShader.isActive())
         {
@@ -126,11 +128,13 @@ public final class NativeTextureRenderer
         final Color overlay;
         final boolean shading, linear, mipmap, ui;
         final float lightX, lightY;
+        final Matrix3f normal;
+        final Vector3f light0,light1;
         int mode;
         boolean writeDepth = true;
 
         Draw(NativeTextureMesh mesh, Texture texture, Form form, Color color,
-             boolean shading, boolean linear, boolean mipmap, boolean ui)
+             boolean shading, boolean linear, boolean mipmap, boolean ui, Matrix3fc normal)
         {
             this.mesh = mesh;
             this.texture = texture;
@@ -146,6 +150,9 @@ public final class NativeTextureRenderer
             this.ui = ui;
             this.lightX = ui ? 240F : OpenGlHelper.lastBrightnessX;
             this.lightY = ui ? 240F : OpenGlHelper.lastBrightnessY;
+            this.normal = shading ? new Matrix3f(normal) : null;
+            this.light0 = shading ? mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(0) : null;
+            this.light1 = shading ? mchorse.bbs_mod.graphics.render.RenderSystem.shaderLight(1) : null;
         }
 
         void draw()
@@ -223,10 +230,10 @@ public final class NativeTextureRenderer
         {
             int vertex = compile(GL20.GL_VERTEX_SHADER,
                 "#version 120\n"
-                + "uniform int Shading; varying vec4 vertexColor; varying vec2 uv; varying float distanceToCamera;\n"
+                + "uniform int Shading; uniform mat3 NormalMatrix; uniform vec3 Light0; uniform vec3 Light1; varying vec4 vertexColor; varying vec2 uv; varying float distanceToCamera;\n"
                 + "void main() { gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;"
-                + "vec3 n = normalize(gl_NormalMatrix * gl_Normal);"
-                + "float d = max(0.0, dot(normalize(vec3(0.2, 1.0, -0.7)), n)) + max(0.0, dot(normalize(vec3(-0.2, 1.0, 0.7)), n));"
+                + "vec3 n = normalize(NormalMatrix * gl_Normal);"
+                + "float d = max(0.0, dot(normalize(Light0), n)) + max(0.0, dot(normalize(Light1), n));"
                 + "vertexColor = vec4(gl_Color.rgb * (Shading != 0 ? min(1.0, d * 0.6 + 0.4) : 1.0), gl_Color.a);"
                 + "uv = gl_MultiTexCoord0.xy; distanceToCamera = length((gl_ModelViewMatrix * gl_Vertex).xyz); }\n");
             int fragment = compile(GL20.GL_FRAGMENT_SHADER,
@@ -261,6 +268,13 @@ public final class NativeTextureRenderer
         GL20.glUniform1i(GL20.glGetUniformLocation(program, "Texture"), 0);
         GL20.glUniform1i(GL20.glGetUniformLocation(program, "Lightmap"), 1);
         GL20.glUniform1i(GL20.glGetUniformLocation(program, "Shading"), draw.shading ? 1 : 0);
+        if(draw.shading)
+        {
+            FloatBuffer normal=BufferUtils.createFloatBuffer(9); draw.normal.get(normal);
+            GL20.glUniformMatrix3(GL20.glGetUniformLocation(program,"NormalMatrix"),false,normal);
+            GL20.glUniform3f(GL20.glGetUniformLocation(program,"Light0"),draw.light0.x,draw.light0.y,draw.light0.z);
+            GL20.glUniform3f(GL20.glGetUniformLocation(program,"Light1"),draw.light1.x,draw.light1.y,draw.light1.z);
+        }
         GL20.glUniform1i(GL20.glGetUniformLocation(program, "PassMode"), draw.mode);
         GL20.glUniform1i(GL20.glGetUniformLocation(program, "FogMode"), !draw.ui && GL11.glIsEnabled(GL11.GL_FOG) ? GL11.glGetInteger(GL11.GL_FOG_MODE) : 0);
         GL20.glUniform2f(GL20.glGetUniformLocation(program, "Light"), draw.lightX, draw.lightY);

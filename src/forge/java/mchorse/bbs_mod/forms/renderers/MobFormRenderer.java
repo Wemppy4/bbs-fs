@@ -173,6 +173,20 @@ public final class MobFormRenderer extends NativeGeometryFormRenderer<MobForm> i
     @Override public IBoneHierarchy getBoneHierarchy(){ensure();return hierarchy;}
     @Override public List<String> getBones(){ensure();return rig==null?Collections.emptyList():new ArrayList<>(rig.parts().keySet());}
     @Override public AABB getPreviewBounds(){ensure();return entity==null?null:new AABB(-entity.width/2F,0,-entity.width/2F,entity.width,entity.height,entity.width);}
+    private boolean thumbnail;
+    @Override protected void renderInUI(mchorse.bbs_mod.ui.framework.UIContext context,int x1,int y1,int x2,int y2)
+    {
+        boolean previous=thumbnail;thumbnail=true;
+        try{super.renderInUI(context,x1,y1,x2,y2);}finally{thumbnail=previous;}
+    }
+    @Override protected void applyTransforms(MatrixStack stack,boolean origin,float transition)
+    {
+        super.applyTransforms(stack,origin,transition);
+        /* Native entity renderers face the opposite way to BBS models. Original MobForm
+         * thumbnails compensate here; world entities and the dragon keep their rotation. */
+        if(thumbnail&&!origin&&!form.mobID.get().equals("minecraft:ender_dragon"))
+            stack.multiply(new org.joml.Quaternionf().rotationY((float)Math.PI));
+    }
     @Override protected void updateStencilMap(FormRenderingContext context)
     {context.stencilMap.addPicking(form,"");if(rig!=null)for(String name:rig.parts().keySet())context.stencilMap.addPicking(form,name);}
     @Override protected void render3D(FormRenderingContext context)

@@ -218,6 +218,8 @@ public class ClientProxy extends CommonProxy {
     @SubscribeEvent public void cameraTick(TickEvent.RenderTickEvent event) {
         if (event.phase == TickEvent.Phase.START)
         {
+            if (Minecraft.getMinecraft().currentScreen instanceof mchorse.bbs_mod.ui.framework.UIScreen)
+                ((mchorse.bbs_mod.ui.framework.UIScreen) Minecraft.getMinecraft().currentScreen).pollFrameInput();
             mchorse.bbs_mod.client.renderer.LivePlayerItemUse.endFrame();
             mchorse.bbs_mod.BBSModClient.beginFrame();
             mchorse.bbs_mod.BBSModClient.getFilms().startRenderFrame(event.renderTickTime);

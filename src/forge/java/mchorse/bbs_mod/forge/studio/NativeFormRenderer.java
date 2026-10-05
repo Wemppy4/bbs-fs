@@ -84,7 +84,7 @@ public final class NativeFormRenderer implements ITickable
         int depth = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_DEPTH_FUNC);
         boolean depthEnabled = org.lwjgl.opengl.GL11.glIsEnabled(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
         GlStateManager.pushMatrix();
-        try
+        try(mchorse.bbs_mod.graphics.render.RenderSystem.LightScope lighting=mchorse.bbs_mod.graphics.render.RenderSystem.guiLighting())
         {
             NativeTextureRenderer.loadMatrix(NativeTextureRenderer.currentMatrix().mul(context.batcher.getContext().getMatrices().peek().getPositionMatrix()).mul(matrix));
             GlStateManager.enableDepth();
@@ -166,6 +166,11 @@ public final class NativeFormRenderer implements ITickable
         mchorse.bbs_mod.graphics.MatrixStack stack = new mchorse.bbs_mod.graphics.MatrixStack();
         stack.peek().getPositionMatrix().set(NativeTextureRenderer.currentMatrix());
         stack.peek().getPositionMatrix().normal(stack.peek().getNormalMatrix());
+        if(ui&&form instanceof ExtrudedForm)
+        {
+            Vector3f scale=stack.peek().getNormalMatrix().getScale(new Vector3f());
+            stack.peek().getNormalMatrix().scale(1F/scale.x,-1F/scale.y,1F/scale.z);
+        }
         int light = ui ? 0x00f000f0 : (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessX
             | (int) net.minecraft.client.renderer.OpenGlHelper.lastBrightnessY << 16;
         mchorse.bbs_mod.forms.renderers.FormRenderingContext context = new mchorse.bbs_mod.forms.renderers.FormRenderingContext()
@@ -177,8 +182,9 @@ public final class NativeFormRenderer implements ITickable
     }
 
     /** Draw only this form. FormRenderer owns states, transforms and the parts traversal. */
-    public void renderGeometry(IEntity entity, float partial, boolean ui, int tint)
+    public void renderGeometry(mchorse.bbs_mod.forms.renderers.FormRenderingContext context)
     {
+        IEntity entity=context.entity;float partial=context.transition;boolean ui=context.ui;int tint=context.color;
         if (form instanceof MobForm) renderMob((MobForm) form, entity, new Transform(), partial);
         else if (form instanceof BillboardForm)
         {
@@ -186,14 +192,14 @@ public final class NativeFormRenderer implements ITickable
             Texture texture = getTexture();
             if (texture != null) NativeTextureRenderer.render(
                 NativeBillboardGeometry.create(billboard, texture.width, texture.height), texture, form,
-                tinted(billboard.color.get(), tint), ui || billboard.shading.get(), billboard.linear.get(), billboard.mipmap.get(), ui);
+                tinted(billboard.color.get(), tint), ui || billboard.shading.get(), billboard.linear.get(), billboard.mipmap.get(), ui,context.stack.peek().getNormalMatrix());
         }
         else if (form instanceof ExtrudedForm)
         {
             ExtrudedForm extruded = (ExtrudedForm) form;
             Texture texture = getTexture();
             NativeTextureRenderer.render(mchorse.bbs_mod.BBSModClient.getTextures().getExtruder().get(texture), texture, form, tinted(extruded.color.get(), tint),
-                ui || extruded.shading.get(), false, false, ui);
+                ui || extruded.shading.get(), false, false, ui,context.stack.peek().getNormalMatrix());
         }
     }
 

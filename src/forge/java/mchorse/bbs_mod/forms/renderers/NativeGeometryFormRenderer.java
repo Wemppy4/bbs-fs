@@ -24,8 +24,11 @@ public abstract class NativeGeometryFormRenderer<T extends Form> extends FormRen
         stack.peek().getNormalMatrix().set(stack.peek().getPositionMatrix()).invert().transpose();
         /* Original form thumbnails keep lighting in the model frame despite the
          * negative GUI Y scale (the same correction used by ModelFormRenderer). */
-        org.joml.Vector3f normalScale = stack.peek().getNormalMatrix().getScale(new org.joml.Vector3f());
-        stack.peek().getNormalMatrix().scale(1F / normalScale.x, -1F / normalScale.y, 1F / normalScale.z);
+        if(!(this.form instanceof mchorse.bbs_mod.forms.forms.BillboardForm))
+        {
+            org.joml.Vector3f normalScale = stack.peek().getNormalMatrix().getScale(new org.joml.Vector3f());
+            stack.peek().getNormalMatrix().scale(1F / normalScale.x, -1F / normalScale.y, 1F / normalScale.z);
+        }
         this.preview.setWorld(net.minecraft.client.Minecraft.getMinecraft().world);
         this.preview.setForm(this.form);
         try (NativeFormDraw.State state = new NativeFormDraw.State();

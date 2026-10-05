@@ -12,6 +12,7 @@ import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.lwjgl.input.Mouse;
 
 import java.lang.reflect.Field;
@@ -87,10 +88,10 @@ public final class UiTimingProbe
         return out;
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void before(GuiScreenEvent.DrawScreenEvent.Pre event)
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void before(TickEvent.RenderTickEvent event)
     {
-        if (!active || !wheel || event.getGui() != screen) return;
+        if (!active || !wheel || event.phase != TickEvent.Phase.START) return;
         try
         {
             if (MC.currentScreen != screen || dashboard.getPanels().panel != panel)

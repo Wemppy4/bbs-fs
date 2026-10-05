@@ -93,7 +93,10 @@ public class UIScreen extends GuiScreen implements mchorse.bbs_mod.ui.utils.IFil
         if (character != 0) menu.handleTextInput(character);
     }
 
-    @Override public void drawScreen(int mouseX, int mouseY, float partialTicks)
+    /** Poll at render-tick start, while the preceding gizmo placement is still available.
+     * Polling inside drawScreen is too late: world rendering has already forgotten that
+     * placement, so between-tick G/S/R presses would incorrectly use additive dragging. */
+    public void pollFrameInput()
     {
         /* Vanilla polls GuiScreen input only on its 20 Hz tick. BBS canvases,
          * like their original GLFW backend, need wheel/drag events each frame.
@@ -102,8 +105,12 @@ public class UIScreen extends GuiScreen implements mchorse.bbs_mod.ui.utils.IFil
         {
             try { this.handleInput(); }
             catch (IOException error) { throw new RuntimeException("BBS UI input", error); }
-            if (mc.currentScreen != this) return;
         }
+    }
+
+    @Override public void drawScreen(int mouseX, int mouseY, float partialTicks)
+    {
+        if (mc.currentScreen != this) return;
         try (mchorse.bbs_mod.graphics.OptiFineShaders.LocalPass pass = mchorse.bbs_mod.graphics.OptiFineShaders.localPass())
         {
         if (scale != BBSModClient.getGUIScale()) initGui();

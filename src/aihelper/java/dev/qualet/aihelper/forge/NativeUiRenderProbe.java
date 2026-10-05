@@ -43,7 +43,9 @@ public final class NativeUiRenderProbe extends UIBaseMenu
     private int frames;
     private int queuedDraws;
     private final boolean oldQueue = mchorse.bbs_mod.BBSSettings.translucencyQueue.get();
+    private final boolean oldFreeze = mchorse.bbs_mod.BBSSettings.freezeModels.get();
     private boolean reference;
+    private boolean materials;
     private String structure;
 
     private NativeUiRenderProbe() throws Exception
@@ -75,6 +77,7 @@ public final class NativeUiRenderProbe extends UIBaseMenu
     @Override public void onClose(UIBaseMenu next)
     {
         mchorse.bbs_mod.BBSSettings.translucencyQueue.set(oldQueue);
+        mchorse.bbs_mod.BBSSettings.freezeModels.set(oldFreeze);
         for (Path file : files) try { Files.deleteIfExists(file); } catch (Exception e) { throw new IllegalStateException(e); }
         StructureManager.invalidate();
     }
@@ -95,6 +98,8 @@ public final class NativeUiRenderProbe extends UIBaseMenu
             {
                 FormUtilsClient.getRenderer(forms[i]).renderPreview(context, i * cell + 8, top, (i + 1) * cell - 8, top + h);
                 sample.add("pixels", pixels(i * cell + 8, top, cell - 16, h));
+                if(forms[i] instanceof BillboardForm||forms[i] instanceof ExtrudedForm)
+                    sample.add("textureUniforms",textureUniforms());
                 if (forms[i] instanceof ModelForm)
                 {
                     sample.addProperty("modelExists", ((ModelFormRenderer) FormUtilsClient.getRenderer(forms[i])).getModel() != null);
@@ -122,6 +127,35 @@ public final class NativeUiRenderProbe extends UIBaseMenu
         finally { context.batcher.getContext().getMatrices().pop(); }
         result.add("itemPixels", pixels(4 * cell + 10, top + 24, 64, 64)); result.add("itemAfter", state());
         render.batcher.flush();
+        if(materials)
+        {
+            JsonArray inventory=new JsonArray();
+            net.minecraft.util.NonNullList<ItemStack> entries=net.minecraft.util.NonNullList.create();
+            net.minecraft.item.Item.getItemFromBlock(mchorse.bbs_mod.forge.CommonProxy.MODEL_BLOCK)
+                .getSubItems(mchorse.bbs_mod.forge.CommonProxy.BBS_TAB,entries);
+            entries.add(new ItemStack(mchorse.bbs_mod.forge.CommonProxy.GUN_ITEM));
+            entries.add(mchorse.bbs_mod.forge.CommonProxy.BBS_TAB.createIcon());
+            /* A white front-lit quad is an analytical reference for the original gui_light:front. */
+            mchorse.bbs_mod.forge.ModelTileEntity tile=new mchorse.bbs_mod.forge.ModelTileEntity();
+            BillboardForm white=new BillboardForm();white.texture.set(new Link(Link.COLOR,"ffffffff"));
+            tile.getProperties().setForm(white);
+            ItemStack referenceItem=new ItemStack(mchorse.bbs_mod.forge.CommonProxy.MODEL_BLOCK);
+            net.minecraft.nbt.NBTTagCompound tag=new net.minecraft.nbt.NBTTagCompound();
+            tag.setTag("BlockEntityTag",tile.writeToNBT(new net.minecraft.nbt.NBTTagCompound()));referenceItem.setTagCompound(tag);entries.add(referenceItem);
+            int y=top+h+32,index=0;
+            for(ItemStack entry:entries)
+            {
+                int x=16+index*82;
+                context.batcher.getContext().getMatrices().push();
+                context.batcher.getContext().getMatrices().translate(x,y,0);context.batcher.getContext().getMatrices().scale(4,4,4);
+                try{context.batcher.getContext().drawItem(entry,0,0);}finally{context.batcher.getContext().getMatrices().pop();}
+                JsonObject item=new JsonObject();item.addProperty("item",entry.getItem().getRegistryName().toString());
+                item.add("pixels",pixels(x,y,64,64));item.add("textureUniforms",textureUniforms());inventory.add(item);index++;
+            }
+            result.add("inventory",inventory);
+        }
+        else
+        {
         viewport.area.set(8, top + h + 12, width - 16, height - top - h - 20);
         result.add("viewportBefore", state());
         try { viewport.render(context); } catch (Throwable e) { result.addProperty("viewportError", e.toString()); }
@@ -145,6 +179,7 @@ public final class NativeUiRenderProbe extends UIBaseMenu
             }
             catch (Exception e) { result.addProperty("uniformError", e.toString()); }
         }
+        }
         render.batcher.box(width - 28, height - 28, width - 8, height - 8, 0xffff00ff); render.batcher.flush();
         result.add("sentinel", pixels(width - 28, height - 28, 20, 20));
         result.add("samples", samples); result.addProperty("glError", GL11.glGetError()); result.addProperty("frames", ++frames);
@@ -156,6 +191,22 @@ public final class NativeUiRenderProbe extends UIBaseMenu
         JsonArray a = new JsonArray();
         for (int n = 0; n < 2; n++) { FloatBuffer b = BufferUtils.createFloatBuffer(4); GL11.glGetLight(GL11.GL_LIGHT0 + n, GL11.GL_POSITION, b); JsonArray v = new JsonArray(); for (int i = 0; i < 3; i++) v.add(b.get(i)); a.add(v); }
         return a;
+    }
+    private static JsonObject textureUniforms()
+    {
+        try
+        {
+        java.lang.reflect.Field shader=mchorse.bbs_mod.forge.studio.NativeTextureRenderer.class.getDeclaredField("program");shader.setAccessible(true);
+        int program=shader.getInt(null);JsonObject result=new JsonObject();
+        for(String name:new String[]{"NormalMatrix","Light0","Light1"})
+        {
+            FloatBuffer b=BufferUtils.createFloatBuffer(16);int location=GL20.glGetUniformLocation(program,name);
+            if(location>=0)GL20.glGetUniform(program,location,b);
+            JsonArray values=new JsonArray();for(int i=0;i<(name.equals("NormalMatrix")?9:3);i++)values.add(b.get(i));result.add(name,values);
+        }
+        return result;
+        }
+        catch(Exception e){throw new IllegalStateException(e);}
     }
     private static JsonObject state()
     {
@@ -200,6 +251,14 @@ public final class NativeUiRenderProbe extends UIBaseMenu
         if (request.has("open") && request.get("open").getAsBoolean()) UIScreen.open(new NativeUiRenderProbe());
         if (!(UIScreen.getCurrentMenu() instanceof NativeUiRenderProbe)) throw new IllegalStateException("Open native UI rendering probe first");
         NativeUiRenderProbe probe = (NativeUiRenderProbe) UIScreen.getCurrentMenu();
+        if(request.has("materials"))
+        {
+            probe.materials=true;
+            mchorse.bbs_mod.BBSSettings.freezeModels.set(true);
+            BillboardForm billboard=new BillboardForm();billboard.texture.set(new Link(Link.COLOR,"ffffffff"));probe.forms[0]=billboard;
+            ExtrudedForm extruded=new ExtrudedForm();extruded.texture.set(new Link(Link.COLOR,"ffffffff"));probe.forms[1]=extruded;
+            MobForm cow=new MobForm();cow.mobID.set("minecraft:cow");probe.forms[2]=cow;
+        }
         if (request.has("structure")) probe.select(request.get("structure").getAsString());
         if (request.has("reference")) probe.reference = request.get("reference").getAsBoolean();
         if (request.has("model")) ((ModelForm) probe.forms[0]).model.set(request.get("model").getAsString());

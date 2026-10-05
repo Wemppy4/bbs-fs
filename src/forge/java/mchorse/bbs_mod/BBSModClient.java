@@ -200,6 +200,9 @@ public final class BBSModClient
     /** Original client labels and axis tints for the shared ordering settings. */
     public static void configureSettingsUI()
     {
+        BBSSettings.rotate3dSphereMode.modes(
+            UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL,
+            UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL);
         BBSSettings.translateHotkeyOrder
             .labels(UIKeys.TRANSFORMS_TARGET_SCREEN, IKey.constant("X"), IKey.constant("Y"), IKey.constant("Z"))
             .colors(0, Colors.A100 | Colors.RED, Colors.A100 | Colors.GREEN, Colors.A100 | Colors.BLUE);

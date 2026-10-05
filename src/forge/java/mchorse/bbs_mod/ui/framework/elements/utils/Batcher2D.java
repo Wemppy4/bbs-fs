@@ -790,9 +790,13 @@ public class Batcher2D
         }
 
         BBSProfiler.count(BBSProfiler.Section.UI_DRAW_CALLS);
-        this.context.drawText(this.font.getRenderer(), label, (int) x, (int) y, color, shadow);
-
-        GlStateManager.depthFunc(GL11.GL_ALWAYS);
+        /* This batcher also draws the wand/recording HUD outside UIScreen. Leaving
+         * GL_ALWAYS there leaks into the next world pass on 1.12, whose renderer
+         * does not reset the comparison each frame. Preserve the caller's mode:
+         * ALWAYS inside the editor, LEQUAL for the game's HUD. */
+        int depthFunction = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+        try { this.context.drawText(this.font.getRenderer(), label, (int) x, (int) y, color, shadow); }
+        finally { GlStateManager.depthFunc(depthFunction); }
     }
 
     /* Text helpers */

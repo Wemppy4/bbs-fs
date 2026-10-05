@@ -28,7 +28,8 @@ public class BillboardFormRenderer<T extends BillboardForm> extends NativeGeomet
                 if(form.billboard.get())NativeTextureRenderer.faceCamera();
                 OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit,context.light&65535,context.light>>>16&65535);
                 Color color=form.color.get().copy();color.mul(context.color);
-                NativeTextureRenderer.render(NativeBillboardGeometry.create(form,texture.width,texture.height),texture,form,color,context.ui||form.shading.get(),form.linear.get(),form.mipmap.get(),context.ui);
+                NativeTextureRenderer.render(NativeBillboardGeometry.create(form,texture.width,texture.height),texture,form,color,context.ui||form.shading.get(),form.linear.get(),form.mipmap.get(),context.ui,
+                    form.billboard.get()?new org.joml.Matrix3f():context.stack.peek().getNormalMatrix());
             }
             finally{GlStateManager.popMatrix();}
         }

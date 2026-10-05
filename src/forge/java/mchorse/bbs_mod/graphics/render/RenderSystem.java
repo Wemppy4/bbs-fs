@@ -157,6 +157,13 @@ public final class RenderSystem
     }
     /** The original 1.20 DiffuseLighting GUI matrix, independent of 1.12 item light state. */
     public static LightScope guiLighting(){return new LightScope();}
+    /** gui_light:front, used by the original BBS model and gun inventory models. */
+    public static LightScope guiFlatLighting()
+    {
+        Matrix4f transform=new Matrix4f().scaling(1F,-1F,1F).rotateY(-.3926991F).rotateX(2.3561945F);
+        return new LightScope(transform.transformDirection(new Vector3f(.2F,1F,-.7F).normalize()),
+            transform.transformDirection(new Vector3f(-.2F,1F,.7F).normalize()));
+    }
     public static LightScope lighting(Vector3f first,Vector3f second){return new LightScope(first,second);}
     public static final class LightScope implements AutoCloseable
     {

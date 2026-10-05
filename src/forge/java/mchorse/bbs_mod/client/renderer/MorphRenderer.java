@@ -34,10 +34,11 @@ public final class MorphRenderer
     @SubscribeEvent
     public void renderPlayer(RenderPlayerEvent.Pre event)
     {
-        /* The immersive editor supplies its own preview, including when the real
-         * player has no morph. Only hide that world player: MobForm previews use
-         * separate player entities and must still reach the native renderer. */
-        if (event.getEntityPlayer() == Minecraft.getMinecraft().player && !visibility.getAsBoolean())
+        /* Modern BBS moves the first-person camera without changing its focused
+         * player, which vanilla omits from the world pass. The 1.12 camera uses a
+         * separate view entity, so repeat that exclusion while editing a film.
+         * MobForm previews and film actors use separate entities and stay visible. */
+        if (event.getEntityPlayer() == Minecraft.getMinecraft().player && (hidePlayer || !visibility.getAsBoolean()))
         {
             event.setCanceled(true);
             return;

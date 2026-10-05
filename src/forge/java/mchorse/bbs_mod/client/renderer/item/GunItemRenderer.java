@@ -71,10 +71,17 @@ public final class GunItemRenderer extends TileEntityItemStackRenderer {
         Minecraft mc=Minecraft.getMinecraft();MatrixStack matrices=new MatrixStack();
         matrices.peek().getPositionMatrix().set(mchorse.bbs_mod.forge.studio.NativeTextureRenderer.currentMatrix()).translate(.5F,0F,.5F);
         matrices.peek().getNormalMatrix().set(matrices.peek().getPositionMatrix()).invert().transpose();
+        if(transformMode==ItemCameraTransforms.TransformType.GUI)
+        {
+            org.joml.Vector3f scale=matrices.peek().getNormalMatrix().getScale(new org.joml.Vector3f());
+            matrices.peek().getNormalMatrix().scale(1F/scale.x,
+                (matrices.peek().getPositionMatrix().determinant3x3()<0F?-1F:1F)/scale.y,1F/scale.z);
+        }
         MatrixStackUtils.applyTransform(matrices,transform);
         int matrixMode=GL11.glGetInteger(GL11.GL_MATRIX_MODE);boolean depth=GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
         GlStateManager.matrixMode(GL11.GL_MODELVIEW);GlStateManager.pushMatrix();GlStateManager.loadIdentity();
-        try {
+        try(mchorse.bbs_mod.graphics.render.RenderSystem.LightScope lighting=transformMode==ItemCameraTransforms.TransformType.GUI
+            ?mchorse.bbs_mod.graphics.render.RenderSystem.guiFlatLighting():null) {
             GlStateManager.enableDepth();
             FormUtilsClient.render(form,new FormRenderingContext().set(FormRenderType.fromModelMode(transformMode),entry.entity,matrices,
                 transformMode==ItemCameraTransforms.TransformType.GUI||mc.player==null?0xF000F0:mc.player.getBrightnessForRender(),10<<16,partialTicks).camera(mc.getRenderViewEntity()));

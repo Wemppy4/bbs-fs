@@ -14,6 +14,9 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.framework.*;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIChoiceButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UICirculate;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.settings.ui.UIValueMap;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.*;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer;
@@ -23,6 +26,11 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.pose.Transform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+import org.lwjgl.input.Keyboard;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -34,6 +42,7 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.*;
+import java.lang.reflect.Field;
 
 /** Real transform widgets, gizmo geometry/picking and gesture dispatch in an isolated menu. */
 public final class OriginalGizmoProbe extends UIBaseMenu
@@ -46,6 +55,14 @@ public final class OriginalGizmoProbe extends UIBaseMenu
     private final Transform transform = form.transform.get();
     private final Matrix4f parent = new Matrix4f();
     private final UIPropTransform editor;
+    private final UIElement sphereSetting = new UIElement();
+    private final int oldSphereMode = BBSSettings.rotate3dSphereMode.get();
+    private final boolean oldSimple = BBSSettings.simpleKeyboardTransform.get();
+    private int pendingNativeKey;
+    private ByteBuffer savedKeyboard, injectedKeyboard;
+    private Object keyboardEvent;
+    private final Map<Field,Object> savedKeyEvent = new LinkedHashMap<>();
+    private JsonObject nativeKey = new JsonObject();
     private Gizmo.HandleMask mask = Gizmo.HandleMask.ALL;
     private String mode = "move";
     private int frames, glError, framebufferStatus, begins, changes, ends, picks, releases;
@@ -74,6 +91,12 @@ public final class OriginalGizmoProbe extends UIBaseMenu
         viewport.setPosition(0F, .5F, 0F); viewport.setDistance(3F); viewport.setRotation(25F, 18F);
         editor.relative(this.main).x(1F,-240).y(56).w(224);
         this.main.add(viewport, editor);
+        BBSSettings.rotate3dSphereMode.set(0);
+        BBSSettings.simpleKeyboardTransform.set(false);
+        sphereSetting.relative(this.main).x(1F,-240).y(172).w(224).column(4).vertical().stretch();
+        sphereSetting.add(UIValueMap.create(BBSSettings.rotate3dSphereMode, sphereSetting).toArray(new UIElement[0]));
+        this.main.add(sphereSetting);
+        MinecraftForge.EVENT_BUS.register(this);
         this.setMode("move");
     }
 
@@ -108,11 +131,51 @@ public final class OriginalGizmoProbe extends UIBaseMenu
     @Override protected void releaseTransform() { releases++; super.releaseTransform(); }
     @Override public void onClose(UIBaseMenu next)
     {
+        MinecraftForge.EVENT_BUS.unregister(this);
+        try { restoreKeyboard(); } catch (Exception e) { throw new IllegalStateException(e); }
         editor.getGesture().reject(); viewport.interaction.stop(); Gizmo.INSTANCE.stop(); Gizmo.INSTANCE.forgetPlacement();
         BBSSettings.editorCameraSmoothness.set(oldSmoothness); BBSSettings.freezeModels.set(oldFreeze);
         BBSSettings.transformSpace.set(oldSpace); BBSSettings.gizmos.set(oldGizmos);
         BBSSettings.gizmoShowTranslate.set(oldElements[0]); BBSSettings.gizmoShowScale.set(oldElements[1]);
         BBSSettings.gizmoShowRotate.set(oldElements[2]); BBSSettings.gizmoShowViewRotate.set(oldElements[3]); BBSSettings.gizmoShowSphere.set(oldElements[4]);
+        BBSSettings.rotate3dSphereMode.set(oldSphereMode); BBSSettings.simpleKeyboardTransform.set(oldSimple);
+    }
+
+    /** Queue a native key between the 20 Hz input tick and world-render placement reset. */
+    @SubscribeEvent(priority=EventPriority.HIGHEST)
+    public void injectFrameKey(TickEvent.RenderTickEvent event)
+    {
+        if(event.phase!=TickEvent.Phase.START||pendingNativeKey==0||UIScreen.getCurrentMenu()!=this)return;
+        try
+        {
+            Field read=field(Keyboard.class,"readBuffer"); ByteBuffer buffer=(ByteBuffer)read.get(null);
+            if(buffer.hasRemaining())return;
+            savedKeyboard=buffer; keyboardEvent=field(Keyboard.class,"current_event").get(null);
+            for(Field value:keyboardEvent.getClass().getDeclaredFields())
+                if(!java.lang.reflect.Modifier.isStatic(value.getModifiers())){value.setAccessible(true);savedKeyEvent.put(value,value.get(keyboardEvent));}
+            nativeKey=new JsonObject(); nativeKey.addProperty("key",pendingNativeKey); nativeKey.addProperty("beforeHasRay",drag()!=null);
+            injectedKeyboard=ByteBuffer.allocate(Keyboard.EVENT_SIZE*2).order(buffer.order());
+            for(byte pressed:new byte[]{1,0})injectedKeyboard.putInt(pendingNativeKey).put(pressed).putInt(0).putLong(System.nanoTime()).put((byte)0);
+            injectedKeyboard.flip(); read.set(null,injectedKeyboard); pendingNativeKey=0;
+        }
+        catch(Exception failure){nativeKey.addProperty("error",failure.toString());pendingNativeKey=0;}
+    }
+
+    @SubscribeEvent(priority=EventPriority.LOWEST)
+    public void inspectFrameKey(TickEvent.RenderTickEvent event)
+    {
+        if(event.phase!=TickEvent.Phase.END||injectedKeyboard==null)return;
+        nativeKey.addProperty("consumed",!injectedKeyboard.hasRemaining());
+        nativeKey.addProperty("strategy",editor.getGesture().getStrategy()==null?"none":editor.getGesture().getStrategy().getClass().getSimpleName());
+        nativeKey.addProperty("simple",editor.getGesture().isSimpleKeyboardTransform());
+        try {restoreKeyboard();} catch(Exception failure){nativeKey.addProperty("error",failure.toString());}
+    }
+    private static Field field(Class<?> type,String name)throws Exception {Field field=type.getDeclaredField(name);field.setAccessible(true);return field;}
+    private void restoreKeyboard()throws Exception
+    {
+        if(savedKeyboard!=null)field(Keyboard.class,"readBuffer").set(null,savedKeyboard);
+        for(Map.Entry<Field,Object> entry:savedKeyEvent.entrySet())entry.getKey().set(keyboardEvent,entry.getValue());
+        savedKeyEvent.clear();savedKeyboard=injectedKeyboard=null;keyboardEvent=null;
     }
     @Override protected void preRenderMenu(UIRenderingContext render)
     {
@@ -264,6 +327,12 @@ public final class OriginalGizmoProbe extends UIBaseMenu
         out.addProperty("ok",true);out.addProperty("frames",frames);out.addProperty("mode",mode);
         out.addProperty("stateRestored",stateRestored);out.addProperty("glError",glError);out.addProperty("framebufferStatus",framebufferStatus);
         out.addProperty("editing",gesture.isEditing());out.addProperty("hotkey",gesture.isHotkeyMode());
+        out.addProperty("strategy",gesture.getStrategy()==null?"none":gesture.getStrategy().getClass().getSimpleName());
+        out.addProperty("simple",gesture.isSimpleKeyboardTransform());out.add("nativeKey",new com.google.gson.JsonParser().parse(nativeKey.toString()));
+        out.addProperty("sphereMode",BBSSettings.rotate3dSphereMode.get());
+        out.addProperty("sphereSubtype",BBSSettings.rotate3dSphereMode.getSubtype().name());
+        List<UICirculate> buttons=sphereSetting.getChildren(UICirculate.class);
+        if(!buttons.isEmpty()){out.add("sphereButton",area(buttons.get(0).area));out.addProperty("sphereLabel",buttons.get(0).getLabel());out.addProperty("sphereLabels",buttons.get(0).getLabels().size());}
         out.addProperty("screenTranslate",gesture.isScreenTranslate());out.addProperty("scaleAll",gesture.isScaleAll());out.addProperty("viewRotate",gesture.isViewRotate());out.addProperty("sphereRotate",gesture.isSphereRotate());
         out.addProperty("op",String.valueOf(gesture.getOp()));out.addProperty("axis",String.valueOf(gesture.getAxis()));out.addProperty("axis2",String.valueOf(gesture.getAxis2()));
         out.addProperty("space",editor.getSpace().name());out.addProperty("rotationMode",transform.rotationMode.name());
@@ -293,6 +362,14 @@ public final class OriginalGizmoProbe extends UIBaseMenu
         }
         if(request.has("mode"))last.setMode(request.get("mode").getAsString());
         if(request.has("parentYaw")){last.parent.identity().rotateY((float)Math.toRadians(request.get("parentYaw").getAsFloat()));last.form.bumpPoseVersion();}
+        if(request.has("simple"))BBSSettings.simpleKeyboardTransform.set(request.get("simple").getAsBoolean());
+        if(request.has("nativeKey"))
+        {
+            if(last.pendingNativeKey!=0||last.injectedKeyboard!=null)throw new IllegalStateException("A native key is pending");
+            int code=Keyboard.getKeyIndex(request.get("nativeKey").getAsString().toUpperCase(Locale.ROOT));
+            if(code==0)throw new IllegalArgumentException("Unknown native key");
+            last.nativeKey=new JsonObject();last.pendingNativeKey=code;
+        }
         JsonObject out=last.snapshot();if(request.has("scan")&&request.get("scan").getAsBoolean())out.add("scan",last.scan());return out;
     }
 }

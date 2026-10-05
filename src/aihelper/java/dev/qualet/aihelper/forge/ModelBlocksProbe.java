@@ -68,6 +68,10 @@ public final class ModelBlocksProbe
             ModelProperties p=tile().getProperties();
             BlockForm block=new BlockForm();block.blockState.set(Blocks.GOLD_BLOCK.getDefaultState());
             block.name.set("QA model body");p.setForm(block);
+            if(input.has("model"))
+            {
+                ModelForm model=new ModelForm();model.model.set(input.get("model").getAsString());p.setForm(model);
+            }
             LabelForm label=new LabelForm();label.text.set("BBS item Ёж");p.setFormInventory(label);
             ItemForm item=new ItemForm();item.stack.set(new ItemStack(Items.DIAMOND_SWORD));p.setFormFirstPerson(item);
             BlockForm third=new BlockForm();third.blockState.set(Blocks.REDSTONE_BLOCK.getDefaultState());p.setFormThirdPerson(third);
@@ -106,6 +110,7 @@ public final class ModelBlocksProbe
         {
             ModelTileEntity tile=tile();ModelProperties props=tile.getProperties();
             out.addProperty("clientTile",true);out.addProperty("clientLight",props.getBody().getLightLevel());
+            out.addProperty("x",pos.getX());out.addProperty("y",pos.getY());out.addProperty("z",pos.getZ());
             out.addProperty("clientForms",props.getForm()!=null&&props.getFormInventory()!=null&&props.getFormFirstPerson()!=null&&props.getFormThirdPerson()!=null);
             if(props.getForm()!=null)
             {

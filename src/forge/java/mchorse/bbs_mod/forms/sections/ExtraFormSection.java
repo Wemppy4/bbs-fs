@@ -65,8 +65,8 @@ public class ExtraFormSection extends FormSection
         TrailForm trail = new TrailForm();
         VideoForm video = new VideoForm();
 
-        billboard.texture.set(Link.assets("textures/icon.png"));
-        extruded.texture.set(Link.assets("textures/icon.png"));
+        billboard.texture.set(Link.assets("textures/error.png"));
+        extruded.texture.set(Link.assets("textures/error.png"));
         block.blockState.set(Blocks.GRASS.getDefaultState());
         item.stack.set(new ItemStack(Items.STICK));
 

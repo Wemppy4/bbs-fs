@@ -138,6 +138,7 @@ public class ForgeAiHelper
         switch(endpoint) {
             case "/health": case "/status": return health();
             case "/bbs-ui-timing-probe": return UiTimingProbe.run(p);
+            case "/bbs-depth-state-probe": return DepthStateProbe.run(p);
             case "/gl-state":
                 out.addProperty("program", GL11.glGetInteger(org.lwjgl.opengl.GL20.GL_CURRENT_PROGRAM));
                 out.addProperty("activeTexture", GL11.glGetInteger(org.lwjgl.opengl.GL13.GL_ACTIVE_TEXTURE));
@@ -164,6 +165,7 @@ public class ForgeAiHelper
             case "/bbs-forms-transparency-probe": return mchorse.bbs_mod.forms.renderers.FormsTransparencyProbe.run(p);
             case "/bbs-model-item-gpu-probe": return mchorse.bbs_mod.forms.renderers.ModelItemGPUProbe.run(p);
             case "/bbs-film-control-input-probe": return mchorse.bbs_mod.forge.FilmControlInputProbe.run();
+            case "/bbs-film-player-visibility-probe": return FilmPlayerVisibilityProbe.run(p);
             case "/bbs-model-blocks-probe": return ModelBlocksProbe.handle(p);
             case "/bbs-export-fixture": return OriginalExportFixture.handle(p);
             case "/bbs-particles-probe": return OriginalParticlesProbe.run(p);
