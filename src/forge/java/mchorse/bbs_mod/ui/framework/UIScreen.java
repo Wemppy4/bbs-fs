@@ -95,6 +95,15 @@ public class UIScreen extends GuiScreen implements mchorse.bbs_mod.ui.utils.IFil
 
     @Override public void drawScreen(int mouseX, int mouseY, float partialTicks)
     {
+        /* Vanilla polls GuiScreen input only on its 20 Hz tick. BBS canvases,
+         * like their original GLFW backend, need wheel/drag events each frame.
+         * Reading the queue here consumes events once; the tick sees only new ones. */
+        if (mc.currentScreen == this)
+        {
+            try { this.handleInput(); }
+            catch (IOException error) { throw new RuntimeException("BBS UI input", error); }
+            if (mc.currentScreen != this) return;
+        }
         try (mchorse.bbs_mod.graphics.OptiFineShaders.LocalPass pass = mchorse.bbs_mod.graphics.OptiFineShaders.localPass())
         {
         if (scale != BBSModClient.getGUIScale()) initGui();
@@ -113,7 +122,9 @@ public class UIScreen extends GuiScreen implements mchorse.bbs_mod.ui.utils.IFil
         try
         {
             mchorse.bbs_mod.client.PixelArt.setDrawingUI(true);
-            menu.context.setTransition(partialTicks);
+            /* Forge 1.12 passes elapsedPartialTicks (the last frame duration) to
+             * GuiScreen, whereas BBS interpolation needs the current tick fraction. */
+            menu.context.setTransition(mc.getRenderPartialTicks());
             menu.renderMenu(context, (int) (Mouse.getX() / scale), (int) ((mc.displayHeight - Mouse.getY() - 1) / scale));
             context.executeRunnables();
             context.batcher.flush();

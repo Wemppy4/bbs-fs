@@ -13,7 +13,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 /** Middle-mouse zoom uses the same interpolated FOV and commands as the original BBS client. */
 public final class GunClientHandler {
-    public static final KeyBinding ZOOM=new KeyBinding("key.bbs.zoom",-98,"BBS FS");
+    public static final KeyBinding ZOOM=new KeyBinding("key.bbs.zoom",-98,"category.bbs.main");
     private static GunZoom zoom;
     public GunClientHandler() { ClientRegistry.registerKeyBinding(ZOOM); }
     public static GunZoom getZoom() { return zoom; }

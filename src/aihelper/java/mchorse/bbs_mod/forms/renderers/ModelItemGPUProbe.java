@@ -22,7 +22,7 @@ public final class ModelItemGPUProbe
     {
         Minecraft mc=Minecraft.getMinecraft();if(mc.world==null||mc.player==null)throw new IllegalStateException("World required");
         int fbo=GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),program=GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
-        JsonObject result=new JsonObject();JsonArray perspectives=new JsonArray(),cracks=new JsonArray();
+        JsonObject result=new JsonObject();JsonArray perspectives=new JsonArray(),cracks=new JsonArray(),creative=new JsonArray();
         ModelTileEntity tile=new ModelTileEntity();tile.setWorld(mc.world);tile.setPos(mc.player.getPosition());ModelProperties p=tile.getProperties();
         p.setForm(block(1,1,0));p.setFormInventory(block(1,0,0));p.setFormFirstPerson(block(0,1,0));p.setFormThirdPerson(block(0,0,1));
         p.getBody().setHitboxMode(ModelBody.HitboxMode.MANUAL);p.getBody().getHitboxMin().set(.1F,0,.1F);p.getBody().getHitboxMax().set(.9F,1.4F,.9F);
@@ -35,6 +35,24 @@ public final class ModelItemGPUProbe
                 mc.getRenderItem().renderItem(stack,type);
                 JsonObject draw=measure(false);draw.addProperty("perspective",type.name());perspectives.add(draw);
             }
+            net.minecraft.util.NonNullList<ItemStack> entries=net.minecraft.util.NonNullList.create();
+            net.minecraft.item.Item.getItemFromBlock(CommonProxy.MODEL_BLOCK).getSubItems(CommonProxy.BBS_TAB,entries);
+            entries.add(CommonProxy.BBS_TAB.createIcon());
+            for(ItemStack entry:entries)
+            {
+                target.framebuffer.clear();GlStateManager.loadIdentity();
+                mc.getRenderItem().renderItem(entry,TransformType.GUI);
+                JsonObject draw=measure(false);
+                mchorse.bbs_mod.forms.forms.Form f=ModelItemRenderer.INSTANCE.get(entry).tile.getProperties().getForm();
+                draw.addProperty("form",f==null?"none":f.getClass().getSimpleName());
+                if(f instanceof mchorse.bbs_mod.forms.forms.BillboardForm)
+                {
+                    mchorse.bbs_mod.resources.Link link=((mchorse.bbs_mod.forms.forms.BillboardForm)f).texture.get();
+                    draw.addProperty("texture",link.toString());
+                    draw.addProperty("loaded",mchorse.bbs_mod.BBSModClient.getTextures().has(link));
+                }
+                creative.add(draw);
+            }
             for(int stage:new int[]{0,9})
             {
                 GlStateManager.clearColor(1,1,1,1);target.framebuffer.clear();GlStateManager.loadIdentity();GlStateManager.rotate(25,1,0,0);GlStateManager.rotate(35,0,1,0);
@@ -45,7 +63,7 @@ public final class ModelItemGPUProbe
                 draw.addProperty("stateRestored",depth==GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)&&polygon==GL11.glIsEnabled(GL11.GL_POLYGON_OFFSET_FILL)&&factor==GL11.glGetFloat(GL11.GL_POLYGON_OFFSET_FACTOR)&&units==GL11.glGetFloat(GL11.GL_POLYGON_OFFSET_UNITS));cracks.add(draw);
             }
         }
-        result.add("perspectives",perspectives);result.add("cracks",cracks);result.addProperty("stateRestored",fbo==GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING)&&program==GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM));result.addProperty("glError",GL11.glGetError());result.addProperty("ok",true);return result;
+        result.add("perspectives",perspectives);result.add("creative",creative);result.add("cracks",cracks);result.addProperty("stateRestored",fbo==GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING)&&program==GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM));result.addProperty("glError",GL11.glGetError());result.addProperty("ok",true);return result;
     }
     private static BlockForm block(float r,float g,float b)
     {BlockForm form=new BlockForm();form.blockState.set(Blocks.WOOL.getDefaultState());form.color.set(new Color(r,g,b,1));return form;}

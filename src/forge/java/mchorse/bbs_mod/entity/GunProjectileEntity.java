@@ -14,6 +14,7 @@ import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IProjectile;
+import net.minecraft.entity.MoverType;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
@@ -83,11 +84,7 @@ public class GunProjectileEntity extends Entity implements IProjectile, IEntityF
         }
         if(this.isWet())this.extinguish();
         if(this.stuck&&this.properties.collideBlocks) {
-            if(this.stuckBlockState!=this.world.getBlockState(this.getPosition())&&this.world.getCollisionBoxes(this,new AxisAlignedBB(this.posX-.06,this.posY-.06,this.posZ-.06,this.posX+.06,this.posY+.06,this.posZ+.06)).isEmpty()) {
-                this.stuck=false;
-                this.motionX*=this.rand.nextFloat()*.2;this.motionY*=this.rand.nextFloat()*.2;this.motionZ*=this.rand.nextFloat()*.2;
-                if(!this.world.isRemote)GunNetwork.sendState(this);
-            }
+            if(this.stuckBlockState!=this.world.getBlockState(this.getPosition())&&this.shouldFall())this.fall();
             return;
         }
         Vec3d start=this.getPositionVector(),end=start.add(this.velocity());
@@ -122,6 +119,18 @@ public class GunProjectileEntity extends Entity implements IProjectile, IEntityF
         this.motionX*=friction;this.motionY=this.motionY*friction-this.properties.gravity;this.motionZ*=friction;
         this.setPosition(x,y,z);this.doBlockCollisions();
     }
+    private boolean shouldFall() {
+        return this.stuck&&this.world.getCollisionBoxes(this,new AxisAlignedBB(this.posX-.06,this.posY-.06,this.posZ-.06,this.posX+.06,this.posY+.06,this.posZ+.06)).isEmpty();
+    }
+    private void fall() {
+        this.stuck=false;
+        this.motionX*=this.rand.nextFloat()*.2;this.motionY*=this.rand.nextFloat()*.2;this.motionZ*=this.rand.nextFloat()*.2;
+        if(!this.world.isRemote)GunNetwork.sendState(this);
+    }
+    @Override public void move(MoverType type,double x,double y,double z) {
+        super.move(type,x,y,z);
+        if(type!=MoverType.SELF&&this.shouldFall())this.fall();
+    }
     private void hitBlock(RayTraceResult hit) {
         Vec3d motion=hit.hitVec.subtract(this.getPositionVector());
         if(this.bounces>0) {
@@ -142,7 +151,8 @@ public class GunProjectileEntity extends Entity implements IProjectile, IEntityF
     private void hitEntity(Entity entity) {
         if(this.world.isRemote||this.properties.damage<=0)return;
         int damage=MathHelper.ceil(MathHelper.clamp(this.velocity().length()*this.properties.damage,0,Integer.MAX_VALUE));
-        boolean burning=entity.isBurning();
+        EntityFireAccess fire=(EntityFireAccess)entity;
+        int fireTicks=fire.bbs$getFireTicks();
         if(this.isBurning())entity.setFire(5);
         if(entity.attackEntityFrom(DamageSource.MAGIC,damage)) {
             if(entity instanceof EntityLivingBase) {
@@ -159,7 +169,7 @@ public class GunProjectileEntity extends Entity implements IProjectile, IEntityF
                 if(this.bounces<=0&&this.properties.vanish)this.vanish();else this.impact();
             }
         } else {
-            if(!burning)entity.extinguish();
+            fire.bbs$setFireTicks(fireTicks);
             this.velocity(this.velocity().scale(-.1));this.rotationYaw+=180;this.prevRotationYaw+=180;
         }
     }

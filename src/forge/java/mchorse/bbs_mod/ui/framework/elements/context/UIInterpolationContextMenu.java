@@ -194,15 +194,15 @@ public class UIInterpolationContextMenu extends UIContextMenu
         IKey label = InterpolationUtils.getName(interp);
         IKey category = UIKeys.INTERPOLATIONS_KEY_CATEGORY;
         String key = interp.getKey();
-        KeyCombo combo = new KeyCombo(label, interp.getKeyCode());
+        KeyCombo combo = new KeyCombo(label, InputCodes.fromNative(interp.getKeyCode()));
 
         if (key.endsWith("_in"))
         {
-            combo = new KeyCombo(label, interp.getKeyCode(), InputCodes.KEY_LEFT_SHIFT);
+            combo = new KeyCombo(label, InputCodes.fromNative(interp.getKeyCode()), InputCodes.KEY_LEFT_SHIFT);
         }
         else if (key.endsWith("_out"))
         {
-            combo = new KeyCombo(label, interp.getKeyCode(), InputCodes.KEY_LEFT_CONTROL);
+            combo = new KeyCombo(label, InputCodes.fromNative(interp.getKeyCode()), InputCodes.KEY_LEFT_CONTROL);
         }
 
         this.keys().register(combo.category(category), icon::clickItself);

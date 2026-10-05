@@ -14,15 +14,15 @@ public class InterpolationUtils
 
         if (key.endsWith("_in"))
         {
-            action.key(category, interp.getKeyCode(), InputCodes.KEY_LEFT_SHIFT);
+            action.key(category, InputCodes.fromNative(interp.getKeyCode()), InputCodes.KEY_LEFT_SHIFT);
         }
         else if (key.endsWith("_out"))
         {
-            action.key(category, interp.getKeyCode(), InputCodes.KEY_LEFT_CONTROL);
+            action.key(category, InputCodes.fromNative(interp.getKeyCode()), InputCodes.KEY_LEFT_CONTROL);
         }
         else
         {
-            action.key(category, interp.getKeyCode());
+            action.key(category, InputCodes.fromNative(interp.getKeyCode()));
         }
     }
 

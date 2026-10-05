@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.*;
 import java.nio.ByteBuffer;
@@ -18,6 +19,7 @@ public final class RenderSystem
     private static ShaderProgram shader;
     private static int overlay, defaultOverlay, whiteLight;
     private static final int[] extraTextures = new int[12];
+    private static Vector3f[] shaderLights;
     private static final java.lang.reflect.Field LIGHTMAP = net.minecraftforge.fml.relauncher.ReflectionHelper.findField(
         net.minecraft.client.renderer.EntityRenderer.class, "lightmapTexture", "field_78513_d");
     private RenderSystem() {}
@@ -139,13 +141,33 @@ public final class RenderSystem
         for (int i=0;i<2;i++)
         {
             GlUniform uniform=shader.getUniform("Light"+i+"_Direction"); if(uniform==null)continue;
-            if (GL11.glIsEnabled(GL11.GL_LIGHT0+i))
-            {
-                FloatBuffer vector=BufferUtils.createFloatBuffer(4); GL11.glGetLight(GL11.GL_LIGHT0+i,GL11.GL_POSITION,vector);
-                uniform.set(vector.get(0),vector.get(1),vector.get(2));
-            }
-            else uniform.set(i==0?0.2F:-0.2F,1F,i==0?-0.7F:0.7F);
+            Vector3f direction=shaderLight(i);
+            uniform.set(direction.x,direction.y,direction.z);
         }
+    }
+    public static Vector3f shaderLight(int index)
+    {
+        if(shaderLights!=null)return new Vector3f(shaderLights[index]);
+        if(GL11.glIsEnabled(GL11.GL_LIGHT0+index))
+        {
+            FloatBuffer vector=BufferUtils.createFloatBuffer(4);GL11.glGetLight(GL11.GL_LIGHT0+index,GL11.GL_POSITION,vector);
+            return new Vector3f(vector.get(0),vector.get(1),vector.get(2));
+        }
+        return new Vector3f(index==0?.2F:-.2F,1F,index==0?-.7F:.7F);
+    }
+    /** The original 1.20 DiffuseLighting GUI matrix, independent of 1.12 item light state. */
+    public static LightScope guiLighting(){return new LightScope();}
+    public static LightScope lighting(Vector3f first,Vector3f second){return new LightScope(first,second);}
+    public static final class LightScope implements AutoCloseable
+    {
+        private final Vector3f[] previous=shaderLights;
+        private LightScope()
+        {
+            Matrix4f transform=new Matrix4f().rotationYXZ(1.0821041F,3.2375858F,0F).rotateYXZ(-.3926991F,2.3561945F,0F);
+            shaderLights=new Vector3f[]{transform.transformDirection(new Vector3f(.2F,1F,-.7F).normalize()),transform.transformDirection(new Vector3f(-.2F,1F,.7F).normalize())};
+        }
+        private LightScope(Vector3f first,Vector3f second){shaderLights=new Vector3f[]{new Vector3f(first),new Vector3f(second)};}
+        @Override public void close(){shaderLights=previous;}
     }
     public static void enableBlend(){GlStateManager.enableBlend();}
     public static void disableBlend(){GlStateManager.disableBlend();}

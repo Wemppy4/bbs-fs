@@ -170,7 +170,7 @@ public final class NativeMobRenderContext implements AutoCloseable
                 boolean world=!ui&&mchorse.bbs_mod.graphics.OptiFineShaders.isWorldPass();
                 GlStateManager.bindTexture(texture);GL11.glBindTexture(GL11.GL_TEXTURE_2D,texture);
                 color(r*(world?tint.r:1),g*(world?tint.g:1),b*(world?tint.b:1),a*(world?tint.a:1));GL11.glCallList(list);
-            }).matrix(full));
+            }).matrix(full).diffuseLighting());
         }
         catch(ReflectiveOperationException e){throw new IllegalStateException("Cannot capture native translucent mob geometry",e);}
         finally{color(r,g,b,a);}

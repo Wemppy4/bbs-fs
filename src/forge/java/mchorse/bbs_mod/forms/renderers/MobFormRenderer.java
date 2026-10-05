@@ -181,7 +181,7 @@ public final class MobFormRenderer extends NativeGeometryFormRenderer<MobForm> i
         RenderManager manager=Minecraft.getMinecraft().getRenderManager();Entity view=manager.renderViewEntity;
         int depth=GL11.glGetInteger(GL11.GL_MODELVIEW_STACK_DEPTH),list=GL11.glGetInteger(GL11.GL_LIST_INDEX);
         Color color=Color.white();color.mul(context.color);
-        try(NativeFormDraw draw=new NativeFormDraw(context,color,form.overlayColor.get(),false);
+        try(NativeFormDraw draw=new NativeFormDraw(context,color,form.overlayColor.get(),false,context.ui||context.modelRenderer);
             NativeMobRenderContext mob=new NativeMobRenderContext(form,rig,pose(),context,bones))
         {
             manager.renderViewEntity=entity;

@@ -74,6 +74,7 @@ public class ClientProxy extends CommonProxy {
             mchorse.bbs_mod.ui.utils.icons.Icons.KEY_CAP, "keybinds", BBSMod.getSettingsPath("keybinds.json"),
             mchorse.bbs_mod.ui.utils.keys.KeybindSettings::register));
         BBSMod.events.post(new RegisterClientSettingsEvent());
+        mchorse.bbs_mod.BBSModClient.configureSettingsUI();
         mchorse.bbs_mod.ui.UIKeys.C_KEYBIND_CATGORIES.load(mchorse.bbs_mod.ui.utils.keys.KeyCombo.getCategoryKeys());
         mchorse.bbs_mod.ui.UIKeys.C_KEYBIND_CATGORIES_TOOLTIP.load(mchorse.bbs_mod.ui.utils.keys.KeyCombo.getCategoryKeys());
         BBSMod.getFactoryCameraClips()

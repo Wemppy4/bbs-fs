@@ -137,6 +137,7 @@ public class ForgeAiHelper
         JsonObject out=ok();
         switch(endpoint) {
             case "/health": case "/status": return health();
+            case "/bbs-ui-timing-probe": return UiTimingProbe.run(p);
             case "/gl-state":
                 out.addProperty("program", GL11.glGetInteger(org.lwjgl.opengl.GL20.GL_CURRENT_PROGRAM));
                 out.addProperty("activeTexture", GL11.glGetInteger(org.lwjgl.opengl.GL13.GL_ACTIVE_TEXTURE));
@@ -157,6 +158,7 @@ public class ForgeAiHelper
             case "/bbs-optifine-probe": return OptiFineProbe.handle(p);
             case "/bbs-shader-curves-probe": return OriginalShaderCurvesProbe.handle(p);
             case "/bbs-shader-world-forms-probe": return ShaderWorldFormsProbe.handle(p);
+            case "/bbs-native-ui-render-probe": return NativeUiRenderProbe.handle(p);
             case "/bbs-extended-forms-probe": return ExtendedFormsProbe.handle(p);
             case "/bbs-trail-mob-probe": return mchorse.bbs_mod.forms.renderers.TrailMobProbe.run(p);
             case "/bbs-forms-transparency-probe": return mchorse.bbs_mod.forms.renderers.FormsTransparencyProbe.run(p);
@@ -174,6 +176,7 @@ public class ForgeAiHelper
             case "/bbs-world-export-probe": return OriginalWorldExportProbe.run(p);
             case "/bbs-commands-probe": return OriginalCommandsProbe.run(p);
             case "/bbs-hotkeys-probe": return OriginalHotkeysProbe.run(p);
+            case "/bbs-input-regressions-probe": return OriginalInputRegressionsProbe.run(p);
             case "/bbs-film-backend-probe": return OriginalFilmBackendProbe.handle(p);
             case "/bbs-gizmo-probe": return OriginalGizmoProbe.handle(p);
             case "/bbs-dashboard-probe": return OriginalDashboardProbe.snapshot();

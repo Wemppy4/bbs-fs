@@ -13,7 +13,7 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 public class CommonProxy
 {
     public static final net.minecraft.creativetab.CreativeTabs BBS_TAB = new net.minecraft.creativetab.CreativeTabs("bbs.main") {
-        @Override public ItemStack createIcon() { return new ItemStack(MODEL_BLOCK); }
+        @Override public ItemStack createIcon() { return createModelBlockStack("textures/icon.png"); }
     };
     public static final ModelBlock MODEL_BLOCK = new ModelBlock();
     public static final mchorse.bbs_mod.items.GunItem GUN_ITEM = new mchorse.bbs_mod.items.GunItem();
@@ -34,6 +34,21 @@ public class CommonProxy
         GunNetwork.register();
     }
     public void init() { }
+    /** Match the original creative entries: their billboard is stored in the stack's tile NBT. */
+    public static ItemStack createModelBlockStack(String texture)
+    {
+        ItemStack stack = new ItemStack(MODEL_BLOCK);
+        ModelTileEntity tile = new ModelTileEntity();
+        mchorse.bbs_mod.forms.forms.BillboardForm form = new mchorse.bbs_mod.forms.forms.BillboardForm();
+        form.texture.set(mchorse.bbs_mod.resources.Link.assets(texture));
+        form.transform.get().translate.set(0F, 0.5F, 0F);
+        tile.getProperties().setForm(form);
+        tile.getProperties().getTransformFirstPerson().translate.set(0F, 0F, -0.25F);
+        net.minecraft.nbt.NBTTagCompound tag = new net.minecraft.nbt.NBTTagCompound();
+        tag.setTag("BlockEntityTag", tile.writeToNBT(new net.minecraft.nbt.NBTTagCompound()));
+        stack.setTagCompound(tag);
+        return stack;
+    }
     public void openModel(ModelTileEntity tile) { }
     @SubscribeEvent public static void entities(RegistryEvent.Register<net.minecraftforge.fml.common.registry.EntityEntry> event) {
         event.getRegistry().register(net.minecraftforge.fml.common.registry.EntityEntryBuilder.create()
@@ -52,7 +67,11 @@ public class CommonProxy
     }
     @SubscribeEvent public static void blocks(RegistryEvent.Register<Block> event) { event.getRegistry().register(MODEL_BLOCK);event.getRegistry().registerAll(CHROMA_BLOCKS); }
     @SubscribeEvent public static void items(RegistryEvent.Register<Item> event) {
-        event.getRegistry().register(new ItemBlock(MODEL_BLOCK).setRegistryName(MODEL_BLOCK.getRegistryName()));
+        event.getRegistry().register(new ItemBlock(MODEL_BLOCK) {
+            @Override public void getSubItems(net.minecraft.creativetab.CreativeTabs tab, net.minecraft.util.NonNullList<ItemStack> items) {
+                if (this.isInCreativeTab(tab)) items.add(createModelBlockStack("textures/model_block.png"));
+            }
+        }.setRegistryName(MODEL_BLOCK.getRegistryName()));
         event.getRegistry().register(STRUCTURE_WAND);
         event.getRegistry().register(GUN_ITEM);
         for(Block block:CHROMA_BLOCKS)event.getRegistry().register(new ItemBlock(block).setRegistryName(block.getRegistryName()));

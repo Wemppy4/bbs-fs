@@ -5,6 +5,9 @@ import mchorse.bbs_mod.forge.ClientProxy;
 import mchorse.bbs_mod.graphics.texture.TextureManager;
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.utils.colors.Colors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 
@@ -194,6 +197,20 @@ public final class BBSModClient
         fonts.update();
         worldExportSession.update();
     }
+    /** Original client labels and axis tints for the shared ordering settings. */
+    public static void configureSettingsUI()
+    {
+        BBSSettings.translateHotkeyOrder
+            .labels(UIKeys.TRANSFORMS_TARGET_SCREEN, IKey.constant("X"), IKey.constant("Y"), IKey.constant("Z"))
+            .colors(0, Colors.A100 | Colors.RED, Colors.A100 | Colors.GREEN, Colors.A100 | Colors.BLUE);
+        BBSSettings.scaleHotkeyOrder
+            .labels(UIKeys.TRANSFORMS_TARGET_ALL, IKey.constant("X"), IKey.constant("Y"), IKey.constant("Z"))
+            .colors(0, Colors.A100 | Colors.RED, Colors.A100 | Colors.GREEN, Colors.A100 | Colors.BLUE);
+        BBSSettings.rotateHotkeyOrder
+            .labels(UIKeys.TRANSFORMS_TARGET_VIEW, UIKeys.TRANSFORMS_TARGET_SPHERE, IKey.constant("X"), IKey.constant("Y"), IKey.constant("Z"))
+            .colors(0, 0, Colors.A100 | Colors.RED, Colors.A100 | Colors.GREEN, Colors.A100 | Colors.BLUE);
+    }
+
     public static void assetsChanged()
     {
         particles = null;

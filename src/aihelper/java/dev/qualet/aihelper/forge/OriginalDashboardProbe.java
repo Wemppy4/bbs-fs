@@ -77,6 +77,8 @@ public final class OriginalDashboardProbe
             panels.add(entry);
         }
         out.add("panels", panels);
+        if (host.panel instanceof mchorse.bbs_mod.ui.morphing.UIMorphingPanel)
+            out.add("morphing", morphing((mchorse.bbs_mod.ui.morphing.UIMorphingPanel) host.panel));
         if (host.panel instanceof mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel)
             out.add("modelEditor", modelEditor((mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel) host.panel));
         JsonArray overlays = new JsonArray();
@@ -120,6 +122,39 @@ public final class OriginalDashboardProbe
             for (UIIcon close : tour.getChildren(UIIcon.class)) if (close.canBeSeen()) tours.add(area(close));
         out.add("tours", tours);
         return out;
+    }
+
+    private static JsonObject morphing(mchorse.bbs_mod.ui.morphing.UIMorphingPanel panel)
+    {
+        JsonObject out = new JsonObject();
+        out.addProperty("editing", panel.palette.editor.isEditing());
+        out.add("edit", area(panel.palette.list.edit));
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        mchorse.bbs_mod.morphing.Morph morph = mchorse.bbs_mod.morphing.Morph.getMorph(mc.player);
+        boolean hasMorph = morph != null && morph.getForm() != null;
+        out.addProperty("hasMorph", hasMorph);
+        /* An unmorphed player reaches only the cancellation decision, so posting
+         * the real Forge boundary cannot draw a second morph into the active UI. */
+        if (mc.player != null && !hasMorph)
+        {
+            out.addProperty("localPlayerSuppressed", playerSuppressed(mc.player));
+            net.minecraft.client.entity.EntityOtherPlayerMP preview = new net.minecraft.client.entity.EntityOtherPlayerMP(
+                mc.world, new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "BBSPreviewProbe"));
+            out.addProperty("previewPlayerSuppressed", playerSuppressed(preview));
+        }
+        return out;
+    }
+
+    private static boolean playerSuppressed(net.minecraft.client.entity.AbstractClientPlayer player)
+    {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        net.minecraft.client.renderer.entity.RenderPlayer renderer =
+            (net.minecraft.client.renderer.entity.RenderPlayer) mc.getRenderManager()
+                .<net.minecraft.client.entity.AbstractClientPlayer>getEntityRenderObject(player);
+        net.minecraftforge.client.event.RenderPlayerEvent.Pre event =
+            new net.minecraftforge.client.event.RenderPlayerEvent.Pre(player, renderer, 0.5F, 0, 0, 0);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+        return event.isCanceled();
     }
 
     private static Object field(Object owner, String name)

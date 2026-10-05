@@ -6,6 +6,7 @@ import com.mojang.authlib.GameProfile;
 import io.netty.buffer.Unpooled;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.entity.GunProjectileEntity;
+import mchorse.bbs_mod.entity.EntityFireAccess;
 import mchorse.bbs_mod.forge.CommonProxy;
 import mchorse.bbs_mod.forms.forms.BlockForm;
 import mchorse.bbs_mod.items.GunProperties;
@@ -123,6 +124,10 @@ public final class OriginalGunsProbe {
             GunProperties stick=properties();stick.collideBlocks=true;stick.vanish=false;
             GunProjectileEntity stuck=projectile(world,stick,block.getX()+.5,block.getY()+.5,block.getZ()-.5);stuck.motionZ=1;stuck.onUpdate();
             out.addProperty("stick",stuck.isStuck()&&!stuck.isDead);
+            GunProjectileEntity moved=projectile(world,stick,block.getX()+.5,block.getY()+.5,block.getZ()-.5);moved.motionZ=1;moved.onUpdate();
+            boolean beforeMove=moved.isStuck();
+            moved.move(net.minecraft.entity.MoverType.SHULKER_BOX,2,0,0);
+            out.addProperty("fallAfterExternalMove",beforeMove&&!moved.isStuck()&&world.getBlockState(block).getBlock()==Blocks.STONE);
             world.setBlockToAir(block);stuck.onUpdate();out.addProperty("fallAfterBlockRemoved",!stuck.isStuck());
 
             GunProperties life=properties();life.lifeSpan=3;life.ticking=1;
@@ -136,6 +141,16 @@ public final class OriginalGunsProbe {
             GunProperties damage=properties();damage.collideEntities=true;damage.damage=2;damage.knockback=1;damage.vanish=true;
             GunProjectileEntity shot=projectile(world,damage,pig.posX,pig.posY+.5,pig.posZ-1);shot.motionZ=1;float health=pig.getHealth();shot.onUpdate();
             out.addProperty("damage",pig.getHealth()<health);out.addProperty("knockback",pig.motionZ>0);out.addProperty("vanishOnHit",shot.isDead);
+            pig.setEntityInvulnerable(true);
+            EntityFireAccess fire=(EntityFireAccess)pig;
+            boolean restored=true;
+            for(int timer:new int[]{37,-7}) {
+                fire.bbs$setFireTicks(timer);
+                GunProjectileEntity rejected=projectile(world,damage,pig.posX,pig.posY+.5,pig.posZ-1);
+                rejected.setFire(5);rejected.motionZ=1;rejected.onUpdate();
+                restored&=!rejected.isDead&&rejected.motionZ<0&&fire.bbs$getFireTicks()==timer;
+            }
+            out.addProperty("rejectedDamageRestoresFireTimer",restored);
 
             GunZoom zoom=new GunZoom(40,properties.fovInterp,10);zoom.update(true,6);float halfway=zoom.getFOV(70);zoom.update(true,20);
             out.addProperty("zoomInterpolation",halfway>40&&halfway<70&&Math.abs(zoom.getFOV(70)-40)<.001);

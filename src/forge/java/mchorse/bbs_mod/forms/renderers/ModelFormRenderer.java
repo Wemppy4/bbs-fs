@@ -393,7 +393,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
             stack.push();
 
-            try
+            try (RenderSystem.LightScope lightScope = RenderSystem.guiLighting())
             {
                 Matrix4f uiMatrix = this.getPreviewMatrix(context, x1, y1, x2, y2);
 

@@ -70,6 +70,9 @@ public class UIDrawContext
             GlStateManager.multMatrix(this.matrixBuffer);
             GL20.glUseProgram(0);
             GlStateManager.enableTexture2D(); GlStateManager.enableDepth(); GlStateManager.enableAlpha();
+            /* BBS text uses ALWAYS. Vanilla's GUI item renderer assumes LEQUAL and
+             * writable depth, otherwise the back faces overwrite the front faces. */
+            GlStateManager.depthFunc(GL11.GL_LEQUAL); GlStateManager.depthMask(true);
             GlStateManager.enableBlend(); GlStateManager.enableRescaleNormal();
             GlStateManager.color(1F, 1F, 1F, 1F);
             if (lightItem) RenderHelper.enableGUIStandardItemLighting();
