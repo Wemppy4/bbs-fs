@@ -31,7 +31,7 @@ import java.util.*;
 /** Stateful original gun form rendering, routed through Forge's perspective-aware TEISR. */
 public final class GunItemRenderer extends TileEntityItemStackRenderer {
     public static final GunItemRenderer INSTANCE=new GunItemRenderer();
-    private final Map<ItemStack,Entry> entries=new IdentityHashMap<>();
+    private final Map<NBTTagCompound,Entry> entries=new HashMap<>();
     private ItemCameraTransforms.TransformType mode=ItemCameraTransforms.TransformType.NONE;
     public static final class Entry {
         public final GunProperties properties;
@@ -42,8 +42,8 @@ public final class GunItemRenderer extends TileEntityItemStackRenderer {
     }
     public Entry get(ItemStack stack) {
         if(stack==null||stack.isEmpty()||stack.getItem()!=CommonProxy.GUN_ITEM)return null;
-        Entry entry=this.entries.get(stack);
-        if(entry==null||!Objects.equals(entry.source,stack.getTagCompound())) { entry=new Entry(stack);this.entries.put(stack,entry); }
+        Entry entry=this.entries.get(stack.getTagCompound());
+        if(entry==null) { entry=new Entry(stack);this.entries.put(entry.source,entry); }
         entry.entity.setWorld(Minecraft.getMinecraft().world);entry.properties.getEquipment().apply(entry.entity);entry.expiry=20;
         return entry;
     }
@@ -51,7 +51,7 @@ public final class GunItemRenderer extends TileEntityItemStackRenderer {
         Iterator<Entry> iterator=this.entries.values().iterator();
         while(iterator.hasNext()) {
             Entry entry=iterator.next();
-            if(--entry.expiry<=0){iterator.remove();continue;}
+            if(--entry.expiry<=0&&!UIModelBlockEditorMenu.isEditing(entry.properties)){iterator.remove();continue;}
             entry.entity.update();entry.properties.update(entry.entity);
         }
     }

@@ -29,7 +29,9 @@ import java.util.*;
 public final class ModelItemRenderer extends TileEntityItemStackRenderer
 {
     public static final ModelItemRenderer INSTANCE = new ModelItemRenderer();
-    private final Map<ItemStack, Entry> entries = new IdentityHashMap<>();
+    /* Vanilla can render a copy of the equipped stack. Share the editing state by
+     * immutable NBT, as the original 1.12 model-item renderer does. */
+    private final Map<NBTTagCompound, Entry> entries = new HashMap<>();
     private ItemCameraTransforms.TransformType mode = ItemCameraTransforms.TransformType.NONE;
     public static final class Entry
     {
@@ -41,14 +43,14 @@ public final class ModelItemRenderer extends TileEntityItemStackRenderer
     public Entry get(ItemStack stack)
     {
         if (stack == null || stack.isEmpty() || stack.getItem() != net.minecraft.item.Item.getItemFromBlock(CommonProxy.MODEL_BLOCK)) return null;
-        Entry entry = this.entries.get(stack);
         NBTTagCompound source = stack.getTagCompound();
-        if (entry == null || !Objects.equals(entry.source, source))
+        Entry entry = this.entries.get(source);
+        if (entry == null)
         {
             entry = new Entry();
             entry.source = source == null ? null : source.copy();
             if (source != null) entry.tile.readFromNBT(source.getCompoundTag("BlockEntityTag"));
-            this.entries.put(stack, entry);
+            this.entries.put(entry.source, entry);
         }
         entry.entity.setWorld(Minecraft.getMinecraft().world);
         entry.tile.getProperties().getEquipment().apply(entry.entity);
@@ -61,7 +63,7 @@ public final class ModelItemRenderer extends TileEntityItemStackRenderer
         while (iterator.hasNext())
         {
             Entry entry = iterator.next();
-            if (--entry.expiry <= 0) { iterator.remove(); continue; }
+            if (--entry.expiry <= 0 && !mchorse.bbs_mod.ui.model_blocks.UIModelBlockEditorMenu.isEditing(entry.tile.getProperties())) { iterator.remove(); continue; }
             entry.entity.update();
             entry.tile.getProperties().update(entry.entity);
         }

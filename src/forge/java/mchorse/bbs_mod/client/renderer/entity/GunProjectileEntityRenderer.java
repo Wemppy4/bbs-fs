@@ -24,6 +24,7 @@ public class GunProjectileEntityRenderer extends Render<GunProjectileEntity> {
     @Override public void doRender(GunProjectileEntity projectile,double x,double y,double z,float yaw,float transition) {
         GunProperties properties=projectile.getProperties();
         if(projectile.getForm()==null)return;
+        WorldRenderContext frame=WorldRenderContext.capture(transition);
         MatrixStack matrices=new MatrixStack();
         matrices.peek().getPositionMatrix().set(NativeTextureRenderer.currentMatrix()).translate((float)x,(float)y,(float)z);
         matrices.peek().getNormalMatrix().set(matrices.peek().getPositionMatrix()).invert().transpose();
@@ -40,7 +41,7 @@ public class GunProjectileEntityRenderer extends Render<GunProjectileEntity> {
         GlStateManager.matrixMode(GL11.GL_MODELVIEW);GlStateManager.pushMatrix();GlStateManager.loadIdentity();
         try {
             GlStateManager.enableDepth();
-            FormUtilsClient.render(projectile.getForm(),new FormRenderingContext().set(FormRenderType.ENTITY,projectile.getEntity(),matrices,projectile.getBrightnessForRender(),10<<16,transition).camera(WorldRenderContext.capture(transition).camera()));
+            FormUtilsClient.render(projectile.getForm(),new FormRenderingContext().set(FormRenderType.ENTITY,projectile.getEntity(),matrices,projectile.getBrightnessForRender(),10<<16,transition).camera(frame.camera()));
         } finally {
             GlStateManager.matrixMode(GL11.GL_MODELVIEW);GlStateManager.popMatrix();GlStateManager.matrixMode(mode);
             if(depth)GlStateManager.enableDepth();else GlStateManager.disableDepth();

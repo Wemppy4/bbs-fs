@@ -19,6 +19,24 @@ public final class BBSMorphTransformer implements IClassTransformer
         int changed = 0;
         for (MethodNode method : node.methods)
         {
+            if (renderer && (method.name.equals("doRender") || method.name.equals("func_76986_a"))
+                && method.desc.equals("(Lnet/minecraft/client/entity/AbstractClientPlayer;DDDFF)V"))
+            {
+                for (AbstractInsnNode instruction : method.instructions.toArray())
+                {
+                    if (instruction instanceof MethodInsnNode)
+                    {
+                        MethodInsnNode call = (MethodInsnNode) instruction;
+                        if ((call.name.equals("isUser") || call.name.equals("func_175144_cb")) && call.desc.equals("()Z"))
+                        {
+                            method.instructions.set(call, new MethodInsnNode(Opcodes.INVOKESTATIC,
+                                "mchorse/bbs_mod/client/renderer/MorphRenderer", "isFirstPersonUser",
+                                "(Lnet/minecraft/client/entity/AbstractClientPlayer;)Z", false));
+                            changed++;
+                        }
+                    }
+                }
+            }
             if (manager && (method.name.equals("renderEntity") || method.name.equals("func_188391_a"))
                 && method.desc.equals("(Lnet/minecraft/entity/Entity;DDDFFZ)V"))
             {
@@ -69,7 +87,7 @@ public final class BBSMorphTransformer implements IClassTransformer
                 changed++;
             }
         }
-        if (changed != (renderer ? 2 : 1)) throw new IllegalStateException("BBS morph hooks did not match " + transformedName);
+        if (changed != (renderer ? 3 : 1)) throw new IllegalStateException("BBS morph hooks did not match " + transformedName);
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         node.accept(writer);
         return writer.toByteArray();

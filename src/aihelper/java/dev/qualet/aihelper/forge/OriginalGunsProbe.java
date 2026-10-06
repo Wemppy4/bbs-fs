@@ -60,6 +60,29 @@ public final class OriginalGunsProbe {
         out.addProperty("itemRegistered",ItemStack.EMPTY.getItem()!=gun.getItem()&&"bbs:gun".equals(gun.getItem().getRegistryName().toString()));
         out.addProperty("nativeItemRenderer",MC.getRenderItem().getItemModelWithOverrides(gun,MC.world,MC.player).isBuiltInRenderer());
         out.addProperty("defaultGunForm",GunItemRenderer.INSTANCE.get(gun).properties.getForm()!=null);
+        out.addProperty("projectileRenderer",MC.getRenderManager().getEntityClassRenderObject(GunProjectileEntity.class).getClass().getSimpleName());
+        out.addProperty("actorRenderer",MC.getRenderManager().getEntityClassRenderObject(mchorse.bbs_mod.entity.ActorEntity.class).getClass().getSimpleName());
+        if(request.has("particles")&&request.get("particles").getAsBoolean()) {
+            JsonArray forms=new JsonArray();
+            for(Entity entity:MC.world.loadedEntityList)if(entity instanceof GunProjectileEntity) {
+                GunProjectileEntity projectile=(GunProjectileEntity)entity;
+                if(projectile.getForm()!=null)forms.add(mchorse.bbs_mod.data.DataToString.toString(mchorse.bbs_mod.forms.FormUtils.toData(projectile.getForm())));
+            }
+            out.add("projectileForms",forms);
+            java.util.Queue<net.minecraft.client.particle.Particle>[][] layers=net.minecraftforge.fml.relauncher.ReflectionHelper.getPrivateValue(net.minecraft.client.particle.ParticleManager.class,MC.effectRenderer,"fxLayers","field_78876_b");
+            JsonObject counts=new JsonObject();boolean blue=true;int drops=0;
+            for(java.util.Queue<net.minecraft.client.particle.Particle>[] layer:layers)for(java.util.Queue<net.minecraft.client.particle.Particle> queue:layer)for(net.minecraft.client.particle.Particle particle:queue) {
+                String name=particle.getClass().getSimpleName();counts.addProperty(name,counts.has(name)?counts.get(name).getAsInt()+1:1);
+                if(name.equals("FallingWaterParticle")) {drops++;blue&=particle.getBlueColorF()>particle.getGreenColorF()*2&&particle.getBlueColorF()>particle.getRedColorF()*2;}
+            }
+            out.add("particleClasses",counts);out.addProperty("waterDrops",drops);out.addProperty("waterIsBlue",drops>0&&blue);
+            mchorse.bbs_mod.particles.vanilla.VanillaParticleScene scene=new mchorse.bbs_mod.particles.vanilla.VanillaParticleScene();
+            mchorse.bbs_mod.forms.forms.VanillaParticleForm form=(mchorse.bbs_mod.forms.forms.VanillaParticleForm)GunProperties.get(gun).projectileForm;
+            scene.spawn(mchorse.bbs_mod.particles.vanilla.VanillaParticleEffect.from(form.settings.get()),0,0,0,0,0,0);
+            scene.tick();
+            java.util.List<net.minecraft.client.particle.Particle> preview=net.minecraftforge.fml.relauncher.ReflectionHelper.getPrivateValue(mchorse.bbs_mod.particles.vanilla.VanillaParticleScene.class,scene,"particles");
+            out.addProperty("previewWater",preview.size()==1&&preview.get(0) instanceof mchorse.bbs_mod.particles.vanilla.FallingWaterParticle&&preview.get(0).getBlueColorF()==1F);
+        }
         return out;
     }
     private static GunProperties properties() {

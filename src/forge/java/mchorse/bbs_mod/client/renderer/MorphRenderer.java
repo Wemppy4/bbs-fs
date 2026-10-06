@@ -37,6 +37,11 @@ public final class MorphRenderer
         return entity == Minecraft.getMinecraft().player && (hidePlayer || !visibility.getAsBoolean());
     }
 
+    public static boolean isFirstPersonUser(AbstractClientPlayer player)
+    {
+        return player.isUser() && !mchorse.bbs_mod.forge.camera.ForgeCameraHandler.isDetachedView();
+    }
+
     @SubscribeEvent
     public void renderPlayer(RenderPlayerEvent.Pre event)
     {

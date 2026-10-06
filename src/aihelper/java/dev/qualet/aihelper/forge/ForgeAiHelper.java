@@ -136,6 +136,7 @@ public class ForgeAiHelper
     private static JsonObject route(String endpoint,JsonObject p) throws Exception {
         JsonObject out=ok();
         switch(endpoint) {
+            case "/bbs-feedback26-probe": return Feedback26Probe.run(p);
             case "/health": case "/status": return health();
             case "/bbs-ui-timing-probe": return UiTimingProbe.run(p);
             case "/bbs-depth-state-probe": return DepthStateProbe.run(p);

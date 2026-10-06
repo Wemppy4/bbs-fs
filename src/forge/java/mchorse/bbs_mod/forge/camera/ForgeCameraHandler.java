@@ -66,6 +66,12 @@ public final class ForgeCameraHandler
             && this.mc.getRenderViewEntity() == this.view;
     }
 
+    /** Vanilla's local-body guard must allow the detached BBS camera. */
+    public static boolean isDetachedView()
+    {
+        return Minecraft.getMinecraft().getRenderViewEntity() instanceof CameraEntity;
+    }
+
     @SubscribeEvent
     public void tick(TickEvent.ClientTickEvent event)
     {

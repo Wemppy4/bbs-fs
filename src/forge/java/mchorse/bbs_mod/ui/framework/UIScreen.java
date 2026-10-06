@@ -83,14 +83,14 @@ public class UIScreen extends GuiScreen implements mchorse.bbs_mod.ui.utils.IFil
         boolean pressed = Keyboard.getEventKeyState();
         menu.handleKey(InputCodes.fromNative(nativeKey), nativeKey,
             pressed ? (Keyboard.isRepeatEvent() ? InputCodes.REPEAT : InputCodes.PRESS) : InputCodes.RELEASE, 0);
-        if (pressed && Keyboard.getEventCharacter() != 0) menu.handleTextInput(Keyboard.getEventCharacter());
+        if (pressed && !Character.isISOControl(Keyboard.getEventCharacter())) menu.handleTextInput(Keyboard.getEventCharacter());
         mc.dispatchKeypresses();
     }
     /** Used by synthetic Forge input as well as callers of GuiScreen.keyTyped. */
     @Override protected void keyTyped(char character, int nativeKey)
     {
         if (nativeKey != Keyboard.KEY_NONE) menu.handleKey(InputCodes.fromNative(nativeKey), nativeKey, InputCodes.PRESS, 0);
-        if (character != 0) menu.handleTextInput(character);
+        if (!Character.isISOControl(character)) menu.handleTextInput(character);
     }
 
     /** Poll at render-tick start, while the preceding gizmo placement is still available.

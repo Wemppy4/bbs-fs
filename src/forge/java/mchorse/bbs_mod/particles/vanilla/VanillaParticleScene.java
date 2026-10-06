@@ -40,7 +40,7 @@ public class VanillaParticleScene {
         Minecraft mc=Minecraft.getMinecraft(); if(mc.world==null||size()>=4096)return;
         if(world!=mc.world){world=mc.world;clear();factory=new FactoryManager(world);}
         if(size()==0){Entity anchor=mc.getRenderViewEntity();origin.set(anchor==null?0:anchor.posX,world.getHeight()+32,anchor==null?0:anchor.posZ);}
-        factory.spawnEffectParticle(effect.type.getParticleID(),origin.x+x,origin.y+y,origin.z+z,vx,vy,vz,effect.arguments);
+        effect.spawn(factory,world,origin.x+x,origin.y+y,origin.z+z,vx,vy,vz);
     }
     public void tick(){
         if(factory==null)return;

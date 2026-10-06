@@ -1,6 +1,9 @@
 package mchorse.bbs_mod.forms.entities;
 
 import mchorse.bbs_mod.utils.AABB;
+import mchorse.bbs_mod.entity.IEntityFormProvider;
+import mchorse.bbs_mod.forms.forms.Form;
+import mchorse.bbs_mod.morphing.Morph;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -19,6 +22,23 @@ public class MCEntity extends StubEntity
 
     public MCEntity(Entity entity) { this.entity = entity; }
     public Entity getMcEntity() { return this.entity; }
+    /* The film borrows the live player's form while controlling a replay. It
+     * must be the same form the capability ticks, not StubEntity's spare field. */
+    @Override public Form getForm()
+    {
+        if (this.entity instanceof IEntityFormProvider) return ((IEntityFormProvider) this.entity).getForm();
+        Morph morph = Morph.getMorph(this.entity);
+        return morph == null ? null : morph.getForm();
+    }
+    @Override public void setForm(Form form)
+    {
+        if (this.entity instanceof IEntityFormProvider) ((IEntityFormProvider) this.entity).setForm(form);
+        else
+        {
+            Morph morph = Morph.getMorph(this.entity);
+            if (morph != null) morph.setForm(form);
+        }
+    }
     private EntityLivingBase living() { return this.entity instanceof EntityLivingBase ? (EntityLivingBase) this.entity : null; }
     @Override public boolean isStandIn() { return false; }
     @Override public World getWorld() { return this.entity.world; }

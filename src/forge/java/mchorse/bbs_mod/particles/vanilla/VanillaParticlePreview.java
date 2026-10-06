@@ -25,12 +25,7 @@ public final class VanillaParticlePreview
         if (size <= 0) return;
         if (!TYPES.containsKey(id))
         {
-            EnumParticleTypes match = null;
-            for (EnumParticleTypes type : EnumParticleTypes.values())
-            {
-                if (new ResourceLocation(type.getParticleName()).equals(id)) { match = type; break; }
-            }
-            TYPES.put(id, match);
+            TYPES.put(id, VanillaParticleEffect.getType(id));
         }
         EnumParticleTypes type = TYPES.get(id);
         int index = -1, color = 0xFFFFFFFF;

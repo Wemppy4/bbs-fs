@@ -28,6 +28,10 @@ public class ClientProxy extends CommonProxy {
     private final java.util.Queue<net.minecraft.network.NetworkManager> disconnectedConnections = new java.util.concurrent.ConcurrentLinkedQueue<>();
     public void preInit() {
         super.preInit();
+        net.minecraftforge.fml.client.registry.RenderingRegistry.registerEntityRenderingHandler(mchorse.bbs_mod.entity.ActorEntity.class,
+            mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer::new);
+        net.minecraftforge.fml.client.registry.RenderingRegistry.registerEntityRenderingHandler(mchorse.bbs_mod.entity.GunProjectileEntity.class,
+            mchorse.bbs_mod.client.renderer.entity.GunProjectileEntityRenderer::new);
     }
     @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid="bbs",value=net.minecraftforge.fml.relauncher.Side.CLIENT)
     public static class Models {
@@ -110,10 +114,6 @@ public class ClientProxy extends CommonProxy {
         BBSMod.events.post(new RegisterFilmToolsEvent());
         mchorse.bbs_mod.fonts.nativefonts.NativeDefaultFont.prepare();
         mchorse.bbs_mod.cubic.animation.ItemUsePose.setSource(mchorse.bbs_mod.client.renderer.ThirdPersonItemUse::get);
-        net.minecraftforge.fml.client.registry.RenderingRegistry.registerEntityRenderingHandler(mchorse.bbs_mod.entity.ActorEntity.class,
-            mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer::new);
-        net.minecraftforge.fml.client.registry.RenderingRegistry.registerEntityRenderingHandler(mchorse.bbs_mod.entity.GunProjectileEntity.class,
-            mchorse.bbs_mod.client.renderer.entity.GunProjectileEntityRenderer::new);
         mchorse.bbs_mod.utils.resources.CemResourceLifecycle.install();
         BBSMod.getProvider().register(new mchorse.bbs_mod.utils.resources.MinecraftSourcePack());
         models.reload();

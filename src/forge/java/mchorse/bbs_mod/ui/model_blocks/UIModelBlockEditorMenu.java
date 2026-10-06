@@ -77,15 +77,24 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
     private ModelProperties properties;
     private GunProperties gunProperties;
 
+    public static boolean isEditing(ModelProperties properties)
+    {
+        UIBaseMenu menu = mchorse.bbs_mod.ui.framework.UIScreen.getCurrentMenu();
+
+        return menu instanceof UIModelBlockEditorMenu && ((UIModelBlockEditorMenu) menu).properties == properties;
+    }
+
     /* Camera */
     private UIOrbitCamera uiOrbitCamera;
     private OrbitCameraController orbitCameraController;
+    private final int previousPerspective;
 
     private UICopyPasteController copyPasteController;
 
     public UIModelBlockEditorMenu(ModelProperties properties)
     {
         this.properties = properties;
+        this.previousPerspective = Minecraft.getMinecraft().gameSettings.thirdPersonView;
 
         if (properties instanceof GunProperties gunProperties)
         {
@@ -420,6 +429,7 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
 
         this.saveSection();
         BBSModClient.getCameraController().remove(this.orbitCameraController);
+        Minecraft.getMinecraft().gameSettings.thirdPersonView = this.previousPerspective;
         ClientNetwork.sendModelBlockTransforms(this.properties.toData());
     }
 
@@ -436,7 +446,9 @@ public class UIModelBlockEditorMenu extends UIBaseMenu
 
             if (element == this.sectionTp)
             {
-                Minecraft.getMinecraft().gameSettings.thirdPersonView = 2;
+                /* The orbit is a detached camera on 1.12. Vanilla must stay in
+                 * first person so releasing that camera restores the hand view. */
+                Minecraft.getMinecraft().gameSettings.thirdPersonView = 0;
                 BBSModClient.getCameraController().add(this.orbitCameraController);
             }
             else

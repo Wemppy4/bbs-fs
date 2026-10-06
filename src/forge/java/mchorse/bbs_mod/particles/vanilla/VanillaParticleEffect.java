@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.particles.vanilla;
 import mchorse.bbs_mod.forms.forms.utils.ParticleSettings;
 import net.minecraft.block.Block;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.item.Item;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
@@ -11,6 +13,7 @@ import java.util.Map;
 public final class VanillaParticleEffect {
     public final EnumParticleTypes type;
     public final int[] arguments;
+    private final boolean fallingWater;
     private static final Map<String,EnumParticleTypes> TYPES = new HashMap<>();
     static {
         for(EnumParticleTypes type:EnumParticleTypes.values()) { TYPES.put(type.getParticleName(),type); TYPES.put(type.name().toLowerCase(java.util.Locale.ROOT),type); }
@@ -19,7 +22,7 @@ public final class VanillaParticleEffect {
         alias("underwater",EnumParticleTypes.SUSPENDED); alias("enchant",EnumParticleTypes.ENCHANTMENT_TABLE);
         alias("enchanted_hit",EnumParticleTypes.CRIT_MAGIC); alias("effect",EnumParticleTypes.SPELL); alias("instant_effect",EnumParticleTypes.SPELL_INSTANT);
         alias("entity_effect",EnumParticleTypes.SPELL_MOB); alias("ambient_entity_effect",EnumParticleTypes.SPELL_MOB_AMBIENT); alias("witch",EnumParticleTypes.SPELL_WITCH);
-        alias("falling_water",EnumParticleTypes.WATER_DROP); alias("falling_lava",EnumParticleTypes.LAVA);
+        alias("falling_water",EnumParticleTypes.DRIP_WATER); alias("falling_lava",EnumParticleTypes.LAVA);
         alias("dripping_water",EnumParticleTypes.DRIP_WATER); alias("dripping_lava",EnumParticleTypes.DRIP_LAVA);
         alias("angry_villager",EnumParticleTypes.VILLAGER_ANGRY); alias("happy_villager",EnumParticleTypes.VILLAGER_HAPPY);
         alias("mycelium",EnumParticleTypes.TOWN_AURA); alias("dust",EnumParticleTypes.REDSTONE); alias("item",EnumParticleTypes.ITEM_CRACK);
@@ -29,9 +32,10 @@ public final class VanillaParticleEffect {
         alias("sweep_attack",EnumParticleTypes.SWEEP_ATTACK); alias("totem_of_undying",EnumParticleTypes.TOTEM);
     }
     private static void alias(String name,EnumParticleTypes type){TYPES.put(name,type);}
-    private VanillaParticleEffect(EnumParticleTypes type,int[] args){this.type=type;this.arguments=args;}
+    public static EnumParticleTypes getType(ResourceLocation particle){return TYPES.get(particle.getPath());}
+    private VanillaParticleEffect(EnumParticleTypes type,int[] args,boolean fallingWater){this.type=type;this.arguments=args;this.fallingWater=fallingWater;}
     public static VanillaParticleEffect from(ParticleSettings settings){
-        EnumParticleTypes type=TYPES.get(settings.particle.getPath());
+        EnumParticleTypes type=getType(settings.particle);
         if(type==null)type=EnumParticleTypes.FLAME;
         String raw=settings.arguments.trim(); String[] tokens=raw.isEmpty()?new String[0]:raw.split("\\s+");
         int[] args=new int[type.getArgumentCount()];
@@ -42,7 +46,16 @@ public final class VanillaParticleEffect {
                 else for(int i=0;i<args.length&&i<tokens.length;i++)args[i]=Integer.parseInt(tokens[i]);
             }
         } catch(RuntimeException invalid){ java.util.Arrays.fill(args,0); }
-        return new VanillaParticleEffect(type,args);
+        return new VanillaParticleEffect(type,args,"minecraft:falling_water".equals(settings.particle.toString()));
     }
-    public void spawn(World world,double x,double y,double z,double vx,double vy,double vz){world.spawnParticle(type,true,x,y,z,vx,vy,vz,arguments);}
+    public void spawn(World world,double x,double y,double z,double vx,double vy,double vz){
+        if(fallingWater){
+            if(world.isRemote)spawn(Minecraft.getMinecraft().effectRenderer,world,x,y,z,vx,vy,vz);
+        }
+        else world.spawnParticle(type,true,x,y,z,vx,vy,vz,arguments);
+    }
+    public void spawn(ParticleManager manager,World world,double x,double y,double z,double vx,double vy,double vz){
+        if(fallingWater)manager.addEffect(new FallingWaterParticle(world,x,y,z));
+        else manager.spawnEffectParticle(type.getParticleID(),x,y,z,vx,vy,vz,arguments);
+    }
 }
