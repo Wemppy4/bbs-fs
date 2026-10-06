@@ -200,6 +200,7 @@ public final class BBSModClient
     /** Original client labels and axis tints for the shared ordering settings. */
     public static void configureSettingsUI()
     {
+        BBSSettings.language.postCallback((v, f) -> reloadLanguage(getLanguageKey()));
         BBSSettings.rotate3dSphereMode.modes(
             UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_TRACKBALL,
             UIKeys.ENGINE_ROTATE_3D_SPHERE_MODE_ARCBALL);
