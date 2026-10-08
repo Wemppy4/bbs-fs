@@ -80,7 +80,7 @@ public final class AddonApiCheck implements net.fabricmc.loader.api.entrypoint.P
         {
             var factory = BBSMod.class.getDeclaredField(name);
             factory.setAccessible(true);
-            factory.set(null, new mchorse.bbs_mod.utils.factory.MapFactory<>());
+            factory.set(null, new mchorse.bbs_mod.utils.clips.ClipFactory());
         }
         var language = mchorse.bbs_mod.BBSModClient.class.getDeclaredField("l10n");
         language.setAccessible(true);
