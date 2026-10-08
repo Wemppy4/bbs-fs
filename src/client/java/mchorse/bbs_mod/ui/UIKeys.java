@@ -223,7 +223,6 @@ public class UIKeys
     public static final IKey CAMERA_TIMELINE_CONTEXT_SHIFT = L10n.lang("bbs.ui.camera.timeline.context.shift");
     public static final IKey CAMERA_TIMELINE_CONTEXT_SHIFT_DURATION = L10n.lang("bbs.ui.camera.timeline.context.shift_duration");
     public static final IKey CAMERA_TIMELINE_INCOMPATIBLE_PASTE = L10n.lang("bbs.ui.camera.timeline.incompatible_paste");
-    public static final IKey CAMERA_TIMELINE_KEYS_CLIPS = L10n.lang("bbs.ui.camera.timeline.keys.clips");
     public static final IKey CAMERA_TIMELINE_KEYS_ENABLED = L10n.lang("bbs.ui.camera.timeline.keys.enabled");
     public static final IKey CAMERA_TOOLTIPS_OPEN_VIDEOS = L10n.lang("bbs.ui.camera.tooltips.open_videos");
     public static final IKey CAMERA_TOOLTIPS_OPEN_VIDEO_SETTINGS = L10n.lang("bbs.ui.camera.tooltips.open_video_settings");
@@ -656,6 +655,25 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_RESET = L10n.lang("bbs.ui.forms.editors.model.physics.context.reset");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_SAVE = L10n.lang("bbs.ui.forms.editors.model.physics.context.save");
     public static final IKey FORMS_EDITORS_MODEL_PHYSICS_CONTEXT_NAME = L10n.lang("bbs.ui.forms.editors.model.physics.context.name");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_TITLE = L10n.lang("bbs.ui.forms.editors.model.shake.title");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_BONES_TOOLTIP = L10n.lang("bbs.ui.forms.editors.model.shake.bones_tooltip");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_SETTINGS = L10n.lang("bbs.ui.forms.editors.model.shake.settings");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_ENABLED = L10n.lang("bbs.ui.forms.editors.model.shake.enabled");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_STRENGTH = L10n.lang("bbs.ui.forms.editors.model.shake.strength");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_FREQUENCY = L10n.lang("bbs.ui.forms.editors.model.shake.frequency");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_FREQUENCY_TOOLTIP = L10n.lang("bbs.ui.forms.editors.model.shake.frequency_tooltip");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_ROUGHNESS = L10n.lang("bbs.ui.forms.editors.model.shake.roughness");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_ROUGHNESS_TOOLTIP = L10n.lang("bbs.ui.forms.editors.model.shake.roughness_tooltip");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_SEED = L10n.lang("bbs.ui.forms.editors.model.shake.seed");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_SEED_TOOLTIP = L10n.lang("bbs.ui.forms.editors.model.shake.seed_tooltip");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_AMPLITUDE = L10n.lang("bbs.ui.forms.editors.model.shake.amplitude");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_DRIVEN = L10n.lang("bbs.ui.forms.editors.model.shake.driven");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_DRIVEN_TOOLTIP = L10n.lang("bbs.ui.forms.editors.model.shake.driven_tooltip");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_CONTEXT_COPY = L10n.lang("bbs.ui.forms.editors.model.shake.context.copy");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_CONTEXT_PASTE = L10n.lang("bbs.ui.forms.editors.model.shake.context.paste");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_CONTEXT_RESET = L10n.lang("bbs.ui.forms.editors.model.shake.context.reset");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_CONTEXT_SAVE = L10n.lang("bbs.ui.forms.editors.model.shake.context.save");
+    public static final IKey FORMS_EDITORS_MODEL_SHAKE_CONTEXT_NAME = L10n.lang("bbs.ui.forms.editors.model.shake.context.name");
     public static final IKey MODEL_DEBUG_ENABLED = L10n.lang("bbs.ui.model_debug.enabled");
     public static final IKey MODEL_DEBUG_XRAY = L10n.lang("bbs.ui.model_debug.xray");
     public static final IKey MODEL_DEBUG_DASHED = L10n.lang("bbs.ui.model_debug.dashed");
@@ -991,7 +1009,6 @@ public class UIKeys
     public static final IKey KEYFRAMES_CONTEXT_KEYFRAME_STYLE = L10n.lang("bbs.ui.keyframes.context.keyframe_style");
     public static final IKey KEYFRAMES_ENABLED = L10n.lang("bbs.ui.keyframes.enabled");
     public static final IKey KEYFRAMES_KEYS_ENABLED = L10n.lang("bbs.ui.keyframes.keys.enabled");
-    public static final IKey KEYFRAMES_KEYS_INSERT = L10n.lang("bbs.ui.keyframes.keys.insert");
     public static final IKey KEYFRAMES_CONTEXT_REMOVE = L10n.lang("bbs.ui.keyframes.context.remove");
     public static final IKey KEYFRAMES_CONTEXT_ROUND = L10n.lang("bbs.ui.keyframes.context.round");
     public static final IKey KEYFRAMES_CONTEXT_SELECT_ALL = L10n.lang("bbs.ui.keyframes.context.select_all");
@@ -1864,6 +1881,8 @@ public class UIKeys
     public static final KeyCollection C_CLIP = new KeyCollection("bbs.ui.camera.clips.^")
         .load(BBSMod.getFactoryCameraClips().getStringKeys())
         .load(BBSMod.getFactoryActionClips().getStringKeys());
+
+    public static final KeyCollection C_CLIP_CATEGORY = new KeyCollection("bbs.ui.camera.clip_categories.^");
 
     public static final KeyCollection C_BILLBOARD_DIRECTION = new KeyCollection("bbs.ui.snowstorm.general.direction.^")
         .load(EnumUtils.getKeys(BillboardDirection.class, (c) -> c.id));

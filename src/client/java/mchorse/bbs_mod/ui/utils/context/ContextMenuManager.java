@@ -18,6 +18,9 @@ import java.util.function.Consumer;
 
 public class ContextMenuManager
 {
+    /** How many rows get a number of their own: 1-0 bare, then with Shift, then with Ctrl. */
+    public static final int AUTO_KEYS = 30;
+
     public List<ContextAction> actions = new ArrayList<>();
     public List<MenuIcon> icons = new ArrayList<>();
     public Consumer<UIRemovedEvent> onClose;
@@ -25,6 +28,27 @@ public class ContextMenuManager
     public UISimpleContextMenu menu;
 
     private IKey category = UIKeys.CONTEXT_MENU_KEY_CATEGORY;
+
+    /**
+     * The number key of the row at the given index, for menus that key their rows in order:
+     * the first ten bare, the next ten with Shift, the ten after that with Ctrl.
+     */
+    public static KeyCombo autoKey(IKey label, int index)
+    {
+        IKey name = UIKeys.CONTEXT_MENU_KEY.format(label);
+        int key = index % 10 == 9 ? GLFW.GLFW_KEY_0 : GLFW.GLFW_KEY_1 + index % 10;
+
+        if (index >= 20)
+        {
+            return new KeyCombo(name, key, GLFW.GLFW_KEY_LEFT_CONTROL);
+        }
+        else if (index >= 10)
+        {
+            return new KeyCombo(name, key, GLFW.GLFW_KEY_LEFT_SHIFT);
+        }
+
+        return new KeyCombo(name, key);
+    }
 
     public ContextMenuManager custom(UISimpleContextMenu menu)
     {
@@ -148,26 +172,9 @@ public class ContextMenuManager
                     register.category(action.keyCategory);
                 }
             }
-            else if (this.autoKeys && i < 30)
+            else if (this.autoKeys && i < AUTO_KEYS)
             {
-                IKey label = UIKeys.CONTEXT_MENU_KEY.format(action.label);
-                int mod = i % 10;
-                int key = i == 9 ? GLFW.GLFW_KEY_0 : GLFW.GLFW_KEY_1 + mod;
-
-                KeyCombo combo;
-
-                if (i >= 20)
-                {
-                    combo = new KeyCombo(label, key, GLFW.GLFW_KEY_LEFT_CONTROL);
-                }
-                else if (i >= 10)
-                {
-                    combo = new KeyCombo(label, key, GLFW.GLFW_KEY_LEFT_SHIFT);
-                }
-                else
-                {
-                    combo = new KeyCombo(label, key);
-                }
+                KeyCombo combo = autoKey(action.label, i);
 
                 contextMenu.keys().register(combo, () ->
                 {

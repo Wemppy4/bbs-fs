@@ -834,7 +834,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
     private void collectCuratedSheets(List<UIKeyframeSheet> sheets)
     {
         String[] groups = {"position_rotation", "states", "hotbar", "equipment", "controls", "velocity"};
-        Icon[] icons = {Icons.PLAYER, Icons.ACTION, getIcon("item_slot_0"), Icons.ARMOR_CHESTPLATE, getIcon("stick_lx"), Icons.FORWARD};
+        Icon[] icons = {Icons.PLAYER, Icons.ACTION, getIcon("hotbar"), Icons.ARMOR_CHESTPLATE, getIcon("stick_lx"), Icons.FORWARD};
         int[] colors = {0x40bfff, Colors.ORANGE, Colors.YELLOW, Colors.BLUE, 0xb580ff, Colors.GREEN};
 
         for (int i = 0; i < groups.length; i++)
@@ -850,15 +850,6 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
                     KeyframeChannel channel = (KeyframeChannel) this.replay.keyframes.get(key);
                     UIKeyframeSheet sheet = new UIKeyframeSheet(key, IKey.constant(key), getColor(key), channel, key.equals("anchor") ? this.replay.anchor : null, false).icon(getIcon(key));
                     sheet.section = section;
-
-                    if (key.startsWith("item_slot_"))
-                    {
-                        Replay replay = this.replay;
-                        int slot = Integer.parseInt(key.substring("item_slot_".length()));
-
-                        sheet.live = () -> replay.keyframes.getSelectedSlot(this.filmPanel.getCursor()) == slot;
-                    }
-
                     sheets.add(sheet);
                 }
             }
@@ -867,7 +858,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost
 
     private static String replaySection(String key)
     {
-        if (key.startsWith("item_slot_") || key.equals("selected_slot") || key.equals("item_off_hand")) return "hotbar";
+        if (key.equals("hotbar") || key.equals("selected_slot") || key.equals("item_off_hand")) return "hotbar";
         if (key.startsWith("item_")) return "equipment";
         if (key.startsWith("stick_") || key.startsWith("trigger_") || key.startsWith("extra")) return "controls";
 

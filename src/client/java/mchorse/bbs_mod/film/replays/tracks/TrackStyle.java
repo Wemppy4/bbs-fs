@@ -4,7 +4,6 @@ import java.util.Objects;
 import mchorse.bbs_mod.l10n.keys.IKey;
 
 import mchorse.bbs_mod.forms.entities.EntityState;
-import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.StringUtils;
@@ -46,8 +45,7 @@ public class TrackStyle
     private static final int MODEL_TRACK = 0x9d6cff;
 
     /* Item channel families - see setupItemColors() */
-    private static final int HOTBAR_FIRST = Colors.ORANGE;
-    private static final int HOTBAR_LAST = 0xe0245e;
+    private static final int HOTBAR = Colors.ORANGE;
     private static final int OFF_HAND = 0xff3a74;
     private static final int ARMOR_HEAD = 0x8fd0ff;
     private static final int ARMOR_CHEST = 0x6fb4f0;
@@ -65,6 +63,8 @@ public class TrackStyle
         register("ik", Icons.IK, Colors.WHITE);
         register("physics", Icons.PHYSICS, 0x9d6cff);
         register("wind", Icons.PARTICLE, Colors.ORANGE);
+        /* The camera shake clip's icon and colour: the same thing, done to bones. */
+        register("shake", Icons.EXCHANGE, 0x159e64);
         register("spline_ik", Icons.GRAPH, Colors.BLUE);
         register("curve", Icons.GRAPH, Colors.BLUE);
     }
@@ -109,21 +109,13 @@ public class TrackStyle
      * Fourteen item rows sat in one shade of orange, which read as one long stripe. They are
      * two things, so they get two families: the hands warm, the armour cool as metal.
      *
-     * The hotbar drifts from orange to raspberry down its nine rows, and the off hand - which
-     * comes right after them - carries on where they end, a shade brighter. So the warm run
-     * reads as one thing with an order, while a glance still tells row from row. The armour
-     * cools downwards the same way, lightest at the helmet.
+     * The hotbar is orange and the off hand right below it raspberry, so the warm pair reads as
+     * one thing while a glance still tells row from row. The armour cools downwards, lightest
+     * at the helmet.
      */
     private static void setupItemColors()
     {
-        int last = ReplayKeyframes.HOTBAR_SIZE - 1;
-
-        for (int i = 0; i <= last; i++)
-        {
-            COLORS.put(ReplayKeyframes.hotbarChannelId(i), Colors.lerp(HOTBAR_FIRST, HOTBAR_LAST, i / (float) last) & Colors.RGB);
-        }
-
-        /* Sits right below the hotbar in the list, so it picks the run up where it ends */
+        COLORS.put("hotbar", HOTBAR & Colors.RGB);
         COLORS.put("item_off_hand", OFF_HAND);
 
         COLORS.put("item_head", ARMOR_HEAD);
@@ -168,7 +160,7 @@ public class TrackStyle
     /**
      * Every track carries an icon: an empty slot in the icon column reads as "this row is a lesser
      * kind of thing" when it only ever meant "nobody got around to it". Rows that belong together
-     * wear the same icon on purpose - the nine hotbar slots, the six particle user values, the label's
+     * wear the same icon on purpose - the six particle user values, the label's
      * shadow - so the column groups the timeline at a glance instead of naming each row twice.
      */
     private static void setupIcons()
@@ -251,13 +243,7 @@ public class TrackStyle
 
     private static void setupItemIcons()
     {
-        /* The whole hotbar wears one icon: nine rows of the same thing, which is what they are.
-         * The row's number is in its name, and its shade already walks down the run. */
-        for (int i = 0; i < ReplayKeyframes.HOTBAR_SIZE; i++)
-        {
-            ICONS.put(ReplayKeyframes.hotbarChannelId(i), Icons.HOTBAR);
-        }
-
+        ICONS.put("hotbar", Icons.HOTBAR);
         ICONS.put("item_off_hand", Icons.LIMB);
         ICONS.put("item_head", Icons.ARMOR_HELMET);
         ICONS.put("item_chest", Icons.ARMOR_CHESTPLATE);

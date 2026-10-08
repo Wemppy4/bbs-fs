@@ -72,7 +72,7 @@ public class UIKeyframeMotionShift
         if (this.view.isEditing())
         {
             List<UIKeyframeSheet> candidates = new ArrayList<>(this.view.getOperationSheets());
-            UIKeyframeSheet active = this.view.getActiveSheet();
+            UIKeyframeSheet active = this.view.getPickedSheet();
             if (candidates.remove(active)) candidates.add(0, active);
             double best = 51D;
             for (UIKeyframeSheet candidate : candidates)
@@ -104,7 +104,7 @@ public class UIKeyframeMotionShift
         {
             KeyframeLoop loop = (KeyframeLoop) entry;
             int loopStart = this.view.toGraphX(loop.start()), loopEnd = this.view.toGraphX(sheet.channel.getLoopEnd(loop));
-            if ((dope || sheet == this.view.getActiveSheet()) && context.mouseY >= rowY && context.mouseY < rowY + height
+            if ((dope || sheet == this.view.getPickedSheet()) && context.mouseY >= rowY && context.mouseY < rowY + height
                 && context.mouseX >= loopStart - 3 && context.mouseX <= loopEnd + 5
                 && (context.mouseY < rowY + 4 || context.mouseY >= rowY + height - 3 || Math.abs(context.mouseX - loopEnd) <= 5)) return null;
         }

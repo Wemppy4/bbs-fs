@@ -122,10 +122,10 @@ public class ActionPlayer
         {
             this.cachedHotbar.add(inventory.getStack(i).copy());
 
-            /* Cells the replay says nothing about are left to the world during playback (see
-             * ReplayKeyframes#applyEquipment), but they're still emptied once - otherwise the
+            /* A hotbar the replay says nothing about is left to the world during playback (see
+             * ReplayKeyframes#applyEquipment), but it's still emptied once - otherwise the
              * player's own things would wander into frame. */
-            if (!keyframes.drivesHotbarSlot(i))
+            if (!keyframes.drivesHotbar())
             {
                 inventory.setStack(i, ItemStack.EMPTY);
             }

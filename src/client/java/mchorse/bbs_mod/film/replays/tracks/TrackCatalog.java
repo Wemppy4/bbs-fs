@@ -199,6 +199,7 @@ public class TrackCatalog
     {
         boolean hasIK = false;
         boolean hasPhysics = false;
+        boolean hasShake = false;
 
         if (form instanceof ModelForm modelForm)
         {
@@ -208,6 +209,7 @@ public class TrackCatalog
                 {
                     hasIK |= bone.hasChain();
                     hasPhysics |= bone.hasPhysicsChain();
+                    hasShake |= bone.hasShake();
                 }
             }
         }
@@ -222,6 +224,7 @@ public class TrackCatalog
             if (form instanceof ModelForm modelForm
                 && ((value == modelForm.ik && !hasIK)
                     || ((value == modelForm.physics || value == modelForm.wind) && !hasPhysics)
+                    || (value == modelForm.shake && !hasShake)
                     || (value == modelForm.splineIK && modelForm.splines.getAll().isEmpty())))
             {
                 continue;
@@ -255,13 +258,15 @@ public class TrackCatalog
             TrackDescriptor track = new TrackDescriptor(id, channel, form, TrackStyle.label(id),
                 TrackStyle.icon(name), TrackStyle.color(name), property);
 
-            if (name.startsWith("pose_overlay"))
+            /* The pose folds only its limbs, the transform nothing: the first overlay of each is a
+             * row of its own and folds the additional ones (pose_overlay0, 1…) the settings add. */
+            if (name.startsWith("pose_overlay") && !name.equals("pose_overlay"))
             {
-                track = track.under(TrackId.property(path, FormProperties.POSE_PROPERTY));
+                track = track.under(TrackId.property(path, "pose_overlay"));
             }
-            else if (name.startsWith("transform_overlay"))
+            else if (name.startsWith("transform_overlay") && !name.equals("transform_overlay"))
             {
-                track = track.under(TrackId.property(path, "transform"));
+                track = track.under(TrackId.property(path, "transform_overlay"));
             }
 
             if (TrackId.MATERIAL_PROP_OVERLAY.equals(name))
@@ -463,7 +468,7 @@ public class TrackCatalog
         TrackId lighting = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_LIGHTING);
 
         out.add(prop(modelForm, lighting, parent, prefix + TrackId.MATERIAL_PROP_LIGHTING, Icons.LIGHT,
-            new ValueFloat(lighting.toKey(), staticMaterial == null ? 1F : staticMaterial.lighting.get()), properties));
+            new ValueFloat(lighting.toKey(), staticMaterial == null ? 1F : staticMaterial.lighting.get(), 0F, 1F).slider(), properties));
 
         TrackId culling = TrackId.materialProp(path, material, TrackId.MATERIAL_PROP_CULLING);
 
@@ -491,7 +496,7 @@ public class TrackCatalog
             float value = staticMaterial == null ? 0F : pbrSlider(staticMaterial, slider);
 
             out.add(prop(modelForm, id, parent, prefix + slider, Icons.MATERIAL,
-                new ValueFloat(id.toKey(), value), properties));
+                new ValueFloat(id.toKey(), value, 0F, 1F).slider(), properties));
         }
     }
 

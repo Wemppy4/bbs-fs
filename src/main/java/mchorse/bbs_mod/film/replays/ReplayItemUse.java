@@ -36,7 +36,7 @@ public class ReplayItemUse
     public static ItemUsePose.Use compute(Replay replay, float tick, boolean mainHand)
     {
         ItemStack displayed = mainHand
-            ? itemAt(replay.keyframes.hotbar.get(replay.keyframes.getSelectedSlot(tick)), tick)
+            ? replay.keyframes.getMainHandStack(tick)
             : itemAt(replay.keyframes.offHand, tick);
 
         ItemUsePose.Use state = null;

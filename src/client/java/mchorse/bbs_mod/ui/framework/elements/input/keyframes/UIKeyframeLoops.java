@@ -90,7 +90,7 @@ public class UIKeyframeLoops
         if (!this.view.graphArea.isInside(context) || context.mouseY < this.view.area.y + IUIKeyframeGraph.TOP_MARGIN) return null;
         boolean dope = !this.view.isEditing();
         List<UIKeyframeSheet> sheets = new ArrayList<>(this.view.getOperationSheets());
-        UIKeyframeSheet active = this.view.getActiveSheet();
+        UIKeyframeSheet active = this.view.getPickedSheet();
         if (sheets.remove(active)) sheets.add(0, active);
         UIKeyframeSheet row = dope ? this.view.getDopeSheet().getSheet(context.mouseY) : null;
         UIKeyframeSheet curve = dope ? null : ((UIKeyframeGraph) this.view.getGraph()).findCurve(context.mouseX, context.mouseY);
@@ -239,8 +239,8 @@ public class UIKeyframeLoops
             return false;
         }
         int endX = this.view.toGraphX(hit.sheet.channel.getLoopEnd(hit.loop));
-        boolean handle = (!this.view.isEditing() || hit.sheet == this.view.getActiveSheet()) && Math.abs(context.mouseX - endX) <= 5 && context.mouseY >= hit.y && context.mouseY < hit.y + hit.height;
-        boolean bar = (!this.view.isEditing() || hit.sheet == this.view.getActiveSheet()) && context.mouseY >= hit.y && context.mouseY < hit.y + hit.height
+        boolean handle = (!this.view.isEditing() || hit.sheet == this.view.getPickedSheet()) && Math.abs(context.mouseX - endX) <= 5 && context.mouseY >= hit.y && context.mouseY < hit.y + hit.height;
+        boolean bar = (!this.view.isEditing() || hit.sheet == this.view.getPickedSheet()) && context.mouseY >= hit.y && context.mouseY < hit.y + hit.height
             && ((context.mouseY < hit.y + 4 && !this.connectsTo(hit.sheet, hit.loop, hit.y - 1))
                 || (context.mouseY >= hit.y + hit.height - 3 && !this.connectsTo(hit.sheet, hit.loop, hit.y + hit.height)));
         if (!handle && (Window.isCtrlPressed() || Window.isAltPressed() || Window.isShiftPressed())) return false;
@@ -262,12 +262,12 @@ public class UIKeyframeLoops
                 this.view.pickKeyframe(key);
                 return true;
             }
-            /* Clicking a displayed curve only activates it; move loops with their visible bar. */
+            /* In the graph loops move with their visible bar only. */
             if (this.view.isEditing()) return false;
         }
 
         this.view.getGraph().clearSelection();
-        this.view.setActiveTrack(hit.sheet);
+        this.view.pickKeyframe(null);
         this.selectedChannel = hit.sheet.channel;
         this.selectedId = hit.loop.id();
         if (this.doubleClick.hit(this.selectedId))
@@ -346,7 +346,7 @@ public class UIKeyframeLoops
     {
         Hit hovered = this.hit(context);
         if (this.isDragging()) context.requestCursor(this.resizing ? GLFW.GLFW_HRESIZE_CURSOR : GLFW.GLFW_HAND_CURSOR);
-        else if (hovered != null && (!this.view.isEditing() || hovered.sheet == this.view.getActiveSheet()) && context.mouseY >= hovered.y && context.mouseY < hovered.y + hovered.height
+        else if (hovered != null && (!this.view.isEditing() || hovered.sheet == this.view.getPickedSheet()) && context.mouseY >= hovered.y && context.mouseY < hovered.y + hovered.height
             && Math.abs(context.mouseX - this.view.toGraphX(hovered.sheet.channel.getLoopEnd(hovered.loop))) <= 5)
         {
             context.requestCursor(GLFW.GLFW_HRESIZE_CURSOR);
@@ -378,7 +378,7 @@ public class UIKeyframeLoops
                 int top = joinsAbove ? y : y + 1;
                 int bottom = joinsBelow ? y + height : y + height - 1;
 
-                if (dope || sheet == this.view.getActiveSheet())
+                if (dope || sheet == this.view.getPickedSheet())
                 {
                     context.batcher.box(start, top, end, bottom, Colors.setA(color, 0.12F));
                     if (!joinsAbove) context.batcher.box(start, top, end, top + 1, highlight ? Colors.WHITE : Colors.setA(color, 0.9F));

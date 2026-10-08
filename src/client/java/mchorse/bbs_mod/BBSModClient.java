@@ -12,6 +12,7 @@ import mchorse.bbs_mod.audio.MinecraftSoundCapture;
 import mchorse.bbs_mod.audio.SoundManager;
 import mchorse.bbs_mod.blocks.ModelBlock;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
+import mchorse.bbs_mod.camera.clips.ClipCategories;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.misc.AudioClientClip;
 import mchorse.bbs_mod.camera.clips.misc.CurveClientClip;
@@ -654,11 +655,11 @@ public class BBSModClient implements ClientModInitializer
 
         /* Replace audio clip with client version that plays audio */
         BBSMod.getFactoryCameraClips()
-            .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825))
-            .register(Link.bbs("video"), VideoClientClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c))
-            .register(Link.bbs("tracker"), TrackerClientClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc))
-            .register(Link.bbs("spline"), SplineClientClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff))
-            .register(Link.bbs("curve"), CurveClientClip.class, new ClipFactoryData(Icons.ARC, 0xff1493));
+            .register(Link.bbs("audio"), AudioClientClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC))
+            .register(Link.bbs("video"), VideoClientClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c).in(ClipCategories.MISC))
+            .register(Link.bbs("tracker"), TrackerClientClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc).in(ClipCategories.OVERWRITE))
+            .register(Link.bbs("spline"), SplineClientClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff).in(ClipCategories.OVERWRITE))
+            .register(Link.bbs("curve"), CurveClientClip.class, new ClipFactoryData(Icons.ARC, 0xff1493).in(ClipCategories.MISC));
 
         /* The client-side registries, each followed by the event that lets addons add to it.
          * They used to fill themselves in static initialisers, so the moment depended on who

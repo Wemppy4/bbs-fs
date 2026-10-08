@@ -21,7 +21,6 @@ import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 public class UIKeyframeSheet
@@ -33,8 +32,34 @@ public class UIKeyframeSheet
     /* Meta data */
     public final String id;
 
-    /** Display-only grouping: never a channel, selection, or entry in the track filters. */
-    public record Section(String id, IKey title, Icon icon, int color) {}
+    /**
+     * Display-only grouping: never a channel, selection, or entry in the track filters. A section may
+     * sit inside another one (a part's Pose inside the part's heading); folding the outer one hides both.
+     */
+    public record Section(String id, IKey title, Icon icon, int color, Section parent)
+    {
+        public Section(String id, IKey title, Icon icon, int color)
+        {
+            this(id, title, icon, color, null);
+        }
+
+        /** How many headings this one sits under. */
+        public int depth()
+        {
+            return this.parent == null ? 0 : this.parent.depth() + 1;
+        }
+
+        /** Whether this is the given section or sits inside it. */
+        public boolean isIn(Section section)
+        {
+            for (Section s = this; s != null; s = s.parent)
+            {
+                if (s.equals(section)) return true;
+            }
+
+            return false;
+        }
+    }
 
     public Section section;
     private Icon icon;
@@ -71,12 +96,6 @@ public class UIKeyframeSheet
      * interpolates toward the hardcoded defaults, so two "identical" keyframes silently drift apart.
      */
     public Supplier<Object> seed;
-
-    /**
-     * Whether the row is the live one right now, e.g. the hotbar cell {@code selected_slot} points
-     * at under the cursor. Null for rows that are never singled out like that.
-     */
-    public BooleanSupplier live;
 
     /** The track this row draws, when it came from the catalog; null for the replay's own curated channels. */
     public final TrackDescriptor descriptor;
@@ -234,11 +253,6 @@ public class UIKeyframeSheet
     public Icon getIcon()
     {
         return this.icon;
-    }
-
-    public boolean isLive()
-    {
-        return this.live != null && this.live.getAsBoolean();
     }
 
     /**

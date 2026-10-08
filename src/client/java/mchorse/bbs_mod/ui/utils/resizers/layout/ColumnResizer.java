@@ -142,13 +142,9 @@ public class ColumnResizer extends AutomaticResizer
         }
 
         Margin margin = child.element.margin;
-        int w = resizer == null ? this.width : resizer.getW();
-        int h = resizer == null ? this.height : resizer.getH();
-
-        if (w == 0)
-        {
-            w = this.width;
-        }
+        int w = this.childW(resizer, this.parent.area.w);
+        /* Asked at the width it is about to get, so a child whose height depends on it fits */
+        int h = resizer == null ? this.height : resizer.getH(w);
 
         if (h == 0)
         {
@@ -160,11 +156,6 @@ public class ColumnResizer extends AutomaticResizer
         if (this.vertical && child.element.isExpanding())
         {
             h += this.expand();
-        }
-
-        if (this.stretch)
-        {
-            w = this.parent.area.w - this.padding * 2;
         }
 
         int marginTop = margin.top;
@@ -219,7 +210,7 @@ public class ColumnResizer extends AutomaticResizer
     {
         if (this.share < 0)
         {
-            int extra = this.parent.area.h - this.contentH();
+            int extra = this.parent.area.h - this.contentH(this.parent.area.w);
 
             this.share = extra > 0 ? extra / this.expanders : 0;
             this.remainder = extra > 0 ? extra % this.expanders : 0;
@@ -237,10 +228,26 @@ public class ColumnResizer extends AutomaticResizer
     }
 
     /**
-     * How tall this column is before anything expands, i.e. the sum of the heights its visible
-     * children asked for
+     * Width a child gets in a column of the given width: the whole inner width when stretched,
+     * otherwise the one it set (or the column's default)
      */
-    private int contentH()
+    private int childW(IResizer resizer, int columnW)
+    {
+        if (this.stretch)
+        {
+            return columnW - this.padding * 2;
+        }
+
+        int w = resizer == null ? 0 : resizer.getW();
+
+        return w == 0 ? this.width : w;
+    }
+
+    /**
+     * How tall this column is before anything expands at the given width, i.e. the sum of the
+     * heights its visible children asked for
+     */
+    private int contentH(int w)
     {
         int y = this.padding * 2;
 
@@ -251,7 +258,7 @@ public class ColumnResizer extends AutomaticResizer
                 continue;
             }
 
-            int h = child.resizer == null ? 0 : child.resizer.getH();
+            int h = child.resizer == null ? 0 : child.resizer.getH(this.childW(child.resizer, w));
 
             y += (h == 0 ? this.height : h) + this.margin + child.element.margin.vertical();
         }
@@ -262,9 +269,15 @@ public class ColumnResizer extends AutomaticResizer
     @Override
     public int getH()
     {
+        return this.getH(0);
+    }
+
+    @Override
+    public int getH(int w)
+    {
         if (this.vertical && !this.scroll)
         {
-            return this.contentH();
+            return this.contentH(w);
         }
 
         return super.getH();

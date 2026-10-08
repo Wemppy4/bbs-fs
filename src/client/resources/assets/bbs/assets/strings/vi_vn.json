@@ -357,7 +357,6 @@
     "bbs.ui.camera.timeline.context.shift": "Dịch clip(s) đến con trỏ",
     "bbs.ui.camera.timeline.context.shift_duration": "Dịch thời lượng(s) đến con trỏ",
     "bbs.ui.camera.timeline.incompatible_paste": "Dữ liệu đã dán không thể đọc được... có thể nó dành cho một loại trình chỉnh sửa clip khác?",
-    "bbs.ui.camera.timeline.keys.clips": "Thêm clip",
     "bbs.ui.camera.timeline.keys.enabled": "Bật/tắt",
     "bbs.ui.camera.tooltips.open_video_settings": "Mở cài đặt video...",
     "bbs.ui.camera.tooltips.open_videos": "Mở thư mục video...",

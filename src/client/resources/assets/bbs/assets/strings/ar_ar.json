@@ -329,7 +329,6 @@
     "bbs.ui.camera.timeline.context.shift": "إزاحة المقطع (المقاطع) إلى المؤشر",
     "bbs.ui.camera.timeline.context.shift_duration": "إزاحة المدة (المدد) إلى المؤشر",
     "bbs.ui.camera.timeline.incompatible_paste": "تعذر قراءة البيانات الملصقة... ربما هي مخصصة لنوع آخر من محرر المقاطع؟",
-    "bbs.ui.camera.timeline.keys.clips": "إضافة مقاطع",
     "bbs.ui.camera.timeline.keys.enabled": "تبديل التفعيل",
     "bbs.ui.camera.tooltips.open_video_settings": "فتح إعدادات الفيديو...",
     "bbs.ui.camera.tooltips.open_videos": "فتح مجلد الفيديوهات...",

@@ -3,6 +3,7 @@ package mchorse.bbs_mod.film;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.film.replays.Hotbar;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -14,11 +15,12 @@ import net.minecraft.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 
 /**
- * Reading films written before the hotbar became nine channels.
+ * Reading films written before the hotbar became one channel of whole-row keys.
  *
- * Those films stored the player's inventory once for the whole film, plus a single "item in
+ * The oldest of them stored the player's inventory once for the whole film, plus a single "item in
  * the main hand" channel per replay. Playback laid the inventory out at the start and then,
  * every tick, wrote the hand into whichever slot was selected at that moment - which is why
  * a hand item could end up smeared across cells it was never meant to touch.
@@ -55,6 +57,51 @@ public class FilmLegacy
 
     public static final String LEGACY_MAIN_HAND = "item_main_hand";
     public static final String LEGACY_INVENTORY = "inventory";
+    public static final String LEGACY_SLOT = "item_slot_";
+
+    /**
+     * Films written while the hotbar was nine channels, one per cell. Their keys become whole-row
+     * keys, one at each tick where any cell had a key, and each cell of a row holds what its
+     * channel played back at that tick - before its first key, a channel answered with that key -
+     * so the film plays back as it did. A cell with no keys at all used to be left to the world;
+     * in a row it is empty.
+     */
+    public static void migrateHotbarSlots(Replay replay, BaseType data)
+    {
+        if (!data.isMap() || !replay.keyframes.hotbar.isEmpty())
+        {
+            return;
+        }
+
+        MapType keyframes = data.asMap().getMap("keyframes");
+        List<KeyframeChannel<ItemStack>> slots = new ArrayList<>();
+        TreeSet<Float> ticks = new TreeSet<>();
+
+        for (int i = 0; i < ReplayKeyframes.HOTBAR_SIZE; i++)
+        {
+            KeyframeChannel<ItemStack> slot = new KeyframeChannel<>(LEGACY_SLOT + i, KeyframeFactories.ITEM_STACK);
+
+            if (keyframes.has(slot.getId()))
+            {
+                slot.fromData(keyframes.get(slot.getId()));
+            }
+
+            for (Keyframe<ItemStack> keyframe : slot.getKeyframes())
+            {
+                if (keyframe.isEnabled())
+                {
+                    ticks.add(keyframe.getTick());
+                }
+            }
+
+            slots.add(slot);
+        }
+
+        for (float tick : ticks)
+        {
+            replay.keyframes.hotbar.insert(tick, Hotbar.of((i) -> slots.get(i).interpolate(tick, ItemStack.EMPTY)));
+        }
+    }
 
     /**
      * @param film loaded film
@@ -77,7 +124,7 @@ public class FilmLegacy
         {
             Replay replay = replays.get(i);
 
-            if (hasHotbar(replay.keyframes))
+            if (!replay.keyframes.hotbar.isEmpty())
             {
                 continue;
             }
@@ -99,18 +146,11 @@ public class FilmLegacy
 
     private static void migrate(ReplayKeyframes keyframes, KeyframeChannel<ItemStack> hand, List<ItemStack> inventory)
     {
-        ItemStack[] hotbar = new ItemStack[ReplayKeyframes.HOTBAR_SIZE];
+        Hotbar hotbar = Hotbar.of((i) -> inventory == null || i >= inventory.size() ? ItemStack.EMPTY : inventory.get(i));
 
-        for (int i = 0; i < hotbar.length; i++)
+        if (!hotbar.isEmpty())
         {
-            ItemStack stack = inventory == null || i >= inventory.size() ? ItemStack.EMPTY : inventory.get(i);
-
-            hotbar[i] = stack;
-
-            if (!stack.isEmpty())
-            {
-                keyframes.hotbar.get(i).insert(0, stack.copy());
-            }
+            keyframes.hotbar.insert(0, hotbar.copy());
         }
 
         /* A replay with no hand channel of its own was never dressed by one - it only ever
@@ -128,11 +168,10 @@ public class FilmLegacy
             int slot = keyframes.getSelectedSlot(tick);
             ItemStack stack = hand.interpolate(tick, ItemStack.EMPTY);
 
-            if (!ItemStack.areEqual(hotbar[slot], stack))
+            if (!ItemStack.areEqual(hotbar.get(slot), stack))
             {
-                keyframes.hotbar.get(slot).insert(tick, stack.copy());
-
-                hotbar[slot] = stack;
+                hotbar.set(slot, stack);
+                keyframes.hotbar.insert(tick, hotbar.copy());
             }
         }
     }
@@ -167,19 +206,6 @@ public class FilmLegacy
                 channel.insert(0, stack.copy());
             }
         }
-    }
-
-    private static boolean hasHotbar(ReplayKeyframes keyframes)
-    {
-        for (KeyframeChannel<ItemStack> slot : keyframes.hotbar)
-        {
-            if (!slot.isEmpty())
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

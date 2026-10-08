@@ -6,6 +6,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
+import mchorse.bbs_mod.ui.utils.resizers.layout.LabelRowResizer;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 public class UI
@@ -82,7 +83,9 @@ public class UI
     /**
      * A compact "label : control" row on a single line — the name fills the left,
      * the control keeps a fixed width and pins to the right, so control left edges
-     * line up into one divider column across rows and the name never truncates.
+     * line up into one divider column across rows. In a panel too narrow for the
+     * name to read beside the control, the name moves on its own line above and
+     * the control takes the whole width (see {@link LabelRowResizer}).
      *
      * Use it for a single compact control (trackpad, dropdown, textbox);
      * multi-element groups (X/Y/Z, colors) stay stacked under a plain label.
@@ -94,7 +97,7 @@ public class UI
 
     public static UIElement labelRow(IKey label, int controlWidth, UIElement element)
     {
-        return labelRow(label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F), controlWidth, element);
+        return labelRow(label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F), controlWidth, element, true);
     }
 
     /**
@@ -102,7 +105,9 @@ public class UI
      * element rather than a name — for a row whose label slot does something itself
      * (a toggle that names itself, say). Its control still pins to the shared
      * divider column, so such a row lines up with the plain label rows around it
-     * instead of spanning the full width on its own.
+     * instead of spanning the full width on its own. It never stacks: such a slot
+     * is small already, and on a line of its own it would no longer read as the
+     * control's name.
      */
     public static UIElement labelRow(UIElement label, UIElement element)
     {
@@ -111,10 +116,15 @@ public class UI
 
     public static UIElement labelRow(UIElement label, int controlWidth, UIElement element)
     {
+        return labelRow(label, controlWidth, element, false);
+    }
+
+    private static UIElement labelRow(UIElement label, int controlWidth, UIElement element, boolean stack)
+    {
         UIElement row = new UIElement();
 
-        row.row(UIConstants.MARGIN).preferred(0).height(UIConstants.CONTROL_HEIGHT);
-        row.add(label, element.w(controlWidth));
+        LabelRowResizer.apply(row, controlWidth, stack);
+        row.add(label, element);
 
         return row;
     }

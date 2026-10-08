@@ -25,8 +25,8 @@ public class SplineForm extends Form implements SplineSource
     public final ValueInt repeatCount = new ValueInt("repeatCount", 5, 1, SplineArray.MAX_COPIES);
     public final ValueFloat repeatDistance = new ValueFloat("repeatDistance", 1F, 0.001F, Float.MAX_VALUE);
     public final ValueInt repeatRotation = new ValueInt("repeatRotation", 1, 0, 2);
-    public final ValueFloat repeatStart = new ValueFloat("repeatStart", 0F, 0F, 100F);
-    public final ValueFloat repeatEnd = new ValueFloat("repeatEnd", 100F, 0F, 100F);
+    public final ValueFloat repeatStart = new ValueFloat("repeatStart", 0F, 0F, 100F).slider();
+    public final ValueFloat repeatEnd = new ValueFloat("repeatEnd", 100F, 0F, 100F).slider();
     public final ValueFloat repeatOffset = new ValueFloat("repeatOffset", 0F);
 
     public SplineForm()

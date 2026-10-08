@@ -275,17 +275,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         this.keys().register(Keys.FILM_CONTROLLER_START_RECORDING, this::pickRecording).active(hasActor).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_INSERT_FRAME, () ->
         {
-            UIKeyframeEditor editor = this.panel.replayEditor.keyframeEditor;
-
-            if (!Window.isCtrlPressed() && !Window.isShiftPressed() && !Window.isAltPressed()
-                && editor != null && editor.isVisible() && editor.view.canInsertAtPlayhead())
-            {
-                editor.view.insertAtPlayhead();
-            }
-            else
-            {
-                this.keyframes.insertFrame();
-            }
+            this.keyframes.insertFrame();
             UIUtils.playClick();
         }).active(hasActor).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_CONTROL, this::toggleControl).category(category);

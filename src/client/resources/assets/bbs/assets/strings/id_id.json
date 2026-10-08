@@ -271,7 +271,6 @@
     "bbs.ui.camera.timeline.context.reorganize": "Atur ulang klip",
     "bbs.ui.camera.timeline.context.shift": "Geser klip ke kursor",
     "bbs.ui.camera.timeline.context.shift_duration": "Geser durasi ke kursor",
-    "bbs.ui.camera.timeline.keys.clips": "Tambahkan klip",
     "bbs.ui.camera.timeline.keys.enabled": "Aktifkan/nonaktifkan",
     "bbs.ui.camera.tooltips.open_videos": "Buka folder video...",
     "bbs.ui.camera.tooltips.record": "Rekam video",

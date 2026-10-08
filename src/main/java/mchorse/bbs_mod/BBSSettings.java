@@ -199,6 +199,7 @@ public class BBSSettings {
 	public static ValueInt editorPreviewCustomHeight;
 	public static ValueFloat editorPreviewResolutionScale;
 	public static ValueBoolean editorClipAutoName;
+	public static ValueBoolean editorClipPaletteIcons;
 	public static ValueBoolean editorPreviewIconsAutoHide;
 	public static ValueBoolean previewIconOnionSkin;
 	public static ValueBoolean previewIconMotionPath;
@@ -887,6 +888,7 @@ public class BBSSettings {
 		editorMinutesBackup = builder.getBoolean("minutes_backup", true);
 		editorKeepFrameOnExit = builder.getBoolean("keep_frame_on_exit", false);
 		editorClipAutoName = builder.getBoolean("clip_auto_name", true);
+		editorClipPaletteIcons = builder.getBoolean("clip_palette_icons", false);
 
 		builder.category("recording", Icons.FILM);
 		recordingCountdown = builder.getFloat("countdown", 1.5F, 0F, 30F);

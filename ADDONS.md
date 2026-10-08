@@ -140,6 +140,28 @@ No registry fills itself in a static initialiser any more, so "before" and "afte
 whatever you register in one of these events is in place before BBS uses it, and BBS's own entries
 are in place before you are called.
 
+## Columns of the clip palette
+
+The palette a new clip is picked from is split into columns, one search field over all of them.
+BBS's own camera clips sit in `overwrite`, `modifiers` and `misc`; its action clips in `general`,
+`blocks` and `items` (the ids are in `ClipCategories`). An addon can put its clips into
+one of those or add a column of its own:
+
+```java
+@Subscribe
+public void registerClips(RegisterCameraClipsEvent event)
+{
+    Link column = Link.create("yourmod:gadgets");
+
+    event.factory.category(column);
+    event.factory.register(Link.create("yourmod:gadget"), GadgetClip.class, new ClipFactoryData(Icons.GEAR, 0x33aa77).in(column));
+}
+```
+
+Columns appear in the order they were added. The title is the language key
+`bbs.ui.camera.clip_categories.yourmod:gadgets`. A clip type that names no column, or one that
+nobody added, lands in "Other", which is shown only when something is in it.
+
 ## Types named in the API
 
 The API package holds the events and the entry points. The types they hand you — `Form`, `Clip`,

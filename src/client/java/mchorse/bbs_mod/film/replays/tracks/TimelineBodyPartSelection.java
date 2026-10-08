@@ -9,17 +9,21 @@ import mchorse.bbs_mod.ui.forms.editors.UIForms;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 
-import java.util.LinkedHashMap;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 /** The visible body-part scope is independent of the one part focused by the viewport. */
 public class TimelineBodyPartSelection
 {
     private final Set<String> paths = new LinkedHashSet<>(List.of(""));
-    private final Set<String> knownGroups = new LinkedHashSet<>();
+    /** Headings each timeline's folds have already seen, so only a new one starts unfolded. Folds are kept per replay. */
+    private final Map<FoldState<String>, Set<String>> knownGroups = new WeakHashMap<>();
     public String activePart = "";
 
     public static boolean allParts()
@@ -75,7 +79,11 @@ public class TimelineBodyPartSelection
         return "-";
     }
 
-    /** Keep track-specific sections and trees; add owner headings for the remaining tracks when several parts show. */
+    /**
+     * Puts the form's tracks under headings — Pose, Transform, Look, Rig (see {@link FormTrackGroup}) —
+     * inside a heading per part when several parts show, and reorders the rows so each heading's rows
+     * follow it. A folding tree stays whole: its rows take the heading of the row they fold under.
+     */
     public void groupSheets(List<UIKeyframeSheet> sheets, UIForms forms, FoldState<String> folds)
     {
         Set<String> shown = new LinkedHashSet<>();
@@ -85,19 +93,48 @@ public class TimelineBodyPartSelection
         }
 
         Map<String, String> names = forms.selectedNames(shown);
-        Map<String, UIKeyframeSheet.Section> sections = new LinkedHashMap<>();
+        Map<String, UIKeyframeSheet.Section> parts = new HashMap<>();
+        Map<String, UIKeyframeSheet.Section> groups = new HashMap<>();
+        Map<String, Integer> partOrder = new HashMap<>();
+        Map<UIKeyframeSheet, Integer> rank = new HashMap<>();
+        Set<String> known = this.knownGroups.computeIfAbsent(folds, k -> new HashSet<>());
+        int slots = FormTrackGroup.values().length + 1;
+
         for (UIKeyframeSheet sheet : sheets)
         {
             if (sheet.descriptor == null) continue;
-            String path = sheet.descriptor.id().formPath();
-            if (sheet.section == null && shown.size() > 1)
+
+            if (sheet.parent != null && rank.containsKey(sheet.parent))
             {
-                sheet.section = sections.computeIfAbsent(path, key -> new UIKeyframeSheet.Section(
-                    "body_part/" + key, IKey.constant(names.getOrDefault(key, key)), sheet.descriptor.owner().getIcon(), 0x40bfff));
+                sheet.section = sheet.parent.section;
+                rank.put(sheet, rank.get(sheet.parent));
+                continue;
             }
+
+            String path = sheet.descriptor.id().formPath();
+            FormTrackGroup group = FormTrackGroup.of(sheet.descriptor.id());
+
+            if (sheet.section == null)
+            {
+                UIKeyframeSheet.Section part = shown.size() > 1 ? parts.computeIfAbsent(path, key -> new UIKeyframeSheet.Section(
+                    "body_part/" + key, IKey.constant(names.getOrDefault(key, key)), sheet.descriptor.owner().getIcon(), 0x40bfff)) : null;
+                sheet.section = group == null ? part : groups.computeIfAbsent(path + "/" + group.id, key -> group.section(path, part));
+            }
+
+            /* An addon's track in "all tracks" has no group of ours; it closes its part's list. */
+            int partIndex = partOrder.computeIfAbsent(path, key -> partOrder.size());
+            rank.put(sheet, partIndex * slots + (group == null ? slots - 1 : group.ordinal()));
+
             /* A new heading must not hide tracks that were already accessible. */
-            if (sheet.section != null && this.knownGroups.add(sheet.section.id())) folds.set(sheet.section.id(), true);
+            for (UIKeyframeSheet.Section section = sheet.section; section != null; section = section.parent())
+            {
+                if (known.add(section.id())) folds.set(section.id(), true);
+            }
         }
+
+        /* Stable, so a heading keeps its rows' order and a tree its shape. Rows of no form — the
+         * replay's own channels — stay in front. */
+        sheets.sort(Comparator.comparingInt(sheet -> rank.getOrDefault(sheet, -1)));
     }
 
     public void write(MapType data)

@@ -1,9 +1,12 @@
 package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
+import mchorse.bbs_mod.settings.values.base.BaseValueNumber;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.input.UINumericInput;
+import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -17,7 +20,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public abstract class UINumericKeyframeFactory <T extends Number> extends UIKeyframeFactory<T>
 {
-    protected UITrackpad value;
+    protected UINumericInput<?> value;
 
     private int lastMouseX;
     private boolean editingMode;
@@ -28,12 +31,29 @@ public abstract class UINumericKeyframeFactory <T extends Number> extends UIKeyf
     {
         super(track, editor);
 
-        this.value = new UITrackpad((v) -> this.setNumericValue(v));
+        this.value = this.createInput(track);
         this.displayedValue = track.getValue();
         this.value.setValue(this.getNumericValue(this.displayedValue));
 
         this.keys().register(Keys.TRANSFORMATIONS_TRANSLATE, this::startEditingMode).category(UIKeys.TRANSFORMS_KEYS_CATEGORY);
         this.scroll.add(this.value);
+    }
+
+    /**
+     * A track whose value declares itself a slider (see {@link BaseValueNumber#slider()}) is edited
+     * along its range, the same way settings are; every other numeric track keeps the drag field.
+     * Only the field differs: the keyframes are the same numbers either way.
+     */
+    private UINumericInput<?> createInput(UITrackValue<T> track)
+    {
+        if (track.sheet.property instanceof BaseValueNumber<?> number && number.isSlider())
+        {
+            return new UISliderTrackpad((v) -> this.setNumericValue(v))
+                .snap(number.getSliderStep())
+                .limit(number.getMin().doubleValue(), number.getMax().doubleValue());
+        }
+
+        return new UITrackpad((v) -> this.setNumericValue(v));
     }
 
     /**

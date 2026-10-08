@@ -51,7 +51,7 @@ public class UIFilmKeyframes extends UIKeyframes
         boolean rotation = false;
         for (var sheet : this.getOperationSheets())
         {
-            if (sheet != this.getActiveSheet() && !sheet.selection.hasAny()) continue;
+            if (!sheet.selection.hasAny()) continue;
             position |= sheet.channel == channels.x || sheet.channel == channels.y || sheet.channel == channels.z;
             rotation |= sheet.channel == channels.yaw || sheet.channel == channels.pitch
                 || sheet.channel == channels.headYaw || sheet.channel == channels.bodyYaw;
@@ -151,15 +151,6 @@ public class UIFilmKeyframes extends UIKeyframes
     public float getTick()
     {
         return this.getOffset();
-    }
-
-    @Override
-    public boolean canInsertAtPlayhead()
-    {
-        UIFilmPanel panel = this.getParent(UIFilmPanel.class);
-
-        /* Character control uses the controller's live actor recording shortcut. */
-        return super.canInsertAtPlayhead() && (panel == null || !panel.getController().isControlling());
     }
 
     @Override

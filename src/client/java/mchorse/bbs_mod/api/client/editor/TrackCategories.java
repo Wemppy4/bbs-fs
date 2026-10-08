@@ -50,7 +50,7 @@ public final class TrackCategories
         if (kind != null)
         {
             if (kind == TrackKind.PROPERTY && (track.subject().startsWith("splines/")
-                || Set.of("ik", "physics", "spline_ik", "wind").contains(track.subject())))
+                || Set.of("ik", "physics", "spline_ik", "wind", "shake").contains(track.subject())))
             {
                 return TrackCategory.FORM;
             }

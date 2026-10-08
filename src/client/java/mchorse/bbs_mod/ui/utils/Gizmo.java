@@ -106,6 +106,9 @@ public class Gizmo
      *  and stencil passes match and the hitbox lines up with the drawn cube. */
     private final static float SCREEN_CUBE_HALF = 0.03F;
 
+    /** Points sampled along the sphere's silhouette to measure its on-screen radius. */
+    private final static int SILHOUETTE_SAMPLES = 32;
+
     public final static Gizmo INSTANCE = new Gizmo();
 
     /** Display-only axis signs. Never applied to the frame used by transform gestures. */
@@ -307,9 +310,7 @@ public class Gizmo
      *
      * <p>{@link #lastRenderMatrix} already encodes
      * {@code view * translate(-cam) * gizmoChain}, so left-multiplying
-     * by the projection matrix yields clip space directly. NDC → pixel
-     * mapping then accounts for the inverted Y between OpenGL NDC
-     * (Y up) and screen coordinates (Y down).
+     * by the projection matrix yields clip space directly.
      */
     public boolean computeScreenCenter(Matrix4f projection, float areaX, float areaY, float areaW, float areaH, Vector2f out)
     {
@@ -319,35 +320,25 @@ public class Gizmo
         }
 
         Matrix4f mvp = new Matrix4f(projection).mul(this.lastRenderMatrix);
-        Vector4f clip = mvp.transform(new Vector4f(0F, 0F, 0F, 1F));
 
-        if (clip.w <= 0F)
-        {
-            return false;
-        }
-
-        float ndcX = clip.x / clip.w;
-        float ndcY = clip.y / clip.w;
-
-        out.x = areaX + (ndcX * 0.5F + 0.5F) * areaW;
-        out.y = areaY + (1F - (ndcY * 0.5F + 0.5F)) * areaH;
-
-        return true;
+        return projectToArea(mvp, new Vector4f(0F, 0F, 0F, 1F), areaX, areaY, areaW, areaH, out);
     }
 
     /**
      * Effective pixel radius of the rotation sphere on screen, so the
-     * hover/pick disc in {@link mchorse.bbs_mod.ui.film.controller.UIFilmController}
-     * matches the sphere's actual visual size at the current camera
-     * distance and axes scale.
+     * hover/pick disc in {@link GizmoInteraction} and the hover highlight's
+     * rectangle ({@link #renderSphereHighlight}) cover the sphere's actual
+     * footprint at the current camera distance and axes scale.
      *
-     * <p>Projects three local-axis edge points
-     * ({@code (r,0,0)}, {@code (0,r,0)}, {@code (0,0,r)}) onto the
-     * viewport and returns the largest pixel distance from the
-     * projected centre — covers all camera orientations without
-     * needing a true ellipse-from-sphere derivation. Returns {@code 0}
-     * when the gizmo hasn't been rendered yet, the centre is behind
-     * the camera, or the sphere radius hasn't been captured.
+     * <p>Samples the sphere's silhouette — the circle where the view rays
+     * graze it — and returns the largest pixel distance from the projected
+     * centre. It used to project the three local axis tips instead, which fell
+     * short whenever the camera looked along a diagonal of the gizmo's axes:
+     * every tip then leaned towards the camera, the radius came out up to ~15%
+     * small, and the highlight rectangle cut the sphere into a rounded square.
+     * Returns {@code 0} when the gizmo hasn't been rendered yet, the centre is
+     * behind the camera, the camera is inside the sphere, or the sphere radius
+     * hasn't been captured.
      */
     public float computeScreenRadius(Matrix4f projection, float areaX, float areaY, float areaW, float areaH)
     {
@@ -363,31 +354,76 @@ public class Gizmo
             return 0F;
         }
 
-        Matrix4f mvp = new Matrix4f(projection).mul(this.lastRenderMatrix);
-        float r = this.lastSphereLocalRadius;
-        float[] xs = {r, 0F, 0F};
-        float[] ys = {0F, r, 0F};
-        float[] zs = {0F, 0F, r};
+        /* The sphere in view space; a scaled frame stretches it, so bound it by the longest axis. */
+        Vector3f scale = this.lastRenderMatrix.getScale(new Vector3f());
+        float radius = this.lastSphereLocalRadius * Math.max(scale.x, Math.max(scale.y, scale.z));
+        Vector3f circleCenter = this.lastRenderMatrix.getTranslation(new Vector3f());
+        Vector3f normal = new Vector3f(0F, 0F, 1F);
+        float circleRadius = radius;
+
+        /* Perspective rays fan out from the eye, so they touch the sphere along a smaller
+         * circle a little nearer the camera; orthographic rays are parallel and graze the
+         * sphere's own screen-facing equator. */
+        if (projection.m23() != 0F)
+        {
+            float k = 1F - radius * radius / circleCenter.lengthSquared();
+
+            if (!(k > 0F))
+            {
+                return 0F;
+            }
+
+            circleCenter.normalize(normal);
+            circleCenter.mul(k);
+            circleRadius = radius * (float) Math.sqrt(k);
+        }
+
+        Vector3f u = normal.cross(Math.abs(normal.x) < 0.9F ? new Vector3f(1F, 0F, 0F) : new Vector3f(0F, 1F, 0F), new Vector3f()).normalize();
+        Vector3f v = normal.cross(u, new Vector3f());
+        Vector4f point = new Vector4f();
+        Vector2f pixel = new Vector2f();
         float maxSq = 0F;
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < SILHOUETTE_SAMPLES; i++)
         {
-            Vector4f clip = mvp.transform(new Vector4f(xs[i], ys[i], zs[i], 1F));
+            double angle = Math.PI * 2D * i / SILHOUETTE_SAMPLES;
+            float cos = (float) Math.cos(angle) * circleRadius;
+            float sin = (float) Math.sin(angle) * circleRadius;
 
-            if (clip.w <= 0F) continue;
+            point.set(
+                circleCenter.x + u.x * cos + v.x * sin,
+                circleCenter.y + u.y * cos + v.y * sin,
+                circleCenter.z + u.z * cos + v.z * sin,
+                1F
+            );
 
-            float ndcX = clip.x / clip.w;
-            float ndcY = clip.y / clip.w;
-            float px = areaX + (ndcX * 0.5F + 0.5F) * areaW;
-            float py = areaY + (1F - (ndcY * 0.5F + 0.5F)) * areaH;
-            float dx = px - center.x;
-            float dy = py - center.y;
-            float d = dx * dx + dy * dy;
-
-            if (d > maxSq) maxSq = d;
+            if (projectToArea(projection, point, areaX, areaY, areaW, areaH, pixel))
+            {
+                maxSq = Math.max(maxSq, pixel.distanceSquared(center));
+            }
         }
 
         return (float) Math.sqrt(maxSq);
+    }
+
+    /**
+     * Project {@code point} (overwritten) through {@code matrix} into the area's pixels.
+     * NDC → pixel mapping accounts for the inverted Y between OpenGL NDC (Y up) and
+     * screen coordinates (Y down). Returns {@code false} when the point is behind the camera.
+     */
+    private static boolean projectToArea(Matrix4f matrix, Vector4f point, float areaX, float areaY, float areaW, float areaH, Vector2f out)
+    {
+        matrix.transform(point);
+
+        if (point.w <= 0F)
+        {
+            return false;
+        }
+
+        out.x = areaX + (point.x / point.w * 0.5F + 0.5F) * areaW;
+        out.y = areaY + (1F - (point.y / point.w * 0.5F + 0.5F)) * areaH;
+
+        return true;
     }
 
     /**

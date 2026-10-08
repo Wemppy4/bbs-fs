@@ -19,6 +19,7 @@ import mchorse.bbs_mod.actions.types.item.UseItemActionClip;
 import mchorse.bbs_mod.blocks.ModelBlock;
 import mchorse.bbs_mod.blocks.entities.ModelBlockEntity;
 import mchorse.bbs_mod.blocks.entities.ModelProperties;
+import mchorse.bbs_mod.camera.clips.ClipCategories;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.converters.DollyToKeyframeConverter;
 import mchorse.bbs_mod.camera.clips.converters.DollyToPathConverter;
@@ -41,13 +42,13 @@ import mchorse.bbs_mod.camera.clips.modifiers.MathClip;
 import mchorse.bbs_mod.camera.clips.modifiers.OrbitClip;
 import mchorse.bbs_mod.camera.clips.modifiers.RemapperClip;
 import mchorse.bbs_mod.camera.clips.modifiers.ShakeClip;
-import mchorse.bbs_mod.camera.clips.modifiers.TrackerClip;
 import mchorse.bbs_mod.camera.clips.modifiers.TranslateClip;
 import mchorse.bbs_mod.camera.clips.overwrite.DollyClip;
 import mchorse.bbs_mod.camera.clips.overwrite.IdleClip;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
 import mchorse.bbs_mod.camera.clips.overwrite.PathClip;
 import mchorse.bbs_mod.camera.clips.overwrite.SplineClip;
+import mchorse.bbs_mod.camera.clips.overwrite.TrackerClip;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.entity.GunProjectileEntity;
 import mchorse.bbs_mod.api.BBSAddonMod;
@@ -91,10 +92,8 @@ import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.SettingsManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.ClipFactory;
 import mchorse.bbs_mod.utils.colors.Colors;
-import mchorse.bbs_mod.utils.factory.MapFactory;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -162,8 +161,8 @@ public class BBSMod implements ModInitializer
 
     private static List<Runnable> runnables = new ArrayList<>();
 
-    private static MapFactory<Clip, ClipFactoryData> factoryCameraClips;
-    private static MapFactory<Clip, ClipFactoryData> factoryActionClips;
+    private static ClipFactory factoryCameraClips;
+    private static ClipFactory factoryActionClips;
 
     public static final EntityType<ActorEntity> ACTOR_ENTITY = Registry.register(
         Registries.ENTITY_TYPE,
@@ -389,12 +388,12 @@ public class BBSMod implements ModInitializer
         return films;
     }
 
-    public static MapFactory<Clip, ClipFactoryData> getFactoryCameraClips()
+    public static ClipFactory getFactoryCameraClips()
     {
         return factoryCameraClips;
     }
 
-    public static MapFactory<Clip, ClipFactoryData> getFactoryActionClips()
+    public static ClipFactory getFactoryActionClips()
     {
         return factoryActionClips;
     }
@@ -458,52 +457,62 @@ public class BBSMod implements ModInitializer
 
         /* Register camera clips */
         factoryCameraClips = new ClipFactory()
-            .register(Link.bbs("idle"), IdleClip.class, new ClipFactoryData(Icons.FRUSTUM, 0x159e64)
+            .category(ClipCategories.OVERWRITE)
+            .category(ClipCategories.MODIFIERS)
+            .category(ClipCategories.MISC);
+
+        factoryCameraClips
+            .register(Link.bbs("idle"), IdleClip.class, new ClipFactoryData(Icons.FRUSTUM, 0x159e64).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("dolly"), new IdleToDollyConverter())
                 .withConverter(Link.bbs("path"), new IdleToPathConverter())
                 .withConverter(Link.bbs("keyframe"), new IdleToKeyframeConverter()))
-            .register(Link.bbs("dolly"), DollyClip.class, new ClipFactoryData(Icons.CAMERA, 0xffa500)
+            .register(Link.bbs("dolly"), DollyClip.class, new ClipFactoryData(Icons.CAMERA, 0xffa500).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("idle"), IdleConverter.CONVERTER)
                 .withConverter(Link.bbs("path"), new DollyToPathConverter())
                 .withConverter(Link.bbs("keyframe"), new DollyToKeyframeConverter()))
-            .register(Link.bbs("path"), PathClip.class, new ClipFactoryData(Icons.GALLERY, 0x6820ad)
+            .register(Link.bbs("path"), PathClip.class, new ClipFactoryData(Icons.GALLERY, 0x6820ad).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("idle"), IdleConverter.CONVERTER)
                 .withConverter(Link.bbs("dolly"), new PathToDollyConverter())
                 .withConverter(Link.bbs("keyframe"), new PathToKeyframeConverter()))
-            .register(Link.bbs("keyframe"), KeyframeClip.class, new ClipFactoryData(Icons.CURVES, 0xde2e9f)
+            .register(Link.bbs("keyframe"), KeyframeClip.class, new ClipFactoryData(Icons.CURVES, 0xde2e9f).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("idle"), IdleConverter.CONVERTER))
-            .register(Link.bbs("translate"), TranslateClip.class, new ClipFactoryData(Icons.UPLOAD, 0x4ba03e))
-            .register(Link.bbs("angle"), AngleClip.class, new ClipFactoryData(Icons.ARC, 0xd77a0a))
-            .register(Link.bbs("drag"), DragClip.class, new ClipFactoryData(Icons.FADING, 0x4baff7))
-            .register(Link.bbs("shake"), ShakeClip.class, new ClipFactoryData(Icons.EXCHANGE, 0x159e64))
-            .register(Link.bbs("math"), MathClip.class, new ClipFactoryData(Icons.GRAPH, 0x6820ad))
-            .register(Link.bbs("look"), LookClip.class, new ClipFactoryData(Icons.VISIBLE, 0x197fff))
-            .register(Link.bbs("orbit"), OrbitClip.class, new ClipFactoryData(Icons.GLOBE, 0xd82253))
-            .register(Link.bbs("remapper"), RemapperClip.class, new ClipFactoryData(Icons.TIME, 0x222222))
-            .register(Link.bbs("audio"), AudioClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825))
-            .register(Link.bbs("subtitle"), SubtitleClip.class, new ClipFactoryData(Icons.FONT, 0x888899))
-            .register(Link.bbs("image"), ImageClip.class, new ClipFactoryData(Icons.PICTURE, 0x2d4fd2))
-            .register(Link.bbs("video"), VideoClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c))
-            .register(Link.bbs("curve"), CurveClip.class, new ClipFactoryData(Icons.ARC, 0xff1493))
-            .register(Link.bbs("tracker"), TrackerClip.class, new ClipFactoryData(Icons.USER, 0xffffff))
-            .register(Link.bbs("spline"), SplineClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff))
-            .register(Link.bbs("dolly_zoom"), DollyZoomClip.class, new ClipFactoryData(Icons.FILTER, 0x7d56c9));
+            .register(Link.bbs("translate"), TranslateClip.class, new ClipFactoryData(Icons.UPLOAD, 0x4ba03e).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("angle"), AngleClip.class, new ClipFactoryData(Icons.ARC, 0xd77a0a).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("drag"), DragClip.class, new ClipFactoryData(Icons.FADING, 0x4baff7).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("shake"), ShakeClip.class, new ClipFactoryData(Icons.EXCHANGE, 0x159e64).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("math"), MathClip.class, new ClipFactoryData(Icons.GRAPH, 0x6820ad).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("look"), LookClip.class, new ClipFactoryData(Icons.VISIBLE, 0x197fff).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("orbit"), OrbitClip.class, new ClipFactoryData(Icons.GLOBE, 0xd82253).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("remapper"), RemapperClip.class, new ClipFactoryData(Icons.TIME, 0x222222).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("audio"), AudioClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC))
+            .register(Link.bbs("subtitle"), SubtitleClip.class, new ClipFactoryData(Icons.FONT, 0x888899).in(ClipCategories.MISC))
+            .register(Link.bbs("image"), ImageClip.class, new ClipFactoryData(Icons.PICTURE, 0x2d4fd2).in(ClipCategories.MISC))
+            .register(Link.bbs("video"), VideoClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c).in(ClipCategories.MISC))
+            .register(Link.bbs("curve"), CurveClip.class, new ClipFactoryData(Icons.ARC, 0xff1493).in(ClipCategories.MISC))
+            .register(Link.bbs("tracker"), TrackerClip.class, new ClipFactoryData(Icons.USER, 0xffffff).in(ClipCategories.OVERWRITE))
+            .register(Link.bbs("spline"), SplineClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff).in(ClipCategories.OVERWRITE))
+            .register(Link.bbs("dolly_zoom"), DollyZoomClip.class, new ClipFactoryData(Icons.FILTER, 0x7d56c9).in(ClipCategories.MODIFIERS));
 
         events.post(new RegisterCameraClipsEvent(factoryCameraClips));
 
         factoryActionClips = new ClipFactory()
-            .register(Link.bbs("chat"), ChatActionClip.class, new ClipFactoryData(Icons.BUBBLE, Colors.YELLOW))
-            .register(Link.bbs("command"), CommandActionClip.class, new ClipFactoryData(Icons.PROPERTIES, Colors.ACTIVE))
-            .register(Link.bbs("place_block"), PlaceBlockActionClip.class, new ClipFactoryData(Icons.BLOCK, Colors.INACTIVE))
-            .register(Link.bbs("interact_block"), InteractBlockActionClip.class, new ClipFactoryData(Icons.FULLSCREEN, Colors.MAGENTA))
-            .register(Link.bbs("break_block"), BreakBlockActionClip.class, new ClipFactoryData(Icons.BULLET, Colors.GREEN))
-            .register(Link.bbs("use_item"), UseItemActionClip.class, new ClipFactoryData(Icons.POINTER, Colors.BLUE))
-            .register(Link.bbs("use_block_item"), UseBlockItemActionClip.class, new ClipFactoryData(Icons.BUCKET, Colors.CYAN))
-            .register(Link.bbs("release_use_item"), ReleaseUseItemActionClip.class, new ClipFactoryData(Icons.ARROW_UP, 0x9457ff))
-            .register(Link.bbs("drop_item"), ItemDropActionClip.class, new ClipFactoryData(Icons.ARROW_DOWN, Colors.DEEP_PINK))
-            .register(Link.bbs("attack"), AttackActionClip.class, new ClipFactoryData(Icons.DROP, Colors.RED))
-            .register(Link.bbs("damage"), DamageActionClip.class, new ClipFactoryData(Icons.SKULL, Colors.CURSOR))
-            .register(Link.bbs("swipe"), SwipeActionClip.class, new ClipFactoryData(Icons.LIMB, Colors.ORANGE));
+            .category(ClipCategories.GENERAL)
+            .category(ClipCategories.BLOCKS)
+            .category(ClipCategories.ITEMS);
+
+        factoryActionClips
+            .register(Link.bbs("chat"), ChatActionClip.class, new ClipFactoryData(Icons.BUBBLE, Colors.YELLOW).in(ClipCategories.GENERAL))
+            .register(Link.bbs("command"), CommandActionClip.class, new ClipFactoryData(Icons.PROPERTIES, Colors.ACTIVE).in(ClipCategories.GENERAL))
+            .register(Link.bbs("place_block"), PlaceBlockActionClip.class, new ClipFactoryData(Icons.BLOCK, Colors.INACTIVE).in(ClipCategories.BLOCKS))
+            .register(Link.bbs("interact_block"), InteractBlockActionClip.class, new ClipFactoryData(Icons.FULLSCREEN, Colors.MAGENTA).in(ClipCategories.BLOCKS))
+            .register(Link.bbs("break_block"), BreakBlockActionClip.class, new ClipFactoryData(Icons.BULLET, Colors.GREEN).in(ClipCategories.BLOCKS))
+            .register(Link.bbs("use_item"), UseItemActionClip.class, new ClipFactoryData(Icons.POINTER, Colors.BLUE).in(ClipCategories.ITEMS))
+            .register(Link.bbs("use_block_item"), UseBlockItemActionClip.class, new ClipFactoryData(Icons.BUCKET, Colors.CYAN).in(ClipCategories.ITEMS))
+            .register(Link.bbs("release_use_item"), ReleaseUseItemActionClip.class, new ClipFactoryData(Icons.ARROW_UP, 0x9457ff).in(ClipCategories.ITEMS))
+            .register(Link.bbs("drop_item"), ItemDropActionClip.class, new ClipFactoryData(Icons.ARROW_DOWN, Colors.DEEP_PINK).in(ClipCategories.ITEMS))
+            .register(Link.bbs("attack"), AttackActionClip.class, new ClipFactoryData(Icons.DROP, Colors.RED).in(ClipCategories.GENERAL))
+            .register(Link.bbs("damage"), DamageActionClip.class, new ClipFactoryData(Icons.SKULL, Colors.CURSOR).in(ClipCategories.GENERAL))
+            .register(Link.bbs("swipe"), SwipeActionClip.class, new ClipFactoryData(Icons.LIMB, Colors.ORANGE).in(ClipCategories.GENERAL));
 
         events.post(new RegisterActionClipsEvent(factoryActionClips));
 

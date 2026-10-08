@@ -51,7 +51,7 @@ public abstract class Form extends ValueGroup
     public final ValueBoolean pickable = new ValueBoolean("pickable", true);
     public final ValueStringKeys disabledTracks = new ValueStringKeys("disabled_tracks");
     public final ValueString trackName = new ValueString("track_name", "");
-    public final ValueFloat lighting = new ValueFloat("lighting", 1F);
+    public final ValueFloat lighting = new ValueFloat("lighting", 1F, 0F, 1F).slider();
 
     /** Color overlay (RGB = color, A = strength): mixes the rendered pixels toward the color, surviving shader packs. */
     public final ValueColor overlayColor = new ValueColor("color_overlay", new Color(1F, 1F, 1F, 0F));

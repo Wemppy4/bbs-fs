@@ -50,17 +50,11 @@ public class ReplayKeyframes extends ValueGroup
     public static final double GRAVITY_PROBE = 0.0784D;
 
     /**
-     * Hotbar slots the replay records, one channel each. The item in the entity's main hand
-     * isn't stored anywhere: it's the slot {@link #selectedSlot} points at, which is what
-     * keeps a hotbar cell from having two owners.
+     * Hotbar cells the replay records, all of them in each key of {@link #hotbar}. The item in
+     * the entity's main hand isn't stored anywhere: it's the cell {@link #selectedSlot} points
+     * at, which is what keeps a hotbar cell from having two owners.
      */
     public static final int HOTBAR_SIZE = 9;
-
-    /** Channel id of the hotbar slot at given index. */
-    public static String hotbarChannelId(int slot)
-    {
-        return "item_slot_" + slot;
-    }
 
     public static final List<String> CURATED_CHANNELS = buildCuratedChannels();
 
@@ -78,7 +72,7 @@ public class ReplayKeyframes extends ValueGroup
             channels.add(state.id);
         }
 
-        channels.addAll(Arrays.asList("item_slot_0", "item_slot_1", "item_slot_2", "item_slot_3", "item_slot_4", "item_slot_5", "item_slot_6", "item_slot_7", "item_slot_8", "item_off_hand", "item_head", "item_chest", "item_legs", "item_feet", "selected_slot", "stick_lx", "stick_ly", "stick_rx", "stick_ry", "trigger_l", "trigger_r", "extra1_x", "extra1_y", "extra2_x", "extra2_y", "damage", "vX", "vY", "vZ"));
+        channels.addAll(Arrays.asList("hotbar", "item_off_hand", "item_head", "item_chest", "item_legs", "item_feet", "selected_slot", "stick_lx", "stick_ly", "stick_rx", "stick_ry", "trigger_l", "trigger_r", "extra1_x", "extra1_y", "extra2_x", "extra2_y", "damage", "vX", "vY", "vZ"));
 
         return channels;
     }
@@ -131,7 +125,7 @@ public class ReplayKeyframes extends ValueGroup
     public final KeyframeChannel<Double> extra2X = new KeyframeChannel<>("extra2_x", KeyframeFactories.DOUBLE);
     public final KeyframeChannel<Double> extra2Y = new KeyframeChannel<>("extra2_y", KeyframeFactories.DOUBLE);
 
-    public final List<KeyframeChannel<ItemStack>> hotbar = new ArrayList<>();
+    public final KeyframeChannel<Hotbar> hotbar = new KeyframeChannel<>("hotbar", KeyframeFactories.HOTBAR);
 
     public final KeyframeChannel<ItemStack> offHand = new KeyframeChannel<>("item_off_hand", KeyframeFactories.ITEM_STACK);
     public final KeyframeChannel<ItemStack> armorHead = new KeyframeChannel<>("item_head", KeyframeFactories.ITEM_STACK);
@@ -176,14 +170,7 @@ public class ReplayKeyframes extends ValueGroup
         this.add(this.extra2X);
         this.add(this.extra2Y);
 
-        for (int i = 0; i < HOTBAR_SIZE; i++)
-        {
-            KeyframeChannel<ItemStack> slot = new KeyframeChannel<>(hotbarChannelId(i), KeyframeFactories.ITEM_STACK);
-
-            this.hotbar.add(slot);
-            this.add(slot);
-        }
-
+        this.add(this.hotbar);
         this.add(this.offHand);
         this.add(this.armorHead);
         this.add(this.armorChest);
@@ -233,11 +220,9 @@ public class ReplayKeyframes extends ValueGroup
     /**
      * Dress the entity for given tick: nine hotbar cells, the armour and the off hand.
      *
-     * A channel with no keys says nothing, so its cell is left alone rather than emptied. That
-     * matters for films migrated from the old format, where only the cells the hand passed
-     * through were ever written down: the rest stay open, and whatever the world puts there
-     * during playback - an item picked up off the ground, say - stays visible, the way those
-     * films used to show it.
+     * A channel with no keys says nothing, so its cells are left alone rather than emptied:
+     * whatever the world puts there during playback - an item picked up off the ground, say -
+     * stays visible.
      *
      * The main hand is only handed over to those who keep it in a slot of its own - an actor,
      * a mob, a preview stub. Where it's a view of the hotbar it has already been laid out, and
@@ -246,13 +231,13 @@ public class ReplayKeyframes extends ValueGroup
      */
     public void applyEquipment(float tick, IEntity entity)
     {
-        for (int i = 0; i < HOTBAR_SIZE; i++)
+        if (this.drivesHotbar())
         {
-            KeyframeChannel<ItemStack> slot = this.hotbar.get(i);
+            Hotbar hotbar = this.getHotbar(tick);
 
-            if (slot.hasEnabledKeyframes())
+            for (int i = 0; i < HOTBAR_SIZE; i++)
             {
-                entity.setHotbarStack(i, slot.interpolate(tick, ItemStack.EMPTY));
+                entity.setHotbarStack(i, hotbar.get(i));
             }
         }
 
@@ -272,10 +257,16 @@ public class ReplayKeyframes extends ValueGroup
         }
     }
 
-    /** Whether the replay has anything to say about given hotbar cell. */
-    public boolean drivesHotbarSlot(int slot)
+    /** Whether the replay has anything to say about the hotbar. */
+    public boolean drivesHotbar()
     {
-        return this.hotbar.get(slot).hasEnabledKeyframes();
+        return this.hotbar.hasEnabledKeyframes();
+    }
+
+    /** The hotbar at given tick, a copy of its own; empty where the replay has no keys. */
+    public Hotbar getHotbar(float tick)
+    {
+        return this.hotbar.interpolate(tick, new Hotbar());
     }
 
     /**
@@ -285,10 +276,11 @@ public class ReplayKeyframes extends ValueGroup
     public ListType packEquipment(float tick)
     {
         ListType list = new ListType();
+        Hotbar hotbar = this.getHotbar(tick);
 
         for (int i = 0; i < HOTBAR_SIZE; i++)
         {
-            list.add(KeyframeFactories.ITEM_STACK.toData(this.hotbar.get(i).interpolate(tick, ItemStack.EMPTY)));
+            list.add(KeyframeFactories.ITEM_STACK.toData(hotbar.get(i)));
         }
 
         for (EquipmentSlot slot : DRESS_SLOTS)
@@ -332,7 +324,7 @@ public class ReplayKeyframes extends ValueGroup
      */
     public ItemStack getMainHandStack(float tick)
     {
-        return this.hotbar.get(this.getSelectedSlot(tick)).interpolate(tick, ItemStack.EMPTY);
+        return this.getHotbar(tick).get(this.getSelectedSlot(tick));
     }
 
     /**
@@ -343,10 +335,7 @@ public class ReplayKeyframes extends ValueGroup
      */
     public void compressItemChannels()
     {
-        for (KeyframeChannel<ItemStack> slot : this.hotbar)
-        {
-            slot.dropRepeats();
-        }
+        this.hotbar.dropRepeats();
 
         for (EquipmentSlot slot : DRESS_SLOTS)
         {
@@ -454,11 +443,7 @@ public class ReplayKeyframes extends ValueGroup
 
         if (empty)
         {
-            for (int i = 0; i < HOTBAR_SIZE; i++)
-            {
-                this.hotbar.get(i).insert(tick, entity.getHotbarStack(i).copy());
-            }
-
+            this.hotbar.insert(tick, Hotbar.of(entity::getHotbarStack));
             this.offHand.insert(tick, entity.getEquipmentStack(EquipmentSlot.OFFHAND).copy());
             this.armorHead.insert(tick, entity.getEquipmentStack(EquipmentSlot.HEAD).copy());
             this.armorChest.insert(tick, entity.getEquipmentStack(EquipmentSlot.CHEST).copy());

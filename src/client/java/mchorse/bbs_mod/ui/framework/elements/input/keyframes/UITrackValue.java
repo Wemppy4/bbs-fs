@@ -24,11 +24,36 @@ public class UITrackValue<T>
         return this.sheet.channel.getFactory();
     }
 
+    /**
+     * The selected key's value, which an edit is measured against. Auto-keyframing writes at the
+     * playhead, so then the fields show what the track reads there instead.
+     */
     public T getValue()
     {
-        return (T) this.sheet.sample(this.editor.getTick());
+        Keyframe<T> key = this.editor.getAutoKeyframeTick() == null ? this.getKeyframe() : null;
+
+        return key != null ? this.getFactory().copy(key.getValue()) : (T) this.sheet.sample(this.editor.getTick());
     }
 
+    /** The tick {@link #getValue} reads at: the selected key's, or the playhead's. */
+    public float getValueTick()
+    {
+        Keyframe<T> key = this.editor.getAutoKeyframeTick() == null ? this.getKeyframe() : null;
+
+        return key != null ? key.getTick() : this.editor.getTick();
+    }
+
+    /** The picked key when it is on this track, otherwise the track's first selected key. */
+    private Keyframe<T> getKeyframe()
+    {
+        Keyframe selected = this.editor.getSelectedKeyframe();
+
+        if (selected != null && selected.getParent() == this.sheet.channel) return selected;
+
+        return (Keyframe<T>) this.sheet.selection.getFirst();
+    }
+
+    /** Every track holding this kind of value that has selected keys, this one included. */
     private List<UIKeyframeSheet> targets()
     {
         List<UIKeyframeSheet> targets = new ArrayList<>();
@@ -41,7 +66,7 @@ public class UITrackValue<T>
             }
         }
 
-        if (targets.isEmpty() || this.editor.getAutoKeyframeTick() != null && !targets.contains(this.sheet))
+        if (!targets.contains(this.sheet) && this.sheet.selection.hasAny())
         {
             targets.add(this.sheet);
         }
@@ -68,8 +93,9 @@ public class UITrackValue<T>
     private void write(Consumer<T> edit, T value, T before)
     {
         List<UIKeyframeSheet> targets = this.targets();
-        boolean cursor = this.editor.getAutoKeyframeTick() != null
-            || targets.stream().noneMatch(target -> target.selection.hasAny());
+        if (targets.isEmpty()) return;
+        /* Auto-keyframing lands the edit on each track's key at the playhead. */
+        boolean cursor = this.editor.getAutoKeyframeTick() != null;
         boolean stopped = this.editor.stopPlaybackOnValueChange();
 
         for (UIKeyframeSheet target : targets)

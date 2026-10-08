@@ -6,6 +6,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragStartEvent;
 import mchorse.bbs_mod.ui.framework.elements.input.UINumericInput;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeParameters;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UITrackValue;
@@ -18,6 +19,7 @@ import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 import mchorse.bbs_mod.utils.pose.Transform;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public abstract class UIKeyframeFactory <T> extends UIElement
@@ -38,6 +40,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
     private static final ScrollMemory<IKeyframeFactory> SCROLLS = new ScrollMemory<>();
 
     public UIScrollView scroll;
+    public UIKeyframeParameters parameters;
     protected final UITrackValue<T> track;
     protected UIKeyframes editor;
     private float displayTick = Float.NaN;
@@ -62,6 +65,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         register(KeyframeFactories.POSE, UIPoseKeyframeFactory::new);
         register(KeyframeFactories.IK, UIIKKeyframeFactory::new);
         register(KeyframeFactories.PHYSICS, UIPhysicsKeyframeFactory::new);
+        register(KeyframeFactories.SHAKE, UIShakeKeyframeFactory::new);
         register(KeyframeFactories.WIND, UIWindKeyframeFactory::new);
         register(KeyframeFactories.SPLINE, UISplineKeyframeFactory::new);
         register(KeyframeFactories.SPLINE_POINTS, UISplinePointsKeyframeFactory::new);
@@ -72,6 +76,7 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         register(KeyframeFactories.VECTOR4F, UIVector4fKeyframeFactory::new);
         register(KeyframeFactories.BLOCK_STATE, UIBlockStateKeyframeFactory::new);
         register(KeyframeFactories.ITEM_STACK, UIItemStackKeyframeFactory::new);
+        register(KeyframeFactories.HOTBAR, UIHotbarKeyframeFactory::new);
         register(KeyframeFactories.ACTIONS_CONFIG, UIActionsConfigKeyframeFactory::new);
         register(KeyframeFactories.SHAPE_KEYS, UIShapeKeysKeyframeFactory::new);
         register(KeyframeFactories.PARTICLE_SETTINGS, UIParticleSettingsKeyframeFactory::new);
@@ -115,8 +120,12 @@ public abstract class UIKeyframeFactory <T> extends UIElement
 
         if (panel != null)
         {
+            /* Key parameters keep their own undo through cacheKeyframes and submitKeyframes. */
+            List<UINumericInput> parameters = panel.parameters.getChildren(UINumericInput.class);
+
             for (UINumericInput<?> input : panel.getChildren(UINumericInput.class))
             {
+                if (parameters.contains(input)) continue;
                 input.getEvents().register(UITrackpadDragStartEvent.class, event -> editor.beginValueGesture());
                 input.getEvents().register(UITrackpadDragEndEvent.class, event ->
                 {
@@ -152,6 +161,8 @@ public abstract class UIKeyframeFactory <T> extends UIElement
         this.scroll = UI.scrollView(UIConstants.MARGIN, Math.max(UIConstants.SCROLL_PADDING, 4));
         this.scroll.scroll.cancelScrolling();
         this.scroll.full(this);
+        this.parameters = new UIKeyframeParameters(editor, KeyframeFactories.isNumeric(track.getFactory()));
+        this.scroll.add(this.parameters);
         this.add(this.scroll);
     }
 

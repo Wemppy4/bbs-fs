@@ -125,7 +125,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
 
         /**
-         * Applies the consumer to each named bone on every selected track pose (one track notify round).
+         * Applies the consumer to each named bone on every selected keyframe pose (one notify round per track).
          */
         public static void apply(UITrackValue<Pose> track, List<String> boneNames, Consumer<PoseTransform> consumer)
         {

@@ -129,6 +129,7 @@ public class Replay extends ValueGroup
 
         super.fromData(data);
         FilmLegacy.migrateAnchor(this, data);
+        FilmLegacy.migrateHotbarSlots(this, data);
     }
 
     /** Tick is already in this replay's local time, like the other replay channels. */
@@ -198,7 +199,13 @@ public class Replay extends ValueGroup
 
         for (Clip clip : clips)
         {
-            ((ActionClip) clip).apply(actor, fakePlayer, film, this, tick);
+            /* An addon's clip played where the addon isn't installed comes back as a stand-in
+             * (UnknownClip) that keeps its data but has nothing to do - casting it took the whole
+             * server tick down. */
+            if (clip instanceof ActionClip actionClip)
+            {
+                actionClip.apply(actor, fakePlayer, film, this, tick);
+            }
         }
     }
 

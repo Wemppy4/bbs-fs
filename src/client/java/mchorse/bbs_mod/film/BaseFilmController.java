@@ -30,6 +30,7 @@ import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.utils.Anchor;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.mixin.EntityInvoker;
 import mchorse.bbs_mod.mixin.LivingEntityRollAccessor;
 import mchorse.bbs_mod.mixin.client.ClientPlayerEntityAccessor;
@@ -451,6 +452,7 @@ public abstract class BaseFilmController
         }
 
         TrackBehaviours.clearOverrides(root);
+        RenderFrame.setFilmTick(root, tick);
 
         replay.properties.apply(TrackContext.frame(root, transition, this.anchors), tick, 1F);
     }

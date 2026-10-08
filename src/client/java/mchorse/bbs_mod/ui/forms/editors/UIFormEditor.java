@@ -113,7 +113,8 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
     {
         if (this.statesEditor.isVisible())
         {
-            if (this.statesKeyframes.keyframeEditor.editor instanceof UIShapeKeysKeyframeFactory keys)
+            /* No state picked, or one without tracks, leaves the states editor without a timeline. */
+            if (this.statesKeyframes.keyframeEditor != null && this.statesKeyframes.keyframeEditor.editor instanceof UIShapeKeysKeyframeFactory keys)
                 this.shapeControllerOverlay.preview(context, this.renderer, keys.form, keys.controls, keys::beginControllerGesture, keys::endControllerGesture);
             else this.shapeControllerOverlay.clear();
         }

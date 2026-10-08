@@ -1,8 +1,8 @@
 package mchorse.bbs_mod.ui.film;
 
 import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.replays.Hotbar;
 import mchorse.bbs_mod.film.replays.Replay;
-import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -83,8 +83,8 @@ public class UIFilmPlayerSettingsOverlayPanel extends UIMessageBarOverlayPanel
 
     /**
      * Key the player's hotbar as it is right now into the first person replay at the cursor.
-     * The film has no inventory of its own anymore - the hotbar is nine channels on the
-     * replay - so this is where "give the film my items" now writes to.
+     * The film has no inventory of its own anymore - the hotbar is a channel on the replay -
+     * so this is where "give the film my items" now writes to.
      */
     private void recordHotbar()
     {
@@ -98,11 +98,7 @@ public class UIFilmPlayerSettingsOverlayPanel extends UIMessageBarOverlayPanel
 
         BaseValue.edit(replay.keyframes, (keyframes) ->
         {
-            for (int i = 0; i < ReplayKeyframes.HOTBAR_SIZE; i++)
-            {
-                keyframes.hotbar.get(i).insert(this.tick, player.getInventory().getStack(i).copy());
-            }
-
+            keyframes.hotbar.insert(this.tick, Hotbar.of(player.getInventory()::getStack));
             keyframes.selectedSlot.insert(this.tick, player.getInventory().selectedSlot);
         });
     }

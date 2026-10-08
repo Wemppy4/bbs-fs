@@ -15,7 +15,11 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public interface IUIKeyframeGraph
 {
@@ -203,12 +207,28 @@ public interface IUIKeyframeGraph
 
     public default void removeKeyframe(Keyframe keyframe)
     {
-        UIKeyframeSheet sheet = this.getSheet(keyframe);
+        this.removeKeyframes(Collections.singletonList(keyframe));
+    }
 
-        if (sheet == null) return;
-        sheet.channel.preNotify(IValueListener.FLAG_UNMERGEABLE);
-        sheet.remove(keyframe);
-        sheet.channel.postNotify(IValueListener.FLAG_UNMERGEABLE);
+    /** Remove these keyframes as one edit, whichever tracks they are on. */
+    public default void removeKeyframes(List<Keyframe> keyframes)
+    {
+        Map<UIKeyframeSheet, List<Keyframe>> bySheet = new LinkedHashMap<>();
+
+        for (Keyframe keyframe : keyframes)
+        {
+            UIKeyframeSheet sheet = this.getSheet(keyframe);
+
+            if (sheet != null) bySheet.computeIfAbsent(sheet, (k) -> new ArrayList<>()).add(keyframe);
+        }
+
+        if (bySheet.isEmpty()) return;
+        for (UIKeyframeSheet sheet : bySheet.keySet()) sheet.channel.preNotify(IValueListener.FLAG_UNMERGEABLE);
+        for (Map.Entry<UIKeyframeSheet, List<Keyframe>> entry : bySheet.entrySet())
+        {
+            for (Keyframe keyframe : entry.getValue()) entry.getKey().remove(keyframe);
+        }
+        for (UIKeyframeSheet sheet : bySheet.keySet()) sheet.channel.postNotify(IValueListener.FLAG_UNMERGEABLE);
         this.clearSelection();
         this.pickKeyframe(null);
     }
@@ -224,6 +244,17 @@ public interface IUIKeyframeGraph
     }
 
     public Pair<Keyframe, KeyframeType> findKeyframe(int mouseX, int mouseY);
+
+    /**
+     * Every keyframe a click at this point takes, the one {@link #findKeyframe} hits first. A track's
+     * keyframe stands for itself; a heading's summary mark for its whole column.
+     */
+    public default List<Keyframe> findKeyframes(int mouseX, int mouseY)
+    {
+        Pair<Keyframe, KeyframeType> pair = this.findKeyframe(mouseX, mouseY);
+
+        return pair == null ? Collections.emptyList() : Collections.singletonList(pair.a);
+    }
 
     public default void pickSelected()
     {

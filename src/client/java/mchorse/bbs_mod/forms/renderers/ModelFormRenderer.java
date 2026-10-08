@@ -26,6 +26,7 @@ import mchorse.bbs_mod.cubic.jem.CemVanillaStage;
 import mchorse.bbs_mod.cubic.constraints.ModelConstraintsRuntime;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsDebug;
 import mchorse.bbs_mod.cubic.physics.ModelPhysicsRuntime;
+import mchorse.bbs_mod.cubic.shake.ModelShakeRuntime;
 import mchorse.bbs_mod.cubic.model.ArmorSlot;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
@@ -51,6 +52,7 @@ import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.StencilMap;
+import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
@@ -111,6 +113,12 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     private boolean renderingArm;
 
     private IEntity entity = new StubEntity();
+
+    /* The shake's clock off the film: the entity's age, held while a transform gesture runs and
+     * resumed from where it was held, so the bone under the gizmo stays still and then carries on
+     * without a jump. The offset is how long it has been held in all. */
+    private double shakeHeldAt = Double.NaN;
+    private double shakeOffset;
 
     /**
      * Render the bind pose alone — no actions, no default pose, no form pose: what the model editor
@@ -303,6 +311,10 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         model.model.applyPose(model.getDefaultPose());
         model.model.applyPose(this.getPose());
 
+        /* The shake belongs to the pose: IK, physics, limits and every reader of the channels see
+         * the bones where they are drawn. */
+        ModelShakeRuntime.apply(model.model, this.form, this.getShakeTime(entity, transition));
+
         if (cacheable)
         {
             model.model.snapshotChannels();
@@ -312,6 +324,42 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         {
             model.clearChannels();
         }
+    }
+
+    /**
+     * The tick the shake is sampled at. In a film it is the film's own tick, so a frame shakes the
+     * same way however it is reached; anywhere else the entity's age keeps it going.
+     */
+    private double getShakeTime(IEntity entity, float transition)
+    {
+        Float filmTick = RenderFrame.getFilmTick(this.form);
+
+        if (filmTick != null)
+        {
+            return filmTick;
+        }
+
+        IEntity clock = entity == null ? this.entity : entity;
+        double time = clock.getAge() + transition - this.shakeOffset;
+
+        if (Gizmo.INSTANCE.getTrackedGesture() != null)
+        {
+            if (Double.isNaN(this.shakeHeldAt))
+            {
+                this.shakeHeldAt = time;
+            }
+
+            return this.shakeHeldAt;
+        }
+
+        if (!Double.isNaN(this.shakeHeldAt))
+        {
+            this.shakeOffset += time - this.shakeHeldAt;
+            time = this.shakeHeldAt;
+            this.shakeHeldAt = Double.NaN;
+        }
+
+        return time;
     }
 
     public void ensureAnimator(float transition)

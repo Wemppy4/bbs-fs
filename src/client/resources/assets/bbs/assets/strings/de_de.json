@@ -338,7 +338,6 @@
     "bbs.ui.camera.timeline.context.shift": "Clip(s) zum Cursor bewegen",
     "bbs.ui.camera.timeline.context.shift_duration": "Länge(n) zum Cursor bewegen",
     "bbs.ui.camera.timeline.incompatible_paste": "Eingefügte Daten konnten nicht gelesen werden... vielleicht sind sie für einen anderen Typ von Clip-Editor gedacht?",
-    "bbs.ui.camera.timeline.keys.clips": "Clips Hinzufügen",
     "bbs.ui.camera.timeline.keys.enabled": "Umschaltungen aktivieren",
     "bbs.ui.camera.tooltips.open_video_settings": "Öffne Video-Einstellungen...",
     "bbs.ui.camera.tooltips.open_videos": "Video-Ordner öffnen...",

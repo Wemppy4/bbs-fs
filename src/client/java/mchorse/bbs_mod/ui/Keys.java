@@ -116,7 +116,6 @@ public class Keys
     public static final KeyCombo PIXEL_FLIP_V = new KeyCombo("flip_v", UIKeys.TEXTURES_KEYS_FLIP_V, GLFW.GLFW_KEY_V, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("pixels");
 
     /* Keyframes */
-    public static final KeyCombo KEYFRAMES_INSERT = new KeyCombo("insert", UIKeys.KEYFRAMES_KEYS_INSERT, GLFW.GLFW_KEY_I).categoryKey("keyframes");
     public static final KeyCombo KEYFRAMES_ENABLE = new KeyCombo("keyframes_enable", UIKeys.KEYFRAMES_KEYS_ENABLED, GLFW.GLFW_KEY_J).categoryKey("keyframes");
     public static final KeyCombo KEYFRAMES_FIT_SELECTED = new KeyCombo("fit_selected", UIKeys.KEYFRAMES_GRAPH_FIT_SELECTED, GLFW.GLFW_KEY_HOME, GLFW.GLFW_KEY_LEFT_SHIFT).categoryKey("keyframes");
     public static final KeyCombo KEYFRAMES_MAXIMIZE = new KeyCombo("maximize", UIKeys.KEYFRAMES_CONTEXT_MAXIMIZE, GLFW.GLFW_KEY_HOME).categoryKey("keyframes");
@@ -191,7 +190,8 @@ public class Keys
     public static final KeyCombo REPLAYS_TAB_4 = new KeyCombo("tab_4", UIKeys.FILM_REPLAY_TAB_4, GLFW.GLFW_KEY_4).categoryKey("replays_editor");
     public static final KeyCombo REPLAYS_TAB_5 = new KeyCombo("tab_5", UIKeys.FILM_REPLAY_TAB_5, GLFW.GLFW_KEY_5).categoryKey("replays_editor");
     public static final KeyCombo REPLAYS_DUPE = new KeyCombo("replays_dupe", UIKeys.SCENE_REPLAYS_CONTEXT_DUPE, GLFW.GLFW_KEY_D, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("replays_editor");
-    public static final KeyCombo REPLAYS_SELECT_ALL = new KeyCombo("replays_select_all", UIKeys.KEYFRAMES_CONTEXT_SELECT_ALL, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("replays_editor");
+    public static final KeyCombo REPLAYS_ENABLE = new KeyCombo("replays_enable", UIKeys.CAMERA_TIMELINE_KEYS_ENABLED, GLFW.GLFW_KEY_J).categoryKey("replays_editor");
+    public static final KeyCombo REPLAYS_SELECT_ALL =new KeyCombo("replays_select_all", UIKeys.KEYFRAMES_CONTEXT_SELECT_ALL, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_LEFT_CONTROL).categoryKey("replays_editor");
 
     /* Recording groups */
     public static final KeyCombo RECORDING_GROUP_ALL = new KeyCombo("all", UIKeys.FILM_GROUPS_ALL, GLFW.GLFW_KEY_1).categoryKey("recording_groups");

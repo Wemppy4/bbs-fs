@@ -167,7 +167,7 @@ public class UIItemStack extends UIElement
      * stack is empty or the player has no active network connection. Requires the player
      * to have sufficient permissions for {@code /give}.
      */
-    static void giveToPlayer(ItemStack stack)
+    public static void giveToPlayer(ItemStack stack)
     {
         if (stack == null || stack.isEmpty())
         {

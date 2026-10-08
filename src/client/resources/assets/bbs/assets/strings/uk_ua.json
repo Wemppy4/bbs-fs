@@ -356,7 +356,6 @@
     "bbs.ui.camera.timeline.context.shift": "Змістити кліп до курсору",
     "bbs.ui.camera.timeline.context.shift_duration": "Змінити тривалість до курсору",
     "bbs.ui.camera.timeline.incompatible_paste": "Вставлені дані не вдалося прочитати... можливо, вони призначені для іншого типу редактора кліпів?",
-    "bbs.ui.camera.timeline.keys.clips": "Додати кліпи",
     "bbs.ui.camera.timeline.keys.enabled": "Увімкнути видимість",
     "bbs.ui.camera.tooltips.open_video_settings": "Відкрити налаштування відео...",
     "bbs.ui.camera.tooltips.open_videos": "Відкрити теку з відео...",

@@ -2,6 +2,8 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.replays.FormProperties;
+import mchorse.bbs_mod.film.replays.Hotbar;
+import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
@@ -13,6 +15,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
+import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemHotbar;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.input.UINumericInput;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.KeyframeType;
@@ -40,8 +43,8 @@ import java.util.List;
 /**
  * Hover preview for keyframes: when the mouse rests on a keyframe point, a small
  * window shows what the keyframe holds — the actual color, the actual texture,
- * the form posed by a pose/bone keyframe, T/R/S numbers for transforms, and the
- * plain value for scalars.
+ * the form posed by a pose/bone keyframe, the row of a hotbar keyframe, T/R/S
+ * numbers for transforms, and the plain value for scalars.
  */
 public class UIKeyframePreviewTooltip implements ITooltip
 {
@@ -101,6 +104,10 @@ public class UIKeyframePreviewTooltip implements ITooltip
         else if (factory == KeyframeFactories.POSE || factory == KeyframeFactories.POSE_TRANSFORM)
         {
             this.renderPose(context, keyframe);
+        }
+        else if (factory == KeyframeFactories.HOTBAR)
+        {
+            this.renderHotbar(context, keyframe);
         }
         else
         {
@@ -228,6 +235,18 @@ public class UIKeyframePreviewTooltip implements ITooltip
         context.batcher.iconArea(Icons.CHECKBOARD, x, area.y, fw, fh);
         context.batcher.fullTexturedBox(texture, x, area.y, fw, fh);
         context.batcher.textShadow(label, area.mx() - font.getWidth(label) / 2, area.ey() - font.getHeight(), Colors.WHITE);
+    }
+
+    /** The row as it is at the key, with the cell in hand at that tick framed. */
+    private void renderHotbar(UIContext context, Keyframe keyframe)
+    {
+        Hotbar hotbar = (Hotbar) keyframe.getValue();
+        int selected = keyframe.getParent() != null && keyframe.getParent().getParent() instanceof ReplayKeyframes replay
+            ? replay.getSelectedSlot(keyframe.getTick())
+            : -1;
+        Area area = this.start(context, UIItemHotbar.WIDTH, UIItemHotbar.SLOT_SIZE);
+
+        UIItemHotbar.renderRow(context, area.x, area.y, 1F, hotbar::get, selected, -1);
     }
 
     private void renderPose(UIContext context, Keyframe keyframe)
