@@ -28,24 +28,27 @@ import mchorse.bbs_mod.ui.film.markers.UIMarkersController;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.context.UIColumnsContextMenu;
+import mchorse.bbs_mod.ui.framework.elements.events.UIRemovedEvent;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.context.ColorfulContextAction;
+import mchorse.bbs_mod.ui.utils.context.ContextAction;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
-import mchorse.bbs_mod.ui.utils.context.UIChoiceMenu;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.clips.Clip;
+import mchorse.bbs_mod.utils.clips.ClipFactory;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 import mchorse.bbs_mod.utils.colors.Colors;
-import mchorse.bbs_mod.utils.factory.IFactory;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.presets.PresetManager;
 import org.joml.Vector3i;
@@ -55,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Predicate;
@@ -75,7 +79,7 @@ public class UIClips extends UITimelineCanvas
     /* Main objects */
     private IUIClipsDelegate delegate;
     private Clips clips;
-    private IFactory<Clip, ClipFactoryData> factory;
+    private ClipFactory factory;
 
     /* Navigation */
     public Scroll vertical = new Scroll(new Area());
@@ -117,7 +121,7 @@ public class UIClips extends UITimelineCanvas
 
     private int layerHeight = 20;
 
-    public UIClips(IUIClipsDelegate delegate, IFactory<Clip, ClipFactoryData> factory)
+    public UIClips(IUIClipsDelegate delegate, ClipFactory factory)
     {
         super();
 
@@ -234,7 +238,7 @@ public class UIClips extends UITimelineCanvas
         }).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
     }
 
-    public IFactory<Clip, ClipFactoryData> getFactory()
+    public ClipFactory getFactory()
     {
         return this.factory;
     }
@@ -350,16 +354,24 @@ public class UIClips extends UITimelineCanvas
             return;
         }
 
-        context.replaceContextMenu((add) ->
-        {
-            UIChoiceMenu.of(this.factory.getKeys())
-                .icon((type) -> this.factory.getData(type).icon)
-                .label((type) -> UIKeys.C_CLIP.get(type))
-                .color((type) -> this.factory.getData(type).color)
-                .build(add, UIKeys.CAMERA_TIMELINE_KEYS_CLIPS, (type) -> this.addClip(type, preview.x, preview.y, preview.z));
+        UIColumnsContextMenu menu = new UIColumnsContextMenu(BBSSettings.editorClipPaletteIcons.get());
 
-            add.onClose((m) -> this.addPreview = null);
-        });
+        for (Map.Entry<Link, List<Link>> column : this.factory.getTypesByCategory().entrySet())
+        {
+            List<ContextAction> actions = new ArrayList<>();
+
+            for (Link type : column.getValue())
+            {
+                ClipFactoryData data = this.factory.getData(type);
+
+                actions.add(new ColorfulContextAction(data.icon, UIKeys.C_CLIP.get(type), () -> this.addClip(type, preview.x, preview.y, preview.z), data.color));
+            }
+
+            menu.column(UIKeys.C_CLIP_CATEGORY.get(column.getKey()), actions);
+        }
+
+        menu.getEvents().register(UIRemovedEvent.class, (e) -> this.addPreview = null);
+        context.replaceContextMenu(menu);
 
         this.addPreview = preview;
     }

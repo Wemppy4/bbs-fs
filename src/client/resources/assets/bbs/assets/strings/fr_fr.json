@@ -332,7 +332,6 @@
     "bbs.ui.camera.timeline.context.shift": "Déplacer le(s) clip(s) au curseur",
     "bbs.ui.camera.timeline.context.shift_duration": "Déplacer la/les durée(s) au curseur",
     "bbs.ui.camera.timeline.incompatible_paste": "Les données collées ne peuvent pas être lues... C'est peut-être prévu pour un autre type d'éditeur de clip..?",
-    "bbs.ui.camera.timeline.keys.clips": "Ajouter des clips",
     "bbs.ui.camera.timeline.keys.enabled": "Activer",
     "bbs.ui.camera.tooltips.open_video_settings": "Ouvrir les paramètres vidéo...",
     "bbs.ui.camera.tooltips.open_videos": "Ouvrir le dossier vidéo...",

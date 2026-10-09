@@ -47,9 +47,10 @@ public final class OriginalInputRegressionsProbe extends UIBaseMenu
         UIKeyframeSheet sheet = new UIKeyframeSheet(Colors.RED, channel, null);
         view.addSheet(sheet);
         sheet.selection.add(this.keyframe);
-        view.selectTrack(sheet);
+        view.pickKeyframe(this.keyframe);
         view.relative(this.main).xy(8, 152).w(1F, -158).h(1F, -160);
-        UIKeyframeParameters parameters = new UIKeyframeParameters(this.keyframe, view);
+        UIKeyframeParameters parameters = new UIKeyframeParameters(view, true);
+        parameters.setKeyframe(this.keyframe);
         parameters.relative(this.main).x(1F, -144).y(152).w(136);
         this.main.add(view, parameters);
         for (int i = 0; i < this.orders.length; i++)

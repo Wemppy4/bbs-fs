@@ -33,6 +33,13 @@ public final class FilmRepositoryOperations
             case DELETE:
                 return new ByteType(films.delete(path(films, request.getString("id"), false)));
             case KEYS:
+                /* With dates when asked for them; a plain list for whoever asks without */
+                if (request.getBool("modified"))
+                {
+                    MapType modified = new MapType();
+                    films.getModified().forEach(modified::putLong);
+                    return modified;
+                }
                 return DataStorageUtils.stringListToData(films.getKeys());
             case BACKUPS:
                 return DataStorageUtils.stringListToData(films.getBackupKeys(path(films, request.getString("id"), false)));

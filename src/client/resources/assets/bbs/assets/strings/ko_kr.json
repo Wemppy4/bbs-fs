@@ -329,7 +329,6 @@
     "bbs.ui.camera.timeline.context.shift": "클립을 커서로 이동",
     "bbs.ui.camera.timeline.context.shift_duration": "길이를 커서로 이동",
     "bbs.ui.camera.timeline.incompatible_paste": "붙여넣은 데이터를 읽을 수 없습니다... 다른 유형의 클립 편집기용인가요?",
-    "bbs.ui.camera.timeline.keys.clips": "클립 추가",
     "bbs.ui.camera.timeline.keys.enabled": "활성화 전환",
     "bbs.ui.camera.tooltips.open_video_settings": "비디오 설정 열기...",
     "bbs.ui.camera.tooltips.open_videos": "비디오 폴더 열기...",

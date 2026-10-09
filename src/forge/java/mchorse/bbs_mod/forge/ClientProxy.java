@@ -81,15 +81,15 @@ public class ClientProxy extends CommonProxy {
         mchorse.bbs_mod.ui.UIKeys.C_KEYBIND_CATGORIES_TOOLTIP.load(mchorse.bbs_mod.ui.utils.keys.KeyCombo.getCategoryKeys());
         BBSMod.getFactoryCameraClips()
             .register(Link.bbs("audio"), mchorse.bbs_mod.camera.clips.misc.AudioClientClip.class,
-                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.SOUND, 0xffc825))
+                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.SOUND, 0xffc825).in(mchorse.bbs_mod.camera.clips.ClipCategories.MISC))
             .register(Link.bbs("video"), mchorse.bbs_mod.camera.clips.misc.VideoClientClip.class,
-                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.VIDEO_CAMERA, 0xd21f3c))
+                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.VIDEO_CAMERA, 0xd21f3c).in(mchorse.bbs_mod.camera.clips.ClipCategories.MISC))
             .register(Link.bbs("tracker"), mchorse.bbs_mod.camera.clips.misc.TrackerClientClip.class,
-                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.USER, 0x4cedfc))
+                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.USER, 0x4cedfc).in(mchorse.bbs_mod.camera.clips.ClipCategories.OVERWRITE))
             .register(Link.bbs("spline"), mchorse.bbs_mod.camera.clips.misc.SplineClientClip.class,
-                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.GRAPH, 0x5599ff))
+                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.GRAPH, 0x5599ff).in(mchorse.bbs_mod.camera.clips.ClipCategories.OVERWRITE))
             .register(Link.bbs("curve"), mchorse.bbs_mod.camera.clips.misc.CurveClientClip.class,
-                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.ARC, 0xff1493));
+                new mchorse.bbs_mod.camera.clips.ClipFactoryData(mchorse.bbs_mod.ui.utils.icons.Icons.ARC, 0xff1493).in(mchorse.bbs_mod.camera.clips.ClipCategories.MISC));
         mchorse.bbs_mod.ui.film.clips.renderer.UIClipRenderers.setup();
         BBSMod.events.post(new RegisterClipRenderersEvent());
         mchorse.bbs_mod.forms.FormUtilsClient.setup();

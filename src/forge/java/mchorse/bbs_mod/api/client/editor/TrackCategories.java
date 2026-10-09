@@ -51,7 +51,7 @@ public final class TrackCategories
         if (kind != null)
         {
             if (kind == TrackKind.PROPERTY && (track.subject().startsWith("splines/")
-                || java.util.Arrays.asList("ik", "physics", "spline_ik", "wind").contains(track.subject())))
+                || java.util.Arrays.asList("ik", "physics", "spline_ik", "wind", "shake").contains(track.subject())))
             {
                 return TrackCategory.FORM;
             }

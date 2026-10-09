@@ -335,7 +335,6 @@
     "bbs.ui.camera.timeline.context.shift": "Klipleri imlece doğru kaydır",
     "bbs.ui.camera.timeline.context.shift_duration": "Süreleri imlece doğru kaydır",
     "bbs.ui.camera.timeline.incompatible_paste": "Yapıştırılan veriler okunamadı... belki de başka bir klip düzenleyici türü için tasarlanmıştır?",
-    "bbs.ui.camera.timeline.keys.clips": "Klip ekle",
     "bbs.ui.camera.timeline.keys.enabled": "Etkinleştirmeyi aç",
     "bbs.ui.camera.tooltips.open_video_settings": "Video ayarlarını aç...",
     "bbs.ui.camera.tooltips.open_videos": "Videolar klasörünü aç...",

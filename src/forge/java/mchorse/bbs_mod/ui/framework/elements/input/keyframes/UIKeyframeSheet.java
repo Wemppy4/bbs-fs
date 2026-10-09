@@ -32,9 +32,35 @@ public class UIKeyframeSheet
     /* Meta data */
     public final String id;
 
-    /** Display-only grouping: never a channel, selection, or entry in the track filters. */
+    /**
+     * Display-only grouping: never a channel, selection, or entry in the track filters. A section may
+     * sit inside another one (a part's Pose inside the part's heading); folding the outer one hides both.
+     */
     @com.github.bsideup.jabel.Desugar
-    public record Section(String id, IKey title, Icon icon, int color) {}
+    public record Section(String id, IKey title, Icon icon, int color, Section parent)
+    {
+        public Section(String id, IKey title, Icon icon, int color)
+        {
+            this(id, title, icon, color, null);
+        }
+
+        /** How many headings this one sits under. */
+        public int depth()
+        {
+            return this.parent == null ? 0 : this.parent.depth() + 1;
+        }
+
+        /** Whether this is the given section or sits inside it. */
+        public boolean isIn(Section section)
+        {
+            for (Section s = this; s != null; s = s.parent)
+            {
+                if (s.equals(section)) return true;
+            }
+
+            return false;
+        }
+    }
 
     public Section section;
     private Icon icon;

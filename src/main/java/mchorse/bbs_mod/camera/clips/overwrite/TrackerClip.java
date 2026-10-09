@@ -1,5 +1,6 @@
-package mchorse.bbs_mod.camera.clips.modifiers;
+package mchorse.bbs_mod.camera.clips.overwrite;
 
+import mchorse.bbs_mod.camera.clips.modifiers.EntityClip;
 import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.camera.values.ValuePoint;

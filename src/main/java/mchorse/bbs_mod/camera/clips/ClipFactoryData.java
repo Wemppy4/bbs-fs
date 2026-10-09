@@ -15,10 +15,20 @@ public class ClipFactoryData
     public final int color;
     public final Map<Link, IClipConverter<? extends Clip, ? extends Clip>> converters = new HashMap<>();
 
+    /** The column of the palette this clip type is listed in, see {@link ClipCategories}. */
+    public Link category;
+
     public ClipFactoryData(Icon icon, int color)
     {
         this.icon = icon;
         this.color = color & Colors.RGB;
+    }
+
+    public ClipFactoryData in(Link category)
+    {
+        this.category = category;
+
+        return this;
     }
 
     public ClipFactoryData withConverter(Link to, IClipConverter<? extends Clip, ? extends Clip> converter)

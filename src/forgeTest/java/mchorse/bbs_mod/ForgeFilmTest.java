@@ -7,6 +7,7 @@ import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.film.FilmManager;
+import mchorse.bbs_mod.film.replays.Hotbar;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.forms.forms.ModelForm;
@@ -35,7 +36,7 @@ public class ForgeFilmTest
         replay.keyframes.x.insert(0, 2D); replay.keyframes.x.insert(20, 12D);
         replay.keyframes.y.insert(0, 4D); replay.keyframes.z.insert(0, 3D);
         ItemStack item = new ItemStack(Items.DIAMOND_SWORD); item.setStackDisplayName("BBS actor");
-        replay.keyframes.hotbar.get(2).insert(0, item);
+        replay.keyframes.hotbar.insert(0, Hotbar.of((slot) -> slot == 2 ? item : ItemStack.EMPTY));
         replay.keyframes.selectedSlot.insert(0, 2);
         IdleClip camera = new IdleClip(); camera.duration.set(40); camera.position.get().point.set(1, 4, 2);
         TranslateClip offset = new TranslateClip(); offset.duration.set(40); offset.layer.set(1); offset.translate.get().set(3, 0, 0);

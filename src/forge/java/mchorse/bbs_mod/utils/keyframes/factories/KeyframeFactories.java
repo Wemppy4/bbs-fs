@@ -16,6 +16,7 @@ public class KeyframeFactories
     public static final PoseKeyframeFactory POSE = new PoseKeyframeFactory();
     public static final IKKeyframeFactory IK = new IKKeyframeFactory();
     public static final PhysicsKeyframeFactory PHYSICS = new PhysicsKeyframeFactory();
+    public static final ShakeKeyframeFactory SHAKE = new ShakeKeyframeFactory();
     public static final WindKeyframeFactory WIND = new WindKeyframeFactory();
     public static final SplinePointsKeyframeFactory SPLINE_POINTS = new SplinePointsKeyframeFactory();
     public static final SplineKeyframeFactory SPLINE = new SplineKeyframeFactory();
@@ -28,6 +29,7 @@ public class KeyframeFactories
     public static final LinkKeyframeFactory LINK = new LinkKeyframeFactory();
     public static final Vector4fKeyframeFactory VECTOR4F = new Vector4fKeyframeFactory();
     public static final AnchorKeyframeFactory ANCHOR = new AnchorKeyframeFactory();
+    public static final HotbarKeyframeFactory HOTBAR = new HotbarKeyframeFactory();
     public static final ActionsConfigKeyframeFactory ACTIONS_CONFIG = new ActionsConfigKeyframeFactory();
     public static final ShapeKeysKeyframeFactory SHAPE_KEYS = new ShapeKeysKeyframeFactory();
     public static final BoneConstraintKeyframeFactory BONE_CONSTRAINT = new BoneConstraintKeyframeFactory();
@@ -58,6 +60,7 @@ public class KeyframeFactories
         FACTORIES.put("pose", POSE);
         FACTORIES.put("ik", IK);
         FACTORIES.put("physics", PHYSICS);
+        FACTORIES.put("shake", SHAKE);
         FACTORIES.put("wind", WIND);
         FACTORIES.put("spline_ik", SPLINE);
         FACTORIES.put("spline_points", SPLINE_POINTS);
@@ -70,6 +73,7 @@ public class KeyframeFactories
         FACTORIES.put("link", LINK);
         FACTORIES.put("vector4f", VECTOR4F);
         FACTORIES.put("anchor", ANCHOR);
+        FACTORIES.put("hotbar", HOTBAR);
         FACTORIES.put("actions_config", ACTIONS_CONFIG);
         FACTORIES.put("shape_keys", SHAPE_KEYS);
         FACTORIES.put("bone_constraint", BONE_CONSTRAINT);

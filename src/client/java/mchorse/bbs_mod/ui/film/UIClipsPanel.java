@@ -1,7 +1,6 @@
 package mchorse.bbs_mod.ui.film;
 
 import mchorse.bbs_mod.camera.Camera;
-import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
@@ -16,8 +15,8 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelinePanel;
 import mchorse.bbs_mod.utils.DataPath;
 import mchorse.bbs_mod.utils.clips.Clip;
+import mchorse.bbs_mod.utils.clips.ClipFactory;
 import mchorse.bbs_mod.utils.clips.Clips;
-import mchorse.bbs_mod.utils.factory.IFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,7 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
     private UIClip panel;
     private boolean hasClips;
 
-    public UIClipsPanel(UIFilmPanel panel, IFactory<Clip, ClipFactoryData> factory)
+    public UIClipsPanel(UIFilmPanel panel, ClipFactory factory)
     {
         this.filmPanel = panel;
         this.clips = new UIClips(this, factory);

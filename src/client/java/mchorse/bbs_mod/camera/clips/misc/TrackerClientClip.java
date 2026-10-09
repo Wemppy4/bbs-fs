@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.camera.clips.misc;
 
 import mchorse.bbs_mod.camera.clips.CameraClipContext;
-import mchorse.bbs_mod.camera.clips.modifiers.TrackerClip;
+import mchorse.bbs_mod.camera.clips.overwrite.TrackerClip;
 import mchorse.bbs_mod.camera.data.Angle;
 import mchorse.bbs_mod.camera.data.Point;
 import mchorse.bbs_mod.camera.data.Position;

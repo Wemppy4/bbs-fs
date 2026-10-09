@@ -179,6 +179,7 @@ public class UIAnchorBinding extends UIElement
             var entity = panel.getController().getEntities().get(anchor.replay);
             var target = entity == null ? null : FormUtils.getForm(entity.getForm(), anchor.attachment);
             this.attachment.label = target == null ? UIPathFields.key("missing") : IKey.constant(target.getDisplayName());
+            this.path.setClosed(target instanceof SplineForm spline && spline.closed());
         }
         super.render(context);
     }

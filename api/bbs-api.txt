@@ -25,8 +25,8 @@ public abstract class mchorse.bbs_mod.api.client.editor.FilmEditorTool extends m
 }
 
 public abstract class mchorse.bbs_mod.api.events.BaseRegisterClipsEvent {
-    public final mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData> factory;
-    public mchorse.bbs_mod.api.events.BaseRegisterClipsEvent(mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData>);
+    public final mchorse.bbs_mod.utils.clips.ClipFactory factory;
+    public mchorse.bbs_mod.api.events.BaseRegisterClipsEvent(mchorse.bbs_mod.utils.clips.ClipFactory);
 }
 
 public abstract class mchorse.bbs_mod.api.events.BaseRegisterSettingsEvent {
@@ -179,11 +179,11 @@ public class mchorse.bbs_mod.api.events.BBSReadyEvent {
 }
 
 public class mchorse.bbs_mod.api.events.RegisterActionClipsEvent extends mchorse.bbs_mod.api.events.BaseRegisterClipsEvent {
-    public mchorse.bbs_mod.api.events.RegisterActionClipsEvent(mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData>);
+    public mchorse.bbs_mod.api.events.RegisterActionClipsEvent(mchorse.bbs_mod.utils.clips.ClipFactory);
 }
 
 public class mchorse.bbs_mod.api.events.RegisterCameraClipsEvent extends mchorse.bbs_mod.api.events.BaseRegisterClipsEvent {
-    public mchorse.bbs_mod.api.events.RegisterCameraClipsEvent(mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, mchorse.bbs_mod.camera.clips.ClipFactoryData>);
+    public mchorse.bbs_mod.api.events.RegisterCameraClipsEvent(mchorse.bbs_mod.utils.clips.ClipFactory);
 }
 
 public class mchorse.bbs_mod.api.events.RegisterFormModifiersEvent {

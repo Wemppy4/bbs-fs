@@ -6,7 +6,7 @@ import mchorse.bbs_mod.utils.pose.Transform;
 
 import java.util.function.Consumer;
 
-/** Delta editing with one undo snapshot for the whole track-value gesture. */
+/** Delta editing with one undo snapshot for the whole value gesture. */
 public abstract class UIKeyframePropTransform extends UIDeltaPropTransform
 {
     private boolean applying;
@@ -21,8 +21,7 @@ public abstract class UIKeyframePropTransform extends UIDeltaPropTransform
         try
         {
             this.applyToSelection(edit);
-            /* Keep the displayed edit incremental even when selected keys elsewhere do not
-             * contribute to the cursor. The buffer is a value copy, never a stored key. */
+            /* The fields show a copy of the key's value, never a stored key: move it with the edit. */
             if (this.getTransform() != null) edit.accept(this.getTransform());
         }
         finally { this.applying = false; }

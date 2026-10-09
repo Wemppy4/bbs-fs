@@ -29,6 +29,12 @@ public class UIActionList extends UIList<ContextAction>
         element.render(context, context.batcher.getFont(), x, y, this.area.w, h, hover, selected);
     }
 
+    /** The top row still showing, taking the filter into account, or null when none is. */
+    public ContextAction first()
+    {
+        return this.getElementAt(0);
+    }
+
     /** What the filter matches against: the row reads as its label, not as an object. */
     @Override
     protected String elementToString(UIContext context, int i, ContextAction element)

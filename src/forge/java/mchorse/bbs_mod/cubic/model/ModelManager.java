@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -127,23 +128,55 @@ public class ModelManager implements IWatchDogListener
 
         for (Link link : models)
         {
-            if (this.isRelodable(link))
+            String key = this.getModelKey(link);
+
+            if (key != null)
             {
-                String path = link.path;
-
-                int slash = path.indexOf('/');
-                int lastSlash = path.lastIndexOf('/');
-
-                if (slash != lastSlash)
-                {
-                    path = path.substring(slash + 1, lastSlash);
-
-                    keys.add(path);
-                }
+                keys.add(key);
             }
         }
 
         return new ArrayList<>(keys);
+    }
+
+    /**
+     * Every model with when any of its files was last changed; 0 for a model that has no files
+     * on disk, such as one packed inside the mod.
+     */
+    public Map<String, Long> getModified()
+    {
+        AssetProvider provider = BBSMod.getProvider();
+        Map<String, Long> modified = new HashMap<>();
+
+        for (Link link : provider.getLinksFromPath(Link.assets("models"), true))
+        {
+            String key = this.getModelKey(link);
+
+            if (key != null)
+            {
+                File file = provider.getFile(link);
+                long time = file == null ? 0L : file.lastModified();
+
+                modified.merge(key, time, Math::max);
+            }
+        }
+
+        return modified;
+    }
+
+    /** The model a file belongs to: the folder it sits in, under models/; null for anything else. */
+    private String getModelKey(Link link)
+    {
+        if (!this.isRelodable(link))
+        {
+            return null;
+        }
+
+        String path = link.path;
+        int slash = path.indexOf('/');
+        int lastSlash = path.lastIndexOf('/');
+
+        return slash == lastSlash ? null : path.substring(slash + 1, lastSlash);
     }
 
     public ModelInstance getModel(String id)

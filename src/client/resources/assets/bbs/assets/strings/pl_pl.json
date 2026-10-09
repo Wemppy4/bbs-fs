@@ -348,7 +348,6 @@
     "bbs.ui.camera.timeline.context.shift": "Przesuń klip(y) do kursora",
     "bbs.ui.camera.timeline.context.shift_duration": "Przesuń czasu trwania do kursora",
     "bbs.ui.camera.timeline.incompatible_paste": "Wklejone dane nie mogły zostać odczytane... być może są przeznaczone dla innego typu edytora klipów?",
-    "bbs.ui.camera.timeline.keys.clips": "Dodaj klipy",
     "bbs.ui.camera.timeline.keys.enabled": "Przełącz włączanie",
     "bbs.ui.camera.tooltips.open_video_settings": "Otwórz opcje wideo...",
     "bbs.ui.camera.tooltips.open_videos": "Otwórz folder wideo...",

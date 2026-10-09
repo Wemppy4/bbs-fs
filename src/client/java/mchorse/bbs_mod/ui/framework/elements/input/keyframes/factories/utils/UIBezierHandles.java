@@ -47,8 +47,20 @@ public class UIBezierHandles
         );
     }
 
+    public void setKeyframe(Keyframe<?> keyframe)
+    {
+        this.keyframe = keyframe;
+        this.update();
+    }
+
     public void update()
     {
+        boolean has = this.keyframe != null;
+        this.lx.setEnabled(has);
+        this.ly.setEnabled(has);
+        this.rx.setEnabled(has);
+        this.ry.setEnabled(has);
+        if (!has) return;
         if (!this.lx.isUserEditing()) this.lx.setValue(TimeUtils.toTime(this.keyframe.lx));
         if (!this.ly.isUserEditing()) this.ly.setValue(this.keyframe.ly);
         if (!this.rx.isUserEditing()) this.rx.setValue(TimeUtils.toTime(this.keyframe.rx));

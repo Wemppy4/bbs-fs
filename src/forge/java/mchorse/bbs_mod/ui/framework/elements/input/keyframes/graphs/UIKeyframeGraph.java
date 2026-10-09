@@ -174,8 +174,10 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
     @Override
     public UIKeyframeSheet getLastSheet()
     {
-        UIKeyframeSheet active = this.keyframes.getActiveSheet();
-        return this.getSheets().contains(active) ? active : null;
+        List<UIKeyframeSheet> sheets = this.getSheets();
+        UIKeyframeSheet picked = this.keyframes.getPickedSheet();
+        if (sheets.contains(picked)) return picked;
+        return sheets.isEmpty() ? null : sheets.get(0);
     }
 
     @Override
@@ -184,17 +186,22 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         List<UIKeyframeSheet> sheets = new ArrayList<>();
         for (UIKeyframeSheet sheet : this.keyframes.getSheets())
         {
-            if (this.keyframes.isTrackSelected(sheet) && KeyframeFactories.isNumeric(sheet.channel.getFactory())) sheets.add(sheet);
+            if (this.keyframes.isGraphTrack(sheet) && KeyframeFactories.isNumeric(sheet.channel.getFactory())) sheets.add(sheet);
+        }
+        if (!sheets.isEmpty()) return sheets;
+        for (UIKeyframeSheet sheet : this.keyframes.getDopeSheet().getInteractiveSheets())
+        {
+            if (KeyframeFactories.isNumeric(sheet.channel.getFactory())) sheets.add(sheet);
         }
         return sheets;
     }
 
-    /** Active first for equal-distance hits, active last for drawing. */
+    /** The picked key's curve first for equal-distance hits. */
     private List<UIKeyframeSheet> hitOrder()
     {
         List<UIKeyframeSheet> sheets = this.getSheets();
-        UIKeyframeSheet active = this.keyframes.getActiveSheet();
-        if (sheets.remove(active)) sheets.add(0, active);
+        UIKeyframeSheet picked = this.keyframes.getPickedSheet();
+        if (sheets.remove(picked)) sheets.add(0, picked);
         return sheets;
     }
 
@@ -267,13 +274,18 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
     @Override
     public boolean addKeyframe(int mouseX, int mouseY)
     {
-        return this.addKeyframeAt(this.keyframes.fromGraphCursor(mouseX), mouseY);
+        UIKeyframeSheet curve = this.findCurve(mouseX, mouseY);
+        return this.addKeyframeAt(curve == null ? this.getLastSheet() : curve, this.keyframes.fromGraphCursor(mouseX), mouseY);
     }
 
     @Override
     public boolean addKeyframeAt(float tick, int mouseY)
     {
-        UIKeyframeSheet sheet = this.getLastSheet();
+        return this.addKeyframeAt(this.getLastSheet(), tick, mouseY);
+    }
+
+    private boolean addKeyframeAt(UIKeyframeSheet sheet, float tick, int mouseY)
+    {
         if (sheet == null) return false;
         this.addKeyframeManually(sheet, tick, sheet.channel.getFactory().yToValue(this.fromGraphY(mouseY)));
         return true;
@@ -281,14 +293,14 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
 
     private boolean leftHandle(UIKeyframeSheet sheet, Keyframe key)
     {
-        if (!key.isEnabled() || sheet != this.keyframes.getActiveSheet() && !sheet.selection.has(key)) return false;
+        if (!key.isEnabled() || sheet != this.keyframes.getPickedSheet() && !sheet.selection.has(key)) return false;
         Keyframe previous = sheet.channel.get(sheet.channel.previousEnabledIndex(sheet.channel.indexOf(key) - 1));
         return previous != null && previous.getInterpolation().getInterp() == Interpolations.BEZIER;
     }
 
     private boolean rightHandle(UIKeyframeSheet sheet, Keyframe key)
     {
-        return key.isEnabled() && (sheet == this.keyframes.getActiveSheet() || sheet.selection.has(key))
+        return key.isEnabled() && (sheet == this.keyframes.getPickedSheet() || sheet.selection.has(key))
             && key.getInterpolation().getInterp() == Interpolations.BEZIER;
     }
 
@@ -305,6 +317,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
                 Keyframe key = (Keyframe) entry;
                 for (KeyframeType type : KeyframeType.values())
                 {
+                    if (type == KeyframeType.SUMMARY) continue;
                     if (type == KeyframeType.LEFT_HANDLE && !this.leftHandle(sheet, key)) continue;
                     if (type == KeyframeType.RIGHT_HANDLE && !this.rightHandle(sheet, key)) continue;
                     double time = key.getTick() + (type == KeyframeType.LEFT_HANDLE ? -key.lx : type == KeyframeType.RIGHT_HANDLE ? key.rx : 0);
@@ -511,7 +524,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
             if (sheet != null) this.renderPreviewKeyframe(context, sheet, this.keyframes.getCreationTick(context), context.mouseY, Colors.WHITE);
             return;
         }
-        if (!this.keyframes.isStacking() && !(Window.isAltPressed() && this.keyframes.isDuplicatingKeyframes(context))) return;
+        if (!this.keyframes.isStacking() && !Window.isAltPressed()) return;
         float first = Float.POSITIVE_INFINITY;
         for (UIKeyframeSheet sheet : this.getSheets())
             for (Keyframe key : sheet.selection.getSelected()) first = Math.min(first, key.getTick());
@@ -564,7 +577,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
         KeyframeSegment segment = new KeyframeSegment();
 
         /* Render graph */
-        LineBuilder lineBuilder = new LineBuilder(sheet == this.keyframes.getActiveSheet() ? 1.2F : 0.7F);
+        LineBuilder lineBuilder = new LineBuilder(sheet == this.keyframes.getPickedSheet() ? 1.2F : 0.7F);
 
         if (keyframes.isEmpty())
         {
@@ -663,7 +676,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
             }
         }
 
-        lineBuilder.render(context.batcher, SolidColorLineRenderer.get(Colors.COLOR.set(Colors.setA(sheet.color, sheet == this.keyframes.getActiveSheet() ? 1F : 0.65F))));
+        lineBuilder.render(context.batcher, SolidColorLineRenderer.get(Colors.COLOR.set(Colors.setA(sheet.color, sheet == this.keyframes.getPickedSheet() ? 1F : 0.65F))));
 
     }
 
@@ -671,7 +684,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
      * source's last key straight to the next ordinary key. Work is bounded by visible pixels. */
     private void renderLoopGraph(UIContext context, UIKeyframeSheet sheet)
     {
-        LineBuilder line = new LineBuilder(sheet == this.keyframes.getActiveSheet() ? 1.2F : 0.7F);
+        LineBuilder line = new LineBuilder(sheet == this.keyframes.getPickedSheet() ? 1.2F : 0.7F);
         float previousSource = -Float.MAX_VALUE;
         for (int x = this.keyframes.graphArea.x; x <= this.keyframes.graphArea.ex(); x += 2)
         {
@@ -702,7 +715,7 @@ public class UIKeyframeGraph implements IUIKeyframeGraph
                 line.add(this.keyframes.toGraphX(key.getTick() - key.lx), this.toGraphY(key.getY() + key.ly));
             }
         }
-        line.render(context.batcher, SolidColorLineRenderer.get(Colors.COLOR.set(Colors.setA(sheet.color, sheet == this.keyframes.getActiveSheet() ? 1F : 0.65F))));
+        line.render(context.batcher, SolidColorLineRenderer.get(Colors.COLOR.set(Colors.setA(sheet.color, sheet == this.keyframes.getPickedSheet() ? 1F : 0.65F))));
     }
 
     protected void renderGraphPointShapes(UIContext context, UIVertexBuffer builder, Matrix4f matrix, UIKeyframeSheet sheet, List keyframes, Pair<Keyframe, KeyframeType> hit)

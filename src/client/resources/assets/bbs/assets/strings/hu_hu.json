@@ -354,7 +354,6 @@
     "bbs.ui.camera.timeline.context.shift": "Klip(ek) áthelyezése a kurzorra",
     "bbs.ui.camera.timeline.context.shift_duration": "Az időtartam(ok) áthelyezése a kurzorra",
     "bbs.ui.camera.timeline.incompatible_paste": "A beillesztett adatok nem olvashatók... talán egy másik típusú klip szerkesztőhöz készültek?",
-    "bbs.ui.camera.timeline.keys.clips": "Klippek hozzáadása",
     "bbs.ui.camera.timeline.keys.enabled": "Engedélyezés bekapcsolása",
     "bbs.ui.camera.tooltips.open_video_settings": "Videók beállításainak megnyitása...",
     "bbs.ui.camera.tooltips.open_videos": "Videók mappa megnyitása...",

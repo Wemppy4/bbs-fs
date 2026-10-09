@@ -380,7 +380,6 @@
     "bbs.ui.camera.timeline.context.reorganize": "Reorganizar Clipes",
     "bbs.ui.camera.timeline.context.shift": "Mudar clipe(s) para o cursor",
     "bbs.ui.camera.timeline.context.shift_duration": "Mudar duração(ões) para o cursor",
-    "bbs.ui.camera.timeline.keys.clips": "Adicionar clipes",
     "bbs.ui.camera.timeline.keys.enabled": "Alternar ativado",
     "bbs.ui.camera.tooltips.open_video_settings": "Abrir configurações de video...",
     "bbs.ui.camera.tooltips.open_videos": "Abrir pasta de vídeos...",

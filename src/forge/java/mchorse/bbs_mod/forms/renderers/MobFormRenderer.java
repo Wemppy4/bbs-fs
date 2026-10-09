@@ -158,7 +158,9 @@ public final class MobFormRenderer extends NativeGeometryFormRenderer<MobForm> i
     }
     @Override public void tick(IEntity source)
     {
-        ensure();if(entity==null)return;
+        ensure();
+        /* A player's tick asks the connection's player list whether it spectates, so none is stepped without one */
+        if(entity==null||Minecraft.getMinecraft().getConnection()==null)return;
         /* The display entity may animate, but its copied bow/food must never execute a use. */
         if(entity instanceof EntityLivingBase)syncUse((EntityLivingBase)entity,null);
         entity.onUpdate();sync(source);

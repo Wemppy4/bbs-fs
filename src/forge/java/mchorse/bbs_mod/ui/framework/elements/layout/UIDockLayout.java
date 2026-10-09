@@ -845,8 +845,9 @@ public class UIDockLayout extends UIElement
         }
 
         Map<EditorLayoutNode.SplitterNode, Float> ratios = new HashMap<>();
+        SplitterHandleInfo info = this.splitterHandleInfos.get(index);
 
-        ratios.put(this.splitterHandleInfos.get(index).node, EditorLayoutNode.SPLIT_RATIO);
+        this.putSplitterRatio(info, this.clampSplitterRatio(info, EditorLayoutNode.SPLIT_RATIO), ratios);
 
         EditorLayoutNode root = this.layoutRoot();
         EditorLayoutNode next = EditorLayoutNode.copyWithSplitterRatios(root, ratios);
@@ -918,6 +919,7 @@ public class UIDockLayout extends UIElement
         }
 
         Map<EditorLayoutNode.SplitterNode, Float> ratios = new HashMap<>();
+        Map<EditorLayoutNode.SplitterNode, Float> dragged = new HashMap<>();
 
         for (int draggedIndex : this.draggedSplitterIndices)
         {
@@ -927,9 +929,14 @@ public class UIDockLayout extends UIElement
             }
 
             SplitterHandleInfo info = this.splitterHandleInfos.get(draggedIndex);
+            float ratio = this.clampSplitterRatio(info, this.getSplitterRatioFromMouse(info, mouseX, mouseY));
 
-            ratios.put(info.node, this.getSplitterRatioFromMouse(info, mouseX, mouseY));
+            this.putSplitterRatio(info, ratio, ratios);
+            dragged.put(info.node, ratio);
         }
+
+        /* A seam the mouse holds wins over another seam's compensation reaching into it. */
+        ratios.putAll(dragged);
 
         EditorLayoutNode root = this.layoutRoot();
         EditorLayoutNode next = EditorLayoutNode.copyWithSplitterRatios(root, ratios);
@@ -947,24 +954,108 @@ public class UIDockLayout extends UIElement
         int ey = this.area.y;
         int ew = Math.max(1, this.area.w);
         int eh = Math.max(1, this.area.h);
-        float ratio = info.horizontal
+
+        return info.horizontal
             ? (mouseY - (ey + info.py * eh)) / (info.ph * eh)
             : (mouseX - (ex + info.px * ew)) / (info.pw * ew);
+    }
+
+    /**
+     * Keeps every panel the move squeezes usable in pixels, not in shares; deep in the tree a share
+     * of a share can shrink a panel to nothing. Since only the panels touching the seam give way
+     * (see {@link #putSplitterRatio}), each side needs room for its far panels as they are plus
+     * one minimum-size panel at the seam. When the pair is too small even for that, the model's
+     * own clamp is all that is left.
+     */
+    private float clampSplitterRatio(SplitterHandleInfo info, float ratio)
+    {
         float lo = EditorLayoutNode.MIN_RATIO;
         float hi = EditorLayoutNode.MAX_RATIO;
-        float lengthPx = info.horizontal ? info.ph * eh : info.pw * ew;
-        float need = lengthPx > 0 ? MIN_PANEL_SIZE_PX / lengthPx : 1F;
+        float lengthPx = info.horizontal ? info.ph * Math.max(1, this.area.h) : info.pw * Math.max(1, this.area.w);
+        float r = info.node.getRatio();
 
-        /* Keep both sides usable in pixels, not in shares; deep in the tree a share of a share can
-         * shrink a panel to nothing. When the pair is too small even for that, the model's own
-         * clamp is all that is left. */
-        if (need <= 0.5F)
+        if (lengthPx > 0)
         {
-            lo = Math.max(lo, need);
-            hi = Math.min(hi, 1F - need);
+            float needFirst = this.minSeamSideLength(info.node.getFirst(), info.horizontal, true, r * lengthPx) / lengthPx;
+            float needSecond = this.minSeamSideLength(info.node.getSecond(), info.horizontal, false, (1F - r) * lengthPx) / lengthPx;
+
+            if (needFirst + needSecond <= 1F)
+            {
+                lo = Math.max(lo, needFirst);
+                hi = Math.min(hi, 1F - needSecond);
+            }
         }
 
         return MathUtils.clamp(ratio, lo, hi);
+    }
+
+    /**
+     * Smallest length (px, along the split axis) a seam-side subtree can be squeezed to while its
+     * far panels keep their size. {@code farIsFirst} says which end of the subtree is away from
+     * the seam.
+     */
+    private float minSeamSideLength(EditorLayoutNode node, boolean horizontal, boolean farIsFirst, float lengthPx)
+    {
+        if (!(node instanceof EditorLayoutNode.SplitterNode))
+        {
+            return MIN_PANEL_SIZE_PX;
+        }
+
+        EditorLayoutNode.SplitterNode splitter = (EditorLayoutNode.SplitterNode) node;
+
+        if (splitter.isHorizontal() != horizontal)
+        {
+            return Math.max(
+                this.minSeamSideLength(splitter.getFirst(), horizontal, farIsFirst, lengthPx),
+                this.minSeamSideLength(splitter.getSecond(), horizontal, farIsFirst, lengthPx)
+            );
+        }
+
+        float farPx = (farIsFirst ? splitter.getRatio() : 1F - splitter.getRatio()) * lengthPx;
+        EditorLayoutNode near = farIsFirst ? splitter.getSecond() : splitter.getFirst();
+
+        return farPx + this.minSeamSideLength(near, horizontal, farIsFirst, lengthPx - farPx);
+    }
+
+    /**
+     * Moves one seam so that only the panels touching it change size. Ratios are shares of the
+     * parent, so on their own a nested split on either side would scale all its panels along; here
+     * every same-direction split on each side is re-ratioed to keep its far part's absolute size.
+     */
+    private void putSplitterRatio(SplitterHandleInfo info, float ratio, Map<EditorLayoutNode.SplitterNode, Float> out)
+    {
+        float r = info.node.getRatio();
+
+        out.put(info.node, ratio);
+        this.keepFarSideSize(info.node.getFirst(), info.horizontal, true, r, ratio, out);
+        this.keepFarSideSize(info.node.getSecond(), info.horizontal, false, 1F - r, 1F - ratio, out);
+    }
+
+    /** Lengths are in shares of the dragged seam's splitter; only their proportions matter. */
+    private void keepFarSideSize(EditorLayoutNode node, boolean horizontal, boolean farIsFirst, float oldLength, float newLength, Map<EditorLayoutNode.SplitterNode, Float> out)
+    {
+        if (!(node instanceof EditorLayoutNode.SplitterNode) || oldLength <= 0F || newLength <= 0F)
+        {
+            return;
+        }
+
+        EditorLayoutNode.SplitterNode splitter = (EditorLayoutNode.SplitterNode) node;
+
+        /* A split across the seam has both halves touching it, so both just follow along. */
+        if (splitter.isHorizontal() != horizontal)
+        {
+            this.keepFarSideSize(splitter.getFirst(), horizontal, farIsFirst, oldLength, newLength, out);
+            this.keepFarSideSize(splitter.getSecond(), horizontal, farIsFirst, oldLength, newLength, out);
+
+            return;
+        }
+
+        float oldFar = (farIsFirst ? splitter.getRatio() : 1F - splitter.getRatio()) * oldLength;
+        float farShare = MathUtils.clamp(oldFar / newLength, EditorLayoutNode.MIN_RATIO, EditorLayoutNode.MAX_RATIO);
+        float newFar = farShare * newLength;
+
+        out.put(splitter, farIsFirst ? farShare : 1F - farShare);
+        this.keepFarSideSize(farIsFirst ? splitter.getSecond() : splitter.getFirst(), horizontal, farIsFirst, oldLength - oldFar, newLength - newFar, out);
     }
 
     private Vector2i getSplitterHandleReferencePosition(int index)

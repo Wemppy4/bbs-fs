@@ -9,7 +9,7 @@ import mchorse.bbs_mod.utils.keyframes.factories.IKeyframeFactory;
  * <p>An editor is picked by the value's factory, and a property may override that with an editor
  * of its own — that is how two tracks holding the same kind of number get different controls.</p>
  */
-/** Registered editors receive UITrackValue, including for empty tracks; they never require a selected key. */
+/** Registered editors receive UITrackValue: the picked key's track, read and edited through its selected keys. */
 public class RegisterKeyframeEditorsEvent
 {
     public <T> void register(IKeyframeFactory<T> factory, UIKeyframeFactory.IUIKeyframeFactoryFactory<T> editor)

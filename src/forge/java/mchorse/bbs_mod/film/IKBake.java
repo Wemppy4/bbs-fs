@@ -584,6 +584,7 @@ public class IKBake
             }
 
             TrackBehaviours.clearOverrides(root);
+            RenderFrame.setFilmTick(root, other.getTick(tick));
             other.properties.apply(TrackContext.frame(root, 0F, this.anchors), other.getTick(tick), 1F);
         }
 

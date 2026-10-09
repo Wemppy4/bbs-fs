@@ -6,6 +6,7 @@ import mchorse.bbs_mod.actions.types.AttackActionClip;
 import mchorse.bbs_mod.actions.types.blocks.*;
 import mchorse.bbs_mod.actions.types.item.*;
 import mchorse.bbs_mod.actions.types.chat.*;
+import mchorse.bbs_mod.camera.clips.ClipCategories;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.entity.ActorEntity;
 import mchorse.bbs_mod.network.FilmNetwork;
@@ -50,14 +51,14 @@ public final class FilmServerEvents
     {
         if(registered)return;registered=true;FilmNetwork.register();MinecraftForge.EVENT_BUS.register(new FilmServerEvents());
         BBSMod.getFactoryActionClips()
-            .register(Link.bbs("place_block"),PlaceBlockActionClip.class,new ClipFactoryData(Icons.BLOCK,Colors.INACTIVE))
-            .register(Link.bbs("interact_block"),InteractBlockActionClip.class,new ClipFactoryData(Icons.FULLSCREEN,Colors.MAGENTA))
-            .register(Link.bbs("break_block"),BreakBlockActionClip.class,new ClipFactoryData(Icons.BULLET,Colors.GREEN))
-            .register(Link.bbs("use_item"),UseItemActionClip.class,new ClipFactoryData(Icons.POINTER,Colors.BLUE))
-            .register(Link.bbs("use_block_item"),UseBlockItemActionClip.class,new ClipFactoryData(Icons.BUCKET,Colors.CYAN))
-            .register(Link.bbs("release_use_item"),ReleaseUseItemActionClip.class,new ClipFactoryData(Icons.ARROW_UP,0x9457ff))
-            .register(Link.bbs("drop_item"),ItemDropActionClip.class,new ClipFactoryData(Icons.ARROW_DOWN,Colors.DEEP_PINK))
-            .register(Link.bbs("attack"),AttackActionClip.class,new ClipFactoryData(Icons.DROP,Colors.RED));
+            .register(Link.bbs("place_block"),PlaceBlockActionClip.class,new ClipFactoryData(Icons.BLOCK,Colors.INACTIVE).in(ClipCategories.BLOCKS))
+            .register(Link.bbs("interact_block"),InteractBlockActionClip.class,new ClipFactoryData(Icons.FULLSCREEN,Colors.MAGENTA).in(ClipCategories.BLOCKS))
+            .register(Link.bbs("break_block"),BreakBlockActionClip.class,new ClipFactoryData(Icons.BULLET,Colors.GREEN).in(ClipCategories.BLOCKS))
+            .register(Link.bbs("use_item"),UseItemActionClip.class,new ClipFactoryData(Icons.POINTER,Colors.BLUE).in(ClipCategories.ITEMS))
+            .register(Link.bbs("use_block_item"),UseBlockItemActionClip.class,new ClipFactoryData(Icons.BUCKET,Colors.CYAN).in(ClipCategories.ITEMS))
+            .register(Link.bbs("release_use_item"),ReleaseUseItemActionClip.class,new ClipFactoryData(Icons.ARROW_UP,0x9457ff).in(ClipCategories.ITEMS))
+            .register(Link.bbs("drop_item"),ItemDropActionClip.class,new ClipFactoryData(Icons.ARROW_DOWN,Colors.DEEP_PINK).in(ClipCategories.ITEMS))
+            .register(Link.bbs("attack"),AttackActionClip.class,new ClipFactoryData(Icons.DROP,Colors.RED).in(ClipCategories.GENERAL));
     }
     public static void serverStarting(MinecraftServer server){PermissionUtils.register(server);}
     public static void serverStopping(){BBSMod.getActions().reset();FilmNetwork.resetServer();}

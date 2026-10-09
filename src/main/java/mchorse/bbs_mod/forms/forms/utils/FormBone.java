@@ -4,9 +4,11 @@ import mchorse.bbs_mod.cubic.constraints.BoneConstraint;
 import mchorse.bbs_mod.cubic.ik.IKControl;
 import mchorse.bbs_mod.cubic.ik.JointDoF;
 import mchorse.bbs_mod.cubic.physics.PhysicsControl;
+import mchorse.bbs_mod.cubic.shake.BoneShake;
 import mchorse.bbs_mod.settings.values.core.ValueBoneConstraint;
 import mchorse.bbs_mod.settings.values.core.ValueBoneIK;
 import mchorse.bbs_mod.settings.values.core.ValueBonePhysics;
+import mchorse.bbs_mod.settings.values.core.ValueBoneShake;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueJointDoF;
 import mchorse.bbs_mod.settings.values.core.ValueString;
@@ -77,6 +79,10 @@ public class FormBone extends ValueGroup
     public final ValueFloat physicsGravityRotateZ = new ValueFloat("physics_gravity_rotate_z", 0F);
     public final ValueBonePhysics physics = new ValueBonePhysics("physics", new PhysicsControl());
 
+    /* The bone's shake: its character is a static setting here, its animatable strength lives
+     * in the form's shake track, keyed by this bone. */
+    public final ValueBoneShake shake = new ValueBoneShake("shake", new BoneShake());
+
     public FormBone(String id)
     {
         super(id);
@@ -102,6 +108,7 @@ public class FormBone extends ValueGroup
         this.physicsGravityRotateY.invisible();
         this.physicsGravityRotateZ.invisible();
         this.physics.invisible();
+        this.shake.invisible();
 
         this.add(this.constraints);
         this.add(this.boneController);
@@ -124,6 +131,13 @@ public class FormBone extends ValueGroup
         this.add(this.physicsGravityRotateY);
         this.add(this.physicsGravityRotateZ);
         this.add(this.physics);
+        this.add(this.shake);
+    }
+
+    /** Whether this bone's shake is switched on. */
+    public boolean hasShake()
+    {
+        return this.shake.get().enabled;
     }
 
     /** Whether this bone is the root of a configured physics chain. */
@@ -162,6 +176,7 @@ public class FormBone extends ValueGroup
             && this.physicsGravityRotateX.get() == 0F
             && this.physicsGravityRotateY.get() == 0F
             && this.physicsGravityRotateZ.get() == 0F
-            && this.physics.get().isDefault();
+            && this.physics.get().isDefault()
+            && this.shake.get().isDefault();
     }
 }

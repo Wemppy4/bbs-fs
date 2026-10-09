@@ -157,6 +157,16 @@ public class Flex implements IResizer
     @Override
     public int getH()
     {
+        return this.getH(0);
+    }
+
+    /**
+     * A layout that knows the width it is about to give passes it; otherwise the post resizer
+     * measures at this flex's own width, which is known when the width is set on it directly
+     */
+    @Override
+    public int getH(int w)
+    {
         if (this.h.target != null)
         {
             int h = this.h.targetAnchor == 0 ? 0 : (int) (this.h.target.getH() * this.h.targetAnchor);
@@ -164,7 +174,7 @@ public class Flex implements IResizer
             return this.h.normalize((this.h.target.getY() + h) - this.getY() + this.h.offset);
         }
 
-        int value = this.post == null ? 0 : this.post.getH();
+        int value = this.post == null ? 0 : this.post.getH(w > 0 ? w : this.getW());
 
         if (value != 0)
         {

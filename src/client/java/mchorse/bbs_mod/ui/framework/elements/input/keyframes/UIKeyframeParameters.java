@@ -21,24 +21,22 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 
-/** Parameters of selected keys, independent of the active track's value editor. */
+/** The picked key's rows at the top of every value panel; greyed out while no key is picked. */
 public class UIKeyframeParameters extends UIElement
 {
     private final UIKeyframes editor;
-    private final Keyframe keyframe;
+    private Keyframe keyframe;
     public UIToggle enabled;
     public UITrackpad tick, duration, motionShift;
     public UIIcon interp;
     private boolean draggingMotionShift;
     private UIBezierHandles handles;
 
-    public UIKeyframeParameters(Keyframe keyframe, UIKeyframes editor)
+    public UIKeyframeParameters(UIKeyframes editor, boolean numeric)
     {
-        this.keyframe = keyframe;
         this.editor = editor;
         this.column(UIConstants.MARGIN).vertical().stretch();
         this.enabled = new UIToggle(IKey.EMPTY, b -> this.editor.setSelectedEnabled(b.getValue()));
-        this.enabled.setValue(keyframe.isEnabled());
         this.enabled.wh(26, UIConstants.CONTROL_HEIGHT).tooltip(UIKeys.KEYFRAMES_ENABLED);
 
         this.tick = new UITrackpad(this::setTick);
@@ -48,12 +46,13 @@ public class UIKeyframeParameters extends UIElement
         {
             if (e.cancelled) this.editor.cancelKeyframes();
             else this.editor.submitKeyframes();
-            this.editor.selectTrack(this.editor.getActiveSheet());
+            this.editor.getGraph().pickSelected();
         });
         this.duration = new UITrackpad((v) -> this.setDuration(v.floatValue()));
         this.duration.limit(0, Float.MAX_VALUE).tooltip(UIKeys.KEYFRAMES_FORCED_DURATION);
         this.interp = new UIIcon(Icons.GRAPH, (b) ->
         {
+            if (this.keyframe == null) return;
             Interpolation interp = new Interpolation("", this.keyframe.getInterpolation().getMap());
             interp.fromData(this.keyframe.getInterpolation().toData());
             UIInterpolationContextMenu menu = new UIInterpolationContextMenu(interp);
@@ -61,7 +60,7 @@ public class UIKeyframeParameters extends UIElement
             this.getContext().replaceContextMenu(menu.callback(() -> this.editor.getGraph().setInterpolation(interp)));
         });
         this.interp.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-        this.interp.tooltip(new InterpolationTooltip(0F, 0.5F, () -> this.keyframe.getInterpolation()));
+        this.interp.tooltip(new InterpolationTooltip(0F, 0.5F, () -> this.keyframe == null ? null : this.keyframe.getInterpolation()));
         this.interp.keys().register(Keys.KEYFRAMES_INTERP, this.interp::clickItself).category(UIKeys.KEYFRAMES_KEYS_CATEGORY);
 
         this.motionShift = new UITrackpad(v -> this.editor.getGraph().setMotionShift(v.floatValue() / 100F, !this.draggingMotionShift));
@@ -78,26 +77,36 @@ public class UIKeyframeParameters extends UIElement
             else this.editor.submitKeyframes();
             this.editor.getGraph().pickSelected();
         });
-        this.motionShift.setValue(keyframe.getMotionShift() * 100F);
-        this.motionShift.setEnabled(keyframe.supportsMotionShift());
         this.add(UI.row(UIConstants.MARGIN, 0, 0, this.interp, this.enabled, this.tick));
         this.add(UI.row(UIConstants.MARGIN, 0, 0, this.duration, this.motionShift));
 
-        if (keyframe.getValue() instanceof Number)
+        if (numeric)
         {
-            this.handles = new UIBezierHandles(keyframe);
+            this.handles = new UIBezierHandles(null);
             this.add(this.handles.createColumn());
         }
 
-        /* Fill data */
-        this.tick.setValue(TimeUtils.toTime(keyframe.getTick()));
-        this.duration.setValue(TimeUtils.toTime(keyframe.getDuration()));
+        this.setKeyframe(null);
     }
 
-    public boolean isFor(Keyframe keyframe) { return this.keyframe == keyframe; }
+    public void setKeyframe(Keyframe keyframe)
+    {
+        boolean changed = this.keyframe != keyframe;
+        boolean has = keyframe != null;
+
+        this.keyframe = keyframe;
+        this.enabled.setEnabled(has);
+        this.tick.setEnabled(has);
+        this.duration.setEnabled(has);
+        this.interp.setEnabled(has);
+        this.motionShift.setEnabled(has && keyframe.supportsMotionShift());
+        if (changed && this.handles != null) this.handles.setKeyframe(keyframe);
+        this.update();
+    }
 
     public void update()
     {
+        if (this.keyframe == null) return;
         this.enabled.setValue(this.keyframe.isEnabled());
         if (!this.tick.isUserEditing()) this.tick.setValue(TimeUtils.toTime(this.keyframe.getTick()));
         if (!this.duration.isUserEditing()) this.duration.setValue(TimeUtils.toTime(this.keyframe.getDuration()));
@@ -107,6 +116,7 @@ public class UIKeyframeParameters extends UIElement
 
     public void setTick(double tick)
     {
+        if (this.keyframe == null) return;
         double time = BBSSettings.editorSnapToTicks.get() ? TimeUtils.fromTime(tick)
             : (BBSSettings.editorSeconds.get() ? tick * 20D : tick);
 

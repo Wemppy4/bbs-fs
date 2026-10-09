@@ -43,4 +43,15 @@ public interface IResizer
     {
         return 0;
     }
+
+    /**
+     * Height when laid out at the given width, for a layout whose height depends on it (a name :
+     * control row that moves the name on its own line once it gets narrow). A parent that knows
+     * the width it is about to hand out asks this instead of {@link #getH()}; 0 or less means
+     * the width isn't known yet.
+     */
+    public default int getH(int w)
+    {
+        return this.getH();
+    }
 }

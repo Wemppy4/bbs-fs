@@ -359,7 +359,6 @@
     "bbs.ui.camera.timeline.context.shift": "เลื่อนคลิป(s) ไปที่เคอร์เซอร์",
     "bbs.ui.camera.timeline.context.shift_duration": "เลื่อนระยะเวลา(s) ไปที่เคอร์เซอร์",
     "bbs.ui.camera.timeline.incompatible_paste": "ไม่สามารถอ่านข้อมูลที่วางได้... อาจเป็นข้อมูลที่เหมาะกับโปรแกรมแก้ไขคลิปประเภทอื่นนะ?",
-    "bbs.ui.camera.timeline.keys.clips": "เพื่มคลิป",
     "bbs.ui.camera.timeline.keys.enabled": "สลับการเปิดใช้งาน",
     "bbs.ui.camera.tooltips.open_video_settings": "เปิดการตั้งค่าวิดีโอ...",
     "bbs.ui.camera.tooltips.open_videos": "เปิดโฟลเดอร์วิดีโอ...",

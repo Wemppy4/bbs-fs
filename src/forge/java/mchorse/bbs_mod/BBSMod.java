@@ -1,6 +1,7 @@
 package mchorse.bbs_mod;
 import mchorse.bbs_mod.api.AddonLifecycle;
 import mchorse.bbs_mod.api.events.*;
+import mchorse.bbs_mod.camera.clips.ClipCategories;
 import mchorse.bbs_mod.camera.clips.ClipFactoryData;
 import mchorse.bbs_mod.camera.clips.converters.*;
 import mchorse.bbs_mod.camera.clips.overwrite.*;
@@ -60,47 +61,57 @@ public class BBSMod
         setupConfig(Icons.GEAR, "bbs", file, BBSSettings::register);
     }
     private static final mchorse.bbs_mod.forms.FormArchitect forms = new mchorse.bbs_mod.forms.FormArchitect();
-    private static final mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, ClipFactoryData> factoryCameraClips;
-    private static final mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, ClipFactoryData> factoryActionClips;
-    public static mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, ClipFactoryData> getFactoryCameraClips() { return factoryCameraClips; }
-    public static mchorse.bbs_mod.utils.factory.MapFactory<mchorse.bbs_mod.utils.clips.Clip, ClipFactoryData> getFactoryActionClips() { return factoryActionClips; }
+    private static final ClipFactory factoryCameraClips;
+    private static final ClipFactory factoryActionClips;
+    public static ClipFactory getFactoryCameraClips() { return factoryCameraClips; }
+    public static ClipFactory getFactoryActionClips() { return factoryActionClips; }
     static {
         setupSettings(null);
         factoryCameraClips = new ClipFactory()
-            .register(Link.bbs("idle"), IdleClip.class, new ClipFactoryData(Icons.FRUSTUM, 0x159e64)
+            .category(ClipCategories.OVERWRITE)
+            .category(ClipCategories.MODIFIERS)
+            .category(ClipCategories.MISC);
+
+        factoryCameraClips
+            .register(Link.bbs("idle"), IdleClip.class, new ClipFactoryData(Icons.FRUSTUM, 0x159e64).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("dolly"), new IdleToDollyConverter())
                 .withConverter(Link.bbs("path"), new IdleToPathConverter())
                 .withConverter(Link.bbs("keyframe"), new IdleToKeyframeConverter()))
-            .register(Link.bbs("dolly"), DollyClip.class, new ClipFactoryData(Icons.CAMERA, 0xffa500)
+            .register(Link.bbs("dolly"), DollyClip.class, new ClipFactoryData(Icons.CAMERA, 0xffa500).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("idle"), IdleConverter.CONVERTER)
                 .withConverter(Link.bbs("path"), new DollyToPathConverter())
                 .withConverter(Link.bbs("keyframe"), new DollyToKeyframeConverter()))
-            .register(Link.bbs("path"), PathClip.class, new ClipFactoryData(Icons.GALLERY, 0x6820ad)
+            .register(Link.bbs("path"), PathClip.class, new ClipFactoryData(Icons.GALLERY, 0x6820ad).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("idle"), IdleConverter.CONVERTER)
                 .withConverter(Link.bbs("dolly"), new PathToDollyConverter())
                 .withConverter(Link.bbs("keyframe"), new PathToKeyframeConverter()))
-            .register(Link.bbs("keyframe"), KeyframeClip.class, new ClipFactoryData(Icons.CURVES, 0xde2e9f)
+            .register(Link.bbs("keyframe"), KeyframeClip.class, new ClipFactoryData(Icons.CURVES, 0xde2e9f).in(ClipCategories.OVERWRITE)
                 .withConverter(Link.bbs("idle"), IdleConverter.CONVERTER))
-            .register(Link.bbs("translate"), TranslateClip.class, new ClipFactoryData(Icons.UPLOAD, 0x4ba03e))
-            .register(Link.bbs("angle"), AngleClip.class, new ClipFactoryData(Icons.ARC, 0xd77a0a))
-            .register(Link.bbs("drag"), DragClip.class, new ClipFactoryData(Icons.FADING, 0x4baff7))
-            .register(Link.bbs("shake"), ShakeClip.class, new ClipFactoryData(Icons.EXCHANGE, 0x159e64))
-            .register(Link.bbs("math"), MathClip.class, new ClipFactoryData(Icons.GRAPH, 0x6820ad))
-            .register(Link.bbs("remapper"), RemapperClip.class, new ClipFactoryData(Icons.TIME, 0x222222))
-            .register(Link.bbs("audio"), AudioClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825))
-            .register(Link.bbs("look"), LookClip.class, new ClipFactoryData(Icons.VISIBLE, 0x197fff))
-            .register(Link.bbs("orbit"), OrbitClip.class, new ClipFactoryData(Icons.GLOBE, 0xd82253))
-            .register(Link.bbs("tracker"), mchorse.bbs_mod.camera.clips.modifiers.TrackerClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc))
-            .register(Link.bbs("spline"), mchorse.bbs_mod.camera.clips.overwrite.SplineClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff))
-            .register(Link.bbs("curve"), mchorse.bbs_mod.camera.clips.misc.CurveClip.class, new ClipFactoryData(Icons.ARC, 0xff1493))
-            .register(Link.bbs("subtitle"), mchorse.bbs_mod.camera.clips.misc.SubtitleClip.class, new ClipFactoryData(Icons.FONT, 0x888899))
-            .register(Link.bbs("dolly_zoom"), DollyZoomClip.class, new ClipFactoryData(Icons.FILTER, 0x7d56c9));
+            .register(Link.bbs("translate"), TranslateClip.class, new ClipFactoryData(Icons.UPLOAD, 0x4ba03e).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("angle"), AngleClip.class, new ClipFactoryData(Icons.ARC, 0xd77a0a).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("drag"), DragClip.class, new ClipFactoryData(Icons.FADING, 0x4baff7).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("shake"), ShakeClip.class, new ClipFactoryData(Icons.EXCHANGE, 0x159e64).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("math"), MathClip.class, new ClipFactoryData(Icons.GRAPH, 0x6820ad).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("remapper"), RemapperClip.class, new ClipFactoryData(Icons.TIME, 0x222222).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("audio"), AudioClip.class, new ClipFactoryData(Icons.SOUND, 0xffc825).in(ClipCategories.MISC))
+            .register(Link.bbs("look"), LookClip.class, new ClipFactoryData(Icons.VISIBLE, 0x197fff).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("orbit"), OrbitClip.class, new ClipFactoryData(Icons.GLOBE, 0xd82253).in(ClipCategories.MODIFIERS))
+            .register(Link.bbs("tracker"), mchorse.bbs_mod.camera.clips.overwrite.TrackerClip.class, new ClipFactoryData(Icons.USER, 0x4cedfc).in(ClipCategories.OVERWRITE))
+            .register(Link.bbs("spline"), mchorse.bbs_mod.camera.clips.overwrite.SplineClip.class, new ClipFactoryData(Icons.GRAPH, 0x5599ff).in(ClipCategories.OVERWRITE))
+            .register(Link.bbs("curve"), mchorse.bbs_mod.camera.clips.misc.CurveClip.class, new ClipFactoryData(Icons.ARC, 0xff1493).in(ClipCategories.MISC))
+            .register(Link.bbs("subtitle"), mchorse.bbs_mod.camera.clips.misc.SubtitleClip.class, new ClipFactoryData(Icons.FONT, 0x888899).in(ClipCategories.MISC))
+            .register(Link.bbs("dolly_zoom"), DollyZoomClip.class, new ClipFactoryData(Icons.FILTER, 0x7d56c9).in(ClipCategories.MODIFIERS));
 
         factoryActionClips = new ClipFactory()
-            .register(Link.bbs("chat"), ChatActionClip.class, new ClipFactoryData(Icons.BUBBLE, Colors.YELLOW))
-            .register(Link.bbs("command"), CommandActionClip.class, new ClipFactoryData(Icons.PROPERTIES, Colors.ACTIVE))
-            .register(Link.bbs("damage"), DamageActionClip.class, new ClipFactoryData(Icons.SKULL, Colors.CURSOR))
-            .register(Link.bbs("swipe"), SwipeActionClip.class, new ClipFactoryData(Icons.LIMB, Colors.ORANGE));
+            .category(ClipCategories.GENERAL)
+            .category(ClipCategories.BLOCKS)
+            .category(ClipCategories.ITEMS);
+
+        factoryActionClips
+            .register(Link.bbs("chat"), ChatActionClip.class, new ClipFactoryData(Icons.BUBBLE, Colors.YELLOW).in(ClipCategories.GENERAL))
+            .register(Link.bbs("command"), CommandActionClip.class, new ClipFactoryData(Icons.PROPERTIES, Colors.ACTIVE).in(ClipCategories.GENERAL))
+            .register(Link.bbs("damage"), DamageActionClip.class, new ClipFactoryData(Icons.SKULL, Colors.CURSOR).in(ClipCategories.GENERAL))
+            .register(Link.bbs("swipe"), SwipeActionClip.class, new ClipFactoryData(Icons.LIMB, Colors.ORANGE).in(ClipCategories.GENERAL));
 
         forms.register(Link.bbs("model"), mchorse.bbs_mod.forms.forms.ModelForm.class);
         forms.register(Link.bbs("mob"), mchorse.bbs_mod.forms.forms.MobForm.class);
@@ -117,8 +128,8 @@ public class BBSMod
         forms.register(Link.bbs("vanilla_particles"), mchorse.bbs_mod.forms.forms.VanillaParticleForm.class);
         forms.register(Link.bbs("trail"), mchorse.bbs_mod.forms.forms.TrailForm.class);
         forms.register(Link.bbs("framebuffer"), mchorse.bbs_mod.forms.forms.FramebufferForm.class);
-        factoryCameraClips.register(Link.bbs("image"), mchorse.bbs_mod.camera.clips.misc.ImageClip.class, new ClipFactoryData(Icons.GALLERY, 0x5278cd));
-        factoryCameraClips.register(Link.bbs("video"), mchorse.bbs_mod.camera.clips.misc.VideoClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c));
+        factoryCameraClips.register(Link.bbs("image"), mchorse.bbs_mod.camera.clips.misc.ImageClip.class, new ClipFactoryData(Icons.GALLERY, 0x5278cd).in(ClipCategories.MISC));
+        factoryCameraClips.register(Link.bbs("video"), mchorse.bbs_mod.camera.clips.misc.VideoClip.class, new ClipFactoryData(Icons.VIDEO_CAMERA, 0xd21f3c).in(ClipCategories.MISC));
     }
     public static mchorse.bbs_mod.forms.FormArchitect getForms() { return forms; }
     public static File getAssetsFolder() { return assetsFolder; }

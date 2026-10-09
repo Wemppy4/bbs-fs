@@ -3,6 +3,7 @@ package mchorse.bbs_mod.forms.renderers.utils;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
+import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.utils.profiler.BBSProfiler;
 
@@ -30,6 +31,14 @@ public class RenderFrame
 {
     private static final Map<Form, Entry> ENTRIES = new IdentityHashMap<>();
 
+    /**
+     * The film tick each form is shown at in this frame, laid down when a film applies its tracks.
+     * What must look the same however a frame is reached — the bone shake — reads it instead of the
+     * entity's age, which a paused film only advances when scrubbed forward. It lives for the whole
+     * frame: a mid-frame {@link #invalidate()} re-poses, it doesn't leave the film.
+     */
+    private static final Map<Form, Float> FILM_TICKS = new IdentityHashMap<>();
+
     private static long epoch;
 
     public static long getEpoch()
@@ -47,6 +56,29 @@ public class RenderFrame
     {
         epoch += 1;
         ENTRIES.clear();
+        FILM_TICKS.clear();
+    }
+
+    /** The film shows this form, and the forms of its body parts, at this tick in this frame. */
+    public static void setFilmTick(Form form, float tick)
+    {
+        if (form == null)
+        {
+            return;
+        }
+
+        FILM_TICKS.put(form, tick);
+
+        for (BodyPart part : form.parts.getAllTyped())
+        {
+            setFilmTick(part.getForm(), tick);
+        }
+    }
+
+    /** The tick a film shows this form at in this frame, or null outside of a film. */
+    public static Float getFilmTick(Form form)
+    {
+        return form == null ? null : FILM_TICKS.get(form);
     }
 
     /**

@@ -55,7 +55,10 @@ public class ContextAction
         this.renderBackground(context, x, y, w, h, hover, selected);
 
         context.batcher.icon(this.icon, x + 2, y + h / 2, 0, 0.5F);
-        context.batcher.text(this.label.get(), x + 22, y + (h - font.getHeight()) / 2 + 1, Colors.WHITE, false);
+        /* A row narrower than its label (a column of fixed width) cuts it short */
+        String label = font.limitToWidth(this.label.get(), w - 24);
+
+        context.batcher.text(label, x + 22, y + (h - font.getHeight()) / 2 + 1, Colors.WHITE, false);
     }
 
     protected void renderBackground(UIContext context, int x, int y, int w, int h, boolean hover, boolean selected)

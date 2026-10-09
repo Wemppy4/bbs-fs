@@ -6,6 +6,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformSpace;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.film.replays.tracks.TrackKind;
+import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -21,7 +22,6 @@ import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
-import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 
 import java.util.function.Function;
@@ -42,7 +42,6 @@ public class UIKeyframeEditor extends UITimelinePanel implements mchorse.bbs_mod
 
     public UIKeyframes view;
     public UIKeyframeFactory editor;
-    private UIKeyframeParameters parameters;
     private final UIIcon mode;
 
     public UIKeyframeEditor(Function<Runnable, UIKeyframes> factory)
@@ -86,14 +85,26 @@ public class UIKeyframeEditor extends UITimelinePanel implements mchorse.bbs_mod
         return this;
     }
 
+    /**
+     * Tracks with nothing on them are told how to put a keyframe down; tracks that already have
+     * some are told how to pick one. Both name the gesture, since neither is a plain click.
+     */
     private IKey getEmptyLabel()
     {
-        return UIKeys.KEYFRAMES_EMPTY_PICK;
+        for (UIKeyframeSheet sheet : this.view.getGraph().getSheets())
+        {
+            if (!sheet.channel.isEmpty())
+            {
+                return UIKeys.KEYFRAMES_EMPTY_PICK;
+            }
+        }
+
+        return UIKeys.KEYFRAMES_EMPTY_ADD;
     }
 
     private void refreshSelection()
     {
-        UIKeyframeSheet sheet = this.view.getActiveSheet();
+        UIKeyframeSheet sheet = this.view.getPickedSheet();
         if (this.editor != null && this.editor.getSheet() == sheet)
         {
             this.updateParameters();
@@ -142,21 +153,7 @@ public class UIKeyframeEditor extends UITimelinePanel implements mchorse.bbs_mod
 
     private void updateParameters()
     {
-        Keyframe selected = this.view.getGraph().getSelected();
-        if (this.parameters != null && this.parameters.isFor(selected) && this.editor != null
-            && this.parameters.getParent() == this.editor.scroll)
-        {
-            this.parameters.update();
-            return;
-        }
-        if (this.parameters != null) this.parameters.removeFromParent();
-        this.parameters = null;
-        if (this.editor != null && selected != null)
-        {
-            this.parameters = new UIKeyframeParameters(selected, this.view);
-            this.editor.scroll.prepend(this.parameters);
-        }
-        if (this.editor != null) this.editor.scroll.invalidateLayout();
+        if (this.editor != null) this.editor.parameters.setKeyframe(this.view.getGraph().getSelected());
     }
 
     public void setChannel(KeyframeChannel channel, int color)
@@ -169,7 +166,6 @@ public class UIKeyframeEditor extends UITimelinePanel implements mchorse.bbs_mod
         this.view.removeAllSheets();
         UIKeyframeSheet sheet = new UIKeyframeSheet(color, channel, null);
         this.view.addSheet(sheet);
-        this.view.selectTrack(sheet);
     }
 
     public void setClip(KeyframeClip clip)
@@ -371,6 +367,12 @@ public class UIKeyframeEditor extends UITimelinePanel implements mchorse.bbs_mod
         state.extra = data.getMap("extra");
 
         this.view.applyState(state);
+
+        /* Restore after applyState has selected the track and rebuilt its properties panel. */
+        if (this.editor instanceof UIPoseKeyframeFactory pose && data.has("bones"))
+        {
+            pose.poseEditor.restoreSelection(DataStorageUtils.stringListFromData(data.get("bones")));
+        }
     }
 
     @Override
@@ -380,5 +382,10 @@ public class UIKeyframeEditor extends UITimelinePanel implements mchorse.bbs_mod
 
         KeyframeState keyframeState = this.view.cacheState();
         data.put("extra", keyframeState.extra);
+
+        if (this.editor instanceof UIPoseKeyframeFactory pose)
+        {
+            data.put("bones", DataStorageUtils.stringListToData(pose.poseEditor.groups.list.getCurrent()));
+        }
     }
 }

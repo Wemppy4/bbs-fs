@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.utility.audio;
 
 import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.BBSModClient;
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.audio.SoundManager;
 import mchorse.bbs_mod.audio.SoundPlayer;
 import mchorse.bbs_mod.l10n.keys.IKey;
@@ -20,12 +19,11 @@ import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 public class UIAudioEditorPanel extends UIEditorDashboardPanel
 {
-    /** Under which key the sounds opened here are kept in the settings. */
-    private static final String RECENT = "audio";
-
     public UIIcon pickAudio;
     public UIIcon plause;
     public UIIcon saveColors;
@@ -106,7 +104,6 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
 
         if (link != null)
         {
-            BBSSettings.recentData.touch(RECENT, link.toString());
             Onboarding.dataOpened(this);
         }
     }
@@ -126,18 +123,12 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
         sounds.deleteSound(audio);
     }
 
-    /* ILandingHost — the empty tab shows the sounds opened last */
+    /* ILandingHost — the empty tab shows every sound, the last changed first */
 
     @Override
     public IKey getTitle()
     {
         return UIKeys.AUDIO_TITLE;
-    }
-
-    @Override
-    public String getRecentType()
-    {
-        return RECENT;
     }
 
     @Override
@@ -169,11 +160,20 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
 
     /**
      * Sounds live in files rather than in a repository, so the answer is here right away: whatever
-     * the picker offers is what the landing screen keeps in its list.
+     * the picker offers is what the landing screen lists.
      */
     @Override
     public void requestNames()
     {
-        this.fillNames(UISoundOverlayPanel.getSoundEvents());
+        Map<String, Long> names = new HashMap<>();
+
+        for (String id : UISoundOverlayPanel.getSoundEvents())
+        {
+            File file = BBSMod.getProvider().getFile(Link.create(id));
+
+            names.put(id, file == null ? 0L : file.lastModified());
+        }
+
+        this.fillNames(names);
     }
 }
