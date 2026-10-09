@@ -2,6 +2,7 @@ package mchorse.bbs_mod.forms.renderers;
 
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.fonts.FontManager;
+import mchorse.bbs_mod.fonts.NativeTrueTypeFontRenderer;
 import mchorse.bbs_mod.forms.forms.LabelForm;
 import mchorse.bbs_mod.forge.studio.NativeTextureRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -59,9 +60,13 @@ public class LabelFormRenderer extends NativeGeometryFormRenderer<LabelForm>
         int left=(int)Math.floor(Math.min(x-padding,x+form.shadowX.get())),top=(int)Math.floor(Math.min(y-padding,y+form.shadowY.get()));
         int right=(int)Math.ceil(Math.max(x+w+padding,x+w+form.shadowX.get()+2)),bottom=(int)Math.ceil(Math.max(y+h+padding,y+h+form.shadowY.get()+2));
         int width=Math.max(2,Math.min(4096,right-left)),height=Math.max(2,Math.min(4096,bottom-top));
+        /* A TrueType face is rasterised finer than its text units. At one buffer pixel per unit,
+         * nearest sampling keeps only the stems its samples happen to hit; at the raster's own
+         * density the buffer holds the glyphs whole, and the world samples them as modern does. */
+        int density=density(font,width,height);
         /* Rendering text to a transient transparent buffer preserves texture-alpha picking, even
          * for native font providers which intentionally select fixed-function GL internally. */
-        try(NativeOffscreen off=new NativeOffscreen(width,height,left,left+width,top+height,top))
+        try(NativeOffscreen off=new NativeOffscreen(width*density,height*density,left,left+width,top+height,top))
         {
             GL20.glUseProgram(0);GlStateManager.disableLighting();GlStateManager.disableCull();
             net.minecraft.client.Minecraft.getMinecraft().entityRenderer.disableLightmap();
@@ -95,6 +100,12 @@ public class LabelFormRenderer extends NativeGeometryFormRenderer<LabelForm>
             }
             finally{context.stack.pop();}
         }
+    }
+    private static int density(FontRenderer font,int width,int height)
+    {
+        net.minecraft.client.gui.FontRenderer renderer=font.getRenderer();
+        int oversample=renderer instanceof NativeTrueTypeFontRenderer?((NativeTrueTypeFontRenderer)renderer).getOversample():1;
+        return Math.max(1,Math.min(oversample,4096/Math.max(width,height)));
     }
     private void drawLines(FontRenderer font,List<String> lines,int x,int y,int w,int color,float dx,float dy,float z)
     {
