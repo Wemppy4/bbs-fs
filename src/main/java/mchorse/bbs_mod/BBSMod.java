@@ -92,8 +92,10 @@ import mchorse.bbs_mod.settings.SettingsBuilder;
 import mchorse.bbs_mod.settings.SettingsManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.ClipFactory;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.factory.MapFactory;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -388,12 +390,27 @@ public class BBSMod implements ModInitializer
         return films;
     }
 
-    public static ClipFactory getFactoryCameraClips()
+    /**
+     * These two keep the type they had before the palette got columns: an addon compiled against
+     * them looks the method up by its full signature, so a narrower return type is a crash on
+     * load, not a harmless refinement. The palette asks for the factory itself below.
+     */
+    public static MapFactory<Clip, ClipFactoryData> getFactoryCameraClips()
     {
         return factoryCameraClips;
     }
 
-    public static ClipFactory getFactoryActionClips()
+    public static MapFactory<Clip, ClipFactoryData> getFactoryActionClips()
+    {
+        return factoryActionClips;
+    }
+
+    public static ClipFactory getCameraClipPalette()
+    {
+        return factoryCameraClips;
+    }
+
+    public static ClipFactory getActionClipPalette()
     {
         return factoryActionClips;
     }
