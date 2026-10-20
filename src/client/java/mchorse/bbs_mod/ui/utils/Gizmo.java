@@ -491,7 +491,9 @@ public class Gizmo
 
             /* The sphere projects in the viewport's NDC; the viewport is oversized and offset so
              * the rectangle's slice of it lands on the mask (GUI y runs down, GL y runs up). */
-            GL11.glViewport(
+            /* Keep Minecraft/Sodium's viewport cache in sync with the mask pass,
+             * otherwise restoring the UI viewport can be skipped as redundant. */
+            RenderSystem.viewport(
                 Math.round(-(rectX - area.x) * scaleX),
                 Math.round(-(area.ey() - rectY - rh) * scaleY),
                 Math.round(area.w * scaleX),
@@ -791,17 +793,7 @@ public class Gizmo
     {
         float opacity = BBSSettings.gizmoOpacity.get();
 
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
-
-        GL11.glDepthRange(1D, 1D);
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
-        RenderSystem.colorMask(false, false, false, false);
-        this.drawAxes(stack);
-
-        GL11.glDepthRange(0D, 1D);
-        RenderSystem.colorMask(true, true, true, true);
-        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        this.prepareHandleDepth(stack);
 
         /* The gizmo opacity rides on the shader colour's alpha, which the
          * position_color program multiplies into every vertex — so blend must be
@@ -819,6 +811,23 @@ public class Gizmo
         RenderSystem.depthMask(true);
 
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+    }
+
+    /** Resets scene depth only under the handles, then lets both colour and picking
+     *  resolve overlapping handles by the same depth test. */
+    private void prepareHandleDepth(MatrixStack stack)
+    {
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(true);
+
+        GL11.glDepthRange(1D, 1D);
+        RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        RenderSystem.colorMask(false, false, false, false);
+        this.drawAxes(stack);
+
+        GL11.glDepthRange(0D, 1D);
+        RenderSystem.colorMask(true, true, true, true);
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
     }
 
@@ -1489,7 +1498,11 @@ public class Gizmo
     {
         Layout layout = new Layout();
 
-        RenderSystem.disableDepthTest();
+        /* Picking must choose the visible front handle at ring intersections, rather
+         * than whichever handle happens to be drawn last. IDs must stay opaque too. */
+        this.prepareHandleDepth(stack);
+        RenderSystem.disableBlend();
+        RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
 
         if (layout.showRotate)
         {
