@@ -21,7 +21,7 @@ import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
 
-import java.nio.FloatBuffer;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,7 +33,7 @@ public class StencilFormFramebuffer
     private Map<Integer, Pair<Form, String>> indexMap = new HashMap<>();
 
     /** Reused readback buffer for the tolerance region pick (grows as needed). */
-    private FloatBuffer pickBuffer;
+    private ByteBuffer pickBuffer;
 
     public Framebuffer getFramebuffer()
     {
@@ -175,17 +175,18 @@ public class StencilFormFramebuffer
     {
         try (MemoryStack stack = MemoryStack.stackPush())
         {
-            FloatBuffer floats = stack.mallocFloat(4);
+            ByteBuffer pixels = stack.malloc(4);
 
-            GL11.glReadPixels(x, y, 1, 1, GL11.GL_RGBA, GL11.GL_FLOAT, floats);
+            GL11.glReadPixels(x, y, 1, 1, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixels);
 
-            /* TODO: make other channels work */
-            int r = (int) (floats.get() * 255F);
-            int g = (int) (floats.get() * 255F);
-            int b = (int) (floats.get() * 255F);
-            int a = (int) (floats.get() * 255F);
+            /* IDs are stored as bytes. Float readback followed by truncation can
+             * turn an axis ID into the preceding one through rounding error. */
+            int r = pixels.get() & 0xFF;
+            int g = pixels.get() & 0xFF;
+            int b = pixels.get() & 0xFF;
+            int a = pixels.get() & 0xFF;
 
-            this.index = a < 1F ? 0 : r | (g << 8) | (b << 16);
+            this.index = a == 0 ? 0 : r | (g << 8) | (b << 16);
         }
     }
 
@@ -228,13 +229,13 @@ public class StencilFormFramebuffer
          * LWJGL frame stack holds, so read into a cached heap buffer instead. */
         if (this.pickBuffer == null || this.pickBuffer.capacity() < needed)
         {
-            this.pickBuffer = BufferUtils.createFloatBuffer(needed);
+            this.pickBuffer = BufferUtils.createByteBuffer(needed);
         }
 
-        FloatBuffer floats = this.pickBuffer;
+        ByteBuffer pixels = this.pickBuffer;
 
-        floats.clear();
-        GL11.glReadPixels(x0, y0, w, h, GL11.GL_RGBA, GL11.GL_FLOAT, floats);
+        pixels.clear();
+        GL11.glReadPixels(x0, y0, w, h, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixels);
 
         {
             int centerId = 0;
@@ -248,14 +249,14 @@ public class StencilFormFramebuffer
                 {
                     int base = (py * w + px) * 4;
 
-                    if ((int) (floats.get(base + 3) * 255F) < 1)
+                    if ((pixels.get(base + 3) & 0xFF) == 0)
                     {
                         continue;
                     }
 
-                    int id = (int) (floats.get(base) * 255F)
-                        | ((int) (floats.get(base + 1) * 255F) << 8)
-                        | ((int) (floats.get(base + 2) * 255F) << 16);
+                    int id = (pixels.get(base) & 0xFF)
+                        | ((pixels.get(base + 1) & 0xFF) << 8)
+                        | ((pixels.get(base + 2) & 0xFF) << 16);
                     int fx = x0 + px;
                     int fy = y0 + py;
 
