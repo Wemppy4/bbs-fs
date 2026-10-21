@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.dashboard.panels.tabs;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
@@ -93,5 +94,20 @@ public class UIDataTabs extends UITabStrip
 
         this.resize();
         this.scroll.setScroll(scrollPos);
+    }
+
+    /** A tab on show beside the current one is open below the strip too, so it melts into the content alike. */
+    @Override
+    protected void preRender(UIContext context)
+    {
+        for (int i = 0; i < this.getTabCount(); i++)
+        {
+            if (this.host.isSideTab(i))
+            {
+                this.getTab(i).area.render(context.batcher, BBSSettings.baseSurface());
+            }
+        }
+
+        super.preRender(context);
     }
 }

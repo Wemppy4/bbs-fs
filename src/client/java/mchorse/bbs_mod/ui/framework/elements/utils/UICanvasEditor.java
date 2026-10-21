@@ -54,6 +54,18 @@ public abstract class UICanvasEditor extends UICanvas
         this.scaleY.setZoom(min);
     }
 
+    /** Put the middle of the frame in the middle of the canvas, at the zoom it has now. */
+    public void centerView()
+    {
+        int x = -this.w / 2;
+        int y = -this.h / 2;
+
+        this.scaleX.anchor(0.5F);
+        this.scaleX.setShift(x + this.w / 2D);
+        this.scaleY.anchor(0.5F);
+        this.scaleY.setShift(y + this.h / 2D);
+    }
+
     public Vector2i getHoverPixel(int x, int y)
     {
         return new Vector2i(

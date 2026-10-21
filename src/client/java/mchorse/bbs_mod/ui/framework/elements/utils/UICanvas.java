@@ -39,6 +39,25 @@ public abstract class UICanvas extends UIElement
         return (int) Math.round(this.scaleY.to(y));
     }
 
+    /**
+     * Anchor the view on the middle of the canvas, keeping what is on show, so that the canvas
+     * changing size keeps the same thing in its middle — a wheel zoom leaves it anchored on the
+     * corner, where a resize would carry the picture off to the side.
+     */
+    public void anchorToMiddle()
+    {
+        this.anchorToMiddle(this.scaleX);
+        this.anchorToMiddle(this.scaleY);
+    }
+
+    private void anchorToMiddle(Scale scale)
+    {
+        double middle = scale.from(scale.direction.getPosition(scale.area, 0.5F));
+
+        scale.anchor(0.5F);
+        scale.setShift(middle);
+    }
+
     @Override
     public boolean subMouseClicked(UIContext context)
     {

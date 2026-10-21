@@ -57,6 +57,7 @@ public class UIDataTabElement extends UIClickable<UIDataTabElement>
 
         this.context((menu) ->
         {
+            this.host.fillTabMenu(menu, this.index);
             menu.action(Icons.CLOSE, UIKeys.PANELS_TABS_CONTEXT_CLOSE_OTHERS, () -> this.host.closeOtherTabs(this.index));
             menu.action(Icons.ARROW_LEFT, UIKeys.PANELS_TABS_CONTEXT_CLOSE_LEFT, () -> this.host.closeTabsLeft(this.index));
             menu.action(Icons.ARROW_RIGHT, UIKeys.PANELS_TABS_CONTEXT_CLOSE_RIGHT, () -> this.host.closeTabsRight(this.index));
@@ -104,6 +105,12 @@ public class UIDataTabElement extends UIClickable<UIDataTabElement>
     {
         boolean active = this.index == this.host.getCurrentTab();
         boolean hover = this.hover;
+
+        /* On show too, but not the one worked on: the pick's wash without its bar */
+        if (!active && this.host.isSideTab(this.index))
+        {
+            RowStyle.carried(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h);
+        }
 
         RowStyle.row(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h, 0, false, hover, active);
 

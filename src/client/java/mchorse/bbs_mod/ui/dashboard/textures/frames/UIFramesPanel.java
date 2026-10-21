@@ -29,7 +29,7 @@ import java.util.List;
 /**
  * The strip under the canvas of an animated texture: a transport bar — play, step, the counter,
  * the duration of the picked frames, a new frame — over the {@link UIFrameStrip row of frames}.
- * One per painter, pointed at whichever editor is on show, the way the layers panel is.
+ * One per pane of the painter, pointed at whichever editor that pane shows.
  *
  * <p>Playing runs on the client's ticks, the same clock the game plays the texture by, and stops
  * the moment the user picks a frame by hand.</p>

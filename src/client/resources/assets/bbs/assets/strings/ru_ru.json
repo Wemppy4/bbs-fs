@@ -2451,6 +2451,8 @@
 	"bbs.ui.textures.resize-title": "Изменить размер текстуры",
 	"bbs.ui.textures.resize-stretch": "Растянуть рисунок под новый размер (выкл — обрезать холст, пиксели останутся на месте)",
 	"bbs.ui.textures.grid": "Сетка",
+	"bbs.ui.textures.open_right": "Открыть справа",
+	"bbs.ui.textures.unsplit": "Убрать разделение",
 	"bbs.ui.textures.grid-step": "Шаг сетки",
 	"bbs.ui.textures.grid-step-tooltip": "Через сколько пикселей идёт жирная линия. Тонкие линии между пикселями появляются сами при приближении",
 	"bbs.ui.textures.save": "Укажите путь к текстуре в текстовом поле ниже:",

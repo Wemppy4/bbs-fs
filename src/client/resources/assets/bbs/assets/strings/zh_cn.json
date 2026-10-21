@@ -2014,6 +2014,8 @@
     "bbs.ui.textures.resize-title": "调整纹理尺寸",
     "bbs.ui.textures.resize-stretch": "将图像拉伸到新尺寸（关闭：裁剪画布，像素保持原位）",
     "bbs.ui.textures.grid": "网格",
+    "bbs.ui.textures.open_right": "在右侧打开",
+    "bbs.ui.textures.unsplit": "取消分屏",
     "bbs.ui.textures.grid-step": "网格间距",
     "bbs.ui.textures.grid-step-tooltip": "每隔多少像素画一条粗线。放大时像素之间的细线会自动出现",
     "bbs.ui.textures.save": "在下面的文本框中指定纹理的路径：",

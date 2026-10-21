@@ -1720,6 +1720,8 @@ public class UIKeys
     public static final IKey TEXTURES_RESIZE_TITLE = L10n.lang("bbs.ui.textures.resize-title");
     public static final IKey TEXTURES_RESIZE_STRETCH = L10n.lang("bbs.ui.textures.resize-stretch");
     public static final IKey TEXTURES_GRID = L10n.lang("bbs.ui.textures.grid");
+    public static final IKey TEXTURES_OPEN_RIGHT = L10n.lang("bbs.ui.textures.open_right");
+    public static final IKey TEXTURES_UNSPLIT = L10n.lang("bbs.ui.textures.unsplit");
     public static final IKey TEXTURES_GRID_STEP = L10n.lang("bbs.ui.textures.grid-step");
     public static final IKey TEXTURES_GRID_STEP_TOOLTIP = L10n.lang("bbs.ui.textures.grid-step-tooltip");
     public static final IKey TEXTURES_SAVE = L10n.lang("bbs.ui.textures.save");

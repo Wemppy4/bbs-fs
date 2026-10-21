@@ -2463,6 +2463,8 @@
 	"bbs.ui.textures.resize-title": "Resize texture",
 	"bbs.ui.textures.resize-stretch": "Stretch the picture to the new size (off: crop the canvas, the pixels stay where they are)",
 	"bbs.ui.textures.grid": "Grid",
+	"bbs.ui.textures.open_right": "Open on the right",
+	"bbs.ui.textures.unsplit": "Unsplit",
 	"bbs.ui.textures.grid-step": "Grid step",
 	"bbs.ui.textures.grid-step-tooltip": "Every how many pixels a bold line goes. The fine lines between pixels show up by themselves when zoomed in",
 	"bbs.ui.textures.save": "Specify the path to the texture in the textbox below:",
