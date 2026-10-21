@@ -439,6 +439,7 @@
 	"bbs.config.personalization.interface_highlights-comment": "Highlight edges along the top and left of controls.",
 	"bbs.config.personalization.interface_glow": "Glow",
 	"bbs.config.personalization.interface_glow-comment": "Glow around panels, menus, notices, and the active clip.",
+	"bbs.config.personalization.presets.default": "BBS (default)",
 	"bbs.config.timeline.track_width": "Keyframe track thickness",
 	"bbs.config.timeline.track_width-comment": "The thickness of the keyframe track strip in the dope sheet view",
 	"bbs.config.timeline.keyframe_default_style": "Default keyframe appearance",

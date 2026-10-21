@@ -40,6 +40,31 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
 {
     private static final int SIDE_WIDTH = 130;
 
+    /**
+     * Coding themes as the two colours the interface is built from: the accent
+     * and the background (the whole surface ladder falls out of the latter, see
+     * {@link BBSSettings}). Light themes take their second background shade,
+     * since the ladder climbs above the base colour and pure white leaves it no
+     * room for the raised surfaces and the divider.
+     */
+    private static final List<ThemePreset> THEME_PRESETS = List.of(
+        new ThemePreset("VS Code Dark+", 0x007acc, 0x1e1e1e),
+        new ThemePreset("Monokai", 0xf92672, 0x272822),
+        new ThemePreset("Dracula", 0xbd93f9, 0x282a36),
+        new ThemePreset("One Dark", 0x61afef, 0x282c34),
+        new ThemePreset("Nord", 0x88c0d0, 0x2e3440),
+        new ThemePreset("Gruvbox", 0xfe8019, 0x282828),
+        new ThemePreset("Tokyo Night", 0x7aa2f7, 0x1a1b26),
+        new ThemePreset("Catppuccin Mocha", 0xcba6f7, 0x1e1e2e),
+        new ThemePreset("Rosé Pine", 0xebbcba, 0x191724),
+        new ThemePreset("Ayu Dark", 0xe6b450, 0x0b0e14),
+        new ThemePreset("Everforest", 0xa7c080, 0x2d353b),
+        new ThemePreset("GitHub Dark", 0x2f81f7, 0x0d1117),
+        new ThemePreset("Solarized Dark", 0x268bd2, 0x002b36),
+        new ThemePreset("Solarized Light", 0x268bd2, 0xeee8d5),
+        new ThemePreset("GitHub Light", 0x0969da, 0xeaeef2)
+    );
+
     public UITextbox search;
     public UIScrollView sections;
     public UIScrollView options;
@@ -231,6 +256,29 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_4K, () -> this.applyVideoPreset(3840, 2160));
     }
 
+    /**
+     * A theme only promises the interface colours - the viewport's selection
+     * highlight and the panel effects stay the user's own.
+     */
+    public void applyThemePreset(int primary, int secondary)
+    {
+        BBSSettings.primaryColor.set(primary);
+        BBSSettings.secondaryColor.set(secondary);
+
+        this.refresh();
+    }
+
+    public void addThemePresets(ContextMenuManager menu)
+    {
+        menu.action(Icons.BUCKET, UIKeys.CONFIG_PERSONALIZATION_PRESET_DEFAULT, () -> this.applyThemePreset(
+            BBSSettings.primaryColor.getDefaultValue(), BBSSettings.secondaryColor.getDefaultValue()));
+
+        for (ThemePreset preset : THEME_PRESETS)
+        {
+            menu.action(Icons.BUCKET, IKey.constant(preset.name()), preset.primary(), () -> this.applyThemePreset(preset.primary(), preset.secondary()));
+        }
+    }
+
     private void appendValues(ValueGroup category, boolean filtered)
     {
         Set<BaseValue> drawn = new HashSet<>();
@@ -376,6 +424,9 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         context.batcher.box(x, y, x + SIDE_WIDTH, ey, BBSSettings.chromeSurface());
     }
 
+    private record ThemePreset(String name, int primary, int secondary)
+    {}
+
     /**
      * A clickable section row in the left list — icon plus localized title, wearing the marks
      * every row wears: see {@link RowStyle}.
@@ -442,6 +493,15 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
             if (category.getId().equals("video"))
             {
                 UIIcon presets = new UIIcon(Icons.FILM, (b) -> b.getContext().replaceContextMenu(panel::addVideoPresets));
+
+                presets.tooltip(UIKeys.GENERAL_PRESETS);
+                presets.wh(16, 16);
+                presets.relative(this).x(1F, -4).y(0.5F, -1).anchor(1F, 0.5F);
+                this.add(presets);
+            }
+            else if (category.getId().equals("personalization"))
+            {
+                UIIcon presets = new UIIcon(Icons.BUCKET, (b) -> b.getContext().replaceContextMenu(panel::addThemePresets));
 
                 presets.tooltip(UIKeys.GENERAL_PRESETS);
                 presets.wh(16, 16);

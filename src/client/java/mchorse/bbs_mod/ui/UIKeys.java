@@ -1868,6 +1868,7 @@ public class UIKeys
 
     public static final IKey CONFIG_GIZMO_ELEMENTS = L10n.lang("bbs.config.transformation.gizmo_elements");
     public static final IKey CONFIG_KEYFRAME_STYLE_EDIT = L10n.lang("bbs.config.timeline.keyframe_default_style.edit");
+    public static final IKey CONFIG_PERSONALIZATION_PRESET_DEFAULT = L10n.lang("bbs.config.personalization.presets.default");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_EXPORT = L10n.lang("bbs.config.viewport.preview_size_mode.export");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_CUSTOM = L10n.lang("bbs.config.viewport.preview_size_mode.custom");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_AUTO = L10n.lang("bbs.config.viewport.preview_size_mode.auto");

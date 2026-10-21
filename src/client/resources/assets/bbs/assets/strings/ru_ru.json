@@ -437,6 +437,7 @@
 	"bbs.config.personalization.interface_highlights-comment": "Подсветка верхнего и левого края элементов.",
 	"bbs.config.personalization.interface_glow": "Свечение",
 	"bbs.config.personalization.interface_glow-comment": "Свечение панелей, меню, уведомлений и клипа.",
+	"bbs.config.personalization.presets.default": "BBS (по умолчанию)",
 	"bbs.config.timeline.track_width": "Толщина дорожки",
 	"bbs.config.timeline.track_width-comment": "Толщина полоски дорожки кейфреймов",
 	"bbs.config.timeline.keyframe_default_style": "Оформление кейфрейма по умолчанию",
