@@ -16,7 +16,6 @@ import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
@@ -45,7 +44,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
-import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITextTab;
@@ -73,9 +71,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
@@ -190,10 +186,6 @@ public class UIModelConfigEditor extends UIElement
     private UIWeldList weldList;
     private UIIcon dupeWeld;
     private UIIcon removeWeld;
-
-    /** The picked weld's pair a pick fills in, see {@link #activePair}, and the weld it's of. */
-    private int activePair = -1;
-    private WeldValue activePairWeld;
 
     /** The cube a list's row had the cursor on last frame, outlined in the preview. */
     private ModelNode listedCube;
@@ -447,8 +439,7 @@ public class UIModelConfigEditor extends UIElement
         this.removeWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_REMOVE);
 
         /* Under it the picked weld, in the general page's folding sections: what's welded to what,
-         * which cubes of it, how the joint bends. The pairs' title says how the model is clicked,
-         * since nothing on screen does. */
+         * which cubes of it, how the joint bends. */
         UISection bones = this.section(UIKeys.MODEL_EDITOR_WELD_BONES, true);
         UISection pairs = this.section(UIKeys.MODEL_EDITOR_WELD_PAIRS, true);
         UISection bend = this.section(UIKeys.MODEL_EDITOR_WELD_BEND, true);
@@ -459,7 +450,6 @@ public class UIModelConfigEditor extends UIElement
         this.weldBend = this.body();
         bones.fields.add(this.weldBones);
         pairs.fields.add(this.weldPairs);
-        pairs.title.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_TOOLTIP);
         bend.fields.add(this.weldBend);
         this.page(Tab.WELDS).add(UI.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldIssue, bones, pairs, bend);
 
@@ -1471,8 +1461,7 @@ public class UIModelConfigEditor extends UIElement
 
     /**
      * The pairs of the weld: the add icon over them, the weld list's idiom, then a row per pair — or,
-     * with none, what the weld does then. The picked pair is the one a pick fills in; it's read live
-     * by its row, so picking another one needs no refill.
+     * with none, what the weld does then.
      */
     private void fillPairs(WeldValue weld)
     {
@@ -1493,30 +1482,17 @@ public class UIModelConfigEditor extends UIElement
 
         for (int i = 0; i < pairs.size(); i++)
         {
-            this.weldPairs.add(new UIPairRow(weld, i));
+            this.weldPairs.add(this.pairRow(weld, i));
         }
     }
 
-    /** The pair a pick fills in, of {@code weld}; -1 for none — a pick of another weld drops it. */
-    private int activePair(WeldValue weld)
-    {
-        return weld != null && weld == this.activePairWeld && this.activePair < weld.pairs.get().size() ? this.activePair : -1;
-    }
-
-    private void setActivePair(WeldValue weld, int index)
-    {
-        this.activePairWeld = weld;
-        this.activePair = index;
-    }
-
-    /** A new pair with no cubes yet, picked, so the next picks fill it in. */
+    /** A new pair with no cubes yet; its buttons pick them. */
     private void addPair(WeldValue weld)
     {
         List<ModelWeld.Pair> pairs = new ArrayList<>(weld.pairs.get());
 
         pairs.add(new ModelWeld.Pair(ModelWeld.Pair.NONE, ModelWeld.Pair.NONE));
         weld.pairs.set(pairs);
-        this.setActivePair(weld, pairs.size() - 1);
         this.refreshWelds();
     }
 
@@ -1526,13 +1502,12 @@ public class UIModelConfigEditor extends UIElement
 
         pairs.remove(index);
         weld.pairs.set(pairs);
-        this.setActivePair(weld, -1);
         this.refreshWelds();
     }
 
     /**
-     * Put {@code cube} on one side of pair {@code index}, and pick the pair. A cube welds once per
-     * face, so a pair that held it on that side already lets it go and waits for another.
+     * Put {@code cube} on one side of pair {@code index}. A cube welds once per face, so a pair that
+     * held it on that side already lets it go and waits for another.
      */
     private void setPairCube(WeldValue weld, int index, boolean source, int cube)
     {
@@ -1548,7 +1523,6 @@ public class UIModelConfigEditor extends UIElement
 
         pairs.set(index, pairs.get(index).with(source, cube));
         weld.pairs.set(pairs);
-        this.setActivePair(weld, index);
         this.refreshWelds();
     }
 
@@ -1658,13 +1632,12 @@ public class UIModelConfigEditor extends UIElement
         cubes.sort((a, b) -> Float.compare(distances.get(a), distances.get(b)));
 
         int current = weld.pairs.get().get(index).side(source);
-        UICubePickerContextMenu menu = new UICubePickerContextMenu(null, (node) -> cubeName(group, node.cube()), (node) -> this.setPairCube(weld, index, source, node.cube()));
+        UICubePickerContextMenu menu = new UICubePickerContextMenu((node) -> cubeName(group, node.cube()), (node) -> this.setPairCube(weld, index, source, node.cube()));
 
         menu.cubes(cubes).set(current < 0 ? null : ModelNode.cube(group.id, current)).hover(this::listCube);
 
         if (!menu.isEmpty())
         {
-            this.setActivePair(weld, index);
             this.getContext().replaceContextMenu(menu);
         }
     }
@@ -1677,8 +1650,9 @@ public class UIModelConfigEditor extends UIElement
 
     /**
      * What the preview outlines while this editor is up, on the welds page: the cubes of the picked
-     * weld's pairs in the accent, the picked pair's white over them, and last the cube a list's row
-     * points at. Asked once a frame, so the row's cube goes out the moment the cursor leaves it.
+     * weld's pairs in the accent, so what's welded is seen without asking, and over them the cube a
+     * list's row points at. Asked once a frame, so the row's cube goes out the moment the cursor
+     * leaves it.
      */
     public List<UIModelEditorRenderer.Outline> outlines()
     {
@@ -1693,21 +1667,11 @@ public class UIModelConfigEditor extends UIElement
             return outlines;
         }
 
-        List<ModelWeld.Pair> pairs = weld.pairs.get();
-        int active = this.activePair(weld);
         int accent = Colors.A100 | BBSSettings.primaryColor.get();
 
-        for (int i = 0; i < pairs.size(); i++)
+        for (ModelWeld.Pair pair : weld.pairs.get())
         {
-            if (i != active)
-            {
-                this.outlinePair(weld, pairs.get(i), accent, outlines);
-            }
-        }
-
-        if (active >= 0)
-        {
-            this.outlinePair(weld, pairs.get(active), Colors.A100 | Colors.WHITE, outlines);
+            this.outlinePair(weld, pair, accent, outlines);
         }
 
         if (listed != null)
@@ -1731,98 +1695,27 @@ public class UIModelConfigEditor extends UIElement
         }
     }
 
-    /** Whether a click on {@code bone} names a cube of it: on the welds page, for the picked weld's two bones. */
-    public boolean picksCubes(String bone)
-    {
-        WeldValue weld = this.data == null ? null : this.weldList.getCurrentFirst();
-
-        return lastTab == Tab.WELDS && weld != null && (bone.equals(weld.sourceBone.get()) || bone.equals(weld.targetBone.get()));
-    }
-
     /**
-     * A click on the model: on the welds page a cube of the picked weld (see {@link #pickWeldCube}),
-     * or with alt held a menu of every cube of its two bones under the cursor — the one way to the
-     * base layer under a jacket — and elsewhere a bone, see {@link #selectBone}. Whether the click
-     * was taken.
+     * One pair: the source's cube and the target's, each a button — the bone picker's plain one —
+     * with its cube's name, or what to do while none is picked, that opens its bone's cubes; then
+     * the pair's remove. A cube that can't weld is the issue line's to say.
      */
-    public boolean selectPick(String bone, int cube)
+    private UIElement pairRow(WeldValue weld, int index)
     {
-        if (lastTab != Tab.WELDS)
-        {
-            return this.selectBone(bone);
-        }
+        UIIcon remove = new UIIcon(Icons.CLOSE, (b) -> this.removePair(weld, index));
 
-        WeldValue weld = this.data == null ? null : this.weldList.getCurrentFirst();
+        remove.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_REMOVE);
+        remove.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
 
-        if (weld != null && Window.isAltPressed())
-        {
-            return this.openCubesAt(weld);
-        }
-
-        return weld != null && cube >= 0 && this.picksCubes(bone) && this.pickWeldCube(weld, bone, cube);
+        return UI.row(this.pairCube(weld, index, true), this.pairCube(weld, index, false), remove);
     }
 
-    /** The menu of the weld's cubes under the cursor, nearest first; whether there were any. */
-    private boolean openCubesAt(WeldValue weld)
+    private UIButton pairCube(WeldValue weld, int index, boolean source)
     {
-        Set<String> bones = new LinkedHashSet<>(List.of(weld.sourceBone.get(), weld.targetBone.get()));
-        List<ModelNode> cubes = this.modelPanel.renderer.cubesAt(this.getContext(), bones);
+        int cube = weld.pairs.get().get(index).side(source);
+        IKey label = cube < 0 ? UIKeys.MODEL_EDITOR_WELD_PAIRS_PICK_CUBE : IKey.raw(cubeName(this.weldGroup(weld, source), cube));
 
-        if (cubes.isEmpty())
-        {
-            return false;
-        }
-
-        UICubePickerContextMenu menu = new UICubePickerContextMenu(UIKeys.MODEL_EDITOR_WELD_PAIRS_UNDER_CURSOR, (node) ->
-        {
-            Model model = this.instance() != null && this.instance().getModel() instanceof Model cubic ? cubic : null;
-
-            return cubeName(model == null ? null : model.getGroup(node.group()), node.cube());
-        }, (node) -> this.pickWeldCube(weld, node.group(), node.cube()));
-
-        this.getContext().replaceContextMenu(menu.cubes(cubes).hover(this::listCube));
-
-        return true;
-    }
-
-    /**
-     * A cube of the picked weld, clicked: with a pair picked it becomes that pair's cube on its
-     * bone's side, without one it picks the pair it's in. Whether it did either.
-     */
-    private boolean pickWeldCube(WeldValue weld, String bone, int cube)
-    {
-        boolean source = bone.equals(weld.sourceBone.get());
-        int active = this.activePair(weld);
-
-        if (active >= 0)
-        {
-            this.setPairCube(weld, active, source, cube);
-
-            return true;
-        }
-
-        List<ModelWeld.Pair> pairs = weld.pairs.get();
-
-        for (int i = 0; i < pairs.size(); i++)
-        {
-            if (pairs.get(i).side(source) == cube)
-            {
-                this.setActivePair(weld, i);
-
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /** A click off the model lets go of the picked pair. */
-    public void missPick()
-    {
-        if (lastTab == Tab.WELDS)
-        {
-            this.setActivePair(null, -1);
-        }
+        return new UIButton(label, (b) -> this.openCubes(weld, index, source));
     }
 
     /** "No pairs": what a weld does without them, on the sunken strip a list would stand on. */
@@ -1841,58 +1734,6 @@ public class UIModelConfigEditor extends UIElement
 
             context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.deepSurface());
             context.batcher.textShadow(label, this.area.x + 4, this.area.my(font.getHeight()), Colors.GRAY);
-
-            super.render(context);
-        }
-    }
-
-    /**
-     * One pair: the source's cube and the target's, each a button that opens its bone's cubes, the
-     * icon between them that picks the pair (or lets it go), and its remove. The picked pair wears
-     * the list pick's mark.
-     */
-    private class UIPairRow extends UIElement
-    {
-        private final WeldValue weld;
-        private final int index;
-
-        private UIPairRow(WeldValue weld, int index)
-        {
-            this.weld = weld;
-            this.index = index;
-
-            UIIcon pick = new UIIcon(Icons.EXCHANGE, (b) -> setActivePair(weld, activePair(weld) == index ? -1 : index));
-            UIIcon remove = new UIIcon(Icons.CLOSE, (b) -> removePair(weld, index));
-
-            pick.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_PICK);
-            pick.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-            remove.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_REMOVE);
-            remove.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-
-            this.h(UIConstants.CONTROL_HEIGHT + 2);
-            this.row(UIConstants.MARGIN).padding(1);
-            this.add(this.cube(true), pick, this.cube(false), remove);
-        }
-
-        /**
-         * A side's button, the bone picker's plain one: its cube's name, or what to do while none is
-         * picked; it opens the bone's cubes. A cube that can't weld is the issue line's to say.
-         */
-        private UIButton cube(boolean source)
-        {
-            int cube = this.weld.pairs.get().get(this.index).side(source);
-            IKey label = cube < 0 ? UIKeys.MODEL_EDITOR_WELD_PAIRS_PICK_CUBE : IKey.raw(cubeName(weldGroup(this.weld, source), cube));
-
-            return new UIButton(label, (b) -> openCubes(this.weld, this.index, source));
-        }
-
-        @Override
-        public void render(UIContext context)
-        {
-            if (activePair(this.weld) == this.index)
-            {
-                RowStyle.row(context.batcher, this.area.x, this.area.y, this.area.w, this.area.h, 0, false, false, true);
-            }
 
             super.render(context);
         }

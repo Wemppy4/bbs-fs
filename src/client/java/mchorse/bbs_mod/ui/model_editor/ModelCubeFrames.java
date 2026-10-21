@@ -9,10 +9,6 @@ import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-
 /**
  * Where a cube of the model stands in the viewport: the frame its group's cubes are drawn in,
  * recovered from the bone matrices the viewport captures, the cube's own frame inside it, and a
@@ -90,21 +86,12 @@ public final class ModelCubeFrames
         return out.set(cube.origin).add(cube.size).add(cube.inflate, cube.inflate, cube.inflate).div(16F);
     }
 
-    /** The cube of {@code group} the ray hits first, or -1 for none; see {@link #hits}. */
-    public static int pick(MatrixCacheEntry entry, ModelGroup group, Vector3f origin, Vector3f direction)
-    {
-        List<Hit> hits = hits(entry, group, origin, direction);
-
-        return hits.isEmpty() ? -1 : hits.get(0).cube();
-    }
-
     /**
-     * Every cube of {@code group} the ray goes through, the nearest first. The ray is given in the
-     * frame the bones were captured in; it is carried into each cube's frame, where the cube is a
-     * plain box, and its direction is left unscaled, so the distances of the hits compare across
-     * cubes — and across groups, for hits of one ray.
+     * The cube of {@code group} the ray hits first, or -1 for none. The ray is given in the frame
+     * the bones were captured in; it is carried into each cube's frame, where the cube is a plain
+     * box, and its direction is left unscaled so the distances of the hits compare across cubes.
      */
-    public static List<Hit> hits(MatrixCacheEntry entry, ModelGroup group, Vector3f origin, Vector3f direction)
+    public static int pick(MatrixCacheEntry entry, ModelGroup group, Vector3f origin, Vector3f direction)
     {
         Matrix4f frame = groupFrame(entry, group);
         Vector3f localOrigin = new Vector3f();
@@ -112,7 +99,8 @@ public final class ModelCubeFrames
         Vector3f min = new Vector3f();
         Vector3f max = new Vector3f();
         Vector2f hit = new Vector2f();
-        List<Hit> hits = new ArrayList<>();
+        int picked = -1;
+        float nearest = Float.MAX_VALUE;
 
         for (int i = 0; i < group.cubes.size(); i++)
         {
@@ -128,16 +116,15 @@ public final class ModelCubeFrames
             }
 
             /* A ray starting inside the box enters it behind its start; that still counts as this cube, at no distance. */
-            hits.add(new Hit(i, Math.max(hit.x, 0F)));
+            float distance = Math.max(hit.x, 0F);
+
+            if (distance < nearest)
+            {
+                nearest = distance;
+                picked = i;
+            }
         }
 
-        /* Stable, so cubes the ray enters at once keep the model's order. */
-        hits.sort(Comparator.comparingDouble(Hit::distance));
-
-        return hits;
+        return picked;
     }
-
-    /** A cube a ray goes through, by its place in its group, and how far along the ray it's entered. */
-    public record Hit(int cube, float distance)
-    {}
 }

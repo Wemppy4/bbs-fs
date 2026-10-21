@@ -54,18 +54,13 @@ import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
-import org.joml.Vector2i;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -104,9 +99,6 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
      */
     private static final float OUTLINE_THICKNESS = 1 / 256F;
 
-    /* How far a press may move and still be a click rather than the start of an orbit, the orbit controllers' slop. */
-    private static final int CLICK_SLOP = 3;
-
     /** A click on the model: the bone, and the cube of it under the cursor (-1 without cube picking); whether the click was taken. */
     @FunctionalInterface
     public interface Pick
@@ -137,14 +129,8 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     /** What the panel wants outlined, asked every frame so its pick stays the truth. */
     private Supplier<List<Outline>> outlines = List::of;
 
-    /** The bones whose cubes a click names and the cursor outlines; null with cube picking off. */
-    private Predicate<String> cubePicking;
-
-    /** A click off the model, told on release so a press that turned into an orbit isn't one. */
-    private Runnable onMiss;
-
-    /** Where a press off the model went down, until its release; null without one. */
-    private Vector2i missPress;
+    /** Whether a click names the cube it landed on, and the cube under the cursor is outlined. */
+    private boolean cubePicking;
 
     /** What a click would pick this frame, when cube picking is on — a cube, or its group with shift held; null off the model. */
     private ModelNode hovered;
@@ -228,23 +214,11 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         return this;
     }
 
-    /**
-     * The bones a click names the cube of, asked as they're clicked and hovered — every bone in the
-     * model editor, the picked weld's two on the config editor's welds page; null for none, and a
-     * click names the bone alone.
-     */
-    public void setCubePicking(Predicate<String> cubePicking)
+    /** Whether a click names the cube it landed on — the model editor's way; the config editor picks bones. */
+    public void setCubePicking(boolean cubePicking)
     {
         this.cubePicking = cubePicking;
         this.hovered = null;
-    }
-
-    /** A click on the preview that lands on no part of the model. */
-    public UIModelEditorRenderer onMiss(Runnable callback)
-    {
-        this.onMiss = callback;
-
-        return this;
     }
 
     /** Light {@code bone} up this frame, the way it lights up under the cursor. */
@@ -363,11 +337,11 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     private boolean pickAt(UIContext context, String bone)
     {
         int cube = -1;
-        Model model = this.cubePicking != null ? this.cubicModel() : null;
+        Model model = this.cubePicking ? this.cubicModel() : null;
         ModelGroup group = model == null ? null : this.hoveredGroup(model);
 
         /* Shift picks the group itself rather than the cube of it under the cursor. */
-        if (group != null && this.cubePicking.test(group.id))
+        if (group != null)
         {
             bone = group.id;
             cube = Window.isShiftPressed() ? -1 : this.pickCube(context, group);
@@ -424,69 +398,17 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
             return -1;
         }
 
-        Vector3f origin = new Vector3f();
-        Vector3f direction = this.cursorRay(context, origin);
-
-        return ModelCubeFrames.pick(entry, group, origin, direction);
-    }
-
-    /**
-     * Every cube of {@code bones} the ray through the cursor goes through, the nearest first —
-     * whatever is drawn in front of them: what a click can't reach, since it takes the nearest.
-     */
-    public List<ModelNode> cubesAt(UIContext context, Collection<String> bones)
-    {
-        Model model = this.cubicModel();
-        List<ModelNode> cubes = new ArrayList<>();
-
-        if (model == null || this.bones == null)
-        {
-            return cubes;
-        }
-
-        Vector3f origin = new Vector3f();
-        Vector3f direction = this.cursorRay(context, origin);
-        Map<ModelNode, Float> distances = new HashMap<>();
-
-        for (String bone : bones)
-        {
-            ModelGroup group = model.getGroup(bone);
-            MatrixCacheEntry entry = group == null ? null : this.boneEntry(bone);
-
-            if (entry == null)
-            {
-                continue;
-            }
-
-            for (ModelCubeFrames.Hit hit : ModelCubeFrames.hits(entry, group, origin, direction))
-            {
-                ModelNode node = ModelNode.cube(bone, hit.cube());
-
-                cubes.add(node);
-                distances.put(node, hit.distance());
-            }
-        }
-
-        cubes.sort((a, b) -> Float.compare(distances.get(a), distances.get(b)));
-
-        return cubes;
-    }
-
-    /**
-     * The ray from the camera through the cursor's pixel, lifted out of the scene into the form's own
-     * frame — the one the bones were captured in (see UIModelRenderer#toSceneMatrix): its start into
-     * {@code origin}, its direction returned.
-     */
-    private Vector3f cursorRay(UIContext context, Vector3f origin)
-    {
+        /* The ray, from the camera through the pixel, then lifted out of the scene into the form's
+         * own frame — the one the bones were captured in (see UIModelRenderer#toSceneMatrix). */
         Vector3f offset = new Vector3f();
         Vector3f direction = CameraUtils.getMouseRay(this.camera.projection, this.camera.view, context.mouseX, context.mouseY, this.area.x, this.area.y, this.area.w, this.area.h, offset);
         Vector3d position = new Vector3d(this.camera.position).add(offset);
         Matrix4f toForm = this.toSceneMatrix(new Matrix4f()).invert();
+        Vector3f origin = toForm.transformPosition(new Vector3f((float) position.x, (float) position.y, (float) position.z));
 
-        toForm.transformPosition(origin.set((float) position.x, (float) position.y, (float) position.z));
+        toForm.transformDirection(direction);
 
-        return toForm.transformDirection(direction);
+        return ModelCubeFrames.pick(entry, group, origin, direction);
     }
 
     /**
@@ -496,10 +418,10 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
      */
     private ModelNode hoveredNode(UIContext context)
     {
-        Model model = this.cubePicking != null && this.area.isInside(context) ? this.cubicModel() : null;
+        Model model = this.cubePicking && this.area.isInside(context) ? this.cubicModel() : null;
         ModelGroup group = model == null ? null : this.hoveredGroup(model);
 
-        if (group == null || !this.cubePicking.test(group.id))
+        if (group == null)
         {
             return null;
         }
@@ -1222,12 +1144,6 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
             }
         }
 
-        /* A press on nothing at all may be a click off the model; the release says whether it was. */
-        if (context.mouseButton == 0 && !this.stencil.hasPicked() && this.onMiss != null)
-        {
-            this.missPress = new Vector2i(context.mouseX, context.mouseY);
-        }
-
         /* No orbiting in the first-person view: the lens is the game's, not the user's. */
         if (this.firstPerson)
         {
@@ -1251,15 +1167,6 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     @Override
     public boolean subMouseReleased(UIContext context)
     {
-        Vector2i press = this.missPress;
-
-        this.missPress = null;
-
-        if (press != null && Math.abs(context.mouseX - press.x) <= CLICK_SLOP && Math.abs(context.mouseY - press.y) <= CLICK_SLOP)
-        {
-            this.onMiss.run();
-        }
-
         if (this.shapeOverlay.release()) return true;
         if (this.gizmo.mouseReleased(context))
         {
