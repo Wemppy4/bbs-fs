@@ -93,6 +93,16 @@ public final class ModelCubeFrames
      */
     public static int pick(MatrixCacheEntry entry, ModelGroup group, Vector3f origin, Vector3f direction)
     {
+        return pick(entry, group, origin, direction, null);
+    }
+
+    /**
+     * {@link #pick(MatrixCacheEntry, ModelGroup, Vector3f, Vector3f)}, also putting where the ray
+     * enters the cube into {@code point} (when given and a cube is hit) — in the frame the group's
+     * cubes are drawn in, i.e. the model's own coordinates in blocks, whatever pose the bone is in.
+     */
+    public static int pick(MatrixCacheEntry entry, ModelGroup group, Vector3f origin, Vector3f direction, Vector3f point)
+    {
         Matrix4f frame = groupFrame(entry, group);
         Vector3f localOrigin = new Vector3f();
         Vector3f localDirection = new Vector3f();
@@ -122,6 +132,11 @@ public final class ModelCubeFrames
             {
                 nearest = distance;
                 picked = i;
+
+                if (point != null)
+                {
+                    cubeFrame(new Matrix4f(), cube).transformPosition(new Vector3f(localDirection).mul(distance).add(localOrigin), point);
+                }
             }
         }
 

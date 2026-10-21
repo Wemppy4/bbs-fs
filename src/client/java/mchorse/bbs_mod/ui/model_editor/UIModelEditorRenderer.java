@@ -110,6 +110,10 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     public record Outline(ModelNode node, int color)
     {}
 
+    /** Where the cursor is on the model: the group whose geometry it's on, and the point of it — null when the ray misses the group's cubes. */
+    public record Hit(ModelGroup group, Vector3f point)
+    {}
+
     private final ShapeControllerOverlay shapeOverlay = new ShapeControllerOverlay();
     public Supplier<UIShapeControllers> shapeControls = () -> null;
 
@@ -386,10 +390,36 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     }
 
     /**
-     * The cube of {@code group} the cursor is on, or -1 for none: the ray through the cursor, cast
-     * in the frame the bones were captured in, against the group's cubes as they stand there.
+     * Where the cursor is on the model, whatever the click would pick: the group whose geometry the
+     * stencil finds under it, and the point the ray through it hits, in the frame the group's cubes
+     * are drawn in (see {@link ModelCubeFrames#pick}). Null off the model.
      */
+    public Hit hitAt(UIContext context)
+    {
+        Model model = this.area.isInside(context) ? this.cubicModel() : null;
+        ModelGroup group = model == null ? null : this.hoveredGroup(model);
+
+        if (group == null)
+        {
+            return null;
+        }
+
+        Vector3f point = new Vector3f();
+
+        return new Hit(group, this.pickCube(context, group, point) < 0 ? null : point);
+    }
+
     private int pickCube(UIContext context, ModelGroup group)
+    {
+        return this.pickCube(context, group, null);
+    }
+
+    /**
+     * The cube of {@code group} the cursor is on, or -1 for none: the ray through the cursor, cast
+     * in the frame the bones were captured in, against the group's cubes as they stand there. Where
+     * it hits goes into {@code point}, when given.
+     */
+    private int pickCube(UIContext context, ModelGroup group, Vector3f point)
     {
         MatrixCacheEntry entry = this.boneEntry(group.id);
 
@@ -408,7 +438,7 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
         toForm.transformDirection(direction);
 
-        return ModelCubeFrames.pick(entry, group, origin, direction);
+        return ModelCubeFrames.pick(entry, group, origin, direction, point);
     }
 
     /**
