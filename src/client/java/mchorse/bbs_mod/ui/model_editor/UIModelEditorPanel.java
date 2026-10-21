@@ -147,6 +147,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.renderer = new UIModelEditorRenderer()
             .target(this::shownTarget)
             .onPick(this::selectPick)
+            .onMiss(this::missPick)
             .outlines(() -> lastEditor == Editor.MODEL ? this.modelEditor.outlines() : this.configEditor.outlines());
         this.renderer.form = this.form;
         this.renderer.shapeControls = this::activeShapeControllers;
@@ -317,8 +318,9 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
             renderer.setRest(lastEditor == Editor.MODEL);
         }
 
-        /* The model editor picks cubes off the model; the config editor picks bones. */
-        this.renderer.setCubePicking(lastEditor == Editor.MODEL);
+        /* The model editor picks cubes off the model; the config editor picks bones, and on the welds
+         * page the cubes of the picked weld's two. */
+        this.renderer.setCubePicking(lastEditor == Editor.MODEL ? (bone) -> true : this.configEditor::picksCubes);
 
         if (lastEditor == Editor.CONFIG)
         {
@@ -360,12 +362,22 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
     /**
      * A click on the model in the viewport goes to the open editor, which picks it where a bone is
-     * picked — the config editor the bone, the model editor the bone or the cube of it under the
-     * cursor; where nothing picks it the click is left alone, so the orbit starts.
+     * picked — the config editor the bone (on the welds page a cube of the weld), the model editor
+     * the bone or the cube of it under the cursor; where nothing picks it the click is left alone,
+     * so the orbit starts.
      */
     private boolean selectPick(String bone, int cube)
     {
-        return lastEditor == Editor.CONFIG ? this.configEditor.selectBone(bone) : this.modelEditor.selectPick(bone, cube);
+        return lastEditor == Editor.CONFIG ? this.configEditor.selectPick(bone, cube) : this.modelEditor.selectPick(bone, cube);
+    }
+
+    /** A click off the model: the config editor lets go of what a click on it would fill in. */
+    private void missPick()
+    {
+        if (lastEditor == Editor.CONFIG)
+        {
+            this.configEditor.missPick();
+        }
     }
 
     /** Whether the open model is one the model editor may edit — see {@link ModelInstance#isEditable()}. */

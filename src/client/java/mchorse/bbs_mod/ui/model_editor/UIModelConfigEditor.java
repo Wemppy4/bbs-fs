@@ -1647,22 +1647,120 @@ public class UIModelConfigEditor extends UIElement
     }
 
     /**
-     * What the preview outlines while this editor is up: on the welds page, the cube a list's row
+     * What the preview outlines while this editor is up, on the welds page: the cubes of the picked
+     * weld's pairs in the accent, the picked pair's white over them, and last the cube a list's row
      * points at. Asked once a frame, so the row's cube goes out the moment the cursor leaves it.
      */
     public List<UIModelEditorRenderer.Outline> outlines()
     {
         List<UIModelEditorRenderer.Outline> outlines = new ArrayList<>();
         ModelNode listed = this.listedCube;
+        WeldValue weld = this.data == null ? null : this.weldList.getCurrentFirst();
 
         this.listedCube = null;
 
-        if (lastTab == Tab.WELDS && listed != null)
+        if (lastTab != Tab.WELDS || weld == null)
+        {
+            return outlines;
+        }
+
+        List<ModelWeld.Pair> pairs = weld.pairs.get();
+        int active = this.activePair(weld);
+        int accent = Colors.A100 | BBSSettings.primaryColor.get();
+
+        for (int i = 0; i < pairs.size(); i++)
+        {
+            if (i != active)
+            {
+                this.outlinePair(weld, pairs.get(i), accent, outlines);
+            }
+        }
+
+        if (active >= 0)
+        {
+            this.outlinePair(weld, pairs.get(active), Colors.A100 | Colors.WHITE, outlines);
+        }
+
+        if (listed != null)
         {
             outlines.add(new UIModelEditorRenderer.Outline(listed, UIModelEditorRenderer.HOVER_COLOR));
         }
 
         return outlines;
+    }
+
+    private void outlinePair(WeldValue weld, ModelWeld.Pair pair, int color, List<UIModelEditorRenderer.Outline> outlines)
+    {
+        if (pair.source() >= 0)
+        {
+            outlines.add(new UIModelEditorRenderer.Outline(ModelNode.cube(weld.sourceBone.get(), pair.source()), color));
+        }
+
+        if (pair.target() >= 0)
+        {
+            outlines.add(new UIModelEditorRenderer.Outline(ModelNode.cube(weld.targetBone.get(), pair.target()), color));
+        }
+    }
+
+    /** Whether a click on {@code bone} names a cube of it: on the welds page, for the picked weld's two bones. */
+    public boolean picksCubes(String bone)
+    {
+        WeldValue weld = this.data == null ? null : this.weldList.getCurrentFirst();
+
+        return lastTab == Tab.WELDS && weld != null && (bone.equals(weld.sourceBone.get()) || bone.equals(weld.targetBone.get()));
+    }
+
+    /**
+     * A click on the model: on the welds page a cube of the picked weld — with a pair picked it
+     * becomes that pair's cube on its bone's side, without one it picks the pair it's in — and
+     * elsewhere a bone, see {@link #selectBone}. Whether the click was taken.
+     */
+    public boolean selectPick(String bone, int cube)
+    {
+        if (lastTab != Tab.WELDS)
+        {
+            return this.selectBone(bone);
+        }
+
+        WeldValue weld = this.data == null ? null : this.weldList.getCurrentFirst();
+
+        if (weld == null || cube < 0 || !this.picksCubes(bone))
+        {
+            return false;
+        }
+
+        boolean source = bone.equals(weld.sourceBone.get());
+        int active = this.activePair(weld);
+
+        if (active >= 0)
+        {
+            this.setPairCube(weld, active, source, cube);
+
+            return true;
+        }
+
+        List<ModelWeld.Pair> pairs = weld.pairs.get();
+
+        for (int i = 0; i < pairs.size(); i++)
+        {
+            if (pairs.get(i).side(source) == cube)
+            {
+                this.setActivePair(weld, i);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** A click off the model lets go of the picked pair. */
+    public void missPick()
+    {
+        if (lastTab == Tab.WELDS)
+        {
+            this.setActivePair(null, -1);
+        }
     }
 
     /** "No pairs": what a weld does without them, on the sunken strip a list would stand on. */
