@@ -101,6 +101,17 @@ public class WeldBinding
         return cube < 0 || (cube < group.cubes.size() && faceQuad(group.cubes.get(cube), face) != null);
     }
 
+    /** The middle of a cube's welded face in the rest pose, where {@link #resolve} pairs the faces; null for a cube without that face. */
+    public static Vector3f restFaceCenter(ModelGroup group, ModelCube cube, CubeFace face)
+    {
+        if (faceQuad(cube, face) == null)
+        {
+            return null;
+        }
+
+        return average(transformCorners(restCubeMatrix(restWorldMatrix(group), cube), faceCorners(cube, face)));
+    }
+
     public static WeldBinding resolve(Model model, ModelWeld weld)
     {
         if (diagnose(model, weld) != null)

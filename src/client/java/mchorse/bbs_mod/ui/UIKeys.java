@@ -1235,6 +1235,12 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_HISTORY_TITLE = L10n.lang("bbs.ui.model_editor.history-title");
     public static final IKey MODEL_EDITOR_ITEM_DUPLICATE = L10n.lang("bbs.ui.model_editor.item.duplicate");
     public static final IKey MODEL_EDITOR_WELD_DUPLICATE = L10n.lang("bbs.ui.model_editor.weld.duplicate");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS = L10n.lang("bbs.ui.model_editor.weld.pairs");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_ADD = L10n.lang("bbs.ui.model_editor.weld.pairs.add");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_REMOVE = L10n.lang("bbs.ui.model_editor.weld.pairs.remove");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_PICK = L10n.lang("bbs.ui.model_editor.weld.pairs.pick");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_PICK_CUBE = L10n.lang("bbs.ui.model_editor.weld.pairs.pick_cube");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_EMPTY = L10n.lang("bbs.ui.model_editor.weld.pairs.empty");
     public static final IKey MODEL_EDITOR_KEYS_EXPAND_ALL = L10n.lang("bbs.ui.model_editor.keys.expand_all");
     public static final IKey MODEL_EDITOR_KEYS_COLLAPSE_ALL = L10n.lang("bbs.ui.model_editor.keys.collapse_all");
     public static final IKey MODEL_EDITOR_KEYS_FIND_BONE = L10n.lang("bbs.ui.model_editor.keys.find_bone");

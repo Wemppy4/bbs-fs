@@ -85,5 +85,17 @@ public class ModelWeld
         {
             return this.source >= 0 && this.target >= 0;
         }
+
+        /** The cube of one side: the source's, or the target's. */
+        public int side(boolean source)
+        {
+            return source ? this.source : this.target;
+        }
+
+        /** The pair with one side's cube swapped for {@code cube}. */
+        public Pair with(boolean source, int cube)
+        {
+            return source ? new Pair(cube, this.target) : new Pair(this.source, cube);
+        }
     }
 }
