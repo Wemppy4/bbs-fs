@@ -548,10 +548,10 @@ public class Batcher2D
 
     /* Icon */
 
-    /** In the light theme white foreground (text/icons) becomes black; other colours pass through. */
-    private static int darkenWhite(int color)
+    /** White foreground (text/icons) is drawn in the text colour, see {@link BBSSettings#foregroundColor()}; other colours pass through. */
+    private static int foreground(int color)
     {
-        return (color & 0xFFFFFF) == 0xFFFFFF ? (color & 0xFF000000) : color;
+        return (color & Colors.RGB) == Colors.RGB ? (color & Colors.A100) | BBSSettings.foregroundColor() : color;
     }
 
     public void icon(Icon icon, float x, float y)
@@ -576,10 +576,7 @@ public class Batcher2D
             return;
         }
 
-        if (BBSSettings.lightSurfaces())
-        {
-            color = darkenWhite(color);
-        }
+        color = foreground(color);
 
         x -= icon.w * ax;
         y -= icon.h * ay;
@@ -599,10 +596,7 @@ public class Batcher2D
             return;
         }
 
-        if (BBSSettings.lightSurfaces())
-        {
-            color = darkenWhite(color);
-        }
+        color = foreground(color);
 
         this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, size, size, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
     }
@@ -614,10 +608,7 @@ public class Batcher2D
 
     public void iconArea(Icon icon, int color, float x, float y, float w, float h)
     {
-        if (BBSSettings.lightSurfaces())
-        {
-            color = darkenWhite(color);
-        }
+        color = foreground(color);
 
         this.texturedArea(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, w, h, icon.x, icon.y, icon.w, icon.h, icon.textureW, icon.textureH);
     }
@@ -779,8 +770,9 @@ public class Batcher2D
         if (BBSSettings.lightSurfaces())
         {
             shadow = false;
-            color = darkenWhite(color);
         }
+
+        color = foreground(color);
 
         this.drawTextDirect(label, x, y, color, shadow);
     }

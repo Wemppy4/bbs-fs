@@ -8,6 +8,7 @@ import mchorse.bbs_mod.settings.Settings;
 import mchorse.bbs_mod.settings.value.ValueKeyCombo;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
+import mchorse.bbs_mod.settings.values.ui.ValueThemes.Theme;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.utility.UIUtilitySettings;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -19,6 +20,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -29,6 +31,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,28 +44,28 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
     private static final int SIDE_WIDTH = 130;
 
     /**
-     * Coding themes as the two colours the interface is built from: the accent
-     * and the background (the whole surface ladder falls out of the latter, see
-     * {@link BBSSettings}). Light themes take their second background shade,
-     * since the ladder climbs above the base colour and pure white leaves it no
-     * room for the raised surfaces and the divider.
+     * Coding themes as the colours the interface is built from: the accent, the
+     * background (the whole surface ladder falls out of it, see {@link BBSSettings})
+     * and the text, at the default contrast. Light themes take their second
+     * background shade, since the ladder climbs above the base colour and pure
+     * white leaves it no room for the raised surfaces and the divider.
      */
     private static final List<ThemePreset> THEME_PRESETS = List.of(
-        new ThemePreset("VS Code Dark+", 0x007acc, 0x1e1e1e),
-        new ThemePreset("Monokai", 0xf92672, 0x272822),
-        new ThemePreset("Dracula", 0xbd93f9, 0x282a36),
-        new ThemePreset("One Dark", 0x61afef, 0x282c34),
-        new ThemePreset("Nord", 0x88c0d0, 0x2e3440),
-        new ThemePreset("Gruvbox", 0xfe8019, 0x282828),
-        new ThemePreset("Tokyo Night", 0x7aa2f7, 0x1a1b26),
-        new ThemePreset("Catppuccin Mocha", 0xcba6f7, 0x1e1e2e),
-        new ThemePreset("Rosé Pine", 0xebbcba, 0x191724),
-        new ThemePreset("Ayu Dark", 0xe6b450, 0x0b0e14),
-        new ThemePreset("Everforest", 0xa7c080, 0x2d353b),
-        new ThemePreset("GitHub Dark", 0x2f81f7, 0x0d1117),
-        new ThemePreset("Solarized Dark", 0x268bd2, 0x002b36),
-        new ThemePreset("Solarized Light", 0x268bd2, 0xeee8d5),
-        new ThemePreset("GitHub Light", 0x0969da, 0xeaeef2)
+        new ThemePreset("VS Code Dark+", new Theme(0x007acc, 0x1e1e1e, 0xd4d4d4, 1F)),
+        new ThemePreset("Monokai", new Theme(0xf92672, 0x272822, 0xf8f8f2, 1F)),
+        new ThemePreset("Dracula", new Theme(0xbd93f9, 0x282a36, 0xf8f8f2, 1F)),
+        new ThemePreset("One Dark", new Theme(0x61afef, 0x282c34, 0xabb2bf, 1F)),
+        new ThemePreset("Nord", new Theme(0x88c0d0, 0x2e3440, 0xd8dee9, 1F)),
+        new ThemePreset("Gruvbox", new Theme(0xfe8019, 0x282828, 0xebdbb2, 1F)),
+        new ThemePreset("Tokyo Night", new Theme(0x7aa2f7, 0x1a1b26, 0xc0caf5, 1F)),
+        new ThemePreset("Catppuccin Mocha", new Theme(0xcba6f7, 0x1e1e2e, 0xcdd6f4, 1F)),
+        new ThemePreset("Rosé Pine", new Theme(0xebbcba, 0x191724, 0xe0def4, 1F)),
+        new ThemePreset("Ayu Dark", new Theme(0xe6b450, 0x0b0e14, 0xbfbdb6, 1F)),
+        new ThemePreset("Everforest", new Theme(0xa7c080, 0x2d353b, 0xd3c6aa, 1F)),
+        new ThemePreset("GitHub Dark", new Theme(0x2f81f7, 0x0d1117, 0xe6edf3, 1F)),
+        new ThemePreset("Solarized Dark", new Theme(0x268bd2, 0x002b36, 0x93a1a1, 1F)),
+        new ThemePreset("Solarized Light", new Theme(0x268bd2, 0xeee8d5, 0x586e75, 1F)),
+        new ThemePreset("GitHub Light", new Theme(0x0969da, 0xeaeef2, 0x1f2328, 1F))
     );
 
     public UITextbox search;
@@ -257,26 +260,81 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
     }
 
     /**
-     * A theme only promises the interface colours - the viewport's selection
-     * highlight and the panel effects stay the user's own.
+     * A theme only promises the interface colours and the contrast - the
+     * viewport's selection highlight and the panel effects stay the user's own.
      */
-    public void applyThemePreset(int primary, int secondary)
+    public void applyTheme(Theme theme)
     {
-        BBSSettings.primaryColor.set(primary);
-        BBSSettings.secondaryColor.set(secondary);
+        BBSSettings.primaryColor.set(theme.primary());
+        BBSSettings.secondaryColor.set(theme.secondary());
+        BBSSettings.textColor.set(theme.text());
+        BBSSettings.interfaceContrast.set(theme.contrast());
 
         this.refresh();
     }
 
+    /**
+     * Built-in themes, then the user's own, then saving the current look as one
+     * more of those and deleting them again.
+     */
     public void addThemePresets(ContextMenuManager menu)
     {
-        menu.action(Icons.BUCKET, UIKeys.CONFIG_PERSONALIZATION_PRESET_DEFAULT, () -> this.applyThemePreset(
-            BBSSettings.primaryColor.getDefaultValue(), BBSSettings.secondaryColor.getDefaultValue()));
+        Theme defaults = new Theme(
+            BBSSettings.primaryColor.getDefaultValue(), BBSSettings.secondaryColor.getDefaultValue(),
+            BBSSettings.textColor.getDefaultValue(), BBSSettings.interfaceContrast.getDefaultValue());
+        Map<String, Theme> custom = BBSSettings.customThemes.get();
+
+        this.addTheme(menu, UIKeys.CONFIG_PERSONALIZATION_PRESET_DEFAULT, defaults);
 
         for (ThemePreset preset : THEME_PRESETS)
         {
-            menu.action(Icons.BUCKET, IKey.constant(preset.name()), preset.primary(), () -> this.applyThemePreset(preset.primary(), preset.secondary()));
+            this.addTheme(menu, IKey.constant(preset.name()), preset.theme());
         }
+
+        custom.forEach((name, theme) -> this.addTheme(menu, IKey.constant(name), theme));
+
+        menu.action(Icons.SAVE, UIKeys.CONFIG_PERSONALIZATION_PRESET_SAVE, this::promptSaveTheme);
+
+        if (!custom.isEmpty())
+        {
+            menu.action(Icons.TRASH, UIKeys.CONFIG_PERSONALIZATION_PRESET_DELETE, this::openDeleteThemeMenu);
+        }
+    }
+
+    private void addTheme(ContextMenuManager menu, IKey label, Theme theme)
+    {
+        menu.action(Icons.BUCKET, label, theme.primary(), () -> this.applyTheme(theme));
+    }
+
+    private void promptSaveTheme()
+    {
+        UIOverlay.addOverlay(this.getContext(), new UIPromptOverlayPanel(
+            UIKeys.CONFIG_PERSONALIZATION_PRESET_SAVE,
+            UIKeys.CONFIG_PERSONALIZATION_PRESET_NAME,
+            (input) ->
+            {
+                String name = input.trim();
+
+                if (!name.isEmpty())
+                {
+                    BBSSettings.customThemes.put(name, new Theme(
+                        BBSSettings.primaryColor.get(), BBSSettings.secondaryColor.get(),
+                        BBSSettings.textColor.get(), BBSSettings.interfaceContrast.get()));
+                }
+            }));
+    }
+
+    private void openDeleteThemeMenu()
+    {
+        List<String> names = new ArrayList<>(BBSSettings.customThemes.get().keySet());
+
+        this.getContext().replaceContextMenu((menu) ->
+        {
+            for (String name : names)
+            {
+                menu.action(Icons.TRASH, IKey.constant(name), () -> BBSSettings.customThemes.remove(name));
+            }
+        });
     }
 
     private void appendValues(ValueGroup category, boolean filtered)
@@ -424,7 +482,7 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         context.batcher.box(x, y, x + SIDE_WIDTH, ey, BBSSettings.chromeSurface());
     }
 
-    private record ThemePreset(String name, int primary, int secondary)
+    private record ThemePreset(String name, Theme theme)
     {}
 
     /**
