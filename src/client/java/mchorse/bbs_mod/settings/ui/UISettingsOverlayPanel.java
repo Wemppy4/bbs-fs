@@ -46,26 +46,31 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
     /**
      * Coding themes as the colours the interface is built from: the accent, the
      * background (the whole surface ladder falls out of it, see {@link BBSSettings})
-     * and the text, at the default contrast. Light themes take their second
-     * background shade, since the ladder climbs above the base colour and pure
-     * white leaves it no room for the raised surfaces and the divider.
+     * and the text. Light themes take their second background shade, since the
+     * ladder climbs above the base colour and pure white leaves it no room for
+     * the raised surfaces and the divider.
+     *
+     * The contrast is measured off each theme's own editor: how far its side bar
+     * (or, where the panes are all one colour, its inputs) sits from the editor
+     * in Oklab lightness, taken as one step of the ladder, averaged with how far
+     * its pane borders sit, taken as the divider.
      */
     private static final List<ThemePreset> THEME_PRESETS = List.of(
-        new ThemePreset("VS Code Dark+", new Theme(0x007acc, 0x1e1e1e, 0xd4d4d4, 1F)),
-        new ThemePreset("Monokai", new Theme(0xf92672, 0x272822, 0xf8f8f2, 1F)),
-        new ThemePreset("Dracula", new Theme(0xbd93f9, 0x282a36, 0xf8f8f2, 1F)),
-        new ThemePreset("One Dark", new Theme(0x61afef, 0x282c34, 0xabb2bf, 1F)),
-        new ThemePreset("Nord", new Theme(0x88c0d0, 0x2e3440, 0xd8dee9, 1F)),
-        new ThemePreset("Gruvbox", new Theme(0xfe8019, 0x282828, 0xebdbb2, 1F)),
+        new ThemePreset("VS Code Dark+", new Theme(0x007acc, 0x1e1e1e, 0xd4d4d4, 2.1F)),
+        new ThemePreset("Monokai", new Theme(0xf92672, 0x272822, 0xf8f8f2, 1.3F)),
+        new ThemePreset("Dracula", new Theme(0xbd93f9, 0x282a36, 0xf8f8f2, 1.4F)),
+        new ThemePreset("One Dark", new Theme(0x61afef, 0x282c34, 0xabb2bf, 1.4F)),
+        new ThemePreset("Nord", new Theme(0x88c0d0, 0x2e3440, 0xd8dee9, 1.8F)),
+        new ThemePreset("Gruvbox", new Theme(0xfe8019, 0x282828, 0xebdbb2, 2.2F)),
         new ThemePreset("Tokyo Night", new Theme(0x7aa2f7, 0x1a1b26, 0xc0caf5, 1F)),
-        new ThemePreset("Catppuccin Mocha", new Theme(0xcba6f7, 0x1e1e2e, 0xcdd6f4, 1F)),
-        new ThemePreset("Rosé Pine", new Theme(0xebbcba, 0x191724, 0xe0def4, 1F)),
-        new ThemePreset("Ayu Dark", new Theme(0xe6b450, 0x0b0e14, 0xbfbdb6, 1F)),
+        new ThemePreset("Catppuccin Mocha", new Theme(0xcba6f7, 0x1e1e2e, 0xcdd6f4, 1.2F)),
+        new ThemePreset("Rosé Pine", new Theme(0xebbcba, 0x191724, 0xe0def4, 1.3F)),
+        new ThemePreset("Ayu Dark", new Theme(0xe6b450, 0x0b0e14, 0xbfbdb6, 0.9F)),
         new ThemePreset("Everforest", new Theme(0xa7c080, 0x2d353b, 0xd3c6aa, 1F)),
-        new ThemePreset("GitHub Dark", new Theme(0x2f81f7, 0x0d1117, 0xe6edf3, 1F)),
-        new ThemePreset("Solarized Dark", new Theme(0x268bd2, 0x002b36, 0x93a1a1, 1F)),
-        new ThemePreset("Solarized Light", new Theme(0x268bd2, 0xeee8d5, 0x586e75, 1F)),
-        new ThemePreset("GitHub Light", new Theme(0x0969da, 0xeaeef2, 0x1f2328, 1F))
+        new ThemePreset("GitHub Dark", new Theme(0x2f81f7, 0x0d1117, 0xe6edf3, 3F)),
+        new ThemePreset("Solarized Dark", new Theme(0x268bd2, 0x002b36, 0x93a1a1, 1.7F)),
+        new ThemePreset("Solarized Light", new Theme(0x268bd2, 0xeee8d5, 0x586e75, 1.9F)),
+        new ThemePreset("GitHub Light", new Theme(0x0969da, 0xeaeef2, 0x1f2328, 1.6F))
     );
 
     public UITextbox search;
