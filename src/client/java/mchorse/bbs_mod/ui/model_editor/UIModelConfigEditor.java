@@ -46,7 +46,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
-import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITextTab;
@@ -169,9 +168,14 @@ public class UIModelConfigEditor extends UIElement
     private UIElement lookAtBody;
     private UIElement warningsBody;
 
-    /** The picked bone's / weld's settings, under their lists. */
+    /** The picked bone's settings, under the tree. */
     private UIElement bonePanel;
-    private UIElement weldPanel;
+
+    /** The picked weld's settings, under the list: what keeps it from working, then its sections' bodies. */
+    private UIElement weldIssue;
+    private UIElement weldBones;
+    private UIElement weldPairs;
+    private UIElement weldBend;
 
     /* The "list + settings" blocks: the attachment slots, the welds. The bone tree is one too, with its own list class. */
     private SlotBlock armor;
@@ -442,8 +446,22 @@ public class UIModelConfigEditor extends UIElement
         this.removeWeld = new UIIcon(Icons.REMOVE, (b) -> this.removeWeld(this.weldList.getCurrentFirst()));
         this.removeWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_REMOVE);
 
-        this.weldPanel = this.body();
-        this.page(Tab.WELDS).add(UI.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldPanel);
+        /* Under it the picked weld, in the general page's folding sections: what's welded to what,
+         * which cubes of it, how the joint bends. The pairs' title says how the model is clicked,
+         * since nothing on screen does. */
+        UISection bones = this.section(UIKeys.MODEL_EDITOR_WELD_BONES, true);
+        UISection pairs = this.section(UIKeys.MODEL_EDITOR_WELD_PAIRS, true);
+        UISection bend = this.section(UIKeys.MODEL_EDITOR_WELD_BEND, true);
+
+        this.weldIssue = this.body();
+        this.weldBones = this.body();
+        this.weldPairs = this.body();
+        this.weldBend = this.body();
+        bones.fields.add(this.weldBones);
+        pairs.fields.add(this.weldPairs);
+        pairs.title.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_TOOLTIP);
+        bend.fields.add(this.weldBend);
+        this.page(Tab.WELDS).add(UI.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldIssue, bones, pairs, bend);
 
         /* Armor: every piece the config can place, one row each, named by the piece. */
         this.armor = new SlotBlock((slot) -> ModelSlotKind.ARMOR, (slot) -> this.armorTypeLabel(this.armorTypeOf(slot)), () -> this.armorSlots());
@@ -1414,26 +1432,35 @@ public class UIModelConfigEditor extends UIElement
         /* Bone/face changes can make the weld resolvable or not, so they refill the list and the panel to
          * update the name and the issue line; the trackpads can't, so they only re-resolve (a refill
          * mid-drag would orphan them). */
-        this.weldPanel.removeAll();
+        this.weldIssue.removeAll();
+        this.weldBones.removeAll();
+        this.weldBend.removeAll();
+
+        /* Hidden while there's nothing to say, so it costs the page no gap — the column skips what isn't visible. */
+        this.weldIssue.setVisible(issue != null);
 
         if (issue != null)
         {
-            this.weldPanel.add(UI.label(this.weldIssueText(issue), UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F).color(Colors.NEGATIVE, true));
+            this.weldIssue.add(UI.label(this.weldIssueText(issue), UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F).color(Colors.NEGATIVE, true));
         }
 
-        this.weldPanel.add(
+        this.weldBones.add(
             UI.row(this.bonePicker(weld.sourceBone::get, (bone) -> this.setWeldBone(weld, true, bone), this::refreshWelds), this.facePicker(weld.sourceFace, this::refreshWelds)),
             UI.row(this.bonePicker(weld.targetBone::get, (bone) -> this.setWeldBone(weld, false, bone), this::refreshWelds), this.facePicker(weld.targetFace, this::refreshWelds))
         );
         this.fillPairs(weld);
-        this.weldPanel.add(
+        this.weldBend.add(
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_MAX_ANGLE, this.weldAngle(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_SEAM_FALLOFF, this.weldFalloff(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_PARENT_SHARE, this.weldShare(weld)),
             this.weldTwist(weld),
             this.weldSmooth(weld)
         );
-        UIUtils.setEnabledDeep(this.weldPanel, picked != null);
+
+        for (UIElement body : new UIElement[] {this.weldBones, this.weldPairs, this.weldBend})
+        {
+            UIUtils.setEnabledDeep(body, picked != null);
+        }
 
         this.resizePage(Tab.WELDS);
     }
@@ -1443,33 +1470,30 @@ public class UIModelConfigEditor extends UIElement
      * outline in the preview while the cursor is on a row of a cube's list. */
 
     /**
-     * The pairs of the weld: a heading with the add icon, then a row per pair — or, with none, what
-     * the weld does then. The picked pair is the one a pick fills in; it's read live by its row, so
-     * picking another one needs no refill.
+     * The pairs of the weld: the add icon over them, the weld list's idiom, then a row per pair — or,
+     * with none, what the weld does then. The picked pair is the one a pick fills in; it's read live
+     * by its row, so picking another one needs no refill.
      */
     private void fillPairs(WeldValue weld)
     {
-        UILabel title = UI.label(UIKeys.MODEL_EDITOR_WELD_PAIRS, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F);
         UIIcon add = new UIIcon(Icons.ADD, (b) -> this.addPair(weld));
 
-        /* The clicks on the model are the main way to pick, and nothing on screen shows them. */
-        title.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_TOOLTIP);
         add.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_ADD);
-        add.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
-        this.weldPanel.add(UI.row(0, title, add));
+        this.weldPairs.removeAll();
+        this.weldPairs.add(UI.strip(add));
 
         List<ModelWeld.Pair> pairs = weld.pairs.get();
 
         if (pairs.isEmpty())
         {
-            this.weldPanel.add(new UIPairsEmpty());
+            this.weldPairs.add(new UIPairsEmpty());
 
             return;
         }
 
         for (int i = 0; i < pairs.size(); i++)
         {
-            this.weldPanel.add(new UIPairRow(weld, i));
+            this.weldPairs.add(new UIPairRow(weld, i));
         }
     }
 
@@ -1851,30 +1875,15 @@ public class UIModelConfigEditor extends UIElement
         }
 
         /**
-         * A side's button: its cube's name and the arrow of a list that opens, quiet while no cube
-         * is picked and red for a cube that can't weld (gone, or without the face).
+         * A side's button, the bone picker's plain one: its cube's name, or what to do while none is
+         * picked; it opens the bone's cubes. A cube that can't weld is the issue line's to say.
          */
         private UIButton cube(boolean source)
         {
             int cube = this.weld.pairs.get().get(this.index).side(source);
-            ModelGroup group = weldGroup(this.weld, source);
-            CubeFace face = CubeFace.fromName((source ? this.weld.sourceFace : this.weld.targetFace).get());
-            boolean broken = cube >= 0 && group != null && face != null && !WeldBinding.pairable(group, face, cube);
-            IKey label = cube < 0 ? UIKeys.MODEL_EDITOR_WELD_PAIRS_PICK_CUBE : IKey.raw(cubeName(group, cube));
-            UIButton button = new UIButton(label, (b) -> openCubes(this.weld, this.index, source))
-            {
-                @Override
-                protected void renderSkin(UIContext context)
-                {
-                    super.renderSkin(context);
+            IKey label = cube < 0 ? UIKeys.MODEL_EDITOR_WELD_PAIRS_PICK_CUBE : IKey.raw(cubeName(weldGroup(this.weld, source), cube));
 
-                    UISection.renderArrow(context, this.area.ex() - 6, this.area.my(), true, Colors.LIGHTER_GRAY);
-                }
-            };
-
-            button.textColor(broken ? Colors.NEGATIVE : cube < 0 ? Colors.GRAY : Colors.WHITE, true);
-
-            return button;
+            return new UIButton(label, (b) -> openCubes(this.weld, this.index, source));
         }
 
         @Override

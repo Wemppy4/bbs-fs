@@ -1235,7 +1235,9 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_HISTORY_TITLE = L10n.lang("bbs.ui.model_editor.history-title");
     public static final IKey MODEL_EDITOR_ITEM_DUPLICATE = L10n.lang("bbs.ui.model_editor.item.duplicate");
     public static final IKey MODEL_EDITOR_WELD_DUPLICATE = L10n.lang("bbs.ui.model_editor.weld.duplicate");
+    public static final IKey MODEL_EDITOR_WELD_BONES = L10n.lang("bbs.ui.model_editor.weld.bones");
     public static final IKey MODEL_EDITOR_WELD_PAIRS = L10n.lang("bbs.ui.model_editor.weld.pairs");
+    public static final IKey MODEL_EDITOR_WELD_BEND = L10n.lang("bbs.ui.model_editor.weld.bend");
     public static final IKey MODEL_EDITOR_WELD_PAIRS_ADD = L10n.lang("bbs.ui.model_editor.weld.pairs.add");
     public static final IKey MODEL_EDITOR_WELD_PAIRS_REMOVE = L10n.lang("bbs.ui.model_editor.weld.pairs.remove");
     public static final IKey MODEL_EDITOR_WELD_PAIRS_PICK = L10n.lang("bbs.ui.model_editor.weld.pairs.pick");
