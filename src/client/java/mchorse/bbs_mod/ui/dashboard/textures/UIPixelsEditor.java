@@ -132,6 +132,9 @@ public class UIPixelsEditor extends UICanvasEditor
     /** Notified after an undo/redo rebuilds or reorders layers, so the owning UI can refresh. */
     private Runnable layersChangedCallback = () -> {};
 
+    /** Notified of every change made to the document from here, so the owner knows which canvas is worked in. */
+    private Runnable changeCallback = () -> {};
+
     /** Document snapshot captured at the start of a move-tool drag (one undo per move gesture). */
     private MapType moveUndoBefore;
 
@@ -1456,6 +1459,8 @@ public class UIPixelsEditor extends UICanvasEditor
         {
             this.document.revision++;
         }
+
+        this.changeCallback.run();
     }
 
     public boolean isEditing()
@@ -1520,6 +1525,17 @@ public class UIPixelsEditor extends UICanvasEditor
     public UIPixelsEditor layersChangedCallback(Runnable callback)
     {
         this.layersChangedCallback = callback != null ? callback : () -> {};
+
+        return this;
+    }
+
+    /**
+     * Sets the hook run on every change to the document: a stroke, a fill, a paste, an undo. Picking
+     * a colour, selecting, zooming and flipping through the frames change nothing, so they don't run it.
+     */
+    public UIPixelsEditor changeCallback(Runnable callback)
+    {
+        this.changeCallback = callback != null ? callback : () -> {};
 
         return this;
     }

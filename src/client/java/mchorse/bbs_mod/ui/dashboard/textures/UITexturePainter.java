@@ -17,7 +17,6 @@ import mchorse.bbs_mod.ui.dashboard.textures.frames.UIFramesPanel;
 import mchorse.bbs_mod.ui.dashboard.textures.layers.UILayersPanel;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIModelPicker;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.IUIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -48,7 +47,6 @@ import org.joml.Vector2i;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -73,8 +71,13 @@ import java.util.function.Consumer;
  * The right options column is a {@link UIScrollView} with a {@link UISplitter} whose
  * width is remembered in the settings.
  *
+ * <p>The canvas is a {@link UITexturePane}, or two of them side by side while the screen is
+ * split. The tools and the colours are the same for both; the options, the layers, the model
+ * preview and the bar's actions belong to the texture worked on, and a change made to the other
+ * one moves the work over to it.</p>
+ *
  * <p>This painter does not own tabs: its owner (the texture picker) creates editors via
- * {@link #openEditor(Link)} and shows one at a time with {@link #setEditor(UITextureEditor)}.</p>
+ * {@link #openEditor(Link)} and shows them with {@link #setEditors(UITextureEditor, UITextureEditor, UITextureEditor)}.</p>
  */
 public class UITexturePainter extends UIElement
 {
@@ -87,9 +90,9 @@ public class UITexturePainter extends UIElement
     private static final float DEFAULT_PREVIEW_WIDTH = 0.3F;
     private static final int MIN_OPTIONS_WIDTH = 140;
     private static final int MAX_BRUSH_SIZE = 1024;
-    private static final int DEFAULT_FRAMES_HEIGHT = 90;
-    private static final int MIN_FRAMES_HEIGHT = 44;
-    private static final int MAX_FRAMES_HEIGHT = 300;
+    /** The left pane's share of a split screen, and how small either pane may get. */
+    private static final float DEFAULT_SPLIT = 0.5F;
+    private static final float MIN_SPLIT = 0.2F;
 
     /** Fold state of the option sections, kept across painters for the session. */
     private static final Map<String, Boolean> SECTION_FOLDS = new HashMap<>();
@@ -150,11 +153,10 @@ public class UITexturePainter extends UIElement
     private UISplitter modelPreviewDraggable;
     private UIModelPreviewPanel modelPreviewPanel;
 
-    /* The canvas column: the editor above, the strip of frames below it for an animated texture */
-    private UIElement canvasHost;
-    private UIElement framesHost;
-    private UIFramesPanel framesPanel;
-    private UISplitter framesDraggable;
+    /* The canvas column: one pane, or two side by side while the screen is split, with the work in panes[working] */
+    private final UITexturePane[] panes = new UITexturePane[2];
+    private UISplitter splitDraggable;
+    private int working;
 
     private UIElement brushSizeRow;
     private UIElement brushSoftnessRow;
@@ -178,6 +180,9 @@ public class UITexturePainter extends UIElement
 
     /** Owner hook fired when a Save As changes an editor's link, so tabs can be relabelled/deduplicated. */
     private BiConsumer<UITextureEditor, Link> renameHandler;
+
+    /** Owner hook fired when the texture beside the one worked on gets changed, so the work moves over to it. */
+    private Consumer<UITextureEditor> switchHandler;
 
     public UITexturePainter(Consumer<Link> saveCallback)
     {
@@ -206,6 +211,17 @@ public class UITexturePainter extends UIElement
     public UITexturePainter onRename(BiConsumer<UITextureEditor, Link> renameHandler)
     {
         this.renameHandler = renameHandler;
+
+        return this;
+    }
+
+    /**
+     * Owner hook fired with the tab's editor of the other pane once a change is made there: the
+     * owner shows it as the one worked on, the way a click on its tab would.
+     */
+    public UITexturePainter onSwitch(Consumer<UITextureEditor> switchHandler)
+    {
+        this.switchHandler = switchHandler;
 
         return this;
     }
@@ -461,13 +477,13 @@ public class UITexturePainter extends UIElement
         this.frameWidth = new UITrackpad((v) -> this.withEditor((editor) ->
         {
             editor.setFrameSize(v.intValue(), (int) this.frameHeight.getValue());
-            this.framesPanel.sync();
+            this.workingPane().frames.sync();
         }));
         this.frameWidth.limit(1, 4096).integer();
         this.frameHeight = new UITrackpad((v) -> this.withEditor((editor) ->
         {
             editor.setFrameSize((int) this.frameWidth.getValue(), v.intValue());
-            this.framesPanel.sync();
+            this.workingPane().frames.sync();
         }));
         this.frameHeight.limit(1, 4096).integer();
 
@@ -576,7 +592,7 @@ public class UITexturePainter extends UIElement
         }
 
         base.toggleMaterial();
-        this.setEditor(base);
+        this.setEditors(this.panes[0].getTexture(), this.panes[1].getTexture(), base);
     }
 
     private void buildModelPreviewHost()
@@ -605,31 +621,46 @@ public class UITexturePainter extends UIElement
         this.editorHost.relative(this.modelPreviewHost).x(1F).h(1F)
             .wTo(this.optionsHost.area, 0F, -UIConstants.MARGIN);
 
-        /* The strip sits along the bottom, collapsed to nothing while the texture isn't animated */
-        this.framesHost = new UIElement();
-        this.framesHost.relative(this.editorHost).y(1F).w(1F).h(0).anchorY(1F);
-        this.framesHost.setVisible(false);
+        UITexturePane left = new UITexturePane(this);
+        UITexturePane right = new UITexturePane(this);
 
-        this.framesPanel = new UIFramesPanel(this);
-        this.framesPanel.relative(this.framesHost).w(1F).h(1F);
-        this.framesHost.add(this.framesPanel);
+        /* The right pane starts past the seam after the left one, so the left one is laid out first */
+        left.relative(this.editorHost).w(1F).h(1F);
+        right.relative(left).x(1F, UIConstants.MARGIN).h(1F).wTo(this.editorHost.area, 1F);
+        right.setVisible(false);
 
-        this.framesDraggable = UISplitter.pixels("texture_painter.frames", DEFAULT_FRAMES_HEIGHT, MIN_FRAMES_HEIGHT, MAX_FRAMES_HEIGHT);
-        this.framesDraggable.measure(this.editorHost).vertical().fromEnd().onChange(() ->
+        this.splitDraggable = UISplitter.fraction("texture_painter.split", DEFAULT_SPLIT, MIN_SPLIT, 1F - MIN_SPLIT);
+        this.splitDraggable.measure(this.editorHost).onChange(() ->
         {
-            this.framesHost.h(this.framesDraggable.getPixels());
+            /* What is in the middle of either half stays there as the seam moves */
+            for (UITexturePane pane : this.panes)
+            {
+                if (pane.getEditor() != null)
+                {
+                    pane.getEditor().anchorToMiddle();
+                }
+            }
+
+            left.w(this.splitDraggable.getValue());
             this.editorHost.resize();
-            this.framesDraggable.resize();
+            this.splitDraggable.resize();
         });
-        this.framesDraggable.relative(this.framesHost).x(0.5F).y(0F).w(40).h(6).anchor(0.5F, 0.5F);
-        this.framesDraggable.setVisible(false);
+        this.splitDraggable.relative(left).x(1F, UIConstants.MARGIN / 2).y(0.5F).w(6).h(40).anchor(0.5F, 0.5F);
+        this.splitDraggable.setVisible(false);
 
-        /* The canvas takes what the strip leaves: its height is measured to the strip's top, so
-         * the strip has to be laid out first */
-        this.canvasHost = new UIElement();
-        this.canvasHost.relative(this.editorHost).w(1F).hTo(this.framesHost.area, 0F);
+        this.panes[0] = left;
+        this.panes[1] = right;
+        this.editorHost.add(left, right, this.splitDraggable);
+    }
 
-        this.editorHost.add(this.framesHost, this.canvasHost, this.framesDraggable);
+    private UITexturePane workingPane()
+    {
+        return this.panes[this.working];
+    }
+
+    private boolean isSplit()
+    {
+        return this.panes[1].getTexture() != null;
     }
 
     private void registerShortcuts()
@@ -646,13 +677,13 @@ public class UITexturePainter extends UIElement
         this.keys().register(Keys.PIXEL_BRUSH_INC, () -> this.adjustBrushSize(1)).inside().category(category);
         this.keys().register(Keys.PIXEL_GRID, this::toggleGrid).inside().active(() -> this.editor != null).category(category);
         /* The plain steps are strict, so they step aside for their Shift and Alt+Shift variants */
-        this.keys().register(Keys.PIXEL_FRAME_PREV, () -> this.framesPanel.step(-1)).inside().strict().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_NEXT, () -> this.framesPanel.step(1)).inside().strict().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_FIRST, this.framesPanel::first).inside().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_LAST, this.framesPanel::last).inside().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_ADD, () -> this.framesPanel.addFrame(true)).inside().strict().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_ADD_EMPTY, () -> this.framesPanel.addFrame(false)).inside().active(this::isAnimated).category(category);
-        this.keys().register(Keys.PIXEL_FRAME_PLAY, this.framesPanel::togglePlaying).inside().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_PREV, () -> this.workingPane().frames.step(-1)).inside().strict().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_NEXT, () -> this.workingPane().frames.step(1)).inside().strict().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_FIRST, () -> this.workingPane().frames.first()).inside().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_LAST, () -> this.workingPane().frames.last()).inside().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_ADD, () -> this.workingPane().frames.addFrame(true)).inside().strict().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_ADD_EMPTY, () -> this.workingPane().frames.addFrame(false)).inside().active(this::isAnimated).category(category);
+        this.keys().register(Keys.PIXEL_FRAME_PLAY, () -> this.workingPane().frames.togglePlaying()).inside().active(this::isAnimated).category(category);
 
         /* Undo has to answer wherever the cursor is in the editor — over the strip, the layers,
          * the options — not only over the canvas, which keeps its own binds for when it's there
@@ -683,6 +714,14 @@ public class UITexturePainter extends UIElement
 
         this.renderChromeSurface(context, this.toolBar.area);
         this.renderChromeSurface(context, this.optionsHost.area);
+
+        /* Two canvases stand on the same backdrop, so the seam between them is a strip of chrome */
+        if (this.isSplit())
+        {
+            Area left = this.panes[0].area;
+
+            context.batcher.box(left.ex(), left.y, this.panes[1].area.x, left.ey(), BBSSettings.chromeSurface());
+        }
     }
 
     private void renderChromeSurface(UIContext context, Area area)
@@ -773,9 +812,12 @@ public class UITexturePainter extends UIElement
 
     private void setAnimated(UITextureEditor editor, boolean animated)
     {
+        UITexturePane pane = this.workingPane();
+
         editor.setAnimated(animated);
-        this.framesPanel.sync();
-        this.updateFramesVisibility();
+        pane.frames.sync();
+        pane.updateFrames();
+        this.updateAnimationSection();
     }
 
     /** Turn the animation of the texture on show on, if it isn't already — the browser's way in. */
@@ -790,20 +832,10 @@ public class UITexturePainter extends UIElement
         });
     }
 
-    /**
-     * The strip and the animation section are there for an animated texture and gone otherwise;
-     * the canvas takes what's left.
-     */
-    private void updateFramesVisibility()
+    /** The animation section is there for an animated texture worked on and gone otherwise; each pane sees to its own strip. */
+    private void updateAnimationSection()
     {
-        boolean animated = this.isAnimated();
-
-        this.framesHost.h(animated ? this.framesDraggable.getPixels() : 0);
-        this.framesHost.setVisible(animated);
-        this.framesDraggable.setVisible(animated);
-        this.editorHost.resize();
-
-        this.animationSection.setVisible(animated);
+        this.animationSection.setVisible(this.isAnimated());
         this.syncAnimationSettings();
         this.optionsHost.resize();
     }
@@ -947,7 +979,7 @@ public class UITexturePainter extends UIElement
 
     /**
      * Loads the texture behind {@code link} into a fresh, fully-wired editor without showing it. The
-     * caller owns the returned editor (it must be shown via {@link #setEditor(UITextureEditor)} and
+     * caller owns the returned editor (it must be shown via {@link #setEditors} and
      * freed via {@link UITextureEditor#deleteTexture()}). Returns null when the texture cannot be read.
      */
     public UITextureEditor openEditor(Link link)
@@ -967,10 +999,12 @@ public class UITexturePainter extends UIElement
     }
 
     /**
-     * (Re)binds {@code editor}'s tools, colours and save/rename callbacks to this painter. Called on every
-     * {@link #setEditor} so a shared editor works in whichever picker's painter currently hosts it.
+     * (Re)binds {@code editor}'s tools, colours and save/rename callbacks to this painter, and its
+     * frames to the pane showing it. Called on every {@link #setEditors} so a shared editor works in
+     * whichever picker's painter, and whichever of its panes, currently hosts it. A change made in
+     * the pane not {@code working} on moves the work over there.
      */
-    private void bind(UITextureEditor editor)
+    private void bind(UITextureEditor editor, UITexturePane pane, boolean working)
     {
         editor.saveCallback(this.saveCallback);
         editor.renameCallback((newLink) ->
@@ -991,64 +1025,88 @@ public class UITexturePainter extends UIElement
         editor.brushSoftnessSupplier(() -> (float) this.brushSoftness.getValue() / 100.0F);
         editor.eraserOpacitySupplier(() -> (float) this.eraserOpacity.getValue() / 100.0F);
         editor.secondaryEraserToggle(this::setSecondaryEraser);
-        editor.frameStepper(this.framesPanel::step);
+        editor.frameStepper(pane.frames::step);
         editor.layersChangedCallback(() ->
         {
+            /* An undo may have brought frames back or taken the animation away altogether */
+            pane.frames.sync();
+            pane.updateFrames();
+
             if (this.layersPanel != null && this.getCurrentEditor() == editor)
             {
                 this.layersPanel.updateLayers();
-                /* An undo may have brought frames back or taken the animation away altogether */
-                this.framesPanel.sync();
-                this.updateFramesVisibility();
+                this.updateAnimationSection();
             }
         });
+        editor.changeCallback(working || this.switchHandler == null ? null : () -> this.switchHandler.accept(pane.getTexture()));
         editor.setBrushSize((int) this.brushSize.getValue());
     }
 
     /**
-     * Shows {@code editor} in the canvas (or clears the canvas when null), replacing whatever editor
-     * was previously hosted. The previous editor is detached but not freed — its owner keeps it alive
-     * for its tab.
+     * Shows {@code left} on the canvas and {@code right} in the right half of a split screen
+     * (without it the left one has the canvas to itself, and without either nothing is on show),
+     * working on {@code working}, one of the two. Editors no longer on show are detached but not
+     * freed — their owner keeps them alive for their tabs.
      */
-    public void setEditor(UITextureEditor editor)
+    public void setEditors(UITextureEditor left, UITextureEditor right, UITextureEditor working)
     {
-        if (editor != null)
+        boolean wasSplit = this.isSplit();
+        boolean split = right != null;
+        UITextureEditor[] textures = {left, right};
+        UITextureEditor[] before = {this.panes[0].getTexture(), this.panes[1].getTexture()};
+
+        /* A texture that stays in its half as the screen splits or joins keeps what is in its middle there */
+        for (int i = 0; i < this.panes.length; i++)
         {
-            editor = editor.getActiveEditor();
+            UITextureEditor shown = this.panes[i].getEditor();
+
+            if (shown != null && wasSplit != split && before[i] == textures[i])
+            {
+                shown.anchorToMiddle();
+            }
         }
 
-        List<IUIElement> hostChildren = this.canvasHost.getChildren();
+        this.working = split && working == right ? 1 : 0;
+        this.panes[0].setTexture(left);
+        this.panes[1].setTexture(right);
+        this.editor = this.workingPane().getEditor();
 
-        if (!hostChildren.isEmpty() && hostChildren.get(0) instanceof UITextureEditor currentInHost)
+        for (int i = 0; i < this.panes.length; i++)
         {
-            this.canvasHost.remove(currentInHost);
+            UITextureEditor shown = this.panes[i].getEditor();
+
+            if (shown == null)
+            {
+                continue;
+            }
+
+            /* and one coming into a half of a split screen comes in centred */
+            if ((wasSplit || split) && before[i] != textures[i])
+            {
+                shown.centerView();
+            }
+
+            this.bind(shown, this.panes[i], i == this.working);
         }
 
-        this.editor = editor;
-
-        if (editor != null)
-        {
-            this.bind(editor);
-            editor.removeFromParent();
-            this.canvasHost.prepend(editor);
-            editor.full(this.canvasHost);
-        }
+        this.panes[0].w(split ? this.splitDraggable.getValue() : 1F);
+        this.panes[1].setVisible(split);
+        this.splitDraggable.setVisible(split);
 
         if (this.layersPanel != null)
         {
-            this.layersPanel.setEditor(editor);
+            this.layersPanel.setEditor(this.editor);
         }
 
-        this.framesPanel.setEditor(editor);
-        this.materialPresets.setVisible(editor != null && editor.isMaterial());
-        this.materialOverlayRow.setVisible(editor != null && editor.isMaterial());
-        if (editor != null)
+        this.materialPresets.setVisible(this.editor != null && this.editor.isMaterial());
+        this.materialOverlayRow.setVisible(this.editor != null && this.editor.isMaterial());
+        if (this.editor != null)
         {
-            this.materialOverlay.setValue(editor.getMaterialOverlay() * 100F);
+            this.materialOverlay.setValue(this.editor.getMaterialOverlay() * 100F);
         }
         /* Another painter may have changed the grid's step since this one was on screen */
         this.gridStep.setValue(BBSSettings.textureGridStep.get());
-        this.updateFramesVisibility();
+        this.updateAnimationSection();
         this.resize();
     }
 
@@ -1181,12 +1239,17 @@ public class UITexturePainter extends UIElement
         this.secondary.setColor(swap);
     }
 
+    /** The brush is one for both panes: the one beside outlines it under the cursor all the same. */
     private void setBrushSize(int size)
     {
-        UITextureEditor editor = this.getCurrentEditor();
-        if (editor != null)
+        for (UITexturePane pane : this.panes)
         {
-            editor.setBrushSize(size);
+            UITextureEditor editor = pane.getEditor();
+
+            if (editor != null)
+            {
+                editor.setBrushSize(size);
+            }
         }
     }
 
@@ -1206,11 +1269,14 @@ public class UITexturePainter extends UIElement
             BBSSettings.lightInputs = false;
         }
 
-        UITextureEditor editor = this.getCurrentEditor();
-
-        if (editor != null && editor.area.isInside(context) && editor.getPixels() != null)
+        for (UITexturePane pane : this.panes)
         {
-            this.renderHoverInfo(context, editor);
+            UITextureEditor editor = pane.getEditor();
+
+            if (pane.isVisible() && editor != null && editor.area.isInside(context) && editor.getPixels() != null)
+            {
+                this.renderHoverInfo(context, editor);
+            }
         }
     }
 
@@ -1247,11 +1313,11 @@ public class UITexturePainter extends UIElement
 
         FontRenderer font = context.batcher.getFont();
         int margin = 10;
-        int ty = this.canvasHost.area.y + margin;
+        int ty = editor.area.y + margin;
 
         for (String line : lines)
         {
-            context.batcher.textShadow(line, this.canvasHost.area.ex() - margin - font.getWidth(line), ty);
+            context.batcher.textShadow(line, editor.area.ex() - margin - font.getWidth(line), ty);
 
             ty += font.getHeight() + 2;
         }

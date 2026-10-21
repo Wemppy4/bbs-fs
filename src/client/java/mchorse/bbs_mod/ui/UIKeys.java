@@ -1720,6 +1720,8 @@ public class UIKeys
     public static final IKey TEXTURES_RESIZE_TITLE = L10n.lang("bbs.ui.textures.resize-title");
     public static final IKey TEXTURES_RESIZE_STRETCH = L10n.lang("bbs.ui.textures.resize-stretch");
     public static final IKey TEXTURES_GRID = L10n.lang("bbs.ui.textures.grid");
+    public static final IKey TEXTURES_OPEN_RIGHT = L10n.lang("bbs.ui.textures.open_right");
+    public static final IKey TEXTURES_UNSPLIT = L10n.lang("bbs.ui.textures.unsplit");
     public static final IKey TEXTURES_GRID_STEP = L10n.lang("bbs.ui.textures.grid-step");
     public static final IKey TEXTURES_GRID_STEP_TOOLTIP = L10n.lang("bbs.ui.textures.grid-step-tooltip");
     public static final IKey TEXTURES_SAVE = L10n.lang("bbs.ui.textures.save");
@@ -1866,6 +1868,10 @@ public class UIKeys
 
     public static final IKey CONFIG_GIZMO_ELEMENTS = L10n.lang("bbs.config.transformation.gizmo_elements");
     public static final IKey CONFIG_KEYFRAME_STYLE_EDIT = L10n.lang("bbs.config.timeline.keyframe_default_style.edit");
+    public static final IKey CONFIG_PERSONALIZATION_PRESET_DEFAULT = L10n.lang("bbs.config.personalization.presets.default");
+    public static final IKey CONFIG_PERSONALIZATION_PRESET_SAVE = L10n.lang("bbs.config.personalization.presets.save");
+    public static final IKey CONFIG_PERSONALIZATION_PRESET_NAME = L10n.lang("bbs.config.personalization.presets.name");
+    public static final IKey CONFIG_PERSONALIZATION_PRESET_DELETE = L10n.lang("bbs.config.personalization.presets.delete");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_EXPORT = L10n.lang("bbs.config.viewport.preview_size_mode.export");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_CUSTOM = L10n.lang("bbs.config.viewport.preview_size_mode.custom");
     public static final IKey CONFIG_EDITOR_PREVIEW_MODE_AUTO = L10n.lang("bbs.config.viewport.preview_size_mode.auto");

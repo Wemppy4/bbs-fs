@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.dashboard.panels.tabs;
 
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 
 /**
@@ -32,6 +33,16 @@ public interface IUITabs
     {
         return false;
     }
+
+    /** A tab on show beside the current one, in the other half of a split screen: open, but not the one worked on. */
+    default boolean isSideTab(int index)
+    {
+        return false;
+    }
+
+    /** The owner's own actions in a tab's context menu, ahead of the closing every tab has. */
+    default void fillTabMenu(ContextMenuManager menu, int index)
+    {}
 
     boolean canCloseTab(int index);
 

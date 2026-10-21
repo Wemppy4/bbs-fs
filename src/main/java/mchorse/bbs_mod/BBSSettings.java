@@ -21,6 +21,7 @@ import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
+import mchorse.bbs_mod.settings.values.ui.ValueThemes;
 import mchorse.bbs_mod.settings.values.ui.ValueTrackStyles;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -236,6 +237,9 @@ public class BBSSettings {
 	public static ValueBoolean damageControl;
 
 	public static ValueInt secondaryColor;
+	public static ValueInt textColor;
+	public static ValueFloat interfaceContrast;
+	public static ValueThemes customThemes;
 	public static ValueFloat overlayBackgroundOpacity;
 	public static ValueBoolean interfaceShadows;
 	public static ValueBoolean interfaceHighlights;
@@ -284,6 +288,8 @@ public class BBSSettings {
 	 * #1d1d1d, tinted faintly blue — a tint every rung carries through. The step
 	 * is deliberately small: depth should be felt rather than announced, and a
 	 * dark interface that stays dark is easier to sit in front of for hours.
+	 * The contrast setting scales every step at once, so the ladder can go
+	 * flatter or more layered without its levels changing places.
 	 */
 	private static final int DEFAULT_SECONDARY_COLOR = 0x171b22;
 	private static final float SURFACE_STEP = 0.022F;
@@ -311,6 +317,7 @@ public class BBSSettings {
 
 	/** The colour {@link #SURFACES} was derived from; -1 is no colour, so the first read builds. */
 	private static int surfaceSource = -1;
+	private static float surfaceContrast = 1F;
 	private static boolean lightSurfaces;
 
 	public static int primaryColor()
@@ -329,15 +336,16 @@ public class BBSSettings {
 	}
 
 	/**
-	 * Rebuild the ladder, but only when the secondary colour actually moved —
-	 * surfaces are asked for many times a frame, and the conversion is a
-	 * handful of cube roots.
+	 * Rebuild the ladder, but only when the secondary colour or the contrast
+	 * actually moved — surfaces are asked for many times a frame, and the
+	 * conversion is a handful of cube roots.
 	 */
 	private static void buildSurfaces()
 	{
 		int color = secondaryColor == null ? DEFAULT_SECONDARY_COLOR : secondaryColor.get() & Colors.RGB;
+		float contrast = interfaceContrast == null ? 1F : interfaceContrast.get();
 
-		if (color == surfaceSource)
+		if (color == surfaceSource && contrast == surfaceContrast)
 		{
 			return;
 		}
@@ -346,11 +354,12 @@ public class BBSSettings {
 
 		for (int i = 0; i < SURFACES.length; i++)
 		{
-			SURFACES[i] = SURFACE_OKLAB.toRGB(SURFACE_OKLAB.l + SURFACE_OFFSETS[i]);
+			SURFACES[i] = SURFACE_OKLAB.toRGB(SURFACE_OKLAB.l + SURFACE_OFFSETS[i] * contrast);
 		}
 
 		lightSurfaces = SURFACE_OKLAB.l > LIGHT_SURFACE_LIGHTNESS;
 		surfaceSource = color;
+		surfaceContrast = contrast;
 	}
 
 	private static int surface(int level)
@@ -381,6 +390,18 @@ public class BBSSettings {
 		buildSurfaces();
 
 		return lightSurfaces;
+	}
+
+	/**
+	 * What white text and icons are drawn in: the text colour as picked. Left
+	 * at white on light surfaces it turns black, the way white always did, so
+	 * picking a light background alone keeps the interface readable.
+	 */
+	public static int foregroundColor()
+	{
+		int color = textColor == null ? Colors.RGB : textColor.get() & Colors.RGB;
+
+		return color == Colors.RGB && lightSurfaces() ? 0 : color;
 	}
 
 	public static int chromeSurface()
@@ -733,6 +754,12 @@ public class BBSSettings {
 		builder.category("personalization", Icons.COLOR);
 		primaryColor = builder.getInt("primary_color", DEFAULT_PRIMARY_COLOR).color();
 		secondaryColor = builder.getInt("secondary_color", DEFAULT_SECONDARY_COLOR).color();
+		textColor = builder.getInt("text_color", Colors.RGB).color();
+		interfaceContrast = builder.getFloat("interface_contrast", 1F, 0.25F, 3F).slider();
+		/* Saved and picked from the presets menu in the category's header, see UISettingsOverlayPanel */
+		customThemes = new ValueThemes("custom_themes");
+		customThemes.invisible();
+		builder.register(customThemes);
 		stencilHighlightColor = builder.getInt("stencil_highlight_color", 0x2EFFFFFF).colorAlpha();
 		overlayBackgroundOpacity = builder.getFloat("overlay_background_opacity", DEFAULT_OVERLAY_BACKGROUND_OPACITY, 0F, 1F).slider();
 		interfaceBlur = builder.getBoolean("interface_blur", true);

@@ -33,6 +33,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIListOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.EventPropagation;
 import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
@@ -81,6 +82,16 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
      */
     private static final List<UITextureEditor> EDITORS = new ArrayList<>();
     private int currentTab = 0;
+
+    /**
+     * What the canvas shows: the texture on its left (all of it, while the screen isn't split) and
+     * the one opened on the right, null while it isn't split. The work goes on in the right one
+     * while {@code workRight} holds. Kept while the browser is on show, so coming back finds the
+     * canvas the way it was left.
+     */
+    private UITextureEditor left;
+    private UITextureEditor right;
+    private boolean workRight;
 
     public UIElement buttons;
     public UIIcon add;
@@ -202,7 +213,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
         this.browseContent.add(this.browser);
 
-        this.painter = new UITexturePainter(this::onTextureSaved).onRename(this::onTextureRenamed);
+        this.painter = new UITexturePainter(this::onTextureSaved).onRename(this::onTextureRenamed).onSwitch(this::onWorkMoved);
 
         this.topBar = new UIPanelTopBar();
         this.topBar.relative(this).w(1F).h(UIPanelTopBar.HEIGHT);
@@ -452,43 +463,122 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         }
     }
 
-    /** Shows tab {@code index}: the file browser for tab 0, otherwise the painter for editor {@code index - 1}. */
+    /**
+     * Shows tab {@code index}: the file browser for tab 0, otherwise the painter working on editor
+     * {@code index - 1}. A texture already on the canvas only takes the work over; any other one
+     * takes the place of the one worked on.
+     */
     private void showTab(int index)
     {
         this.currentTab = index;
 
         boolean browse = index == 0;
-        UITextureEditor editor = browse ? null : EDITORS.get(index - 1);
 
-        this.painter.setEditor(editor);
+        if (!browse)
+        {
+            UITextureEditor editor = EDITORS.get(index - 1);
+
+            if (editor == this.right)
+            {
+                this.workRight = true;
+            }
+            else if (editor == this.left)
+            {
+                this.workRight = false;
+            }
+            else if (this.workRight)
+            {
+                this.right = editor;
+            }
+            else
+            {
+                this.left = editor;
+            }
+
+            this.painter.setEditors(this.left, this.right, this.working());
+        }
+
         this.painter.setVisible(!browse);
         this.painter.setActionsVisible(!browse);
         this.browseContent.setVisible(browse);
 
-        /* In the pop-up what is on screen is what gets picked, so a texture's tab chooses that texture.
-         * A multiskin is put together in the browser, so there the tabs are only for painting. */
-        if (editor != null && this.callback != null && this.multiLink == null && !Objects.equals(editor.getTexture(), this.current))
+        /* In the pop-up what is on screen is what gets picked, so a texture's tab chooses that texture
+         * (the one worked on, of two). A multiskin is put together in the browser, so there the tabs
+         * are only for painting. */
+        if (!browse && this.callback != null && this.multiLink == null && !Objects.equals(this.working().getTexture(), this.current))
         {
-            this.selectCurrent(editor.getTexture());
+            this.selectCurrent(this.working().getTexture());
         }
 
         this.tabs.sync();
         this.resize();
     }
 
+    /** The texture worked on, or null when there is none. */
+    private UITextureEditor working()
+    {
+        return this.workRight ? this.right : this.left;
+    }
+
     /**
-     * Re-attaches the shared open textures after another picker changed them: re-hosts the current
-     * texture in this picker's painter (a pop-up may have grabbed it) and clamps to the browser tab if
-     * the current texture was closed elsewhere. Call when this picker becomes active again.
+     * Re-attaches the shared open textures after another picker changed them: re-hosts the textures
+     * on show in this picker's painter (a pop-up may have grabbed them) and, when the one worked on
+     * was closed elsewhere, falls back on the other one on show, or on the browser tab. Call when
+     * this picker becomes active again.
      */
     public void syncToSharedTabs()
     {
-        if (this.currentTab < 0 || this.currentTab > EDITORS.size())
+        boolean browse = this.currentTab == 0;
+
+        this.forgetClosed();
+        this.showTab(browse || this.left == null ? 0 : EDITORS.indexOf(this.working()) + 1);
+    }
+
+    /**
+     * After tabs went: the half of a closed tab closes with it, and the other texture has the
+     * canvas to itself (and the work with it).
+     */
+    private void forgetClosed()
+    {
+        if (!EDITORS.contains(this.right))
         {
-            this.currentTab = 0;
+            this.right = null;
+            this.workRight = false;
         }
 
-        this.showTab(this.currentTab);
+        if (!EDITORS.contains(this.left))
+        {
+            this.left = this.right;
+            this.right = null;
+            this.workRight = false;
+        }
+    }
+
+    /** The other texture on the canvas was changed: the work has moved over to it. */
+    private void onWorkMoved(UITextureEditor editor)
+    {
+        int index = EDITORS.indexOf(editor);
+
+        if (index >= 0)
+        {
+            this.showTab(index + 1);
+        }
+    }
+
+    /** Tab {@code index}'s texture goes in the right half of the canvas, and the work goes on on the left. */
+    private void openRight(int index)
+    {
+        this.right = EDITORS.get(index - 1);
+        this.workRight = false;
+        this.showTab(EDITORS.indexOf(this.left) + 1);
+    }
+
+    /** The right half goes, the left texture has the canvas to itself. */
+    private void unsplit()
+    {
+        this.right = null;
+        this.workRight = false;
+        this.showTab(this.currentTab == 0 ? 0 : EDITORS.indexOf(this.left) + 1);
     }
 
     private void cycleTabs()
@@ -517,7 +607,8 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
 
     /**
      * A Save As changed {@code editor}'s link: close any other tab that already referenced the new
-     * link (its file was just overwritten) and refresh the strip.
+     * link (its file was just overwritten) and refresh the strip — and the canvas, when the closed
+     * tab was the other texture on it.
      */
     private void onTextureRenamed(UITextureEditor editor, Link newLink)
     {
@@ -533,7 +624,17 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
             }
         }
 
-        this.currentTab = EDITORS.indexOf(editor) + 1;
+        UITextureEditor left = this.left;
+        UITextureEditor right = this.right;
+
+        this.forgetClosed();
+        this.currentTab = EDITORS.indexOf(this.working()) + 1;
+
+        if (this.left != left || this.right != right)
+        {
+            this.painter.setEditors(this.left, this.right, this.working());
+        }
+
         this.tabs.sync();
     }
 
@@ -594,6 +695,35 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
     }
 
     @Override
+    public boolean isSideTab(int index)
+    {
+        UITextureEditor other = this.workRight ? this.left : this.right;
+
+        return this.currentTab != 0 && other != null && index >= 1 && index <= EDITORS.size() && EDITORS.get(index - 1) == other;
+    }
+
+    /** A texture off the canvas can open in its right half; the menu of one on it puts the split away. */
+    @Override
+    public void fillTabMenu(ContextMenuManager menu, int index)
+    {
+        UITextureEditor editor = index >= 1 && index <= EDITORS.size() ? EDITORS.get(index - 1) : null;
+
+        if (editor == null || this.left == null)
+        {
+            return;
+        }
+
+        if (editor != this.left && editor != this.right)
+        {
+            menu.action(Icons.LAYOUT, UIKeys.TEXTURES_OPEN_RIGHT, () -> this.openRight(index));
+        }
+        else if (this.right != null)
+        {
+            menu.action(Icons.LAYOUT, UIKeys.TEXTURES_UNSPLIT, this::unsplit);
+        }
+    }
+
+    @Override
     public boolean canCloseTab(int index)
     {
         return index >= 1 && index <= EDITORS.size();
@@ -628,22 +758,23 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
         editor.removeFromParent();
         editor.deleteTexture();
 
-        int target;
+        boolean browse = this.currentTab == 0;
 
-        if (this.currentTab == index)
+        this.forgetClosed();
+
+        /* With no other texture on the canvas to take over, a closed one hands over to the tab that took its place */
+        if (browse)
         {
-            target = Math.min(index, EDITORS.size());
+            this.showTab(0);
         }
-        else if (this.currentTab > index)
+        else if (this.left != null)
         {
-            target = this.currentTab - 1;
+            this.showTab(EDITORS.indexOf(this.working()) + 1);
         }
         else
         {
-            target = this.currentTab;
+            this.showTab(Math.min(index, EDITORS.size()));
         }
-
-        this.showTab(target);
     }
 
     @Override
@@ -667,6 +798,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
             }
         }
 
+        this.forgetClosed();
         this.showTab(1);
     }
 
@@ -686,6 +818,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
             editor.deleteTexture();
         }
 
+        this.forgetClosed();
         this.showTab(1);
     }
 
@@ -705,6 +838,7 @@ public class UITexturePicker extends UIElement implements IImportPathProvider, I
             editor.deleteTexture();
         }
 
+        this.forgetClosed();
         this.showTab(index);
     }
 

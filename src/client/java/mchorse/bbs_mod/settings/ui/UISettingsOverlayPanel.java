@@ -8,6 +8,7 @@ import mchorse.bbs_mod.settings.Settings;
 import mchorse.bbs_mod.settings.value.ValueKeyCombo;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
+import mchorse.bbs_mod.settings.values.ui.ValueThemes.Theme;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.utility.UIUtilitySettings;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -19,6 +20,7 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -29,6 +31,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +42,36 @@ import java.util.Set;
 public class UISettingsOverlayPanel extends UIOverlayPanel
 {
     private static final int SIDE_WIDTH = 130;
+
+    /**
+     * Coding themes as the colours the interface is built from: the accent, the
+     * background (the whole surface ladder falls out of it, see {@link BBSSettings})
+     * and the text. Light themes take their second background shade, since the
+     * ladder climbs above the base colour and pure white leaves it no room for
+     * the raised surfaces and the divider.
+     *
+     * The contrast is measured off each theme's own editor: how far its side bar
+     * (or, where the panes are all one colour, its inputs) sits from the editor
+     * in Oklab lightness, taken as one step of the ladder, averaged with how far
+     * its pane borders sit, taken as the divider.
+     */
+    private static final List<ThemePreset> THEME_PRESETS = List.of(
+        new ThemePreset("VS Code Dark+", new Theme(0x007acc, 0x1e1e1e, 0xd4d4d4, 2.1F)),
+        new ThemePreset("Monokai", new Theme(0xf92672, 0x272822, 0xf8f8f2, 1.3F)),
+        new ThemePreset("Dracula", new Theme(0xbd93f9, 0x282a36, 0xf8f8f2, 1.4F)),
+        new ThemePreset("One Dark", new Theme(0x61afef, 0x282c34, 0xabb2bf, 1.4F)),
+        new ThemePreset("Nord", new Theme(0x88c0d0, 0x2e3440, 0xd8dee9, 1.8F)),
+        new ThemePreset("Gruvbox", new Theme(0xfe8019, 0x282828, 0xebdbb2, 2.2F)),
+        new ThemePreset("Tokyo Night", new Theme(0x7aa2f7, 0x1a1b26, 0xc0caf5, 1F)),
+        new ThemePreset("Catppuccin Mocha", new Theme(0xcba6f7, 0x1e1e2e, 0xcdd6f4, 1.2F)),
+        new ThemePreset("Rosé Pine", new Theme(0xebbcba, 0x191724, 0xe0def4, 1.3F)),
+        new ThemePreset("Ayu Dark", new Theme(0xe6b450, 0x0b0e14, 0xbfbdb6, 0.9F)),
+        new ThemePreset("Everforest", new Theme(0xa7c080, 0x2d353b, 0xd3c6aa, 1F)),
+        new ThemePreset("GitHub Dark", new Theme(0x2f81f7, 0x0d1117, 0xe6edf3, 3F)),
+        new ThemePreset("Solarized Dark", new Theme(0x268bd2, 0x002b36, 0x93a1a1, 1.7F)),
+        new ThemePreset("Solarized Light", new Theme(0x268bd2, 0xeee8d5, 0x586e75, 1.9F)),
+        new ThemePreset("GitHub Light", new Theme(0x0969da, 0xeaeef2, 0x1f2328, 1.6F))
+    );
 
     public UITextbox search;
     public UIScrollView sections;
@@ -231,6 +264,84 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         menu.action(Icons.FILM, UIKeys.VIDEO_SETTINGS_PRESETS_4K, () -> this.applyVideoPreset(3840, 2160));
     }
 
+    /**
+     * A theme only promises the interface colours and the contrast - the
+     * viewport's selection highlight and the panel effects stay the user's own.
+     */
+    public void applyTheme(Theme theme)
+    {
+        BBSSettings.primaryColor.set(theme.primary());
+        BBSSettings.secondaryColor.set(theme.secondary());
+        BBSSettings.textColor.set(theme.text());
+        BBSSettings.interfaceContrast.set(theme.contrast());
+
+        this.refresh();
+    }
+
+    /**
+     * Built-in themes, then the user's own, then saving the current look as one
+     * more of those and deleting them again.
+     */
+    public void addThemePresets(ContextMenuManager menu)
+    {
+        Theme defaults = new Theme(
+            BBSSettings.primaryColor.getDefaultValue(), BBSSettings.secondaryColor.getDefaultValue(),
+            BBSSettings.textColor.getDefaultValue(), BBSSettings.interfaceContrast.getDefaultValue());
+        Map<String, Theme> custom = BBSSettings.customThemes.get();
+
+        this.addTheme(menu, UIKeys.CONFIG_PERSONALIZATION_PRESET_DEFAULT, defaults);
+
+        for (ThemePreset preset : THEME_PRESETS)
+        {
+            this.addTheme(menu, IKey.constant(preset.name()), preset.theme());
+        }
+
+        custom.forEach((name, theme) -> this.addTheme(menu, IKey.constant(name), theme));
+
+        menu.action(Icons.SAVE, UIKeys.CONFIG_PERSONALIZATION_PRESET_SAVE, this::promptSaveTheme);
+
+        if (!custom.isEmpty())
+        {
+            menu.action(Icons.TRASH, UIKeys.CONFIG_PERSONALIZATION_PRESET_DELETE, this::openDeleteThemeMenu);
+        }
+    }
+
+    private void addTheme(ContextMenuManager menu, IKey label, Theme theme)
+    {
+        menu.action(Icons.BUCKET, label, theme.primary(), () -> this.applyTheme(theme));
+    }
+
+    private void promptSaveTheme()
+    {
+        UIOverlay.addOverlay(this.getContext(), new UIPromptOverlayPanel(
+            UIKeys.CONFIG_PERSONALIZATION_PRESET_SAVE,
+            UIKeys.CONFIG_PERSONALIZATION_PRESET_NAME,
+            (input) ->
+            {
+                String name = input.trim();
+
+                if (!name.isEmpty())
+                {
+                    BBSSettings.customThemes.put(name, new Theme(
+                        BBSSettings.primaryColor.get(), BBSSettings.secondaryColor.get(),
+                        BBSSettings.textColor.get(), BBSSettings.interfaceContrast.get()));
+                }
+            }));
+    }
+
+    private void openDeleteThemeMenu()
+    {
+        List<String> names = new ArrayList<>(BBSSettings.customThemes.get().keySet());
+
+        this.getContext().replaceContextMenu((menu) ->
+        {
+            for (String name : names)
+            {
+                menu.action(Icons.TRASH, IKey.constant(name), () -> BBSSettings.customThemes.remove(name));
+            }
+        });
+    }
+
     private void appendValues(ValueGroup category, boolean filtered)
     {
         Set<BaseValue> drawn = new HashSet<>();
@@ -376,6 +487,9 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
         context.batcher.box(x, y, x + SIDE_WIDTH, ey, BBSSettings.chromeSurface());
     }
 
+    private record ThemePreset(String name, Theme theme)
+    {}
+
     /**
      * A clickable section row in the left list — icon plus localized title, wearing the marks
      * every row wears: see {@link RowStyle}.
@@ -442,6 +556,15 @@ public class UISettingsOverlayPanel extends UIOverlayPanel
             if (category.getId().equals("video"))
             {
                 UIIcon presets = new UIIcon(Icons.FILM, (b) -> b.getContext().replaceContextMenu(panel::addVideoPresets));
+
+                presets.tooltip(UIKeys.GENERAL_PRESETS);
+                presets.wh(16, 16);
+                presets.relative(this).x(1F, -4).y(0.5F, -1).anchor(1F, 0.5F);
+                this.add(presets);
+            }
+            else if (category.getId().equals("personalization"))
+            {
+                UIIcon presets = new UIIcon(Icons.BUCKET, (b) -> b.getContext().replaceContextMenu(panel::addThemePresets));
 
                 presets.tooltip(UIKeys.GENERAL_PRESETS);
                 presets.wh(16, 16);
