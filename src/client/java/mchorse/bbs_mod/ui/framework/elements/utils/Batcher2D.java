@@ -554,6 +554,37 @@ public class Batcher2D
         return (color & Colors.RGB) == Colors.RGB ? (color & Colors.A100) | BBSSettings.foregroundColor() : color;
     }
 
+    /**
+     * Icons go further than text: a neutral grey is the text colour dimmed by as
+     * much as the grey is darker than white, which is how hovered, pressed and
+     * disabled icons are told apart. It dims towards black on dark surfaces and
+     * towards white on light ones, so it keeps reading as dimming in both, and a
+     * dark interface with white text draws exactly the greys it always did.
+     * Tinted colours pass through.
+     */
+    private static int iconForeground(int color)
+    {
+        int value = color & 0xff;
+
+        if (((color >> 16) & 0xff) != value || ((color >> 8) & 0xff) != value)
+        {
+            return color;
+        }
+
+        int foreground = BBSSettings.foregroundColor();
+        int target = BBSSettings.lightSurfaces() ? 0xff : 0;
+        int rgb = 0;
+
+        for (int shift = 16; shift >= 0; shift -= 8)
+        {
+            int channel = (foreground >> shift) & 0xff;
+
+            rgb |= (target + (channel - target) * value / 255) << shift;
+        }
+
+        return (color & Colors.A100) | rgb;
+    }
+
     public void icon(Icon icon, float x, float y)
     {
         this.icon(icon, Colors.WHITE, x, y);
@@ -576,7 +607,7 @@ public class Batcher2D
             return;
         }
 
-        color = foreground(color);
+        color = iconForeground(color);
 
         x -= icon.w * ax;
         y -= icon.h * ay;
@@ -596,7 +627,7 @@ public class Batcher2D
             return;
         }
 
-        color = foreground(color);
+        color = iconForeground(color);
 
         this.texturedBox(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, size, size, icon.x, icon.y, icon.x + icon.w, icon.y + icon.h, icon.textureW, icon.textureH);
     }
@@ -608,7 +639,7 @@ public class Batcher2D
 
     public void iconArea(Icon icon, int color, float x, float y, float w, float h)
     {
-        color = foreground(color);
+        color = iconForeground(color);
 
         this.texturedArea(BBSModClient.getTextures().getTexture(icon.texture), color, x, y, w, h, icon.x, icon.y, icon.w, icon.h, icon.textureW, icon.textureH);
     }
