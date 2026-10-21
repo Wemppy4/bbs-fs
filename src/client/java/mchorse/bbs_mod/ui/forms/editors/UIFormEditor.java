@@ -667,7 +667,7 @@ public class UIFormEditor extends UIElement implements IUIFormList, ICursor, IBo
             return panel.getGizmoTransform() == null ? NO_GIZMO_HANDLES : SplineEditorUtils.HANDLES;
         }
 
-        UIPropTransform transform = this.editor == null || this.isBodyPartGizmoMode() ? null : this.editor.getEditableTransform();
+        UIPropTransform transform = this.editor == null || this.isBodyPartGizmoMode() ? null : this.editor.peekEditableTransform();
 
         return transform == null ? Gizmo.HandleMask.ALL : Gizmo.HandleMask.ALL.locked(transform.axisLocks(), transform.getSpace());
     }
