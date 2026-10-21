@@ -1910,6 +1910,8 @@
 	"bbs.ui.model_editor.weld.pairs.pick": "Выбрать пару",
 	"bbs.ui.model_editor.weld.pairs.pick_cube": "выбрать",
 	"bbs.ui.model_editor.weld.pairs.empty": "Пар нет: свариваются все кубы",
+	"bbs.ui.model_editor.weld.pairs.tooltip": "Клик по кубу на модели: сторона выбранной пары. Alt+клик: кубы под курсором",
+	"bbs.ui.model_editor.weld.pairs.under_cursor": "Под курсором",
 	"bbs.ui.model_editor.keys.expand_all": "Развернуть все секции",
 	"bbs.ui.model_editor.keys.collapse_all": "Свернуть все секции",
 	"bbs.ui.model_editor.keys.find_bone": "Найти кость",

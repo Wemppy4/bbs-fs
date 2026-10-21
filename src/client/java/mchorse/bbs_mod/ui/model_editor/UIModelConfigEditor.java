@@ -16,6 +16,7 @@ import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
@@ -73,7 +74,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
@@ -1449,6 +1452,8 @@ public class UIModelConfigEditor extends UIElement
         UILabel title = UI.label(UIKeys.MODEL_EDITOR_WELD_PAIRS, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F);
         UIIcon add = new UIIcon(Icons.ADD, (b) -> this.addPair(weld));
 
+        /* The clicks on the model are the main way to pick, and nothing on screen shows them. */
+        title.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_TOOLTIP);
         add.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_ADD);
         add.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
         this.weldPanel.add(UI.row(0, title, add));
@@ -1711,9 +1716,10 @@ public class UIModelConfigEditor extends UIElement
     }
 
     /**
-     * A click on the model: on the welds page a cube of the picked weld — with a pair picked it
-     * becomes that pair's cube on its bone's side, without one it picks the pair it's in — and
-     * elsewhere a bone, see {@link #selectBone}. Whether the click was taken.
+     * A click on the model: on the welds page a cube of the picked weld (see {@link #pickWeldCube}),
+     * or with alt held a menu of every cube of its two bones under the cursor — the one way to the
+     * base layer under a jacket — and elsewhere a bone, see {@link #selectBone}. Whether the click
+     * was taken.
      */
     public boolean selectPick(String bone, int cube)
     {
@@ -1724,11 +1730,43 @@ public class UIModelConfigEditor extends UIElement
 
         WeldValue weld = this.data == null ? null : this.weldList.getCurrentFirst();
 
-        if (weld == null || cube < 0 || !this.picksCubes(bone))
+        if (weld != null && Window.isAltPressed())
+        {
+            return this.openCubesAt(weld);
+        }
+
+        return weld != null && cube >= 0 && this.picksCubes(bone) && this.pickWeldCube(weld, bone, cube);
+    }
+
+    /** The menu of the weld's cubes under the cursor, nearest first; whether there were any. */
+    private boolean openCubesAt(WeldValue weld)
+    {
+        Set<String> bones = new LinkedHashSet<>(List.of(weld.sourceBone.get(), weld.targetBone.get()));
+        List<ModelNode> cubes = this.modelPanel.renderer.cubesAt(this.getContext(), bones);
+
+        if (cubes.isEmpty())
         {
             return false;
         }
 
+        UICubePickerContextMenu menu = new UICubePickerContextMenu(UIKeys.MODEL_EDITOR_WELD_PAIRS_UNDER_CURSOR, (node) ->
+        {
+            Model model = this.instance() != null && this.instance().getModel() instanceof Model cubic ? cubic : null;
+
+            return cubeName(model == null ? null : model.getGroup(node.group()), node.cube());
+        }, (node) -> this.pickWeldCube(weld, node.group(), node.cube()));
+
+        this.getContext().replaceContextMenu(menu.cubes(cubes).hover(this::listCube));
+
+        return true;
+    }
+
+    /**
+     * A cube of the picked weld, clicked: with a pair picked it becomes that pair's cube on its
+     * bone's side, without one it picks the pair it's in. Whether it did either.
+     */
+    private boolean pickWeldCube(WeldValue weld, String bone, int cube)
+    {
         boolean source = bone.equals(weld.sourceBone.get());
         int active = this.activePair(weld);
 

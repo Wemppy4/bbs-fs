@@ -59,6 +59,9 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -421,17 +424,69 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
             return -1;
         }
 
-        /* The ray, from the camera through the pixel, then lifted out of the scene into the form's
-         * own frame — the one the bones were captured in (see UIModelRenderer#toSceneMatrix). */
+        Vector3f origin = new Vector3f();
+        Vector3f direction = this.cursorRay(context, origin);
+
+        return ModelCubeFrames.pick(entry, group, origin, direction);
+    }
+
+    /**
+     * Every cube of {@code bones} the ray through the cursor goes through, the nearest first —
+     * whatever is drawn in front of them: what a click can't reach, since it takes the nearest.
+     */
+    public List<ModelNode> cubesAt(UIContext context, Collection<String> bones)
+    {
+        Model model = this.cubicModel();
+        List<ModelNode> cubes = new ArrayList<>();
+
+        if (model == null || this.bones == null)
+        {
+            return cubes;
+        }
+
+        Vector3f origin = new Vector3f();
+        Vector3f direction = this.cursorRay(context, origin);
+        Map<ModelNode, Float> distances = new HashMap<>();
+
+        for (String bone : bones)
+        {
+            ModelGroup group = model.getGroup(bone);
+            MatrixCacheEntry entry = group == null ? null : this.boneEntry(bone);
+
+            if (entry == null)
+            {
+                continue;
+            }
+
+            for (ModelCubeFrames.Hit hit : ModelCubeFrames.hits(entry, group, origin, direction))
+            {
+                ModelNode node = ModelNode.cube(bone, hit.cube());
+
+                cubes.add(node);
+                distances.put(node, hit.distance());
+            }
+        }
+
+        cubes.sort((a, b) -> Float.compare(distances.get(a), distances.get(b)));
+
+        return cubes;
+    }
+
+    /**
+     * The ray from the camera through the cursor's pixel, lifted out of the scene into the form's own
+     * frame — the one the bones were captured in (see UIModelRenderer#toSceneMatrix): its start into
+     * {@code origin}, its direction returned.
+     */
+    private Vector3f cursorRay(UIContext context, Vector3f origin)
+    {
         Vector3f offset = new Vector3f();
         Vector3f direction = CameraUtils.getMouseRay(this.camera.projection, this.camera.view, context.mouseX, context.mouseY, this.area.x, this.area.y, this.area.w, this.area.h, offset);
         Vector3d position = new Vector3d(this.camera.position).add(offset);
         Matrix4f toForm = this.toSceneMatrix(new Matrix4f()).invert();
-        Vector3f origin = toForm.transformPosition(new Vector3f((float) position.x, (float) position.y, (float) position.z));
 
-        toForm.transformDirection(direction);
+        toForm.transformPosition(origin.set((float) position.x, (float) position.y, (float) position.z));
 
-        return ModelCubeFrames.pick(entry, group, origin, direction);
+        return toForm.transformDirection(direction);
     }
 
     /**

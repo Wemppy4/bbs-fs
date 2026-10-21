@@ -1241,6 +1241,8 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_PAIRS_PICK = L10n.lang("bbs.ui.model_editor.weld.pairs.pick");
     public static final IKey MODEL_EDITOR_WELD_PAIRS_PICK_CUBE = L10n.lang("bbs.ui.model_editor.weld.pairs.pick_cube");
     public static final IKey MODEL_EDITOR_WELD_PAIRS_EMPTY = L10n.lang("bbs.ui.model_editor.weld.pairs.empty");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_TOOLTIP = L10n.lang("bbs.ui.model_editor.weld.pairs.tooltip");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_UNDER_CURSOR = L10n.lang("bbs.ui.model_editor.weld.pairs.under_cursor");
     public static final IKey MODEL_EDITOR_KEYS_EXPAND_ALL = L10n.lang("bbs.ui.model_editor.keys.expand_all");
     public static final IKey MODEL_EDITOR_KEYS_COLLAPSE_ALL = L10n.lang("bbs.ui.model_editor.keys.collapse_all");
     public static final IKey MODEL_EDITOR_KEYS_FIND_BONE = L10n.lang("bbs.ui.model_editor.keys.find_bone");
