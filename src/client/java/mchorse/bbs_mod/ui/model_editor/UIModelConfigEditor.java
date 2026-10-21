@@ -1237,11 +1237,16 @@ public class UIModelConfigEditor extends UIElement
 
     /**
      * A bone clicked in the preview picks it where a bone is picked: in the tree on the bones page, in
-     * the pose editor on the poses page; anywhere else the click is left alone (a bone is given to a
-     * slot through its picker or the eyedropper).
+     * the pose editor on the poses page, its weld on the welds page; anywhere else the click is left
+     * alone (a bone is given to a slot through its picker or the eyedropper).
      */
     public boolean selectBone(String bone)
     {
+        if (lastTab == Tab.WELDS)
+        {
+            return this.selectWeld(bone);
+        }
+
         if (lastTab == Tab.POSES)
         {
             if (!this.poseEditor.hasBone(bone))
@@ -1404,6 +1409,57 @@ public class UIModelConfigEditor extends UIElement
         }
 
         this.fillWeld();
+    }
+
+    /**
+     * A bone clicked in the preview picks its weld, so a weld is found on the model rather than by its
+     * bones' names. Of a bone's several welds (a torso's neck, shoulders and hips) the one whose joint is
+     * nearest the click: from the point the click landed on, at rest, to the welded faces across the
+     * joint — the bone's own faces can't tell its welds apart when two of them share a face, as the hips
+     * share the torso's bottom. The bone is the geometry's under the cursor, the one welds name, and the
+     * click is left alone (an orbit starts) on a bone without welds.
+     */
+    private boolean selectWeld(String bone)
+    {
+        if (this.data == null)
+        {
+            return false;
+        }
+
+        UIModelEditorRenderer.Hit hit = this.modelPanel.renderer.hitAt(this.getContext());
+        Model model = this.instance() != null && this.instance().getModel() instanceof Model cubic ? cubic : null;
+        String id = hit == null ? bone : hit.group().id;
+        Vector3f point = hit == null || hit.point() == null ? null : WeldBinding.restPoint(hit.group(), hit.point());
+        WeldValue nearest = null;
+        float distance = Float.MAX_VALUE;
+
+        for (WeldValue weld : this.data.welds.getAllTyped())
+        {
+            boolean source = weld.sourceBone.get().equals(id);
+
+            if (!source && !weld.targetBone.get().equals(id))
+            {
+                continue;
+            }
+
+            float joint = model == null || point == null ? Float.MAX_VALUE : WeldBinding.restDistance(model, weld.toWeld(), !source, point);
+
+            if (nearest == null || joint < distance)
+            {
+                nearest = weld;
+                distance = joint;
+            }
+        }
+
+        if (nearest == null)
+        {
+            return false;
+        }
+
+        this.weldList.setCurrentScroll(nearest);
+        this.fillWeld();
+
+        return true;
     }
 
     /**

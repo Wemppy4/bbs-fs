@@ -112,6 +112,62 @@ public class WeldBinding
         return average(transformCorners(restCubeMatrix(restWorldMatrix(group), cube), faceCorners(cube, face)));
     }
 
+    /** A point in the frame {@code group}'s cubes are drawn in, carried into the rest pose — where {@link #restFaceCenter} stands. */
+    public static Vector3f restPoint(ModelGroup group, Vector3f point)
+    {
+        return restWorldMatrix(group).transformPosition(point, new Vector3f());
+    }
+
+    /**
+     * How far {@code point}, at rest, is from where the weld meets one of its sides: the nearest middle
+     * of that side's welded faces — of its picked cubes, when the weld goes by its pairs. MAX_VALUE for
+     * a side without its bone or face.
+     */
+    public static float restDistance(Model model, ModelWeld weld, boolean source, Vector3f point)
+    {
+        ModelGroup group = model.getGroup(source ? weld.sourceBone : weld.targetBone);
+        CubeFace face = CubeFace.fromName(source ? weld.sourceFace : weld.targetFace);
+        float distance = Float.MAX_VALUE;
+
+        if (group == null || face == null)
+        {
+            return distance;
+        }
+
+        boolean picked = weld.picksCubes();
+
+        for (int i = 0; i < group.cubes.size(); i++)
+        {
+            if (picked && !picks(weld, source, i))
+            {
+                continue;
+            }
+
+            Vector3f center = restFaceCenter(group, group.cubes.get(i), face);
+
+            if (center != null)
+            {
+                distance = Math.min(distance, center.distance(point));
+            }
+        }
+
+        return distance;
+    }
+
+    /** Whether a picked pair of the weld has {@code cube} on one side. */
+    private static boolean picks(ModelWeld weld, boolean source, int cube)
+    {
+        for (ModelWeld.Pair pair : weld.pairs)
+        {
+            if (pair.isPicked() && pair.side(source) == cube)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static WeldBinding resolve(Model model, ModelWeld weld)
     {
         if (diagnose(model, weld) != null)
