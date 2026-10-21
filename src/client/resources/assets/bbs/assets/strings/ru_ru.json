@@ -1865,6 +1865,8 @@
 	"bbs.ui.model_editor.weld.issue.target_face": "Не выбрана грань-цель",
 	"bbs.ui.model_editor.weld.issue.source_cubes": "У кости-источника нет куба с такой гранью",
 	"bbs.ui.model_editor.weld.issue.target_cubes": "У кости-цели нет куба с такой гранью",
+	"bbs.ui.model_editor.weld.issue.source_pair": "Куб пары у кости-источника не найден или без такой грани",
+	"bbs.ui.model_editor.weld.issue.target_pair": "Куб пары у кости-цели не найден или без такой грани",
 	"bbs.ui.model_editor.look_at": "Взгляд",
 	"bbs.ui.model_editor.look_at.head": "Кость головы",
 	"bbs.ui.model_editor.look_at.pitch": "Следить за наклоном",

@@ -1872,6 +1872,8 @@
 	"bbs.ui.model_editor.weld.issue.target_face": "Target face isn't picked",
 	"bbs.ui.model_editor.weld.issue.source_cubes": "Source bone has no cube with that face",
 	"bbs.ui.model_editor.weld.issue.target_cubes": "Target bone has no cube with that face",
+	"bbs.ui.model_editor.weld.issue.source_pair": "A pair's source cube is missing or has no such face",
+	"bbs.ui.model_editor.weld.issue.target_pair": "A pair's target cube is missing or has no such face",
 	"bbs.ui.model_editor.look_at": "Look at",
 	"bbs.ui.model_editor.look_at.head": "Head bone",
 	"bbs.ui.model_editor.look_at.pitch": "Follow pitch",

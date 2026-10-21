@@ -1546,6 +1546,8 @@
     "bbs.ui.model_editor.weld.issue.source_face": "未选中源面",
     "bbs.ui.model_editor.weld.issue.target_bone": "未找到目标骨骼",
     "bbs.ui.model_editor.weld.issue.target_cubes": "目标骨骼中没有包含该面的块",
+    "bbs.ui.model_editor.weld.issue.source_pair": "配对中的源块不存在或没有该面",
+    "bbs.ui.model_editor.weld.issue.target_pair": "配对中的目标块不存在或没有该面",
     "bbs.ui.model_editor.weld.issue.target_face": "未选中目标面",
     "bbs.ui.morphing.demorph": "取消伪装",
     "bbs.ui.morphing.filter_categories": "显示 / 隐藏形态类别",

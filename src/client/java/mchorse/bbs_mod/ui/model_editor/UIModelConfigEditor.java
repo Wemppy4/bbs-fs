@@ -1642,6 +1642,8 @@ public class UIModelConfigEditor extends UIElement
             case SOURCE_FACE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_FACE;
             case TARGET_FACE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_FACE;
             case SOURCE_CUBES: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_CUBES;
+            case SOURCE_PAIR: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_PAIR;
+            case TARGET_PAIR: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_PAIR;
             default: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_CUBES;
         }
     }

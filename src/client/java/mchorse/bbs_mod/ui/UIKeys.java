@@ -1189,6 +1189,8 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_FACE = L10n.lang("bbs.ui.model_editor.weld.issue.target_face");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_CUBES = L10n.lang("bbs.ui.model_editor.weld.issue.source_cubes");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_CUBES = L10n.lang("bbs.ui.model_editor.weld.issue.target_cubes");
+    public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_PAIR = L10n.lang("bbs.ui.model_editor.weld.issue.source_pair");
+    public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_PAIR = L10n.lang("bbs.ui.model_editor.weld.issue.target_pair");
     public static final IKey MODEL_EDITOR_LOOK_AT = L10n.lang("bbs.ui.model_editor.look_at");
     public static final IKey MODEL_EDITOR_LOOK_AT_HEAD = L10n.lang("bbs.ui.model_editor.look_at.head");
     public static final IKey MODEL_EDITOR_LOOK_AT_PITCH = L10n.lang("bbs.ui.model_editor.look_at.pitch");
