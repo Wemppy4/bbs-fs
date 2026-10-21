@@ -96,7 +96,25 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
         }
     }
 
+    /**
+     * The transform the gizmo edits, opening the general tab when that's the form's own transform
+     * (a form without a skeleton), so a drag shows its numbers. Only for starting an edit: what is
+     * asked every frame goes through {@link #peekEditableTransform()}, or no other tab would stay open.
+     */
     public UIPropTransform getEditableTransform()
+    {
+        UIPropTransform transform = this.peekEditableTransform();
+
+        if (transform == this.general)
+        {
+            this.setPanel(this.generalPanel);
+        }
+
+        return transform;
+    }
+
+    /** The transform the gizmo edits, without switching tabs. */
+    public UIPropTransform peekEditableTransform()
     {
         if (this.view instanceof FormEditorTool tool && tool.getGizmoTransform() != null)
         {
@@ -105,14 +123,7 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
         UIPoseEditor poseEditor = this.getPoseEditor();
 
-        if (poseEditor != null)
-        {
-            return poseEditor.transform;
-        }
-
-        this.setPanel(this.generalPanel);
-
-        return this.general;
+        return poseEditor == null ? this.general : poseEditor.transform;
     }
 
     /**

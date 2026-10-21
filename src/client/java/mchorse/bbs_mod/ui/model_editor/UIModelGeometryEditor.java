@@ -45,9 +45,11 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -1831,13 +1833,38 @@ public class UIModelGeometryEditor extends UIElement
      * shown through the panel right after. A verb acts on the rows nothing else in the pick carries
      * ({@link #outermostNodes}), so a group and a cube of it never get it twice. */
 
-    /** An edit of the model's structure: snapshot, change, push, settle. */
+    /**
+     * An edit of the model's structure: snapshot, change, push, settle. The welds' cube pairs follow
+     * their cubes in the same step: each cube is looked up again in the group it was in, so a pair
+     * keeps its cube whatever came or went around it, and goes when its cube was removed or carried
+     * into another group.
+     */
     private void edit(IKey label, Runnable mutation)
     {
         MapType before = this.snapshot();
+        MapType configBefore = this.modelPanel.getData().toData().asMap();
+        Map<String, ModelGroup> groups = new HashMap<>();
+        Map<String, List<ModelCube>> cubes = new HashMap<>();
+
+        for (ModelGroup group : this.model.getAllGroups())
+        {
+            groups.put(group.id, group);
+            cubes.put(group.id, new ArrayList<>(group.cubes));
+        }
 
         mutation.run();
-        this.modelPanel.pushModelEdit(new ModelEditUndo(this.modelPanel, label.get(), null, before, this.snapshot()));
+
+        boolean renumbered = this.modelPanel.getData().renumberWeldCubes((bone, cube) ->
+        {
+            List<ModelCube> was = cubes.get(bone);
+
+            /* A number that named no cube has nothing to follow; it stays the weld's issue. */
+            return was == null || cube >= was.size() ? cube : groups.get(bone).cubes.indexOf(was.get(cube));
+        });
+
+        this.modelPanel.pushModelEdit(renumbered
+            ? new ModelEditUndo(this.modelPanel, label.get(), null, before, this.snapshot(), configBefore, this.modelPanel.getData().toData().asMap(), null, null)
+            : new ModelEditUndo(this.modelPanel, label.get(), null, before, this.snapshot()));
         this.modelPanel.modelStructureChanged();
     }
 

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToIntBiFunction;
 
 /**
  * A model's {@code config.json} as an editable value tree. Loading and saving the file is the
@@ -266,6 +267,28 @@ public class ModelConfig extends ValueGroup
         renameBone(data, from, to);
         this.fromData(data);
         this.rebuild();
+    }
+
+    /**
+     * Point the welds' cube pairs at where their cubes went after an edit of the model, see
+     * {@link WeldValue#renumberCubes}. Like a rename it notifies no value: the model editor's undo step
+     * carries the config. Whether a pair changed.
+     */
+    public boolean renumberWeldCubes(ToIntBiFunction<String, Integer> renumber)
+    {
+        boolean changed = false;
+
+        for (WeldValue weld : this.welds.getAllTyped())
+        {
+            changed |= weld.renumberCubes(renumber);
+        }
+
+        if (changed)
+        {
+            this.rebuild();
+        }
+
+        return changed;
     }
 
     private static void renameBone(MapType data, String from, String to)

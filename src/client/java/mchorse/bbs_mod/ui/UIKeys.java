@@ -1189,6 +1189,8 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_FACE = L10n.lang("bbs.ui.model_editor.weld.issue.target_face");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_CUBES = L10n.lang("bbs.ui.model_editor.weld.issue.source_cubes");
     public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_CUBES = L10n.lang("bbs.ui.model_editor.weld.issue.target_cubes");
+    public static final IKey MODEL_EDITOR_WELD_ISSUE_SOURCE_PAIR = L10n.lang("bbs.ui.model_editor.weld.issue.source_pair");
+    public static final IKey MODEL_EDITOR_WELD_ISSUE_TARGET_PAIR = L10n.lang("bbs.ui.model_editor.weld.issue.target_pair");
     public static final IKey MODEL_EDITOR_LOOK_AT = L10n.lang("bbs.ui.model_editor.look_at");
     public static final IKey MODEL_EDITOR_LOOK_AT_HEAD = L10n.lang("bbs.ui.model_editor.look_at.head");
     public static final IKey MODEL_EDITOR_LOOK_AT_PITCH = L10n.lang("bbs.ui.model_editor.look_at.pitch");
@@ -1233,6 +1235,13 @@ public class UIKeys
     public static final IKey MODEL_EDITOR_HISTORY_TITLE = L10n.lang("bbs.ui.model_editor.history-title");
     public static final IKey MODEL_EDITOR_ITEM_DUPLICATE = L10n.lang("bbs.ui.model_editor.item.duplicate");
     public static final IKey MODEL_EDITOR_WELD_DUPLICATE = L10n.lang("bbs.ui.model_editor.weld.duplicate");
+    public static final IKey MODEL_EDITOR_WELD_BONES = L10n.lang("bbs.ui.model_editor.weld.bones");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS = L10n.lang("bbs.ui.model_editor.weld.pairs");
+    public static final IKey MODEL_EDITOR_WELD_BEND = L10n.lang("bbs.ui.model_editor.weld.bend");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_ADD = L10n.lang("bbs.ui.model_editor.weld.pairs.add");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_REMOVE = L10n.lang("bbs.ui.model_editor.weld.pairs.remove");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_PICK_CUBE = L10n.lang("bbs.ui.model_editor.weld.pairs.pick_cube");
+    public static final IKey MODEL_EDITOR_WELD_PAIRS_EMPTY = L10n.lang("bbs.ui.model_editor.weld.pairs.empty");
     public static final IKey MODEL_EDITOR_KEYS_EXPAND_ALL = L10n.lang("bbs.ui.model_editor.keys.expand_all");
     public static final IKey MODEL_EDITOR_KEYS_COLLAPSE_ALL = L10n.lang("bbs.ui.model_editor.keys.collapse_all");
     public static final IKey MODEL_EDITOR_KEYS_FIND_BONE = L10n.lang("bbs.ui.model_editor.keys.find_bone");

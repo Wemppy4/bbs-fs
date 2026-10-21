@@ -6,10 +6,13 @@ import mchorse.bbs_mod.cubic.animation.ProceduralBone;
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.cubic.data.model.CubeFace;
 import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.data.model.ModelCube;
+import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.model.ArmorType;
 import mchorse.bbs_mod.cubic.model.config.ArmorSlotValue;
 import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.model.config.WeldValue;
+import mchorse.bbs_mod.cubic.weld.ModelWeld;
 import mchorse.bbs_mod.cubic.weld.WeldBinding;
 import mchorse.bbs_mod.data.types.BaseType;
 import mchorse.bbs_mod.data.types.MapType;
@@ -40,6 +43,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
+import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITabStrip;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIText;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITextTab;
@@ -64,6 +68,7 @@ import mchorse.bbs_mod.utils.presets.PresetManager;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -159,9 +164,14 @@ public class UIModelConfigEditor extends UIElement
     private UIElement lookAtBody;
     private UIElement warningsBody;
 
-    /** The picked bone's / weld's settings, under their lists. */
+    /** The picked bone's settings, under the tree. */
     private UIElement bonePanel;
-    private UIElement weldPanel;
+
+    /** The picked weld's settings, under the list: what keeps it from working, then its sections' bodies. */
+    private UIElement weldIssue;
+    private UIElement weldBones;
+    private UIElement weldPairs;
+    private UIElement weldBend;
 
     /* The "list + settings" blocks: the attachment slots, the welds. The bone tree is one too, with its own list class. */
     private SlotBlock armor;
@@ -176,6 +186,9 @@ public class UIModelConfigEditor extends UIElement
     private UIWeldList weldList;
     private UIIcon dupeWeld;
     private UIIcon removeWeld;
+
+    /** The cube a list's row had the cursor on last frame, outlined in the preview. */
+    private ModelNode listedCube;
 
     /** The poses page: the config's two poses picked by a tab strip, the editor of the picked one under it. */
     private UITabStrip poseTabs;
@@ -425,8 +438,20 @@ public class UIModelConfigEditor extends UIElement
         this.removeWeld = new UIIcon(Icons.REMOVE, (b) -> this.removeWeld(this.weldList.getCurrentFirst()));
         this.removeWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_REMOVE);
 
-        this.weldPanel = this.body();
-        this.page(Tab.WELDS).add(UI.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldPanel);
+        /* Under it the picked weld, in the general page's folding sections: what's welded to what,
+         * which cubes of it, how the joint bends. */
+        UISection bones = this.section(UIKeys.MODEL_EDITOR_WELD_BONES, true);
+        UISection pairs = this.section(UIKeys.MODEL_EDITOR_WELD_PAIRS, true);
+        UISection bend = this.section(UIKeys.MODEL_EDITOR_WELD_BEND, false);
+
+        this.weldIssue = this.body();
+        this.weldBones = this.body();
+        this.weldPairs = this.body();
+        this.weldBend = this.body();
+        bones.fields.add(this.weldBones);
+        pairs.fields.add(this.weldPairs);
+        bend.fields.add(this.weldBend);
+        this.page(Tab.WELDS).add(UI.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldIssue, bones, pairs, bend);
 
         /* Armor: every piece the config can place, one row each, named by the piece. */
         this.armor = new SlotBlock((slot) -> ModelSlotKind.ARMOR, (slot) -> this.armorTypeLabel(this.armorTypeOf(slot)), () -> this.armorSlots());
@@ -1397,25 +1422,321 @@ public class UIModelConfigEditor extends UIElement
         /* Bone/face changes can make the weld resolvable or not, so they refill the list and the panel to
          * update the name and the issue line; the trackpads can't, so they only re-resolve (a refill
          * mid-drag would orphan them). */
-        this.weldPanel.removeAll();
+        this.weldIssue.removeAll();
+        this.weldBones.removeAll();
+        this.weldBend.removeAll();
+
+        /* Hidden while there's nothing to say, so it costs the page no gap — the column skips what isn't visible. */
+        this.weldIssue.setVisible(issue != null);
 
         if (issue != null)
         {
-            this.weldPanel.add(UI.label(this.weldIssueText(issue), UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F).color(Colors.NEGATIVE, true));
+            this.weldIssue.add(UI.label(this.weldIssueText(issue), UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F).color(Colors.NEGATIVE, true));
         }
 
-        this.weldPanel.add(
-            UI.row(this.bonePicker(weld.sourceBone::get, weld.sourceBone::set, this::refreshWelds), this.facePicker(weld.sourceFace, this::refreshWelds)),
-            UI.row(this.bonePicker(weld.targetBone::get, weld.targetBone::set, this::refreshWelds), this.facePicker(weld.targetFace, this::refreshWelds)),
+        this.weldBones.add(
+            UI.row(this.bonePicker(weld.sourceBone::get, (bone) -> this.setWeldBone(weld, true, bone), this::refreshWelds), this.facePicker(weld.sourceFace, this::refreshWelds)),
+            UI.row(this.bonePicker(weld.targetBone::get, (bone) -> this.setWeldBone(weld, false, bone), this::refreshWelds), this.facePicker(weld.targetFace, this::refreshWelds))
+        );
+        this.fillPairs(weld);
+        this.weldBend.add(
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_MAX_ANGLE, this.weldAngle(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_SEAM_FALLOFF, this.weldFalloff(weld)),
             UI.labelRow(UIKeys.MODEL_EDITOR_WELD_PARENT_SHARE, this.weldShare(weld)),
             this.weldTwist(weld),
             this.weldSmooth(weld)
         );
-        UIUtils.setEnabledDeep(this.weldPanel, picked != null);
+
+        for (UIElement body : new UIElement[] {this.weldBones, this.weldPairs, this.weldBend})
+        {
+            UIUtils.setEnabledDeep(body, picked != null);
+        }
 
         this.resizePage(Tab.WELDS);
+    }
+
+    /* Cube pairs: which cube of one bone welds to which of the other. The panel holds only the pairs —
+     * one or two, however many cubes the bones have — and the cubes are told by name, or by their
+     * outline in the preview while the cursor is on a row of a cube's list. */
+
+    /**
+     * The pairs of the weld: the add icon over them, the weld list's idiom, then a row per pair — or,
+     * with none, what the weld does then.
+     */
+    private void fillPairs(WeldValue weld)
+    {
+        UIIcon add = new UIIcon(Icons.ADD, (b) -> this.addPair(weld));
+
+        add.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_ADD);
+        this.weldPairs.removeAll();
+        this.weldPairs.add(UI.strip(add));
+
+        List<ModelWeld.Pair> pairs = weld.pairs.get();
+
+        if (pairs.isEmpty())
+        {
+            this.weldPairs.add(new UIPairsEmpty());
+
+            return;
+        }
+
+        for (int i = 0; i < pairs.size(); i++)
+        {
+            this.weldPairs.add(this.pairRow(weld, i));
+        }
+    }
+
+    /** A new pair with no cubes yet; its buttons pick them. */
+    private void addPair(WeldValue weld)
+    {
+        List<ModelWeld.Pair> pairs = new ArrayList<>(weld.pairs.get());
+
+        pairs.add(new ModelWeld.Pair(ModelWeld.Pair.NONE, ModelWeld.Pair.NONE));
+        weld.pairs.set(pairs);
+        this.refreshWelds();
+    }
+
+    private void removePair(WeldValue weld, int index)
+    {
+        List<ModelWeld.Pair> pairs = new ArrayList<>(weld.pairs.get());
+
+        pairs.remove(index);
+        weld.pairs.set(pairs);
+        this.refreshWelds();
+    }
+
+    /**
+     * Put {@code cube} on one side of pair {@code index}. A cube welds once per face, so a pair that
+     * held it on that side already lets it go and waits for another.
+     */
+    private void setPairCube(WeldValue weld, int index, boolean source, int cube)
+    {
+        List<ModelWeld.Pair> pairs = new ArrayList<>(weld.pairs.get());
+
+        for (int i = 0; i < pairs.size(); i++)
+        {
+            if (i != index && pairs.get(i).side(source) == cube)
+            {
+                pairs.set(i, pairs.get(i).with(source, ModelWeld.Pair.NONE));
+            }
+        }
+
+        pairs.set(index, pairs.get(index).with(source, cube));
+        weld.pairs.set(pairs);
+        this.refreshWelds();
+    }
+
+    /**
+     * A side of the weld on another bone. Its pairs number that side's cubes in the bone they were
+     * picked in, so on another bone those numbers name nothing in particular: they're let go.
+     */
+    private void setWeldBone(WeldValue weld, boolean source, String bone)
+    {
+        ValueString value = source ? weld.sourceBone : weld.targetBone;
+
+        if (bone.equals(value.get()))
+        {
+            return;
+        }
+
+        value.set(bone);
+
+        List<ModelWeld.Pair> pairs = new ArrayList<>();
+
+        for (ModelWeld.Pair pair : weld.pairs.get())
+        {
+            pairs.add(pair.with(source, ModelWeld.Pair.NONE));
+        }
+
+        if (!pairs.isEmpty())
+        {
+            weld.pairs.set(pairs);
+        }
+    }
+
+    /** The model's group a side of the weld is on; null without a model or the bone. */
+    private ModelGroup weldGroup(WeldValue weld, boolean source)
+    {
+        Model model = this.instance() != null && this.instance().getModel() instanceof Model cubic ? cubic : null;
+
+        return model == null ? null : model.getGroup(source ? weld.sourceBone.get() : weld.targetBone.get());
+    }
+
+    /** A cube named the way the tree names it — or by its number, for one the bone doesn't have. */
+    private static String cubeName(ModelGroup group, int cube)
+    {
+        return group != null && cube < group.cubes.size() ? UIModelTree.cubeLabel(group.cubes.get(cube), cube) : UIKeys.MODEL_EDITOR_MODEL_CUBE_LABEL.format(cube + 1).get();
+    }
+
+    /**
+     * A side's list of cubes: the cubes of its bone that carry the welded face — only those can
+     * weld — nearest the joint first, i.e. the nearest to any welded face of the other bone at rest.
+     * Without that face picked, every cube, in the model's order.
+     */
+    private void openCubes(WeldValue weld, int index, boolean source)
+    {
+        ModelGroup group = this.weldGroup(weld, source);
+
+        if (group == null)
+        {
+            return;
+        }
+
+        CubeFace face = CubeFace.fromName((source ? weld.sourceFace : weld.targetFace).get());
+        CubeFace otherFace = CubeFace.fromName((source ? weld.targetFace : weld.sourceFace).get());
+        ModelGroup other = this.weldGroup(weld, !source);
+        List<Vector3f> joints = new ArrayList<>();
+        List<ModelNode> cubes = new ArrayList<>();
+        Map<ModelNode, Float> distances = new HashMap<>();
+
+        if (other != null && otherFace != null)
+        {
+            for (ModelCube cube : other.cubes)
+            {
+                Vector3f center = WeldBinding.restFaceCenter(other, cube, otherFace);
+
+                if (center != null)
+                {
+                    joints.add(center);
+                }
+            }
+        }
+
+        for (int i = 0; i < group.cubes.size(); i++)
+        {
+            Vector3f center = face == null ? null : WeldBinding.restFaceCenter(group, group.cubes.get(i), face);
+            ModelNode node = ModelNode.cube(group.id, i);
+
+            if (face != null && center == null)
+            {
+                continue;
+            }
+
+            float distance = 0F;
+
+            if (center != null && !joints.isEmpty())
+            {
+                distance = Float.MAX_VALUE;
+
+                for (Vector3f joint : joints)
+                {
+                    distance = Math.min(distance, center.distanceSquared(joint));
+                }
+            }
+
+            cubes.add(node);
+            distances.put(node, distance);
+        }
+
+        /* Stable, so cubes as near as each other keep the model's order. */
+        cubes.sort((a, b) -> Float.compare(distances.get(a), distances.get(b)));
+
+        int current = weld.pairs.get().get(index).side(source);
+        UICubePickerContextMenu menu = new UICubePickerContextMenu((node) -> cubeName(group, node.cube()), (node) -> this.setPairCube(weld, index, source, node.cube()));
+
+        menu.cubes(cubes).set(current < 0 ? null : ModelNode.cube(group.id, current)).hover(this::listCube);
+
+        if (!menu.isEmpty())
+        {
+            this.getContext().replaceContextMenu(menu);
+        }
+    }
+
+    /** A cube the cursor is on in a list, outlined in the preview the next frame. */
+    private void listCube(ModelNode node)
+    {
+        this.listedCube = node;
+    }
+
+    /**
+     * What the preview outlines while this editor is up, on the welds page: the cubes of the picked
+     * weld's pairs in the accent, so what's welded is seen without asking, and over them the cube a
+     * list's row points at. Asked once a frame, so the row's cube goes out the moment the cursor
+     * leaves it.
+     */
+    public List<UIModelEditorRenderer.Outline> outlines()
+    {
+        List<UIModelEditorRenderer.Outline> outlines = new ArrayList<>();
+        ModelNode listed = this.listedCube;
+        WeldValue weld = this.data == null ? null : this.weldList.getCurrentFirst();
+
+        this.listedCube = null;
+
+        if (lastTab != Tab.WELDS || weld == null)
+        {
+            return outlines;
+        }
+
+        int accent = Colors.A100 | BBSSettings.primaryColor.get();
+
+        for (ModelWeld.Pair pair : weld.pairs.get())
+        {
+            this.outlinePair(weld, pair, accent, outlines);
+        }
+
+        if (listed != null)
+        {
+            outlines.add(new UIModelEditorRenderer.Outline(listed, UIModelEditorRenderer.HOVER_COLOR));
+        }
+
+        return outlines;
+    }
+
+    private void outlinePair(WeldValue weld, ModelWeld.Pair pair, int color, List<UIModelEditorRenderer.Outline> outlines)
+    {
+        if (pair.source() >= 0)
+        {
+            outlines.add(new UIModelEditorRenderer.Outline(ModelNode.cube(weld.sourceBone.get(), pair.source()), color));
+        }
+
+        if (pair.target() >= 0)
+        {
+            outlines.add(new UIModelEditorRenderer.Outline(ModelNode.cube(weld.targetBone.get(), pair.target()), color));
+        }
+    }
+
+    /**
+     * One pair: the source's cube and the target's, each a button — the bone picker's plain one —
+     * with its cube's name, or what to do while none is picked, that opens its bone's cubes; then
+     * the pair's remove. A cube that can't weld is the issue line's to say.
+     */
+    private UIElement pairRow(WeldValue weld, int index)
+    {
+        UIIcon remove = new UIIcon(Icons.CLOSE, (b) -> this.removePair(weld, index));
+
+        remove.tooltip(UIKeys.MODEL_EDITOR_WELD_PAIRS_REMOVE);
+        remove.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
+
+        return UI.row(this.pairCube(weld, index, true), this.pairCube(weld, index, false), remove);
+    }
+
+    private UIButton pairCube(WeldValue weld, int index, boolean source)
+    {
+        int cube = weld.pairs.get().get(index).side(source);
+        IKey label = cube < 0 ? UIKeys.MODEL_EDITOR_WELD_PAIRS_PICK_CUBE : IKey.raw(cubeName(this.weldGroup(weld, source), cube));
+
+        return new UIButton(label, (b) -> this.openCubes(weld, index, source));
+    }
+
+    /** "No pairs": what a weld does without them, on the sunken strip a list would stand on. */
+    private static class UIPairsEmpty extends UIElement
+    {
+        private UIPairsEmpty()
+        {
+            this.h(UIConstants.LIST_ITEM_HEIGHT);
+        }
+
+        @Override
+        public void render(UIContext context)
+        {
+            FontRenderer font = context.batcher.getFont();
+            String label = font.limitToWidth(UIKeys.MODEL_EDITOR_WELD_PAIRS_EMPTY.get(), this.area.w - 8);
+
+            context.batcher.box(this.area.x, this.area.y, this.area.ex(), this.area.ey(), BBSSettings.deepSurface());
+            context.batcher.textShadow(label, this.area.x + 4, this.area.my(font.getHeight()), Colors.GRAY);
+
+            super.render(context);
+        }
     }
 
     /**
@@ -1642,6 +1963,8 @@ public class UIModelConfigEditor extends UIElement
             case SOURCE_FACE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_FACE;
             case TARGET_FACE: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_FACE;
             case SOURCE_CUBES: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_CUBES;
+            case SOURCE_PAIR: return UIKeys.MODEL_EDITOR_WELD_ISSUE_SOURCE_PAIR;
+            case TARGET_PAIR: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_PAIR;
             default: return UIKeys.MODEL_EDITOR_WELD_ISSUE_TARGET_CUBES;
         }
     }

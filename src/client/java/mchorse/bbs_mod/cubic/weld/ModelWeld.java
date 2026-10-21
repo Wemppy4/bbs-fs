@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.cubic.weld;
 
+import java.util.List;
+
 /**
  * A weld declared in a model's {@code config.json}: the {@code source} bone's face gets glued onto the
  * {@code target} bone's face, so a two-cube limb (e.g. forearm + fist) keeps its joint sealed when it
@@ -37,7 +39,13 @@ public class ModelWeld
     /** Whether the two sides share shading normals along the seam, so the crease reads as a rounded edge under light while the geometry stays put. */
     public final boolean smooth;
 
-    public ModelWeld(String sourceBone, String sourceFace, String targetBone, String targetFace, float maxAngle, float seamFalloff, float parentShare, boolean twist, boolean smooth)
+    /**
+     * Which cubes weld to which, picked by hand: with a pair whose both cubes are picked, only the pairs
+     * weld; without one, every cube with the welded face does, paired by how the faces fit at rest.
+     */
+    public final List<Pair> pairs;
+
+    public ModelWeld(String sourceBone, String sourceFace, String targetBone, String targetFace, float maxAngle, float seamFalloff, float parentShare, boolean twist, boolean smooth, List<Pair> pairs)
     {
         this.sourceBone = sourceBone;
         this.sourceFace = sourceFace;
@@ -48,5 +56,46 @@ public class ModelWeld
         this.parentShare = parentShare;
         this.twist = twist;
         this.smooth = smooth;
+        this.pairs = List.copyOf(pairs);
+    }
+
+    /** Whether the weld goes by its pairs: one of them has both cubes picked. */
+    public boolean picksCubes()
+    {
+        for (Pair pair : this.pairs)
+        {
+            if (pair.isPicked())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * A source cube welded to a target cube, each by its place among its bone's cubes (from zero, the
+     * order the model lists them in); {@link #NONE} for a side not picked yet.
+     */
+    public record Pair(int source, int target)
+    {
+        public static final int NONE = -1;
+
+        public boolean isPicked()
+        {
+            return this.source >= 0 && this.target >= 0;
+        }
+
+        /** The cube of one side: the source's, or the target's. */
+        public int side(boolean source)
+        {
+            return source ? this.source : this.target;
+        }
+
+        /** The pair with one side's cube swapped for {@code cube}. */
+        public Pair with(boolean source, int cube)
+        {
+            return source ? new Pair(cube, this.target) : new Pair(this.source, cube);
+        }
     }
 }

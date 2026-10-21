@@ -26,7 +26,8 @@ import java.util.List;
  * different size, so they get their OWN seam: the cubes of the two bones are paired by how their welded
  * faces fit in the rest pose (base to base, jacket to jacket — whether the layers differ by inflate or by
  * raw size) and every pair seals independently. A single shared seam would drag the base layer out to the
- * jacket's size and puff the joint.
+ * jacket's size and puff the joint. A bone of many cubes gets its pairs picked by hand instead
+ * ({@link ModelWeld#pairs}): then only those weld, and the rest of the bone stays rigid.
  *
  * <p>Both faces' rigid world poses are needed before the seam can be built, so the renderer first walks the
  * pose and captures them ({@link Layer#captureSource}, {@link Layer#captureTarget}), then
@@ -61,13 +62,18 @@ public class WeldBinding
 
         /** The bone exists, but none of its cubes has a quad on the welded face (mesh-only bone, or a trimmed cube). */
         SOURCE_CUBES,
-        TARGET_CUBES
+        TARGET_CUBES,
+
+        /** A pair names a cube the bone doesn't have (cubes changed outside BBS), or one without the welded face. */
+        SOURCE_PAIR,
+        TARGET_PAIR
     }
 
     /**
      * The first reason this weld can't resolve, or null when it can. THE precondition of {@link #resolve}:
      * a weld passing this always yields a binding (both sides have a faced cube, so pairing yields at least
-     * one layer), so the two can't drift apart.
+     * one layer; a weld going by its pairs has a picked pair, every cube of which carries the face), so the
+     * two can't drift apart.
      */
     public static Issue diagnose(Model model, ModelWeld weld)
     {
@@ -80,7 +86,30 @@ public class WeldBinding
         if (facedCubes(model.getGroup(weld.sourceBone), CubeFace.fromName(weld.sourceFace)).isEmpty()) return Issue.SOURCE_CUBES;
         if (facedCubes(model.getGroup(weld.targetBone), CubeFace.fromName(weld.targetFace)).isEmpty()) return Issue.TARGET_CUBES;
 
+        for (ModelWeld.Pair pair : weld.pairs)
+        {
+            if (!pairable(model.getGroup(weld.sourceBone), CubeFace.fromName(weld.sourceFace), pair.source())) return Issue.SOURCE_PAIR;
+            if (!pairable(model.getGroup(weld.targetBone), CubeFace.fromName(weld.targetFace), pair.target())) return Issue.TARGET_PAIR;
+        }
+
         return null;
+    }
+
+    /** Whether a pair's side can weld: not picked yet, or a cube of the bone that has the welded face. */
+    public static boolean pairable(ModelGroup group, CubeFace face, int cube)
+    {
+        return cube < 0 || (cube < group.cubes.size() && faceQuad(group.cubes.get(cube), face) != null);
+    }
+
+    /** The middle of a cube's welded face in the rest pose, where {@link #resolve} pairs the faces; null for a cube without that face. */
+    public static Vector3f restFaceCenter(ModelGroup group, ModelCube cube, CubeFace face)
+    {
+        if (faceQuad(cube, face) == null)
+        {
+            return null;
+        }
+
+        return average(transformCorners(restCubeMatrix(restWorldMatrix(group), cube), faceCorners(cube, face)));
     }
 
     public static WeldBinding resolve(Model model, ModelWeld weld)
@@ -95,9 +124,16 @@ public class WeldBinding
         ModelGroup sourceGroup = model.getGroup(weld.sourceBone);
         ModelGroup targetGroup = model.getGroup(weld.targetBone);
 
-        List<ModelCube> sourceCubes = facedCubes(sourceGroup, sourceFace);
-        List<ModelCube> targetCubes = facedCubes(targetGroup, targetFace);
+        /* Picked by hand, the two lists line up pair by pair; else every faced cube takes part, and the fit pairs them below. */
+        boolean picked = weld.picksCubes();
+        List<ModelCube> sourceCubes = picked ? new ArrayList<>() : facedCubes(sourceGroup, sourceFace);
+        List<ModelCube> targetCubes = picked ? new ArrayList<>() : facedCubes(targetGroup, targetFace);
         List<Layer> layers = new ArrayList<>();
+
+        if (picked)
+        {
+            pickedCubes(weld, sourceGroup, targetGroup, sourceCubes, targetCubes);
+        }
 
         /* Rest-pose world matrices of both bones, composed the exact way the renderer stacks them: which
          * cube pairs with which, and the corner correspondence within each pair, are decided HERE, in the
@@ -116,7 +152,7 @@ public class WeldBinding
          * welds of the same rig. Unrelated bones (no ancestry either way) treat the target as the parent. */
         float targetShare = isAncestor(sourceGroup, targetGroup) ? 1F - weld.parentShare : weld.parentShare;
 
-        for (int[] pair : pairByRestFit(sourceRestWorld, targetRestWorld))
+        for (int[] pair : picked ? samePlaces(sourceCubes.size()) : pairByRestFit(sourceRestWorld, targetRestWorld))
         {
             layers.add(new Layer(
                 sourceCubes.get(pair[0]), sourceFace, sourceGroupRest, sourceRestWorld[pair[0]],
@@ -142,6 +178,45 @@ public class WeldBinding
         }
 
         return cubes;
+    }
+
+    /**
+     * The cubes of the weld's picked pairs, side by side: the i-th source cube welds to the i-th target
+     * cube. A pair with a side not picked yet sits out; so does one naming a cube an earlier pair took on
+     * the same side, since a cube carries one seam per face — the panel never makes such a pair, a file
+     * edited by hand can.
+     */
+    private static void pickedCubes(ModelWeld weld, ModelGroup sourceGroup, ModelGroup targetGroup, List<ModelCube> sourceCubes, List<ModelCube> targetCubes)
+    {
+        for (ModelWeld.Pair pair : weld.pairs)
+        {
+            if (!pair.isPicked())
+            {
+                continue;
+            }
+
+            ModelCube source = sourceGroup.cubes.get(pair.source());
+            ModelCube target = targetGroup.cubes.get(pair.target());
+
+            if (!sourceCubes.contains(source) && !targetCubes.contains(target))
+            {
+                sourceCubes.add(source);
+                targetCubes.add(target);
+            }
+        }
+    }
+
+    /** The pairs of two lists matched by place, as {@link #pairByRestFit} gives them. */
+    private static List<int[]> samePlaces(int count)
+    {
+        List<int[]> pairs = new ArrayList<>();
+
+        for (int i = 0; i < count; i++)
+        {
+            pairs.add(new int[] {i, i});
+        }
+
+        return pairs;
     }
 
     /** Each cube's welded-face corners carried to the rest-pose world by its bone and its own modeling transform. */

@@ -147,7 +147,7 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
         this.renderer = new UIModelEditorRenderer()
             .target(this::shownTarget)
             .onPick(this::selectPick)
-            .outlines(() -> lastEditor == Editor.MODEL ? this.modelEditor.outlines() : List.of());
+            .outlines(() -> lastEditor == Editor.MODEL ? this.modelEditor.outlines() : this.configEditor.outlines());
         this.renderer.form = this.form;
         this.renderer.shapeControls = this::activeShapeControllers;
 
