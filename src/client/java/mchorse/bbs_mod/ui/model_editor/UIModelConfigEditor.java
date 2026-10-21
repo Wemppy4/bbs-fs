@@ -442,7 +442,7 @@ public class UIModelConfigEditor extends UIElement
          * which cubes of it, how the joint bends. */
         UISection bones = this.section(UIKeys.MODEL_EDITOR_WELD_BONES, true);
         UISection pairs = this.section(UIKeys.MODEL_EDITOR_WELD_PAIRS, true);
-        UISection bend = this.section(UIKeys.MODEL_EDITOR_WELD_BEND, true);
+        UISection bend = this.section(UIKeys.MODEL_EDITOR_WELD_BEND, false);
 
         this.weldIssue = this.body();
         this.weldBones = this.body();
