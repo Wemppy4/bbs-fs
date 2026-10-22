@@ -6,6 +6,7 @@ import mchorse.bbs_mod.forms.ITickable;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.VanillaParticleForm;
 import mchorse.bbs_mod.forms.forms.utils.ParticleSettings;
+import mchorse.bbs_mod.particles.vanilla.HeldParticles;
 import mchorse.bbs_mod.particles.vanilla.VanillaParticlePreview;
 import mchorse.bbs_mod.particles.vanilla.VanillaParticleScene;
 import mchorse.bbs_mod.ui.framework.UIContext;
@@ -14,12 +15,13 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.joml.Vectors;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.Particle;
+import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.render.Camera;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.Registries;
-import net.minecraft.world.World;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
@@ -55,6 +57,10 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
      * editor is drawing this form &mdash; see {@link #RENDER_GRACE_TICKS}.
      */
     private VanillaParticleScene scene;
+
+    /** The particles this form let into the world, kept on its time. */
+    private final HeldParticles held = new HeldParticles();
+
     private int previewTicks;
     private int worldRenderTicks;
     private int repeatedTicks;
@@ -103,6 +109,7 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
             translation.add(camera.getPos().x, camera.getPos().y, camera.getPos().z);
 
             this.worldRenderTicks = RENDER_GRACE_TICKS;
+            this.held.draw(context.getTransition());
         }
 
         this.pos.set(translation);
@@ -176,6 +183,8 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
     @Override
     public void tick(IEntity entity)
     {
+        this.held.tick();
+
         if (this.previewTicks > 0)
         {
             /* An editor viewport drew this form just now, so its own clock is
@@ -199,9 +208,7 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
             this.lastPreviewTick = Long.MIN_VALUE;
         }
 
-        World world = entity.getWorld();
-
-        if (world == null)
+        if (entity.getWorld() == null)
         {
             return;
         }
@@ -215,8 +222,32 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
             this.updateFromEntity(entity);
         }
 
+        /* What the world's addParticle comes down to with "always spawn" on, minus
+         * the particle getting lost: the form keeps it on its own time */
+        ParticleManager particles = MinecraftClient.getInstance().particleManager;
+
         this.emitTick((effect, x, y, z, velocityX, velocityY, velocityZ) ->
-            world.addParticle(effect, true, x, y, z, velocityX, velocityY, velocityZ));
+        {
+            Particle particle = particles.addParticle(effect, x, y, z, velocityX, velocityY, velocityZ);
+
+            if (particle != null)
+            {
+                this.held.add(particle);
+            }
+        });
+    }
+
+    @Override
+    public void restart()
+    {
+        /* The next tick bursts right away, as a new form does */
+        this.tick = 0;
+        this.held.clear();
+
+        if (this.scene != null)
+        {
+            this.scene.clear();
+        }
     }
 
     /**

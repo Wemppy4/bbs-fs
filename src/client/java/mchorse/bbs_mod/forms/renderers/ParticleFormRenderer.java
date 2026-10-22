@@ -31,7 +31,7 @@ public class ParticleFormRenderer extends FormRenderer<ParticleForm> implements 
 
     private ParticleEmitter emitter;
     private boolean checked;
-    private boolean restart;
+    private boolean rewind;
     private long lastParticleUpdate = lastUpdate;
 
     public ParticleFormRenderer(ParticleForm form)
@@ -72,9 +72,9 @@ public class ParticleFormRenderer extends FormRenderer<ParticleForm> implements 
 
             this.emitter.paused = this.form.paused.get();
 
-            if (lastPaused != this.emitter.paused && !this.emitter.paused && this.emitter.age > 0 && !this.restart)
+            if (lastPaused != this.emitter.paused && !this.emitter.paused && this.emitter.age > 0 && !this.rewind)
             {
-                this.restart = true;
+                this.rewind = true;
             }
         }
     }
@@ -184,15 +184,25 @@ public class ParticleFormRenderer extends FormRenderer<ParticleForm> implements 
         {
             /* Rewind the emitter if it was paused and resumed in order to make
              * particle effects with once emitter */
-            if (this.restart)
+            if (this.rewind)
             {
                 this.emitter.stop();
                 this.emitter.start();
 
-                this.restart = false;
+                this.rewind = false;
             }
 
             this.emitter.update();
         }
+    }
+
+    @Override
+    public void restart()
+    {
+        /* A new emitter rather than a rewound one: rewinding keeps the particles
+         * already in flight, which belong to wherever the time was before */
+        this.emitter = null;
+        this.checked = false;
+        this.rewind = false;
     }
 }

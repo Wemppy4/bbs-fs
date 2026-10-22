@@ -534,6 +534,20 @@ public abstract class Form extends ValueGroup
         }
     }
 
+    /**
+     * Start over what this form and its body parts simulate tick by tick &mdash;
+     * see {@link ITickable#restart()}.
+     */
+    public void restart()
+    {
+        this.parts.restart();
+
+        if (this.renderer instanceof ITickable)
+        {
+            ((ITickable) this.renderer).restart();
+        }
+    }
+
     /* Data comparison and (de)serialization */
 
     @Override

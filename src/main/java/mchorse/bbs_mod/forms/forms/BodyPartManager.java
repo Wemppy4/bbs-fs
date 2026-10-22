@@ -49,6 +49,14 @@ public class BodyPartManager extends ValueStableList<BodyPart>
         }
     }
 
+    public void restart()
+    {
+        for (BodyPart part : this.list)
+        {
+            part.restart();
+        }
+    }
+
     @Override
     protected BodyPart create(String id)
     {
