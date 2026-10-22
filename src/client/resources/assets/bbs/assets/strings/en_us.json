@@ -721,7 +721,7 @@
 	"bbs.config.video.held_frames": "Held frames",
 	"bbs.config.video.held_frames-comment": "Increase if you need to stabilize picture of accumulative shaders (like RT or PT)",
 	"bbs.config.video.shutter": "Shutter",
-	"bbs.config.video.shutter-comment": "Spreads the held frames over this part of a frame, in degrees like a film camera's shutter: 180 is the film look, 0 keeps them on one moment. Accumulative shaders average them into motion blur.",
+	"bbs.config.video.shutter-comment": "The part of each frame the camera sees, in degrees like a film camera's shutter: 180 is the film look. Motion blur then smears only that part of the frame, and held frames get spread over it, which accumulative shaders average into motion blur. 0 keeps it as it was: motion blur over the whole frame, held frames on one moment.",
 	"bbs.config.video.delay": "Export delay",
 	"bbs.config.video.delay-comment": "Delay export in seconds to let the scene settle.",
 	"bbs.config.video.open_folder_after_export": "Open folder after export",
