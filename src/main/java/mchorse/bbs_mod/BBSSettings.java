@@ -137,6 +137,7 @@ public class BBSSettings {
 	public static ValueBoolean videoMuteAudioWhileRender;
 	public static ValueInt videoMotionBlur;
 	public static ValueInt videoHeldFrames;
+	public static ValueInt videoShutter;
 	public static ValueFloat videoDelay;
 	public static ValueBoolean videoOpenFolderAfterExport;
 	public static ValueBoolean videoPlaySoundAfterExport;
@@ -956,6 +957,7 @@ public class BBSSettings {
 		videoMuteAudioWhileRender = builder.getBoolean("mute_audio_while_render", false);
 		videoMotionBlur = builder.getInt("motion_blur", 0, 0, 6);
 		videoHeldFrames = builder.getInt("held_frames", 1, 1, 1000);
+		videoShutter = builder.getInt("shutter", 0, 0, 360).slider();
 		videoDelay = builder.getFloat("delay", 0.5F, 0F, 30F);
 		videoOpenFolderAfterExport = builder.getBoolean("open_folder_after_export", false);
 		videoPlaySoundAfterExport = builder.getBoolean("play_sound_after_export", true);

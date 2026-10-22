@@ -147,6 +147,21 @@ public class BBSRendering
         return frameRate * (1 << getMotionBlur(frameRate, getMotionBlurFactor()));
     }
 
+    /**
+     * The part of a video frame's time that passes at its given held render. Each frame is
+     * rendered "held frames" times; with no shutter they all show one moment, so the first moves
+     * time a whole frame on and the rest none. The shutter (degrees, as on a film camera) spreads
+     * them over that part of the frame instead - each repeat moves shutter/held of it, the first
+     * the rest - and a shader that accumulates the repeats averages them into motion blur.
+     */
+    public static float getHeldFrameShare(int heldFrame)
+    {
+        int held = BBSSettings.videoHeldFrames.get();
+        float step = held > 1 ? BBSSettings.videoShutter.get() / 360F / held : 0F;
+
+        return heldFrame == 0 ? 1F - step * (held - 1) : step;
+    }
+
     public static File getVideoFolder()
     {
         File movies = new File(BBSMod.getSettingsFolder().getParentFile(), "movies");
