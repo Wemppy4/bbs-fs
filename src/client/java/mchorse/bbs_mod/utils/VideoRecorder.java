@@ -115,10 +115,20 @@ public class VideoRecorder
             float frameRate = (float) BBSRendering.getVideoFrameRate();
 
             int motionBlur = BBSRendering.getMotionBlur();
+            int subframes = 1 << motionBlur;
+            int exposed = BBSRendering.getMotionBlurExposedFrames();
 
-            for (int i = 0; i < motionBlur; i++)
+            if (exposed < subframes)
             {
-                filters.append(",tblend=all_mode=average,framestep=2");
+                /* A shutter: each frame averages only its first sub-frames, the ones it keeps open */
+                filters.append(",tmix=frames=").append(exposed).append(",framestep=").append(subframes);
+            }
+            else
+            {
+                for (int i = 0; i < motionBlur; i++)
+                {
+                    filters.append(",tblend=all_mode=average,framestep=2");
+                }
             }
 
             List<String> args = new ArrayList<>();

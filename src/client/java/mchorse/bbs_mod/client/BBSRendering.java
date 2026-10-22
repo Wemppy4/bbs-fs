@@ -147,6 +147,19 @@ public class BBSRendering
     }
 
     /**
+     * How many of a video frame's motion blur sub-frames go into it. With no shutter, all of them -
+     * the blur spans the whole frame, as if the shutter were fully open (360 degrees), the way it
+     * always worked; otherwise the share of the frame the shutter keeps open (180 = the film look).
+     */
+    public static int getMotionBlurExposedFrames()
+    {
+        int subframes = 1 << getMotionBlur();
+        int shutter = BBSSettings.videoShutter.get();
+
+        return shutter <= 0 ? subframes : Math.max(1, Math.min(subframes, Math.round(subframes * shutter / 360F)));
+    }
+
+    /**
      * The part of a video frame's time that passes at its given held render. Each frame is
      * rendered "held frames" times; with no shutter they all show one moment, so the first moves
      * time a whole frame on and the rest none. The shutter (degrees, as on a film camera) spreads
