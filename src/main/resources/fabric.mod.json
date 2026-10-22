@@ -40,6 +40,9 @@
         ],
         "client": [
             "mchorse.bbs_mod.BBSModClient"
+        ],
+        "frex_flawless_frames": [
+            "mchorse.bbs_mod.utils.FlawlessFrames::register"
         ]
     },
     "mixins": [
