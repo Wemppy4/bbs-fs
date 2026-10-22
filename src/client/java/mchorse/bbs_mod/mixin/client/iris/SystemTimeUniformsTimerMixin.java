@@ -38,11 +38,13 @@ public class SystemTimeUniformsTimerMixin
         if (videoRecorder.isRecording())
         {
             float videoFrameRate = BBSRendering.getVideoFrameRate();
+            float share = BBSRendering.getHeldFrameShare(this.heldFrames);
 
-            if (this.heldFrames == 0)
+            /* The shader clock keeps step with the world's, held renders included (see the shutter) */
+            if (share > 0F)
             {
-                this.lastFrameTime = 20F / videoFrameRate;
-                this.frameTimeCounter += 1F / videoFrameRate;
+                this.lastFrameTime = 20F / videoFrameRate * share;
+                this.frameTimeCounter += share / videoFrameRate;
             }
 
             this.heldFrames += 1;

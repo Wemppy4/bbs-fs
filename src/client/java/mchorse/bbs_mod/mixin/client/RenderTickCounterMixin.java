@@ -50,6 +50,8 @@ public class RenderTickCounterMixin
                 this.tickDelta = 0;
             }
 
+            float share = BBSRendering.getHeldFrameShare(this.heldFrames);
+
             if (this.heldFrames == 0)
             {
                 /* When frame rate limiting is enabled, throttle the recording to the video
@@ -72,24 +74,16 @@ public class RenderTickCounterMixin
                     this.lastFrameTime = timeMillis;
                 }
 
-                this.lastFrameDuration = 20F / (float) BBSRendering.getVideoFrameRate();
-                this.prevTimeMillis = timeMillis;
-                this.tickDelta += this.lastFrameDuration;
-
-                int i = (int) this.tickDelta;
-
-                this.tickDelta -= (float) i;
-
-                videoRecorder.serverTicks += i;
                 BBSRendering.canRender = true;
 
-                info.setReturnValue(i);
+                info.setReturnValue(this.advance(videoRecorder, timeMillis, share));
             }
             else
             {
+                /* A held render of the same frame - which, with a shutter, moves a little on */
                 BBSRendering.canRender = false;
 
-                info.setReturnValue(0);
+                info.setReturnValue(share > 0F ? this.advance(videoRecorder, timeMillis, share) : 0);
             }
 
             this.heldFrames += 1;
@@ -104,5 +98,23 @@ public class RenderTickCounterMixin
             this.heldFrames = 0;
             this.lastFrameTime = 0;
         }
+    }
+
+    /**
+     * Move the recording's time on by the given part of a video frame, returning the ticks to run.
+     */
+    private int advance(VideoRecorder videoRecorder, long timeMillis, float share)
+    {
+        this.lastFrameDuration = 20F / (float) BBSRendering.getVideoFrameRate() * share;
+        this.prevTimeMillis = timeMillis;
+        this.tickDelta += this.lastFrameDuration;
+
+        int i = (int) this.tickDelta;
+
+        this.tickDelta -= (float) i;
+
+        videoRecorder.serverTicks += i;
+
+        return i;
     }
 }

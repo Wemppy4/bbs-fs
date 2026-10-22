@@ -720,6 +720,8 @@
 	"bbs.config.video.motion_blur-comment": "Motion blur quality: higher takes longer to export.",
 	"bbs.config.video.held_frames": "Held frames",
 	"bbs.config.video.held_frames-comment": "Increase if you need to stabilize picture of accumulative shaders (like RT or PT)",
+	"bbs.config.video.shutter": "Shutter",
+	"bbs.config.video.shutter-comment": "Spreads the held frames over this part of a frame, in degrees like a film camera's shutter: 180 is the film look, 0 keeps them on one moment. Accumulative shaders average them into motion blur.",
 	"bbs.config.video.delay": "Export delay",
 	"bbs.config.video.delay-comment": "Delay export in seconds to let the scene settle.",
 	"bbs.config.video.open_folder_after_export": "Open folder after export",
