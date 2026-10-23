@@ -250,6 +250,7 @@ public class BBSSettings {
 
 	public static ValueBoolean shaderCurvesEnabled;
 	public static ValueBoolean translucencyQueue;
+	public static ValueBoolean particlesDepthSorting;
 
 	public static ValueBoolean audioWaveformVisibleInPreview;
 	public static ValueBoolean audioWaveformVisibleInKeyframes;
@@ -884,6 +885,7 @@ public class BBSSettings {
 		listModelPreview = builder.getBoolean("list_model_preview", true);
 		freezeModels = builder.getBoolean("freeze_models", false);
 		translucencyQueue = builder.getBoolean("translucency_queue", false);
+		particlesDepthSorting = builder.getBoolean("particles_depth_sorting", false);
 		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
 		frustumCulling = builder.getBoolean("frustum_culling", true);
 		profilerOverlay = builder.getBoolean("profiler_overlay", false);

@@ -671,6 +671,8 @@
 	"bbs.config.misc.shader_curves-comment": "Whether shader curves are enabled",
 	"bbs.config.performance.translucency_queue": "Form translucency queue",
 	"bbs.config.performance.translucency_queue-comment": "Draw transparent forms last for correct blending.",
+	"bbs.config.performance.particles_depth_sorting": "Particle depth sorting",
+	"bbs.config.performance.particles_depth_sorting-comment": "Draw each emitter's particles far to near, so blended particles overlap correctly. Costs a little every frame.",
 	"bbs.config.misc.title": "Misc",
 	"bbs.config.misc.tooltip": "Features that own a single option each",
 	"bbs.config.title": "BBS",

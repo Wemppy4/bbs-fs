@@ -667,6 +667,8 @@
 	"bbs.config.misc.shader_curves-comment": "Включены ли кривые шейдеров",
 	"bbs.config.performance.translucency_queue": "Очередь прозрачности форм",
 	"bbs.config.performance.translucency_queue-comment": "Рисовать прозрачные формы последними для правильного смешивания.",
+	"bbs.config.performance.particles_depth_sorting": "Сортировка частиц по глубине",
+	"bbs.config.performance.particles_depth_sorting-comment": "Рисовать частицы каждого эмиттера от дальних к ближним, чтобы полупрозрачные правильно накладывались. Немного нагружает каждый кадр.",
 	"bbs.config.misc.title": "Прочее",
 	"bbs.config.misc.tooltip": "Функции, у которых всего по одной настройке",
 	"bbs.config.title": "ББС",
