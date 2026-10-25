@@ -1502,11 +1502,6 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     private void renderSheets(UIContext context, BufferBuilder builder, Matrix4f matrix, Area area)
     {
-        /* A heading isn't a track: its lane is dimmed the way the stretch outside the film is. That
-         * stretch gets its shade from renderOutOfRangeShading, so only the film's own is dimmed here. */
-        int filmX = Math.max(area.x, this.keyframes.toGraphX(0));
-        int filmEx = Math.min(area.ex(), this.keyframes.toGraphX(this.keyframes.getDuration()));
-
         for (Map.Entry<UIKeyframeSheet.Section, Integer> entry : this.sectionYCache.entrySet())
         {
             int y = this.getDopeSheetY() + entry.getValue();
@@ -1515,11 +1510,6 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             if (y + height < area.y || y > area.ey()) continue;
 
             this.renderRowBackground(context, area.x, y, area.w, height, false);
-
-            if (filmX < filmEx)
-            {
-                context.batcher.box(filmX, y, filmEx, y + height, BBSSettings.timelineOutsideOverlay());
-            }
 
             if (area.isInside(context) && context.mouseY >= y && context.mouseY < y + height)
             {
