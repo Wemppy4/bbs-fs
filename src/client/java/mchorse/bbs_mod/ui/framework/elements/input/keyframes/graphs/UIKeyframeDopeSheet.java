@@ -463,9 +463,24 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         for (UIKeyframeSheet.Section section : this.sections)
         {
             this.folds.set(section.id(), expanded);
+            if (!expanded) this.clearFoldedSelection(section);
         }
 
         this.updateScrollSize();
+    }
+
+    /**
+     * A folded heading keeps its tracks' selection while its summary shows it. Without the summary
+     * nothing would, and a selection nobody can see still answers to every edit.
+     */
+    private void clearFoldedSelection(UIKeyframeSheet.Section section)
+    {
+        if (BBSSettings.timelineSectionSummary.get()) return;
+
+        for (UIKeyframeSheet sheet : this.sheets)
+        {
+            if (sheet.section != null && sheet.section.isIn(section)) sheet.selection.clear();
+        }
     }
 
     public void removeAllSheets()
@@ -690,10 +705,15 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
         return true;
     }
 
-    /** The tracks inside a heading that already have keyframes — the ones a key on the heading goes to. */
+    /**
+     * The tracks inside a heading that already have keyframes — the ones a key on the heading goes to.
+     * None with the summary turned off: a heading is then only a fold.
+     */
     private List<UIKeyframeSheet> getAnimatedTracks(UIKeyframeSheet.Section section)
     {
         List<UIKeyframeSheet> tracks = new ArrayList<>();
+
+        if (!BBSSettings.timelineSectionSummary.get()) return tracks;
 
         for (UIKeyframeSheet sheet : this.sheets)
         {
@@ -721,11 +741,14 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     /**
      * What a heading sums up between two screen edges: one mark per tick, standing for the keyframes
-     * at that tick on every track inside the heading, rows folded away included.
+     * at that tick on every track inside the heading, rows folded away included. Nothing with the
+     * summary turned off, so there is nothing to draw, pick or drag on a heading's row.
      */
     private Collection<SummaryMark> getSummary(UIKeyframeSheet.Section section, int minX, int maxX)
     {
         Map<Float, SummaryMark> marks = new LinkedHashMap<>();
+
+        if (!BBSSettings.timelineSectionSummary.get()) return marks.values();
 
         for (UIKeyframeSheet sheet : this.sheets)
         {
@@ -894,9 +917,11 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
             if (context.mouseY >= sectionY && context.mouseY < sectionY + (int) this.trackHeight)
             {
-                /* A folded heading keeps its tracks' selection: its summary still shows it. */
                 UIKeyframeSheet.Section section = entry.getKey();
-                this.folds.set(section.id(), !this.folds.isExpanded(section.id()));
+                boolean expanded = !this.folds.isExpanded(section.id());
+
+                this.folds.set(section.id(), expanded);
+                if (!expanded) this.clearFoldedSelection(section);
                 this.updateScrollSize();
 
                 return true;

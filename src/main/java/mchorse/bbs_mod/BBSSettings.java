@@ -192,6 +192,8 @@ public class BBSSettings {
 	public static ValueBoolean editorStopPlaybackOnScrub;
 	public static ValueBoolean editorSnapToTicks;
 	public static ValueBoolean timelineAllBodyParts;
+	/** Whether a section heading sums up its tracks' keys as marks that edit their whole column. */
+	public static ValueBoolean timelineSectionSummary;
 	public static ValueBoolean editorRestartOnSeek;
 	public static ValueBoolean editorHorizontalClipEditor;
 	public static ValueBoolean editorMinutesBackup;
@@ -927,6 +929,7 @@ public class BBSSettings {
 		editorStopPlaybackOnScrub = builder.getBoolean("stop_playback_on_scrub", false);
 		editorSnapToTicks = builder.getBoolean("snap_to_ticks", true);
 		timelineAllBodyParts = builder.getBoolean("all_body_parts", false);
+		timelineSectionSummary = builder.getBoolean("section_summary", true);
 		editorRestartOnSeek = builder.getBoolean("restart_on_seek", false);
 		editorHorizontalClipEditor = builder.getBoolean("horizontal_clip_editor", false);
 
