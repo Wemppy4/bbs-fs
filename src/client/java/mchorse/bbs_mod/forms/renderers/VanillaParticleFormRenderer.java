@@ -265,7 +265,7 @@ public class VanillaParticleFormRenderer extends FormRenderer<VanillaParticleFor
     {
         Matrix4f matrix = new Matrix4f().rotateY(MathUtils.toRad(-entity.getBodyYaw()));
 
-        matrix.mul(this.createTransform().createMatrix());
+        matrix.mul(this.createMatrix(this.createTransform()));
 
         Vector3f translation = matrix.getTranslation(new Vector3f());
 

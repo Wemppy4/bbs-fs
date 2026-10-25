@@ -233,13 +233,39 @@ public abstract class FormRenderer <T extends Form>
         }
         else
         {
+            /* About the pivot, as createMatrix: translations commute, so the pivot goes first. */
+            Vector3f pivot = this.form.pivot.get();
+
+            stack.translate(pivot.x, pivot.y, pivot.z);
             MatrixStackUtils.applyTransform(stack, transform);
+            stack.translate(-pivot.x, -pivot.y, -pivot.z);
         }
     }
 
     protected void applyTransforms(Matrix4f matrix, float transition)
     {
-        matrix.mul(this.createEvaluatedTransform(transition).createMatrix());
+        matrix.mul(this.createMatrix(this.createEvaluatedTransform(transition)));
+    }
+
+    /**
+     * The matrix of one of this form's transforms as the form is drawn: rotated and scaled about
+     * the form's pivot, {@code translate · pivot · rotation · scale · -pivot}. At rest that is the
+     * plain translation, so a pivot alone never moves the form.
+     */
+    public Matrix4f createMatrix(Transform transform)
+    {
+        Vector3f pivot = this.form.pivot.get();
+
+        return transform.setupMatrix(new Matrix4f().translation(pivot)).translate(-pivot.x, -pivot.y, -pivot.z);
+    }
+
+    /**
+     * The form's pivot in the units of the frames {@link #collectMatrices} records for it — the
+     * form's own, unless a renderer scales its frame after the transform (a model's own scale).
+     */
+    protected Vector3f getFramePivot()
+    {
+        return new Vector3f(this.form.pivot.get());
     }
 
     /**
@@ -399,7 +425,7 @@ public abstract class FormRenderer <T extends Form>
         this.applyTransforms(stack, false, transition);
         mm.set(stack.peek().getPositionMatrix());
 
-        matrices.put(prefix, mm, oo);
+        matrices.putForm(prefix, mm, oo, this.getFramePivot());
 
         for (BodyPart part : this.form.parts.getAllTyped())
         {

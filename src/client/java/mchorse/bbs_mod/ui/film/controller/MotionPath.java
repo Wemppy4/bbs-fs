@@ -498,7 +498,7 @@ public class MotionPath
 
         Matrix4f matrix = target.is(FilmTarget.Kind.ANCHOR)
             ? FilmMatrices.getGizmoAnchorCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F)
-            : FilmMatrices.getBoneCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F, target.bone(), false);
+            : FilmMatrices.getGizmoBoneCompositeMatrix(entities, entity, replay, 0D, 0D, 0D, 0F, target.bone(), false);
 
         if (target.is(FilmTarget.Kind.SPLINE_POINT))
         {

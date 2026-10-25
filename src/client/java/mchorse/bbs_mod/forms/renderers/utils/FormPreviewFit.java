@@ -108,7 +108,7 @@ public final class FormPreviewFit
 
         if (!root && !form.visible.get()) return;
 
-        Matrix4f matrix = new Matrix4f(parent).mul(renderer.createEvaluatedTransform(transition).createMatrix());
+        Matrix4f matrix = new Matrix4f(parent).mul(renderer.createMatrix(renderer.createEvaluatedTransform(transition)));
         Bounds geometry = null;
         Bounds destination = result;
         Vector3f facingOrigin = null;

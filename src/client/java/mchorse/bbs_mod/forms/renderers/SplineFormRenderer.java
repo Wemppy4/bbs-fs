@@ -64,7 +64,7 @@ public class SplineFormRenderer extends FormRenderer<SplineForm>
         try
         {
             this.applyTransforms(stack, false, transition);
-            matrices.put(prefix, new Matrix4f(stack.peek().getPositionMatrix()), origin);
+            matrices.putForm(prefix, new Matrix4f(stack.peek().getPositionMatrix()), origin, this.getFramePivot());
             var frames = SplineArray.frames(this.form);
             // There is one editable source. All picks point to it; its gizmo uses the first visible copy.
             if (frames.isEmpty()) return;

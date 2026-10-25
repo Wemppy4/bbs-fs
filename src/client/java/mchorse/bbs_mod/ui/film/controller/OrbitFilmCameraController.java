@@ -207,7 +207,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
 
         if (renderer != null)
         {
-            matrix.mul(renderer.createTransform().createMatrix());
+            matrix.mul(renderer.createMatrix(renderer.createTransform()));
         }
 
         Vector3f translation = matrix.getTranslation(new Vector3f());
