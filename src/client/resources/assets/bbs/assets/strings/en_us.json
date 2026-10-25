@@ -92,6 +92,8 @@
     "bbs.ui.world_assets.error": "Could not access the world's assets folder. Check the world's files and folder permissions.",
 	"bbs.config.timeline.all_body_parts": "All body parts on the timeline",
 	"bbs.config.timeline.all_body_parts-comment": "Show tracks for all form parts together.",
+	"bbs.config.timeline.section_summary": "Section summary keys",
+	"bbs.config.timeline.section_summary-comment": "Keys on section headings that edit every key below them.",
 	"bbs.ui.timeline.select_branch": "Select branch",
 	"bbs.ui.timeline.properties.x": "X",
 	"bbs.ui.timeline.properties.y": "Y",

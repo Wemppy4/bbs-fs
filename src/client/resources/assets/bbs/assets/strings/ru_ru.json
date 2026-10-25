@@ -92,6 +92,8 @@
     "bbs.ui.world_assets.error": "Не удалось открыть папку ассетов мира. Проверьте файлы мира и права доступа к папкам.",
 	"bbs.config.timeline.all_body_parts": "Все боди-парты на таймлайне",
 	"bbs.config.timeline.all_body_parts-comment": "Показывать дорожки всех частей формы вместе.",
+	"bbs.config.timeline.section_summary": "Ключи сводки в разделах",
+	"bbs.config.timeline.section_summary-comment": "Ключи на заголовках разделов, которые правят весь столбец ключей под ними.",
 	"bbs.ui.timeline.select_branch": "Выбрать ветку",
 	"bbs.ui.timeline.properties.x": "X",
 	"bbs.ui.timeline.properties.y": "Y",
