@@ -22,7 +22,9 @@ import java.util.Set;
  * <ul>
  *   <li>The recording's key opens the recording and folds every other owner.</li>
  *   <li>Form's opens every part on the timeline (the ones picked in the parts list) and folds the recording.</li>
- *   <li>An addon's opens the owners with its tracks, and its own headings in them, and folds the rest.</li>
+ *   <li>An addon's opens the owners with its tracks, and its own headings in them, and folds the rest.
+ *   Its channels of the replay have an owner of their own (BBSFP's first person, see {@link TrackTree}),
+ *   its tracks of a form stay in that part's owner.</li>
  * </ul>
  * The headings inside an owner keep their folds, so unfolding one brings them back the way they
  * were. Pressed again, a key changes nothing, and the view doesn't scroll. A category with

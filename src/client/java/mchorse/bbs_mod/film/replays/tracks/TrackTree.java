@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
+import mchorse.bbs_mod.api.client.editor.TrackCategories;
 import mchorse.bbs_mod.api.client.editor.TrackCategory;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.forms.editors.UIForms;
@@ -17,14 +18,21 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * Hangs a timeline's tracks under their owners — the recording and each part on the timeline (the
- * ones picked in the parts list, see {@link TimelineBodyPartSelection}) — and, inside a part's owner,
- * under its headings (Pose, Rig, Transform, Look; see {@link FormTrackGroup}).
+ * Hangs a timeline's tracks under their owners — the recording, each addon tab with channels of the
+ * replay (BBSFP's first person) and each part on the timeline (the ones picked in the parts list,
+ * see {@link TimelineBodyPartSelection}) — and, inside a part's owner, under its headings (Pose, Rig,
+ * Transform, Look; see {@link FormTrackGroup}).
  */
 public class TrackTree
 {
-    /** The recording's own heading: the replay's channels, an addon's among them. */
+    /** The recording's own heading: the replay's channels that no addon tab claims. */
     public static final String RECORD = "owner/record";
+
+    /**
+     * What the heading of an addon tab's replay channels starts with, the tab's id after it. They
+     * are owned apart from the recording so the tab's key has something of its own to open.
+     */
+    private static final String CATEGORY_OWNER = "owner/category/";
 
     /** Headings each timeline's folds have already seen, so only a new one is handed out to be laid out. Folds are kept per replay. */
     private final Map<FoldState<String>, Set<String>> knownGroups = new WeakHashMap<>();
@@ -45,11 +53,11 @@ public class TrackTree
 
     /**
      * Gives every row its heading and reorders the rows so each heading's rows follow it: the
-     * recording first, then the parts in the form's own order. A folding tree stays whole: its rows
-     * take the heading of the row they fold under.
+     * recording first, then the addon tabs' channels, then the parts in the form's own order. A
+     * folding tree stays whole: its rows take the heading of the row they fold under.
      *
      * @param parts  the form and its parts, root first — see {@link UIForms#entries}
-     * @param record whether the rows of no form, a replay's own channels, go under the recording
+     * @param record whether the rows of no form, a replay's own channels, go under the recording and the addon tabs
      * @return the headings these folds see for the first time; how they start folded is up to the
      *         caller, which lays them out by its category — see {@code CategoryFold#settle}
      */
@@ -63,6 +71,8 @@ public class TrackTree
         Map<UIKeyframeSheet, Integer> rank = new HashMap<>();
         int slots = FormTrackGroup.values().length + 1;
         UIKeyframeSheet.Section recording = record ? UIKeyframeSheet.Section.owner(RECORD, TrackCategory.REPLAY.label, Icons.PLAYER) : null;
+        Map<TrackCategory, UIKeyframeSheet.Section> addons = new HashMap<>();
+        List<TrackCategory> categories = TrackCategories.values();
 
         for (UIForms.FormEntry entry : parts)
         {
@@ -85,10 +95,16 @@ public class TrackTree
 
             if (sheet.descriptor == null)
             {
-                /* Keeps its place in front, in the order it was handed over in. */
+                /* Keeps its place in front, in the order it was handed over in: the recording's
+                 * rows first, then each addon's in the order of the tabs. */
                 if (recording != null)
                 {
-                    sheet.section = rehang(sheet.section, recording, rehung);
+                    TrackCategory category = TrackCategories.categoryOf(TrackId.parse(sheet.id), false);
+                    boolean addon = category != TrackCategory.REPLAY && category != TrackCategory.FORM;
+                    UIKeyframeSheet.Section owner = addon ? addons.computeIfAbsent(category, c -> UIKeyframeSheet.Section.owner(CATEGORY_OWNER + c.id, c.label, c.icon)) : recording;
+
+                    sheet.section = rehang(sheet.section, owner, rehung);
+                    rank.put(sheet, (addon ? categories.indexOf(category) : 0) - categories.size());
                 }
 
                 continue;
