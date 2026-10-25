@@ -1260,7 +1260,6 @@
 	"bbs.ui.film.screenshot-title": "Скриншот был сохранён",
 	"bbs.ui.film.teleport-description": "Камера слишком далека от игрока. Если вы хотите телепортироваться, нажмите на иконку телепорта в панеле предпросмотра!",
 	"bbs.ui.film.teleport-title": "Телепортироваться",
-	"bbs.ui.film.teleport.context.camera": "Камера к игроку",
 	"bbs.ui.film.teleport.context.player": "Телепортировать игрока к камере",
 	"bbs.ui.film.title": "Фильмы",
 	"bbs.ui.film.video_recording": "Записывается %s, нажмите %s чтобы остановить...",

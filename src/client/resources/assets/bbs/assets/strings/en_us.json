@@ -1265,7 +1265,6 @@
 	"bbs.ui.film.screenshot-title": "Screenshot was taken",
 	"bbs.ui.film.teleport-description": "It appears that you are too far away from the scene. If you want to teleport to camera, press teleport icon in the right sidebar!",
 	"bbs.ui.film.teleport-title": "Teleport",
-	"bbs.ui.film.teleport.context.camera": "Camera to player",
 	"bbs.ui.film.teleport.context.player": "Teleport player to camera",
 	"bbs.ui.film.title": "Films",
 	"bbs.ui.film.video_recording": "Recording %s, press %s to stop...",

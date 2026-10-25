@@ -192,15 +192,6 @@ public class UIDashboard extends UIBaseMenu
 
     public void copyCurrentEntityCamera()
     {
-        this.orbit.setup(this.getCurrentEntityCamera());
-        this.camera.setup(BBSModClient.getCameraController().camera, 0F);
-    }
-
-    /**
-     * Camera at the eyes of the entity Minecraft is looking through (the player), with the game's FOV
-     */
-    public Camera getCurrentEntityCamera()
-    {
         Entity cameraEntity = MinecraftClient.getInstance().getCameraEntity();
         Vec3d eyePos = cameraEntity.getEyePos();
         Camera camera = new Camera();
@@ -209,7 +200,8 @@ public class UIDashboard extends UIBaseMenu
         camera.rotation.set(MathUtils.toRad(cameraEntity.getPitch()), MathUtils.toRad(cameraEntity.getHeadYaw() - 180), 0);
         camera.fov = MathUtils.toRad(MinecraftClient.getInstance().options.getFov().getValue().floatValue());
 
-        return camera;
+        this.orbit.setup(camera);
+        this.camera.setup(BBSModClient.getCameraController().camera, 0F);
     }
 
     private void cyclePanels()
