@@ -99,8 +99,8 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     /**
      * The transform the gizmo edits, opening the general tab when that's the form's own transform
-     * (a form without a skeleton), so a drag shows its numbers. Only for starting an edit: what is
-     * asked every frame goes through {@link #peekEditableTransform()}, or no other tab would stay open.
+     * (see {@link #editsOwnTransform()}), so a drag shows its numbers. Only for starting an edit: what
+     * is asked every frame goes through {@link #peekEditableTransform()}, or no other tab would stay open.
      */
     public UIPropTransform getEditableTransform()
     {
@@ -122,9 +122,17 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
             return tool.getGizmoTransform();
         }
 
-        UIPoseEditor poseEditor = this.getPoseEditor();
+        return this.editsOwnTransform() ? this.general : this.getPoseEditor().transform;
+    }
 
-        return poseEditor == null ? this.general : poseEditor.transform;
+    /**
+     * Whether the gizmo edits the form's own transform rather than a bone: always on a form without
+     * a skeleton, and on the general tab of one with — the tab shows that transform, so the gizmo
+     * must move what its numbers say, not the bone picked on another tab.
+     */
+    private boolean editsOwnTransform()
+    {
+        return this.getPoseEditor() == null || (this.generalPanel != null && this.view == this.generalPanel);
     }
 
     /**
@@ -140,10 +148,11 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
         return null;
     }
 
-    /** The path the gizmo sits on: the selected bone, or the form itself when there is none. */
+    /** The path the gizmo sits on: the selected bone, or the form itself when there is none
+     *  or the gizmo edits the form's own transform. */
     protected String bonePath()
     {
-        UIPoseEditor poseEditor = this.getPoseEditor();
+        UIPoseEditor poseEditor = this.editsOwnTransform() ? null : this.getPoseEditor();
         String bone = poseEditor == null ? null : poseEditor.groups.list.getCurrentFirst();
         String path = FormUtils.getPath(this.form);
 
@@ -172,11 +181,9 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
     /** The space the gizmo should be drawn in (the active panel's transform space). */
     public TransformSpace getGizmoSpace()
     {
-        UIPoseEditor poseEditor = this.getPoseEditor();
-
-        if (poseEditor != null)
+        if (!this.editsOwnTransform())
         {
-            return poseEditor.transform.getSpace();
+            return this.getPoseEditor().transform.getSpace();
         }
 
         return this.generalPanel != null ? this.generalPanel.transform.getSpace() : TransformSpace.LOCAL;
