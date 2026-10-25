@@ -8,6 +8,7 @@ import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.utils.clips.Clip;
+import mchorse.bbs_mod.utils.clips.Clips;
 
 import java.util.function.Consumer;
 
@@ -35,6 +36,21 @@ public class RunnerCameraController extends CameraWorkCameraController
     public boolean isRunning()
     {
         return this.context.playing;
+    }
+
+    @Override
+    public RunnerCameraController setWork(Clips clips)
+    {
+        super.setWork(clips);
+
+        /* Nothing left to play: stop now, not on the next game tick, because the
+         * panel asks isRunning() every frame and the film behind it is already gone. */
+        if (clips == null && this.context.playing)
+        {
+            this.setPlaying(false);
+        }
+
+        return this;
     }
 
     public void setPlaying(boolean playing)
