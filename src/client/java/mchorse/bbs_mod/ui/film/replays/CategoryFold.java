@@ -18,16 +18,17 @@ import java.util.Set;
 
 /**
  * What a category's key does to a timeline. A category doesn't filter, it switches the owners —
- * the recording, the parts on the timeline, an addon's — and leaves what is inside them alone:
+ * the recording, the parts on the timeline, an addon's:
  * <ul>
  *   <li>The recording's key opens the recording and folds every other owner.</li>
  *   <li>Form's opens every part on the timeline (the ones picked in the parts list) and folds the recording.</li>
  *   <li>An addon's opens the owners with its tracks, and its own headings in them, and folds the rest.
  *   Its channels of the replay have an owner of their own (BBSFP's first person, see {@link TrackTree}),
- *   its tracks of a form stay in that part's owner.</li>
+ *   its tracks of a form stay in that part's owner — so in there it also folds the headings without
+ *   its tracks (a lamp's Transform under IRLights' Light), or its key would open just what Form's does.</li>
  * </ul>
- * The headings inside an owner keep their folds, so unfolding one brings them back the way they
- * were. Pressed again, a key changes nothing, and the view doesn't scroll. A category with
+ * The recording's and Form's keys leave the headings inside an owner alone, so unfolding one brings
+ * them back the way they were. Pressed again, a key changes nothing, and the view doesn't scroll. A category with
  * nothing on the timeline (BBSFP's clip tab shows clips instead) leaves the folds be.
  *
  * <p>The tab lit also decides how an owner starts the first time a timeline shows it — and lays
@@ -65,8 +66,8 @@ public final class CategoryFold
      * Fold the headings a timeline shows for the first time. An owner starts the way the key of the
      * tab lit would switch it, as if just pressed; with nothing of that category on the timeline it
      * starts open. A heading inside starts open — what a part has is in reach once it is unfolded —
-     * but for the recording's, which start folded but for its Position, and an addon's own headings
-     * open with its tab lit.
+     * but for the recording's, which start folded but for its Position; with an addon's tab lit, its
+     * own headings start open and the others in its owners folded.
      *
      * <p>The first time the key has owners of its own on a timeline, it lays the whole timeline out,
      * the owners already there too: a replay is added before its form is picked, and the recording
@@ -128,7 +129,10 @@ public final class CategoryFold
         return true;
     }
 
-    /** What a key sets: its owners open, every other owner folded; an addon's own headings open too. */
+    /**
+     * What a key sets: its owners open, every other owner folded; an addon's own headings open too,
+     * and the other headings in its owners folded.
+     */
     private static Map<String, Boolean> layout(Set<UIKeyframeSheet.Section> all, Set<UIKeyframeSheet.Section> with, List<UIKeyframeSheet.Section> targets, TrackCategory category)
     {
         Map<String, Boolean> layout = new HashMap<>();
@@ -144,9 +148,26 @@ public final class CategoryFold
             {
                 layout.put(section.id(), true);
             }
+            else if (!builtin && inside(section, targets))
+            {
+                layout.put(section.id(), false);
+            }
         }
 
         return layout;
+    }
+
+    private static boolean inside(UIKeyframeSheet.Section section, List<UIKeyframeSheet.Section> owners)
+    {
+        for (UIKeyframeSheet.Section owner : owners)
+        {
+            if (section.isIn(owner))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Every heading the rows sit under, and the headings those sit in, in the order they stand. */
