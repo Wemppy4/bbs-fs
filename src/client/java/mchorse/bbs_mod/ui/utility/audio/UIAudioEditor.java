@@ -18,11 +18,9 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIClips;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
-import mchorse.bbs_mod.ui.utils.Scale;
-import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.MathUtils;
@@ -31,7 +29,7 @@ import mchorse.bbs_mod.utils.colors.Colors;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UIAudioEditor extends UIElement
+public class UIAudioEditor extends UITimelineCanvas
 {
     private static final Area AREA = new Area();
     private static final String CLIPBOARD_KEY = "_CopyColorCodes";
@@ -52,14 +50,15 @@ public class UIAudioEditor extends UIElement
     private SoundBuffer buffer;
     private SoundPlayer player;
 
-    private Scale scale = new Scale(this.area, ScrollDirection.HORIZONTAL);
-
-    private boolean navigating;
     private int dragging = -2;
-    private int lastX;
 
     /** Stretches the waveform strip vertically, 1 is the height from the settings. */
     private float verticalZoom = 1F;
+    private float verticalZoomTarget = 1F;
+    private long verticalZoomTime;
+
+    /** Cue markers of the open audio, handed back to the waveform whenever the codes change. */
+    private float[] cues;
 
     /** The code being drawn with Ctrl, and the time the drawing started at. */
     private ColorCode dragged;
@@ -127,7 +126,7 @@ public class UIAudioEditor extends UIElement
 
     private ColorCode createNewCode()
     {
-        float time = (float) this.scale.from(this.getContext().mouseX);
+        float time = (float) this.xAxis.from(this.getContext().mouseX);
         ColorCode code = new ColorCode();
 
         code.start = time;
@@ -165,7 +164,7 @@ public class UIAudioEditor extends UIElement
         }
 
         UIContext context = this.getContext();
-        float time = this.area.isInside(context) ? (float) this.scale.from(context.mouseX) : this.player.getPlaybackPosition();
+        float time = this.area.isInside(context) ? (float) this.xAxis.from(context.mouseX) : this.player.getPlaybackPosition();
         List<ColorCode> pasted = new ArrayList<>();
         float min = Float.MAX_VALUE;
 
@@ -249,8 +248,18 @@ public class UIAudioEditor extends UIElement
 
     private void markDirty()
     {
+        this.refreshWaveform();
         this.dirty = true;
         this.lastChange = System.currentTimeMillis();
+    }
+
+    /** The waveform tints itself with the codes, like the audio clip does; the simple one caches it in tiles. */
+    private void refreshWaveform()
+    {
+        if (this.waveform != null && !BBSSettings.audioWaveformDetailed.get())
+        {
+            this.waveform.render(this.colorCodes, this.cues);
+        }
     }
 
     public void save()
@@ -353,9 +362,10 @@ public class UIAudioEditor extends UIElement
 
             this.audio = audio;
             this.waveform = new Waveform();
-            this.waveform.generate(wave, null, BBSSettings.audioWaveformDensity.get(), BBSSettings.audioWaveformHeight.get());
+            this.cues = wave.getCues();
+            this.waveform.generate(wave, this.colorCodes, BBSSettings.audioWaveformDensity.get(), BBSSettings.audioWaveformHeight.get());
             this.colorCodes.addAll(colorCodes);
-            this.scale.viewOffset(0F, wave.getDuration(), 20);
+            this.xAxis.viewOffset(0F, wave.getDuration(), 20);
 
             this.buffer = new SoundBuffer(null, wave, this.waveform);
             this.player = new SoundPlayer(this.buffer);
@@ -447,12 +457,13 @@ public class UIAudioEditor extends UIElement
 
                 if (this.player != null)
                 {
-                    this.player.setPlaybackPosition((float) this.scale.from(context.mouseX));
+                    this.player.setPlaybackPosition((float) this.xAxis.from(context.mouseX));
                 }
             }
             else if (context.mouseButton == 2)
             {
-                this.navigating = true;
+                this.setMouse(context.mouseX, context.mouseY);
+                this.startNavigating();
             }
 
             return context.mouseButton != 1;
@@ -467,7 +478,7 @@ public class UIAudioEditor extends UIElement
         if (this.dragged != null)
         {
             /* A click without a drag still makes a code you can see and grab */
-            if ((this.dragged.end - this.dragged.start) * this.scale.getZoom() < 6)
+            if ((this.dragged.end - this.dragged.start) * this.xAxis.getZoom() < 6)
             {
                 this.dragged.end = this.dragged.start + 0.3F;
             }
@@ -496,11 +507,11 @@ public class UIAudioEditor extends UIElement
             {
                 float factor = context.mouseWheel > 0 ? 1.15F : 1F / 1.15F;
 
-                this.verticalZoom = MathUtils.clamp(this.verticalZoom * factor, 1F, 50F);
+                this.verticalZoomTarget = MathUtils.clamp(this.verticalZoomTarget * factor, 1F, 50F);
             }
             else if (context.mouseWheel != 0D)
             {
-                this.scale.zoomAnchor(Scale.getAnchorX(context, this.area), Math.copySign(this.scale.getZoomFactor(), context.mouseWheel));
+                this.zoomTimeAt(context, context.mouseWheel);
             }
 
             return true;
@@ -514,6 +525,16 @@ public class UIAudioEditor extends UIElement
     {
         super.render(context);
 
+        if (this.navigating || this.dragging >= -1 || this.dragged != null)
+        {
+            this.xAxis.stopZoom();
+        }
+        else
+        {
+            this.xAxis.updateZoom();
+        }
+
+        this.updateVerticalZoom();
         this.handleMouse(context);
         this.renderAudio(context);
 
@@ -523,37 +544,58 @@ public class UIAudioEditor extends UIElement
         }
     }
 
+    /** Eases the strip height towards the wheel's target, in the same steps the time axis zooms in. */
+    private void updateVerticalZoom()
+    {
+        float smoothing = BBSSettings.getScrollSmoothingIntensity();
+        long now = System.nanoTime();
+
+        if (smoothing <= 0F || Math.abs(this.verticalZoomTarget - this.verticalZoom) < 0.001F)
+        {
+            this.verticalZoom = this.verticalZoomTarget;
+        }
+        else
+        {
+            double seconds = Math.min(0.1D, (now - this.verticalZoomTime) / 1_000_000_000D);
+            float factor = (float) (1D - Math.exp(-seconds / (0.05D * smoothing)));
+
+            this.verticalZoom += (this.verticalZoomTarget - this.verticalZoom) * factor;
+        }
+
+        this.verticalZoomTime = now;
+    }
+
     private void handleMouse(UIContext context)
     {
         if (this.dragged != null)
         {
-            float time = MathUtils.clamp((float) this.scale.from(context.mouseX), 0F, this.waveform.getDuration());
+            float time = MathUtils.clamp((float) this.xAxis.from(context.mouseX), 0F, this.waveform.getDuration());
 
             this.dragged.start = Math.min(this.draggedAnchor, time);
             this.dragged.end = Math.max(this.draggedAnchor, time);
+            this.refreshWaveform();
         }
         else
         {
-            float zoom = (float) this.scale.getZoom();
+            float zoom = (float) this.xAxis.getZoom();
 
             if (this.navigating)
             {
-                int mouseX = context.mouseX;
-                double offset = (mouseX - lastX) / zoom;
-
-                this.scale.setShift(this.scale.getShift() - offset);
+                this.navigateTime(context.mouseX - this.lastX);
             }
             else if (this.dragging >= 0)
             {
                 int mouseX = context.mouseX;
-                float offset = (mouseX - lastX) / zoom;
+                float offset = (mouseX - this.lastX) / zoom;
 
                 if (this.dragging == 0 || this.dragging == 1) this.current.start = MathUtils.clamp(this.current.start + offset, 0, this.current.end - 6F / zoom);
                 if (this.dragging == 0 || this.dragging == 2) this.current.end = MathUtils.clamp(this.current.end + offset, this.current.start + 6F / zoom, Float.MAX_VALUE);
+
+                this.refreshWaveform();
             }
             else if (this.dragging == -1 && this.player != null)
             {
-                this.player.setPlaybackPosition((float) this.scale.from(context.mouseX));
+                this.player.setPlaybackPosition((float) this.xAxis.from(context.mouseX));
             }
         }
 
@@ -568,11 +610,11 @@ public class UIAudioEditor extends UIElement
         }
 
         float time = this.player.getPlaybackPosition();
-        int cursorX = (int) this.scale.to(time);
-        int x = (int) this.scale.to(0D);
+        int cursorX = (int) this.xAxis.to(time);
+        int x = (int) this.xAxis.to(0D);
         int h = this.getStripHeight();
         int y = this.area.my(h);
-        int x2 = (int) this.scale.to(this.waveform.getDuration());
+        int x2 = (int) this.xAxis.to(this.waveform.getDuration());
 
         context.batcher.clip(this.area, context);
 
@@ -600,11 +642,14 @@ public class UIAudioEditor extends UIElement
     {
         Area codeArea = this.getColorCodeArea(code);
         int codeHandler = this.getColorCodeHandle(context, codeArea);
-        float a = codeArea.isInside(context) ? 0.5F : 0.33F;
         float time = this.player == null ? 0F : this.player.getPlaybackPosition();
         boolean playing = time >= code.start && time <= code.end;
 
-        context.batcher.gradientVBox(codeArea.x, codeArea.y, codeArea.ex(), codeArea.ey(), Colors.setA(code.color, a), Colors.setA(code.color, a + 0.25F));
+        /* The waveform itself is tinted with the code, as in the audio clip; only the hover is added here */
+        if (codeArea.isInside(context))
+        {
+            context.batcher.box(codeArea.x, codeArea.y, codeArea.ex(), codeArea.ey(), Colors.setA(code.color, 0.2F));
+        }
 
         if (selected || playing)
         {
@@ -630,8 +675,8 @@ public class UIAudioEditor extends UIElement
         int y = this.area.my(h);
 
         AREA.set(
-            (int) this.scale.to(code.start), y,
-            (int) (this.scale.to(code.end) - this.scale.to(code.start)), h
+            (int) this.xAxis.to(code.start), y,
+            (int) (this.xAxis.to(code.end) - this.xAxis.to(code.start)), h
         );
 
         return AREA;
