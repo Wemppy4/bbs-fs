@@ -41,8 +41,8 @@ public class OrbitFilmCameraController extends OrbitViewportController
      * the anchor is identity, so the same math passes world values through
      * untouched. Rebasing between anchors preserves the world state, so
      * attaching, detaching and switching replays never moves the camera.
+     * Whether it is attached is a global setting, so it survives restarts.
      */
-    private boolean attached = true;
     private Replay anchorReplay;
 
     public OrbitFilmCameraController(UIFilmController controller)
@@ -129,12 +129,12 @@ public class OrbitFilmCameraController extends OrbitViewportController
 
     public boolean isAttached()
     {
-        return this.attached;
+        return BBSSettings.editorOrbitAttached.get();
     }
 
     public void toggleAttachment()
     {
-        this.attached = !this.attached;
+        BBSSettings.editorOrbitAttached.set(!BBSSettings.editorOrbitAttached.get());
 
         this.updateAnchor(this.getCurrentTransition());
     }
@@ -145,7 +145,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
         Replay target = null;
         IEntity entity = null;
 
-        if (this.attached)
+        if (BBSSettings.editorOrbitAttached.get())
         {
             target = this.controller.panel.replayEditor.getReplay();
             entity = target == null ? null : this.resolveEntity(target);

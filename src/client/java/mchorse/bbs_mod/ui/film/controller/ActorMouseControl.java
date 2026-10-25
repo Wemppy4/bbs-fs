@@ -5,6 +5,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.utils.MathUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
+import net.minecraft.client.option.GameOptions;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
 
@@ -106,10 +107,7 @@ public class ActorMouseControl
         {
             if (this.isLookMode() && onModdedServer)
             {
-                float cursorDeltaX = (x - this.lastMouse.x) / 2F;
-                float cursorDeltaY = (y - this.lastMouse.y) / 2F;
-
-                MinecraftClient.getInstance().player.changeLookDirection(cursorDeltaX, cursorDeltaY);
+                look(x - this.lastMouse.x, y - this.lastMouse.y);
             }
             else
             {
@@ -123,6 +121,27 @@ public class ActorMouseControl
         }
 
         this.lastMouse.set(x, y);
+    }
+
+    /**
+     * Turns the player's head the way vanilla {@code Mouse.updateMouse} does, so the look
+     * follows the sensitivity slider, the invert option and the slower spyglass.
+     */
+    private static void look(double cursorDeltaX, double cursorDeltaY)
+    {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        GameOptions options = mc.options;
+        double d = options.getMouseSensitivity().getValue() * 0.6D + 0.2D;
+        double scale = d * d * d;
+
+        if (!(options.getPerspective().isFirstPerson() && mc.player.isUsingSpyglass()))
+        {
+            scale *= 8D;
+        }
+
+        int invert = options.getInvertYMouse().getValue() ? -1 : 1;
+
+        mc.player.changeLookDirection(cursorDeltaX * scale, cursorDeltaY * scale * invert);
     }
 
     /** Hides the cursor while driving, so the mouse can travel without hitting the screen edge. */
