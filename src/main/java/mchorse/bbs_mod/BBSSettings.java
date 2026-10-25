@@ -33,8 +33,8 @@ import mchorse.bbs_mod.utils.keyframes.KeyframeStyle;
 
 public class BBSSettings {
 
-	public static final String DEFAULT_FFMPEG_ARGUMENTS = "-f rawvideo -pix_fmt bgr24 -s %WIDTH%x%HEIGHT% -r %FPS% -i - -vf %FILTERS% -c:v libx264 -preset ultrafast -tune zerolatency -qp 18 -pix_fmt yuv420p %NAME%.mp4";
-	public static final String DEFAULT_AUDIO_FFMPEG_ARGUMENTS = "-f rawvideo -pix_fmt bgr24 -s %WIDTH%x%HEIGHT% -r %FPS% -i - -i %AUDIO_TRACK% -vf %FILTERS% -c:v libx264 -preset ultrafast -tune zerolatency -qp 18 -pix_fmt yuv420p -c:a aac -b:a 128k -shortest %NAME%.mp4";
+	public static final String DEFAULT_FFMPEG_ARGUMENTS = "-f rawvideo -pix_fmt bgr24 -s %WIDTH%x%HEIGHT% -r %FPS% -i - -vf %FILTERS%,scale=out_color_matrix=bt709 -c:v libx264 -preset ultrafast -tune zerolatency -qp 18 -pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc bt709 %NAME%.mp4";
+	public static final String DEFAULT_AUDIO_FFMPEG_ARGUMENTS = "-f rawvideo -pix_fmt bgr24 -s %WIDTH%x%HEIGHT% -r %FPS% -i - -i %AUDIO_TRACK% -vf %FILTERS%,scale=out_color_matrix=bt709 -c:v libx264 -preset ultrafast -tune zerolatency -qp 18 -pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc bt709 -c:a aac -b:a 128k -shortest %NAME%.mp4";
 	public static final String DEFAULT_MUX_FFMPEG_ARGUMENTS = "-y -i %VIDEO% -i %AUDIO_TRACK% -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest %NAME%.mp4";
 
 	public static ValueColors favoriteColors;
@@ -250,6 +250,7 @@ public class BBSSettings {
 
 	public static ValueBoolean shaderCurvesEnabled;
 	public static ValueBoolean translucencyQueue;
+	public static ValueBoolean particlesDepthSorting;
 
 	public static ValueBoolean audioWaveformVisibleInPreview;
 	public static ValueBoolean audioWaveformVisibleInKeyframes;
@@ -260,6 +261,8 @@ public class BBSSettings {
 	public static ValueBoolean audioWaveformFilename;
 	public static ValueBoolean audioWaveformTime;
 	public static ValueBoolean audioWaveformPreviewCombined;
+	public static ValueInt audioEditorPrimaryColor;
+	public static ValueInt audioEditorSecondaryColor;
 
 	public static ValueString cdnUrl;
 	public static ValueString cdnToken;
@@ -884,6 +887,7 @@ public class BBSSettings {
 		listModelPreview = builder.getBoolean("list_model_preview", true);
 		freezeModels = builder.getBoolean("freeze_models", false);
 		translucencyQueue = builder.getBoolean("translucency_queue", false);
+		particlesDepthSorting = builder.getBoolean("particles_depth_sorting", false);
 		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
 		frustumCulling = builder.getBoolean("frustum_culling", true);
 		profilerOverlay = builder.getBoolean("profiler_overlay", false);
@@ -977,6 +981,11 @@ public class BBSSettings {
 		audioWaveformFilename = builder.getBoolean("waveform_filename", false);
 		audioWaveformTime = builder.getBoolean("waveform_time", false);
 		audioWaveformPreviewCombined = builder.getBoolean("waveform_preview_combined", false);
+		/* Brushes of the audio editor, picked there */
+		audioEditorPrimaryColor = builder.getInt("editor_primary_color", 0xff5555).color();
+		audioEditorSecondaryColor = builder.getInt("editor_secondary_color", 0x5599ff).color();
+		audioEditorPrimaryColor.invisible();
+		audioEditorSecondaryColor.invisible();
 
 		/* The rest */
 		builder.category("model_blocks", Icons.BLOCK);

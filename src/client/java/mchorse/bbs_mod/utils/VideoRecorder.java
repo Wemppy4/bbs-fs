@@ -228,6 +228,8 @@ public class VideoRecorder
             this.channel = Channels.newChannel(os);
             this.recording = true;
 
+            FlawlessFrames.setActive(true);
+
             UIUtils.playClick(2F);
         }
         catch (Exception e)
@@ -306,6 +308,8 @@ public class VideoRecorder
         }
 
         this.recording = false;
+
+        FlawlessFrames.setActive(false);
 
         if (finishEffects)
         {

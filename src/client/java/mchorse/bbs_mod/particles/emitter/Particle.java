@@ -61,6 +61,9 @@ public class Particle
     public float b = 1;
     public float a = 1;
 
+    /** Squared distance to the camera, recomputed each frame while depth sorting is enabled, used to order particles back-to-front. */
+    public double cameraDistanceSq;
+
     private Vector3d global = new Vector3d();
 
     public Map<String, Double> localValues = new HashMap<>();

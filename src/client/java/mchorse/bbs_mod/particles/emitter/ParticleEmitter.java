@@ -3,6 +3,7 @@ package mchorse.bbs_mod.particles.emitter;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.math.IExpression;
@@ -33,6 +34,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -41,6 +43,9 @@ import java.util.function.Supplier;
 
 public class ParticleEmitter
 {
+    /** Orders particles farthest-to-nearest from the camera, for correct translucent compositing. */
+    private static final Comparator<Particle> DEPTH_COMPARATOR = Comparator.comparingDouble((Particle p) -> p.cameraDistanceSq).reversed();
+
     public ParticleScheme scheme;
     public List<Particle> particles = new ArrayList<>();
     public Map<String, IExpression> variables;
@@ -472,6 +477,26 @@ public class ParticleEmitter
     }
 
     /**
+     * Sort particles back-to-front relative to the camera so that translucent particles
+     * composite in the correct order. Toggled globally via {@link BBSSettings#particlesDepthSorting}.
+     */
+    private void sortByDepth()
+    {
+        for (Particle particle : this.particles)
+        {
+            Vector3d global = particle.getGlobalPosition(this);
+
+            double dx = global.x - this.cX;
+            double dy = global.y - this.cY;
+            double dz = global.z - this.cZ;
+
+            particle.cameraDistanceSq = dx * dx + dy * dy + dz * dz;
+        }
+
+        this.particles.sort(DEPTH_COMPARATOR);
+    }
+
+    /**
      * Render all the particles in this particle emitter
      */
     public void render(VertexFormat format, Supplier<ShaderProgram> program, MatrixStack stack, int overlay, float transition, boolean blend)
@@ -490,6 +515,11 @@ public class ParticleEmitter
 
         if (!this.particles.isEmpty())
         {
+            if (BBSSettings.particlesDepthSorting != null && BBSSettings.particlesDepthSorting.get())
+            {
+                this.sortByDepth();
+            }
+
             Matrix4f matrix = stack.peek().getPositionMatrix();
             BufferBuilder builder = Tessellator.getInstance().getBuffer();
 

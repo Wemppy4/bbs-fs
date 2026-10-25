@@ -60,6 +60,7 @@
         "EntityRenderDispatcherMixin",
         "CameraInvoker",
         "ParticleManagerInvoker",
+        "ParticleManagerMixin",
         "ParticleMixin"
     ],
     "injectors": {

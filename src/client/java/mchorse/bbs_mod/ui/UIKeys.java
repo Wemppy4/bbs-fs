@@ -41,7 +41,10 @@ public class UIKeys
     public static final IKey ACTIONS_ITEM_VELOCITY = L10n.lang("bbs.ui.actions.item.velocity");
     public static final IKey AUDIO_CONTEXT_ADD = L10n.lang("bbs.ui.audio_editor.context.add");
     public static final IKey AUDIO_CONTEXT_REMOVE = L10n.lang("bbs.ui.audio_editor.context.remove");
+    public static final IKey AUDIO_CONTEXT_TRIM = L10n.lang("bbs.ui.audio_editor.context.trim");
     public static final IKey AUDIO_LANDING_LIST = L10n.lang("bbs.ui.audio_editor.landing.list");
+    public static final IKey AUDIO_PRIMARY_COLOR = L10n.lang("bbs.ui.audio_editor.primary_color");
+    public static final IKey AUDIO_SECONDARY_COLOR = L10n.lang("bbs.ui.audio_editor.secondary_color");
     public static final IKey AUDIO_TITLE = L10n.lang("bbs.ui.audio_editor.title");
     public static final IKey CAMERA_EDITOR_KEYS_CLIPS_DESELECT = L10n.lang("bbs.ui.camera.editor.keys.clips.deselect");
     public static final IKey CAMERA_EDITOR_KEYS_CLIPS_SELECT_ALL = L10n.lang("bbs.ui.camera.editor.keys.clips.select_all");
@@ -472,7 +475,6 @@ public class UIKeys
     public static final IKey FILM_SCREENSHOT = L10n.lang("bbs.ui.film.screenshot");
     public static final IKey FILM_SCREENSHOT_DESCRIPTION = L10n.lang("bbs.ui.film.screenshot-description");
     public static final IKey FILM_SCREENSHOT_TITLE = L10n.lang("bbs.ui.film.screenshot-title");
-    public static final IKey FILM_TELEPORT_CONTEXT_CAMERA = L10n.lang("bbs.ui.film.teleport.context.camera");
     public static final IKey FILM_TELEPORT_CONTEXT_PLAYER = L10n.lang("bbs.ui.film.teleport.context.player");
     public static final IKey FILM_TELEPORT_DESCRIPTION = L10n.lang("bbs.ui.film.teleport-description");
     public static final IKey FILM_TELEPORT_TITLE = L10n.lang("bbs.ui.film.teleport-title");

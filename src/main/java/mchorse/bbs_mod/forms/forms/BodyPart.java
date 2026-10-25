@@ -169,6 +169,14 @@ public class BodyPart extends ValueGroup
         this.entity.update();
     }
 
+    public void restart()
+    {
+        if (this.form != null)
+        {
+            this.form.restart();
+        }
+    }
+
     public BodyPart copy()
     {
         BodyPart part = new BodyPart(this.id);

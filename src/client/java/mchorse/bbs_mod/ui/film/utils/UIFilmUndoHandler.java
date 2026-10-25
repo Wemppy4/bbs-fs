@@ -36,6 +36,14 @@ public class UIFilmUndoHandler extends UIFormUndoHandler
             return;
         }
 
+        /* A take writes keyframes on every tick, and FilmRecordingController puts the whole take
+         * into the history as one edit when it stops. Letting the ticks in as well left a second
+         * entry under that one, so undoing a take took two Ctrl+Z. */
+        if (((UIFilmPanel) this.uiElement).getController().isRecording())
+        {
+            return;
+        }
+
         super.handlePreValues(baseValue, flag);
     }
 

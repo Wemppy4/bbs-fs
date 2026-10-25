@@ -57,9 +57,27 @@ public class FilmEditorController extends BaseFilmController
     {
         ticks = this.getTick() + (this.controller.panel.getRunner().isRunning() ? 1 : 0);
 
+        int step = ticks - this.lastTick;
+
         super.updateEntities(ticks);
 
         this.lastTick = ticks;
+
+        /* Playback and stepping move the cursor one tick at a time. Anything else
+         * is a jump in time, and what the forms simulate tick by tick (particles)
+         * starts over where the cursor landed instead of carrying on from where
+         * it was. Only after the update, so the ticks a jump forward replays
+         * (see applyReplay) don't spill into the fresh start */
+        if (step != 0 && step != 1)
+        {
+            for (IEntity entity : this.entities.values())
+            {
+                if (entity.getForm() != null)
+                {
+                    entity.getForm().restart();
+                }
+            }
+        }
     }
 
     @Override
