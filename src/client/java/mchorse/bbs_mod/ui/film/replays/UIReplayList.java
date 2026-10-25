@@ -1804,7 +1804,6 @@ public class UIReplayList extends UIList<ReplayListEntry>
     /** The tail every way of adding a replay shares: rebuild the rows, focus the newcomer. */
     private void showNewReplay(Replay replay)
     {
-        this.panel.replayEditor.keepTimeViewFor(replay);
         this.refreshReplayList();
         this.update();
         this.panel.replayEditor.setReplay(replay);

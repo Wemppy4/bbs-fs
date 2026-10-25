@@ -171,15 +171,6 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
      */
     private final Map<String, FoldState<String>> expandedTracksByReplay = new HashMap<>();
     private final Map<String, TimelineBodyPartSelection> selectedPartsByReplay = new HashMap<>();
-    /**
-     * Each replay's own time zoom. A rebuild for the same replay keeps the view as it is, but
-     * switching to another replay brings back the zoom it was left with (or fits its keys the
-     * first time) instead of dragging the previous replay's zoom along. Only the zoom comes back:
-     * the playhead keeps its place on screen, so the view follows wherever the film went meanwhile.
-     */
-    private final Map<String, TimeView> timeViewByReplay = new HashMap<>();
-    /** The replay the current keyframe timeline was built for. */
-    private String timelineReplayId;
     private final TrackTree trackTree = new TrackTree();
     /** The parts the timeline shows and the one in focus, which the track search lists first. */
     private TimelineBodyPartSelection partSelection = new TimelineBodyPartSelection();
@@ -454,9 +445,6 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.useActionViewportForNewKeyframes = false;
         this.expandedTracksByReplay.clear();
         this.selectedPartsByReplay.clear();
-        this.timeViewByReplay.clear();
-        /* The timeline still shows the old film's replay; its view doesn't belong in the new film's map. */
-        this.timelineReplayId = null;
         this.replaysList.setBodyPartsReplay(null, this.partSelection);
         /* A film opens on the recording, its folds starting over with it: the form is a 2 away. */
         this.category = TrackCategory.REPLAY;
@@ -605,16 +593,12 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.replaysList.resize();
 
         UIKeyframes lastEditor = this.keyframeEditor != null ? this.keyframeEditor.view : null;
-        String lastReplayId = this.timelineReplayId;
 
         if (this.keyframeEditor != null)
         {
-            this.rememberTimeView(lastReplayId, lastEditor);
             this.keyframeEditor.removeFromParent();
             this.keyframeEditor = null;
         }
-
-        this.timelineReplayId = null;
 
         if (this.replay == null)
         {
@@ -817,7 +801,6 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             }
 
             this.add(this.keyframeEditor);
-            this.timelineReplayId = this.replay.getId();
             /* Category bar + actions toggle on top so they overlay the track names column. */
             this.bringBarToFront();
             this.updateTimelineModeVisibility();
@@ -825,9 +808,9 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         this.resize();
 
-        if (this.keyframeEditor != null && (lastEditor == null || !this.timelineReplayId.equals(lastReplayId)))
+        if (this.keyframeEditor != null && lastEditor == null)
         {
-            this.restoreTimeView(this.keyframeEditor.view, lastEditor != null);
+            this.keyframeEditor.view.resetView();
         }
 
         if (this.keyframeEditor != null && (this.actionsMode || this.useActionViewportForNewKeyframes))
@@ -1033,62 +1016,6 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         this.actionsMode = actionsMode;
         this.updateTimelineModeVisibility();
-    }
-
-    private void rememberTimeView(String replayId, UIKeyframes editor)
-    {
-        if (replayId == null) return;
-
-        TimeView view = this.timeViewByReplay.computeIfAbsent(replayId, (k) -> new TimeView());
-
-        editor.getXAxis().updateZoom();
-        view.scale.copy(editor.getXAxis());
-        view.tick = editor.getTick();
-    }
-
-    /**
-     * A replay that is being added opens with the view of the timeline it was added from, so the
-     * playhead stays where the user was working. Without this its first visit would fit its keys —
-     * the one spot it was put at — and jump the view away. Call before the replay is shown.
-     */
-    public void keepTimeViewFor(Replay replay)
-    {
-        if (this.keyframeEditor != null && replay != null)
-        {
-            this.rememberTimeView(replay.getId(), this.keyframeEditor.view);
-        }
-    }
-
-    /**
-     * Bring back the current replay's own time zoom, or fit its keys if it has none yet.
-     *
-     * The zoom is the replay's own, but the playhead stays where it is on screen — where it stood in
-     * the timeline just left, or with none before it, where it stood when this replay was left. The
-     * replay's old position would lag behind a playhead that moved on while another replay was edited.
-     */
-    private void restoreTimeView(UIKeyframes editor, boolean hasPreviousView)
-    {
-        TimeView view = this.timeViewByReplay.get(this.timelineReplayId);
-
-        if (view == null)
-        {
-            editor.resetView();
-
-            return;
-        }
-
-        Scale axis = editor.getXAxis();
-        double tick = editor.getTick();
-        double playheadX = hasPreviousView ? axis.to(tick) : 0;
-
-        axis.copy(view.scale);
-
-        if (!hasPreviousView)
-        {
-            playheadX = axis.to(view.tick);
-        }
-
-        axis.setShift(axis.getShift() + (axis.to(tick) - playheadX) / axis.getZoom());
     }
 
     private void copyTimeViewport(UITimelineCanvas source, UITimelineCanvas target)
@@ -1481,12 +1408,5 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         SWITCH,
         /** Leave the orbit camera untouched (used when restoring selection during undo/redo). */
         KEEP
-    }
-
-    /** A replay's time zoom as it was left, and where the playhead was at that moment. */
-    private static class TimeView
-    {
-        public final Scale scale = new Scale(null);
-        public float tick;
     }
 }
