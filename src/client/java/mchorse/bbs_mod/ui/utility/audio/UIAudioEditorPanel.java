@@ -46,9 +46,10 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
 
             return player.isPlaying() ? Icons.PAUSE : Icons.PLAY;
         }, (b) -> this.audioEditor.togglePlayback());
-        this.saveColors = new UIIcon(Icons.SAVED, (b) -> this.saveColors());
+        this.saveColors = new UIIcon(Icons.SAVED, (b) -> this.audioEditor.save());
         this.saveColors.tooltip(UIKeys.GENERAL_SAVE);
         this.audioEditor = new UIAudioEditor();
+        this.audioEditor.saver = this::saveColors;
         this.audioEditor.full(this.editor);
 
         this.actions().action(this.plause).common(this.pickAudio).common(this.saveColors);
@@ -59,7 +60,11 @@ public class UIAudioEditorPanel extends UIEditorDashboardPanel
         this.openAudio(null);
 
         this.keys().register(Keys.PLAUSE, this.audioEditor::togglePlayback);
-        this.keys().register(Keys.SAVE, this::saveColors);
+        this.keys().register(Keys.SAVE, this.audioEditor::save);
+
+        /* Edits are saved on their own a moment after the change; leaving catches the last one */
+        this.onDisappear(this.audioEditor::saveIfDirty);
+        this.onClose(this.audioEditor::saveIfDirty);
         this.keys().register(Keys.OPEN_DATA_MANAGER, this.pickAudio::clickItself);
 
         /* What the tour of this panel points at */

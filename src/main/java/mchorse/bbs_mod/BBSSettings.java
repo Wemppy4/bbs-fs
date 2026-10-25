@@ -261,6 +261,8 @@ public class BBSSettings {
 	public static ValueBoolean audioWaveformFilename;
 	public static ValueBoolean audioWaveformTime;
 	public static ValueBoolean audioWaveformPreviewCombined;
+	public static ValueInt audioEditorPrimaryColor;
+	public static ValueInt audioEditorSecondaryColor;
 
 	public static ValueString cdnUrl;
 	public static ValueString cdnToken;
@@ -979,6 +981,11 @@ public class BBSSettings {
 		audioWaveformFilename = builder.getBoolean("waveform_filename", false);
 		audioWaveformTime = builder.getBoolean("waveform_time", false);
 		audioWaveformPreviewCombined = builder.getBoolean("waveform_preview_combined", false);
+		/* Brushes of the audio editor, picked there */
+		audioEditorPrimaryColor = builder.getInt("editor_primary_color", 0xff5555).color();
+		audioEditorSecondaryColor = builder.getInt("editor_secondary_color", 0x5599ff).color();
+		audioEditorPrimaryColor.invisible();
+		audioEditorSecondaryColor.invisible();
 
 		/* The rest */
 		builder.category("model_blocks", Icons.BLOCK);
