@@ -291,7 +291,7 @@ public class FilmEntityRenderer
         Form root = FormUtils.getRoot(form);
         MatrixCache map = FormFrameCache.collect(frame, root, entity, transition);
         /* Placement flavour straight off the frame (TransformSpace#placesOnOwnFrame). */
-        Matrix4f matrix = space.placesOnOwnFrame() ? map.get(mapKey).matrix() : map.get(mapKey).origin();
+        Matrix4f matrix = map.get(mapKey).placement(space.placesOnOwnFrame());
 
         if (matrix != null)
         {
@@ -336,7 +336,7 @@ public class FilmEntityRenderer
         }
 
         boolean ownFrame = space.placesOnOwnFrame();
-        Matrix4f matrix = ownFrame ? entry.matrix() : entry.origin();
+        Matrix4f matrix = entry.placement(ownFrame);
 
         if (matrix == null)
         {

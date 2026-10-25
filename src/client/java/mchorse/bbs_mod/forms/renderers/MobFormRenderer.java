@@ -198,7 +198,7 @@ public class MobFormRenderer extends FormRenderer<MobForm> implements ITickable
         this.applyTransforms(stack, false, transition);
         mm.set(stack.peek().getPositionMatrix());
 
-        matrices.put(prefix, mm, oo);
+        matrices.putForm(prefix, mm, oo, this.getFramePivot());
 
         MatrixCache collected = new MatrixCache();
 

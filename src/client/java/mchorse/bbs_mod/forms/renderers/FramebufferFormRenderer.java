@@ -478,7 +478,7 @@ public class FramebufferFormRenderer extends FormRenderer<FramebufferForm>
 
         stack.push();
         this.applyTransforms(stack, false, transition);
-        matrices.put(prefix, new Matrix4f(stack.peek().getPositionMatrix()), origin);
+        matrices.putForm(prefix, new Matrix4f(stack.peek().getPositionMatrix()), origin, this.getFramePivot());
 
         float width = MathUtils.clamp(this.form.width.get(), 2, 4096);
         float height = MathUtils.clamp(this.form.height.get(), 2, 4096);

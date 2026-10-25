@@ -160,6 +160,27 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
     }
 
+    /** The model's own scale comes after the transform (see applyTransforms), so the frames are in its units. */
+    @Override
+    protected Vector3f getFramePivot()
+    {
+        Vector3f pivot = super.getFramePivot();
+        ModelInstance model = this.getModel();
+
+        if (model != null)
+        {
+            Vector3f scale = model.getScale();
+
+            pivot.set(
+                scale.x == 0F ? 0F : pivot.x / scale.x,
+                scale.y == 0F ? 0F : pivot.y / scale.y,
+                scale.z == 0F ? 0F : pivot.z / scale.z
+            );
+        }
+
+        return pivot;
+    }
+
     public static Matrix4f getUIMatrix(UIContext context, int x1, int y1, int x2, int y2)
     {
         float scale = (y2 - y1) / 2.5F;
@@ -1254,7 +1275,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         this.applyTransforms(stack, false, transition);
         mm.set(stack.peek().getPositionMatrix());
 
-        matrices.put(prefix, mm, oo);
+        matrices.putForm(prefix, mm, oo, this.getFramePivot());
 
         /* Collect bones and add them to matrix list */
         if (this.animator != null && model != null)

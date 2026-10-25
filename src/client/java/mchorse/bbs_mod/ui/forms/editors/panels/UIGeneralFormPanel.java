@@ -8,8 +8,10 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.replays.overlays.UIKeyframeSheetFilterOverlayPanel;
 import mchorse.bbs_mod.ui.forms.editors.forms.UIForm;
+import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIKeybind;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
@@ -18,8 +20,11 @@ import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
+import mchorse.bbs_mod.utils.colors.Colors;
+import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -38,6 +43,7 @@ public class UIGeneralFormPanel extends UIFormPanel
     public UITextbox trackName;
     public UITextbox name;
     public UIPropTransform transform;
+    public UITrackpad[] pivot = new UITrackpad[3];
 
     public UIToggle hitbox;
     public UITrackpad hitboxWidth;
@@ -80,6 +86,31 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.transform = new UIPropTransform().callbacks(() -> this.form.transform).barBackground();
         this.transform.enableHotkeys();
         this.transform.valueBinding(() -> this.transform.setTransform(this.form == null ? null : this.form.transform.get()));
+
+        IKey raw = IKey.constant("%s (%s)");
+        IKey[] axes = {UIKeys.GENERAL_X, UIKeys.GENERAL_Y, UIKeys.GENERAL_Z};
+        int[] colors = {Colors.RED, Colors.GREEN, Colors.BLUE};
+
+        for (int i = 0; i < 3; i++)
+        {
+            UITrackpad field = new UITrackpad((v) -> this.setPivot()).block().onlyNumbers();
+
+            field.tooltip(raw.format(UIKeys.MODEL_EDITOR_MODEL_PIVOT, axes[i]));
+            field.textbox.setColor(colors[i]);
+            this.pivot[i] = field;
+        }
+
+        /* Drawn like the model editor's cube pivot row, under the transform it belongs to — but
+         * only a sign here, the form has no geometry of its own to center it on. */
+        UIIcon pivotIcon = new UIIcon(Icons.SPHERE, null);
+
+        pivotIcon.disabledColor = pivotIcon.hoverColor = Colors.WHITE;
+        pivotIcon.setEnabled(false);
+
+        UIElement pivotRow = this.transform.addRow(pivotIcon, this.pivot[0], this.pivot[1], this.pivot[2]);
+
+        UIValues.resettable(pivotRow, () -> this.form == null ? null : this.form.pivot, null);
+        pivotRow.valueBinding(this::readPivot);
 
         this.hitbox = UIValues.toggle(UIKeys.CAMERA_PANELS_ENABLED, () -> this.form.hitbox);
         this.hitboxWidth = UIValues.trackpad(() -> this.form.hitboxWidth);
@@ -162,6 +193,34 @@ public class UIGeneralFormPanel extends UIFormPanel
         this.hitboxEyeHeight.setValue(form.hitboxEyeHeight.get());
 
         this.options.resize();
+    }
+
+    private void setPivot()
+    {
+        this.form.pivot.set(new Vector3f(
+            (float) this.pivot[0].getValue(),
+            (float) this.pivot[1].getValue(),
+            (float) this.pivot[2].getValue()
+        ));
+    }
+
+    /** Read on every frame the row is drawn, so an undo or a reset shows at once. */
+    private void readPivot()
+    {
+        if (this.form == null)
+        {
+            return;
+        }
+
+        Vector3f pivot = this.form.pivot.get();
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (this.pivot[i].getValue() != pivot.get(i))
+            {
+                this.pivot[i].setValue(pivot.get(i));
+            }
+        }
     }
 
     private void openTrackFilter()

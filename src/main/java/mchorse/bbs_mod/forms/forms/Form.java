@@ -29,6 +29,7 @@ import mchorse.bbs_mod.settings.values.core.ValuePose;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
 import mchorse.bbs_mod.settings.values.ui.ValueStringKeys;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.colors.Color;
@@ -36,6 +37,7 @@ import mchorse.bbs_mod.utils.pose.Transform;
 import mchorse.bbs_mod.utils.pose.Pose;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
+import org.joml.Vector3f;
 
 import java.util.Collections;
 import java.util.ArrayList;
@@ -72,6 +74,16 @@ public abstract class Form extends ValueGroup
     public final ValueString name = new ValueString("name", "");
     public final ValueTransform transform = new ValueTransform("transform", new Transform());
     public final ValueTransform transformOverlay = new ValueTransform("transform_overlay", new Transform());
+
+    /**
+     * The point the form's transform rotates and scales about, in blocks in the form's own frame.
+     * Moving it leaves the form where it stands and only changes what it turns around.
+     *
+     * <p>Not animated: where a form is held is set once in the form editor, and moving the form
+     * over time is what its transform is for (the structure form's anchor reasons the same).</p>
+     */
+    public final ValueVector3f pivot = new ValueVector3f("pivot", new Vector3f());
+
     public final ValueBoolean shaderShadow = new ValueBoolean("shaderShadow", true);
     public final ValueBoolean additiveColor = new ValueBoolean("additive_color", false);
 
@@ -154,6 +166,7 @@ public abstract class Form extends ValueGroup
         this.add(this.name);
         this.add(this.transform);
         this.add(this.transformOverlay);
+        this.add(this.pivot);
 
         this.syncOverlayTracks();
 

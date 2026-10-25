@@ -13,6 +13,7 @@ import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
+import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.Keys;
@@ -98,8 +99,8 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
 
     /**
      * The transform the gizmo edits, opening the general tab when that's the form's own transform
-     * (a form without a skeleton), so a drag shows its numbers. Only for starting an edit: what is
-     * asked every frame goes through {@link #peekEditableTransform()}, or no other tab would stay open.
+     * (see {@link #editsOwnTransform()}), so a drag shows its numbers. Only for starting an edit: what
+     * is asked every frame goes through {@link #peekEditableTransform()}, or no other tab would stay open.
      */
     public UIPropTransform getEditableTransform()
     {
@@ -121,9 +122,17 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
             return tool.getGizmoTransform();
         }
 
-        UIPoseEditor poseEditor = this.getPoseEditor();
+        return this.editsOwnTransform() ? this.general : this.getPoseEditor().transform;
+    }
 
-        return poseEditor == null ? this.general : poseEditor.transform;
+    /**
+     * Whether the gizmo edits the form's own transform rather than a bone: always on a form without
+     * a skeleton, and on the general tab of one with — the tab shows that transform, so the gizmo
+     * must move what its numbers say, not the bone picked on another tab.
+     */
+    private boolean editsOwnTransform()
+    {
+        return this.getPoseEditor() == null || (this.generalPanel != null && this.view == this.generalPanel);
     }
 
     /**
@@ -139,10 +148,11 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
         return null;
     }
 
-    /** The path the gizmo sits on: the selected bone, or the form itself when there is none. */
+    /** The path the gizmo sits on: the selected bone, or the form itself when there is none
+     *  or the gizmo edits the form's own transform. */
     protected String bonePath()
     {
-        UIPoseEditor poseEditor = this.getPoseEditor();
+        UIPoseEditor poseEditor = this.editsOwnTransform() ? null : this.getPoseEditor();
         String bone = poseEditor == null ? null : poseEditor.groups.list.getCurrentFirst();
         String path = FormUtils.getPath(this.form);
 
@@ -171,11 +181,9 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
     /** The space the gizmo should be drawn in (the active panel's transform space). */
     public TransformSpace getGizmoSpace()
     {
-        UIPoseEditor poseEditor = this.getPoseEditor();
-
-        if (poseEditor != null)
+        if (!this.editsOwnTransform())
         {
-            return poseEditor.transform.getSpace();
+            return this.getPoseEditor().transform.getSpace();
         }
 
         return this.generalPanel != null ? this.generalPanel.transform.getSpace() : TransformSpace.LOCAL;
@@ -204,7 +212,12 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      *  in the derivatives. */
     public Matrix4f getBodyPartGizmoOrigin(float transition, TransformSpace space)
     {
-        return this.getOrigin(transition, FormUtils.getPath(this.form), space);
+        /* The frame the parts hang in, not the one on the form's pivot: that is only where
+         * the form's own transform turns. */
+        MatrixCacheEntry entry = this.getFrames(transition, FormUtils.getPath(this.form));
+        Matrix4f matrix = space.placesOnOwnFrame() ? entry.matrix() : entry.origin();
+
+        return matrix == null ? Matrices.EMPTY_4F : matrix;
     }
 
     /** The frame's placement matrix: its own for LOCAL, the origin flavour (the frame
@@ -212,11 +225,17 @@ public abstract class UIForm <T extends Form> extends UIPanelBase<UIFormPanel<T>
      *  is the one place that call is made, so no caller can answer it differently. */
     protected Matrix4f getOrigin(float transition, String path, TransformSpace space)
     {
-        Form root = FormUtils.getRoot(this.form);
-        MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
-        Matrix4f matrix = space.placesOnOwnFrame() ? map.get(path).matrix() : map.get(path).origin();
+        Matrix4f matrix = this.getFrames(transition, path).placement(space.placesOnOwnFrame());
 
         return matrix == null ? Matrices.EMPTY_4F : matrix;
+    }
+
+    private MatrixCacheEntry getFrames(float transition, String path)
+    {
+        Form root = FormUtils.getRoot(this.form);
+        MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
+
+        return map.get(path);
     }
 
     /**

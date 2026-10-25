@@ -353,7 +353,7 @@ public class FilmMatrices
         boolean useBoneMatrix
     )
     {
-        Matrix4f matrix = getBoneCompositeMatrix(entities, entity, replay, cameraX, cameraY, cameraZ, transition, bonePath, useBoneMatrix);
+        Matrix4f matrix = getBoneCompositeMatrix(entities, entity, replay, cameraX, cameraY, cameraZ, transition, bonePath, useBoneMatrix, true);
 
         return matrix == null ? null : MatrixStackUtils.stripScale(matrix);
     }
@@ -383,6 +383,9 @@ public class FilmMatrices
      * The same composite as {@link #getGizmoBoneCompositeMatrix} but with the bone's scale kept.
      * The gizmo drops scale on purpose (a gizmo must not inherit it); world-space transform capture
      * needs the full matrix, so it goes through this variant instead.
+     *
+     * <p>A form's path answers with the frame its body parts hang in, not the gizmo's spot on the
+     * form's pivot (see {@link MatrixCacheEntry#placement}).</p>
      */
     public static Matrix4f getBoneCompositeMatrix(
         Map<String, IEntity> entities,
@@ -394,6 +397,21 @@ public class FilmMatrices
         float transition,
         String bonePath,
         boolean useBoneMatrix
+    ) {
+        return getBoneCompositeMatrix(entities, entity, replay, cameraX, cameraY, cameraZ, transition, bonePath, useBoneMatrix, false);
+    }
+
+    private static Matrix4f getBoneCompositeMatrix(
+        Map<String, IEntity> entities,
+        IEntity entity,
+        Replay replay,
+        double cameraX,
+        double cameraY,
+        double cameraZ,
+        float transition,
+        String bonePath,
+        boolean useBoneMatrix,
+        boolean placement
     ) {
         if (entity == null || entity.getForm() == null || bonePath == null)
         {
@@ -432,7 +450,7 @@ public class FilmMatrices
         Form root = FormUtils.getRoot(form);
         MatrixCache map = FormFrameCache.collect(frame, root, entity, transition);
         MatrixCacheEntry entry = map.get(mapKey);
-        Matrix4f bone = useBoneMatrix ? entry.matrix() : entry.origin();
+        Matrix4f bone = placement ? entry.placement(useBoneMatrix) : useBoneMatrix ? entry.matrix() : entry.origin();
 
         if (bone == null)
         {

@@ -38,6 +38,12 @@ public class MatrixCache
         this.entries.put(path, new MatrixCacheEntry(matrix, origin, evaluatedRotation));
     }
 
+    /** A form's own frames, with the pivot its transform turns about (see {@link MatrixCacheEntry#placement}). */
+    public void putForm(String path, Matrix4f matrix, Matrix4f origin, Vector3f pivot)
+    {
+        this.entries.put(path, new MatrixCacheEntry(matrix, origin, null, pivot));
+    }
+
     public Set<String> keySet()
     {
         return this.entries.keySet();

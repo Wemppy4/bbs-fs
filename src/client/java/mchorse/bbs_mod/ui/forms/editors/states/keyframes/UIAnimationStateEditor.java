@@ -835,7 +835,7 @@ public class UIAnimationStateEditor extends UIElement
 
         Form root = FormUtils.getRoot(this.editor.form);
         MatrixCache map = FormUtilsClient.getRenderer(root).collectMatrices(this.editor.renderer.getTargetEntity(), transition);
-        Matrix4f matrix = ownFrame ? map.get(bone.a).matrix() : map.get(bone.a).origin();
+        Matrix4f matrix = map.get(bone.a).placement(ownFrame);
 
         return matrix == null ? Matrices.EMPTY_4F : matrix;
     }
