@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.film.clips;
 import mchorse.bbs_mod.camera.clips.overwrite.KeyframeClip;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
@@ -59,7 +58,7 @@ public class UIKeyframeClip extends UIClip<KeyframeClip>
             this.keyframes.view.resetView();
             this.keyframes.view.getGraph().clearSelection();
         });
-        this.edit.keys().register(Keys.FORMS_EDIT, () -> this.edit.clickItself());
+        this.registerEditKeys(this.edit, this.keyframes);
     }
 
     @Override
