@@ -5,7 +5,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.items.UIItemGrid;
 import mchorse.bbs_mod.ui.utils.GridLayout;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.graphics.window.Window;
-import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.ui.utils.cells.CellPainter;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
 import java.util.List;
@@ -35,7 +34,7 @@ public class UIListGrid<T> extends UIItemGrid<T>
     {
         if (Window.isCtrlPressed() && context.mouseWheel != 0 && this.area.isInside(context))
         {
-            int size = MathUtils.clamp(this.getCellSize() + (context.mouseWheel > 0 ? 8 : -8), 40, 160);
+            int size = this.layout.zoom(this.getCellSize(), context.mouseWheel > 0, 8, 40, 160);
 
             if (size != this.getCellSize())
             {
