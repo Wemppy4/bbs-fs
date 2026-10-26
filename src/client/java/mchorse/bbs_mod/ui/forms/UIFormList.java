@@ -449,8 +449,10 @@ public class UIFormList extends UIElement
         {
             Form copy = FormUtils.copy(form);
 
+            /* The pick moves to the new recent copy too, or the form it was made from stays marked beside it */
             this.recent.category.addForm(copy);
             this.recent.select(copy, false);
+            this.selection.set(copy, this.recent.category);
         }
     }
 
