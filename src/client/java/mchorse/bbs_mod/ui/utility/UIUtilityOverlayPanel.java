@@ -35,6 +35,12 @@ import java.util.List;
 
 public class UIUtilityOverlayPanel extends UIOverlayPanel
 {
+    private static final int WIDTH = 460;
+    private static final int PADDING = 6;
+
+    /** Height of the buttons at the bottom of both columns, so they line up */
+    private static final int BOTTOM_HEIGHT = 20;
+
     public Runnable callback;
     public UIScrollView view;
     private final UISliderTrackpad time;
@@ -51,8 +57,8 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         super(title);
         this.callback = callback;
         this.focused = MinecraftClient.getInstance().isWindowFocused();
-        this.view = UI.scrollView(3, 10, 140);
-        this.view.relative(this.content).w(0.4F).h(1F);
+        this.view = UI.scrollView(3, PADDING, 140);
+        this.view.relative(this.content).w(0.4F).h(1F, -BOTTOM_HEIGHT - PADDING);
 
         UIIcon gameFolder = new UIIcon(Icons.FOLDER, b -> this.openFolder(BBSMod.getGameFolder()));
         gameFolder.tooltip(UIKeys.UTILITY_OPEN_GAME_FOLDER);
@@ -89,9 +95,9 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         kill.tooltip(UIKeys.UTILITY_KILL_ENTITIES);
         kill.setEnabled(this.canChangeWorld());
         UIElement worldActions = new UIElement();
-        worldActions.row(5).preferred(0).height(20);
+        worldActions.relative(this.content).x(PADDING).y(1F, -BOTTOM_HEIGHT - PADDING).w(0.4F, -PADDING * 2).h(BOTTOM_HEIGHT);
+        worldActions.row(5).preferred(0).height(BOTTOM_HEIGHT);
         worldActions.add(commands, kill);
-        this.view.add(worldActions);
 
         UIElement right = new UIElement();
         right.relative(this.content).x(0.4F).w(0.6F).h(1F);
@@ -99,7 +105,7 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
             ? IrisShaderPacks.folder() : BBSMod.getGamePath("shaderpacks")));
         folder.tooltip(UIKeys.UTILITY_OPEN_SHADERS);
         UIElement header = this.header(UIKeys.UTILITY_SHADERS, folder);
-        header.relative(right).xy(10, 10).w(1F, -20).h(20);
+        header.relative(right).xy(PADDING, PADDING).w(1F, -PADDING * 2).h(20);
         this.shaders = new UIStringList(list ->
         {
             if (!list.isEmpty()) this.selectShader(list.get(0));
@@ -111,19 +117,65 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
                 return element.isEmpty() ? UIKeys.UTILITY_SHADERS_OFF.get() : element;
             }
         };
-        this.shaders.relative(right).xy(10, 35).w(1F, -20).h(1F, -45 - UIConstants.CONTROL_HEIGHT - UIConstants.MARGIN);
+        this.shaders.relative(right).xy(PADDING, PADDING + 20 + UIConstants.MARGIN).w(1F, -PADDING * 2).h(1F, -PADDING * 2 - 20 - BOTTOM_HEIGHT - UIConstants.MARGIN * 2);
         this.shaders.scroll.scrollItemSize = 18;
         this.shaders.background(BBSSettings.inputSurface());
         this.shaderStatus = new UIText().text(UIKeys.UTILITY_IRIS_REQUIRED);
-        this.shaderStatus.relative(right).xy(15, 40).w(1F, -30).h(1F, -50);
+        this.shaderStatus.relative(this.shaders).xy(5, 5).w(1F, -10).h(1F, -10);
         this.shaderStatus.setVisible(!this.iris);
         this.shaders.setEnabled(this.iris);
-        this.shaderOptions = new UIButton(UIKeys.UTILITY_SHADER_OPTIONS, b -> UIOverlay.addOverlay(this.getContext(), new UIShaderOptionsPanel(), 300, 0.8F));
-        this.shaderOptions.relative(right).x(10).y(1F, -10 - UIConstants.CONTROL_HEIGHT).w(1F, -20).h(UIConstants.CONTROL_HEIGHT);
+        this.shaderOptions = new UIButton(UIKeys.UTILITY_SHADER_OPTIONS, b -> UIShaderOptionsPanel.open(this.getContext()));
+        this.shaderOptions.relative(right).x(PADDING).y(1F, -BOTTOM_HEIGHT - PADDING).w(1F, -PADDING * 2).h(BOTTOM_HEIGHT);
         this.shaderOptions.setEnabled(false);
         right.add(header, this.shaders, this.shaderStatus, this.shaderOptions);
-        this.content.add(this.view, right);
+        this.content.add(this.view, worldActions, right);
         this.refreshShaders();
+    }
+
+    @Override
+    public int getPreferredWidth()
+    {
+        return WIDTH;
+    }
+
+    @Override
+    public boolean isResizable()
+    {
+        /* The panel measures itself */
+        return false;
+    }
+
+    /**
+     * As tall as the left column needs, so its buttons end where the shader settings do, and no
+     * taller than the screen has room for; the shader list takes what's left on the right.
+     */
+    @Override
+    public int getContentHeight()
+    {
+        /* Before the first pass the column has no height yet */
+        if (this.view.scroll.scrollSize <= 0)
+        {
+            return -1;
+        }
+
+        int height = this.content.getFlex().y.offset + this.view.scroll.scrollSize + BOTTOM_HEIGHT + PADDING;
+        UIElement parent = this.getParent();
+
+        return parent == null ? height : Math.min(height, (int) (parent.area.h * 0.9F));
+    }
+
+    @Override
+    public void resize()
+    {
+        UIElement parent = this.getParent();
+
+        /* No wider than the screen has room for */
+        if (parent != null)
+        {
+            this.flex.w.set(0F, Math.min(WIDTH, (int) (parent.area.w * 0.95F)));
+        }
+
+        super.resize();
     }
 
     private UIElement header(IKey label, UIIcon icon)
@@ -260,7 +312,7 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         super.renderBackground(context);
         int x = this.content.area.x + (int) (this.content.area.w * 0.4F);
         context.batcher.box(this.content.area.x, this.content.area.y, x, this.content.area.ey(), BBSSettings.chromeSurface());
-        context.batcher.box(x, this.content.area.y + 10, x + 1, this.content.area.ey() - 10, BBSSettings.dividerColor());
+        context.batcher.box(x, this.content.area.y + PADDING, x + 1, this.content.area.ey() - PADDING, BBSSettings.dividerColor());
     }
 
     @Override

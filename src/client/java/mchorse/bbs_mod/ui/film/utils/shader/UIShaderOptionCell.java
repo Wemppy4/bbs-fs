@@ -8,7 +8,6 @@ import mchorse.bbs_mod.ui.framework.elements.buttons.UICirculate;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
-import mchorse.bbs_mod.ui.utils.resizers.layout.LabelRowResizer;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.iris.ShaderMenu;
 
@@ -17,8 +16,9 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * One option of the shader pack's settings: the name the pack's translations give it, and on the
- * right a control that suits it, the way Iris picks one.
+ * One option of the shader pack's settings: a cell of the pack's menu with the name the pack's
+ * translations give the option, and at the right edge a control that suits it, the way Iris picks
+ * one.
  *
  * <ul>
  *     <li>on/off &mdash; a switch;</li>
@@ -28,10 +28,10 @@ import java.util.function.Consumer;
  *     right click back).</li>
  * </ul>
  *
- * <p>A change that waits for the pack to reload turns the name orange. Right click on the row
+ * <p>A change that waits for the pack to reload turns the name orange. Right click on the cell
  * offers a reset to the pack's default.</p>
  */
-public class UIShaderOptionRow extends UIElement
+public class UIShaderOptionCell extends UIShaderMenuCell
 {
     /** Width of a control; narrower than a usual value field, so the names of the pack's options fit */
     static final int CONTROL_WIDTH = 64;
@@ -48,15 +48,19 @@ public class UIShaderOptionRow extends UIElement
     private UISliderTrackpad slider;
     private UICirculate circulate;
 
-    /**
-     * @param where for a search hit, the screen the option lives on; null otherwise
-     */
-    public UIShaderOptionRow(UIShaderOptionsPanel panel, ShaderMenu.Cell cell, String where)
+    public UIShaderOptionCell(UIShaderOptionsPanel panel, ShaderMenu.Cell cell)
     {
+        this(panel, cell, panel.getBrowser().optionLabel(cell.optionId));
+    }
+
+    private UIShaderOptionCell(UIShaderOptionsPanel panel, ShaderMenu.Cell cell, String label)
+    {
+        super(Kind.OPTION, label, null);
+
         this.panel = panel;
         this.cell = cell;
         this.optionId = cell.optionId;
-        this.label = panel.getBrowser().optionLabel(cell.optionId);
+        this.label = label;
         this.values = new ArrayList<>(cell.allowedValues);
 
         UIElement control;
@@ -93,9 +97,7 @@ public class UIShaderOptionRow extends UIElement
             control = this.circulate;
         }
 
-        UIShaderRowName name = new UIShaderRowName(() -> this.label, this::nameColor, where);
-
-        name.tooltip((IKey) this::tooltip);
+        this.tooltip((IKey) this::tooltip);
         this.context((menu) ->
         {
             if (this.cell.defaultValue != null && !this.cell.defaultValue.equals(this.panel.value(this.optionId)))
@@ -104,8 +106,7 @@ public class UIShaderOptionRow extends UIElement
             }
         });
 
-        LabelRowResizer.apply(this, width, true);
-        this.add(name, control);
+        this.control(control, width);
         this.valueBinding(this::update);
     }
 
@@ -148,9 +149,10 @@ public class UIShaderOptionRow extends UIElement
     }
 
     /** The name is orange while a change waits for a reload */
-    private int nameColor()
+    @Override
+    protected int labelColor(boolean lit)
     {
-        return this.panel.isPending(this.optionId) ? Colors.A100 | Colors.ORANGE : Colors.WHITE;
+        return this.panel.isPending(this.optionId) ? Colors.A100 | Colors.ORANGE : super.labelColor(lit);
     }
 
     private String valueLabel(String value)
