@@ -1,40 +1,19 @@
 {
-    "ik": {
+    "ik_legs": {
         "ik": {
             "ik": {
                 "left_leg_end": {
                     "pole_angle": 0.0,
                     "weight": 1.0,
                     "pole": true,
-                    "softness": 0.0,
-                    "enabled": true
-                },
-                "left_arm_end": {
-                    "pole_angle": 0.0,
-                    "weight": 1.0,
-                    "pole": true,
-                    "softness": 0.0,
+                    "softness": 0.05000000074505806,
                     "enabled": true
                 },
                 "right_leg_end": {
                     "pole_angle": 0.0,
                     "weight": 1.0,
                     "pole": true,
-                    "softness": 0.0,
-                    "enabled": true
-                },
-                "right_arm_end": {
-                    "pole_angle": 0.0,
-                    "weight": 1.0,
-                    "pole": true,
-                    "softness": 0.0,
-                    "enabled": true
-                },
-                "body_end": {
-                    "pole_angle": 0.0,
-                    "weight": 1.0,
-                    "pole": true,
-                    "softness": 0.0,
+                    "softness": 0.05000000074505806,
                     "enabled": true
                 }
             }
@@ -44,6 +23,67 @@
                 "ik_target_color": 3108822,
                 "ik_chain_length": 3,
                 "ik_target": "controller_left_leg",
+                "ik_stretch": true,
+                "ik_pole_target": "pole_left_leg"
+            },
+            "right_leg_end": {
+                "ik_target_color": 13188156,
+                "ik_chain_length": 3,
+                "ik_target": "controller_right_leg",
+                "ik_stretch": true,
+                "ik_pole_target": "pole_right_leg"
+            },
+            "body": {
+                "bone_controller": true
+            }
+        }
+    },
+    "ik": {
+        "ik": {
+            "ik": {
+                "left_leg_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "left_arm_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "right_leg_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "right_arm_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "body_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                }
+            }
+        },
+        "bones": {
+            "left_leg_end": {
+                "ik_target_color": 3108822,
+                "ik_chain_length": 3,
+                "ik_target": "controller_left_leg",
+                "ik_stretch": true,
                 "ik_pole_target": "pole_left_leg"
             },
             "left_arm_end": {
@@ -56,6 +96,7 @@
                 "ik_target_color": 13188156,
                 "ik_chain_length": 3,
                 "ik_target": "controller_right_leg",
+                "ik_stretch": true,
                 "ik_pole_target": "pole_right_leg"
             },
             "right_arm_end": {
