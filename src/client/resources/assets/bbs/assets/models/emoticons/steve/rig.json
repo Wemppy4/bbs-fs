@@ -1,0 +1,83 @@
+{
+    "ik": {
+        "ik": {
+            "ik": {
+                "left_leg_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "left_arm_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "right_leg_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "right_arm_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                },
+                "body_end": {
+                    "pole_angle": 0.0,
+                    "weight": 1.0,
+                    "pole": true,
+                    "softness": 0.05000000074505806,
+                    "enabled": true
+                }
+            }
+        },
+        "bones": {
+            "left_leg_end": {
+                "ik_target_color": 3108822,
+                "ik_chain_length": 3,
+                "ik_target": "controller_left_leg",
+                "ik_pole_target": "pole_left_leg",
+                "ik_classic": true
+            },
+            "left_arm_end": {
+                "ik_target_color": 7320831,
+                "ik_chain_length": 3,
+                "ik_target": "controller_left_arm",
+                "ik_pole_target": "pole_left_arm",
+                "ik_classic": true
+            },
+            "right_leg_end": {
+                "ik_target_color": 13188156,
+                "ik_chain_length": 3,
+                "ik_target": "controller_right_leg",
+                "ik_pole_target": "pole_right_leg",
+                "ik_classic": true
+            },
+            "right_arm_end": {
+                "ik_target_color": 16743034,
+                "ik_chain_length": 3,
+                "ik_target": "controller_right_arm",
+                "ik_pole_target": "pole_right_arm",
+                "ik_classic": true
+            },
+            "body": {
+                "bone_controller": true
+            },
+            "body_end": {
+                "ik_target_color": 16767053,
+                "ik_chain_length": 3,
+                "ik_target": "controller_body",
+                "ik_pole_target": "pole_body",
+                "ik_classic": true
+            }
+        }
+    }
+}

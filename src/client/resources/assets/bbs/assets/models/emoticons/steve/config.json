@@ -21,7 +21,6 @@
 		}
 	],
 	"disabledBones": [
-		"body",
 		"misc_bone_1",
 		"misc_bone_2",
 		"misc_bone_3",
