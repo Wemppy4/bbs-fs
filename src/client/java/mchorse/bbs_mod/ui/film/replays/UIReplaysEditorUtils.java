@@ -234,7 +234,12 @@ public class UIReplaysEditorUtils
             return null;
         }
 
-        editor.editor.update();
+        /* Called every frame: re-reading under an open edit would pull the field back to the stored
+         * key, e.g. a color picker would lose its hue on grays and its saturation to 8-bit rounding. */
+        if (!editor.editor.isUserEditing())
+        {
+            editor.editor.update();
+        }
 
         if (editor.editor instanceof SplineKeyframeEditor spline)
         {
