@@ -164,12 +164,12 @@ tasks.register('cubicLoopSplineTest', JavaExec) {
 	mainClass = 'mchorse.bbs_mod.cubic.CubicLoopSplineTest'
 }
 
-tasks.register('animatorPaceTest', JavaExec) {
+tasks.register('animatorWalkPhaseTest', JavaExec) {
 	group = 'verification'
-	description = 'Checks that walk cycles go by the ground covered and stop with the body.'
+	description = 'Checks that switching between walk cycles keeps the step and slowed bodies keep the pace.'
 	dependsOn tasks.named('testClasses')
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'mchorse.bbs_mod.cubic.AnimatorPaceTest'
+	mainClass = 'mchorse.bbs_mod.cubic.AnimatorWalkPhaseTest'
 }
 
 tasks.register('splineIKDataTest') {
@@ -179,7 +179,7 @@ tasks.register('splineIKDataTest') {
 }
 
 tasks.named('check') {
-	dependsOn tasks.named('splineIKSolverTest'), tasks.named('splineIKDataTest'), tasks.named('cubicLoopSplineTest'), tasks.named('animatorPaceTest')
+	dependsOn tasks.named('splineIKSolverTest'), tasks.named('splineIKDataTest'), tasks.named('cubicLoopSplineTest'), tasks.named('animatorWalkPhaseTest')
 }
 
 java {

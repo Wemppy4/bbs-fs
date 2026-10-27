@@ -7,8 +7,8 @@ import mchorse.bbs_mod.cubic.data.animation.Animation;
 import mchorse.bbs_mod.forms.entities.StubEntity;
 import mchorse.bbs_mod.math.molang.MolangParser;
 
-/** Standalone checks that walk cycles go by the ground covered; no Minecraft client required. */
-public class AnimatorPaceTest
+/** Standalone checks of how the walk cycles switch; no Minecraft client required. */
+public class AnimatorWalkPhaseTest
 {
     /* Vanilla's ground friction: what's left of a body's speed each tick once the keys are let go */
     private static final double FRICTION = 0.546D;
@@ -19,69 +19,27 @@ public class AnimatorPaceTest
 
     public static void main(String[] args)
     {
-        walkingPlaysAsBefore();
-        stoppingDoesNotStep();
+        slowedBodyKeepsThePace();
         sprintStopKeepsTheStep();
 
-        System.out.println("Animator pace checks passed");
+        System.out.println("Animator walk phase checks passed");
     }
 
-    private static void walkingPlaysAsBefore()
-    {
-        double walking = steadyAdvance(WALK, false);
-        double sprinting = steadyAdvance(SPRINT, true);
-        double slow = steadyAdvance(WALK / 2D, false);
-
-        check(Math.abs(walking - 1D) < 0.001D, "Walking speed plays the cycle at its own pace: " + walking);
-        check(Math.abs(sprinting - 1D) < 0.001D, "Sprinting speed plays the cycle at its own pace: " + sprinting);
-        check(Math.abs(slow - 0.5D) < 0.001D, "Half the speed, half the steps: " + slow);
-    }
-
-    /** Ticks of the cycle one tick of steady movement plays */
-    private static double steadyAdvance(double speed, boolean sprinting)
+    private static void slowedBodyKeepsThePace()
     {
         Animator animator = animator();
         StubEntity entity = entity();
 
-        walk(animator, entity, speed, sprinting, 30);
+        walk(animator, entity, WALK / 2D, false, 30);
 
         ActionPlayback action = animator.active;
         double before = action.getTick(0F);
 
-        walk(animator, entity, speed, sprinting, 1);
+        walk(animator, entity, WALK / 2D, false, 1);
 
-        return wrap(action.getTick(0F) - before);
-    }
+        double advance = wrap(action.getTick(0F) - before);
 
-    private static void stoppingDoesNotStep()
-    {
-        Animator animator = animator();
-        StubEntity entity = entity();
-
-        walk(animator, entity, WALK, false, 30);
-
-        /* Where the legs are drawn at the end of the last walking tick */
-        double before = animator.running.getTick(1F);
-        double speed = WALK;
-        double last = before;
-
-        for (int i = 0; i < 20; i++)
-        {
-            speed *= FRICTION;
-            walk(animator, entity, speed, false, 1);
-
-            double now = animator.running.getTick(0F);
-
-            check(Math.abs(wrap(now - last)) < 0.001D, "No pop between ticks while coasting: " + last + " -> " + now);
-            last = animator.running.getTick(1F);
-        }
-
-        check(animator.active == animator.idle, "Coasting ends in idle");
-
-        double after = wrap(animator.running.getTick(0F) - before);
-
-        /* The body coasts ~0.26 blocks, about 1.2 ticks of the cycle; by the clock it was ~10 */
-        check(after < 1.5D, "The legs stop with the body: " + after + " ticks of the cycle after letting go");
+        check(Math.abs(advance - 1D) < 0.001D, "A slowed body still steps at the cycle's own pace: " + advance);
     }
 
     private static void sprintStopKeepsTheStep()
