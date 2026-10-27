@@ -346,16 +346,16 @@ public class BOBJModel implements IModel
     }
 
     @Override
-    public void apply(IEntity target, Animation action, float tick, float blend, float transition, boolean skipInitial)
+    public void apply(IEntity target, Animation action, float tick, float blend, float transition, boolean skipInitial, boolean looping)
     {
         MolangHelper.setMolangVariables(action.parser, target, tick, transition);
-        BOBJModelAnimator.animate(this, action, tick, blend, skipInitial);
+        BOBJModelAnimator.animate(this, action, tick, blend, skipInitial, looping);
     }
 
     @Override
-    public void postApply(IEntity target, Animation action, float tick, float transition)
+    public void postApply(IEntity target, Animation action, float tick, float transition, boolean looping)
     {
         MolangHelper.setMolangVariables(action.parser, target, tick, transition);
-        BOBJModelAnimator.postAnimate(this, action, tick);
+        BOBJModelAnimator.postAnimate(this, action, tick, looping);
     }
 }

@@ -439,17 +439,17 @@ public class Model implements IMapSerializable, IModel
     }
 
     @Override
-    public void apply(IEntity target, Animation action, float tick, float blend, float transition, boolean skipInitial)
+    public void apply(IEntity target, Animation action, float tick, float blend, float transition, boolean skipInitial, boolean looping)
     {
         MolangHelper.setMolangVariables(this.parser, target, tick, transition);
-        CubicModelAnimator.animate(this, action, tick, blend, skipInitial);
+        CubicModelAnimator.animate(this, action, tick, blend, skipInitial, looping);
     }
 
     @Override
-    public void postApply(IEntity target, Animation action, float tick, float transition)
+    public void postApply(IEntity target, Animation action, float tick, float transition, boolean looping)
     {
         MolangHelper.setMolangVariables(this.parser, target, tick, transition);
-        CubicModelAnimator.postAnimate(this, action, tick);
+        CubicModelAnimator.postAnimate(this, action, tick, looping);
     }
 
     /* Deserialization / Serialization */
