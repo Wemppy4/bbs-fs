@@ -38,8 +38,11 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
     private static final int WIDTH = 460;
     private static final int PADDING = 6;
 
-    /** Height of the buttons at the bottom of both columns, so they line up */
-    private static final int BOTTOM_HEIGHT = 20;
+    /**
+     * Height of the buttons at the bottom of both columns, so they line up: a button's own, since
+     * a row places its children at the top in the height they ask for
+     */
+    private static final int BOTTOM_HEIGHT = UIConstants.CONTROL_HEIGHT;
 
     public Runnable callback;
     public UIScrollView view;

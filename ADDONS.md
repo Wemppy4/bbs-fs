@@ -373,6 +373,12 @@ Both film and animation-state editors use the registry. Addon buttons appear onl
 the selected part has matching tracks; animation states still exclude solver tracks.
 All Tracks includes them too. Empty active categories fall back to Form.
 
+A category shows only its tracks, All Tracks shows every one, and in both the tracks sit
+under their owner headings: the recording, each part of the form, and an addon category
+that claims channels of the replay itself (not owned by a form) gets an owner of its own,
+titled and iconed like its button. A category that claims a form's tracks shows them under
+that part. Folds are kept per replay and shared by every view.
+
 Shortcuts target **visible positions**, excluding All Tracks: `1` through `9`, then `0`.
 BBS creates as many configurable shortcut slots as registered categories; slots past ten
 start unbound. They live in the existing replay-editor keybind settings and preserve old

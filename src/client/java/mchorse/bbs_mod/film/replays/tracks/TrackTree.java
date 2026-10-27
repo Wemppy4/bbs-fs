@@ -8,7 +8,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.items.FoldState;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,7 +29,7 @@ public class TrackTree
 
     /**
      * What the heading of an addon tab's replay channels starts with, the tab's id after it. They
-     * are owned apart from the recording so the tab's key has something of its own to open.
+     * are owned apart from the recording, so the tab shows them under a heading of their own.
      */
     private static final String CATEGORY_OWNER = "owner/category/";
 
@@ -45,12 +44,6 @@ public class TrackTree
         return FORM_OWNER + path;
     }
 
-    /** Every heading these folds have shown so far, the ones {@link #groupSheets} just handed out as new among them. */
-    public Set<String> seen(FoldState<String> folds)
-    {
-        return Collections.unmodifiableSet(this.knownGroups.getOrDefault(folds, Collections.emptySet()));
-    }
-
     /**
      * Gives every row its heading and reorders the rows so each heading's rows follow it: the
      * recording first, then the addon tabs' channels, then the parts in the form's own order. A
@@ -59,7 +52,7 @@ public class TrackTree
      * @param parts  the form and its parts, root first — see {@link UIForms#entries}
      * @param record whether the rows of no form, a replay's own channels, go under the recording and the addon tabs
      * @return the headings these folds see for the first time; how they start folded is up to the
-     *         caller, which lays them out by its category — see {@code CategoryFold#settle}
+     *         caller — see {@code CategoryFold#settle}
      */
     public Set<String> groupSheets(List<UIKeyframeSheet> sheets, List<UIForms.FormEntry> parts, FoldState<String> folds, boolean record)
     {
