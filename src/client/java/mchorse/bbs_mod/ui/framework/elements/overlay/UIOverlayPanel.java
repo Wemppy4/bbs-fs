@@ -50,7 +50,10 @@ public class UIOverlayPanel extends UIElement
     /** The corner grip, on the panels that offer sizing; null on the ones that don't. */
     private UIDraggable grip;
 
-    /** Whether the user sized this panel, i.e. whether the size is worth remembering. */
+    /**
+     * Whether the user sized this panel, now or on an earlier opening, i.e. whether the size is
+     * worth remembering and outranks the one the panel measures for itself.
+     */
     private boolean resized;
 
     public UIOverlayPanel(IKey title)
@@ -80,9 +83,8 @@ public class UIOverlayPanel extends UIElement
     }
 
     /**
-     * Whether the user may size this panel. A panel that measures itself has nothing to gain from
-     * being stretched &mdash; its height gets recomputed from its content anyway &mdash; so only
-     * the ones that take the size they were given offer a grip.
+     * Whether the user may size this panel. A panel that measures itself still may: its measure is
+     * only where it starts, and the size the user picks wins over it.
      */
     public boolean isResizable()
     {
@@ -92,6 +94,15 @@ public class UIOverlayPanel extends UIElement
     public boolean wasResized()
     {
         return this.resized;
+    }
+
+    /** Gives the panel the size the user picked for it on an earlier opening. */
+    public void restoreSize(Vector2i size)
+    {
+        this.flex.w.max = this.flex.h.max = 0;
+        this.flex.w.set(0F, size.x);
+        this.flex.h.set(0F, size.y);
+        this.resized = true;
     }
 
     /**
@@ -223,8 +234,9 @@ public class UIOverlayPanel extends UIElement
 
         /* The pass above laid the children out, so their heights are known now: take the sum and
          * lay them out again against it. One extra pass settles it &mdash; the width doesn't change
-         * with the height, and neither does the text wrap the sum is made of. */
-        if (this.sizeless && height > 0 && height != this.area.h)
+         * with the height, and neither does the text wrap the sum is made of. A size the user
+         * picked stays as it is. */
+        if (this.sizeless && !this.resized && height > 0 && height != this.area.h)
         {
             /* The sum counted everything that has to fit, so the screen share's cap no longer
              * applies: capping it here would cut the block off the bottom of a long message */

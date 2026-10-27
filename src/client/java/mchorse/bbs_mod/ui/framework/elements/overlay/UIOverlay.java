@@ -138,9 +138,7 @@ public class UIOverlay extends UIElement
         /* A size the user picked outranks both the share of the screen and the cap on it */
         if (size != null && panel.isResizable())
         {
-            flex.w.max = flex.h.max = 0;
-            flex.w.set(0F, size.x);
-            flex.h.set(0F, size.y);
+            panel.restoreSize(size);
         }
 
         overlay.full(context.menu.overlay);

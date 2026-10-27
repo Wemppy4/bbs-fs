@@ -141,16 +141,10 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
         return WIDTH;
     }
 
-    @Override
-    public boolean isResizable()
-    {
-        /* The panel measures itself */
-        return false;
-    }
-
     /**
      * As tall as the left column needs, so its buttons end where the shader settings do, and no
-     * taller than the screen has room for; the shader list takes what's left on the right.
+     * taller than the screen has room for; the shader list takes what's left on the right. Only
+     * until the user sizes the panel.
      */
     @Override
     public int getContentHeight()
@@ -172,8 +166,8 @@ public class UIUtilityOverlayPanel extends UIOverlayPanel
     {
         UIElement parent = this.getParent();
 
-        /* No wider than the screen has room for */
-        if (parent != null)
+        /* No wider than the screen has room for, unless the user picked the width */
+        if (parent != null && !this.wasResized())
         {
             this.flex.w.set(0F, Math.min(WIDTH, (int) (parent.area.w * 0.95F)));
         }
