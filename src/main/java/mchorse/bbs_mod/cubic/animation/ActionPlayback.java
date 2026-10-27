@@ -50,6 +50,24 @@ public class ActionPlayback
     }
 
     /**
+     * Rewinds to the same share of the cycle another looping action is at, so switching
+     * between two cycles of one motion keeps its phase
+     */
+    public void rewind(ActionPlayback from)
+    {
+        if (!this.isLooping() || !from.isLooping() || from.duration <= 0)
+        {
+            this.rewind();
+
+            return;
+        }
+
+        this.ticks = from.ticks / from.duration * this.duration;
+
+        this.stopFade();
+    }
+
+    /**
      * Whether this action playback finished fading
      */
     public boolean finishedFading()

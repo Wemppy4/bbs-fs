@@ -164,6 +164,14 @@ tasks.register('cubicLoopSplineTest', JavaExec) {
 	mainClass = 'mchorse.bbs_mod.cubic.CubicLoopSplineTest'
 }
 
+tasks.register('animatorPaceTest', JavaExec) {
+	group = 'verification'
+	description = 'Checks that walk cycles go by the ground covered and stop with the body.'
+	dependsOn tasks.named('testClasses')
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'mchorse.bbs_mod.cubic.AnimatorPaceTest'
+}
+
 tasks.register('splineIKDataTest') {
 	group = 'verification'
 	description = 'Checks spline stable identities, copying, film/state tracks and undo.'
@@ -171,7 +179,7 @@ tasks.register('splineIKDataTest') {
 }
 
 tasks.named('check') {
-	dependsOn tasks.named('splineIKSolverTest'), tasks.named('splineIKDataTest'), tasks.named('cubicLoopSplineTest')
+	dependsOn tasks.named('splineIKSolverTest'), tasks.named('splineIKDataTest'), tasks.named('cubicLoopSplineTest'), tasks.named('animatorPaceTest')
 }
 
 java {
