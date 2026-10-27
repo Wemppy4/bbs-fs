@@ -102,9 +102,8 @@ public class BBSSettings {
 	public static ValueInt keystrokeOffset;
 	public static ValueInt keystrokeMode;
 
-	/* First run: the welcome screen shows once, and each tour chapter is ticked off by its id */
+	/* First run: the welcome screen shows once */
 	public static ValueBoolean onboardingWelcomeSeen;
-	public static ValueStringKeys onboardingToursDone;
 
 	public static ValueLink backgroundImage;
 	public static ValueInt backgroundColor;
@@ -789,11 +788,9 @@ public class BBSSettings {
 		enableKeystrokeRendering = builder.getBoolean("keystrokes", false);
 		keystrokeOffset = builder.getInt("keystrokes_offset", 10, 0, 20).slider();
 		keystrokeMode = builder.getInt("keystrokes_position", 1);
-		/* Both stay visible: the settings page draws them as the buttons that bring the
-		 * welcome screen and the tours back, see UISettingsLayout */
+		/* Stays visible: the settings page draws it as the button that brings the
+		 * welcome screen back, see UISettingsLayout */
 		onboardingWelcomeSeen = builder.getBoolean("welcome_seen", false);
-		onboardingToursDone = new ValueStringKeys("tours_done");
-		builder.register(onboardingToursDone);
 
 		/* Viewport */
 		builder.category("transformation", Icons.SCALE);

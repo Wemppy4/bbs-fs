@@ -18,7 +18,6 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDashboardPanels;
-import mchorse.bbs_mod.ui.dashboard.panels.UIEditorDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.textures.UITextureManagerPanel;
 import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCamera;
 import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCameraKeys;
@@ -33,7 +32,6 @@ import mchorse.bbs_mod.ui.model_blocks.UIModelBlockPanel;
 import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
 import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.ui.onboarding.Onboarding;
-import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
 import mchorse.bbs_mod.ui.selectors.UISelectorsOverlayPanel;
 import mchorse.bbs_mod.ui.utility.UIUtilityOverlayPanel;
@@ -102,7 +100,6 @@ public class UIDashboard extends UIBaseMenu
             }
 
             this.copyCurrentEntityCamera();
-            Onboarding.panelShown(e.panel);
         });
         this.panels.full(this.viewport);
         this.registerPanels();
@@ -165,10 +162,6 @@ public class UIDashboard extends UIBaseMenu
         });
 
         this.showAnnoyingPopups();
-
-        /* What the tour of this screen points at; the landing card belongs to whichever panel is up */
-        TourAnchors.register("dashboard.taskbar", () -> this.panels.taskBar);
-        TourAnchors.register("dashboard.landing", () -> this.panels.panel instanceof UIEditorDashboardPanel panel && panel.landing != null ? panel.landing.getCard() : null);
     }
 
     private void showAnnoyingPopups()

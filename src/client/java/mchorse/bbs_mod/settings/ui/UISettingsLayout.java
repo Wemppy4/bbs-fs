@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 /**
  * The values that don't fit "one labelled row per value" — a resolution reads
@@ -182,27 +181,26 @@ public class UISettingsLayout
     }
 
     /**
-     * The welcome screen and the tours, as the two buttons that bring them back. The settings
-     * window goes down first: both open on the dashboard itself, not in a window over it.
+     * The welcome screen, as the button that brings it back. The settings window goes down
+     * first: the welcome screen opens on the dashboard itself, not in a window over it.
      */
     public static class OnboardingRow implements IValueRow
     {
         @Override
         public List<BaseValue> getValues()
         {
-            return List.of(BBSSettings.onboardingWelcomeSeen, BBSSettings.onboardingToursDone);
+            return List.of(BBSSettings.onboardingWelcomeSeen);
         }
 
         @Override
         public List<UIElement> create(UIElement ui)
         {
-            UIButton welcome = new UIButton(UIKeys.ONBOARDING_SETTINGS_SHOW_WELCOME, (b) -> this.leaveFor(ui, Onboarding::showWelcome));
-            UIButton tours = new UIButton(UIKeys.ONBOARDING_SETTINGS_RESET_TOURS, (b) -> this.leaveFor(ui, Onboarding::resetTours));
+            UIButton welcome = new UIButton(UIKeys.ONBOARDING_SETTINGS_SHOW_WELCOME, (b) -> this.showWelcome(ui));
 
-            return List.of(UI.label(UIKeys.ONBOARDING_SETTINGS_TITLE, 0).labelAnchor(0, 0.5F), UI.row(4, 0, 20, welcome, tours));
+            return List.of(UI.label(UIKeys.ONBOARDING_SETTINGS_TITLE, 0).labelAnchor(0, 0.5F), UI.row(4, 0, 20, welcome));
         }
 
-        private void leaveFor(UIElement ui, Consumer<UIContext> action)
+        private void showWelcome(UIElement ui)
         {
             UIContext context = ui.getContext();
             UIOverlayPanel settings = ui instanceof UIOverlayPanel panel ? panel : ui.getParent(UIOverlayPanel.class);
@@ -212,7 +210,7 @@ public class UISettingsLayout
                 settings.close();
             }
 
-            action.accept(context);
+            Onboarding.showWelcome(context);
         }
     }
 }

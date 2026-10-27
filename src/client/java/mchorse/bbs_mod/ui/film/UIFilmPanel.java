@@ -45,7 +45,6 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.UIFilmUndoHandler;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -222,14 +221,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         this.openFilmMenu.tooltip(UIKeys.FILM_OPTIONS);
         this.openCameraEditor.tooltip(UIKeys.FILM_OPEN_CAMERA_EDITOR);
         this.openReplayEditor.tooltip(UIKeys.FILM_OPEN_REPLAY_EDITOR);
-
-        /* What the tour of this editor points at. The two editor buttons are one place: they
-         * only mean something as a pair. */
-        TourAnchors.register("film.preview", () -> this.preview);
-        TourAnchors.register("film.editors", () -> this.openCameraEditor, () -> this.openReplayEditor);
-        TourAnchors.register("film.timeline", () -> this.main);
-        TourAnchors.register("film.properties", () -> this.editArea);
-        TourAnchors.register("film.export", () -> this.preview.recordVideo);
 
         this.actions()
             .editor(this.openCameraEditor, this.cameraEditor::isVisible)

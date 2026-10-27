@@ -13,8 +13,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 /**
  * "Where to go next": the places to look when something is unclear, the key that lists every
- * key, and the one big button. There is no "no thanks" — the tour is what the button starts,
- * and it is short.
+ * key, and the one big button that closes the welcome screen.
  */
 public class UINextStepsPage extends UIWelcomePage
 {
