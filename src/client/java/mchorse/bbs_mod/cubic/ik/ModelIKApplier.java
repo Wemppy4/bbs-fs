@@ -9,6 +9,7 @@ import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.ik.solver.IKJoint;
 import mchorse.bbs_mod.cubic.ik.solver.IKTree;
 import mchorse.bbs_mod.cubic.ik.solver.IKTreeSolver;
+import mchorse.bbs_mod.cubic.model.bobj.BOBJModel;
 import mchorse.bbs_mod.cubic.render.CubicRenderer.PivotFrame;
 import mchorse.bbs_mod.cubic.render.ModelPivotFrames;
 import mchorse.bbs_mod.cubic.rig.BonePassport;
@@ -1207,9 +1208,10 @@ final class ModelIKApplier
     /**
      * The deepest chain bone that carries geometry — the bone whose far end
      * should land on the controller when stretching. Trailing bones with no
-     * cubes or meshes are bare reach markers (the auto-tail convention); they
-     * ride the last real bone's shift instead of opening a seam of their own.
-     * Falls back to the last bone when nothing in the chain has geometry.
+     * cubes or meshes (BOBJ: no skinned vertices) are bare reach markers (the
+     * auto-tail convention); they ride the last real bone's shift instead of
+     * opening a seam of their own. Falls back to the last bone when nothing in
+     * the chain has geometry.
      */
     private static int lastGeometryIndex(IModel model, List<String> chainIds)
     {
@@ -1220,6 +1222,18 @@ final class ModelIKApplier
                 ModelGroup bone = cubic.getGroup(chainIds.get(i));
 
                 if (bone != null && (!bone.cubes.isEmpty() || !bone.meshes.isEmpty()))
+                {
+                    return i;
+                }
+            }
+        }
+        else if (model instanceof BOBJModel bobj)
+        {
+            for (int i = chainIds.size() - 1; i >= 0; i--)
+            {
+                BOBJBone bone = bobj.getArmature().bones.get(chainIds.get(i));
+
+                if (bone != null && bobj.boneDeformsMesh(bone.index))
                 {
                     return i;
                 }
