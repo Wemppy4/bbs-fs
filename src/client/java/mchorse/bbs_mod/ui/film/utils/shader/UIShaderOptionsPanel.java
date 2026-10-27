@@ -70,7 +70,7 @@ public class UIShaderOptionsPanel extends UIShaderMenuPanel
         this.bar = new UIElement();
         this.bar.relative(this.content).x(PADDING).w(1F, -PADDING * 2).h(BAR_HEIGHT);
         this.bar.row(MARGIN).preferred(0).height(BAR_HEIGHT);
-        this.bar.add(UI.label((IKey) () -> UIKeys.FILM_SHADER_PENDING.format(this.pending.size()).get(), BAR_HEIGHT).labelAnchor(0, 0.5F), apply.w(BAR_BUTTON_WIDTH), discard.w(BAR_BUTTON_WIDTH));
+        this.bar.add(UI.label((IKey) () -> UIKeys.FILM_SHADER_PENDING.format(this.pending.size()).get(), BAR_HEIGHT).labelAnchor(0, 0.5F), apply.w(BAR_BUTTON_WIDTH).h(BAR_HEIGHT), discard.w(BAR_BUTTON_WIDTH).h(BAR_HEIGHT));
 
         this.content.add(this.bar);
 
