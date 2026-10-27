@@ -1,5 +1,5 @@
 {
-	"texture": "assets:models/player/steve/steve.png",
+	"texture": "assets:models/emoticons/steve_simple/steve.png",
 	"pose_group": "emoticons/steve",
 	"culling": false,
 	"scale": [0.9375, 0.9375, 0.9375],
