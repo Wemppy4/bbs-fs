@@ -50,6 +50,24 @@ public class ActionPlayback
     }
 
     /**
+     * Rewinds to the same share of the cycle another looping action is at, so switching
+     * between two cycles of one motion keeps its phase
+     */
+    public void rewind(ActionPlayback from)
+    {
+        if (!this.isLooping() || !from.isLooping() || from.duration <= 0)
+        {
+            this.rewind();
+
+            return;
+        }
+
+        this.ticks = from.ticks / from.duration * this.duration;
+
+        this.stopFade();
+    }
+
+    /**
      * Whether this action playback finished fading
      */
     public boolean finishedFading()
@@ -147,12 +165,7 @@ public class ActionPlayback
 
         this.ticks += this.speed;
 
-        boolean looping = this.looping;
-
-        if (!this.config.loop)
-        {
-             looping = false;
-        }
+        boolean looping = this.isLooping();
 
         if (!looping && this.fading != Fade.OUT && this.ticks >= this.duration)
         {
@@ -174,18 +187,16 @@ public class ActionPlayback
         }
     }
 
+    public boolean isLooping()
+    {
+        return this.looping && this.config.loop;
+    }
+
     public float getTick(float transition)
     {
-        boolean looping = this.looping;
-
-        if (!this.config.loop)
-        {
-            looping = false;
-        }
-
         float ticks = this.ticks + (float) (transition * this.speed);
 
-        if (looping)
+        if (this.isLooping())
         {
             if (ticks >= this.duration && this.speed > 0)
             {
@@ -204,14 +215,14 @@ public class ActionPlayback
     {
         float tick = this.getTick(transition);
 
-        armature.apply(target, this.action, tick, blend, transition, skipInitial);
+        armature.apply(target, this.action, tick, blend, transition, skipInitial, this.isLooping());
     }
 
     public void postApply(IEntity target, IModel armature, float transition)
     {
         float tick = this.getTick(transition);
 
-        armature.postApply(target, this.action, tick, transition);
+        armature.postApply(target, this.action, tick, transition, this.isLooping());
     }
 
     public static enum Fade

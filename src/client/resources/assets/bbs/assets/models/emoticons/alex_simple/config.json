@@ -1,5 +1,6 @@
 {
-	"texture": "assets:models/player/alex/alex.png",
+	"texture": "assets:models/emoticons/alex_simple/alex.png",
+	"pose_group": "emoticons/steve",
 	"culling": false,
 	"scale": [0.9375, 0.9375, 0.9375],
 	"items_main": [
@@ -21,7 +22,6 @@
 		}
 	],
 	"disabledBones": [
-		"body",
 		"low_left_arm.end",
 		"low_right_arm.end",
 		"misc_bone_1",

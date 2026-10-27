@@ -61,7 +61,10 @@ public interface IModel extends IBoneHierarchy
 
     public Collection<BOBJBone> getAllBOBJBones();
 
-    public void apply(IEntity target, Animation action, float tick, float blend, float transition, boolean skipInitial);
+    /**
+     * @param looping whether the action plays in a loop, so its splines wrap around the seam
+     */
+    public void apply(IEntity target, Animation action, float tick, float blend, float transition, boolean skipInitial, boolean looping);
 
-    public void postApply(IEntity target, Animation action, float tick, float transition);
+    public void postApply(IEntity target, Animation action, float tick, float transition, boolean looping);
 }

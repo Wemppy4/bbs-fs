@@ -1103,7 +1103,7 @@ public class UIReplaysEditorUtils
     private static void fillAnimationPose(UIKeyframeSheet sheet, float i, ModelInstance model, IEntity entity, Animation animation, float current)
     {
         model.model.resetPose();
-        model.model.apply(entity, animation, i, 1F, 0F, false);
+        model.model.apply(entity, animation, i, 1F, 0F, false, false);
 
         int insert = sheet.channel.insert(current + i, model.model.createPose());
 

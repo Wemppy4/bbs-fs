@@ -10,7 +10,6 @@ import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UIDataOverlayPanel;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.onboarding.Onboarding;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -222,11 +221,6 @@ public abstract class UIDataDashboardPanel <T extends ValueGroup> extends UICRUD
         this.overlay.remove.setEnabled(data != null);
 
         this.fillData(data);
-
-        if (data != null)
-        {
-            Onboarding.dataOpened(this);
-        }
 
         if (data != null && data.getId() != null)
         {

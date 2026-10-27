@@ -25,7 +25,6 @@ import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.film.utils.undo.UIUndoHistoryOverlay;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.onboarding.TourAnchors;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
@@ -138,11 +137,6 @@ public class UIModelEditorPanel extends UIDataDashboardPanel<ModelConfig>
 
         this.pane = new UIElement();
         this.uvPane = new UIElement();
-
-        /* What the tour of this panel points at; the pane's parts are built further down */
-        TourAnchors.register("model_editor.preview", () -> this.renderer);
-        TourAnchors.register("model_editor.settings", () -> this.pane);
-        TourAnchors.register("model_editor.editors", () -> this.editorIcons[Editor.CONFIG.ordinal()], () -> this.editorIcons[Editor.MODEL.ordinal()]);
 
         this.renderer = new UIModelEditorRenderer()
             .target(this::shownTarget)

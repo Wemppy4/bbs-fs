@@ -15,15 +15,15 @@ public class BOBJModelAnimator
     private static Vector3d s = new Vector3d();
     private static Vector3d r = new Vector3d();
 
-    public static void animate(BOBJModel model, Animation animation, float frame, float blend, boolean skipInitial)
+    public static void animate(BOBJModel model, Animation animation, float frame, float blend, boolean skipInitial, boolean looping)
     {
         for (BOBJBone orderedBone : model.getArmature().orderedBones)
         {
-            animateGroup(orderedBone, animation, frame, blend, skipInitial);
+            animateGroup(orderedBone, animation, frame, blend, skipInitial, looping);
         }
     }
 
-    public static void postAnimate(BOBJModel model, Animation animation, float frame)
+    public static void postAnimate(BOBJModel model, Animation animation, float frame, boolean looping)
     {
         for (BOBJBone orderedBone : model.getArmature().orderedBones)
         {
@@ -34,9 +34,9 @@ public class BOBJModelAnimator
                 continue;
             }
 
-            Vector3d position = CubicModelAnimator.interpolateList(p, part.x, part.y, part.z, frame, 0D);
-            Vector3d scale = CubicModelAnimator.interpolateList(s, part.sx, part.sy, part.sz, frame, 1D);
-            Vector3d rotation = CubicModelAnimator.interpolateList(r, part.rx, part.ry, part.rz, frame, 0D);
+            Vector3d position = CubicModelAnimator.interpolateList(p, part.x, part.y, part.z, frame, 0D, looping);
+            Vector3d scale = CubicModelAnimator.interpolateList(s, part.sx, part.sy, part.sz, frame, 1D, looping);
+            Vector3d rotation = CubicModelAnimator.interpolateList(r, part.rx, part.ry, part.rz, frame, 0D, looping);
 
             scale.sub(1, 1, 1);
 
@@ -60,7 +60,7 @@ public class BOBJModelAnimator
         }
     }
 
-    private static void animateGroup(BOBJBone group, Animation animation, float frame, float blend, boolean skipInitial)
+    private static void animateGroup(BOBJBone group, Animation animation, float frame, float blend, boolean skipInitial, boolean looping)
     {
         boolean applied = false;
 
@@ -68,7 +68,7 @@ public class BOBJModelAnimator
 
         if (part != null)
         {
-            applyGroupAnimation(group, part, frame, blend);
+            applyGroupAnimation(group, part, frame, blend, looping);
 
             applied = true;
         }
@@ -84,11 +84,11 @@ public class BOBJModelAnimator
         }
     }
 
-    private static void applyGroupAnimation(BOBJBone group, AnimationPart animation, float frame, float blend)
+    private static void applyGroupAnimation(BOBJBone group, AnimationPart animation, float frame, float blend, boolean looping)
     {
-        Vector3d position = CubicModelAnimator.interpolateList(p, animation.x, animation.y, animation.z, frame, 0D);
-        Vector3d scale = CubicModelAnimator.interpolateList(s, animation.sx, animation.sy, animation.sz, frame, 1D);
-        Vector3d rotation = CubicModelAnimator.interpolateList(r, animation.rx, animation.ry, animation.rz, frame, 0D);
+        Vector3d position = CubicModelAnimator.interpolateList(p, animation.x, animation.y, animation.z, frame, 0D, looping);
+        Vector3d scale = CubicModelAnimator.interpolateList(s, animation.sx, animation.sy, animation.sz, frame, 1D, looping);
+        Vector3d rotation = CubicModelAnimator.interpolateList(r, animation.rx, animation.ry, animation.rz, frame, 0D, looping);
 
         scale.sub(1, 1, 1);
 

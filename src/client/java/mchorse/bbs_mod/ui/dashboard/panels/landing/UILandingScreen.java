@@ -162,12 +162,6 @@ public class UILandingScreen extends UIElement
         this.syncFolder();
     }
 
-    /** The card in the middle — what a tour points at when it points at the landing screen. */
-    public UIElement getCard()
-    {
-        return this.card;
-    }
-
     /** "BBS FS 2.6.0" — the mod's own version, without the Minecraft version the build appends. */
     public static String getVersion()
     {

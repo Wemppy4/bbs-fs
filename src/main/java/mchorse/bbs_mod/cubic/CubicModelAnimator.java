@@ -10,10 +10,13 @@ import mchorse.bbs_mod.utils.interps.Interpolations;
 import mchorse.bbs_mod.utils.interps.Lerps;
 import mchorse.bbs_mod.utils.joml.Matrices;
 import mchorse.bbs_mod.utils.keyframes.BezierUtils;
+import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.KeyframeSegment;
 import mchorse.bbs_mod.utils.pose.Transform;
 import org.joml.Vector3d;
+
+import java.util.List;
 
 public class CubicModelAnimator
 {
@@ -21,17 +24,19 @@ public class CubicModelAnimator
     private static Vector3d s = new Vector3d();
     private static Vector3d r = new Vector3d();
 
-    public static Vector3d interpolateList(Vector3d output, KeyframeChannel<MolangExpression> x, KeyframeChannel<MolangExpression> y, KeyframeChannel<MolangExpression> z, float frame, double defaultValue)
+    public static Vector3d interpolateList(Vector3d output, KeyframeChannel<MolangExpression> x, KeyframeChannel<MolangExpression> y, KeyframeChannel<MolangExpression> z, float frame, double defaultValue, boolean looping)
     {
-        output.x = interpolateSegment(x.findSegment(frame), defaultValue);
-        output.y = interpolateSegment(y.findSegment(frame), defaultValue);
-        output.z = interpolateSegment(z.findSegment(frame), defaultValue);
+        output.x = interpolateChannel(x, frame, defaultValue, looping);
+        output.y = interpolateChannel(y, frame, defaultValue, looping);
+        output.z = interpolateChannel(z, frame, defaultValue, looping);
 
         return output;
     }
 
-    private static double interpolateSegment(KeyframeSegment<MolangExpression> segment, double defaultValue)
+    private static double interpolateChannel(KeyframeChannel<MolangExpression> channel, float frame, double defaultValue, boolean looping)
     {
+        KeyframeSegment<MolangExpression> segment = channel.findSegment(frame);
+
         if (segment == null)
         {
             return defaultValue;
@@ -53,6 +58,17 @@ public class CubicModelAnimator
         double pre = segment.preA.getValue().get();
         double post = segment.postB.getValue().get();
 
+        /* A looping action restarts at its first key, so the spline's outer neighbours wrap
+         * around the seam the way Blockbench's loop mode does: the first key leans on the one
+         * before the last, the last key on the second. Otherwise the speed kinks on restart. */
+        List<Keyframe<MolangExpression>> keyframes = channel.getKeyframes();
+
+        if (looping && keyframes.size() >= 3)
+        {
+            if (segment.preA == segment.a) pre = keyframes.get(keyframes.size() - 2).getValue().get();
+            if (segment.postB == segment.b) post = keyframes.get(1).getValue().get();
+        }
+
         double duration = IInterp.context.duration;
         double startTick = IInterp.context.startTick;
 
@@ -68,15 +84,15 @@ public class CubicModelAnimator
         }
     }
 
-    public static void animate(Model model, Animation animation, float frame, float blend, boolean skipInitial)
+    public static void animate(Model model, Animation animation, float frame, float blend, boolean skipInitial, boolean looping)
     {
         for (ModelGroup group : model.topGroups)
         {
-            animateGroup(group, animation, frame, blend, skipInitial);
+            animateGroup(group, animation, frame, blend, skipInitial, looping);
         }
     }
 
-    private static void animateGroup(ModelGroup group, Animation animation, float frame, float blend, boolean skipInitial)
+    private static void animateGroup(ModelGroup group, Animation animation, float frame, float blend, boolean skipInitial, boolean looping)
     {
         boolean applied = false;
 
@@ -84,7 +100,7 @@ public class CubicModelAnimator
 
         if (part != null)
         {
-            applyGroupAnimation(group, part, frame, blend);
+            applyGroupAnimation(group, part, frame, blend, looping);
 
             applied = true;
         }
@@ -104,15 +120,15 @@ public class CubicModelAnimator
 
         for (ModelGroup childGroup : group.children)
         {
-            animateGroup(childGroup, animation, frame, blend, skipInitial);
+            animateGroup(childGroup, animation, frame, blend, skipInitial, looping);
         }
     }
 
-    private static void applyGroupAnimation(ModelGroup group, AnimationPart animation, float frame, float blend)
+    private static void applyGroupAnimation(ModelGroup group, AnimationPart animation, float frame, float blend, boolean looping)
     {
-        Vector3d position = interpolateList(p, animation.x, animation.y, animation.z, frame, 0D);
-        Vector3d scale = interpolateList(s, animation.sx, animation.sy, animation.sz, frame, 1D);
-        Vector3d rotation = interpolateList(r, animation.rx, animation.ry, animation.rz, frame, 0D);
+        Vector3d position = interpolateList(p, animation.x, animation.y, animation.z, frame, 0D, looping);
+        Vector3d scale = interpolateList(s, animation.sx, animation.sy, animation.sz, frame, 1D, looping);
+        Vector3d rotation = interpolateList(r, animation.rx, animation.ry, animation.rz, frame, 0D, looping);
 
         scale.sub(1, 1, 1);
 
@@ -135,34 +151,34 @@ public class CubicModelAnimator
         current.rotate.z = (float) Lerps.lerpYaw(current.rotate.z, (float) rotation.z + initial.rotate.z, blend);
     }
 
-    public static void postAnimate(Model model, Animation animation, float tick)
+    public static void postAnimate(Model model, Animation animation, float tick, boolean looping)
     {
         for (ModelGroup group : model.topGroups)
         {
-            animateGroupPost(group, animation, tick);
+            animateGroupPost(group, animation, tick, looping);
         }
     }
 
-    private static void animateGroupPost(ModelGroup group, Animation animation, float frame)
+    private static void animateGroupPost(ModelGroup group, Animation animation, float frame, boolean looping)
     {
         AnimationPart part = animation.parts.get(group.id);
 
         if (part != null)
         {
-            applyGroupAnimationPost(group, part, frame);
+            applyGroupAnimationPost(group, part, frame, looping);
         }
 
         for (ModelGroup childGroup : group.children)
         {
-            animateGroupPost(childGroup, animation, frame);
+            animateGroupPost(childGroup, animation, frame, looping);
         }
     }
 
-    private static void applyGroupAnimationPost(ModelGroup group, AnimationPart animation, float frame)
+    private static void applyGroupAnimationPost(ModelGroup group, AnimationPart animation, float frame, boolean looping)
     {
-        Vector3d position = interpolateList(p, animation.x, animation.y, animation.z, frame, 0D);
-        Vector3d scale = interpolateList(s, animation.sx, animation.sy, animation.sz, frame, 1D);
-        Vector3d rotation = interpolateList(r, animation.rx, animation.ry, animation.rz, frame, 0D);
+        Vector3d position = interpolateList(p, animation.x, animation.y, animation.z, frame, 0D, looping);
+        Vector3d scale = interpolateList(s, animation.sx, animation.sy, animation.sz, frame, 1D, looping);
+        Vector3d rotation = interpolateList(r, animation.rx, animation.ry, animation.rz, frame, 0D, looping);
 
         scale.sub(1, 1, 1);
 
