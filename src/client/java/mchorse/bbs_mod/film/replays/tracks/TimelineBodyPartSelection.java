@@ -3,7 +3,6 @@ package mchorse.bbs_mod.film.replays.tracks;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.data.types.ListType;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.ui.forms.editors.UIForms;
 
 import java.util.LinkedHashSet;
@@ -59,18 +58,6 @@ public class TimelineBodyPartSelection
             this.activePart = this.paths.iterator().next();
         }
         forms.setCurrentPaths(allParts() ? available : this.paths, this.activePart);
-    }
-
-    /** What the corner above the track names says: the part in focus, or how many are picked. */
-    public String title(UIForms forms)
-    {
-        if (allParts()) return L10n.lang("bbs.ui.timeline.all_parts").get();
-        if (this.paths.size() > 1) return L10n.lang("bbs.ui.timeline.selected_parts").format(this.paths.size()).get();
-        for (UIForms.FormEntry entry : forms.getList())
-        {
-            if (entry.getPath().equals(this.activePart)) return entry.toString();
-        }
-        return "-";
     }
 
     public void write(MapType data)

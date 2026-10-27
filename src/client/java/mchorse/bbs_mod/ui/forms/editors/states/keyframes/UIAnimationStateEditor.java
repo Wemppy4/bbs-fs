@@ -47,7 +47,6 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.UIKeyframeDopeSheet;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIDraggable;
-import mchorse.bbs_mod.ui.framework.elements.utils.UILabel;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCategoryBar;
 import mchorse.bbs_mod.ui.utils.Gizmo;
@@ -220,12 +219,9 @@ public class UIAnimationStateEditor extends UIElement
 
         this.partHeader.relative(this.timelineArea).x(CATEGORY_BAR_WIDTH).w(120).h(TimelineRulerRenderer.RULER_BLOCK_HEIGHT);
         this.partHeader.add(new UIRenderable(context -> this.partHeader.area.render(context.batcher, BBSSettings.baseSurface())));
-        UILabel partName = new UILabel(this::getSelectedPartName).color(0xffaaaaaa, false).labelAnchor(0F, 0.5F);
-        partName.relative(this.partHeader).x(5).w(1F, -UIConstants.ICON_SIZE - 10).h(1F);
-        partName.tooltip(() -> L10n.lang("bbs.ui.film.replays.selected_body_part").format(this.getSelectedPartName()).get());
         UIIcon graph = UIKeyframes.modeButton(() -> this.keyframeEditor == null ? null : this.keyframeEditor.view);
         graph.relative(this.partHeader).x(1F, -UIConstants.ICON_SIZE).y(0.5F).anchorY(0.5F);
-        this.partHeader.add(partName, graph);
+        this.partHeader.add(graph);
         this.timelineArea.add(this.categoryBar, this.partHeader);
 
         this.bodyPartsSection.relative(this.sidebar).x(3).y(1F, -3).w(1F, -6).anchorY(1F);
@@ -285,11 +281,6 @@ public class UIAnimationStateEditor extends UIElement
         this.allMode = false;
         this.category = category;
         this.setState(this.state);
-    }
-
-    private String getSelectedPartName()
-    {
-        return this.partSelection.title(this.bodyParts);
     }
 
     /** The parts list picked the parts the timeline shows; the one clicked opens. */
