@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.film.clips;
 import mchorse.bbs_mod.camera.clips.misc.CurveClip;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.l10n.keys.IKey;
-import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
@@ -70,7 +69,7 @@ public class UICurveClip extends UIClip<CurveClip>
         });
 
         this.edit = new UIButton(UIKeys.CAMERA_PANELS_EDIT_KEYFRAMES, (b) -> this.openKeyframes());
-        this.edit.keys().register(Keys.FORMS_EDIT, () -> this.edit.clickItself());
+        this.registerEditKeys(this.edit, this.keyframes);
 
         this.add = new UIButton(UIKeys.CAMERA_PANELS_CURVE_ADD, (b) -> this.openPicker());
     }

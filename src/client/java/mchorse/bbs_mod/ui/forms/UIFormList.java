@@ -284,7 +284,7 @@ public class UIFormList extends UIElement
     {
         if (Window.isCtrlPressed() && context.mouseWheel != 0 && this.forms.area.isInside(context))
         {
-            this.zoom(context, context.mouseWheel > 0 ? ZOOM_STEP : -ZOOM_STEP);
+            this.zoom(context, context.mouseWheel > 0);
 
             return this;
         }
@@ -296,10 +296,13 @@ public class UIFormList extends UIElement
      * Grow or shrink the cells, keeping whatever row is under the cursor where it is on
      * screen — zooming that jumps the list around is worse than no zoom at all.
      */
-    private void zoom(UIContext context, int delta)
+    private void zoom(UIContext context, boolean in)
     {
         int old = this.getCellSize();
-        int size = MathUtils.clamp(old + delta, FormGridLayout.MIN_CELL, FormGridLayout.MAX_CELL);
+        /* Every category is as wide as the list, so any one of them says where the columns fall */
+        int size = this.categories.isEmpty()
+            ? MathUtils.clamp(old + (in ? ZOOM_STEP : -ZOOM_STEP), FormGridLayout.MIN_CELL, FormGridLayout.MAX_CELL)
+            : this.categories.get(0).getLayout().zoom(old, in, ZOOM_STEP, FormGridLayout.MIN_CELL, FormGridLayout.MAX_CELL);
 
         if (size == old)
         {
@@ -446,8 +449,10 @@ public class UIFormList extends UIElement
         {
             Form copy = FormUtils.copy(form);
 
+            /* The pick moves to the new recent copy too, or the form it was made from stays marked beside it */
             this.recent.category.addForm(copy);
             this.recent.select(copy, false);
+            this.selection.set(copy, this.recent.category);
         }
     }
 

@@ -3,7 +3,6 @@ package mchorse.bbs_mod.client.renderer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.Form;
-import mchorse.bbs_mod.forms.forms.MobForm;
 import mchorse.bbs_mod.forms.renderers.FormRenderType;
 import mchorse.bbs_mod.forms.renderers.FormRenderingContext;
 import mchorse.bbs_mod.morphing.Morph;
@@ -29,12 +28,12 @@ public class MorphRenderer
 
     public static boolean renderPlayer(AbstractClientPlayerEntity player, float f, float g, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i)
     {
-        if (hidePlayer)
+        /* Only the real player is hidden - the vanilla pass already skips it, but Iris'
+         * shadow pass doesn't, so it would cast a shadow. Player mob forms of the film
+         * render their own stand-in entities and stay */
+        if (hidePlayer && player == MinecraftClient.getInstance().player)
         {
-            if (FormUtilsClient.getCurrentForm() instanceof MobForm form && !form.isPlayer())
-            {
-                return true;
-            }
+            return true;
         }
 
         Morph morph = Morph.getMorph(player);

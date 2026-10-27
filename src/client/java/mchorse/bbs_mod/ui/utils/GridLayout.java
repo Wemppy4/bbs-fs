@@ -18,6 +18,7 @@ public class GridLayout
     protected final int gridBottom;
     protected final float aspect;
 
+    private int width;
     private int cell;
     private int cellHeight;
     private int perRow = 1;
@@ -57,14 +58,48 @@ public class GridLayout
         return this;
     }
 
+    /**
+     * Lay the grid out for a width. The cell width given is the one asked for: rows take as many
+     * cells as come nearest to it, and the cells then stretch or shrink to fill the whole row, so
+     * no strip of the width is left empty at the right. A strip keeps the asked width as it is.
+     */
     public GridLayout set(int width, int cellWidth, int count)
     {
-        this.cell = cellWidth;
-        this.cellHeight = this.heightFor(cellWidth);
+        this.width = width;
         this.count = count;
-        this.perRow = this.strip ? Math.max(1, count) : Math.max(1, (width - this.margin * 2 + this.gap) / (cellWidth + this.gap));
+
+        if (this.strip)
+        {
+            this.cell = cellWidth;
+            this.perRow = Math.max(1, count);
+        }
+        else
+        {
+            this.perRow = Math.max(1, Math.round((width - this.margin * 2 + this.gap) / (float) (cellWidth + this.gap)));
+            this.cell = this.cellFor(this.perRow);
+        }
+
+        this.cellHeight = this.heightFor(this.cell);
 
         return this;
+    }
+
+    /**
+     * The cell width a zoom step asks for: one column fewer (zooming in) or one more, so every
+     * step visibly changes the grid. A strip has no columns to count and steps by pixels.
+     */
+    public int zoom(int cellWidth, boolean in, int pixels, int min, int max)
+    {
+        int size = this.strip
+            ? cellWidth + (in ? pixels : -pixels)
+            : this.cellFor(Math.max(1, this.perRow + (in ? -1 : 1)));
+
+        return Math.max(min, Math.min(max, size));
+    }
+
+    private int cellFor(int columns)
+    {
+        return Math.max(1, (this.width - this.margin * 2 - (columns - 1) * this.gap) / columns);
     }
 
     public int getHeader()

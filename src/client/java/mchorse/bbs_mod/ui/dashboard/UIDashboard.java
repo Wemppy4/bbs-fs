@@ -160,11 +160,8 @@ public class UIDashboard extends UIBaseMenu
                 return;
             }
 
-            /* Just tall enough for the panel's own content, and never taller than the screen -
-             * an overlay only has its position bounded, so an oversized one gets cut off. */
-            int height = Math.min(280, (int) (this.height * 0.9F));
-
-            UIOverlay.addOverlay(this.context, new UIUtilityOverlayPanel(UIKeys.UTILITY_TITLE, null), Math.min(460, (int) (this.width * 0.95F)), height);
+            /* The panel measures itself, to the screen's room */
+            UIOverlay.addOverlay(this.context, new UIUtilityOverlayPanel(UIKeys.UTILITY_TITLE, null));
         });
 
         this.showAnnoyingPopups();

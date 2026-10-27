@@ -2,7 +2,6 @@ package mchorse.bbs_mod.ui.film.clips;
 
 import mchorse.bbs_mod.camera.clips.modifiers.RemapperClip;
 import mchorse.bbs_mod.data.types.MapType;
-import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
@@ -44,7 +43,7 @@ public class UIRemapperClip extends UIClip<RemapperClip>
             this.keyframes.view.getGraph().clearSelection();
         });
 
-        this.edit.keys().register(Keys.FORMS_EDIT, () -> this.edit.clickItself());
+        this.registerEditKeys(this.edit, this.keyframes);
     }
 
     @Override

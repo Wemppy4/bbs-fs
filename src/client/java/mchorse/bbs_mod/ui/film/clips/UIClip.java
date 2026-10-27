@@ -53,6 +53,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueDouble;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
+import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.clips.actions.UIAttackActionClip;
@@ -75,6 +76,7 @@ import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemStack;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
@@ -272,6 +274,22 @@ public abstract class UIClip <T extends Clip> extends UIElement
         section.fields.add(fields);
 
         return section;
+    }
+
+    /** E presses the button that opens the clip's keys, and closes the keys when they're already open. */
+    protected void registerEditKeys(UIButton button, UIElement keys)
+    {
+        button.keys().register(Keys.FORMS_EDIT, () ->
+        {
+            if (keys.hasParent())
+            {
+                this.editor.embedView(null);
+            }
+            else
+            {
+                button.clickItself();
+            }
+        });
     }
 
     /**

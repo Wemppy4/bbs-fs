@@ -10,7 +10,6 @@ import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.GridLayout;
 import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
-import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
@@ -157,7 +156,7 @@ public class UITextureGrid extends UIItemGrid<TextureEntry>
     {
         if (Window.isCtrlPressed() && context.mouseWheel != 0 && this.area.isInside(context))
         {
-            this.zoom(context, context.mouseWheel > 0 ? ZOOM_STEP : -ZOOM_STEP);
+            this.zoom(context, context.mouseWheel > 0);
 
             return true;
         }
@@ -165,10 +164,10 @@ public class UITextureGrid extends UIItemGrid<TextureEntry>
         return super.subMouseScrolled(context);
     }
 
-    private void zoom(UIContext context, int delta)
+    private void zoom(UIContext context, boolean in)
     {
         int old = this.getCellSize();
-        int size = MathUtils.clamp(old + delta, MIN_CELL, MAX_CELL);
+        int size = this.layout.zoom(old, in, ZOOM_STEP, MIN_CELL, MAX_CELL);
 
         if (size == old)
         {

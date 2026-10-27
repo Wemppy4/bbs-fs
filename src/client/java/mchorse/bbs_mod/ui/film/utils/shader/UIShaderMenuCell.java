@@ -15,24 +15,27 @@ import org.lwjgl.glfw.GLFW;
 import java.util.function.Consumer;
 
 /**
- * One cell of the curve picker: a row the way every list in BBS draws one ({@link RowStyle}), set
- * out in the columns of the pack's menu. Every cell sits on a tile of its own, so neighbours don't
- * run into each other &mdash; packs like to spell a sentence across two cells.
+ * One cell of a shader pack's menu, the way the curve picker and the pack's settings lay it out
+ * in the pack's columns: a row the way every list in BBS draws one ({@link RowStyle}). Every cell
+ * sits on a tile of its own, so neighbours don't run into each other &mdash; packs like to spell
+ * a sentence across two cells.
  *
  * <ul>
  *     <li><b>curve</b> &mdash; something a curve can be made for. A click adds it, and the row
  *     then reads as picked: the accent wash with the bar down its edge. Another click takes it
  *     out again.</li>
- *     <li><b>option</b> &mdash; a shader option that can't be animated, shown so the pack's menu
- *     keeps its layout: grey, and deaf to the cursor.</li>
+ *     <li><b>option</b> &mdash; deaf to the cursor itself: a shader option with a control on the
+ *     right, or a grey one the picker can't animate, shown so the pack's menu keeps its
+ *     layout.</li>
  *     <li><b>link</b> &mdash; a way into a sub-screen, with an arrow for a note.</li>
  *     <li><b>empty</b> &mdash; a gap the pack left in its layout.</li>
  * </ul>
  *
  * <p>The right side carries a grey note: the option's current value, a link's arrow, where a
- * search hit lives &mdash; or a colour swatch for a colour curve.</p>
+ * search hit lives &mdash; or a colour swatch for a colour curve. A control sits at the right edge,
+ * and the rest stops short of it.</p>
  */
-public class UICurveCell extends UIElement
+public class UIShaderMenuCell extends UIElement
 {
     public static final int HEIGHT = 20;
 
@@ -41,6 +44,9 @@ public class UICurveCell extends UIElement
     private static final int ICON_TEXT_X = 21;
     private static final int SWATCH = 10;
 
+    /** Room between a control and the edges of its tile */
+    private static final int CONTROL_INSET = 2;
+
     public enum Kind
     {
         CURVE, OPTION, LINK, EMPTY
@@ -48,7 +54,7 @@ public class UICurveCell extends UIElement
 
     public final Kind kind;
 
-    private final Consumer<UICurveCell> callback;
+    private final Consumer<UIShaderMenuCell> callback;
 
     private String label = "";
     private Icon icon;
@@ -56,28 +62,29 @@ public class UICurveCell extends UIElement
     private Integer swatch;
     private boolean muted;
     private boolean added;
+    private UIElement control;
 
-    public static UICurveCell curve(String label, Consumer<UICurveCell> callback)
+    public static UIShaderMenuCell curve(String label, Consumer<UIShaderMenuCell> callback)
     {
-        return new UICurveCell(Kind.CURVE, label, callback);
+        return new UIShaderMenuCell(Kind.CURVE, label, callback);
     }
 
-    public static UICurveCell option(String label)
+    public static UIShaderMenuCell option(String label)
     {
-        return new UICurveCell(Kind.OPTION, label, null).muted(true);
+        return new UIShaderMenuCell(Kind.OPTION, label, null);
     }
 
-    public static UICurveCell link(String label, Consumer<UICurveCell> callback)
+    public static UIShaderMenuCell link(String label, Consumer<UIShaderMenuCell> callback)
     {
-        return new UICurveCell(Kind.LINK, label, callback);
+        return new UIShaderMenuCell(Kind.LINK, label, callback);
     }
 
-    public static UICurveCell empty()
+    public static UIShaderMenuCell empty()
     {
-        return new UICurveCell(Kind.EMPTY, "", null);
+        return new UIShaderMenuCell(Kind.EMPTY, "", null);
     }
 
-    private UICurveCell(Kind kind, String label, Consumer<UICurveCell> callback)
+    protected UIShaderMenuCell(Kind kind, String label, Consumer<UIShaderMenuCell> callback)
     {
         this.kind = kind;
         this.label = label == null ? "" : label;
@@ -86,37 +93,48 @@ public class UICurveCell extends UIElement
         this.h(HEIGHT);
     }
 
-    public UICurveCell icon(Icon icon)
+    public UIShaderMenuCell icon(Icon icon)
     {
         this.icon = icon;
 
         return this;
     }
 
-    public UICurveCell note(String note)
+    public UIShaderMenuCell note(String note)
     {
         this.note = note == null ? "" : note;
 
         return this;
     }
 
-    public UICurveCell swatch(int color)
+    public UIShaderMenuCell swatch(int color)
     {
         this.swatch = color;
 
         return this;
     }
 
-    public UICurveCell muted(boolean muted)
+    public UIShaderMenuCell muted(boolean muted)
     {
         this.muted = muted;
 
         return this;
     }
 
-    public UICurveCell added(boolean added)
+    public UIShaderMenuCell added(boolean added)
     {
         this.added = added;
+
+        return this;
+    }
+
+    /** Puts a control at the right edge of the cell, in the width given. */
+    public UIShaderMenuCell control(UIElement control, int width)
+    {
+        this.control = control;
+
+        control.relative(this).x(1F, -width - CONTROL_INSET).y(CONTROL_INSET).w(width).h(1F, -CONTROL_INSET * 2);
+        this.add(control);
 
         return this;
     }
@@ -140,6 +158,12 @@ public class UICurveCell extends UIElement
         {
             this.callback.accept(this);
         }
+    }
+
+    /** Colour of the name */
+    protected int labelColor(boolean lit)
+    {
+        return this.muted ? Colors.GRAY : RowStyle.textColor(lit);
     }
 
     @Override
@@ -183,7 +207,7 @@ public class UICurveCell extends UIElement
         boolean lit = hover || this.added;
         int textY = a.my(font.getHeight());
         int x = a.x + PADDING;
-        int right = a.ex() - PADDING;
+        int right = (this.control == null ? a.ex() : this.control.area.x) - PADDING;
 
         a.render(batcher, BBSSettings.chromeSurface());
 
@@ -218,7 +242,7 @@ public class UICurveCell extends UIElement
 
         if (right > x)
         {
-            batcher.text(font.limitToWidth(this.label, right - x), x, textY, this.muted ? Colors.GRAY : RowStyle.textColor(lit), true);
+            batcher.text(font.limitToWidth(this.label, right - x), x, textY, this.labelColor(lit), true);
         }
     }
 }
