@@ -163,7 +163,7 @@
                     "softness": 0.05000000074505806,
                     "enabled": true
                 },
-                "body_end": {
+                "body": {
                     "pole_angle": 0.0,
                     "weight": 1.0,
                     "pole": true,
@@ -199,9 +199,9 @@
                 "ik_target": "controller_right_arm",
                 "ik_pole_target": "pole_right_arm"
             },
-            "body_end": {
+            "body": {
                 "ik_target_color": 16767053,
-                "ik_chain_length": 3,
+                "ik_chain_length": 2,
                 "ik_target": "controller_body",
                 "ik_pole_target": "pole_body"
             },
