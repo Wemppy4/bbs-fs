@@ -1234,7 +1234,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
         {
             int tick = Math.max(0, this.fromGraphTick(mouseX));
 
-            menu.action(Icons.ADD, UIKeys.FILM_MARKERS_ADD, () -> this.editMarker(markers.addMarker(tick)));
+            menu.action(Icons.ADD, UIKeys.FILM_MARKERS_ADD, () -> this.editMarker(markers.addMarker(tick, UIKeys.FILM_MARKERS_NUMBER)));
         }
         else
         {
@@ -1275,7 +1275,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
 
         if (markers != null && marker != null)
         {
-            UIOverlay.addOverlay(this.getContext(), new UIMarkerOverlayPanel(markers, marker), 220, 190);
+            UIOverlay.addOverlay(this.getContext(), new UIMarkerOverlayPanel(marker), 220, 155);
         }
     }
 

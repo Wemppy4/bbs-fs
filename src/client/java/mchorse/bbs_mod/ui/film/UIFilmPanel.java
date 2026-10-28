@@ -1924,7 +1924,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         if (marker == null)
         {
-            this.data.markers.addMarker(tick);
+            this.data.markers.addMarker(tick, UIKeys.FILM_MARKERS_NUMBER);
         }
         else
         {

@@ -813,6 +813,7 @@
     "bbs.ui.film.markers.color": "颜色",
     "bbs.ui.film.markers.edit": "编辑标记",
     "bbs.ui.film.markers.name": "名称",
+    "bbs.ui.film.markers.number": "标记 %s",
     "bbs.ui.film.markers.remove": "移除标记",
     "bbs.ui.film.markers.tick": "Tick",
     "bbs.ui.film.markers.title": "标记",
