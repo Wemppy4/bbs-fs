@@ -5,17 +5,18 @@ import mchorse.bbs_mod.film.markers.FilmMarker;
 import mchorse.bbs_mod.film.markers.FilmMarkers;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.renderers.TimelineRulerRenderer;
-import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.List;
 import java.util.function.Supplier;
 
 /**
  * Draws the film's markers, extending their lines across the timeline when its grid is enabled,
- * and answers which one the mouse is over on the ruler strip.
+ * and answers which one the mouse is over on the ruler strip. A marker is drawn like the playhead
+ * ({@link UITimelineCanvas#renderCursor}) in its own colour, its title on the card at the top.
  *
  * <p>Not a widget: the ruler belongs to the timeline that painted it ({@code UIClips},
  * {@code UIFilmKeyframes}), and every one of them measures ticks with its own {@link Scale} and its
@@ -31,11 +32,6 @@ public class UIMarkersController
 {
     /** How far from a marker's line the mouse still counts as being on it. */
     public static final int HIT_DISTANCE = 4;
-
-    /** Thicker than the playhead's hairline: a marker is a landmark, not a readout. */
-    private static final int LINE_WIDTH = 2;
-    private static final int PIN_HEIGHT = 7;
-    private static final int PIN_WIDTH = 5;
 
     private final Supplier<FilmMarkers> markers;
 
@@ -168,34 +164,27 @@ public class UIMarkersController
             FilmMarker marker = sorted.get(i);
             int x = (int) scale.to(this.getDisplayTick(marker) - clipOffset);
 
-            if (x < area.x - PIN_WIDTH || x > area.ex())
+            if (x < area.x || x >= area.ex())
             {
                 continue;
             }
-
-            boolean active = marker == hovered || marker == this.dragged;
-            int color = marker.color.get() & Colors.RGB;
-
-            context.batcher.box(x, area.y, x + LINE_WIDTH, lineBottom, Colors.setA(color, active ? 1F : 0.85F));
-            context.batcher.box(x, area.y, x + PIN_WIDTH, area.y + PIN_HEIGHT, color | Colors.A100);
 
             String title = marker.title.get();
-
-            if (title.isEmpty())
-            {
-                continue;
-            }
+            boolean active = marker == hovered || marker == this.dragged;
 
             /* Titles are dropped rather than overlapped: past a certain density the ruler is a row
-             * of pins and the panel is where names get read. The hovered one always shows. */
-            int available = i + 1 < c
-                ? (int) scale.to(this.getDisplayTick(sorted.get(i + 1)) - clipOffset) - x - PIN_WIDTH
-                : Integer.MAX_VALUE;
-
-            if (active || font.getWidth(title) + 6 <= available)
+             * of lines and the panel is where names get read. The hovered one always shows. */
+            if (!active && i + 1 < c)
             {
-                context.batcher.textCard(title, x + PIN_WIDTH + 2, area.y + 2, Colors.WHITE, Colors.setA(color, 0.78F), 2);
+                int next = (int) scale.to(this.getDisplayTick(sorted.get(i + 1)) - clipOffset);
+
+                if (font.getWidth(title) + 6 > next - x)
+                {
+                    title = "";
+                }
             }
+
+            UITimelineCanvas.renderCursor(context, title, area, x, lineBottom, marker.color.get(), true);
         }
 
         context.batcher.unclip(context);

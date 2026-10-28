@@ -56,12 +56,25 @@ public abstract class UITimelineCanvas extends UIElement
      */
     public static void renderCursor(UIContext context, String label, Area area, int x)
     {
-        /* Draw the marker */
+        renderCursor(context, label, area, x, area.ey(), BBSSettings.primaryColor.get(), false);
+    }
+
+    /**
+     * The cursor's look in any colour, shared with the film's markers: a vertical line at
+     * {@code x} from the top of the area down to {@code bottom}, with the label on a card at its
+     * foot or, {@code onTop}, at its head. An empty label leaves the line alone.
+     */
+    public static void renderCursor(UIContext context, String label, Area area, int x, int bottom, int color, boolean onTop)
+    {
         FontRenderer font = context.batcher.getFont();
         int width = font.getWidth(label) + 3;
-        int color = BBSSettings.primaryColor.get();
 
-        context.batcher.box(x, area.y, x + 1, area.ey(), color | Colors.A100);
+        context.batcher.box(x, area.y, x + 1, bottom, color | Colors.A100);
+
+        if (label.isEmpty())
+        {
+            return;
+        }
 
         /* Move the tick line left, so it won't overflow the timeline */
         if (x + 1 + width > area.ex())
@@ -69,8 +82,9 @@ public abstract class UITimelineCanvas extends UIElement
             x -= width + 1;
         }
 
-        /* Draw the tick label */
-        context.batcher.textCard(label, x + 3, area.ey() - 2 - font.getHeight(), Colors.WHITE, Colors.setA(color, 0.78F), 2);
+        int y = onTop ? area.y + 2 : bottom - 2 - font.getHeight();
+
+        context.batcher.textCard(label, x + 3, y, Colors.WHITE, Colors.setA(color, 0.78F), 2);
     }
 
     public Scale getXAxis()
