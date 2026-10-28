@@ -19,20 +19,6 @@ import java.util.List;
  */
 public class Animator implements IAnimator
 {
-    /**
-     * Ground a player covers in a tick on flat ground walking, sprinting and sneaking - the
-     * speeds at which the walk cycles play at their own pace.
-     */
-    private static final float RUNNING_PACE = 0.21586F;
-    private static final float SPRINTING_PACE = 0.28061F;
-    private static final float CROUCHING_PACE = 0.06476F;
-
-    /**
-     * How many times its own pace a walk cycle may run in one tick. Like vanilla's cap on the limb
-     * swing, it keeps a teleport (a cut in a film) from spinning the legs through whole cycles.
-     */
-    private static final float MAX_PACE = 2F;
-
     /* Actions */
     public ActionPlayback idle;
     public ActionPlayback running;
@@ -69,7 +55,6 @@ public class Animator implements IAnimator
     public double prevZ = Float.MAX_VALUE;
     public double prevMY;
     public float prevHandSwing;
-    public float groundSpeed;
 
     /* States */
     public boolean wasOnGround = true;
@@ -224,25 +209,6 @@ public class Animator implements IAnimator
                 it.remove();
             }
         }
-
-        /* Set after the update: a tick advances by the speed its frames were drawn with, so the
-         * new speed covers the frames to come, the ones that draw this tick's displacement */
-        this.pace(this.running, RUNNING_PACE);
-        this.pace(this.sprinting, SPRINTING_PACE);
-        this.pace(this.crouching, CROUCHING_PACE);
-    }
-
-    /**
-     * Walk cycles go by the ground covered, not by the clock, like vanilla's limb swing: a body
-     * coasting to a stop slows its steps down with it, and one that stopped doesn't step on the
-     * spot while idle fades in.
-     */
-    private void pace(ActionPlayback action, float pace)
-    {
-        if (action != null)
-        {
-            action.setSpeed(Math.min(this.groundSpeed / pace, MAX_PACE));
-        }
     }
 
     private boolean isWalkCycle(ActionPlayback action)
@@ -299,8 +265,6 @@ public class Animator implements IAnimator
         double dz = target.getZ() - this.prevZ;
         final float threshold = 0.01F;
         boolean moves = Math.abs(dx) > threshold || Math.abs(dz) > threshold;
-
-        this.groundSpeed = (float) Math.sqrt(dx * dx + dz * dz);
 
         ActionPlayback state = this.pickState(target, moves);
 
