@@ -73,6 +73,9 @@ public class BBSRendering
 
     public static boolean canRender;
 
+    /** The render finishes its video frame - the last of its held renders (RenderTickCounterMixin) */
+    public static boolean canRecord;
+
     public static boolean renderingWorld;
     public static int lastAction;
 
@@ -515,6 +518,17 @@ public class BBSRendering
 
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, prevRead);
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, prevDraw);
+
+        /* Only now does the export texture hold this render - world, shaders and HUD. Taken at
+         * the world render instead, it would still hold the render before: the first frame of the
+         * video would be the one before the recording, and every other frame a frame late. */
+        if (canRecord)
+        {
+            canRecord = false;
+
+            BBSModClient.getMinecraftSoundCapture().captureFrame();
+            BBSModClient.getVideoRecorder().recordFrame();
+        }
 
         renderRecordingOverlay();
 

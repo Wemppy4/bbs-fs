@@ -808,15 +808,6 @@ public class BBSModClient implements ClientModInitializer
          * the client - hand it the lookup. */
         ItemUsePose.setSource(ThirdPersonItemUse::get);
 
-        WorldRenderEvents.LAST.register((context) ->
-        {
-            if (videoRecorder.isRecording() && BBSRendering.canRender)
-            {
-                minecraftSoundCapture.captureFrame();
-                videoRecorder.recordFrame();
-            }
-        });
-
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() ->
         {
             if (client.getNetworkHandler() == handler)
