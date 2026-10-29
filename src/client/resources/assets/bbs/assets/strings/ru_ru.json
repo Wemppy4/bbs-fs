@@ -1138,6 +1138,7 @@
 	"bbs.ui.film.markers.keys.next": "Перейти к следующему маркеру",
 	"bbs.ui.film.markers.keys.prev": "Перейти к предыдущему маркеру",
 	"bbs.ui.film.markers.name": "Название",
+	"bbs.ui.film.markers.number": "Маркер %s",
 	"bbs.ui.film.markers.remove": "Удалить маркер",
 	"bbs.ui.film.markers.tick": "Тик",
 	"bbs.ui.film.markers.title": "Маркер",

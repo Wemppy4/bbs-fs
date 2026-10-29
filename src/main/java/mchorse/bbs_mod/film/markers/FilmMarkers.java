@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.film.markers;
 
+import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.settings.values.core.ValueStableList;
 import mchorse.bbs_mod.utils.CollectionUtils;
 
@@ -22,11 +23,23 @@ public class FilmMarkers extends ValueStableList<FilmMarker>
         super(id);
     }
 
-    public FilmMarker addMarker(int tick)
+    /**
+     * @param numbered The name with a {@code %s} for the number, like "Marker %s". The number is one
+     * past the count, moved on while another marker has that name already: after a delete the count
+     * lags behind the numbers handed out.
+     */
+    public FilmMarker addMarker(int tick, IKey numbered)
     {
         FilmMarker marker = new FilmMarker("");
+        int number = this.list.size() + 1;
+
+        while (this.hasTitle(numbered.format(number).get()))
+        {
+            number += 1;
+        }
 
         marker.tick.set(Math.max(0, tick));
+        marker.title.set(numbered.format(number).get());
         marker.color.set(FilmMarker.randomBrightColor());
 
         this.preNotify();
@@ -46,6 +59,19 @@ public class FilmMarkers extends ValueStableList<FilmMarker>
             this.list.remove(index);
             this.postNotify();
         }
+    }
+
+    private boolean hasTitle(String title)
+    {
+        for (FilmMarker marker : this.list)
+        {
+            if (marker.title.get().equals(title))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public FilmMarker getById(String id)

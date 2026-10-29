@@ -43,9 +43,13 @@ public class RenderTickCounterMixin
 
         VideoRecorder videoRecorder = BBSModClient.getVideoRecorder();
 
+        BBSRendering.canRecord = false;
+
         if (videoRecorder.isRecording())
         {
-            if (videoRecorder.getCounter() == 0)
+            /* The recording starts on the first frame's first render - its frames are taken
+             * once all of their held renders are done */
+            if (videoRecorder.getCounter() == 0 && this.heldFrames == 0)
             {
                 this.tickDelta = 0;
             }
@@ -91,6 +95,8 @@ public class RenderTickCounterMixin
             if (this.heldFrames >= BBSSettings.videoHeldFrames.get())
             {
                 this.heldFrames = 0;
+
+                BBSRendering.canRecord = true;
             }
         }
         else

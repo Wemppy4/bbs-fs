@@ -262,6 +262,12 @@ public class VideoRecorder
 
         if (this.pbos != null)
         {
+            /* A frame read into a pixel buffer is written on the next frame's read - the last one is still waiting */
+            if (this.counter > 0)
+            {
+                this.writePBO(this.pbos[(this.pboIndex + this.pbos.length - 1) % this.pbos.length]);
+            }
+
             for (int pbo : this.pbos)
             {
                 GL30.glDeleteBuffers(pbo);
@@ -377,19 +383,37 @@ public class VideoRecorder
             GL30.glBindTexture(GL30.GL_TEXTURE_2D, this.textureId);
             GL30.glGetTexImage(GL30.GL_TEXTURE_2D, 0, GL30.GL_BGR, GL30.GL_UNSIGNED_BYTE, 0);
 
-            GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, this.pbos[nextPbo]);
+            GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
+
+            if (this.counter != 0)
+            {
+                this.writePBO(this.pbos[nextPbo]);
+            }
+
+            this.pboIndex = nextPbo;
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    /** Write the frame read into the given pixel buffer to ffmpeg */
+    private void writePBO(int pbo)
+    {
+        try
+        {
+            GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, pbo);
 
             ByteBuffer mappedBuffer = GL30.glMapBuffer(GL30.GL_PIXEL_PACK_BUFFER, GL30.GL_READ_ONLY);
 
-            if (mappedBuffer != null && this.counter != 0)
+            if (mappedBuffer != null)
             {
                 this.channel.write(mappedBuffer);
             }
 
             GL30.glUnmapBuffer(GL30.GL_PIXEL_PACK_BUFFER);
             GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
-
-            this.pboIndex = nextPbo;
         }
         catch (Exception e)
         {

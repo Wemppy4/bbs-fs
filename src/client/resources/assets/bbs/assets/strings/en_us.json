@@ -1143,6 +1143,7 @@
 	"bbs.ui.film.markers.keys.next": "Jump to next marker",
 	"bbs.ui.film.markers.keys.prev": "Jump to previous marker",
 	"bbs.ui.film.markers.name": "Name",
+	"bbs.ui.film.markers.number": "Marker %s",
 	"bbs.ui.film.markers.remove": "Remove marker",
 	"bbs.ui.film.markers.tick": "Tick",
 	"bbs.ui.film.markers.title": "Marker",
