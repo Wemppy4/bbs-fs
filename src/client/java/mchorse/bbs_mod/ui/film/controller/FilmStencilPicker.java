@@ -265,7 +265,7 @@ public class FilmStencilPicker
     {
         Area viewport = this.controller.panel.preview.getViewport();
 
-        if (!viewport.isInside(context) || this.controller.getControlled() != null)
+        if (!viewport.isInside(context) || this.controller.panel.preview.isOverIcons(context) || this.controller.getControlled() != null)
         {
             this.stencil.clearPicking();
             this.lastPickMouseX = Integer.MIN_VALUE;

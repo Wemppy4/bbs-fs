@@ -432,6 +432,15 @@ public class UIFilmPreview extends UIElement
         return area;
     }
 
+    /**
+     * Whether the mouse is over the icon bar. The bar is drawn over the frame, so nothing
+     * of the scene under it (gizmo, bones, controllers) may take the click or the hover.
+     */
+    public boolean isOverIcons(UIContext context)
+    {
+        return this.icons.isVisible() && this.icons.area.isInside(context);
+    }
+
     @Override
     protected boolean subMouseClicked(UIContext context)
     {

@@ -695,6 +695,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
     @Override
     protected boolean subMouseClicked(UIContext context)
     {
+        /* The controller gets the click before the preview does: leave the icon bar's to its buttons */
+        if (this.panel.preview.isOverIcons(context)) return false;
         if (this.pickShapeController(context)) return true;
         for (var tool : this.addonTools) if (tool.click(context)) return true;
 
@@ -752,6 +754,12 @@ public class UIFilmController extends UIElement implements GizmoViewport
     public Area getGizmoArea()
     {
         return this.panel.preview.getViewport();
+    }
+
+    @Override
+    public boolean isGizmoCovered(UIContext context)
+    {
+        return this.panel.preview.isOverIcons(context);
     }
 
     @Override
