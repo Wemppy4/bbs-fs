@@ -176,8 +176,10 @@ public class BBSSettings {
 	public static ValueOnionSkin editorOnionSkin;
 	/** The rig's debug overlay: switched by the rig tab, F5 and the markup menu, no row in the settings. */
 	public static ValueBoolean debugOverlay;
-	/** The editors' markup: its groups, how solid it draws and how big its handles are. */
+	/** The editors' markup: its groups and how solid it draws. */
 	public static ValueMarkup editorMarkup;
+	/** One scale for every handle of the editors' markup, in every editor. */
+	public static ValueFloat markupHandleSize;
 	public static ValueBoolean profilerOverlay;
 	/** Emergency switch for the per-frame pose caches; invisible, on by default. */
 	public static ValueBoolean framePoseCache;
@@ -882,6 +884,7 @@ public class BBSSettings {
 		debugOverlay = builder.getBoolean("debug_overlay", false);
 		debugOverlay.invisible();
 		builder.register(editorMarkup = new ValueMarkup("markup"));
+		markupHandleSize = builder.getFloat("markup_handle_size", 1F, 0.5F, 3F).slider();
 
 		/* Everything that trades work for frames: what the editor renders at all, at what
 		 * resolution and how often, what it computes in parallel, plus the counters that

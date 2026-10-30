@@ -43,8 +43,8 @@ public class UIMarkupContextMenu extends UIContextMenu
 
         this.opacity = new UISliderTrackpad((v) -> markup.opacity.set(v.floatValue()));
         this.opacity.limit(markup.opacity).setValue(markup.opacity.get());
-        this.size = new UISliderTrackpad((v) -> markup.size.set(v.floatValue()));
-        this.size.limit(markup.size).setValue(markup.size.get());
+        this.size = new UISliderTrackpad((v) -> BBSSettings.markupHandleSize.set(v.floatValue()));
+        this.size.limit(BBSSettings.markupHandleSize).setValue(BBSSettings.markupHandleSize.get());
 
         this.pathSettings = new UIButton(UIKeys.MARKUP_PATH_SETTINGS, (b) ->
             this.getContext().replaceContextMenu(new UIMotionPathContextMenu(panel, path)));

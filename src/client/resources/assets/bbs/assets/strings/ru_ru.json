@@ -563,6 +563,8 @@
 	"bbs.config.viewport.motion_path-comment": "Показывать путь движения и маркеры ключей позиции.",
 	"bbs.config.viewport.markup": "Разметка",
 	"bbs.config.viewport.markup-comment": "Экранный слой редакторов: траектория, ручки рига, сплайны и ручки ключевых форм; настраивается кнопкой «Разметка» в превью фильма.",
+	"bbs.config.viewport.markup_handle_size": "Размер ручек разметки",
+	"bbs.config.viewport.markup_handle_size-comment": "Один множитель для всех ручек разметки (цели и полюса ИК, контроллеры, точки сплайнов, ключевые формы) во всех редакторах.",
 	"bbs.config.viewport.ik_debug": "Отладка IK",
 	"bbs.config.viewport.ik_debug-comment": "Вид отладки IK настраивается шестерёнкой IK.",
 	"bbs.config.viewport.physics_debug": "Отладка физики",

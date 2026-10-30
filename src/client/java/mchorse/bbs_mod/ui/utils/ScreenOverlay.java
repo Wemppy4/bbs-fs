@@ -23,15 +23,15 @@ import java.util.List;
  * The editors' markup: one screen layer every viewport overlay draws through — the motion path,
  * the rig's IK goals, poles and controllers, spline points, shape key handles. Points are
  * projected onto the viewport and drawn flat over the frame: lines one screen pixel wide, and one
- * look for every handle — a dot of its system's colour on a soft shadow (a circle, or a rounded
- * square or diamond), a little bigger under the cursor, a white ring a gap away when selected,
- * faded when it takes no clicks, its name in a card at the cursor.
+ * look for every handle — a plain dot of its system's colour (a circle, or a rounded square or
+ * diamond), a little bigger under the cursor, a white ring a gap away when selected, faded when it
+ * takes no clicks, its name in a card at the cursor.
  *
  * <p>A frame is {@link #begin}, the overlays adding their lines, marks and handles, then
  * {@link #flush}. Picks answer from the handles of the last flush, nearest to the cursor first,
  * whichever overlay a handle belongs to, so two overlays never fight over one click. The axes
- * switch (F8) hides the whole layer, as it hides the gizmo. How solid it draws and how big its
- * handles are is {@link BBSSettings#editorMarkup}.</p>
+ * switch (F8) hides the whole layer, as it hides the gizmo (holding the hide-gizmo key leaves it). How solid it draws is
+ * {@link BBSSettings#editorMarkup}, how big its handles are {@link BBSSettings#markupHandleSize}.</p>
  */
 public class ScreenOverlay
 {
@@ -59,8 +59,6 @@ public class ScreenOverlay
 
     private static final int DARK = 0xff0d1118;
     private static final int RING = Colors.WHITE;
-    private static final int SHADOW_NEAR = 0x4d000000;
-    private static final int SHADOW_FAR = 0x26000000;
 
     /* Dashes in screen pixels */
     private static final float DASH = 3F;
@@ -157,10 +155,13 @@ public class ScreenOverlay
         return this.viewport;
     }
 
-    /** Whether the layer shows at all: the axes switch (F8) hides it with the gizmo. */
+    /**
+     * Whether the layer shows at all: the axes switch (F8) hides it with the gizmo. Holding the
+     * hide-gizmo key does not: that hides the gizmo to see and pick past it, the markup stays.
+     */
     public boolean isShown()
     {
-        return UIBaseMenu.shouldRenderAxes();
+        return UIBaseMenu.renderAxes;
     }
 
     /* Projection */
@@ -345,7 +346,7 @@ public class ScreenOverlay
     private void draw(UIContext context, List<Handle> drawn)
     {
         float px = 1F / BBSModClient.getGUIScale();
-        float scale = BBSSettings.editorMarkup.size.get();
+        float scale = BBSSettings.markupHandleSize.get();
         float opacity = BBSSettings.editorMarkup.opacity.get();
 
         context.batcher.flush();
@@ -428,13 +429,6 @@ public class ScreenOverlay
         boolean diamond = handle.shape == Shape.DIAMOND;
         float half = (diamond ? size * 0.78F : size) * 0.5F;
         float corner = handle.shape == Shape.CIRCLE ? half : half * CORNER;
-
-        if (!handle.faded)
-        {
-            /* A soft shadow a pixel below: two dark rims fading out. */
-            painter.rounded(handle.x, handle.y + px, half + 2 * px, corner + 2 * px, diamond, SHADOW_FAR);
-            painter.rounded(handle.x, handle.y + px, half + px, corner + px, diamond, SHADOW_NEAR);
-        }
 
         painter.rounded(handle.x, handle.y, half, corner, diamond, handle.faded ? fade(handle.color) : handle.color);
 
