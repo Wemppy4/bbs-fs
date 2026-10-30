@@ -51,6 +51,8 @@ public class ModelConfig extends ValueGroup
     public final ShapeLimit.Limits shapeLimits = new ShapeLimit.Limits("shape_limits");
     public final WeldList welds = new WeldList("welds");
     public final ValueStringKeys disabledBones = new ValueStringKeys("disabledBones");
+    /** Bones drawn no further out than the bone the model is worn on (a face rig's skin at the edge of a head). */
+    public final ValueStringKeys carrierBones = new ValueStringKeys("inside_carrier");
 
     public final LookAtValue lookAt = new LookAtValue("look_at");
     public final ValuePose sneakingPose = new ValuePose("sneaking_pose", new Pose());
@@ -95,6 +97,7 @@ public class ModelConfig extends ValueGroup
         this.add(this.shapeControllers);
         this.add(this.shapeLimits);
         this.add(this.disabledBones);
+        this.add(this.carrierBones);
         this.add(this.lookAt);
         this.add(this.sneakingPose);
         this.add(this.defaultPose);
@@ -120,6 +123,7 @@ public class ModelConfig extends ValueGroup
         }
 
         if (data.isMap() && !data.asMap().has("shape_controllers")) this.shapeControllers.fromData(new ListType());
+        if (data.isMap() && !data.asMap().has("inside_carrier")) this.carrierBones.get().clear();
         if (data.isMap() && !data.asMap().has("shape_limits")) this.shapeLimits.fromData(new ListType());
 
         super.fromData(data);
@@ -133,6 +137,7 @@ public class ModelConfig extends ValueGroup
         /* Optional blocks stay absent from the file when empty, matching how they were authored. */
         if (value == this.shapeControllers) return !this.shapeControllers.getAllTyped().isEmpty();
         if (value == this.shapeLimits) return !this.shapeLimits.getAllTyped().isEmpty();
+        if (value == this.carrierBones) return !this.carrierBones.get().isEmpty();
         if (value == this.proceduralBones) return !this.proceduralBones.get().isEmpty();
         if (value == this.lookAt) return this.lookAt.isActive();
         if (value == this.fpMain) return this.fpMain.isActive();
@@ -311,6 +316,7 @@ public class ModelConfig extends ValueGroup
             }
         }
         renameStrings(data, "disabledBones", from, to);
+        renameStrings(data, "inside_carrier", from, to);
         renameString(map(data, "look_at"), "head", from, to);
         renameKey(map(map(data, "sneaking_pose"), "pose"), from, to);
         renameKey(map(map(data, "default_pose"), "pose"), from, to);

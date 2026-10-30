@@ -1299,9 +1299,28 @@ public class UIModelConfigEditor extends UIElement
             this.fillBone();
         });
 
+        UIToggle inside = new UIToggle(UIKeys.MODEL_EDITOR_BONE_INSIDE_CARRIER, picked != null && config.carrierBones.get().contains(bone), (t) ->
+        {
+            BaseValue.edit(config.carrierBones, (v) ->
+            {
+                if (t.getValue())
+                {
+                    config.carrierBones.get().add(bone);
+                }
+                else
+                {
+                    config.carrierBones.get().remove(bone);
+                }
+            });
+
+            this.fillBone();
+        });
+        inside.tooltip(UIKeys.MODEL_EDITOR_BONE_INSIDE_CARRIER_TOOLTIP);
+
         this.bonePanel.removeAll();
         this.bonePanel.add(
             visible,
+            inside,
             UI.labelRow(UIKeys.MODEL_EDITOR_BONE_MIRROR, this.bonePicker(() -> picked == null ? "" : this.mirrorOf(bone), (other) -> this.setMirror(bone, other), this::fillBone)),
             UI.labelRow(UIKeys.MODEL_EDITOR_BONE_PICKING, this.bonePicker(() -> picked == null ? "" : config.pickingOverrides.get().getOrDefault(bone, ""), (other) -> this.setPickingOverride(bone, other), this::fillBone))
         );

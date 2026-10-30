@@ -1926,6 +1926,8 @@
 	"bbs.ui.model_editor.armor.right_boot": "Правый ботинок",
 	"bbs.ui.model_editor.first_person": "От первого лица",
 	"bbs.ui.model_editor.bone.visible": "Видима",
+	"bbs.ui.model_editor.bone.inside_carrier": "Внутри носителя",
+	"bbs.ui.model_editor.bone.inside_carrier_tooltip": "Когда модель надета частью тела на кость, эта кость не выходит за кубы той кости (без раздутого второго слоя). Для кожи рига лица у края головы.",
 	"bbs.ui.model_editor.bone.mirror": "Зеркальная кость",
 	"bbs.ui.model_editor.bone.picking": "Подмена при выборе",
 	"bbs.ui.model_editor.sneaking": "Поза в присяде",

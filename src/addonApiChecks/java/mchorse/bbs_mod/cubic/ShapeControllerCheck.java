@@ -76,6 +76,7 @@ public final class ShapeControllerCheck
         shift();
         limits();
         overlay();
+        carrier();
         mirror();
         modelDiscovery();
 
@@ -207,6 +208,32 @@ public final class ShapeControllerCheck
         near(drawn.shapeKeys.get("smile"), 1F, "Overlay-only shape is drawn");
         near(form.shapeKeys.get().shapeKeys.get("pupil_l_x"), 0.25F, "Base keys stay as animated");
         check(!form.shapeKeys.get().shapeKeys.containsKey("smile"), "Overlay never writes into the base");
+    }
+
+    /** A head: its plain cube is the box, its inflated skin layer isn't; the box is in the captured frame. */
+    private static void carrier()
+    {
+        var model = new mchorse.bbs_mod.cubic.data.model.Model(null);
+        var head = new mchorse.bbs_mod.cubic.data.model.ModelGroup("Head");
+        head.initial.translate.set(0, 24, 0);
+        var cube = new mchorse.bbs_mod.cubic.data.model.ModelCube();
+        cube.origin.set(-4, 24, -4); cube.size.set(8, 8, 8);
+        var layer = new mchorse.bbs_mod.cubic.data.model.ModelCube();
+        layer.origin.set(-4, 24, -4); layer.size.set(8, 8, 8); layer.inflate = 0.5F;
+        head.cubes.add(cube); head.cubes.add(layer);
+        model.topGroups.add(head);
+        model.initialize();
+        var clip = mchorse.bbs_mod.cubic.render.CarrierClip.of(model, "Head", new org.joml.Matrix4f(), new org.joml.Matrix4f());
+        check(clip != null, "A bone with a plain cube gives a box");
+        near(clip.min().y * 16, 0.005F, "Box starts at the head's bottom, a hair inside");
+        near(clip.max().y * 16, 7.995F, "Box ends at the head's top, not the inflated layer's");
+        near(clip.min().x * 16, -3.995F, "Box spans the head's width");
+        check(mchorse.bbs_mod.cubic.render.CarrierClip.of(model, "Body", new org.joml.Matrix4f(), new org.joml.Matrix4f()) == null, "No bone, no box");
+        ModelConfig config = new ModelConfig("");
+        check(!config.toData().asMap().has("inside_carrier"), "No marked bones stay absent from the file");
+        config.carrierBones.get().add("eyelid_lb");
+        ModelConfig restored = new ModelConfig(""); restored.fromData(config.toData());
+        check(restored.carrierBones.get().contains("eyelid_lb"), "Marked bones survive save and load");
     }
 
     private static void mirror()
