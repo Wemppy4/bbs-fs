@@ -1151,6 +1151,9 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
      * Picking a model bone in the viewport is a pose edit: the parts list moves to the bone's part if
      * the timeline doesn't show it, its owner opens (out of actions mode) and the shared pick logic
      * reveals the bone's row. The tab lit stays, and what is open stays open.
+     *
+     * A part the parts list hasn't picked is only switched to: no keyframe gets picked and the
+     * cursor stays, the next click on it picks as usual. An insert goes through right away.
      */
     private void pickFormBone(Form form, String bone, boolean insert)
     {
@@ -1166,7 +1169,21 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.setCategory(TrackCategory.FORM);
         }
 
-        this.selectBodyPart(FormUtils.getPath(form));
+        String path = FormUtils.getPath(form);
+        boolean picked = this.partSelection.includes(path);
+
+        this.selectBodyPart(path);
+
+        if (!picked && !insert)
+        {
+            if (this.keyframeEditor != null)
+            {
+                this.keyframeEditor.view.getGraph().clearSelection();
+            }
+
+            return;
+        }
+
         UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.filmPanel, form, bone, insert);
     }
 
