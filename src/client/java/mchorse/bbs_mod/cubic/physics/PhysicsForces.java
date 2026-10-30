@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.cubic.physics;
 
+import mchorse.bbs_mod.api.WindSampler;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -10,10 +11,6 @@ import org.joml.Vector3f;
 final class PhysicsForces
 {
     private static final float EPS = 1.0e-6f;
-
-    /** Converts film ticks × the user's gust speed into noise-space drift, so a gust speed of 1 evolves the
-     * pattern over roughly a second of playback (20 ticks ≈ one noise cell). */
-    private static final float GUST_TIME_SCALE = 0.04F;
 
     private PhysicsForces()
     {
@@ -86,80 +83,8 @@ final class PhysicsForces
      */
     static void windForceAt(Vector3f dir, float baseMagnitude, ModelPhysicsConfig.Wind wind, float time, Vector3f pos, Vector3f out)
     {
-        float turbulence = wind.turbulence();
-        float factor = 1F;
-
-        if (turbulence > 0F)
-        {
-            float scale = wind.turbulenceScale();
-            float drift = time * wind.turbulenceSpeed() * GUST_TIME_SCALE;
-
-            float n = fbm(pos.x * scale - dir.x * drift, pos.y * scale - dir.y * drift, pos.z * scale - dir.z * drift);
-
-            factor = 1F + turbulence * n;
-
-            if (factor < 0F)
-            {
-                factor = 0F;
-            }
-        }
+        float factor = WindSampler.gust(wind.turbulence(), wind.turbulenceSpeed(), wind.turbulenceScale(), dir, time, pos.x, pos.y, pos.z);
 
         out.set(dir).mul(baseMagnitude * factor);
-    }
-
-    /** Two-octave fractal value noise: a slow swell (the gust) plus a faster, weaker ripple (the flutter). */
-    private static float fbm(float x, float y, float z)
-    {
-        return valueNoise(x, y, z) * 0.65F
-            + valueNoise(x * 2.3F + 11.1F, y * 2.3F + 7.7F, z * 2.3F + 3.3F) * 0.35F;
-    }
-
-    /** Smooth 3D value noise in [-1, 1]: hashed lattice corners, trilinearly interpolated with a smootherstep fade. */
-    private static float valueNoise(float x, float y, float z)
-    {
-        int xi = floor(x);
-        int yi = floor(y);
-        int zi = floor(z);
-
-        float xf = fade(x - xi);
-        float yf = fade(y - yi);
-        float zf = fade(z - zi);
-
-        float x00 = lerp(hash(xi, yi, zi), hash(xi + 1, yi, zi), xf);
-        float x10 = lerp(hash(xi, yi + 1, zi), hash(xi + 1, yi + 1, zi), xf);
-        float x01 = lerp(hash(xi, yi, zi + 1), hash(xi + 1, yi, zi + 1), xf);
-        float x11 = lerp(hash(xi, yi + 1, zi + 1), hash(xi + 1, yi + 1, zi + 1), xf);
-
-        float y0 = lerp(x00, x10, yf);
-        float y1 = lerp(x01, x11, yf);
-
-        return lerp(y0, y1, zf);
-    }
-
-    /** Integer lattice hash to [-1, 1]; deterministic (int overflow wraps), no shared state. */
-    private static float hash(int x, int y, int z)
-    {
-        int h = x * 374761393 + y * 668265263 + z * 1274126177;
-        h = (h ^ (h >>> 13)) * 1274126177;
-        h = h ^ (h >>> 16);
-
-        return (h & 0xFFFF) / 32767.5F - 1F;
-    }
-
-    private static float fade(float t)
-    {
-        return t * t * t * (t * (t * 6F - 15F) + 10F);
-    }
-
-    private static float lerp(float a, float b, float t)
-    {
-        return a + (b - a) * t;
-    }
-
-    private static int floor(float v)
-    {
-        int i = (int) v;
-
-        return v < i ? i - 1 : i;
     }
 }

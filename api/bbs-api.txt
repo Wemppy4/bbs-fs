@@ -1,6 +1,11 @@
 class mchorse.bbs_mod.api.client.editor.TrackCategories$1 {
 }
 
+class mchorse.bbs_mod.api.client.render.DeformedMesh$Entry extends mchorse.bbs_mod.cubic.render.GeometryCache$Entry implements mchorse.bbs_mod.cubic.render.vao.IModelVAO {
+    protected void close();
+    public void render(net.minecraft.client.render.VertexFormat, float, float, float, float, int, int);
+}
+
 final class mchorse.bbs_mod.api.client.editor.TrackCategories$Entry extends java.lang.Record {
     public final boolean equals(java.lang.Object);
     public final int hashCode();
@@ -157,6 +162,11 @@ public class mchorse.bbs_mod.api.client.events.RegisterReplayActionsEvent {
     public void register(java.util.function.BiFunction<mchorse.bbs_mod.ui.film.UIFilmPanel, java.util.function.Supplier<mchorse.bbs_mod.film.replays.Replay>, mchorse.bbs_mod.ui.framework.elements.UIElement>);
 }
 
+public class mchorse.bbs_mod.api.client.events.RegisterRigSectionsEvent {
+    public mchorse.bbs_mod.api.client.events.RegisterRigSectionsEvent();
+    public void register(java.util.function.Function<mchorse.bbs_mod.ui.forms.editors.panels.UIRigFormPanel, mchorse.bbs_mod.ui.forms.editors.panels.rig.UIRigSection>);
+}
+
 public class mchorse.bbs_mod.api.client.events.RegisterTrackCategoriesEvent {
     public mchorse.bbs_mod.api.client.events.RegisterTrackCategoriesEvent();
     public void register(mchorse.bbs_mod.api.client.editor.TrackCategory, java.util.function.BiPredicate<mchorse.bbs_mod.film.replays.tracks.TrackId, java.lang.Boolean>);
@@ -224,6 +234,12 @@ public final class mchorse.bbs_mod.api.FormPropertyAliases {
     public static void register(java.lang.String, java.lang.String);
 }
 
+public final class mchorse.bbs_mod.api.WindSampler {
+    public static boolean direction(mchorse.bbs_mod.cubic.physics.WindControl, org.joml.Vector3f);
+    public static float gust(float, float, float, org.joml.Vector3f, float, float, float, float);
+    public static float gust(mchorse.bbs_mod.cubic.physics.WindControl, org.joml.Vector3f, float, org.joml.Vector3f);
+}
+
 public final class mchorse.bbs_mod.api.client.compat.ClientVanillaAccess {
     public static net.minecraft.client.gl.Framebuffer getFramebuffer(net.minecraft.client.MinecraftClient);
     public static void setFramebuffer(net.minecraft.client.MinecraftClient, net.minecraft.client.gl.Framebuffer);
@@ -285,12 +301,30 @@ public final class mchorse.bbs_mod.api.client.events.FormPreviewEvents {
     public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.FormPreviewEvents$Overlay> OVERLAY;
 }
 
+public final class mchorse.bbs_mod.api.client.events.ModelMeshEvents {
+    public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.ModelMeshEvents$Replace> REPLACE;
+}
+
 public final class mchorse.bbs_mod.api.client.events.StructureRenderEvents {
     public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.StructureRenderEvents$Render> RENDER;
 }
 
 public final class mchorse.bbs_mod.api.client.events.TimelineEvents {
     public static final net.fabricmc.fabric.api.event.Event<mchorse.bbs_mod.api.client.events.TimelineEvents$Overlay> OVERLAY;
+}
+
+public final class mchorse.bbs_mod.api.client.render.DeformedMesh {
+    public final java.lang.String material;
+    public float[] normals();
+    public float[] positions();
+    public float[] texCoords();
+    public int getVertexCount();
+    public int[] indices();
+    public mchorse.bbs_mod.api.client.render.DeformedMesh(java.lang.String, float[], int[]);
+    public mchorse.bbs_mod.cubic.render.vao.IModelVAO prepare();
+    public void delete();
+    public void lend();
+    public void pose(long, float[], float[]);
 }
 
 public final class mchorse.bbs_mod.api.client.render.RenderAttachment<T> {
@@ -390,12 +424,22 @@ public interface mchorse.bbs_mod.api.client.events.FormRenderEvents$Render {
     public abstract void onFormRender(mchorse.bbs_mod.forms.forms.Form, mchorse.bbs_mod.forms.renderers.FormRenderingContext);
 }
 
+public interface mchorse.bbs_mod.api.client.events.ModelMeshEvents$Replace {
+    public abstract mchorse.bbs_mod.api.client.render.ModelMeshReplacement replace(mchorse.bbs_mod.forms.forms.ModelForm, mchorse.bbs_mod.cubic.data.model.Model, float);
+}
+
 public interface mchorse.bbs_mod.api.client.events.StructureRenderEvents$Render {
     public abstract boolean render(mchorse.bbs_mod.forms.renderers.StructureFormRenderer, mchorse.bbs_mod.forms.forms.StructureForm, mchorse.bbs_mod.forms.structure.StructureRenderData, mchorse.bbs_mod.forms.renderers.FormRenderingContext);
 }
 
 public interface mchorse.bbs_mod.api.client.events.TimelineEvents$Overlay {
     public abstract void render(mchorse.bbs_mod.film.Film, mchorse.bbs_mod.ui.framework.UIContext, mchorse.bbs_mod.ui.utils.Area, java.util.function.DoubleToIntFunction);
+}
+
+public interface mchorse.bbs_mod.api.client.render.ModelMeshReplacement {
+    public abstract boolean hides(mchorse.bbs_mod.cubic.data.model.ModelGroup, mchorse.bbs_mod.cubic.data.model.ModelCube);
+    public abstract java.util.List<mchorse.bbs_mod.api.client.render.DeformedMesh> meshes(mchorse.bbs_mod.cubic.data.model.ModelGroup);
+    public abstract long key();
 }
 
 public interface mchorse.bbs_mod.api.events.ModelBlockEntityUpdateCallback {

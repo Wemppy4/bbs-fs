@@ -6,6 +6,7 @@ import mchorse.bbs_mod.api.client.events.RegisterTrackCategoriesEvent;
 import mchorse.bbs_mod.api.client.events.RegisterFilmToolsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterFormPanelsEvent;
 import mchorse.bbs_mod.api.client.events.RegisterReplayActionsEvent;
+import mchorse.bbs_mod.api.client.events.RegisterRigSectionsEvent;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.audio.MinecraftSoundCapture;
@@ -703,6 +704,7 @@ public class BBSModClient implements ClientModInitializer
         UIFormEditor.setup();
         BBSMod.events.post(new RegisterFormEditorsEvent());
         BBSMod.events.post(new RegisterFormPanelsEvent());
+        BBSMod.events.post(new RegisterRigSectionsEvent());
         BBSMod.events.post(new RegisterReplayActionsEvent());
 
         UIClip.setup();

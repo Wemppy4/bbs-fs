@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.cubic;
 
+import mchorse.bbs_mod.api.client.render.ModelMeshReplacement;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.bobj.BOBJBone;
@@ -701,7 +702,7 @@ public class ModelInstance implements IModelInstance
      * and drawn with each bone (see {@link WeldMesh}); only bones with no VAO (shape-keyed meshes, or none
      * baked yet) tessellate on the CPU. A model with no VAOs at all draws its band in that CPU bake.
      */
-    private void renderHybrid(MatrixStack stack, ShaderProgram shader, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver, Model model, WeldMesh weldMesh)
+    private void renderHybrid(MatrixStack stack, ShaderProgram shader, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver, Model model, WeldMesh weldMesh, ModelMeshReplacement meshes)
     {
         /* The CPU bake draws through the BBS model shader outside picking and the Iris pipeline, which run
          * their own shader state; the VAO bones and the band use the same shader so all of it matches. */
@@ -723,7 +724,7 @@ public class ModelInstance implements IModelInstance
 
         if (!cpuGroups.isEmpty() || cpuBand != null)
         {
-            long key = cacheable ? this.cpuKey(model, keys, light, overlay, color, cpuOverlay != null, stencilMap) : 0L;
+            long key = cacheable ? this.cpuKey(model, keys, light, overlay, color, cpuOverlay != null, stencilMap, meshes) : 0L;
 
             entry = cacheable ? this.cpuCache.find(key, epoch) : null;
 
@@ -736,6 +737,7 @@ public class ModelInstance implements IModelInstance
                 bake.setCpuGroups(cpuGroups);
                 bake.setBakePass(true);
                 bake.setBand(weldMesh);
+                bake.setMeshes(meshes);
 
                 builder = Tessellator.getInstance().getBuffer();
                 builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL);
@@ -780,6 +782,11 @@ public class ModelInstance implements IModelInstance
             renderProcessor.setPosedBand(band, ModelVAORenderer.captureModelView(stack), new Matrix3f(stack.peek().getNormalMatrix()));
         }
 
+        if (meshes != null)
+        {
+            renderProcessor.setMeshes(meshes, ModelVAORenderer.captureModelView(stack), new Matrix3f(stack.peek().getNormalMatrix()));
+        }
+
         RenderSystem.setShader(() -> drawShader);
 
         /* The CPU path doesn't switch textures per material — it draws with whatever's bound. The VAO bones rebind
@@ -822,9 +829,9 @@ public class ModelInstance implements IModelInstance
     /**
      * What the CPU bake depends on: every bone's evaluated transform, colour and lighting (the pose the seams
      * and the deformation come from), the draw's light/overlay/colour, the shape keys, and the picking mode
-     * (which bakes stencil ids into the light attribute).
+     * (which bakes stencil ids into the light attribute), and which cubes an addon draws itself.
      */
-    private long cpuKey(Model model, ShapeKeys keys, int light, int overlay, Color color, boolean cpuOverlayActive, StencilMap stencilMap)
+    private long cpuKey(Model model, ShapeKeys keys, int light, int overlay, Color color, boolean cpuOverlayActive, StencilMap stencilMap, ModelMeshReplacement meshes)
     {
         long hash = 1125899906842597L;
 
@@ -853,6 +860,7 @@ public class ModelInstance implements IModelInstance
         hash = hash * 31 + (cpuOverlayActive ? 1 : 0);
         hash = hash * 31 + (stencilMap == null ? 0 : (stencilMap.increment ? 2 : 1));
         hash = hash * 31 + (keys == null ? 0 : keys.shapeKeys.hashCode());
+        hash = hash * 31 + (meshes == null ? 0 : meshes.key());
 
         return hash;
     }
@@ -973,7 +981,11 @@ public class ModelInstance implements IModelInstance
         return groups == null ? Set.of() : groups;
     }
 
-    public void render(MatrixStack stack, Supplier<ShaderProgram> program, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
+    /**
+     * Draws the model for {@link #form}. {@code meshes} is what an addon draws itself of this form
+     * ({@code ModelMeshEvents}), null for the model as baked; only cubic models take it.
+     */
+    public void render(MatrixStack stack, Supplier<ShaderProgram> program, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver, ModelMeshReplacement meshes)
     {
         ShaderProgram shader = program.get();
 
@@ -985,13 +997,19 @@ public class ModelInstance implements IModelInstance
              * model whose VAOs aren't baked yet falls through to the plain CPU path below. */
             if (weldMesh != null || (this.partialVaos && !this.vaos.isEmpty()))
             {
-                this.renderHybrid(stack, shader, color, light, overlay, stencilMap, keys, textureResolver, model, weldMesh);
+                this.renderHybrid(stack, shader, color, light, overlay, stencilMap, keys, textureResolver, model, weldMesh, meshes);
             }
             else if (this.isVAORendered())
             {
                 CubicVAORenderer renderProcessor = new CubicVAORenderer(shader, this, light, overlay, stencilMap, keys, textureResolver);
 
                 renderProcessor.setColor(color.r, color.g, color.b, color.a);
+
+                if (meshes != null)
+                {
+                    renderProcessor.setMeshes(meshes, ModelVAORenderer.captureModelView(stack), new Matrix3f(stack.peek().getNormalMatrix()));
+                }
+
                 CubicRenderer.processRenderModel(renderProcessor, null, stack, model);
             }
             else
@@ -1002,6 +1020,13 @@ public class ModelInstance implements IModelInstance
 
                 renderProcessor.setCpuOverlayActive(cpuOverlay != null);
                 renderProcessor.setColor(color.r, color.g, color.b, color.a);
+                renderProcessor.setMeshes(meshes);
+
+                if (meshes != null)
+                {
+                    renderProcessor.emitMeshes(new Matrix4f(stack.peek().getPositionMatrix()), new Matrix3f(stack.peek().getNormalMatrix()));
+                }
+
                 RenderSystem.setShader(() -> shader);
 
                 BufferBuilder builder = Tessellator.getInstance().getBuffer();

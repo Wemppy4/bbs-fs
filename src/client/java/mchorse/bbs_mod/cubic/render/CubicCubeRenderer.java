@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.cubic.render;
 
+import mchorse.bbs_mod.api.client.render.DeformedMesh;
+import mchorse.bbs_mod.api.client.render.ModelMeshReplacement;
 import mchorse.bbs_mod.cubic.data.model.Model;
 import mchorse.bbs_mod.cubic.data.model.ModelCube;
 import mchorse.bbs_mod.cubic.data.model.ModelData;
@@ -62,6 +64,14 @@ public class CubicCubeRenderer implements ICubicRenderer
 
     /* Quads the welded band draws in their place (see WeldMesh) — left out here; null when none. */
     private WeldMesh band;
+
+    /* An addon's replacement of some cubes on this draw (see ModelMeshEvents): the cubes it hides are
+     * left out; its meshes are written here only on the plain CPU path, in the walk's starting frame. */
+    protected ModelMeshReplacement meshes;
+    private Matrix4f meshPosition;
+    private Matrix3f meshNormal;
+    private final Vector4f meshVertex = new Vector4f();
+    private final Vector3f meshNormalVector = new Vector3f();
 
     public static void moveToPivot(MatrixStack stack, Vector3f pivot)
     {
@@ -139,6 +149,19 @@ public class CubicCubeRenderer implements ICubicRenderer
         this.band = band;
     }
 
+    /** Leave out the cubes an addon draws itself on this draw; null for none. */
+    public void setMeshes(ModelMeshReplacement meshes)
+    {
+        this.meshes = meshes;
+    }
+
+    /** Write the replacement's meshes into the buffer too, from the frame the walk starts in. */
+    public void emitMeshes(Matrix4f position, Matrix3f normal)
+    {
+        this.meshPosition = position;
+        this.meshNormal = normal;
+    }
+
     @Override
     public boolean renderGroup(BufferBuilder builder, MatrixStack stack, ModelGroup group, Model model)
     {
@@ -152,12 +175,20 @@ public class CubicCubeRenderer implements ICubicRenderer
             this.renderMesh(builder, stack, model, group, mesh);
         }
 
+        if (this.meshes != null && this.meshPosition != null)
+        {
+            for (DeformedMesh mesh : this.meshes.meshes(group))
+            {
+                this.renderDeformed(builder, group, mesh);
+            }
+        }
+
         return false;
     }
 
     protected void renderCube(BufferBuilder builder, MatrixStack stack, ModelGroup group, ModelCube cube)
     {
-        if (!this.materialVisibility.test(cube.material))
+        if (!this.materialVisibility.test(cube.material) || (this.meshes != null && this.meshes.hides(group, cube)))
         {
             return;
         }
@@ -313,6 +344,32 @@ public class CubicCubeRenderer implements ICubicRenderer
         }
 
         builder.normal(normal.x, normal.y, normal.z).next();
+    }
+
+    /** Write an addon's mesh, whose points are in the walk's starting frame, coloured and lit like the bone it is drawn with. */
+    private void renderDeformed(BufferBuilder builder, ModelGroup group, DeformedMesh mesh)
+    {
+        if (!this.materialVisibility.test(mesh.material))
+        {
+            return;
+        }
+
+        float[] positions = mesh.positions();
+        float[] normals = mesh.normals();
+        float[] texCoords = mesh.texCoords();
+        int[] indices = mesh.indices();
+
+        for (int i = 0, c = indices.length - indices.length % 3; i < c; i++)
+        {
+            int point = indices[i];
+
+            this.meshVertex.set(positions[point * 3], positions[point * 3 + 1], positions[point * 3 + 2], 1F);
+            this.meshPosition.transform(this.meshVertex);
+            this.meshNormalVector.set(normals[point * 3], normals[point * 3 + 1], normals[point * 3 + 2]);
+            this.meshNormal.transform(this.meshNormalVector);
+
+            this.emit(builder, group, this.meshVertex.x, this.meshVertex.y, this.meshVertex.z, texCoords[point * 2], texCoords[point * 2 + 1], this.meshNormalVector);
+        }
     }
 
     /**

@@ -48,7 +48,9 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * The rig tab: everything that bends a model past its pose, by bone. Over one tree of the bones,
@@ -97,6 +99,14 @@ public class UIRigFormPanel extends UIBoneListFormPanel implements SplineFormToo
     public UIRigLimitsSection limits;
 
     private final List<UIRigSection> sections = new ArrayList<>();
+
+    /** The addons' sections, made for each panel (see {@code RegisterRigSectionsEvent}). */
+    private static final List<Function<UIRigFormPanel, UIRigSection>> EXTENSIONS = new ArrayList<>();
+
+    public static void registerSectionExtension(Function<UIRigFormPanel, UIRigSection> factory)
+    {
+        EXTENSIONS.add(Objects.requireNonNull(factory));
+    }
 
     /** Who has a hand on which bone, as of the last refill of the fields. */
     private RigOwners owners = new RigOwners();
@@ -148,11 +158,22 @@ public class UIRigFormPanel extends UIBoneListFormPanel implements SplineFormToo
         this.spline = this.remember(new UIRigSplineSection(this), "rig.spline", true);
         this.limits = new UIRigLimitsSection(this);
 
-        /* The solvers and the simulation first, the shake after them, the limits last. */
+        /* The solvers and the simulation first, the shake after them, the addons' sections, the limits last. */
         this.sections.add(this.ik);
         this.sections.add(this.physics);
         this.sections.add(this.spline);
         this.sections.add(this.shake);
+
+        for (Function<UIRigFormPanel, UIRigSection> extension : EXTENSIONS)
+        {
+            UIRigSection section = extension.apply(this);
+
+            if (section != null)
+            {
+                this.sections.add(section);
+            }
+        }
+
         this.sections.add(this.limits);
 
         this.options.add(this.debug, this.bonesSearch, controllerRow);

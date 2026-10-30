@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.cubic.render;
 
+import mchorse.bbs_mod.api.client.render.DeformedMesh;
+import mchorse.bbs_mod.api.client.render.ModelMeshReplacement;
 import mchorse.bbs_mod.BBSModClient;
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.cubic.ModelInstance;
@@ -51,6 +53,10 @@ public class CubicVAORenderer extends CubicCubeRenderer
     private Matrix4f bandModelView;
     private Matrix3f bandNormal;
 
+    /* The frame an addon's replacement meshes are in (the model's root), when this draw has one. */
+    private Matrix4f meshModelView;
+    private Matrix3f meshNormal;
+
     public CubicVAORenderer(ShaderProgram program, ModelInstance model, int light, int overlay, StencilMap stencilMap, ShapeKeys shapeKeys, Function<String, Link> textureResolver)
     {
         super(light, overlay, stencilMap, shapeKeys);
@@ -80,6 +86,17 @@ public class CubicVAORenderer extends CubicCubeRenderer
         this.bandNormal = normal;
     }
 
+    /**
+     * Draw this form without the cubes an addon hides, and its meshes with their bones; their points are
+     * in the frame of {@code modelView}, the model's root.
+     */
+    public void setMeshes(ModelMeshReplacement meshes, Matrix4f modelView, Matrix3f normal)
+    {
+        this.setMeshes(meshes);
+        this.meshModelView = modelView;
+        this.meshNormal = normal;
+    }
+
     @Override
     public boolean renderGroup(BufferBuilder builder, MatrixStack stack, ModelGroup group, Model model)
     {
@@ -101,7 +118,12 @@ public class CubicVAORenderer extends CubicCubeRenderer
         {
             for (Map.Entry<String, ModelVAO> entry : groupVaos.entrySet())
             {
-                this.drawMaterial(stack, group, entry.getKey(), entry.getValue(), null, null);
+                IModelVAO vao = this.meshes == null ? entry.getValue() : entry.getValue().without((cube) -> this.meshes.hides(group, cube));
+
+                if (vao != null)
+                {
+                    this.drawMaterial(stack, group, entry.getKey(), vao, null, null);
+                }
             }
         }
 
@@ -112,6 +134,17 @@ public class CubicVAORenderer extends CubicCubeRenderer
                 if (this.drawMaterial(stack, group, draw.material, draw, this.bandModelView, this.bandNormal))
                 {
                     draw.lend();
+                }
+            }
+        }
+
+        if (this.meshes != null && this.meshModelView != null)
+        {
+            for (DeformedMesh mesh : this.meshes.meshes(group))
+            {
+                if (this.drawMaterial(stack, group, mesh.material, mesh.prepare(), this.meshModelView, this.meshNormal))
+                {
+                    mesh.lend();
                 }
             }
         }

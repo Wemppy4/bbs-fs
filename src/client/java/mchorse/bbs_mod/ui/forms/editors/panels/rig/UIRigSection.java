@@ -16,10 +16,11 @@ import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,13 +35,17 @@ import java.util.Map;
 public abstract class UIRigSection extends UISection
 {
     protected final UIRigFormPanel panel;
+
+    /** The step this section shows; null for an addon's section, which shows settings of its own. */
     public final RigStep step;
+
+    private final Icon icon;
 
     /** Sets the step up on the bone or removes it; null for a step every bone has (the limits). */
     public final UIToggle toggle;
 
-    /** The page each step's section shows, for the session: the sections are rebuilt with the panel. */
-    private static final Map<RigStep, Integer> PAGES = new EnumMap<>(RigStep.class);
+    /** The page each section shows, for the session, by its step (or its class for an addon's): the sections are rebuilt with the panel. */
+    private static final Map<Object, Integer> PAGES = new HashMap<>();
 
     /** The word tabs over the pages, once the section has any. */
     private UITabStrip tabs;
@@ -51,10 +56,22 @@ public abstract class UIRigSection extends UISection
 
     protected UIRigSection(UIRigFormPanel panel, RigStep step, boolean switchable)
     {
-        super(step.title());
+        this(panel, step, step.title(), step.icon, switchable);
+    }
+
+    /** An addon's section: a header with its own title and icon, see {@code RegisterRigSectionsEvent}. */
+    protected UIRigSection(UIRigFormPanel panel, IKey title, Icon icon, boolean switchable)
+    {
+        this(panel, null, title, icon, switchable);
+    }
+
+    private UIRigSection(UIRigFormPanel panel, RigStep step, IKey title, Icon icon, boolean switchable)
+    {
+        super(title);
 
         this.panel = panel;
         this.step = step;
+        this.icon = icon;
         this.toggle = switchable ? new UIToggle(IKey.EMPTY, (b) -> this.panel.switchStep(this, b.getValue())) : null;
 
         if (this.toggle != null)
@@ -108,12 +125,12 @@ public abstract class UIRigSection extends UISection
 
     private int getPage()
     {
-        return PAGES.getOrDefault(this.step, 0);
+        return PAGES.getOrDefault(this.pageKey(), 0);
     }
 
     private void setPage(int index)
     {
-        PAGES.put(this.step, index);
+        PAGES.put(this.pageKey(), index);
 
         for (int i = 0; i < this.pages.size(); i++)
         {
@@ -121,6 +138,11 @@ public abstract class UIRigSection extends UISection
         }
 
         this.resizeParent();
+    }
+
+    private Object pageKey()
+    {
+        return this.step == null ? this.getClass() : this.step;
     }
 
     /** Refills the section for the bone, the switch included. */
@@ -189,7 +211,7 @@ public abstract class UIRigSection extends UISection
         float middle = area.y + (area.h + 1) / 2F;
         int textY = area.y + (area.h + 1 - font.getHeight()) / 2;
 
-        context.batcher.icon(this.step.icon, color, x, middle, 0F, 0.5F);
+        context.batcher.icon(this.icon, color, x, middle, 0F, 0.5F);
         x += ICON_WIDTH;
 
         if (this.hasBody())
