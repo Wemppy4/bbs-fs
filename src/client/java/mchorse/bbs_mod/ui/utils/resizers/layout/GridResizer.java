@@ -2,6 +2,8 @@ package mchorse.bbs_mod.ui.utils.resizers.layout;
 
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.Scroll;
+import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.resizers.AutomaticResizer;
 import mchorse.bbs_mod.ui.utils.resizers.ChildResizer;
 import mchorse.bbs_mod.ui.utils.resizers.IResizer;
@@ -29,6 +31,12 @@ public class GridResizer extends AutomaticResizer
      */
     private boolean resizes = true;
 
+    /**
+     * Scroll mode: the grid keeps the parent's height and sets its
+     * scroll area instead, like the column's scroll mode
+     */
+    private boolean scroll;
+
     public static GridResizer apply(UIElement element, int margin)
     {
         GridResizer resizer = new GridResizer(element, margin);
@@ -46,6 +54,13 @@ public class GridResizer extends AutomaticResizer
     public GridResizer resizes(boolean resizes)
     {
         this.resizes = resizes;
+
+        return this;
+    }
+
+    public GridResizer scroll()
+    {
+        this.scroll = true;
 
         return this;
     }
@@ -153,9 +168,21 @@ public class GridResizer extends AutomaticResizer
     }
 
     @Override
+    public void postApply(Area area)
+    {
+        if (this.scroll && this.parent.area.scroll != null && this.parent.area.scroll.direction == ScrollDirection.VERTICAL)
+        {
+            Scroll scroll = this.parent.area.scroll;
+
+            scroll.scrollSize = this.y + this.h + this.padding * 2;
+            scroll.clamp();
+        }
+    }
+
+    @Override
     public int getH()
     {
-        if (this.resizes)
+        if (this.resizes && !this.scroll)
         {
             int i = 0;
             int x = 0;

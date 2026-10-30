@@ -85,7 +85,7 @@ public abstract class UIShaderMenuPanel extends UIOverlayPanel
         this.view = new UIScrollView();
         this.view.relative(this.content).w(1F);
         this.view.scroll.scrollSpeed = 20;
-        this.viewGrid = this.view.grid(MARGIN);
+        this.viewGrid = this.view.grid(MARGIN).scroll();
         this.viewGrid.padding(PADDING).height(UIShaderMenuCell.HEIGHT);
 
         this.content.add(this.search, this.crumbs, this.view);
