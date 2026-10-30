@@ -180,6 +180,10 @@ public final class ShapeControllerCheck
         near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 1F, "Above the range draws at the highest value");
         limit.min.set(1F); limit.max.set(0F);
         near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 1F, "Swapped bounds still form the range");
+        limit.beyond.set(0.5F);
+        near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 2F, "Past the range goes on at half speed");
+        keys.shapeKeys.put("pupil_l_x", -0.6F);
+        near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), -0.3F, "Below the range too");
         var data = config.toData();
         ModelConfig restored = new ModelConfig(""); restored.fromData(data);
         check(restored.toData().equals(data) && restored.shapeLimits.getAllTyped().size() == 1, "Limits survive save and load");

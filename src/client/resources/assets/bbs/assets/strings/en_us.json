@@ -14,6 +14,7 @@
 	"bbs.ui.shape_controllers.limits_hint": "The model is drawn with the shape key kept within this range; keyframes and handles keep the value as animated",
 	"bbs.ui.shape_controllers.limit_min": "Lowest value",
 	"bbs.ui.shape_controllers.limit_max": "Highest value",
+	"bbs.ui.shape_controllers.limit_beyond": "Speed past the limit (0 stops, 0.5 half speed)",
 	"bbs.ui.shape_controllers.shift": "Shift",
 	"bbs.ui.shape_controllers.shift_gain": "Shift influence",
 	"bbs.ui.shape_controllers.height_shift": "Height / shift",

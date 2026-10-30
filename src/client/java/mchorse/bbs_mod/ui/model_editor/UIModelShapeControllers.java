@@ -137,14 +137,17 @@ public class UIModelShapeControllers extends UIElement
             }));
             UITrackpad min = UIValues.trackpad(() -> limit.min);
             UITrackpad max = UIValues.trackpad(() -> limit.max);
+            UITrackpad beyond = UIValues.trackpad(() -> limit.beyond);
+            beyond.limit(0, 1).increment(0.05F);
             min.tooltip(key("limit_min")).tooltipImmediate();
             max.tooltip(key("limit_max")).tooltipImmediate();
-            for (UITrackpad field : List.of(min, max))
+            beyond.tooltip(key("limit_beyond")).tooltipImmediate();
+            for (UITrackpad field : List.of(min, max, beyond))
             {
                 field.getEvents().register(UITrackpadDragStartEvent.class, e -> this.panel.closeModelEdit());
                 field.getEvents().register(UITrackpadDragEndEvent.class, e -> this.panel.closeModelEdit());
             }
-            this.limitSettings.add(shape, UI.row(min, max));
+            this.limitSettings.add(shape, UI.row(min, max, beyond));
         }
         this.invalidateLayout();
     }
