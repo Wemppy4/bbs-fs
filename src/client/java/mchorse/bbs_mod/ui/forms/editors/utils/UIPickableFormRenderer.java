@@ -21,6 +21,7 @@ import mchorse.bbs_mod.ui.utils.GizmoInteraction;
 import mchorse.bbs_mod.ui.utils.GizmoViewport;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.StencilFormFramebuffer;
+import mchorse.bbs_mod.cubic.rig.RigMarkup;
 import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.Pair;
 import net.minecraft.client.MinecraftClient;
@@ -39,6 +40,7 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
 
     private StencilFormFramebuffer stencil = new StencilFormFramebuffer();
     private StencilMap stencilMap = new StencilMap();
+    private RigMarkup.Capture rigMarkup = RigMarkup.Capture.EMPTY;
 
     private final GizmoInteraction gizmo = new GizmoInteraction(this);
 
@@ -53,6 +55,12 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
     public void updatable()
     {
         this.update = true;
+    }
+
+    /** The rig's handles the last render of the form captured, for the markup. */
+    public RigMarkup.Capture getRigMarkup()
+    {
+        return this.rigMarkup;
     }
 
     public StencilFormFramebuffer getStencil()
@@ -166,10 +174,19 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
         {
             /* The form editor viewport gets the same deferred translucency as the world: the
              * form's semi-transparent pixels draw after all its opaque ones, sorted, without
-             * hiding bones behind them. */
-            FormTranslucentQueue.begin();
-            FormUtilsClient.render(this.form, formContext);
-            FormTranslucentQueue.flush();
+             * hiding bones behind them. The rig's handles are captured on the way for the markup. */
+            RigMarkup.Capture previous = RigMarkup.open();
+
+            try
+            {
+                FormTranslucentQueue.begin();
+                FormUtilsClient.render(this.form, formContext);
+                FormTranslucentQueue.flush();
+            }
+            finally
+            {
+                this.rigMarkup = RigMarkup.close(previous);
+            }
 
             if (this.form.hitbox.get())
             {
@@ -292,13 +309,23 @@ public class UIPickableFormRenderer extends UIFormRenderer implements GizmoViewp
     @Override
     public void render(UIContext context)
     {
+        if (this.form == null || (this.renderForm != null && !this.renderForm.get()))
+        {
+            this.rigMarkup = RigMarkup.Capture.EMPTY;
+        }
+
         super.render(context);
 
-        this.formEditor.renderSplineOverlay(context);
-        this.formEditor.renderShapeControllers(context);
+        this.formEditor.renderMarkup(context);
 
         this.gizmo.renderSphereHighlight(context);
         this.gizmo.renderReadout(context);
+
+        /* The markup's handle under the cursor names itself. */
+        if (this.formEditor.markup.getHovered() != null)
+        {
+            return;
+        }
 
         if (!this.stencil.hasPicked())
         {

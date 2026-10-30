@@ -1,41 +1,40 @@
 package mchorse.bbs_mod.ui.utils.shapes;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.model.config.ShapeController;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.graphics.window.Window;
-import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer;
-import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.DoubleClick;
+import mchorse.bbs_mod.ui.utils.ScreenOverlay;
 import mchorse.bbs_mod.utils.StringUtils;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import org.joml.Vector4f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-/** One projection/picking/drag implementation for model, form, state and film previews. */
+/**
+ * One projection/picking/drag implementation for model, form, state and film previews, drawn on the
+ * viewport's markup ({@link ScreenOverlay}): a diamond for height (and shift), a circle for tilt. The
+ * markup's shape key switch hides them.
+ */
 public class ShapeControllerOverlay
 {
-    private static final float PICK_RADIUS = 9F;
-    private static final int IDLE = 0xFFABB4C0;
-    private static final int HOVER = 0xFFFFFFFF;
-    private static final int SELECTED = 0xFFED0D5B;
-    private static final int SELECTED_HOVER = 0xFFFF70A0;
+    private static final int COLOR = 0xFFABB4C0;
+    private static final float TILT_SIZE = 5F;
     /** {@code side}: the screen step of one pixel sideways, on a handle that also travels along {@link ShapeController#SHIFT}. */
     private record Handle(ShapeController controller, int axis, Vector3f screen, Vector3f direction, Vector3f side) {}
     private final List<Handle> handles = new ArrayList<>();
+    private ScreenOverlay overlay;
     private UIShapeControllers controls;
     private Handle drag;
     private int mouseX, mouseY;
     private float[] initial, last;
     private Runnable begin = () -> {}, end = () -> {};
-    private Area viewport;
     private final DoubleClick<String> doubleClick = new DoubleClick<>(false);
     private boolean draggingAxis(ShapeController c, int axis)
     {
@@ -64,8 +63,8 @@ public class ShapeControllerOverlay
     /** Placement mode selects a handle without deforming the preview. */
     public boolean click(UIContext context, boolean selectOnly)
     {
-        if ((context.mouseButton != 0 && context.mouseButton != 1) || this.controls == null || this.viewport == null
-            || !this.viewport.isInside(context) || !UIBaseMenu.shouldRenderAxes()) return false;
+        if ((context.mouseButton != 0 && context.mouseButton != 1) || this.controls == null || this.overlay == null
+            || !this.overlay.getViewport().isInside(context)) return false;
         Handle best = this.pick(context.mouseX, context.mouseY);
         if (best == null) return false;
         this.controls.select(best.controller);
@@ -92,21 +91,14 @@ public class ShapeControllerOverlay
         return true;
     }
 
+    /** This overlay's handle, if it is the markup's nearest to the point. */
     private Handle pick(int x, int y)
     {
-        Handle best = null;
-        float distance = PICK_RADIUS * PICK_RADIUS;
-        for (Handle handle : this.handles)
-        {
-            if (!this.draggingAxis(handle.controller, handle.axis)) continue;
-            float dx = x - handle.screen.x, dy = y - handle.screen.y;
-            float d = dx * dx + dy * dy;
-            if (d < distance) { best = handle; distance = d; }
-        }
-        return best;
+        ScreenOverlay.Handle hit = this.overlay.pick(x, y);
+        return hit != null && hit.data instanceof Handle handle && this.handles.contains(handle) ? handle : null;
     }
 
-    public void preview(UIContext context, UIModelRenderer renderer, ModelForm form, UIShapeControllers controls,
+    public void preview(UIContext context, ScreenOverlay overlay, UIModelRenderer renderer, ModelForm form, UIShapeControllers controls,
         Runnable begin, Runnable end)
     {
         if (form == null || controls == null) { this.clear(); return; }
@@ -115,7 +107,7 @@ public class ShapeControllerOverlay
         var matrices = FormUtilsClient.getRenderer(root).collectMatrices(entity, context.getTransition());
         Matrix4f view = new Matrix4f(renderer.camera.view).translate((float) -renderer.camera.position.x,
             (float) -renderer.camera.position.y, (float) -renderer.camera.position.z);
-        this.draw(context, controls, renderer.area, renderer.camera.projection, c ->
+        this.draw(context, overlay, controls, renderer.camera.projection, c ->
         {
             String path = StringUtils.combinePaths(FormUtils.getPath(form), c.bone.get());
             Matrix4f frame = matrices.get(path).matrix();
@@ -123,20 +115,19 @@ public class ShapeControllerOverlay
         }, begin, end);
     }
 
-    public void draw(UIContext context, UIShapeControllers controls, Area viewport, Matrix4f projection,
+    public void draw(UIContext context, ScreenOverlay overlay, UIShapeControllers controls, Matrix4f projection,
         Function<ShapeController, Matrix4f> frames, Runnable begin, Runnable end)
     {
         if (this.controls != controls) this.release();
-        this.controls = controls; this.begin = begin; this.end = end; this.viewport = viewport;
+        this.overlay = overlay; this.controls = controls; this.begin = begin; this.end = end;
         this.handles.clear();
-        if (!UIBaseMenu.shouldRenderAxes() || controls == null) { this.release(); return; }
+        if (!overlay.isShown() || !BBSSettings.editorMarkup.shapeKeys.get() || controls == null) { this.release(); return; }
         if (this.drag != null)
         {
             if (!Window.isMouseButtonPressed(0) || !controls.list.getList().contains(this.drag.controller)) this.release();
             else this.dragTo(controls, context.mouseX - this.mouseX, context.mouseY - this.mouseY);
         }
-        context.batcher.clip(viewport, context);
-        context.batcher.beginBatch();
+        ShapeController mirror = this.drag == null ? null : controls.mirrorOf(this.drag.controller);
         for (ShapeController c : controls.list.getList())
         {
             Matrix4f frame = frames.apply(c);
@@ -144,45 +135,28 @@ public class ShapeControllerOverlay
             Matrix4f matrix = new Matrix4f(projection).mul(frame);
             float[] value = c.read(controls.shapeKeys());
             Vector3f local = new Vector3f(c.position.get()).add(value[ShapeController.SHIFT], value[ShapeController.HEIGHT], 0).div(16F);
-            Vector3f center = project(matrix, viewport, local);
-            Vector3f up = project(matrix, viewport, new Vector3f(local).add(0, 1F / 16, 0));
+            Vector3f center = overlay.project(matrix, local);
+            Vector3f up = overlay.project(matrix, new Vector3f(local).add(0, 1F / 16, 0));
             if (center == null || up == null) continue;
-            int color = c == controls.selected() ? SELECTED : IDLE;
             Vector3f side = null;
             if (c.hasAxis(ShapeController.SHIFT))
             {
-                Vector3f right = project(matrix, viewport, new Vector3f(local).add(1F / 16, 0, 0));
+                Vector3f right = overlay.project(matrix, new Vector3f(local).add(1F / 16, 0, 0));
                 if (right != null) side = right.sub(center);
-                if (c.hasAxis(ShapeController.HEIGHT)) this.frame(context, matrix, viewport, c.position.get(), color);
+                if (c.hasAxis(ShapeController.HEIGHT)) this.frame(overlay, matrix, c.position.get());
             }
-            this.addHandle(viewport, c, ShapeController.HEIGHT, center, new Vector3f(up).sub(center), side);
+            this.addHandle(c, ShapeController.HEIGHT, center, new Vector3f(up).sub(center), side, mirror);
             if (this.draggingAxis(c, ShapeController.TILT))
             {
-                Vector3f edge = project(matrix, viewport, new Vector3f(local).add(1F / 16, value[ShapeController.TILT] / 16, 0));
-                Vector3f edgeUp = project(matrix, viewport, new Vector3f(local).add(1F / 16, (value[ShapeController.TILT] + 1) / 16, 0));
+                Vector3f edge = overlay.project(matrix, new Vector3f(local).add(1F / 16, value[ShapeController.TILT] / 16, 0));
+                Vector3f edgeUp = overlay.project(matrix, new Vector3f(local).add(1F / 16, (value[ShapeController.TILT] + 1) / 16, 0));
                 if (edge != null && edgeUp != null)
                 {
-                    this.connector(context, center, edge, color);
-                    this.addHandle(viewport, c, ShapeController.TILT, edge, new Vector3f(edgeUp).sub(edge), null);
+                    this.connector(overlay, center, edge);
+                    this.addHandle(c, ShapeController.TILT, edge, new Vector3f(edgeUp).sub(edge), null, mirror);
                 }
             }
         }
-        Handle hovered = viewport.isInside(context) ? this.pick(context.mouseX, context.mouseY) : null;
-        ShapeController mirror = this.drag == null ? null : controls.mirrorOf(this.drag.controller);
-        for (Handle handle : this.handles)
-        {
-            boolean active = this.drag != null && this.drag.axis == handle.axis
-                && (this.drag.controller == handle.controller || mirror == handle.controller);
-            boolean lit = handle == hovered || active;
-            boolean selected = handle.controller == controls.selected();
-            int color = selected ? (lit ? SELECTED_HOVER : SELECTED) : (lit ? HOVER : IDLE);
-            this.outlineHandle(context, handle, color, 0.65F);
-        }
-        context.batcher.endBatch();
-        context.batcher.unclip(context);
-        if (hovered != null)
-            context.batcher.textCard(hovered.controller.name.get() + ": " + UIShapeControllers.key(axisName(hovered)).get(),
-                context.mouseX + 12, context.mouseY + 8);
     }
 
     private static String axisName(Handle handle)
@@ -223,71 +197,39 @@ public class ShapeControllerOverlay
     }
 
     /** The square a two-way handle travels in: one pixel each way of its rest point. */
-    private void frame(UIContext context, Matrix4f matrix, Area viewport, Vector3f position, int color)
+    private void frame(ScreenOverlay overlay, Matrix4f matrix, Vector3f position)
     {
         Vector3f[] corners = new Vector3f[4];
         for (int i = 0; i < 4; i++)
         {
             float x = i == 0 || i == 3 ? -1 : 1, y = i < 2 ? -1 : 1;
-            corners[i] = project(matrix, viewport, new Vector3f(position).add(x, y, 0).div(16F));
+            corners[i] = overlay.project(matrix, new Vector3f(position).add(x, y, 0).div(16F));
             if (corners[i] == null) return;
         }
-        for (int i = 0; i < 4; i++)
-        {
-            Vector3f a = corners[i], b = corners[(i + 1) % 4];
-            line(context, a.x, a.y, b.x, b.y, color, 0.5F);
-        }
+        for (int i = 0; i < 4; i++) overlay.line(corners[i], corners[(i + 1) % 4], COLOR);
     }
 
-    private void addHandle(Area viewport, ShapeController c, int axis, Vector3f point, Vector3f direction, Vector3f side)
+    private void addHandle(ShapeController c, int axis, Vector3f point, Vector3f direction, Vector3f side, ShapeController mirror)
     {
-        if (!viewport.isInside((int) point.x, (int) point.y)) return;
-        this.handles.add(new Handle(c, axis, point, direction, side));
+        Handle handle = new Handle(c, axis, point, direction, side);
+        boolean active = this.drag != null && this.drag.axis == axis && (this.drag.controller == c || mirror == c);
+        ScreenOverlay.Shape shape = axis == ShapeController.TILT ? ScreenOverlay.Shape.CIRCLE : ScreenOverlay.Shape.DIAMOND;
+        float size = axis == ShapeController.TILT ? TILT_SIZE : ScreenOverlay.HANDLE;
+        ScreenOverlay.Handle drawn = this.draggingAxis(c, axis)
+            ? this.overlay.handle(point, shape, size, COLOR, handle)
+            : this.overlay.marker(point.x, point.y, shape, size, COLOR);
+
+        drawn.selected(c == this.controls.selected()).lit(active)
+            .label(c.name.get() + ": " + UIShapeControllers.key(axisName(handle)).get());
+        this.handles.add(handle);
     }
 
-    private void connector(UIContext context, Vector3f from, Vector3f to, int color)
+    private void connector(ScreenOverlay overlay, Vector3f from, Vector3f to)
     {
         float dx = to.x - from.x, dy = to.y - from.y;
         float length = (float) Math.sqrt(dx * dx + dy * dy);
-        if (length <= 11F) return;
-        /* Keep the line outside the hollow handles. */
-        float x1 = from.x + dx * 6F / length, y1 = from.y + dy * 6F / length;
-        float x2 = to.x - dx * 5F / length, y2 = to.y - dy * 5F / length;
-        line(context, x1, y1, x2, y2, color, 0.55F);
-    }
-
-    private void outlineHandle(UIContext context, Handle handle, int color, float width)
-    {
-        int segments = handle.axis == 0 ? 4 : 16;
-        float radius = handle.axis == 0 ? 4.5F : 3.5F;
-        float x = handle.screen.x + radius, y = handle.screen.y;
-        for (int i = 1; i <= segments; i++)
-        {
-            double angle = i * Math.PI * 2 / segments;
-            float nextX = handle.screen.x + (float) Math.cos(angle) * radius;
-            float nextY = handle.screen.y + (float) Math.sin(angle) * radius;
-            line(context, x, y, nextX, nextY, color, width);
-            x = nextX; y = nextY;
-        }
-    }
-
-    private static void line(UIContext context, float x1, float y1, float x2, float y2, int color, float width)
-    {
-        float dx = x2 - x1, dy = y2 - y1;
-        var matrices = context.batcher.getContext().getMatrices();
-        matrices.push();
-        matrices.translate(x1, y1, 0);
-        matrices.multiply(new Quaternionf().rotationZ((float) Math.atan2(dy, dx)));
-        context.batcher.box(0, -width, (float) Math.sqrt(dx * dx + dy * dy), width, color);
-        matrices.pop();
-    }
-
-    private static Vector3f project(Matrix4f matrix, Area viewport, Vector3f point)
-    {
-        Vector4f clip = matrix.transform(new Vector4f(point, 1));
-        if (!Float.isFinite(clip.w) || clip.w <= 0.00001F) return null;
-        clip.div(clip.w);
-        if (!Float.isFinite(clip.x) || !Float.isFinite(clip.y) || clip.z < -1 || clip.z > 1) return null;
-        return new Vector3f(viewport.x + (clip.x + 1) * viewport.w * 0.5F, viewport.y + (1 - clip.y) * viewport.h * 0.5F, clip.z);
+        if (length <= 8F) return;
+        /* Keep the line outside the handles. */
+        overlay.line(from.x + dx * 4F / length, from.y + dy * 4F / length, to.x - dx * 4F / length, to.y - dy * 4F / length, COLOR);
     }
 }

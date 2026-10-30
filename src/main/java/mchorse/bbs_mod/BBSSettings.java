@@ -17,6 +17,7 @@ import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.settings.values.ui.ValueEditorLayout;
 import mchorse.bbs_mod.settings.values.ui.ValueKeyframeStyle;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
+import mchorse.bbs_mod.settings.values.ui.ValueMarkup;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
@@ -173,11 +174,10 @@ public class BBSSettings {
 	public static ValueBoolean editorPlayerFollowsCamera;
 	public static ValueEditorLayout editorLayoutSettings;
 	public static ValueOnionSkin editorOnionSkin;
-	/** The rig's debug overlay: switched by the rig tab and F5, no row in the settings. */
+	/** The rig's debug overlay: switched by the rig tab, F5 and the markup menu, no row in the settings. */
 	public static ValueBoolean debugOverlay;
-	public static ValueFloat debugOpacity;
-	/** One scale for every marker and line of the rig's debug overlay. */
-	public static ValueFloat debugSize;
+	/** The editors' markup: its groups, how solid it draws and how big its handles are. */
+	public static ValueMarkup editorMarkup;
 	public static ValueBoolean profilerOverlay;
 	/** Emergency switch for the per-frame pose caches; invisible, on by default. */
 	public static ValueBoolean framePoseCache;
@@ -878,12 +878,10 @@ public class BBSSettings {
 		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
 		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
-		/* The rig's debug overlay: its switch lives on the rig tab (and F5), its look is fixed
-		 * but for how solid and how big it draws */
+		/* The rig's debug overlay: its switch lives on the rig tab, F5 and the markup menu */
 		debugOverlay = builder.getBoolean("debug_overlay", false);
 		debugOverlay.invisible();
-		debugOpacity = builder.getFloat("debug_opacity", 0.5F, 0.05F, 1F).slider();
-		debugSize = builder.getFloat("debug_size", 1F, 0.25F, 4F).slider();
+		builder.register(editorMarkup = new ValueMarkup("markup"));
 
 		/* Everything that trades work for frames: what the editor renders at all, at what
 		 * resolution and how often, what it computes in parallel, plus the counters that

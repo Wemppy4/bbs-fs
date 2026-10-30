@@ -33,6 +33,7 @@ import mchorse.bbs_mod.client.renderer.entity.GunProjectileEntityRenderer;
 import mchorse.bbs_mod.client.renderer.item.GunItemRenderer;
 import mchorse.bbs_mod.client.renderer.item.ModelBlockItemRenderer;
 import mchorse.bbs_mod.cubic.model.ModelManager;
+import mchorse.bbs_mod.cubic.rig.RigMarkup;
 import mchorse.bbs_mod.api.BBSAddonMod;
 import mchorse.bbs_mod.api.client.events.BBSClientReadyEvent;
 import mchorse.bbs_mod.api.client.events.RegisterClientSettingsEvent;
@@ -746,6 +747,9 @@ public class BBSModClient implements ClientModInitializer
         StructureWand.register();
         ModelBlockConversion.register();
 
+        /* The rig's markup the film viewport draws is what this world frame rendered */
+        WorldRenderEvents.START.register((context) -> RigMarkup.beginWorld());
+        WorldRenderEvents.END.register((context) -> RigMarkup.endWorld());
         WorldRenderEvents.BEFORE_ENTITIES.register((context) -> BBSRendering.beginEntityPass());
 
         WorldRenderEvents.AFTER_ENTITIES.register((context) ->

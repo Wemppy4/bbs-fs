@@ -10,6 +10,7 @@ import mchorse.bbs_mod.utils.MatrixStackUtils;
 import mchorse.bbs_mod.utils.StringUtils;
 import net.minecraft.client.util.math.MatrixStack;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.SplineOverlay;
 import org.joml.Matrix4f;
 
@@ -85,6 +86,6 @@ public class SplineFormRenderer extends FormRenderer<SplineForm>
     {
         Matrix4f matrix = new Matrix4f(ModelFormRenderer.getUIMatrix(context, x1, y1, x2, y2));
         this.applyTransforms(matrix, context.getTransition());
-        SplineOverlay.drawPreview(context, this.form, matrix);
+        SplineOverlay.drawPreview(context, this.form, matrix, new Area(x1, y1, x2 - x1, y2 - y1));
     }
 }

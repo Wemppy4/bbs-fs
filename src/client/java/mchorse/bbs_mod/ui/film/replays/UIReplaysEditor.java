@@ -1166,7 +1166,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
     public boolean clickViewport(UIContext context, Area area)
     {
-        if (!this.filmPanel.isFlying() && this.filmPanel.getController().pickShapeController(context)) return true;
+        if (!this.filmPanel.isFlying() && this.filmPanel.getController().clickMarkup(context)) return true;
         if (!this.filmPanel.isFlying() && this.filmPanel.getController().pickSplinePoint(context)) return true;
         /* In flight the buttons are the flight camera's, so the left one is left for it to
          * pick up as free look; only the middle one has to be handed over by hand. */
@@ -1204,19 +1204,9 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         if (stencil.hasPicked())
         {
-            Pair<Form, String> pair = stencil.getPicked();
-
-            if (pair != null && (context.mouseButton < 2 || (context.mouseButton == 2 && Window.isCtrlPressed())))
+            if (this.pickViewportPair(context, stencil.getPicked()))
             {
-                if (!this.isVisible())
-                {
-                    this.filmPanel.showPanel(this);
-                }
-
-                if (UIReplaysEditorUtils.pickFormWithOffers(context, pair, this::pickFormBone))
-                {
-                    return true;
-                }
+                return true;
             }
         }
         else if (context.mouseButton == 1 && this.isVisible())
@@ -1259,6 +1249,22 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         }
 
         return false;
+    }
+
+    /** A form and its bone picked off the viewport: the stencil's under the cursor, or a rig handle of the markup. */
+    public boolean pickViewportPair(UIContext context, Pair<Form, String> pair)
+    {
+        if (pair == null || !(context.mouseButton < 2 || (context.mouseButton == 2 && Window.isCtrlPressed())))
+        {
+            return false;
+        }
+
+        if (!this.isVisible())
+        {
+            this.filmPanel.showPanel(this);
+        }
+
+        return UIReplaysEditorUtils.pickFormWithOffers(context, pair, this::pickFormBone);
     }
 
     public void releaseViewport(UIContext context, boolean dragged)

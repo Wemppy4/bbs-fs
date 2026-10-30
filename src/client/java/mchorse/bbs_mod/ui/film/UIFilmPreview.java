@@ -19,7 +19,7 @@ import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.settings.ui.UISettingsOverlayPanel;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
-import mchorse.bbs_mod.ui.film.controller.UIMotionPathContextMenu;
+import mchorse.bbs_mod.ui.film.controller.UIMarkupContextMenu;
 import mchorse.bbs_mod.ui.film.controller.UIOnionSkinContextMenu;
 import mchorse.bbs_mod.ui.film.controller.OrbitViewGizmo;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
@@ -117,7 +117,7 @@ public class UIFilmPreview extends UIElement
         this.onionSkin.tooltip(UIKeys.FILM_CONTROLLER_ONION_SKIN_TITLE);
         this.motionPath = new UIIcon(Icons.CURVES, (b) -> this.openMotionPath());
         this.motionPath.highlight(() -> this.panel.getController().getMotionPath().enabled.get(), Direction.BOTTOM);
-        this.motionPath.tooltip(UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE);
+        this.motionPath.tooltip(UIKeys.MARKUP_TITLE);
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
         this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE);
         this.plause.context((menu) ->
@@ -348,7 +348,7 @@ public class UIFilmPreview extends UIElement
 
     public void openMotionPath()
     {
-        this.getContext().replaceContextMenu(new UIMotionPathContextMenu(this.panel, this.panel.getController().getMotionPath()));
+        this.getContext().replaceContextMenu(new UIMarkupContextMenu(this.panel));
     }
 
     private void exportQueueFromTabs()

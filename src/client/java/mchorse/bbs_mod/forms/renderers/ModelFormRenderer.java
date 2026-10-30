@@ -117,8 +117,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
     private ModelInstance lastModel;
     private boolean renderingArm;
 
-    /** The rig's debug overlay, read off the rig with the model and drawn after the body parts — see {@link ModelIKDebug#prepare}. */
-    private final List<Runnable> overlays = new ArrayList<>();
 
     private IEntity entity = new StubEntity();
 
@@ -638,7 +636,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
 
         if (stencilMap == null && !this.renderingArm && this.form != null)
         {
-            this.addOverlay(ModelIKDebug.prepare(newStack, model.model, this.form));
+            ModelIKDebug.capture(newStack, model.model, this.form);
         }
 
         gameRenderer.getLightmapTextureManager().disable();
@@ -1200,24 +1198,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
 
         model.fillStencilMap(context.stencilMap, this.form);
-
-        if (this.form != null)
-        {
-            /* Its own stack: the markers draw after the body parts, when the context's has moved on. */
-            MatrixStack stack = new MatrixStack();
-
-            MatrixStackUtils.multiply(stack, context.stack.peek().getPositionMatrix());
-            this.applySplineMotion(stack);
-            this.addOverlay(ModelIKDebug.prepareStencil(stack, model.model, this.form, context.stencilMap, this.form));
-        }
-    }
-
-    private void addOverlay(Runnable overlay)
-    {
-        if (overlay != null)
-        {
-            this.overlays.add(overlay);
-        }
     }
 
     private void captureMatrices(ModelInstance model)
@@ -1294,14 +1274,6 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         {
             context.world.pop();
         }
-
-        /* Last, so the parts can't paint over the debug drawn through the model. */
-        for (Runnable overlay : this.overlays)
-        {
-            overlay.run();
-        }
-
-        this.overlays.clear();
     }
 
     @Override

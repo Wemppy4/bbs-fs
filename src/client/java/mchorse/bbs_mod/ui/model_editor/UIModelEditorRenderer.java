@@ -1,6 +1,8 @@
 package mchorse.bbs_mod.ui.model_editor;
 
 import mchorse.bbs_mod.ui.utils.shapes.ShapeControllerOverlay;
+import mchorse.bbs_mod.ui.utils.ScreenOverlay;
+import mchorse.bbs_mod.cubic.rig.RigMarkup;
 import mchorse.bbs_mod.ui.utils.shapes.UIShapeControllers;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -115,6 +117,9 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
     {}
 
     private final ShapeControllerOverlay shapeOverlay = new ShapeControllerOverlay();
+    /** The preview's markup: the rig's handles and the shape key handles on one screen layer. */
+    private final ScreenOverlay markup = new ScreenOverlay();
+    private RigMarkup.Capture rigMarkup = RigMarkup.Capture.EMPTY;
     public Supplier<UIShapeControllers> shapeControls = () -> null;
 
     private final StencilFormFramebuffer stencil = new StencilFormFramebuffer();
@@ -928,6 +933,8 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
             .camera(this.camera)
             .modelRenderer(context.getTick());
 
+        this.rigMarkup = RigMarkup.Capture.EMPTY;
+
         if (this.firstPerson)
         {
             this.renderFirstPerson(context);
@@ -935,10 +942,21 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         else
         {
             /* The same deferred translucency the form editor's viewport gets: semi-transparent
-             * pixels draw after the opaque ones, sorted, without hiding bones behind them. */
-            FormTranslucentQueue.begin();
-            FormUtilsClient.render(this.form, formContext);
-            FormTranslucentQueue.flush();
+             * pixels draw after the opaque ones, sorted, without hiding bones behind them. The
+             * rig's handles are captured on the way for the markup. */
+            RigMarkup.Capture previous = RigMarkup.open();
+
+            try
+            {
+                FormTranslucentQueue.begin();
+                FormUtilsClient.render(this.form, formContext);
+                FormTranslucentQueue.flush();
+            }
+            finally
+            {
+                this.rigMarkup = RigMarkup.close(previous);
+            }
+
             this.captureBones(context);
         }
 
@@ -1061,9 +1079,13 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         super.render(context);
 
         UIShapeControllers controllers = this.shapeControls.get();
-        this.shapeOverlay.preview(context, this, (mchorse.bbs_mod.forms.forms.ModelForm) this.form, controllers,
+        this.markup.begin(this.area);
+        if (this.form == null) this.rigMarkup = RigMarkup.Capture.EMPTY;
+        RigMarkup.draw(this.markup, this.rigMarkup, null);
+        this.shapeOverlay.preview(context, this.markup, this, (mchorse.bbs_mod.forms.forms.ModelForm) this.form, controllers,
             () -> { if (controllers != null) controllers.endGesture(); },
             () -> { if (controllers != null) controllers.endGesture(); });
+        this.markup.flush(context);
         this.gizmo.renderSphereHighlight(context);
         this.gizmo.renderReadout(context);
 
@@ -1080,6 +1102,12 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
         if (index > 0)
         {
             this.stencil.renderPreview(context, this.area, index);
+        }
+
+        /* The markup's handle under the cursor names itself. */
+        if (this.markup.getHovered() != null)
+        {
+            return;
         }
 
         if (this.stencil.hasPicked())
@@ -1159,6 +1187,15 @@ public class UIModelEditorRenderer extends UIFormRenderer implements GizmoViewpo
 
         ModelSlotTarget target = this.shownTarget();
         if (this.shapeOverlay.click(context, target != null && target.kind() == ModelSlotKind.SHAPE_CONTROLLER)) return true;
+
+        /* A rig handle picks its bone, as a click on the bone itself does. */
+        Pair<Form, String> handle = RigMarkup.pick(this.markup, context.mouseX, context.mouseY);
+
+        if (context.mouseButton == 0 && handle != null && handle.a == this.form && this.onPick != null && this.pickAt(context, handle.b))
+        {
+            return true;
+        }
+
         if (this.gizmo.mouseClickedSphere(context)) return true;
 
         /* A left click on a bone picks it in the panel's tree, the way the form editor picks a bone —

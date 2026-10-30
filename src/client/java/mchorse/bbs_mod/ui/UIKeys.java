@@ -319,6 +319,17 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_MOTION_PATH_KEYFRAMES = L10n.lang("bbs.ui.film.controller.motion_path.keyframes");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_CURRENT = L10n.lang("bbs.ui.film.controller.motion_path.current");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_RANGE = L10n.lang("bbs.ui.film.controller.motion_path.range");
+    public static final IKey MARKUP_TITLE = L10n.lang("bbs.ui.markup.title");
+    public static final IKey MARKUP_IK = L10n.lang("bbs.ui.markup.ik");
+    public static final IKey MARKUP_SPLINES = L10n.lang("bbs.ui.markup.splines");
+    public static final IKey MARKUP_SHAPE_KEYS = L10n.lang("bbs.ui.markup.shape_keys");
+    public static final IKey MARKUP_OPACITY = L10n.lang("bbs.ui.markup.opacity");
+    public static final IKey MARKUP_SIZE = L10n.lang("bbs.ui.markup.size");
+    public static final IKey MARKUP_PATH_SETTINGS = L10n.lang("bbs.ui.markup.path_settings");
+    public static final IKey MARKUP_IK_GOAL = L10n.lang("bbs.ui.markup.ik_goal");
+    public static final IKey MARKUP_IK_POLE = L10n.lang("bbs.ui.markup.ik_pole");
+    public static final IKey MARKUP_CONTROLLER = L10n.lang("bbs.ui.markup.controller");
+    public static final IKey MARKUP_SPLINE_POINT = L10n.lang("bbs.ui.markup.spline_point");
     public static final IKey FILM_CONTROLLER_RECORD_DESCRIPTION = L10n.lang("bbs.ui.film.controller.record-description");
     public static final IKey FILM_CONTROLLER_RECORD_TITLE = L10n.lang("bbs.ui.film.controller.record-title");
     public static final IKey FILM_CONTROLLER_SERVER_WARNING = L10n.lang("bbs.ui.film.controller.server_warning");
