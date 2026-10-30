@@ -6,9 +6,9 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 
 /**
  * The film editor's motion path overlay settings, edited through the preview's
- * markup button (see the onion skin feature it mirrors). Drawn by
- * {@link mchorse.bbs_mod.ui.film.controller.MotionPath} on the editors' markup, which
- * sets its sizes ({@link ValueMarkup}).
+ * motion path button (see the onion skin feature it mirrors). Drawn by
+ * {@link mchorse.bbs_mod.ui.film.controller.MotionPath} on the editors' markup, whose
+ * size and opacity are the viewport settings.
  */
 public class ValueMotionPath extends ValueGroup
 {

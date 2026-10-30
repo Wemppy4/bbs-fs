@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.utils;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.spline.SplineCurve;
 import mchorse.bbs_mod.cubic.spline.SplinePoint;
 import mchorse.bbs_mod.cubic.spline.SplineSource;
@@ -16,7 +15,7 @@ import java.util.List;
 /**
  * Spline handles on the editors' markup ({@link ScreenOverlay}), shared by the form, state and film
  * viewports: the curve as a line and its points as small dots, the picked ones ringed and the one
- * under the cursor bigger; with Ctrl over the curve, a faded dot marks where a click puts a new one. The markup's spline switch hides them all.
+ * under the cursor bigger; with Ctrl over the curve, a faded dot marks where a click puts a new one.
  */
 public class SplineOverlay
 {
@@ -53,12 +52,12 @@ public class SplineOverlay
         overlay.flush(context);
     }
 
-    /** Start the frame on the viewport's markup: false when the splines don't show (the markup hidden, or its spline switch off). */
+    /** Start the frame on the viewport's markup: false when the markup is hidden (F8). */
     public boolean begin(ScreenOverlay overlay)
     {
         this.overlay = overlay;
         this.curveHit = null;
-        return overlay.isShown() && BBSSettings.editorMarkup.splines.get();
+        return overlay.isShown();
     }
 
     /** The spline point nearest to the point, if the nearest handle of the markup is one. */
@@ -114,7 +113,7 @@ public class SplineOverlay
 
     public CurveHit insertionAt(int x, int y)
     {
-        if (this.overlay == null || !this.overlay.isShown() || !BBSSettings.editorMarkup.splines.get()) return null;
+        if (this.overlay == null || !this.overlay.isShown()) return null;
         if (this.curveHit == null || this.overlay.pick(x, y) != null) return null;
         float dx = this.curveHit.x - x, dy = this.curveHit.y - y;
         return dx * dx + dy * dy <= 64F ? this.curveHit : null;

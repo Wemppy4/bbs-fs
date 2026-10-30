@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.ui.utils.shapes;
 
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.model.config.ShapeController;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
@@ -19,8 +18,7 @@ import java.util.function.Function;
 
 /**
  * One projection/picking/drag implementation for model, form, state and film previews, drawn on the
- * viewport's markup ({@link ScreenOverlay}): a rounded diamond for height (and shift), a dot for tilt. The
- * markup's shape key switch hides them.
+ * viewport's markup ({@link ScreenOverlay}): a rounded diamond for height (and shift), a dot for tilt.
  */
 public class ShapeControllerOverlay
 {
@@ -120,7 +118,7 @@ public class ShapeControllerOverlay
         if (this.controls != controls) this.release();
         this.overlay = overlay; this.controls = controls; this.begin = begin; this.end = end;
         this.handles.clear();
-        if (!overlay.isShown() || !BBSSettings.editorMarkup.shapeKeys.get() || controls == null) { this.release(); return; }
+        if (!overlay.isShown() || controls == null) { this.release(); return; }
         if (this.drag != null)
         {
             if (!Window.isMouseButtonPressed(0) || !controls.list.getList().contains(this.drag.controller)) this.release();

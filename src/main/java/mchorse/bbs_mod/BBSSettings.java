@@ -17,7 +17,6 @@ import mchorse.bbs_mod.settings.values.ui.ValueColors;
 import mchorse.bbs_mod.settings.values.ui.ValueEditorLayout;
 import mchorse.bbs_mod.settings.values.ui.ValueKeyframeStyle;
 import mchorse.bbs_mod.settings.values.ui.ValueLanguage;
-import mchorse.bbs_mod.settings.values.ui.ValueMarkup;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
 import mchorse.bbs_mod.settings.values.ui.ValueOnionSkin;
 import mchorse.bbs_mod.settings.values.ui.ValueOrder;
@@ -174,10 +173,8 @@ public class BBSSettings {
 	public static ValueBoolean editorPlayerFollowsCamera;
 	public static ValueEditorLayout editorLayoutSettings;
 	public static ValueOnionSkin editorOnionSkin;
-	/** The rig's debug overlay: switched by the rig tab, F5 and the markup menu, no row in the settings. */
+	/** The rig's debug overlay: switched by the rig tab and F5, no row in the settings. */
 	public static ValueBoolean debugOverlay;
-	/** The editors' markup: which of its groups show. */
-	public static ValueMarkup editorMarkup;
 	/** How solid the editors' markup draws, in every editor. */
 	public static ValueFloat markupOpacity;
 	/** One scale for every handle of the editors' markup, in every editor. */
@@ -882,10 +879,9 @@ public class BBSSettings {
 		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
 		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
-		/* The rig's debug overlay: its switch lives on the rig tab, F5 and the markup menu */
+		/* The rig's debug overlay: its switch lives on the rig tab and F5 */
 		debugOverlay = builder.getBoolean("debug_overlay", false);
 		debugOverlay.invisible();
-		builder.register(editorMarkup = new ValueMarkup("markup"));
 		markupOpacity = builder.getFloat("markup_opacity", 1F, 0.2F, 1F).slider();
 		markupHandleSize = builder.getFloat("markup_handle_size", 1F, 0.5F, 3F).slider();
 
