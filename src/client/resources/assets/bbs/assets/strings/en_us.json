@@ -535,6 +535,8 @@
 	"bbs.config.viewport.center_lines-comment": "Center lines",
 	"bbs.config.performance.frustum_culling": "Replay frustum culling",
 	"bbs.config.performance.frustum_culling-comment": "Skip off-screen replays (32-block margin); anchored replays are kept.",
+	"bbs.config.performance.welds": "Welds",
+	"bbs.config.performance.welds-comment": "Draw the welds between bones. Off, welded models render as plain cubes.",
 	"bbs.config.performance.profiler_overlay": "Performance counters",
 	"bbs.config.performance.profiler_overlay-comment": "Show subsystem times and call counts in the preview.",
 	"bbs.config.viewport.clip_preview": "Clip preview",

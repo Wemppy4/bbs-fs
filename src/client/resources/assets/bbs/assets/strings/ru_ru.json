@@ -533,6 +533,8 @@
 	"bbs.config.viewport.center_lines-comment": "Линии обозначающие центр композиции",
 	"bbs.config.performance.frustum_culling": "Отбраковка реплеев за кадром",
 	"bbs.config.performance.frustum_culling-comment": "Отсекать объекты вне обзора (запас 32 блока); якоря не отсекаются.",
+	"bbs.config.performance.welds": "Сварка",
+	"bbs.config.performance.welds-comment": "Рисовать сварку между костями. Если выключить, сваренные модели рисуются простыми кубами.",
 	"bbs.config.performance.profiler_overlay": "Счётчики производительности",
 	"bbs.config.performance.profiler_overlay-comment": "Показывать время подсистем и счётчики в превью.",
 	"bbs.config.viewport.clip_preview": "Предпросмотр клипа",

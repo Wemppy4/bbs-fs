@@ -2,6 +2,7 @@ package mchorse.bbs_mod.cubic;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import mchorse.bbs_mod.BBSModClient;
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.bobj.BOBJBone;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.client.BBSShaders;
@@ -270,7 +271,7 @@ public class ModelInstance implements IModelInstance
         return this.vaos;
     }
 
-    /** Welds resolved against this model, built once. Empty when the model declares none or isn't cubic. */
+    /** Welds resolved against this model, built once. Empty when the model declares none, isn't cubic or welds are switched off. */
     public List<WeldBinding> getWeldBindings()
     {
         if (this.weldBindings == null)
@@ -278,7 +279,7 @@ public class ModelInstance implements IModelInstance
             this.weldBindings = new ArrayList<>();
             this.weldedGroups = new HashSet<>();
 
-            if (this.model instanceof Model model)
+            if (this.model instanceof Model model && BBSSettings.welds.get())
             {
                 for (ModelWeld weld : this.config.getWelds())
                 {
@@ -331,10 +332,16 @@ public class ModelInstance implements IModelInstance
      */
     public void invalidateWelds()
     {
+        this.config.rebuild();
+        this.refreshWelds();
+    }
+
+    /** Re-resolve the same config's welds — the welds setting was switched: the bones welded before and after re-bake. */
+    public void refreshWelds()
+    {
         Set<ModelGroup> welded = this.weldedGroups;
 
         this.resetWelds();
-        this.config.rebuild();
         this.queueRebake(welded == null ? Collections.emptySet() : welded, true);
     }
 

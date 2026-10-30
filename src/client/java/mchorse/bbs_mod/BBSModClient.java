@@ -27,6 +27,7 @@ import mchorse.bbs_mod.client.ModelBlockConversion;
 import mchorse.bbs_mod.client.renderer.LivePlayerItemUse;
 import mchorse.bbs_mod.client.renderer.ModelBlockEntityRenderer;
 import mchorse.bbs_mod.client.renderer.ThirdPersonItemUse;
+import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.animation.ItemUsePose;
 import mchorse.bbs_mod.client.renderer.entity.ActorEntityRenderer;
 import mchorse.bbs_mod.client.renderer.entity.GunProjectileEntityRenderer;
@@ -638,6 +639,14 @@ public class BBSModClient implements ClientModInitializer
             if (dashboard != null)
             {
                 dashboard.getPanels().setSide(UIDashboardPanels.getSettingsSide());
+            }
+        });
+
+        BBSSettings.welds.postCallback((v, f) ->
+        {
+            for (ModelInstance model : models.models.values())
+            {
+                model.refreshWelds();
             }
         });
 

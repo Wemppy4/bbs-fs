@@ -185,6 +185,8 @@ public class BBSSettings {
 	public static ValueBoolean framePoseCache;
 	/** Skip rendering replays whose surroundings are entirely off screen. */
 	public static ValueBoolean frustumCulling;
+	/** Draw the models' welded bands; off, welded models render as plain cubes. */
+	public static ValueBoolean welds;
 	public static ValueBoolean editorSnapToMarkers;
 	/** Snapping to the film's own markers &mdash; unlike {@link #editorSnapToMarkers}, which is the ruler's notches. */
 	public static ValueBoolean editorSnapToFilmMarkers;
@@ -898,6 +900,7 @@ public class BBSSettings {
 		particlesDepthSorting = builder.getBoolean("particles_depth_sorting", false);
 		multiskinMultiThreaded = builder.getBoolean("multiskin_multithreaded", true);
 		frustumCulling = builder.getBoolean("frustum_culling", true);
+		welds = builder.getBoolean("welds", true);
 		profilerOverlay = builder.getBoolean("profiler_overlay", false);
 		framePoseCache = builder.getBoolean("frame_pose_cache", true);
 		framePoseCache.invisible();
