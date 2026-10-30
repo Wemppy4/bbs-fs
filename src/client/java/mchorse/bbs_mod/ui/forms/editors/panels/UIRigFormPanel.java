@@ -1,6 +1,7 @@
 package mchorse.bbs_mod.ui.forms.editors.panels;
 
 import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.api.client.editor.FormEditorTool;
 import mchorse.bbs_mod.cubic.IModel;
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.rig.RigClaim;
@@ -489,12 +490,30 @@ public class UIRigFormPanel extends UIBoneListFormPanel implements SplineFormToo
     @Override
     public UIPropTransform getGizmoTransform()
     {
-        return this.spline.getGizmoTransform();
+        FormEditorTool section = this.sectionTool();
+
+        return section != null ? section.getGizmoTransform() : this.spline.getGizmoTransform();
     }
 
     @Override
     public Matrix4f getGizmoOrigin(float transition, TransformSpace space)
     {
-        return this.spline.getGizmoOrigin(transition);
+        FormEditorTool section = this.sectionTool();
+
+        return section != null ? section.getGizmoOrigin(transition, space) : this.spline.getGizmoOrigin(transition);
+    }
+
+    /** An addon's open section that has something for the gizmo to drag right now; the spline points otherwise. */
+    private FormEditorTool sectionTool()
+    {
+        for (UIRigSection section : this.sections)
+        {
+            if (section.step == null && section instanceof FormEditorTool tool && section.isExpanded() && section.isOn() && tool.getGizmoTransform() != null)
+            {
+                return tool;
+            }
+        }
+
+        return null;
     }
 }

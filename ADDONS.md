@@ -365,7 +365,9 @@ is a pure function of position and film time, so playback and export reproduce.
 `RegisterRigSectionsEvent.register(panel -> section)` adds a section to the rig tab of the model
 form editor, after BBS's own steps and before the limits. Extend `UIRigSection` through its
 `(panel, title, icon, switchable)` constructor: `fill(bone)` fills it for the selected bone, and
-`switched(bone, on)` sets the bone up or clears it. Keep the data on the form.
+`switched(bone, on)` sets the bone up or clears it. Keep the data on the form. A section that also
+implements `FormEditorTool` drives the viewport gizmo while it is open and switched on, whenever it
+has a transform to hand out.
 
 ### Migrating addon property names
 
