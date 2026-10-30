@@ -73,6 +73,7 @@ public final class ShapeControllerCheck
         undo.undo(config); check(config.shapeControllers.getAllTyped().size() == 1, "Delete undo restores controller");
         undo.redo(config); check(config.shapeControllers.getAllTyped().isEmpty(), "Delete redo removes controller");
         previewUndo(c);
+        shift();
         mirror();
         modelDiscovery();
 
@@ -119,6 +120,43 @@ public final class ShapeControllerCheck
             clientField.set(null, oldClient); fontField.set(null, oldFont);
             org.lwjgl.glfw.GLFW.glfwDestroyWindow(handle); org.lwjgl.glfw.GLFW.glfwTerminate();
         }
+    }
+
+    /** Gaze: one controller, height and shift on two shapes per eye, both eyes together. */
+    private static void shift()
+    {
+        ShapeController gaze = new ShapeController("0");
+        String[][] shapes = {{"pupil_l_y", "1", "0"}, {"pupil_r_y", "1", "0"}, {"pupil_l_x", "0", "1"}, {"pupil_r_x", "0", "1"}};
+        for (int i = 0; i < shapes.length; i++)
+        {
+            var binding = new ShapeController.Binding("" + i);
+            binding.shape.set(shapes[i][0]);
+            binding.height.set(Float.parseFloat(shapes[i][1]));
+            binding.shift.set(Float.parseFloat(shapes[i][2]));
+            gaze.bindings.add(binding);
+        }
+        check(gaze.hasAxis(ShapeController.HEIGHT) && gaze.hasAxis(ShapeController.SHIFT) && !gaze.hasAxis(ShapeController.TILT), "Gaze has height and shift only");
+        ShapeKeys keys = new ShapeKeys();
+        gaze.set(keys, ShapeController.SHIFT, -0.75F);
+        gaze.set(keys, ShapeController.HEIGHT, 0.5F);
+        near(keys.shapeKeys.get("pupil_l_x"), -0.75F, "Shift drives the left pupil sideways");
+        near(keys.shapeKeys.get("pupil_r_x"), -0.75F, "Shift drives the right pupil the same way");
+        near(keys.shapeKeys.get("pupil_r_y"), 0.5F, "Height drives the pupils up");
+        float[] read = gaze.read(keys);
+        near(read[ShapeController.SHIFT], -0.75F, "Shift reads back");
+        near(read[ShapeController.HEIGHT], 0.5F, "Height reads back beside shift");
+        near(read[ShapeController.TILT], 0F, "Unbound tilt stays zero");
+        gaze.set(keys, ShapeController.SHIFT, 0F);
+        near(gaze.read(keys)[ShapeController.HEIGHT], 0.5F, "Shift edit keeps height");
+
+        ShapeController all = controller();
+        var side = new ShapeController.Binding("2"); side.shape.set("upper_l_side"); side.shift.set(1F); all.bindings.add(side);
+        ShapeKeys three = new ShapeKeys();
+        all.set(three, ShapeController.HEIGHT, 0.3F); all.set(three, ShapeController.TILT, -0.2F); all.set(three, ShapeController.SHIFT, 0.6F);
+        float[] axes = all.read(three);
+        near(axes[ShapeController.HEIGHT], 0.3F, "Three axes: height independent");
+        near(axes[ShapeController.TILT], -0.2F, "Three axes: tilt independent");
+        near(axes[ShapeController.SHIFT], 0.6F, "Three axes: shift independent");
     }
 
     private static void mirror()

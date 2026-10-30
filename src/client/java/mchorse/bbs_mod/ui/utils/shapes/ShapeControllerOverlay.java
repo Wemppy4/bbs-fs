@@ -26,17 +26,19 @@ public class ShapeControllerOverlay
     private static final int HOVER = 0xFFFFFFFF;
     private static final int SELECTED = 0xFFED0D5B;
     private static final int SELECTED_HOVER = 0xFFFF70A0;
-    private record Handle(ShapeController controller, int axis, Vector3f screen, Vector3f direction) {}
+    /** {@code side}: the screen step of one pixel sideways, on a handle that also travels along {@link ShapeController#SHIFT}. */
+    private record Handle(ShapeController controller, int axis, Vector3f screen, Vector3f direction, Vector3f side) {}
     private final List<Handle> handles = new ArrayList<>();
     private UIShapeControllers controls;
     private Handle drag;
     private int mouseX, mouseY;
-    private float initial, last;
+    private float[] initial, last;
     private Runnable begin = () -> {}, end = () -> {};
     private Area viewport;
     private boolean draggingAxis(ShapeController c, int axis)
     {
-        return c.bindings.getAllTyped().stream().anyMatch(b -> (axis == 0 ? b.height.get() : b.tilt.get()) != 0F);
+        return axis == ShapeController.TILT ? c.hasAxis(ShapeController.TILT)
+            : c.hasAxis(ShapeController.HEIGHT) || c.hasAxis(ShapeController.SHIFT);
     }
 
     public boolean release()
@@ -73,7 +75,8 @@ public class ShapeControllerOverlay
         if (selectOnly) return true;
         this.drag = best;
         this.mouseX = context.mouseX; this.mouseY = context.mouseY;
-        this.initial = this.last = best.controller.read(this.controls.shapeKeys())[best.axis];
+        this.initial = best.controller.read(this.controls.shapeKeys());
+        this.last = this.initial.clone();
         this.begin.run();
         return true;
     }
@@ -119,16 +122,7 @@ public class ShapeControllerOverlay
         if (this.drag != null)
         {
             if (!Window.isMouseButtonPressed(0) || !controls.list.getList().contains(this.drag.controller)) this.release();
-            else
-            {
-                Vector3f d = this.drag.direction;
-                float length = d.x * d.x + d.y * d.y;
-                if (length > 0.01F)
-                {
-                    float value = this.initial + ((context.mouseX - this.mouseX) * d.x + (context.mouseY - this.mouseY) * d.y) / length;
-                    if (Math.abs(value - this.last) > 0.0001F) { controls.setAxis(this.drag.axis, value); this.last = value; }
-                }
-            }
+            else this.dragTo(controls, context.mouseX - this.mouseX, context.mouseY - this.mouseY);
         }
         context.batcher.clip(viewport, context);
         context.batcher.beginBatch();
@@ -138,19 +132,27 @@ public class ShapeControllerOverlay
             if (frame == null || c.bindings.getAllTyped().isEmpty()) continue;
             Matrix4f matrix = new Matrix4f(projection).mul(frame);
             float[] value = c.read(controls.shapeKeys());
-            Vector3f local = new Vector3f(c.position.get()).add(0, value[0], 0).div(16F);
+            Vector3f local = new Vector3f(c.position.get()).add(value[ShapeController.SHIFT], value[ShapeController.HEIGHT], 0).div(16F);
             Vector3f center = project(matrix, viewport, local);
             Vector3f up = project(matrix, viewport, new Vector3f(local).add(0, 1F / 16, 0));
             if (center == null || up == null) continue;
-            this.addHandle(viewport, c, 0, center, new Vector3f(up).sub(center));
-            if (this.draggingAxis(c, 1))
+            int color = c == controls.selected() ? SELECTED : IDLE;
+            Vector3f side = null;
+            if (c.hasAxis(ShapeController.SHIFT))
             {
-                Vector3f edge = project(matrix, viewport, new Vector3f(local).add(1F / 16, value[1] / 16, 0));
-                Vector3f edgeUp = project(matrix, viewport, new Vector3f(local).add(1F / 16, (value[1] + 1) / 16, 0));
+                Vector3f right = project(matrix, viewport, new Vector3f(local).add(1F / 16, 0, 0));
+                if (right != null) side = right.sub(center);
+                if (c.hasAxis(ShapeController.HEIGHT)) this.frame(context, matrix, viewport, c.position.get(), color);
+            }
+            this.addHandle(viewport, c, ShapeController.HEIGHT, center, new Vector3f(up).sub(center), side);
+            if (this.draggingAxis(c, ShapeController.TILT))
+            {
+                Vector3f edge = project(matrix, viewport, new Vector3f(local).add(1F / 16, value[ShapeController.TILT] / 16, 0));
+                Vector3f edgeUp = project(matrix, viewport, new Vector3f(local).add(1F / 16, (value[ShapeController.TILT] + 1) / 16, 0));
                 if (edge != null && edgeUp != null)
                 {
-                    this.connector(context, center, edge, c == controls.selected() ? SELECTED : IDLE);
-                    this.addHandle(viewport, c, 1, edge, new Vector3f(edgeUp).sub(edge));
+                    this.connector(context, center, edge, color);
+                    this.addHandle(viewport, c, ShapeController.TILT, edge, new Vector3f(edgeUp).sub(edge), null);
                 }
             }
         }
@@ -168,14 +170,68 @@ public class ShapeControllerOverlay
         context.batcher.endBatch();
         context.batcher.unclip(context);
         if (hovered != null)
-            context.batcher.textCard(hovered.controller.name.get() + ": " + UIShapeControllers.key(hovered.axis == 0 ? "height" : "tilt").get(),
+            context.batcher.textCard(hovered.controller.name.get() + ": " + UIShapeControllers.key(axisName(hovered)).get(),
                 context.mouseX + 12, context.mouseY + 8);
     }
 
-    private void addHandle(Area viewport, ShapeController c, int axis, Vector3f point, Vector3f direction)
+    private static String axisName(Handle handle)
+    {
+        if (handle.axis == ShapeController.TILT) return "tilt";
+        if (handle.side == null) return "height";
+        return handle.controller.hasAxis(ShapeController.HEIGHT) ? "height_shift" : "shift";
+    }
+
+    /** Screen motion back into the controller's axes; a handle with a side step moves both ways at once. */
+    private void dragTo(UIShapeControllers controls, float dx, float dy)
+    {
+        Vector3f up = this.drag.direction;
+        Vector3f side = this.drag.side;
+        float[] values = this.last.clone();
+        if (side == null)
+        {
+            float length = up.x * up.x + up.y * up.y;
+            if (length <= 0.01F) return;
+            values[this.drag.axis] = this.initial[this.drag.axis] + (dx * up.x + dy * up.y) / length;
+        }
+        else
+        {
+            float det = up.x * side.y - up.y * side.x;
+            if (Math.abs(det) <= 0.01F) return;
+            if (this.drag.controller.hasAxis(ShapeController.HEIGHT))
+                values[ShapeController.HEIGHT] = this.initial[ShapeController.HEIGHT] + (dx * side.y - dy * side.x) / det;
+            values[ShapeController.SHIFT] = this.initial[ShapeController.SHIFT] + (up.x * dy - up.y * dx) / det;
+        }
+        for (int axis = 0; axis < ShapeController.AXES; axis++)
+        {
+            if (Math.abs(values[axis] - this.last[axis]) > 0.0001F)
+            {
+                controls.setAxis(axis, values[axis]);
+                this.last[axis] = values[axis];
+            }
+        }
+    }
+
+    /** The square a two-way handle travels in: one pixel each way of its rest point. */
+    private void frame(UIContext context, Matrix4f matrix, Area viewport, Vector3f position, int color)
+    {
+        Vector3f[] corners = new Vector3f[4];
+        for (int i = 0; i < 4; i++)
+        {
+            float x = i == 0 || i == 3 ? -1 : 1, y = i < 2 ? -1 : 1;
+            corners[i] = project(matrix, viewport, new Vector3f(position).add(x, y, 0).div(16F));
+            if (corners[i] == null) return;
+        }
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3f a = corners[i], b = corners[(i + 1) % 4];
+            line(context, a.x, a.y, b.x, b.y, color, 0.5F);
+        }
+    }
+
+    private void addHandle(Area viewport, ShapeController c, int axis, Vector3f point, Vector3f direction, Vector3f side)
     {
         if (!viewport.isInside((int) point.x, (int) point.y)) return;
-        this.handles.add(new Handle(c, axis, point, direction));
+        this.handles.add(new Handle(c, axis, point, direction, side));
     }
 
     private void connector(UIContext context, Vector3f from, Vector3f to, int color)
