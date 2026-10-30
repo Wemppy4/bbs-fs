@@ -301,6 +301,10 @@ public final class ShapeControllerCheck
             float cx = 0, cy = 0;
             for (var v : mesh.baseData.vertices) { cx += v.x / 12; cy += v.y / 12; }
             near(Math.abs(cx), Math.abs(pupil.initial.translate.x), "Pupil mesh is centred on its bone");
+            /* The gaze handle travels along the bone frame's X, which is turned around Y from the model's. */
+            var frame = matrices.get("anchor").matrix();
+            float handleX = frame.transformDirection(new org.joml.Vector3f(1, 0, 0)).x;
+            float handleY = frame.transformDirection(new org.joml.Vector3f(0, 1, 0)).y;
             for (String axis : List.of("x", "y", "size"))
             {
                 var target = mesh.data.get("pupil_" + side + "_" + axis);
@@ -309,10 +313,10 @@ public final class ShapeControllerCheck
                 {
                     var rest = mesh.baseData.vertices.get(i);
                     var changed = target.vertices.get(i);
-                    float dx = axis.equals("x") ? 1 : axis.equals("size") ? rest.x - cx : 0;
-                    float dy = axis.equals("y") ? 1 : axis.equals("size") ? rest.y - cy : 0;
-                    near(changed.x - rest.x, dx, "Pupil " + axis + " moves X by its own rule");
-                    near(changed.y - rest.y, dy, "Pupil " + axis + " moves Y by its own rule");
+                    float dx = axis.equals("x") ? handleX : axis.equals("size") ? rest.x - cx : 0;
+                    float dy = axis.equals("y") ? handleY : axis.equals("size") ? rest.y - cy : 0;
+                    near(changed.x - rest.x, dx, "Pupil " + axis + " moves X with its handle");
+                    near(changed.y - rest.y, dy, "Pupil " + axis + " moves Y with its handle");
                     near(changed.z, rest.z, "Pupil depth stays fixed");
                     check(target.uvs.get(i).equals(mesh.baseData.uvs.get(i)), "Pupil UVs stay unchanged");
                 }
