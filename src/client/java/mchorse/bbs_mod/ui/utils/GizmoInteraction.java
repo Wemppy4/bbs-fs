@@ -275,7 +275,7 @@ public class GizmoInteraction
             {
                 hover = true;
             }
-            else if (!this.stencilWouldWinSpherePick())
+            else if (!this.stencilWouldWinSpherePick() && !this.viewport.isGizmoCovered(context))
             {
                 Matrix4f projection = this.viewport.getGizmoProjection();
                 Area area = this.viewport.getGizmoArea();

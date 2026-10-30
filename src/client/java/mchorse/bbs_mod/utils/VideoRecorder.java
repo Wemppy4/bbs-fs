@@ -30,17 +30,8 @@ import java.util.concurrent.TimeUnit;
 
 public class VideoRecorder
 {
-    /** Vanilla sounds, one of which is picked at random when an export is done */
-    private static final List<SoundEvent> FINISH_SOUNDS = List.of(
-        SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(),
-        SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT,
-        SoundEvents.UI_LOOM_TAKE_RESULT,
-        SoundEvents.UI_STONECUTTER_TAKE_RESULT,
-        SoundEvents.BLOCK_BELL_USE,
-        SoundEvents.UI_TOAST_CHALLENGE_COMPLETE,
-        SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
-        SoundEvents.ENTITY_ITEM_PICKUP
-    );
+    /** Vanilla sound played when an export is done */
+    private static final SoundEvent FINISH_SOUND = SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP;
 
     private Process process;
     private WritableByteChannel channel;
@@ -332,9 +323,7 @@ public class VideoRecorder
     {
         if (BBSSettings.videoPlaySoundAfterExport.get())
         {
-            SoundEvent sound = FINISH_SOUNDS.get((int) (Math.random() * FINISH_SOUNDS.size()));
-
-            MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.master(sound, 1F, 1F));
+            MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.master(FINISH_SOUND, 1F, 1F));
         }
 
         if (BBSSettings.videoOpenFolderAfterExport.get())

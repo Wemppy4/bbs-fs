@@ -619,6 +619,8 @@
 	"bbs.config.timeline.snap_to_ticks": "Snap to ticks",
 	"bbs.config.timeline.snap_to_ticks-comment": "Snap keys and playhead to ticks; hold Shift to bypass while dragging.",
 	"bbs.config.timeline.stop_playback_on_scrub-comment": "When enabled, dragging the cursor on a timeline stops the playback of the film",
+	"bbs.config.timeline.follow_cursor": "Follow the cursor",
+	"bbs.config.timeline.follow_cursor-comment": "During playback, the timeline scrolls smoothly along with the cursor.",
 	"bbs.config.timeline.restart_on_seek": "Restart on seek",
 	"bbs.config.timeline.restart_on_seek-comment": "Restart actions while scrubbing (Alt+R).",
 	"bbs.config.timeline.title": "Timeline",

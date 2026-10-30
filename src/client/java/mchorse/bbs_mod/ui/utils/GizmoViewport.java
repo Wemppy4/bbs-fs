@@ -24,6 +24,13 @@ public interface GizmoViewport
 
     Area getGizmoArea();
 
+    /** Whether the viewport's own interface drawn over the gizmo (the film preview's
+     *  icon bar) is under the mouse: the sphere must not light up or take the click there. */
+    default boolean isGizmoCovered(UIContext context)
+    {
+        return false;
+    }
+
     /** Build the editable transform + drag and start {@link Gizmo} on the
      *  given stencil index (handle or {@link Gizmo#STENCIL_TRACKBALL} trackball).
      *  Returns whether a drag actually began. */

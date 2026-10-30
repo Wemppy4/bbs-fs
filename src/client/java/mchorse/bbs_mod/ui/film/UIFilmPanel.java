@@ -55,6 +55,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UINumberOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIPromptOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.Scale;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -151,6 +152,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private double timelineXMax = Double.NaN;
     /* The timelines' own views (min and max tick) while a video export lays its range over them */
     private final List<Vector2d> exportTimelineViews = new ArrayList<>();
+    /* Where the timelines followed the playhead last frame, to tell a jump back (a loop) from the view scrolled ahead */
+    private float followedCursor;
     /* Vertical timeline scrolls per film id, so switching film tabs restores where each one was left */
     private final ScrollMemory<String> cameraScrolls = new ScrollMemory<>();
     private final ScrollMemory<String> actionScrolls = new ScrollMemory<>();
@@ -1722,6 +1725,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
 
         this.updateLogic(context);
+        this.followCursor(context);
 
         this.area.render(context.batcher, BBSSettings.baseSurface());
 
@@ -2003,19 +2007,45 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         /* While exporting, the timelines show the whole exported range instead */
         if (this.runner.isRunning() && !this.recorder.isExporting())
         {
-            for (Scale axis : this.getTimelineAxes())
+            for (UITimelineCanvas timeline : this.getTimelines())
             {
-                axis.shiftIntoMiddle(this.getCursor());
+                timeline.getXAxis().shiftIntoMiddle(this.getCursor());
             }
         }
     }
 
     /**
-     * The time axes that show the playhead: the camera clips and the replays' active timeline.
+     * With "Follow the cursor" on, slide the timelines along with the playing playhead every
+     * frame, holding it at three quarters of their width. A timeline being middle-dragged is
+     * left to the user; an export lays its own range over them instead.
      */
-    private Scale[] getTimelineAxes()
+    private void followCursor(UIContext context)
     {
-        return new Scale[] {this.cameraEditor.clips.getXAxis(), this.replayEditor.getActiveTimeline().getXAxis()};
+        if (!BBSSettings.editorFollowCursor.get() || !this.isRunning() || this.recorder.isExporting())
+        {
+            return;
+        }
+
+        float cursor = this.getCursor(context.getTransition());
+        boolean jumped = cursor < this.followedCursor;
+
+        this.followedCursor = cursor;
+
+        for (UITimelineCanvas timeline : this.getTimelines())
+        {
+            if (!timeline.isNavigating())
+            {
+                timeline.getXAxis().follow(cursor, 0.75D, jumped);
+            }
+        }
+    }
+
+    /**
+     * The timelines that show the playhead: the camera clips and the replays' active timeline.
+     */
+    private UITimelineCanvas[] getTimelines()
+    {
+        return new UITimelineCanvas[] {this.cameraEditor.clips, this.replayEditor.getActiveTimeline()};
     }
 
     /**
@@ -2032,8 +2062,10 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             return;
         }
 
-        for (Scale axis : this.getTimelineAxes())
+        for (UITimelineCanvas timeline : this.getTimelines())
         {
+            Scale axis = timeline.getXAxis();
+
             this.exportTimelineViews.add(new Vector2d(axis.getMinValue(), axis.getMaxValue()));
             axis.view(start, end);
         }
@@ -2041,15 +2073,15 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     public void restoreTimelineViews()
     {
-        Scale[] axes = this.getTimelineAxes();
+        UITimelineCanvas[] timelines = this.getTimelines();
 
-        for (int i = 0; i < Math.min(axes.length, this.exportTimelineViews.size()); i++)
+        for (int i = 0; i < Math.min(timelines.length, this.exportTimelineViews.size()); i++)
         {
             Vector2d view = this.exportTimelineViews.get(i);
 
             if (view.x < view.y)
             {
-                axes[i].view(view.x, view.y);
+                timelines[i].getXAxis().view(view.x, view.y);
             }
         }
 
