@@ -209,7 +209,7 @@ public class UIModelFormPanel extends UIFormPanel<ModelForm>
         Set<String> modelShapeKeys = model == null ? Collections.emptySet() : model.model.getShapeKeys();
 
         this.shapeControllersSection.removeFromParent();
-        this.shapeControllers.fill(model == null ? List.of() : model.config.shapeControllers.getAllTyped(), this.form.shapeKeys.get());
+        this.shapeControllers.fill(model == null ? null : model.config, this.form.shapeKeys.get());
         if (model != null && !model.config.shapeControllers.getAllTyped().isEmpty()) this.options.add(this.shapeControllersSection);
         this.shapeKeysSection.removeFromParent();
         this.shapeKeys.setShapeKeys(model == null ? "" : model.getPoseGroup(), modelShapeKeys, this.form.shapeKeys.get());

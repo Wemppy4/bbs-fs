@@ -10,6 +10,7 @@
 	"bbs.ui.shape_controllers.preview": "Shape key preview",
 	"bbs.ui.shape_controllers.height_gain": "Height influence",
 	"bbs.ui.shape_controllers.tilt_gain": "Tilt influence",
+	"bbs.ui.shape_controllers.mirror": "Mirror edits onto the controller of the paired bone (pairs are the bones' Mirror in the model config)",
 
 	"bbs.ui.keyframes.mode.keys": "Keys",
 	"bbs.ui.keyframes.mode.graph": "Graph",

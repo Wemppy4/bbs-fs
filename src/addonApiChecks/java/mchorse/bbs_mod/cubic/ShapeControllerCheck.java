@@ -23,12 +23,16 @@ public final class ShapeControllerCheck
     private static void near(float a, float b, String why) { check(Math.abs(a - b) < 0.0001F, why + ": " + a + " != " + b); }
     private static ShapeController controller()
     {
+        return controller("head", "l");
+    }
+    private static ShapeController controller(String bone, String side)
+    {
         ShapeController c = new ShapeController("0");
-        c.bone.set("head"); c.name.set("upper_l"); c.position.get().set(2, 4, 4.1F);
+        c.bone.set(bone); c.name.set("upper_" + side); c.position.get().set(2, 4, 4.1F);
         for (int i = 0; i < 2; i++)
         {
             var binding = new ShapeController.Binding("" + i);
-            binding.shape.set(i == 0 ? "upper_l_inner" : "upper_l_outer");
+            binding.shape.set(i == 0 ? "upper_" + side + "_inner" : "upper_" + side + "_outer");
             binding.tilt.set(i == 0 ? 1F : -1F);
             c.bindings.add(binding);
         }
@@ -69,6 +73,7 @@ public final class ShapeControllerCheck
         undo.undo(config); check(config.shapeControllers.getAllTyped().size() == 1, "Delete undo restores controller");
         undo.redo(config); check(config.shapeControllers.getAllTyped().isEmpty(), "Delete redo removes controller");
         previewUndo(c);
+        mirror();
         modelDiscovery();
 
         if (Boolean.getBoolean("bbs.check.shapeUI")) withUi(c);
@@ -116,6 +121,16 @@ public final class ShapeControllerCheck
         }
     }
 
+    private static void mirror()
+    {
+        ShapeController left = controller("eyelid_lt", "l"), right = controller("eyelid_rt", "r"), lone = controller("pupil", "p");
+        List<ShapeController> all = List.of(left, right, lone);
+        java.util.Map<String, String> pairs = java.util.Map.of("eyelid_rt", "eyelid_lt");
+        check(left.mirror(all, pairs) == right && right.mirror(all, pairs) == left, "Mirror pair is read from either side");
+        check(lone.mirror(all, pairs) == null, "Unpaired bone has no mirror controller");
+        check(left.mirror(List.of(left), pairs) == null, "Paired bone without a controller has no mirror");
+    }
+
     private static void previewUndo(ShapeController c)
     {
         ModelForm preview = new ModelForm();
@@ -159,10 +174,12 @@ public final class ShapeControllerCheck
         timeline.addSheet(sheet); sheet.selection.add(0);
         UITrackValue<ShapeKeys> track = new UITrackValue<>(sheet, timeline);
         UIShapeControllers controls = new UIShapeControllers(track::edit);
-        controls.fill(List.of(), new ShapeKeys());
+        ModelConfig config = new ModelConfig("");
+        config.shapeControllers.add(c);
+        controls.fill(null, new ShapeKeys());
         check(controls.selected() == null, "Dashboard warmup without a model has no selected controller");
         check(!controls.height.isEnabled() && !controls.tilt.isEnabled(), "Empty controls disable both axes");
-        controls.fill(List.of(c), track.getValue());
+        controls.fill(config, track.getValue());
         timeline.beginValueGesture(); controls.setAxis(1, 0.15F); timeline.endValueGesture();
         check(channel.getKeyframes().size() == 3, "Controller autokeys existing shape track");
         near(c.read(channel.get(1).getValue())[1], 0.15F, "Inserted key has requested tilt");
@@ -177,9 +194,9 @@ public final class ShapeControllerCheck
                 "Both axes share a row without overlap " + width);
         }
         check(controls.height.tooltipImmediate && controls.tilt.tooltipImmediate, "Axis names have immediate tooltips");
-        controls.fill(List.of(), new ShapeKeys());
+        controls.fill(null, new ShapeKeys());
         check(controls.selected() == null, "Closing a populated model clears selection");
-        controls.fill(List.of(c), track.getValue());
+        controls.fill(config, track.getValue());
         check(controls.selected() == c, "Reopening a model selects its first controller");
         controls.select(null);
         check(controls.selected() == null && !controls.height.isEnabled(), "Explicit deselection supports immutable controller lists");

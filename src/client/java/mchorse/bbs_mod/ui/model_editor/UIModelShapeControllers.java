@@ -71,7 +71,7 @@ public class UIModelShapeControllers extends UIElement
             this.placing = false;
         }
         this.model = model;
-        this.controls.fill(model == null ? List.of() : model.config.shapeControllers.getAllTyped(), this.form().shapeKeys.get());
+        this.controls.fill(model == null ? null : model.config, this.form().shapeKeys.get());
         this.controls.list.broken(c -> model != null && (!c.bone.get().isEmpty() && model.getModel().getBone(c.bone.get()) == null
             || c.bindings.getAllTyped().stream().anyMatch(b -> !model.model.getShapeKeys().contains(b.shape.get()))));
         this.add.setEnabled(model != null && !model.model.getShapeKeys().isEmpty());
@@ -83,7 +83,7 @@ public class UIModelShapeControllers extends UIElement
         ShapeController controller = new ShapeController("");
         controller.name.set("shape_controller_" + (this.model.config.shapeControllers.getAllTyped().size() + 1));
         BaseValue.edit(this.model.config.shapeControllers, IValueListener.FLAG_UNMERGEABLE, list -> { list.add(controller); list.sync(); });
-        this.controls.fill(this.model.config.shapeControllers.getAllTyped(), this.form().shapeKeys.get());
+        this.controls.fill(this.model.config, this.form().shapeKeys.get());
         this.controls.select(controller);
     }
     private void removeController()
@@ -91,7 +91,7 @@ public class UIModelShapeControllers extends UIElement
         ShapeController selected = this.controls.selected();
         if (selected == null || this.model == null) return;
         BaseValue.edit(this.model.config.shapeControllers, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().remove(selected); list.sync(); });
-        this.controls.fill(this.model.config.shapeControllers.getAllTyped(), this.form().shapeKeys.get());
+        this.controls.fill(this.model.config, this.form().shapeKeys.get());
         this.fillSettings();
     }
     private void fillSettings()
