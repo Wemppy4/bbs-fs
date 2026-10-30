@@ -563,6 +563,8 @@
 	"bbs.config.viewport.motion_path-comment": "Показывать путь движения и маркеры ключей позиции.",
 	"bbs.config.viewport.markup": "Разметка",
 	"bbs.config.viewport.markup-comment": "Экранный слой редакторов: траектория, ручки рига, сплайны и ручки ключевых форм; настраивается кнопкой «Разметка» в превью фильма.",
+	"bbs.config.viewport.markup_opacity": "Непрозрачность разметки",
+	"bbs.config.viewport.markup_opacity-comment": "Насколько плотно рисуется разметка (1 — сплошная): ручки, линии и траектория, во всех редакторах.",
 	"bbs.config.viewport.markup_handle_size": "Размер ручек разметки",
 	"bbs.config.viewport.markup_handle_size-comment": "Один множитель для всех ручек разметки (цели и полюса ИК, контроллеры, точки сплайнов, ключевые формы) во всех редакторах.",
 	"bbs.config.viewport.ik_debug": "Отладка IK",

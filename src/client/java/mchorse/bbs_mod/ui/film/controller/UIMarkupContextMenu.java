@@ -41,8 +41,8 @@ public class UIMarkupContextMenu extends UIContextMenu
         this.splines = new UIToggle(UIKeys.MARKUP_SPLINES, markup.splines.get(), (b) -> markup.splines.set(b.getValue()));
         this.shapeKeys = new UIToggle(UIKeys.MARKUP_SHAPE_KEYS, markup.shapeKeys.get(), (b) -> markup.shapeKeys.set(b.getValue()));
 
-        this.opacity = new UISliderTrackpad((v) -> markup.opacity.set(v.floatValue()));
-        this.opacity.limit(markup.opacity).setValue(markup.opacity.get());
+        this.opacity = new UISliderTrackpad((v) -> BBSSettings.markupOpacity.set(v.floatValue()));
+        this.opacity.limit(BBSSettings.markupOpacity).setValue(BBSSettings.markupOpacity.get());
         this.size = new UISliderTrackpad((v) -> BBSSettings.markupHandleSize.set(v.floatValue()));
         this.size.limit(BBSSettings.markupHandleSize).setValue(BBSSettings.markupHandleSize.get());
 

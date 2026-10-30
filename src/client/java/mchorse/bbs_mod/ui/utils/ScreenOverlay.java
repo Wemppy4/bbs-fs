@@ -31,7 +31,7 @@ import java.util.List;
  * {@link #flush}. Picks answer from the handles of the last flush, nearest to the cursor first,
  * whichever overlay a handle belongs to, so two overlays never fight over one click. The axes
  * switch (F8) hides the whole layer, as it hides the gizmo (holding the hide-gizmo key leaves it). How solid it draws is
- * {@link BBSSettings#editorMarkup}, how big its handles are {@link BBSSettings#markupHandleSize}.</p>
+ * {@link BBSSettings#markupOpacity}, how big its handles are {@link BBSSettings#markupHandleSize}.</p>
  */
 public class ScreenOverlay
 {
@@ -347,7 +347,7 @@ public class ScreenOverlay
     {
         float px = 1F / BBSModClient.getGUIScale();
         float scale = BBSSettings.markupHandleSize.get();
-        float opacity = BBSSettings.editorMarkup.opacity.get();
+        float opacity = BBSSettings.markupOpacity.get();
 
         context.batcher.flush();
         context.batcher.clip(this.viewport, context);

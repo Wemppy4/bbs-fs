@@ -565,6 +565,8 @@
 	"bbs.config.viewport.motion_path-comment": "Show the movement path and position keyframe markers.",
 	"bbs.config.viewport.markup": "Markup",
 	"bbs.config.viewport.markup-comment": "The editors' screen layer: motion path, rig handles, splines and shape key handles, edited through the film preview's markup button.",
+	"bbs.config.viewport.markup_opacity": "Markup opacity",
+	"bbs.config.viewport.markup_opacity-comment": "How solid the markup draws (1 is opaque): handles, lines and the motion path, in every editor.",
 	"bbs.config.viewport.markup_handle_size": "Markup handle size",
 	"bbs.config.viewport.markup_handle_size-comment": "One scale for every handle of the markup (IK goals, poles, controllers, spline points, shape key handles) in every editor.",
 	"bbs.config.viewport.ik_debug": "IK debug overlay",
