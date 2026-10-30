@@ -127,7 +127,7 @@ public class CubicVAORenderer extends CubicCubeRenderer
             }
         }
 
-        if (this.band != null)
+        if (this.band != null && !this.hidesBone(group))
         {
             for (WeldBandVAO.Draw draw : this.band.draws(group))
             {

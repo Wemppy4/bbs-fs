@@ -155,6 +155,28 @@ public class CubicCubeRenderer implements ICubicRenderer
         this.meshes = meshes;
     }
 
+    /**
+     * Whether an addon draws any of the bone's cubes itself on this draw. A welded band is drawn over the
+     * bone's cubes, so a bone given away is given away with its band.
+     */
+    protected boolean hidesBone(ModelGroup group)
+    {
+        if (this.meshes == null)
+        {
+            return false;
+        }
+
+        for (ModelCube cube : group.cubes)
+        {
+            if (this.meshes.hides(group, cube))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Write the replacement's meshes into the buffer too, from the frame the walk starts in. */
     public void emitMeshes(Matrix4f position, Matrix3f normal)
     {
@@ -381,7 +403,7 @@ public class CubicCubeRenderer implements ICubicRenderer
     {
         for (WeldMesh.Quad quad : band.quads)
         {
-            if (!quad.group.isVisible() || !this.materialVisibility.test(quad.material))
+            if (!quad.group.isVisible() || !this.materialVisibility.test(quad.material) || this.hidesBone(quad.group))
             {
                 continue;
             }
