@@ -74,16 +74,17 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import mchorse.bbs_mod.ui.utils.SplineEditorUtils;
+import mchorse.bbs_mod.ui.utils.ScreenOverlay;
 import mchorse.bbs_mod.ui.utils.SplineOverlay;
 
 public class UIAnimationStateEditor extends UIElement
 {
     private final SplineOverlay splineOverlay = new SplineOverlay();
 
-    public void renderSplineOverlay(UIContext context)
+    public void renderSplineOverlay(UIContext context, ScreenOverlay markup)
     {
         SplineEditorUtils.viewportHover(this.keyframeEditor, null);
-        if (!this.splineOverlay.begin()) return;
+        if (!this.splineOverlay.begin(markup)) return;
         if (this.state == null || this.root == null || !this.isVisible()) return;
         var renderer = this.editor.renderer;
         var camera = renderer.camera;
@@ -99,7 +100,7 @@ public class UIAnimationStateEditor extends UIElement
                 Matrix4f parent = SplineEditorUtils.parentMatrix(this.root, renderer.getTargetEntity(), context.getTransition(), model, chain);
                 if (parent == null) continue;
                 this.splineOverlay.draw(context, new Matrix4f(view).mul(renderer.toSceneMatrix(parent)), camera.projection,
-                    renderer.area, chain, SplineEditorUtils.selectedPoints(this.keyframeEditor, chain),
+                    chain, SplineEditorUtils.selectedPoints(this.keyframeEditor, chain),
                     SplineEditorUtils.hoveredPoint(this.keyframeEditor, context, chain));
             }
         }
@@ -108,7 +109,7 @@ public class UIAnimationStateEditor extends UIElement
             && !spline.pointEditor().position.isEditing())
         {
             var insertion = this.splineOverlay.insertionAt(context.mouseX, context.mouseY);
-            if (insertion != null && spline.sameSource(insertion.chain())) this.splineOverlay.drawInsertionPreview(context, renderer.area);
+            if (insertion != null && spline.sameSource(insertion.chain())) this.splineOverlay.drawInsertionPreview(context);
         }
         SplineEditorUtils.viewportHover(this.keyframeEditor, renderer.area.isInside(context)
             ? this.splineOverlay.pick(context.mouseX, context.mouseY) : null);
@@ -611,20 +612,21 @@ public class UIAnimationStateEditor extends UIElement
 
     public boolean clickViewport(UIContext context, StencilFormFramebuffer stencil)
     {
-        if (stencil.hasPicked() && this.state != null)
-        {
-            Pair<Form, String> pair = stencil.getPicked();
+        return stencil.hasPicked() && this.clickViewport(context, stencil.getPicked());
+    }
 
-            if (pair != null)
-            {
-                return UIReplaysEditorUtils.pickFormWithOffers(context, pair, (form, bone, insert) ->
-                {
-                    this.pickFormBone(form, bone, insert);
-                });
-            }
+    /** A form and its bone picked off the viewport: the stencil's under the cursor, or a rig handle of the markup. */
+    public boolean clickViewport(UIContext context, Pair<Form, String> pair)
+    {
+        if (pair == null || this.state == null)
+        {
+            return false;
         }
 
-        return false;
+        return UIReplaysEditorUtils.pickFormWithOffers(context, pair, (form, bone, insert) ->
+        {
+            this.pickFormBone(form, bone, insert);
+        });
     }
 
     /** The locked channels of the bones the states' keyframe editor moves. */

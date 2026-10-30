@@ -2,8 +2,6 @@ package mchorse.bbs_mod.ui.film.controller;
 
 import mchorse.bbs_mod.forms.entities.ReplayEntity;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.cubic.animation.ActionConfig;
 import mchorse.bbs_mod.cubic.animation.ActionsConfig;
 import mchorse.bbs_mod.film.FilmMatrices;
@@ -16,21 +14,12 @@ import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
-import mchorse.bbs_mod.graphics.Draw;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
+import mchorse.bbs_mod.ui.utils.ScreenOverlay;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
-import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormat;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.world.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
@@ -51,8 +40,9 @@ import java.util.TreeSet;
  * changes — a cheap structural signature plus a divergence check against one live sample.
  * Procedural limb motion and physics are approximate there; keyframed pose and IK are exact.
  *
- * <p>Drawn in the 3D pass (camera-relative, depth disabled): the curve is a camera-facing
- * ribbon, the dots are small axis-aligned cubes.
+ * <p>Drawn on the film viewport's markup ({@link ScreenOverlay}): the curve a line one screen
+ * pixel wide, a dot per tick, a key per keyframe as the timeline draws one, a ring on the current
+ * frame, in the markup's sizes.
  */
 public class MotionPath
 {
@@ -84,7 +74,7 @@ public class MotionPath
         "swipe", "jump", "jump_alt", "hurt", "land", "shoot", "consume", "base_pre", "base_post"
     };
 
-    public static void render(WorldRenderContext context, ValueMotionPath config, UIFilmController controller, Replay replay, FilmTarget target, float currentTick)
+    public static void render(ScreenOverlay overlay, mchorse.bbs_mod.camera.Camera camera, ValueMotionPath config, UIFilmController controller, Replay replay, FilmTarget target, float currentTick)
     {
         if (replay == null || replay.relative.get())
         {
@@ -108,12 +98,12 @@ public class MotionPath
             return;
         }
 
-        draw(context, config, trajectory, currentTick);
+        draw(overlay, camera, config, trajectory, currentTick);
     }
 
     /* Drawing */
 
-    private static void draw(WorldRenderContext context, ValueMotionPath config, Trajectory trajectory, float currentTick)
+    private static void draw(ScreenOverlay overlay, mchorse.bbs_mod.camera.Camera camera, ValueMotionPath config, Trajectory trajectory, float currentTick)
     {
         float first = trajectory.first();
         float last = trajectory.last();
@@ -130,34 +120,20 @@ public class MotionPath
             }
         }
 
-        Camera camera = context.camera();
-        MatrixStack stack = context.matrixStack();
+        Matrix4f mvp = new Matrix4f(camera.projection).mul(camera.view);
+        Vector3d eye = camera.position;
 
-        double cx = camera.getPos().x;
-        double cy = camera.getPos().y;
-        double cz = camera.getPos().z;
-
-        Matrix4f matrix = stack.peek().getPositionMatrix();
-        float halfWidth = config.width.get() * 0.5F;
-
-        BufferBuilder builder = Tessellator.getInstance().getBuffer();
-
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        RenderSystem.disableDepthTest();
-        RenderSystem.disableCull();
-
-        builder.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
-
-        /* The interpolated curve: a camera-facing ribbon with a dot on every
-         * tick (so the spacing shows speed), the exact endpoints kept. */
+        /* The interpolated curve: a line through every tick with a dot on each (so the
+         * spacing shows speed), the exact endpoints kept. */
         trajectory.worldAt(first, POINT_A);
-        POINT_A.sub(cx, cy, cz);
+
+        Vector3f a = screen(overlay, mvp, eye, POINT_A);
 
         gradient(config, first, currentTick, first, last, COLOR_A);
 
-        if (config.frames.get())
+        if (config.frames.get() && a != null)
         {
-            dot(builder, stack, POINT_A, config.frameSize.get(), brighten(COLOR_A, DOT_COLOR));
+            overlay.dot(a.x, a.y, pack(brighten(COLOR_A, DOT_COLOR)));
         }
 
         for (float tick = first; tick < last; )
@@ -165,32 +141,44 @@ public class MotionPath
             tick = Math.min(tick + 1F, last);
 
             trajectory.worldAt(tick, POINT_B);
-            POINT_B.sub(cx, cy, cz);
+
+            Vector3f b = screen(overlay, mvp, eye, POINT_B);
 
             gradient(config, tick, currentTick, first, last, COLOR_B);
-            ribbon(builder, matrix, POINT_A, POINT_B, COLOR_A, COLOR_B, halfWidth);
 
-            if (config.frames.get())
+            if (a != null && b != null)
             {
-                dot(builder, stack, POINT_B, config.frameSize.get(), brighten(COLOR_B, DOT_COLOR));
+                SCRATCH[0] = (COLOR_A[0] + COLOR_B[0]) * 0.5F;
+                SCRATCH[1] = (COLOR_A[1] + COLOR_B[1]) * 0.5F;
+                SCRATCH[2] = (COLOR_A[2] + COLOR_B[2]) * 0.5F;
+
+                overlay.line(a, b, pack(SCRATCH));
             }
 
-            POINT_A.set(POINT_B);
+            if (config.frames.get() && b != null)
+            {
+                overlay.dot(b.x, b.y, pack(brighten(COLOR_B, DOT_COLOR)));
+            }
+
+            a = b;
             System.arraycopy(COLOR_B, 0, COLOR_A, 0, 3);
         }
 
-        /* A bigger marker on every keyframe inside the window. */
+        /* A key, as the timeline draws one, on every keyframe inside the window. */
         if (config.keyframes.get())
         {
-            unpack(config.keyframeColor.get(), SCRATCH);
-
             for (float tick : trajectory.keyframeTicks())
             {
                 if (tick >= first && tick <= last)
                 {
                     trajectory.worldAt(tick, POINT_B);
-                    POINT_B.sub(cx, cy, cz);
-                    dot(builder, stack, POINT_B, config.keyframeSize.get(), SCRATCH);
+
+                    Vector3f key = screen(overlay, mvp, eye, POINT_B);
+
+                    if (key != null)
+                    {
+                        overlay.key(key.x, key.y, Colors.A100 | config.keyframeColor.get());
+                    }
                 }
             }
         }
@@ -198,16 +186,21 @@ public class MotionPath
         /* The current frame's place on the path, when it falls inside the window. */
         if (config.current.get() && currentTick >= first && currentTick <= last)
         {
-            unpack(config.currentColor.get(), SCRATCH);
             trajectory.worldAt(currentTick, POINT_B);
-            POINT_B.sub(cx, cy, cz);
-            dot(builder, stack, POINT_B, config.currentSize.get(), SCRATCH);
+
+            Vector3f current = screen(overlay, mvp, eye, POINT_B);
+
+            if (current != null)
+            {
+                overlay.ring(current.x, current.y, Colors.A100 | config.currentColor.get());
+            }
         }
+    }
 
-        BufferRenderer.drawWithGlobalProgram(builder.end());
-
-        RenderSystem.enableCull();
-        RenderSystem.enableDepthTest();
+    /** A world point on the viewport, through the camera (its view is camera-relative). */
+    private static Vector3f screen(ScreenOverlay overlay, Matrix4f mvp, Vector3d eye, Vector3d point)
+    {
+        return overlay.project(mvp, new Vector3f((float) (point.x - eye.x), (float) (point.y - eye.y), (float) (point.z - eye.z)));
     }
 
     /**
@@ -244,7 +237,7 @@ public class MotionPath
         out[2] += (SCRATCH[2] - out[2]) * weight;
     }
 
-    /** Lighten a colour towards white, so the per-frame dots read against the ribbon they sit on. */
+    /** Lighten a colour towards white, so the per-frame dots read against the line they sit on. */
     private static float[] brighten(float[] src, float[] out)
     {
         out[0] = src[0] + (1F - src[0]) * 0.45F;
@@ -254,58 +247,9 @@ public class MotionPath
         return out;
     }
 
-    private static void dot(BufferBuilder builder, MatrixStack stack, Vector3d point, float radius, float[] color)
+    private static int pack(float[] color)
     {
-        float half = radius * BBSSettings.getScreenSizeScale((float) point.length());
-
-        Draw.fillBox(builder, stack, (float) point.x - half, (float) point.y - half, (float) point.z - half, (float) point.x + half, (float) point.y + half, (float) point.z + half, color[0], color[1], color[2], 1F);
-    }
-
-    /**
-     * One flat quad from {@code a} to {@code b}, widened along the vector
-     * perpendicular to both the segment and the view ray (the segment midpoint,
-     * since the coordinates are camera-relative), so the ribbon always faces the
-     * camera. Its width is distance-scaled to stay a constant on-screen size.
-     */
-    private static void ribbon(BufferBuilder builder, Matrix4f matrix, Vector3d a, Vector3d b, float[] colorA, float[] colorB, float halfWidth)
-    {
-        double dx = b.x - a.x;
-        double dy = b.y - a.y;
-        double dz = b.z - a.z;
-
-        double mx = (a.x + b.x) * 0.5;
-        double my = (a.y + b.y) * 0.5;
-        double mz = (a.z + b.z) * 0.5;
-
-        /* side = segment x view ray */
-        double sx = dy * mz - dz * my;
-        double sy = dz * mx - dx * mz;
-        double sz = dx * my - dy * mx;
-        double length = Math.sqrt(sx * sx + sy * sy + sz * sz);
-
-        if (length < 1.0E-6)
-        {
-            return;
-        }
-
-        double half = halfWidth * BBSSettings.getScreenSizeScale((float) Math.sqrt(mx * mx + my * my + mz * mz)) / length;
-
-        sx *= half;
-        sy *= half;
-        sz *= half;
-
-        float ax1 = (float) (a.x + sx), ay1 = (float) (a.y + sy), az1 = (float) (a.z + sz);
-        float ax2 = (float) (a.x - sx), ay2 = (float) (a.y - sy), az2 = (float) (a.z - sz);
-        float bx1 = (float) (b.x + sx), by1 = (float) (b.y + sy), bz1 = (float) (b.z + sz);
-        float bx2 = (float) (b.x - sx), by2 = (float) (b.y - sy), bz2 = (float) (b.z - sz);
-
-        builder.vertex(matrix, ax1, ay1, az1).color(colorA[0], colorA[1], colorA[2], 1F).next();
-        builder.vertex(matrix, ax2, ay2, az2).color(colorA[0], colorA[1], colorA[2], 1F).next();
-        builder.vertex(matrix, bx2, by2, bz2).color(colorB[0], colorB[1], colorB[2], 1F).next();
-
-        builder.vertex(matrix, ax1, ay1, az1).color(colorA[0], colorA[1], colorA[2], 1F).next();
-        builder.vertex(matrix, bx2, by2, bz2).color(colorB[0], colorB[1], colorB[2], 1F).next();
-        builder.vertex(matrix, bx1, by1, bz1).color(colorB[0], colorB[1], colorB[2], 1F).next();
+        return Colors.A100 | ((int) (color[0] * 255) << 16) | ((int) (color[1] * 255) << 8) | (int) (color[2] * 255);
     }
 
     private static void unpack(int color, float[] out)

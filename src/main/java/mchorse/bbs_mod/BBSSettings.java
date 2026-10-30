@@ -168,6 +168,7 @@ public class BBSSettings {
 	public static ValueMotionPath editorMotionPath;
 	public static ValueBoolean editorOrbitTeleportOnSwitch;
 	public static ValueBoolean editorOrbitAttached;
+	public static ValueBoolean editorOrbitTurnsWithAnchor;
 	public static ValueFloat editorCameraSmoothness;
 	public static ValueInt editorCameraMode;
 	public static ValueBoolean editorPlayerFollowsCamera;
@@ -175,9 +176,10 @@ public class BBSSettings {
 	public static ValueOnionSkin editorOnionSkin;
 	/** The rig's debug overlay: switched by the rig tab and F5, no row in the settings. */
 	public static ValueBoolean debugOverlay;
-	public static ValueFloat debugOpacity;
-	/** One scale for every marker and line of the rig's debug overlay. */
-	public static ValueFloat debugSize;
+	/** How solid the editors' markup draws, in every editor. */
+	public static ValueFloat markupOpacity;
+	/** One scale for every handle of the editors' markup, in every editor. */
+	public static ValueFloat markupHandleSize;
 	public static ValueBoolean profilerOverlay;
 	/** Emergency switch for the per-frame pose caches; invisible, on by default. */
 	public static ValueBoolean framePoseCache;
@@ -849,6 +851,8 @@ public class BBSSettings {
 		editorOrbitTeleportOnSwitch = builder.getBoolean("orbit_teleport_on_switch", true);
 		editorOrbitAttached = builder.getBoolean("orbit_attached", true);
 		editorOrbitAttached.invisible();
+		editorOrbitTurnsWithAnchor = builder.getBoolean("orbit_turns_with_anchor", false);
+		editorOrbitTurnsWithAnchor.invisible();
 		editorCameraMode = builder.getInt("camera_mode", 0, 0, 5);
 		editorCameraMode.invisible();
 
@@ -878,12 +882,11 @@ public class BBSSettings {
 		editorPreviewSelectionHud = builder.getBoolean("preview_selection_hud", true);
 		builder.register(editorOnionSkin = new ValueOnionSkin("onion_skin"));
 		builder.register(editorMotionPath = new ValueMotionPath("motion_path"));
-		/* The rig's debug overlay: its switch lives on the rig tab (and F5), its look is fixed
-		 * but for how solid and how big it draws */
+		/* The rig's debug overlay: its switch lives on the rig tab and F5 */
 		debugOverlay = builder.getBoolean("debug_overlay", false);
 		debugOverlay.invisible();
-		debugOpacity = builder.getFloat("debug_opacity", 0.5F, 0.05F, 1F).slider();
-		debugSize = builder.getFloat("debug_size", 1F, 0.25F, 4F).slider();
+		markupOpacity = builder.getFloat("markup_opacity", 0.67F, 0.2F, 1F).slider();
+		markupHandleSize = builder.getFloat("markup_handle_size", 1F, 0.5F, 3F).slider();
 
 		/* Everything that trades work for frames: what the editor renders at all, at what
 		 * resolution and how often, what it computes in parallel, plus the counters that

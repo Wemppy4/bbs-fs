@@ -9,7 +9,9 @@ import mchorse.bbs_mod.ui.utils.SplineKeyframeEditor;
 import mchorse.bbs_mod.cubic.spline.SplineIK;
 import mchorse.bbs_mod.forms.forms.SplineForm;
 import mchorse.bbs_mod.ui.utils.SplineEditorUtils;
+import mchorse.bbs_mod.ui.utils.ScreenOverlay;
 import mchorse.bbs_mod.ui.utils.SplineOverlay;
+import mchorse.bbs_mod.cubic.rig.RigMarkup;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -87,11 +89,75 @@ import net.minecraft.world.World;
 
 public class UIFilmController extends UIElement implements GizmoViewport
 {
+    /** The viewport's markup: the motion path, the rig's handles, spline points and shape key handles on one screen layer. */
+    private final ScreenOverlay markup = new ScreenOverlay();
     private final ShapeControllerOverlay shapeOverlay = new ShapeControllerOverlay();
 
-    public boolean pickShapeController(UIContext context)
+    /**
+     * A click on the viewport's markup: the handle nearest to the cursor takes it, whichever overlay
+     * it belongs to — a shape key handle, a spline point, a rig handle. The gizmo's handles come
+     * first (a picked point or goal sits right under the gizmo), a target pick takes the click for itself.
+     */
+    public boolean clickMarkup(UIContext context)
     {
-        return !this.isCovered() && !this.isRecording() && !this.panel.isFlying() && this.shapeOverlay.click(context);
+        if ((context.mouseButton != 0 && context.mouseButton != 1) || this.isCovered() || this.isRecording() || this.panel.isFlying()
+            || this.picker.isPickingTarget() || !this.panel.preview.getViewport().isInside(context)) return false;
+        int stencil = this.getGizmoStencil().getIndex();
+        if (context.mouseButton == 0 && this.canShowGizmo() && stencil >= Gizmo.STENCIL_X && stencil <= Gizmo.STENCIL_MAX) return false;
+        if (this.shapeOverlay.click(context)) return true;
+        if (this.splineOverlay.pick(context.mouseX, context.mouseY) != null) return this.pickSplinePoint(context);
+        Pair<mchorse.bbs_mod.forms.forms.Form, String> bone = this.pickRigHandle(context);
+        return bone != null && this.panel.replayEditor.pickViewportPair(context, bone);
+    }
+
+    /** The form and bone of the rig handle under the cursor, if the markup's nearest handle is one. */
+    public Pair<mchorse.bbs_mod.forms.forms.Form, String> pickRigHandle(UIContext context)
+    {
+        return RigMarkup.pick(this.markup, context.mouseX, context.mouseY);
+    }
+
+    private void renderMarkup(UIContext context)
+    {
+        this.markup.begin(this.panel.preview.getViewport());
+        this.renderMotionPath();
+        this.renderRigMarkup();
+        this.renderSplineOverlay(context);
+        this.renderShapeControllers(context);
+        this.markup.flush(context);
+    }
+
+    private void renderMotionPath()
+    {
+        ValueMotionPath motionPath = this.getMotionPath();
+
+        if (!motionPath.enabled.get() || this.isRecording())
+        {
+            return;
+        }
+
+        boolean pinned = this.motionPathPin.isPinned();
+        Replay replay = pinned ? this.motionPathPin.getReplay() : this.getReplay();
+        FilmTarget target = pinned ? this.motionPathPin.getTarget() : this.getEditTarget();
+
+        BBSProfiler.begin(BBSProfiler.Timer.MOTION_PATH);
+        MotionPath.render(this.markup, this.panel.getCamera(), motionPath, this, replay, target, replay == null ? 0F : replay.getTick(this.getTick()));
+        BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
+    }
+
+    /** The goals, poles and controllers the world frame captured, the edited bone's ringed. */
+    private void renderRigMarkup()
+    {
+        if (this.isRecording())
+        {
+            return;
+        }
+
+        Pair<String, TransformSpace> bone = this.getBone();
+        IEntity current = this.getCurrentEntity();
+
+        RigMarkup.draw(this.markup, RigMarkup.world(), (form, id) -> bone != null && current != null
+            && FormUtils.getRoot(form) == current.getForm()
+            && mchorse.bbs_mod.utils.StringUtils.combinePaths(FormUtils.getPath(form), id).equals(bone.a));
     }
 
     private void renderShapeControllers(UIContext context)
@@ -104,7 +170,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         Replay replay = this.panel.replayEditor.getReplay();
         if (entity == null || replay == null) { this.shapeOverlay.clear(); return; }
         var camera = this.panel.getCamera();
-        this.shapeOverlay.draw(context, keys.controls, this.panel.preview.getViewport(), camera.projection, c ->
+        this.shapeOverlay.draw(context, this.markup, keys.controls, camera.projection, c ->
         {
             String path = mchorse.bbs_mod.utils.StringUtils.combinePaths(FormUtils.getPath(keys.form), c.bone.get());
             Matrix4f matrix = mchorse.bbs_mod.film.FilmMatrices.getBoneCompositeMatrix(this.getEntities(), entity, replay,
@@ -160,7 +226,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
     private void renderSplineOverlay(UIContext context)
     {
         SplineEditorUtils.viewportHover(this.panel.replayEditor.keyframeEditor, null);
-        if (!this.splineOverlay.begin()) return;
+        if (!this.splineOverlay.begin(this.markup)) return;
         if (this.isCovered() || this.isRecording()) return;
         var camera = this.panel.getCamera();
         float transition = this.getCurrentTransition();
@@ -186,7 +252,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
                         camera.position.x, camera.position.y, camera.position.z, transition, point);
                 }
                 if (parent == null) continue;
-                this.splineOverlay.draw(context, new Matrix4f(camera.view).mul(parent), camera.projection, this.panel.preview.getViewport(),
+                this.splineOverlay.draw(context, new Matrix4f(camera.view).mul(parent), camera.projection,
                     source, entity == this.getCurrentEntity() ? SplineEditorUtils.selectedPoints(this.panel.replayEditor.keyframeEditor, source) : java.util.Set.of(),
                     entity == this.getCurrentEntity() ? SplineEditorUtils.hoveredPoint(this.panel.replayEditor.keyframeEditor, context, source) : "");
             }
@@ -199,7 +265,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
             var insertion = this.splineOverlay.insertionAt(context.mouseX, context.mouseY);
             if (insertion != null && spline.sameSource(insertion.chain()) && this.getCurrentEntity() != null
                 && FormUtils.getRoot(SplineEditorUtils.owner(insertion.chain())) == this.getCurrentEntity().getForm())
-                this.splineOverlay.drawInsertionPreview(context, this.panel.preview.getViewport());
+                this.splineOverlay.drawInsertionPreview(context);
         }
         var hovered = this.panel.preview.getViewport().isInside(context) ? this.splineOverlay.pick(context.mouseX, context.mouseY) : null;
         if (hovered != null && (this.getCurrentEntity() == null || FormUtils.getRoot(
@@ -697,7 +763,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
     {
         /* The controller gets the click before the preview does: leave the icon bar's to its buttons */
         if (this.panel.preview.isOverIcons(context)) return false;
-        if (this.pickShapeController(context)) return true;
+        if (this.clickMarkup(context)) return true;
         for (var tool : this.addonTools) if (tool.click(context)) return true;
 
         if (this.canControl())
@@ -1079,8 +1145,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
     public void renderHUD(UIContext context, PreviewHud hud, Area navBlock)
     {
-        this.renderSplineOverlay(context);
-        this.renderShapeControllers(context);
+        this.renderMarkup(context);
         for (var tool : this.addonTools) tool.updateTool(context);
         this.hud.render(context, hud, navBlock);
     }
@@ -1112,19 +1177,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         this.renderOrbitCenterMarker(context);
-
-        ValueMotionPath motionPath = this.getMotionPath();
-
-        if (motionPath.enabled.get() && !this.isRecording())
-        {
-            boolean pinned = this.motionPathPin.isPinned();
-            Replay replay = pinned ? this.motionPathPin.getReplay() : this.getReplay();
-            FilmTarget target = pinned ? this.motionPathPin.getTarget() : this.getEditTarget();
-
-            BBSProfiler.begin(BBSProfiler.Timer.MOTION_PATH);
-            MotionPath.render(context, motionPath, this, replay, target, replay == null ? 0F : replay.getTick(this.getTick()));
-            BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
-        }
 
         this.mouse.trackCursor(this.canControl(), ClientNetwork.isIsBBSModOnServer());
 

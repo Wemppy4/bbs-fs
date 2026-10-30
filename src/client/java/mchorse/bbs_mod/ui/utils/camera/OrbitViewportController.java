@@ -16,6 +16,7 @@ import mchorse.bbs_mod.utils.interps.Lerps;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Intersectiond;
 import org.joml.Matrix3f;
+import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
 import org.joml.Vector3d;
@@ -33,7 +34,8 @@ import org.joml.Vector3i;
  * user asked to move; and it may hand the orbit an <em>anchor</em> to hang off, in which case
  * the pivot and the rotation are kept in the anchor's frame and the subject carries the camera
  * with it. With no anchor the frame is the world's and the same maths passes world values
- * through untouched.</p>
+ * through untouched. A host may also name a point to turn and zoom about other than the pivot
+ * (see {@link #getTurnCenter}).</p>
  */
 public abstract class OrbitViewportController implements ICameraController
 {
@@ -73,7 +75,7 @@ public abstract class OrbitViewportController implements ICameraController
 
     /* The frame the orbit is kept in; identity when it hangs off nothing. */
     protected final Vector3d anchorPosition = new Vector3d();
-    protected float anchorYaw;
+    protected final Quaternionf anchorRotation = new Quaternionf();
 
     private final PanState panState = new PanState();
     protected final Vector3i velocityPosition = new Vector3i();
@@ -130,6 +132,16 @@ public abstract class OrbitViewportController implements ICameraController
      */
     protected void updateAnchor(float transition)
     {}
+
+    /**
+     * What turning and zooming happen about, in world space, or null for the pivot itself. A
+     * point off the line of sight is fine: the camera swings about it rigidly, so it stays where
+     * it is on the screen instead of jumping into the middle, and the wheel closes in on it.
+     */
+    protected Vector3f getTurnCenter(float transition)
+    {
+        return null;
+    }
 
     /* Input */
 
@@ -248,8 +260,18 @@ public abstract class OrbitViewportController implements ICameraController
 
         float step = Window.isCtrlPressed() ? 0.22F : 0.1F;
         float factor = (float) Math.pow(1F - step, mouseWheel);
+        float distance = MathUtils.clamp(this.targetDistance * factor, MIN_DISTANCE, MAX_DISTANCE);
+        Vector3f center = this.getTurnCenter(this.getCurrentTransition());
 
-        this.targetDistance = MathUtils.clamp(this.targetDistance * factor, MIN_DISTANCE, MAX_DISTANCE);
+        /* Scaling the pivot towards the center by the same share as the distance moves the
+         * camera straight at the center, so the center keeps its spot on the screen. */
+        if (center != null)
+        {
+            this.toLocal(center);
+            this.targetPivot.sub(center).mul(distance / this.targetDistance).add(center);
+        }
+
+        this.targetDistance = distance;
 
         return true;
     }
@@ -404,8 +426,7 @@ public abstract class OrbitViewportController implements ICameraController
 
         float orbitSpeed = OrbitCamera.dragAngleSpeed() * 4F;
 
-        this.targetRotation.x = MathUtils.clamp(this.targetRotation.x - dy * orbitSpeed, -PITCH_LIMIT, PITCH_LIMIT);
-        this.targetRotation.y -= dx * orbitSpeed;
+        this.turnTo(MathUtils.clamp(this.targetRotation.x - dy * orbitSpeed, -PITCH_LIMIT, PITCH_LIMIT), this.targetRotation.y - dx * orbitSpeed);
 
         /* Orbiting off the axis gives the perspective back: an ortho view is
          * what an axis snap is for, but away from an axis it only costs the
@@ -452,13 +473,39 @@ public abstract class OrbitViewportController implements ICameraController
             yaw += Math.round((this.targetRotation.y - yaw) / twoPi) * twoPi;
         }
 
-        this.targetRotation.set(pitch, yaw);
+        this.turnTo(pitch, yaw);
 
         if (!this.ortho && BBSSettings.editorOrbitAxisOrtho.get())
         {
             this.ortho = true;
             this.autoOrtho = true;
         }
+    }
+
+    /**
+     * Turn the view to the given angles. With a turn center the pivot swings about it by the
+     * same turn the view makes, so the camera moves about the center rigidly and the center
+     * stays put on the screen.
+     */
+    private void turnTo(float pitch, float yaw)
+    {
+        Vector3f center = this.getTurnCenter(this.getCurrentTransition());
+
+        if (center != null)
+        {
+            Quaternionf turn = orbitRotation(yaw, pitch).mul(orbitRotation(this.targetRotation.y, this.targetRotation.x).conjugate());
+
+            this.toLocal(center);
+            turn.transform(this.targetPivot.sub(center)).add(center);
+        }
+
+        this.targetRotation.set(pitch, yaw);
+    }
+
+    /** The turn of the orbit's angles in the anchor's frame: yaw about Y, then pitch about X. */
+    private static Quaternionf orbitRotation(float yaw, float pitch)
+    {
+        return new Quaternionf().rotateY(yaw).rotateX(pitch);
     }
 
     public boolean isOrtho()
@@ -478,41 +525,70 @@ public abstract class OrbitViewportController implements ICameraController
     /* The frame the orbit is kept in */
 
     /**
-     * Yaw of the anchor (zero when it hangs off nothing), i.e. the rotation
-     * between the orbit's local space and world space.
+     * Turn of the anchor (identity when it hangs off nothing), i.e. the rotation between the
+     * orbit's local space and world space.
      */
-    public float getAnchorYaw()
+    public Quaternionf getAnchorRotation()
     {
-        return this.anchorYaw;
+        return new Quaternionf(this.anchorRotation);
     }
 
     protected Vector3f toWorld(Vector3f pivot)
     {
-        return pivot.rotateY(this.anchorYaw).add((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z);
+        return this.anchorRotation.transform(pivot).add((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z);
     }
 
     protected Vector3f toLocal(Vector3f pivot)
     {
-        return pivot.sub((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z).rotateY(-this.anchorYaw);
+        return this.anchorRotation.transformInverse(pivot.sub((float) this.anchorPosition.x, (float) this.anchorPosition.y, (float) this.anchorPosition.z));
     }
 
     /**
      * Move the orbit into another anchor without moving the camera: everything is lifted into
      * the world, the anchor is swapped by {@code write}, and everything is brought back down.
+     *
+     * <p>The view keeps the direction it looks in. Its roll is the anchor's to give (the orbit
+     * has none of its own), so between anchors turned about the line of sight differently the
+     * horizon tips over to the new one.</p>
      */
     protected void rebaseAnchor(Runnable write)
     {
         this.toWorld(this.pivot);
         this.toWorld(this.targetPivot);
-        this.rotation.y += this.anchorYaw;
-        this.targetRotation.y += this.anchorYaw;
+
+        Vector3f look = this.toWorldDirection(this.rotation);
+        Vector3f targetLook = this.toWorldDirection(this.targetRotation);
 
         write.run();
 
         this.toLocal(this.pivot);
         this.toLocal(this.targetPivot);
-        this.rotation.y -= this.anchorYaw;
-        this.targetRotation.y -= this.anchorYaw;
+        this.fromWorldDirection(look, this.rotation);
+        this.fromWorldDirection(targetLook, this.targetRotation);
+    }
+
+    /** The way from the pivot to the camera, in the world, for angles kept in the anchor's frame. */
+    private Vector3f toWorldDirection(Vector2f rotation)
+    {
+        return this.anchorRotation.transform(this.rotateVector(0F, 0F, 1F, rotation.y, rotation.x, false));
+    }
+
+    /**
+     * The angles in the anchor's frame that put the camera the given world way from the pivot
+     * (consumes the direction). The yaw lands on the turn nearest to what {@code rotation} had,
+     * so the smoothing never spins the long way around.
+     */
+    private void fromWorldDirection(Vector3f direction, Vector2f rotation)
+    {
+        this.anchorRotation.transformInverse(direction);
+
+        float twoPi = MathUtils.PI * 2F;
+        float yaw = (float) Math.atan2(direction.x, direction.z);
+        float pitch = (float) Math.asin(MathUtils.clamp(-direction.y, -1F, 1F));
+
+        yaw += Math.round((rotation.y - yaw) / twoPi) * twoPi;
+
+        rotation.set(MathUtils.clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT), yaw);
     }
 
     /* Where the camera ends up */
@@ -553,7 +629,36 @@ public abstract class OrbitViewportController implements ICameraController
 
         camera.position.set(this.toWorld(new Vector3f(this.pivot)));
         camera.position.add(offset);
-        camera.rotation.set(-this.rotation.x, -(this.rotation.y + this.anchorYaw), 0F);
+        this.writeCameraAngles(camera);
+    }
+
+    /**
+     * The camera's angles for the orbit's turn with the anchor's on top. The camera undoes them
+     * as roll, then pitch, then yaw (see {@link Camera#updateView}), so the turn is taken apart
+     * the other way around: yaw and pitch from where it looks, roll from where its up ends up
+     * against the up of that yaw and pitch alone. Without an anchor turn the roll is zero and
+     * the angles are the orbit's own.
+     */
+    private void writeCameraAngles(Camera camera)
+    {
+        Quaternionf turn = new Quaternionf(this.anchorRotation).mul(orbitRotation(this.rotation.y, this.rotation.x));
+        Vector3f back = turn.transform(new Vector3f(0F, 0F, 1F));
+        Vector3f up = turn.transform(new Vector3f(0F, 1F, 0F));
+
+        float twoPi = MathUtils.PI * 2F;
+        float yaw = (float) Math.atan2(back.x, back.z);
+        float pitch = (float) Math.asin(MathUtils.clamp(-back.y, -1F, 1F));
+        float sinYaw = (float) Math.sin(yaw);
+        float cosYaw = (float) Math.cos(yaw);
+        float sinPitch = (float) Math.sin(pitch);
+        float right = up.x * cosYaw - up.z * sinYaw;
+        float level = up.x * sinPitch * sinYaw + up.y * (float) Math.cos(pitch) + up.z * sinPitch * cosYaw;
+        float roll = (float) Math.atan2(-right, level);
+
+        /* Same turn of the yaw as the orbit's own, so nothing downstream sees it wrap. */
+        yaw += Math.round((this.rotation.y - yaw) / twoPi) * twoPi;
+
+        camera.rotation.set(-pitch, -yaw, -roll);
     }
 
     @Override
@@ -581,7 +686,7 @@ public abstract class OrbitViewportController implements ICameraController
 
     private Vector3f getOffset()
     {
-        return this.rotateVector(0F, 0F, 1F, this.rotation.y + this.anchorYaw, this.rotation.x, false).mul(this.distance);
+        return this.toWorldDirection(this.rotation).mul(this.distance);
     }
 
     /**
@@ -603,13 +708,14 @@ public abstract class OrbitViewportController implements ICameraController
      * Used when there is nothing to focus on - leaving the pivot at the world origin could put
      * it nowhere near the view - and while something else drives the camera (see follow).
      *
-     * <p>It is the exact inverse of {@link #setup(Camera, float)}: the rotation loses the
-     * anchor's yaw and the pivot is brought down into the anchor's frame, so an attached orbit
-     * seeds just as well as a detached one.</p>
+     * <p>It is the inverse of {@link #setup(Camera, float)}: the rotation loses the anchor's
+     * turn and the pivot is brought down into the anchor's frame, so an attached orbit seeds
+     * just as well as a detached one. The camera's roll is all the orbit cannot take over.</p>
      */
     private void seedPivotFromCamera(Camera camera)
     {
-        this.targetRotation.set(-camera.rotation.x, -camera.rotation.y - this.anchorYaw);
+        this.targetRotation.set(-camera.rotation.x, -camera.rotation.y);
+        this.fromWorldDirection(this.rotateVector(0F, 0F, 1F, -camera.rotation.y, -camera.rotation.x, false), this.targetRotation);
         this.rotation.set(this.targetRotation);
 
         Vector3f pivot = new Vector3f((float) camera.position.x, (float) camera.position.y, (float) camera.position.z);
@@ -640,7 +746,7 @@ public abstract class OrbitViewportController implements ICameraController
         this.orbitButton = -1;
         this.velocityPosition.set(0, 0, 0);
         this.anchorPosition.set(0D, 0D, 0D);
-        this.anchorYaw = 0F;
+        this.anchorRotation.identity();
     }
 
     private static class PanState

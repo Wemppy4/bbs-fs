@@ -481,6 +481,12 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         return this.replay;
     }
 
+    /** The path of the body part the timeline shows, empty for the replay's own form. */
+    public String getActiveBodyPart()
+    {
+        return this.partSelection.activePart;
+    }
+
     /** The parts list picked the parts the timeline shows; the one clicked opens. */
     private void selectBodyParts(List<UIForms.FormEntry> parts)
     {
@@ -1145,6 +1151,9 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
      * Picking a model bone in the viewport is a pose edit: the parts list moves to the bone's part if
      * the timeline doesn't show it, its owner opens (out of actions mode) and the shared pick logic
      * reveals the bone's row. The tab lit stays, and what is open stays open.
+     *
+     * A part the parts list hasn't picked is only switched to: no keyframe gets picked and the
+     * cursor stays, the next click on it picks as usual. An insert goes through right away.
      */
     private void pickFormBone(Form form, String bone, boolean insert)
     {
@@ -1160,13 +1169,27 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.setCategory(TrackCategory.FORM);
         }
 
-        this.selectBodyPart(FormUtils.getPath(form));
+        String path = FormUtils.getPath(form);
+        boolean picked = this.partSelection.includes(path);
+
+        this.selectBodyPart(path);
+
+        if (!picked && !insert)
+        {
+            if (this.keyframeEditor != null)
+            {
+                this.keyframeEditor.view.getGraph().clearSelection();
+            }
+
+            return;
+        }
+
         UIReplaysEditorUtils.pickForm(this.keyframeEditor, this.filmPanel, form, bone, insert);
     }
 
     public boolean clickViewport(UIContext context, Area area)
     {
-        if (!this.filmPanel.isFlying() && this.filmPanel.getController().pickShapeController(context)) return true;
+        if (!this.filmPanel.isFlying() && this.filmPanel.getController().clickMarkup(context)) return true;
         if (!this.filmPanel.isFlying() && this.filmPanel.getController().pickSplinePoint(context)) return true;
         /* In flight the buttons are the flight camera's, so the left one is left for it to
          * pick up as free look; only the middle one has to be handed over by hand. */
@@ -1204,19 +1227,9 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         if (stencil.hasPicked())
         {
-            Pair<Form, String> pair = stencil.getPicked();
-
-            if (pair != null && (context.mouseButton < 2 || (context.mouseButton == 2 && Window.isCtrlPressed())))
+            if (this.pickViewportPair(context, stencil.getPicked()))
             {
-                if (!this.isVisible())
-                {
-                    this.filmPanel.showPanel(this);
-                }
-
-                if (UIReplaysEditorUtils.pickFormWithOffers(context, pair, this::pickFormBone))
-                {
-                    return true;
-                }
+                return true;
             }
         }
         else if (context.mouseButton == 1 && this.isVisible())
@@ -1259,6 +1272,22 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         }
 
         return false;
+    }
+
+    /** A form and its bone picked off the viewport: the stencil's under the cursor, or a rig handle of the markup. */
+    public boolean pickViewportPair(UIContext context, Pair<Form, String> pair)
+    {
+        if (pair == null || !(context.mouseButton < 2 || (context.mouseButton == 2 && Window.isCtrlPressed())))
+        {
+            return false;
+        }
+
+        if (!this.isVisible())
+        {
+            this.filmPanel.showPanel(this);
+        }
+
+        return UIReplaysEditorUtils.pickFormWithOffers(context, pair, this::pickFormBone);
     }
 
     public void releaseViewport(UIContext context, boolean dragged)

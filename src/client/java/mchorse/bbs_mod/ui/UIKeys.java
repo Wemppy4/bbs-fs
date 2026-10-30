@@ -298,6 +298,7 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_KEYS_RESTART_ACTIONS = L10n.lang("bbs.ui.film.controller.keys.restart_actions");
     public static final IKey FILM_CONTROLLER_KEYS_START_RECORDING = L10n.lang("bbs.ui.film.controller.keys.start_recording");
     public static final IKey FILM_CONTROLLER_KEYS_ATTACH_ORBIT = L10n.lang("bbs.ui.film.controller.keys.attach_orbit");
+    public static final IKey FILM_CONTROLLER_ORBIT_TURNS_WITH_ANCHOR = L10n.lang("bbs.ui.film.controller.orbit_turns_with_anchor");
     public static final IKey FILM_CONTROLLER_KEYS_TOGGLE_ORTHO = L10n.lang("bbs.ui.film.controller.keys.toggle_ortho");
     public static final IKey FILM_CONTROLLER_KEYS_TELEPORT_ORBIT = L10n.lang("bbs.ui.film.controller.keys.teleport_orbit");
     public static final IKey FILM_CONTROLLER_KEYS_TOGGLE_CONTROL = L10n.lang("bbs.ui.film.controller.keys.toggle_control");
@@ -319,6 +320,10 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_MOTION_PATH_KEYFRAMES = L10n.lang("bbs.ui.film.controller.motion_path.keyframes");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_CURRENT = L10n.lang("bbs.ui.film.controller.motion_path.current");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_RANGE = L10n.lang("bbs.ui.film.controller.motion_path.range");
+    public static final IKey MARKUP_IK_GOAL = L10n.lang("bbs.ui.markup.ik_goal");
+    public static final IKey MARKUP_IK_POLE = L10n.lang("bbs.ui.markup.ik_pole");
+    public static final IKey MARKUP_CONTROLLER = L10n.lang("bbs.ui.markup.controller");
+    public static final IKey MARKUP_SPLINE_POINT = L10n.lang("bbs.ui.markup.spline_point");
     public static final IKey FILM_CONTROLLER_RECORD_DESCRIPTION = L10n.lang("bbs.ui.film.controller.record-description");
     public static final IKey FILM_CONTROLLER_RECORD_TITLE = L10n.lang("bbs.ui.film.controller.record-title");
     public static final IKey FILM_CONTROLLER_SERVER_WARNING = L10n.lang("bbs.ui.film.controller.server_warning");

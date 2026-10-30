@@ -141,7 +141,8 @@ public class FilmStencilPicker
         else if (context.mouseButton == 0)
         {
             Form spline = this.controller.pickSplineForm(context);
-            Pair<Form, String> pair = spline == null ? this.stencil.getPicked() : new Pair<>(spline, "");
+            Pair<Form, String> handle = this.controller.pickRigHandle(context);
+            Pair<Form, String> pair = spline != null ? new Pair<>(spline, "") : handle != null ? handle : this.stencil.getPicked();
 
             if (pair != null && pair.a != null)
             {
