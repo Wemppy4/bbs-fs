@@ -171,15 +171,17 @@ public class UIModelShapeControllers extends UIElement
                     menu.action(Icons.SHAPES, IKey.raw(name), () -> binding.shape.set(name));
             }));
             UITrackpad height = UIValues.trackpad(() -> binding.height);
+            UITrackpad shift = UIValues.trackpad(() -> binding.shift);
             UITrackpad tilt = UIValues.trackpad(() -> binding.tilt);
             height.tooltip(key("height_gain")).tooltipImmediate();
+            shift.tooltip(key("shift_gain")).tooltipImmediate();
             tilt.tooltip(key("tilt_gain")).tooltipImmediate();
-            for (UITrackpad field : List.of(height, tilt))
+            for (UITrackpad field : List.of(height, shift, tilt))
             {
                 field.getEvents().register(UITrackpadDragStartEvent.class, e -> this.panel.closeModelEdit());
                 field.getEvents().register(UITrackpadDragEndEvent.class, e -> this.panel.closeModelEdit());
             }
-            this.bindingSettings.add(shape, UI.row(height, tilt));
+            this.bindingSettings.add(shape, UI.row(height, shift, tilt));
         }
         this.invalidateLayout();
     }

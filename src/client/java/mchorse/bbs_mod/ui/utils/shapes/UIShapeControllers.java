@@ -28,6 +28,7 @@ public class UIShapeControllers extends UIElement
     public final UIEntryList<ShapeController> list;
     public final UITrackpad height;
     public final UITrackpad tilt;
+    public final UITrackpad shift;
     public final UIIcon mirror;
     private ShapeKeys keys = new ShapeKeys();
     private ModelConfig config;
@@ -43,12 +44,14 @@ public class UIShapeControllers extends UIElement
         this.edit = edit;
         this.list = new UIEntryList<>(picked -> { this.refresh(); this.selectionChanged.run(); }, c -> c.name.get());
         this.list.h(64);
-        this.height = new UITrackpad(v -> this.setAxis(0, v.floatValue()));
-        this.tilt = new UITrackpad(v -> this.setAxis(1, v.floatValue()));
-        this.height.increment(0.05F); this.tilt.increment(0.05F);
+        this.height = new UITrackpad(v -> this.setAxis(ShapeController.HEIGHT, v.floatValue()));
+        this.tilt = new UITrackpad(v -> this.setAxis(ShapeController.TILT, v.floatValue()));
+        this.shift = new UITrackpad(v -> this.setAxis(ShapeController.SHIFT, v.floatValue()));
+        this.height.increment(0.05F); this.tilt.increment(0.05F); this.shift.increment(0.05F);
         this.height.tooltip(key("height")).tooltipImmediate();
         this.tilt.tooltip(key("tilt")).tooltipImmediate();
-        for (UITrackpad field : List.of(this.height, this.tilt))
+        this.shift.tooltip(key("shift")).tooltipImmediate();
+        for (UITrackpad field : List.of(this.height, this.shift, this.tilt))
         {
             field.getEvents().register(mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragStartEvent.class, e -> this.boundary.run());
             field.getEvents().register(mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent.class, e -> this.boundary.run());
@@ -60,7 +63,7 @@ public class UIShapeControllers extends UIElement
         this.mirror.wh(20, 20);
         this.keys().register(Keys.TRANSFORMATIONS_MIRROR_EDIT, this::toggleMirror).strict().category(UIKeys.TRANSFORMS_KEYS_CATEGORY);
         this.column(4).vertical().stretch();
-        this.add(this.list, UI.row(this.height, this.tilt, this.mirror));
+        this.add(this.list, UI.row(this.height, this.shift, this.tilt, this.mirror));
         this.list.context(this::presetMenu);
     }
 
@@ -100,22 +103,26 @@ public class UIShapeControllers extends UIElement
     private void refresh()
     {
         ShapeController selected = this.selected();
-        this.height.setEnabled(selected != null && selected.bindings.getAllTyped().stream().anyMatch(b -> b.height.get() != 0));
-        this.tilt.setEnabled(selected != null && selected.bindings.getAllTyped().stream().anyMatch(b -> b.tilt.get() != 0));
-        float[] values = selected == null ? new float[2] : selected.read(this.keys);
-        if (!this.height.isUserEditing()) this.height.setValue(values[0]);
-        if (!this.tilt.isUserEditing()) this.tilt.setValue(values[1]);
+        float[] values = selected == null ? new float[ShapeController.AXES] : selected.read(this.keys);
+        this.axisField(this.height, selected, ShapeController.HEIGHT, values);
+        this.axisField(this.tilt, selected, ShapeController.TILT, values);
+        this.axisField(this.shift, selected, ShapeController.SHIFT, values);
+    }
+    private void axisField(UITrackpad field, ShapeController selected, int axis, float[] values)
+    {
+        field.setEnabled(selected != null && selected.hasAxis(axis));
+        if (!field.isUserEditing()) field.setValue(values[axis]);
     }
     public void setAxis(int axis, float value)
     {
         ShapeController selected = this.selected();
         if (selected == null) return;
         ShapeController mirror = this.mirrorOf(selected);
-        /* Mirrored across X: the same height, the tilt handle swings the other way. */
+        /* Mirrored across X: the same height, tilt and shift go the other way. */
         this.edit.accept(keys ->
         {
             selected.set(keys, axis, value);
-            if (mirror != null) mirror.set(keys, axis, axis == 0 ? value : -value);
+            if (mirror != null) mirror.set(keys, axis, axis == ShapeController.HEIGHT ? value : -value);
         });
         this.refresh();
     }
@@ -132,6 +139,6 @@ public class UIShapeControllers extends UIElement
         BBSSettings.poseMirrorEdit.set(!BBSSettings.poseMirrorEdit.get());
         UIUtils.playClick();
     }
-    public boolean isEditing() { return this.height.isUserEditing() || this.tilt.isUserEditing(); }
+    public boolean isEditing() { return this.height.isUserEditing() || this.tilt.isUserEditing() || this.shift.isUserEditing(); }
     @Override public void render(UIContext context) { this.refresh(); super.render(context); }
 }

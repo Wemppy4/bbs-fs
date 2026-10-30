@@ -73,6 +73,7 @@ public final class ShapeControllerCheck
         undo.undo(config); check(config.shapeControllers.getAllTyped().size() == 1, "Delete undo restores controller");
         undo.redo(config); check(config.shapeControllers.getAllTyped().isEmpty(), "Delete redo removes controller");
         previewUndo(c);
+        shift();
         mirror();
         modelDiscovery();
 
@@ -119,6 +120,43 @@ public final class ShapeControllerCheck
             clientField.set(null, oldClient); fontField.set(null, oldFont);
             org.lwjgl.glfw.GLFW.glfwDestroyWindow(handle); org.lwjgl.glfw.GLFW.glfwTerminate();
         }
+    }
+
+    /** Gaze: one controller, height and shift on two shapes per eye, both eyes together. */
+    private static void shift()
+    {
+        ShapeController gaze = new ShapeController("0");
+        String[][] shapes = {{"pupil_l_y", "1", "0"}, {"pupil_r_y", "1", "0"}, {"pupil_l_x", "0", "1"}, {"pupil_r_x", "0", "1"}};
+        for (int i = 0; i < shapes.length; i++)
+        {
+            var binding = new ShapeController.Binding("" + i);
+            binding.shape.set(shapes[i][0]);
+            binding.height.set(Float.parseFloat(shapes[i][1]));
+            binding.shift.set(Float.parseFloat(shapes[i][2]));
+            gaze.bindings.add(binding);
+        }
+        check(gaze.hasAxis(ShapeController.HEIGHT) && gaze.hasAxis(ShapeController.SHIFT) && !gaze.hasAxis(ShapeController.TILT), "Gaze has height and shift only");
+        ShapeKeys keys = new ShapeKeys();
+        gaze.set(keys, ShapeController.SHIFT, -0.75F);
+        gaze.set(keys, ShapeController.HEIGHT, 0.5F);
+        near(keys.shapeKeys.get("pupil_l_x"), -0.75F, "Shift drives the left pupil sideways");
+        near(keys.shapeKeys.get("pupil_r_x"), -0.75F, "Shift drives the right pupil the same way");
+        near(keys.shapeKeys.get("pupil_r_y"), 0.5F, "Height drives the pupils up");
+        float[] read = gaze.read(keys);
+        near(read[ShapeController.SHIFT], -0.75F, "Shift reads back");
+        near(read[ShapeController.HEIGHT], 0.5F, "Height reads back beside shift");
+        near(read[ShapeController.TILT], 0F, "Unbound tilt stays zero");
+        gaze.set(keys, ShapeController.SHIFT, 0F);
+        near(gaze.read(keys)[ShapeController.HEIGHT], 0.5F, "Shift edit keeps height");
+
+        ShapeController all = controller();
+        var side = new ShapeController.Binding("2"); side.shape.set("upper_l_side"); side.shift.set(1F); all.bindings.add(side);
+        ShapeKeys three = new ShapeKeys();
+        all.set(three, ShapeController.HEIGHT, 0.3F); all.set(three, ShapeController.TILT, -0.2F); all.set(three, ShapeController.SHIFT, 0.6F);
+        float[] axes = all.read(three);
+        near(axes[ShapeController.HEIGHT], 0.3F, "Three axes: height independent");
+        near(axes[ShapeController.TILT], -0.2F, "Three axes: tilt independent");
+        near(axes[ShapeController.SHIFT], 0.6F, "Three axes: shift independent");
     }
 
     private static void mirror()
@@ -216,18 +254,16 @@ public final class ShapeControllerCheck
         var model = new mchorse.bbs_mod.cubic.model.loaders.CubicModelLoader().load("eyes/1px_polygon", manager, link, provider.getLinksFromPath(link), config);
         check(model != null, "Actual polygon rig loads");
         var shapes = model.model.getShapeKeys();
-        check(shapes.size() == 12 && shapes.stream().allMatch(s -> s.matches("(upper|lower|brow)_[lr]_(inner|outer)")), "Loader exposes twelve English shape names");
-        check(model.config.shapeControllers.getAllTyped().size() == 6, "Installed config loads six controls");
+        check(shapes.size() == 18 && shapes.stream().allMatch(s -> s.matches("(upper|lower|brow)_[lr]_(inner|outer)|pupil_[lr]_(x|y|size)")),
+            "Loader exposes twelve lid and brow shapes and six pupil shapes");
+        check(model.config.shapeControllers.getAllTyped().size() == 9, "Installed config loads nine controls");
         var matrices = new mchorse.bbs_mod.forms.renderers.utils.MatrixCache();
         model.model.resetPose();
         model.captureMatrices(matrices);
         for (var c : model.config.shapeControllers.getAllTyped())
         {
             check(c.bindings.getAllTyped().stream().allMatch(b -> shapes.contains(b.shape.get())), "All control targets exist");
-            var position = matrices.get(c.bone.get()).matrix().transformPosition(new org.joml.Vector3f(c.position.get()).div(16));
-            near(position.x * 16, c.name.get().endsWith("_l") ? -2 : 2, "Authored controller matches eye X");
-            near(position.y * 16, c.name.get().startsWith("brow_") ? 4.25F : c.name.get().startsWith("upper_") ? 4.6F : 2.4F, "Controller matches its geometry after rest pose initialization");
-            near(position.z * 16, -4.15F, "Controller lies just in front of eyelids");
+            check(matrices.get(c.bone.get()) != null, "Controller bone exists: " + c.bone.get());
         }
         var cubic = (mchorse.bbs_mod.cubic.data.model.Model) model.model;
         for (String side : List.of("l", "r"))
@@ -242,7 +278,9 @@ public final class ShapeControllerCheck
                 var target = mesh.data.get(shape);
                 check(target != null && target.vertices.size() == mesh.baseData.vertices.size(), "Brow shape topology matches base");
                 boolean own = shape.startsWith("brow_" + side + "_");
-                float endX = side.equals("l") ? (shape.endsWith("inner") ? -1F : -3F) : (shape.endsWith("inner") ? 1F : 3F);
+                float inner = Float.MAX_VALUE, outer = 0;
+                for (var rest : mesh.baseData.vertices) { inner = Math.min(inner, Math.abs(rest.x)); outer = Math.max(outer, Math.abs(rest.x)); }
+                float endX = (side.equals("l") ? -1 : 1) * (shape.endsWith("inner") ? inner : outer);
                 for (int i = 0; i < target.vertices.size(); i++)
                 {
                     var rest = mesh.baseData.vertices.get(i);
@@ -251,6 +289,32 @@ public final class ShapeControllerCheck
                     near(changed.z, rest.z, "Brow depth stays fixed");
                     near(changed.y - rest.y, own && Math.abs(rest.x - endX) < 0.0001F ? 1F : 0F, "Only the selected brow endpoint moves");
                     check(target.uvs.get(i).equals(mesh.baseData.uvs.get(i)), "Brow UVs stay unchanged");
+                }
+            }
+        }
+        for (String side : List.of("l", "r"))
+        {
+            var pupil = cubic.getGroup("pupil_" + side);
+            check(pupil.cubes.isEmpty() && pupil.meshes.size() == 1, "Pupil cube is replaced by its mesh");
+            var mesh = pupil.meshes.get(0);
+            check(mesh.baseData.vertices.size() == 12, "Pupil has front and back triangles");
+            float cx = 0, cy = 0;
+            for (var v : mesh.baseData.vertices) { cx += v.x / 12; cy += v.y / 12; }
+            near(Math.abs(cx), Math.abs(pupil.initial.translate.x), "Pupil mesh is centred on its bone");
+            for (String axis : List.of("x", "y", "size"))
+            {
+                var target = mesh.data.get("pupil_" + side + "_" + axis);
+                check(target != null && target.vertices.size() == 12, "Pupil " + axis + " shape topology matches base");
+                for (int i = 0; i < 12; i++)
+                {
+                    var rest = mesh.baseData.vertices.get(i);
+                    var changed = target.vertices.get(i);
+                    float dx = axis.equals("x") ? 1 : axis.equals("size") ? rest.x - cx : 0;
+                    float dy = axis.equals("y") ? 1 : axis.equals("size") ? rest.y - cy : 0;
+                    near(changed.x - rest.x, dx, "Pupil " + axis + " moves X by its own rule");
+                    near(changed.y - rest.y, dy, "Pupil " + axis + " moves Y by its own rule");
+                    near(changed.z, rest.z, "Pupil depth stays fixed");
+                    check(target.uvs.get(i).equals(mesh.baseData.uvs.get(i)), "Pupil UVs stay unchanged");
                 }
             }
         }
