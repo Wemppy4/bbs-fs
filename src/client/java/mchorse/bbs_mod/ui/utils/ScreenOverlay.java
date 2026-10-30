@@ -40,12 +40,12 @@ public class ScreenOverlay
     }
 
     /** How near the cursor (interface pixels) a handle answers to it. */
-    public static final float PICK_RADIUS = 9F;
+    public static final float PICK_RADIUS = 12F;
 
     /** Handle sizes in interface pixels: a diamond's diagonal, a square's side, a circle's diameter. */
-    public static final float HANDLE_LARGE = 7F;
-    public static final float HANDLE = 6F;
-    public static final float HANDLE_SMALL = 4F;
+    public static final float HANDLE_LARGE = 10F;
+    public static final float HANDLE = 9F;
+    public static final float HANDLE_SMALL = 6F;
 
     private static final int OUTLINE = 0xff0d1118;
     private static final int RING = Colors.WHITE;

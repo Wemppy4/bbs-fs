@@ -25,7 +25,7 @@ import java.util.function.Function;
 public class ShapeControllerOverlay
 {
     private static final int COLOR = 0xFFABB4C0;
-    private static final float TILT_SIZE = 5F;
+    private static final float TILT_SIZE = 7F;
     /** {@code side}: the screen step of one pixel sideways, on a handle that also travels along {@link ShapeController#SHIFT}. */
     private record Handle(ShapeController controller, int axis, Vector3f screen, Vector3f direction, Vector3f side) {}
     private final List<Handle> handles = new ArrayList<>();
@@ -228,8 +228,8 @@ public class ShapeControllerOverlay
     {
         float dx = to.x - from.x, dy = to.y - from.y;
         float length = (float) Math.sqrt(dx * dx + dy * dy);
-        if (length <= 8F) return;
+        if (length <= 12F) return;
         /* Keep the line outside the handles. */
-        overlay.line(from.x + dx * 4F / length, from.y + dy * 4F / length, to.x - dx * 4F / length, to.y - dy * 4F / length, COLOR);
+        overlay.line(from.x + dx * 6F / length, from.y + dy * 6F / length, to.x - dx * 5F / length, to.y - dy * 5F / length, COLOR);
     }
 }
