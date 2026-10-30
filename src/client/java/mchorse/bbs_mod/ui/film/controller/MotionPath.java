@@ -15,6 +15,7 @@ import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
+import mchorse.bbs_mod.ui.utils.Gizmo;
 import mchorse.bbs_mod.ui.utils.ScreenOverlay;
 import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
@@ -37,7 +38,8 @@ import java.util.TreeSet;
  * <p>The root path comes straight from the position channels. The BONE path is the expensive
  * one: a bone's world position must be simulated tick by tick, so it runs on a scratch entity
  * (never the on-screen model) into a cached point list, recomputed only when the animation
- * changes — a cheap structural signature plus a divergence check against one live sample.
+ * changes (a content signature of the keys) and, as in Blender, once a transform ends rather
+ * than during it.
  * Procedural limb motion and physics are approximate there; keyframed pose and IK are exact.
  *
  * <p>Drawn on the film viewport's markup ({@link ScreenOverlay}): the curve a line one screen
@@ -56,13 +58,14 @@ public class MotionPath
 
     /* Bone path cache (one editor at a time). */
     private static String boneCacheSignature;
+    private static String boneCacheKey;
     private static BoneTrajectory boneCache;
     private static final Vector3d LIVE = new Vector3d();
     private static final Vector3f TEMP = new Vector3f();
 
-    /* A scratch entity reused across recomputes (re-posed per tick), so a recompute — which
-     * happens every frame while a bone is being dragged — does not pay a deep form copy each
-     * time; it is only rebuilt when the form itself changes. */
+    /* A scratch entity reused across recomputes (re-posed per tick), so a recompute — one per
+     * edit — does not pay a deep form copy each time; it is only rebuilt when the form itself
+     * changes. */
     private static Form scratchForm;
     private static ReplayEntity scratchEntity;
 
@@ -311,6 +314,15 @@ public class MotionPath
         }
 
         Map<String, IEntity> entities = controller.getEntities();
+        String key = cacheKey(replay, target);
+
+        /* As in Blender, the path holds still while a transform runs (gizmo or G/R/S) and is
+         * rebuilt once it ends: a drag changes the keys every frame, and following it meant a
+         * simulation of the whole replay per frame. */
+        if (key.equals(boneCacheKey) && Gizmo.INSTANCE.getTrackedGesture() != null)
+        {
+            return boneCache;
+        }
 
         /* Recompute only when the animation data actually changes (a content signature including
          * keyframe values). The previous per-frame "resample and compare" check was both the
@@ -318,7 +330,7 @@ public class MotionPath
          * seed so each recompute drifted ~1cm — and self-triggering (a single off-sequence sample
          * never matches the in-sequence cached value). Without it the cached path is stable while
          * idle and only rebuilt on a real edit. */
-        String signature = signature(replay, target);
+        String signature = signature(key, replay);
 
         if (boneCache == null || !signature.equals(boneCacheSignature))
         {
@@ -326,6 +338,7 @@ public class MotionPath
             scratchEntity.replay.copy(replay);
             boneCache = computeSampledTrajectory(entities, replay, target);
             boneCacheSignature = signature;
+            boneCacheKey = key;
         }
 
         return boneCache;
@@ -608,13 +621,17 @@ public class MotionPath
         return channel.isEmpty() ? -Float.MAX_VALUE : (float) channel.getLength();
     }
 
-    private static String signature(Replay replay, FilmTarget target)
+    /** Whose path it is: the replay and the target on it. */
+    private static String cacheKey(Replay replay, FilmTarget target)
     {
         /* The kind is part of the key, not just the bone path: a null path would make the anchor
          * and "no bone" hash alike and hand one the other's cached path. */
-        StringBuilder builder = new StringBuilder(replay.getId())
-            .append('|').append(target.kind())
-            .append('|').append(target.bone());
+        return replay.getId() + '|' + target.kind() + '|' + target.bone();
+    }
+
+    private static String signature(String key, Replay replay)
+    {
+        StringBuilder builder = new StringBuilder(key);
 
         signature(builder, replay.keyframes.x);
         signature(builder, replay.keyframes.y);
@@ -634,9 +651,9 @@ public class MotionPath
     private static void signature(StringBuilder builder, KeyframeChannel<?> channel)
     {
         /* A content hash so the signature changes on value edits (re-posing a bone), not only on
-         * add/remove/move — the path follows a gizmo drag without a per-frame resample of the
-         * bone. Field mixing, not serialization: the old toData().toString() built the whole
-         * data tree and a giant string for every channel every frame. */
+         * add/remove/move — the path follows an edit without a per-frame resample of the bone.
+         * Field mixing, not serialization: the old toData().toString() built the whole data tree
+         * and a giant string for every channel every frame. */
         int hash = 1;
 
         for (Keyframe<?> keyframe : channel.getKeyframes())
