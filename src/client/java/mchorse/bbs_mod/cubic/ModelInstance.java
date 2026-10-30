@@ -975,6 +975,7 @@ public class ModelInstance implements IModelInstance
 
     public void render(MatrixStack stack, Supplier<ShaderProgram> program, Color color, int light, int overlay, StencilMap stencilMap, ShapeKeys keys, Function<String, Link> textureResolver)
     {
+        keys = this.config.shapeLimits.apply(keys);
         ShaderProgram shader = program.get();
 
         if (this.model instanceof Model model)

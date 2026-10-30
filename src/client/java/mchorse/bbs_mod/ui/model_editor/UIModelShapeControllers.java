@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.model_editor;
 
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.cubic.model.config.ShapeController;
+import mchorse.bbs_mod.cubic.model.config.ShapeLimit;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
@@ -41,6 +42,10 @@ public class UIModelShapeControllers extends UIElement
     private final UIEntryList<ShapeController.Binding> bindings;
     private final UIElement bindingSettings = new UIElement();
     private final UIIcon removeBinding;
+    private final UIEntryList<ShapeLimit> limits;
+    private final UIElement limitSettings = new UIElement();
+    private final UIIcon addLimit;
+    private final UIIcon removeLimit;
 
     public UIModelShapeControllers(UIModelEditorPanel panel)
     {
@@ -58,9 +63,17 @@ public class UIModelShapeControllers extends UIElement
         this.add.tooltip(UIKeys.GENERAL_ADD);
         this.remove = new UIIcon(Icons.REMOVE, b -> this.removeController());
         this.remove.tooltip(UIKeys.GENERAL_REMOVE);
+        this.limits = new UIEntryList<>(picked -> this.fillLimit(), l -> l.shape.get() + "  " + l.min.get() + " .. " + l.max.get());
+        this.limits.h(UIConstants.LIST_ITEM_HEIGHT * 3).expand();
+        this.limitSettings.column(4).vertical().stretch();
+        this.addLimit = new UIIcon(Icons.ADD, b -> this.addLimit());
+        this.addLimit.tooltip(UIKeys.GENERAL_ADD);
+        this.removeLimit = new UIIcon(Icons.REMOVE, b -> this.removeLimit());
+        this.removeLimit.tooltip(UIKeys.GENERAL_REMOVE);
         this.column(4).vertical().stretch();
         this.settings.column(4).vertical().stretch();
-        this.add(UI.strip(this.add, this.remove), this.controls, this.settings);
+        this.add(UI.strip(this.add, this.remove), this.controls, this.settings,
+            UI.label(key("limits")).tooltip(key("limits_hint")), UI.strip(this.addLimit, this.removeLimit), this.limits, this.limitSettings);
     }
     private ModelForm form() { return (ModelForm) this.panel.renderer.form; }
     public void fill(ModelInstance model)
@@ -75,7 +88,65 @@ public class UIModelShapeControllers extends UIElement
         this.controls.list.broken(c -> model != null && (!c.bone.get().isEmpty() && model.getModel().getBone(c.bone.get()) == null
             || c.bindings.getAllTyped().stream().anyMatch(b -> !model.model.getShapeKeys().contains(b.shape.get()))));
         this.add.setEnabled(model != null && !model.model.getShapeKeys().isEmpty());
+        this.addLimit.setEnabled(model != null && !model.model.getShapeKeys().isEmpty());
         this.fillSettings();
+        this.fillLimits();
+    }
+
+    private void fillLimits()
+    {
+        List<ShapeLimit> all = this.model == null ? List.of() : this.model.config.shapeLimits.getAllTyped();
+        ShapeLimit picked = this.limits.getCurrentFirst();
+        this.limits.setList(all);
+        this.limits.setCurrent(picked != null && all.contains(picked) ? List.of(picked) : all.isEmpty() ? List.of() : List.of(all.get(0)));
+        this.limits.broken(l -> this.model != null && !this.model.model.getShapeKeys().contains(l.shape.get()));
+        this.fillLimit();
+    }
+
+    private void addLimit()
+    {
+        if (this.model == null) return;
+        ShapeLimit limit = new ShapeLimit("");
+        var shapes = this.model.model.getShapeKeys().stream().sorted().toList();
+        if (!shapes.isEmpty()) limit.shape.set(shapes.get(0));
+        BaseValue.edit(this.model.config.shapeLimits, IValueListener.FLAG_UNMERGEABLE, list -> { list.add(limit); list.sync(); });
+        this.limits.setCurrent(limit);
+        this.fillLimits();
+    }
+
+    private void removeLimit()
+    {
+        ShapeLimit limit = this.limits.getCurrentFirst();
+        if (limit == null || this.model == null) return;
+        BaseValue.edit(this.model.config.shapeLimits, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().remove(limit); list.sync(); });
+        this.limits.setCurrent(List.of());
+        this.fillLimits();
+    }
+
+    private void fillLimit()
+    {
+        this.limitSettings.removeAll();
+        ShapeLimit limit = this.limits.getCurrentFirst();
+        this.removeLimit.setEnabled(limit != null);
+        if (limit != null && this.model != null)
+        {
+            UIButton shape = new UIButton(() -> limit.shape.get(), b -> this.getContext().replaceContextMenu(menu ->
+            {
+                for (String name : this.model.model.getShapeKeys().stream().sorted().toList())
+                    menu.action(Icons.SHAPES, IKey.raw(name), () -> limit.shape.set(name));
+            }));
+            UITrackpad min = UIValues.trackpad(() -> limit.min);
+            UITrackpad max = UIValues.trackpad(() -> limit.max);
+            min.tooltip(key("limit_min")).tooltipImmediate();
+            max.tooltip(key("limit_max")).tooltipImmediate();
+            for (UITrackpad field : List.of(min, max))
+            {
+                field.getEvents().register(UITrackpadDragStartEvent.class, e -> this.panel.closeModelEdit());
+                field.getEvents().register(UITrackpadDragEndEvent.class, e -> this.panel.closeModelEdit());
+            }
+            this.limitSettings.add(shape, UI.row(min, max));
+        }
+        this.invalidateLayout();
     }
     private void addController()
     {

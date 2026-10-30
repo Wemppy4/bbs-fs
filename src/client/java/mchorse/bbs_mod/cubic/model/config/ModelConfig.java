@@ -48,6 +48,7 @@ public class ModelConfig extends ValueGroup
     public final ValueLink texture = new ValueLink("texture", null);
     public final ValueVector3f scale = new ValueVector3f("scale", new Vector3f(1F));
     public final ShapeController.Controllers shapeControllers = new ShapeController.Controllers("shape_controllers");
+    public final ShapeLimit.Limits shapeLimits = new ShapeLimit.Limits("shape_limits");
     public final WeldList welds = new WeldList("welds");
     public final ValueStringKeys disabledBones = new ValueStringKeys("disabledBones");
 
@@ -92,6 +93,7 @@ public class ModelConfig extends ValueGroup
         this.add(this.scale);
         this.add(this.welds);
         this.add(this.shapeControllers);
+        this.add(this.shapeLimits);
         this.add(this.disabledBones);
         this.add(this.lookAt);
         this.add(this.sneakingPose);
@@ -118,6 +120,7 @@ public class ModelConfig extends ValueGroup
         }
 
         if (data.isMap() && !data.asMap().has("shape_controllers")) this.shapeControllers.fromData(new ListType());
+        if (data.isMap() && !data.asMap().has("shape_limits")) this.shapeLimits.fromData(new ListType());
 
         super.fromData(data);
 
@@ -129,6 +132,7 @@ public class ModelConfig extends ValueGroup
     {
         /* Optional blocks stay absent from the file when empty, matching how they were authored. */
         if (value == this.shapeControllers) return !this.shapeControllers.getAllTyped().isEmpty();
+        if (value == this.shapeLimits) return !this.shapeLimits.getAllTyped().isEmpty();
         if (value == this.proceduralBones) return !this.proceduralBones.get().isEmpty();
         if (value == this.lookAt) return this.lookAt.isActive();
         if (value == this.fpMain) return this.fpMain.isActive();

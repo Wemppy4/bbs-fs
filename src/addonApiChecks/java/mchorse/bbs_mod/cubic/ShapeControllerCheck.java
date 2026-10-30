@@ -74,6 +74,7 @@ public final class ShapeControllerCheck
         undo.redo(config); check(config.shapeControllers.getAllTyped().isEmpty(), "Delete redo removes controller");
         previewUndo(c);
         shift();
+        limits();
         mirror();
         modelDiscovery();
 
@@ -157,6 +158,33 @@ public final class ShapeControllerCheck
         near(axes[ShapeController.HEIGHT], 0.3F, "Three axes: height independent");
         near(axes[ShapeController.TILT], -0.2F, "Three axes: tilt independent");
         near(axes[ShapeController.SHIFT], 0.6F, "Three axes: shift independent");
+    }
+
+    /** Limits clamp only what is drawn: the animated keys and their controller stay as they are. */
+    private static void limits()
+    {
+        ModelConfig config = new ModelConfig("");
+        check(!config.toData().asMap().has("shape_limits"), "No limits stay absent from the file");
+        var limit = new mchorse.bbs_mod.cubic.model.config.ShapeLimit("0");
+        limit.shape.set("pupil_l_x"); limit.min.set(0F); limit.max.set(1F);
+        config.shapeLimits.add(limit);
+        ShapeKeys keys = new ShapeKeys();
+        keys.shapeKeys.put("pupil_l_x", 0.5F); keys.shapeKeys.put("pupil_r_x", -0.8F);
+        check(config.shapeLimits.apply(keys) == keys, "Keys in range are drawn as they are, without a copy");
+        keys.shapeKeys.put("pupil_l_x", -0.6F);
+        ShapeKeys drawn = config.shapeLimits.apply(keys);
+        near(drawn.shapeKeys.get("pupil_l_x"), 0F, "Below the range draws at the lowest value");
+        near(drawn.shapeKeys.get("pupil_r_x"), -0.8F, "Unlimited shapes draw as animated");
+        near(keys.shapeKeys.get("pupil_l_x"), -0.6F, "Animated value is untouched");
+        keys.shapeKeys.put("pupil_l_x", 3F);
+        near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 1F, "Above the range draws at the highest value");
+        limit.min.set(1F); limit.max.set(0F);
+        near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 1F, "Swapped bounds still form the range");
+        var data = config.toData();
+        ModelConfig restored = new ModelConfig(""); restored.fromData(data);
+        check(restored.toData().equals(data) && restored.shapeLimits.getAllTyped().size() == 1, "Limits survive save and load");
+        restored.fromData(new MapType());
+        check(restored.shapeLimits.getAllTyped().isEmpty(), "Reloading a config without limits clears stale ones");
     }
 
     private static void mirror()
@@ -265,6 +293,8 @@ public final class ShapeControllerCheck
             check(c.bindings.getAllTyped().stream().allMatch(b -> shapes.contains(b.shape.get())), "All control targets exist");
             check(matrices.get(c.bone.get()) != null, "Controller bone exists: " + c.bone.get());
         }
+        for (var limit : model.config.shapeLimits.getAllTyped())
+            check(shapes.contains(limit.shape.get()), "Limited shape exists: " + limit.shape.get());
         var cubic = (mchorse.bbs_mod.cubic.data.model.Model) model.model;
         for (String side : List.of("l", "r"))
         {
@@ -301,6 +331,10 @@ public final class ShapeControllerCheck
             float cx = 0, cy = 0;
             for (var v : mesh.baseData.vertices) { cx += v.x / 12; cy += v.y / 12; }
             near(Math.abs(cx), Math.abs(pupil.initial.translate.x), "Pupil mesh is centred on its bone");
+            /* The gaze handle travels along the bone frame's X, which is turned around Y from the model's. */
+            var frame = matrices.get("anchor").matrix();
+            float handleX = frame.transformDirection(new org.joml.Vector3f(1, 0, 0)).x;
+            float handleY = frame.transformDirection(new org.joml.Vector3f(0, 1, 0)).y;
             for (String axis : List.of("x", "y", "size"))
             {
                 var target = mesh.data.get("pupil_" + side + "_" + axis);
@@ -309,10 +343,10 @@ public final class ShapeControllerCheck
                 {
                     var rest = mesh.baseData.vertices.get(i);
                     var changed = target.vertices.get(i);
-                    float dx = axis.equals("x") ? 1 : axis.equals("size") ? rest.x - cx : 0;
-                    float dy = axis.equals("y") ? 1 : axis.equals("size") ? rest.y - cy : 0;
-                    near(changed.x - rest.x, dx, "Pupil " + axis + " moves X by its own rule");
-                    near(changed.y - rest.y, dy, "Pupil " + axis + " moves Y by its own rule");
+                    float dx = axis.equals("x") ? handleX : axis.equals("size") ? rest.x - cx : 0;
+                    float dy = axis.equals("y") ? handleY : axis.equals("size") ? rest.y - cy : 0;
+                    near(changed.x - rest.x, dx, "Pupil " + axis + " moves X with its handle");
+                    near(changed.y - rest.y, dy, "Pupil " + axis + " moves Y with its handle");
                     near(changed.z, rest.z, "Pupil depth stays fixed");
                     check(target.uvs.get(i).equals(mesh.baseData.uvs.get(i)), "Pupil UVs stay unchanged");
                 }
