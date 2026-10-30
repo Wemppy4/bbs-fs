@@ -21,6 +21,7 @@ import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
 import mchorse.bbs_mod.forms.forms.utils.FormMaterial;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
+import mchorse.bbs_mod.forms.values.ValueShapeKeys;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.base.BaseKeyframeFactoryValue;
@@ -215,7 +216,7 @@ public class TrackCatalog
             }
 
             /* Shape key tracks only apply to models that actually expose shape keys. */
-            if (form instanceof ModelForm modelForm && value == modelForm.shapeKeys
+            if (form instanceof ModelForm && value instanceof ValueShapeKeys
                 && (model == null || model.model.getShapeKeys().isEmpty()))
             {
                 continue;
@@ -251,6 +252,10 @@ public class TrackCatalog
             else if (name.startsWith("transform_overlay") && !name.equals("transform_overlay"))
             {
                 track = track.under(TrackId.property(path, "transform_overlay"));
+            }
+            else if (name.startsWith("shape_keys_overlay") && !name.equals("shape_keys_overlay"))
+            {
+                track = track.under(TrackId.property(path, "shape_keys_overlay"));
             }
 
             if (TrackId.MATERIAL_PROP_OVERLAY.equals(name))

@@ -13,6 +13,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.model_editor.UIEntryList;
+import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -36,13 +37,24 @@ public class UIShapeControllers extends UIElement
     private Runnable boundary = () -> {};
     public Runnable selectionChanged = () -> {};
     private Supplier<String> presetGroup;
+    private final DoubleClick<ShapeController> doubleClick = new DoubleClick<>(true);
 
     public static IKey key(String name) { return L10n.lang("bbs.ui.shape_controllers." + name); }
 
     public UIShapeControllers(Consumer<Consumer<ShapeKeys>> edit)
     {
         this.edit = edit;
-        this.list = new UIEntryList<>(picked -> { this.refresh(); this.selectionChanged.run(); }, c -> c.name.get());
+        this.list = new UIEntryList<>(picked ->
+        {
+            this.refresh(); this.selectionChanged.run();
+            ShapeController c = this.selected();
+            if (c != null && this.doubleClick.hit(c))
+            {
+                this.boundary.run();
+                this.reset(c, ShapeController.HEIGHT, ShapeController.TILT, ShapeController.SHIFT);
+                this.boundary.run();
+            }
+        }, c -> c.name.get());
         this.list.h(64);
         this.height = new UITrackpad(v -> this.setAxis(ShapeController.HEIGHT, v.floatValue()));
         this.tilt = new UITrackpad(v -> this.setAxis(ShapeController.TILT, v.floatValue()));
@@ -125,6 +137,13 @@ public class UIShapeControllers extends UIElement
             if (mirror != null) mirror.set(keys, axis, axis == ShapeController.HEIGHT ? value : -value);
         });
         this.refresh();
+    }
+
+    /** Back to rest on the given axes (the mirror partner follows); the caller brackets it as one undo step. */
+    public void reset(ShapeController controller, int... axes)
+    {
+        if (controller != this.selected()) this.select(controller);
+        for (int axis : axes) if (controller.hasAxis(axis)) this.setAxis(axis, 0F);
     }
 
     /** The paired controller while mirror edit is on. */

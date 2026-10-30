@@ -75,6 +75,7 @@ public final class ShapeControllerCheck
         previewUndo(c);
         shift();
         limits();
+        overlay();
         mirror();
         modelDiscovery();
 
@@ -180,11 +181,32 @@ public final class ShapeControllerCheck
         near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 1F, "Above the range draws at the highest value");
         limit.min.set(1F); limit.max.set(0F);
         near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 1F, "Swapped bounds still form the range");
+        limit.beyond.set(0.5F);
+        near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), 2F, "Past the range goes on at half speed");
+        keys.shapeKeys.put("pupil_l_x", -0.6F);
+        near(config.shapeLimits.apply(keys).shapeKeys.get("pupil_l_x"), -0.3F, "Below the range too");
         var data = config.toData();
         ModelConfig restored = new ModelConfig(""); restored.fromData(data);
         check(restored.toData().equals(data) && restored.shapeLimits.getAllTyped().size() == 1, "Limits survive save and load");
         restored.fromData(new MapType());
         check(restored.shapeLimits.getAllTyped().isEmpty(), "Reloading a config without limits clears stale ones");
+    }
+
+    /** The overlay track adds to the shape keys like the pose overlay adds to the pose. */
+    private static void overlay()
+    {
+        ModelForm form = new ModelForm();
+        check(form.get("shape_keys_overlay") == form.shapeKeysOverlay, "Shape keys overlay is a form property");
+        var renderer = new mchorse.bbs_mod.forms.renderers.ModelFormRenderer(form);
+        check(renderer.getShapeKeys() == form.shapeKeys.get(), "No overlay draws the base keys without a copy");
+        form.shapeKeys.get().shapeKeys.put("pupil_l_x", 0.25F);
+        form.shapeKeysOverlay.get().shapeKeys.put("pupil_l_x", 0.5F);
+        form.shapeKeysOverlay.get().shapeKeys.put("smile", 1F);
+        ShapeKeys drawn = renderer.getShapeKeys();
+        near(drawn.shapeKeys.get("pupil_l_x"), 0.75F, "Overlay adds to the base value");
+        near(drawn.shapeKeys.get("smile"), 1F, "Overlay-only shape is drawn");
+        near(form.shapeKeys.get().shapeKeys.get("pupil_l_x"), 0.25F, "Base keys stay as animated");
+        check(!form.shapeKeys.get().shapeKeys.containsKey("smile"), "Overlay never writes into the base");
     }
 
     private static void mirror()

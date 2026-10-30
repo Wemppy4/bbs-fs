@@ -165,16 +165,18 @@ public class UIReplaysEditorUtils
         String name = track.subject();
         boolean pose = name.equals("pose") || name.startsWith("pose_overlay");
         boolean transform = name.equals("transform") || name.startsWith("transform_overlay");
-        if ((!pose && !transform) || (pose && !(owner instanceof IPosedForm))) return;
+        boolean shapes = name.startsWith("shape_keys");
+        if ((!pose && !transform && !shapes) || (pose && !(owner instanceof IPosedForm))) return;
 
-        ValueInt count = pose ? BBSSettings.recordingPoseOverlays : BBSSettings.recordingTransformOverlays;
+        ValueInt count = pose ? BBSSettings.recordingPoseOverlays : shapes ? BBSSettings.recordingShapeKeyOverlays : BBSSettings.recordingTransformOverlays;
+        String kind = pose ? "pose" : shapes ? "shape_keys" : "transform";
         if (count.get() >= count.getMax()) return;
-        menu.action(Icons.ADD, L10n.lang(pose ? "bbs.ui.keyframes.context.add_pose_track" : "bbs.ui.keyframes.context.add_transform_track"), () ->
+        menu.action(Icons.ADD, L10n.lang("bbs.ui.keyframes.context.add_" + kind + "_track"), () ->
         {
             if (count.get() >= count.getMax()) return;
             count.set(count.get() + 1);
             owner.syncOverlayTracks();
-            refresh.accept(TrackId.property(track.formPath(), pose ? "pose_overlay" : "transform_overlay"));
+            refresh.accept(TrackId.property(track.formPath(), kind + "_overlay"));
         });
     }
 

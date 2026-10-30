@@ -26,6 +26,8 @@ import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
+import mchorse.bbs_mod.forms.values.ValueShapeKeys;
+import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
@@ -89,6 +91,7 @@ public abstract class Form extends ValueGroup
 
     public final List<ValueTransform> additionalTransforms = new ArrayList<>();
     public final List<ValuePose> additionalOverlays = new ArrayList<>();
+    public final List<ValueShapeKeys> additionalShapeKeys = new ArrayList<>();
 
     /* Hitbox properties */
     public final ValueBoolean hitbox = new ValueBoolean("hitbox", false);
@@ -207,10 +210,14 @@ public abstract class Form extends ValueGroup
         int transforms = BBSSettings.recordingTransformOverlays == null ? 0 : BBSSettings.recordingTransformOverlays.get();
         int poses = this instanceof IPosedForm && super.get("pose") != null && BBSSettings.recordingPoseOverlays != null
             ? BBSSettings.recordingPoseOverlays.get() : 0;
-        boolean changed = this.additionalTransforms.size() != transforms || this.additionalOverlays.size() != poses;
+        int shapes = super.get("shape_keys") != null && BBSSettings.recordingShapeKeyOverlays != null
+            ? BBSSettings.recordingShapeKeyOverlays.get() : 0;
+        boolean changed = this.additionalTransforms.size() != transforms || this.additionalOverlays.size() != poses
+            || this.additionalShapeKeys.size() != shapes;
 
         while (this.additionalTransforms.size() > transforms) this.remove(this.additionalTransforms.remove(this.additionalTransforms.size() - 1));
         while (this.additionalOverlays.size() > poses) this.remove(this.additionalOverlays.remove(this.additionalOverlays.size() - 1));
+        while (this.additionalShapeKeys.size() > shapes) this.remove(this.additionalShapeKeys.remove(this.additionalShapeKeys.size() - 1));
         while (this.additionalTransforms.size() < transforms)
         {
             ValueTransform value = new ValueTransform("transform_overlay" + this.additionalTransforms.size(), new Transform());
@@ -221,6 +228,12 @@ public abstract class Form extends ValueGroup
         {
             ValuePose value = new ValuePose("pose_overlay" + this.additionalOverlays.size(), new Pose());
             this.additionalOverlays.add(value);
+            this.add(value);
+        }
+        while (this.additionalShapeKeys.size() < shapes)
+        {
+            ValueShapeKeys value = new ValueShapeKeys("shape_keys_overlay" + this.additionalShapeKeys.size(), new ShapeKeys());
+            this.additionalShapeKeys.add(value);
             this.add(value);
         }
         if (changed) this.bumpPoseVersion();

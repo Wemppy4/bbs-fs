@@ -231,6 +231,7 @@ public class BBSSettings {
 	public static ValueBoolean recordingOverlays;
 	public static ValueInt recordingPoseOverlays;
 	public static ValueInt recordingTransformOverlays;
+	public static ValueInt recordingShapeKeyOverlays;
 	public static ValueBoolean recordingCameraPreview;
 	public static ValueBoolean recordingTeleport;
 
@@ -948,6 +949,7 @@ public class BBSSettings {
 		recordingOverlays = builder.getBoolean("overlays", true);
 		recordingPoseOverlays = builder.getInt("pose_overlays", 0, 0, 42);
 		recordingTransformOverlays = builder.getInt("transform_overlays", 0, 0, 42);
+		recordingShapeKeyOverlays = builder.getInt("shape_key_overlays", 0, 0, 42);
 		recordingCameraPreview = builder.getBoolean("camera_preview", true);
 		recordingTeleport = builder.getBoolean("teleport", true);
 
