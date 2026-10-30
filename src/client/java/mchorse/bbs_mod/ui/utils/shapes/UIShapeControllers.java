@@ -1,14 +1,22 @@
 package mchorse.bbs_mod.ui.utils.shapes;
 
+import mchorse.bbs_mod.BBSSettings;
+import mchorse.bbs_mod.cubic.model.config.ModelConfig;
 import mchorse.bbs_mod.cubic.model.config.ShapeController;
 import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.obj.shapes.ShapeKeys;
+import mchorse.bbs_mod.ui.Keys;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.model_editor.UIEntryList;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIUtils;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.Direction;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -20,7 +28,9 @@ public class UIShapeControllers extends UIElement
     public final UIEntryList<ShapeController> list;
     public final UITrackpad height;
     public final UITrackpad tilt;
+    public final UIIcon mirror;
     private ShapeKeys keys = new ShapeKeys();
+    private ModelConfig config;
     private final Consumer<Consumer<ShapeKeys>> edit;
     private Runnable boundary = () -> {};
     public Runnable selectionChanged = () -> {};
@@ -43,8 +53,14 @@ public class UIShapeControllers extends UIElement
             field.getEvents().register(mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragStartEvent.class, e -> this.boundary.run());
             field.getEvents().register(mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent.class, e -> this.boundary.run());
         }
+        /* The pose editor's mirror edit (Shift+F): one switch for bones and controllers alike. */
+        this.mirror = new UIIcon(Icons.CONVERT, b -> this.toggleMirror());
+        this.mirror.highlight(BBSSettings.poseMirrorEdit::get, Direction.BOTTOM);
+        this.mirror.tooltip(key("mirror"));
+        this.mirror.wh(20, 20);
+        this.keys().register(Keys.TRANSFORMATIONS_MIRROR_EDIT, this::toggleMirror).strict().category(UIKeys.TRANSFORMS_KEYS_CATEGORY);
         this.column(4).vertical().stretch();
-        this.add(this.list, UI.row(this.height, this.tilt));
+        this.add(this.list, UI.row(this.height, this.tilt, this.mirror));
         this.list.context(this::presetMenu);
     }
 
@@ -68,9 +84,11 @@ public class UIShapeControllers extends UIElement
     {
         this.list.setCurrent(controller == null ? List.of() : List.of(controller)); this.refresh(); this.selectionChanged.run();
     }
-    public void fill(List<ShapeController> controllers, ShapeKeys keys)
+    public void fill(ModelConfig config, ShapeKeys keys)
     {
+        List<ShapeController> controllers = config == null ? List.of() : config.shapeControllers.getAllTyped();
         String id = this.selected() == null ? "" : this.selected().getId();
+        this.config = config;
         this.keys = keys;
         this.list.setList(controllers);
         ShapeController current = controllers.stream().filter(c -> c.getId().equals(id)).findFirst().orElse(controllers.isEmpty() ? null : controllers.get(0));
@@ -92,8 +110,27 @@ public class UIShapeControllers extends UIElement
     {
         ShapeController selected = this.selected();
         if (selected == null) return;
-        this.edit.accept(keys -> selected.set(keys, axis, value));
+        ShapeController mirror = this.mirrorOf(selected);
+        /* Mirrored across X: the same height, the tilt handle swings the other way. */
+        this.edit.accept(keys ->
+        {
+            selected.set(keys, axis, value);
+            if (mirror != null) mirror.set(keys, axis, axis == 0 ? value : -value);
+        });
         this.refresh();
+    }
+
+    /** The paired controller while mirror edit is on. */
+    public ShapeController mirrorOf(ShapeController controller)
+    {
+        return !BBSSettings.poseMirrorEdit.get() || this.config == null || controller == null ? null
+            : controller.mirror(this.list.getList(), this.config.getFlippedParts());
+    }
+
+    private void toggleMirror()
+    {
+        BBSSettings.poseMirrorEdit.set(!BBSSettings.poseMirrorEdit.get());
+        UIUtils.playClick();
     }
     public boolean isEditing() { return this.height.isUserEditing() || this.tilt.isUserEditing(); }
     @Override public void render(UIContext context) { this.refresh(); super.render(context); }

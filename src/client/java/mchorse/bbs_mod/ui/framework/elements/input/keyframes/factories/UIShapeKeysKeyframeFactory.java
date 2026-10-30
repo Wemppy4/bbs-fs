@@ -40,7 +40,7 @@ public class UIShapeKeysKeyframeFactory extends UIKeyframeFactory<ShapeKeys>
             this.displayed = this.getDisplayValue();
             this.controlsRefresh();
         });
-        this.controls.fill(model == null ? java.util.List.of() : model.config.shapeControllers.getAllTyped(), this.displayed);
+        this.controls.fill(model == null ? null : model.config, this.displayed);
         this.controls.boundary(this::endControllerGesture);
         this.controls.presets(() -> this.displayedModel == null ? "" : this.displayedModel.getPoseGroup());
         if (model != null && !model.config.shapeControllers.getAllTyped().isEmpty()) this.scroll.add(this.controls);
@@ -65,7 +65,7 @@ public class UIShapeKeysKeyframeFactory extends UIKeyframeFactory<ShapeKeys>
         {
             this.endControllerGesture();
             this.displayedModel = model;
-            this.controls.fill(model == null ? java.util.List.of() : model.config.shapeControllers.getAllTyped(), this.displayed);
+            this.controls.fill(model == null ? null : model.config, this.displayed);
             this.shapeKeys.setShapeKeys(model == null ? "" : model.getPoseGroup(), model == null ? java.util.Set.of() : model.model.getShapeKeys(), this.displayed);
             this.controls.removeFromParent();
             this.shapeKeys.removeFromParent();

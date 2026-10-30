@@ -10,6 +10,7 @@
 	"bbs.ui.shape_controllers.preview": "Предпросмотр ключевых форм",
 	"bbs.ui.shape_controllers.height_gain": "Влияние высоты",
 	"bbs.ui.shape_controllers.tilt_gain": "Влияние наклона",
+	"bbs.ui.shape_controllers.mirror": "Зеркально править контроллер на парной кости (пары — «Зеркало» костей в конфиге модели)",
 
 	"bbs.ui.keyframes.mode.keys": "Ключи",
 	"bbs.ui.keyframes.mode.graph": "Граф",

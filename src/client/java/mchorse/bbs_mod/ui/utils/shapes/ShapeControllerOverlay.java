@@ -155,9 +155,11 @@ public class ShapeControllerOverlay
             }
         }
         Handle hovered = viewport.isInside(context) ? this.pick(context.mouseX, context.mouseY) : null;
+        ShapeController mirror = this.drag == null ? null : controls.mirrorOf(this.drag.controller);
         for (Handle handle : this.handles)
         {
-            boolean active = this.drag != null && this.drag.controller == handle.controller && this.drag.axis == handle.axis;
+            boolean active = this.drag != null && this.drag.axis == handle.axis
+                && (this.drag.controller == handle.controller || mirror == handle.controller);
             boolean lit = handle == hovered || active;
             boolean selected = handle.controller == controls.selected();
             int color = selected ? (lit ? SELECTED_HOVER : SELECTED) : (lit ? HOVER : IDLE);

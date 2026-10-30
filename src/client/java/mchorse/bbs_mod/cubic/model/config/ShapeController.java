@@ -8,6 +8,7 @@ import mchorse.bbs_mod.settings.values.misc.ValueVector3f;
 import mchorse.bbs_mod.settings.values.numeric.ValueFloat;
 import org.joml.Vector3f;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Authoring data only. Animation remains in the existing shape-key track. */
@@ -68,6 +69,28 @@ public class ShapeController extends ValueGroup
             float gain = entry.getValue()[axis];
             if (gain != 0) keys.shapeKeys.put(entry.getKey(), keys.shapeKeys.getOrDefault(entry.getKey(), 0F) + delta * gain);
         }
+    }
+
+    /**
+     * The controller on the bone paired with this one's (the bones' "Mirror" in the model config,
+     * stored once either way round). Several controllers on one bone pair up by their order on it.
+     */
+    public ShapeController mirror(List<ShapeController> controllers, Map<String, String> bonePairs)
+    {
+        String bone = this.bone.get();
+        String other = null;
+        for (Map.Entry<String, String> pair : bonePairs.entrySet())
+        {
+            if (pair.getKey().equals(bone)) other = pair.getValue();
+            else if (pair.getValue().equals(bone)) other = pair.getKey();
+            if (other != null) break;
+        }
+        if (bone.isEmpty() || other == null || other.equals(bone)) return null;
+        String paired = other;
+        List<ShapeController> own = controllers.stream().filter(c -> c.bone.get().equals(bone)).toList();
+        List<ShapeController> mirrors = controllers.stream().filter(c -> c.bone.get().equals(paired)).toList();
+        int index = own.indexOf(this);
+        return index >= 0 && index < mirrors.size() ? mirrors.get(index) : null;
     }
 
     public static class Binding extends ValueGroup
