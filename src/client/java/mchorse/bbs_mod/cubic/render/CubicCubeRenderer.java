@@ -21,6 +21,7 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 public class CubicCubeRenderer implements ICubicRenderer
@@ -56,6 +57,13 @@ public class CubicCubeRenderer implements ICubicRenderer
     /* Temporary variables to avoid allocating and GC vectors */
     protected Vector3f normal = new Vector3f();
     protected Vector4f vertex = new Vector4f();
+
+    /* Bones kept inside the bone the model is worn on: their vertices go from the stack's frame into the
+     * carrier's, are pressed into its box, and come back. */
+    private Set<String> carrierBones;
+    private Matrix4f toCarrier;
+    private Matrix4f fromCarrier;
+    private CarrierClip carrier;
 
     private ModelVertex modelVertex = new ModelVertex();
     private ShapeKeys shapeKeys;
@@ -131,6 +139,17 @@ public class CubicCubeRenderer implements ICubicRenderer
         this.g = g;
         this.b = b;
         this.a = a;
+    }
+
+    /** @param toCarrier the stack's frame (as this renderer is handed it) into the carrier bone's frame */
+    public void setCarrierClip(Set<String> bones, CarrierClip carrier, Matrix4f toCarrier)
+    {
+        boolean on = bones != null && !bones.isEmpty() && carrier != null && toCarrier != null;
+
+        this.carrierBones = on ? bones : null;
+        this.carrier = on ? carrier : null;
+        this.toCarrier = on ? toCarrier : null;
+        this.fromCarrier = on ? new Matrix4f(toCarrier).invert() : null;
     }
 
     /** Leave out the quads this welded band draws instead. */
@@ -288,6 +307,15 @@ public class CubicCubeRenderer implements ICubicRenderer
     {
         this.vertex.set(vertex.vertex.x, vertex.vertex.y, vertex.vertex.z, 1);
         stack.peek().getPositionMatrix().transform(this.vertex);
+
+        if (this.carrierBones != null && this.carrierBones.contains(group.id))
+        {
+            this.toCarrier.transform(this.vertex);
+            this.vertex.x = Math.max(this.carrier.min().x, Math.min(this.carrier.max().x, this.vertex.x));
+            this.vertex.y = Math.max(this.carrier.min().y, Math.min(this.carrier.max().y, this.vertex.y));
+            this.vertex.z = Math.max(this.carrier.min().z, Math.min(this.carrier.max().z, this.vertex.z));
+            this.fromCarrier.transform(this.vertex);
+        }
 
         this.emit(builder, group, this.vertex.x, this.vertex.y, this.vertex.z, vertex.uv.x, vertex.uv.y, normal);
     }

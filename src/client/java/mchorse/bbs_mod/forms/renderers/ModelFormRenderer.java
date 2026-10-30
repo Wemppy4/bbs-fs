@@ -18,6 +18,8 @@ import mchorse.bbs_mod.cubic.animation.IAnimator;
 import mchorse.bbs_mod.cubic.animation.ItemUsePose;
 import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
 import mchorse.bbs_mod.cubic.data.model.ModelGroup;
+import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.render.CarrierClip;
 import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.cubic.spline.ModelSplineRuntime;
@@ -1241,9 +1243,13 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             context.world.push();
         }
 
+        ModelInstance carrier = this.getModel();
+        Matrix4f root = new Matrix4f(context.stack.peek().getPositionMatrix());
+
         for (BodyPart part : this.form.parts.getAllTyped())
         {
-            Matrix4f matrix = part.filterBoneMatrix(this.bones.get(part.bone.get()).matrix());
+            Matrix4f bone = this.bones.get(part.bone.get()).matrix();
+            Matrix4f matrix = part.filterBoneMatrix(bone);
 
             context.stack.push();
             if (context.world != null)
@@ -1270,7 +1276,10 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
                 }
             }
 
+            /* The bone the part is worn on, whole (not filtered like the part's frame), as a box to stay in. */
+            CarrierClip.push(carrier != null && carrier.model instanceof Model cubic ? CarrierClip.of(cubic, part.bone.get(), root, bone) : null);
             this.renderBodyPart(part, context);
+            CarrierClip.pop();
 
             context.stack.pop();
             if (context.world != null)

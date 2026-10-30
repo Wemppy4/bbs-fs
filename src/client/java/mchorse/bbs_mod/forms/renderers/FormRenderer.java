@@ -7,6 +7,7 @@ import java.util.Map;
 
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.cubic.IBoneHierarchy;
+import mchorse.bbs_mod.cubic.render.CarrierClip;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.BodyPart;
@@ -362,7 +363,10 @@ public abstract class FormRenderer <T extends Form>
     {
         for (BodyPart part : this.form.parts.getAllTyped())
         {
+            /* Not worn on a cubic bone: nothing for the part to stay inside (and not its grandparent's). */
+            CarrierClip.push(null);
             this.renderBodyPart(part, context);
+            CarrierClip.pop();
         }
     }
 

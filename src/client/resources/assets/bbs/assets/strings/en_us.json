@@ -1933,6 +1933,8 @@
 	"bbs.ui.model_editor.armor.right_boot": "Right boot",
 	"bbs.ui.model_editor.first_person": "First person",
 	"bbs.ui.model_editor.bone.visible": "Visible",
+	"bbs.ui.model_editor.bone.inside_carrier": "Inside carrier",
+	"bbs.ui.model_editor.bone.inside_carrier_tooltip": "When the model is worn as a body part on a bone, this bone stays inside that bone's cubes (inflated layers left out). For a face rig's skin at the edge of a head.",
 	"bbs.ui.model_editor.bone.mirror": "Mirror bone",
 	"bbs.ui.model_editor.bone.picking": "Picking override",
 	"bbs.ui.model_editor.sneaking": "Sneaking pose",
