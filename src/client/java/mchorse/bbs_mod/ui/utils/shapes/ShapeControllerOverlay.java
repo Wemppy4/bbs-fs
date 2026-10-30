@@ -9,6 +9,7 @@ import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIModelRenderer;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.utils.StringUtils;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -35,6 +36,7 @@ public class ShapeControllerOverlay
     private float[] initial, last;
     private Runnable begin = () -> {}, end = () -> {};
     private Area viewport;
+    private final DoubleClick<String> doubleClick = new DoubleClick<>(false);
     private boolean draggingAxis(ShapeController c, int axis)
     {
         return axis == ShapeController.TILT ? c.hasAxis(ShapeController.TILT)
@@ -73,6 +75,15 @@ public class ShapeControllerOverlay
             return true;
         }
         if (selectOnly) return true;
+        if (this.doubleClick.hit(System.identityHashCode(best.controller) + ":" + best.axis))
+        {
+            /* Double click: the handle's own axes back to rest, as one undo step. */
+            this.begin.run();
+            if (best.axis == ShapeController.TILT) this.controls.reset(best.controller, ShapeController.TILT);
+            else this.controls.reset(best.controller, ShapeController.HEIGHT, ShapeController.SHIFT);
+            this.end.run();
+            return true;
+        }
         this.drag = best;
         this.mouseX = context.mouseX; this.mouseY = context.mouseY;
         this.initial = best.controller.read(this.controls.shapeKeys());
