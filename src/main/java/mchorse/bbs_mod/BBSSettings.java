@@ -168,6 +168,7 @@ public class BBSSettings {
 	public static ValueMotionPath editorMotionPath;
 	public static ValueBoolean editorOrbitTeleportOnSwitch;
 	public static ValueBoolean editorOrbitAttached;
+	public static ValueBoolean editorOrbitTurnsWithAnchor;
 	public static ValueFloat editorCameraSmoothness;
 	public static ValueInt editorCameraMode;
 	public static ValueBoolean editorPlayerFollowsCamera;
@@ -850,6 +851,8 @@ public class BBSSettings {
 		editorOrbitTeleportOnSwitch = builder.getBoolean("orbit_teleport_on_switch", true);
 		editorOrbitAttached = builder.getBoolean("orbit_attached", true);
 		editorOrbitAttached.invisible();
+		editorOrbitTurnsWithAnchor = builder.getBoolean("orbit_turns_with_anchor", false);
+		editorOrbitTurnsWithAnchor.invisible();
 		editorCameraMode = builder.getInt("camera_mode", 0, 0, 5);
 		editorCameraMode.invisible();
 

@@ -17,6 +17,7 @@ import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.Arrays;
@@ -264,7 +265,7 @@ public class OrbitViewGizmo
     private Ball[] getBalls(Area area)
     {
         Matrix3f view = new Matrix3f(this.controller.panel.lastView);
-        float anchorYaw = this.controller.orbit.getAnchorYaw();
+        Quaternionf anchor = this.controller.orbit.getAnchorRotation();
         float cx = this.centerX(area);
         float cy = this.centerY(area);
         float arm = this.radius() - this.ballRadius();
@@ -274,7 +275,7 @@ public class OrbitViewGizmo
         for (int i = 0; i < AXES.length; i++)
         {
             /* Anchor space -> world space -> view space */
-            vector.set(AXES[i][0], AXES[i][1], AXES[i][2]).rotateY(anchorYaw);
+            anchor.transform(vector.set(AXES[i][0], AXES[i][1], AXES[i][2]));
             view.transform(vector);
 
             /* View space is y-up, screen space is y-down. */
