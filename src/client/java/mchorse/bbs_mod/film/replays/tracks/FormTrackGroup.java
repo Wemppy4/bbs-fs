@@ -77,7 +77,7 @@ public enum FormTrackGroup
         }
 
         /* What moves the model: its pose and everything that plays or bends it. */
-        if (name.equals(FormProperties.POSE_PROPERTY) || name.startsWith("pose_overlay") || name.equals("shape_keys")
+        if (name.equals(FormProperties.POSE_PROPERTY) || name.startsWith("pose_overlay") || name.startsWith("shape_keys")
             || name.equals("actions") || name.startsWith("cem_"))
         {
             return POSE;

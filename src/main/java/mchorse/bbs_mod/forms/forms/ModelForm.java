@@ -61,6 +61,8 @@ public class ModelForm extends Form implements IPosedForm
     public final ValueColor color = new ValueColor("color", Color.white());
     public final ValueMaterials materials = new ValueMaterials("materials");
     public final ValueShapeKeys shapeKeys = new ValueShapeKeys("shape_keys", new ShapeKeys());
+    /** Added on top of {@link #shapeKeys}, like the pose overlay on the pose. */
+    public final ValueShapeKeys shapeKeysOverlay = new ValueShapeKeys("shape_keys_overlay", new ShapeKeys());
     public final ValueBoolean boneTracks = new ValueBoolean("bone_tracks", true);
     public final ValueBones bones = new ValueBones("bones");
     public final ValueChainControls<IKControl, IKControls> ik =
@@ -142,6 +144,7 @@ public class ModelForm extends Form implements IPosedForm
         this.materials.invisible();
         this.add(this.materials);
         this.add(this.shapeKeys);
+        this.add(this.shapeKeysOverlay);
         this.boneTracks.animatable(false).invisible();
         this.add(this.boneTracks);
 

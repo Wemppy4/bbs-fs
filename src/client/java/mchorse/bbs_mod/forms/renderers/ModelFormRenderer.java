@@ -47,6 +47,8 @@ import mchorse.bbs_mod.forms.renderers.utils.MatrixCache;
 import mchorse.bbs_mod.ui.utils.pose.PoseBones;
 import mchorse.bbs_mod.forms.renderers.utils.MatrixCacheEntry;
 import mchorse.bbs_mod.forms.renderers.utils.RenderFrame;
+import mchorse.bbs_mod.forms.values.ValueShapeKeys;
+import mchorse.bbs_mod.obj.shapes.ShapeKeys;
 import mchorse.bbs_mod.math.Operation;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValuePose;
@@ -246,6 +248,43 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         }
 
         return pose;
+    }
+
+    /** The shape keys with every overlay track added on top; the base value itself when none holds anything. */
+    public ShapeKeys getShapeKeys()
+    {
+        this.form.syncOverlayTracks();
+        ShapeKeys keys = this.form.shapeKeys.get();
+        ShapeKeys result = keys;
+
+        result = addShapeKeys(keys, result, this.form.shapeKeysOverlay.get());
+
+        for (ValueShapeKeys overlay : this.form.additionalShapeKeys)
+        {
+            result = addShapeKeys(keys, result, overlay.get());
+        }
+
+        return result;
+    }
+
+    private static ShapeKeys addShapeKeys(ShapeKeys base, ShapeKeys result, ShapeKeys overlay)
+    {
+        if (overlay.shapeKeys.isEmpty())
+        {
+            return result;
+        }
+
+        if (result == base)
+        {
+            result = base.copy();
+        }
+
+        for (Map.Entry<String, Float> entry : overlay.shapeKeys.entrySet())
+        {
+            result.shapeKeys.merge(entry.getKey(), entry.getValue(), Float::sum);
+        }
+
+        return result;
     }
 
     private void applyPose(Pose targetPose, Pose pose)
@@ -569,7 +608,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         final boolean ignoreMaterials = model.materials.size() <= 1;
         final Link materialFallback = ignoreMaterials ? resolvedDefault : model.getTexture();
 
-        model.render(newStack, program, finalColor, light, overlay, stencilMap, this.form.shapeKeys.get(), (material) ->
+        model.render(newStack, program, finalColor, light, overlay, stencilMap, this.getShapeKeys(), (material) ->
         {
             if (ignoreMaterials)
             {
