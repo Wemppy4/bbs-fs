@@ -615,6 +615,8 @@
 	"bbs.config.timeline.snap_to_ticks": "Привязать к тикам",
 	"bbs.config.timeline.snap_to_ticks-comment": "Привязка к целым тикам; удерживайте Shift для обхода при перетаскивании.",
 	"bbs.config.timeline.stop_playback_on_scrub-comment": "Останавливать фильм при перемещении курсора по таймлайну.",
+	"bbs.config.timeline.follow_cursor": "Таймлайн за курсором",
+	"bbs.config.timeline.follow_cursor-comment": "При воспроизведении таймлайн плавно едет вслед за курсором.",
 	"bbs.config.timeline.restart_on_seek": "Перезапуск при перемотке",
 	"bbs.config.timeline.restart_on_seek-comment": "Перезапускать действия при перемещении по таймлайну (Alt+R).",
 	"bbs.config.timeline.title": "Таймлайн",

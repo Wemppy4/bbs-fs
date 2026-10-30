@@ -345,6 +345,33 @@ public class Scale
         }
     }
 
+    /**
+     * Follow a moving playhead: the view holds while {@code value} is short of {@code ahead} (a
+     * fraction of the width), then moves with it so it stays there. A value behind the view is
+     * caught only when it {@code jumped} back there (a loop restarting) and lands on the left
+     * edge; otherwise the view was scrolled ahead on purpose and waits for the value to come.
+     * A running zoom animation is left to finish.
+     */
+    public void follow(double value, double ahead, boolean jumped)
+    {
+        if (this.zoomAnimating || this.area == null || this.direction.getSide(this.area) <= 0)
+        {
+            return;
+        }
+
+        double min = this.getMinValue();
+        double distance = this.getMaxValue() - min;
+
+        if (value > min + distance * ahead)
+        {
+            this.shift(value - distance * ahead, value + distance * (1 - ahead));
+        }
+        else if (value < min && jumped)
+        {
+            this.shift(value, value + distance);
+        }
+    }
+
     public void zoom(double amount, double min, double max)
     {
         this.setZoom(MathUtils.clamp(this.getZoom() + amount, min, max));

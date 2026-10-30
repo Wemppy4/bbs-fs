@@ -189,6 +189,8 @@ public class BBSSettings {
 	public static ValueBoolean editorClipPreview;
 	public static ValueBoolean editorRewind;
 	public static ValueBoolean editorStopPlaybackOnScrub;
+	/** Whether the film timelines scroll along with the playhead during playback. */
+	public static ValueBoolean editorFollowCursor;
 	public static ValueBoolean editorSnapToTicks;
 	public static ValueBoolean timelineAllBodyParts;
 	/** Whether a section heading sums up its tracks' keys as marks that edit their whole column. */
@@ -924,6 +926,7 @@ public class BBSSettings {
 		editorSnapToFilmMarkers = builder.getBoolean("snap_to_film_markers", true);
 		editorRewind = builder.getBoolean("rewind", true);
 		editorStopPlaybackOnScrub = builder.getBoolean("stop_playback_on_scrub", false);
+		editorFollowCursor = builder.getBoolean("follow_cursor", false);
 		editorSnapToTicks = builder.getBoolean("snap_to_ticks", true);
 		timelineAllBodyParts = builder.getBoolean("all_body_parts", false);
 		timelineSectionSummary = builder.getBoolean("section_summary", true);
