@@ -882,7 +882,7 @@ public class BBSSettings {
 		/* The rig's debug overlay: its switch lives on the rig tab and F5 */
 		debugOverlay = builder.getBoolean("debug_overlay", false);
 		debugOverlay.invisible();
-		markupOpacity = builder.getFloat("markup_opacity", 1F, 0.2F, 1F).slider();
+		markupOpacity = builder.getFloat("markup_opacity", 0.67F, 0.2F, 1F).slider();
 		markupHandleSize = builder.getFloat("markup_handle_size", 1F, 0.5F, 3F).slider();
 
 		/* Everything that trades work for frames: what the editor renders at all, at what
