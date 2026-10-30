@@ -19,13 +19,12 @@ import java.util.function.Function;
 
 /**
  * One projection/picking/drag implementation for model, form, state and film previews, drawn on the
- * viewport's markup ({@link ScreenOverlay}): a diamond for height (and shift), a circle for tilt. The
+ * viewport's markup ({@link ScreenOverlay}): a rounded diamond for height (and shift), a dot for tilt. The
  * markup's shape key switch hides them.
  */
 public class ShapeControllerOverlay
 {
     private static final int COLOR = 0xFFABB4C0;
-    private static final float TILT_SIZE = 7F;
     /** {@code side}: the screen step of one pixel sideways, on a handle that also travels along {@link ShapeController#SHIFT}. */
     private record Handle(ShapeController controller, int axis, Vector3f screen, Vector3f direction, Vector3f side) {}
     private final List<Handle> handles = new ArrayList<>();
@@ -214,10 +213,10 @@ public class ShapeControllerOverlay
         Handle handle = new Handle(c, axis, point, direction, side);
         boolean active = this.drag != null && this.drag.axis == axis && (this.drag.controller == c || mirror == c);
         ScreenOverlay.Shape shape = axis == ShapeController.TILT ? ScreenOverlay.Shape.CIRCLE : ScreenOverlay.Shape.DIAMOND;
-        float size = axis == ShapeController.TILT ? TILT_SIZE : ScreenOverlay.HANDLE;
+        float size = axis == ShapeController.TILT ? ScreenOverlay.POINT : ScreenOverlay.SHAPE_KEY;
         ScreenOverlay.Handle drawn = this.draggingAxis(c, axis)
             ? this.overlay.handle(point, shape, size, COLOR, handle)
-            : this.overlay.marker(point.x, point.y, shape, size, COLOR);
+            : this.overlay.marker(point.x, point.y, shape, size, COLOR, true);
 
         drawn.selected(c == this.controls.selected()).lit(active)
             .label(c.name.get() + ": " + UIShapeControllers.key(axisName(handle)).get());

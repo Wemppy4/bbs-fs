@@ -23,8 +23,9 @@ import java.util.List;
  * The editors' markup: one screen layer every viewport overlay draws through — the motion path,
  * the rig's IK goals, poles and controllers, spline points, shape key handles. Points are
  * projected onto the viewport and drawn flat over the frame: lines one screen pixel wide, and one
- * look for every handle — filled with its system's colour inside a dark outline, lighter under the
- * cursor, a white ring when selected, its name in a card at the cursor.
+ * look for every handle — a dot of its system's colour on a soft shadow (a circle, or a rounded
+ * square or diamond), a little bigger under the cursor, a white ring a gap away when selected,
+ * faded when it takes no clicks, its name in a card at the cursor.
  *
  * <p>A frame is {@link #begin}, the overlays adding their lines, marks and handles, then
  * {@link #flush}. Picks answer from the handles of the last flush, nearest to the cursor first,
@@ -34,6 +35,7 @@ import java.util.List;
  */
 public class ScreenOverlay
 {
+    /** A handle's form: squares and diamonds come with rounded corners. */
     public enum Shape
     {
         DIAMOND, SQUARE, CIRCLE
@@ -42,23 +44,33 @@ public class ScreenOverlay
     /** How near the cursor (interface pixels) a handle answers to it. */
     public static final float PICK_RADIUS = 12F;
 
-    /** Handle sizes in interface pixels: a diamond's diagonal, a square's side, a circle's diameter. */
-    public static final float HANDLE_LARGE = 10F;
-    public static final float HANDLE = 9F;
-    public static final float HANDLE_SMALL = 6F;
+    /* Handle sizes in interface pixels: a circle's diameter, a square's side, a diamond's
+     * width corner to corner. Each kind keeps its own, so the form and the size tell it apart. */
+    public static final float GOAL = 9F;
+    public static final float CONTROLLER = 7.5F;
+    public static final float SHAPE_KEY = 7F;
+    public static final float POLE = 6.5F;
+    public static final float POINT = 5F;
 
-    private static final int OUTLINE = 0xff0d1118;
+    /** Grown under the cursor, in interface pixels. */
+    private static final float GROW = 2F;
+    private static final float CORNER = 0.5F;
+    private static final int CORNER_STEPS = 5;
+
+    private static final int DARK = 0xff0d1118;
     private static final int RING = Colors.WHITE;
+    private static final int SHADOW_NEAR = 0x4d000000;
+    private static final int SHADOW_FAR = 0x26000000;
 
     /* Dashes in screen pixels */
-    private static final float DASH = 4F;
-    private static final float GAP = 3F;
+    private static final float DASH = 3F;
+    private static final float GAP = 4F;
 
     private static final float DOT = 1.5F;
     private static final float KEY = 5F;
     private static final float CURRENT = 6F;
     private static final int SEGMENTS = 16;
-    private static final float SQRT2 = 1.4142135F;
+    private static final float HALF_SQRT2 = 0.70710677F;
 
     public static class Handle
     {
@@ -71,11 +83,12 @@ public class ScreenOverlay
         public final Object data;
 
         private final boolean pickable;
+        private final boolean faded;
         private String label = "";
         private boolean selected;
         private boolean lit;
 
-        private Handle(float x, float y, float depth, Shape shape, float size, int color, Object data, boolean pickable)
+        private Handle(float x, float y, float depth, Shape shape, float size, int color, Object data, boolean pickable, boolean faded)
         {
             this.x = x;
             this.y = y;
@@ -85,6 +98,7 @@ public class ScreenOverlay
             this.color = color;
             this.data = data;
             this.pickable = pickable;
+            this.faded = faded;
         }
 
         /** The name the card at the cursor shows while the handle is hovered. */
@@ -236,13 +250,16 @@ public class ScreenOverlay
      */
     public Handle handle(Vector3f screen, Shape shape, float size, int color, Object data)
     {
-        return this.add(new Handle(screen.x, screen.y, screen.z, shape, size, color, data, true));
+        return this.add(new Handle(screen.x, screen.y, screen.z, shape, size, color, data, true, false));
     }
 
-    /** Looks like a handle but takes no clicks: a handle that can't be dragged, a preview of one. */
-    public Handle marker(float x, float y, Shape shape, float size, int color)
+    /**
+     * Looks like a handle but takes no clicks. {@code faded} for one that could be a handle and
+     * isn't: an axis that can't be dragged, a preview of a point to come.
+     */
+    public Handle marker(float x, float y, Shape shape, float size, int color, boolean faded)
     {
-        return this.add(new Handle(x, y, 0F, shape, size, color, null, false));
+        return this.add(new Handle(x, y, 0F, shape, size, color, null, false, faded));
     }
 
     private Handle add(Handle handle)
@@ -363,7 +380,7 @@ public class ScreenOverlay
                 float half = KEY * scale * 0.5F;
 
                 painter.square(mark.x, mark.y, half, mark.color);
-                painter.square(mark.x, mark.y, half - 2 * px, OUTLINE);
+                painter.square(mark.x, mark.y, half - 2 * px, DARK);
             }
             else
             {
@@ -405,32 +422,32 @@ public class ScreenOverlay
 
     private void drawHandle(Painter painter, Handle handle, float px, float scale)
     {
-        float half = handle.size * scale * 0.5F;
-        /* An outline of the same width all round: a diamond's corners stand further out. */
-        float step = handle.shape == Shape.DIAMOND ? px * SQRT2 : px;
-        int color = handle.lit || handle == this.hovered ? lighten(handle.color) : handle.color;
+        boolean grown = handle.lit || handle == this.hovered;
+        float size = (handle.size + (grown ? GROW : 0F)) * scale;
+        /* A diamond is a square turned on its corner: its side so its width is about the size. */
+        boolean diamond = handle.shape == Shape.DIAMOND;
+        float half = (diamond ? size * 0.78F : size) * 0.5F;
+        float corner = handle.shape == Shape.CIRCLE ? half : half * CORNER;
+
+        if (!handle.faded)
+        {
+            /* A soft shadow a pixel below: two dark rims fading out. */
+            painter.rounded(handle.x, handle.y + px, half + 2 * px, corner + 2 * px, diamond, SHADOW_FAR);
+            painter.rounded(handle.x, handle.y + px, half + px, corner + px, diamond, SHADOW_NEAR);
+        }
+
+        painter.rounded(handle.x, handle.y, half, corner, diamond, handle.faded ? fade(handle.color) : handle.color);
 
         if (handle.selected)
         {
-            painter.shape(handle.shape, handle.x, handle.y, half + step * 2, RING);
+            painter.roundedRing(handle.x, handle.y, half + 2 * px, corner + 2 * px, half + 4 * px, corner + 4 * px, diamond, RING);
         }
-
-        painter.shape(handle.shape, handle.x, handle.y, half + step, OUTLINE);
-        painter.shape(handle.shape, handle.x, handle.y, half, color);
     }
 
-    /** The colour under the cursor: towards white, alpha kept. */
-    private static int lighten(int color)
+    /** A handle that takes no clicks: a third as solid. */
+    private static int fade(int color)
     {
-        int r = (color >> 16) & 0xff;
-        int g = (color >> 8) & 0xff;
-        int b = color & 0xff;
-
-        r += (int) ((255 - r) * 0.45F);
-        g += (int) ((255 - g) * 0.45F);
-        b += (int) ((255 - b) * 0.45F);
-
-        return (color & 0xff000000) | (r << 16) | (g << 8) | b;
+        return (color & 0xffffff) | ((int) (((color >>> 24) & 0xff) * 0.35F) << 24);
     }
 
     /** Quads into one buffer, every colour's alpha scaled by the layer's opacity. */
@@ -489,30 +506,67 @@ public class ScreenOverlay
             this.quad(x - half, y - half, x - half, y + half, x + half, y + half, x + half, y - half, color);
         }
 
-        void shape(Shape shape, float x, float y, float half, int color)
+        /** A rounded square (a circle when the corner is the half), turned on its corner for a diamond. */
+        void rounded(float x, float y, float half, float corner, boolean diamond, int color)
         {
-            if (shape == Shape.DIAMOND)
-            {
-                this.quad(x, y - half, x - half, y, x, y + half, x + half, y, color);
-            }
-            else if (shape == Shape.SQUARE)
-            {
-                this.square(x, y, half, color);
-            }
-            else
-            {
-                for (int i = 0; i < SEGMENTS; i++)
-                {
-                    double a = i * Math.PI * 2 / SEGMENTS;
-                    double b = (i + 1) * Math.PI * 2 / SEGMENTS;
-                    float ax = x + (float) Math.cos(a) * half;
-                    float ay = y + (float) Math.sin(a) * half;
-                    float bx = x + (float) Math.cos(b) * half;
-                    float by = y + (float) Math.sin(b) * half;
+            float[] points = outline(x, y, half, corner, diamond);
 
-                    this.quad(x, y, ax, ay, bx, by, bx, by, color);
+            for (int i = 0; i < points.length; i += 2)
+            {
+                int j = (i + 2) % points.length;
+
+                this.quad(x, y, points[i], points[i + 1], points[j], points[j + 1], points[j], points[j + 1], color);
+            }
+        }
+
+        /** The band between two rounded outlines of the same form. */
+        void roundedRing(float x, float y, float innerHalf, float innerCorner, float outerHalf, float outerCorner, boolean diamond, int color)
+        {
+            float[] inner = outline(x, y, innerHalf, innerCorner, diamond);
+            float[] outer = outline(x, y, outerHalf, outerCorner, diamond);
+
+            for (int i = 0; i < inner.length; i += 2)
+            {
+                int j = (i + 2) % inner.length;
+
+                this.quad(inner[i], inner[i + 1], outer[i], outer[i + 1], outer[j], outer[j + 1], inner[j], inner[j + 1], color);
+            }
+        }
+
+        /** The outline's points, a quarter arc at each corner, going round once. */
+        private static float[] outline(float x, float y, float half, float corner, boolean diamond)
+        {
+            corner = Math.max(0F, Math.min(corner, half));
+
+            float inset = half - corner;
+            float[] points = new float[4 * CORNER_STEPS * 2];
+            int i = 0;
+
+            for (int c = 0; c < 4; c++)
+            {
+                float ox = c == 0 || c == 3 ? inset : -inset;
+                float oy = c < 2 ? inset : -inset;
+
+                for (int step = 0; step < CORNER_STEPS; step++)
+                {
+                    double angle = (c + step / (double) (CORNER_STEPS - 1)) * Math.PI / 2;
+                    float dx = ox + (float) Math.cos(angle) * corner;
+                    float dy = oy + (float) Math.sin(angle) * corner;
+
+                    if (diamond)
+                    {
+                        float rx = (dx - dy) * HALF_SQRT2;
+
+                        dy = (dx + dy) * HALF_SQRT2;
+                        dx = rx;
+                    }
+
+                    points[i++] = x + dx;
+                    points[i++] = y + dy;
                 }
             }
+
+            return points;
         }
 
         void ring(float x, float y, float outer, float inner, int color)

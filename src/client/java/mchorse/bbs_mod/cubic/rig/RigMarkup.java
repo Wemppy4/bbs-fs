@@ -170,8 +170,14 @@ public final class RigMarkup
                 continue;
             }
 
-            ScreenOverlay.Shape shape = handle.kind() == Kind.CONTROLLER ? ScreenOverlay.Shape.SQUARE : ScreenOverlay.Shape.DIAMOND;
-            float size = handle.kind() == Kind.GOAL ? ScreenOverlay.HANDLE_LARGE : ScreenOverlay.HANDLE;
+            /* A goal is the big circle, a pole the small one, a controller the rounded square. */
+            ScreenOverlay.Shape shape = handle.kind() == Kind.CONTROLLER ? ScreenOverlay.Shape.SQUARE : ScreenOverlay.Shape.CIRCLE;
+            float size = switch (handle.kind())
+            {
+                case GOAL -> ScreenOverlay.GOAL;
+                case POLE -> ScreenOverlay.POLE;
+                case CONTROLLER -> ScreenOverlay.CONTROLLER;
+            };
 
             overlay.handle(point, shape, size, handle.color(), handle)
                 .label(label(handle))

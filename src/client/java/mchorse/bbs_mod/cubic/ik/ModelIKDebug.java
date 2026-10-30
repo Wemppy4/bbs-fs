@@ -25,9 +25,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The rig's overlay: each IK chain's goal and pole as diamonds bridged to the chain by dashed
- * relationship lines, and the form's controller bones as squares in their own colour (gold unless
- * set). A spline's points are the spline overlay's ({@code SplineOverlay}). Nothing is drawn
+ * The rig's overlay: each IK chain's goal and pole as dots (the goal's the bigger) bridged to the
+ * chain by dashed relationship lines, and the form's controller bones as rounded squares in their own
+ * colour (gold unless set). A spline's points are the spline overlay's ({@code SplineOverlay}). Nothing is drawn
  * here: the handles are captured into the editors' markup ({@link RigMarkup}) while the model
  * renders, and the viewport draws them on its screen layer and picks their bones off it. It reads
  * the model-local pivot frames the renderer already produced — IK is applied to the rig before
@@ -43,7 +43,7 @@ public final class ModelIKDebug
     /* How solid the dashed lines draw next to their handles */
     private static final int LINE_ALPHA = 0xd9000000;
 
-    /** A marker on a bone: a diamond at a chain's goal or pole, a square at a controller. */
+    /** A marker on a bone: a dot at a chain's goal or pole, a rounded square at a controller. */
     private record Handle(String bone, RigMarkup.Kind kind, int color)
     {}
 

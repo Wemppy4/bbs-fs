@@ -15,9 +15,8 @@ import java.util.List;
 
 /**
  * Spline handles on the editors' markup ({@link ScreenOverlay}), shared by the form, state and film
- * viewports: the curve as a line and its points as small squares, the picked ones ringed and the one
- * under the cursor lighter; with Ctrl over the curve, a square the same as a point marks where a
- * click puts a new one. The markup's spline switch hides them all.
+ * viewports: the curve as a line and its points as small dots, the picked ones ringed and the one
+ * under the cursor bigger; with Ctrl over the curve, a faded dot marks where a click puts a new one. The markup's spline switch hides them all.
  */
 public class SplineOverlay
 {
@@ -49,7 +48,7 @@ public class SplineOverlay
         for (Vector3f point : points)
         {
             Vector3f position = matrix.transformPosition(new Vector3f(point));
-            if (position.isFinite()) overlay.marker(position.x, position.y, ScreenOverlay.Shape.SQUARE, ScreenOverlay.HANDLE_SMALL, COLOR);
+            if (position.isFinite()) overlay.marker(position.x, position.y, ScreenOverlay.Shape.CIRCLE, ScreenOverlay.POINT, COLOR, false);
         }
         overlay.flush(context);
     }
@@ -106,7 +105,7 @@ public class SplineOverlay
             index++;
             Vector3f p = this.overlay.project(matrix, chain.position(point.getId()).translate);
             if (p == null) continue;
-            this.overlay.handle(p, ScreenOverlay.Shape.SQUARE, ScreenOverlay.HANDLE_SMALL, COLOR, new Hit(chain, point, p.x, p.y, p.z))
+            this.overlay.handle(p, ScreenOverlay.Shape.CIRCLE, ScreenOverlay.POINT, COLOR, new Hit(chain, point, p.x, p.y, p.z))
                 .label(UIKeys.MARKUP_SPLINE_POINT.format(index).get())
                 .selected(selectedPointIds.contains(point.getId()))
                 .lit(point.getId().equals(hoveredPointId));
@@ -126,7 +125,7 @@ public class SplineOverlay
         if (!this.overlay.getViewport().isInside(context)) return;
         CurveHit hit = this.insertionAt(context.mouseX, context.mouseY);
         if (hit == null) return;
-        this.overlay.marker(hit.x, hit.y, ScreenOverlay.Shape.SQUARE, ScreenOverlay.HANDLE_SMALL, COLOR);
+        this.overlay.marker(hit.x, hit.y, ScreenOverlay.Shape.CIRCLE, ScreenOverlay.POINT, COLOR, true);
     }
 
     /** Search in screen space, but evaluate the returned point on the actual 3D curve. */
