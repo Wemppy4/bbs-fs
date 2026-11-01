@@ -8,6 +8,8 @@ import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.utils.colors.Colors;
 
 public class UIPointModule extends UISection
 {
@@ -42,8 +44,11 @@ public class UIPointModule extends UISection
         this.x.values(0.1F);
         this.y.values(0.1F);
         this.z.values(0.1F);
+        this.x.textbox.setColor(Colors.RED);
+        this.y.textbox.setColor(Colors.GREEN);
+        this.z.textbox.setColor(Colors.BLUE);
 
-        this.fields.add(this.x, this.y, this.z);
+        this.fields.add(UI.row(this.x, this.y, this.z));
     }
 
     public UIPointModule contextMenu()

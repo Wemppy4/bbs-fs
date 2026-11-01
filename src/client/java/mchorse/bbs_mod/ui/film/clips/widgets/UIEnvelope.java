@@ -8,12 +8,10 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.ui.film.utils.keyframes.UIFilmKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
-import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
-import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;
-import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.TimeUtilsClient;
 import mchorse.bbs_mod.utils.clips.Clip;
@@ -21,15 +19,22 @@ import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.clips.Envelope;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.function.Consumer;
+
+/**
+ * The clip's fades: "In [ticks] [curve]" and "Out [ticks] [curve]", or the keys that shape it
+ * instead. There is no switch of its own: a fade above zero is the envelope being on.
+ */
 public class UIEnvelope extends UIElement
 {
     public UIClip<? extends Clip> panel;
 
-    public UIToggle enabled;
-    public UIButton pre;
-    public UIButton post;
+    public UIIcon pre;
+    public UIIcon post;
     public UITrackpad fadeIn;
     public UITrackpad fadeOut;
+    public UIElement fadeInRow;
+    public UIElement fadeOutRow;
 
     public UIToggle keyframes;
     public UIButton editKeyframes;
@@ -41,38 +46,20 @@ public class UIEnvelope extends UIElement
 
         this.panel = panel;
 
-        InterpolationTooltip preTooltip = new InterpolationTooltip(0F, 0.5F, () -> this.get().pre);
-        InterpolationTooltip postTooltip = new InterpolationTooltip(0F, 0.5F, () -> this.get().post);
+        this.pre = UIClip.interpIcon(() -> this.get().pre);
+        this.post = UIClip.interpIcon(() -> this.get().post);
 
-        this.enabled = new UIToggle(UIKeys.CAMERA_PANELS_ENABLED, (b) ->
-        {
-            this.panel.editor.editMultiple(this.get().enabled, (value) -> value.set(b.getValue()));
-        });
-        this.pre = new UIButton(UIKeys.CAMERA_PANELS_ENVELOPES_PRE, (b) ->
-        {
-            this.getContext().replaceContextMenu(new UIInterpolationContextMenu(this.get().pre));
-        });
-        this.pre.tooltip(preTooltip);
-        this.post = new UIButton(UIKeys.CAMERA_PANELS_ENVELOPES_POST, (b) ->
-        {
-            this.getContext().replaceContextMenu(new UIInterpolationContextMenu(this.get().post));
-        });
-        this.post.tooltip(postTooltip);
+        this.fadeIn = new UITrackpad((v) -> this.edit((envelope) -> envelope.fadeIn.set((float) TimeUtils.fromTime(v.floatValue()))));
+        this.fadeIn.limit(0, Float.MAX_VALUE).tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_START_D, Direction.TOP);
+        this.fadeOut = new UITrackpad((v) -> this.edit((envelope) -> envelope.fadeOut.set((float) TimeUtils.fromTime(v.floatValue()))));
+        this.fadeOut.limit(0, Float.MAX_VALUE).tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_END_D, Direction.TOP);
 
-        this.fadeIn = new UITrackpad((v) ->
-        {
-            this.panel.editor.editMultiple(this.get().fadeIn, (value) -> value.set((float) TimeUtils.fromTime(v.floatValue())));
-        });
-        this.fadeIn.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_START_D, Direction.TOP);
-        this.fadeOut = new UITrackpad((v) ->
-        {
-            this.panel.editor.editMultiple(this.get().fadeOut, (value) -> value.set((float) TimeUtils.fromTime(v.floatValue())));
-        });
-        this.fadeOut.tooltip(UIKeys.CAMERA_PANELS_ENVELOPES_END_D, Direction.TOP);
+        this.fadeInRow = UIClip.labelRow(UIKeys.CAMERA_PANELS_ENVELOPES_IN, this.pre, this.fadeIn);
+        this.fadeOutRow = UIClip.labelRow(UIKeys.CAMERA_PANELS_ENVELOPES_OUT, this.post, this.fadeOut);
 
         this.keyframes = new UIToggle(UIKeys.CAMERA_PANELS_KEYFRAMES, (b) ->
         {
-            this.panel.editor.editMultiple(this.get().keyframes, (value) -> value.set(b.getValue()));
+            this.edit((envelope) -> envelope.keyframes.set(b.getValue()));
             this.toggleKeyframes(b.getValue());
         });
         this.editKeyframes = new UIButton(UIKeys.CAMERA_PANELS_EDIT_KEYFRAMES, (b) ->
@@ -93,11 +80,19 @@ public class UIEnvelope extends UIElement
         this.column().vertical().stretch();
     }
 
+    /** Edits the envelope of every picked clip, and lets each say again whether it is on. */
+    private void edit(Consumer<Envelope> consumer)
+    {
+        this.panel.editor.editMultiple(this.get(), (envelope) ->
+        {
+            consumer.accept(envelope);
+            envelope.updateEnabled();
+        });
+    }
+
     private void toggleKeyframes(boolean toggled)
     {
         this.removeAll();
-
-        this.add(this.enabled);
 
         if (toggled)
         {
@@ -105,7 +100,7 @@ public class UIEnvelope extends UIElement
         }
         else
         {
-            this.add(UI.row(this.pre, this.post), UI.row(this.fadeIn, this.fadeOut));
+            this.add(this.fadeInRow, this.fadeOutRow);
         }
 
         this.add(this.keyframes);
@@ -140,7 +135,6 @@ public class UIEnvelope extends UIElement
     {
         Envelope envelope = this.get();
 
-        this.enabled.setValue(envelope.enabled.get());
         this.fillIntervals();
         this.keyframes.setValue(envelope.keyframes.get());
         this.channel.setChannel(envelope.channel, Colors.ACTIVE);

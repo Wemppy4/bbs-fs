@@ -89,6 +89,14 @@ public class UIKeybind extends UIElement
             this.reading = true;
             this.combo.keys.clear();
         }
+        else if (this.reading && context.mouseButton == 0)
+        {
+            /* LMB would be stored as -0, the same as "no key", so a left click elsewhere unbinds */
+            this.combo.keys.clear();
+            this.finish();
+
+            return true;
+        }
         else if (this.reading && this.mouse)
         {
             int key = -context.mouseButton;

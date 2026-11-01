@@ -15,10 +15,15 @@ import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
 public class Envelope extends ValueGroup
 {
+    /**
+     * Whether the envelope does anything: not a switch of its own any more, but true while there
+     * is a fade on either side or the keys shape it — see {@link #updateEnabled()}. It is still
+     * saved, so older builds read the clip the same way.
+     */
     public final ValueBoolean enabled = new ValueBoolean("enabled");
 
-    public final ValueFloat fadeIn = new ValueFloat("fadeIn", 10F);
-    public final ValueFloat fadeOut = new ValueFloat("fadeOut", 10F);
+    public final ValueFloat fadeIn = new ValueFloat("fadeIn", 0F);
+    public final ValueFloat fadeOut = new ValueFloat("fadeOut", 0F);
 
     public final Interpolation pre = new Interpolation("pre", Interpolations.MAP);
     public final Interpolation post = new Interpolation("post", Interpolations.MAP);
@@ -40,6 +45,12 @@ public class Envelope extends ValueGroup
 
         this.channel.insert(0, 0D);
         this.channel.insert(BBSSettings.getDefaultDuration(), 1D);
+    }
+
+    /** Call after changing the fades or the keys switch, so {@link #enabled} follows them. */
+    public void updateEnabled()
+    {
+        this.enabled.set(this.keyframes.get() || this.fadeIn.get() > 0F || this.fadeOut.get() > 0F);
     }
 
     public float factorEnabled(int duration, float tick)
@@ -78,6 +89,8 @@ public class Envelope extends ValueGroup
     {
         this.fadeIn.set(0F);
         original.envelope.fadeOut.set(0F);
+        this.updateEnabled();
+        original.envelope.updateEnabled();
 
         this.channel.moveX(-offset);
     }
@@ -105,5 +118,16 @@ public class Envelope extends ValueGroup
             if (mode == 1) this.fadeOut.set(0F);
             else if (mode == 2) this.fadeIn.set(0F);
         }
+
+        /* A switched off envelope used to keep its fades and keys switch, doing nothing with them:
+         * now that the fades themselves say whether there is one, they are zero there */
+        if (!this.enabled.get())
+        {
+            this.fadeIn.set(0F);
+            this.fadeOut.set(0F);
+            this.keyframes.set(false);
+        }
+
+        this.updateEnabled();
     }
 }

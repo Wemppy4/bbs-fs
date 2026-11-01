@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film.clips;
 
 import mchorse.bbs_mod.camera.clips.CameraClipContext;
 import mchorse.bbs_mod.camera.clips.overwrite.DollyClip;
+import mchorse.bbs_mod.camera.data.Angle;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
@@ -10,9 +11,9 @@ import mchorse.bbs_mod.ui.film.clips.modules.UIPointModule;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
-import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 
 public class UIDollyClip extends UIClip<DollyClip>
@@ -22,7 +23,8 @@ public class UIDollyClip extends UIClip<DollyClip>
 
     public UITrackpad distance;
     public UIIcon reverse;
-    public UIButton interp;
+    public UIIcon interp;
+    public UIButton fromLook;
 
     public UITrackpad yaw;
     public UITrackpad pitch;
@@ -48,11 +50,8 @@ public class UIDollyClip extends UIClip<DollyClip>
         this.pitch = this.trackpad(this.clip.pitch);
         this.pitch.tooltip(UIKeys.CAMERA_PANELS_DOLLY_PITCH);
 
-        this.interp = new UIButton(UIKeys.CAMERA_PANELS_INTERPOLATION, (b) ->
-        {
-            this.getContext().replaceContextMenu(new UIInterpolationContextMenu(this.clip.interp));
-        });
-        this.interp.tooltip(new InterpolationTooltip(1F, 0.5F, () -> this.clip.interp));
+        this.interp = interpIcon(() -> this.clip.interp);
+        this.fromLook = new UIButton(UIKeys.CAMERA_PANELS_DOLLY_FROM_LOOK, (b) -> this.fromLook());
     }
 
     @Override
@@ -60,9 +59,25 @@ public class UIDollyClip extends UIClip<DollyClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_DOLLY_TITLE, UI.row(0, 0, 20, this.distance, this.reverse), this.yaw, this.pitch, this.interp));
+        this.panels.add(this.positionTools(this.clip.position));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_DOLLY_TITLE,
+            labelRow(UIKeys.CAMERA_PANELS_DOLLY_LENGTH, this.interp, this.distance),
+            labelRow(UIKeys.CAMERA_PANELS_YAW, this.yaw),
+            labelRow(UIKeys.CAMERA_PANELS_PITCH, this.pitch),
+            UI.row(UIConstants.MARGIN, 0, 0, this.fromLook, this.reverse.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT))));
         this.panels.add(this.point, this.angle);
         this.panels.context((menu) -> UICameraUtils.positionContextMenu(menu, this.editor, this.clip.position));
+    }
+
+    /** Lays the rail along where the clip's camera looks. */
+    private void fromLook()
+    {
+        Angle angle = this.clip.position.getAngle().get();
+
+        this.clip.yaw.set(angle.yaw);
+        this.clip.pitch.set(angle.pitch);
+
+        this.fillData();
     }
 
     private void reverse()

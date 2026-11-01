@@ -247,6 +247,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
             int tick = Math.max(0, this.delegate.getCursor() - clip.tick.get());
 
             clip.envelope.fadeIn.set((float) tick);
+            clip.envelope.updateEnabled();
             this.delegate.fillData();
         }).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
         this.keys().register(Keys.FADE_OUT, () ->
@@ -255,6 +256,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
             int tick = Math.max(0, clip.tick.get() + clip.duration.get() - this.delegate.getCursor());
 
             clip.envelope.fadeOut.set((float) tick);
+            clip.envelope.updateEnabled();
             this.delegate.fillData();
         }).category(KEYS_CATEGORY).active(canUseKeybindsSelected);
     }
@@ -1791,8 +1793,6 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
             Vector2f fades = this.grabbedFades.get(i);
             int duration = this.grabbedData.get(i).z();
 
-            envelope.enabled.set(true);
-
             if (fadeIn)
             {
                 envelope.fadeIn.set(Math.max(0F, Math.min(fades.x + delta, duration - fades.y)));
@@ -1803,6 +1803,8 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
                 envelope.fadeIn.set(fades.x);
                 envelope.fadeOut.set(Math.max(0F, Math.min(fades.y - delta, duration - fades.x)));
             }
+
+            envelope.updateEnabled();
         }
     }
 

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.actions.types.AttackActionClip;
@@ -47,6 +48,7 @@ import mchorse.bbs_mod.settings.values.IValueNotifier;
 import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.settings.values.mc.ValueItemStack;
 import mchorse.bbs_mod.settings.values.core.ValuePlacement;
+import mchorse.bbs_mod.camera.values.ValuePosition;
 import mchorse.bbs_mod.settings.values.core.ValueTransform;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueDouble;
@@ -56,6 +58,7 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
+import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.clips.actions.UIAttackActionClip;
 import mchorse.bbs_mod.ui.film.clips.actions.UIBreakBlockActionClip;
 import mchorse.bbs_mod.ui.film.clips.actions.UIChatActionClip;
@@ -72,12 +75,16 @@ import mchorse.bbs_mod.ui.film.clips.widgets.UIEnvelope;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIKeyFields;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.film.clips.widgets.UIPlacement;
+import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
 import mchorse.bbs_mod.ui.forms.editors.panels.widgets.UIItemStack;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.framework.elements.context.UIInterpolationContextMenu;
+import mchorse.bbs_mod.ui.framework.tooltips.InterpolationTooltip;
 import mchorse.bbs_mod.ui.framework.elements.utils.ScrollMemory;
 import mchorse.bbs_mod.ui.framework.elements.input.UIColor;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
@@ -86,14 +93,19 @@ import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.utils.ScrollDirection;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.TimeUtilsClient;
 import mchorse.bbs_mod.utils.clips.Clip;
+import mchorse.bbs_mod.utils.interps.Interpolation;
 import mchorse.bbs_mod.utils.undo.IUndo;
 
 public abstract class UIClip <T extends Clip> extends UIElement
 {
     private static final Map<Class, IUIClipFactory> FACTORIES = new HashMap<>();
     private static final ScrollMemory<Class> SCROLLS = new ScrollMemory<>();
+
+    /** Width of the control in a clip panel's "name [control]" row, small enough for the name to stay beside it in the default layout */
+    public static final int ROW_CONTROL_WIDTH = 50;
 
     public T clip;
     public IUIClipsDelegate editor;
@@ -187,7 +199,8 @@ public abstract class UIClip <T extends Clip> extends UIElement
         this.clip = clip;
         this.editor = editor;
 
-        this.enabled = this.toggle(UIKeys.CAMERA_PANELS_ENABLED, clip.enabled);
+        this.enabled = this.toggle(IKey.EMPTY, clip.enabled);
+        this.enabled.tooltip(UIKeys.CAMERA_PANELS_ENABLED);
         this.title = this.textbox(1000, this.clip.title);
         this.title.tooltip(UIKeys.CAMERA_PANELS_TITLE_TOOLTIP);
         this.layer = this.bind(new UITrackpad((v) -> this.editor.editMultiple(this.clip.layer, v.intValue())), () -> this.layer.setValue(this.clip.layer.get()));
@@ -219,6 +232,7 @@ public abstract class UIClip <T extends Clip> extends UIElement
 
         this.registerUI();
         this.registerPanels();
+        this.addEnvelopes();
 
         this.add(this.panels);
     }
@@ -226,14 +240,14 @@ public abstract class UIClip <T extends Clip> extends UIElement
     protected void registerUI()
     {}
 
+    /** The name with the clip's switch and the clip's time; each type then adds its own sections under them. */
     protected void registerPanels()
     {
-        this.panels.add(UI.row(this.title, this.enabled.label(IKey.EMPTY).w(26)));
+        this.panels.add(UI.row(this.title, this.enabled.w(UIConstants.SWITCH_WIDTH)));
         this.panels.add(UI.row(this.layer, this.tick, this.duration));
-
-        this.addEnvelopes();
     }
 
+    /** The fades, last in the panel, under the clip type's own sections. */
     protected void addEnvelopes()
     {
         this.panels.add(this.section(UIKeys.CAMERA_PANELS_ENVELOPES_TITLE, this.envelope));
@@ -261,6 +275,54 @@ public abstract class UIClip <T extends Clip> extends UIElement
         }
 
         return fields;
+    }
+
+    /** A "name [control]" row, the control narrow enough for the name to stay beside it. */
+    public static UIElement labelRow(IKey label, UIElement control)
+    {
+        return UI.labelRow(label, ROW_CONTROL_WIDTH, control);
+    }
+
+    /**
+     * A "name [curve] [control]" row: the curve icon goes left of the control, and the control
+     * keeps the width the other rows give theirs.
+     */
+    public static UIElement labelRow(IKey label, UIIcon interp, UIElement control)
+    {
+        UIElement name = UI.label(label, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F);
+
+        return UI.labelRow(name, ROW_CONTROL_WIDTH + UIConstants.CONTROL_HEIGHT + UIConstants.MARGIN, UI.row(UIConstants.MARGIN, 0, 0, interp, control));
+    }
+
+    /** A curve picked the way keys pick theirs: an icon that opens the curves, with the curve in its tooltip. */
+    public static UIIcon interpIcon(Supplier<Interpolation> interp)
+    {
+        UIIcon icon = new UIIcon(Icons.GRAPH, (b) -> b.getContext().replaceContextMenu(new UIInterpolationContextMenu(interp.get())));
+
+        icon.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
+        icon.tooltip(new InterpolationTooltip(0F, 0.5F, interp::get));
+
+        return icon;
+    }
+
+    /**
+     * "Take from camera", then copy and paste: the clip's position from the camera the preview
+     * looks through, the way flying the camera writes it, and the same copy and paste as in the
+     * panel's context menu.
+     */
+    protected UIElement positionTools(ValuePosition position)
+    {
+        UIButton take = new UIButton(UIKeys.CAMERA_PANELS_TAKE_FROM_CAMERA, (b) -> ((UIClipsPanel) this.editor).editClip(new Position(this.editor.getCamera())));
+        UIIcon copy = new UIIcon(Icons.COPY, (b) -> UICameraUtils.copyPosition(position));
+        UIIcon paste = new UIIcon(Icons.PASTE, (b) -> UICameraUtils.pastePosition(this.editor, position));
+
+        copy.tooltip(UIKeys.CAMERA_PANELS_CONTEXT_COPY_POSITION);
+        paste.tooltip(UIKeys.CAMERA_PANELS_CONTEXT_PASTE_POSITION);
+
+        copy.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
+        paste.wh(UIConstants.CONTROL_HEIGHT, UIConstants.CONTROL_HEIGHT);
+
+        return UI.row(0, 0, UIConstants.CONTROL_HEIGHT, take, copy, paste);
     }
 
     /**
