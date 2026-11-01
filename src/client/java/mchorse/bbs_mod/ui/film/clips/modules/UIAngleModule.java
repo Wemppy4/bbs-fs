@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.film.clips.modules;
 import mchorse.bbs_mod.camera.values.ValueAngle;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.film.clips.UIClip;
 import mchorse.bbs_mod.ui.film.IUIClipsDelegate;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
 import mchorse.bbs_mod.ui.framework.elements.UISection;
@@ -37,7 +38,12 @@ public class UIAngleModule extends UISection
         this.fov = new UITrackpad((v) -> BaseValue.edit(this.angle, (value) -> value.get().fov = v.floatValue()));
         this.fov.tooltip(UIKeys.CAMERA_PANELS_FOV);
 
-        this.fields.add(this.yaw, this.pitch, this.roll, this.fov);
+        this.fields.add(
+            UIClip.labelRow(UIKeys.CAMERA_PANELS_YAW, this.yaw),
+            UIClip.labelRow(UIKeys.CAMERA_PANELS_PITCH, this.pitch),
+            UIClip.labelRow(UIKeys.CAMERA_PANELS_ROLL, this.roll),
+            UIClip.labelRow(UIKeys.CAMERA_PANELS_FOV, this.fov)
+        );
     }
 
     public UIAngleModule contextMenu()

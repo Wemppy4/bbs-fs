@@ -129,6 +129,11 @@ public class UIKeys
     public static final IKey CAMERA_PANELS_DOLLY_YAW = L10n.lang("bbs.ui.camera.panels.dolly.yaw");
     public static final IKey CAMERA_PANELS_DURATION = L10n.lang("bbs.ui.camera.panels.duration");
     public static final IKey CAMERA_PANELS_EDIT_KEYFRAMES = L10n.lang("bbs.ui.camera.panels.edit_keyframes");
+    public static final IKey CAMERA_PANELS_DOLLY_FROM_LOOK = L10n.lang("bbs.ui.camera.panels.dolly.from_look");
+    public static final IKey CAMERA_PANELS_DOLLY_LENGTH = L10n.lang("bbs.ui.camera.panels.dolly.length");
+    public static final IKey CAMERA_PANELS_ENVELOPES_IN = L10n.lang("bbs.ui.camera.panels.envelopes.in");
+    public static final IKey CAMERA_PANELS_ENVELOPES_OUT = L10n.lang("bbs.ui.camera.panels.envelopes.out");
+    public static final IKey CAMERA_PANELS_TAKE_FROM_CAMERA = L10n.lang("bbs.ui.camera.panels.take_from_camera");
     public static final IKey CAMERA_PANELS_ENABLED = L10n.lang("bbs.ui.camera.panels.enabled");
     public static final IKey CAMERA_PANELS_ENVELOPES_END_D = L10n.lang("bbs.ui.camera.panels.envelopes.end_d");
     public static final IKey CAMERA_PANELS_ENVELOPES_POST = L10n.lang("bbs.ui.camera.panels.envelopes.post");

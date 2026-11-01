@@ -30,16 +30,6 @@ public class UIKeyframeClip extends UIClip<KeyframeClip>
     }
 
     @Override
-    protected void addEnvelopes()
-    {
-        super.addEnvelopes();
-
-        this.additive = this.toggle(UIKeys.CAMERA_PANELS_ADDITIVE, this.clip.additive);
-
-        this.panels.add(this.additive);
-    }
-
-    @Override
     protected void registerUI()
     {
         super.registerUI();
@@ -59,6 +49,8 @@ public class UIKeyframeClip extends UIClip<KeyframeClip>
             this.keyframes.view.getGraph().clearSelection();
         });
         this.registerEditKeys(this.edit, this.keyframes);
+
+        this.additive = this.toggle(UIKeys.CAMERA_PANELS_ADDITIVE, this.clip.additive);
     }
 
     @Override
@@ -66,7 +58,7 @@ public class UIKeyframeClip extends UIClip<KeyframeClip>
     {
         super.registerPanels();
 
-        this.panels.add(this.section(UIKeys.CAMERA_PANELS_KEYFRAMES, this.edit, this.keyFields(this.keyframes)));
+        this.panels.add(this.section(UIKeys.CAMERA_PANELS_KEYFRAMES, this.edit, this.additive, this.keyFields(this.keyframes)));
     }
 
     @Override

@@ -47,7 +47,7 @@ public class UIBitToggle extends UIElement
         this.bits.add(new Bit(UIKeys.CAMERA_PANELS_YAW, Colors.YELLOW));
         this.bits.add(new Bit(UIKeys.CAMERA_PANELS_PITCH, Colors.CYAN));
         this.bits.add(new Bit(UIKeys.CAMERA_PANELS_ROLL, Colors.MAGENTA));
-        this.bits.add(new Bit(UIKeys.CAMERA_PANELS_FOV, Colors.A50));
+        this.bits.add(new Bit(UIKeys.CAMERA_PANELS_FOV, Colors.WHITE & Colors.RGB));
 
         return this;
     }

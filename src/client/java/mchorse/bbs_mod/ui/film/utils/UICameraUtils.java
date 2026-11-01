@@ -47,35 +47,38 @@ public class UICameraUtils
 
     public static void positionContextMenu(ContextMenuManager menu, IUIClipsDelegate editor, ValuePosition value)
     {
-        menu.action(Icons.COPY, UIKeys.CAMERA_PANELS_CONTEXT_COPY_POSITION, Colors.NEGATIVE, () ->
-        {
-            Map<String, Double> map = new LinkedHashMap<>();
-
-            copyPoint(map, value.getPoint().get());
-            copyAngle(map, value.getAngle().get());
-
-            Window.setClipboard(mapToString(map));
-        });
-
-        menu.action(Icons.PASTE, UIKeys.CAMERA_PANELS_CONTEXT_PASTE_POSITION, () ->
-        {
-            Map<String, Double> map = stringToMap(Window.getClipboard());
-            Position position = new Position();
-            Point point = createPoint(map);
-            Angle angle = createAngle(map);
-
-            if (point != null && angle != null)
-            {
-                position.point.set(point);
-                position.angle.set(angle);
-
-                value.set(position);
-                editor.fillData();
-            }
-        });
+        menu.action(Icons.COPY, UIKeys.CAMERA_PANELS_CONTEXT_COPY_POSITION, Colors.NEGATIVE, () -> copyPosition(value));
+        menu.action(Icons.PASTE, UIKeys.CAMERA_PANELS_CONTEXT_PASTE_POSITION, () -> pastePosition(editor, value));
 
         pointContextMenu(menu, editor, value.getPoint());
         angleContextMenu(menu, editor, value.getAngle());
+    }
+
+    public static void copyPosition(ValuePosition value)
+    {
+        Map<String, Double> map = new LinkedHashMap<>();
+
+        copyPoint(map, value.getPoint().get());
+        copyAngle(map, value.getAngle().get());
+
+        Window.setClipboard(mapToString(map));
+    }
+
+    public static void pastePosition(IUIClipsDelegate editor, ValuePosition value)
+    {
+        Map<String, Double> map = stringToMap(Window.getClipboard());
+        Position position = new Position();
+        Point point = createPoint(map);
+        Angle angle = createAngle(map);
+
+        if (point != null && angle != null)
+        {
+            position.point.set(point);
+            position.angle.set(angle);
+
+            value.set(position);
+            editor.fillData();
+        }
     }
 
     public static void pointContextMenu(ContextMenuManager menu, IUIClipsDelegate editor, ValuePoint value)
