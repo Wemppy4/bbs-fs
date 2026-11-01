@@ -1693,6 +1693,7 @@
 	"bbs.ui.inherit.title": "Наследовать",
 	"bbs.ui.item_stack.context.give": "Выдать игроку",
 	"bbs.ui.item_stack.context.reset": "Сбросить предмет",
+	"bbs.ui.item_stack.context.from_player_hotbar": "Взять хотбар игрока",
 	"bbs.ui.keyframes.change_color": "Поменять цвет ключ. кадра...",
 	"bbs.ui.keyframes.context.adjust_values": "Подогнать значения",
 	"bbs.ui.keyframes.context.adjust_values_left": "С левой стороны",

@@ -11,6 +11,9 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UITrackValue;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 
 /**
@@ -32,6 +35,11 @@ public class UIHotbarKeyframeFactory extends UIKeyframeFactory<Hotbar>
         this.slots.context((menu) ->
         {
             int slot = this.slots.getSlot(this.getContext());
+
+            /* What the player carries now, all nine cells: a take started mid-film gets the character's
+             * hotbar from the key before the cursor, so things the character "had all along" go in here
+             * rather than being filled cell by cell (Wemppy, 2026-11-01) */
+            menu.action(Icons.PLAYER, UIKeys.ITEM_STACK_CONTEXT_FROM_PLAYER_HOTBAR, this::takePlayerHotbar);
 
             if (slot < 0)
             {
@@ -58,6 +66,31 @@ public class UIHotbarKeyframeFactory extends UIKeyframeFactory<Hotbar>
 
         UIOverlay.addOverlay(this.getContext(), panel, 0.5F, 0.75F);
         UIUtils.playClick();
+    }
+
+    private void takePlayerHotbar()
+    {
+        PlayerEntity player = MinecraftClient.getInstance().player;
+
+        if (player == null)
+        {
+            return;
+        }
+
+        PlayerInventory inventory = player.getInventory();
+
+        this.track.edit((hotbar) ->
+        {
+            for (int i = 0; i < ReplayKeyframes.HOTBAR_SIZE; i++)
+            {
+                hotbar.set(i, inventory.getStack(i).copy());
+            }
+        });
+
+        for (int i = 0; i < ReplayKeyframes.HOTBAR_SIZE; i++)
+        {
+            this.hotbar.set(i, inventory.getStack(i).copy());
+        }
     }
 
     private void setItem(int slot, ItemStack stack)
