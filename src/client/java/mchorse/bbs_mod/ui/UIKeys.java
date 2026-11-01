@@ -934,6 +934,7 @@ public class UIKeys
     public static final IKey INTERPOLATIONS_KEY_CATEGORY = L10n.lang("interpolations.key_category");
     public static final IKey ITEM_STACK_CONTEXT_GIVE = L10n.lang("bbs.ui.item_stack.context.give");
     public static final IKey ITEM_STACK_CONTEXT_RESET = L10n.lang("bbs.ui.item_stack.context.reset");
+    public static final IKey ITEM_STACK_CONTEXT_FROM_PLAYER_HOTBAR = L10n.lang("bbs.ui.item_stack.context.from_player_hotbar");
     public static final IKey KEYFRAMES_MODE_KEYS = L10n.lang("bbs.ui.keyframes.mode.keys");
     public static final IKey KEYFRAMES_MODE_GRAPH = L10n.lang("bbs.ui.keyframes.mode.graph");
     public static final IKey KEYFRAMES_GRAPH_EMPTY = L10n.lang("bbs.ui.keyframes.graph.empty");

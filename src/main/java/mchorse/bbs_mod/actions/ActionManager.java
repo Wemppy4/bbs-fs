@@ -179,11 +179,30 @@ public class ActionManager
         }
     }
 
+    private void stopRecordingPlayback(String filmId)
+    {
+        Iterator<ActionPlayer> it = this.players.iterator();
+
+        while (it.hasNext())
+        {
+            ActionPlayer next = it.next();
+
+            if (next.type == PlayerType.RECORDING && next.film.getId().equals(filmId))
+            {
+                next.stop();
+                it.remove();
+            }
+        }
+    }
+
     /* Actions recording */
 
     public void startRecording(Film film, ServerPlayerEntity entity, int tick, int countdown, int replayId)
     {
-        ActionRecorder recorder = new ActionRecorder(film, entity, tick, countdown);
+        /* The take's own clips count from 0 (the client lays them over the replay from the tick the
+         * take began, see Clips#copyOver), but the rest of the cast plays on from that tick - played
+         * from 0, a take begun at 15 s had the actions of the film's first seconds firing at it. */
+        ActionRecorder recorder = new ActionRecorder(film, entity, 0, countdown);
 
         this.play(entity, entity.getServerWorld(), film, tick, countdown, replayId, PlayerType.RECORDING);
 
@@ -218,7 +237,11 @@ public class ActionManager
             return null;
         }
 
-        this.stop(remove.getFilm().getId());
+        /* Only the playback the take started. The editor coming back after a take outside asks for
+         * its own playback of the same film, and that request can land before this stop: stopping
+         * every playback of the film took the editor's down too, so the film's actions (dropped
+         * items, swings) did not play until something restarted it - an edit, a seek. */
+        this.stopRecordingPlayback(remove.getFilm().getId());
         this.stopDamage(remove.getWorld(), remove);
 
         return remove;

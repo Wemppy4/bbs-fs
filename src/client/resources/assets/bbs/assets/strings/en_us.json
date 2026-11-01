@@ -1700,6 +1700,7 @@
 	"bbs.ui.inherit.title": "Inherit",
 	"bbs.ui.item_stack.context.give": "Give to player",
 	"bbs.ui.item_stack.context.reset": "Reset item stack",
+	"bbs.ui.item_stack.context.from_player_hotbar": "Take player's hotbar",
 	"bbs.ui.keyframes.change_color": "Change keyframe's color...",
 	"bbs.ui.keyframes.context.adjust_values": "Adjust values",
 	"bbs.ui.keyframes.context.adjust_values_left": "To the left side",

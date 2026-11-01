@@ -394,7 +394,7 @@ public class ServerNetwork
 
                 if (film != null)
                 {
-                    BBSMod.getActions().startRecording(film, player, 0, countdown, replayId);
+                    BBSMod.getActions().startRecording(film, player, tick, countdown, replayId);
                 }
             }
             else
