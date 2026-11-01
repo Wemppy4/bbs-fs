@@ -336,6 +336,39 @@ static `RenderAttachment<T>` key. The state lives on the renderer, not in a glob
 may safely refer back to its owner. It is not saved/copied. Native resources still require
 explicit scene teardown; attachments do not introduce automatic disposal.
 
+### Replacing cubes of a model form
+
+`ModelMeshEvents.REPLACE` is asked on every draw of a cubic model form (every pass, picking
+included), once its pose is final. Return a `ModelMeshReplacement` to draw some of the form's cubes
+yourself, or null to leave the model as baked — which is also what happens when nobody listens, at
+no cost to anyone else's models:
+
+- `hides(group, cube)` — the cubes BBS leaves out of its own drawing of this form. The baked
+  geometry is shared by every form of the model, so nothing leaves the bake: the other cubes of the
+  bone still draw from the same buffers.
+- `meshes(group)` — `DeformedMesh`es drawn with that bone: its colour, light, overlay, materials,
+  translucency and picking, the way the welded band of a model is. A mesh has fixed texture
+  coordinates and triangles, and positions and normals you set per pose with `pose(key, …)`, in the
+  model's root frame, in blocks. Several poses of one mesh may be drawn in a frame; each key gets its
+  own upload. Call `delete()` when the mesh is done.
+- `key()` — changes whenever `hides` would answer differently; it keys the geometry BBS bakes on the CPU.
+
+### Wind
+
+`WindSampler` reads a form's wind (`ModelForm.wind`, a `WindControl`) at a point and moment, the
+same field BBS's chains are pushed by: `direction(wind, out)` and `gust(wind, direction, tick,
+position)`. Strength is in gravity's terms — 1 pushes as hard as a gravity of 1 pulls — and the gust
+is a pure function of position and film time, so playback and export reproduce.
+
+### Sections in the rig tab
+
+`RegisterRigSectionsEvent.register(panel -> section)` adds a section to the rig tab of the model
+form editor, after BBS's own steps and before the limits. Extend `UIRigSection` through its
+`(panel, title, icon, switchable)` constructor: `fill(bone)` fills it for the selected bone, and
+`switched(bone, on)` sets the bone up or clears it. Keep the data on the form. A section that also
+implements `FormEditorTool` drives the viewport gizmo while it is open and switched on, whenever it
+has a transform to hand out.
+
 ### Migrating addon property names
 
 Register `FormPropertyAliases.register("old_addon_mass", "addon:mass")` on both sides before

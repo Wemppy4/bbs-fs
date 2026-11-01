@@ -59,6 +59,12 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
         private final List<Float> vertices = new ArrayList<>();
         private final List<Float> normals = new ArrayList<>();
         private final List<Float> uvs = new ArrayList<>();
+
+        /* Where each cube's triangles start and how many vertices they take, so a form can draw the bone
+         * without some of its cubes (see ModelVAO#without). */
+        private final List<ModelCube> cubes = new ArrayList<>();
+        private final List<Integer> firsts = new ArrayList<>();
+        private final List<Integer> counts = new ArrayList<>();
     }
 
     @Override
@@ -112,7 +118,17 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
             float[] u = CollectionUtils.toArray(bucket.uvs);
             float[] t = BBSRendering.calculateTangents(v, n, u);
 
-            groupVaos.put(entry.getKey(), new ModelVAO(new ModelVAOData(v, n, t, u)));
+            ModelCube[] cubes = bucket.cubes.toArray(new ModelCube[0]);
+            int[] firsts = new int[cubes.length];
+            int[] counts = new int[cubes.length];
+
+            for (int i = 0; i < cubes.length; i++)
+            {
+                firsts[i] = bucket.firsts.get(i);
+                counts[i] = bucket.counts.get(i);
+            }
+
+            groupVaos.put(entry.getKey(), new ModelVAO(new ModelVAOData(v, n, t, u), cubes, firsts, counts));
         }
 
         if (!groupVaos.isEmpty())
@@ -125,6 +141,8 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
 
     private void renderCube(MaterialBucket bucket, MatrixStack stack, ModelGroup group, ModelCube cube)
     {
+        int first = bucket.vertices.size() / 3;
+
         stack.push();
         CubicCubeRenderer.moveToPivot(stack, cube.pivot);
         CubicCubeRenderer.rotate(stack, cube.rotate);
@@ -152,6 +170,15 @@ public class CubicVAOBuilderRenderer implements ICubicRenderer
         }
 
         stack.pop();
+
+        int count = bucket.vertices.size() / 3 - first;
+
+        if (count > 0)
+        {
+            bucket.cubes.add(cube);
+            bucket.firsts.add(first);
+            bucket.counts.add(count);
+        }
     }
 
     private void renderMesh(MaterialBucket bucket, MatrixStack stack, Model model, ModelGroup group, ModelMesh mesh)
