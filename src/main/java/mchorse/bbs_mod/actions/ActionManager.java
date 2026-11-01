@@ -183,7 +183,10 @@ public class ActionManager
 
     public void startRecording(Film film, ServerPlayerEntity entity, int tick, int countdown, int replayId)
     {
-        ActionRecorder recorder = new ActionRecorder(film, entity, tick, countdown);
+        /* The take's own clips count from 0 (the client lays them over the replay from the tick the
+         * take began, see Clips#copyOver), but the rest of the cast plays on from that tick - played
+         * from 0, a take begun at 15 s had the actions of the film's first seconds firing at it. */
+        ActionRecorder recorder = new ActionRecorder(film, entity, 0, countdown);
 
         this.play(entity, entity.getServerWorld(), film, tick, countdown, replayId, PlayerType.RECORDING);
 
