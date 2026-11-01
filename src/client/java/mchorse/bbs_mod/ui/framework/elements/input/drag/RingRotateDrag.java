@@ -370,9 +370,24 @@ public class RingRotateDrag extends DragStrategy
         this.numericRotate(value);
     }
 
+    /* The readout shows the turn actually written, so Ctrl snapping shows up in it:
+     * the snapped sweep, or on the channel path the snapped channel minus its start. */
     @Override
     public String readout()
     {
-        return String.format("%.1f°", this.accumulatedDeg);
+        float applied;
+
+        if (!this.channelPath)
+        {
+            applied = (float) this.snapValue(this.accumulatedDeg);
+        }
+        else
+        {
+            float start = this.startRotateDeg.get(this.axis.ordinal());
+
+            applied = (float) this.snapValue(start + this.accumulatedDeg) - start;
+        }
+
+        return String.format("%.1f°", applied);
     }
 }
