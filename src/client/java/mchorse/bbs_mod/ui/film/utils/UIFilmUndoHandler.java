@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.film.utils;
 
 import mchorse.bbs_mod.network.ClientNetwork;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
+import mchorse.bbs_mod.settings.values.core.ValueGroup;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.forms.editors.UIFormUndoHandler;
 import mchorse.bbs_mod.utils.Timer;
@@ -67,6 +68,32 @@ public class UIFilmUndoHandler extends UIFormUndoHandler
              * full-film resync request (ServerNetwork.requestFilmResync). */
             this.syncData.add(value);
             this.actionsTimer.mark();
+        }
+        else if (value instanceof ValueGroup group)
+        {
+            /* Edits from different corners of the film are folded into the place they all share
+             * (UIFormUndoHandler.reduceUndoRedundancy), and for a take's end - the keyframes, the
+             * film's HUD values and the action clips the server sends back - that is the film
+             * itself, which isn't synced as a whole. Its synced part still has to go: the take's
+             * dropped items and swings stayed off the server's copy until an unrelated edit
+             * happened to touch the replays (Wemppy, 2026-11-01). */
+            this.addSyncedParts(group);
+        }
+    }
+
+    private void addSyncedParts(ValueGroup group)
+    {
+        for (BaseValue child : group.getAll())
+        {
+            if (child.isSynced())
+            {
+                this.syncData.add(child);
+                this.actionsTimer.mark();
+            }
+            else if (child instanceof ValueGroup childGroup)
+            {
+                this.addSyncedParts(childGroup);
+            }
         }
     }
 
