@@ -179,22 +179,6 @@ public class ActionManager
         }
     }
 
-    private void stopRecordingPlayback(String filmId)
-    {
-        Iterator<ActionPlayer> it = this.players.iterator();
-
-        while (it.hasNext())
-        {
-            ActionPlayer next = it.next();
-
-            if (next.type == PlayerType.RECORDING && next.film.getId().equals(filmId))
-            {
-                next.stop();
-                it.remove();
-            }
-        }
-    }
-
     /* Actions recording */
 
     public void startRecording(Film film, ServerPlayerEntity entity, int tick, int countdown, int replayId)
@@ -237,11 +221,7 @@ public class ActionManager
             return null;
         }
 
-        /* Only the playback the take started. The editor coming back after a take outside asks for
-         * its own playback of the same film, and that request can land before this stop: stopping
-         * every playback of the film took the editor's down too, so the film's actions (dropped
-         * items, swings) did not play until something restarted it - an edit, a seek. */
-        this.stopRecordingPlayback(remove.getFilm().getId());
+        this.stop(remove.getFilm().getId());
         this.stopDamage(remove.getWorld(), remove);
 
         return remove;
