@@ -1,24 +1,90 @@
 package mchorse.bbs_mod.cubic.render.vao;
 
 import mchorse.bbs_mod.client.BBSRendering;
+import mchorse.bbs_mod.cubic.data.model.ModelCube;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import org.lwjgl.opengl.GL30;
 
+import java.util.function.Predicate;
+
 public class ModelVAO implements IModelVAO
 {
+    private static final ModelCube[] NO_CUBES = new ModelCube[0];
+    private static final int[] NO_RANGES = new int[0];
+
     private int vao;
     private int vao2;
     private int[] buffers;
     private int count;
 
+    /* Where each cube's triangles sit in the buffers, in the order they were baked; whatever follows
+     * the last cube (the bone's meshes) belongs to none of them. */
+    private final ModelCube[] cubes;
+    private final int[] firsts;
+    private final int[] counts;
+
     public ModelVAO(ModelVAOData data)
+    {
+        this(data, NO_CUBES, NO_RANGES, NO_RANGES);
+    }
+
+    /** A bone's VAO that knows where each of its cubes lies: {@code firsts}/{@code counts} in vertices, ascending. */
+    public ModelVAO(ModelVAOData data, ModelCube[] cubes, int[] firsts, int[] counts)
     {
         int currentVAO = GL30.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
 
+        this.cubes = cubes;
+        this.firsts = firsts;
+        this.counts = counts;
         this.upload(data);
 
         GL30.glBindVertexArray(currentVAO);
+    }
+
+    /**
+     * This draw without the cubes {@code hidden} accepts: the VAO itself when it hides none of them,
+     * null when nothing is left to draw.
+     */
+    public IModelVAO without(Predicate<ModelCube> hidden)
+    {
+        int[] runs = null;
+        int size = 0;
+        int cursor = 0;
+
+        for (int i = 0; i < this.cubes.length; i++)
+        {
+            if (!hidden.test(this.cubes[i]))
+            {
+                continue;
+            }
+
+            if (runs == null)
+            {
+                runs = new int[(this.cubes.length + 1) * 2];
+            }
+
+            if (this.firsts[i] > cursor)
+            {
+                runs[size++] = cursor;
+                runs[size++] = this.firsts[i] - cursor;
+            }
+
+            cursor = this.firsts[i] + this.counts[i];
+        }
+
+        if (runs == null)
+        {
+            return this;
+        }
+
+        if (this.count > cursor)
+        {
+            runs[size++] = cursor;
+            runs[size++] = this.count - cursor;
+        }
+
+        return size == 0 ? null : new Subset(runs, size);
     }
 
     public void delete()
@@ -70,6 +136,32 @@ public class ModelVAO implements IModelVAO
 
         GL30.glDrawArrays(GL30.GL_TRIANGLES, 0, this.count);
         GL30.glBindVertexArray(0);
+    }
+
+    /** Some of a bone's cubes: the runs of vertices between the hidden ones, drawn from the same buffers. */
+    private class Subset implements IModelVAO
+    {
+        private final int[] runs;
+        private final int size;
+
+        private Subset(int[] runs, int size)
+        {
+            this.runs = runs;
+            this.size = size;
+        }
+
+        @Override
+        public void render(VertexFormat format, float r, float g, float b, float a, int light, int overlay)
+        {
+            bindForDraw(ModelVAO.this.vao, ModelVAO.this.vao2, format, r, g, b, a, light, overlay);
+
+            for (int i = 0; i < this.size; i += 2)
+            {
+                GL30.glDrawArrays(GL30.GL_TRIANGLES, this.runs[i], this.runs[i + 1]);
+            }
+
+            GL30.glBindVertexArray(0);
+        }
     }
 
     /**

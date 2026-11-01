@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.forms.renderers;
 
+import mchorse.bbs_mod.api.client.events.ModelMeshEvents;
+import mchorse.bbs_mod.api.client.render.ModelMeshReplacement;
 import mchorse.bbs_mod.api.client.events.FormPoseEvents;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -17,8 +19,8 @@ import mchorse.bbs_mod.cubic.animation.Animator;
 import mchorse.bbs_mod.cubic.animation.IAnimator;
 import mchorse.bbs_mod.cubic.animation.ItemUsePose;
 import mchorse.bbs_mod.cubic.animation.ProceduralAnimator;
-import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.data.model.Model;
+import mchorse.bbs_mod.cubic.data.model.ModelGroup;
 import mchorse.bbs_mod.cubic.render.CarrierClip;
 import mchorse.bbs_mod.cubic.ik.ModelIKDebug;
 import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
@@ -608,6 +610,9 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
         final boolean ignoreMaterials = model.materials.size() <= 1;
         final Link materialFallback = ignoreMaterials ? resolvedDefault : model.getTexture();
 
+        /* What an addon draws itself of this form, asked once the pose is final. */
+        ModelMeshReplacement meshes = model.model instanceof Model cubic ? ModelMeshEvents.REPLACE.invoker().replace(this.form, cubic, transition) : null;
+
         model.render(newStack, program, finalColor, light, overlay, stencilMap, this.getShapeKeys(), (material) ->
         {
             if (ignoreMaterials)
@@ -632,7 +637,7 @@ public class ModelFormRenderer extends FormRenderer<ModelForm> implements ITicka
             }
 
             return model.getMaterialTexture(material, materialFallback);
-        });
+        }, meshes);
 
         if (stencilMap == null && !this.renderingArm && this.form != null)
         {

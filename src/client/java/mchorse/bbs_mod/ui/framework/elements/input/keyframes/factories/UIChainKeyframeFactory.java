@@ -110,7 +110,8 @@ public abstract class UIChainKeyframeFactory <C extends ChainControl<C>, S exten
     /** The chain's static scalars on the form, which an untouched chain shows and a fresh edit seeds from. */
     protected abstract C configControl(String bone);
 
-    private void fillChains()
+    /** The bones that name a chain of this kind on the form: by default, those whose settings {@link #hasChain} says do. */
+    protected List<String> chainBones()
     {
         List<String> bones = new ArrayList<>();
 
@@ -124,6 +125,13 @@ public abstract class UIChainKeyframeFactory <C extends ChainControl<C>, S exten
                 }
             }
         }
+
+        return bones;
+    }
+
+    private void fillChains()
+    {
+        List<String> bones = new ArrayList<>(this.chainBones());
 
         Collections.sort(bones);
         this.chains.setList(bones);
