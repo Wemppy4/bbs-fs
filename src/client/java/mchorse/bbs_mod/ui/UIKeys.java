@@ -1233,7 +1233,9 @@ public class UIKeys
     public static final IKey OVERLAYS_SOUNDS_LIKE_MODE = L10n.lang("bbs.ui.overlays.sounds.like_mode");
     public static final IKey OVERLAYS_SOUNDS_MAIN = L10n.lang("bbs.ui.overlays.sounds.main");
     public static final IKey PANELS_CONTEXT_COPY = L10n.lang("bbs.ui.panels.context.copy");
+    public static final IKey PANELS_CONTEXT_MARK_DONE = L10n.lang("bbs.ui.panels.context.mark_done");
     public static final IKey PANELS_CONTEXT_OPEN = L10n.lang("bbs.ui.panels.context.open");
+    public static final IKey PANELS_CONTEXT_UNMARK_DONE = L10n.lang("bbs.ui.panels.context.unmark_done");
     public static final IKey PANELS_CONTEXT_PASTE = L10n.lang("bbs.ui.panels.context.paste");
     public static final IKey PANELS_KEYS_OPEN_DATA_MANAGER = L10n.lang("bbs.ui.panels.keys.open_data_list");
     public static final IKey PANELS_KEYS_OPEN_NEW_TAB = L10n.lang("bbs.ui.panels.keys.open_new_tab");

@@ -8,6 +8,7 @@ import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.input.items.UIItems;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyAction;
 import mchorse.bbs_mod.ui.utils.renderers.EmptyStateRenderer;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
+import java.util.function.Predicate;
 
 /**
  * Abstract GUI list element: rows of equal height down a scrolling area.
@@ -47,6 +49,12 @@ public abstract class UIList <T> extends UIItems<T>
     }
 
     public Preview<T> preview;
+
+    /** Rows the user marked done: a green tick at the far end of the row and in the cell's corner. */
+    public Predicate<T> done;
+
+    /** Room the done tick takes at the end of a row. */
+    public static final int DONE_SLOT = 16;
 
     /** Left padding of a row's content, before the indent. */
     public static final int ROW_PADDING = 4;
@@ -1301,6 +1309,22 @@ public abstract class UIList <T> extends UIItems<T>
         }
 
         this.renderElementPart(context, element, i, x, y, hover, selected);
+
+        if (this.isDone(element))
+        {
+            context.batcher.icon(Icons.CHECKMARK, Colors.A100 | Colors.POSITIVE, x + this.area.w - 2, y + h / 2F, 1F, 0.5F);
+        }
+    }
+
+    public boolean isDone(T element)
+    {
+        return this.done != null && this.done.test(element);
+    }
+
+    /** How much of a row's width its label may take before running into the done tick. */
+    protected int doneSlot(T element)
+    {
+        return this.isDone(element) ? DONE_SLOT : 0;
     }
 
     /**
@@ -1312,7 +1336,7 @@ public abstract class UIList <T> extends UIItems<T>
         {
             int size = Math.max(8, this.rowHeight() - 4);
             this.preview.render(context, element, x + 4, y + 2, size);
-            String label = context.batcher.getFont().limitToWidth(this.elementToString(context, i, element), Math.max(1, this.area.w - size - 14));
+            String label = context.batcher.getFont().limitToWidth(this.elementToString(context, i, element), Math.max(1, this.area.w - size - 14 - this.doneSlot(element)));
             context.batcher.textShadow(label, x + size + 8, y + (this.rowHeight() - context.batcher.getFont().getHeight()) / 2, RowStyle.textColor(hover || selected));
             return;
         }

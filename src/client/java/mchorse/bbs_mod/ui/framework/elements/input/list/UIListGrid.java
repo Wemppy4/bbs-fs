@@ -7,6 +7,8 @@ import mchorse.bbs_mod.ui.utils.ScrollZoomAnchor;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.ui.utils.cells.CellPainter;
 import mchorse.bbs_mod.ui.utils.cells.CellState;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.colors.Colors;
 import java.util.List;
 
 /** A second view of a list: the same filtered data, selection and click callback. */
@@ -99,6 +101,10 @@ public class UIListGrid<T> extends UIItemGrid<T>
             {
                 context.batcher.unclip(context);
             }
+        }
+        if (this.source.isDone(item))
+        {
+            context.batcher.icon(Icons.CHECKMARK, Colors.A100 | Colors.POSITIVE, x + w - 2, y + 2, 1F, 0F);
         }
         if (CellPainter.hasCaption(w))
         {

@@ -42,6 +42,7 @@ public class BBSSettings {
 	public static ValueStringKeys disabledSheets;
 	public static ValueTrackStyles trackStyles;
 	public static ValueStringKeys disabledMorphFormCategories;
+	public static ValueStringKeys doneData;
 	public static ValueLanguage language;
 	public static ValueInt primaryColor;
 	public static ValueInt stencilHighlightColor;
@@ -763,6 +764,10 @@ public class BBSSettings {
 		builder.register(trackStyles);
 		disabledMorphFormCategories = new ValueStringKeys("disabled_morph_form_categories");
 		builder.register(disabledMorphFormCategories);
+		/* Films, models and the rest the user marked done in their data managers */
+		doneData = new ValueStringKeys("done_data");
+		doneData.invisible();
+		builder.register(doneData);
 
 		builder.category("personalization", Icons.COLOR);
 		primaryColor = builder.getInt("primary_color", DEFAULT_PRIMARY_COLOR).color();
