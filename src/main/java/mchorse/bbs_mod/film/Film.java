@@ -4,6 +4,7 @@ import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.data.migration.FilmStableIds;
 import mchorse.bbs_mod.data.migration.SaveVersion;
 import mchorse.bbs_mod.data.types.BaseType;
+import mchorse.bbs_mod.film.markers.FilmMarker;
 import mchorse.bbs_mod.film.markers.FilmMarkers;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.Replays;
@@ -120,6 +121,28 @@ public class Film extends ValueGroup
         catch (DateTimeException e)
         {
             return isoUtc;
+        }
+    }
+
+    /**
+     * Opens {@code ticks} of time at {@code tick} across the whole film: camera clips, markers and
+     * every replay (keyframes, properties, action clips) after it move later.
+     */
+    public void insertSpace(int tick, int ticks)
+    {
+        this.camera.insertSpace(tick, ticks);
+
+        for (FilmMarker marker : this.markers.getList())
+        {
+            if (marker.tick.get() >= tick)
+            {
+                marker.tick.set(marker.tick.get() + ticks);
+            }
+        }
+
+        for (Replay replay : this.replays.getList())
+        {
+            replay.insertSpace(tick, ticks);
         }
     }
 

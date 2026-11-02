@@ -323,6 +323,37 @@ public class Clips extends ValueGroup
         }
     }
 
+    /**
+     * Opens {@code ticks} of empty time at {@code tick}: clips starting at or after it move later,
+     * a clip running across it is cut there (like the timeline's cut) and its second half moves.
+     */
+    public void insertSpace(int tick, int ticks)
+    {
+        this.preNotify();
+
+        for (Clip clip : new ArrayList<>(this.clips))
+        {
+            if (clip.tick.get() >= tick)
+            {
+                clip.tick.set(clip.tick.get() + ticks);
+
+                continue;
+            }
+
+            Clip copy = clip.isInside(tick) ? clip.breakDown(tick - clip.tick.get()) : null;
+
+            if (copy != null)
+            {
+                clip.duration.set(clip.duration.get() - copy.duration.get());
+                copy.tick.set(tick + ticks);
+                this.clips.add(copy);
+            }
+        }
+
+        this.sync();
+        this.postNotify();
+    }
+
     public void shift(double dx, double dy, double dz)
     {
         for (Clip clip : this.clips)
