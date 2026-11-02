@@ -231,7 +231,7 @@ public class UIDataPathList extends UIList<DataPath>
 
         context.batcher.icon(this.fileIcon, mchorse.bbs_mod.ui.framework.elements.utils.RowStyle.iconColor(hover || selected),
             x + 2, y + this.rowHeight() / 2F, 0F, 0.5F);
-        String label = context.batcher.getFont().limitToWidth(element.toString(), Math.max(1, this.area.w - 20));
+        String label = context.batcher.getFont().limitToWidth(element.toString(), Math.max(1, this.area.w - 20 - this.doneSlot(element)));
         context.batcher.textShadow(label, x + 16, y + (this.rowHeight() - context.batcher.getFont().getHeight()) / 2,
             mchorse.bbs_mod.ui.framework.elements.utils.RowStyle.textColor(hover || selected));
     }

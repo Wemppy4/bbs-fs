@@ -45,6 +45,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
@@ -822,6 +823,57 @@ public class BBSRendering
         }
 
         return IrisUtils.isShadowPass();
+    }
+
+    /**
+     * Mark what is drawn next as a name tag for the shader pack (its {@code minecraft:name_tag}
+     * entity id), the way Iris marks vanilla labels: Complementary and others light name tags
+     * on their own. Returns the previous entity id, to be handed back to
+     * {@link #endIrisNameTag(int)}.
+     */
+    public static int beginIrisNameTag()
+    {
+        if (!iris)
+        {
+            return IrisUtils.NO_ENTITY;
+        }
+
+        return IrisUtils.beginNameTag();
+    }
+
+    public static void endIrisNameTag(int last)
+    {
+        if (!iris)
+        {
+            return;
+        }
+
+        IrisUtils.endNameTag(last);
+    }
+
+    /**
+     * Open one of Iris' draw groups on its batched entity buffers, like the one it opens around
+     * every vanilla entity: the layers drawn inside keep their order when the batch is flushed.
+     * Returns whether a group was opened, to be handed back to {@link #endIrisGroup}.
+     */
+    public static boolean startIrisGroup(VertexConsumerProvider consumers)
+    {
+        if (!iris)
+        {
+            return false;
+        }
+
+        return IrisUtils.startGroup(consumers);
+    }
+
+    public static void endIrisGroup(VertexConsumerProvider consumers, boolean started)
+    {
+        if (!iris || !started)
+        {
+            return;
+        }
+
+        IrisUtils.endGroup(consumers);
     }
 
     /**
