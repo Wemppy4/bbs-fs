@@ -7,16 +7,21 @@ import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.graphics.texture.TextureManager;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.utils.CollectionUtils;
+import it.unimi.dsi.fastutil.objects.Object2IntFunction;
+import net.irisshaders.batchedentityrendering.impl.Groupable;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.gl.uniform.UniformUpdateFrequency;
 import net.irisshaders.iris.pipeline.ShaderRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shadows.ShadowRenderer;
+import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
+import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties;
 import net.irisshaders.iris.texture.TextureTracker;
 import net.irisshaders.iris.texture.pbr.PBRTextureManager;
 import net.irisshaders.iris.texture.pbr.loader.PBRTextureLoaderRegistry;
+import net.irisshaders.iris.uniforms.CapturedRenderingState;
 import net.irisshaders.iris.uniforms.custom.cached.CachedUniform;
 import net.irisshaders.iris.uniforms.custom.cached.FloatCachedUniform;
 import net.irisshaders.iris.uniforms.custom.cached.IntCachedUniform;
@@ -26,6 +31,7 @@ import net.irisshaders.iris.vertices.NormI8;
 import net.irisshaders.iris.vertices.NormalHelper;
 import net.irisshaders.iris.vertices.views.TriView;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.VertexConsumerProvider;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,6 +42,10 @@ import java.util.Set;
 
 public class IrisUtils
 {
+    /** Iris' own "nothing to restore" marker for the rendered entity id. */
+    public static final int NO_ENTITY = -100;
+    private static final NamespacedId NAME_TAG_ID = new NamespacedId("minecraft", "name_tag");
+
     private static Set<Texture> textureSet = new HashSet<>();
     private static Map<Integer, String> trackedPbrVariants = new HashMap<>();
     private static ShaderProperties properties;
@@ -216,6 +226,43 @@ public class IrisUtils
     public static boolean isShadowPass()
     {
         return IrisApi.getInstance().isRenderingShadowPass();
+    }
+
+    public static int beginNameTag()
+    {
+        Object2IntFunction<NamespacedId> entityIds = WorldRenderingSettings.INSTANCE.getEntityIds();
+
+        if (entityIds == null)
+        {
+            return NO_ENTITY;
+        }
+
+        int last = CapturedRenderingState.INSTANCE.getCurrentRenderedEntity();
+
+        CapturedRenderingState.INSTANCE.setCurrentEntity(entityIds.applyAsInt(NAME_TAG_ID));
+
+        return last;
+    }
+
+    public static void endNameTag(int last)
+    {
+        if (last != NO_ENTITY)
+        {
+            CapturedRenderingState.INSTANCE.setCurrentEntity(last);
+        }
+    }
+
+    public static boolean startGroup(VertexConsumerProvider consumers)
+    {
+        return consumers instanceof Groupable groupable && groupable.maybeStartGroup();
+    }
+
+    public static void endGroup(VertexConsumerProvider consumers)
+    {
+        if (consumers instanceof Groupable groupable)
+        {
+            groupable.endGroup();
+        }
     }
 
     /**

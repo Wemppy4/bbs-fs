@@ -518,12 +518,14 @@ public class StubEntity implements IEntity
     {
         Form form = this.getForm();
         float w = 0.6F;
-        float h = 1.8F;
+        /* A crouching player is 1.5 blocks tall, a form's own hitbox shrinks by its sneak
+         * multiplier, same as ActorEntity and morphed players. */
+        float h = this.sneaking ? 1.5F : 1.8F;
 
         if (form != null && form.hitbox.get())
         {
             w = form.hitboxWidth.get();
-            h = form.hitboxHeight.get();
+            h = form.hitboxHeight.get() * (this.sneaking ? form.hitboxSneakMultiplier.get() : 1F);
         }
 
         return new AABB(
