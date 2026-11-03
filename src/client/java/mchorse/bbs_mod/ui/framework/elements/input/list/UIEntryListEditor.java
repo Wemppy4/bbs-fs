@@ -26,7 +26,7 @@ import java.util.function.Consumer;
  */
 public class UIEntryListEditor<T>
 {
-    public final UIEntryList<T> list;
+    public final UIList<T> list;
     public final UIIcon add;
     public final UIIcon remove;
     /** Null when the host's records can't be copied. */
@@ -45,7 +45,7 @@ public class UIEntryListEditor<T>
     private IKey clearLabel = UIKeys.GENERAL_RESET;
 
     /** {@code duplicator} may be null: the strip and the menu then have no duplicate verb. */
-    public UIEntryListEditor(UIEntryList<T> list, Runnable adder, Consumer<T> duplicator, Consumer<T> remover)
+    public UIEntryListEditor(UIList<T> list, Runnable adder, Consumer<T> duplicator, Consumer<T> remover)
     {
         this.list = list;
         this.adder = adder;
@@ -163,13 +163,13 @@ public class UIEntryListEditor<T>
         }
     }
 
-    /** A right click picks the record under it first, so the menu's verbs and the settings agree. */
+    /** A right click picks the record under it first (unless it is already among the picked), so the menu's verbs and the settings agree. */
     private void fillMenu(ContextMenuManager menu)
     {
         int index = this.list.getIndexAtCursor(this.list.getContext());
         T entry = index < 0 ? null : this.list.getList().get(index);
 
-        if (entry != null && this.list.getCurrentFirst() != entry)
+        if (entry != null && !this.list.getCurrent().contains(entry))
         {
             this.list.pick(index);
         }
