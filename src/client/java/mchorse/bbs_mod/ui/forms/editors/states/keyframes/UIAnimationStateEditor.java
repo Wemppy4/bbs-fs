@@ -511,15 +511,16 @@ public class UIAnimationStateEditor extends UIElement
                 this.keyframeEditor.view.copySelection(lastEditor);
             }
 
-            if (bones)
-            {
-                this.bonesMode.attach(this.keyframeEditor);
-            }
-
             this.timelineArea.add(this.keyframeEditor);
             this.categoryBar.removeFromParent();
             this.partHeader.removeFromParent();
             this.timelineArea.add(this.categoryBar, this.partHeader);
+
+            /* Once the timeline is in the tree: its panel goes into the edit area. */
+            if (bones)
+            {
+                this.bonesMode.attach(this.keyframeEditor);
+            }
         }
 
         this.resize();

@@ -324,7 +324,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     /** Whether a row shows what folds under it. */
     private boolean isUnfolded(UIKeyframeSheet sheet)
     {
-        return this.folds.isExpanded(sheet.id);
+        return sheet.alwaysOpen || this.folds.isExpanded(sheet.id);
     }
 
     /**
@@ -353,7 +353,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     private boolean hasChildren(UIKeyframeSheet sheet)
     {
-        return !sheet.children.isEmpty();
+        return !sheet.alwaysOpen && !sheet.children.isEmpty();
     }
 
     public List<UIKeyframeSheet> getInteractiveSheets()

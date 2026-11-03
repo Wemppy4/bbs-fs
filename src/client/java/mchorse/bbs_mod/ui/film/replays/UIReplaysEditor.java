@@ -827,15 +827,16 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                 this.keyframeEditor.view.copySelection(lastEditor);
             }
 
-            if (bones)
-            {
-                this.bonesMode.attach(this.keyframeEditor);
-            }
-
             this.add(this.keyframeEditor);
             /* Category bar + actions toggle on top so they overlay the track names column. */
             this.bringBarToFront();
             this.updateTimelineModeVisibility();
+
+            /* Once the timeline is in the tree: its panel goes into the edit area. */
+            if (bones)
+            {
+                this.bonesMode.attach(this.keyframeEditor);
+            }
         }
 
         this.resize();

@@ -6,6 +6,7 @@ import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UITrackValue;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIPoseKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.graphs.IUIKeyframeGraph;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
@@ -46,6 +47,12 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
 
         return new UIPoseFactoryEditor(editor, track)
         {
+            @Override
+            protected BoneSelection boneSelection()
+            {
+                return bones.selection;
+            }
+
             @Override
             protected void pickBones(List<String> list)
             {

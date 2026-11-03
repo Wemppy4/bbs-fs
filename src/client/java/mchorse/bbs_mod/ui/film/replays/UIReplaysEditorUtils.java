@@ -685,9 +685,19 @@ public class UIReplaysEditorUtils
         if (editor == null || editor.editor == null) return sampler;
 
         UIKeyframeSheet sheet = editor.editor.getSheet();
+        boolean cursor = editor.view.getAutoKeyframeTick() != null;
+        UIBoneTracksPanel bones = editor.editor instanceof UIBoneTracksPanel panel ? panel : null;
+
+        /* The Bones tab's panel stands on a pose track nobody reads: what it edits is the picked
+         * bone's own track, always at the cursor, so that is the track to probe. */
+        if (bones != null)
+        {
+            sheet = bones.getBoneSheet(bones.getBone());
+            cursor = true;
+        }
+
         if (sheet == null) return sampler;
 
-        boolean cursor = editor.view.getAutoKeyframeTick() != null;
         /* Without auto-keyframing an edit lands only on selected keys; with none there is nothing to probe. */
         if (!cursor && !sheet.selection.hasAny()) return sampler;
 
@@ -702,25 +712,27 @@ public class UIReplaysEditorUtils
 
         for (Keyframe key : keys)
         {
-            Transform target = editor.editor.getGizmoTransform(key.getValue());
+            Transform target = bones != null ? (Transform) key.getValue() : editor.editor.getGizmoTransform(key.getValue());
             if (target != null) targets.add(target);
         }
+
+        UIKeyframeSheet probed = sheet;
 
         /* The probe installs only its private channel copy, then restores the original
          * key objects and selection. It never notifies history or leaves a new key behind. */
         return GizmoDrag.withTransformSelection(transform.getTransform(), targets, () ->
         {
-            List<Keyframe> original = new ArrayList<>(sheet.channel.getKeyframes());
+            List<Keyframe> original = new ArrayList<>(probed.channel.getKeyframes());
             try
             {
-                sheet.channel.getAllTyped().clear();
-                sheet.channel.getAllTyped().addAll(draft.getKeyframes());
+                probed.channel.getAllTyped().clear();
+                probed.channel.getAllTyped().addAll(draft.getKeyframes());
                 return sampler.get();
             }
             finally
             {
-                sheet.channel.getAllTyped().clear();
-                sheet.channel.getAllTyped().addAll(original);
+                probed.channel.getAllTyped().clear();
+                probed.channel.getAllTyped().addAll(original);
             }
         });
     }

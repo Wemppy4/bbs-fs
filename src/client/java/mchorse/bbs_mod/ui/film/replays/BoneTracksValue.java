@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.film.replays;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UITrackValue;
+import mchorse.bbs_mod.ui.utils.BoneSelection;
 import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
@@ -28,16 +29,23 @@ public class BoneTracksValue extends UITrackValue<Pose>
     private final Map<String, UIKeyframeSheet> bones;
     private final Runnable rowsChanged;
 
+    /**
+     * The picked bone, which the rows and the panel must agree on. Handed over rather than looked up
+     * through the widget tree: the panel is built before its timeline is on screen.
+     */
+    public final BoneSelection selection;
+
     /** Told which bones the panel's list picked. Here rather than on the panel: the list picks while the panel is still being built. */
     public Consumer<List<String>> picked;
     /** Set by every edit that wrote a key, so the panel can pick the bone's key at the cursor once the edit is over. */
     public boolean wrote;
 
-    public BoneTracksValue(UIKeyframeSheet pose, UIKeyframes editor, Map<String, UIKeyframeSheet> bones, Runnable rowsChanged)
+    public BoneTracksValue(UIKeyframeSheet pose, UIKeyframes editor, Map<String, UIKeyframeSheet> bones, BoneSelection selection, Runnable rowsChanged)
     {
         super(pose, editor);
 
         this.bones = bones;
+        this.selection = selection;
         this.rowsChanged = rowsChanged;
     }
 

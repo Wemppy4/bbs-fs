@@ -109,6 +109,7 @@ public class BoneTracksMode
             if (track.kind() == TrackKind.BONE)
             {
                 sheet.highlighted = isPicked;
+                sheet.alwaysOpen = true;
             }
 
             return !(isPicked || !sheet.channel.isEmpty() || keep.test(sheet));
@@ -195,7 +196,7 @@ public class BoneTracksMode
 
         String id = TrackId.property(this.formPath, FormProperties.POSE_PROPERTY).toKey();
         UIKeyframeSheet pose = new UIKeyframeSheet(id, TrackCategory.BONES.label, 0, new KeyframeChannel(id, KeyframeFactories.POSE), posed.getPose(), false);
-        BoneTracksValue value = new BoneTracksValue(pose, this.editor.view, bones, () -> this.rowsChanged = true);
+        BoneTracksValue value = new BoneTracksValue(pose, this.editor.view, bones, this.selection, () -> this.rowsChanged = true);
 
         value.picked = (list) -> this.picked(bones, list);
 
