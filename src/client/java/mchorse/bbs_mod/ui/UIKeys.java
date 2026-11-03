@@ -312,6 +312,7 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_ONION_SKIN_GROUP = L10n.lang("bbs.ui.film.controller.onion_skin.group");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_KEYS_TOGGLE = L10n.lang("bbs.ui.film.controller.onion_skin.keys.toggle");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_KEYS_TOGGLE = L10n.lang("bbs.ui.film.controller.motion_path.keys.toggle");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_KEYS_VISIBLE = L10n.lang("bbs.ui.film.controller.motion_path.keys.visible");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_NEXT = L10n.lang("bbs.ui.film.controller.onion_skin.next");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_PREV = L10n.lang("bbs.ui.film.controller.onion_skin.prev");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_TITLE = L10n.lang("bbs.ui.film.controller.onion_skin.title");

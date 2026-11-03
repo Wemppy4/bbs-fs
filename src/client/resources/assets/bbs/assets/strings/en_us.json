@@ -1120,6 +1120,7 @@
 	"bbs.ui.film.controller.onion_skin.group": "Group: %s",
 	"bbs.ui.film.controller.onion_skin.keys.toggle": "Toggle onion skin",
 	"bbs.ui.film.controller.motion_path.keys.toggle": "Add / remove the selected motion path",
+	"bbs.ui.film.controller.motion_path.keys.visible": "Show / hide motion paths",
 	"bbs.ui.film.controller.onion_skin.next": "Next frames and colors",
 	"bbs.ui.film.controller.onion_skin.prev": "Previous frames and colors",
 	"bbs.ui.film.controller.onion_skin.title": "Onion skin",

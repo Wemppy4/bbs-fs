@@ -392,6 +392,12 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
             UIUtils.playClick();
         }).strict().active(() -> !this.panel.hasSelectedClip()).category(category);
+        this.keys().register(Keys.FILM_CONTROLLER_MOTION_PATHS_VISIBLE, () ->
+        {
+            this.getMotionPath().enabled.toggle();
+
+            UIUtils.playClick();
+        }).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_OPEN_REPLAYS, () ->
         {
             this.panel.showPanel(this.panel.replayEditor);
