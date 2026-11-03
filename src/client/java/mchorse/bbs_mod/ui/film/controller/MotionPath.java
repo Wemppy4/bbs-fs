@@ -41,7 +41,7 @@ import java.util.TreeSet;
  * The film's motion paths drawn into the viewport — Blender's motion paths: each replay keeps a list
  * of the points the animator asked to follow ({@link Replay#motionPaths}: its root, its anchor, a
  * bone, a spline point), and every one of them is on screen in its own colour whatever is selected,
- * a sampled curve with a dot per tick, a key per keyframe and a ring on the current frame.
+ * a sampled curve with a key per keyframe and a ring on the current frame.
  *
  * <p>The root path comes straight from the position channels. Bone, anchor and spline paths must be
  * simulated tick by tick, so they run on a scratch entity per replay (never the on-screen model): one
@@ -71,7 +71,6 @@ public class MotionPath
     private static final float[] FUTURE = new float[3];
     private static final float[] COLOR_A = new float[3];
     private static final float[] COLOR_B = new float[3];
-    private static final float[] DOT_COLOR = new float[3];
     private static final float[] SCRATCH = new float[3];
 
     private static final Vector3d POINT_A = new Vector3d();
@@ -303,18 +302,12 @@ public class MotionPath
         Matrix4f mvp = new Matrix4f(camera.projection).mul(camera.view);
         Vector3d eye = camera.position;
 
-        /* The interpolated curve: a line through every tick with a dot on each (so the
-         * spacing shows speed), the exact endpoints kept. */
+        /* The interpolated curve: a line through every tick, the exact endpoints kept. */
         trajectory.worldAt(first, POINT_A);
 
         Vector3f a = screen(overlay, mvp, eye, POINT_A);
 
         gradient(first, currentTick, first, last, COLOR_A);
-
-        if (a != null)
-        {
-            overlay.dot(a.x, a.y, pack(brighten(COLOR_A, DOT_COLOR)));
-        }
 
         for (float tick = first; tick < last; )
         {
@@ -333,11 +326,6 @@ public class MotionPath
                 SCRATCH[2] = (COLOR_A[2] + COLOR_B[2]) * 0.5F;
 
                 overlay.line(a, b, pack(SCRATCH));
-            }
-
-            if (b != null)
-            {
-                overlay.dot(b.x, b.y, pack(brighten(COLOR_B, DOT_COLOR)));
             }
 
             a = b;
@@ -411,14 +399,6 @@ public class MotionPath
         out[0] = src[0] + (level - src[0]) * weight;
         out[1] = src[1] + (level - src[1]) * weight;
         out[2] = src[2] + (level - src[2]) * weight;
-    }
-
-    /** Lighten a colour towards white, so the per-frame dots read against the line they sit on. */
-    private static float[] brighten(float[] src, float[] out)
-    {
-        mix(src, 1F, 0.45F, out);
-
-        return out;
     }
 
     private static int pack(float[] color)
