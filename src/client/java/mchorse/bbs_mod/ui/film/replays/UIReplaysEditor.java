@@ -172,6 +172,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
     private int poseOverlayCount;
     private int transformOverlayCount;
     private int shapeKeyOverlayCount;
+    /** How many of the replay's forms had a skeleton when the timeline was built (see {@link UIReplaysEditorUtils#countSkeletons}). */
+    private int skeletons;
     /**
      * Which rows the user left unfolded, per replay. Every rebuild of the timeline throws the dope
      * sheet away — switching category, toggling "all tracks", changing the track filter — so this
@@ -625,6 +627,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         {
             return;
         }
+
+        this.skeletons = UIReplaysEditorUtils.countSkeletons(this.replay.form.get());
 
         List<TrackDescriptor> catalog = TrackCatalog.of(this.replay.form.get(), this.replay.properties);
         catalog.removeIf(track -> !this.partSelection.includes(track.id().formPath()));
@@ -1413,6 +1417,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
     {
         /* Settings can change while this timeline remains open behind another panel. */
         if (this.replay != null && (this.allBodyPartsSetting != TimelineBodyPartSelection.allParts()
+            || this.skeletons != UIReplaysEditorUtils.countSkeletons(this.replay.form.get())
             || this.poseOverlayCount != BBSSettings.recordingPoseOverlays.get()
             || this.transformOverlayCount != BBSSettings.recordingTransformOverlays.get()
             || this.shapeKeyOverlayCount != BBSSettings.recordingShapeKeyOverlays.get()))

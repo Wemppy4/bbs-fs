@@ -192,6 +192,8 @@ public class UIAnimationStateEditor extends UIElement
     private int poseOverlayCount;
     private int transformOverlayCount;
     private int shapeKeyOverlayCount;
+    /** How many of the form's parts had a skeleton when the timeline was built (see {@link UIReplaysEditorUtils#countSkeletons}). */
+    private int skeletons;
 
     /** Track rows the user has unfolded right now; handed to the dope sheet, which folds them in place. */
     private final FoldState<String> expandedTabs = new FoldState<>();
@@ -361,6 +363,8 @@ public class UIAnimationStateEditor extends UIElement
         /* A state lays a form's own values over it; the solver tracks only mean anything inside a
          * film, where something clears them again every frame. */
         List<TrackDescriptor> catalog = new ArrayList<>();
+
+        this.skeletons = UIReplaysEditorUtils.countSkeletons(this.root);
 
         for (TrackDescriptor track : TrackCatalog.ordered(TrackCatalog.of(this.root, this.state.properties)))
         {
@@ -921,6 +925,7 @@ public class UIAnimationStateEditor extends UIElement
     {
         /* Settings can change while this timeline remains open behind another panel. */
         if (this.state != null && (this.allBodyPartsSetting != TimelineBodyPartSelection.allParts()
+            || this.skeletons != UIReplaysEditorUtils.countSkeletons(this.root)
             || this.poseOverlayCount != BBSSettings.recordingPoseOverlays.get()
             || this.transformOverlayCount != BBSSettings.recordingTransformOverlays.get()
             || this.shapeKeyOverlayCount != BBSSettings.recordingShapeKeyOverlays.get()))

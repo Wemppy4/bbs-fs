@@ -34,6 +34,7 @@ import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
@@ -178,6 +179,28 @@ public class UIReplaysEditorUtils
             owner.syncOverlayTracks();
             refresh.accept(TrackId.property(track.formPath(), kind + "_overlay"));
         });
+    }
+
+    /**
+     * How many forms in the tree have a skeleton right now. Models load in the background, so a
+     * timeline built before its model is in has no bones, materials or IK to list — and no Bones
+     * tab. When this number changes, the timeline has something new to show and is rebuilt.
+     */
+    public static int countSkeletons(Form form)
+    {
+        if (form == null)
+        {
+            return 0;
+        }
+
+        int count = FormUtilsClient.getBoneHierarchy(form) == null ? 0 : 1;
+
+        for (BodyPart part : form.parts.getAllTyped())
+        {
+            count += countSkeletons(part.getForm());
+        }
+
+        return count;
     }
 
     /**
