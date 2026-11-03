@@ -135,12 +135,13 @@ public class UIFilmController extends UIElement implements GizmoViewport
             return;
         }
 
-        boolean pinned = this.motionPathPin.isPinned();
-        Replay replay = pinned ? this.motionPathPin.getReplay() : this.getReplay();
-        FilmTarget target = pinned ? this.motionPathPin.getTarget() : this.getEditTarget();
+        if (this.panel.getData() == null)
+        {
+            return;
+        }
 
         BBSProfiler.begin(BBSProfiler.Timer.MOTION_PATH);
-        MotionPath.render(this.markup, this.panel.getCamera(), motionPath, this, replay, target, replay == null ? 0F : replay.getTick(this.getTick()));
+        MotionPath.render(this.markup, this.panel.getCamera(), motionPath, this, this.panel.getData(), this.getTick());
         BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
     }
 
@@ -298,9 +299,6 @@ public class UIFilmController extends UIElement implements GizmoViewport
     /** Keying the replay by hand at the cursor. */
     public final FilmKeyframeInsertion keyframes = new FilmKeyframeInsertion(this);
 
-    /** Whose motion path stays on screen regardless of the selection. */
-    public final MotionPathPin motionPathPin = new MotionPathPin(this);
-
     /** What the editor draws over the preview. */
     private final FilmControllerHud hud = new FilmControllerHud(this);
 
@@ -389,16 +387,11 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_MOTION_PATH, () ->
         {
-            this.getMotionPath().enabled.toggle();
+            MotionPath.toggle(this.panel.getData(), this.getReplay(), this.getEditTarget());
+            this.getMotionPath().enabled.set(true);
 
             UIUtils.playClick();
         }).strict().active(() -> !this.panel.hasSelectedClip()).category(category);
-        this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_MOTION_PATH_PIN, () ->
-        {
-            this.motionPathPin.toggle();
-
-            UIUtils.playClick();
-        }).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_OPEN_REPLAYS, () ->
         {
             this.panel.showPanel(this.panel.replayEditor);

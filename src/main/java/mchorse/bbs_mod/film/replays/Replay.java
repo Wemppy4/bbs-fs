@@ -63,6 +63,9 @@ public class Replay extends ValueGroup
     public final ValueBoolean axesPreview = new ValueBoolean("axes_preview", false);
     public final ValueString axesPreviewBone = new ValueString("axes_preview_bone", "");
 
+    /** The motion paths kept on screen for this replay in the film editor. */
+    public final MotionPathValue.Paths motionPaths = new MotionPathValue.Paths("motion_paths");
+
     public Replay(String id)
     {
         super(id);
@@ -91,6 +94,7 @@ public class Replay extends ValueGroup
 
         this.add(this.axesPreview);
         this.add(this.axesPreviewBone);
+        this.add(this.motionPaths);
     }
 
     /**
