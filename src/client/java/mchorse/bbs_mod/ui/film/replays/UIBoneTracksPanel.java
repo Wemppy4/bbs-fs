@@ -128,7 +128,16 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
         IUIKeyframeGraph graph = this.editor.getGraph();
         Keyframe selected = graph.getSelected();
         UIKeyframeSheet selectedSheet = selected == null ? null : graph.getSheet(selected);
-        boolean ours = selected == null || (selectedSheet != null && selectedSheet.isBoneTrack && selectedSheet.selection.getSelected().size() == 1);
+        int count = 0;
+
+        for (UIKeyframeSheet sheet : graph.getSheets())
+        {
+            count += sheet.selection.getSelected().size();
+        }
+
+        /* Only a lone bone key is the panel's own pick. Several keys (a summary column, a box, Shift)
+         * are the animator's selection, which the cursor or a bone pick must not throw away. */
+        boolean ours = selected == null || (count == 1 && selectedSheet != null && selectedSheet.isBoneTrack);
 
         if (!force && !ours)
         {

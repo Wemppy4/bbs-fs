@@ -712,6 +712,11 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                     this.updateChannelsList();
                 });
 
+                if (bones)
+                {
+                    this.bonesMode.addRemoveAction(menu, sheet, this::updateChannelsList);
+                }
+
                 ModelForm poseModelForm = sheet == null ? null : sheet.getPoseForm();
                 IPosedForm posedForm = sheet == null ? null : sheet.getPosedForm();
 

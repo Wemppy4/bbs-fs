@@ -440,6 +440,11 @@ public class UIAnimationStateEditor extends UIElement
                     this.setState(this.state);
                 });
 
+                if (bones)
+                {
+                    this.bonesMode.addRemoveAction(menu, sheet, () -> this.setState(this.state));
+                }
+
                 IPosedForm posedForm = sheet == null ? null : sheet.getPosedForm();
                 if (posedForm != null && sheet.selection.hasAny())
                 {

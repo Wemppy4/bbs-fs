@@ -7,10 +7,13 @@ import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.forms.forms.IPosedForm;
+import mchorse.bbs_mod.l10n.L10n;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIKeyframeFactory;
 import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.keyframes.KeyframeChannel;
 import mchorse.bbs_mod.utils.keyframes.factories.KeyframeFactories;
 
@@ -268,6 +271,31 @@ public class BoneTracksMode
         }
 
         return true;
+    }
+
+    /**
+     * Offer to take a bone's track away: all its keys go in one step, and with them its row (the
+     * picked bone keeps its, empty). The pose under it shows through again.
+     */
+    public void addRemoveAction(ContextMenuManager menu, UIKeyframeSheet sheet, Runnable refresh)
+    {
+        if (sheet == null || !sheet.isBoneTrack || sheet.channel.isEmpty())
+        {
+            return;
+        }
+
+        menu.action(Icons.REMOVE, L10n.lang("bbs.ui.film.replays.bones.remove_track"), () ->
+        {
+            sheet.selection.clear();
+            sheet.channel.removeAll();
+
+            if (this.editor != null)
+            {
+                this.editor.view.pickKeyframe(null);
+            }
+
+            refresh.run();
+        });
     }
 
     /** Whether some bone needs a row it doesn't have yet. Rebuild the timeline once nothing is being dragged. */
