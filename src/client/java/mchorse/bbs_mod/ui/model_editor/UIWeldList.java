@@ -2,6 +2,7 @@ package mchorse.bbs_mod.ui.model_editor;
 
 import mchorse.bbs_mod.cubic.model.config.WeldValue;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.utils.colors.Colors;

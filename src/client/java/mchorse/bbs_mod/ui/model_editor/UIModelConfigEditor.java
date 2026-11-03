@@ -40,6 +40,8 @@ import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UISliderTrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.UITexturePicker;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryList;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryListEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
@@ -184,8 +186,7 @@ public class UIModelConfigEditor extends UIElement
     private UIModelBoneList bones;
     private UISearchList<String> bonesSearch;
     private UIWeldList weldList;
-    private UIIcon dupeWeld;
-    private UIIcon removeWeld;
+    private UIEntryListEditor<WeldValue> weldEditor;
 
     /** The cube a list's row had the cursor on last frame, outlined in the preview. */
     private ModelNode listedCube;
@@ -411,32 +412,23 @@ public class UIModelConfigEditor extends UIElement
         this.bonePanel = this.body();
         this.page(Tab.BONES).add(this.bonesSearch, this.bonePanel);
 
-        /* Welds: the add/duplicate/remove strip over the list, the replay list's idiom — now that a weld
-         * is picked rather than edited inline, the strip's verbs have something to act on. The add icon
-         * pastes a copied weld as a new one on right click. */
+        /* Welds: the shared add/duplicate/remove strip over the list, and the same verbs plus the
+         * copy/paste/presets row in a right click. The add icon pastes a copied weld as a new one on
+         * right click. */
         this.weldList = new UIWeldList((list) -> this.fillWeld());
         this.weldList.broken((weld) -> this.diagnoseWeld(weld) != null);
         this.weldList.h(UIWeldList.ROW_HEIGHT * 4).expand();
-        this.weldList.context((menu) ->
-        {
-            WeldValue weld = this.weldList.getAtCursor(this.getContext());
-
-            if (weld != null)
+        this.weldEditor = new UIEntryListEditor<>(this.weldList, this::addWeld, this::duplicateWeld, this::removeWeld)
+            .labels(UIKeys.MODEL_EDITOR_WELD_ADD, UIKeys.MODEL_EDITOR_WELD_DUPLICATE, UIKeys.MODEL_EDITOR_WELD_REMOVE)
+            .clear(this::clearWelds)
+            .menu((menu, weld) ->
             {
-                this.weldList.setCurrent(weld);
-                this.fillWeld();
-                this.fillWeldMenu(menu, () -> this.presetData(weld), (data) -> this.applyWeld(weld, data), () -> this.duplicateWeld(weld), () -> this.removeWeld(weld));
-            }
-        });
-
-        UIIcon addWeld = new UIIcon(Icons.ADD, (b) -> this.addWeld());
-
-        addWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_ADD);
-        addWeld.context((menu) -> this.fillWeldMenu(menu, null, this::pasteNewWeld, null, null));
-        this.dupeWeld = new UIIcon(Icons.DUPE, (b) -> this.duplicateWeld(this.weldList.getCurrentFirst()));
-        this.dupeWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_DUPLICATE);
-        this.removeWeld = new UIIcon(Icons.REMOVE, (b) -> this.removeWeld(this.weldList.getCurrentFirst()));
-        this.removeWeld.tooltip(UIKeys.MODEL_EDITOR_WELD_REMOVE);
+                if (weld != null)
+                {
+                    this.fillWeldMenu(menu, () -> this.presetData(weld), (data) -> this.applyWeld(weld, data));
+                }
+            });
+        this.weldEditor.add.context((menu) -> this.fillWeldMenu(menu, null, this::pasteNewWeld));
 
         /* Under it the picked weld, in the general page's folding sections: what's welded to what,
          * which cubes of it, how the joint bends. */
@@ -451,7 +443,7 @@ public class UIModelConfigEditor extends UIElement
         bones.fields.add(this.weldBones);
         pairs.fields.add(this.weldPairs);
         bend.fields.add(this.weldBend);
-        this.page(Tab.WELDS).add(UI.strip(addWeld, this.dupeWeld, this.removeWeld), this.weldList, this.weldIssue, bones, pairs, bend);
+        this.page(Tab.WELDS).add(this.weldEditor.strip, this.weldList, this.weldIssue, bones, pairs, bend);
 
         /* Armor: every piece the config can place, one row each, named by the piece. */
         this.armor = new SlotBlock((slot) -> ModelSlotKind.ARMOR, (slot) -> this.armorTypeLabel(this.armorTypeOf(slot)), () -> this.armorSlots());
@@ -1491,9 +1483,6 @@ public class UIModelConfigEditor extends UIElement
         WeldValue weld = picked == null ? new WeldValue("") : picked;
         WeldBinding.Issue issue = picked == null ? null : this.diagnoseWeld(picked);
 
-        this.dupeWeld.setEnabled(picked != null);
-        this.removeWeld.setEnabled(picked != null);
-
         /* Bone/face changes can make the weld resolvable or not, so they refill the list and the panel to
          * update the name and the issue line; the trackpads can't, so they only re-resolve (a refill
          * mid-drag would orphan them). */
@@ -1995,6 +1984,21 @@ public class UIModelConfigEditor extends UIElement
         this.fillWelds();
     }
 
+    private void clearWelds()
+    {
+        ModelConfig config = this.data;
+
+        BaseValue.edit(config.welds, (v) ->
+        {
+            config.welds.getAllTyped().clear();
+            config.welds.sync();
+        });
+
+        this.modelPanel.refresh();
+        this.weldList.deselect();
+        this.fillWelds();
+    }
+
     private void applyWeld(WeldValue weld, MapType data)
     {
         BaseValue.edit(weld, (v) -> weld.fromData(data));
@@ -2045,28 +2049,17 @@ public class UIModelConfigEditor extends UIElement
     }
 
     /**
-     * A weld's context menu: the copy/paste/presets icon row on top, then the text actions — the same
-     * shape the replay and clip lists use. {@code source} being null means the menu hangs off the "add"
-     * button (nothing to copy from, so the row's copy icon disables itself), and {@code duplicate} /
-     * {@code remove} are null there for the same reason.
+     * A weld's copy/paste/presets icon row, in the context menu the list's verbs share. {@code source}
+     * being null means the menu hangs off the "add" button: nothing to copy from, so the row's copy
+     * icon disables itself.
      */
-    private void fillWeldMenu(ContextMenuManager menu, Supplier<MapType> source, Consumer<MapType> target, Runnable duplicate, Runnable remove)
+    private void fillWeldMenu(ContextMenuManager menu, Supplier<MapType> source, Consumer<MapType> target)
     {
         this.welds.aim(source, target);
 
         UIContext context = this.getContext();
 
         this.welds.controller.install(menu, context, context.mouseX, context.mouseY);
-
-        if (duplicate != null)
-        {
-            menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_WELD_DUPLICATE, duplicate);
-        }
-
-        if (remove != null)
-        {
-            menu.icon(MenuVerb.REMOVE, remove).label(UIKeys.MODEL_EDITOR_WELD_REMOVE);
-        }
     }
 
     /* Plain fields. All bound to a value through UIValues, so a right click offers "reset"; {@code after}
