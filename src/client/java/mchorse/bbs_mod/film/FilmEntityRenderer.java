@@ -211,7 +211,12 @@ public class FilmEntityRenderer
             }
         }
 
-        if (!relative && context.map == null && opacity > 0F && context.shadowRadius > 0F && form.visible.get())
+        /* With a shader pack, the films are drawn again in Iris' shadow pass, but into the main
+         * entity buffers: the shadow and the name tag batched there would be flushed in the main
+         * pass with vertices posed for the sun, as a skewed ghost floating next to the replay. */
+        boolean shadowPass = BBSRendering.isIrisShadowPass();
+
+        if (!relative && !shadowPass && context.map == null && opacity > 0F && context.shadowRadius > 0F && form.visible.get())
         {
             /* No shadow while the form is hidden (form.visible, keyframable) — the form renders
              * nothing then, so its shadow must vanish too.
@@ -226,7 +231,7 @@ public class FilmEntityRenderer
 
             FormRenderer renderer = FormUtilsClient.getRenderer(FormUtils.getRoot(form));
 
-            if (renderer != null && !BBSRendering.isIrisShadowPass() && context.replay != null && context.replay.shadowFollow.get())
+            if (renderer != null && context.replay != null && context.replay.shadowFollow.get())
             {
                 Vector3f displacement = renderer.getShadowDisplacement(entity, transition);
 
@@ -256,7 +261,7 @@ public class FilmEntityRenderer
             stack.pop();
         }
 
-        if (!relative && !context.nameTag.isEmpty() && context.map == null && form.visible.get())
+        if (!relative && !shadowPass && !context.nameTag.isEmpty() && context.map == null && form.visible.get())
         {
             /* Hide the name tag along with the form (form.visible, animatable via keyframes): when the
              * form renders nothing, its name tag must vanish too - same reasoning as the shadow above. */
