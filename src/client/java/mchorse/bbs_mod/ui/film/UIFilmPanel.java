@@ -679,22 +679,12 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         {
             UINumberOverlayPanel panel = new UINumberOverlayPanel(UIKeys.FILM_INSERT_SPACE_TITLE, UIKeys.FILM_INSERT_SPACE_DESCRIPTION, (d) ->
             {
-                if (d.intValue() <= 0)
-                {
-                    return;
-                }
+                int tick = this.getCursor();
+                int ticks = d.intValue();
 
-                for (Replay replay : this.data.replays.getList())
+                if (ticks > 0)
                 {
-                    for (KeyframeChannel<?> channel : replay.keyframes.getChannels())
-                    {
-                        channel.insertSpace(this.getCursor(), d.intValue());
-                    }
-
-                    for (KeyframeChannel channel : replay.properties.tracks.values())
-                    {
-                        channel.insertSpace(this.getCursor(), d.intValue());
-                    }
+                    BaseValue.edit(this.data, (film) -> film.insertSpace(tick, ticks));
                 }
             });
 

@@ -166,6 +166,25 @@ public class Replay extends ValueGroup
     }
 
     /**
+     * Opens {@code ticks} of time at {@code tick}: keyframes after it move later and the pose at it
+     * holds through the gap, an action clip running across it is cut in two.
+     */
+    public void insertSpace(int tick, int ticks)
+    {
+        for (KeyframeChannel<?> channel : this.keyframes.getChannels())
+        {
+            channel.insertSpace(tick, ticks);
+        }
+
+        for (KeyframeChannel<?> channel : this.properties.tracks.values())
+        {
+            channel.insertSpace(tick, ticks);
+        }
+
+        this.actions.insertSpace(tick, ticks);
+    }
+
+    /**
      * The tick of the replay's last keyframe over its own channels and every property track —
      * where its authored motion ends; {@code -1} when it has no keyframes at all.
      */
