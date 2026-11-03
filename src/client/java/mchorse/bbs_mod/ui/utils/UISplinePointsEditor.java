@@ -6,12 +6,10 @@ import mchorse.bbs_mod.data.types.*;
 import mchorse.bbs_mod.graphics.window.Window;
 import mchorse.bbs_mod.settings.values.IValueListener;
 import mchorse.bbs_mod.settings.values.base.BaseValue;
-import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
-import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryListEditor;
 import mchorse.bbs_mod.ui.utils.context.ContextMenuManager;
 import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
@@ -26,6 +24,7 @@ public class UISplinePointsEditor extends UIElement
 {
     private static final String CLIPBOARD = "_CopySplinePoints";
     public final UISplinePointList points;
+    private final UIEntryListEditor<String> pointsEditor;
     public final UIPropTransform position;
     private final Supplier<SplineSource> source;
     private final Function<String, Transform> read;
@@ -42,22 +41,14 @@ public class UISplinePointsEditor extends UIElement
         this.initial = initial;
         this.points = new UISplinePointList(this::selectPoints)
         {
-            @Override public UIContextMenu createContextMenu(UIContext context)
-            {
-                int i = this.getIndexAtCursor(context);
-                if (i >= 0 && !this.getCurrent().contains(this.getList().get(i))) UISplinePointsEditor.this.select(this.getList().get(i));
-                return super.createContextMenu(context);
-            }
             @Override protected boolean onDelete(List<String> items) { return UISplinePointsEditor.this.removeSelected(); }
         };
+        /* Remove takes every picked point, as Delete does; the right click picks the point under it first. */
+        this.pointsEditor = new UIEntryListEditor<>(this.points, this::addPoint, null, id -> this.removeSelected())
+            .clear(this::clearPoints)
+            .menu((menu, id) -> this.menu(menu));
         this.column(UIConstants.MARGIN).vertical().stretch();
-        UIElement header = UI.row(UIConstants.MARGIN, 0, UIConstants.CONTROL_HEIGHT,
-            UI.label(key("points"), UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F),
-            new UIIcon(Icons.ADD, b -> this.addPoint()).wh(20, 20).tooltip(UIKeys.GENERAL_ADD));
-        header.add(new UIIcon(Icons.REMOVE, b -> this.removeSelected()).wh(20, 20).tooltip(UIKeys.GENERAL_REMOVE));
-        header.context(this::menu);
-        this.points.context(this::menu);
-        this.add(header);
+        this.add(UI.label(key("points"), UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F), this.pointsEditor.strip);
         this.position.noScale().setRotationVisible(false);
         this.add(this.points, this.position);
     }
@@ -141,8 +132,6 @@ public class UISplinePointsEditor extends UIElement
     private void menu(ContextMenuManager menu)
     {
         if (this.source.get() == null) return;
-        menu.icon(MenuVerb.ADD, this::addPoint);
-        menu.icon(MenuVerb.REMOVE, this::removeSelected).enabled(!this.selected.isEmpty());
         menu.icon(MenuVerb.COPY, this::copy);
         menu.icon(MenuVerb.PASTE, this::paste);
         if (this.points.getList().size() > 2) menu.action(Icons.ALL_DIRECTIONS, key("distribute_points"), this::distribute);
@@ -178,6 +167,10 @@ public class UISplinePointsEditor extends UIElement
         Set<String> ids = this.selected();
         this.edit(list -> list.getAllTyped().removeIf(point -> ids.contains(point.getId())));
         return true;
+    }
+    private void clearPoints()
+    {
+        this.edit(list -> list.getAllTyped().clear());
     }
     private void move(int offset)
     {
