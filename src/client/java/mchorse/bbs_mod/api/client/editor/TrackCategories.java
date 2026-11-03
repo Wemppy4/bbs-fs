@@ -16,7 +16,7 @@ public final class TrackCategories
 {
     private record Entry(TrackCategory category, BiPredicate<TrackId, Boolean> matches) {}
     private static final List<TrackCategory> categories = new ArrayList<>(List.of(
-        TrackCategory.REPLAY, TrackCategory.FORM));
+        TrackCategory.REPLAY, TrackCategory.FORM, TrackCategory.BONES));
     private static final List<Entry> addons = new ArrayList<>();
     private static final List<KeyCombo> shortcuts = new ArrayList<>();
     private static boolean frozen;
@@ -58,9 +58,10 @@ public final class TrackCategories
 
             switch (kind)
             {
-                case IK_CONTROLS, IK_TARGET, POLE_TARGET, PHYSICS_CONTROLS, PHYSICS_TARGET,
-                    WIND_CONTROLS, BONE, BONE_CONSTRAINT:
+                case IK_CONTROLS, IK_TARGET, POLE_TARGET, PHYSICS_CONTROLS, PHYSICS_TARGET, WIND_CONTROLS:
                     return TrackCategory.FORM;
+                case BONE, BONE_CONSTRAINT:
+                    return TrackCategory.BONES;
                 case MATERIAL_TEXTURE, MATERIAL_PROP:
                     return TrackCategory.FORM;
                 default:

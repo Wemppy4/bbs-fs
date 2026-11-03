@@ -22,12 +22,9 @@ public class MobForm extends Form implements IPosedForm
     public final ValuePose pose = new ValuePose("pose", new Pose());
     public final ValuePose poseOverlay = new ValuePose("pose_overlay", new Pose());
 
-    public final ValueBoolean boneTracks = new ValueBoolean("bone_tracks", true);
-
     public MobForm()
     {
         this.slim.animatable(false).invisible();
-        this.boneTracks.animatable(false).invisible();
 
         this.add(this.mobID);
         this.add(this.mobNBT);
@@ -36,7 +33,6 @@ public class MobForm extends Form implements IPosedForm
         this.syncOverlayTracks();
         this.add(this.texture);
         this.add(this.slim);
-        this.add(this.boneTracks);
     }
 
     @Override
@@ -49,12 +45,6 @@ public class MobForm extends Form implements IPosedForm
     public ValuePose getPoseOverlay()
     {
         return this.poseOverlay;
-    }
-
-    @Override
-    public boolean hasBoneTracks()
-    {
-        return this.boneTracks.get();
     }
 
     @Override

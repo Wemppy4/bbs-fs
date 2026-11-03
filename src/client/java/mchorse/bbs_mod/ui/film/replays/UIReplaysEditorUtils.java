@@ -213,19 +213,37 @@ public class UIReplaysEditorUtils
         }
     }
 
-    /** Remove links to filtered rows while keeping their surviving children accessible. */
+    /**
+     * Remove links to filtered rows. A row whose parent was filtered out hangs off the closest
+     * ancestor that is still there — the Bones tab lists only animated bones, and a hand under a
+     * hidden forearm still belongs under the arm.
+     */
     public static void pruneTree(List<UIKeyframeSheet> sheets)
     {
         Set<UIKeyframeSheet> present = new HashSet<>(sheets);
+        Map<UIKeyframeSheet, UIKeyframeSheet> parents = new HashMap<>();
 
         for (UIKeyframeSheet sheet : sheets)
         {
-            sheet.children.removeIf(child -> !present.contains(child));
+            UIKeyframeSheet parent = sheet.parent;
 
-            if (sheet.parent != null && !present.contains(sheet.parent))
+            while (parent != null && !present.contains(parent))
             {
-                sheet.parent = null;
+                parent = parent.parent;
             }
+
+            parents.put(sheet, parent);
+        }
+
+        for (UIKeyframeSheet sheet : sheets)
+        {
+            sheet.children.clear();
+        }
+
+        for (UIKeyframeSheet sheet : sheets)
+        {
+            sheet.parent = null;
+            sheet.setParent(parents.get(sheet));
         }
     }
 
@@ -570,6 +588,11 @@ public class UIReplaysEditorUtils
      */
     private static Vector3f filmPoseRotationBase(UIKeyframeEditor keyframeEditor, IEntity entity, float transition, String bonePath)
     {
+        if (keyframeEditor.editor instanceof UIBoneTracksPanel bones)
+        {
+            return boneTrackRotationBase(bones, entity, transition, bonePath);
+        }
+
         if (!(keyframeEditor.editor instanceof UIPoseKeyframeFactory))
         {
             return null;
@@ -592,6 +615,36 @@ public class UIReplaysEditorUtils
         Vector3f evaluated = FilmMatrices.getGizmoBoneEvaluatedRotation(entity, transition, bonePath);
 
         return FormUtils.additivePoseRotationBase(valuePose, StringUtils.fileName(bonePath), evaluated);
+    }
+
+    /**
+     * The same base under a bone's own track (the Bones tab): everything else the bone turns by —
+     * what the renderer evaluated, less the track's share at the cursor. A bone track adds onto the
+     * pose just like an overlay does, so its drag composes at the bone's effective angles too.
+     */
+    private static Vector3f boneTrackRotationBase(UIBoneTracksPanel panel, IEntity entity, float transition, String bonePath)
+    {
+        String bone = StringUtils.fileName(bonePath);
+        PoseTransform own = panel.getBoneValue(bone);
+        BaseValueBasic property = FormUtils.getProperty(entity.getForm(), panel.getSheet().id);
+        PoseTransform live = property instanceof ValuePose pose ? pose.get().transforms.get(bone) : null;
+
+        for (PoseTransform transform : new PoseTransform[] {own, live})
+        {
+            if (transform != null && (transform.rotationMode == Transform.RotationMode.QUATERNION || transform.fix != 0F))
+            {
+                return null;
+            }
+        }
+
+        Vector3f evaluated = FilmMatrices.getGizmoBoneEvaluatedRotation(entity, transition, bonePath);
+
+        if (evaluated == null)
+        {
+            return null;
+        }
+
+        return own == null ? new Vector3f(evaluated) : new Vector3f(evaluated).sub(own.rotate);
     }
 
     /**

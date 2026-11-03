@@ -273,7 +273,7 @@ public class TrackCatalog
 
     private static void bones(IPosedForm posedForm, IBoneHierarchy iModel, Collection<String> disabledBones, String path, FormProperties properties, List<TrackDescriptor> out)
     {
-        if (!posedForm.hasBoneTracks() || iModel == null)
+        if (iModel == null)
         {
             return;
         }

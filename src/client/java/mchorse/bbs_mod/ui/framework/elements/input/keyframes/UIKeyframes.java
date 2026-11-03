@@ -11,6 +11,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.lwjgl.glfw.GLFW;
@@ -139,6 +140,12 @@ public class UIKeyframes extends UITimelineCanvas
 
     /** All available tracks, independent of the current presentation and key operation scope. */
     public List<UIKeyframeSheet> getSheets() { return this.sheets; }
+
+    /**
+     * Keys a plain click (not only a double one) takes the cursor to. The Bones tab keys each bone at
+     * its own ticks, so clicking a bone's key means "go to that frame of the pose".
+     */
+    public Predicate<Keyframe> jumpOnClick;
 
     /** Only these tracks may be changed by selection-based commands and value panels. */
     public List<UIKeyframeSheet> getOperationSheets() { return this.currentGraph.getSheets(); }
@@ -1634,7 +1641,9 @@ public class UIKeyframes extends UITimelineCanvas
         /* Only the keyframe itself: a handle or a Shift click (adding to the selection) isn't a jump. */
         boolean jumpable = found != null && !shift && pair.b == KeyframeType.REGULAR;
 
-        if (this.keyframeDoubleClick.hit(jumpable ? found : null))
+        boolean doubled = this.keyframeDoubleClick.hit(jumpable ? found : null);
+
+        if (doubled || (jumpable && this.jumpOnClick != null && this.jumpOnClick.test(found)))
         {
             this.moveCursorToKeyframe(found);
         }

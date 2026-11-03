@@ -105,6 +105,7 @@ import mchorse.bbs_mod.ui.utils.SplineEditorUtils;
 public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, ILivePoseHost
 {
     private final BoneSelection boneSelection = new BoneSelection();
+    private final BoneTracksMode bonesMode = new BoneTracksMode(this.boneSelection);
 
     private static String lastFilm = "";
     private static int lastReplay;
@@ -650,8 +651,18 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.keys.add(getSheetFilterKey(sheet));
         }
 
-        /* The body-part tree already chose the parts; a tab narrows down to its tracks, their owners stay. */
-        sheets.removeIf((v) -> !this.allMode && categoryOf(v) != this.category);
+        boolean bones = BoneTracksMode.isActive(this.allMode, this.category);
+
+        this.bonesMode.collect(sheets, this.partSelection.activePart);
+
+        /* The body-part tree already chose the parts; a tab narrows down to its tracks, their owners stay.
+         * Bones are a mode of their own rather than a slice of everything, so "All tracks" leaves them out. */
+        sheets.removeIf((v) -> this.allMode ? categoryOf(v) == TrackCategory.BONES : categoryOf(v) != this.category);
+
+        if (bones)
+        {
+            this.bonesMode.filter(sheets, (v) -> this.revealedSearchTrack != null && this.revealedSearchTrack.key().equals(v.id));
+        }
 
         /* The tab isn't empty by itself - so if the filter empties it, the timeline has to stay (see below). */
         boolean hadTracks = !sheets.isEmpty();
@@ -676,7 +687,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         CategoryFold.settle(sheets, this.getExpandedTracks(), fresh);
 
-        if (!sheets.isEmpty() || filteredOutEverything)
+        /* The Bones tab keeps its timeline with no animated bone yet: its panel is how the first one gets keyed. */
+        if (!sheets.isEmpty() || filteredOutEverything || bones)
         {
             this.keyframeEditor = new UIKeyframeEditor((consumer) -> new UIFilmKeyframes(this.filmPanel.cameraEditor, consumer).absolute())
                 .target(this.filmPanel.editArea);
@@ -730,7 +742,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
                 /* Not gated on a MODEL form: baking a pose into per-bone tracks is a pose
                  * operation, and a mob form has a skeleton to bake onto just the same. */
-                if (posedForm != null && sheet.selection.hasAny() && posedForm.hasBoneTracks())
+                if (posedForm != null && sheet.selection.hasAny())
                 {
                     menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
                     {
@@ -815,6 +827,11 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                 this.keyframeEditor.view.copySelection(lastEditor);
             }
 
+            if (bones)
+            {
+                this.bonesMode.attach(this.keyframeEditor);
+            }
+
             this.add(this.keyframeEditor);
             /* Category bar + actions toggle on top so they overlay the track names column. */
             this.bringBarToFront();
@@ -860,8 +877,15 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.pendingPick = null;
         this.revealedSearchTrack = entry;
         if (entry.owned()) this.partSelection.focus(entry.path());
-        /* A tab that doesn't hold the track switches to the one that does; all tracks hold it already. */
-        if (!this.allMode) this.category = categoryOf(entry.key(), entry.owned());
+        /* A tab that doesn't hold the track switches to the one that does; all tracks hold it already,
+         * except bones, which only the Bones tab has. */
+        TrackCategory category = categoryOf(entry.key(), entry.owned());
+
+        if (!this.allMode || category == TrackCategory.BONES)
+        {
+            this.allMode = false;
+            this.category = category;
+        }
         this.updateChannelsList();
         if (this.keyframeEditor == null) return false;
 
@@ -1176,6 +1200,22 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             return;
         }
 
+        /* The Bones tab: the bone is picked in its panel, the cursor stays (see BoneTracksMode). */
+        if (BoneTracksMode.isActive(this.allMode, this.category) && form instanceof IPosedForm && bone != null && !bone.isEmpty())
+        {
+            String path = FormUtils.getPath(form);
+
+            if (!this.partSelection.includes(path))
+            {
+                this.selectBodyPart(path);
+            }
+
+            if (this.bonesMode.pick(form, bone, insert, !insert && Window.isCtrlPressed()))
+            {
+                return;
+            }
+        }
+
         /* A bone's tracks are Form's: another tab is left for it first, so the part's owner opens
          * on the timeline that shows it. */
         if (!this.allMode && this.category != TrackCategory.FORM && (!(form instanceof IPosedForm) || (bone != null && !bone.isEmpty())))
@@ -1356,6 +1396,14 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.updateChannelsList();
         }
 
+
+        /* A bone got its first key, or was picked without a row: its row appears once nothing is held. */
+        if (this.bonesMode.hasRowsChanged() && !Window.isMouseButtonPressed(0) && !Window.isMouseButtonPressed(1)
+            && (this.keyframeEditor == null || this.keyframeEditor.editor == null || !this.keyframeEditor.editor.isUserEditing()))
+        {
+            this.bonesMode.takeRowsChanged();
+            this.updateChannelsList();
+        }
 
         this.iconBar.setVisible(this.timelineVisible);
         this.actionsToggle.setVisible(this.timelineVisible);
