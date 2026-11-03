@@ -1124,7 +1124,7 @@
 	"bbs.ui.film.controller.onion_skin.prev": "Previous frames and colors",
 	"bbs.ui.film.controller.onion_skin.title": "Onion skin",
 	"bbs.ui.film.controller.motion_path.title": "Motion path",
-	"bbs.ui.film.controller.motion_path.around": "Only around the current frame",
+	"bbs.ui.film.controller.motion_path.around": "Around frame",
 	"bbs.ui.film.controller.motion_path.anchor": "anchor",
 	"bbs.ui.film.controller.motion_path.empty": "No motion paths",
 	"bbs.ui.markup.ik_goal": "IK goal: %s",

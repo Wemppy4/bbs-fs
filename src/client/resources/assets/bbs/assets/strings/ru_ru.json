@@ -1119,7 +1119,7 @@
 	"bbs.ui.film.controller.onion_skin.prev": "Предыдущие кадры и цвета",
 	"bbs.ui.film.controller.onion_skin.title": "Луковая кожа",
 	"bbs.ui.film.controller.motion_path.title": "Траектория движения",
-	"bbs.ui.film.controller.motion_path.around": "Только вокруг текущего кадра",
+	"bbs.ui.film.controller.motion_path.around": "Вокруг кадра",
 	"bbs.ui.film.controller.motion_path.anchor": "якорь",
 	"bbs.ui.film.controller.motion_path.empty": "Траекторий нет",
 	"bbs.ui.markup.ik_goal": "Цель ИК: %s",

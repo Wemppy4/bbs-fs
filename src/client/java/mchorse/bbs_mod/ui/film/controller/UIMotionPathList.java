@@ -4,6 +4,7 @@ import mchorse.bbs_mod.film.replays.MotionPathValue;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -33,6 +34,28 @@ public class UIMotionPathList extends UIEntryList<UIMotionPathList.Entry>
         String part = key.equals(MotionPath.ANCHOR) ? UIKeys.FILM_CONTROLLER_MOTION_PATH_ANCHOR.get() : MotionPath.shortName(key);
 
         return part.isEmpty() ? entry.replay().getName() : entry.replay().getName() + ": " + part;
+    }
+
+    /**
+     * The list sits inside the motion path button's own menu, where a right click opens nothing (one
+     * menu at a time). Here it opens over that menu instead, which a step back returns to.
+     */
+    @Override
+    protected boolean mouseClickedContextMenu(UIContext context)
+    {
+        if (this.area.isInside(context) && context.mouseButton == 1 && context.hasContextMenu())
+        {
+            UIContextMenu menu = this.createContextMenu(context);
+
+            if (menu != null && !menu.isEmpty())
+            {
+                context.replaceContextMenu(menu);
+
+                return true;
+            }
+        }
+
+        return super.mouseClickedContextMenu(context);
     }
 
     @Override
