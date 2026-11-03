@@ -1,5 +1,7 @@
 package mchorse.bbs_mod.ui.utils;
 
+import mchorse.bbs_mod.ui.utils.bones.BoneRole;
+
 /**
  * An editor that owns a {@link BoneSelection} — the film editor and the form editor.
  *
@@ -10,4 +12,13 @@ package mchorse.bbs_mod.ui.utils;
 public interface IBoneSelectionHost
 {
     BoneSelection getBoneSelection();
+
+    /**
+     * A mark the host puts next to a bone in a pose's bone list, or null — the film marks the bones
+     * that have a motion path. {@code bonePath} addresses the bone the way the film's targets do.
+     */
+    default BoneRole markBone(String bonePath)
+    {
+        return null;
+    }
 }

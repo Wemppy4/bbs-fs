@@ -203,14 +203,7 @@ public class UIKeyframeEditor extends UITimelinePanel
 
                 if (id.startsWith("pose"))
                 {
-                    TrackId path = TrackId.parse(sheet.id, TrackKind.BONE);
-                    if (path != null)
-                        bone = path.formPath().isEmpty() ? currentFirst : path.formPath() + "/" + currentFirst;
-                    else
-                    {
-                        int i = sheet.id.lastIndexOf('/');
-                        bone = i >= 0 ? sheet.id.substring(0, i + 1) + currentFirst : currentFirst;
-                    }
+                    bone = pose.poseEditor.bonePath(currentFirst);
                     space = pose.poseEditor.transform.getSpace();
                 }
             }

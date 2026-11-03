@@ -16,6 +16,7 @@ import mchorse.bbs_mod.cubic.ik.ModelIKRuntime;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.IKBake;
 import mchorse.bbs_mod.film.replays.tracks.TrackCatalog;
 import mchorse.bbs_mod.film.replays.tracks.TimelineBodyPartSelection;
@@ -27,6 +28,7 @@ import mchorse.bbs_mod.film.replays.tracks.TrackSearchEntry;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.forms.editors.UIForms;
 import mchorse.bbs_mod.ui.film.replays.overlays.UITrackSearchOverlayPanel;
+import mchorse.bbs_mod.film.replays.MotionPathValue;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.film.replays.ReplayKeyframes;
 import mchorse.bbs_mod.forms.FormUtils;
@@ -42,6 +44,7 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.settings.values.base.BaseValueBasic;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.ui.film.controller.MotionPath;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.film.replays.overlays.UIAnimationToPoseOverlayPanel;
@@ -61,6 +64,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIRenderable;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCategoryBar;
 import mchorse.bbs_mod.ui.utils.BoneSelection;
+import mchorse.bbs_mod.ui.utils.bones.BoneRole;
 import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.ILivePoseHost;
 import mchorse.bbs_mod.ui.utils.Area;
@@ -1121,6 +1125,16 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
     public BoneSelection getBoneSelection()
     {
         return this.boneSelection;
+    }
+
+    /** A bone of the selected replay with a motion path wears the path's colour in the pose's bone list. */
+    @Override
+    public BoneRole markBone(String bonePath)
+    {
+        Replay replay = this.getReplay();
+        MotionPathValue path = replay == null ? null : replay.motionPaths.find(MotionPath.key(FilmTarget.bone(bonePath, null)));
+
+        return path == null ? null : BoneRole.motionPath(path.color.get());
     }
 
     /**
