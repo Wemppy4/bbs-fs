@@ -18,6 +18,7 @@ import mchorse.bbs_mod.ui.utils.IBoneSelectionHost;
 import mchorse.bbs_mod.ui.utils.ILivePoseHost;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
+import mchorse.bbs_mod.ui.utils.bones.BoneRole;
 import mchorse.bbs_mod.ui.utils.bones.BoneRoles;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.context.MenuIcon;
@@ -273,6 +274,27 @@ public class UIPoseEditor extends UIElement
                 roles.touch(entry.getKey());
             }
         }
+
+        IBoneSelectionHost host = this.selectionAnchor().getAncestor(IBoneSelectionHost.class);
+
+        if (host != null)
+        {
+            for (String bone : this.groups.list.getList())
+            {
+                BoneRole role = host.markBone(this.bonePath(bone));
+
+                if (role != null)
+                {
+                    roles.mark(bone, 0, role);
+                }
+            }
+        }
+    }
+
+    /** A bone of this pose as the film addresses it; just its name for a pose of the root form. */
+    public String bonePath(String bone)
+    {
+        return bone;
     }
 
     /**

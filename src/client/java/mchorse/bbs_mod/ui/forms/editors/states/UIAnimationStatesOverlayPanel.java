@@ -9,12 +9,12 @@ import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIKeybind;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryListEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.presets.UICopyPasteController;
 import mchorse.bbs_mod.utils.CollectionUtils;
@@ -27,6 +27,7 @@ import java.util.function.Consumer;
 public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
 {
     public UIList<AnimationState> list;
+    public UIEntryListEditor<AnimationState> listEditor;
     public UIScrollView editor;
 
     public UITextbox id;
@@ -78,13 +79,10 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         this.callback = consumer;
 
         this.list = new UIAnimationStateList((l) -> this.pickItem(l.get(0), false));
-        this.list.context((menu) ->
-        {
-            this.copyPasteController.install(menu, this.getContext());
-
-            menu.icon(MenuVerb.ADD, this::addState).label(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_ADD);
-            menu.icon(MenuVerb.REMOVE, this::removeState).label(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_REMOVE).enabled(!this.list.getList().isEmpty());
-        });
+        this.listEditor = new UIEntryListEditor<>(this.list, this::addState, null, this::removeState)
+            .labels(UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_ADD, UIKeys.GENERAL_DUPE, UIKeys.FORMS_EDITOR_STATES_MANAGER_CONTEXT_REMOVE)
+            .clear(this::clearStates)
+            .menu((menu, state) -> this.copyPasteController.install(menu, this.getContext()));
         this.list.background();
 
         this.id = UIValues.textbox(() -> this.state == null ? null : this.state.customId);
@@ -108,12 +106,13 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
             this.looping.marginTop(UIConstants.SECTION_GAP), this.offset
         );
 
-        this.list.relative(this.content).w(120).h(1F);
+        this.listEditor.strip.relative(this.content).w(120);
+        this.list.relative(this.content).y(UIConstants.CONTROL_HEIGHT).w(120).h(1F, -UIConstants.CONTROL_HEIGHT);
         this.list.setList(states.getList());
         this.list.setCurrentScroll(current);
         this.editor.relative(this.content).x(120).w(1F, -120).h(1F).column(UIConstants.MARGIN).vertical().stretch().scroll().padding(UIConstants.SCROLL_PADDING);
 
-        this.content.add(this.editor, this.list);
+        this.content.add(this.editor, this.listEditor.strip, this.list);
 
         this.pickItem(this.list.getCurrentFirst(), false);
     }
@@ -124,13 +123,25 @@ public class UIAnimationStatesOverlayPanel extends UIOverlayPanel
         this.list.update();
     }
 
-    protected void removeState()
+    /** The neighbour takes the pick: the state that took its place, else the one before. */
+    protected void removeState(AnimationState state)
     {
-        int index = this.list.getIndex();
+        int index = this.list.getList().indexOf(state);
 
         this.states.removeState(index);
 
-        this.pickItem(CollectionUtils.getSafe(this.list.getList(), Math.max(index - 1, 0)), true);
+        this.pickItem(CollectionUtils.getSafe(this.list.getList(), Math.min(index, this.list.getList().size() - 1)), true);
+        this.list.update();
+    }
+
+    protected void clearStates()
+    {
+        while (!this.list.getList().isEmpty())
+        {
+            this.states.removeState(0);
+        }
+
+        this.pickItem(null, true);
         this.list.update();
     }
 

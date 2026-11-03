@@ -11,16 +11,18 @@ import mchorse.bbs_mod.settings.values.base.BaseValue;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIButton;
-import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UIPropTransform;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformOp;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryList;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryListEditor;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragStartEvent;
 import mchorse.bbs_mod.ui.framework.elements.events.UITrackpadDragEndEvent;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.bones.UIBonePicker;
+import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.shapes.UIShapeControllers;
 import mchorse.bbs_mod.ui.utils.values.UIValues;
@@ -37,15 +39,13 @@ public class UIModelShapeControllers extends UIElement
     private ModelInstance model;
     private UIPropTransform position;
     private boolean placing;
-    private final UIIcon add;
-    private final UIIcon remove;
+    private final UIEntryListEditor<ShapeController> controlsEditor;
     private final UIEntryList<ShapeController.Binding> bindings;
+    private final UIEntryListEditor<ShapeController.Binding> bindingsEditor;
     private final UIElement bindingSettings = new UIElement();
-    private final UIIcon removeBinding;
     private final UIEntryList<ShapeLimit> limits;
+    private final UIEntryListEditor<ShapeLimit> limitsEditor;
     private final UIElement limitSettings = new UIElement();
-    private final UIIcon addLimit;
-    private final UIIcon removeLimit;
 
     public UIModelShapeControllers(UIModelEditorPanel panel)
     {
@@ -57,23 +57,19 @@ public class UIModelShapeControllers extends UIElement
         this.bindings = new UIEntryList<>(picked -> this.fillBinding(), b -> b.shape.get());
         this.bindings.h(UIConstants.LIST_ITEM_HEIGHT * 4).expand();
         this.bindingSettings.column(4).vertical().stretch();
-        this.removeBinding = new UIIcon(Icons.REMOVE, b -> this.removeBinding());
-        this.removeBinding.tooltip(UIKeys.GENERAL_REMOVE);
-        this.add = new UIIcon(Icons.ADD, b -> this.addController());
-        this.add.tooltip(UIKeys.GENERAL_ADD);
-        this.remove = new UIIcon(Icons.REMOVE, b -> this.removeController());
-        this.remove.tooltip(UIKeys.GENERAL_REMOVE);
+        this.bindingsEditor = new UIEntryListEditor<>(this.bindings, this::addBinding, null, this::removeBinding).clear(this::clearBindings);
+        /* The controllers' own right click was their shape key presets; it stays, as the menu's presets verb. */
+        this.controlsEditor = new UIEntryListEditor<>(this.controls.list, this::addController, null, this::removeController)
+            .clear(this::clearControllers)
+            .menu((menu, controller) -> menu.icon(MenuVerb.PRESETS, () -> this.controls.openPresets(this.getContext())));
         this.limits = new UIEntryList<>(picked -> this.fillLimit(), l -> l.shape.get() + "  " + l.min.get() + " .. " + l.max.get());
         this.limits.h(UIConstants.LIST_ITEM_HEIGHT * 3).expand();
         this.limitSettings.column(4).vertical().stretch();
-        this.addLimit = new UIIcon(Icons.ADD, b -> this.addLimit());
-        this.addLimit.tooltip(UIKeys.GENERAL_ADD);
-        this.removeLimit = new UIIcon(Icons.REMOVE, b -> this.removeLimit());
-        this.removeLimit.tooltip(UIKeys.GENERAL_REMOVE);
+        this.limitsEditor = new UIEntryListEditor<>(this.limits, this::addLimit, null, this::removeLimit).clear(this::clearLimits);
         this.column(4).vertical().stretch();
         this.settings.column(4).vertical().stretch();
-        this.add(UI.strip(this.add, this.remove), this.controls, this.settings,
-            UI.label(key("limits")).tooltip(key("limits_hint")), UI.strip(this.addLimit, this.removeLimit), this.limits, this.limitSettings);
+        this.add(this.controlsEditor.strip, this.controls, this.settings,
+            UI.label(key("limits")).tooltip(key("limits_hint")), this.limitsEditor.strip, this.limits, this.limitSettings);
     }
     private ModelForm form() { return (ModelForm) this.panel.renderer.form; }
     public void fill(ModelInstance model)
@@ -87,8 +83,8 @@ public class UIModelShapeControllers extends UIElement
         this.controls.fill(model == null ? null : model.config, this.form().shapeKeys.get());
         this.controls.list.broken(c -> model != null && (!c.bone.get().isEmpty() && model.getModel().getBone(c.bone.get()) == null
             || c.bindings.getAllTyped().stream().anyMatch(b -> !model.model.getShapeKeys().contains(b.shape.get()))));
-        this.add.setEnabled(model != null && !model.model.getShapeKeys().isEmpty());
-        this.addLimit.setEnabled(model != null && !model.model.getShapeKeys().isEmpty());
+        this.controlsEditor.add.setEnabled(model != null && !model.model.getShapeKeys().isEmpty());
+        this.limitsEditor.add.setEnabled(model != null && !model.model.getShapeKeys().isEmpty());
         this.fillSettings();
         this.fillLimits();
     }
@@ -98,7 +94,8 @@ public class UIModelShapeControllers extends UIElement
         List<ShapeLimit> all = this.model == null ? List.of() : this.model.config.shapeLimits.getAllTyped();
         ShapeLimit picked = this.limits.getCurrentFirst();
         this.limits.setList(all);
-        this.limits.setCurrent(picked != null && all.contains(picked) ? List.of(picked) : all.isEmpty() ? List.of() : List.of(all.get(0)));
+        /* A removed pick leaves none: the list editor hands it to the neighbour. */
+        this.limits.setCurrent(picked != null ? (all.contains(picked) ? List.of(picked) : List.of()) : all.isEmpty() ? List.of() : List.of(all.get(0)));
         this.limits.broken(l -> this.model != null && !this.model.model.getShapeKeys().contains(l.shape.get()));
         this.fillLimit();
     }
@@ -114,12 +111,17 @@ public class UIModelShapeControllers extends UIElement
         this.fillLimits();
     }
 
-    private void removeLimit()
+    private void removeLimit(ShapeLimit limit)
     {
-        ShapeLimit limit = this.limits.getCurrentFirst();
-        if (limit == null || this.model == null) return;
+        if (this.model == null) return;
         BaseValue.edit(this.model.config.shapeLimits, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().remove(limit); list.sync(); });
-        this.limits.setCurrent(List.of());
+        this.fillLimits();
+    }
+
+    private void clearLimits()
+    {
+        if (this.model == null) return;
+        BaseValue.edit(this.model.config.shapeLimits, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().clear(); list.sync(); });
         this.fillLimits();
     }
 
@@ -127,7 +129,6 @@ public class UIModelShapeControllers extends UIElement
     {
         this.limitSettings.removeAll();
         ShapeLimit limit = this.limits.getCurrentFirst();
-        this.removeLimit.setEnabled(limit != null);
         if (limit != null && this.model != null)
         {
             UIButton shape = new UIButton(() -> limit.shape.get(), b -> this.getContext().replaceContextMenu(menu ->
@@ -160,11 +161,18 @@ public class UIModelShapeControllers extends UIElement
         this.controls.fill(this.model.config, this.form().shapeKeys.get());
         this.controls.select(controller);
     }
-    private void removeController()
+    private void removeController(ShapeController controller)
     {
-        ShapeController selected = this.controls.selected();
-        if (selected == null || this.model == null) return;
-        BaseValue.edit(this.model.config.shapeControllers, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().remove(selected); list.sync(); });
+        if (this.model == null) return;
+        BaseValue.edit(this.model.config.shapeControllers, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().remove(controller); list.sync(); });
+        this.controls.fill(this.model.config, this.form().shapeKeys.get());
+        this.fillSettings();
+    }
+
+    private void clearControllers()
+    {
+        if (this.model == null) return;
+        BaseValue.edit(this.model.config.shapeControllers, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().clear(); list.sync(); });
         this.controls.fill(this.model.config, this.form().shapeKeys.get());
         this.fillSettings();
     }
@@ -172,7 +180,6 @@ public class UIModelShapeControllers extends UIElement
     {
         this.settings.removeAll(); this.position = null;
         ShapeController c = this.controls.selected();
-        this.remove.setEnabled(c != null);
         if (c == null) { this.invalidateLayout(); return; }
         UIBonePicker bone = new UIBonePicker().bind(c.bone::get, c.bone::set, UIKeys.MODEL_EDITOR_PICK_BONE)
             .menu(menu -> menu.bones(this.model.getModel(), null).none().set(c.bone.get())).viewport(this.panel.renderer);
@@ -199,14 +206,13 @@ public class UIModelShapeControllers extends UIElement
             return target != null && target.editor() == position;
         }, op -> op == TransformOp.TRANSLATE);
         UIToggle place = new UIToggle(key("place"), this.placing, v -> this.placing = v.getValue());
-        UIIcon addBinding = new UIIcon(Icons.ADD, b -> this.addBinding());
-        addBinding.tooltip(UIKeys.GENERAL_ADD);
         ShapeController.Binding picked = this.bindings.getCurrentFirst();
-        this.bindings.setList(c.bindings.getAllTyped());
-        this.bindings.setCurrent(picked != null && c.bindings.getAllTyped().contains(picked) ? List.of(picked)
-            : c.bindings.getAllTyped().isEmpty() ? List.of() : List.of(c.bindings.getAllTyped().get(0)));
+        List<ShapeController.Binding> all = c.bindings.getAllTyped();
+        this.bindings.setList(all);
+        /* A removed pick leaves none: the list editor hands it to the neighbour. */
+        this.bindings.setCurrent(picked != null ? (all.contains(picked) ? List.of(picked) : List.of()) : all.isEmpty() ? List.of() : List.of(all.get(0)));
         this.settings.add(UI.labelRow(key("name"), UIValues.textbox(() -> c.name)), UI.labelRow(key("bone"), bone),
-            place, this.position, UI.label(key("bindings")), UI.strip(addBinding, this.removeBinding), this.bindings, this.bindingSettings);
+            place, this.position, UI.label(key("bindings")), this.bindingsEditor.strip, this.bindings, this.bindingSettings);
         this.fillBinding();
         this.invalidateLayout();
     }
@@ -223,12 +229,19 @@ public class UIModelShapeControllers extends UIElement
         this.fillSettings();
     }
 
-    private void removeBinding()
+    private void removeBinding(ShapeController.Binding binding)
     {
         ShapeController c = this.controls.selected();
-        ShapeController.Binding binding = this.bindings.getCurrentFirst();
-        if (c == null || binding == null) return;
+        if (c == null) return;
         BaseValue.edit(c.bindings, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().remove(binding); list.sync(); });
+        this.fillSettings();
+    }
+
+    private void clearBindings()
+    {
+        ShapeController c = this.controls.selected();
+        if (c == null) return;
+        BaseValue.edit(c.bindings, IValueListener.FLAG_UNMERGEABLE, list -> { list.getAllTyped().clear(); list.sync(); });
         this.fillSettings();
     }
 
@@ -236,7 +249,6 @@ public class UIModelShapeControllers extends UIElement
     {
         this.bindingSettings.removeAll();
         ShapeController.Binding binding = this.bindings.getCurrentFirst();
-        this.removeBinding.setEnabled(binding != null);
         if (binding != null)
         {
             UIButton shape = new UIButton(() -> binding.shape.get(), b -> this.getContext().replaceContextMenu(menu ->

@@ -1,7 +1,6 @@
-package mchorse.bbs_mod.ui.model_editor;
+package mchorse.bbs_mod.ui.framework.elements.input.list;
 
 import mchorse.bbs_mod.ui.framework.UIContext;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UIList;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.elements.utils.RowStyle;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -13,9 +12,10 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
- * A list of a model config's entries (held item slots, welds): one row per entry, named by the
- * host, painted red when the host says the entry is broken. Picking a row is how the host knows
- * which entry's settings to show — the one list shape the editor's "list + settings" blocks share.
+ * A list of records the user adds and removes (welds, held item slots, motion paths): one row per
+ * entry, named by the host, painted red when the host says the entry is broken. Picking a row is how
+ * the host knows which entry's settings to show. Its add/duplicate/remove verbs are
+ * {@link UIEntryListEditor}'s.
  */
 public class UIEntryList<T> extends UIList<T>
 {

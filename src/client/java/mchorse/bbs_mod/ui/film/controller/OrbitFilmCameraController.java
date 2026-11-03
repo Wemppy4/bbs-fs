@@ -110,11 +110,11 @@ public class OrbitFilmCameraController extends OrbitViewportController
     /* What it turns around */
 
     /**
-     * What is selected in the replay editor: the bone the gizmo is on, else the body part the
-     * timeline shows, else the replay itself ({@code path} null). A part counts only below the
-     * form's root - the root is the replay.
+     * What is selected in the replay editor: the body part the timeline shows, else the replay
+     * itself ({@code path} null). A part counts only below the form's root - the root is the
+     * replay. A bone picked in a pose doesn't count: the centre would jump with every pick.
      */
-    private record Subject(Replay replay, IEntity entity, String path, boolean bone)
+    private record Subject(Replay replay, IEntity entity, String path)
     {
         public String key(boolean turning)
         {
@@ -132,16 +132,9 @@ public class OrbitFilmCameraController extends OrbitViewportController
             return null;
         }
 
-        String bone = this.controller.getEditTarget().boneOrNull();
-
-        if (bone != null)
-        {
-            return new Subject(replay, entity, bone, true);
-        }
-
         String part = this.controller.panel.replayEditor.getActiveBodyPart();
 
-        return new Subject(replay, entity, part.isEmpty() ? null : part, false);
+        return new Subject(replay, entity, part.isEmpty() ? null : part);
     }
 
     @Override
@@ -166,7 +159,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
         return new Vector3f((float) target.x, (float) target.y, (float) target.z);
     }
 
-    /** A bone or a body part is turned around and zoomed into; the replay as a whole leaves that to the pivot. */
+    /** A body part is turned around and zoomed into; the replay as a whole leaves that to the pivot. */
     @Override
     protected Vector3f getTurnCenter(float transition)
     {
@@ -184,7 +177,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
         return center == null ? super.getOrbitCenter(transition) : new Vector3d(center);
     }
 
-    /** Where a picked bone is (where its gizmo sits), or the middle of a body part; null for the replay itself. */
+    /** The middle of the selected body part; null for the replay itself. */
     private Vector3f getSelectionCenter(Subject subject, float transition)
     {
         if (subject.path() == null)
@@ -192,16 +185,9 @@ public class OrbitFilmCameraController extends OrbitViewportController
             return null;
         }
 
-        if (!subject.bone())
-        {
-            Vector3d center = this.getPoseCenter(subject.entity(), subject.path(), transition);
+        Vector3d center = this.getPoseCenter(subject.entity(), subject.path(), transition);
 
-            return center == null ? null : new Vector3f((float) center.x, (float) center.y, (float) center.z);
-        }
-
-        Matrix4f matrix = this.getBoneFrame(subject, transition);
-
-        return matrix == null ? null : matrix.getTranslation(new Vector3f());
+        return center == null ? null : new Vector3f((float) center.x, (float) center.y, (float) center.z);
     }
 
     @Override
@@ -263,7 +249,7 @@ public class OrbitFilmCameraController extends OrbitViewportController
                 /* The selected replay isn't in the scene right now: stay with the last one. */
                 IEntity entity = this.resolveEntity(this.anchorReplay);
 
-                subject = entity == null ? null : new Subject(this.anchorReplay, entity, null, false);
+                subject = entity == null ? null : new Subject(this.anchorReplay, entity, null);
             }
         }
 
@@ -313,8 +299,8 @@ public class OrbitFilmCameraController extends OrbitViewportController
     }
 
     /**
-     * The frame the camera hangs off, scale taken out. A bone or a body part gives its own
-     * frame, where its gizmo is placed. The replay gives where it stands and which way it faces,
+     * The frame the camera hangs off, scale taken out. A body part gives its own frame, where
+     * its gizmo is placed. The replay gives where it stands and which way it faces,
      * its own transform folded in - so a form moved or turned by its transform (keyframed or
      * not) carries the camera along instead of sliding out from under it.
      */

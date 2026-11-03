@@ -2,6 +2,8 @@ package mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories;
 
 import mchorse.bbs_mod.cubic.ModelInstance;
 import mchorse.bbs_mod.data.types.MapType;
+import mchorse.bbs_mod.film.replays.tracks.TrackId;
+import mchorse.bbs_mod.film.replays.tracks.TrackKind;
 import mchorse.bbs_mod.forms.FormUtils;
 import mchorse.bbs_mod.forms.FormUtilsClient;
 import mchorse.bbs_mod.forms.renderers.MobFormRenderer;
@@ -226,6 +228,23 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
             apply(this.track, (pose) -> pose.flip(this.flippedParts));
             this.groups.list.setCurrent(current);
             this.pickBones(this.groups.list.getCurrent());
+        }
+
+        /** The bone within the form the pose track belongs to: {@code formPath/bone}, a root form's bones by name. */
+        @Override
+        public String bonePath(String bone)
+        {
+            String id = this.track.sheet.id;
+            TrackId path = TrackId.parse(id, TrackKind.BONE);
+
+            if (path != null)
+            {
+                return path.formPath().isEmpty() ? bone : path.formPath() + "/" + bone;
+            }
+
+            int i = id.lastIndexOf('/');
+
+            return i >= 0 ? id.substring(0, i + 1) + bone : bone;
         }
 
         @Override

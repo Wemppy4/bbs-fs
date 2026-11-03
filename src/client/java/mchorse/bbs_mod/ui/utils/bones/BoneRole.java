@@ -4,6 +4,7 @@ import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.utils.colors.Colors;
 
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
@@ -35,6 +36,9 @@ public final class BoneRole
 
     private static final int OFF_COLOR = Colors.GRAY;
 
+    /* Motion path marks, one per colour: the mark wears its path's colour, not a role's. */
+    private static final Map<Integer, BoneRole> MOTION_PATHS = new HashMap<>();
+
     public final int color;
     public final Shape shape;
     public final IKey label;
@@ -47,6 +51,12 @@ public final class BoneRole
         this.color = color;
         this.shape = shape;
         this.label = label;
+    }
+
+    /** A bone that has a motion path in the film: a full mark in the colour of its line. */
+    public static BoneRole motionPath(int color)
+    {
+        return MOTION_PATHS.computeIfAbsent(color, (c) -> new BoneRole(Colors.A100 | c, Shape.FULL, UIKeys.FILM_CONTROLLER_MOTION_PATH_TITLE));
     }
 
     /** The same mark for a setting that is switched off: gray, same shape. */
