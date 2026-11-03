@@ -60,6 +60,12 @@ public class BoneTracksMode
     /** A new pick whose row is still coming with the rebuild: open what it sits in once it is there. */
     private boolean revealPending;
 
+    /**
+     * The picked bone whose empty row the animator removed (form and bone, as {@link #lastPicked}).
+     * It stays picked in the panel but has no row until it gets a key or is picked again.
+     */
+    private String dismissed;
+
     public BoneTracksMode(BoneSelection selection)
     {
         this.selection = selection;
@@ -116,6 +122,15 @@ public class BoneTracksMode
             }
 
             boolean isPicked = track.formPath().equals(this.formPath) && track.subject().equals(picked);
+            String key = this.formPath + "|" + picked;
+
+            /* Keyed since its row was removed: it is a track again, like any other. */
+            if (isPicked && !sheet.channel.isEmpty() && key.equals(this.dismissed))
+            {
+                this.dismissed = null;
+            }
+
+            boolean shown = isPicked && !key.equals(this.dismissed);
 
             if (track.kind() == TrackKind.BONE)
             {
@@ -123,7 +138,7 @@ public class BoneTracksMode
                 sheet.alwaysOpen = true;
             }
 
-            return !(isPicked || !sheet.channel.isEmpty() || keep.test(sheet));
+            return !(shown || !sheet.channel.isEmpty() || keep.test(sheet));
         });
     }
 
@@ -231,6 +246,11 @@ public class BoneTracksMode
 
         this.lastPicked = key;
 
+        if (changed)
+        {
+            this.dismissed = null;
+        }
+
         for (Map.Entry<String, UIKeyframeSheet> entry : bones.entrySet())
         {
             entry.getValue().highlighted = entry.getKey().equals(primary);
@@ -267,6 +287,9 @@ public class BoneTracksMode
             return false;
         }
 
+        /* Picked again: a removed row comes back. */
+        this.dismissed = null;
+
         if (insert)
         {
             sheet.channel.preNotify();
@@ -300,12 +323,15 @@ public class BoneTracksMode
     }
 
     /**
-     * Offer to take a bone's track away: all its keys go in one step, and with them its row (the
-     * picked bone keeps its, empty). The pose under it shows through again.
+     * Offer to take a bone's track away: all its keys go in one step (the pose under it shows through
+     * again), and its row with them. An empty row — the picked bone's — goes too: the bone stays
+     * picked in the panel and gets its row back with a key or a new pick.
      */
     public void addRemoveAction(ContextMenuManager menu, UIKeyframeSheet sheet, Runnable refresh)
     {
-        if (sheet == null || !sheet.isBoneTrack || sheet.channel.isEmpty())
+        TrackId track = sheet == null || !sheet.isBoneTrack ? null : TrackId.parse(sheet.id, TrackKind.BONE);
+
+        if (track == null)
         {
             return;
         }
@@ -313,7 +339,16 @@ public class BoneTracksMode
         menu.action(Icons.REMOVE, L10n.lang("bbs.ui.film.replays.bones.remove_track"), () ->
         {
             sheet.selection.clear();
-            sheet.channel.removeAll();
+
+            if (!sheet.channel.isEmpty())
+            {
+                sheet.channel.removeAll();
+            }
+
+            if (track.formPath().equals(this.formPath) && track.subject().equals(this.selection.get()))
+            {
+                this.dismissed = this.formPath + "|" + track.subject();
+            }
 
             if (this.editor != null)
             {
