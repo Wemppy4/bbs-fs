@@ -52,6 +52,14 @@ public class BoneTracksMode
     private UIBoneTracksPanel panel;
     private boolean rowsChanged;
 
+    /**
+     * The last bone the panel turned to (with its form). The panel re-picks its bone on every refresh,
+     * so only a different one may open what its row sits in — the animator folds the rest.
+     */
+    private String lastPicked;
+    /** A new pick whose row is still coming with the rebuild: open what it sits in once it is there. */
+    private boolean revealPending;
+
     public BoneTracksMode(BoneSelection selection)
     {
         this.selection = selection;
@@ -134,11 +142,16 @@ public class BoneTracksMode
         };
         editor.panels(this::panel);
 
-        for (UIKeyframeSheet sheet : editor.view.getSheets())
+        if (this.revealPending)
         {
-            if (sheet.highlighted)
+            this.revealPending = false;
+
+            for (UIKeyframeSheet sheet : editor.view.getSheets())
             {
-                editor.view.getDopeSheet().unfoldTo(sheet);
+                if (sheet.highlighted)
+                {
+                    editor.view.getDopeSheet().unfoldTo(sheet);
+                }
             }
         }
     }
@@ -206,10 +219,17 @@ public class BoneTracksMode
         return new UIBoneTracksPanel(value, this.editor.view, this.formPath);
     }
 
-    /** The panel's list picked bones: light the first one's row, and give it one if it has none. */
+    /**
+     * The panel's list picked bones: light the first one's row. A bone it didn't have picked before
+     * is brought into view, getting a row if it has none.
+     */
     private void picked(Map<String, UIKeyframeSheet> bones, List<String> list)
     {
         String primary = list.isEmpty() ? null : list.get(0);
+        String key = this.formPath + "|" + primary;
+        boolean changed = !key.equals(this.lastPicked);
+
+        this.lastPicked = key;
 
         for (Map.Entry<String, UIKeyframeSheet> entry : bones.entrySet())
         {
@@ -218,9 +238,15 @@ public class BoneTracksMode
 
         UIKeyframeSheet sheet = primary == null ? null : bones.get(primary);
 
-        if (sheet != null && this.editor != null && !this.editor.view.getDopeSheet().unfoldTo(sheet))
+        if (!changed || sheet == null || this.editor == null)
+        {
+            return;
+        }
+
+        if (!this.editor.view.getDopeSheet().unfoldTo(sheet))
         {
             this.rowsChanged = true;
+            this.revealPending = true;
         }
     }
 
