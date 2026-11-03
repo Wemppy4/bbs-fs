@@ -56,7 +56,7 @@ import java.util.TreeSet;
 public class MotionPath
 {
     /** The colours paths are handed in turn; a new path takes the first one no path of the film has. */
-    public static final int[] PALETTE = {0x45c8ff, 0xff6fb1, 0x7ae37a, 0xffd34d, 0xb48cff, 0xff8a4d, 0x4dffd2, 0xff4d4d};
+    public static final int[] PALETTE = {0x00c8ff, 0xff3da6, 0x3dff5a, 0xffe600, 0xa45cff, 0xff7a1a, 0x1affd5, 0xff2e2e};
 
     private static final int KEY_COLOR = Colors.WHITE;
     private static final int CURRENT_COLOR = 0xff9e3d;
@@ -65,13 +65,6 @@ public class MotionPath
     public static final String ANCHOR = "anchor";
     private static final String BONE = "bone:";
     private static final String SPLINE = "spline:";
-
-    private static final float[] COLOR = new float[3];
-    private static final float[] PAST = new float[3];
-    private static final float[] FUTURE = new float[3];
-    private static final float[] COLOR_A = new float[3];
-    private static final float[] COLOR_B = new float[3];
-    private static final float[] SCRATCH = new float[3];
 
     private static final Vector3d POINT_A = new Vector3d();
     private static final Vector3d POINT_B = new Vector3d();
@@ -294,20 +287,14 @@ public class MotionPath
             }
         }
 
-        /* The path's own colour at the current frame, darker into the past, lighter into the future. */
-        unpack(color, COLOR);
-        mix(COLOR, 0F, 0.6F, PAST);
-        mix(COLOR, 1F, 0.75F, FUTURE);
-
         Matrix4f mvp = new Matrix4f(camera.projection).mul(camera.view);
         Vector3d eye = camera.position;
 
-        /* The interpolated curve: a line through every tick, the exact endpoints kept. */
+        /* The interpolated curve, in the path's own colour all along: a line through every tick,
+         * the exact endpoints kept. */
         trajectory.worldAt(first, POINT_A);
 
         Vector3f a = screen(overlay, mvp, eye, POINT_A);
-
-        gradient(first, currentTick, first, last, COLOR_A);
 
         for (float tick = first; tick < last; )
         {
@@ -317,19 +304,12 @@ public class MotionPath
 
             Vector3f b = screen(overlay, mvp, eye, POINT_B);
 
-            gradient(tick, currentTick, first, last, COLOR_B);
-
             if (a != null && b != null)
             {
-                SCRATCH[0] = (COLOR_A[0] + COLOR_B[0]) * 0.5F;
-                SCRATCH[1] = (COLOR_A[1] + COLOR_B[1]) * 0.5F;
-                SCRATCH[2] = (COLOR_A[2] + COLOR_B[2]) * 0.5F;
-
-                overlay.line(a, b, pack(SCRATCH));
+                overlay.line(a, b, Colors.A100 | color);
             }
 
             a = b;
-            System.arraycopy(COLOR_B, 0, COLOR_A, 0, 3);
         }
 
         /* A key, as the timeline draws one, on every keyframe inside the window. */
@@ -366,51 +346,6 @@ public class MotionPath
     private static Vector3f screen(ScreenOverlay overlay, Matrix4f mvp, Vector3d eye, Vector3d point)
     {
         return overlay.project(mvp, new Vector3f((float) (point.x - eye.x), (float) (point.y - eye.y), (float) (point.z - eye.z)));
-    }
-
-    /**
-     * The colour for a point at {@code tick}: the path's colour at the current frame, fading to
-     * its past shade fully in the past and its future shade fully in the future.
-     */
-    private static void gradient(float tick, float current, float first, float last, float[] out)
-    {
-        float factor;
-
-        if (tick <= current)
-        {
-            factor = current <= first ? 0F : -(current - tick) / (current - first);
-        }
-        else
-        {
-            factor = current >= last ? 0F : (tick - current) / (last - current);
-        }
-
-        float[] target = factor < 0F ? PAST : FUTURE;
-        float weight = Math.abs(factor);
-
-        out[0] = COLOR[0] + (target[0] - COLOR[0]) * weight;
-        out[1] = COLOR[1] + (target[1] - COLOR[1]) * weight;
-        out[2] = COLOR[2] + (target[2] - COLOR[2]) * weight;
-    }
-
-    /** {@code src} moved {@code weight} of the way towards a grey level (0 black, 1 white). */
-    private static void mix(float[] src, float level, float weight, float[] out)
-    {
-        out[0] = src[0] + (level - src[0]) * weight;
-        out[1] = src[1] + (level - src[1]) * weight;
-        out[2] = src[2] + (level - src[2]) * weight;
-    }
-
-    private static int pack(float[] color)
-    {
-        return Colors.A100 | ((int) (color[0] * 255) << 16) | ((int) (color[1] * 255) << 8) | (int) (color[2] * 255);
-    }
-
-    private static void unpack(int color, float[] out)
-    {
-        out[0] = Colors.getR(color);
-        out[1] = Colors.getG(color);
-        out[2] = Colors.getB(color);
     }
 
     /* Root trajectory: straight from the position channels (cheap). */
