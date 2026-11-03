@@ -131,6 +131,12 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
     public Map<TrackCategory, UIIcon> tabButtons = new HashMap<>();
     private TrackCategory category = TrackCategory.REPLAY;
 
+    /**
+     * The tab the animator chose, while a replay without it (a block has no bones) shows Form in
+     * its place. It comes back with the next replay that has it.
+     */
+    private TrackCategory stoodInFor;
+
     /* Keyframes */
     public UIKeyframeEditor keyframeEditor;
 
@@ -398,6 +404,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.setActionsMode(false);
         this.allMode = false;
         this.category = c;
+        this.stoodInFor = null;
         this.updateChannelsList();
     }
 
@@ -440,6 +447,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.revealedSearchTrack = null;
         this.setActionsMode(false);
         this.allMode = true;
+        this.stoodInFor = null;
         this.updateChannelsList();
     }
 
@@ -627,6 +635,14 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         /* Replay channels remain accessible alongside any selected part's own properties. */
         this.collectCuratedSheets(sheets);
         UIReplaysEditorUtils.buildSheets(catalog, sheets, this.replay.properties);
+
+        /* Form only stood in for a tab the last replay didn't have: try the chosen one again. */
+        if (this.stoodInFor != null && this.category == TrackCategory.FORM)
+        {
+            this.category = this.stoodInFor;
+        }
+
+        this.stoodInFor = null;
 
         for (TrackCategory category : TrackCategories.values())
         {
@@ -891,6 +907,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         {
             this.allMode = false;
             this.category = category;
+            this.stoodInFor = null;
         }
         this.updateChannelsList();
         if (this.keyframeEditor == null) return false;
@@ -982,6 +999,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         if (!has && this.category == category)
         {
+            this.stoodInFor = category;
             this.category = TrackCategory.FORM;
         }
     }

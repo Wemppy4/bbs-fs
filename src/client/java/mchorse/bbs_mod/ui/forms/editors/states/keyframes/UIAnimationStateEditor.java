@@ -184,6 +184,9 @@ public class UIAnimationStateEditor extends UIElement
     private AnimationState state;
     private TrackSearchEntry revealedSearchTrack;
     private final BoneTracksMode bonesMode;
+
+    /** The tab the animator chose, while parts without it show Form in its place (see the replays editor). */
+    private TrackCategory stoodInFor;
     private final Map<AnimationState, List<String>> recentTrackSearches = new java.util.IdentityHashMap<>();
     private Set<String> keys = new LinkedHashSet<>();
     private int poseOverlayCount;
@@ -285,6 +288,7 @@ public class UIAnimationStateEditor extends UIElement
         this.revealedSearchTrack = null;
         this.allMode = false;
         this.category = category;
+        this.stoodInFor = null;
         this.setState(this.state);
     }
 
@@ -306,6 +310,7 @@ public class UIAnimationStateEditor extends UIElement
     {
         this.revealedSearchTrack = null;
         this.allMode = true;
+        this.stoodInFor = null;
         this.setState(this.state);
     }
 
@@ -377,7 +382,19 @@ public class UIAnimationStateEditor extends UIElement
                 this.categoryBar.add(entry.getValue());
             }
         }
-        if (!this.visibleCategories.contains(this.category)) this.category = TrackCategory.FORM;
+        /* Form only stood in for a tab the last parts didn't have: try the chosen one again. */
+        if (this.stoodInFor != null && this.category == TrackCategory.FORM)
+        {
+            this.category = this.stoodInFor;
+        }
+
+        this.stoodInFor = null;
+
+        if (!this.visibleCategories.contains(this.category))
+        {
+            this.stoodInFor = this.category;
+            this.category = TrackCategory.FORM;
+        }
 
         UIReplaysEditorUtils.buildSheets(catalog, sheets, this.state.properties);
 
@@ -558,6 +575,7 @@ public class UIAnimationStateEditor extends UIElement
         {
             this.allMode = false;
             this.category = category;
+            this.stoodInFor = null;
         }
         this.setState(this.state);
         return this.keyframeEditor != null
