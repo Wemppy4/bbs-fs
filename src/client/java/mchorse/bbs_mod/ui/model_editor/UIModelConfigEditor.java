@@ -181,8 +181,7 @@ public class UIModelConfigEditor extends UIElement
     private SlotBlock firstPerson;
     private UITabStrip itemsTabs;
     private UITabStrip fpTabs;
-    private UIIcon dupeItem;
-    private UIIcon removeItem;
+    private UIEntryListEditor<ArmorSlotValue> itemsEditor;
     private UIModelBoneList bones;
     private UISearchList<String> bonesSearch;
     private UIWeldList weldList;
@@ -457,35 +456,11 @@ public class UIModelConfigEditor extends UIElement
         });
 
         this.items = new SlotBlock((slot) -> this.itemsKind(), null, () -> this.itemsList().getAllTyped());
-        this.items.list.context((menu) ->
-        {
-            ArmorSlotValue slot = this.items.list.getAtCursor(this.getContext());
+        this.itemsEditor = new UIEntryListEditor<>(this.items.list, this::addItem, this::duplicateItem, this::removeItem)
+            .labels(UIKeys.MODEL_EDITOR_ITEM_ADD, UIKeys.MODEL_EDITOR_ITEM_DUPLICATE, UIKeys.MODEL_EDITOR_ITEM_REMOVE)
+            .clear(this::clearItems);
 
-            if (slot != null)
-            {
-                this.items.list.setCurrent(slot);
-                this.items.fill();
-                menu.action(Icons.DUPE, UIKeys.MODEL_EDITOR_ITEM_DUPLICATE, () -> this.duplicateItem(slot));
-                menu.icon(MenuVerb.REMOVE, () -> this.removeItem(slot)).label(UIKeys.MODEL_EDITOR_ITEM_REMOVE);
-            }
-        });
-
-        UIIcon addItem = new UIIcon(Icons.ADD, (b) -> this.addItem());
-
-        addItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_ADD);
-        this.dupeItem = new UIIcon(Icons.DUPE, (b) -> this.duplicateItem(this.items.list.getCurrentFirst()));
-        this.dupeItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_DUPLICATE);
-        this.removeItem = new UIIcon(Icons.REMOVE, (b) -> this.removeItem(this.items.list.getCurrentFirst()));
-        this.removeItem.tooltip(UIKeys.MODEL_EDITOR_ITEM_REMOVE);
-        this.items.onFill = () ->
-        {
-            boolean picked = this.items.list.getCurrentFirst() != null;
-
-            this.dupeItem.setEnabled(picked);
-            this.removeItem.setEnabled(picked);
-        };
-
-        this.page(Tab.ITEMS).add(this.itemsTabs, UI.strip(addItem, this.dupeItem, this.removeItem), this.items.list, this.items.panel);
+        this.page(Tab.ITEMS).add(this.itemsTabs, this.itemsEditor.strip, this.items.list, this.items.panel);
 
         /* First person: the hand picked by the same tab strip as the items, its one slot under it. */
         this.fpTabs = this.handTabs(() -> this.firstPerson.fill());
@@ -848,9 +823,6 @@ public class UIModelConfigEditor extends UIElement
         /** The picked slot on the viewport gizmo; null with nothing picked. */
         public ModelSlotTarget target;
 
-        /** Runs after every fill, for whatever the host keeps in step with the pick (the items' verb strip). */
-        public Runnable onFill;
-
         private final Function<ArmorSlotValue, ModelSlotKind> kinds;
         private final Function<ArmorSlotValue, IKey> labels;
         private final Supplier<List<ArmorSlotValue>> source;
@@ -952,11 +924,6 @@ public class UIModelConfigEditor extends UIElement
                 transform
             );
             UIUtils.setEnabledDeep(this.panel, picked != null);
-
-            if (this.onFill != null)
-            {
-                this.onFill.run();
-            }
 
             UIModelConfigEditor.this.resizePage(UIModelConfigEditor.this.tabOf(this));
         }
@@ -1117,6 +1084,21 @@ public class UIModelConfigEditor extends UIElement
         BaseValue.edit(list, (v) ->
         {
             list.getAllTyped().remove(slot);
+            list.sync();
+        });
+
+        this.data.rebuild();
+        this.items.list.deselect();
+        this.fillItems();
+    }
+
+    private void clearItems()
+    {
+        ModelConfig.ItemSlotList list = this.itemsList();
+
+        BaseValue.edit(list, (v) ->
+        {
+            list.getAllTyped().clear();
             list.sync();
         });
 
