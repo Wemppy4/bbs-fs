@@ -11,6 +11,7 @@ import mchorse.bbs_mod.ui.forms.UINestedEdit;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
+import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryListEditor;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextarea;
 import mchorse.bbs_mod.ui.framework.elements.input.text.UITextbox;
 import mchorse.bbs_mod.ui.framework.elements.input.text.utils.TextLine;
@@ -18,7 +19,6 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlayPanel;
 import mchorse.bbs_mod.ui.utils.UIConstants;
 import mchorse.bbs_mod.ui.utils.UI;
-import mchorse.bbs_mod.ui.utils.context.MenuVerb;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.util.Identifier;
 
@@ -30,6 +30,7 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
     public static final int SIDE_WIDTH = 150;
 
     public UISelectorList selectors;
+    public UIEntryListEditor<EntitySelector> selectorsEditor;
 
     public UIScrollView column;
     public UIToggle enabled;
@@ -108,26 +109,9 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
 
         this.nbt.background().wrap().h(80);
 
-        this.selectors.context((menu) ->
-        {
-            menu.icon(MenuVerb.ADD, () ->
-            {
-                EntitySelector element = new EntitySelector();
-
-                this.selectors.add(element);
-                this.setSelector(element, true);
-                BBSModClient.getSelectors().update();
-            }).label(UIKeys.SELECTORS_CONTEXT_ADD);
-
-            menu.icon(MenuVerb.REMOVE, () ->
-            {
-                List<EntitySelector> list = this.selectors.getList();
-
-                list.remove(this.current);
-                this.setSelector(list.isEmpty() ? null : list.get(0), true);
-                BBSModClient.getSelectors().update();
-            }).label(UIKeys.SELECTORS_CONTEXT_REMOVE).enabled(this.current != null);
-        });
+        this.selectorsEditor = new UIEntryListEditor<>(this.selectors, this::addSelector, null, this::removeSelector)
+            .labels(UIKeys.SELECTORS_CONTEXT_ADD, UIKeys.GENERAL_DUPE, UIKeys.SELECTORS_CONTEXT_REMOVE)
+            .clear(this::clearSelectors);
 
         this.column = UI.scrollView(UIConstants.MARGIN, UIConstants.SCROLL_PADDING,
             this.enabled,
@@ -139,13 +123,41 @@ public class UISelectorsOverlayPanel extends UIOverlayPanel
         );
 
         /* Selectors on the left, the properties of the selected one on the right — same split as the settings panel */
-        this.selectors.relative(this.content).w(SIDE_WIDTH).h(1F);
+        this.selectorsEditor.strip.relative(this.content).w(SIDE_WIDTH);
+        this.selectors.relative(this.content).y(UIConstants.CONTROL_HEIGHT).w(SIDE_WIDTH).h(1F, -UIConstants.CONTROL_HEIGHT);
         this.column.relative(this.content).x(SIDE_WIDTH).w(1F, -SIDE_WIDTH).h(1F);
 
-        this.add(this.column, this.selectors);
+        this.add(this.column, this.selectorsEditor.strip, this.selectors);
         this.onClose((e) -> BBSModClient.getSelectors().save());
 
         this.setSelector(this.selectors.getList().isEmpty() ? null : this.selectors.getList().get(0), true);
+    }
+
+    private void addSelector()
+    {
+        EntitySelector element = new EntitySelector();
+
+        this.selectors.add(element);
+        this.setSelector(element, true);
+        BBSModClient.getSelectors().update();
+    }
+
+    /** The neighbour takes the pick: the selector that took its place, else the one before. */
+    private void removeSelector(EntitySelector selector)
+    {
+        List<EntitySelector> list = this.selectors.getList();
+        int index = list.indexOf(selector);
+
+        list.remove(selector);
+        this.setSelector(list.isEmpty() ? null : list.get(Math.min(index, list.size() - 1)), true);
+        BBSModClient.getSelectors().update();
+    }
+
+    private void clearSelectors()
+    {
+        this.selectors.getList().clear();
+        this.setSelector(null, true);
+        BBSModClient.getSelectors().update();
     }
 
     private void setSelector(EntitySelector selector, boolean select)
