@@ -1,6 +1,6 @@
 package mchorse.bbs_mod.ui.film.controller;
 
-import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.film.FilmTarget;
 import mchorse.bbs_mod.film.replays.MotionPathValue;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.settings.values.ui.ValueMotionPath;
@@ -11,6 +11,7 @@ import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.context.UIContextMenu;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
+import mchorse.bbs_mod.ui.framework.elements.input.keyframes.factories.UIAnchorKeyframeFactory;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIEntryListEditor;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIConstants;
@@ -19,8 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The preview's motion path button: the overlay on or off, the film's paths in the shared list
- * (add takes what's selected, like M), and the window around the current frame.
+ * The preview's motion path button: the overlay on or off, the selected replay's paths in the shared
+ * list (add picks a bone of the replay; M adds whatever is selected), and the window around the
+ * current frame.
  */
 public class UIMotionPathContextMenu extends UIContextMenu
 {
@@ -46,7 +48,7 @@ public class UIMotionPathContextMenu extends UIContextMenu
         this.paths = new UIMotionPathList((picked) -> {});
         this.paths.h(UIConstants.LIST_ITEM_HEIGHT * 5);
         this.paths.emptyState(UIKeys.FILM_CONTROLLER_MOTION_PATH_EMPTY);
-        this.pathsEditor = new UIEntryListEditor<>(this.paths, this::addSelected, null, this::removePath)
+        this.pathsEditor = new UIEntryListEditor<>(this.paths, this::pickBone, null, this::removePath)
             .clear(this::clearPaths);
 
         this.around = new UIToggle(UIKeys.FILM_CONTROLLER_MOTION_PATH_AROUND, this.motionPath.aroundCurrent.get(), (t) -> this.motionPath.aroundCurrent.set(t.getValue()));
@@ -67,54 +69,60 @@ public class UIMotionPathContextMenu extends UIContextMenu
         this.column.resize();
     }
 
-    private Film film()
+    private Replay replay()
     {
-        return this.panel.getData();
+        return this.panel.getController().getReplay();
     }
 
     private void fillPaths()
     {
         List<UIMotionPathList.Entry> entries = new ArrayList<>();
-        Film film = this.film();
+        Replay replay = this.replay();
 
-        if (film != null)
+        if (replay != null)
         {
-            for (Replay replay : film.replays.getList())
+            for (MotionPathValue path : replay.motionPaths.getAllTyped())
             {
-                for (MotionPathValue path : replay.motionPaths.getAllTyped())
-                {
-                    entries.add(new UIMotionPathList.Entry(replay, path));
-                }
+                entries.add(new UIMotionPathList.Entry(replay, path));
             }
         }
 
         this.paths.setList(entries);
+        this.pathsEditor.add.setEnabled(replay != null);
     }
 
-    /** What M adds: the selected replay's point the gizmo is on. */
-    private void addSelected()
+    /** The plus: one of the replay's bones from the bone picker, opened over this menu. */
+    private void pickBone()
     {
-        UIFilmController controller = this.panel.getController();
-        Replay replay = controller.getReplay();
-        String key = MotionPath.key(controller.getEditTarget());
+        Replay replay = this.replay();
 
-        if (this.film() == null || replay == null || key == null)
+        if (replay == null)
         {
             return;
         }
 
-        MotionPath.add(this.film(), replay, key);
-        this.motionPath.enabled.set(true);
-        this.enable.setValue(true);
-        this.fillPaths();
-        this.paths.setCurrent(this.find(replay, replay.motionPaths.find(key)));
+        UIAnchorKeyframeFactory.displayAttachments(this.panel, replay.getId(), "", (bone) ->
+        {
+            if (bone.isEmpty())
+            {
+                return;
+            }
+
+            String key = MotionPath.key(FilmTarget.bone(bone, null));
+
+            MotionPath.add(replay, key);
+            this.motionPath.enabled.set(true);
+            this.enable.setValue(true);
+            this.fillPaths();
+            this.paths.setCurrent(this.find(replay.motionPaths.find(key)));
+        });
     }
 
-    private UIMotionPathList.Entry find(Replay replay, MotionPathValue path)
+    private UIMotionPathList.Entry find(MotionPathValue path)
     {
         for (UIMotionPathList.Entry entry : this.paths.getList())
         {
-            if (entry.replay() == replay && entry.path() == path)
+            if (entry.path() == path)
             {
                 return entry;
             }
@@ -132,9 +140,9 @@ public class UIMotionPathContextMenu extends UIContextMenu
 
     private void clearPaths()
     {
-        if (this.film() != null)
+        if (this.replay() != null)
         {
-            MotionPath.clear(this.film());
+            MotionPath.clear(this.replay());
         }
 
         this.paths.deselect();

@@ -318,6 +318,7 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_MOTION_PATH_TITLE = L10n.lang("bbs.ui.film.controller.motion_path.title");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_AROUND = L10n.lang("bbs.ui.film.controller.motion_path.around");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_ANCHOR = L10n.lang("bbs.ui.film.controller.motion_path.anchor");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_ROOT = L10n.lang("bbs.ui.film.controller.motion_path.root");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_EMPTY = L10n.lang("bbs.ui.film.controller.motion_path.empty");
     public static final IKey MARKUP_IK_GOAL = L10n.lang("bbs.ui.markup.ik_goal");
     public static final IKey MARKUP_IK_POLE = L10n.lang("bbs.ui.markup.ik_pole");

@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The film's motion paths, every replay's together: a row reads {@code replay: bone} after a square
- * of the path's colour, so a row and its line on screen are matched at a glance.
+ * The selected replay's motion paths: a row names the bone after a square of the path's colour, so a
+ * row and its line on screen are matched at a glance.
  */
 public class UIMotionPathList extends UIEntryList<UIMotionPathList.Entry>
 {
@@ -31,9 +31,11 @@ public class UIMotionPathList extends UIEntryList<UIMotionPathList.Entry>
     private static String name(Entry entry)
     {
         String key = entry.path().target.get();
-        String part = key.equals(MotionPath.ANCHOR) ? UIKeys.FILM_CONTROLLER_MOTION_PATH_ANCHOR.get() : MotionPath.shortName(key);
 
-        return part.isEmpty() ? entry.replay().getName() : entry.replay().getName() + ": " + part;
+        if (key.equals(MotionPath.ROOT)) return UIKeys.FILM_CONTROLLER_MOTION_PATH_ROOT.get();
+        if (key.equals(MotionPath.ANCHOR)) return UIKeys.FILM_CONTROLLER_MOTION_PATH_ANCHOR.get();
+
+        return MotionPath.shortName(key);
     }
 
     /**

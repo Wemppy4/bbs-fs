@@ -38,10 +38,11 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * The film's motion paths drawn into the viewport — Blender's motion paths: each replay keeps a list
- * of the points the animator asked to follow ({@link Replay#motionPaths}: its root, its anchor, a
- * bone, a spline point), and every one of them is on screen in its own colour whatever is selected,
- * a sampled curve with a key per keyframe and a ring on the current frame.
+ * The selected replay's motion paths drawn into the viewport — Blender's motion paths: each replay
+ * keeps a list of the points the animator asked to follow ({@link Replay#motionPaths}: its root, its
+ * anchor, a bone, a spline point), and every one of them is on screen in its own colour whatever
+ * bone is selected, as long as the replay is: a sampled curve with a key per keyframe and a ring on
+ * the current frame.
  *
  * <p>The root path comes straight from the position channels. Bone, anchor and spline paths must be
  * simulated tick by tick, so they run on a scratch entity per replay (never the on-screen model): one
@@ -125,11 +126,11 @@ public class MotionPath
     }
 
     /** M: put the path of what's selected on screen, or take it off if it's there already. */
-    public static void toggle(Film film, Replay replay, FilmTarget target)
+    public static void toggle(Replay replay, FilmTarget target)
     {
         String key = key(target);
 
-        if (film == null || replay == null || key == null)
+        if (replay == null || key == null)
         {
             return;
         }
@@ -142,11 +143,11 @@ public class MotionPath
         }
         else
         {
-            add(film, replay, key);
+            add(replay, key);
         }
     }
 
-    public static void add(Film film, Replay replay, String key)
+    public static void add(Replay replay, String key)
     {
         if (replay.motionPaths.find(key) != null)
         {
@@ -156,7 +157,7 @@ public class MotionPath
         MotionPathValue path = new MotionPathValue("");
 
         path.target.set(key);
-        path.color.set(nextColor(film));
+        path.color.set(nextColor(replay));
 
         BaseValue.edit(replay.motionPaths, (v) ->
         {
@@ -174,33 +175,22 @@ public class MotionPath
         });
     }
 
-    public static void clear(Film film)
+    public static void clear(Replay replay)
     {
-        for (Replay replay : film.replays.getList())
+        BaseValue.edit(replay.motionPaths, (v) ->
         {
-            if (!replay.motionPaths.getAllTyped().isEmpty())
-            {
-                BaseValue.edit(replay.motionPaths, (v) ->
-                {
-                    replay.motionPaths.getAllTyped().clear();
-                    replay.motionPaths.sync();
-                });
-            }
-        }
+            replay.motionPaths.getAllTyped().clear();
+            replay.motionPaths.sync();
+        });
     }
 
-    private static int nextColor(Film film)
+    private static int nextColor(Replay replay)
     {
         Set<Integer> used = new HashSet<>();
-        int count = 0;
 
-        for (Replay replay : film.replays.getList())
+        for (MotionPathValue path : replay.motionPaths.getAllTyped())
         {
-            for (MotionPathValue path : replay.motionPaths.getAllTyped())
-            {
-                used.add(path.color.get());
-                count += 1;
-            }
+            used.add(path.color.get());
         }
 
         for (int color : PALETTE)
@@ -211,7 +201,7 @@ public class MotionPath
             }
         }
 
-        return PALETTE[count % PALETTE.length];
+        return PALETTE[used.size() % PALETTE.length];
     }
 
     /** Whether the path was asked for and couldn't be sampled (its bone is gone, the form has none). */
@@ -224,50 +214,56 @@ public class MotionPath
 
     /* Rendering */
 
-    public static void render(ScreenOverlay overlay, mchorse.bbs_mod.camera.Camera camera, ValueMotionPath config, UIFilmController controller, Film film, int tick)
+    public static void render(ScreenOverlay overlay, mchorse.bbs_mod.camera.Camera camera, ValueMotionPath config, UIFilmController controller, Film film, Replay replay, int tick)
     {
-        Set<String> sampled = new HashSet<>();
+        /* The other replays' samples stay cached, so going back to one doesn't simulate it again;
+         * a replay that's gone or has no paths left lets its cache go. */
+        Set<String> kept = new HashSet<>();
 
-        for (Replay replay : film.replays.getList())
+        for (Replay other : film.replays.getList())
         {
-            List<MotionPathValue> paths = replay.motionPaths.getAllTyped();
-
-            if (paths.isEmpty() || replay.relative.get())
+            if (!other.motionPaths.getAllTyped().isEmpty())
             {
-                continue;
-            }
-
-            float currentTick = replay.getTick(tick);
-            ReplayPaths cache = null;
-
-            for (MotionPathValue path : paths)
-            {
-                String key = path.target.get();
-                Trajectory trajectory;
-
-                if (key.equals(ROOT))
-                {
-                    trajectory = rootTrajectory(replay);
-                }
-                else
-                {
-                    if (cache == null)
-                    {
-                        cache = sampledPaths(controller, replay, paths);
-                        sampled.add(replay.getId());
-                    }
-
-                    trajectory = cache == null ? null : cache.paths.get(key);
-                }
-
-                if (trajectory != null)
-                {
-                    draw(overlay, camera, config, trajectory, currentTick, path.color.get());
-                }
+                kept.add(other.getId());
             }
         }
 
-        CACHE.keySet().retainAll(sampled);
+        CACHE.keySet().retainAll(kept);
+
+        List<MotionPathValue> paths = replay == null ? List.of() : replay.motionPaths.getAllTyped();
+
+        if (paths.isEmpty() || replay.relative.get())
+        {
+            return;
+        }
+
+        float currentTick = replay.getTick(tick);
+        ReplayPaths cache = null;
+
+        for (MotionPathValue path : paths)
+        {
+            String key = path.target.get();
+            Trajectory trajectory;
+
+            if (key.equals(ROOT))
+            {
+                trajectory = rootTrajectory(replay);
+            }
+            else
+            {
+                if (cache == null)
+                {
+                    cache = sampledPaths(controller, replay, paths);
+                }
+
+                trajectory = cache == null ? null : cache.paths.get(key);
+            }
+
+            if (trajectory != null)
+            {
+                draw(overlay, camera, config, trajectory, currentTick, path.color.get());
+            }
+        }
     }
 
     private static void draw(ScreenOverlay overlay, mchorse.bbs_mod.camera.Camera camera, ValueMotionPath config, Trajectory trajectory, float currentTick, int color)

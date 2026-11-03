@@ -141,7 +141,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }
 
         BBSProfiler.begin(BBSProfiler.Timer.MOTION_PATH);
-        MotionPath.render(this.markup, this.panel.getCamera(), motionPath, this, this.panel.getData(), this.getTick());
+        MotionPath.render(this.markup, this.panel.getCamera(), motionPath, this, this.panel.getData(), this.getReplay(), this.getTick());
         BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
     }
 
@@ -387,7 +387,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         }).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_TOGGLE_MOTION_PATH, () ->
         {
-            MotionPath.toggle(this.panel.getData(), this.getReplay(), this.getEditTarget());
+            MotionPath.toggle(this.getReplay(), this.getEditTarget());
             this.getMotionPath().enabled.set(true);
 
             UIUtils.playClick();
