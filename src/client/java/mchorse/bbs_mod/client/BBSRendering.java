@@ -310,7 +310,7 @@ public class BBSRendering
                  * blit our framebuffer to the full window or the preview would stretch to full screen. */
                 UIBaseMenu currentMenu = UIScreen.getCurrentMenu();
                 boolean filmPanelShowing = currentMenu instanceof UIDashboard dashboard
-                    && dashboard.getPanels().panel instanceof UIFilmPanel;
+                    && (dashboard.getPanels().panel instanceof UIFilmPanel || dashboard.getPanels().panel instanceof UISequencePanel);
                 if (!filmPanelShowing)
                 {
                     framebuffer.draw(drawW, drawH);

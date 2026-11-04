@@ -226,6 +226,19 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     }
 
     @Override
+    public void resize()
+    {
+        super.resize();
+
+        /* The preview only gets its size here, so the render follows it (as the film editor does
+         * once its dock has settled) */
+        if (this.isVisible() && this.getContext() != null)
+        {
+            this.preview.applySize();
+        }
+    }
+
+    @Override
     public boolean canPause()
     {
         return false;
