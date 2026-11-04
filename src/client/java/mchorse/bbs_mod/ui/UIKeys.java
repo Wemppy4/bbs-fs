@@ -485,6 +485,7 @@ public class UIKeys
     public static final IKey FILM_SCREENSHOT_DESCRIPTION = L10n.lang("bbs.ui.film.screenshot-description");
     public static final IKey FILM_SCREENSHOT_TITLE = L10n.lang("bbs.ui.film.screenshot-title");
     public static final IKey FILM_TELEPORT_CONTEXT_PLAYER = L10n.lang("bbs.ui.film.teleport.context.player");
+    public static final IKey FILM_TELEPORT_CONTEXT_SPECTATOR = L10n.lang("bbs.ui.film.teleport.context.spectator");
     public static final IKey FILM_TELEPORT_DESCRIPTION = L10n.lang("bbs.ui.film.teleport-description");
     public static final IKey FILM_TELEPORT_TITLE = L10n.lang("bbs.ui.film.teleport-title");
     public static final IKey FILM_TITLE = L10n.lang("bbs.ui.film.title");

@@ -109,6 +109,7 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCombo;
 import mchorse.bbs_mod.ui.utils.keys.KeybindSettings;
 import mchorse.bbs_mod.utils.clips.ClipFactory;
+import mchorse.bbs_mod.utils.CameraFollow;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.ScreenshotRecorder;
 import mchorse.bbs_mod.utils.VideoExportSettings;
@@ -395,6 +396,7 @@ public class BBSModClient implements ClientModInitializer
     public static void leaveWorld()
     {
         dashboard = null;
+        CameraFollow.reset();
         DashboardWarmup.reset();
         worldExportSession.stop();
         videos.delete();

@@ -143,6 +143,7 @@ public class UIFilmPreview extends UIWorldPreview
         this.teleport.context((menu) ->
         {
             menu.action(Icons.MOVE_TO, UIKeys.FILM_TELEPORT_CONTEXT_PLAYER, this.panel.playerToCamera, () -> this.panel.setPlayerToCamera(!this.panel.playerToCamera));
+            menu.action(Icons.VISIBLE, UIKeys.FILM_TELEPORT_CONTEXT_SPECTATOR, BBSSettings.editorPlayerFollowsSpectator.get(), () -> BBSSettings.editorPlayerFollowsSpectator.set(!BBSSettings.editorPlayerFollowsSpectator.get()));
             menu.action(Icons.COPY, UIKeys.CAMERA_PANELS_CONTEXT_COPY_POSITION, () ->
             {
                 Position current = new Position(this.panel.getCamera());

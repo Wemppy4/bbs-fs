@@ -34,6 +34,7 @@ import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icon;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.CameraFollow;
 import mchorse.bbs_mod.utils.Timer;
 import mchorse.bbs_mod.utils.WorldScope;
 import mchorse.bbs_mod.utils.clips.Clip;
@@ -297,12 +298,18 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
 
         BBSModClient.getCameraController().remove(this.runner);
         this.runner.shutdown();
+        CameraFollow.stop();
     }
 
     @Override
     public void resize()
     {
         super.resize();
+
+        if (this.dock != null)
+        {
+            this.dock.refreshVisibility();
+        }
 
         /* The preview only gets its size here, so the render follows it (as the film editor does
          * once its dock has settled) */
@@ -555,6 +562,9 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.runner.setWork(data == null ? null : data.clips);
         this.timeline.setClips(data == null ? null : data.clips);
         this.timeline.pickClip(null);
+
+        /* The docks show their panels only with a sequence open: re-read that gate now */
+        this.dock.setupFlex(true);
     }
 
     /* Undo */
@@ -651,6 +661,17 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     public void update()
     {
         super.update();
+
+        /* The same "player follows the camera" as in the film editor, so the world around the
+         * shot is loaded here too */
+        if (BBSSettings.editorPlayerFollowsCamera.get() && this.data != null && this.getContext() != null)
+        {
+            CameraFollow.follow(this.getCamera());
+        }
+        else
+        {
+            CameraFollow.stop();
+        }
 
         if (this.playing && this.player.isSolo())
         {
