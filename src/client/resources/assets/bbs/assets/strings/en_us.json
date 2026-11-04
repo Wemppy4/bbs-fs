@@ -1317,6 +1317,7 @@
 	"bbs.ui.sequence.clip.open_film": "Open film",
 	"bbs.ui.sequence.clip.world": "World: %s",
 	"bbs.ui.sequence.clip.other_world": "The film is in another world: it plays as its recorded piece, and opens only from its world",
+	"bbs.ui.sequence.not_recorded": "Film \"%s\" of world \"%s\" isn't recorded yet",
 	"bbs.ui.film.video_recording": "Recording %s, press %s to stop...",
 	"bbs.ui.forms.categories.add_category-description": "Type in the name for the form category:",
 	"bbs.ui.forms.categories.add_category-title": "Add category",

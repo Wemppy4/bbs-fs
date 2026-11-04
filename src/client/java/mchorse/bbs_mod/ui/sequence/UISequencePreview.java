@@ -4,7 +4,11 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.film.sequence.Sequence;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.UIWorldPreview;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
+import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.utils.colors.Colors;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.VideoExportSettings;
 
@@ -51,5 +55,24 @@ public class UISequencePreview extends UIWorldPreview
     protected boolean isFramingExport()
     {
         return true;
+    }
+
+    /**
+     * Over a frame with no film to show, what is missing there.
+     */
+    @Override
+    protected void renderFrame(UIContext context, Area area)
+    {
+        super.renderFrame(context, area);
+
+        String placeholder = this.panel.getPlaceholder();
+
+        if (placeholder != null)
+        {
+            FontRenderer font = context.batcher.getFont();
+            String text = font.limitToWidth(placeholder, area.w - 20);
+
+            context.batcher.textCard(text, area.mx() - font.getWidth(text) / 2F, area.my() - font.getHeight() / 2F, Colors.WHITE, Colors.A50);
+        }
     }
 }

@@ -69,6 +69,7 @@ import mchorse.bbs_mod.film.Films;
 import mchorse.bbs_mod.film.Recorder;
 import mchorse.bbs_mod.film.WorldVideoExportSession;
 import mchorse.bbs_mod.film.sequence.FilmClip;
+import mchorse.bbs_mod.film.sequence.SequenceParts;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.FormCategories;
 import mchorse.bbs_mod.forms.categories.UserFormCategory;
@@ -89,6 +90,7 @@ import mchorse.bbs_mod.network.ServerNetwork;
 import mchorse.bbs_mod.particles.ParticleManager;
 import mchorse.bbs_mod.resources.AssetProvider;
 import mchorse.bbs_mod.resources.Link;
+import mchorse.bbs_mod.resources.packs.ExternalAssetsSourcePack;
 import mchorse.bbs_mod.resources.packs.URLError;
 import mchorse.bbs_mod.resources.packs.URLRepository;
 import mchorse.bbs_mod.resources.packs.URLSourcePack;
@@ -615,6 +617,7 @@ public class BBSModClient implements ClientModInitializer
 
         provider.register(new URLSourcePack("http", repository));
         provider.register(new URLSourcePack("https", repository));
+        provider.register(new ExternalAssetsSourcePack(SequenceParts.SOURCE, SequenceParts.getFolder()).providesFiles());
 
         PlayerSkins.init(new File(parentFile, "skin_cache"));
 

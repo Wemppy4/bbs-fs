@@ -3,7 +3,6 @@ package mchorse.bbs_mod.ui.sequence;
 import mchorse.bbs_mod.BBSModClient;
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
-import mchorse.bbs_mod.camera.controller.CameraWorkCameraController;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
@@ -34,7 +33,14 @@ import mchorse.bbs_mod.utils.WorldScope;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.undo.IUndo;
 import mchorse.bbs_mod.utils.undo.UndoManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.VertexSorter;
+import mchorse.bbs_mod.utils.colors.Colors;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -62,6 +68,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     private final Camera camera = new Camera();
     private final SequenceCameraController runner = new SequenceCameraController(this);
     private final SequenceFilms filmCache = new SequenceFilms();
+    private final SequencePlayer player = new SequencePlayer(this);
 
     private int cursor;
     private boolean playing;
@@ -147,6 +154,11 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         return this.filmCache;
     }
 
+    public SequencePlayer getPlayer()
+    {
+        return this.player;
+    }
+
     /* Being on screen */
 
     private void enterEditing()
@@ -172,12 +184,13 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     private void leaveEditing()
     {
         this.setPlaying(false);
+        this.player.stop();
 
         BBSRendering.setCustomSize(false);
         MorphRenderer.hidePlayer = false;
 
         BBSModClient.getCameraController().remove(this.runner);
-        this.runner.getContext().shutdown();
+        this.runner.shutdown();
     }
 
     @Override
@@ -369,7 +382,8 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
             this.cursor = 0;
         }
 
-        this.runner.getContext().shutdown();
+        this.player.stop();
+        this.runner.shutdown();
         this.runner.setWork(data == null ? null : data.clips);
         this.timeline.setClips(data == null ? null : data.clips);
         this.timeline.pickClip(null);
@@ -482,7 +496,26 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
             }
         }
 
+        this.player.update();
         this.checkUndo();
+    }
+
+    @Override
+    public void startRenderFrame(float tickDelta)
+    {
+        super.startRenderFrame(tickDelta);
+
+        this.player.startRenderFrame(tickDelta);
+    }
+
+    @Override
+    public void renderInWorld(WorldRenderContext context)
+    {
+        super.renderInWorld(context);
+
+        RenderSystem.enableDepthTest();
+        this.player.render(context);
+        RenderSystem.disableDepthTest();
     }
 
     /**
@@ -491,7 +524,78 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
      */
     public void renderFrameOverlays(MatrixStack stack, Batcher2D batcher)
     {
-        FrameOverlays.render(stack, batcher, this.runner.getContext());
+        if (this.data == null)
+        {
+            return;
+        }
+
+        if (this.player.isLive())
+        {
+            FrameOverlays.render(stack, batcher, this.runner.getFilmContext());
+
+            /* The film clip's fades take the film to black */
+            FilmClip clip = this.player.getClip();
+
+            if (!this.player.isSolo())
+            {
+                float factor = clip.envelope.factorEnabled(clip.duration.get(), this.getCursor(MinecraftClient.getInstance().getTickDelta()) - clip.tick.get());
+
+                if (factor < 1F)
+                {
+                    fillFrame(batcher, Colors.setA(0, 1F - factor));
+                }
+            }
+        }
+        else
+        {
+            /* Nothing of the world belongs in the frame: a film shown as its piece, or none */
+            fillFrame(batcher, Colors.A100);
+        }
+
+        if (!this.player.isSolo())
+        {
+            FrameOverlays.render(stack, batcher, this.runner.getContext());
+        }
+    }
+
+    /**
+     * Cover the whole rendered frame with the colour.
+     */
+    private static void fillFrame(Batcher2D batcher, int color)
+    {
+        Matrix4f projection = new Matrix4f(RenderSystem.getProjectionMatrix());
+
+        RenderSystem.setProjectionMatrix(new Matrix4f().ortho(0, 1, 1, 0, -100, 100), VertexSorter.BY_Z);
+        RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+
+        batcher.box(0, 0, 1, 1, color);
+        batcher.flush();
+
+        RenderSystem.setProjectionMatrix(projection, VertexSorter.BY_Z);
+        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+    }
+
+    /**
+     * What the preview says over a frame that has no film to show: the film under the cursor
+     * is of another world and has no piece yet. Null when there is nothing to say.
+     */
+    public String getPlaceholder()
+    {
+        if (this.data == null || this.player.isLive() || this.player.isSolo())
+        {
+            return null;
+        }
+
+        FilmClip clip = this.data.getFilmClipAt(this.cursor);
+
+        if (clip == null || clip.film.get().isEmpty() || clip.getPartLink() != null || this.player.canPlayLive(clip))
+        {
+            return null;
+        }
+
+        return UIKeys.SEQUENCE_NOT_RECORDED.format(UIFilmClipRenderer.getFilmName(clip), clip.world.get()).get();
     }
 
     /* IUIClipsOwner */
@@ -509,7 +613,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     }
 
     @Override
-    public CameraWorkCameraController getRunner()
+    public SequenceCameraController getRunner()
     {
         return this.runner;
     }

@@ -1,10 +1,12 @@
 package mchorse.bbs_mod.film.sequence;
 
+import mchorse.bbs_mod.BBSMod;
 import mchorse.bbs_mod.camera.clips.CameraClip;
 import mchorse.bbs_mod.camera.data.Position;
 import mchorse.bbs_mod.data.DataStorageUtils;
 import mchorse.bbs_mod.data.types.MapType;
 import mchorse.bbs_mod.film.Film;
+import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.settings.values.core.ValueString;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
 import mchorse.bbs_mod.settings.values.numeric.ValueInt;
@@ -35,7 +37,7 @@ public class FilmClip extends CameraClip
     public final ValueInt offset = new ValueInt("offset", 0, 0, Integer.MAX_VALUE);
     public final ValueBoolean filmAudio = new ValueBoolean("film_audio", true);
 
-    /** The recorded piece of video (absolute path), empty while there is none */
+    /** The recorded piece of video (a link, see {@link SequenceParts}), empty while there is none */
     public final ValueString part = new ValueString("part", "");
     /** The film's fingerprint when the piece was recorded */
     public final ValueString partFilm = new ValueString("part_film", "");
@@ -71,11 +73,18 @@ public class FilmClip extends CameraClip
         return sequenceTick - this.tick.get() + this.offset.get();
     }
 
+    public Link getPartLink()
+    {
+        String link = this.part.get();
+
+        return link.isEmpty() ? null : Link.create(link);
+    }
+
     public File getPartFile()
     {
-        String path = this.part.get();
+        Link link = this.getPartLink();
 
-        return path.isEmpty() ? null : new File(path);
+        return link == null ? null : BBSMod.getProvider().getFile(link);
     }
 
     public boolean hasPart()
@@ -100,9 +109,9 @@ public class FilmClip extends CameraClip
         return filmFingerprint == null || this.partFilm.get().equals(filmFingerprint);
     }
 
-    public void setRecorded(File file, String filmFingerprint, String pictureStamp)
+    public void setRecorded(Link link, String filmFingerprint, String pictureStamp)
     {
-        this.part.set(file.getAbsolutePath());
+        this.part.set(link.toString());
         this.partFilm.set(filmFingerprint);
         this.partPicture.set(pictureStamp);
     }
