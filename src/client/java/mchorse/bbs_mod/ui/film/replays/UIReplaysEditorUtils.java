@@ -712,11 +712,11 @@ public class UIReplaysEditorUtils
         UIBoneTracksPanel bones = editor.editor instanceof UIBoneTracksPanel panel ? panel : null;
 
         /* The Bones tab's panel stands on a pose track nobody reads: what it edits is the picked
-         * bone's own track, always at the cursor, so that is the track to probe. */
+         * bone's own track — its selected keys, or at the cursor with none — so that is the track to probe. */
         if (bones != null)
         {
             sheet = bones.getBoneSheet(bones.getBone());
-            cursor = true;
+            cursor = !bones.editsSelection();
         }
 
         if (sheet == null) return sampler;

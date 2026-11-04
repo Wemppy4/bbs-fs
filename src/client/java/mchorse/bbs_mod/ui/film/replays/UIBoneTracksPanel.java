@@ -34,9 +34,6 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
     /** The bone was picked by clicking its key on the timeline: whatever the animator selected there stays. */
     public boolean pickedOnTimeline;
 
-    /** The key this panel selected on its own (the picked bone's key at the cursor), the one it may replace. */
-    private Keyframe autoPicked;
-
     public UIBoneTracksPanel(BoneTracksValue track, UIKeyframes editor, String formPath)
     {
         super(track, editor);
@@ -87,6 +84,12 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
     public PoseTransform getBoneValue(String bone)
     {
         return this.bones.getBone(bone);
+    }
+
+    /** Whether edits go into the selected bone keys rather than at the cursor. */
+    public boolean editsSelection()
+    {
+        return this.bones.editsSelection();
     }
 
     public UIKeyframeSheet getBoneSheet(String bone)
@@ -147,7 +150,7 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
 
         /* Only the key this panel picked itself is its to replace. Whatever the animator picked —
          * a key clicked away from the cursor, a summary column, a box — stays picked. */
-        boolean ours = selected == null || (count == 1 && selected == this.autoPicked);
+        boolean ours = selected == null || (count == 1 && selected == this.bones.autoPicked);
 
         if (!force && !ours)
         {
@@ -166,7 +169,7 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
                 graph.pickKeyframe(key);
             }
 
-            this.autoPicked = key;
+            this.bones.autoPicked = key;
         }
         else
         {
@@ -175,7 +178,7 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
                 graph.clearSelection();
             }
 
-            this.autoPicked = null;
+            this.bones.autoPicked = null;
         }
     }
 }
