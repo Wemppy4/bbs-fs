@@ -24,11 +24,10 @@ import mchorse.bbs_mod.ui.film.FrameOverlays;
 import mchorse.bbs_mod.ui.film.IUIClipsOwner;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
-import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UIUndoKeys;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -64,8 +63,6 @@ import java.util.Set;
 public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements IUIClipsOwner
 {
     public UIDockLayout dock;
-    public UIElement left;
-    public UISearchList<String> films;
     public UISequencePreview preview;
     public UIClipsPanel timeline;
     public UIElement clipArea;
@@ -94,31 +91,6 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     {
         super(dashboard);
 
-        this.left = new UIElement();
-
-        this.films = new UISearchList<>(new UIStringList(null)
-        {
-            @Override
-            protected boolean onOpen(String item)
-            {
-                UISequencePanel.this.addFilmClip(item);
-
-                return true;
-            }
-        });
-        this.films.label(UIKeys.GENERAL_SEARCH).full(this.left).x(4).y(4).w(1F, -8).h(1F, -8);
-        this.films.list.tooltip(UIKeys.SEQUENCE_FILMS_ADD_TOOLTIP);
-        this.films.list.context((menu) ->
-        {
-            String film = this.films.list.getCurrentFirst();
-
-            if (film != null)
-            {
-                menu.action(Icons.ADD, UIKeys.SEQUENCE_FILMS_ADD, () -> this.addFilmClip(film));
-            }
-        });
-        this.left.add(this.films);
-
         this.preview = new UISequencePreview(this);
         this.clipArea = new UIElement();
         this.timeline = new UIClipsPanel(this, BBSModClient.getSequenceClipPalette()).target(this.clipArea);
@@ -137,7 +109,6 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
                     this.preview.applySize();
                 }
             });
-        this.dock.addPanel("films", this.left, Icons.LIST, UIKeys.SEQUENCE_PICK_FILM);
         this.dock.addPanel("preview", this.preview, Icons.VIDEO_CAMERA, UIKeys.FILM_PANELS_PREVIEW);
         this.dock.addPanel("timeline", this.timeline, Icons.FILM, UIKeys.FILM_PANELS_MAIN);
         this.dock.addPanel("clip", this.clipArea, Icons.PROPERTIES, UIKeys.FILM_PANELS_EDIT_AREA);
@@ -236,7 +207,10 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
             @Override
             public EditorLayoutNode getRoot()
             {
-                return layout.getLayout(ValueEditorLayout.SEQUENCE, EditorLayoutNode::defaultSequenceLayout);
+                EditorLayoutNode root = layout.getLayout(ValueEditorLayout.SEQUENCE, EditorLayoutNode::defaultSequenceLayout);
+
+                /* The films list panel is gone: a layout saved with it gives way to the default */
+                return EditorLayoutNode.containsPanel(root, "films") ? EditorLayoutNode.defaultSequenceLayout() : root;
             }
 
             @Override
@@ -278,7 +252,6 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         /* A film may have been edited since this editor was last looked at */
         this.filmCache.clear();
         this.refreshRecorded();
-        this.requestFilms();
 
         BBSRendering.setCustomSize(true);
         MorphRenderer.hidePlayer = true;
@@ -331,68 +304,6 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         return false;
     }
 
-    /* The films of this world */
-
-    private void requestFilms()
-    {
-        ContentType.FILMS.getRepository().requestKeys((keys) ->
-        {
-            List<String> films = new ArrayList<>();
-
-            for (String key : keys)
-            {
-                if (!key.endsWith("/"))
-                {
-                    films.add(key);
-                }
-            }
-
-            this.films.list.clear();
-            this.films.list.add(films);
-            this.films.list.sort();
-            this.films.filter(this.films.search.getText(), true);
-        });
-    }
-
-    /**
-     * Put a film of this world at the end of the sequence's films, as long as the film runs.
-     */
-    public void addFilmClip(String id)
-    {
-        if (this.data == null || id == null || id.isEmpty())
-        {
-            return;
-        }
-
-        this.filmCache.request(id, (film) ->
-        {
-            if (film == null || this.data == null)
-            {
-                return;
-            }
-
-            FilmClip clip = new FilmClip();
-            int end = 0;
-
-            for (FilmClip other : this.data.getFilmClips())
-            {
-                if (other.layer.get() == 0)
-                {
-                    end = Math.max(end, other.tick.get() + other.duration.get());
-                }
-            }
-
-            clip.film.set(id);
-            clip.world.set(WorldScope.current());
-            clip.tick.set(end);
-            clip.duration.set(SequenceFilms.getDuration(film));
-
-            this.data.clips.addClip(clip);
-            this.timeline.clips.setSelected(clip);
-            this.timeline.pickClip(clip);
-            this.setCursor(end);
-        });
-    }
 
     /**
      * Open the clip's film in the film editor.
@@ -503,7 +414,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
             this.refreshRecorded();
             this.preview.applySize();
         });
-        UIOverlay.addOverlay(this.getContext(), panel, 260, 0.8F);
+        UIOverlay.addOverlay(this.getContext(), panel, 260, 270);
     }
 
     /* Data */
@@ -702,6 +613,32 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.player.startRenderFrame(tickDelta);
     }
 
+    /**
+     * Painted like the film editor: the base surface under everything, a dark backing behind the
+     * preview, and the lighter input fields, so fields stand out from the panels they are on.
+     */
+    @Override
+    public void render(UIContext context)
+    {
+        this.area.render(context.batcher, BBSSettings.baseSurface());
+
+        if (this.editor.isVisible() && !this.isEmpty())
+        {
+            this.preview.area.render(context.batcher, Colors.A75);
+        }
+
+        BBSSettings.lightInputs = true;
+
+        try
+        {
+            super.render(context);
+        }
+        finally
+        {
+            BBSSettings.lightInputs = false;
+        }
+    }
+
     @Override
     public void renderInWorld(WorldRenderContext context)
     {
@@ -775,6 +712,14 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
      * What the preview says over a frame that has no film to show: the film under the cursor
      * is of another world and has no piece yet. Null when there is nothing to say.
      */
+    /**
+     * Whether the open sequence has no clips at all: the preview then shows nothing but a hint.
+     */
+    public boolean isEmpty()
+    {
+        return this.data != null && this.data.clips.get().isEmpty();
+    }
+
     public String getPlaceholder()
     {
         if (this.data == null || this.player.isLive() || this.player.isSolo())

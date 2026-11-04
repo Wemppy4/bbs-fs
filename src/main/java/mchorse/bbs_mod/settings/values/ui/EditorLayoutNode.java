@@ -178,26 +178,21 @@ public abstract class EditorLayoutNode
     }
 
     /**
-     * Default sequence layout: the films of the world on the left, the clip's properties on the
-     * right, the preview over the timeline between them.
+     * Default sequence layout: the preview with the clip's properties beside it on top, the
+     * timeline over the whole width under them.
      */
     public static EditorLayoutNode defaultSequenceLayout()
     {
         return new SplitterNode(
-            false,
-            0.16F,
-            new PanelNode("films"),
+            true,
+            0.6F,
             new SplitterNode(
                 false,
-                0.78F,
-                new SplitterNode(
-                    true,
-                    0.6F,
-                    new PanelNode("preview"),
-                    new PanelNode("timeline")
-                ),
+                0.75F,
+                new PanelNode("preview"),
                 new PanelNode("clip")
-            )
+            ),
+            new PanelNode("timeline")
         );
     }
 
@@ -640,7 +635,7 @@ public abstract class EditorLayoutNode
         return node;
     }
 
-    private static boolean containsPanel(EditorLayoutNode node, String panelId)
+    public static boolean containsPanel(EditorLayoutNode node, String panelId)
     {
         if (node == null)
         {

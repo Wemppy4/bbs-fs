@@ -128,6 +128,17 @@ public class UISequencePreview extends UIWorldPreview
     @Override
     protected void renderFrame(UIContext context, Area area)
     {
+        /* An empty sequence has nothing to show: no frame at all, just how to start */
+        if (this.panel.isEmpty())
+        {
+            FontRenderer font = context.batcher.getFont();
+            String text = font.limitToWidth(UIKeys.SEQUENCE_EMPTY.get(), this.area.w - 20);
+
+            context.batcher.textShadow(text, this.area.mx() - font.getWidth(text) / 2F, this.area.my() - font.getHeight() / 2F, Colors.setA(Colors.WHITE, 0.6F));
+
+            return;
+        }
+
         super.renderFrame(context, area);
 
         if (!this.panel.recorder.isActive())
