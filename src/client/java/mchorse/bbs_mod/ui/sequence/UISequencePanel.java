@@ -64,6 +64,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     public UISequencePreview preview;
     public UIClipsPanel timeline;
     public UIElement clipArea;
+    public UISequenceRecorder recorder;
 
     private final Camera camera = new Camera();
     private final SequenceCameraController runner = new SequenceCameraController(this);
@@ -125,6 +126,26 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
 
         this.editor.add(this.left, this.preview, this.timeline, this.clipArea);
 
+        this.recorder = new UISequenceRecorder(this);
+
+        this.timeline.clips.context((menu) ->
+        {
+            List<FilmClip> films = new ArrayList<>();
+
+            for (Clip clip : this.timeline.clips.getClipsFromSelection())
+            {
+                if (clip instanceof FilmClip film && film.isInCurrentWorld() && !film.film.get().isEmpty())
+                {
+                    films.add(film);
+                }
+            }
+
+            if (!films.isEmpty())
+            {
+                menu.action(Icons.REFRESH, UIKeys.SEQUENCE_RERECORD, () -> this.recorder.recordParts(films));
+            }
+        });
+
         this.overlay.namesList.setFileIcon(Icons.GALLERY);
 
         IKey editor = UIKeys.CAMERA_EDITOR_KEYS_EDITOR_TITLE;
@@ -183,6 +204,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
 
     private void leaveEditing()
     {
+        this.recorder.cancel();
         this.setPlaying(false);
         this.player.stop();
 
@@ -484,7 +506,12 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     {
         super.update();
 
-        if (this.playing && this.data != null)
+        if (this.playing && this.player.isSolo())
+        {
+            /* A film recorded by itself runs on its own time, not on the sequence's */
+            this.player.setSoloTick(this.player.getSoloTick() + 1);
+        }
+        else if (this.playing && this.data != null)
         {
             if (this.cursor + 1 >= this.data.calculateDuration())
             {

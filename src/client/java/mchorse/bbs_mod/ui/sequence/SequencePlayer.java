@@ -91,6 +91,11 @@ public class SequencePlayer
         this.sync();
     }
 
+    public int getSoloTick()
+    {
+        return this.soloTick;
+    }
+
     public void setSoloTick(int tick)
     {
         this.soloTick = tick;

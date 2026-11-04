@@ -1382,6 +1382,15 @@ public class UIKeys
     public static final IKey SEQUENCE_CLIP_WORLD = L10n.lang("bbs.ui.sequence.clip.world");
     public static final IKey SEQUENCE_CLIP_OTHER_WORLD = L10n.lang("bbs.ui.sequence.clip.other_world");
     public static final IKey SEQUENCE_NOT_RECORDED = L10n.lang("bbs.ui.sequence.not_recorded");
+    public static final IKey SEQUENCE_RECORD = L10n.lang("bbs.ui.sequence.record");
+    public static final IKey SEQUENCE_RERECORD = L10n.lang("bbs.ui.sequence.rerecord");
+    public static final IKey SEQUENCE_OPEN_PARTS = L10n.lang("bbs.ui.sequence.open_parts");
+    public static final IKey SEQUENCE_RECORD_PART = L10n.lang("bbs.ui.sequence.record.part");
+    public static final IKey SEQUENCE_RECORD_WHOLE = L10n.lang("bbs.ui.sequence.record.whole");
+    public static final IKey SEQUENCE_RECORD_NO_FILM = L10n.lang("bbs.ui.sequence.record.no_film");
+    public static final IKey SEQUENCE_RECORD_MISSING = L10n.lang("bbs.ui.sequence.record.missing");
+    public static final IKey SEQUENCE_RECORD_DONE = L10n.lang("bbs.ui.sequence.record.done");
+    public static final IKey SEQUENCE_RECORD_CANCELLED = L10n.lang("bbs.ui.sequence.record.cancelled");
     public static final IKey SHAPE_KEYS_CONTEXT_COPY = L10n.lang("bbs.ui.shape_keys.context.copy");
     public static final IKey SHAPE_KEYS_CONTEXT_NAME = L10n.lang("bbs.ui.shape_keys.context.name");
     public static final IKey SHAPE_KEYS_CONTEXT_PASTE = L10n.lang("bbs.ui.shape_keys.context.paste");
