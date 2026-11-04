@@ -15,7 +15,4 @@ public interface IPosedForm
     public ValuePose getPose();
 
     public ValuePose getPoseOverlay();
-
-    /** Whether the timeline should offer this form's bones as tracks of their own. */
-    public boolean hasBoneTracks();
 }

@@ -29,6 +29,7 @@ import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
 import mchorse.bbs_mod.api.client.editor.TrackCategory;
 import mchorse.bbs_mod.film.replays.tracks.TrackId;
 import mchorse.bbs_mod.api.client.editor.TrackCategories;
+import mchorse.bbs_mod.ui.film.replays.BoneTracksMode;
 import mchorse.bbs_mod.ui.film.replays.CategoryFold;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditorUtils;
 import mchorse.bbs_mod.ui.film.replays.overlays.UIAnimationToPoseOverlayPanel;
@@ -182,11 +183,17 @@ public class UIAnimationStateEditor extends UIElement
 
     private AnimationState state;
     private TrackSearchEntry revealedSearchTrack;
+    private final BoneTracksMode bonesMode;
+
+    /** The tab the animator chose, while parts without it show Form in its place (see the replays editor). */
+    private TrackCategory stoodInFor;
     private final Map<AnimationState, List<String>> recentTrackSearches = new java.util.IdentityHashMap<>();
     private Set<String> keys = new LinkedHashSet<>();
     private int poseOverlayCount;
     private int transformOverlayCount;
     private int shapeKeyOverlayCount;
+    /** How many of the form's parts had a skeleton when the timeline was built (see {@link UIReplaysEditorUtils#countSkeletons}). */
+    private int skeletons;
 
     /** Track rows the user has unfolded right now; handed to the dope sheet, which folds them in place. */
     private final FoldState<String> expandedTabs = new FoldState<>();
@@ -194,6 +201,7 @@ public class UIAnimationStateEditor extends UIElement
     public UIAnimationStateEditor(UIFormEditor editor)
     {
         this.editor = editor;
+        this.bonesMode = new BoneTracksMode(editor.getBoneSelection());
         this.setUndoId("form_animation_state_editor");
         this.bodyParts = new UIForms(this::selectParts).timelineSelection();
         this.sidebar.relative(this).x(BBSSettings.editorLayoutSettings.getStateEditorSizeH()).wTo(this.area, 1F).h(1F);
@@ -282,6 +290,7 @@ public class UIAnimationStateEditor extends UIElement
         this.revealedSearchTrack = null;
         this.allMode = false;
         this.category = category;
+        this.stoodInFor = null;
         this.setState(this.state);
     }
 
@@ -303,6 +312,7 @@ public class UIAnimationStateEditor extends UIElement
     {
         this.revealedSearchTrack = null;
         this.allMode = true;
+        this.stoodInFor = null;
         this.setState(this.state);
     }
 
@@ -354,6 +364,8 @@ public class UIAnimationStateEditor extends UIElement
          * film, where something clears them again every frame. */
         List<TrackDescriptor> catalog = new ArrayList<>();
 
+        this.skeletons = UIReplaysEditorUtils.countSkeletons(this.root);
+
         for (TrackDescriptor track : TrackCatalog.ordered(TrackCatalog.of(this.root, this.state.properties)))
         {
             if (!track.kind().isSolver() && this.partSelection.includes(track.id().formPath()))
@@ -374,7 +386,19 @@ public class UIAnimationStateEditor extends UIElement
                 this.categoryBar.add(entry.getValue());
             }
         }
-        if (!this.visibleCategories.contains(this.category)) this.category = TrackCategory.FORM;
+        /* Form only stood in for a tab the last parts didn't have: try the chosen one again. */
+        if (this.stoodInFor != null && this.category == TrackCategory.FORM)
+        {
+            this.category = this.stoodInFor;
+        }
+
+        this.stoodInFor = null;
+
+        if (!this.visibleCategories.contains(this.category))
+        {
+            this.stoodInFor = this.category;
+            this.category = TrackCategory.FORM;
+        }
 
         UIReplaysEditorUtils.buildSheets(catalog, sheets, this.state.properties);
 
@@ -387,7 +411,19 @@ public class UIAnimationStateEditor extends UIElement
 
         sheets.removeIf((v) -> v.id.equals("anchor"));
 
-        sheets.removeIf(sheet -> !this.allMode && UIReplaysEditor.categoryOf(sheet) != this.category);
+        boolean bones = BoneTracksMode.isActive(this.allMode, this.category);
+
+        this.bonesMode.collect(sheets, this.partSelection.activePart);
+
+        /* Bones are a mode of their own rather than a slice of everything, so "All tracks" leaves them out. */
+        sheets.removeIf(sheet -> this.allMode
+            ? UIReplaysEditor.categoryOf(sheet) == TrackCategory.BONES
+            : UIReplaysEditor.categoryOf(sheet) != this.category);
+
+        if (bones)
+        {
+            this.bonesMode.filter(sheets, (sheet) -> this.revealedSearchTrack != null && this.revealedSearchTrack.key().equals(sheet.id));
+        }
 
         /* The state isn't empty by itself - so if the filter empties it, the timeline has to stay (see below). */
         boolean hadTracks = !sheets.isEmpty();
@@ -425,8 +461,13 @@ public class UIAnimationStateEditor extends UIElement
                     this.setState(this.state);
                 });
 
+                if (bones)
+                {
+                    this.bonesMode.addRemoveAction(menu, sheet, () -> this.setState(this.state));
+                }
+
                 IPosedForm posedForm = sheet == null ? null : sheet.getPosedForm();
-                if (posedForm != null && sheet.selection.hasAny() && posedForm.hasBoneTracks())
+                if (posedForm != null && sheet.selection.hasAny())
                 {
                     menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
                     {
@@ -500,6 +541,12 @@ public class UIAnimationStateEditor extends UIElement
             this.categoryBar.removeFromParent();
             this.partHeader.removeFromParent();
             this.timelineArea.add(this.categoryBar, this.partHeader);
+
+            /* Once the timeline is in the tree: its panel goes into the edit area. */
+            if (bones)
+            {
+                this.bonesMode.attach(this.keyframeEditor);
+            }
         }
 
         this.resize();
@@ -524,8 +571,16 @@ public class UIAnimationStateEditor extends UIElement
     {
         this.partSelection.focus(entry.path());
         this.revealedSearchTrack = entry;
-        /* A tab that doesn't hold the track switches to the one that does; all tracks hold it already. */
-        if (!this.allMode) this.category = UIReplaysEditor.categoryOf(TrackId.parse(entry.key()), true);
+        /* A tab that doesn't hold the track switches to the one that does; all tracks hold it already,
+         * except bones, which only the Bones tab has. */
+        TrackCategory category = UIReplaysEditor.categoryOf(TrackId.parse(entry.key()), true);
+
+        if (!this.allMode || category == TrackCategory.BONES)
+        {
+            this.allMode = false;
+            this.category = category;
+            this.stoodInFor = null;
+        }
         this.setState(this.state);
         return this.keyframeEditor != null
             && UIReplaysEditorUtils.revealSearchTrack(this.keyframeEditor, entry, createKeyframe, this.getContext());
@@ -650,6 +705,20 @@ public class UIAnimationStateEditor extends UIElement
 
     private void pickFormBone(Form form, String bone, boolean insert)
     {
+        /* The Bones tab: the bone is picked in its panel, the cursor stays (see BoneTracksMode). */
+        if (BoneTracksMode.isActive(this.allMode, this.category) && form instanceof IPosedForm && bone != null && !bone.isEmpty())
+        {
+            if (!this.partSelection.includes(FormUtils.getPath(form)))
+            {
+                this.selectForm(form);
+            }
+
+            if (this.bonesMode.pick(form, bone, insert, !insert && Window.isCtrlPressed()))
+            {
+                return;
+            }
+        }
+
         /* A bone's tracks are Form's: another tab is left for it first, so the part's owner opens
          * on the timeline that shows it. */
         if (!this.allMode && this.category != TrackCategory.FORM && form != null
@@ -856,10 +925,19 @@ public class UIAnimationStateEditor extends UIElement
     {
         /* Settings can change while this timeline remains open behind another panel. */
         if (this.state != null && (this.allBodyPartsSetting != TimelineBodyPartSelection.allParts()
+            || this.skeletons != UIReplaysEditorUtils.countSkeletons(this.root)
             || this.poseOverlayCount != BBSSettings.recordingPoseOverlays.get()
             || this.transformOverlayCount != BBSSettings.recordingTransformOverlays.get()
             || this.shapeKeyOverlayCount != BBSSettings.recordingShapeKeyOverlays.get()))
         {
+            this.setState(this.state);
+        }
+
+        /* A bone got its first key, or was picked without a row: its row appears once nothing is held. */
+        if (this.state != null && this.bonesMode.hasRowsChanged() && !Window.isMouseButtonPressed(0) && !Window.isMouseButtonPressed(1)
+            && (this.keyframeEditor == null || this.keyframeEditor.editor == null || !this.keyframeEditor.editor.isUserEditing()))
+        {
+            this.bonesMode.takeRowsChanged();
             this.setState(this.state);
         }
 

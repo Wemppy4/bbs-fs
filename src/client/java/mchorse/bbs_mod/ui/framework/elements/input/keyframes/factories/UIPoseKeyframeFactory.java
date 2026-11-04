@@ -50,7 +50,7 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
     {
         super(track, editor);
 
-        this.poseEditor = new UIPoseFactoryEditor(editor, track);
+        this.poseEditor = this.createPoseEditor(editor, track);
 
         UIKeyframeSheet sheet = track.sheet;
 
@@ -83,6 +83,12 @@ public class UIPoseKeyframeFactory extends UIKeyframeFactory<Pose>
         }
 
         this.scroll.add(this.poseEditor);
+    }
+
+    /** Called from the constructor, before a subclass's own fields are set: take everything from the arguments. */
+    protected UIPoseFactoryEditor createPoseEditor(UIKeyframes editor, UITrackValue<Pose> track)
+    {
+        return new UIPoseFactoryEditor(editor, track);
     }
 
     /**

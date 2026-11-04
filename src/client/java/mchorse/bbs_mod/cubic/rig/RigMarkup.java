@@ -16,6 +16,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 /**
  * The rig's part of the editors' markup: each model form's IK goals, poles and controllers and
@@ -39,7 +40,7 @@ public final class RigMarkup
     public record Handle(ModelForm form, String bone, Kind kind, int color, Vector3f ndc)
     {}
 
-    public record Line(Vector3f a, Vector3f b, int color)
+    public record Line(ModelForm form, Vector3f a, Vector3f b, int color)
     {}
 
     /** What one scope captured. */
@@ -67,14 +68,14 @@ public final class RigMarkup
             }
         }
 
-        public void line(Matrix4f mvp, Vector3f a, Vector3f b, int color)
+        public void line(ModelForm form, Matrix4f mvp, Vector3f a, Vector3f b, int color)
         {
             Vector3f na = ndc(mvp, a);
             Vector3f nb = ndc(mvp, b);
 
             if (na != null && nb != null)
             {
-                this.lines.add(new Line(na, nb, color));
+                this.lines.add(new Line(form, na, nb, color));
             }
         }
     }
@@ -151,6 +152,12 @@ public final class RigMarkup
     /** The captured handles and lines on the viewport's markup; {@code selected} tells the bone the editor has picked. */
     public static void draw(ScreenOverlay overlay, Capture capture, BiPredicate<ModelForm, String> selected)
     {
+        draw(overlay, capture, null, selected);
+    }
+
+    /** Same, only the forms {@code shown} lets through (all when null): the film shows the selected replay's rig. */
+    public static void draw(ScreenOverlay overlay, Capture capture, Predicate<ModelForm> shown, BiPredicate<ModelForm, String> selected)
+    {
         if (capture == null)
         {
             return;
@@ -158,11 +165,21 @@ public final class RigMarkup
 
         for (Line line : capture.lines)
         {
+            if (shown != null && !shown.test(line.form()))
+            {
+                continue;
+            }
+
             overlay.dashed(overlay.fromNDC(line.a()), overlay.fromNDC(line.b()), line.color());
         }
 
         for (Handle handle : capture.handles)
         {
+            if (shown != null && !shown.test(handle.form()))
+            {
+                continue;
+            }
+
             Vector3f point = overlay.fromNDC(handle.ndc());
 
             if (point == null)

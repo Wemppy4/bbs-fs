@@ -312,6 +312,7 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_ONION_SKIN_GROUP = L10n.lang("bbs.ui.film.controller.onion_skin.group");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_KEYS_TOGGLE = L10n.lang("bbs.ui.film.controller.onion_skin.keys.toggle");
     public static final IKey FILM_CONTROLLER_MOTION_PATH_KEYS_TOGGLE = L10n.lang("bbs.ui.film.controller.motion_path.keys.toggle");
+    public static final IKey FILM_CONTROLLER_MOTION_PATH_KEYS_VISIBLE = L10n.lang("bbs.ui.film.controller.motion_path.keys.visible");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_NEXT = L10n.lang("bbs.ui.film.controller.onion_skin.next");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_PREV = L10n.lang("bbs.ui.film.controller.onion_skin.prev");
     public static final IKey FILM_CONTROLLER_ONION_SKIN_TITLE = L10n.lang("bbs.ui.film.controller.onion_skin.title");
@@ -554,8 +555,6 @@ public class UIKeys
     public static final IKey FORMS_EDITORS_EXTRUDED_TITLE = L10n.lang("bbs.ui.forms.editors.extruded.title");
     public static final IKey FORMS_EDITORS_FRAMEBUFFER_TITLE = L10n.lang("bbs.ui.forms.editors.framebuffer.title");
     public static final IKey FORMS_EDITORS_GENERAL = L10n.lang("bbs.ui.forms.editors.general");
-    public static final IKey FORMS_EDITORS_GENERAL_BONE_TRACKS = L10n.lang("bbs.ui.forms.editors.general.bone_tracks");
-    public static final IKey FORMS_EDITORS_GENERAL_BONE_TRACKS_TOOLTIP = L10n.lang("bbs.ui.forms.editors.general.bone_tracks-tooltip");
     public static final IKey FORMS_EDITORS_GENERAL_FILTER_TRACKS = L10n.lang("bbs.ui.forms.editors.general.filter_tracks");
     public static final IKey FORMS_EDITORS_GENERAL_FILTER_TRACKS_TOOLTIP = L10n.lang("bbs.ui.forms.editors.general.filter_tracks-tooltip");
     public static final IKey FORMS_EDITORS_GENERAL_DISPLAY = L10n.lang("bbs.ui.forms.editors.general.display");

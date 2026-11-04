@@ -105,6 +105,7 @@ import mchorse.bbs_mod.ui.utils.SplineEditorUtils;
 public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, ILivePoseHost
 {
     private final BoneSelection boneSelection = new BoneSelection();
+    private final BoneTracksMode bonesMode = new BoneTracksMode(this.boneSelection);
 
     private static String lastFilm = "";
     private static int lastReplay;
@@ -129,6 +130,12 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
     public UITimelineCategoryBar iconBar;
     public Map<TrackCategory, UIIcon> tabButtons = new HashMap<>();
     private TrackCategory category = TrackCategory.REPLAY;
+
+    /**
+     * The tab the animator chose, while a replay without it (a block has no bones) shows Form in
+     * its place. It comes back with the next replay that has it.
+     */
+    private TrackCategory stoodInFor;
 
     /* Keyframes */
     public UIKeyframeEditor keyframeEditor;
@@ -165,6 +172,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
     private int poseOverlayCount;
     private int transformOverlayCount;
     private int shapeKeyOverlayCount;
+    /** How many of the replay's forms had a skeleton when the timeline was built (see {@link UIReplaysEditorUtils#countSkeletons}). */
+    private int skeletons;
     /**
      * Which rows the user left unfolded, per replay. Every rebuild of the timeline throws the dope
      * sheet away — switching category, toggling "all tracks", changing the track filter — so this
@@ -397,6 +406,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.setActionsMode(false);
         this.allMode = false;
         this.category = c;
+        this.stoodInFor = null;
         this.updateChannelsList();
     }
 
@@ -439,6 +449,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.revealedSearchTrack = null;
         this.setActionsMode(false);
         this.allMode = true;
+        this.stoodInFor = null;
         this.updateChannelsList();
     }
 
@@ -617,6 +628,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             return;
         }
 
+        this.skeletons = UIReplaysEditorUtils.countSkeletons(this.replay.form.get());
+
         List<TrackDescriptor> catalog = TrackCatalog.of(this.replay.form.get(), this.replay.properties);
         catalog.removeIf(track -> !this.partSelection.includes(track.id().formPath()));
         catalog = TrackCatalog.ordered(catalog);
@@ -626,6 +639,14 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         /* Replay channels remain accessible alongside any selected part's own properties. */
         this.collectCuratedSheets(sheets);
         UIReplaysEditorUtils.buildSheets(catalog, sheets, this.replay.properties);
+
+        /* Form only stood in for a tab the last replay didn't have: try the chosen one again. */
+        if (this.stoodInFor != null && this.category == TrackCategory.FORM)
+        {
+            this.category = this.stoodInFor;
+        }
+
+        this.stoodInFor = null;
 
         for (TrackCategory category : TrackCategories.values())
         {
@@ -650,8 +671,18 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.keys.add(getSheetFilterKey(sheet));
         }
 
-        /* The body-part tree already chose the parts; a tab narrows down to its tracks, their owners stay. */
-        sheets.removeIf((v) -> !this.allMode && categoryOf(v) != this.category);
+        boolean bones = BoneTracksMode.isActive(this.allMode, this.category);
+
+        this.bonesMode.collect(sheets, this.partSelection.activePart);
+
+        /* The body-part tree already chose the parts; a tab narrows down to its tracks, their owners stay.
+         * Bones are a mode of their own rather than a slice of everything, so "All tracks" leaves them out. */
+        sheets.removeIf((v) -> this.allMode ? categoryOf(v) == TrackCategory.BONES : categoryOf(v) != this.category);
+
+        if (bones)
+        {
+            this.bonesMode.filter(sheets, (v) -> this.revealedSearchTrack != null && this.revealedSearchTrack.key().equals(v.id));
+        }
 
         /* The tab isn't empty by itself - so if the filter empties it, the timeline has to stay (see below). */
         boolean hadTracks = !sheets.isEmpty();
@@ -676,7 +707,8 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         CategoryFold.settle(sheets, this.getExpandedTracks(), fresh);
 
-        if (!sheets.isEmpty() || filteredOutEverything)
+        /* The Bones tab keeps its timeline with no animated bone yet: its panel is how the first one gets keyed. */
+        if (!sheets.isEmpty() || filteredOutEverything || bones)
         {
             this.keyframeEditor = new UIKeyframeEditor((consumer) -> new UIFilmKeyframes(this.filmPanel.cameraEditor, consumer).absolute())
                 .target(this.filmPanel.editArea);
@@ -699,6 +731,11 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
                     this.getExpandedTracks().set(parent.toKey(), true);
                     this.updateChannelsList();
                 });
+
+                if (bones)
+                {
+                    this.bonesMode.addRemoveAction(menu, sheet, this::updateChannelsList);
+                }
 
                 ModelForm poseModelForm = sheet == null ? null : sheet.getPoseForm();
                 IPosedForm posedForm = sheet == null ? null : sheet.getPosedForm();
@@ -730,7 +767,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
                 /* Not gated on a MODEL form: baking a pose into per-bone tracks is a pose
                  * operation, and a mob form has a skeleton to bake onto just the same. */
-                if (posedForm != null && sheet.selection.hasAny() && posedForm.hasBoneTracks())
+                if (posedForm != null && sheet.selection.hasAny())
                 {
                     menu.action(Icons.LIMB, UIKeys.FILM_REPLAY_CONTEXT_POSES_TO_LIMBS, () ->
                     {
@@ -819,6 +856,12 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             /* Category bar + actions toggle on top so they overlay the track names column. */
             this.bringBarToFront();
             this.updateTimelineModeVisibility();
+
+            /* Once the timeline is in the tree: its panel goes into the edit area. */
+            if (bones)
+            {
+                this.bonesMode.attach(this.keyframeEditor);
+            }
         }
 
         this.resize();
@@ -860,8 +903,16 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
         this.pendingPick = null;
         this.revealedSearchTrack = entry;
         if (entry.owned()) this.partSelection.focus(entry.path());
-        /* A tab that doesn't hold the track switches to the one that does; all tracks hold it already. */
-        if (!this.allMode) this.category = categoryOf(entry.key(), entry.owned());
+        /* A tab that doesn't hold the track switches to the one that does; all tracks hold it already,
+         * except bones, which only the Bones tab has. */
+        TrackCategory category = categoryOf(entry.key(), entry.owned());
+
+        if (!this.allMode || category == TrackCategory.BONES)
+        {
+            this.allMode = false;
+            this.category = category;
+            this.stoodInFor = null;
+        }
         this.updateChannelsList();
         if (this.keyframeEditor == null) return false;
 
@@ -952,6 +1003,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
 
         if (!has && this.category == category)
         {
+            this.stoodInFor = category;
             this.category = TrackCategory.FORM;
         }
     }
@@ -1176,6 +1228,22 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             return;
         }
 
+        /* The Bones tab: the bone is picked in its panel, the cursor stays (see BoneTracksMode). */
+        if (BoneTracksMode.isActive(this.allMode, this.category) && form instanceof IPosedForm && bone != null && !bone.isEmpty())
+        {
+            String path = FormUtils.getPath(form);
+
+            if (!this.partSelection.includes(path))
+            {
+                this.selectBodyPart(path);
+            }
+
+            if (this.bonesMode.pick(form, bone, insert, !insert && Window.isCtrlPressed()))
+            {
+                return;
+            }
+        }
+
         /* A bone's tracks are Form's: another tab is left for it first, so the part's owner opens
          * on the timeline that shows it. */
         if (!this.allMode && this.category != TrackCategory.FORM && (!(form instanceof IPosedForm) || (bone != null && !bone.isEmpty())))
@@ -1349,6 +1417,7 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
     {
         /* Settings can change while this timeline remains open behind another panel. */
         if (this.replay != null && (this.allBodyPartsSetting != TimelineBodyPartSelection.allParts()
+            || this.skeletons != UIReplaysEditorUtils.countSkeletons(this.replay.form.get())
             || this.poseOverlayCount != BBSSettings.recordingPoseOverlays.get()
             || this.transformOverlayCount != BBSSettings.recordingTransformOverlays.get()
             || this.shapeKeyOverlayCount != BBSSettings.recordingShapeKeyOverlays.get()))
@@ -1356,6 +1425,14 @@ public class UIReplaysEditor extends UIElement implements IBoneSelectionHost, IL
             this.updateChannelsList();
         }
 
+
+        /* A bone got its first key, or was picked without a row: its row appears once nothing is held. */
+        if (this.bonesMode.hasRowsChanged() && !Window.isMouseButtonPressed(0) && !Window.isMouseButtonPressed(1)
+            && (this.keyframeEditor == null || this.keyframeEditor.editor == null || !this.keyframeEditor.editor.isUserEditing()))
+        {
+            this.bonesMode.takeRowsChanged();
+            this.updateChannelsList();
+        }
 
         this.iconBar.setVisible(this.timelineVisible);
         this.actionsToggle.setVisible(this.timelineVisible);

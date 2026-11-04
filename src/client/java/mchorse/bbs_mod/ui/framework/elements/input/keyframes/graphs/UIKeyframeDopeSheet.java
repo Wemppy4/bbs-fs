@@ -96,7 +96,17 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     /** Navigate without selecting a keyframe or changing the horizontal time viewport. */
     public void revealSheet(UIKeyframeSheet sheet)
     {
-        if (!this.sheets.contains(sheet)) return;
+        if (!this.unfoldTo(sheet)) return;
+        this.lastSheet = sheet;
+        this.revealedSheet = sheet;
+        this.revealUntil = System.currentTimeMillis() + 1400;
+        int y = this.sheetYCache.getOrDefault(sheet, 0) + this.keyframes.getTopMargin();
+        this.dopeSheet.setScroll(y - (this.dopeSheet.area.h - this.getTrackHeight(sheet)) / 2);
+    }
+    /** Unfold everything a row sits in, so it can be seen. Nothing is folded, nothing scrolls and nothing flashes. */
+    public boolean unfoldTo(UIKeyframeSheet sheet)
+    {
+        if (!this.sheets.contains(sheet)) return false;
         for (UIKeyframeSheet.Section section = sheet.section; section != null; section = section.parent())
         {
             this.folds.set(section.id(), true);
@@ -106,12 +116,9 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
             this.folds.set(parent.id, true);
         }
         this.updateScrollSize();
-        this.lastSheet = sheet;
-        this.revealedSheet = sheet;
-        this.revealUntil = System.currentTimeMillis() + 1400;
-        int y = this.sheetYCache.getOrDefault(sheet, 0) + this.keyframes.getTopMargin();
-        this.dopeSheet.setScroll(y - (this.dopeSheet.area.h - this.getTrackHeight(sheet)) / 2);
+        return true;
     }
+
     /** Unfold a heading and the headings it sits in. Nothing is folded, nothing scrolls and nothing flashes. */
     public void revealSection(String id)
     {
@@ -317,7 +324,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
     /** Whether a row shows what folds under it. */
     private boolean isUnfolded(UIKeyframeSheet sheet)
     {
-        return this.folds.isExpanded(sheet.id);
+        return sheet.alwaysOpen || this.folds.isExpanded(sheet.id);
     }
 
     /**
@@ -346,7 +353,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
     private boolean hasChildren(UIKeyframeSheet sheet)
     {
-        return !sheet.children.isEmpty();
+        return !sheet.alwaysOpen && !sheet.children.isEmpty();
     }
 
     public List<UIKeyframeSheet> getInteractiveSheets()
@@ -1445,7 +1452,7 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
         this.renderRowBackground(context, lx, y, w, height, true);
 
-        RowStyle.row(context.batcher, lx, y, w, height, sheet.color, false, hover, this.keyframes.isEditing() && this.keyframes.isGraphTrack(sheet));
+        RowStyle.row(context.batcher, lx, y, w, height, sheet.color, false, hover, sheet.highlighted || (this.keyframes.isEditing() && this.keyframes.isGraphTrack(sheet)));
 
         if (sheet == this.revealedSheet && System.currentTimeMillis() < this.revealUntil)
         {
@@ -1552,9 +1559,9 @@ public class UIKeyframeDopeSheet implements IUIKeyframeGraph
 
         this.renderRowBackground(context, area.x, y, area.w, bh, false);
 
-        if (hover)
+        if (hover || sheet.highlighted)
         {
-            context.batcher.box(area.x, y, area.ex(), y + bh, Colors.setA(sheet.color, 0.12F));
+            context.batcher.box(area.x, y, area.ex(), y + bh, Colors.setA(sheet.color, hover ? 0.12F : 0.08F));
         }
 
         builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);

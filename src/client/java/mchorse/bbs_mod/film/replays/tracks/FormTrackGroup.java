@@ -59,7 +59,7 @@ public enum FormTrackGroup
 
         switch (track.kind())
         {
-            case BONE, BONE_CONSTRAINT:
+            case BONE:
                 return POSE;
             case MATERIAL_TEXTURE, MATERIAL_PROP:
                 return LOOK;

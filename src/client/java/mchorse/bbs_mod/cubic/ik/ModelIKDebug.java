@@ -85,7 +85,7 @@ public final class ModelIKDebug
 
         for (ModelIKCache.CompiledChain chain : chains)
         {
-            captureChain(capture, mvp, frames, handles, chain);
+            captureChain(capture, form, mvp, frames, handles, chain);
         }
 
         for (Handle handle : handles.values())
@@ -177,7 +177,7 @@ public final class ModelIKDebug
     }
 
     /** Dashed bridges from the chain to its goal and pole, in their handles' colours. */
-    private static void captureChain(RigMarkup.Capture capture, Matrix4f mvp, Map<String, PivotFrame> frames, Map<String, Handle> handles, ModelIKCache.CompiledChain chain)
+    private static void captureChain(RigMarkup.Capture capture, ModelForm form, Matrix4f mvp, Map<String, PivotFrame> frames, Map<String, Handle> handles, ModelIKCache.CompiledChain chain)
     {
         List<String> ids = chain.chainRootToEffector();
         int n = ids.size();
@@ -210,11 +210,11 @@ public final class ModelIKDebug
 
         Vector3f pole = chain.poleTarget() == null || chain.poleTarget().isEmpty() ? null : position(frames, chain.poleTarget());
 
-        capture.line(mvp, pts.get(n - 1), target, lineColor(handles.get(chain.target())));
+        capture.line(form, mvp, pts.get(n - 1), target, lineColor(handles.get(chain.target())));
 
         if (pole != null)
         {
-            capture.line(mvp, pts.get(1), pole, lineColor(handles.get(chain.poleTarget())));
+            capture.line(form, mvp, pts.get(1), pole, lineColor(handles.get(chain.poleTarget())));
         }
     }
 

@@ -145,7 +145,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         BBSProfiler.end(BBSProfiler.Timer.MOTION_PATH);
     }
 
-    /** The goals, poles and controllers the world frame captured, the edited bone's ringed. */
+    /** The selected replay's goals, poles and controllers the world frame captured, the edited bone's ringed. */
     private void renderRigMarkup()
     {
         if (this.isRecording())
@@ -156,8 +156,12 @@ public class UIFilmController extends UIElement implements GizmoViewport
         Pair<String, TransformSpace> bone = this.getBone();
         IEntity current = this.getCurrentEntity();
 
-        RigMarkup.draw(this.markup, RigMarkup.world(), (form, id) -> bone != null && current != null
-            && FormUtils.getRoot(form) == current.getForm()
+        if (current == null)
+        {
+            return;
+        }
+
+        RigMarkup.draw(this.markup, RigMarkup.world(), (form) -> FormUtils.getRoot(form) == current.getForm(), (form, id) -> bone != null
             && mchorse.bbs_mod.utils.StringUtils.combinePaths(FormUtils.getPath(form), id).equals(bone.a));
     }
 
@@ -237,8 +241,8 @@ public class UIFilmController extends UIElement implements GizmoViewport
             if (entity == null || entity.getForm() == null) continue;
             for (var source : SplineEditorUtils.sourcesInTree(entity.getForm()))
             {
-                /* A model's spline shows with the rig's debug, as the rest of the rig does. */
-                if (source instanceof SplineIK && !BBSSettings.debugOverlay.get()) continue;
+                /* A model's spline shows with the rig's debug, as the rest of the rig does: the selected replay's only. */
+                if (source instanceof SplineIK && (!BBSSettings.debugOverlay.get() || entity != this.getCurrentEntity())) continue;
                 var owner = SplineEditorUtils.owner(source);
                 Matrix4f parent;
                 if (source instanceof SplineForm)
@@ -392,6 +396,12 @@ public class UIFilmController extends UIElement implements GizmoViewport
 
             UIUtils.playClick();
         }).strict().active(() -> !this.panel.hasSelectedClip()).category(category);
+        this.keys().register(Keys.FILM_CONTROLLER_MOTION_PATHS_VISIBLE, () ->
+        {
+            this.getMotionPath().enabled.toggle();
+
+            UIUtils.playClick();
+        }).category(category);
         this.keys().register(Keys.FILM_CONTROLLER_OPEN_REPLAYS, () ->
         {
             this.panel.showPanel(this.panel.replayEditor);

@@ -11,6 +11,12 @@ public final class TrackCategory
 {
     public static final TrackCategory REPLAY = builtin("replay", Icons.PLAYER);
     public static final TrackCategory FORM = builtin("form", Icons.MORPH);
+    /**
+     * Bone tracks. Not just a filter like the others: picking it is how the animator says they key
+     * bones one by one — a bone click lands on its own track and the panel becomes the pose of the
+     * frame under the cursor. That is why "All tracks" leaves these out.
+     */
+    public static final TrackCategory BONES = builtin("bones", Icons.POSE);
 
     public final String id;
     public final Icon icon;

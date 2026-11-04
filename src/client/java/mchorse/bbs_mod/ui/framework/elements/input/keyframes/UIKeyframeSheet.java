@@ -134,6 +134,15 @@ public class UIKeyframeSheet
     public UIKeyframeSheet parent;
     public final List<UIKeyframeSheet> children = new ArrayList<>();
 
+    /** The row of what the panel is working on right now — the picked bone in the Bones tab. */
+    public boolean highlighted;
+
+    /**
+     * Never folds: the rows under it are always shown and it has no fold arrow. The Bones tab hangs
+     * its bones off each other only to show the skeleton, and it lists the animated ones anyway.
+     */
+    public boolean alwaysOpen;
+
     public UIKeyframeSheet(TrackDescriptor track)
     {
         this(track.key(), track.title(), track.color(), track.channel(), track.property(), track.kind() == TrackKind.BONE, track);

@@ -34,6 +34,7 @@ import mchorse.bbs_mod.forms.entities.IEntity;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.cubic.IBoneHierarchy;
 import mchorse.bbs_mod.forms.FormUtilsClient;
+import mchorse.bbs_mod.forms.forms.BodyPart;
 import mchorse.bbs_mod.forms.forms.IPosedForm;
 import mchorse.bbs_mod.forms.forms.ModelForm;
 import mchorse.bbs_mod.forms.renderers.ModelFormRenderer;
@@ -181,6 +182,28 @@ public class UIReplaysEditorUtils
     }
 
     /**
+     * How many forms in the tree have a skeleton right now. Models load in the background, so a
+     * timeline built before its model is in has no bones, materials or IK to list — and no Bones
+     * tab. When this number changes, the timeline has something new to show and is rebuilt.
+     */
+    public static int countSkeletons(Form form)
+    {
+        if (form == null)
+        {
+            return 0;
+        }
+
+        int count = FormUtilsClient.getBoneHierarchy(form) == null ? 0 : 1;
+
+        for (BodyPart part : form.parts.getAllTyped())
+        {
+            count += countSkeletons(part.getForm());
+        }
+
+        return count;
+    }
+
+    /**
      * Turn a form's catalog into timeline rows, hanging the tracks that fold under another one off
      * their parent row. The catalog decides what exists and where it sits; this only builds widgets,
      * which is why both timelines — a replay's and an animation state's — go through it.
@@ -213,19 +236,37 @@ public class UIReplaysEditorUtils
         }
     }
 
-    /** Remove links to filtered rows while keeping their surviving children accessible. */
+    /**
+     * Remove links to filtered rows. A row whose parent was filtered out hangs off the closest
+     * ancestor that is still there — the Bones tab lists only animated bones, and a hand under a
+     * hidden forearm still belongs under the arm.
+     */
     public static void pruneTree(List<UIKeyframeSheet> sheets)
     {
         Set<UIKeyframeSheet> present = new HashSet<>(sheets);
+        Map<UIKeyframeSheet, UIKeyframeSheet> parents = new HashMap<>();
 
         for (UIKeyframeSheet sheet : sheets)
         {
-            sheet.children.removeIf(child -> !present.contains(child));
+            UIKeyframeSheet parent = sheet.parent;
 
-            if (sheet.parent != null && !present.contains(sheet.parent))
+            while (parent != null && !present.contains(parent))
             {
-                sheet.parent = null;
+                parent = parent.parent;
             }
+
+            parents.put(sheet, parent);
+        }
+
+        for (UIKeyframeSheet sheet : sheets)
+        {
+            sheet.children.clear();
+        }
+
+        for (UIKeyframeSheet sheet : sheets)
+        {
+            sheet.parent = null;
+            sheet.setParent(parents.get(sheet));
         }
     }
 
@@ -570,6 +611,11 @@ public class UIReplaysEditorUtils
      */
     private static Vector3f filmPoseRotationBase(UIKeyframeEditor keyframeEditor, IEntity entity, float transition, String bonePath)
     {
+        if (keyframeEditor.editor instanceof UIBoneTracksPanel bones)
+        {
+            return boneTrackRotationBase(bones, entity, transition, bonePath);
+        }
+
         if (!(keyframeEditor.editor instanceof UIPoseKeyframeFactory))
         {
             return null;
@@ -592,6 +638,36 @@ public class UIReplaysEditorUtils
         Vector3f evaluated = FilmMatrices.getGizmoBoneEvaluatedRotation(entity, transition, bonePath);
 
         return FormUtils.additivePoseRotationBase(valuePose, StringUtils.fileName(bonePath), evaluated);
+    }
+
+    /**
+     * The same base under a bone's own track (the Bones tab): everything else the bone turns by —
+     * what the renderer evaluated, less the track's share at the cursor. A bone track adds onto the
+     * pose just like an overlay does, so its drag composes at the bone's effective angles too.
+     */
+    private static Vector3f boneTrackRotationBase(UIBoneTracksPanel panel, IEntity entity, float transition, String bonePath)
+    {
+        String bone = StringUtils.fileName(bonePath);
+        PoseTransform own = panel.getBoneValue(bone);
+        BaseValueBasic property = FormUtils.getProperty(entity.getForm(), panel.getSheet().id);
+        PoseTransform live = property instanceof ValuePose pose ? pose.get().transforms.get(bone) : null;
+
+        for (PoseTransform transform : new PoseTransform[] {own, live})
+        {
+            if (transform != null && (transform.rotationMode == Transform.RotationMode.QUATERNION || transform.fix != 0F))
+            {
+                return null;
+            }
+        }
+
+        Vector3f evaluated = FilmMatrices.getGizmoBoneEvaluatedRotation(entity, transition, bonePath);
+
+        if (evaluated == null)
+        {
+            return null;
+        }
+
+        return own == null ? new Vector3f(evaluated) : new Vector3f(evaluated).sub(own.rotate);
     }
 
     /**
@@ -632,9 +708,19 @@ public class UIReplaysEditorUtils
         if (editor == null || editor.editor == null) return sampler;
 
         UIKeyframeSheet sheet = editor.editor.getSheet();
+        boolean cursor = editor.view.getAutoKeyframeTick() != null;
+        UIBoneTracksPanel bones = editor.editor instanceof UIBoneTracksPanel panel ? panel : null;
+
+        /* The Bones tab's panel stands on a pose track nobody reads: what it edits is the picked
+         * bone's own track, always at the cursor, so that is the track to probe. */
+        if (bones != null)
+        {
+            sheet = bones.getBoneSheet(bones.getBone());
+            cursor = true;
+        }
+
         if (sheet == null) return sampler;
 
-        boolean cursor = editor.view.getAutoKeyframeTick() != null;
         /* Without auto-keyframing an edit lands only on selected keys; with none there is nothing to probe. */
         if (!cursor && !sheet.selection.hasAny()) return sampler;
 
@@ -649,25 +735,27 @@ public class UIReplaysEditorUtils
 
         for (Keyframe key : keys)
         {
-            Transform target = editor.editor.getGizmoTransform(key.getValue());
+            Transform target = bones != null ? (Transform) key.getValue() : editor.editor.getGizmoTransform(key.getValue());
             if (target != null) targets.add(target);
         }
+
+        UIKeyframeSheet probed = sheet;
 
         /* The probe installs only its private channel copy, then restores the original
          * key objects and selection. It never notifies history or leaves a new key behind. */
         return GizmoDrag.withTransformSelection(transform.getTransform(), targets, () ->
         {
-            List<Keyframe> original = new ArrayList<>(sheet.channel.getKeyframes());
+            List<Keyframe> original = new ArrayList<>(probed.channel.getKeyframes());
             try
             {
-                sheet.channel.getAllTyped().clear();
-                sheet.channel.getAllTyped().addAll(draft.getKeyframes());
+                probed.channel.getAllTyped().clear();
+                probed.channel.getAllTyped().addAll(draft.getKeyframes());
                 return sampler.get();
             }
             finally
             {
-                sheet.channel.getAllTyped().clear();
-                sheet.channel.getAllTyped().addAll(original);
+                probed.channel.getAllTyped().clear();
+                probed.channel.getAllTyped().addAll(original);
             }
         });
     }

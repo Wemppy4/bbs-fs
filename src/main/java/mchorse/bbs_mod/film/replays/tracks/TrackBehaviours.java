@@ -1,6 +1,5 @@
 package mchorse.bbs_mod.film.replays.tracks;
 
-import mchorse.bbs_mod.film.replays.tracks.behaviours.BoneConstraintTrack;
 import mchorse.bbs_mod.film.replays.tracks.compatibility.LegacyControlsTrack;
 import mchorse.bbs_mod.film.replays.tracks.behaviours.BoneTrack;
 import mchorse.bbs_mod.film.replays.tracks.behaviours.MaterialPropTrack;
@@ -24,7 +23,6 @@ public class TrackBehaviours
     {
         REGISTRY.put(TrackKind.PROPERTY, new PropertyTrack());
         REGISTRY.put(TrackKind.BONE, new BoneTrack());
-        REGISTRY.put(TrackKind.BONE_CONSTRAINT, new BoneConstraintTrack());
         REGISTRY.put(TrackKind.MATERIAL_TEXTURE, new MaterialTextureTrack());
         REGISTRY.put(TrackKind.MATERIAL_PROP, new MaterialPropTrack());
         REGISTRY.put(TrackKind.IK_TARGET, new TargetTrack(TrackKind.IK_TARGET));

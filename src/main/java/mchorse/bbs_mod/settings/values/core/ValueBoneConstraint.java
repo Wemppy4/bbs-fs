@@ -9,5 +9,8 @@ public class ValueBoneConstraint extends BaseKeyframeFactoryValue<BoneConstraint
     public ValueBoneConstraint(String id, BoneConstraint value)
     {
         super(id, KeyframeFactories.BONE_CONSTRAINT, value);
+
+        /* A bone's limits are part of the rig, set once in the form: they are not keyed. */
+        this.animatable(false);
     }
 }
