@@ -22,6 +22,7 @@ import mchorse.bbs_mod.ui.dashboard.textures.UITextureManagerPanel;
 import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCamera;
 import mchorse.bbs_mod.ui.dashboard.utils.UIOrbitCameraKeys;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.film.UIWorldPreview;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIRenderingContext;
 import mchorse.bbs_mod.ui.framework.elements.IUIElement;
@@ -137,7 +138,7 @@ public class UIDashboard extends UIBaseMenu
 
                 if (!this.main.isVisible() && this.panels.panel instanceof UIFilmPanel)
                 {
-                    UIFilmPanel.applyExportSizeToBBS(VideoExportSettings.global());
+                    UIWorldPreview.applyExportSize(VideoExportSettings.global());
                 }
             }
         }).category(category);

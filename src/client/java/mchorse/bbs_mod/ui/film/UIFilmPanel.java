@@ -67,7 +67,6 @@ import mchorse.bbs_mod.utils.CollectionUtils;
 import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.PlayerUtils;
 import mchorse.bbs_mod.utils.Timer;
-import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.clips.Clip;
 import mchorse.bbs_mod.utils.clips.Clips;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -94,9 +93,6 @@ import java.util.function.Supplier;
 
 public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSupported, IUIOrbitKeysHandler, ICursor
 {
-    private static final int PREVIEW_MODE_EXPORT = 0;
-    private static final int PREVIEW_MODE_CUSTOM = 1;
-    private static final int PREVIEW_MODE_AUTO = 2;
 
     private RunnerCameraController runner;
     private boolean lastRunning;
@@ -318,7 +314,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
             .gate(this::hasFilmInCurrentTab)
             .ensure(this::ensureFilmLayoutPanels)
             .onChanged(this::onDockLayoutChanged)
-            .onLayoutSettled(this::applyPreviewSizeToBBS);
+            .onLayoutSettled(() -> this.preview.applySize());
         this.dock.addPanel(PANEL_EDIT_AREA_ID, this.editArea, Icons.EDITOR, UIKeys.FILM_PANELS_EDIT_AREA);
         this.dock.addPanel(PANEL_MAIN_ID, this.main, Icons.FILM, UIKeys.FILM_PANELS_MAIN);
         this.dock.addPanel(PANEL_PREVIEW_ID, this.preview, Icons.VIDEO_CAMERA, UIKeys.FILM_PANELS_PREVIEW);
@@ -366,7 +362,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
         IValueListener refreshPreviewOnVideoResolution = (v, f) ->
         {
-            if (this.isVisible()) this.applyPreviewSizeToBBS();
+            if (this.isVisible()) this.preview.applySize();
         };
         BBSSettings.videoWidth.postCallback(refreshPreviewOnVideoResolution);
         BBSSettings.videoHeight.postCallback(refreshPreviewOnVideoResolution);
@@ -771,7 +767,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         if (!this.recorder.isExporting() && !this.dock.isAnySplitterDragging()
             && this.preview.area.w >= 2 && this.preview.area.h >= 2)
         {
-            this.applyPreviewSizeToBBS();
+            this.preview.applySize();
         }
     }
 
@@ -820,91 +816,6 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         if (this.queueExporter == exporter)
         {
             this.queueExporter = null;
-        }
-    }
-
-    /**
-     * Sets BBS fake window size to the resolution of the given export settings.
-     * Use when starting record, or when entering F1 fullscreen in film panel.
-     */
-    public static void applyExportSizeToBBS(VideoExportSettings settings)
-    {
-        int w = Math.max(2, settings.width());
-        int h = Math.max(2, settings.height());
-        if (w % 2 != 0) w++;
-        if (h % 2 != 0) h++;
-        BBSRendering.setCustomSize(true, w, h);
-    }
-
-    /**
-     * Restores BBS fake window size to the preview block size. Call after recording
-     * ends so the preview is no longer at export resolution.
-     */
-    public void restorePreviewSize()
-    {
-        this.applyPreviewSizeToBBS();
-    }
-
-    /**
-     * Applies the preview or export size to BBSRendering. When the camera editor is
-     * visible, uses export resolution so the preview matches export proportions.
-     * Otherwise uses the UI preview area size. Called when the user finishes resizing
-     * the preview, when the panel is laid out, and when switching to/from camera editor.
-     */
-    private void applyPreviewSizeToBBS()
-    {
-        if (this.recorder.isExporting() || BBSRendering.isHoldingExportFrame())
-        {
-            return;
-        }
-
-        int w;
-        int h;
-
-        int previewMode = BBSSettings.editorPreviewSizeMode.get();
-
-        if (previewMode == PREVIEW_MODE_EXPORT)
-        {
-            w = Math.max(2, BBSSettings.videoWidth.get());
-            h = Math.max(2, BBSSettings.videoHeight.get());
-        }
-        else if (previewMode == PREVIEW_MODE_CUSTOM)
-        {
-            w = Math.max(2, BBSSettings.editorPreviewCustomWidth.get());
-            h = Math.max(2, BBSSettings.editorPreviewCustomHeight.get());
-        }
-        else
-        {
-            float scale = BBSSettings.editorPreviewResolutionScale.get();
-
-            if (this.cameraEditor.isVisible())
-            {
-                int previewW = Math.max(2, this.preview.area.w);
-                int previewH = Math.max(2, this.preview.area.h);
-                int exportW = Math.max(2, BBSSettings.videoWidth.get());
-                int exportH = Math.max(2, BBSSettings.videoHeight.get());
-                Vector2i resized = Vectors.resize(exportW / (float) exportH, previewW, previewH);
-
-                w = Math.max(2, (int) (resized.x * scale));
-                h = Math.max(2, (int) (resized.y * scale));
-            }
-            else
-            {
-                int previewW = this.preview.area.w;
-                int previewH = this.preview.area.h;
-                w = Math.max(2, (int) (previewW * scale));
-                h = Math.max(2, (int) (previewH * scale));
-            }
-        }
-
-        if (w % 2 != 0) w++;
-        if (h % 2 != 0) h++;
-
-        boolean applied = w != BBSRendering.getVideoWidth() || h != BBSRendering.getVideoHeight();
-
-        if (applied)
-        {
-            BBSRendering.setCustomSize(true, w, h);
         }
     }
 
@@ -962,7 +873,7 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
 
         this.applyTimelineViewport(element);
-        this.applyPreviewSizeToBBS();
+        this.preview.applySize();
 
         if (this.isFlying())
         {

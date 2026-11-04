@@ -209,7 +209,7 @@ public class FilmQueueExporter
 
         recorder.setFinishedListener(this::onRecordingFinished);
 
-        UIFilmPanel.applyExportSizeToBBS(this.settings);
+        UIWorldPreview.applyExportSize(this.settings);
         BBSRendering.scheduleAfterNextExportFrame(() ->
         {
             if (this.state != State.RECORDING)

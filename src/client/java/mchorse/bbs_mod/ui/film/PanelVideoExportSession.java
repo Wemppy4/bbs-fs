@@ -214,7 +214,7 @@ public class PanelVideoExportSession extends VideoExportSession
     protected void teardown(boolean cancelled)
     {
         this.editor.getController().setPaused(this.restorePaused);
-        this.editor.restorePreviewSize();
+        this.editor.preview.applySize();
         this.editor.restoreTimelineViews();
 
         if (this.editor.isRunning())
