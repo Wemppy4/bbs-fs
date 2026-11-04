@@ -46,4 +46,10 @@ public interface IUIClipsOwner extends ICursor
      * A clip (or none) was picked on one of the owner's clips panels.
      */
     public void pickClip(Clip clip, UIClipsPanel panel);
+
+    /**
+     * A clip was double clicked on one of the owner's clips panels.
+     */
+    public default void openClip(Clip clip)
+    {}
 }

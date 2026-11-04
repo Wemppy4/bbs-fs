@@ -39,6 +39,7 @@ import mchorse.bbs_mod.ui.dashboard.panels.IFlightSupported;
 import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.dashboard.panels.overlay.UICRUDOverlayPanel;
 import mchorse.bbs_mod.ui.dashboard.utils.IUIOrbitKeysHandler;
+import mchorse.bbs_mod.ui.sequence.SequenceSound;
 import mchorse.bbs_mod.ui.film.audio.UIAudioRecorder;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.ui.film.replays.UIReplaysEditor;
@@ -157,6 +158,9 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
     private final ScrollMemory<String> replayScrolls = new ScrollMemory<>();
 
     private FilmQueueExporter queueExporter;
+
+    /** The sound of the sequence the open film was opened from, or null */
+    private SequenceSound sequenceSound;
 
     /* Docking: panel ids arranged by the dock layout */
     private static final String PANEL_MAIN_ID = "main";
@@ -1211,6 +1215,8 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
      */
     private void leaveScreen()
     {
+        this.setSequenceSound(null);
+
         if (this.queueExporter != null)
         {
             this.queueExporter.cancel();
@@ -1255,6 +1261,11 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
 
     private void leaveEditing()
     {
+        if (this.sequenceSound != null)
+        {
+            this.sequenceSound.stop();
+        }
+
         BBSRendering.setCustomSize(false);
         MorphRenderer.hidePlayer = false;
 
@@ -1745,6 +1756,41 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         }
 
         this.controller.renderFrame(context);
+    }
+
+    /* The sound of a sequence */
+
+    /**
+     * Bring the sound of a sequence along (see {@link SequenceSound}), or take it away with null.
+     */
+    public void setSequenceSound(SequenceSound sound)
+    {
+        if (this.sequenceSound != null)
+        {
+            this.sequenceSound.stop();
+        }
+
+        this.sequenceSound = sound;
+    }
+
+    /**
+     * Play the sequence's sound on the film's tick, while the film it was brought for is open.
+     */
+    public void applySequenceSound(int ticks, float transition, boolean playing)
+    {
+        if (this.sequenceSound == null)
+        {
+            return;
+        }
+
+        if (this.data != null && this.data.getId().equals(this.sequenceSound.filmId))
+        {
+            this.sequenceSound.apply(ticks, transition, playing);
+        }
+        else
+        {
+            this.sequenceSound.stop();
+        }
     }
 
     /* IUICameraWorkDelegate implementation */

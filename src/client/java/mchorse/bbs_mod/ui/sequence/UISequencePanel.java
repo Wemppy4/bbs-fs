@@ -301,10 +301,38 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         }
 
         UIFilmPanel panel = this.dashboard.getPanel(UIFilmPanel.class);
+        SequenceSound sound = new SequenceSound(this.data, clip);
 
         this.save();
+        panel.setSequenceSound(sound.isEmpty() ? null : sound);
         this.dashboard.setPanel(panel);
         panel.pickData(clip.film.get());
+
+        if (!sound.isEmpty())
+        {
+            panel.getContext().notifyInfo(UIKeys.SEQUENCE_SOUND_IN_FILM.format(this.data.getId()));
+        }
+    }
+
+    /**
+     * Double clicking a film clip opens its film.
+     */
+    @Override
+    public void openClip(Clip clip)
+    {
+        if (!(clip instanceof FilmClip film) || film.film.get().isEmpty())
+        {
+            return;
+        }
+
+        if (film.isInCurrentWorld())
+        {
+            this.openFilm(film);
+        }
+        else
+        {
+            this.getContext().notifyError(UIKeys.SEQUENCE_CLIP_OTHER_WORLD);
+        }
     }
 
     /* Recorded pieces */

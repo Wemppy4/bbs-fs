@@ -1383,6 +1383,7 @@ public class UIKeys
     public static final IKey SEQUENCE_CLIP_OTHER_WORLD = L10n.lang("bbs.ui.sequence.clip.other_world");
     public static final IKey SEQUENCE_NOT_RECORDED = L10n.lang("bbs.ui.sequence.not_recorded");
     public static final IKey SEQUENCE_RECORD = L10n.lang("bbs.ui.sequence.record");
+    public static final IKey SEQUENCE_SOUND_IN_FILM = L10n.lang("bbs.ui.sequence.sound_in_film");
     public static final IKey SEQUENCE_RERECORD = L10n.lang("bbs.ui.sequence.rerecord");
     public static final IKey SEQUENCE_OPEN_PARTS = L10n.lang("bbs.ui.sequence.open_parts");
     public static final IKey SEQUENCE_RECORD_PART = L10n.lang("bbs.ui.sequence.record.part");

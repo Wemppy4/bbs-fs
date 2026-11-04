@@ -485,6 +485,12 @@ public class UIClipsPanel extends UITimelinePanel implements IUIClipsDelegate
         this.owner.pickClip(clip, this);
     }
 
+    @Override
+    public void openClip(Clip clip)
+    {
+        this.owner.openClip(clip);
+    }
+
     private void resizeTarget()
     {
         if (this.target != null)

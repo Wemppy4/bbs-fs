@@ -41,6 +41,7 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
 import mchorse.bbs_mod.ui.framework.elements.utils.UITimelineCanvas;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.DoubleClick;
 import mchorse.bbs_mod.ui.utils.IFileDropTarget;
 import mchorse.bbs_mod.ui.utils.Scroll;
 import mchorse.bbs_mod.ui.utils.UIUtils;
@@ -130,6 +131,7 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
     private boolean centerScrollOnRender;
 
     private UIClipRenderers renderers = new UIClipRenderers();
+    private final DoubleClick<Clip> doubleClick = new DoubleClick<>(true);
 
     private List<Clip> grabbedClips = Collections.emptyList();
     private List<Clip> otherClips = Collections.emptyList();
@@ -1378,6 +1380,13 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
             int layerIndex = this.fromLayerY(mouseY);
             Clip original = this.delegate.getClip();
             Clip clip = this.clips.getClipAt(tick, layerIndex);
+
+            if (clip != null && this.doubleClick.hit(clip) && !ctrl && !shift && !alt)
+            {
+                this.delegate.openClip(clip);
+
+                return true;
+            }
 
             if (clip != null)
             {
