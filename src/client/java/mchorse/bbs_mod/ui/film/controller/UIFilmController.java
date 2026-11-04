@@ -1126,6 +1126,7 @@ public class UIFilmController extends UIElement implements GizmoViewport
         if (this.editorController != null)
         {
             this.editorController.update();
+            this.orbit.markActorsPlaced();
         }
 
         if (this.canControl())

@@ -299,7 +299,7 @@ public class BoneTracksMode
         if (insert)
         {
             sheet.channel.preNotify();
-            sheet.ensureKeyframe(this.editor.view.getTick());
+            BoneTracksValue.keyToEdit(sheet, this.editor.view.getTick());
             sheet.channel.postNotify();
         }
 

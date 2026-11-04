@@ -730,7 +730,9 @@ public class UIReplaysEditorUtils
         UIKeyframeSheet draftSheet = new UIKeyframeSheet(sheet.id, sheet.title, sheet.color, draft, sheet.property, sheet.isBoneTrack);
         draftSheet.seed = sheet.seed;
         draftSheet.selection.addAll(sheet.selection.getIndices());
-        List<Keyframe> keys = cursor ? List.of(draftSheet.ensureKeyframe(editor.view.getTick()))
+        /* The Bones tab edits the key within the cursor's tick, which may sit off the grid. */
+        List<Keyframe> keys = cursor ? List.of(bones != null ? BoneTracksValue.keyToEdit(draftSheet, editor.view.getTick())
+                : draftSheet.ensureKeyframe(editor.view.getTick()))
             : new ArrayList<>(draftSheet.selection.getSelected());
 
         for (Keyframe key : keys)
