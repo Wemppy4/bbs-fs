@@ -21,6 +21,7 @@ import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.film.controller.UIMotionPathContextMenu;
 import mchorse.bbs_mod.ui.film.controller.UIOnionSkinContextMenu;
+import mchorse.bbs_mod.ui.film.controller.OrbitFilmCameraController;
 import mchorse.bbs_mod.ui.film.controller.OrbitViewGizmo;
 import mchorse.bbs_mod.ui.film.controller.UIFilmController;
 import mchorse.bbs_mod.ui.film.utils.UICameraUtils;
@@ -32,12 +33,14 @@ import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageFolderOverlayPanel
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
 import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.Area;
+import mchorse.bbs_mod.ui.utils.ScreenOverlay;
 import mchorse.bbs_mod.ui.utils.UI;
 import mchorse.bbs_mod.ui.utils.UIUtils;
 import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.ui.utils.keys.KeyCodes;
 import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.FFMpegUtils;
+import mchorse.bbs_mod.utils.MathUtils;
 import mchorse.bbs_mod.utils.ScreenshotRecorder;
 import mchorse.bbs_mod.utils.StringUtils;
 import mchorse.bbs_mod.utils.clips.Clip;
@@ -51,12 +54,16 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
+import org.joml.Matrix4f;
 import org.joml.Vector2i;
+import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -98,6 +105,12 @@ public class UIFilmPreview extends UIElement
 
     /** Everything drawn over the frame goes through here - see {@link PreviewHud}. */
     private final PreviewHud hud = new PreviewHud();
+
+    /** Until when the wall cut's depth is shown next to the orbit centre, after Alt + wheel. */
+    private long wallCutDepthShownUntil;
+
+    private static final float WALL_CUT_STEP = 0.1F;
+    private static final long WALL_CUT_DEPTH_SHOWN = 1500L;
 
     /** Where the axes crosshair or the navigation ball landed this frame, for drawing and clicking. */
     private final Area navBlock = new Area();
@@ -192,6 +205,7 @@ public class UIFilmPreview extends UIElement
                 menu.action(Icons.LINK, UIKeys.FILM_CONTROLLER_KEYS_ATTACH_ORBIT, controller.orbit.isAttached(), controller::toggleOrbitAttachment);
                 menu.action(Icons.REFRESH, UIKeys.FILM_CONTROLLER_ORBIT_TURNS_WITH_ANCHOR, controller.orbit.isTurningWithAnchor(), controller.orbit::toggleTurningWithAnchor);
                 menu.action(Icons.FRUSTUM, UIKeys.FILM_CONTROLLER_KEYS_TOGGLE_ORTHO, controller.orbit.isOrtho(), controller.orbit::toggleOrtho);
+                menu.action(Icons.CUT, UIKeys.FILM_CONTROLLER_ORBIT_WALL_CUT, controller.orbit.isCuttingWalls(), controller.orbit::toggleWallCut);
             }
         });
         this.autoKeyframe = new UIIcon(Icons.KEY, (b) -> this.toggleAutoKeyframe());
@@ -488,6 +502,19 @@ public class UIFilmPreview extends UIElement
 
         if (area.isInside(context) && !this.panel.isFlying() && this.panel.getController().getPovMode() == UIFilmController.CAMERA_MODE_ORBIT)
         {
+            OrbitFilmCameraController orbit = this.panel.getController().orbit;
+
+            /* Alt + wheel sets how much is left standing in front of the orbit centre */
+            if (Window.isAltPressed() && orbit.isCuttingWalls())
+            {
+                float depth = orbit.getWallCutDepth() + (float) context.mouseWheel * WALL_CUT_STEP;
+
+                orbit.setWallCutDepth(MathUtils.clamp(Math.round(depth / WALL_CUT_STEP) * WALL_CUT_STEP, 0F, 32F));
+                this.wallCutDepthShownUntil = System.currentTimeMillis() + WALL_CUT_DEPTH_SHOWN;
+
+                return true;
+            }
+
             return this.panel.getController().zoomOrbit(context.mouseWheel);
         }
 
@@ -605,6 +632,7 @@ public class UIFilmPreview extends UIElement
         }
 
         this.placementGizmo.render(context, area);
+        this.renderWallCutDepth(context, area, camera);
 
         this.panel.getController().renderHUD(context, this.hud, this.navBlock);
 
@@ -669,6 +697,42 @@ public class UIFilmPreview extends UIElement
         context.batcher.clip(this.area, context);
         super.render(context);
         context.batcher.unclip(context);
+    }
+
+    /** The wall cut's depth, by the orbit centre, for a moment after it was changed. */
+    private void renderWallCutDepth(UIContext context, Area area, Camera camera)
+    {
+        OrbitFilmCameraController orbit = this.panel.getController().orbit;
+
+        if (System.currentTimeMillis() > this.wallCutDepthShownUntil || !orbit.isCuttingWalls())
+        {
+            return;
+        }
+
+        String depth = String.format(Locale.ROOT, "%.1f", orbit.getWallCutDepth());
+        String label = UIKeys.FILM_CONTROLLER_ORBIT_WALL_CUT_DEPTH.format(depth).get();
+        int h = context.batcher.getFont().getHeight();
+        int x = area.mx();
+        int y = area.my();
+        Vector3d center = orbit.getWallCutCenter();
+
+        if (center != null)
+        {
+            Matrix4f mvp = new Matrix4f(camera.projection).mul(camera.view);
+            Vector3f point = ScreenOverlay.project(mvp, area, new Vector3f(
+                (float) (center.x - camera.position.x),
+                (float) (center.y - camera.position.y),
+                (float) (center.z - camera.position.z)
+            ));
+
+            if (point != null)
+            {
+                x = (int) point.x;
+                y = (int) point.y;
+            }
+        }
+
+        context.batcher.textCard(label, x + 12, y - h / 2);
     }
 
     private void renderCursor(UIContext context)

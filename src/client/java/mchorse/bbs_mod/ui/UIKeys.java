@@ -304,6 +304,8 @@ public class UIKeys
     public static final IKey FILM_CONTROLLER_KEYS_START_RECORDING = L10n.lang("bbs.ui.film.controller.keys.start_recording");
     public static final IKey FILM_CONTROLLER_KEYS_ATTACH_ORBIT = L10n.lang("bbs.ui.film.controller.keys.attach_orbit");
     public static final IKey FILM_CONTROLLER_ORBIT_TURNS_WITH_ANCHOR = L10n.lang("bbs.ui.film.controller.orbit_turns_with_anchor");
+    public static final IKey FILM_CONTROLLER_ORBIT_WALL_CUT = L10n.lang("bbs.ui.film.controller.orbit_wall_cut");
+    public static final IKey FILM_CONTROLLER_ORBIT_WALL_CUT_DEPTH = L10n.lang("bbs.ui.film.controller.orbit_wall_cut_depth");
     public static final IKey FILM_CONTROLLER_KEYS_TOGGLE_ORTHO = L10n.lang("bbs.ui.film.controller.keys.toggle_ortho");
     public static final IKey FILM_CONTROLLER_KEYS_TELEPORT_ORBIT = L10n.lang("bbs.ui.film.controller.keys.teleport_orbit");
     public static final IKey FILM_CONTROLLER_KEYS_TOGGLE_CONTROL = L10n.lang("bbs.ui.film.controller.keys.toggle_control");

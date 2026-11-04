@@ -49,6 +49,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
+import org.joml.Vector3d;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
@@ -93,6 +94,12 @@ public class BBSRendering
      * from Camera#update, between renderWorld's HEAD and its projection use),
      * so it can never go stale when another controller takes over. */
     private static float orthoDistance = -1F;
+
+    /* The orbit's wall cut (see TerrainCut): the point it is measured from, null when off.
+     * Re-armed every frame the same way as the ortho distance. */
+    private static Vector3d terrainCutCenter;
+    private static final Vector3d terrainCutPoint = new Vector3d();
+    private static float terrainCutDepth;
 
     private static boolean toggleFramebuffer;
     private static Framebuffer framebuffer;
@@ -415,6 +422,13 @@ public class BBSRendering
 
         orthoDistance = -1F;
 
+        if (terrainCutCenter != null)
+        {
+            /* Same as ortho: the culling the cut turned off comes back unless re-armed. */
+            MinecraftClient.getInstance().chunkCullingEnabled = true;
+            terrainCutCenter = null;
+        }
+
         MinecraftClient mc = MinecraftClient.getInstance();
 
         /* The frame boundary the profiler's counters roll over on; the flag is mirrored here
@@ -728,6 +742,31 @@ public class BBSRendering
                 SodiumUtils.disablePointCameraCulling();
             }
         }
+    }
+
+    /**
+     * Arm the orbit's wall cut for the current frame: world blocks nearer the camera than
+     * the plane through {@code center}, moved {@code depth} blocks towards the camera, are
+     * not drawn (see {@link TerrainCut}). Reset at the beginning of every world render.
+     */
+    public static void setTerrainCut(Vector3d center, float depth)
+    {
+        terrainCutCenter = terrainCutPoint.set(center);
+        terrainCutDepth = depth;
+
+        /* With the wall gone the camera sees what the wall hid, but the chunk occlusion
+         * culling still judges from the camera's side of the wall and drops those sections. */
+        MinecraftClient.getInstance().chunkCullingEnabled = false;
+    }
+
+    public static Vector3d getTerrainCutCenter()
+    {
+        return terrainCutCenter;
+    }
+
+    public static float getTerrainCutDepth()
+    {
+        return terrainCutDepth;
     }
 
     public static boolean isOrthoActive()

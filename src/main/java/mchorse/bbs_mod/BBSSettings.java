@@ -171,6 +171,8 @@ public class BBSSettings {
 	public static ValueBoolean editorOrbitTeleportOnSwitch;
 	public static ValueBoolean editorOrbitAttached;
 	public static ValueBoolean editorOrbitTurnsWithAnchor;
+	public static ValueBoolean editorOrbitWallCut;
+	public static ValueFloat editorOrbitWallCutDepth;
 	public static ValueFloat editorCameraSmoothness;
 	public static ValueInt editorCameraMode;
 	public static ValueBoolean editorPlayerFollowsCamera;
@@ -863,6 +865,10 @@ public class BBSSettings {
 		editorOrbitAttached.invisible();
 		editorOrbitTurnsWithAnchor = builder.getBoolean("orbit_turns_with_anchor", false);
 		editorOrbitTurnsWithAnchor.invisible();
+		editorOrbitWallCut = builder.getBoolean("orbit_wall_cut", false);
+		editorOrbitWallCut.invisible();
+		editorOrbitWallCutDepth = builder.getFloat("orbit_wall_cut_depth", 0.3F, 0F, 32F);
+		editorOrbitWallCutDepth.invisible();
 		editorCameraMode = builder.getInt("camera_mode", 0, 0, 5);
 		editorCameraMode.invisible();
 
