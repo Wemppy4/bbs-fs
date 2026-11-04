@@ -258,7 +258,6 @@
 	"bbs.ui.timeline.transform_overlay_number": "Transform overlay %s",
 	"bbs.ui.timeline.shape_keys_overlay": "Shape keys overlay",
 	"bbs.ui.timeline.shape_keys_overlay_number": "Shape keys overlay %s",
-	"bbs.ui.timeline.kind.bone_constraint": "Constraints · %s",
 	"bbs.ui.timeline.kind.ik_target": "IK target · %s",
 	"bbs.ui.timeline.kind.pole_target": "Pole target · %s",
 	"bbs.ui.timeline.kind.physics_target": "Physics target · %s",

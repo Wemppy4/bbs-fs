@@ -258,7 +258,6 @@
 	"bbs.ui.timeline.transform_overlay_number": "Наложение трансформации %s",
 	"bbs.ui.timeline.shape_keys_overlay": "Наложение ключей формы",
 	"bbs.ui.timeline.shape_keys_overlay_number": "Наложение ключей формы %s",
-	"bbs.ui.timeline.kind.bone_constraint": "Ограничения · %s",
 	"bbs.ui.timeline.kind.ik_target": "Цель ИК · %s",
 	"bbs.ui.timeline.kind.pole_target": "Направление сгиба · %s",
 	"bbs.ui.timeline.kind.physics_target": "Цель физики · %s",

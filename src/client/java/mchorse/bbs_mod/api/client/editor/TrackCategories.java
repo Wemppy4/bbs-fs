@@ -60,7 +60,7 @@ public final class TrackCategories
             {
                 case IK_CONTROLS, IK_TARGET, POLE_TARGET, PHYSICS_CONTROLS, PHYSICS_TARGET, WIND_CONTROLS:
                     return TrackCategory.FORM;
-                case BONE, BONE_CONSTRAINT:
+                case BONE:
                     return TrackCategory.BONES;
                 case MATERIAL_TEXTURE, MATERIAL_PROP:
                     return TrackCategory.FORM;

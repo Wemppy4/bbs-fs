@@ -44,7 +44,7 @@ public class TrackStyle
         {
             case PROPERTY -> label(id.subject());
             case MATERIAL_PROP -> materialLabel(id.material(), label(id.property()));
-            case BONE_CONSTRAINT, IK_TARGET, POLE_TARGET, PHYSICS_TARGET -> kindLabel(id.kind()).format(id.subject());
+            case IK_TARGET, POLE_TARGET, PHYSICS_TARGET -> kindLabel(id.kind()).format(id.subject());
             case IK_CONTROLS, PHYSICS_CONTROLS, WIND_CONTROLS -> kindLabel(id.kind());
             default -> IKey.constant(id.label());
         };

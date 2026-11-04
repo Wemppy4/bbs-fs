@@ -106,7 +106,7 @@ public class BoneTracksMode
 
     /**
      * Keep the rows the tab shows: bones with keys, and the picked bone even before it has any.
-     * A limits track goes along with its bone's keys. {@code keep} lets a found track through.
+     * {@code keep} lets a found track through.
      */
     public void filter(List<UIKeyframeSheet> sheets, Predicate<UIKeyframeSheet> keep)
     {
@@ -116,7 +116,7 @@ public class BoneTracksMode
         {
             TrackId track = TrackId.parse(sheet.id);
 
-            if (track == null || (track.kind() != TrackKind.BONE && track.kind() != TrackKind.BONE_CONSTRAINT))
+            if (track == null || track.kind() != TrackKind.BONE)
             {
                 return false;
             }
@@ -132,11 +132,8 @@ public class BoneTracksMode
 
             boolean shown = isPicked && !key.equals(this.dismissed);
 
-            if (track.kind() == TrackKind.BONE)
-            {
-                sheet.highlighted = isPicked;
-                sheet.alwaysOpen = true;
-            }
+            sheet.highlighted = isPicked;
+            sheet.alwaysOpen = true;
 
             return !(shown || !sheet.channel.isEmpty() || keep.test(sheet));
         });
