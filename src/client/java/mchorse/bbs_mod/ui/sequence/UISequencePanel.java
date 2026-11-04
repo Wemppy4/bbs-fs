@@ -178,7 +178,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
             }
         });
 
-        this.overlay.namesList.setFileIcon(Icons.GALLERY);
+        this.overlay.namesList.setFileIcon(Icons.SCENE);
 
         IKey editor = UIKeys.CAMERA_EDITOR_KEYS_EDITOR_TITLE;
 
@@ -541,7 +541,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     @Override
     public Icon getTabIcon(String id)
     {
-        return id == null ? Icons.SEARCH : Icons.GALLERY;
+        return id == null ? Icons.SEARCH : Icons.SCENE;
     }
 
     @Override
