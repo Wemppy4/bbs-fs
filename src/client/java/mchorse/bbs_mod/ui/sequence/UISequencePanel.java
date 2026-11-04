@@ -21,6 +21,8 @@ import mchorse.bbs_mod.ui.film.IUIClipsOwner;
 import mchorse.bbs_mod.ui.film.UIClipsPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
+import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UISearchList;
 import mchorse.bbs_mod.ui.framework.elements.input.list.UIStringList;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
@@ -65,6 +67,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     public UIClipsPanel timeline;
     public UIElement clipArea;
     public UISequenceRecorder recorder;
+    public UIIcon openMenu;
 
     private final Camera camera = new Camera();
     private final SequenceCameraController runner = new SequenceCameraController(this);
@@ -127,6 +130,13 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.editor.add(this.left, this.preview, this.timeline, this.clipArea);
 
         this.recorder = new UISequenceRecorder(this);
+
+        this.openMenu = new UIIcon(Icons.GEAR, (b) -> this.getContext().replaceContextMenu((menu) ->
+        {
+            menu.action(Icons.VIDEO_CAMERA, UIKeys.SEQUENCE_EXPORT_TITLE, this::openExportSettings);
+        }));
+        this.openMenu.tooltip(UIKeys.SEQUENCE_OPTIONS);
+        this.actions().menu(this.openMenu);
 
         this.timeline.clips.context((menu) ->
         {
@@ -381,6 +391,27 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.recorded.clear();
     }
 
+    /**
+     * The sequence's own export settings, in a window over the editor. The preview follows them
+     * as soon as it is closed.
+     */
+    public void openExportSettings()
+    {
+        if (this.data == null)
+        {
+            return;
+        }
+
+        UISequenceExportOverlayPanel panel = new UISequenceExportOverlayPanel(this.data.export);
+
+        panel.onClose((e) ->
+        {
+            this.refreshRecorded();
+            this.preview.applySize();
+        });
+        UIOverlay.addOverlay(this.getContext(), panel, 260, 0.8F);
+    }
+
     /* Data */
 
     @Override
@@ -435,6 +466,7 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.player.stop();
         this.runner.shutdown();
         this.runner.setWork(data == null ? null : data.clips);
+        this.openMenu.setEnabled(data != null);
         this.timeline.setClips(data == null ? null : data.clips);
         this.timeline.pickClip(null);
     }
