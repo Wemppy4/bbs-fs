@@ -49,6 +49,15 @@ public class OrbitFilmCameraController extends OrbitViewportController
     private Replay anchorReplay;
     private float anchorTime = Float.NaN;
 
+    /*
+     * The tick the film last put its actors at, and the one the anchor last saw. The pose follows
+     * the cursor in the very frame it moves, but the actors take their place only on the film's
+     * next tick (see UIFilmController#update), up to a tick later - so a jump in time reaches the
+     * anchor in two steps, and the second one is time going by just as much as the first.
+     */
+    private int placedTick;
+    private int anchorPlacedTick;
+
     public OrbitFilmCameraController(UIFilmController controller)
     {
         super();
@@ -234,6 +243,10 @@ public class OrbitFilmCameraController extends OrbitViewportController
      * or as the actor is steered live. An edit on the same frame (a gizmo drag, a controller
      * handle, a typed value, an undo) moves the subject under a camera that stays where it is:
      * the orbit is rebased instead, so it goes on from the new place without a jump.
+     *
+     * <p>Time moves the actor's place a tick later than its pose (see {@link #placedTick}).
+     * Taking that late step for an edit left the camera where the jump started, and the subject
+     * walked out of the middle of the screen by however far it had gone.</p>
      */
     @Override
     protected void updateAnchor(float transition)
@@ -258,9 +271,11 @@ public class OrbitFilmCameraController extends OrbitViewportController
         Vector3d position = new Vector3d();
         Quaternionf rotation = new Quaternionf();
         float time = this.controller.panel.getCursor(transition);
-        boolean follow = time != this.anchorTime || this.controller.isControlling() || this.controller.isRecording();
+        boolean follow = time != this.anchorTime || this.placedTick != this.anchorPlacedTick
+            || this.controller.isControlling() || this.controller.isRecording();
 
         this.anchorTime = time;
+        this.anchorPlacedTick = this.placedTick;
 
         if (subject != null)
         {
@@ -324,6 +339,12 @@ public class OrbitFilmCameraController extends OrbitViewportController
         }
 
         return MatrixStackUtils.stripScale(matrix);
+    }
+
+    /** The film has just put its actors at the cursor's tick. */
+    public void markActorsPlaced()
+    {
+        this.placedTick = this.controller.panel.getCursor();
     }
 
     private Matrix4f getBoneFrame(Subject subject, float transition)
