@@ -27,6 +27,8 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
     private final BoneTracksValue bones;
 
     private float shownTick = Float.NaN;
+    /** The tick the fields were last read at — they follow the cursor even while a drag holds the selection. */
+    private float updatedTick = Float.NaN;
     private String shownBone;
 
     /** The bone was picked by clicking its key on the timeline: whatever the animator selected there stays. */
@@ -97,24 +99,30 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
 
         if (!this.isUserEditing())
         {
-            boolean moved = Float.compare(tick, this.shownTick) != 0;
-            boolean picked = bone == null ? this.shownBone != null : !bone.equals(this.shownBone);
-
-            if (moved)
+            if (Float.compare(tick, this.updatedTick) != 0)
             {
+                this.updatedTick = tick;
                 this.requestUpdate();
             }
 
-            if (moved || picked || this.bones.wrote)
+            /* Hands off the selection while the timeline is being dragged: a key picked under a scrub
+             * turns the drag into dragging that key, and the cursor sticks to it. It catches up on release. */
+            if (!this.editor.isInteracting())
             {
-                this.bones.wrote = false;
-                this.shownTick = tick;
-                this.shownBone = bone;
-                this.pickKeyAtCursor(bone, picked && !this.pickedOnTimeline);
+                boolean moved = Float.compare(tick, this.shownTick) != 0;
+                boolean picked = bone == null ? this.shownBone != null : !bone.equals(this.shownBone);
+
+                if (moved || picked || this.bones.wrote)
+                {
+                    this.bones.wrote = false;
+                    this.shownTick = tick;
+                    this.shownBone = bone;
+                    this.pickKeyAtCursor(bone, picked && !this.pickedOnTimeline);
+                }
+
+                this.pickedOnTimeline = false;
             }
         }
-
-        this.pickedOnTimeline = false;
 
         super.render(context);
     }
