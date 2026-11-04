@@ -1369,7 +1369,6 @@ public class UIKeys
     public static final IKey SEQUENCE_TABS_NEW_TAB = L10n.lang("bbs.ui.sequence.tabs.new_tab");
     public static final IKey SEQUENCE_LANDING_NEW = L10n.lang("bbs.ui.sequence.landing.new");
     public static final IKey SEQUENCE_LANDING_LIST = L10n.lang("bbs.ui.sequence.landing.list");
-    public static final IKey SEQUENCE_OPTIONS = L10n.lang("bbs.ui.sequence.options");
     public static final IKey SEQUENCE_FILMS_EMPTY = L10n.lang("bbs.ui.sequence.films.empty");
     public static final IKey SEQUENCE_FILMS_ADD = L10n.lang("bbs.ui.sequence.films.add");
     public static final IKey SEQUENCE_FILMS_ADD_TOOLTIP = L10n.lang("bbs.ui.sequence.films.add-tooltip");
@@ -1384,9 +1383,8 @@ public class UIKeys
     public static final IKey SEQUENCE_NOT_RECORDED = L10n.lang("bbs.ui.sequence.not_recorded");
     public static final IKey SEQUENCE_RECORD = L10n.lang("bbs.ui.sequence.record");
     public static final IKey SEQUENCE_EXPORT_TITLE = L10n.lang("bbs.ui.sequence.export.title");
-    public static final IKey SEQUENCE_EXPORT_PICTURE = L10n.lang("bbs.ui.sequence.export.picture");
-    public static final IKey SEQUENCE_EXPORT_SOUND = L10n.lang("bbs.ui.sequence.export.sound");
-    public static final IKey SEQUENCE_EXPORT_FILE = L10n.lang("bbs.ui.sequence.export.file");
+    public static final IKey SEQUENCE_EXPORT_CUSTOM = L10n.lang("bbs.ui.sequence.export.custom");
+    public static final IKey SEQUENCE_EXPORT_CUSTOM_TOOLTIP = L10n.lang("bbs.ui.sequence.export.custom-tooltip");
     public static final IKey SEQUENCE_SOUND_IN_FILM = L10n.lang("bbs.ui.sequence.sound_in_film");
     public static final IKey SEQUENCE_RERECORD = L10n.lang("bbs.ui.sequence.rerecord");
     public static final IKey SEQUENCE_OPEN_PARTS = L10n.lang("bbs.ui.sequence.open_parts");

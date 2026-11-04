@@ -67,11 +67,23 @@ public class UIFilmClip extends UIClip<FilmClip>
         this.world = UI.label(IKey.EMPTY, UIConstants.CONTROL_HEIGHT).labelAnchor(0, 0.5F);
         this.world.color(Colors.LIGHTER_GRAY);
         this.world.tooltip(UIKeys.SEQUENCE_CLIP_OTHER_WORLD);
-        this.bind(this.world, () ->
+        /* Only a film of another world says which: for this world's films the line takes no room.
+         * Filled on demand, since a hidden label is not drawn and would never read it back. */
+        this.bindOnDemand(this.world, () ->
         {
             boolean other = !this.clip.isInCurrentWorld();
 
             this.world.label = other ? UIKeys.SEQUENCE_CLIP_WORLD.format(this.clip.world.get()) : IKey.EMPTY;
+
+            if (this.world.isVisible() != other)
+            {
+                this.world.setVisible(other);
+
+                if (this.getParent() != null)
+                {
+                    this.resize();
+                }
+            }
         });
     }
 

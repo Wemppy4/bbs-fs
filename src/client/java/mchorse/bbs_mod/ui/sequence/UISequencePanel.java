@@ -11,6 +11,10 @@ import mchorse.bbs_mod.film.sequence.Sequence;
 import mchorse.bbs_mod.film.sequence.SequenceFilms;
 import mchorse.bbs_mod.client.renderer.MorphRenderer;
 import mchorse.bbs_mod.l10n.keys.IKey;
+import mchorse.bbs_mod.settings.values.ui.EditorLayoutNode;
+import mchorse.bbs_mod.settings.values.ui.ValueEditorLayout;
+import mchorse.bbs_mod.ui.framework.elements.layout.ILayoutSource;
+import mchorse.bbs_mod.ui.framework.elements.layout.UIDockLayout;
 import mchorse.bbs_mod.ui.ContentType;
 import mchorse.bbs_mod.ui.Keys;
 import mchorse.bbs_mod.ui.UIKeys;
@@ -48,6 +52,7 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The sequence editor: films of a video put in order on one timeline, the way Unreal's Sequencer
@@ -57,17 +62,13 @@ import java.util.Map;
  */
 public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements IUIClipsOwner
 {
-    private static final int LEFT_WIDTH = 160;
-    private static final int RIGHT_WIDTH = 200;
-    private static final float PREVIEW_HEIGHT = 0.6F;
-
+    public UIDockLayout dock;
     public UIElement left;
     public UISearchList<String> films;
     public UISequencePreview preview;
     public UIClipsPanel timeline;
     public UIElement clipArea;
     public UISequenceRecorder recorder;
-    public UIIcon openMenu;
 
     private final Camera camera = new Camera();
     private final SequenceCameraController runner = new SequenceCameraController(this);
@@ -93,7 +94,6 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         super(dashboard);
 
         this.left = new UIElement();
-        this.left.relative(this.editor).w(LEFT_WIDTH).h(1F);
 
         this.films = new UISearchList<>(new UIStringList(null)
         {
@@ -119,24 +119,45 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.left.add(this.films);
 
         this.preview = new UISequencePreview(this);
-        this.preview.relative(this.editor).x(LEFT_WIDTH).w(1F, -LEFT_WIDTH - RIGHT_WIDTH).h(PREVIEW_HEIGHT);
-
         this.clipArea = new UIElement();
-        this.clipArea.relative(this.editor).x(1F, -RIGHT_WIDTH).w(RIGHT_WIDTH).h(1F);
-
         this.timeline = new UIClipsPanel(this, BBSModClient.getSequenceClipPalette()).target(this.clipArea);
-        this.timeline.relative(this.editor).x(LEFT_WIDTH).y(PREVIEW_HEIGHT).w(1F, -LEFT_WIDTH - RIGHT_WIDTH).h(1F - PREVIEW_HEIGHT);
 
-        this.editor.add(this.left, this.preview, this.timeline, this.clipArea);
+        /* The same docks as the film and particle editors: panels resize, move and stack */
+        this.dock = new UIDockLayout();
+        this.dock.relative(this.editor).w(1F).h(1F);
+        this.dock.source(this.createLayoutSource())
+            .locked(!BBSSettings.editorLayoutSettings.isDockUnlocked(ValueEditorLayout.SEQUENCE))
+            .frameless("preview")
+            .gate(() -> this.data != null)
+            .onLayoutSettled(() ->
+            {
+                if (this.isVisible() && this.getContext() != null)
+                {
+                    this.preview.applySize();
+                }
+            });
+        this.dock.addPanel("films", this.left, Icons.LIST, UIKeys.SEQUENCE_PICK_FILM);
+        this.dock.addPanel("preview", this.preview, Icons.VIDEO_CAMERA, UIKeys.FILM_PANELS_PREVIEW);
+        this.dock.addPanel("timeline", this.timeline, Icons.FILM, UIKeys.FILM_PANELS_MAIN);
+        this.dock.addPanel("clip", this.clipArea, Icons.PROPERTIES, UIKeys.FILM_PANELS_EDIT_AREA);
+        this.dock.mount();
+        this.editor.add(this.dock);
 
         this.recorder = new UISequenceRecorder(this);
 
-        this.openMenu = new UIIcon(Icons.GEAR, (b) -> this.getContext().replaceContextMenu((menu) ->
+        UIIcon lock = new UIIcon(() -> this.dock.isLocked() ? Icons.LOCKED : Icons.UNLOCKED, (b) ->
         {
-            menu.action(Icons.VIDEO_CAMERA, UIKeys.SEQUENCE_EXPORT_TITLE, this::openExportSettings);
-        }));
-        this.openMenu.tooltip(UIKeys.SEQUENCE_OPTIONS);
-        this.actions().menu(this.openMenu);
+            this.dock.toggleLock();
+            BBSSettings.editorLayoutSettings.setDockUnlocked(ValueEditorLayout.SEQUENCE, !this.dock.isLocked());
+        });
+        lock.tooltip(() -> (this.dock.isLocked() ? UIKeys.FILM_LAYOUT_UNLOCK : UIKeys.FILM_LAYOUT_LOCK).get());
+
+        UIIcon resetLayout = new UIIcon(Icons.REFRESH, (b) -> this.dock.resetLayout());
+        resetLayout.tooltip(UIKeys.FILM_LAYOUT_RESET);
+
+        this.actions()
+            .action(resetLayout)
+            .layout(lock, this.dock::isLocked);
 
         this.timeline.clips.context((menu) ->
         {
@@ -168,6 +189,21 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.keys().register(Keys.JUMP_FORWARD, () -> this.setCursor(this.getCursor() + BBSSettings.editorJump.get())).active(() -> this.data != null).category(editor);
         this.keys().register(Keys.JUMP_BACKWARD, () -> this.setCursor(this.getCursor() - BBSSettings.editorJump.get())).active(() -> this.data != null).category(editor);
 
+        this.keys().register(Keys.DOCK_MAXIMIZE, () ->
+        {
+            if (this.dock.toggleMaximizeUnderCursor())
+            {
+                UIUtils.playClick();
+            }
+        }).category(editor);
+        this.keys().register(Keys.DOCK_UNDO_LAYOUT, () ->
+        {
+            if (this.dock.undoLayout())
+            {
+                UIUtils.playClick();
+            }
+        }).category(editor);
+
         this.add(new UIUndoKeys(this::undo, this::redo).full(this));
 
         this.setUndoId("sequence_panel");
@@ -188,6 +224,44 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
     public SequencePlayer getPlayer()
     {
         return this.player;
+    }
+
+    private ILayoutSource createLayoutSource()
+    {
+        ValueEditorLayout layout = BBSSettings.editorLayoutSettings;
+
+        return new ILayoutSource()
+        {
+            @Override
+            public EditorLayoutNode getRoot()
+            {
+                return layout.getLayout(ValueEditorLayout.SEQUENCE, EditorLayoutNode::defaultSequenceLayout);
+            }
+
+            @Override
+            public void setRoot(EditorLayoutNode root)
+            {
+                layout.setLayout(ValueEditorLayout.SEQUENCE, root);
+            }
+
+            @Override
+            public EditorLayoutNode getDefault()
+            {
+                return EditorLayoutNode.defaultSequenceLayout();
+            }
+
+            @Override
+            public Set<String> getHiddenPanels()
+            {
+                return layout.getHiddenPanels(ValueEditorLayout.SEQUENCE);
+            }
+
+            @Override
+            public void setHiddenPanels(Set<String> hidden)
+            {
+                layout.setHiddenPanels(ValueEditorLayout.SEQUENCE, hidden);
+            }
+        };
     }
 
     /* Being on screen */
@@ -479,7 +553,6 @@ public class UISequencePanel extends UIDataDashboardPanel<Sequence> implements I
         this.player.stop();
         this.runner.shutdown();
         this.runner.setWork(data == null ? null : data.clips);
-        this.openMenu.setEnabled(data != null);
         this.timeline.setClips(data == null ? null : data.clips);
         this.timeline.pickClip(null);
     }

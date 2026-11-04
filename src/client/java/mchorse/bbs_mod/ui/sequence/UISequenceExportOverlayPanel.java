@@ -10,7 +10,6 @@ import mchorse.bbs_mod.settings.values.numeric.ValueInt;
 import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.UIScrollView;
-import mchorse.bbs_mod.ui.framework.elements.UISection;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIToggle;
 import mchorse.bbs_mod.ui.framework.elements.input.UITrackpad;
@@ -26,13 +25,14 @@ import mchorse.bbs_mod.ui.utils.icons.Icons;
 import mchorse.bbs_mod.utils.VideoExportSettings;
 
 /**
- * A sequence's own export settings, in three parts: the picture (a change there makes every
- * recorded piece stale), the sound, and where the video goes. Named the way the same settings are
- * named in the settings' "Video" category.
+ * A sequence's export settings: one switch on top, and while it is on, the sequence's own size,
+ * frame rate, motion blur, held frames, shutter, sound and folder. While it is off, the sequence
+ * records with the settings' "Video" category. Named the way the same settings are named there.
  */
 public class UISequenceExportOverlayPanel extends UIOverlayPanel
 {
     private final SequenceExport export;
+    private UIElement fields;
 
     public UISequenceExportOverlayPanel(SequenceExport export)
     {
@@ -44,36 +44,32 @@ public class UISequenceExportOverlayPanel extends UIOverlayPanel
 
         view.full(this.content).column(UIConstants.MARGIN).scroll().vertical().stretch().padding(UIConstants.SCROLL_PADDING);
 
-        view.add(this.section(UIKeys.SEQUENCE_EXPORT_PICTURE,
+        UIToggle custom = new UIToggle(UIKeys.SEQUENCE_EXPORT_CUSTOM, export.custom.get(), (t) ->
+        {
+            export.custom.set(t.getValue());
+            this.fields.setVisible(t.getValue());
+            this.resize();
+        });
+
+        custom.tooltip(UIKeys.SEQUENCE_EXPORT_CUSTOM_TOOLTIP);
+
+        this.fields = new UIElement();
+        this.fields.column(UIConstants.MARGIN).vertical().stretch();
+        this.fields.add(
             this.number(export.width),
             this.number(export.height),
             this.number(export.frameRate),
             this.number(export.motionBlur),
             this.number(export.heldFrames),
             this.number(export.shutter),
-            this.text(export.arguments),
-            this.text(export.argumentsAudio)
-        ));
-        view.add(this.section(UIKeys.SEQUENCE_EXPORT_SOUND,
             this.toggle(export.audio),
             this.toggle(export.minecraftSounds),
-            this.text(export.argumentsMux)
-        ));
-        view.add(this.section(UIKeys.SEQUENCE_EXPORT_FILE,
-            this.path(export.exportPath),
-            this.text(export.filenameFormat)
-        ));
+            this.path(export.exportPath)
+        );
+        this.fields.setVisible(export.custom.get());
 
+        view.add(custom, this.fields);
         this.content.add(view);
-    }
-
-    private UISection section(IKey title, UIElement... fields)
-    {
-        UISection section = new UISection(title);
-
-        section.fields.add(fields);
-
-        return section;
     }
 
     private static IKey label(BaseValue value)
@@ -106,18 +102,7 @@ public class UISequenceExportOverlayPanel extends UIOverlayPanel
         return toggle;
     }
 
-    /** A text over the full width, its name above it. */
-    private UIElement text(ValueString value)
-    {
-        UITextbox textbox = new UITextbox(10000, value::set);
-
-        textbox.setText(value.get());
-        textbox.tooltip(comment(value));
-
-        return this.named(value, textbox);
-    }
-
-    /** The folder the video goes into, picked with the button beside it. */
+    /** The folder the video goes into, picked with the button beside it, its name above it. */
     private UIElement path(ValueString value)
     {
         UITextbox textbox = new UITextbox(10000, value::set);
@@ -138,17 +123,12 @@ public class UISequenceExportOverlayPanel extends UIOverlayPanel
         row.row(4).height(UIConstants.CONTROL_HEIGHT);
         row.add(textbox, pick);
 
-        return this.named(value, row);
-    }
-
-    private UIElement named(BaseValue value, UIElement control)
-    {
         UILabel label = UI.label(label(value)).labelAnchor(0, 0.5F);
         UIElement column = new UIElement();
 
         label.h(12);
         column.column(1).vertical().stretch();
-        column.add(label, control);
+        column.add(label, row);
 
         return column;
     }

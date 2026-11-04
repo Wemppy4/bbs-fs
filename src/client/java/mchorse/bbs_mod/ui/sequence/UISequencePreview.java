@@ -39,6 +39,11 @@ public class UISequencePreview extends UIWorldPreview
         this.record.tooltip(UIKeys.SEQUENCE_RECORD);
         this.record.context((menu) ->
         {
+            if (this.panel.getData() != null)
+            {
+                menu.action(Icons.GEAR, UIKeys.SEQUENCE_EXPORT_TITLE, this.panel::openExportSettings);
+            }
+
             menu.action(Icons.FILM, UIKeys.CAMERA_TOOLTIPS_OPEN_VIDEOS, () ->
             {
                 Sequence sequence = this.panel.getData();

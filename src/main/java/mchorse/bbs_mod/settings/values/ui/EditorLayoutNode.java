@@ -177,6 +177,30 @@ public abstract class EditorLayoutNode
         );
     }
 
+    /**
+     * Default sequence layout: the films of the world on the left, the clip's properties on the
+     * right, the preview over the timeline between them.
+     */
+    public static EditorLayoutNode defaultSequenceLayout()
+    {
+        return new SplitterNode(
+            false,
+            0.16F,
+            new PanelNode("films"),
+            new SplitterNode(
+                false,
+                0.78F,
+                new SplitterNode(
+                    true,
+                    0.6F,
+                    new PanelNode("preview"),
+                    new PanelNode("timeline")
+                ),
+                new PanelNode("clip")
+            )
+        );
+    }
+
     /** Returns a new tree with panelId removed; parent splitter is collapsed to its other child. */
     public static EditorLayoutNode copyWithRemovedPanel(EditorLayoutNode root, String panelId)
     {
