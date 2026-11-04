@@ -255,12 +255,21 @@ public class BoneTracksMode
 
         UIKeyframeSheet sheet = primary == null ? null : bones.get(primary);
 
-        if (!changed || sheet == null || this.editor == null)
+        if (!changed || this.editor == null)
         {
             return;
         }
 
-        if (!this.editor.view.getDopeSheet().unfoldTo(sheet))
+        /* The bone picked before may have had a row only for being picked: it goes with the pick. */
+        for (UIKeyframeSheet shown : this.editor.view.getSheets())
+        {
+            if (shown.isBoneTrack && shown != sheet && shown.channel.isEmpty())
+            {
+                this.rowsChanged = true;
+            }
+        }
+
+        if (sheet != null && !this.editor.view.getDopeSheet().unfoldTo(sheet))
         {
             this.rowsChanged = true;
             this.revealPending = true;
