@@ -91,7 +91,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSupported, IUIOrbitKeysHandler, ICursor
+public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSupported, IUIOrbitKeysHandler, IUIClipsOwner
 {
 
     private RunnerCameraController runner;
@@ -1762,6 +1762,21 @@ public class UIFilmPanel extends UIDataDashboardPanel<Film> implements IFlightSu
         ClientNetwork.sendActionState(id, state, tick);
     }
 
+    /* IUIClipsOwner implementation */
+
+    @Override
+    public Film getFilm()
+    {
+        return this.data;
+    }
+
+    @Override
+    public void markLastUndoNoMerging()
+    {
+        this.undoHandler.getUndoManager().markLastUndoNoMerging();
+    }
+
+    @Override
     public Camera getCamera()
     {
         return this.camera;

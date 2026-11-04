@@ -289,7 +289,8 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
                 add.action(Icons.UPLOAD, UIKeys.CAMERA_TIMELINE_CONTEXT_ADD_ON_TOP, this::showAddsOnTop);
             }
 
-            if (this.factory.getKeys().contains(Link.bbs("keyframe")))
+            /* A camera made from a replay's path - only clips that belong to a film have replays */
+            if (this.factory.getKeys().contains(Link.bbs("keyframe")) && this.delegate.getFilm() != null)
             {
                 add.action(Icons.EDITOR, UIKeys.CAMERA_TIMELINE_CONTEXT_FROM_PLAYER_RECORDING, () -> this.fromReplay(mouseX, mouseY));
             }
