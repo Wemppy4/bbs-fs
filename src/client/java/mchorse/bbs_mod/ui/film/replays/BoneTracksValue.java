@@ -54,37 +54,68 @@ public class BoneTracksValue extends UITrackValue<Pose>
         return this.bones.get(bone);
     }
 
-    /** The bone's own track at the cursor, or null when it has no keys. */
+    /**
+     * The bone's own track at the cursor, or null when it has no keys: the value of its key at the
+     * cursor when there is one (see {@link #keyAt}), what the track reads there otherwise.
+     */
     public PoseTransform getBone(String bone)
     {
         UIKeyframeSheet sheet = this.bones.get(bone);
 
-        return sheet == null || sheet.channel.isEmpty() ? null : (PoseTransform) sheet.sample(this.editor.getTick());
-    }
-
-    /** The bone's key exactly at the cursor, if there is one. */
-    public Keyframe getKeyAtCursor(String bone)
-    {
-        UIKeyframeSheet sheet = this.bones.get(bone);
-
-        if (sheet == null)
+        if (sheet == null || sheet.channel.isEmpty())
         {
             return null;
         }
 
-        float tick = sheet.channel.getSourceTick(this.editor.getTick());
+        Keyframe key = keyAt(sheet, this.editor.getTick());
+
+        return (PoseTransform) (key != null ? sheet.channel.getFactory().copy(key.getValue()) : sheet.sample(this.editor.getTick()));
+    }
+
+    /** The bone's key at the cursor, if there is one (see {@link #keyAt}). */
+    public Keyframe getKeyAtCursor(String bone)
+    {
+        UIKeyframeSheet sheet = this.bones.get(bone);
+
+        return sheet == null ? null : keyAt(sheet, this.editor.getTick());
+    }
+
+    /**
+     * The track's key "at" a tick: the one exactly there, or else the one within the same whole tick.
+     * With snapping on, the cursor stands on whole ticks only, so a key put down between them (a
+     * Shift scrub, a scaled or imported animation) could never be reached — clicking it left the
+     * cursor beside it, and the next edit put a second key next to it instead of changing it.
+     */
+    public static Keyframe keyAt(UIKeyframeSheet sheet, float tick)
+    {
+        float source = sheet.channel.getSourceTick(tick);
+        float cell = (float) Math.floor(source);
+        Keyframe near = null;
 
         for (Object object : sheet.channel.getKeyframes())
         {
             Keyframe keyframe = (Keyframe) object;
 
-            if (keyframe.getTick() == tick)
+            if (keyframe.getTick() == source)
             {
                 return keyframe;
             }
+
+            if (near == null && Math.floor(keyframe.getTick()) == cell)
+            {
+                near = keyframe;
+            }
         }
 
-        return null;
+        return near;
+    }
+
+    /** The key an edit at the cursor lands on: the one already there (see {@link #keyAt}), or a new one. */
+    public static Keyframe keyToEdit(UIKeyframeSheet sheet, float tick)
+    {
+        Keyframe key = keyAt(sheet, tick);
+
+        return key != null ? key : sheet.ensureKeyframe(tick);
     }
 
     @Override
@@ -147,7 +178,7 @@ public class BoneTracksValue extends UITrackValue<Pose>
             }
 
             PoseTransform value = (PoseTransform) b.copy();
-            Runnable write = () -> sheet.ensureKeyframe(tick).setValue(value, false);
+            Runnable write = () -> keyToEdit(sheet, tick).setValue(value, false);
 
             if (this.editor.getSheets().contains(sheet))
             {
