@@ -143,6 +143,10 @@ public abstract class OrbitViewportController implements ICameraController
         return null;
     }
 
+    /** The user moved the orbit itself (turn, zoom, pan, teleport...); for diagnostics. */
+    protected void noteInput(String what)
+    {}
+
     /* Input */
 
     public void start(UIContext context)
@@ -272,6 +276,7 @@ public abstract class OrbitViewportController implements ICameraController
         }
 
         this.targetDistance = distance;
+        this.noteInput("zoom");
 
         return true;
     }
@@ -385,6 +390,7 @@ public abstract class OrbitViewportController implements ICameraController
         pivot.add((float) this.panState.intersection.x, (float) this.panState.intersection.y, (float) this.panState.intersection.z);
 
         this.targetPivot.set(this.toLocal(pivot));
+        this.noteInput("pan");
     }
 
     private Vector3d calculateOnPlane(UIContext context)
@@ -500,10 +506,11 @@ public abstract class OrbitViewportController implements ICameraController
         }
 
         this.targetRotation.set(pitch, yaw);
+        this.noteInput("turn");
     }
 
     /** The turn of the orbit's angles in the anchor's frame: yaw about Y, then pitch about X. */
-    private static Quaternionf orbitRotation(float yaw, float pitch)
+    protected static Quaternionf orbitRotation(float yaw, float pitch)
     {
         return new Quaternionf().rotateY(yaw).rotateX(pitch);
     }
@@ -682,6 +689,8 @@ public abstract class OrbitViewportController implements ICameraController
             this.targetPivot.set(this.toLocal(subject));
             this.positioned = true;
         }
+
+        this.noteInput("teleport");
     }
 
     private Vector3f getOffset()
@@ -724,6 +733,7 @@ public abstract class OrbitViewportController implements ICameraController
 
         this.pivot.set(this.toLocal(pivot));
         this.targetPivot.set(this.pivot);
+        this.noteInput("seed");
     }
 
     protected float getCurrentTransition()
