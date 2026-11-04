@@ -16,6 +16,7 @@ import mchorse.bbs_mod.ui.dashboard.panels.UIDataDashboardPanel;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
 import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
 import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
+import mchorse.bbs_mod.ui.sequence.UISequencePanel;
 import mchorse.bbs_mod.utils.repos.FilmRepository;
 import mchorse.bbs_mod.utils.repos.FolderManagerRepository;
 import mchorse.bbs_mod.utils.repos.IRepository;
@@ -38,7 +39,7 @@ public class ContentType
     public static final ContentType MODELS = new ContentType("models", () -> MODEL_REPOSITORY, (dashboard) -> dashboard.getPanel(UIModelEditorPanel.class));
     public static final ContentType PARTICLES = new ContentType("particles", () -> PARTICLE_REPOSITORY, (dashboard) -> dashboard.getPanel(UIParticleSchemePanel.class));
     public static final ContentType FILMS = new ContentType("films", ContentType::getFilmsRepository, (dashboard) -> dashboard.getPanel(UIFilmPanel.class));
-    public static final ContentType SEQUENCES = new ContentType("sequences", () -> SEQUENCES_REPOSITORY, (dashboard) -> null);
+    public static final ContentType SEQUENCES = new ContentType("sequences", () -> SEQUENCES_REPOSITORY, (dashboard) -> dashboard.getPanel(UISequencePanel.class));
 
     private static IRepository<? extends ValueGroup> getFilmsRepository()
     {

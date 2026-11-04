@@ -4,14 +4,22 @@ import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.graphics.texture.Texture;
 import mchorse.bbs_mod.settings.values.numeric.ValueBoolean;
+import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
 import mchorse.bbs_mod.ui.framework.elements.buttons.UIIcon;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIMessageOverlayPanel;
+import mchorse.bbs_mod.ui.framework.elements.overlay.UIOverlay;
 import mchorse.bbs_mod.ui.utils.Area;
 import mchorse.bbs_mod.ui.utils.UI;
+import mchorse.bbs_mod.ui.utils.icons.Icons;
+import mchorse.bbs_mod.utils.Direction;
 import mchorse.bbs_mod.utils.VideoExportSettings;
 import mchorse.bbs_mod.utils.colors.Colors;
+import mchorse.bbs_mod.utils.iris.IrisShaderPacks;
+import mchorse.bbs_mod.utils.iris.ShaderOptions;
 import mchorse.bbs_mod.utils.joml.Vectors;
+import net.fabricmc.loader.api.FabricLoader;
 import org.joml.Vector2i;
 
 import java.util.LinkedHashMap;
@@ -80,6 +88,36 @@ public class UIWorldPreview extends UIElement
     public boolean isIconBarVisible()
     {
         return this.iconsVisible;
+    }
+
+    /**
+     * The icon that switches the shader pack on and off (Iris), lit while shaders are on.
+     */
+    protected UIIcon createShadersIcon()
+    {
+        boolean iris = FabricLoader.getInstance().isModLoaded("iris");
+        UIIcon shaders = new UIIcon(Icons.SUN, (b) -> this.toggleShaders());
+
+        shaders.highlight(BBSRendering::isIrisShadersEnabled, Direction.BOTTOM);
+        shaders.tooltip(iris ? UIKeys.FILM_TOGGLE_SHADERS : UIKeys.UTILITY_IRIS_REQUIRED);
+        shaders.setEnabled(iris);
+
+        return shaders;
+    }
+
+    protected void toggleShaders()
+    {
+        if (!FabricLoader.getInstance().isModLoaded("iris")) return;
+
+        UIContext context = this.getContext();
+
+        ShaderOptions.reload(() ->
+        {
+            if (!IrisShaderPacks.toggle())
+            {
+                UIOverlay.addOverlay(context, new UIMessageOverlayPanel(UIKeys.FILM_TOGGLE_SHADERS, UIKeys.FILM_SELECT_SHADER));
+            }
+        }, () -> UIOverlay.addOverlay(context, new UIMessageOverlayPanel(UIKeys.GENERAL_ERROR, UIKeys.UTILITY_SHADER_ERROR)));
     }
 
     /**

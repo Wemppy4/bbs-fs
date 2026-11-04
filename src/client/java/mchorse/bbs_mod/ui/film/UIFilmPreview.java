@@ -211,11 +211,7 @@ public class UIFilmPreview extends UIWorldPreview
 
             menu.action(Icons.MOVE_TO, UIKeys.FILM_REPLAY_TELEPORT_TO_PLAYER, () -> this.panel.getController().keyframes.insertPlayerFrame());
         });
-        boolean iris = FabricLoader.getInstance().isModLoaded("iris");
-        this.shaders = new UIIcon(Icons.SUN, (b) -> this.toggleShaders());
-        this.shaders.highlight(BBSRendering::isIrisShadersEnabled, Direction.BOTTOM);
-        this.shaders.tooltip(iris ? UIKeys.FILM_TOGGLE_SHADERS : UIKeys.UTILITY_IRIS_REQUIRED);
-        this.shaders.setEnabled(iris);
+        this.shaders = this.createShadersIcon();
         this.recordVideo = new UIIcon(Icons.VIDEO_CAMERA, (b) ->
         {
             if (!this.canExport())
@@ -314,21 +310,6 @@ public class UIFilmPreview extends UIWorldPreview
     public static void registerOverlay(Function<UIFilmPreview, UIElement> factory)
     {
         OVERLAYS.add(factory);
-    }
-
-    private void toggleShaders()
-    {
-        if (!FabricLoader.getInstance().isModLoaded("iris")) return;
-
-        UIContext context = this.getContext();
-
-        ShaderOptions.reload(() ->
-        {
-            if (!IrisShaderPacks.toggle())
-            {
-                UIOverlay.addOverlay(context, new UIMessageOverlayPanel(UIKeys.FILM_TOGGLE_SHADERS, UIKeys.FILM_SELECT_SHADER));
-            }
-        }, () -> UIOverlay.addOverlay(context, new UIMessageOverlayPanel(UIKeys.GENERAL_ERROR, UIKeys.UTILITY_SHADER_ERROR)));
     }
 
     /**

@@ -34,6 +34,7 @@ import mchorse.bbs_mod.ui.model_editor.UIModelEditorPanel;
 import mchorse.bbs_mod.ui.morphing.UIMorphingPanel;
 import mchorse.bbs_mod.ui.onboarding.Onboarding;
 import mchorse.bbs_mod.ui.particles.UIParticleSchemePanel;
+import mchorse.bbs_mod.ui.sequence.UISequencePanel;
 import mchorse.bbs_mod.ui.selectors.UISelectorsOverlayPanel;
 import mchorse.bbs_mod.ui.utility.UIUtilityOverlayPanel;
 import mchorse.bbs_mod.ui.utility.audio.UIAudioEditorPanel;
@@ -290,6 +291,7 @@ public class UIDashboard extends UIBaseMenu
     {
         this.buildStep("morphing", () -> this.panels.registerPanel(new UIMorphingPanel(this), UIKeys.MORPHING_TITLE, Icons.MORPH));
         this.buildStep("film", () -> this.panels.registerPanel(new UIFilmPanel(this), UIKeys.FILM_TITLE, Icons.FILM));
+        this.buildStep("sequence", () -> this.panels.registerPanel(new UISequencePanel(this), UIKeys.SEQUENCE_TITLE, Icons.GALLERY));
         this.buildStep("model blocks", () -> this.panels.registerPanel(new UIModelBlockPanel(this), UIKeys.MODEL_BLOCKS_TITLE, Icons.BLOCK));
         this.buildStep("particles", () -> this.panels.registerPanel(new UIParticleSchemePanel(this), UIKeys.PANELS_PARTICLES, Icons.PARTICLE));
         this.buildStep("model editor", () -> this.panels.registerPanel(new UIModelEditorPanel(this), UIKeys.MODEL_EDITOR_TITLE, Icons.POSE));

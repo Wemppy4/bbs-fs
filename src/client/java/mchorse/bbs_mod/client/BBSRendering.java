@@ -20,6 +20,7 @@ import mchorse.bbs_mod.ui.UIKeys;
 import mchorse.bbs_mod.ui.dashboard.UIDashboard;
 import mchorse.bbs_mod.ui.film.FrameOverlays;
 import mchorse.bbs_mod.ui.film.UIFilmPanel;
+import mchorse.bbs_mod.ui.sequence.UISequencePanel;
 import mchorse.bbs_mod.ui.framework.UIBaseMenu;
 import mchorse.bbs_mod.ui.framework.UIScreen;
 import mchorse.bbs_mod.ui.framework.elements.utils.Batcher2D;
@@ -407,6 +408,10 @@ public class BBSRendering
             if (dashboard.getPanels().panel instanceof UIFilmPanel panel)
             {
                 FrameOverlays.render(currentMenu.context.batcher.getContext().getMatrices(), currentMenu.context.batcher, panel.getRunner().getContext());
+            }
+            else if (dashboard.getPanels().panel instanceof UISequencePanel panel)
+            {
+                panel.renderFrameOverlays(currentMenu.context.batcher.getContext().getMatrices(), currentMenu.context.batcher);
             }
         }
 

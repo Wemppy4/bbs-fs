@@ -1,7 +1,7 @@
 package mchorse.bbs_mod.ui.film;
 
 import mchorse.bbs_mod.camera.Camera;
-import mchorse.bbs_mod.camera.controller.RunnerCameraController;
+import mchorse.bbs_mod.camera.controller.CameraWorkCameraController;
 import mchorse.bbs_mod.film.Film;
 import mchorse.bbs_mod.utils.clips.Clip;
 
@@ -27,7 +27,7 @@ public interface IUIClipsOwner extends ICursor
      * What plays the camera clips, and so knows where each of them put the camera on the
      * current frame.
      */
-    public RunnerCameraController getRunner();
+    public CameraWorkCameraController getRunner();
 
     public boolean isFlying();
 
