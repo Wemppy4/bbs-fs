@@ -261,6 +261,12 @@ public class SequenceExportSession extends VideoExportSession
         return MathUtils.clamp(tick / (float) this.end, 0F, 1F);
     }
 
+    /** How many ticks the recording that runs takes, 0 before one is set up */
+    public int getEnd()
+    {
+        return this.end;
+    }
+
     public long getStartedAtMs()
     {
         return this.startedAtMs;

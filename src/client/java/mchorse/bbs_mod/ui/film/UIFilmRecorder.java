@@ -236,7 +236,7 @@ public class UIFilmRecorder extends UIElement
         });
     }
 
-    private static String formatRemaining(long ms)
+    public static String formatRemaining(long ms)
     {
         long seconds = (ms + 999L) / 1000L;
         long hours = seconds / 3600L;

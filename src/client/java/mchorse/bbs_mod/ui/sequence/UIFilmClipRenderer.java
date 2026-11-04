@@ -7,35 +7,23 @@ import mchorse.bbs_mod.ui.film.clips.renderer.UIClipRenderer;
 import mchorse.bbs_mod.utils.colors.Colors;
 
 /**
- * A film on a sequence's timeline: named after its film and coloured by that name, so the same
- * film always reads the same and neighbours rarely match. Drawn solid while its recorded piece is
- * current, pale while it is stale or there is none.
+ * A film on a sequence's timeline: named after its film and coloured by its own hue, picked when
+ * the clip was made (film names are often just numbers, so a colour from the name repeated).
+ * Drawn solid while its recorded piece is current, pale while it is stale or there is none.
  */
 public class UIFilmClipRenderer extends UIClipRenderer<FilmClip>
 {
-    /** Yellow belongs to the audio clips: the hues from here... */
-    private static final int YELLOW_FROM = 40;
-    /** ...to here are skipped, so a film never reads as sound. */
-    private static final int YELLOW_RANGE = 30;
-
     private static final float SATURATION = 0.6F;
     private static final float VALUE = 0.85F;
     private static final float PALE = 0.45F;
 
     /**
-     * The colour of a film named so: a hue from the name, one saturation and brightness for all,
-     * so white text reads on every one of them.
+     * The clip's colour: its hue, one saturation and brightness for all, so white text reads on
+     * every one of them.
      */
-    public static int getFilmColor(String name)
+    public static int getFilmColor(FilmClip clip)
     {
-        int degrees = Math.abs(name.hashCode() % 330);
-
-        if (degrees >= YELLOW_FROM)
-        {
-            degrees += YELLOW_RANGE;
-        }
-
-        return Colors.HSVtoRGB(degrees / 360F, SATURATION, VALUE).getRGBColor();
+        return Colors.HSVtoRGB(clip.hue.get() / 360F, SATURATION, VALUE).getRGBColor();
     }
 
     /**
@@ -51,9 +39,7 @@ public class UIFilmClipRenderer extends UIClipRenderer<FilmClip>
     @Override
     protected int getColor(UIClips clips, FilmClip clip)
     {
-        String name = getFilmName(clip);
-
-        return name.isEmpty() ? super.getColor(clips, clip) : getFilmColor(name);
+        return getFilmColor(clip);
     }
 
     @Override

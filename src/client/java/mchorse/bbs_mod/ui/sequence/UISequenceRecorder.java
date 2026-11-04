@@ -9,6 +9,7 @@ import mchorse.bbs_mod.film.sequence.SequenceParts;
 import mchorse.bbs_mod.l10n.keys.IKey;
 import mchorse.bbs_mod.resources.Link;
 import mchorse.bbs_mod.ui.UIKeys;
+import mchorse.bbs_mod.ui.film.UIFilmRecorder;
 import mchorse.bbs_mod.ui.film.UIWorldPreview;
 import mchorse.bbs_mod.ui.framework.UIContext;
 import mchorse.bbs_mod.ui.framework.elements.UIElement;
@@ -45,6 +46,14 @@ public class UISequenceRecorder extends UIElement
     private int total;
     private int done;
     private String current = "";
+
+    /* The time left for all of it: every piece and the export are counted in ticks, the time
+     * taken so far is spread over the ticks recorded so far */
+    private long beganAtMs;
+    private int totalTicks;
+    private int doneTicks;
+    private int currentTicks;
+    private boolean currentTicksKnown;
 
     private VideoExportSettings settings;
     private String pictureStamp;
@@ -160,6 +169,16 @@ public class UISequenceRecorder extends UIElement
         this.done = 0;
         this.active = true;
 
+        this.beganAtMs = System.currentTimeMillis();
+        this.doneTicks = 0;
+        this.currentTicks = 0;
+        this.totalTicks = assemble ? sequence.calculateDuration() : 0;
+
+        for (FilmClip clip : this.jobs)
+        {
+            this.totalTicks += guessPartTicks(clip);
+        }
+
         context.menu.main.setEnabled(false);
         context.menu.overlay.add(this);
         context.menu.getRoot().add(this.exit);
@@ -195,6 +214,8 @@ public class UISequenceRecorder extends UIElement
         {
             FilmClip clip = this.jobs.remove(0);
 
+            this.currentTicks = guessPartTicks(clip);
+            this.currentTicksKnown = false;
             this.current = UIFilmClipRenderer.getFilmName(clip);
             this.panel.getFilms().request(clip.film.get(), (film) -> this.recordPart(clip, film));
 
@@ -204,6 +225,8 @@ public class UISequenceRecorder extends UIElement
         if (this.assemble)
         {
             this.assemble = false;
+            this.currentTicks = this.panel.getData().calculateDuration();
+            this.currentTicksKnown = true;
             this.recordSequence(this.panel.getData());
 
             return;
@@ -224,7 +247,7 @@ public class UISequenceRecorder extends UIElement
         if (film == null)
         {
             context.notifyError(UIKeys.SEQUENCE_RECORD_NO_FILM.format(clip.film.get()));
-            this.done += 1;
+            this.partDone();
             this.next();
 
             return;
@@ -297,8 +320,52 @@ public class UISequenceRecorder extends UIElement
             this.panel.save();
         }
 
-        this.done += 1;
+        this.partDone();
         this.next();
+    }
+
+    private void partDone()
+    {
+        this.done += 1;
+        this.doneTicks += this.currentTicks;
+        this.currentTicks = 0;
+    }
+
+    /**
+     * A piece is the whole film, which the clip only knows the part of it shows: a guess until
+     * the piece starts and says how long it is.
+     */
+    private static int guessPartTicks(FilmClip clip)
+    {
+        return Math.max(1, clip.offset.get() + clip.duration.get());
+    }
+
+    /**
+     * The time left for everything still to record, or -1 while too little is done to tell.
+     */
+    private long getRemainingMs(float progress)
+    {
+        if (this.session.isPart() && !this.currentTicksKnown && this.session.getEnd() > 0)
+        {
+            this.totalTicks += this.session.getEnd() - this.currentTicks;
+            this.currentTicks = this.session.getEnd();
+            this.currentTicksKnown = true;
+        }
+
+        if (this.totalTicks <= 0)
+        {
+            return -1L;
+        }
+
+        float overall = Math.min(1F, (this.doneTicks + progress * this.currentTicks) / (float) this.totalTicks);
+        long elapsed = System.currentTimeMillis() - this.beganAtMs;
+
+        if (overall < 0.01F || elapsed < 1000L)
+        {
+            return -1L;
+        }
+
+        return (long) (elapsed * (1F - overall) / overall);
     }
 
     /**
@@ -417,10 +484,11 @@ public class UISequenceRecorder extends UIElement
     {
         float progress = this.session.getProgress();
         IKey label = this.session.isPart()
-            ? UIKeys.SEQUENCE_RECORD_PART.format(this.done + 1, this.total, this.current)
+            ? UIKeys.SEQUENCE_RECORD_PART.format(this.done + 1, this.total)
             : UIKeys.SEQUENCE_RECORD_WHOLE;
         FontRenderer font = context.batcher.getFont();
-        String text = label.get() + " " + (int) (progress * 100) + "%";
+        long remaining = this.getRemainingMs(progress);
+        String text = label.get() + " " + (int) (progress * 100) + "%" + (remaining < 0L ? "" : " " + UIFilmRecorder.formatRemaining(remaining));
 
         context.batcher.textCard(font.limitToWidth(text, viewport.w - 10), viewport.x + 6, viewport.y + 6, Colors.WHITE, Colors.A50);
         context.batcher.box(viewport.x, viewport.ey() - 2, viewport.ex(), viewport.ey(), Colors.setA(0, 0.25F));

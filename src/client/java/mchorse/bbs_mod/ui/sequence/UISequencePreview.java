@@ -24,9 +24,7 @@ public class UISequencePreview extends UIWorldPreview
 {
     public final UISequencePanel panel;
 
-    public UIIcon prev;
     public UIIcon plause;
-    public UIIcon next;
     public UIIcon shaders;
     public UIIcon record;
 
@@ -34,12 +32,8 @@ public class UISequencePreview extends UIWorldPreview
     {
         this.panel = panel;
 
-        this.prev = new UIIcon(Icons.FRAME_PREV, (b) -> this.panel.setCursor(this.panel.getCursor() - 1));
-        this.prev.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PREV);
         this.plause = new UIIcon(() -> this.panel.isRunning() ? Icons.PAUSE : Icons.PLAY, (b) -> this.panel.togglePlayback());
         this.plause.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_PLAUSE);
-        this.next = new UIIcon(Icons.FRAME_NEXT, (b) -> this.panel.setCursor(this.panel.getCursor() + 1));
-        this.next.tooltip(UIKeys.CAMERA_EDITOR_KEYS_EDITOR_NEXT);
         this.shaders = this.createShadersIcon();
         this.record = new UIIcon(Icons.VIDEO_CAMERA, (b) -> this.panel.recorder.recordSequence());
         this.record.tooltip(UIKeys.SEQUENCE_RECORD);
@@ -61,10 +55,8 @@ public class UISequencePreview extends UIWorldPreview
             });
         });
 
-        this.addIcon(this.prev, BBSSettings.previewIconPlayback);
-        this.addIcon(this.plause, BBSSettings.previewIconPlayback);
-        this.addIcon(this.next, BBSSettings.previewIconPlayback);
         this.addIcon(this.shaders, BBSSettings.previewIconShaders);
+        this.addIcon(this.plause, BBSSettings.previewIconPlayback);
         this.addIcon(this.record, BBSSettings.previewIconExport);
     }
 

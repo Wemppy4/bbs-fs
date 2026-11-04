@@ -36,6 +36,8 @@ public class FilmClip extends CameraClip
     /** The film's tick the clip starts on */
     public final ValueInt offset = new ValueInt("offset", 0, 0, Integer.MAX_VALUE);
     public final ValueBoolean filmAudio = new ValueBoolean("film_audio", true);
+    /** The hue of the clip on the timeline, picked at random when the clip is made */
+    public final ValueInt hue = new ValueInt("hue", 0, 0, 359);
 
     /** The recorded piece of video (a link, see {@link SequenceParts}), empty while there is none */
     public final ValueString part = new ValueString("part", "");
@@ -44,14 +46,24 @@ public class FilmClip extends CameraClip
     /** The picture settings' stamp when the piece was recorded */
     public final ValueString partPicture = new ValueString("part_picture", "");
 
+    /** Yellow belongs to the audio clips: the hues from here... */
+    private static final int YELLOW_FROM = 40;
+    /** ...to here are never picked, so a film never reads as sound. */
+    private static final int YELLOW_RANGE = 30;
+
     public FilmClip()
     {
         super();
+
+        int hue = (int) (Math.random() * (360 - YELLOW_RANGE));
+
+        this.hue.set(hue >= YELLOW_FROM ? hue + YELLOW_RANGE : hue);
 
         this.add(this.film);
         this.add(this.world);
         this.add(this.offset);
         this.add(this.filmAudio);
+        this.add(this.hue);
         this.add(this.part);
         this.add(this.partFilm);
         this.add(this.partPicture);

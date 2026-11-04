@@ -386,8 +386,9 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
         }
 
         UIColumnsContextMenu menu = new UIColumnsContextMenu(BBSSettings.editorClipPaletteIcons.get());
+        Map<Link, List<Link>> categories = this.factory.getTypesByCategory();
 
-        for (Map.Entry<Link, List<Link>> column : this.factory.getTypesByCategory().entrySet())
+        for (Map.Entry<Link, List<Link>> column : categories.entrySet())
         {
             List<ContextAction> actions = new ArrayList<>();
 
@@ -398,7 +399,8 @@ public class UIClips extends UITimelineCanvas implements IFileDropTarget
                 actions.add(new ColorfulContextAction(data.icon, UIKeys.C_CLIP.get(type), () -> this.addClip(type, preview.x, preview.y, preview.z), data.color));
             }
 
-            menu.column(UIKeys.C_CLIP_CATEGORY.get(column.getKey()), actions);
+            /* A palette of one category (the sequence's) needs no heading */
+            menu.column(categories.size() == 1 ? null : UIKeys.C_CLIP_CATEGORY.get(column.getKey()), actions);
         }
 
         menu.getEvents().register(UIRemovedEvent.class, (e) -> this.addPreview = null);
