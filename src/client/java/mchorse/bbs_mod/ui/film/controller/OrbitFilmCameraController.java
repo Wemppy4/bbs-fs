@@ -10,6 +10,7 @@ import org.joml.Vector3f;
 
 import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.camera.Camera;
+import mchorse.bbs_mod.client.BBSRendering;
 import mchorse.bbs_mod.film.FilmMatrices;
 import mchorse.bbs_mod.film.replays.Replay;
 import mchorse.bbs_mod.forms.entities.IEntity;
@@ -236,6 +237,53 @@ public class OrbitFilmCameraController extends OrbitViewportController
         BBSSettings.editorOrbitTurnsWithAnchor.set(!BBSSettings.editorOrbitTurnsWithAnchor.get());
 
         this.updateAnchor(this.getCurrentTransition());
+    }
+
+    /* The wall cut */
+
+    /** Whether the blocks between the camera and the orbit centre are left out of the picture. */
+    public boolean isCuttingWalls()
+    {
+        return BBSSettings.editorOrbitWallCut.get();
+    }
+
+    public void toggleWallCut()
+    {
+        BBSSettings.editorOrbitWallCut.set(!BBSSettings.editorOrbitWallCut.get());
+    }
+
+    /** How many blocks in front of the orbit centre are still drawn. */
+    public float getWallCutDepth()
+    {
+        return BBSSettings.editorOrbitWallCutDepth.get();
+    }
+
+    public void setWallCutDepth(float depth)
+    {
+        BBSSettings.editorOrbitWallCutDepth.set(depth);
+    }
+
+    /** The point the cut is measured from, right now. */
+    public Vector3d getWallCutCenter()
+    {
+        return this.getOrbitCenter(this.getCurrentTransition());
+    }
+
+    /** The cut is armed only for the frames the orbit places the camera, so it never outlives it. */
+    @Override
+    public void setup(Camera camera, float transition)
+    {
+        super.setup(camera, transition);
+
+        if (this.isCuttingWalls())
+        {
+            Vector3d center = this.getOrbitCenter(transition);
+
+            if (center != null)
+            {
+                BBSRendering.setTerrainCut(center, this.getWallCutDepth());
+            }
+        }
     }
 
     /**

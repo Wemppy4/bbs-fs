@@ -416,6 +416,50 @@ public class ScreenOverlay
         context.batcher.unclip(context);
     }
 
+    /**
+     * A circle one screen pixel wide, drawn at once and clipped to the viewport — for a
+     * shape a gesture shows while it runs (the arcball's ball), outside any overlay's frame.
+     */
+    public static void circle(UIContext context, Area viewport, float x, float y, float radius, int color)
+    {
+        if (radius <= 0F)
+        {
+            return;
+        }
+
+        float px = 1F / BBSModClient.getGUIScale();
+        int segments = Math.max(SEGMENTS, Math.min(256, Math.round(radius)));
+
+        context.batcher.flush();
+        context.batcher.clip(viewport, context);
+
+        Matrix4f matrix = context.batcher.getContext().getMatrices().peek().getPositionMatrix();
+        BufferBuilder builder = Tessellator.getInstance().getBuffer();
+        Painter painter = new Painter(builder, matrix, 1F);
+
+        builder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+
+        for (int i = 0; i < segments; i++)
+        {
+            double a = i / (double) segments * Math.PI * 2;
+            double b = (i + 1) / (double) segments * Math.PI * 2;
+
+            painter.line(
+                x + (float) Math.cos(a) * radius, y + (float) Math.sin(a) * radius,
+                x + (float) Math.cos(b) * radius, y + (float) Math.sin(b) * radius,
+                px, color
+            );
+        }
+
+        RenderSystem.enableBlend();
+        RenderSystem.disableCull();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        BufferRenderer.drawWithGlobalProgram(builder.end());
+        RenderSystem.enableCull();
+
+        context.batcher.unclip(context);
+    }
+
     private boolean onTop(Handle handle)
     {
         return handle.selected || handle.lit || handle == this.hovered;

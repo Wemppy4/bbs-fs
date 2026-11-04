@@ -3,6 +3,7 @@ package mchorse.bbs_mod.ui.utils;
 import mchorse.bbs_mod.forms.forms.Form;
 import mchorse.bbs_mod.ui.framework.elements.utils.FontRenderer;
 import mchorse.bbs_mod.ui.framework.UIContext;
+import mchorse.bbs_mod.ui.framework.elements.input.drag.ArcballDrag;
 import mchorse.bbs_mod.ui.framework.elements.input.drag.TransformGesture;
 import mchorse.bbs_mod.utils.Pair;
 import mchorse.bbs_mod.utils.colors.Colors;
@@ -24,6 +25,7 @@ public class GizmoInteraction
 {
     private static final int SPHERE_PICK_MIN_RADIUS_PX = 12;
     private static final int BONE_VS_SPHERE_DRAG_THRESHOLD_PX = 4;
+    private static final int ARCBALL_CIRCLE = 0x99ffffff;
 
     private final GizmoViewport viewport;
     private final Vector2f sphereScreenCenter = new Vector2f();
@@ -206,7 +208,7 @@ public class GizmoInteraction
         Area area = this.viewport.getGizmoArea();
         Matrix4f projection = this.viewport.getGizmoProjection();
 
-        if (readout == null || area == null || projection == null)
+        if (area == null || projection == null)
         {
             return;
         }
@@ -214,6 +216,22 @@ public class GizmoInteraction
         Vector2f center = new Vector2f();
 
         if (!Gizmo.INSTANCE.computeScreenCenter(projection, area.x, area.y, area.w, area.h, center))
+        {
+            return;
+        }
+
+        /* The arcball turns on a ball of its own size, not the drawn sphere's:
+         * outline it while it is held, so its edge (where the turn becomes a
+         * roll about the view) can be seen. */
+        TransformGesture gesture = Gizmo.INSTANCE.getTrackedGesture();
+
+        if (gesture != null && gesture.isEditing()
+            && gesture.getStrategy() instanceof ArcballDrag arcball && arcball.isGrabbing())
+        {
+            ScreenOverlay.circle(context, area, center.x, center.y, ArcballDrag.ballScreenRadius(area.h), ARCBALL_CIRCLE);
+        }
+
+        if (readout == null)
         {
             return;
         }

@@ -96,6 +96,7 @@ public class BBSSettings {
 	public static ValueOrder scaleHotkeyOrder;
 	public static ValueOrder rotateHotkeyOrder;
 	public static ValueFloat trackballSensitivity;
+	public static ValueFloat arcballSize;
 
 	public static ValueBoolean enableCursorRendering;
 	public static ValueBoolean enableMouseButtonRendering;
@@ -170,6 +171,8 @@ public class BBSSettings {
 	public static ValueBoolean editorOrbitTeleportOnSwitch;
 	public static ValueBoolean editorOrbitAttached;
 	public static ValueBoolean editorOrbitTurnsWithAnchor;
+	public static ValueBoolean editorOrbitWallCut;
+	public static ValueFloat editorOrbitWallCutDepth;
 	public static ValueFloat editorCameraSmoothness;
 	public static ValueInt editorCameraMode;
 	public static ValueBoolean editorPlayerFollowsCamera;
@@ -200,6 +203,7 @@ public class BBSSettings {
 	public static ValueBoolean timelineAllBodyParts;
 	/** Whether a section heading sums up its tracks' keys as marks that edit their whole column. */
 	public static ValueBoolean timelineSectionSummary;
+	public static ValueBoolean timelineBoneHoldKeys;
 	public static ValueBoolean editorRestartOnSeek;
 	public static ValueBoolean editorHorizontalClipEditor;
 	public static ValueBoolean editorMinutesBackup;
@@ -842,6 +846,7 @@ public class BBSSettings {
 		rotateHotkeyOrder = new ValueOrder("rotate_hotkey_order", "view", "sphere", "x", "y", "z");
 		builder.register(rotateHotkeyOrder);
 		trackballSensitivity = builder.getFloat("trackball_sensitivity", 1F, 0.05F, 2F).slider();
+		arcballSize = builder.getFloat("arcball_size", 0.3F, 0.1F, 0.5F).slider();
 
 		builder.category("camera", Icons.CAMERA);
 		editorCameraSpeed = builder.getFloat("speed", 1F, 0.1F, 100F);
@@ -860,6 +865,10 @@ public class BBSSettings {
 		editorOrbitAttached.invisible();
 		editorOrbitTurnsWithAnchor = builder.getBoolean("orbit_turns_with_anchor", false);
 		editorOrbitTurnsWithAnchor.invisible();
+		editorOrbitWallCut = builder.getBoolean("orbit_wall_cut", false);
+		editorOrbitWallCut.invisible();
+		editorOrbitWallCutDepth = builder.getFloat("orbit_wall_cut_depth", 0.3F, 0F, 32F);
+		editorOrbitWallCutDepth.invisible();
 		editorCameraMode = builder.getInt("camera_mode", 0, 0, 5);
 		editorCameraMode.invisible();
 
@@ -942,6 +951,7 @@ public class BBSSettings {
 		editorSnapToTicks = builder.getBoolean("snap_to_ticks", true);
 		timelineAllBodyParts = builder.getBoolean("all_body_parts", false);
 		timelineSectionSummary = builder.getBoolean("section_summary", true);
+		timelineBoneHoldKeys = builder.getBoolean("bone_hold_keys", true);
 		editorRestartOnSeek = builder.getBoolean("restart_on_seek", false);
 		editorHorizontalClipEditor = builder.getBoolean("horizontal_clip_editor", false);
 
