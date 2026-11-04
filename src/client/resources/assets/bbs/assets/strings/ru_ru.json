@@ -103,6 +103,8 @@
 	"bbs.config.timeline.all_body_parts-comment": "Показывать дорожки всех частей формы вместе.",
 	"bbs.config.timeline.section_summary": "Ключи сводки в разделах",
 	"bbs.config.timeline.section_summary-comment": "Ключи на заголовках разделов, которые правят весь столбец ключей под ними.",
+	"bbs.config.timeline.bone_hold_keys": "Ключи-удержания у новой кости",
+	"bbs.config.timeline.bone_hold_keys-comment": "Первый ключ кости во вкладке «Кости» ставит ей ещё ключи с прежним значением в ближайших кадрах с ключами других костей слева и справа, чтобы правка осталась между ними.",
 	"bbs.ui.timeline.select_branch": "Выбрать ветку",
 	"bbs.ui.timeline.properties.x": "X",
 	"bbs.ui.timeline.properties.y": "Y",

@@ -1,5 +1,6 @@
 package mchorse.bbs_mod.ui.film.replays;
 
+import mchorse.bbs_mod.BBSSettings;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframeSheet;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UIKeyframes;
 import mchorse.bbs_mod.ui.framework.elements.input.keyframes.UITrackValue;
@@ -8,6 +9,7 @@ import mchorse.bbs_mod.utils.keyframes.Keyframe;
 import mchorse.bbs_mod.utils.pose.Pose;
 import mchorse.bbs_mod.utils.pose.PoseTransform;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +112,57 @@ public class BoneTracksValue extends UITrackValue<Pose>
         return near;
     }
 
+    /**
+     * Before a bone's very first key: key it, as it stands, at the nearest keyframes of the form's
+     * other bones on either side of the cursor (setting "Hold keys for a new bone"). A lone key holds
+     * its value over the whole timeline, so turning a head at tick 40 would turn it from the first
+     * frame on; held by its neighbours' columns, the change stays between them, the way a pose key's
+     * would. Only the track's first key does this — the bone's keys are its own after that.
+     */
+    public static void holdNeighbours(UIKeyframeSheet sheet, float tick, Collection<UIKeyframeSheet> others)
+    {
+        if (!BBSSettings.timelineBoneHoldKeys.get() || !sheet.channel.isEmpty())
+        {
+            return;
+        }
+
+        float cell = (float) Math.floor(tick);
+        Float before = null;
+        Float after = null;
+
+        for (UIKeyframeSheet other : others)
+        {
+            if (other == sheet)
+            {
+                continue;
+            }
+
+            for (Object object : other.channel.getKeyframes())
+            {
+                float at = ((Keyframe) object).getTick();
+
+                if (at < cell && (before == null || at > before))
+                {
+                    before = at;
+                }
+                else if (at >= cell + 1 && (after == null || at < after))
+                {
+                    after = at;
+                }
+            }
+        }
+
+        if (before != null)
+        {
+            sheet.ensureKeyframe(before);
+        }
+
+        if (after != null)
+        {
+            sheet.ensureKeyframe(after);
+        }
+    }
+
     /** The key an edit at the cursor lands on: the one already there (see {@link #keyAt}), or a new one. */
     public static Keyframe keyToEdit(UIKeyframeSheet sheet, float tick)
     {
@@ -178,7 +231,11 @@ public class BoneTracksValue extends UITrackValue<Pose>
             }
 
             PoseTransform value = (PoseTransform) b.copy();
-            Runnable write = () -> keyToEdit(sheet, tick).setValue(value, false);
+            Runnable write = () ->
+            {
+                holdNeighbours(sheet, tick, this.bones.values());
+                keyToEdit(sheet, tick).setValue(value, false);
+            };
 
             if (this.editor.getSheets().contains(sheet))
             {
