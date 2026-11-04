@@ -34,6 +34,9 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
     /** The bone was picked by clicking its key on the timeline: whatever the animator selected there stays. */
     public boolean pickedOnTimeline;
 
+    /** The key this panel selected on its own (the picked bone's key at the cursor), the one it may replace. */
+    private Keyframe autoPicked;
+
     public UIBoneTracksPanel(BoneTracksValue track, UIKeyframes editor, String formPath)
     {
         super(track, editor);
@@ -135,7 +138,6 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
     {
         IUIKeyframeGraph graph = this.editor.getGraph();
         Keyframe selected = graph.getSelected();
-        UIKeyframeSheet selectedSheet = selected == null ? null : graph.getSheet(selected);
         int count = 0;
 
         for (UIKeyframeSheet sheet : graph.getSheets())
@@ -143,9 +145,9 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
             count += sheet.selection.getSelected().size();
         }
 
-        /* Only a lone bone key is the panel's own pick. Several keys (a summary column, a box, Shift)
-         * are the animator's selection, which the cursor or a bone pick must not throw away. */
-        boolean ours = selected == null || (count == 1 && selectedSheet != null && selectedSheet.isBoneTrack);
+        /* Only the key this panel picked itself is its to replace. Whatever the animator picked —
+         * a key clicked away from the cursor, a summary column, a box — stays picked. */
+        boolean ours = selected == null || (count == 1 && selected == this.autoPicked);
 
         if (!force && !ours)
         {
@@ -163,10 +165,17 @@ public class UIBoneTracksPanel extends UIPoseKeyframeFactory
                 sheet.selection.add(key);
                 graph.pickKeyframe(key);
             }
+
+            this.autoPicked = key;
         }
-        else if (selected != null)
+        else
         {
-            graph.clearSelection();
+            if (selected != null)
+            {
+                graph.clearSelection();
+            }
+
+            this.autoPicked = null;
         }
     }
 }
